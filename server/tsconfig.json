@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "target": "ESNEXT",
+        "module": "commonjs",
+        "outDir": "./build",
+        "rootDir": ".",
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+    }
+}
