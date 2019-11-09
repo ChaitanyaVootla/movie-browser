@@ -11,24 +11,7 @@
 <script lang="ts">
     export default {
         name: 'movieCard',
-        props: {
-            movie: {
-                type: Object,
-                required: true,
-            },
-            configuration: {
-                type: Object,
-                required: true,
-            },
-            imageRes: {
-                type: String,
-                required: true,
-            },
-            onSelected: {
-                type: Function,
-                required: true
-            }
-        },
+        props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow'],
         data() {
             return {
                 imageBasePath: this.configuration.images.secure_base_url + this.imageRes
@@ -36,6 +19,8 @@
         },
         methods: {
             getRatingColor() {
+                if (this.disableRatingShadow)
+                    return 'none';
                 const rating = this.movie.vote_average;
                 if (rating < 5)
                     return 'rgba(200, 0 , 0, 1)';

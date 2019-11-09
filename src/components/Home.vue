@@ -31,13 +31,14 @@
                 </div>
 
                 <!-- Search Bar -->
-                <form class="form-inline mt-2 search-container">
-                    <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search"
+                <div class="form-inline mt-2 search-container">
+                    <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search" id="searchInput"
                         v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <button class="btn btn-dark search-button" type="submit">
+                    <button class="btn btn-dark search-button" @click="goToSearch">
                         <font-awesome-icon :icon="['fas', 'search']" />
                     </button>
-                    <div class="search-dropdown discover-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton" v-show="searchText.length > 0">
+                    <div class="search-dropdown discover-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton"
+                        v-show="searchText.length > 0 && currentRoute.name !== 'search'">
                         <div class="search-item dropdown-item" v-if="searchResults.length === 0" style="justify-content: center;">
                             No Results
                         </div>
@@ -67,7 +68,7 @@
                             <hr/>
                         </div>
                     </div>
-                </form>
+                </div>
                 <div class="col-sm-1">
                     <div class="dropdown">
                         <button class="btn dropdown-toggle discover-dropdown btn-dark"
@@ -102,6 +103,7 @@
             :discoverQuery="discoverQuery"
             :queryParams="queryParams"
             :clearDiscoveryData="clearDiscoveryData"
+            :searchString="searchText"
         ></router-view>
 
         <!-- Info Modal -->
@@ -122,17 +124,18 @@
     import _ from 'lodash';
 
     export default {
+        name: 'home',
         data: function () {
             return {
                 trendingTv: [],
                 trendingMovies: [],
                 nowPlayingMovies: [],
                 configuration: {},
-                genres: {},
+                genres: [] as Object[],
                 selectedGenre: {},
                 selectedYear: '',
                 isLoaded: false,
-                years: [],
+                years: [] as number[],
                 discoverQuery: '',
                 sortText: '',
                 sortOrder: '',
@@ -141,18 +144,31 @@
                     selectedGenre: {
                         name: '',
                         id: null
-                    }
+                    },
+                    sortOrder: ''
                 },
                 searchText: '',
                 searchResults: [],
                 imageBasePath: '',
-                selectedMovie: {}
+                selectedMovie: {},
+                currentRoute: {} as Object
             };
         },
         created() {
             window.addEventListener('scroll', this.onScrollEvent);
             this.setupData();
             this.loadData();
+            this.currentRoute = this.$route;
+        },
+        mounted() {
+            const searchInput = document.getElementById("searchInput");
+            if (searchInput) {
+                searchInput.addEventListener("keyup", _.bind(function(event) {
+                    if (event.keyCode === 13) {
+                        this.goToSearch();
+                    }
+                }, this));
+            }
         },
         destroyed () {
             window.removeEventListener('scroll', this.onScrollEvent);
@@ -230,7 +246,7 @@
                     this.discoverQuery += `&with_genres=${this.queryParams.selectedGenre.id}`;
             },
             executeSearch: _.debounce(
-                async function() {
+                async function(this: any) {
                     if (this.searchText.length > 1) {
                         $('.search-dropdown')[0].scrollTop = 0;
                         const response = await api.searchMovies(this.searchText);
@@ -238,8 +254,11 @@
                     }
                 }, 200
             ),
-            getGenreNameFromId(id) {
-                return _.find(this.genres, {id: id}).name;
+            getGenreNameFromId(id: number) {
+                const genre = _.find(this.genres, {id: id});
+                if (genre) {
+                    return genre.name;
+                }
             },
             getRatingColor: function(rating: number) {
                 if (rating < 5)
@@ -269,11 +288,24 @@
                     name: 'discover'
                 }).catch(err => {});
             },
+            goToSearch() {
+                if (this.searchText.length > 2) {
+                    this.$router.push({
+                        name: 'search'
+                    }).catch(err => {});
+                }
+            },
         },
         watch: {
             searchText() {
                 this.executeSearch();
+            },
+            $route(currentRoute) {
+                this.currentRoute = currentRoute;
             }
+        },
+        beforeRouteEnter() {
+            this.clearDiscoveryData();
         }
     }
 </script>
@@ -341,7 +373,8 @@
         cursor: pointer;
     }
     .dropdown-item:hover {
-        color: black !important;
+        color: white !important;
+        background: #222;
     }
     .rating-info {
         padding: 0.2em;
@@ -356,7 +389,7 @@
         display: inline-table;
         padding: 0.2em;
     }
-    /deep/.info-container {
+    ::v-deep .info-container {
         padding: 0  !important;
         width: 100%  !important;
     }

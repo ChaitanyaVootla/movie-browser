@@ -11,6 +11,7 @@ import Home from './components/Home.vue';
 import People from './components/People/index.vue';
 import Trending from './components/Trending/index.vue';
 import Discover from './components/MovieDiscover/index.vue';
+import Search from './components/Search/index.vue';
 import VueLazyload from 'vue-lazyload'
 
 Object.defineProperty(Vue.prototype, '_', { value: _ });
@@ -27,6 +28,7 @@ Vue.component('movieCard', require('./components/MovieSlider/movieCard.vue').def
 Vue.component('movieInfo', require('./components/MovieSlider/movieInfo.vue').default);
 
 Vue.component('movieDiscover', require('./components/MovieDiscover').default);
+Vue.component('search', require('./components/Search').default);
 
 Vue.component('Home', require('./components/Home.vue').default);
 
@@ -53,6 +55,11 @@ const routes = [
         path: '/discover',
         component: Discover,
         name: 'discover',
+    },
+    {
+        path: '/search',
+        component: Search,
+        name: 'search',
     },
 ];
 Vue.use(VueLazyload);

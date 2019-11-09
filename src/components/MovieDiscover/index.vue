@@ -9,32 +9,17 @@
             <movie-card v-for="movie in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                 :onSelected="showMovieInfo" :key="movie.id"></movie-card>
         </div>
-        <!-- <div class="load-more">
-            <button class="btn btn-dark mt-2 mb-5 load-more-btn" v-on:click="loadMoreMovies()">Load More</button>
-        </div> -->
     </div>
 </template>
 
 <script lang="ts">
     import { Component, Prop, Vue } from 'vue-property-decorator';
     import { api } from '../../API/api';
+    import _ from 'lodash';
+
     export default {
-        props: {
-            configuration: {
-                type: Object,
-                required: true
-            },
-            discoverQuery: {
-                type: String,
-                required: true
-            },
-            queryParams: {
-                type: Object,
-                required: true
-            },
-            showMovieInfo: Function,
-            clearDiscoveryData: Function
-        },
+        name: 'movieDiscover',
+        props: ['configuration', 'discoverQuery', 'queryParams', 'showMovieInfo', 'clearDiscoveryData',],
         data() {
           return {
               isLoaded: false,
@@ -70,7 +55,7 @@
                 this.movies = this.movies.concat(queryResult.results);
                 this.isLoaded = true;
             },
-            loadMoreMovies: _.debounce(async function() {
+            loadMoreMovies: _.debounce(async function(this: any) {
                 for (let count = 1; count < 3; count++) {
                     await this.fetchMoreMovies();
                 }
@@ -97,18 +82,10 @@
         flex-wrap: wrap;
         justify-content: space-between;
     }
-    /deep/.movie-item {
+    ::v-deep .movie-item {
         margin-left: 0.5em;
         margin-right: 0.5em;
         margin-bottom: 2em;
-    }
-    .load-more {
-        display: flex;
-        justify-content: center;
-    }
-    .load-more-btn {
-        background: #460303;
-        border-color: red;
     }
     .query-info {
         padding: 1em 0 0 3em;
@@ -118,7 +95,7 @@
     .back-icon {
         color: bisque;
     }
-    /deep/.info-container {
+    ::v-deep .info-container {
         padding: 0;
         width: 100%;
     }

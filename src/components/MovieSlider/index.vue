@@ -7,7 +7,7 @@
             </div>
             <div class="slider-bar" id="scroll-bar">
                 <movie-card v-for="movie in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
-                    :onSelected="showMovieInfo"></movie-card>
+                    :onSelected="showMovieInfo" :key="movie.id" :disableRatingShadow="true"></movie-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight">
                 <font-awesome-icon :icon="['fas', 'chevron-right']" />
@@ -22,26 +22,7 @@
     import { api } from '../../API/api';
     export default {
         name: 'movieSlider',
-        props: {
-            movies: {
-                type: Array,
-                required: true
-            },
-            configuration: {
-                type: Object,
-                required: true
-            },
-            id: {
-                type: String,
-                required: true,
-            },
-            heading: {
-                type: String,
-            },
-            showMovieInfoModal: {
-                type: Function
-            }
-        },
+        props: ['movies', 'configuration', 'id', 'heading', 'showMovieInfoModal'],
         data() {
           return {
               scrollValue: 500,

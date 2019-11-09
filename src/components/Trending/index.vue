@@ -30,7 +30,6 @@
             async loadData() {
                 await this.getTrendingTv();
                 await this.getTrendingMovies();
-                // await this.getTrendingPeople();
                 this.isTrendingDataLoaded = true;
             },
             async getTrendingTv() {
@@ -40,13 +39,6 @@
             async getTrendingMovies() {
                 const res = await api.getTrendingMovies();
                 this.trendingMovies = res.results;
-            },
-            async getTrendingPeople() {
-                const res = await api.getTrendingPeople();
-                res.results.forEach(person => {
-                    person.poster_path = person.profile_path;
-                });
-                this.trendingPeople = res.results;
             },
         }
     }
