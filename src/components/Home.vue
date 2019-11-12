@@ -48,7 +48,7 @@
                                 <span>
                                     {{result.original_title}}
                                     <span class="text-muted ml-1" style="font-size: 0.9em;">
-                                        {{result.release_date.split('-')[0]}}
+                                        {{getYear(result.release_date)}}
                                     </span>
                                 </span>
                                 <div style="margin-top: -5px;">
@@ -249,7 +249,7 @@
                 async function(this: any) {
                     if (this.searchText.length > 1) {
                         $('.search-dropdown')[0].scrollTop = 0;
-                        const response = await api.searchMovies(this.searchText);
+                        const response = await api.searchMovies(this.searchText, 1);
                         this.searchResults = _.sortBy(response.results, 'popularity').reverse();
                     }
                 }, 200
@@ -276,6 +276,9 @@
             },
             closeInfo() {
                 $('#movieInfoModal').modal('hide');
+            },
+            getYear(date: string) {
+                return new Date(date).getFullYear();
             },
             gotoHome() {
                 this.clearDiscoveryData();

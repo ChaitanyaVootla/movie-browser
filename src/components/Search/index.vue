@@ -2,7 +2,7 @@
     <div>
         <div class="query-info text-muted">
             <div class="">
-                {{queryData.total_results === 10000?`${queryData.total_results}+`:queryData.total_results}} Results
+                {{queryData.total_results === 10000?`${queryData.total_results}+`:queryData.total_results}} result{{queryData.total_results > 1?'s':''}}
             </div>
         </div>
         <div class="discover-movies-container">
@@ -30,14 +30,32 @@
         },
         created() {
             this.executeSearch();
+            const self = this;
+            window.onscroll = function() {
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+                   self.fetchMore();
+                }
+            };
         },
         methods: {
             executeSearch: _.debounce(
                 async function(this: any) {
                     if (this.searchString.length > 1) {
+                        this.currentPage = 1;
                         $('.search-dropdown')[0].scrollTop = 0;
-                        const response = await api.searchMovies(this.searchString);
-                        this.searchResults = _.sortBy(response.results, 'popularity').reverse();
+                        const response = await api.searchMovies(this.searchString, this.currentPage);
+                        this.queryData = response;
+                        this.searchResults = response.results;
+                        this.fetchMore();
+                    }
+                }, 200
+            ),
+            fetchMore:  _.debounce(
+                async function(this: any) {
+                    for (let count = 1; count < 3; count++) {
+                        this.currentPage++;
+                        const response = await api.searchMovies(this.searchString, this.currentPage);
+                        this.searchResults = this.searchResults.concat(response.results);
                     }
                 }, 200
             ),

@@ -1,7 +1,7 @@
 <template>
     <div>
         <div class="movie-item" v-on:click="onSelected(movie)">
-            <img v-lazy="imageBasePath + movie.poster_path" class="movie-card-image"
+            <img v-lazy="imageObj" class="movie-card-image"
                 v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.001em',
                                 border: 'solid .04em ' + getRatingColor()}">
         </div>
@@ -14,7 +14,10 @@
         props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow'],
         data() {
             return {
-                imageBasePath: this.configuration.images.secure_base_url + this.imageRes
+                imageObj: {
+                    src: this.configuration.images.secure_base_url + this.imageRes + this.movie.poster_path,
+                    error: require('../../Assets/Images/error.svg')
+                }
             };
         },
         methods: {
@@ -36,6 +39,17 @@
 </script>
 
 <style scoped>
+    .movie-card-image[lazy=error] {
+        background-size: 4em;
+        padding: 4em;
+        width: 10em;
+    }
+    .movie-card-image[lazy=loading] {
+        background-image: url('../../Assets/Images/loader-bars.svg');
+        background-size: contain;
+        background-size: 4em;
+        width: 10em;
+    }
     .movie-item {
         display: flex;
         flex-direction: column;
@@ -54,5 +68,8 @@
     .movie-card-image {
         border-radius: 3px;
         height: 15em;
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: 50% 50%;
     }
 </style>

@@ -40,9 +40,9 @@ export const api = {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.movieGenre + '?api_key=' + appConfig.token);
         return res.data.genres;
     },
-    searchMovies: async function(searchString: string) {
+    searchMovies: async function(searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
-        const res = await axios.get(appConfig.apiBaseUrl + endpoints.searchMovies + '?api_key=' + appConfig.token + searchQuery);
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.searchMovies + '?api_key=' + appConfig.token + searchQuery + '&page=' + page);
         return res.data;
     },
     getDiscoverMovies: async function(searchQuery: string) {
