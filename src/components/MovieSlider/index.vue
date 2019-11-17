@@ -72,11 +72,11 @@
         display: none;
     }
     .slider-heading {
-        font-size: 1.2em;
+        font-size: 17px;
         font-weight: 500;
         padding-left: 2.2em;
         padding-top: 1em;
-        padding-bottom: 0.5em;
+        padding-bottom: 0.4em;
     }
     .scroll-item {
         background: #333;
@@ -95,6 +95,10 @@
         display: flex;
     }
     .main-slider-div {
-        padding-bottom: 1em;
+        padding-bottom: 0;
+    }
+    ::v-deep .movie-card-image {
+        height: 14em !important;
+        margin: 0 0.2em;
     }
 </style>

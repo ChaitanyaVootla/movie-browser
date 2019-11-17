@@ -13,9 +13,9 @@ import Trending from './components/Trending/index.vue';
 import Discover from './components/MovieDiscover/index.vue';
 import Search from './components/Search/index.vue';
 import VueLazyload from 'vue-lazyload'
-// import Element from 'element-ui';
-// import './Assets/Styles/element-ui.scss';
-// Vue.use(Element);
+import Element from 'element-ui';
+import './Assets/Styles/element-ui.scss';
+Vue.use(Element);
 
 Object.defineProperty(Vue.prototype, '_', { value: _ });
 
@@ -27,8 +27,8 @@ Vue.config.productionTip = true;
 window.$ = require('jquery')
 
 Vue.component('movieSlider', require('./components/MovieSlider').default);
-Vue.component('movieCard', require('./components/MovieSlider/movieCard.vue').default);
-Vue.component('movieInfo', require('./components/MovieSlider/movieInfo.vue').default);
+Vue.component('movieCard', require('./components/Common/movieCard.vue').default);
+Vue.component('movieInfo', require('./components/Common/movieInfo.vue').default);
 
 Vue.component('movieDiscover', require('./components/MovieDiscover').default);
 Vue.component('search', require('./components/Search').default);

@@ -4,8 +4,8 @@
             <div class="info-main">
                 <h3 div="info-heading" v-if="isLoaded">
                     {{movie.movieDetails.name}}
-                    <span class="text-muted info-tagline">
-                        {{movie.movieDetails.tagline}}
+                    <span class="text-muted info-tagline" v-if="movie.movieDetails.numberOfSeasons">
+                        {{movie.movieDetails.numberOfSeasons}} Season{{movie.movieDetails.numberOfSeasons> 1?'s':''}}
                     </span>
                 </h3>
                 <font-awesome-icon icon="window-close" size="2x" :mask="['far', 'circle']" class="close-icon text-danger"
@@ -194,7 +194,7 @@
             getMovieInfo: async function() {
                 let movieDetails;
                 let movieCredits;
-                if (this.movie.media_type === 'tv') {
+                if (this.movie.media_type === 'tv' || this.movie.first_air_date) {
                     movieDetails = await api.getTvDetails(this.movie.id);
                 } else {
                     movieDetails = await api.getMovieDetails(this.movie.id);
@@ -249,6 +249,7 @@
     }
     .dropdown-menu-middle {
         width: 100%;
+        max-width: 100%;
     }
     .backdrop {
         position: absolute;

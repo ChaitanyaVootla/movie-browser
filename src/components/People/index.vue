@@ -11,9 +11,6 @@
         },
         data() {
           return {
-              scrollValue: 500,
-              selectedMovie: {},
-              showInfo: false
           }  
         },
         mounted() {

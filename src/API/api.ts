@@ -1,4 +1,4 @@
-import { appConfig, endpoints, discoverDefaultQueries, searchDefaultQueries } from './Constants';
+import { appConfig, endpoints, discoverDefaultQueries, searchDefaultQueries, latestMovieQuery } from './Constants';
 import axios from 'axios';
 import { MovieDetails } from '@/Models/movieDetails';
 import { TvDetails } from '@/Models/tvDetails';
@@ -16,12 +16,18 @@ export const api = {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingPeopleList + '?api_key=' + appConfig.token);
         return res.data;
     },
+    getLatestMovies: async function(query: string) {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + latestMovieQuery + query);
+        return res.data;
+    },
     getMovieDetails: async function(id: number) {
-        const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.movieDetails + id + '?&append_to_response=videos,images,credits&api_key=' + appConfig.token);
+        const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.movieDetails + id +
+            '?&append_to_response=videos,images,credits&api_key=' + appConfig.token);
         return new MovieDetails(details);
     },
     getTvDetails: async function(id: number) {
-        const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + id + '?&append_to_response=videos,images,credits&api_key=' + appConfig.token);
+        const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + id +
+            '?&append_to_response=videos,images,credits&api_key=' + appConfig.token);
         return new TvDetails(details);
     },
     getMovieCredits: async function(id: number) {
@@ -40,6 +46,10 @@ export const api = {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.movieGenre + '?api_key=' + appConfig.token);
         return res.data.genres;
     },
+    getSeriesGenres: async function() {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.seriesGenre + '?api_key=' + appConfig.token);
+        return res.data.genres;
+    },
     searchMovies: async function(searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.searchMovies + '?api_key=' + appConfig.token + searchQuery + '&page=' + page);
@@ -48,6 +58,11 @@ export const api = {
     getDiscoverMovies: async function(searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + searchQuery);
+        return res.data;
+    },
+    getDiscoverSeries: async function(searchQuery: string) {
+        searchQuery += discoverDefaultQueries;
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverSeries + '?api_key=' + appConfig.token + searchQuery);
         return res.data;
     },
 };

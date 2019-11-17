@@ -2,8 +2,7 @@
     <div>
         <div class="movie-item" v-on:click="onSelected(movie)">
             <img v-lazy="imageObj" class="movie-card-image"
-                v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.001em',
-                                border: 'solid .04em ' + getRatingColor()}">
+                v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.2em' }">
         </div>
     </div>
 </template>
@@ -16,23 +15,27 @@
             return {
                 imageObj: {
                     src: this.configuration.images.secure_base_url + this.imageRes + this.movie.poster_path,
-                    error: require('../../Assets/Images/error.svg')
+                    error: require('../../Assets/Images/error.svg'),
                 }
             };
         },
         methods: {
             getRatingColor() {
-                if (this.disableRatingShadow)
+                return 'rgba(0, 0, 0, 0.5)';
+                if (this.disableRatingShadow) {
                     return 'none';
+                }
+
                 const rating = this.movie.vote_average;
-                if (rating < 5)
-                    return 'rgba(200, 0 , 0, 1)';
-                if (rating < 6.5)
-                    return 'rgba(150, 100 , 0, 1)';
-                if (rating < 8)
-                    return 'rgba(0, 100 , 0, 1)';
-                else
+                if (rating < 5) {
+                    return 'rgba(200, 0, 0, 1)';
+                } else if (rating < 6.5) {
+                    return 'rgba(150, 100, 0, 1)';
+                } else if (rating < 8) {
+                    return 'rgba(0, 100, 0, 1)';
+                } else {
                     return 'rgba(91, 17, 130, 1)';
+                }
             }
         }
     }

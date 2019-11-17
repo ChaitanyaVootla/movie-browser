@@ -17,10 +17,17 @@
     import { Component, Prop, Vue } from 'vue-property-decorator';
     import { api } from '../../API/api';
     import _ from 'lodash';
+    import { movieParams, seriesParams } from '@/API/Constants';
 
     export default {
         name: 'movieDiscover',
-        props: ['configuration', 'discoverQuery', 'queryParams', 'showMovieInfo', 'clearDiscoveryData',],
+        props: [
+            'configuration',
+            'queryParams',
+            'showMovieInfo',
+            'clearDiscoveryData',
+            'isMovies',
+        ],
         data() {
           return {
               isLoaded: false,
@@ -30,10 +37,12 @@
                   results: []
               },
               currentPage: 1,
-              selectedMovie: {}
+              selectedMovie: {},
+              computedDiscoverQuery: '',
           }  
         },
         created() {
+            this.computeQuery(this.queryParams);
             this.loadMovies();
             const self = this;
             window.onscroll = function() {
@@ -44,16 +53,27 @@
         },
         methods: {
             loadMovies: async function() {
-                this.queryData = await api.getDiscoverMovies(this.discoverQuery);
-                this.movies = this.queryData.results;
-                await this.loadMoreMovies();
+                if (this.isMovies) {
+                    this.queryData = await api.getDiscoverMovies(this.computedDiscoverQuery);
+                    this.movies = this.queryData.results;
+                    await this.loadMoreMovies();
+                } else {
+                    this.queryData = await api.getDiscoverSeries(this.computedDiscoverQuery);
+                    this.movies = this.queryData.results;
+                    await this.loadMoreMovies();
+                }
                 this.isLoaded = true;
             },
             fetchMoreMovies: async function() {
                 this.currentPage++;
-                let currentdiscoverQuery = this.discoverQuery;
+                let currentdiscoverQuery = this.computedDiscoverQuery;
                 currentdiscoverQuery += `&page=${this.currentPage}`;
-                const queryResult = await api.getDiscoverMovies(currentdiscoverQuery);
+                let queryResult;
+                if (this.isMovies) {
+                    queryResult = await api.getDiscoverMovies(currentdiscoverQuery);
+                } else {
+                    queryResult = await api.getDiscoverSeries(currentdiscoverQuery);
+                }
                 this.movies = this.movies.concat(queryResult.results);
                 this.isLoaded = true;
                 this.isDataLoading = false;
@@ -67,15 +87,73 @@
             closeInfo() {
                 $('#movieInfoModal').modal('hide');
             },
+            computeQuery(newQueryParams: any) {
+                this.currentPage = 1;
+                let isAnyGenreAdded = false;
+                this.computedDiscoverQuery = '';
+                if (this.isMovies) {
+                    if (newQueryParams.sortOrder) {
+                        this.computedDiscoverQuery += `&sort_by=${movieParams.SORT_ORDER[newQueryParams.sortOrder]}`;
+                    }
+                    if (newQueryParams.minDate || newQueryParams.maxDate) {
+                        this.computedDiscoverQuery += `&primary_release_date.gte=${newQueryParams.minDate}`;
+                        this.computedDiscoverQuery += `&primary_release_date.lte=${newQueryParams.maxDate}`;
+                    } else if (newQueryParams.selectedYear) {
+                        this.computedDiscoverQuery += `&primary_release_year=${newQueryParams.selectedYear}`;
+                    }
+                    _.each(newQueryParams.selectedGenreMap,
+                        (isSelected, genreId) => {
+                            if (isSelected && !isAnyGenreAdded) {
+                                this.computedDiscoverQuery += `&with_genres=${genreId},`;
+                                isAnyGenreAdded = true;
+                            } else if (isSelected) {
+                                this.computedDiscoverQuery += `${genreId},`;
+                            }
+                        }
+                    );
+                    if (this.computedDiscoverQuery === '') {
+                        this.computedDiscoverQuery += `&sort_by=popularity.desc`;
+                    }
+                } else {
+                    if (newQueryParams.sortOrder) {
+                        this.computedDiscoverQuery += `&sort_by=${seriesParams.SORT_ORDER[newQueryParams.sortOrder]}`;
+                    }
+                    if (newQueryParams.minDate || newQueryParams.maxDate) {
+                        this.computedDiscoverQuery += `&first_air_date.gte=${newQueryParams.minDate}`;
+                        this.computedDiscoverQuery += `&first_air_date.lte=${newQueryParams.maxDate}`;
+                    } else if (newQueryParams.selectedYear) {
+                        this.computedDiscoverQuery += `&first_air_date_year=${newQueryParams.selectedYear}`;
+                    }
+                    _.each(newQueryParams.selectedGenreMap,
+                        (isSelected, genreId) => {
+                            if (isSelected && !isAnyGenreAdded) {
+                                this.computedDiscoverQuery += `&with_genres=${genreId},`;
+                                isAnyGenreAdded = true;
+                            } else if (isSelected) {
+                                this.computedDiscoverQuery += `${genreId},`;
+                            }
+                        }
+                    );
+                    if (this.computedDiscoverQuery === '') {
+                        this.computedDiscoverQuery += `&sort_by=popularity.desc`;
+                    }
+                }
+                this.loadMovies();
+            }
         },
         watch: {
-            discoverQuery: function (newQuery, oldQuery) {
-                if (newQuery.length > 1) {
-                    this.currentPage = 1;
-                    this.loadMovies();
+            queryParams: {
+                handler (newQueryParams) {
+                    this.computeQuery(newQueryParams);
+                },
+                deep: true
+            },
+            isMovies: {
+                handler () {
+                    this.computeQuery(this.queryParams);
                 }
             }
-        }
+        },
     }
 </script>
 
