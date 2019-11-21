@@ -1,4 +1,12 @@
-import { appConfig, endpoints, discoverDefaultQueries, searchDefaultQueries, latestMovieQuery } from './Constants';
+import {
+    appConfig,
+    endpoints,
+    discoverDefaultQueries,
+    searchDefaultQueries,
+    latestMovieQuery,
+    personDetailsDefaultQuery,
+    detailsDefaultQuery,
+} from './Constants';
 import axios from 'axios';
 import { MovieDetails } from '@/Models/movieDetails';
 import { TvDetails } from '@/Models/tvDetails';
@@ -22,13 +30,17 @@ export const api = {
     },
     getMovieDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.movieDetails + id +
-            '?&append_to_response=videos,images,credits&api_key=' + appConfig.token);
+            '?&api_key=' + appConfig.token + detailsDefaultQuery);
         return new MovieDetails(details);
     },
     getTvDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + id +
             '?&append_to_response=videos,images,credits&api_key=' + appConfig.token);
         return new TvDetails(details);
+    },
+    getPersonDetails: async function(id: number) {
+        const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.personDetails + id + '?&api_key=' + appConfig.token + personDetailsDefaultQuery);
+        return details;
     },
     getMovieCredits: async function(id: number) {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.movieDetails + id + '/credits?api_key=' + appConfig.token);

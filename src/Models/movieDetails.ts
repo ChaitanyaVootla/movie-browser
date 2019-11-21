@@ -15,6 +15,8 @@ export class MovieDetails {
     public videos: Array<Object>;
     public images: Array<Object>;
     public credits: Array<Object>;
+    public similar: Array<Object>;
+    public recommendations: Array<Object>;
     constructor(obj: any) {
         this.name = obj.original_title;
         this.id = obj.id;
@@ -32,5 +34,7 @@ export class MovieDetails {
         this.videos = obj.videos.results;
         this.images = obj.images;
         this.credits = obj.credits;
+        this.similar = obj.similar;
+        this.recommendations = obj.recommendations;
     }
 };

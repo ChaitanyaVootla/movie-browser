@@ -7,7 +7,7 @@
         </div>
         <div v-if="isLoaded" class="discover-movies-container">
             <movie-card v-for="movie in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
-                :onSelected="showMovieInfo" :key="movie.id"></movie-card>
+                :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"></movie-card>
         </div>
         <div class="loader-main" v-if="isDataLoading"></div>
     </div>
@@ -27,6 +27,7 @@
             'showMovieInfo',
             'clearDiscoveryData',
             'isMovies',
+            'showFullMovieInfo',
         ],
         data() {
           return {

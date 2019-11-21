@@ -56,13 +56,13 @@
                 </div>
 
                 <!-- Directors -->
-                <div v-if="isLoaded && movie.media_type !== 'tv' && movie.movieDetails">
+                <div v-if="isLoaded && getDirectors(movie.movieDetails.credits.crew).length > 0 && movie.movieDetails">
                     <h5 style="margin-top: 2em; margin-bottom: -0.6em;" v-if="getDirectors(movie.movieDetails.credits.crew).length > 0">
                         Director{{getDirectors(movie.movieDetails.credits.crew).length > 1?'s':''}}
                     </h5>
                     <div class="credits-container">
                         <div  v-for="director in getDirectors(movie.movieDetails.credits.crew)" :key="director.name">
-                            <div class="credit-item" v-on:click="googleCredit(director.name)">
+                            <div class="credit-item" v-on:click="googleCredit(director)">
                                 <img v-lazy="director.profile_path?creditImageBasePath + director.profile_path:
                                     'https://via.placeholder.com/150/000/000?'" class="credit-img"
                                     :title="`${director.name}`"/>
@@ -75,13 +75,13 @@
                 </div>
 
                 <!-- Creators -->
-                <div v-if="isLoaded && movie.media_type === 'tv'">
-                    <h5 style="margin-top: 4em; margin-bottom: -0.6em;0" v-if="movie.movieDetails.creators.length > 0">
+                <div v-if="isLoaded && (movie.media_type === 'tv' || movie.first_air_date)">
+                    <h5 style="margin-top: 4em; margin-bottom: -0.6em;" v-if="movie.movieDetails.creators.length > 0">
                         Creator{{movie.movieDetails.creators.length > 1?'s':''}}
                     </h5>
                     <div class="credits-container">
                         <div  v-for="director in movie.movieDetails.creators" :key="director.name">
-                            <div class="credit-item" v-on:click="googleCredit(director.name)">
+                            <div class="credit-item" v-on:click="googleCredit(director)">
                                 <img v-lazy="director.profile_path?creditImageBasePath + director.profile_path:
                                     'https://via.placeholder.com/150/000/000?'" class="credit-img"
                                     :title="`${director.name}`"/>
@@ -99,7 +99,7 @@
                 </h5>
                 <div class="credits-container" v-if="isLoaded">
                     <div v-for="actor in movie.movieDetails.credits.cast.slice(0, 10)" :key="actor.name">
-                        <div class="credit-item" v-if="actor.profile_path" v-on:click="googleCredit(actor.name)">
+                        <div class="credit-item" v-if="actor.profile_path" v-on:click="googleCredit(actor)">
                             <img v-lazy="creditImageBasePath + actor.profile_path" class="credit-img"
                                 :title="`${actor.name} - ${actor.character}`"/>
                             <div class="credit-description">
@@ -132,7 +132,7 @@
     import _ from 'lodash';
     export default {
         name: 'movieInfo',
-        props: ['movie', 'configuration', 'imageRes', 'closeInfo'],
+        props: ['movie', 'configuration', 'imageRes', 'closeInfo', 'selectPerson',],
         data() {
             return {
                 originalimageBasePath: this.configuration.images.secure_base_url + 'w1280',
@@ -216,8 +216,9 @@
             getDirectors: function(crew: any) {
                 return _.filter(crew, {job: 'Director'});
             },
-            googleCredit: function(name: String) {
-                window.open(`https://google.com/search?q=${name}`, '_blank');
+            googleCredit: function(person: any) {
+                this.selectPerson(person);
+                // window.open(`https://google.com/search?q=${name}`, '_blank');
             },
             getRatingColor: function(rating: number) {
                 if (rating < 5)

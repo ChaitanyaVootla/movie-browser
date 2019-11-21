@@ -7,34 +7,31 @@
             </div>
             <div v-show="!isBarFull" class="ml-4"></div>
             <div class="slider-bar" id="scroll-bar">
-                <movie-card v-for="(movie, index) in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
-                    :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"></movie-card>
+                <person-card v-for="(person, index) in persons" :person="person" :configuration="configuration" :imageRes="'w500'"
+                    :selectPerson="selectPerson" :key="person.id + index" :disableRatingShadow="true"></person-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight" v-show="isBarFull">
                 <font-awesome-icon :icon="['fas', 'chevron-right']" />
             </div>
         </div>
-        <!-- <movie-info v-show="showInfo" :movie="selectedMovie" :configuration="configuration" :imageRes="'w500'"
-            :closeInfo="closeInfo"></movie-info> -->
     </div>
 </template>
 
 <script lang="ts">
     import { api } from '../../API/api';
     export default {
-        name: 'movieSlider',
+        name: 'personSlider',
         props: [
-            'movies',
+            'persons',
             'configuration',
             'id',
             'heading',
             'showMovieInfoModal',
-            'showFullMovieInfo',
+            'selectPerson',
         ],
         data() {
           return {
               scrollValue: 500,
-              selectedMovie: {},
               showInfo: false,
               isBarFull: true,
           }  
@@ -49,26 +46,20 @@
             slideRight: function () {
                 $(`.${this.id} .slider-bar`)[0].scrollLeft += $(`.${this.id} .slider-bar`)[0].clientWidth;
             },
-            showMovieInfo: async function (movie: any) {
-                this.showMovieInfoModal(movie);
-                // const self = this;
-                // this.selectedMovie = movie;
-                // this.showInfo = true;
-                // setTimeout(
-                //     function() {
-                //         $(`.${self.id} .info-container`)[0].scrollIntoView({behavior: "smooth"});
-                //     }
-                // );
-            },
-            closeInfo: function() {
-                this.showInfo = false;
-            },
             checkIsBarFull() {
                 if ($(`.${this.id} .slider-bar`)[0] && $(`.${this.id} .slider-heading`)[0]) {
                     return $(`.${this.id} .slider-bar`)[0].scrollWidth > $(`.${this.id} .slider-heading`)[0].clientWidth;
                 }
                 return true;
             },
+        },
+        watch: {
+            persons:{
+                handler () {
+                    $(`.${this.id} .slider-bar`)[0].scrollLeft = 0;
+                },
+                deep: true
+            }
         },
     }
 </script>
@@ -113,9 +104,8 @@
     .main-slider-div {
         padding-bottom: 0;
     }
-    ::v-deep .movie-card-image {
-        height: 14em !important;
+    ::v-deep .person-card-image {
+        height: 11em !important;
         margin: 0 0.2em;
-        min-width: 8em;
     }
 </style>

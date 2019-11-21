@@ -1,17 +1,9 @@
 <template>
     <div>
-        <nav class="navbar navbar-dark p-0">
-            <div class="navbar-header">
-                <a class="navbar-brand" @click="gotoHome">
-                    <img v-lazy="require('../Assets/Images/movie-browser.png')" style="max-height: 2em"/>
-                </a>
-            </div>
-        </nav>
-
         <!-- Discover -->
         <div class="discover-container">
             <div class="row discover-row">
-                <div class="col-sm-3">
+                <div class="col-sm-3 sort-order-container">
                     <ul class="nav nav-pills">
                         <li class="nav-item">
                             <a class="nav-link" :class="sortText === 'popularity'?'active':''"
@@ -27,7 +19,70 @@
                         </li>
                     </ul>
                 </div>
-                <div class="col-sm-1">
+                <div class="col-sm-1 left-dropdown-item">
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle discover-dropdown btn-dark"
+                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            {{selectedGenreNames.length?selectedGenreNames:'Genre'}}
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                            <a class="dropdown-item" v-on:click="clearSelectedGenre();">All</a>
+                            <a class="dropdown-item" v-for="genre in sortedGenres()" :key="genre.id">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" :value="genre.id" v-model="queryParams.selectedGenreMap[genre.id]"
+                                        :id="`defaultCheck${genre.id}`" @change="goToDiscover(); updateGenreList();"/>
+                                    <span class="custom-control-indicator"></span>
+                                    <label class="custom-control-label" :for="`defaultCheck${genre.id}`">
+                                        {{genre.name}}
+                                    </label>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-1 left-dropdown-item" style="max-width: 8em;">
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle discover-dropdown btn-dark"
+                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            {{selectedYearString?selectedYearString:'Year'}}
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                            <a class="dropdown-item flex-center" v-on:click="clearSelectedYear();">All</a>
+                            <a class="dropdown-item pl-3 pr-3 mt-2">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-dark" @click="selectYearRange('new')">new</button>
+                                    <button type="button" class="btn btn-dark" @click="selectYearRange('2k')">2k</button>
+                                    <button type="button" class="btn btn-dark" @click="selectYearRange('90s')">90s</button>
+                                </div>
+                            </a>
+                            <a class="dropdown-item pl-3 pr-3 mb-2">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-dark" @click="selectYearRange('80s')">80s</button>
+                                    <button type="button" class="btn btn-dark" @click="selectYearRange('70s')">70s</button>
+                                    <button type="button" class="btn btn-dark" @click="selectYearRange('old')">old</button>
+                                </div>
+                            </a>
+                            <a class="dropdown-item flex-center" v-for="year in years" :key="year" v-on:click="selectYear(year);">{{year}}</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-sm-4 flex-center" @click="gotoHome">
+                    <div class="app-logo">
+                        <font-awesome-icon :icon="['fas', 'film']" class="mt-1"/>
+                    </div>
+                </div>
+                <div class="col-sm-4 type-switch-container flex-right">
+                        <div class="selected-text">Movies</div>
+
+                        <el-switch class="type-switch"
+                            v-model="isMovies"
+                            active-color="#993030"
+                            inactive-color="#000"
+                            @change="typeChanged">
+                        </el-switch>
+
+                        <div class="selected-text">Series</div>
                 </div>
 
                 <!-- Search Bar -->
@@ -75,70 +130,10 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="col-sm-6">
-                    <div class="dropdown genreDrodown">
-                        <button class="btn dropdown-toggle discover-dropdown btn-dark"
-                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            {{selectedGenreNames.length?selectedGenreNames:'Genre'}}
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                            <a class="dropdown-item" v-on:click="clearSelectedGenre();">All</a>
-                            <a class="dropdown-item" v-for="genre in sortedGenres()" :key="genre.id">
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" :value="genre.id" v-model="queryParams.selectedGenreMap[genre.id]"
-                                        :id="`defaultCheck${genre.id}`" @change="goToDiscover(); updateGenreList();"/>
-                                    <span class="custom-control-indicator"></span>
-                                    <label class="custom-control-label" :for="`defaultCheck${genre.id}`">
-                                        {{genre.name}}
-                                    </label>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-sm-1" style="max-width: 8em;">
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle discover-dropdown btn-dark"
-                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            {{selectedYearString?selectedYearString:'Year'}}
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                            <a class="dropdown-item flex-center" v-on:click="clearSelectedYear();">All</a>
-                            <a class="dropdown-item pl-3 pr-3 mt-2">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('new')">new</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('2k')">2k</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('90s')">90s</button>
-                                </div>
-                            </a>
-                            <a class="dropdown-item pl-3 pr-3 mb-2">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('80s')">80s</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('70s')">70s</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('old')">old</button>
-                                </div>
-                            </a>
-                            <a class="dropdown-item flex-center" v-for="year in years" :key="year" v-on:click="selectYear(year);">{{year}}</a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-sm-1 type-switch-container">
-                        <div class="selected-text">Series</div>
-
-                        <el-switch class="type-switch"
-                            v-model="isMovies"
-                            active-color="#993030"
-                            inactive-color="#000"
-                            @change="typeChanged">
-                        </el-switch>
-
-                        <div class="selected-text">Movies</div>
-                </div>
             </div>
         </div>
 
-        <router-view v-if="isLoaded" class="mt-5"
+        <router-view v-if="isLoaded" class="mt-5 pt-2"
             :isLoaded="isLoaded"
             :configuration="configuration"
             :showMovieInfo="showMovieInfo"
@@ -147,14 +142,22 @@
             :clearDiscoveryData="clearDiscoveryData"
             :searchString="searchText"
             :isMovies="isMovies"
+            :person="selectedPerson"
+            :showFullMovieInfo="showFullMovieInfo"
+            :selectPerson="goToPerson"
         ></router-view>
 
         <!-- Info Modal -->
         <div class="modal fade bd-example-modal-xl" id="movieInfoModal" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
-                    <movie-info :movie="selectedMovie" :configuration="configuration" :imageRes="'w500'"
-                        :closeInfo="closeInfo" v-if="configuration.images"></movie-info>
+                    <movie-info v-if="configuration.images"
+                        :movie="selectedMovie"
+                        :configuration="configuration"
+                        :imageRes="'w500'"
+                        :closeInfo="closeInfo"
+                        :selectPerson="goToPerson"
+                    ></movie-info>
                 </div>
             </div>
         </div>
@@ -197,10 +200,10 @@
                 currentRoute: {} as Object,
                 selectedGenreNames: '',
                 isMovies: true,
+                selectedPerson: {},
             };
         },
         created() {
-            window.addEventListener('scroll', this.onScrollEvent);
             this.setupData();
             this.loadData();
             this.currentRoute = this.$route;
@@ -215,18 +218,8 @@
                 }, this));
             }
         },
-        destroyed () {
-            window.removeEventListener('scroll', this.onScrollEvent);
-        },
         methods: {
-            onScrollEvent() {
-                if (window.scrollY > 50) {
-                    $('.discover-container').css('top', 0);
-                } else {
-                    $('.discover-container').css('top', 65 - window.scrollY + 'px');
-                }
-            },
-            sortedGenres() {
+            sortedGenres(): any {
                 return _.sortBy(this.genres, (genre: any) => {
                     if (this.queryParams.selectedGenreMap[genre.id] === true) {
                         return 1;
@@ -355,6 +348,15 @@
                 else
                     return 'purple';
             },
+            showFullMovieInfo(movie: any) {
+                this.$router.push({
+                    name: 'movieInfoFull',
+                    params: {
+                        name: movie.name || movie.original_title,
+                        id: movie.id,
+                    }
+                }).catch(err => {});
+            },
             showMovieInfo(movie: any) {
                 this.selectedMovie = movie;
                 $('#movieInfoModal').modal('show');
@@ -375,6 +377,17 @@
                 this.$router.push({
                     name: 'discover'
                 }).catch(err => {});
+            },
+            goToPerson(person: any) {
+                this.closeInfo();
+                this.selectedPerson = person;
+                this.$router.push({
+                    name: 'person',
+                    params: {
+                        name: person.name,
+                        id: person.id,
+                    }
+                });
             },
             goToSearch() {
                 if (this.searchText.length > 2) {
@@ -407,47 +420,52 @@
     }
 </script>
 
-<style scoped>
+<style scoped lang="less">
+    @import '../Assets/Styles/main.less';
+
     .search-image[lazy=error] {
         background-size: 4em;
         padding: 2em;
         width: 7em;
+    }
+    .app-logo {
+        margin-top: 0.3em;
+        cursor: pointer;
+        font-size: 1.8em;
+        color: @main-red;
+        background: #000;
+        padding: 0.2em;
+        border-radius: 100%;
+        width: 1.6em;
+        height: 1.6em;
+        display: flex;
+        justify-content: center;
     }
     .search-image[lazy=loading] {
         background-size: contain;
         padding: 2em;
         width: 7em;
     }
-    .navbar {
-        background: #000;
-        color: black;
+    .sort-order-container {
+        max-width: 22em;
     }
-    .navbar-header {
-        float: left;
-        padding: 0.5em;
-        text-align: center;
-        width: 100%;
-    }
-    .navbar-brand {
-        padding-left: 1.2em;
-        font-weight: 600;
-        color: #fff !important;
-        float: none;
-        cursor: pointer;
+    .left-dropdown-item {
+        max-width: 8em;
     }
     .discover-container {
         background: #850909;
         padding-left: 1.5em;
+        padding-top: 0.2em;
         font-weight: 400;
         position: fixed;
         width: 100%;
-        top: 65px;
-        z-index: 100;
+        top: 0;
+        z-index: 101;
     }
     .discover-container .nav-link {
-        padding: 1em 1.5em 1em 1.5em;
+        padding: 0.6em 1em;
+        margin: 0.6em 0.3em;
         background: #850909;
-        border-radius: 0;
         cursor: pointer;
         transition: all 300ms;
         font-weight: 500;
@@ -502,9 +520,6 @@
     }
     .modal-xl {
         max-width: 95%;
-    }
-    .genreDrodown {
-        float: right;
     }
     .custom-checkbox {
         cursor: pointer;
@@ -582,7 +597,8 @@
     }
     .search-container {
         position: absolute;
-        left: 50%;
+        left: 78%;
+        top: 0.2em;
         z-index: 100;
     }
     .search-image {
@@ -592,6 +608,7 @@
         display: flex;
         justify-content: center;
         margin-top: 1em;
+        z-index: 101;
     }
     .type-switch {
         margin-top: 0.2em;
@@ -607,5 +624,21 @@
     .flex-center {
         display:flex;
         justify-content: center;
+    }
+    ::v-deep .el-tabs__item {
+        font-size: 1.1em;
+        color: #ccc;
+    }
+    ::v-deep .el-tabs__item:hover {
+        color: #c01111;
+    }
+    ::v-deep .el-tabs__item.is-active {
+        color: #c01111;
+    }
+    ::v-deep .el-tabs__active-bar {
+        background-color: #c01111;
+    }
+    ::v-deep .el-tabs__nav-wrap::after {
+        background-color: #333;
     }
 </style>

@@ -3,11 +3,11 @@
         <!-- Trending lists -->
         <div v-if="isTrendingDataLoaded">
             <movie-slider :movies="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
-                :showMovieInfoModal="showMovieInfo"></movie-slider>
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
             <movie-slider :movies="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
-                :showMovieInfoModal="showMovieInfo"></movie-slider>
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
             <movie-slider :movies="trendingTv" :configuration="configuration" :heading="'Trending TV Series'" :id="'trendingSeries'"
-                :showMovieInfoModal="showMovieInfo"></movie-slider>
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
         </div>
     </div>
 </template>
@@ -17,7 +17,7 @@
     import _ from 'lodash';
     export default {
         name: 'trending',
-        props: ['configuration', 'showMovieInfo'],
+        props: ['configuration', 'showMovieInfo', 'showFullMovieInfo'],
         data() {
           return {
               isTrendingDataLoaded: false,
@@ -52,8 +52,8 @@
                     const res = await api.getLatestMovies(pageQuery);
                     latestMovies = latestMovies.concat(res.results);
                 }
-                // this.latestMovies = _.sortBy(latestMovies, ({popularity}) => -popularity);
-                this.latestMovies = latestMovies;
+                this.latestMovies = _.sortBy(latestMovies, ({popularity}) => -popularity);
+                // this.latestMovies = latestMovies;
             },
         }
     }
