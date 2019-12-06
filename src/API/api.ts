@@ -35,7 +35,7 @@ export const api = {
     },
     getTvDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + id +
-            '?&append_to_response=videos,images,credits&api_key=' + appConfig.token);
+            '?&api_key=' + appConfig.token + detailsDefaultQuery);
         return new TvDetails(details);
     },
     getPersonDetails: async function(id: number) {

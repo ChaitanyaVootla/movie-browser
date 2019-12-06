@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="pt-4">
         <!-- Trending lists -->
         <div v-if="isTrendingDataLoaded">
             <movie-slider :movies="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
@@ -7,7 +7,7 @@
             <movie-slider :movies="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
                 :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
             <movie-slider :movies="trendingTv" :configuration="configuration" :heading="'Trending TV Series'" :id="'trendingSeries'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
         </div>
     </div>
 </template>
@@ -17,7 +17,12 @@
     import _ from 'lodash';
     export default {
         name: 'trending',
-        props: ['configuration', 'showMovieInfo', 'showFullMovieInfo'],
+        props: [
+            'configuration',
+            'showMovieInfo',
+            'showFullMovieInfo',
+            'showSeriesInfo',
+        ],
         data() {
           return {
               isTrendingDataLoaded: false,

@@ -2,8 +2,8 @@
     <div>
         <!-- Discover -->
         <div class="discover-container">
-            <div class="row discover-row">
-                <div class="col-sm-3 sort-order-container">
+            <el-row class="discover-row">
+                <el-col :span="6" class="sort-order-container">
                     <ul class="nav nav-pills">
                         <li class="nav-item">
                             <a class="nav-link" :class="sortText === 'popularity'?'active':''"
@@ -18,31 +18,10 @@
                                 v-on:click="setSortOrder('release_date.desc', 'latest'); updateSortOrder('latest');">Latest</a>
                         </li>
                     </ul>
-                </div>
-                <div class="col-sm-1 left-dropdown-item">
+                </el-col>
+                <el-col :span="2" class="left-dropdown-item" style="max-width: 8em;">
                     <div class="dropdown">
-                        <button class="btn dropdown-toggle discover-dropdown btn-dark"
-                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            {{selectedGenreNames.length?selectedGenreNames:'Genre'}}
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                            <a class="dropdown-item" v-on:click="clearSelectedGenre();">All</a>
-                            <a class="dropdown-item" v-for="genre in sortedGenres()" :key="genre.id">
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" :value="genre.id" v-model="queryParams.selectedGenreMap[genre.id]"
-                                        :id="`defaultCheck${genre.id}`" @change="goToDiscover(); updateGenreList();"/>
-                                    <span class="custom-control-indicator"></span>
-                                    <label class="custom-control-label" :for="`defaultCheck${genre.id}`">
-                                        {{genre.name}}
-                                    </label>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-sm-1 left-dropdown-item" style="max-width: 8em;">
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle discover-dropdown btn-dark"
+                        <button class="btn dropdown-toggle discover-dropdown btn-dark pb-2"
                             type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             {{selectedYearString?selectedYearString:'Year'}}
                         </button>
@@ -65,15 +44,83 @@
                             <a class="dropdown-item flex-center" v-for="year in years" :key="year" v-on:click="selectYear(year);">{{year}}</a>
                         </div>
                     </div>
-                </div>
+                </el-col>
 
-                <div class="col-sm-4 flex-center" @click="gotoHome">
-                    <div class="app-logo">
+                <el-col :span="2" class="left-dropdown-item">
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle discover-dropdown btn-dark pb-2"
+                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            {{selectedGenreNames.length?selectedGenreNames:'Genre'}}
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                            <a class="dropdown-item" v-on:click="clearSelectedGenre();">All</a>
+                            <a class="dropdown-item" v-for="genre in sortedGenres()" :key="genre.id">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" :value="genre.id" v-model="queryParams.selectedGenreMap[genre.id]"
+                                        :id="`defaultCheck${genre.id}`" @change="goToDiscover(); updateGenreList();"/>
+                                    <span class="custom-control-indicator"></span>
+                                    <label class="custom-control-label" :for="`defaultCheck${genre.id}`">
+                                        {{genre.name}}
+                                    </label>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </el-col>
+                <el-col :span="8" class="flex-center">
+                    <div class="app-logo" @click="gotoHome">
                         <font-awesome-icon :icon="['fas', 'film']" class="mt-1"/>
                     </div>
-                </div>
-                <div class="col-sm-4 type-switch-container flex-right">
-                        <div class="selected-text">Movies</div>
+                </el-col>
+                <el-col :span="5" class="mt-1 flex-right">
+                    <!-- Search Bar -->
+                    <div class="form-inline mt-2">
+                        <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search" id="searchInput"
+                            v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <button class="btn btn-dark search-button" @click="goToSearch">
+                            <font-awesome-icon :icon="['fas', 'search']" />
+                        </button>
+                        <div class="search-dropdown discover-dropdown dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenuButton"
+                            v-show="searchText.length > 0 && currentRoute.name !== 'search'">
+                            <div class="search-item dropdown-item" v-if="searchResults.length === 0" style="justify-content: center;">
+                                No Results
+                            </div>
+                            <div class="search-item" v-for="result in searchResults" :key="result.id" v-on:click="showMovieInfo(result)">
+                                <img
+                                    v-lazy="{
+                                        src: imageBasePath + result.poster_path,
+                                        error: require('../Assets/Images/error.svg'),
+                                        loading: require('../Assets/Images/loader-bars.svg'),
+                                    }"
+                                    class="search-image">
+                                <div class="search-info-container ml-3">
+                                    <span>
+                                        {{result.original_title}}
+                                        <span class="text-muted ml-1" style="font-size: 0.9em;">
+                                            {{getYear(result.release_date)}}
+                                        </span>
+                                    </span>
+                                    <div style="margin-top: -5px;">
+                                        <span v-for="(genreId, index) in result.genre_ids" :key="genreId" class="text-muted ml-1" style="font-size: 0.9em;">
+                                            {{getGenreNameFromId(genreId)}}{{index === result.genre_ids.length -1?'':','}}
+                                        </span>
+                                    </div>
+                                    <div class="mt-2">
+                                        <div class="rating-info" :style="`border-color: ${getRatingColor(result.vote_average)}; color: ${getRatingColor(result.vote_average)}`">
+                                            {{result.vote_average}}
+                                        </div>
+                                    </div>
+                                    <div style="max-height: 3em; overflow: hidden;" class="mt-4">
+                                        {{result.overview}}
+                                    </div>
+                                </div>
+                                <hr/>
+                            </div>
+                        </div>
+                    </div>
+                </el-col>
+                <el-col :span="3" class="type-switch-container flex-center">
+                        <div class="selected-text">Series</div>
 
                         <el-switch class="type-switch"
                             v-model="isMovies"
@@ -82,58 +129,13 @@
                             @change="typeChanged">
                         </el-switch>
 
-                        <div class="selected-text">Series</div>
-                </div>
+                        <div class="selected-text">Movies</div>
+                </el-col>
 
-                <!-- Search Bar -->
-                <div class="form-inline mt-2 search-container">
-                    <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search" id="searchInput"
-                        v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <button class="btn btn-dark search-button" @click="goToSearch">
-                        <font-awesome-icon :icon="['fas', 'search']" />
-                    </button>
-                    <div class="search-dropdown discover-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton"
-                        v-show="searchText.length > 0 && currentRoute.name !== 'search'">
-                        <div class="search-item dropdown-item" v-if="searchResults.length === 0" style="justify-content: center;">
-                            No Results
-                        </div>
-                        <div class="search-item" v-for="result in searchResults" :key="result.id" v-on:click="showMovieInfo(result)">
-                            <img
-                                v-lazy="{
-                                    src: imageBasePath + result.poster_path,
-                                    error: require('../Assets/Images/error.svg'),
-                                    loading: require('../Assets/Images/loader-bars.svg'),
-                                }"
-                                class="search-image">
-                            <div class="search-info-container ml-3">
-                                <span>
-                                    {{result.original_title}}
-                                    <span class="text-muted ml-1" style="font-size: 0.9em;">
-                                        {{getYear(result.release_date)}}
-                                    </span>
-                                </span>
-                                <div style="margin-top: -5px;">
-                                    <span v-for="(genreId, index) in result.genre_ids" :key="genreId" class="text-muted ml-1" style="font-size: 0.9em;">
-                                        {{getGenreNameFromId(genreId)}}{{index === result.genre_ids.length -1?'':','}}
-                                    </span>
-                                </div>
-                                <div class="mt-2">
-                                    <div class="rating-info" :style="`border-color: ${getRatingColor(result.vote_average)}; color: ${getRatingColor(result.vote_average)}`">
-                                        {{result.vote_average}}
-                                    </div>
-                                </div>
-                                <div style="max-height: 3em; overflow: hidden;" class="mt-4">
-                                    {{result.overview}}
-                                </div>
-                            </div>
-                            <hr/>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </el-row>
         </div>
 
-        <router-view v-if="isLoaded" class="mt-5 pt-2"
+        <router-view v-if="isLoaded" class="mt-5 pt-1"
             :isLoaded="isLoaded"
             :configuration="configuration"
             :showMovieInfo="showMovieInfo"
@@ -145,6 +147,7 @@
             :person="selectedPerson"
             :showFullMovieInfo="showFullMovieInfo"
             :selectPerson="goToPerson"
+            :showSeriesInfo="showSeriesInfo"
         ></router-view>
 
         <!-- Info Modal -->
@@ -357,6 +360,15 @@
                     }
                 }).catch(err => {});
             },
+            showSeriesInfo(series: any) {
+                this.$router.push({
+                    name: 'seriesInfo',
+                    params: {
+                        name: series.name,
+                        id: series.id,
+                    }
+                }).catch(err => {});
+            },
             showMovieInfo(movie: any) {
                 this.selectedMovie = movie;
                 $('#movieInfoModal').modal('show');
@@ -463,12 +475,12 @@
         z-index: 101;
     }
     .discover-container .nav-link {
-        padding: 0.6em 1em;
+        // padding: 0.6em 1em;
         margin: 0.6em 0.3em;
         background: #850909;
         cursor: pointer;
         transition: all 300ms;
-        font-weight: 500;
+        // font-weight: 500;
     }
     .discover-container .nav-link:hover {
         background: #222;
@@ -545,7 +557,6 @@
         border-top-left-radius: 7px;
         width: 20em !important;
         position: relative;
-        left: -50%;
     }
     .search-bar:focus {
         background: #000;
@@ -554,10 +565,8 @@
     .search-dropdown {
         margin-top: 0 !important;
         scroll-behavior: smooth;
-        width: 100%;
+        width: 30%;
         color: #fff !important;
-        width: 150%;
-        left: -33% !important;
         overflow-x: hidden !important;
         border-radius: 10px;
         max-height: 30em;
@@ -593,7 +602,6 @@
         border-bottom-right-radius: 7px;
         border-top-right-radius: 7px;
         position: relative;
-        left: -50%;
     }
     .search-container {
         position: absolute;
