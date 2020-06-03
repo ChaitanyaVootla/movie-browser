@@ -7,7 +7,7 @@
         </div>
         <div class="discover-movies-container">
             <movie-card v-for="movie in searchResults" :movie="movie" :configuration="configuration" :imageRes="'w500'"
-                :onSelected="showMovieInfo" :key="movie.id"></movie-card>
+                :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"></movie-card>
         </div>
     </div>
 </template>
@@ -18,7 +18,12 @@
 
     export default {
         name: 'search',
-        props: ['configuration', 'searchString', 'showMovieInfo'],
+        props: [
+            'configuration',
+            'searchString',
+            'showMovieInfo',
+            'showFullMovieInfo',
+        ],
         data() {
             return {
               searchResults: [],

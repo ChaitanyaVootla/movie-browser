@@ -29,11 +29,13 @@ Vue.config.productionTip = true;
 window.$ = require('jquery')
 
 Vue.component('movieSlider', require('./components/MovieSlider').default);
+Vue.component('seasonSlider', require('./components/SeasonSlider').default);
 Vue.component('movieCard', require('./components/Common/movieCard.vue').default);
 Vue.component('movieInfo', require('./components/Common/movieInfo.vue').default);
 Vue.component('movieInfoFull', require('./components/Common/movieInfoFull.vue').default);
 Vue.component('seriesInfo', require('./components/SeriesInfo').default);
 Vue.component('personCard', require('./components/Common/personCard.vue').default);
+Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);
 
 Vue.component('movieDiscover', require('./components/MovieDiscover').default);
 Vue.component('search', require('./components/Search').default);
