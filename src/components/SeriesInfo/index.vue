@@ -9,6 +9,11 @@
                 <span class="text-muted info-tagline" v-if="details.numberOfSeasons">
                     {{details.numberOfSeasons}} Season{{details.numberOfSeasons> 1?'s':''}}
                 </span>
+                <span>
+                    <span class="text-muted info-tagline cursor-pointer" @click="openImageModal">
+                        <font-awesome-icon :icon="['fas', 'images']"/>
+                    </span>
+                </span>
             </h3>
 
             <!-- Date and Genres -->
@@ -91,6 +96,41 @@
         </el-tabs>
 
         <div class="mb-5"></div>
+        <el-dialog
+            :visible.sync="dialogVisible"
+            :width="defaultImageTab === 'backdrops'?'95%':'50%'"
+            top="10vh">
+            <el-tabs v-model="defaultImageTab">
+                <el-tab-pane label="Backdrops" name="backdrops">
+                    <el-carousel type="card" height="500px">
+                        <el-carousel-item v-for="image in backdrops" :key="image.file_path">
+                            <div class="justify-center">
+                                <img v-lazy="{
+                                        src: `${configuration.images.secure_base_url}h632${image.file_path}`,
+                                        error: require('../../Assets/Images/error.svg'),
+                                        loading: require('../../Assets/Images/loader-bars.svg'),
+                                    }" height="500px"
+                                />
+                            </div>
+                        </el-carousel-item>
+                    </el-carousel>
+                </el-tab-pane>
+                <el-tab-pane label="Posters" name="posters">
+                    <el-carousel type="card" height="500px">
+                        <el-carousel-item v-for="image in posters" :key="image.file_path">
+                            <div class="justify-center">
+                                <img v-lazy="{
+                                        src: `${configuration.images.secure_base_url}h632${image.file_path}`,
+                                        error: require('../../Assets/Images/error.svg'),
+                                        loading: require('../../Assets/Images/loader-bars.svg'),
+                                    }" height="500px"
+                                />
+                            </div>
+                        </el-carousel-item>
+                    </el-carousel>
+                </el-tab-pane>
+            </el-tabs>
+        </el-dialog>
     </div>
 </template>
 
@@ -121,6 +161,10 @@
             selectedVideo: {},
             showFullOverview: false,
             activeTab: 'seasons',
+            dialogVisible: false,
+            backdrops: [] as any[],
+            posters: [] as any[],
+            defaultImageTab: 'backdrops',
           }
         },
         created() {
@@ -133,9 +177,15 @@
             }
         },
         methods: {
+            openImageModal() {
+                this.dialogVisible = true;
+                this.backdrops = this.details.images.backdrops;
+                this.posters = this.details.images.posters;
+            },
             async getDetails() {
                 this.detailsLoading = true;
                 this.details = await api.getTvDetails(parseInt(this.$route.params.id));
+                this.updateLocalStorage();
                 this.similarMovies = this.details.similar.results;
                 this.recommendedMovies = this.details.recommendations.results;
                 this.cast = this.details.credits.cast;
@@ -170,6 +220,23 @@
                     this.seasons.push(season);
                 }
                 this.detailsLoading = false;
+            },
+            updateLocalStorage() {
+                const seriesHistoryString = localStorage.seriesHistory;
+                if (seriesHistoryString) {
+                    let seriesHistory = JSON.parse(seriesHistoryString);
+                    seriesHistory = _.filter(seriesHistory,
+                        ({ id }) => {
+                            return id !== this.details.id;
+                        }
+                    );
+                    seriesHistory.push(this.details);
+                    const updateSeriesHistoryString = JSON.stringify(seriesHistory);
+                    localStorage.setItem('seriesHistory', updateSeriesHistoryString);
+                } else {
+                    const seriesHistoryString = JSON.stringify([this.details]);
+                    localStorage.setItem('seriesHistory', seriesHistoryString);
+                }
             },
             getDate(date: Date) {
                 const monthNames = ["January", "February", "March", "April", "May", "June",
@@ -289,5 +356,15 @@
     }
     ::v-deep .el-tabs__nav-wrap::after {
         height: 0;
+    }
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    .justify-center {
+        display:flex;
+        justify-content:center;
+    }
+    /deep/ .el-dialog__body {
+        padding-top: 0;
     }
 </style>

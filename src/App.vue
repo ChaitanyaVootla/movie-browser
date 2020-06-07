@@ -37,7 +37,7 @@
     ::-webkit-scrollbar-thumb {
         background: #222;
         box-shadow: inset 0 0 5px #555;
-        border-radius: 10px;
+        border-radius: 4px;
     }
 
     /* Handle on hover */

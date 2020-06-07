@@ -9,6 +9,7 @@ export const endpoints = {
     configuration: 'configuration',
     trendingTvList: 'trending/tv/day',
     trendingMoviesList: 'trending/movie/day',
+    trendingMoviesListWeek: 'trending/movie/week',
     trendingPeopleList: 'trending/person/day',
     movieDetails: 'movie/',
     personDetails: 'person/',
@@ -17,7 +18,8 @@ export const endpoints = {
     seriesGenre: 'genre/tv/list',
     discoverMovies: 'discover/movie',
     discoverSeries: 'discover/tv',
-    searchMovies: 'search/movie'
+    searchMovies: 'search/movie',
+    searchAll: 'search/multi',
 };
 
 export const discoverDefaultQueries = '&include_video=true&vote_count.gte=10&vote_average.gte=1&';

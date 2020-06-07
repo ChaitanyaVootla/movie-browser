@@ -8,7 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import _ from 'lodash';
 import 'bootstrap';
 import Home from './components/Home.vue';
-import People from './components/Person/index.vue';
+import Person from './components/Person/index.vue';
 import Trending from './components/Trending/index.vue';
 import Discover from './components/MovieDiscover/index.vue';
 import Search from './components/Search/index.vue';
@@ -40,6 +40,9 @@ Vue.component('episodeCard', require('./components/Common/episodeCard.vue').defa
 Vue.component('movieDiscover', require('./components/MovieDiscover').default);
 Vue.component('search', require('./components/Search').default);
 Vue.component('personSlider', require('./components/PersonSlider/index.vue').default);
+Vue.component('person', require('./components/Person/index.vue').default);
+Vue.component('searchResults', require('./components/SearchResults/index.vue').default);
+Vue.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
 
 Vue.component('Home', require('./components/Home.vue').default);
 
@@ -67,7 +70,7 @@ const routes = [
     },
     {
         path: '/person/:name/:id',
-        component: People,
+        component: Person,
         name: 'person'
     },
     {

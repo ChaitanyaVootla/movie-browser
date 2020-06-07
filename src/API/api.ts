@@ -20,6 +20,10 @@ export const api = {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingMoviesList + '?api_key=' + appConfig.token);
         return res.data;
     },
+    getTrendingMoviesWeek: async function() {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingMoviesListWeek + '?api_key=' + appConfig.token);
+        return res.data;
+    },
     getTrendingPeople: async function() {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingPeopleList + '?api_key=' + appConfig.token);
         return res.data;
@@ -70,6 +74,11 @@ export const api = {
     searchMovies: async function(searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.searchMovies + '?api_key=' + appConfig.token + searchQuery + '&page=' + page);
+        return res.data;
+    },
+    searchAll: async function(searchString: string, page: number) {
+        const searchQuery = `&query=${searchString}` + searchDefaultQueries;
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.searchAll + '?api_key=' + appConfig.token + searchQuery + '&page=' + page);
         return res.data;
     },
     getDiscoverMovies: async function(searchQuery: string) {

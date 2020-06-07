@@ -103,6 +103,8 @@
         },
         methods: {
             async getDetails() {
+                this.carrerList = [] as any[];
+                document.body.scrollTop = document.documentElement.scrollTop = 0;
                 this.detailsLoading = true;
                 this.details = await api.getPersonDetails(parseInt(this.$route.params.id));
                 this.mainImgObj.src = this.creditImageBasePath + this.details.profile_path;
@@ -175,8 +177,9 @@
         },
         watch: {
             person: function () {
-                this.carrerList = [] as any[];
-                document.body.scrollTop = document.documentElement.scrollTop = 0;
+                this.getDetails();
+            },
+            '$route.params.id': function () {
                 this.getDetails();
             }
         }

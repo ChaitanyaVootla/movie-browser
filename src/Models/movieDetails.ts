@@ -17,8 +17,9 @@ export class MovieDetails {
     public credits: Array<Object>;
     public similar: Array<Object>;
     public recommendations: Array<Object>;
+    public adult: Boolean;
     constructor(obj: any) {
-        this.name = obj.original_title;
+        this.name = obj.title || obj.original_title;
         this.id = obj.id;
         this.rating = obj.vote_average;
         this.voteCount = obj.vote_average;
@@ -36,5 +37,6 @@ export class MovieDetails {
         this.credits = obj.credits;
         this.similar = obj.similar;
         this.recommendations = obj.recommendations;
+        this.adult = obj.adult;
     }
 };

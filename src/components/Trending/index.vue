@@ -1,13 +1,16 @@
 <template>
-    <div class="pt-4">
-        <!-- Trending lists -->
-        <div v-if="isTrendingDataLoaded">
-            <movie-slider :movies="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
-            <movie-slider :movies="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
-            <movie-slider :movies="trendingTv" :configuration="configuration" :heading="'Trending TV Series'" :id="'trendingSeries'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
+    <div>
+        <trending-carousel :configuration="configuration" :showMovieInfoModal="showMovieInfo"
+            :showFullMovieInfo="showFullMovieInfo" :showSeriesInfo="showSeriesInfo" :movieGenres="movieGenres"></trending-carousel>
+        <div class="pt-4">
+            <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
+                <movie-slider :movies="trendingMovies" :configuration="configuration" :heading="'Top Movies'" :id="'trendingMovies'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+                <movie-slider :movies="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+                <movie-slider :movies="trendingTv" :configuration="configuration" :heading="'Top TV Series'" :id="'trendingSeries'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
+            </div>
         </div>
     </div>
 </template>
@@ -22,6 +25,7 @@
             'showMovieInfo',
             'showFullMovieInfo',
             'showSeriesInfo',
+            'movieGenres',
         ],
         data() {
           return {
@@ -29,7 +33,7 @@
               trendingTv: [],
               trendingMovies: [],
               trendingPeople: [],
-              latestMovies: [],
+              latestMovies: [] as any[],
           }  
         },
         mounted() {
@@ -58,11 +62,19 @@
                     latestMovies = latestMovies.concat(res.results);
                 }
                 this.latestMovies = _.sortBy(latestMovies, ({popularity}) => -popularity);
-                // this.latestMovies = latestMovies;
             },
         }
     }
 </script>
 
-<style scoped>
+<style scoped lang="less">
+    @import '../../Assets/Styles/main.less';
+
+    .justify-center {
+        display:flex;
+        justify-content:center;
+    }
+    .trending-sliders-container {
+        margin: 0 1em 2em 1em;
+    }
 </style>

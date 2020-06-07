@@ -85,37 +85,12 @@
                             <div class="search-item dropdown-item" v-if="searchResults.length === 0" style="justify-content: center;">
                                 No Results
                             </div>
-                            <div class="search-item" v-for="result in searchResults" :key="result.id" v-on:click="showMovieInfo(result)">
-                                <img
-                                    v-lazy="{
-                                        src: imageBasePath + result.poster_path,
-                                        error: require('../Assets/Images/error.svg'),
-                                        loading: require('../Assets/Images/loader-bars.svg'),
-                                    }"
-                                    class="search-image">
-                                <div class="search-info-container ml-3">
-                                    <span>
-                                        {{result.original_title}}
-                                        <span class="text-muted ml-1" style="font-size: 0.9em;">
-                                            {{getYear(result.release_date)}}
-                                        </span>
-                                    </span>
-                                    <div style="margin-top: -5px;">
-                                        <span v-for="(genreId, index) in result.genre_ids" :key="genreId" class="text-muted ml-1" style="font-size: 0.9em;">
-                                            {{getGenreNameFromId(genreId)}}{{index === result.genre_ids.length -1?'':','}}
-                                        </span>
-                                    </div>
-                                    <div class="mt-2">
-                                        <div class="rating-info" :style="`border-color: ${getRatingColor(result.vote_average)}; color: ${getRatingColor(result.vote_average)}`">
-                                            {{result.vote_average}}
-                                        </div>
-                                    </div>
-                                    <div style="max-height: 3em; overflow: hidden;" class="mt-4">
-                                        {{result.overview}}
-                                    </div>
-                                </div>
-                                <hr/>
-                            </div>
+                            <search-results
+                                :search-results="searchResults"
+                                :get-genre-name-from-id="getGenreNameFromId"
+                                :image-base-path="imageBasePath"
+                            >
+                            </search-results>
                         </div>
                     </div>
                 </el-col>
@@ -148,6 +123,7 @@
             :showFullMovieInfo="showFullMovieInfo"
             :selectPerson="goToPerson"
             :showSeriesInfo="showSeriesInfo"
+            :movieGenres="movieGenres"
         ></router-view>
 
         <!-- Info Modal -->
@@ -170,6 +146,7 @@
 <script lang="ts">
     import { Component, Prop, Vue } from 'vue-property-decorator';
     import { api } from '../API/api';
+    import { sanitizeName } from '../Common/utils';
     import _ from 'lodash';
 
     export default {
@@ -330,7 +307,7 @@
                 async function(this: any) {
                     if (this.searchText.length > 1) {
                         $('.search-dropdown')[0].scrollTop = 0;
-                        const response = await api.searchMovies(this.searchText, 1);
+                        const response = await api.searchAll(this.searchText, 1);
                         this.searchResults = _.sortBy(response.results, 'popularity').reverse();
                     }
                 }, 200
@@ -341,21 +318,14 @@
                     return genre.name;
                 }
             },
-            getRatingColor: function(rating: number) {
-                if (rating < 5)
-                    return 'red';
-                if (rating < 6.5)
-                    return 'orange';
-                if (rating < 8)
-                    return 'green';
-                else
-                    return 'purple';
-            },
             showFullMovieInfo(movie: any) {
+                if (movie.first_air_date) {
+                    return this.showSeriesInfo(movie);
+                }
                 this.$router.push({
                     name: 'movieInfoFull',
                     params: {
-                        name: movie.name || movie.original_title,
+                        name: sanitizeName(movie.name || movie.original_title),
                         id: movie.id,
                     }
                 }).catch(err => {});
@@ -364,7 +334,7 @@
                 this.$router.push({
                     name: 'seriesInfo',
                     params: {
-                        name: series.name,
+                        name: sanitizeName(series.name),
                         id: series.id,
                     }
                 }).catch(err => {});
@@ -375,9 +345,6 @@
             },
             closeInfo() {
                 $('#movieInfoModal').modal('hide');
-            },
-            getYear(date: string) {
-                return new Date(date).getFullYear();
             },
             gotoHome() {
                 this.clearDiscoveryData();
@@ -396,7 +363,7 @@
                 this.$router.push({
                     name: 'person',
                     params: {
-                        name: person.name,
+                        name: sanitizeName(person.name),
                         id: person.id,
                     }
                 });
@@ -435,11 +402,6 @@
 <style scoped lang="less">
     @import '../Assets/Styles/main.less';
 
-    .search-image[lazy=error] {
-        background-size: 4em;
-        padding: 2em;
-        width: 7em;
-    }
     .app-logo {
         margin-top: 0.3em;
         cursor: pointer;
@@ -452,11 +414,6 @@
         height: 1.6em;
         display: flex;
         justify-content: center;
-    }
-    .search-image[lazy=loading] {
-        background-size: contain;
-        padding: 2em;
-        width: 7em;
     }
     .sort-order-container {
         max-width: 22em;
@@ -513,19 +470,6 @@
         color: white !important;
         background: #222;
     }
-    .rating-info {
-        padding: 0.2em;
-        border: 0.15em solid #ccc;
-        border-radius: 100%;
-        font-weight: 500;
-        background: rgba(0, 0, 0, 0.2);
-        width: 2.2em;
-        height: 1.9em;
-        text-align: center;
-        vertical-align: middle;
-        display: inline-table;
-        padding: 0.2em;
-    }
     ::v-deep .info-container {
         padding: 0  !important;
         width: 100%  !important;
@@ -572,23 +516,6 @@
         max-height: 30em;
         box-shadow: 0px 30px 60px 20px rgba(0,0,0,0.95);
     }
-    .search-item {
-        display: flex;
-        margin-bottom: 0.5em;
-        padding-bottom: 0.5em;
-        cursor: pointer;
-        border-bottom: solid 1px #333;
-    }
-    .search-item:last-child {
-        border-bottom: 0;
-    }
-    .search-item:hover {
-        background: rgb(8, 8, 8);
-    }
-    .search-info-container {
-        display: flex;
-        flex-direction: column;
-    }
     .search-dropdown .dropdown-item {
         color: #fff !important;
     }
@@ -608,9 +535,6 @@
         left: 78%;
         top: 0.2em;
         z-index: 100;
-    }
-    .search-image {
-        height: 10em;
     }
     .type-switch-container {
         display: flex;

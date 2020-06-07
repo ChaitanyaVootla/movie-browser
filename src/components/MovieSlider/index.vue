@@ -1,6 +1,9 @@
 <template>
     <div :class="`${id} main-slider-div`">
-        <div class="slider-heading">{{heading}}</div>
+        <div class="slider-heading" :style="{'padding-top': history?'15px':'1em'}">
+            <font-awesome-icon :icon="['fas', 'history']" v-if="history"/>
+            {{heading}}
+        </div>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft" v-show="isBarFull">
                 <font-awesome-icon :icon="['fas', 'chevron-left']" />
@@ -30,6 +33,7 @@
             'heading',
             'showMovieInfoModal',
             'showFullMovieInfo',
+            'history',
         ],
         data() {
           return {
@@ -114,7 +118,7 @@
         padding-bottom: 0;
     }
     ::v-deep .movie-card-image {
-        height: 14em !important;
+        height: 12em !important;
         margin: 0 0.2em;
         min-width: 8em;
     }

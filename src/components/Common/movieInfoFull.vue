@@ -6,8 +6,10 @@
         <div class="info-container" v-if="details.name">
             <h3 div="info-heading">
                 {{details.name}}
-                <span class="text-muted info-tagline" v-if="details.numberOfSeasons">
-                    {{details.numberOfSeasons}} Season{{details.numberOfSeasons> 1?'s':''}}
+                <span>
+                    <span class="text-muted info-tagline cursor-pointer" @click="openImageModal">
+                        <font-awesome-icon :icon="['fas', 'images']"/>
+                    </span>
                 </span>
             </h3>
 
@@ -77,6 +79,41 @@
         <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration" :heading="'Recommended'" :id="'recommended'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
         <div class="mb-5"></div>
+        <el-dialog
+            :visible.sync="dialogVisible"
+            :width="defaultImageTab === 'backdrops'?'95%':'50%'"
+            top="10vh">
+            <el-tabs v-model="defaultImageTab">
+                <el-tab-pane label="Backdrops" name="backdrops">
+                    <el-carousel type="card" height="500px">
+                        <el-carousel-item v-for="image in backdrops" :key="image.file_path">
+                            <div class="justify-center">
+                                <img v-lazy="{
+                                        src: `${configuration.images.secure_base_url}h632${image.file_path}`,
+                                        error: require('../../Assets/Images/error.svg'),
+                                        loading: require('../../Assets/Images/loader-bars.svg'),
+                                    }" height="500px"
+                                />
+                            </div>
+                        </el-carousel-item>
+                    </el-carousel>
+                </el-tab-pane>
+                <el-tab-pane label="Posters" name="posters">
+                    <el-carousel type="card" height="500px">
+                        <el-carousel-item v-for="image in posters" :key="image.file_path">
+                            <div class="justify-center">
+                                <img v-lazy="{
+                                        src: `${configuration.images.secure_base_url}h632${image.file_path}`,
+                                        error: require('../../Assets/Images/error.svg'),
+                                        loading: require('../../Assets/Images/loader-bars.svg'),
+                                    }" height="500px"
+                                />
+                            </div>
+                        </el-carousel-item>
+                    </el-carousel>
+                </el-tab-pane>
+            </el-tabs>
+        </el-dialog>
     </div>
 </template>
 
@@ -105,6 +142,10 @@
             crew: [] as any[],
             selectedVideo: {},
             showFullOverview: false,
+            dialogVisible: false,
+            backdrops: [] as any[],
+            posters: [] as any[],
+            defaultImageTab: 'backdrops',
           }
         },
         created() {
@@ -117,9 +158,15 @@
             }
         },
         methods: {
+            openImageModal() {
+                this.dialogVisible = true;
+                this.backdrops = this.details.images.backdrops;
+                this.posters = this.details.images.posters;
+            },
             async getDetails() {
                 this.detailsLoading = true;
                 this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
+                this.updateLocalStorage();
                 this.similarMovies = this.details.similar.results;
                 this.recommendedMovies = this.details.recommendations.results;
                 this.cast = this.details.credits.cast;
@@ -144,6 +191,23 @@
                     }
                 );
                 this.detailsLoading = false;
+            },
+            updateLocalStorage() {
+                const localMoviesHistory = localStorage.moviesHistory;
+                if (localMoviesHistory) {
+                    let moviesHistory = JSON.parse(localMoviesHistory);
+                    moviesHistory = _.filter(moviesHistory,
+                        ({ id }) => {
+                            return id !== parseInt(this.details.id);
+                        }
+                    );
+                    moviesHistory.push(this.details);
+                    const moviesHistoryString = JSON.stringify(moviesHistory);
+                    localStorage.setItem('moviesHistory', moviesHistoryString);
+                } else {
+                    const moviesHistoryString = JSON.stringify([this.details]);
+                    localStorage.setItem('moviesHistory', moviesHistoryString);
+                }
             },
             getDate(date: Date) {
                 const monthNames = ["January", "February", "March", "April", "May", "June",
@@ -254,5 +318,26 @@
         padding-bottom: 0.2em;
         cursor: pointer;
         width: 2em;
+    }
+    ::v-deep .el-tabs__header {
+        padding: 0 2em !important;
+    }
+    ::v-deep .el-tabs__nav-wrap::after {
+        height: 0;
+    }
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    .justify-center {
+        display:flex;
+        justify-content:center;
+    }
+    .info-tagline {
+        padding-left: 1em;
+        color: #ddd !important;
+        font-size: .5em;
+    }
+    /deep/ .el-dialog__body {
+        padding-top: 0;
     }
 </style>
