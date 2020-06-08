@@ -14,6 +14,7 @@ import Discover from './components/MovieDiscover/index.vue';
 import Search from './components/Search/index.vue';
 import MovieInfoFull from './components/Common/movieInfoFull.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
+import StreamingNow from './components/StreamingNow/index.vue';
 import VueLazyload from 'vue-lazyload'
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
@@ -39,6 +40,7 @@ Vue.component('episodeCard', require('./components/Common/episodeCard.vue').defa
 
 Vue.component('movieDiscover', require('./components/MovieDiscover').default);
 Vue.component('search', require('./components/Search').default);
+Vue.component('streamingNow', require('./components/StreamingNow/index.vue').default);
 Vue.component('personSlider', require('./components/PersonSlider/index.vue').default);
 Vue.component('person', require('./components/Person/index.vue').default);
 Vue.component('searchResults', require('./components/SearchResults/index.vue').default);
@@ -82,6 +84,11 @@ const routes = [
         path: '/series/:name/:id',
         component: SeriesInfo,
         name: 'seriesInfo'
+    },
+    {
+        path: '/streamingNow',
+        component: StreamingNow,
+        name: 'StreamingNow'
     },
 ];
 Vue.use(VueLazyload);

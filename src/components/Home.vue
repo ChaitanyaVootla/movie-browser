@@ -3,23 +3,29 @@
         <!-- Discover -->
         <div class="discover-container">
             <el-row class="discover-row">
-                <el-col :span="6" class="sort-order-container">
+                <el-col :span="8">
                     <ul class="nav nav-pills">
                         <li class="nav-item">
+                            <a class="nav-link" :class="onStreamingNow?'active':''" @click="goToStreamingNow()">
+                                <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" :class="onDiscover?'active':''" @click="goToDiscover()">
+                                <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
+                            </a>
+                        </li>
+                        <!-- <li class="nav-item">
                             <a class="nav-link" :class="sortText === 'popularity'?'active':''"
                                 v-on:click="setSortOrder('popularity.desc', 'popularity'); updateSortOrder('popular');">Popular</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" :class="sortText === 'topRated'?'active':''"
                                 v-on:click="setSortOrder('vote_average.desc', 'topRated'); updateSortOrder('topRated');">Top Rated</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" :class="sortText === 'latest'?'active':''"
-                                v-on:click="setSortOrder('release_date.desc', 'latest'); updateSortOrder('latest');">Latest</a>
-                        </li>
+                        </li> -->
                     </ul>
                 </el-col>
-                <el-col :span="2" class="left-dropdown-item" style="max-width: 8em;">
+                <!-- <el-col :span="2" class="left-dropdown-item" style="max-width: 8em;">
                     <div class="dropdown">
                         <button class="btn dropdown-toggle discover-dropdown btn-dark pb-2"
                             type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -66,17 +72,17 @@
                             </a>
                         </div>
                     </div>
-                </el-col>
+                </el-col> -->
                 <el-col :span="8" class="flex-center">
                     <div class="app-logo" @click="gotoHome">
                         <font-awesome-icon :icon="['fas', 'film']" class="mt-1"/>
                     </div>
                 </el-col>
-                <el-col :span="5" class="mt-1 flex-right">
+                <el-col :span="8" class="flex-right">
                     <!-- Search Bar -->
-                    <div class="form-inline mt-2">
+                    <div class="form-inline mt-2" style="width:100%;">
                         <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search" id="searchInput"
-                            v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"/>
                         <button class="btn btn-dark search-button" @click="goToSearch">
                             <font-awesome-icon :icon="['fas', 'search']" />
                         </button>
@@ -94,7 +100,7 @@
                         </div>
                     </div>
                 </el-col>
-                <el-col :span="3" class="type-switch-container flex-center">
+                <!-- <el-col :span="3" class="type-switch-container flex-center">
                         <div class="selected-text">Series</div>
 
                         <el-switch class="type-switch"
@@ -105,7 +111,7 @@
                         </el-switch>
 
                         <div class="selected-text">Movies</div>
-                </el-col>
+                </el-col> -->
 
             </el-row>
         </div>
@@ -124,6 +130,7 @@
             :selectPerson="goToPerson"
             :showSeriesInfo="showSeriesInfo"
             :movieGenres="movieGenres"
+            :seriesGenres="seriesGenres"
         ></router-view>
 
         <!-- Info Modal -->
@@ -156,7 +163,7 @@
                 trendingTv: [],
                 trendingMovies: [],
                 nowPlayingMovies: [],
-                configuration: {},
+                configuration: {} as any,
                 genres: [] as Object[],
                 movieGenres: [] as Object[],
                 seriesGenres: [] as Object[],
@@ -198,7 +205,20 @@
                 }, this));
             }
         },
+        computed: {
+            onStreamingNow() {
+                return this.$route.name === 'StreamingNow';
+            },
+            onDiscover() {
+                return this.$route.name === 'discover';
+            },
+        },
         methods: {
+            goToStreamingNow() {
+                this.$router.push({
+                    name: 'StreamingNow',
+                }).catch(err => {});
+            },
             sortedGenres(): any {
                 return _.sortBy(this.genres, (genre: any) => {
                     if (this.queryParams.selectedGenreMap[genre.id] === true) {
@@ -403,26 +423,29 @@
     @import '../Assets/Styles/main.less';
 
     .app-logo {
-        margin-top: 0.3em;
+        margin-top: 0.2em;
         cursor: pointer;
         font-size: 1.8em;
-        color: @main-red;
-        background: #000;
+        color: #000;
+        background: @main-red;
+        filter: opacity(0.95);
         padding: 0.2em;
-        border-radius: 100%;
+        border-radius: 20%;
         width: 1.6em;
         height: 1.6em;
         display: flex;
         justify-content: center;
+        align-content: center;
     }
     .sort-order-container {
-        max-width: 22em;
+        max-width: 24em;
     }
     .left-dropdown-item {
         max-width: 8em;
     }
     .discover-container {
-        background: #850909;
+        box-shadow: 0 7px 20px -5px #222;
+        background: @primary-gray;
         padding-left: 1.5em;
         padding-top: 0.2em;
         font-weight: 400;
@@ -432,19 +455,17 @@
         z-index: 101;
     }
     .discover-container .nav-link {
-        // padding: 0.6em 1em;
         margin: 0.6em 0.3em;
-        background: #850909;
+        background: #212121;
         cursor: pointer;
         transition: all 300ms;
-        // font-weight: 500;
+        font-weight: 400;
     }
     .discover-container .nav-link:hover {
-        background: #222;
+        background: #333;
     }
     .discover-container .nav-link.active {
-        background: #111;
-        font-weight: 500;
+        background-color: #333;
         color: #fff;
     }
     .discover-row {
@@ -491,16 +512,17 @@
     /* Search Styles */
     .search-bar {
         border-radius: 3px;
-        background: #000;
-        border-color: #111;
+        background: #111;
+        border-color: #222;
         color: #eee;
-        font-weight: 500;
+        font-weight: 400;
         border-bottom-right-radius: 0;
         border-top-right-radius: 0;
         border-bottom-left-radius: 7px;
         border-top-left-radius: 7px;
-        width: 20em !important;
+        width: 80% !important;
         position: relative;
+        text-transform: capitalize;
     }
     .search-bar:focus {
         background: #000;
@@ -520,8 +542,8 @@
         color: #fff !important;
     }
     .search-button {
-        background: #000;
-        border-color: #111;
+        background: #111;
+        border-color: #222;
         color: #eee;
         font-weight: 500;
         border-bottom-left-radius: 0;

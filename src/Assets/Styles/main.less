@@ -10,12 +10,13 @@
     background-color: #c01111;
 }
 ::v-deep .el-tabs__nav-wrap::after {
-    background-color: #ccc;
+    background-color: rgb(29, 29, 29);
 }
 
 /* Colors */
 @main-red: #850909;
 @link-color-red: #b91d1d;
+@primary-gray: rgb(15, 15, 15);
 
 /* Backgrounds */
 @translucent-bg: rgba(0, 0, 0, 0.4);
@@ -28,4 +29,32 @@
     display: flex;
     flex-direction: row-reverse;
     justify-content: right !important;
+}
+
+// Carousel styles
+/deep/ .el-carousel__arrow {
+    margin: 1em;
+    background-color: #0000007a;
+    color: white;
+    border-radius: 1em;
+}
+/deep/ .el-carousel__button {
+    border: 2px solid white;
+}
+// Button styles
+/deep/ .el-button {
+    color: white;
+    border-color: #222;
+}
+/deep/ .el-button:hover {
+    color: white;
+    border-color: #777;
+}
+/deep/ .el-button:focus {
+    color: white;
+    border-color: #777;
+}
+/deep/ .el-input__inner {
+    color: white;
+    border-color: #222;
 }

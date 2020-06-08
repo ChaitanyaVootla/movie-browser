@@ -1,38 +1,39 @@
 <template>
     <el-row class="week-trends-container pt-4">
         <el-col :span="historyAbsent()?24:13">
-            <el-carousel height="500px" :interval="700000" :type="historyAbsent()?'card':''" @change="carouselChanged">
-                <el-carousel-item v-for="movie in trendingMoviesWeek" :key="movie.id">
-                    <div style="position:relative; cursor:pointer; background-color:rgb(24, 24, 24); padding: 0 1em;" @click="carouselCardClicked(movie)">
+            <el-carousel height="500px" :interval="7000" :type="historyAbsent()?'card':''" @change="carouselChanged" arrow="always" class="ml-5">
+                <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
+                    <div class="carousel-card-container" @click="carouselCardClicked(item)">
                         <div class="background-images-container justify-center">
                             <img v-lazy="{
-                                    src: `${configuration.images.secure_base_url}h632${movie.backdrop_path}`,
+                                    src: `${configuration.images.secure_base_url}h632${item.backdrop_path}`,
                                     error: require('../../Assets/Images/error.svg'),
                                     loading: require('../../Assets/Images/loader-bars.svg'),
                                 }" height="550px"
                             />
                         </div>
-                        <div class="info-container" v-if="movie.title && currentMovie.id === movie.id">
+                        <div class="info-container" v-if="currentCarouselItem.id === item.id">
                             <h3 div="info-heading">
-                                {{movie.title}}
+                                {{item.title || item.name}}
                             </h3>
                             <!-- Genres -->
                             <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                                <span v-for="(genreId, index) in movie.genre_ids" :key="genreId">
-                                    {{getGenreName(genreId)}}{{index===movie.genre_ids.length-1?'':','}}
+                                <span v-for="(genreId, index) in item.genre_ids" :key="genreId">
+                                    {{getGenreName(genreId)}}{{index===item.genre_ids.length-1?'':','}}
                                 </span>
+                                 - {{item.media_type}}
                             </h6>
 
                             <!-- Rating -->
                             <div class="mt-5 pt-5">
-                                <span class="rating-info" :style="`border-color: ${getRatingColor(movie.vote_average)}; color: ${getRatingColor(movie.vote_average)}`">
-                                    {{movie.vote_average}}
+                                <span class="rating-info" :style="`border-color: ${getRatingColor(item.vote_average)}; color: ${getRatingColor(item.vote_average)}`">
+                                    {{item.vote_average}}
                                 </span>
                             </div>
 
-                            <!-- Movie overview -->
+                            <!-- Item overview -->
                             <div class="movie-overview p-3 mt-10">
-                                <span>{{movie.overview.slice(0, 200)}}</span>
+                                <span>{{item.overview.slice(0, 200)}}</span>
                             </div>
                         </div>
                     </div>
@@ -63,12 +64,13 @@
             'showFullMovieInfo',
             'showSeriesInfo',
             'movieGenres',
+            'seriesGenres',
         ],
         data() {
           return {
               getRatingColor,
-              trendingMoviesWeek: [],
-              currentMovie: {} as any,
+              trendingListWeek: [],
+              currentCarouselItem: {} as any,
           }
         },
         mounted() {
@@ -76,12 +78,12 @@
         },
         methods: {
             carouselCardClicked(movie: any) {
-                if (movie.id === this.currentMovie.id) {
+                if (movie.id === this.currentCarouselItem.id) {
                     this.showFullMovieInfo(movie);
                 }
             },
             carouselChanged(currentIndex: number) {
-                this.currentMovie = this.trendingMoviesWeek[currentIndex];
+                this.currentCarouselItem = this.trendingListWeek[currentIndex];
             },
             historyAbsent() {
                 if (!localStorage.moviesHistory && !localStorage.seriesHistory) {
@@ -91,28 +93,33 @@
             },
             getMoviesHistory() {
                 if (localStorage.moviesHistory) {
-                    return JSON.parse(localStorage.moviesHistory).reverse();
+                    return JSON.parse(localStorage.moviesHistory).reverse().slice(0, 5);
                 } else {
                     return [];
                 }
             },
             getSeriesHistory() {
                 if (localStorage.seriesHistory) {
-                    return JSON.parse(localStorage.seriesHistory).reverse();
+                    return JSON.parse(localStorage.seriesHistory).reverse().slice(0, 5);
                 } else {
                     return [];
                 }
             },
             getGenreName(id: number) {
-                return _.find(this.movieGenres, {id: id}).name;
+                let genre = _.find(this.movieGenres, {id: id});
+                if (!genre) {
+                    genre = _.find(this.seriesGenres, {id: id});
+                }
+                if (genre)
+                    return genre.name;
             },
-            async getTrendingMoviesWeek() {
-                const res = await api.getTrendingMoviesWeek();
-                this.trendingMoviesWeek = res.results.slice(0, 5);
-                this.currentMovie = this.trendingMoviesWeek[0];
+            async gettrendingListWeek() {
+                const res = await api.getTrendingListWeek();
+                this.trendingListWeek = res.results.slice(0, 10);
+                this.currentCarouselItem = this.trendingListWeek[0];
             },
             async loadData() {
-                await this.getTrendingMoviesWeek();
+                await this.gettrendingListWeek();
             }
         }
     }
@@ -133,6 +140,7 @@
         height: 30em;
         overflow: hidden;
         height: 490px;
+        border-radius: 0.5em;
     }
     .info-container {
         position: absolute;
@@ -170,7 +178,10 @@
         flex-wrap: wrap;
         justify-content: space-between;
     }
-    /deep/ .el-carousel__button {
-        background-color: @link-color-red;
+    .carousel-card-container {
+        position: relative;
+        cursor: pointer;
+        background-color:rgb(24, 24, 24);
+        padding: 0 1em;
     }
 </style>

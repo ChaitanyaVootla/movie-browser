@@ -6,6 +6,7 @@ import {
     latestMovieQuery,
     personDetailsDefaultQuery,
     detailsDefaultQuery,
+    serverEndpoints
 } from './Constants';
 import axios from 'axios';
 import { MovieDetails } from '@/Models/movieDetails';
@@ -20,8 +21,8 @@ export const api = {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingMoviesList + '?api_key=' + appConfig.token);
         return res.data;
     },
-    getTrendingMoviesWeek: async function() {
-        const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingMoviesListWeek + '?api_key=' + appConfig.token);
+    getTrendingListWeek: async function() {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingListWeek + '?api_key=' + appConfig.token);
         return res.data;
     },
     getTrendingPeople: async function() {
@@ -86,9 +87,29 @@ export const api = {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + searchQuery);
         return res.data;
     },
+    getDiscoverMoviesFull: async function(searchQuery: string) {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + searchQuery);
+        return res.data;
+    },
     getDiscoverSeries: async function(searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverSeries + '?api_key=' + appConfig.token + searchQuery);
+        return res.data;
+    },
+    getTopSeriesByNetwork: async function(networkId: number) {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverSeries + '?api_key=' + appConfig.token + `&with_networks=${networkId}`);
+        return res.data;
+    },
+    getCurrentStreamingSeries: async function() {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.currentStreamingTv + '?api_key=' + appConfig.token);
+        return res.data;
+    },
+    getNetworkImages: async function(id: number) {
+        const res = await axios.get(appConfig.apiBaseUrl +`${endpoints.networkDetails}/${id}/images` + '?api_key=' + appConfig.token);
+        return res.data;
+    },
+    searchKeywords: async function(query: string) {
+        const res = await axios.get(appConfig.serverBaseUrl +`${serverEndpoints.keywords}?q=${query}`);
         return res.data;
     },
 };

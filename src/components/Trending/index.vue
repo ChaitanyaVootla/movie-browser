@@ -1,7 +1,8 @@
 <template>
     <div>
         <trending-carousel :configuration="configuration" :showMovieInfoModal="showMovieInfo"
-            :showFullMovieInfo="showFullMovieInfo" :showSeriesInfo="showSeriesInfo" :movieGenres="movieGenres"></trending-carousel>
+            :showFullMovieInfo="showFullMovieInfo" :showSeriesInfo="showSeriesInfo" :movieGenres="movieGenres"
+            :seriesGenres="seriesGenres"></trending-carousel>
         <div class="pt-4">
             <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
                 <movie-slider :movies="trendingMovies" :configuration="configuration" :heading="'Top Movies'" :id="'trendingMovies'"
@@ -26,6 +27,7 @@
             'showFullMovieInfo',
             'showSeriesInfo',
             'movieGenres',
+            'seriesGenres',
         ],
         data() {
           return {

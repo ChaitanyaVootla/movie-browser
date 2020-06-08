@@ -1,9 +1,11 @@
 <template>
-    <div :class="`${id} main-slider-div`">
-        <div class="slider-heading" :style="{'padding-top': history?'15px':'1em'}">
-            <font-awesome-icon :icon="['fas', 'history']" v-if="history"/>
-            {{heading}}
-        </div>
+    <div :class="`${id} main-slider-div ${history?'history-slider':''}`">
+        <slot>
+            <div class="slider-heading" :style="{'padding-top': history?'15px':'1em'}">
+                <font-awesome-icon :icon="['fas', 'history']" v-if="history"/>
+                {{heading}}
+            </div>
+        </slot>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft" v-show="isBarFull">
                 <font-awesome-icon :icon="['fas', 'chevron-left']" />
@@ -107,6 +109,7 @@
         background: linear-gradient(to right, #111 0%,#1b1b1b 100%);
         padding: 0 0.5em;
         cursor: pointer;
+        border-radius: 5px;
     }
     .scroll-item-right {
         background: linear-gradient(to right, #1b1b1b 0%,#111 100%);
@@ -118,8 +121,11 @@
         padding-bottom: 0;
     }
     ::v-deep .movie-card-image {
-        height: 12em !important;
+        height: 14em !important;
         margin: 0 0.2em;
         min-width: 8em;
+    }
+    .history-slider ::v-deep.movie-card-image {
+        height: 12em !important;
     }
 </style>

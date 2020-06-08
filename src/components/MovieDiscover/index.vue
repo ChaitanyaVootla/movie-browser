@@ -1,5 +1,25 @@
 <template>
     <div>
+        <div class="mt-5 ml-5">
+            <el-row>
+                <el-col :span="4">
+                    keyword 
+                    <el-select v-model="selectedKeywords" multiple filterable remote
+                        :remote-method="keywordChanged" placeholder="Select"
+                        :no-data-text="'No Results'" value-key="id">
+                        <el-option
+                            v-for="item in searchKeywords"
+                            :key="item.id"
+                            :label="item.name"
+                            :value="item">
+                        </el-option>
+                    </el-select>
+                </el-col>
+                <el-col :span="2">
+                    <el-button @click="searchWithKeywords">Search</el-button>
+                </el-col>
+            </el-row>
+        </div>
         <div class="query-info text-muted">
             <div class="">
                 {{queryData.total_results === 10000?`${queryData.total_results}+`:queryData.total_results}} results
@@ -33,17 +53,22 @@
           return {
               isLoaded: false,
               isDataLoading: true,
-              movies: [],
+              movies: [] as any[],
               queryData: {
                   results: []
               },
               currentPage: 1,
               selectedMovie: {},
               computedDiscoverQuery: '',
+              selectedKeywords: [],
+              searchKeywords: [],
           }  
         },
         created() {
             this.computeQuery(this.queryParams);
+            if (this.$route.query.keywords) {
+                this.searchWithKeywords();
+            }
             this.loadMovies();
             const self = this;
             window.onscroll = function() {
@@ -53,9 +78,33 @@
             };
         },
         methods: {
+            async keywordChanged(word: any) {
+                if (word.length>1) {
+                    this.searchKeywords = await api.searchKeywords(word);
+                }
+            },
+            async searchWithKeywords() {
+                this.currentPage = 1;
+                let keyWordIds = '';
+                if (this.selectedKeywords.length > 0) {
+                    keyWordIds = this.selectedKeywords.map(({id}) => id).toString();
+                } else if (this.$route.query.keywords) {
+                    keyWordIds = `${this.$route.query.keywords}`;
+                }
+                this.computedDiscoverQuery = `&with_keywords=${keyWordIds}`;
+                this.$router.push({
+                    name: 'discover',
+                    query: {
+                        keywords: keyWordIds.toString()
+                    }
+                }).catch(err => {});
+                this.queryData = await api.getDiscoverMoviesFull(this.computedDiscoverQuery);
+                this.movies = this.queryData.results;
+                this.fetchMoreMovies();
+            },
             loadMovies: async function() {
                 if (this.isMovies) {
-                    this.queryData = await api.getDiscoverMovies(this.computedDiscoverQuery);
+                    this.queryData = await api.getDiscoverMoviesFull(this.computedDiscoverQuery);
                     this.movies = this.queryData.results;
                     await this.loadMoreMovies();
                 } else {
@@ -71,7 +120,7 @@
                 currentdiscoverQuery += `&page=${this.currentPage}`;
                 let queryResult;
                 if (this.isMovies) {
-                    queryResult = await api.getDiscoverMovies(currentdiscoverQuery);
+                    queryResult = await api.getDiscoverMoviesFull(currentdiscoverQuery);
                 } else {
                     queryResult = await api.getDiscoverSeries(currentdiscoverQuery);
                 }
@@ -153,12 +202,17 @@
                 handler () {
                     this.computeQuery(this.queryParams);
                 }
+            },
+            '$route.query': function () {
+                console.log(this.$route.query.keywords);
             }
         },
     }
 </script>
 
 <style scoped>
+    @import '../../Assets/Styles/main.less';
+
     .discover-movies-container {
         padding: 1em 2.5em;
         display: flex;
