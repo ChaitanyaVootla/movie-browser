@@ -5,74 +5,18 @@
             <el-row class="discover-row">
                 <el-col :span="8">
                     <ul class="nav nav-pills">
-                        <li class="nav-item">
-                            <a class="nav-link" :class="onStreamingNow?'active':''" @click="goToStreamingNow()">
-                                <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
-                            </a>
-                        </li>
-                        <li class="nav-item">
+                        <li class="nav-item ml-4">
                             <a class="nav-link" :class="onDiscover?'active':''" @click="goToDiscover()">
                                 <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
                             </a>
                         </li>
-                        <!-- <li class="nav-item">
-                            <a class="nav-link" :class="sortText === 'popularity'?'active':''"
-                                v-on:click="setSortOrder('popularity.desc', 'popularity'); updateSortOrder('popular');">Popular</a>
+                        <li class="nav-item ml-4">
+                            <a class="nav-link" :class="onStreamingNow?'active':''" @click="goToStreamingNow()">
+                                <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
+                            </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" :class="sortText === 'topRated'?'active':''"
-                                v-on:click="setSortOrder('vote_average.desc', 'topRated'); updateSortOrder('topRated');">Top Rated</a>
-                        </li> -->
                     </ul>
                 </el-col>
-                <!-- <el-col :span="2" class="left-dropdown-item" style="max-width: 8em;">
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle discover-dropdown btn-dark pb-2"
-                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            {{selectedYearString?selectedYearString:'Year'}}
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                            <a class="dropdown-item flex-center" v-on:click="clearSelectedYear();">All</a>
-                            <a class="dropdown-item pl-3 pr-3 mt-2">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('new')">new</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('2k')">2k</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('90s')">90s</button>
-                                </div>
-                            </a>
-                            <a class="dropdown-item pl-3 pr-3 mb-2">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('80s')">80s</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('70s')">70s</button>
-                                    <button type="button" class="btn btn-dark" @click="selectYearRange('old')">old</button>
-                                </div>
-                            </a>
-                            <a class="dropdown-item flex-center" v-for="year in years" :key="year" v-on:click="selectYear(year);">{{year}}</a>
-                        </div>
-                    </div>
-                </el-col>
-
-                <el-col :span="2" class="left-dropdown-item">
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle discover-dropdown btn-dark pb-2"
-                            type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            {{selectedGenreNames.length?selectedGenreNames:'Genre'}}
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                            <a class="dropdown-item" v-on:click="clearSelectedGenre();">All</a>
-                            <a class="dropdown-item" v-for="genre in sortedGenres()" :key="genre.id">
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" :value="genre.id" v-model="queryParams.selectedGenreMap[genre.id]"
-                                        :id="`defaultCheck${genre.id}`" @change="goToDiscover(); updateGenreList();"/>
-                                    <span class="custom-control-indicator"></span>
-                                    <label class="custom-control-label" :for="`defaultCheck${genre.id}`">
-                                        {{genre.name}}
-                                    </label>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </el-col> -->
                 <el-col :span="8" class="flex-center">
                     <div class="app-logo" @click="gotoHome">
                         <font-awesome-icon :icon="['fas', 'film']" class="mt-1"/>
@@ -80,7 +24,7 @@
                 </el-col>
                 <el-col :span="8" class="flex-right">
                     <!-- Search Bar -->
-                    <div class="form-inline mt-2" style="width:100%;">
+                    <div class="form-inline mt-2 ml-5" style="width:100%;">
                         <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search" id="searchInput"
                             v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"/>
                         <button class="btn btn-dark search-button" @click="goToSearch">
@@ -100,18 +44,6 @@
                         </div>
                     </div>
                 </el-col>
-                <!-- <el-col :span="3" class="type-switch-container flex-center">
-                        <div class="selected-text">Series</div>
-
-                        <el-switch class="type-switch"
-                            v-model="isMovies"
-                            active-color="#993030"
-                            inactive-color="#000"
-                            @change="typeChanged">
-                        </el-switch>
-
-                        <div class="selected-text">Movies</div>
-                </el-col> -->
 
             </el-row>
         </div>
@@ -120,11 +52,7 @@
             :isLoaded="isLoaded"
             :configuration="configuration"
             :showMovieInfo="showMovieInfo"
-            :discoverQuery="discoverQuery"
-            :queryParams="queryParams"
-            :clearDiscoveryData="clearDiscoveryData"
             :searchString="searchText"
-            :isMovies="isMovies"
             :person="selectedPerson"
             :showFullMovieInfo="showFullMovieInfo"
             :selectPerson="goToPerson"
@@ -160,47 +88,30 @@
         name: 'home',
         data: function () {
             return {
-                trendingTv: [],
-                trendingMovies: [],
-                nowPlayingMovies: [],
                 configuration: {} as any,
-                genres: [] as Object[],
+                genres: [] as any[],
                 movieGenres: [] as Object[],
                 seriesGenres: [] as Object[],
-                selectedYearString: '',
                 isLoaded: false,
-                years: [] as number[],
-                discoverQuery: '',
-                sortText: '',
-                sortOrder: '',
-                queryParams: {
-                    selectedYear: '',
-                    minDate: '',
-                    maxDate: '',
-                    sortOrder: '',
-                    selectedGenreMap: {} as any
-                },
                 searchText: '',
                 searchResults: [],
                 imageBasePath: '',
                 selectedMovie: {},
                 currentRoute: {} as Object,
-                selectedGenreNames: '',
-                isMovies: true,
                 selectedPerson: {},
             };
         },
         created() {
-            this.setupData();
             this.loadData();
             this.currentRoute = this.$route;
         },
         mounted() {
             const searchInput = document.getElementById("searchInput");
             if (searchInput) {
+                const self = this as any;
                 searchInput.addEventListener("keyup", _.bind(function(event) {
                     if (event.keyCode === 13) {
-                        this.goToSearch();
+                        self.goToSearch();
                     }
                 }, this));
             }
@@ -219,14 +130,6 @@
                     name: 'StreamingNow',
                 }).catch(err => {});
             },
-            sortedGenres(): any {
-                return _.sortBy(this.genres, (genre: any) => {
-                    if (this.queryParams.selectedGenreMap[genre.id] === true) {
-                        return 1;
-                    }
-                    return 2;
-                });
-            },
             async loadData() {
                 await this.getConfiguration();
                 await this.getMovieGenres();
@@ -243,85 +146,6 @@
             },
             async getSeriesGenres() {
                 this.seriesGenres = await api.getSeriesGenres();
-            },
-            clearSelectedGenre() {
-                _.each(this.queryParams.selectedGenreMap,
-                    (isSelected, genreId) => {
-                        this.queryParams.selectedGenreMap[genreId] = false;
-                    }
-                );
-                this.updateGenreList();
-            },
-            selectYear(year: string) {
-                this.selectedYearString = year;
-                this.queryParams.minDate = '';
-                this.queryParams.maxDate = '';
-                this.queryParams.selectedYear = year;
-                this.goToDiscover();
-            },
-            selectYearRange(range: string) {
-                if (range === '80s') {
-                    this.queryParams.minDate = '1980-01-01';
-                    this.queryParams.maxDate = '1990-01-01';
-                } else if (range === '70s') {
-                    this.queryParams.minDate = '1970-01-01';
-                    this.queryParams.maxDate = '1980-01-01';
-                } else if (range === '90s') {
-                    this.queryParams.minDate = '1990-01-01';
-                    this.queryParams.maxDate = '2000-01-01';
-                } else if (range === 'old') {
-                    this.queryParams.minDate = '';
-                    this.queryParams.maxDate = '1970-01-01';
-                } else if (range === '2k') {
-                    this.queryParams.minDate = '2000-01-01';
-                    this.queryParams.maxDate = '2010-01-01';
-                } else if (range === 'new') {
-                    this.queryParams.minDate = '2010-01-01';
-                    this.queryParams.maxDate = '';
-                }
-                this.selectedYearString = range;
-                this.goToDiscover();
-            },
-            clearSelectedYear() {
-                this.selectedYearString = '';
-                this.queryParams.minDate = '';
-                this.queryParams.maxDate = '';
-                this.queryParams.selectedYear = '';
-            },
-            setupData() {
-                const currentYear = new Date().getFullYear();
-                for (let i = 0; i < 150; i++) {
-                    this.years.push(currentYear - i);
-                }
-            },
-            setSortOrder(sortOrder: string, sortText: string) {
-                this.queryParams.sortOrder = sortText;
-                this.sortOrder = sortOrder;
-                this.sortText = sortText;
-                this.goToDiscover();
-            },
-            updateSortOrder(sortOrder: string) {
-                this.queryParams.sortOrder = sortOrder;
-                this.goToDiscover();
-            },
-            clearDiscoveryData() {
-                this.clearSelectedGenre();
-                this.clearSelectedYear();
-                this.setSortOrder('', '');
-            },
-            updateGenreList() {
-                this.selectedGenreNames = '';
-                _.each(this.queryParams.selectedGenreMap,
-                    (isSelected, genreId) => {
-                        if (isSelected) {
-                            const genre: any = _.find(this.genres, {id: parseInt(genreId)});
-                            if (genre) {
-                                this.selectedGenreNames += genre.name;
-                            }
-                            this.selectedGenreNames += '  ';
-                        }
-                    }
-                );
             },
             executeSearch: _.debounce(
                 async function(this: any) {
@@ -367,7 +191,6 @@
                 $('#movieInfoModal').modal('hide');
             },
             gotoHome() {
-                this.clearDiscoveryData();
                 this.$router.push({
                     name: 'home'
                 }).catch(err => {});
@@ -395,15 +218,6 @@
                     }).catch(err => {});
                 }
             },
-            typeChanged() {
-                this.clearSelectedGenre();
-                if (this.isMovies) {
-                    this.genres = this.movieGenres;
-                } else {
-                    this.genres = this.seriesGenres;
-                }
-                this.goToDiscover();
-            }
         },
         watch: {
             searchText() {
@@ -413,9 +227,6 @@
                 this.currentRoute = currentRoute;
             }
         },
-        beforeRouteEnter() {
-            this.clearDiscoveryData();
-        }
     }
 </script>
 
@@ -511,6 +322,7 @@
     }
     /* Search Styles */
     .search-bar {
+        padding-left: 1em;
         border-radius: 3px;
         background: #111;
         border-color: #222;
@@ -520,7 +332,7 @@
         border-top-right-radius: 0;
         border-bottom-left-radius: 7px;
         border-top-left-radius: 7px;
-        width: 80% !important;
+        width: 85% !important;
         position: relative;
         text-transform: capitalize;
     }
@@ -572,27 +384,8 @@
     .selected-text {
         font-weight: 500;
     }
-    ::v-deep .el-switch__core::after {
-        background-color: #fff !important;
-    }
     .flex-center {
         display:flex;
         justify-content: center;
-    }
-    ::v-deep .el-tabs__item {
-        font-size: 1.1em;
-        color: #ccc;
-    }
-    ::v-deep .el-tabs__item:hover {
-        color: #c01111;
-    }
-    ::v-deep .el-tabs__item.is-active {
-        color: #c01111;
-    }
-    ::v-deep .el-tabs__active-bar {
-        background-color: #c01111;
-    }
-    ::v-deep .el-tabs__nav-wrap::after {
-        background-color: #333;
     }
 </style>

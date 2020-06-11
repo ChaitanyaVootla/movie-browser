@@ -1,15 +1,15 @@
 
-::v-deep .el-tabs__item {
+/deep/ .el-tabs__item {
     font-size: 1.1em;
     color: #ccc;
 }
-::v-deep .el-tabs__item.is-active {
+/deep/ .el-tabs__item.is-active {
     color: #c01111;
 }
-::v-deep .el-tabs__active-bar {
+/deep/ .el-tabs__active-bar {
     background-color: #c01111;
 }
-::v-deep .el-tabs__nav-wrap::after {
+/deep/ .el-tabs__nav-wrap::after {
     background-color: rgb(29, 29, 29);
 }
 
@@ -17,6 +17,7 @@
 @main-red: #850909;
 @link-color-red: #b91d1d;
 @primary-gray: rgb(15, 15, 15);
+@background-gray: rgb(24, 24, 24);
 
 /* Backgrounds */
 @translucent-bg: rgba(0, 0, 0, 0.4);
@@ -57,4 +58,39 @@
 /deep/ .el-input__inner {
     color: white;
     border-color: #222;
+}
+// date range
+/deep/ .el-range-input {
+    background-color: black;
+}
+/deep/ .el-date-editor .el-range-separator {
+    width: 10%;
+}
+/deep/ .el-picker-panel {
+    color: black;
+}
+/deep/ .el-date-table td.today {
+    color: @main-red !important;
+}
+.el-select-dropdown__item.selected {
+    color: white !important;
+}
+/deep/ .el-switch__core::after {
+    background-color: #777 !important;
+}
+/deep/ .el-tabs__item {
+    font-size: 1.1em;
+    color: #ccc;
+}
+/deep/ .el-tabs__item:hover {
+    color: #c01111;
+}
+/deep/ .el-tabs__item.is-active {
+    color: #c01111;
+}
+/deep/ .el-tabs__active-bar {
+    background-color: #c01111;
+}
+/deep/ .el-tabs__nav-wrap::after {
+    background-color: #333;
 }

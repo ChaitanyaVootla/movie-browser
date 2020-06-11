@@ -105,7 +105,7 @@
                     return [];
                 }
             },
-            getGenreName(id: number) {
+            getGenreName(id: any) {
                 let genre = _.find(this.movieGenres, {id: id});
                 if (!genre) {
                     genre = _.find(this.seriesGenres, {id: id});

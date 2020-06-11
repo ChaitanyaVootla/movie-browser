@@ -10,7 +10,7 @@ import 'bootstrap';
 import Home from './components/Home.vue';
 import Person from './components/Person/index.vue';
 import Trending from './components/Trending/index.vue';
-import Discover from './components/MovieDiscover/index.vue';
+import Discover from './components/Discover/index.vue';
 import Search from './components/Search/index.vue';
 import MovieInfoFull from './components/Common/movieInfoFull.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
@@ -38,7 +38,7 @@ Vue.component('seriesInfo', require('./components/SeriesInfo').default);
 Vue.component('personCard', require('./components/Common/personCard.vue').default);
 Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);
 
-Vue.component('movieDiscover', require('./components/MovieDiscover').default);
+Vue.component('discover', require('./components/Discover').default);
 Vue.component('search', require('./components/Search').default);
 Vue.component('streamingNow', require('./components/StreamingNow/index.vue').default);
 Vue.component('personSlider', require('./components/PersonSlider/index.vue').default);
