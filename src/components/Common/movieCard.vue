@@ -1,26 +1,36 @@
 <template>
     <div>
-        <div class="movie-item">
-            <div class="img-container">
-                <img v-lazy="imageObj" class="movie-card-image" @click="showFullMovieInfo(movie)"
-                    v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.2em' }">
-                <div class="img-overlay">
-                    <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
-                        target="_blank" class="mr-3 pl-2 pr-2">
-                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                    </a>
-                    <a @click="onSelected(movie)"
-                        target="_blank" class="mr-1 pl-2 pr-1">
-                        <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
-                    </a>
+        <router-link :to="{
+            name: movie.first_air_date?'seriesInfo':'movieInfoFull',
+            params:
+                {
+                    name: sanitizeName(movie.name || movie.title),
+                    id: movie.id
+                }
+            }">
+            <div class="movie-item">
+                <div class="img-container">
+                    <img v-lazy="imageObj" class="movie-card-image">
+                    <div class="img-overlay">
+                        <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
+                            target="_blank" class="mr-3 pl-2 pr-2">
+                            <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
+                        </a>
+                        <a @click="onSelected(movie)"
+                            target="_blank" class="mr-1 pl-2 pr-1">
+                            <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
+                        </a>
+                    </div>
                 </div>
+                <div class="secondary-text mt-1">{{movie.character || movie.job}}</div>
             </div>
-            <div class="secondary-text mt-1">{{movie.character || movie.job}}</div>
-        </div>
+        </router-link>
     </div>
 </template>
 
 <script lang="ts">
+    import { sanitizeName } from '../../Common/utils';
+
     export default {
         name: 'movieCard',
         props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showFullMovieInfo'],
@@ -29,36 +39,15 @@
                 imageObj: {
                     src: this.configuration.images.secure_base_url + this.imageRes + (this.movie.poster_path || this.movie.posterPath),
                     error: require('../../Assets/Images/error.svg'),
-                }
+                },
+                sanitizeName,
             };
         },
         methods: {
-            getRatingColor() {
-                return 'rgba(0, 0, 0, 0.5)';
-                if (this.disableRatingShadow) {
-                    return 'none';
-                }
-
-                const rating = this.movie.vote_average;
-                if (rating < 5) {
-                    return 'rgba(200, 0, 0, 1)';
-                } else if (rating < 6.5) {
-                    return 'rgba(150, 100, 0, 1)';
-                } else if (rating < 8) {
-                    return 'rgba(0, 100, 0, 1)';
-                } else {
-                    return 'rgba(91, 17, 130, 1)';
-                }
-            },
             getYear: function(movieDate: any) {
                 return new Date(movieDate).getFullYear();
             },
         },
-        computed: {
-            infoAvailable() {
-                return this.movie.character || this.movie.job;
-            }
-        }
     }
 </script>
 

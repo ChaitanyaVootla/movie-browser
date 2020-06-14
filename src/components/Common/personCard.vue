@@ -1,18 +1,27 @@
 <template>
     <div>
-        <div class="person-item">
-            <img v-lazy="imageObj" class="person-card-image" @click="selectPerson(person)">
-            <div class="img-overlay">
-                <a :href="`https://google.com/search?q=${person.name}`"
-                    target="_blank" class="mr-3 pl-2 pr-2">
-                    <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                </a>
+        <router-link :to="{
+            name: 'person',
+            params:
+                {
+                    name: person.name,
+                    id: person.id
+                }
+            }">
+            <div class="person-item">
+                <img v-lazy="imageObj" class="person-card-image">
+                <div class="img-overlay">
+                    <a :href="`https://google.com/search?q=${person.name}`"
+                        target="_blank" class="mr-3 pl-2 pr-2">
+                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
+                    </a>
+                </div>
+                <div class="info-container mt-1">
+                    <div class="ml-1 person-name">{{person.name}}</div>
+                    <div class="ml-1 person-job text-muted">{{person.character || person.job}}</div>
+                </div>
             </div>
-            <div class="info-container mt-1">
-                <div class="ml-1 person-name">{{person.name}}</div>
-                <div class="ml-1 person-job text-muted">{{person.character || person.job}}</div>
-            </div>
-        </div>
+        </router-link>
     </div>
 </template>
 

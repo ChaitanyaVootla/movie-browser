@@ -12,7 +12,7 @@ import Person from './components/Person/index.vue';
 import Trending from './components/Trending/index.vue';
 import Discover from './components/Discover/index.vue';
 import Search from './components/Search/index.vue';
-import MovieInfoFull from './components/Common/movieInfoFull.vue';
+import MovieInfoFull from './components/MovieInfo/index.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
 import StreamingNow from './components/StreamingNow/index.vue';
 import VueLazyload from 'vue-lazyload'
@@ -33,7 +33,7 @@ Vue.component('movieSlider', require('./components/MovieSlider').default);
 Vue.component('seasonSlider', require('./components/SeasonSlider').default);
 Vue.component('movieCard', require('./components/Common/movieCard.vue').default);
 Vue.component('movieInfo', require('./components/Common/movieInfo.vue').default);
-Vue.component('movieInfoFull', require('./components/Common/movieInfoFull.vue').default);
+Vue.component('movieInfoFull', require('./components/MovieInfo/index.vue').default);
 Vue.component('seriesInfo', require('./components/SeriesInfo').default);
 Vue.component('personCard', require('./components/Common/personCard.vue').default);
 Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);

@@ -253,14 +253,6 @@
         font-weight: 500;
         color: #fff;
     }
-    .expand-ellipsis {
-        background: rgba(100, 100, 100, 0.4);
-        font-size: 1.2em;
-        padding: 0 0.7em;
-        padding-bottom: 0.2em;
-        cursor: pointer;
-        width: 2em;
-    }
     .full-bio {
         background: #000;
     }

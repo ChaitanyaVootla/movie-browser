@@ -153,20 +153,6 @@
     .secondary-info {
         color: rgb(228, 228, 228);
     }
-    .rating-info {
-        font-size: 1.7em;
-        padding: 0.2em;
-        border: 0.2em solid #ccc;
-        border-radius: 100%;
-        font-weight: 500;
-        background: rgba(0, 0, 0, 0.2);
-        width: 1.9em;
-        height: 1.9em;
-        text-align: center;
-        vertical-align: middle;
-        display: inline-table;
-        padding: 0.2em;
-    }
     .movie-overview {
         background: @translucent-bg;
         width: 80%;

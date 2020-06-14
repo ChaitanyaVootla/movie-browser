@@ -95,8 +95,6 @@
 </script>
 
 <style scoped lang="less">
-  @import '../../Assets/Styles/common.less';
-  
   .search-item {
     display: flex;
     margin-bottom: 0.5em;
@@ -113,6 +111,9 @@
     background-size: contain;
     padding: 2em;
     width: 7em;
+  }
+  .rating-info {
+    font-size: 1em;
   }
   .search-image {
     height: 10em;

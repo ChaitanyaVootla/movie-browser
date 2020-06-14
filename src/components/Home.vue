@@ -6,27 +6,33 @@
                 <el-col :span="8">
                     <ul class="nav nav-pills">
                         <li class="nav-item ml-4">
-                            <a class="nav-link" :class="onDiscover?'active':''" @click="goToDiscover()">
-                                <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
-                            </a>
+                            <router-link :to="{ name: 'discover'}" class="nav-link">
+                                <div :class="onDiscover?'active':''" @click="goToDiscover()">
+                                    <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
+                                </div>
+                            </router-link>
                         </li>
                         <li class="nav-item ml-4">
-                            <a class="nav-link" :class="onStreamingNow?'active':''" @click="goToStreamingNow()">
-                                <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
-                            </a>
+                            <router-link :to="{ name: 'StreamingNow'}" class="nav-link">
+                                <div :class="onStreamingNow?'active':''">
+                                    <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
+                                </div>
+                            </router-link>
                         </li>
                     </ul>
                 </el-col>
                 <el-col :span="8" class="flex-center">
-                    <div class="app-logo" @click="gotoHome">
-                        <font-awesome-icon :icon="['fas', 'film']" class="mt-1"/>
-                    </div>
+                    <router-link :to="{ name: 'home'}">
+                        <div class="app-logo">
+                            <font-awesome-icon :icon="['fas', 'film']" class="mt-1"/>
+                        </div>
+                    </router-link>
                 </el-col>
                 <el-col :span="8" class="flex-right">
                     <!-- Search Bar -->
                     <div class="form-inline mt-2 ml-5" style="width:100%;">
                         <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search" id="searchInput"
-                            v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"/>
+                            v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" autocomplete="off"/>
                         <button class="btn btn-dark search-button" @click="goToSearch">
                             <font-awesome-icon :icon="['fas', 'search']" />
                         </button>
@@ -125,11 +131,6 @@
             },
         },
         methods: {
-            goToStreamingNow() {
-                this.$router.push({
-                    name: 'StreamingNow',
-                }).catch(err => {});
-            },
             async loadData() {
                 await this.getConfiguration();
                 await this.getMovieGenres();
@@ -189,11 +190,6 @@
             },
             closeInfo() {
                 $('#movieInfoModal').modal('hide');
-            },
-            gotoHome() {
-                this.$router.push({
-                    name: 'home'
-                }).catch(err => {});
             },
             goToDiscover() {
                 this.$router.push({
@@ -271,6 +267,7 @@
         cursor: pointer;
         transition: all 300ms;
         font-weight: 400;
+        color: @text-color;
     }
     .discover-container .nav-link:hover {
         background: #333;

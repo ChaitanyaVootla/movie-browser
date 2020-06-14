@@ -16,6 +16,7 @@
 /* Colors */
 @main-red: #850909;
 @link-color-red: #b91d1d;
+@text-color: #ddd;
 @primary-gray: rgb(15, 15, 15);
 @background-gray: rgb(24, 24, 24);
 
@@ -93,4 +94,36 @@
 }
 /deep/ .el-tabs__nav-wrap::after {
     background-color: #333;
+}
+.rating-info {
+    padding: 0.2em;
+    border: 0.15em solid #ccc;
+    border-radius: 100%;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.418);
+    width: 2.2em;
+    height: 1.9em;
+    text-align: center;
+    vertical-align: middle;
+    display: inline-table;
+    padding: 0.2em;
+    font-size: 1.6em;
+}
+a:hover {
+    color: @text-color;
+    text-decoration: none;
+}
+.el-tag.el-tag--info {
+    background-color: #0e0f0fec;
+    border-color: #000000;
+    color: #a1a1a1;
+    cursor: pointer;
+}
+.expand-ellipsis {
+    background: rgba(100, 100, 100, 0.4);
+    font-size: 1em;
+    padding: 0 0.3em;
+    padding-bottom: 0.2em;
+    cursor: pointer;
+    width: 2em;
 }

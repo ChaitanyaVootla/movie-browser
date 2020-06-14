@@ -44,10 +44,25 @@
             </div>
 
             <!-- Movie overview -->
-            <div class="movie-overview p-3">
+            <div class="movie-overview p-2">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
+            </div>
+            <div>
+                <router-link v-for="keyword in details.keywords.keywords" :key="keyword.id" class="mr-2"
+                    :to="{
+                        name: 'discover',
+                        query:
+                            {
+                                keywords: keyword.name,
+                                with_keywords: keyword.id
+                            }
+                        }">
+                    <el-tag type="info" size="mini">
+                        {{keyword.name}}
+                    </el-tag>
+                </router-link>
             </div>
         </div>
         <!-- Trailer/Video -->
@@ -120,8 +135,10 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import _ from 'lodash';
+    import { pushItemByName } from '../../Common/localStorageAdapter';
+
     export default {
-        name: 'movieInfofull',
+        name: 'movieInfo',
         props: [
             'configuration',
             'showMovieInfo',
@@ -193,21 +210,7 @@
                 this.detailsLoading = false;
             },
             updateLocalStorage() {
-                const localMoviesHistory = localStorage.moviesHistory;
-                if (localMoviesHistory) {
-                    let moviesHistory = JSON.parse(localMoviesHistory);
-                    moviesHistory = _.filter(moviesHistory,
-                        ({ id }) => {
-                            return id !== parseInt(this.details.id);
-                        }
-                    );
-                    moviesHistory.push(this.details);
-                    const moviesHistoryString = JSON.stringify(moviesHistory);
-                    localStorage.setItem('moviesHistory', moviesHistoryString);
-                } else {
-                    const moviesHistoryString = JSON.stringify([this.details]);
-                    localStorage.setItem('moviesHistory', moviesHistoryString);
-                }
+                pushItemByName('moviesHistory', this.details);
             },
             getDate(date: Date) {
                 const monthNames = ["January", "February", "March", "April", "May", "June",
@@ -278,20 +281,6 @@
         width: 100%;
         max-width: 100%;
     }
-    .rating-info {
-        font-size: 1.7em;
-        padding: 0.2em;
-        border: 0.2em solid #ccc;
-        border-radius: 100%;
-        font-weight: 500;
-        background: rgba(0, 0, 0, 0.2);
-        width: 1.9em;
-        height: 1.9em;
-        text-align: center;
-        vertical-align: middle;
-        display: inline-table;
-        padding: 0.2em;
-    }
     .info-container {
         position: absolute;
         top: 2em;
@@ -310,14 +299,6 @@
         background: @translucent-bg;
         width: 60%;
         margin-top: 5em;
-    }
-    .expand-ellipsis {
-        background: rgba(100, 100, 100, 0.4);
-        font-size: 1.2em;
-        padding: 0 0.7em;
-        padding-bottom: 0.2em;
-        cursor: pointer;
-        width: 2em;
     }
     ::v-deep .el-tabs__header {
         padding: 0 2em !important;

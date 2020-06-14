@@ -47,10 +47,26 @@
             </div>
 
             <!-- Movie overview -->
-            <div class="movie-overview p-3">
+            <div class="movie-overview p-2">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
+            </div>
+            <div>
+                <router-link v-for="keyword in details.keywords.results" :key="keyword.id" class="mr-2"
+                    :to="{
+                        name: 'discover',
+                        query:
+                            {
+                                keywords: keyword.name,
+                                with_keywords: keyword.id,
+                                isMovies: 'false'
+                            }
+                        }">
+                    <el-tag type="info" size="mini">
+                        {{keyword.name}}
+                    </el-tag>
+                </router-link>
             </div>
         </div>
         <!-- Trailer/Video -->
@@ -137,6 +153,8 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import _ from 'lodash';
+    import { pushItemByName } from '../../Common/localStorageAdapter';
+
     export default {
         name: 'seriesInfo',
         props: [
@@ -222,21 +240,7 @@
                 this.detailsLoading = false;
             },
             updateLocalStorage() {
-                const seriesHistoryString = localStorage.seriesHistory;
-                if (seriesHistoryString) {
-                    let seriesHistory = JSON.parse(seriesHistoryString);
-                    seriesHistory = _.filter(seriesHistory,
-                        ({ id }) => {
-                            return id !== this.details.id;
-                        }
-                    );
-                    seriesHistory.push(this.details);
-                    const updateSeriesHistoryString = JSON.stringify(seriesHistory);
-                    localStorage.setItem('seriesHistory', updateSeriesHistoryString);
-                } else {
-                    const seriesHistoryString = JSON.stringify([this.details]);
-                    localStorage.setItem('seriesHistory', seriesHistoryString);
-                }
+                pushItemByName('seriesHistory', this.details);
             },
             getDate(date: Date) {
                 const monthNames = ["January", "February", "March", "April", "May", "June",
@@ -307,18 +311,6 @@
         width: 100%;
         max-width: 100%;
     }
-    .rating-info {
-        font-size: 1.7em;
-        border: 0.2em solid #ccc;
-        border-radius: 100%;
-        font-weight: 500;
-        background: rgba(0, 0, 0, 0.2);
-        width: 1.9em;
-        height: 1.9em;
-        text-align: center;
-        vertical-align: middle;
-        display: inline-block;
-    }
     .info-container {
         position: absolute;
         top: 2em;
@@ -337,14 +329,6 @@
         background: @translucent-bg;
         width: 60%;
         margin-top: 5em;
-    }
-    .expand-ellipsis {
-        background: rgba(100, 100, 100, 0.4);
-        font-size: 1.2em;
-        padding: 0 0.7em;
-        padding-bottom: 0.2em;
-        cursor: pointer;
-        width: 2em;
     }
     .info-tagline {
         padding-left: 1em;

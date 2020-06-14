@@ -1,4 +1,5 @@
 import _ from 'lodash';
+const maxItems = 50;
 
 const getItemByName = (name: string) => {
     if (localStorage[name]) {
@@ -22,6 +23,7 @@ const pushItemByName = (name: string, item: any) => {
     } else{
         localData = [item]
     }
+    localData = localData.reverse().splice(0, maxItems).reverse();
     const newLocalString = JSON.stringify(localData);
     localStorage.setItem(name, newLocalString);
 }

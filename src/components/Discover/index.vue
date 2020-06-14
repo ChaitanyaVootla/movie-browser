@@ -2,9 +2,8 @@
     <div>
         <div class="pt-4 pl-5 pb-2 discover-options-row">
             <el-row>
-                <el-col :span="4">
-                    <span class="input-label">sort by</span>
-                    <el-select v-model="selectedSortOrder" value-key="id">
+                <el-col :span="2">
+                    <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width">
                         <el-option
                             v-for="item in sortOrders"
                             :key="item.id"
@@ -13,10 +12,9 @@
                         </el-option>
                     </el-select>
                 </el-col>
-                <el-col :span="4">
-                    <span class="input-label">Genres</span>
-                    <el-select v-model="selectedGenres" multiple filterable :collapse-tags="true" placeholder="Select"
-                        :no-match-text="'No Results'" value-key="id" class="full-width">
+                <el-col :span="3" class="pl-2">
+                    <el-select v-model="selectedGenres" multiple filterable :collapse-tags="true" placeholder="Genres"
+                        :no-match-text="'No Results'" value-key="id" class="full-width" clearable>
                         <el-option
                             v-for="item in genres"
                             :key="item.id"
@@ -25,11 +23,10 @@
                         </el-option>
                     </el-select>
                 </el-col>
-                <el-col :span="10">
-                    <span class="input-label">Keywords</span>
+                <el-col :span="5" class="pl-2">
                     <el-select v-model="selectedKeywords" multiple filterable remote
-                        :remote-method="keywordChanged" placeholder="Search"
-                        :no-data-text="'No Results'" value-key="id" class="full-width">
+                        :remote-method="keywordChanged" placeholder="Keywords"
+                        :no-data-text="'No Results'" value-key="id" class="full-width" clearable>
                         <el-option
                             v-for="item in searchKeywords"
                             :key="item.id"
@@ -38,7 +35,17 @@
                         </el-option>
                     </el-select>
                 </el-col>
-                <el-col :span="3" :offset="1">
+                <el-col :span="2" :offset="7" class="pl-5">
+                        <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating">
+                            <el-option
+                                v-for="item in ratingOptions"
+                                :key="item.id"
+                                :label="item.name"
+                                :value="item">
+                            </el-option>
+                        </el-select>
+                </el-col>
+                <el-col :span="3" class="pl-5">
                     <div class="mt-2">
                         <span class="mr-2">Series</span>
                         <el-switch class="type-switch"
@@ -107,6 +114,8 @@
                 currentPage: 1,
                 isMovies: true,
                 computedDiscoverQuery: '',
+                ratingOptions: [] as any[],
+                selectedRating: {} as any,
                 selectedKeywords: [] as any[],
                 searchKeywords: [] as any[],
                 genres: [] as any[],
@@ -119,24 +128,41 @@
                 routeQueryPresent: false,
             }  
         },
+        beforeDestroy() {
+            window.removeEventListener('scroll', this.scrollHandler);
+        },
         created() {
+            this.setupRatingOptions();
             this.genres = this.movieGenres;
             this.checkRouteQuery();
             this.loadMovies(false);
-            const self = this as any;
-            window.onscroll = function() {
-                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-                   self.loadMoreMovies();
-                }
-            };
+            window.addEventListener('scroll', this.scrollHandler);
         },
         watch: {
-            $route (to, from){
+            $route (to, from) {
+                this.currentPage = 1;
                 this.checkRouteQuery();
                 this.loadMovies(false);
             }
         },
         methods: {
+            scrollHandler() {
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+                   this.loadMoreMovies();
+                }
+            },
+            setupRatingOptions() {
+                this.ratingOptions = new Array(10).fill({});
+                this.ratingOptions.forEach(
+                    (item, index) => {
+                        this.ratingOptions[index] = {
+                            id: index,
+                            name: `${index}+`
+                        };
+                    }
+                );
+                this.ratingOptions.reverse();
+            },
             checkRouteQuery() {
                 const routeQuery = this.$route.query;
                 if (routeQuery.sort_by) {
@@ -178,6 +204,12 @@
                     this.isMovies = false;
                     this.genres = this.seriesGenres;
                 }
+                if (routeQuery.rating) {
+                    this.selectedRating = {
+                        id: parseInt(`${routeQuery.rating}`),
+                        name: `${routeQuery.rating}+`
+                    }
+                }
             },
             async keywordChanged(word: any) {
                 if (word.length>1) {
@@ -187,6 +219,7 @@
             },
             loadMovies: async function(updateUrl: boolean) {
                 this.computeQuery(updateUrl);
+                this.currentPage = 1;
                 if (this.isMovies) {
                     this.queryData = await api.getDiscoverMoviesFull(this.computedDiscoverQuery);
                     this.movies = this.queryData.results;
@@ -239,6 +272,10 @@
                     this.computedDiscoverQuery += `&with_keywords=${keywordIds}`;
                     routerQuery.with_keywords = keywordIds.toString();
                     routerQuery.keywords = keywords.toString();
+                }
+                if (this.selectedRating.id) {
+                    this.computedDiscoverQuery += `&vote_average.gte=${this.selectedRating.id}`;
+                    routerQuery.rating = this.selectedRating.id;
                 }
                 routerQuery.isMovies = this.isMovies;
                 if (updateUrl) {
@@ -308,6 +345,6 @@
         background: @background-gray;
     }
     .full-width {
-        width: 70%;
+        width: 100%;
     }
 </style>

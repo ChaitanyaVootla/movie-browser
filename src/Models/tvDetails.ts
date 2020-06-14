@@ -5,6 +5,7 @@ export class TvDetails {
     public overview: string;
     public posterPath: string;
     public backdropPath: string;
+    public first_air_date: string;
     public id: number;
     public rating: number;
     public voteCount: number;
@@ -17,6 +18,7 @@ export class TvDetails {
     public images: Array<Object>;
     public credits: Array<Object>;
     public similar: Array<Object>;
+    public keywords: Array<Object>;
     public recommendations: Array<Object>;
     constructor(obj: any) {
         this.name = obj.name;
@@ -38,5 +40,7 @@ export class TvDetails {
         this.credits = obj.credits;
         this.similar = obj.similar;
         this.recommendations = obj.recommendations;
+        this.first_air_date = obj.first_air_date;
+        this.keywords = obj.keywords;
     }
 };
