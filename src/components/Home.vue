@@ -386,6 +386,7 @@
         background: #000;
         border-color: #000;
         color: #ccc;
+        padding: 0.5em;
     }
     .search-dropdown .dropdown-item {
         color: #fff !important;

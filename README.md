@@ -5,15 +5,15 @@ Live link: http://139.59.94.40
 ## Setup steps:
 
 Add a `.env` file to the project root with your TMDB API KEY
-and the URL for the server (ignore if running on localhost)
+and the URL for the server (add port 3000 to it as server uses that by default, ignore if running on localhost)
 ```
 VUE_APP_API_KEY=<YOUR TMDB API KEY HERE>
 VUE_APP_SERVER_URL=<SERVER URL HERE - IGNORE IF RUNNING ON LOCALHOST>
 ```
 ##### linux terminal / mac terminal / windows powershell
- For server:
+Run server (uses port 3000):
   - `cd /server && node ./server.js` 
  
-For Webapp:
+Run Webapp (uses port 80):
  - `npm install`
  - `npm run serve`
