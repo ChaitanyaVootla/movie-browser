@@ -1,7 +1,7 @@
 <template>
     <el-row class="week-trends-container pt-4">
-        <el-col :span="historyAbsent()?24:13">
-            <el-carousel height="500px" :interval="7000" :type="historyAbsent()?'card':''" @change="carouselChanged" arrow="always" class="ml-5">
+        <el-col :span="historyAbsent()?24:15">
+            <el-carousel height="550px" :interval="7000" :type="historyAbsent()?'card':''" @change="carouselChanged" arrow="always" class="ml-5">
                 <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
                     <div class="carousel-card-container" @click="carouselCardClicked(item)">
                         <div class="background-images-container justify-center">
@@ -9,7 +9,7 @@
                                     src: `${configuration.images.secure_base_url}h632${item.backdrop_path}`,
                                     error: require('../../Assets/Images/error.svg'),
                                     loading: require('../../Assets/Images/loader-bars.svg'),
-                                }" height="550px"
+                                }" height="640px"
                             />
                         </div>
                         <div class="info-container" v-if="currentCarouselItem.id === item.id">
@@ -40,13 +40,13 @@
                 </el-carousel-item>
             </el-carousel>
         </el-col>
-        <el-col :span="11" class="pr-5 pl-5" v-if="!historyAbsent()">
+        <el-col :span="9" class="pr-2 pl-1" v-if="!historyAbsent()">
             <movie-slider :movies="getMoviesHistory()" :configuration="configuration" :heading="'Recently Visited Movies'" :id="'historyMovies'"
                 :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="getMoviesHistory().length"
                 :history="true"></movie-slider>
             <movie-slider :movies="getSeriesHistory()" :configuration="configuration" :heading="'Recently Visited Series'" :id="'historySeries'"
                 :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo" v-if="getSeriesHistory().length"
-                :history="true"></movie-slider>
+                :history="true" class="pt-3"></movie-slider>
         </el-col>
     </el-row>
 </template>
@@ -71,6 +71,7 @@
               getRatingColor,
               trendingListWeek: [],
               currentCarouselItem: {} as any,
+              historyLength: 4,
           }
         },
         mounted() {
@@ -93,14 +94,14 @@
             },
             getMoviesHistory() {
                 if (localStorage.moviesHistory) {
-                    return JSON.parse(localStorage.moviesHistory).reverse().slice(0, 5);
+                    return JSON.parse(localStorage.moviesHistory).reverse().slice(0, this.historyLength);
                 } else {
                     return [];
                 }
             },
             getSeriesHistory() {
                 if (localStorage.seriesHistory) {
-                    return JSON.parse(localStorage.seriesHistory).reverse().slice(0, 5);
+                    return JSON.parse(localStorage.seriesHistory).reverse().slice(0, this.historyLength);
                 } else {
                     return [];
                 }
@@ -139,7 +140,7 @@
         filter: opacity(0.4);
         height: 30em;
         overflow: hidden;
-        height: 490px;
+        height: 540px;
         border-radius: 0.5em;
     }
     .info-container {
@@ -149,6 +150,7 @@
         overflow: hidden;
         color: #fff;
         width: 80% !important;
+        height: 30em;
     }
     .secondary-info {
         color: rgb(228, 228, 228);
@@ -157,6 +159,8 @@
         background: @translucent-bg;
         width: 80%;
         margin-top: 5em;
+        position: absolute;
+        bottom: 0;
     }
     .discover-movies-container {
         padding: 1em 2.5em;

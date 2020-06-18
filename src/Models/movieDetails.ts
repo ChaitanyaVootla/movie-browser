@@ -8,7 +8,8 @@ export class MovieDetails {
     public id: number;
     public voteCount: number;
     public rating: number;
-    public numberOfSeasons: number;
+    public budget: number;
+    public revenue: number;
     public genres: Array<Object>;
     public seasons: Array<Object>;
     public productionCompanies: Array<Object>;
@@ -27,7 +28,6 @@ export class MovieDetails {
         this.releaseDate = obj.release_date;
         this.genres = obj.genres;
         this.homepage = obj.homepage;
-        this.numberOfSeasons = obj.number_of_seasons;
         this.seasons = obj.seasons;
         this.overview = obj.overview;
         this.posterPath = obj.poster_path;
@@ -40,5 +40,7 @@ export class MovieDetails {
         this.recommendations = obj.recommendations;
         this.adult = obj.adult;
         this.keywords = obj.keywords;
+        this.budget = obj.budget;
+        this.revenue = obj.revenue;
     }
 };

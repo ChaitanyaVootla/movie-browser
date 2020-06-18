@@ -2,7 +2,7 @@
     <div style="position: relative;">
         <img v-lazy="mainImgObj" class="main-img" v-if="!detailsLoading"/>
         <div class="background-images-container" v-loading="detailsLoading">
-            <el-row class="mt-2 background-images-row" v-if="carrerList[0]">
+            <el-row class="background-images-row" v-if="carrerList[0]">
                 <el-col :span="6">
                     <img v-if="carrerList[0].items[1]" v-lazy="creditImageBasePath + carrerList[0].items[1].backdrop_path" class="background-image"/>
                 </el-col>

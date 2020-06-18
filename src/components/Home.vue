@@ -1,60 +1,78 @@
 <template>
     <div>
-        <!-- Discover -->
-        <div class="discover-container">
-            <el-row class="discover-row">
-                <el-col :span="8">
-                    <ul class="nav nav-pills">
-                        <li class="nav-item ml-4">
-                            <router-link :to="{ name: 'discover'}" class="nav-link">
-                                <div :class="onDiscover?'active':''" @click="goToDiscover()">
-                                    <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
-                                </div>
-                            </router-link>
-                        </li>
-                        <li class="nav-item ml-4">
-                            <router-link :to="{ name: 'StreamingNow'}" class="nav-link">
-                                <div :class="onStreamingNow?'active':''">
-                                    <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
-                                </div>
-                            </router-link>
-                        </li>
-                    </ul>
-                </el-col>
-                <el-col :span="8" class="flex-center">
-                    <router-link :to="{ name: 'home'}">
-                        <div class="app-logo">
-                            <font-awesome-icon :icon="['fas', 'film']" class="mt-1"/>
-                        </div>
-                    </router-link>
-                </el-col>
-                <el-col :span="8" class="flex-right">
-                    <!-- Search Bar -->
-                    <div class="form-inline mt-2 ml-5" style="width:100%;">
-                        <input class="form-control search-bar text-white" type="search" placeholder="Search" aria-label="Search" id="searchInput"
-                            v-model="searchText" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" autocomplete="off"/>
-                        <button class="btn btn-dark search-button" @click="goToSearch">
-                            <font-awesome-icon :icon="['fas', 'search']" />
-                        </button>
-                        <div class="search-dropdown discover-dropdown dropdown-menu dropdown-menu-left" aria-labelledby="dropdownMenuButton"
-                            v-show="searchText.length > 0 && currentRoute.name !== 'search'">
-                            <div class="search-item dropdown-item" v-if="searchResults.length === 0" style="justify-content: center;">
-                                No Results
-                            </div>
-                            <search-results
-                                :search-results="searchResults"
-                                :get-genre-name-from-id="getGenreNameFromId"
-                                :image-base-path="imageBasePath"
-                            >
-                            </search-results>
-                        </div>
+        <el-menu
+            class="el-menu-demo"
+            mode="horizontal"
+            background-color="#0f0f0f"
+            text-color="#eee"
+            :default-active="activeNavItem"
+            active-text-color="#b91d1d">
+            <el-menu-item index="discover" class="ml-5" :route="{name: 'discover'}">
+                <router-link :to="{ name: 'discover'}">
+                    <div :class="onDiscover?'active':''" @click="goToDiscover()">
+                        <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
                     </div>
-                </el-col>
-
-            </el-row>
+                </router-link>
+            </el-menu-item>
+            <el-menu-item index="StreamingNow">
+                <router-link :to="{ name: 'StreamingNow'}">
+                    <div :class="onStreamingNow?'active':''">
+                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
+                    </div>
+                </router-link>
+            </el-menu-item>
+            <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg">
+                <router-link :to="{ name: 'home'}">
+                    <div class="app-logo">
+                        <font-awesome-icon :icon="['fas', 'film']"/>
+                    </div>
+                </router-link>
+            </el-menu-item>
+            <el-menu-item index="search" class="menu-center-item menu-item-nobg search-menu-item">
+                <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
+                    <el-input placeholder="Search" v-model="searchText">
+                        <el-button slot="append" icon="el-icon-search"></el-button>
+                    </el-input>
+                </div>
+            </el-menu-item>
+            <el-menu-item index="settings" class="menu-item-right menu-item-nobg mr-4">
+                <el-dropdown trigger="click">
+                    <div><i class="el-icon-s-tools"></i></div>
+                    <el-dropdown-menu slot="dropdown">
+                        <el-dropdown-item>
+                            <a href="https://github.com/ChaitanyaVootla/movie-browser" target="_blank">
+                                <font-awesome-icon :icon="['fab', 'github']" class="mr-1 dropdown-icon"/>
+                                Github Repo
+                            </a>
+                        </el-dropdown-item>
+                        <el-dropdown-item>
+                            <a href="https://www.themoviedb.org/" target="_blank">
+                                <font-awesome-icon :icon="['fas', 'film']" class="mr-1 dropdown-icon"/>
+                                TMDB
+                            </a>
+                        </el-dropdown-item>
+                        <el-dropdown-item>
+                            <a href="https://developers.themoviedb.org/3" target="_blank">
+                                <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1 dropdown-icon"/>
+                                TMDB Docs
+                            </a>
+                        </el-dropdown-item>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </el-menu-item>
+        </el-menu>
+        <div class="search-dropdown" v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults">
+            <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
+                No Results
+            </div>
+            <search-results
+                :search-results="searchResults"
+                :get-genre-name-from-id="getGenreNameFromId"
+                :image-base-path="imageBasePath"
+                :search-item-clicked="searchItemclicked">
+            </search-results>
         </div>
-
-        <router-view v-if="isLoaded" class="mt-5 pt-1"
+        <router-view v-if="isLoaded" class="mt-0"
             :isLoaded="isLoaded"
             :configuration="configuration"
             :showMovieInfo="showMovieInfo"
@@ -89,15 +107,16 @@
     import { api } from '../API/api';
     import { sanitizeName } from '../Common/utils';
     import _ from 'lodash';
+    import { configuration, movieGenres, seriesGenres } from '../Common/staticConfig';
 
     export default {
         name: 'home',
         data: function () {
             return {
-                configuration: {} as any,
+                configuration,
                 genres: [] as any[],
-                movieGenres: [] as Object[],
-                seriesGenres: [] as Object[],
+                movieGenres,
+                seriesGenres,
                 isLoaded: false,
                 searchText: '',
                 searchResults: [],
@@ -105,6 +124,7 @@
                 selectedMovie: {},
                 currentRoute: {} as Object,
                 selectedPerson: {},
+                showSearchResults: true,
             };
         },
         created() {
@@ -113,14 +133,22 @@
         },
         mounted() {
             const searchInput = document.getElementById("searchInput");
-            if (searchInput) {
-                const self = this as any;
-                searchInput.addEventListener("keyup", _.bind(function(event) {
-                    if (event.keyCode === 13) {
-                        self.goToSearch();
-                    }
-                }, this));
-            }
+            const self = this as any;
+            // TODO is a separate search page required?
+            // if (searchInput) {
+            //     searchInput.addEventListener("keyup", _.bind(function(event) {
+            //         if (event.keyCode === 13) {
+            //             self.goToSearch();
+            //         }
+            //     }, this));
+            // }
+            $(window).click(function() {
+                self.showSearchResults = false;
+            });
+
+            $('.search-dropdown, .search-intput-container').click(function(event){
+                event.stopPropagation();
+            });
         },
         computed: {
             onStreamingNow() {
@@ -129,24 +157,27 @@
             onDiscover() {
                 return this.$route.name === 'discover';
             },
+            activeNavItem() {
+                if (this.$route.name === 'discover') {
+                    return 'discover';
+                } else if (this.$route.name === 'StreamingNow') {
+                    return 'StreamingNow';
+                } else {
+                    return 'nothing';
+                }
+            }
         },
         methods: {
+            searchInputclicked() {
+                this.showSearchResults = true;
+            },
+            searchItemclicked() {
+                this.showSearchResults = false;
+            },
             async loadData() {
-                await this.getConfiguration();
-                await this.getMovieGenres();
-                await this.getSeriesGenres();
+                this.genres = movieGenres;
+                this.imageBasePath = configuration.images.secure_base_url + 'w500';
                 this.isLoaded = true;
-            },
-            async getConfiguration() {
-                this.configuration = await api.getConfiguration();
-                this.imageBasePath = this.configuration.images.secure_base_url + 'w500';
-            },
-            async getMovieGenres() {
-                this.movieGenres = await api.getMovieGenres();
-                this.genres = this.movieGenres;
-            },
-            async getSeriesGenres() {
-                this.seriesGenres = await api.getSeriesGenres();
             },
             executeSearch: _.debounce(
                 async function(this: any) {
@@ -217,6 +248,7 @@
         },
         watch: {
             searchText() {
+                this.showSearchResults = true;
                 this.executeSearch();
             },
             $route(currentRoute) {
@@ -230,16 +262,18 @@
     @import '../Assets/Styles/main.less';
 
     .app-logo {
-        margin-top: 0.2em;
+        // margin-top: 0.2em;
         cursor: pointer;
-        font-size: 1.8em;
+        font-size: 1.7em;
         color: #000;
         background: @main-red;
-        filter: opacity(0.95);
+        filter: opacity(0.85);
         padding: 0.2em;
-        border-radius: 20%;
-        width: 1.6em;
-        height: 1.6em;
+        width: 2.2em;
+        // height: 1.6em;
+        box-shadow: 0px 0px 200px 150px rgba(0, 0, 0, 0.514);
+        height: 100%;
+        padding-top: 0.6em;
         display: flex;
         justify-content: center;
         align-content: center;
@@ -338,14 +372,20 @@
         border-color: #111;
     }
     .search-dropdown {
-        margin-top: 0 !important;
+        position: absolute;
+        top: 3.4em;
+        z-index: 100;
+        right: 6em;
         scroll-behavior: smooth;
         width: 30%;
+        overflow-x: hidden;
         color: #fff !important;
-        overflow-x: hidden !important;
-        border-radius: 10px;
+        border-radius: 3px;
         max-height: 30em;
         box-shadow: 0px 30px 60px 20px rgba(0,0,0,0.95);
+        background: #000;
+        border-color: #000;
+        color: #ccc;
     }
     .search-dropdown .dropdown-item {
         color: #fff !important;
@@ -360,12 +400,6 @@
         border-bottom-right-radius: 7px;
         border-top-right-radius: 7px;
         position: relative;
-    }
-    .search-container {
-        position: absolute;
-        left: 78%;
-        top: 0.2em;
-        z-index: 100;
     }
     .type-switch-container {
         display: flex;
@@ -384,5 +418,29 @@
     .flex-center {
         display:flex;
         justify-content: center;
+    }
+    .dropdown-icon {
+        width: 2em;
+    }
+    .menu-center-item {
+        left: 30%;
+    }
+    .menu-item-right {
+        float: right !important;
+    }
+    .el-menu-item:hover.menu-item-nobg {
+        background-color: #0f0f0f !important;
+        border: 0 !important;
+    }
+    .el-menu-item.menu-item-nobg {
+        border: 0 !important;
+    }
+    .search-menu-item {
+        width: 30em;
+        margin-left: 20em !important;
+    }
+    .search-no-results {
+        padding: 1em;
+        text-align: center;
     }
 </style>

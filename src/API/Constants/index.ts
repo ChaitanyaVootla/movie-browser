@@ -1,9 +1,9 @@
 import { movieParams, seriesParams } from './discoverParams';
 
 export const appConfig = {
-    token: '40d0d5cd9342dfe3e629ea9a7daa4f23',
+    token: process.env.VUE_APP_API_KEY,
     apiBaseUrl: 'https://api.themoviedb.org/3/',
-    serverBaseUrl: 'http://localhost:3000/',
+    serverBaseUrl: process.env.VUE_APP_SERVER_URL || 'http://localhost:3000/',
 };
 
 export const endpoints = {

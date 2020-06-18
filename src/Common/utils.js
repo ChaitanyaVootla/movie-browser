@@ -17,4 +17,27 @@ const getYear = (date) => {
     return new Date(date).getFullYear();
 }
 
-export { sanitizeName, getRatingColor, getYear };
+const getCurrencyString = (amount) => {
+    amount = parseInt(amount);
+    let stringCurrency = '';
+    if (amount >= 1000000000) {
+        const millions = Math.round(amount/1000000000 * 10)/10;
+        stringCurrency = `${millions} B`;
+    } else if (amount >= 1000000) {
+        const millions = Math.round(amount/1000000 * 10)/10;
+        stringCurrency = `${millions} M`;
+    } else {
+        stringCurrency = `${amount}`;
+    }
+    return stringCurrency;
+}
+
+const getDateText = (date) => {
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+    const dateObj = new Date(date);
+    return `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+}
+
+export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText };

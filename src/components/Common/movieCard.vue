@@ -11,7 +11,8 @@
             <div class="movie-item">
                 <div class="img-container">
                     <img v-lazy="imageObj" class="movie-card-image">
-                    <div class="img-overlay">
+                    <!-- TODO check this function is needed -->
+                    <!-- <div class="img-overlay">
                         <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
                             target="_blank" class="mr-3 pl-2 pr-2">
                             <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
@@ -20,7 +21,7 @@
                             target="_blank" class="mr-1 pl-2 pr-1">
                             <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
                         </a>
-                    </div>
+                    </div> -->
                 </div>
                 <div class="secondary-text mt-1">{{movie.character || movie.job}}</div>
             </div>

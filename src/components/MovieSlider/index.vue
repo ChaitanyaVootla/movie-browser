@@ -126,6 +126,6 @@
         min-width: 8em;
     }
     .history-slider ::v-deep.movie-card-image {
-        height: 12em !important;
+        height: 13em !important;
     }
 </style>

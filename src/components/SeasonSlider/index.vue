@@ -1,11 +1,15 @@
 <template>
     <div :class="`${id} main-slider-div`">
-        <div class="slider-heading">{{heading}}</div>
+        <div class="slider-heading">
+            {{heading}}
+            <span class="small-text pl-2">
+                {{airDate}}
+            </span>
+        </div>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft">
                 <font-awesome-icon :icon="['fas', 'chevron-left']" />
             </div>
-            <div v-show="!isBarFull" class="ml-4"></div>
             <div class="slider-bar" id="scroll-bar">
                 <episode-card v-for="(movie, index) in movies" :episode="movie" :configuration="configuration" :imageRes="'w500'"
                     :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"></episode-card>
@@ -28,6 +32,7 @@
             'configuration',
             'id',
             'heading',
+            'airDate',
             'showMovieInfoModal',
             'showFullMovieInfo',
         ],
@@ -109,5 +114,8 @@
         height: 14em !important;
         margin: 0 0.2em;
         min-width: 8em;
+    }
+    .small-text {
+        font-size: 0.8em;
     }
 </style>

@@ -27,7 +27,7 @@ library.add(fab);
 
 Vue.component('font-awesome-icon', FontAwesomeIcon);
 Vue.config.productionTip = true;
-window.$ = require('jquery')
+(<any>window).$ = require('jquery')
 
 Vue.component('movieSlider', require('./components/MovieSlider').default);
 Vue.component('seasonSlider', require('./components/SeasonSlider').default);

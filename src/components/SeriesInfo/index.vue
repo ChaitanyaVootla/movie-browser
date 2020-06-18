@@ -18,7 +18,7 @@
 
             <!-- Date and Genres -->
             <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                {{getDate(details.releaseDate)}} -
+                {{getDateText(details.releaseDate)}} -
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{genre.name}}{{index===details.genres.length-1?'':','}}
                 </span>
@@ -91,7 +91,8 @@
         <el-tabs v-model="activeTab" class="pt-3">
             <el-tab-pane label="Seaons" name="seasons">
                 <div v-for="(season, index) in seasons" :key="season._id">
-                    <season-slider v-if="seasons.length" :movies="season.episodes" :configuration="configuration" :heading="`Season ${index + 1}`" :id="`season${index}`"
+                    <season-slider v-if="seasons.length" :movies="season.episodes" :configuration="configuration"
+                        :heading="`Season ${index + 1}`" :airDate="getDateText(season.air_date)" :id="`season${index}`"
                         :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></season-slider>
                 </div>
             </el-tab-pane>
@@ -107,7 +108,8 @@
                 <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider></el-tab-pane>
             <el-tab-pane label="Recommended Series">
-                <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration" :heading="'Recommended'" :id="'recommended'"
+                <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration"
+                    :heading="'Recommended'" :id="'recommended'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider></el-tab-pane>
         </el-tabs>
 
@@ -154,6 +156,7 @@
     import { api } from '../../API/api';
     import _ from 'lodash';
     import { pushItemByName } from '../../Common/localStorageAdapter';
+    import { getDateText } from '../../Common/utils';
 
     export default {
         name: 'seriesInfo',
@@ -183,6 +186,7 @@
             backdrops: [] as any[],
             posters: [] as any[],
             defaultImageTab: 'backdrops',
+            getDateText,
           }
         },
         created() {
@@ -241,13 +245,6 @@
             },
             updateLocalStorage() {
                 pushItemByName('seriesHistory', this.details);
-            },
-            getDate(date: Date) {
-                const monthNames = ["January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"
-                ];
-                const dateObj = new Date(date);
-                return `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
             },
             getYoutubeVideos: function(videos: Array<Object>) {
                 return _.filter(videos, {site: 'YouTube'});

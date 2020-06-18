@@ -51,6 +51,7 @@
       'searchResults',
       'getGenreNameFromId',
       'imageBasePath',
+      'searchItemClicked',
     ],
     data() {
       return {
@@ -89,6 +90,7 @@
             console.log(err);
           });
         }
+        this.searchItemClicked();
       }
     },
   }

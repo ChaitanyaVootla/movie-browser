@@ -1,11 +1,11 @@
 <template>
     <div style="position:relative;">
         <div class="background-images-container" v-loading="detailsLoading">
-            <img v-lazy="creditImageBasePath + details.backdropPath" class="background-image"/>
+            <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image"/>
         </div>
-        <div class="info-container" v-if="details.name">
+        <div class="info-container" v-if="details.title">
             <h3 div="info-heading">
-                {{details.name}}
+                {{details.title}}
                 <span>
                     <span class="text-muted info-tagline cursor-pointer" @click="openImageModal">
                         <font-awesome-icon :icon="['fas', 'images']"/>
@@ -15,7 +15,7 @@
 
             <!-- Date and Genres -->
             <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                {{getDate(details.releaseDate)}} -
+                {{getDateText(details.release_date)}} -
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{genre.name}}{{index===details.genres.length-1?'':','}}
                 </span>
@@ -23,11 +23,11 @@
 
             <!-- External links -->
             <div class="ext-links-container">
-                <a :href="`https://google.com/search?q=${details.name} ${getYear(details.releaseDate)} movie`"
+                <a :href="`https://google.com/search?q=${details.title} ${getYear(details.release_date)} movie`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
                 </a>&nbsp;
-                <a :href="`https://www.iptorrents.com/t?q=${details.name};o=seeders#torrents`"
+                <a :href="`https://www.iptorrents.com/t?q=${details.title};o=seeders#torrents`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon"/>
                 </a>&nbsp;
@@ -38,48 +38,54 @@
 
             <!-- Rating -->
             <div class="mt-5 pt-5">
-                <span class="rating-info" :style="`border-color: ${getRatingColor(details.rating)}; color: ${getRatingColor(details.rating)}`">
-                    {{details.rating}}
+                <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
+                    {{details.vote_average}}
                 </span>
             </div>
 
+            <div style="top: 25em; position: absolute;" class="budget-text">
+                <font-awesome-icon :icon="['fas', 'dollar-sign']" class="budget-icon"/>
+                {{getCurrencyString(details.budget)}}
+                <br/>
+                <font-awesome-icon :icon="['fas', 'chart-line']" :class="`${budgetColor} budget-icon`"/>
+                <span :class="budgetColor">{{getCurrencyString(details.revenue)}}</span>
+            </div>
             <!-- Movie overview -->
             <div class="movie-overview p-2">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
-            </div>
-            <div>
-                <router-link v-for="keyword in details.keywords.keywords" :key="keyword.id" class="mr-2"
-                    :to="{
-                        name: 'discover',
-                        query:
-                            {
-                                keywords: keyword.name,
-                                with_keywords: keyword.id
-                            }
-                        }">
-                    <el-tag type="info" size="mini">
-                        {{keyword.name}}
-                    </el-tag>
-                </router-link>
+                <div>
+                    <router-link v-for="keyword in details.keywords.keywords" :key="keyword.id" class="mr-2"
+                        :to="{
+                            name: 'discover',
+                            query:
+                                {
+                                    keywords: keyword.name,
+                                    with_keywords: keyword.id
+                                }
+                            }">
+                        <el-tag type="info" size="mini">
+                            {{keyword.name}}
+                        </el-tag>
+                    </router-link>
+                </div>
             </div>
         </div>
         <!-- Trailer/Video -->
-        <div v-if="getYoutubeVideos(details.videos).length"
-            style="position: absolute; top: 3em; right: 3em;">
+        <div v-if="getYoutubeVideos().length" style="position: absolute; top: 5em; right: 3em;">
             <iframe id="ytplayer" type="text/html" width="640" height="360"
-                :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos(details.videos)[0].key}`"
+                :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}`"
                 frameborder="0" iv_load_policy="3" fs="1" allowfullscreen="true" autoplay="1"
                 style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0,0,0,0.75);">
             </iframe>
             <div class="dropdown">
                 <button class="btn dropdown-toggle video-dropdown btn-dark m-0"
                     type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    {{selectedVideo.name || getYoutubeVideos(details.videos)[0].name}}
+                    {{selectedVideo.name || getYoutubeVideos()[0].name}}
                 </button>
                 <div class="dropdown-menu dropdown-menu-middle" aria-labelledby="dropdownMenuButton">
-                    <a class="dropdown-item" v-for="video in details.videos" :key="video.key"
+                    <a class="dropdown-item" v-for="video in getYoutubeVideos()" :key="video.key"
                         v-on:click="selectVideo(video)">{{video.name}}</a>
                 </div>
             </div>
@@ -136,6 +142,7 @@
     import { api } from '../../API/api';
     import _ from 'lodash';
     import { pushItemByName } from '../../Common/localStorageAdapter';
+    import { getCurrencyString, getDateText } from '../../Common/utils';
 
     export default {
         name: 'movieInfo',
@@ -163,6 +170,8 @@
             backdrops: [] as any[],
             posters: [] as any[],
             defaultImageTab: 'backdrops',
+            getCurrencyString,
+            getDateText,
           }
         },
         created() {
@@ -212,15 +221,9 @@
             updateLocalStorage() {
                 pushItemByName('moviesHistory', this.details);
             },
-            getDate(date: Date) {
-                const monthNames = ["January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"
-                ];
-                const dateObj = new Date(date);
-                return `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
-            },
-            getYoutubeVideos: function(videos: Array<Object>) {
-                return _.filter(videos, {site: 'YouTube'});
+            getYoutubeVideos: function() {
+                if (this.details.videos && this.details.videos.results)
+                return _.filter(this.details.videos.results, {site: 'YouTube'});
             },
             selectVideo(video: Object) {
                 this.selectedVideo = video;
@@ -239,6 +242,17 @@
                     return 'purple';
             },
         },
+        computed: {
+            budgetColor() {
+                if (this.details.budget && this.details.revenue) {
+                    if (this.details.budget > this.details.revenue) {
+                        return 'budget-loss';
+                    } else {
+                        return 'budget-profit'
+                    }
+                }
+            }
+        }
     }
 </script>
 
@@ -246,14 +260,14 @@
     @import '../../Assets/Styles/main.less';
     .background-images-container {
         filter: opacity(0.3);
-        height: 30em;
+        height: 35em;
         overflow: hidden;
     }
     .background-image {
         background-size: contain;
-        height: 30em;
+        height: 35em;
         object-fit: cover;
-        object-position: 50% 5%;
+        object-position: 50% 10%;
         width: 100%;
         overflow: hidden;
         box-shadow: 0px 0px 200px 100px rgba(0, 0, 0, 1);
@@ -287,6 +301,7 @@
         padding-left: 2em !important;
         overflow: hidden;
         color: #fff;
+        height: 33em;
     }
     .secondary-info {
         color: #aaa;
@@ -299,6 +314,8 @@
         background: @translucent-bg;
         width: 60%;
         margin-top: 5em;
+        bottom: 0.5em;
+        position: absolute;
     }
     ::v-deep .el-tabs__header {
         padding: 0 2em !important;
@@ -320,5 +337,21 @@
     }
     /deep/ .el-dialog__body {
         padding-top: 0;
+    }
+    .budget-icon {
+        width: 2em;
+    }
+    .budget-loss {
+        color: red;
+    }
+    .budget-profit {
+        color: green;
+    }
+    .budget-text {
+        font-weight: 500;
+        background-color: rgba(0, 0, 0, 0.4);
+        border-radius: 3px;
+        padding: 0.4em;
+        font-size: 0.8em;
     }
 </style>

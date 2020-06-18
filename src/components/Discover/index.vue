@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="pt-4 pl-5 pb-2 discover-options-row">
+        <div class="pt-2 pl-5 pb-2 discover-options-row">
             <el-row>
                 <el-col :span="2">
                     <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width">
@@ -25,7 +25,7 @@
                 </el-col>
                 <el-col :span="5" class="pl-2">
                     <el-select v-model="selectedKeywords" multiple filterable remote
-                        :remote-method="keywordChanged" placeholder="Keywords"
+                        :remote-method="keywordChanged" placeholder="Looking for anything specific?"
                         :no-data-text="'No Results'" value-key="id" class="full-width" clearable>
                         <el-option
                             v-for="item in searchKeywords"
@@ -109,6 +109,10 @@
                     {
                         name: 'Rating',
                         id: 'vote_average.desc'
+                    },
+                    {
+                        name: 'Revenue',
+                        id: 'revenue.desc'
                     }
                 ],
                 currentPage: 1,
@@ -171,6 +175,11 @@
                         this.selectedSortOrder = {
                             name: 'Rating',
                             id: 'vote_average.desc'
+                        };
+                    } else if (routeQuery.sort_by === 'revenue.desc') {
+                        this.selectedSortOrder = {
+                            name: 'Revenue',
+                            id: 'revenue.desc'
                         };
                     }
                 }

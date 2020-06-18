@@ -1,11 +1,19 @@
 # movie-browser
 
-Live link: http://139.59.8.100
+Live link: http://139.59.94.40
+
 ## Setup steps:
 
-For linux terminal / mac terminal / windows powershell
-
- - npm install
- - npm run serve
-
- App should be available on localhost (default port 80)
+Add a `.env` file to the project root with your TMDB API KEY
+and the URL for the server (ignore if running on localhost)
+```
+VUE_APP_API_KEY=<YOUR TMDB API KEY HERE>
+VUE_APP_SERVER_URL=<SERVER URL HERE - IGNORE IF RUNNING ON LOCALHOST>
+```
+##### linux terminal / mac terminal / windows powershell
+ For server:
+  - `cd /server && node ./server.js` 
+ 
+For Webapp:
+ - `npm install`
+ - `npm run serve`

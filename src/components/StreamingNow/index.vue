@@ -1,7 +1,7 @@
 <template>
     <div>
-        <div>
-            <el-row class="network-browse-container">
+        <div class="network-browse-container">
+            <el-row>
                 <el-col :span="4" :offset="20" class="mt-1">
                     <el-button type="primary" icon="el-icon-plus" class="mr-2" @click="addUserNetwork"></el-button>
                     <el-select v-model="selectedNetwork" filterable placeholder="Select">
@@ -164,7 +164,6 @@
 
     .network-browse-container {
         height: 3em;
-        margin-top: 0.5em;
         background-color: rgb(24, 24, 24);
     }
     .network-logo-image {

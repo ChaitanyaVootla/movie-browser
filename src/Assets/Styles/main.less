@@ -58,6 +58,10 @@
 }
 /deep/ .el-input__inner {
     color: white;
+    border-color: #111;
+}
+/deep/ .el-input__inner:hover {
+    color: white;
     border-color: #222;
 }
 // date range
@@ -113,6 +117,10 @@ a:hover {
     color: @text-color;
     text-decoration: none;
 }
+a {
+    color: @text-color;
+    text-decoration: none;
+}
 .el-tag.el-tag--info {
     background-color: #0e0f0fec;
     border-color: #000000;
@@ -126,4 +134,32 @@ a:hover {
     padding-bottom: 0.2em;
     cursor: pointer;
     width: 2em;
+}
+// Dropdown styles
+.el-dropdown-menu__item:not(.is-disabled):hover {
+    color: white;
+}
+// Nav bar Styles
+.el-menu-item {
+    font-weight: 400;
+    font-size: 16px;
+}
+.el-menu-item:hover {
+    color: @link-color-red !important;
+}
+.el-menu.el-menu--horizontal {
+    border: 0;
+}
+/deep/ .el-input-group__append {
+    border-color: #111 !important;
+}
+/deep/ .el-input-group__append:hover {
+    border-color: #222 !important;
+}
+/deep/ .el-button:hover {
+    border-color: #222 !important;
+}
+/deep/ .el-button:focus {
+    border-color: #222 !important;
+    outline: none !important;
 }
