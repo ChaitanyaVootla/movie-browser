@@ -18,6 +18,8 @@ import StreamingNow from './components/StreamingNow/index.vue';
 import VueLazyload from 'vue-lazyload'
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
+import store from './store'
+
 Vue.use(Element);
 
 Object.defineProperty(Vue.prototype, '_', { value: _ });
@@ -99,5 +101,8 @@ const router = new VueRouter({
 Vue.use(VueRouter);
 new Vue({
     render: h => h(App),
-    router
+    router,
+    store,
 }).$mount('#app');
+
+export { Vue };

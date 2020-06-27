@@ -35,7 +35,24 @@
                     </el-input>
                 </div>
             </el-menu-item>
-            <el-menu-item index="settings" class="menu-item-right menu-item-nobg mr-4">
+            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item">
+                <div @click="signInClicked" v-if="!user.photoURL" class="mt-1">
+                    Sign in
+                </div>
+                <div v-else>
+                    <el-dropdown trigger="click">
+                        <img :src="user.photoURL" class="user-photo"/>
+                        <el-dropdown-menu slot="dropdown">
+                            <el-dropdown-item>
+                                <div @click="signOutClicked">
+                                    Sign out
+                                </div>
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </el-dropdown>
+                </div>
+            </el-menu-item>
+            <el-menu-item index="settings" class="menu-item-right menu-item-nobg p-0">
                 <el-dropdown trigger="click">
                     <div><i class="el-icon-s-tools"></i></div>
                     <el-dropdown-menu slot="dropdown">
@@ -61,6 +78,7 @@
                 </el-dropdown>
             </el-menu-item>
         </el-menu>
+
         <div class="search-dropdown" v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults">
             <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
                 No Results
@@ -108,6 +126,7 @@
     import { sanitizeName } from '../Common/utils';
     import _ from 'lodash';
     import { configuration, movieGenres, seriesGenres } from '../Common/staticConfig';
+    import { signIn, firebase, signOut, db } from '../Common/firebase';
 
     export default {
         name: 'home',
@@ -151,6 +170,9 @@
             });
         },
         computed: {
+            user() {
+                return this.$store.getters.user;
+            },
             onStreamingNow() {
                 return this.$route.name === 'StreamingNow';
             },
@@ -168,6 +190,12 @@
             }
         },
         methods: {
+            signInClicked() {
+                signIn();
+            },
+            signOutClicked() {
+                signOut();
+            },
             searchInputclicked() {
                 this.showSearchResults = true;
             },
@@ -438,10 +466,18 @@
     }
     .search-menu-item {
         width: 30em;
-        margin-left: 20em !important;
+        margin-left: 17em !important;
     }
     .search-no-results {
         padding: 1em;
         text-align: center;
+    }
+    .user-photo {
+        height: 2em;
+        width: auto;
+        border-radius: 100%;
+    }
+    .user-menu-item {
+        width: 5em;
     }
 </style>

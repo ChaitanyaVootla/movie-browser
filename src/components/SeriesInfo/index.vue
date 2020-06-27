@@ -1,13 +1,13 @@
 <template>
     <div style="position:relative;">
         <div class="background-images-container" v-loading="detailsLoading">
-            <img v-lazy="creditImageBasePath + details.backdropPath" class="background-image"/>
+            <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image"/>
         </div>
         <div class="info-container" v-if="details.name">
             <h3 div="info-heading">
                 {{details.name}}
-                <span class="text-muted info-tagline" v-if="details.numberOfSeasons">
-                    {{details.numberOfSeasons}} Season{{details.numberOfSeasons> 1?'s':''}}
+                <span class="text-muted info-tagline" v-if="details.number_of_seasons">
+                    {{details.number_of_seasons}} Season{{details.number_of_seasons> 1?'s':''}}
                 </span>
                 <span>
                     <span class="text-muted info-tagline cursor-pointer" @click="openImageModal">
@@ -18,7 +18,7 @@
 
             <!-- Date and Genres -->
             <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                {{getDateText(details.releaseDate)}} -
+                {{getDateText(details.first_air_date)}} -
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{genre.name}}{{index===details.genres.length-1?'':','}}
                 </span>
@@ -41,8 +41,8 @@
 
             <!-- Rating -->
             <div class="mt-5 pt-5">
-                <span class="rating-info" :style="`border-color: ${getRatingColor(details.rating)}; color: ${getRatingColor(details.rating)}`">
-                    {{details.rating}}
+                <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
+                    {{details.vote_average}}
                 </span>
             </div>
 
@@ -70,20 +70,20 @@
             </div>
         </div>
         <!-- Trailer/Video -->
-        <div v-if="getYoutubeVideos(details.videos).length"
+        <div v-if="getYoutubeVideos(details.videos.results).length"
             style="position: absolute; top: 3em; right: 3em;">
             <iframe id="ytplayer" type="text/html" width="640" height="360"
-                :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos(details.videos)[0].key}`"
+                :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos(details.videos.results)[0].key}`"
                 frameborder="0" iv_load_policy="3" fs="1" allowfullscreen="true" autoplay="1"
                 style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0,0,0,0.75);">
             </iframe>
             <div class="dropdown">
                 <button class="btn dropdown-toggle video-dropdown btn-dark m-0"
                     type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    {{selectedVideo.name || getYoutubeVideos(details.videos)[0].name}}
+                    {{selectedVideo.name || getYoutubeVideos(details.videos.results)[0].name}}
                 </button>
                 <div class="dropdown-menu dropdown-menu-middle" aria-labelledby="dropdownMenuButton">
-                    <a class="dropdown-item" v-for="video in details.videos" :key="video.key"
+                    <a class="dropdown-item" v-for="video in details.videos.results" :key="video.key"
                         v-on:click="selectVideo(video)">{{video.name}}</a>
                 </div>
             </div>
@@ -157,6 +157,9 @@
     import _ from 'lodash';
     import { pushItemByName } from '../../Common/localStorageAdapter';
     import { getDateText } from '../../Common/utils';
+    import { signIn, firebase, signOut, db } from '../../Common/firebase';
+    import { omit } from 'lodash';
+    import { HISTORY_OMIT_VALUES } from '../../Common/constants'
 
     export default {
         name: 'seriesInfo',
@@ -207,7 +210,7 @@
             async getDetails() {
                 this.detailsLoading = true;
                 this.details = await api.getTvDetails(parseInt(this.$route.params.id));
-                this.updateLocalStorage();
+                this.updateHistoryData();
                 this.similarMovies = this.details.similar.results;
                 this.recommendedMovies = this.details.recommendations.results;
                 this.cast = this.details.credits.cast;
@@ -232,7 +235,7 @@
                     }
                 );
                 this.seasons = [] as any[];
-                for (let seasonNumber = 1; seasonNumber <= this.details.numberOfSeasons; seasonNumber++) {
+                for (let seasonNumber = 1; seasonNumber <= this.details.number_of_seasons; seasonNumber++) {
                     const season = await api.getSeasonDetails(parseInt(this.$route.params.id), seasonNumber);
                     _.each(season.episodes,
                         (episode) => {
@@ -243,8 +246,31 @@
                 }
                 this.detailsLoading = false;
             },
-            updateLocalStorage() {
+            updateHistoryData() {
                 pushItemByName('seriesHistory', this.details);
+                firebase.auth().onAuthStateChanged(
+                    async (user) => {
+                        if (user) {
+                            const userDbRef = db.collection('users').doc(user.uid);
+                            const userSeriesHistory = await userDbRef.collection('seriesHistory').get();
+
+                            userSeriesHistory.forEach(
+                                historyDoc => {
+                                    const series = historyDoc.data();
+                                    if (series.id === this.details.id) {
+                                        historyDoc.ref.delete();
+                                    }
+                                }
+                            )
+                            const historyDocToAdd = {
+                                ...omit(this.details, HISTORY_OMIT_VALUES),
+                                updatedAt: Date.now(),
+                            }
+                            await userDbRef.collection('seriesHistory').add(historyDocToAdd);
+                        } else {
+                        }
+                    }
+                );
             },
             getYoutubeVideos: function(videos: Array<Object>) {
                 return _.filter(videos, {site: 'YouTube'});

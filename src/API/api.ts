@@ -9,8 +9,6 @@ import {
     serverEndpoints
 } from './Constants';
 import axios from 'axios';
-import { MovieDetails } from '@/Models/movieDetails';
-import { TvDetails } from '@/Models/tvDetails';
 
 export const api = {
     getTrendingTv: async function() {
@@ -41,7 +39,7 @@ export const api = {
     getTvDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + id +
             '?&api_key=' + appConfig.token + detailsDefaultQuery);
-        return new TvDetails(details);
+        return details;
     },
     getSeasonDetails: async function(seriesId: number, seasonNumber: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + seriesId + `/season/${seasonNumber}` +

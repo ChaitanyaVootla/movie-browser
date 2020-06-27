@@ -143,6 +143,9 @@
     import _ from 'lodash';
     import { pushItemByName } from '../../Common/localStorageAdapter';
     import { getCurrencyString, getDateText } from '../../Common/utils';
+    import { signIn, firebase, signOut, db } from '../../Common/firebase';
+    import { omit } from 'lodash';
+    import { HISTORY_OMIT_VALUES } from '../../Common/constants'
 
     export default {
         name: 'movieInfo',
@@ -192,7 +195,7 @@
             async getDetails() {
                 this.detailsLoading = true;
                 this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
-                this.updateLocalStorage();
+                this.updateHistoryData();
                 this.similarMovies = this.details.similar.results;
                 this.recommendedMovies = this.details.recommendations.results;
                 this.cast = this.details.credits.cast;
@@ -218,8 +221,32 @@
                 );
                 this.detailsLoading = false;
             },
-            updateLocalStorage() {
+            updateHistoryData() {
                 pushItemByName('moviesHistory', this.details);
+                firebase.auth().onAuthStateChanged(
+                    async (user) => {
+                        if (user) {
+                            const userDbRef = db.collection('users').doc(user.uid);
+                            const userMovieHistory = await userDbRef.collection('moviesHistory').get();
+
+                            userMovieHistory.forEach(
+                                historyDoc => {
+                                    const movie = historyDoc.data();
+                                    if (movie.id === this.details.id) {
+                                        historyDoc.ref.delete();
+                                    }
+                                }
+                            )
+                            console.log("pushing")
+                            const historyDocToAdd = {
+                                ...omit(this.details, HISTORY_OMIT_VALUES),
+                                updatedAt: Date.now(),
+                            }
+                            await userDbRef.collection('moviesHistory').add(historyDocToAdd);
+                        } else {
+                        }
+                    }
+                );
             },
             getYoutubeVideos: function() {
                 if (this.details.videos && this.details.videos.results)

@@ -9,4 +9,14 @@ const COMPANIES = {
     },
 }
 
-export { LOCAL_STORAGE_NAMES, COMPANIES };
+const HISTORY_OMIT_VALUES = [
+    'videos',
+    'credits',
+    'images',
+    'production_companies',
+    'recommendations',
+    'similar',
+    'seasons',
+];
+
+export { LOCAL_STORAGE_NAMES, COMPANIES, HISTORY_OMIT_VALUES };

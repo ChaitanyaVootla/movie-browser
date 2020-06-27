@@ -1,7 +1,8 @@
 <template>
-    <el-row class="week-trends-container pt-4">
-        <el-col :span="historyAbsent()?24:15">
-            <el-carousel height="550px" :interval="7000" :type="historyAbsent()?'card':''" @change="carouselChanged" arrow="always" class="ml-5">
+    <el-row class="week-trends-container pt-3">
+        <el-col :span="historyAbsent?24:15">
+            <el-carousel height="550px" :interval="7000" :type="historyAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5"
+                :key="historyAbsent">
                 <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
                     <div class="carousel-card-container" @click="carouselCardClicked(item)">
                         <div class="background-images-container justify-center">
@@ -40,12 +41,12 @@
                 </el-carousel-item>
             </el-carousel>
         </el-col>
-        <el-col :span="9" class="pr-2 pl-1" v-if="!historyAbsent()">
-            <movie-slider :movies="getMoviesHistory()" :configuration="configuration" :heading="'Recently Visited Movies'" :id="'historyMovies'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="getMoviesHistory().length"
+        <el-col :span="9" class="pr-2 pl-1" v-if="!historyAbsent">
+            <movie-slider :movies="historyMovies" :configuration="configuration" :heading="'Recently Visited Movies'" :id="'historyMovies'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="historyMovies.length"
                 :history="true"></movie-slider>
-            <movie-slider :movies="getSeriesHistory()" :configuration="configuration" :heading="'Recently Visited Series'" :id="'historySeries'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo" v-if="getSeriesHistory().length"
+            <movie-slider :movies="seriesHistory" :configuration="configuration" :heading="'Recently Visited Series'" :id="'historySeries'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo" v-if="seriesHistory.length"
                 :history="true" class="pt-3"></movie-slider>
         </el-col>
     </el-row>
@@ -53,8 +54,9 @@
 
 <script lang="ts">
     import { api } from '../../API/api';
-    import _ from 'lodash';
     import { getRatingColor } from '../../Common/utils';
+    import { signIn, firebase, signOut, db } from '../../Common/firebase';
+    import { sortBy } from 'lodash';
 
     export default {
         name: 'trending',
@@ -77,6 +79,17 @@
         mounted() {
             this.loadData();
         },
+        computed: {
+            historyAbsent() {
+                return this.historyMovies.length === 0 && this.seriesHistory.length === 0;
+            },
+            historyMovies() {
+                return this.$store.getters.history.movies.slice(0, 4);
+            },
+            seriesHistory() {
+                return this.$store.getters.history.series.slice(0, 4);
+            },
+        },
         methods: {
             carouselCardClicked(movie: any) {
                 if (movie.id === this.currentCarouselItem.id) {
@@ -86,30 +99,10 @@
             carouselChanged(currentIndex: number) {
                 this.currentCarouselItem = this.trendingListWeek[currentIndex];
             },
-            historyAbsent() {
-                if (!localStorage.moviesHistory && !localStorage.seriesHistory) {
-                    return true
-                }
-                return false;
-            },
-            getMoviesHistory() {
-                if (localStorage.moviesHistory) {
-                    return JSON.parse(localStorage.moviesHistory).reverse().slice(0, this.historyLength);
-                } else {
-                    return [];
-                }
-            },
-            getSeriesHistory() {
-                if (localStorage.seriesHistory) {
-                    return JSON.parse(localStorage.seriesHistory).reverse().slice(0, this.historyLength);
-                } else {
-                    return [];
-                }
-            },
             getGenreName(id: any) {
-                let genre = _.find(this.movieGenres, {id: id});
+                let genre = this.movieGenres.find(genre => genre.id === id);
                 if (!genre) {
-                    genre = _.find(this.seriesGenres, {id: id});
+                    genre = this.seriesGenres.find(genre => genre.id === id);
                 }
                 if (genre)
                     return genre.name;

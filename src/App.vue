@@ -7,13 +7,18 @@
 <script lang="ts">
     import { Component, Vue } from 'vue-property-decorator';
     import Home from './components/Home.vue';
+    import store from './store';
 
     @Component({
         components: {
             Home,
         }
     })
-    export default class App extends Vue {}
+    export default class App extends Vue {
+        created() {
+            store.dispatch('initFirebase');
+        }
+    }
 </script>
 
 <style lang="less">

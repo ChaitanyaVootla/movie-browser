@@ -3,7 +3,7 @@
         <trending-carousel :configuration="configuration" :showMovieInfoModal="showMovieInfo"
             :showFullMovieInfo="showFullMovieInfo" :showSeriesInfo="showSeriesInfo" :movieGenres="movieGenres"
             :seriesGenres="seriesGenres"></trending-carousel>
-        <div class="pt-4">
+        <div class="pt-2">
             <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
                 <movie-slider :movies="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
