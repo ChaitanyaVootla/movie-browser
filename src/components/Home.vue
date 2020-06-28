@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-menu
-            class="el-menu-demo"
+            class="top-navbar"
             mode="horizontal"
             background-color="#0f0f0f"
             text-color="#eee"
@@ -9,7 +9,7 @@
             active-text-color="#b91d1d">
             <el-menu-item index="discover" class="ml-5" :route="{name: 'discover'}">
                 <router-link :to="{ name: 'discover'}">
-                    <div :class="onDiscover?'active':''" @click="goToDiscover()">
+                    <div :class="onDiscover?'active':''">
                         <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
                     </div>
                 </router-link>
@@ -18,6 +18,13 @@
                 <router-link :to="{ name: 'StreamingNow'}">
                     <div :class="onStreamingNow?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
+                    </div>
+                </router-link>
+            </el-menu-item>
+            <el-menu-item index="Interests">
+                <router-link :to="{ name: 'Interests'}">
+                    <div :class="onInterests?'active':''">
+                        <font-awesome-icon :icon="['fas', 'eye']" class="mr-2"/> Interests
                     </div>
                 </router-link>
             </el-menu-item>
@@ -44,7 +51,14 @@
                         <img :src="user.photoURL" class="user-photo"/>
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
+                                <router-link :to="{name: 'History'}">
+                                    <font-awesome-icon :icon="['fas', 'history']"/>
+                                    History
+                                </router-link>
+                            </el-dropdown-item>
+                            <el-dropdown-item  divided>
                                 <div @click="signOutClicked">
+                                    <font-awesome-icon :icon="['fas', 'sign-out-alt']"/>
                                     Sign out
                                 </div>
                             </el-dropdown-item>
@@ -90,7 +104,7 @@
                 :search-item-clicked="searchItemclicked">
             </search-results>
         </div>
-        <router-view v-if="isLoaded" class="mt-0"
+        <router-view v-if="isLoaded" class="mt-5 pt-2"
             :isLoaded="isLoaded"
             :configuration="configuration"
             :showMovieInfo="showMovieInfo"
@@ -176,6 +190,9 @@
             onStreamingNow() {
                 return this.$route.name === 'StreamingNow';
             },
+            onInterests() {
+                return this.$route.name === 'Interests';
+            },
             onDiscover() {
                 return this.$route.name === 'discover';
             },
@@ -184,6 +201,8 @@
                     return 'discover';
                 } else if (this.$route.name === 'StreamingNow') {
                     return 'StreamingNow';
+                } else if (this.$route.name === 'Interests') {
+                    return 'Interests';
                 } else {
                     return 'nothing';
                 }
@@ -299,7 +318,7 @@
         padding: 0.2em;
         width: 2.2em;
         // height: 1.6em;
-        box-shadow: 0px 0px 200px 150px rgba(0, 0, 0, 0.514);
+        // box-shadow: 0px 0px 200px 150px rgba(0, 0, 0, 0.514);
         height: 100%;
         padding-top: 0.6em;
         display: flex;
@@ -400,7 +419,7 @@
         border-color: #111;
     }
     .search-dropdown {
-        position: absolute;
+        position: fixed;
         top: 3.4em;
         z-index: 100;
         right: 6em;
@@ -452,7 +471,7 @@
         width: 2em;
     }
     .menu-center-item {
-        left: 30%;
+        left: 23%;
     }
     .menu-item-right {
         float: right !important;
@@ -479,5 +498,12 @@
     }
     .user-menu-item {
         width: 5em;
+    }
+    .top-navbar {
+        box-shadow: 0px -6px 10px 7px rgba(148, 148, 148, 0.18);
+        position: fixed;
+        width: 100%;
+        z-index: 100;
+        top: 0;
     }
 </style>

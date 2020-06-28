@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: appleboy/ssh-action@master
+      env:
+        VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
+        VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
+      with:
+        host: 139.59.94.40
+        username: root
+        password: ${{ secrets.DIGITAL_OCEAN_PASS }}
+        envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
+        script: |
+          cd /
+          if [ ! -d "movie-browser" ]
+          then
+            echo "Repo not found cloning..."
+            git clone https://github.com/ChaitanyaVootla/movie-browser.git
+            cd movie-browser
+          else
+            echo "Repo already exists fetching latest changes"
+            cd movie-browser
+            sudo git reset --hard HEAD~10
+            sudo git pull origin master
+            echo "Last change:"
+            git log --name-status HEAD^..HEAD
+          fi
+          sudo rm -f .env
+          touch .env
+          echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
+          echo "VUE_APP_SERVER_URL=http://139.59.94.40:3000/" >> .env
+          echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
+          npm i
+          npm install -g @vue/cli
+          killall node
+          echo "starting vue server..."
+          nohup npm run serve > /dev/null 2>&1 &
+          cd /movie-browser/server
+          echo "starting node server..."
+          nohup node server.js > /dev/null 2>&1 &
+          exit 0

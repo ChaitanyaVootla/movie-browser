@@ -37,10 +37,25 @@
             </div>
 
             <!-- Rating -->
-            <div class="mt-5 pt-5">
-                <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
+            <div class="mt-3 pt-5">
+                <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)};
+                    color: ${getRatingColor(details.vote_average)}`">
                     {{details.vote_average}}
                 </span>
+            </div>
+            <div class="mt-4">
+                <el-tooltip class="item" effect="dark" :content="isWatched?'Youve watched this':'Watched this?'"
+                    placement="top-start">
+                    <span :class="`rating-info watch-check ${isWatched?'watched-item':''}`" @click="watchedClicked">
+                        <font-awesome-icon :icon="['fas', 'check']"/>
+                    </span>
+                </el-tooltip>
+                <el-tooltip class="item" effect="dark" :content="isInWatchList?'Remove from watch list':'Add to watch list'"
+                    placement="top-start">
+                    <span :class="`rating-info watch-check ${isInWatchList?'watched-item':''}`" @click="addToListClicked">
+                        <font-awesome-icon :icon="['fas', 'plus']"/>
+                    </span>
+                </el-tooltip>
             </div>
 
             <div style="top: 25em; position: absolute;" class="budget-text">
@@ -144,7 +159,7 @@
     import { pushItemByName } from '../../Common/localStorageAdapter';
     import { getCurrencyString, getDateText } from '../../Common/utils';
     import { signIn, firebase, signOut, db } from '../../Common/firebase';
-    import { omit } from 'lodash';
+    import { omit, sortBy } from 'lodash';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants'
 
     export default {
@@ -187,6 +202,35 @@
             }
         },
         methods: {
+            watchedClicked() {
+                if (!this.user.displayName) {
+                    return;
+                }
+                const userDbRef = db.collection('users').doc(this.user.uid);
+                if (this.isWatched) {
+                    userDbRef.collection('watchedMovies').doc(`${this.details.id}`).delete();
+                } else {
+                    userDbRef.collection('watchedMovies').doc(`${this.details.id}`).set({
+                        ...omit(this.details, HISTORY_OMIT_VALUES),
+                        updatedAt: Date.now(),
+                    });
+                }
+            },
+            addToListClicked() {
+                if (!this.user.displayName) {
+                    return;
+                }
+                const userDbRef = db.collection('users').doc(this.user.uid);
+                if (this.isInWatchList) {
+                    userDbRef.collection('moviesWatchList').doc(`${this.details.id}`).delete();
+                } else {
+                    console.log("adding")
+                    userDbRef.collection('moviesWatchList').doc(`${this.details.id}`).set({
+                        ...omit(this.details, HISTORY_OMIT_VALUES),
+                        updatedAt: Date.now(),
+                    });
+                }
+            },
             openImageModal() {
                 this.dialogVisible = true;
                 this.backdrops = this.details.images.backdrops;
@@ -199,7 +243,7 @@
                 this.similarMovies = this.details.similar.results;
                 this.recommendedMovies = this.details.recommendations.results;
                 this.cast = this.details.credits.cast;
-                this.crew = _.sortBy(this.details.credits.crew,
+                this.crew = sortBy(this.details.credits.crew,
                     (person) => {
                         if (person.job === 'Director')
                             return 0;
@@ -214,7 +258,7 @@
                         return 100;
                     }
                 );
-                this.crew = _.sortBy(this.crew,
+                this.crew = sortBy(this.crew,
                     ({profile_path}) => {
                         return profile_path ? 0 : 1;
                     }
@@ -237,7 +281,6 @@
                                     }
                                 }
                             )
-                            console.log("pushing")
                             const historyDocToAdd = {
                                 ...omit(this.details, HISTORY_OMIT_VALUES),
                                 updatedAt: Date.now(),
@@ -249,8 +292,11 @@
                 );
             },
             getYoutubeVideos: function() {
-                if (this.details.videos && this.details.videos.results)
-                return _.filter(this.details.videos.results, {site: 'YouTube'});
+                if (this.details.videos && this.details.videos.results) {
+                    return this.details.videos.results.filter(result => result.site === 'YouTube');
+                } else {
+                    return [];
+                }
             },
             selectVideo(video: Object) {
                 this.selectedVideo = video;
@@ -278,7 +324,16 @@
                         return 'budget-profit'
                     }
                 }
-            }
+            },
+            user() {
+                return this.$store.getters.user;
+            },
+            isWatched() {
+                return this.$store.getters.watchedMovieById(this.details.id);
+            },
+            isInWatchList() {
+                return this.$store.getters.watchListMovieById(this.details.id);
+            },
         }
     }
 </script>
@@ -380,5 +435,14 @@
         border-radius: 3px;
         padding: 0.4em;
         font-size: 0.8em;
+    }
+    .watch-check {
+        font-size: 1em;
+        margin-left: 0.5em;
+        cursor: pointer;
+    }
+    .watched-item {
+        border-color: green;
+        color: green;
     }
 </style>

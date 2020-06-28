@@ -15,6 +15,8 @@ import Search from './components/Search/index.vue';
 import MovieInfoFull from './components/MovieInfo/index.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
 import StreamingNow from './components/StreamingNow/index.vue';
+import Interests from './components/Interests/index.vue';
+import History from './components/History/index.vue';
 import VueLazyload from 'vue-lazyload'
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
@@ -47,6 +49,7 @@ Vue.component('personSlider', require('./components/PersonSlider/index.vue').def
 Vue.component('person', require('./components/Person/index.vue').default);
 Vue.component('searchResults', require('./components/SearchResults/index.vue').default);
 Vue.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
+Vue.component('searchGrid', require('./components/Common/searchGrid.vue').default);
 
 Vue.component('Home', require('./components/Home.vue').default);
 
@@ -91,6 +94,16 @@ const routes = [
         path: '/streamingNow',
         component: StreamingNow,
         name: 'StreamingNow'
+    },
+    {
+        path: '/interests',
+        component: Interests,
+        name: 'Interests'
+    },
+    {
+        path: '/history',
+        component: History,
+        name: 'History'
     },
 ];
 Vue.use(VueLazyload);

@@ -11,7 +11,13 @@ const store = new Vuex.Store({
             isLoading: true,
             movies: [],
             series: [],
-        }
+        },
+        watched: {
+            isLoading: true,
+            movies: [],
+            series: [],
+        },
+        moviesWatchList: [],
     },
     mutations: {
         setUser(state, user) {
@@ -25,7 +31,19 @@ const store = new Vuex.Store({
             if (series) {
                 state.history.series = series;
             }
-        }
+        },
+        setWatched(state, { movies, series }) {
+            state.watched.isLoading = false;
+            if (movies) {
+                state.watched.movies = movies;
+            }
+            if (series) {
+                state.watched.series = series;
+            }
+        },
+        setMoviesWatchList(state, movies) {
+            state.moviesWatchList = movies;
+        },
     },
     actions: {
       initFirebase ({ commit }) {
@@ -42,9 +60,7 @@ const store = new Vuex.Store({
                         snapshot => {
                             const movies = [];
                             snapshot.forEach(
-                                doc => {
-                                    movies.push(doc.data());
-                                }
+                                doc => movies.push(doc.data())
                             );
                             commit('setHistory', {
                                 movies: sortBy(movies, 'updatedAt').reverse(),
@@ -55,19 +71,40 @@ const store = new Vuex.Store({
                         snapshot => {
                             const series = [];
                             snapshot.forEach(
-                                doc => {
-                                    series.push(doc.data());
-                                }
+                                doc => series.push(doc.data())
                             );
                             commit('setHistory', {
                                 series: sortBy(series, 'updatedAt').reverse(),
                             });
                         }, (e) => console.error(e)
                     );
+                    userDbRef.collection('watchedMovies').onSnapshot(
+                        snapshot => {
+                            const movies = [];
+                            snapshot.forEach(
+                                doc => movies.push(doc.data())
+                            );
+                            commit('setWatched', {
+                                movies: sortBy(movies, 'updatedAt').reverse(),
+                            });
+                        }, (e) => console.error(e)
+                    );
+                    userDbRef.collection('moviesWatchList').onSnapshot(
+                        snapshot => {
+                            const movies = [];
+                            snapshot.forEach(
+                                doc => movies.push(doc.data())
+                            );
+                            commit('setMoviesWatchList', sortBy(movies, 'updatedAt').reverse());
+                        }, (e) => console.error(e)
+                    );
                 } else {
-                    console.log("haher")
                     commit('setUser', {});
                     commit('setHistory', {
+                        movies: [],
+                        series: [],
+                    });
+                    commit('setWatched', {
                         movies: [],
                         series: [],
                     });
@@ -79,6 +116,10 @@ const store = new Vuex.Store({
     getters: {
         user: state => state.user,
         history: state => state.history,
+        watched: state => state.watched,
+        watchedMovieById: state => (id) => state.watched.movies.find(movie => movie.id === id),
+        watchListMovieById: state => (id) => state.moviesWatchList.find(movie => movie.id === id),
+        watchListMovies: state => state.moviesWatchList,
     }
 });
 
