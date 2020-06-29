@@ -108,6 +108,7 @@ const store = new Vuex.Store({
                         movies: [],
                         series: [],
                     });
+                    commit('setMoviesWatchList', []);
                 }
             }
         );

@@ -50,6 +50,12 @@
         <div class="text-muted pl-3 pb-2">
             {{filteredMovies.length}} Results
         </div>
+        <div v-if="!filteredMovies.length" class="no-items-text">
+            <router-link :to="{name: 'discover'}">
+                Looks like you have nothing in this list <br/>
+                <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Try Discovering movies/series
+            </router-link>
+        </div>
         <div class="discover-movies-container">
             <movie-card v-for="movie in filteredMovies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                 :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"></movie-card>
@@ -173,5 +179,11 @@
     }
     .search-grid-container {
         width: 100%;
+    }
+    .no-items-text {
+        width: 100%;
+        text-align: center;
+        margin-top: 2em;
+        text-decoration: underline;
     }
 </style>

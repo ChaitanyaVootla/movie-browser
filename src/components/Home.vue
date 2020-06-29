@@ -14,17 +14,17 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item index="StreamingNow">
-                <router-link :to="{ name: 'StreamingNow'}">
-                    <div :class="onStreamingNow?'active':''">
-                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
-                    </div>
-                </router-link>
-            </el-menu-item>
             <el-menu-item index="Interests">
                 <router-link :to="{ name: 'Interests'}">
                     <div :class="onInterests?'active':''">
                         <font-awesome-icon :icon="['fas', 'eye']" class="mr-2"/> Interests
+                    </div>
+                </router-link>
+            </el-menu-item>
+            <el-menu-item index="StreamingNow">
+                <router-link :to="{ name: 'StreamingNow'}">
+                    <div :class="onStreamingNow?'active':''">
+                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
                     </div>
                 </router-link>
             </el-menu-item>
