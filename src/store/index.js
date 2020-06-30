@@ -60,7 +60,7 @@ const store = new Vuex.Store({
                         snapshot => {
                             const movies = [];
                             snapshot.forEach(
-                                doc => movies.push(doc.data())
+                                doc => doc.id == doc.data().id?movies.push(doc.data()):''
                             );
                             commit('setHistory', {
                                 movies: sortBy(movies, 'updatedAt').reverse(),
@@ -71,7 +71,7 @@ const store = new Vuex.Store({
                         snapshot => {
                             const series = [];
                             snapshot.forEach(
-                                doc => series.push(doc.data())
+                                doc => doc.id == doc.data().id?series.push(doc.data()):''
                             );
                             commit('setHistory', {
                                 series: sortBy(series, 'updatedAt').reverse(),

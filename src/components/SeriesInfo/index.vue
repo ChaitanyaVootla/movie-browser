@@ -247,27 +247,16 @@
                 this.detailsLoading = false;
             },
             updateHistoryData() {
-                pushItemByName('seriesHistory', this.details);
                 firebase.auth().onAuthStateChanged(
                     async (user) => {
                         if (user) {
                             const userDbRef = db.collection('users').doc(user.uid);
                             const userSeriesHistory = await userDbRef.collection('seriesHistory').get();
-
-                            userSeriesHistory.forEach(
-                                historyDoc => {
-                                    const series = historyDoc.data();
-                                    if (series.id === this.details.id) {
-                                        historyDoc.ref.delete();
-                                    }
-                                }
-                            )
                             const historyDocToAdd = {
                                 ...omit(this.details, HISTORY_OMIT_VALUES),
                                 updatedAt: Date.now(),
                             }
-                            await userDbRef.collection('seriesHistory').add(historyDocToAdd);
-                        } else {
+                            userDbRef.collection('seriesHistory').doc(`${this.details.id}`).set(historyDocToAdd);
                         }
                     }
                 );

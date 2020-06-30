@@ -265,28 +265,17 @@
                 );
                 this.detailsLoading = false;
             },
-            updateHistoryData() {
-                pushItemByName('moviesHistory', this.details);
+            async updateHistoryData() {
                 firebase.auth().onAuthStateChanged(
                     async (user) => {
                         if (user) {
                             const userDbRef = db.collection('users').doc(user.uid);
                             const userMovieHistory = await userDbRef.collection('moviesHistory').get();
-
-                            userMovieHistory.forEach(
-                                historyDoc => {
-                                    const movie = historyDoc.data();
-                                    if (movie.id === this.details.id) {
-                                        historyDoc.ref.delete();
-                                    }
-                                }
-                            )
                             const historyDocToAdd = {
                                 ...omit(this.details, HISTORY_OMIT_VALUES),
                                 updatedAt: Date.now(),
                             }
-                            await userDbRef.collection('moviesHistory').add(historyDocToAdd);
-                        } else {
+                            userDbRef.collection('moviesHistory').doc(`${this.details.id}`).set(historyDocToAdd);
                         }
                     }
                 );

@@ -22,6 +22,13 @@
                             <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
                         </a>
                     </div> -->
+                    <div class="info-overlay">
+                        <span class="rating-info" :style="`border-color: ${getRatingColor(movie.vote_average)};
+                            color: ${getRatingColor(movie.vote_average)}`">
+                            {{movie.vote_average}}
+                        </span>
+                        <!-- {{movie.vote_average}} -->
+                    </div>
                 </div>
                 <div class="secondary-text mt-1">{{movie.character || movie.job}}</div>
             </div>
@@ -31,12 +38,14 @@
 
 <script lang="ts">
     import { sanitizeName } from '../../Common/utils';
+    import { getRatingColor } from '../../Common/utils';
 
     export default {
         name: 'movieCard',
         props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showFullMovieInfo'],
         data() {
             return {
+                getRatingColor,
                 imageObj: {
                     src: this.configuration.images.secure_base_url + this.imageRes + (this.movie.poster_path || this.movie.posterPath),
                     error: require('../../Assets/Images/error.svg'),
@@ -70,7 +79,6 @@
         flex-direction: column;
         padding: 0 0.3em;
         cursor: pointer;
-        position: relative;
         transition: transform .2s;
     }
     .movie-item:hover {
@@ -102,6 +110,19 @@
     .movie-item:hover .img-overlay {
         opacity: 1;
     }
+    .info-overlay {
+        position: absolute;
+        width: 100%;
+        opacity: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 0.3em 0.5em;
+        transition: 300ms;
+        z-index: 1000000;
+    }
+    .movie-item:hover .info-overlay {
+        opacity: 1;
+    }
     .ext-link-icon {
         color: @link-color-red;
     }
@@ -112,5 +133,8 @@
     }
     .img-container {
         position: relative;
+    }
+    .rating-info {
+        font-size: 0.9em;
     }
 </style>

@@ -120,8 +120,7 @@
     .main-slider-div {
         padding-bottom: 0;
     }
-    ::v-deep .movie-card-image {
-        height: 14em !important;
+    ::v-deep .img-container {
         margin: 0 0.2em;
         min-width: 8em;
     }

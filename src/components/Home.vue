@@ -104,18 +104,20 @@
                 :search-item-clicked="searchItemclicked">
             </search-results>
         </div>
-        <router-view v-if="isLoaded" class="mt-5 pt-2"
-            :isLoaded="isLoaded"
-            :configuration="configuration"
-            :showMovieInfo="showMovieInfo"
-            :searchString="searchText"
-            :person="selectedPerson"
-            :showFullMovieInfo="showFullMovieInfo"
-            :selectPerson="goToPerson"
-            :showSeriesInfo="showSeriesInfo"
-            :movieGenres="movieGenres"
-            :seriesGenres="seriesGenres"
-        ></router-view>
+        <transition name="view">
+            <router-view v-if="isLoaded" class="mt-5 pt-2"
+                :isLoaded="isLoaded"
+                :configuration="configuration"
+                :showMovieInfo="showMovieInfo"
+                :searchString="searchText"
+                :person="selectedPerson"
+                :showFullMovieInfo="showFullMovieInfo"
+                :selectPerson="goToPerson"
+                :showSeriesInfo="showSeriesInfo"
+                :movieGenres="movieGenres"
+                :seriesGenres="seriesGenres"
+            ></router-view>
+        </transition>
 
         <!-- Info Modal -->
         <div class="modal fade bd-example-modal-xl" id="movieInfoModal" tabindex="-1" role="dialog">
@@ -505,5 +507,27 @@
         width: 100%;
         z-index: 100;
         top: 0;
+    }
+    .view-enter-active, .view.leave-active {
+        transition: opacity 0.2s ease-in-out, transform 0.2s ease;
+    }
+    .view-enter-active {
+        transition-delay: 0.2s;
+    }
+    .view-enter {
+        opacity: 0;
+        // transform: translateY(-50px);
+    }
+    .view-enter-to {
+        opacity: 1;
+        // transform: translateY(0px);
+    }
+    .view-leave {
+        opacity: 1;
+        // transform: translateY(0px);
+    }
+    .view-leave-to {
+        opacity: 0;
+        // transform: translateY(-50px);
     }
 </style>
