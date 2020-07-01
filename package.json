@@ -4,13 +4,14 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve --port 80",
-    "build": "vue-cli-service build"
+    "build": "vue-cli-service build --port 81"
   },
   "description": "Movie browser",
   "author": {
     "name": ""
   },
   "dependencies": {
+    "@capacitor/android": "^2.2.0",
     "@capacitor/cli": "^2.2.0",
     "@capacitor/core": "^2.2.0",
     "@fortawesome/fontawesome-svg-core": "^1.2.25",

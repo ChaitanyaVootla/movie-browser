@@ -47,12 +47,14 @@
             </div>
 
             <!-- Movie overview -->
-            <div class="movie-overview p-2">
+            <div class="movie-overview mobile-hide p-2">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
             </div>
-            <div>
+
+            <!-- keywords -->
+            <div class="mobile-hide">
                 <router-link v-for="keyword in details.keywords.results" :key="keyword.id" class="mr-2"
                     :to="{
                         name: 'discover',
@@ -70,8 +72,7 @@
             </div>
         </div>
         <!-- Trailer/Video -->
-        <div v-if="getYoutubeVideos(details.videos.results).length"
-            style="position: absolute; top: 3em; right: 3em;">
+        <div v-if="getYoutubeVideos(details.videos.results).length" style="position: absolute; top: 3em; right: 3em;" class="mobile-hide">
             <iframe id="ytplayer" type="text/html" width="640" height="360"
                 :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos(details.videos.results)[0].key}`"
                 frameborder="0" iv_load_policy="3" fs="1" allowfullscreen="true" autoplay="1"
@@ -286,6 +287,37 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
+    @media (max-width: 767px) {
+        .background-images-container {
+            height: 20em !important;
+            font-size: 0.8em !important;
+        }.background-image {
+            height: 20em !important;
+        }
+        .youtube-player {
+            height: 100 !important;
+            width: 100 !important;
+        }
+        .info-container {
+            top: 1em;
+            display: grid;
+            grid-auto-rows: max(3em);
+        }
+        .info-container > div {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .rating-info {
+            font-size: 1em;
+        }
+        .budget-text {
+            position: relative !important;
+            top: 0 !important;
+        }
+        .bookmarks {
+            font-size: 0.9em;
+        }
+    }
     .background-images-container {
         filter: opacity(0.3);
         height: 30em;
@@ -347,10 +379,10 @@
         color: #ddd !important;
         font-size: .5em;
     }
-    ::v-deep .el-tabs__header {
+    /deep/ .el-tabs__header {
         padding: 0 2em !important;
     }
-    ::v-deep .el-tabs__nav-wrap::after {
+    /deep/ .el-tabs__nav-wrap::after {
         height: 0;
     }
     .cursor-pointer {

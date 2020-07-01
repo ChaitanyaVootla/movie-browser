@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-menu default-active="1-1" class="vertical-menu" :collapse="false">
+        <el-menu default-active="1-1" class="vertical-menu" :collapse="isMobile">
             <el-submenu index="1">
                 <template slot="title">
                     <font-awesome-icon :icon="['fas', 'film']" class="mr-2"/>
@@ -60,6 +60,9 @@
             seriesHistory() {
                 return this.$store.getters.history.series;
             },
+            isMobile() {
+                return window.innerWidth < 768?true:false;
+            }
         }
     }
 </script>
@@ -94,5 +97,16 @@
     /deep/ .el-menu-item.is-active {
         background-color: black;
         color: @link-color-red;
+    }
+    @media (max-width: 767px) {
+        .vertical-menu {
+            width: 4em;
+            height: 94vh;
+            position: absolute;
+        }
+        .history-container {
+            padding: 0.5em;
+            margin-left: 4em;
+        }
     }
 </style>

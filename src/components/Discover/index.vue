@@ -1,75 +1,65 @@
 <template>
     <div>
         <div class="pt-2 pl-5 pb-2 discover-options-row">
-            <el-row>
-                <el-col :span="2">
-                    <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width">
-                        <el-option
-                            v-for="item in sortOrders"
-                            :key="item.id"
-                            :label="item.name"
-                            :value="item">
-                        </el-option>
-                    </el-select>
-                </el-col>
-                <el-col :span="3" class="pl-2">
-                    <el-select v-model="selectedGenres" multiple filterable :collapse-tags="true" placeholder="Genres"
-                        :no-match-text="'No Results'" value-key="id" class="full-width" clearable>
-                        <el-option
-                            v-for="item in genres"
-                            :key="item.id"
-                            :label="item.name"
-                            :value="item">
-                        </el-option>
-                    </el-select>
-                </el-col>
-                <el-col :span="5" class="pl-2">
-                    <el-select v-model="selectedKeywords" multiple filterable remote
-                        :remote-method="keywordChanged" placeholder="Looking for anything specific?"
-                        :no-data-text="'No Results'" value-key="id" class="full-width" clearable>
-                        <el-option
-                            v-for="item in searchKeywords"
-                            :key="item.id"
-                            :label="item.name"
-                            :value="item">
-                        </el-option>
-                    </el-select>
-                </el-col>
-                <el-col :span="2" :offset="7" class="pl-5">
-                        <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating">
-                            <el-option
-                                v-for="item in ratingOptions"
-                                :key="item.id"
-                                :label="item.name"
-                                :value="item">
-                            </el-option>
-                        </el-select>
-                </el-col>
-                <el-col :span="3" class="pl-5">
-                    <div class="mt-2">
-                        <span class="mr-2">Series</span>
-                        <el-switch class="type-switch"
-                            v-model="isMovies"
-                            active-color="#333"
-                            inactive-color="#000"
-                            @change="typeChanged">
-                        </el-switch>
-                        <span class="ml-2">Movies</span>
-                    </div>
-                </el-col>
-                <el-col :span="2">
-                    <el-button @click="loadMovies(true)" class="search-btn">
-                        <font-awesome-icon :icon="['fas', 'search']" class="mr-2"/> Search
-                    </el-button>
-                </el-col>
-            </el-row>
+            <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width">
+                <el-option
+                    v-for="item in sortOrders"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedGenres" multiple filterable :collapse-tags="true" placeholder="Genres"
+                :no-match-text="'No Results'" value-key="id" class="full-width" clearable>
+                <el-option
+                    v-for="item in genres"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedKeywords" multiple filterable remote
+                :remote-method="keywordChanged" placeholder="Looking for anything specific?"
+                :no-data-text="'No Results'" value-key="id" class="full-width" clearable>
+                <el-option
+                    v-for="item in searchKeywords"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating">
+                <el-option
+                    v-for="item in ratingOptions"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <div class="mobile-hide"></div>
+            <div class="mobile-hide"></div>
+            <div class="mt-2 switch-container">
+                <span class="mr-2 mobile-hide">Series</span>
+                <font-awesome-icon :icon="['fas', 'stream']" class="mr-2 desk-hide"/>
+                <el-switch class="type-switch"
+                    v-model="isMovies"
+                    active-color="#333"
+                    inactive-color="#000"
+                    @change="typeChanged">
+                </el-switch>
+                <font-awesome-icon :icon="['fas', 'film']" class="mr-2 desk-hide"/>
+                <span class="ml-2 mobile-hide">Movies</span>
+            </div>
+            <el-button @click="loadMovies(true)" class="search-btn">
+                <font-awesome-icon :icon="['fas', 'search']" class="mr-2"/> Search
+            </el-button>
         </div>
         <div class="query-info text-muted">
             <div class="">
                 {{queryData.total_results === 10000?`${queryData.total_results}+`:queryData.total_results}} results
             </div>
         </div>
-        <div v-if="isLoaded" class="discover-movies-container">
+        <div v-if="isLoaded" class="movies-grid-container">
             <movie-card v-for="movie in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                 :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"></movie-card>
         </div>
@@ -310,16 +300,9 @@
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
 
-    .discover-movies-container {
-        padding: 1em 2.5em;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-    }
-    /deep/ .movie-item {
-        margin-left: 0.5em;
-        margin-right: 0.5em;
-        margin-bottom: 2em;
+    .movies-grid-container {
+        padding-left: 3em;
+        padding-right: 3em;
     }
     .query-info {
         padding: 1em 0 0 3em;
@@ -352,6 +335,29 @@
     }
     .discover-options-row {
         background: @background-gray;
+        display: grid;
+        grid-template-columns: 0.6fr 1fr 1fr 0.6fr 1fr 1fr 0.8fr 0.5fr;
+        gap: 0.5em;
+        padding-right: 3em;
+    }
+    @media (max-width: 767px) {
+        .query-info {
+            padding: 1em 0 0 1em;
+        }
+        .discover-options-row {
+            grid-template-columns: 2fr 2fr 2fr;
+            padding: 0.5em !important;
+            margin: 0 !important;
+            gap: 1em;
+        }
+        .switch-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            align-items: center;
+            justify-items: center;
+            align-content: center;
+            justify-content: center;
+        }
     }
     .full-width {
         width: 100%;

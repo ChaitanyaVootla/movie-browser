@@ -79,7 +79,8 @@
     }
 </script>
 
-<style scoped>
+<style lang="less" scoped>
+    @import '../../Assets/Styles/main.less';
     .slider-bar {
         display: flex;
         overflow-x: auto;
@@ -120,11 +121,40 @@
     .main-slider-div {
         padding-bottom: 0;
     }
-    ::v-deep .img-container {
+    /deep/ .img-container {
         margin: 0 0.2em;
         min-width: 8em;
     }
-    .history-slider ::v-deep.movie-card-image {
-        height: 13em !important;
+    /deep/ .movie-item {
+        margin-right: 1em !important;
+    }
+    .history-slider /deep/.movie-card-image {
+        height: 13em;
+    }
+    @media (max-width: 767px) {
+        .scroll-item {
+            background: transparent;
+            padding: 0.3em;
+            display: none;
+        }
+        .slider-bar {
+            padding: 0;
+        }
+        .slider-heading {
+            padding-left: 1em;
+        }
+        /deep/ .movie-item {
+            width: @mobile-card-width !important;
+            height: auto !important;
+            margin-right: 0.5em !important;
+        }
+        /deep/ .movie-card-image {
+            width: @mobile-card-width !important;
+            height: auto !important;
+        }
+        /deep/ .img-container {
+            width: @mobile-card-width !important;
+            height: auto !important;
+        }
     }
 </style>

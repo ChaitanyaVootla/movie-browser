@@ -124,4 +124,4 @@ const store = new Vuex.Store({
     }
 });
 
-export { store as default};
+export { store };

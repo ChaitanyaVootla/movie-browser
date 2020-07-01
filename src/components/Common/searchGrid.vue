@@ -1,51 +1,41 @@
 <template>
-    <div class="search-grid-container">
-        <div class="pt-2 pb-3 pl-2 pr-2">
-            <el-row>
-                <el-col :span="2">
-                    <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width">
-                        <el-option
-                            v-for="item in sortOrders"
-                            :key="item.id"
-                            :label="item.name"
-                            :value="item">
-                        </el-option>
-                    </el-select>
-                </el-col>
-                <el-col :span="3" class="pl-2">
-                    <el-select v-model="selectedGenres" multiple filterable :collapse-tags="true" placeholder="Genres"
-                        :no-match-text="'No Results'" value-key="id" class="full-width" clearable>
-                        <el-option
-                            v-for="item in genres"
-                            :key="item.id"
-                            :label="item.name"
-                            :value="item">
-                        </el-option>
-                    </el-select>
-                </el-col>
-                <el-col :span="5" class="pl-2">
-                    <el-select v-model="selectedKeywords" multiple filterable remote
-                        :remote-method="keywordChanged" placeholder="Looking for anything specific?"
-                        :no-data-text="'No Results'" value-key="id" class="full-width" clearable>
-                        <el-option
-                            v-for="item in searchKeywords"
-                            :key="item.id"
-                            :label="item.name"
-                            :value="item">
-                        </el-option>
-                    </el-select>
-                </el-col>
-                <el-col :span="2" :offset="12" class="pl-5">
-                        <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating">
-                            <el-option
-                                v-for="item in ratingOptions"
-                                :key="item.id"
-                                :label="item.name"
-                                :value="item">
-                            </el-option>
-                        </el-select>
-                </el-col>
-            </el-row>
+    <div>
+        <div class="search-grid-container pt-2 pb-3 pl-2 pr-2">
+            <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width">
+                <el-option
+                    v-for="item in sortOrders"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedGenres" multiple filterable :collapse-tags="true" placeholder="Genres"
+                :no-match-text="'No Results'" value-key="id" class="full-width" clearable>
+                <el-option
+                    v-for="item in genres"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedKeywords" multiple filterable remote
+                :remote-method="keywordChanged" placeholder="Looking for anything specific?"
+                :no-data-text="'No Results'" value-key="id" class="full-width" clearable>
+                <el-option
+                    v-for="item in searchKeywords"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating">
+                <el-option
+                    v-for="item in ratingOptions"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
         </div>
         <div class="text-muted pl-3 pb-2">
             {{filteredMovies.length}} Results
@@ -56,7 +46,7 @@
                 <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Try Discovering movies/series
             </router-link>
         </div>
-        <div class="discover-movies-container">
+        <div class="movies-grid-container">
             <movie-card v-for="movie in filteredMovies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                 :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"></movie-card>
         </div>
@@ -166,19 +156,37 @@
 
 <style lang="less" scoped>
     @import '../../Assets/Styles/main.less';
-    .discover-movies-container {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-    }
     /deep/ .movie-item {
-        margin: 0.5em;
+        margin: 0;
+        padding: 0;
     }
     .full-width {
         width: 100%;
     }
     .search-grid-container {
+        display: grid;
+        grid-template-columns: 3fr 4fr 5fr 2fr repeat(13, 1fr);
+        gap: 0.5em;
         width: 100%;
+    }
+    @media (max-width: 767px) {
+        .search-grid-container {
+            grid-template-columns: repeat(2, 1fr);
+            padding: 0.5em !important;
+            margin: 0 !important;
+            gap: 0.5em;
+        }
+        /deep/ .movie-item {
+            width: @mobile-mini-card-width !important;
+            height: auto !important;
+        }
+        /deep/ .movie-card-image {
+            width: @mobile-mini-card-width !important;
+            height: auto !important;
+        }
+        .movies-grid-container {
+            grid-template-columns: repeat(auto-fill, @mobile-mini-card-width);
+        }
     }
     .no-items-text {
         width: 100%;

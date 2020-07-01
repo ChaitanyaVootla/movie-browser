@@ -68,7 +68,8 @@
     }
 </script>
 
-<style scoped>
+<style lang="less" scoped>
+    @import '../../Assets/Styles/main.less';
     .slider-bar {
         display: flex;
         overflow-x: auto;
@@ -110,12 +111,25 @@
     .main-slider-div {
         padding-bottom: 0;
     }
-    ::v-deep .movie-card-image {
-        height: 14em !important;
-        margin: 0 0.2em;
-        min-width: 8em;
-    }
     .small-text {
         font-size: 0.8em;
+    }
+    @media (max-width: 767px) {
+        .scroll-item {
+            background: transparent;
+            padding: 0.3em;
+            display: none;
+        }
+        .slider-bar {
+            padding: 0;
+            height: 10em;
+        }
+        .slider-heading {
+            padding-left: 1.3em;
+        }
+        /deep/ .episode-card-image {
+            width: @mobile-wide-card-width !important;
+            height: auto !important;
+        }
     }
 </style>

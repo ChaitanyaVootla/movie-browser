@@ -19,6 +19,10 @@
 @text-color: #ddd;
 @primary-gray: rgb(15, 15, 15);
 @background-gray: rgb(24, 24, 24);
+@mobile-card-height: 10em;
+@mobile-card-width: 8em;
+@mobile-mini-card-width: 6em;
+@mobile-wide-card-width: 15em;
 
 /* Backgrounds */
 @translucent-bg: rgba(0, 0, 0, 0.4);
@@ -162,4 +166,38 @@ a {
 /deep/ .el-button:focus {
     border-color: #222 !important;
     outline: none !important;
+}
+@media (max-width: 767px) {
+    .mobile-hide {
+        display: none !important;
+    }
+}
+@media (min-width: 767px) {
+    .desk-hide {
+        display: none !important;
+    }
+}
+.movies-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 10em);
+    gap: 1em;
+    justify-content: space-between;
+    padding: 1em;
+}
+@media (max-width: 767px) {
+    .movies-grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, @mobile-card-width);
+        gap: 1em;
+        justify-content: space-between;
+        padding: 1em !important;
+    }
+    /deep/ .movie-item {
+        width: @mobile-card-width !important;
+        height: auto !important;
+    }
+    /deep/ .movie-card-image {
+        width: @mobile-card-width !important;
+        height: auto !important;
+    }
 }

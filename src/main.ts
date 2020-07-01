@@ -20,7 +20,8 @@ import History from './components/History/index.vue';
 import VueLazyload from 'vue-lazyload'
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
-import store from './store'
+import { store } from './store/index.js';
+import Vuex from 'vuex';
 
 Vue.use(Element);
 

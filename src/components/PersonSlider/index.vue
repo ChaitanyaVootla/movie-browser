@@ -64,7 +64,8 @@
     }
 </script>
 
-<style scoped>
+<style lang="less" scoped>
+    @import '../../Assets/Styles/main.less';
     .slider-bar {
         display: flex;
         overflow-x: auto;
@@ -104,8 +105,28 @@
     .main-slider-div {
         padding-bottom: 0;
     }
-    ::v-deep .person-card-image {
+    /deep/ .person-card-image {
         height: 11em !important;
         margin: 0 0.2em;
+    }
+    .history-slider /deep/.movie-card-image {
+        height: 13em;
+    }
+    @media (max-width: 767px) {
+        .scroll-item {
+            background: transparent;
+            padding: 0.3em;
+            display: none;
+        }
+        .slider-bar {
+            padding: 0;
+        }
+        .slider-heading {
+            padding-left: 1.3em;
+        }
+        /deep/ .person-card-image {
+            width: @mobile-card-width !important;
+            height: auto !important;
+        }
     }
 </style>

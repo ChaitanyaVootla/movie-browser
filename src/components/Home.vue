@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="primary-container">
         <el-menu
             class="top-navbar"
             mode="horizontal"
@@ -10,21 +10,24 @@
             <el-menu-item index="discover" class="ml-5" :route="{name: 'discover'}">
                 <router-link :to="{ name: 'discover'}">
                     <div :class="onDiscover?'active':''">
-                        <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/> Discover
+                        <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/>
+                        <span class="mobile-hide">Discover</span>
                     </div>
                 </router-link>
             </el-menu-item>
             <el-menu-item index="Interests">
                 <router-link :to="{ name: 'Interests'}">
                     <div :class="onInterests?'active':''">
-                        <font-awesome-icon :icon="['fas', 'eye']" class="mr-2"/> Interests
+                        <font-awesome-icon :icon="['fas', 'eye']" class="mr-2"/>
+                        <span class="mobile-hide">Interests</span>
                     </div>
                 </router-link>
             </el-menu-item>
             <el-menu-item index="StreamingNow">
                 <router-link :to="{ name: 'StreamingNow'}">
                     <div :class="onStreamingNow?'active':''">
-                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/> Streaming Now
+                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
+                        <span class="mobile-hide">Streaming Now</span>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -35,7 +38,7 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item index="search" class="menu-center-item menu-item-nobg search-menu-item">
+            <el-menu-item index="search" class="menu-center-item menu-item-nobg search-menu-item mobile-hide">
                 <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
                     <el-input placeholder="Search" v-model="searchText">
                         <el-button slot="append" icon="el-icon-search"></el-button>
@@ -66,7 +69,7 @@
                     </el-dropdown>
                 </div>
             </el-menu-item>
-            <el-menu-item index="settings" class="menu-item-right menu-item-nobg p-0">
+            <el-menu-item index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
                 <el-dropdown trigger="click">
                     <div><i class="el-icon-s-tools"></i></div>
                     <el-dropdown-menu slot="dropdown">
@@ -93,6 +96,12 @@
             </el-menu-item>
         </el-menu>
 
+        <div @keydown.stop @click="searchInputclicked" class="search-intput-container desk-hide pl-2 pr-2 pt-2">
+            <el-input placeholder="Search" v-model="searchText">
+                <el-button slot="append" icon="el-icon-search"></el-button>
+            </el-input>
+        </div>
+
         <div class="search-dropdown" v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults">
             <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
                 No Results
@@ -105,7 +114,7 @@
             </search-results>
         </div>
         <transition name="view">
-            <router-view v-if="isLoaded" class="mt-5 pt-2"
+            <router-view v-if="isLoaded" class="main-router"
                 :isLoaded="isLoaded"
                 :configuration="configuration"
                 :showMovieInfo="showMovieInfo"
@@ -507,6 +516,32 @@
         width: 100%;
         z-index: 100;
         top: 0;
+    }
+    .main-router {
+        margin-top: 3.5em;
+    }
+    .primary-container {
+        position: relative;
+    }
+    @media (max-width: 767px) {                  
+        .top-navbar {
+            position: fixed;
+            top: inherit;
+            bottom: 0;
+            box-shadow: none;
+            border-top: 1px solid #222 !important;
+        }
+        .main-router {
+            margin-top: 0;
+            margin-bottom: 5em;
+        }
+        .menu-center-item {
+            left: auto;
+        }
+        .search-dropdown {
+            width: 80%;
+            left: 1em;
+        }
     }
     .view-enter-active, .view.leave-active {
         transition: opacity 0.2s ease-in-out, transform 0.2s ease;

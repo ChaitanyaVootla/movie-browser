@@ -14,7 +14,7 @@
                 </el-col>
             </el-row>
         </div>
-        <div class="description-container normal-bio p-4 ml-2" v-if="!detailsLoading">
+        <div class="description-container normal-bio p-4 ml-2 mobile-hide" v-if="!detailsLoading">
             <span class="main-name">{{details.name}}</span>
             <span class="ml-3 text-muted">{{details.known_for_department}}</span>
             <a :href="`https://google.com/search?q=${details.name}`" target="_blank" class="ml-3 external-link-icon">

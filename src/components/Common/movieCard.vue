@@ -75,9 +75,6 @@
         width: 10em;
     }
     .movie-item {
-        display: flex;
-        flex-direction: column;
-        padding: 0 0.3em;
         cursor: pointer;
         transition: transform .2s;
     }

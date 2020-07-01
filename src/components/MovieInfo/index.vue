@@ -43,7 +43,9 @@
                     {{details.vote_average}}
                 </span>
             </div>
-            <div class="mt-4">
+
+            <!-- bookmarks -->
+            <div class="mt-4 bookmarks">
                 <el-tooltip class="item" effect="dark" :content="isWatched?'Youve watched this':'Watched this?'"
                     placement="top-start">
                     <span :class="`rating-info watch-check ${isWatched?'watched-item':''}`" @click="watchedClicked">
@@ -58,15 +60,17 @@
                 </el-tooltip>
             </div>
 
-            <div style="top: 25em; position: absolute;" class="budget-text">
+            <!-- budget -->
+            <div style="top: 25em; position: absolute;" class="budget-text mobile-hide">
                 <font-awesome-icon :icon="['fas', 'dollar-sign']" class="budget-icon"/>
                 {{getCurrencyString(details.budget)}}
                 <br/>
                 <font-awesome-icon :icon="['fas', 'chart-line']" :class="`${budgetColor} budget-icon`"/>
                 <span :class="budgetColor">{{getCurrencyString(details.revenue)}}</span>
             </div>
+
             <!-- Movie overview -->
-            <div class="movie-overview p-2">
+            <div class="movie-overview p-2 mobile-hide">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
@@ -88,8 +92,8 @@
             </div>
         </div>
         <!-- Trailer/Video -->
-        <div v-if="getYoutubeVideos().length" style="position: absolute; top: 5em; right: 3em;">
-            <iframe id="ytplayer" type="text/html" width="640" height="360"
+        <div v-if="getYoutubeVideos().length" style="position: absolute; top: 5em; right: 3em;" class="mobile-hide">
+            <iframe id="ytplayer" type="text/html" :width="isMobile?200:640" :height="isMobile?120:360" class="youtube-player"
                 :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}`"
                 frameborder="0" iv_load_policy="3" fs="1" allowfullscreen="true" autoplay="1"
                 style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0,0,0,0.75);">
@@ -323,12 +327,46 @@
             isInWatchList() {
                 return this.$store.getters.watchListMovieById(this.details.id);
             },
+            isMobile() {
+                return window.innerWidth < 768?true:false;
+            }
         }
     }
 </script>
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
+    @media (max-width: 767px) {
+        .background-images-container {
+            height: 20em !important;
+            font-size: 0.8em !important;
+        }.background-image {
+            height: 20em !important;
+        }
+        .youtube-player {
+            height: 100 !important;
+            width: 100 !important;
+        }
+        .info-container {
+            top: 1em;
+            display: grid;
+            grid-auto-rows: max(3em);
+        }
+        .info-container > div {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .rating-info {
+            font-size: 1em;
+        }
+        .budget-text {
+            position: relative !important;
+            top: 0 !important;
+        }
+        .bookmarks {
+            font-size: 0.9em;
+        }
+    }
     .background-images-container {
         filter: opacity(0.3);
         height: 35em;

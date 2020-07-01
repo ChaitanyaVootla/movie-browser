@@ -1,12 +1,10 @@
 <template>
-    <div>
-        <div class="episode-item">
-            <div class="img-container">
-                <img v-lazy="imageObj" class="episode-card-image" @click="showFullEpisodeInfo(episode)"
-                    v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.2em' }">
-            </div>
-            <div class="secondary-text mt-1">{{episode.name}}</div>
+    <div class="episode-item">
+        <div class="img-container">
+            <img v-lazy="imageObj" class="episode-card-image" @click="showFullEpisodeInfo(episode)"
+                v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.2em' }"/>
         </div>
+        <div class="secondary-text mt-1">{{episode.name}}</div>
     </div>
 </template>
 
@@ -62,15 +60,15 @@
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
     .episode-card-image[lazy=error] {
-        background-size: 4em;
-        padding: 4em;
-        width: 20em;
+        // background-size: 4em;
+        // padding: 4em;
+        // width: 20em;
     }
     .episode-card-image[lazy=loading] {
-        background-image: url('../../Assets/Images/loader-bars.svg');
-        background-size: contain;
-        background-size: 4em;
-        width: 20em;
+        // background-image: url('../../Assets/Images/loader-bars.svg');
+        // background-size: contain;
+        // background-size: 4em;
+        // width: 20em;
     }
     .episode-item {
         display: flex;

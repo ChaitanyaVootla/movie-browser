@@ -155,12 +155,6 @@
         position: absolute;
         bottom: 0;
     }
-    .discover-movies-container {
-        padding: 1em 2.5em;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-    }
     .carousel-card-container {
         position: relative;
         cursor: pointer;
