@@ -1,8 +1,8 @@
 <template>
     <div :class="`${id} main-slider-div ${history?'history-slider':''}`">
         <slot>
-            <div class="slider-heading" :style="{'padding-top': history?'15px':'1em'}">
-                <font-awesome-icon :icon="['fas', 'history']" v-if="history"/>
+            <div class="slider-heading" :style="{'padding-top': history?'10px':'1em'}">
+                <!-- <font-awesome-icon :icon="['fas', 'history']" v-if="history"/> -->
                 {{heading}}
             </div>
         </slot>
@@ -129,7 +129,7 @@
         margin-right: 1em !important;
     }
     .history-slider /deep/.movie-card-image {
-        height: 13em;
+        height: 14em;
     }
     @media (max-width: 767px) {
         .scroll-item {
