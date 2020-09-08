@@ -164,7 +164,7 @@
     import { getCurrencyString, getDateText } from '../../Common/utils';
     import { signIn, firebase, signOut, db } from '../../Common/firebase';
     import { omit, sortBy } from 'lodash';
-    import { HISTORY_OMIT_VALUES } from '../../Common/constants'
+    import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 
     export default {
         name: 'movieInfo',
@@ -228,7 +228,6 @@
                 if (this.isInWatchList) {
                     userDbRef.collection('moviesWatchList').doc(`${this.details.id}`).delete();
                 } else {
-                    console.log("adding")
                     userDbRef.collection('moviesWatchList').doc(`${this.details.id}`).set({
                         ...omit(this.details, HISTORY_OMIT_VALUES),
                         updatedAt: Date.now(),

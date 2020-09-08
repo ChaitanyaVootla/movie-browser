@@ -10,7 +10,10 @@
             }">
             <div class="movie-item">
                 <div class="img-container">
-                    <img v-lazy="imageObj" class="movie-card-image">
+                    <div v-if="isWatched" class="watched-overlay rating-info">
+                        <font-awesome-icon :icon="['fas', 'check']"/>
+                    </div>
+                    <img v-lazy="imageObj" class="movie-card-image" :class="isWatched?'watched':''">
                     <!-- TODO check this function is needed -->
                     <!-- <div class="img-overlay">
                         <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
@@ -27,6 +30,10 @@
                             color: ${getRatingColor(movie.vote_average)}`">
                             {{movie.vote_average}}
                         </span>
+                        <span class="rating-info watched-action" :class="isWatched?'green':''"
+                            v-on:click.prevent @click="toggleWatched" v-if="movie.release_date">
+                            <font-awesome-icon :icon="['fas', 'check']" :class="isWatched?'green':''"/>
+                        </span>
                         <!-- {{movie.vote_average}} -->
                     </div>
                 </div>
@@ -37,8 +44,12 @@
 </template>
 
 <script lang="ts">
+    import { api } from '../../API/api';
     import { sanitizeName } from '../../Common/utils';
     import { getRatingColor } from '../../Common/utils';
+    import { db } from '../../Common/firebase';
+    import { HISTORY_OMIT_VALUES } from '../../Common/constants';
+    import { omit } from 'lodash';
 
     export default {
         name: 'movieCard',
@@ -57,7 +68,33 @@
             getYear: function(movieDate: any) {
                 return new Date(movieDate).getFullYear();
             },
+            async toggleWatched() {
+                const details = await api.getMovieDetails(parseInt(this.movie.id));
+                if (!this.user.displayName) {
+                    return;
+                }
+                const userDbRef = db.collection('users').doc(this.user.uid);
+                if (details.release_date) {
+                    if (this.isWatched) {
+                        userDbRef.collection('watchedMovies').doc(`${details.id}`).delete();
+                    } else {
+                        userDbRef.collection('watchedMovies').doc(`${details.id}`).set({
+                            ...omit(details, HISTORY_OMIT_VALUES),
+                            updatedAt: Date.now(),
+                        });
+                    }
+                }
+            }
         },
+        computed: {
+            isWatched() {
+                return this.$store.getters.watchedMovieIds.includes(this.movie.id) ||
+                    this.$store.getters.watchedSeriesIds.includes(this.movie.id);
+            },
+            user() {
+                return this.$store.getters.user;
+            },
+        }
     }
 </script>
 
@@ -73,6 +110,16 @@
         background-size: contain;
         background-size: 4em;
         width: 10em;
+    }
+    .watched-overlay {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        font-size: 1em;
+        margin: 0.5em;
+        opacity: 1;
+        background-color: black;
+        z-index: 50;
     }
     .movie-item {
         cursor: pointer;
@@ -92,6 +139,17 @@
         background-size: cover;
         background-repeat: no-repeat;
         background-position: 50% 50%;
+    }
+    .watched {
+        opacity: 0.8;
+        filter: grayscale();
+    }
+    .watched-action {
+        float: right;
+    }
+    .green {
+        color: green;
+        border-color: green;
     }
     .img-overlay {
         position: absolute;

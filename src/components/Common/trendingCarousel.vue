@@ -166,8 +166,6 @@
                 );
                 let sortedFavorites = sortBy(moviePool, ['favoriteScore']).reverse();
                 sortedFavorites = sortedFavorites.filter(({vote_average}) => vote_average >= 6.5)
-                console.log(sortedFavorites.map(movie => ({name: movie.title, favoriteScore: movie.favoriteScore,
-                    scoreBreakdown: movie.scoreBreakdown})))
                 return uniqBy(sortedFavorites, 'id');
             },
             carouselCardClicked(movie: any) {

@@ -15,7 +15,9 @@ const store = new Vuex.Store({
         watched: {
             isLoading: true,
             movies: [],
+            movieIds: [],
             series: [],
+            seriesIds: [],
         },
         moviesWatchList: [],
     },
@@ -36,14 +38,26 @@ const store = new Vuex.Store({
             state.watched.isLoading = false;
             if (movies) {
                 state.watched.movies = movies;
+                state.watched.movieIds = movies.map(({id}) => id);
             }
             if (series) {
                 state.watched.series = series;
+                state.watched.seriesIds = series.map(({id}) => id);
             }
         },
         setMoviesWatchList(state, movies) {
             state.moviesWatchList = movies;
         },
+    },
+    getters: {
+        user: state => state.user,
+        history: state => state.history,
+        watched: state => state.watched,
+        watchedMovieIds: state => state.watched.movieIds,
+        watchedSeriesIds: state => state.watched.seriesIds,
+        watchedMovieById: state => (id) => state.watched.movies.find(movie => movie.id === id),
+        watchListMovieById: state => (id) => state.moviesWatchList.find(movie => movie.id === id),
+        watchListMovies: state => state.moviesWatchList,
     },
     actions: {
       initFirebase ({ commit }) {
@@ -114,14 +128,6 @@ const store = new Vuex.Store({
         );
       }
     },
-    getters: {
-        user: state => state.user,
-        history: state => state.history,
-        watched: state => state.watched,
-        watchedMovieById: state => (id) => state.watched.movies.find(movie => movie.id === id),
-        watchListMovieById: state => (id) => state.moviesWatchList.find(movie => movie.id === id),
-        watchListMovies: state => state.moviesWatchList,
-    }
 });
 
 export { store };
