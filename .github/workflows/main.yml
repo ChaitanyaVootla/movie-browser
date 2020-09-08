@@ -43,8 +43,7 @@ jobs:
           npm install -g serve
           killall node
           echo "starting vue server..."
-          npm run build
-          nohup serve -s dist -l 80 > /dev/null 2>&1 &
+          nohup npm run build && serve -s dist -l 80 > /dev/null 2>&1 &
           cd /movie-browser/server
           echo "starting node server..."
           nohup node server.js > /dev/null 2>&1 &
