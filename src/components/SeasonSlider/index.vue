@@ -1,10 +1,10 @@
 <template>
     <div :class="`${id} main-slider-div`">
         <div class="slider-heading">
-            {{heading}}
+            <!-- {{heading}}
             <span class="small-text pl-2">
                 {{airDate}}
-            </span>
+            </span> -->
         </div>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft">

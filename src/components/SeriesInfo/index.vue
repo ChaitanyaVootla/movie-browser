@@ -89,30 +89,27 @@
                 </div>
             </div>
         </div>
-        <el-tabs v-model="activeTab" class="pt-3">
-            <el-tab-pane label="Seaons" name="seasons">
-                <div v-for="(season, index) in seasons" :key="season._id">
-                    <season-slider v-if="seasons.length" :movies="season.episodes" :configuration="configuration"
-                        :heading="`Season ${index + 1}`" :airDate="getDateText(season.air_date)" :id="`season${index}`"
-                        :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></season-slider>
-                </div>
-            </el-tab-pane>
-            <el-tab-pane label="Cast">
-                <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
-                    :selectPerson="selectPerson"></person-slider>
-            </el-tab-pane>
-            <el-tab-pane label="Crew">
-                <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
-                    :selectPerson="selectPerson"></person-slider>
-            </el-tab-pane>
-            <el-tab-pane label="Similar Series">
-                <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider></el-tab-pane>
-            <el-tab-pane label="Recommended Series">
-                <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration"
-                    :heading="'Recommended'" :id="'recommended'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider></el-tab-pane>
-        </el-tabs>
+        <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
+            :selectPerson="selectPerson"></person-slider>
+        <span class="ml-4 pl-3 mt-4 mr-3">Episodes</span> <el-select v-model="selectedSeason" placeholder="Select"
+            @change="seasonChanged">
+            <el-option
+                v-for="item in seasons"
+                :key="item.id"
+                :label="item.name"
+                :value="item.id">
+            </el-option>
+        </el-select> <span class="ml-3">{{getDateText(selectedSeasonInfo.air_date)}}</span>
+        <season-slider v-if="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
+            :id="`season${selectedSeasonInfo.id}`" :showMovieInfoModal="showMovieInfo"
+            :showFullMovieInfo="showSeriesInfo"></season-slider>
+        <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
+            :selectPerson="selectPerson"></person-slider>
+        <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
+            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
+        <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration"
+            :heading="'Recommended'" :id="'recommended'"
+            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
 
         <div class="mb-5"></div>
         <el-dialog
@@ -178,6 +175,8 @@
             activeName: 'movies',
             showFullBio: false,
             movie: {},
+            selectedSeason: null,
+            selectedSeasonInfo: {},
             recommendedMovies: [] as any[],
             similarMovies: [] as any[],
             cast: [] as any[],
@@ -208,6 +207,10 @@
                 this.backdrops = this.details.images.backdrops;
                 this.posters = this.details.images.posters;
             },
+            async seasonChanged() {
+                this.selectedSeasonInfo = await api.getSeasonDetails(parseInt(this.$route.params.id),
+                    this.selectedSeason);
+            },
             async getDetails() {
                 this.detailsLoading = true;
                 this.details = await api.getTvDetails(parseInt(this.$route.params.id));
@@ -237,14 +240,13 @@
                 );
                 this.seasons = [] as any[];
                 for (let seasonNumber = 1; seasonNumber <= this.details.number_of_seasons; seasonNumber++) {
-                    const season = await api.getSeasonDetails(parseInt(this.$route.params.id), seasonNumber);
-                    _.each(season.episodes,
-                        (episode) => {
-                            episode.job = episode.name;
-                        }
-                    );
-                    this.seasons.push(season);
+                    this.seasons.push({
+                        name: `Season ${seasonNumber}`,
+                        id: seasonNumber,
+                    });
                 }
+                this.selectedSeason = this.details.number_of_seasons;
+                await this.seasonChanged();
                 this.detailsLoading = false;
             },
             updateHistoryData() {

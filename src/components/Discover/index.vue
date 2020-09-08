@@ -1,7 +1,8 @@
 <template>
     <div>
         <div class="pt-2 pl-5 pb-2 discover-options-row">
-            <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width">
+            <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width"
+                @change="loadMovies(true)">
                 <el-option
                     v-for="item in sortOrders"
                     :key="item.id"
@@ -10,7 +11,8 @@
                 </el-option>
             </el-select>
             <el-select v-model="selectedGenres" multiple filterable :collapse-tags="true" placeholder="Genres"
-                :no-match-text="'No Results'" value-key="id" class="full-width" clearable>
+                :no-match-text="'No Results'" value-key="id" class="full-width" clearable
+                @change="loadMovies(true)">
                 <el-option
                     v-for="item in genres"
                     :key="item.id"
@@ -18,9 +20,10 @@
                     :value="item">
                 </el-option>
             </el-select>
-            <el-select v-model="selectedKeywords" multiple filterable remote
+            <el-select v-model="selectedKeywords" multiple filterable remote :collapse-tags="true"
                 :remote-method="keywordChanged" placeholder="Looking for anything specific?"
-                :no-data-text="'No Results'" value-key="id" class="full-width" clearable>
+                :no-data-text="'No Results'" value-key="id" class="full-width" clearable
+                @change="loadMovies(true)">
                 <el-option
                     v-for="item in searchKeywords"
                     :key="item.id"
@@ -28,7 +31,8 @@
                     :value="item">
                 </el-option>
             </el-select>
-            <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating">
+            <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating"
+                @change="loadMovies(true)">
                 <el-option
                     v-for="item in ratingOptions"
                     :key="item.id"
@@ -36,6 +40,17 @@
                     :value="item">
                 </el-option>
             </el-select>
+            <div>
+                <el-select v-model="selectedCertification" value-key="certification" clearable placeholder="Certification"
+                    @change="loadMovies(true)" v-show="showAdvancedFilters">
+                    <el-option
+                        v-for="item in certifications['US']"
+                        :key="item.certification"
+                        :label="item.certification"
+                        :value="item">
+                    </el-option>
+                </el-select>
+            </div>
             <div class="mobile-hide"></div>
             <div class="mobile-hide"></div>
             <div class="mt-2 switch-container">
@@ -49,10 +64,11 @@
                 </el-switch>
                 <font-awesome-icon :icon="['fas', 'film']" class="mr-2 desk-hide"/>
                 <span class="ml-2 mobile-hide">Movies</span>
+                <el-tooltip class="item" effect="light" content="Advanced" placement="bottom">
+                    <font-awesome-icon :icon="['fas', 'sliders-h']" class="ml-4 advanced-filters"
+                        @click="showAdvancedFilters = !showAdvancedFilters"/>
+                </el-tooltip>
             </div>
-            <el-button @click="loadMovies(true)" class="search-btn">
-                <font-awesome-icon :icon="['fas', 'search']" class="mr-2"/> Search
-            </el-button>
         </div>
         <div class="query-info text-muted">
             <div class="">
@@ -70,8 +86,9 @@
 <script lang="ts">
     import { Component, Prop, Vue } from 'vue-property-decorator';
     import { api } from '../../API/api';
-    import _ from 'lodash';
+    import { update, find, debounce, uniqBy  } from 'lodash';
     import { movieParams, seriesParams } from '@/API/Constants';
+    import { certifications } from '../../Common/certifications';
 
     export default {
         name: 'movieDiscover',
@@ -85,9 +102,11 @@
         ],
         data() {
             return {
+                certifications,
                 isLoaded: false,
                 isDataLoading: true,
                 movies: [] as any[],
+                showAdvancedFilters: false,
                 queryData: {
                     results: []
                 },
@@ -103,7 +122,15 @@
                     {
                         name: 'Revenue',
                         id: 'revenue.desc'
-                    }
+                    },
+                    {
+                        name: 'Oldest',
+                        id: 'primary_release_date.asc'
+                    },
+                    {
+                        name: 'Newest',
+                        id: 'primary_release_date.desc'
+                    },
                 ],
                 currentPage: 1,
                 isMovies: true,
@@ -119,6 +146,7 @@
                     name: 'Popularity',
                     id: 'popularity.desc'
                 },
+                selectedCertification: {},
                 routeQueryPresent: false,
             }  
         },
@@ -136,7 +164,7 @@
             $route (to, from) {
                 this.currentPage = 1;
                 this.checkRouteQuery();
-                this.loadMovies(false);
+                // this.loadMovies(false);
             }
         },
         methods: {
@@ -171,6 +199,16 @@
                             name: 'Revenue',
                             id: 'revenue.desc'
                         };
+                    } else if (routeQuery.sort_by === 'primary_release_date.asc') {
+                        this.selectedSortOrder = {
+                            name: 'Oldest',
+                            id: 'primary_release_date.asc'
+                        };
+                    } else if (routeQuery.sort_by === 'primary_release_date.desc') {
+                        this.selectedSortOrder = {
+                            name: 'Revenue',
+                            id: 'primary_release_date.desc'
+                        };
                     }
                 }
                 if (routeQuery.with_genres) {
@@ -179,7 +217,7 @@
                     this.selectedGenres = [];
                     genreIds.forEach(
                         (id) => {
-                            const genre = _.find(allGenres, {id: parseInt(id)});
+                            const genre = find(allGenres, {id: parseInt(id)});
                             this.selectedGenres.push(genre);
                         }
                     )
@@ -196,7 +234,7 @@
                             });
                         }
                     );
-                    this.selectedKeywords = _.uniqBy(this.selectedKeywords, 'id');
+                    this.selectedKeywords = uniqBy(this.selectedKeywords, 'id');
                     this.searchKeywords = this.selectedKeywords;
                 }
                 if (routeQuery.isMovies == 'false') {
@@ -213,7 +251,7 @@
             async keywordChanged(word: any) {
                 if (word.length>1) {
                     const fetchedKeywords = await api.searchKeywords(word);
-                    this.searchKeywords = _.uniqBy(fetchedKeywords.concat(this.selectedKeywords), 'id');
+                    this.searchKeywords = uniqBy(fetchedKeywords.concat(this.selectedKeywords), 'id');
                 }
             },
             loadMovies: async function(updateUrl: boolean) {
@@ -244,12 +282,15 @@
                 this.isLoaded = true;
                 this.isDataLoading = false;
             },
-            loadMoreMovies: _.debounce(async function(this: any) {
+            loadMoreMovies: async function(this: any) {
+                if (this.queryData.total_pages < this.currentPage - 1) {
+                    return;
+                }
                 this.isDataLoading = true;
                 for (let count = 1; count < 3; count++) {
                     await this.fetchMoreMovies();
                 }
-            }, 200),
+            },
             computeQuery(updateUrl: boolean) {
                 this.currentPage = 1;
                 let isAnyGenreAdded = false;
@@ -266,15 +307,20 @@
                     routerQuery.with_genres = selectedGenreIds.toString();
                 }
                 if (this.selectedKeywords.length) {
-                    const keywordIds = this.selectedKeywords.map(({id}) => id).toString();
+                    const keywordIds = this.selectedKeywords.map(({id}) => id);
                     const keywords = this.selectedKeywords.map(({name}) => name).toString();
-                    this.computedDiscoverQuery += `&with_keywords=${keywordIds}`;
+                    this.computedDiscoverQuery += `&with_keywords=${keywordIds.join('|')}`;
                     routerQuery.with_keywords = keywordIds.toString();
                     routerQuery.keywords = keywords.toString();
                 }
                 if (this.selectedRating.id) {
                     this.computedDiscoverQuery += `&vote_average.gte=${this.selectedRating.id}`;
                     routerQuery.rating = this.selectedRating.id;
+                }
+                if (this.selectedCertification.certification) {
+                    this.computedDiscoverQuery += `&certification_country=US&certification=${
+                        this.selectedCertification.certification}`;
+                    // routerQuery.rating = this.selectedRating.id;
                 }
                 routerQuery.isMovies = this.isMovies;
                 if (updateUrl) {
@@ -292,6 +338,7 @@
                 } else {
                     this.genres = this.seriesGenres;
                 }
+                this.loadMovies(true);
             }
         },
     }
@@ -336,9 +383,10 @@
     .discover-options-row {
         background: @background-gray;
         display: grid;
-        grid-template-columns: 0.6fr 1fr 1fr 0.6fr 1fr 1fr 0.8fr 0.5fr;
+        grid-template-columns: 0.6fr 1fr 1fr 0.6fr 0.6fr 1fr 0.5fr 0.8fr;
         gap: 0.5em;
         padding-right: 3em;
+        margin-top: 3.7em;
     }
     @media (max-width: 767px) {
         .query-info {
@@ -361,5 +409,9 @@
     }
     .full-width {
         width: 100%;
+    }
+    .advanced-filters {
+        fill: #eee;
+        cursor: pointer;
     }
 </style>

@@ -15,6 +15,14 @@
                     </div>
                 </router-link>
             </el-menu-item>
+            <el-menu-item index="Suggestions">
+                <router-link :to="{ name: 'Suggestions'}">
+                    <div :class="onSuggestions?'active':''">
+                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
+                        <span class="mobile-hide">Suggestions</span>
+                    </div>
+                </router-link>
+            </el-menu-item>
             <el-menu-item index="Interests">
                 <router-link :to="{ name: 'Interests'}">
                     <div :class="onInterests?'active':''">
@@ -23,14 +31,14 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item index="StreamingNow">
+            <!-- <el-menu-item index="StreamingNow">
                 <router-link :to="{ name: 'StreamingNow'}">
                     <div :class="onStreamingNow?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
                         <span class="mobile-hide">Streaming Now</span>
                     </div>
                 </router-link>
-            </el-menu-item>
+            </el-menu-item> -->
             <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg">
                 <router-link :to="{ name: 'home'}">
                     <div class="app-logo">
@@ -201,6 +209,9 @@
             onStreamingNow() {
                 return this.$route.name === 'StreamingNow';
             },
+            onSuggestions() {
+                return this.$route.name === 'Suggestions';
+            },
             onInterests() {
                 return this.$route.name === 'Interests';
             },
@@ -214,6 +225,8 @@
                     return 'StreamingNow';
                 } else if (this.$route.name === 'Interests') {
                     return 'Interests';
+                } else if (this.$route.name === 'Suggestions') {
+                    return 'Suggestions';
                 } else {
                     return 'nothing';
                 }
@@ -237,11 +250,11 @@
                 this.imageBasePath = configuration.images.secure_base_url + 'w500';
                 this.isLoaded = true;
             },
-            executeSearch: _.debounce(
+            executeSearch: _.throttle(
                 async function(this: any) {
                     if (this.searchText.length > 1) {
                         $('.search-dropdown')[0].scrollTop = 0;
-                        const response = await api.searchAll(this.searchText, 1);
+                        const response = await api.searchAll(this.searchText + '', 1);
                         this.searchResults = _.sortBy(response.results, 'popularity').reverse();
                     }
                 }, 200
@@ -482,7 +495,8 @@
         width: 2em;
     }
     .menu-center-item {
-        left: 23%;
+        left: calc(50% - 3.5em);
+        position: absolute;
     }
     .menu-item-right {
         float: right !important;

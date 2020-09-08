@@ -102,9 +102,14 @@
                 return this.$store.getters.history.series.slice(0, 4);
             },
             favoriteGenres() {
-                const history = this.$store.getters.history.movies;
+                const history = this.$store.getters.history.movies.concat(this.$store.getters.watched.movies);
                 const genresArrayList = history.map(movie => movie.genres);
                 return this.getSortedObjects(genresArrayList);
+            },
+            favoriteKeywords() {
+                const history = this.$store.getters.history.movies.concat(this.$store.getters.watched.movies);
+                const keywordsArrayList = history.map(movie => movie.keywords.keywords);
+                return this.getSortedObjects(keywordsArrayList);
             },
             recommendedMoviesByPopularity() {
                 return this.rateMovies(this.trendingMovies, {});
@@ -114,9 +119,6 @@
             }
         },
         methods: {
-            getPopularmovies() {
-
-            },
             getSortedObjects(arrayList) {
                 let keywords = [];
                 arrayList.forEach(
