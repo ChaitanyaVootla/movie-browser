@@ -1,24 +1,30 @@
 <template>
-    <div>
+    <div class="mb-5 pt-3">
         <movie-slider :movies="recommendedMoviesByPopularity" :configuration="configuration"
             :heading="'Suggestions - Trending'" :id="'suggestedMoviesPopular'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-            v-if="recommendedMoviesByPopularity.length"
-            :history="true"></movie-slider>
-        <movie-slider :movies="recommendedMoviesAllTime" :configuration="configuration"
+            v-if="recommendedMoviesByPopularity.length"></movie-slider>
+        <movie-slider :movies="randomFavoriteGenreMovies" :configuration="configuration"
+            :heading="randomFavoriteGenre.name + ' Movies'" :id="'randomFavoriteGenreMovies'"
+            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
+            v-if="randomFavoriteGenre.name && randomFavoriteGenreMovies.length"></movie-slider>
+        <!-- <movie-slider :movies="recommendedMoviesAllTime" :configuration="configuration"
             :heading="'Suggestions - All Time'" :id="'suggestedMoviesAllTime'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-            v-if="recommendedMoviesAllTime.length"
-            :history="true"></movie-slider>
+            v-if="recommendedMoviesAllTime.length"></movie-slider> -->
+        <movie-slider :movies="moviesSimilarToRecent" :configuration="configuration"
+            :heading="'Because you watched - ' + randomRecentWatchedMovie.original_title" :id="'moviesSimilarToRecent'"
+            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
+            v-if="randomRecentWatchedMovie.original_title && moviesSimilarToRecent.length"></movie-slider>
     </div>
 </template>
 
 <script lang="ts">
     import { api } from '../../API/api';
-    import { sortBy, groupBy, keyBy, uniqBy } from 'lodash';
+    import { sortBy, groupBy, keyBy, uniqBy, random } from 'lodash';
 
     export default {
-        name: 'trendingCarousel',
+        name: 'suggestions',
         props: [
             'configuration',
             'showMovieInfo',
@@ -34,6 +40,11 @@
                 historyLength: 4,
                 popularMovies: [],
                 trendingMovies: [],
+                moviesSimilarToRecent: [],
+                randomFavoriteGenreMovies: [],
+                randomRecentMovieLimit: 10,
+                randomRecentWatchedMovieObj: {},
+                randomFavoriteGenresLimit: 4,
             }
         },
         mounted() {
@@ -51,13 +62,53 @@
                 return this.getSortedObjects(keywordsArrayList);
             },
             recommendedMoviesByPopularity() {
-                return this.rateMovies(this.trendingMovies, {});
+                const watchedMovieIds = this.$store.getters.watched.movieIds;
+                return this.rateMovies(this.trendingMovies, {}).filter(({id}) => !watchedMovieIds.includes(id));
             },
             recommendedMoviesAllTime() {
-                return this.rateMovies(this.popularMovies, {ignorePopularity: true});
+                const watchedMovieIds = this.$store.getters.watched.movieIds;
+                return this.rateMovies(this.popularMovies, {ignorePopularity: true}).filter(({id}) => !watchedMovieIds.includes(id));
+            },
+            randomRecentWatchedMovie() {
+                const watchedMovies = this.$store.getters.watched.movies;
+                if (watchedMovies.length > this.randomRecentMovieLimit) {
+                    this.randomRecentWatchedMovieObj = watchedMovies[random(this.randomRecentMovieLimit - 1)];
+                } else {
+                    this.randomRecentWatchedMovieObj = watchedMovies[random(watchedMovies.length)];
+                }
+                this.fetchRandomRecentMovieData();
+                return this.randomRecentWatchedMovieObj || {};
+            },
+            randomFavoriteGenre() {
+                let randomFavoriteGenre;
+                const favoriteGenres = this.favoriteGenres;
+                if (favoriteGenres.length > this.randomFavoriteGenresLimit) {
+                    randomFavoriteGenre = favoriteGenres[random(this.randomFavoriteGenresLimit - 1)];
+                } else {
+                    randomFavoriteGenre = favoriteGenres[random(favoriteGenres.length)];
+                }
+                setTimeout(
+                    () => {
+                        this.fetchRandomFavoriteGenreMovies();
+                    }, 300
+                )
+                console.log("randomFavoriteGenre")
+                return randomFavoriteGenre;
             }
         },
         methods: {
+            async fetchRandomRecentMovieData() {
+                if (this.randomRecentWatchedMovieObj && this.randomRecentWatchedMovieObj.id) {
+                    const movieDetails = await api.getMovieDetails(this.randomRecentWatchedMovieObj.id);
+                    this.moviesSimilarToRecent = movieDetails.recommendations.results;
+                }
+            },
+            async fetchRandomFavoriteGenreMovies() {
+                if (this.randomFavoriteGenre && this.randomFavoriteGenre.id) {
+                    const data = await api.getDiscoverMoviesFull(`&with_genres=${this.randomFavoriteGenre.id}`);
+                    this.randomFavoriteGenreMovies = data.results;
+                }
+            },
             getSortedObjects(arrayList) {
                 let keywords = [];
                 arrayList.forEach(

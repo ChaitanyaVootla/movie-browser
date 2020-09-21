@@ -40,17 +40,7 @@
                     :value="item">
                 </el-option>
             </el-select>
-            <div>
-                <el-select v-model="selectedCertification" value-key="certification" clearable placeholder="Certification"
-                    @change="loadMovies(true)" v-show="showAdvancedFilters">
-                    <el-option
-                        v-for="item in certifications['US']"
-                        :key="item.certification"
-                        :label="item.certification"
-                        :value="item">
-                    </el-option>
-                </el-select>
-            </div>
+            <div class="mobile-hide"></div>
             <div class="mobile-hide"></div>
             <div class="mobile-hide"></div>
             <div class="mt-2 switch-container">
@@ -70,6 +60,49 @@
                 </el-tooltip>
             </div>
         </div>
+        <div class="pt-2 pl-5 pb-2 discover-options-row advanced-options-row" v-show="showAdvancedFilters">
+            <el-select v-model="selectedCertification" value-key="certification" clearable placeholder="Certification"
+                @change="loadMovies(true)">
+                <el-option
+                    v-for="item in certifications['US']"
+                    :key="item.certification"
+                    :label="item.certification"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedGenresToExclude" multiple filterable :collapse-tags="true" placeholder="Exclude Genres"
+                :no-match-text="'No Results'" value-key="id" class="full-width" clearable
+                @change="loadMovies(true)">
+                <el-option
+                    v-for="item in genres"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectedTimeFrame" filterable :collapse-tags="true" placeholder="Release Date"
+                :no-data-text="'No Results'" value-key="name" class="full-width" clearable
+                @change="loadMovies(true)">
+                <el-option-group label="Time Frames">
+                    <el-option
+                        v-for="item in timeFrames"
+                        :key="item.name"
+                        :label="item.name"
+                        :value="item">
+                    </el-option>
+                </el-option-group>
+                <el-option-group label="Year">
+                    <el-option
+                        v-for="item in allYears"
+                        :key="item.name"
+                        :label="item.name"
+                        :value="item">
+                    </el-option>
+                </el-option-group>
+            </el-select>
+            <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
+            <el-checkbox v-model="hideWatchedMovies" class="mt-2" @change="loadMovies(true)">Hide Watched Movies</el-checkbox>
+        </div>
         <div class="query-info text-muted">
             <div class="">
                 {{queryData.total_results === 10000?`${queryData.total_results}+`:queryData.total_results}} results
@@ -77,7 +110,9 @@
         </div>
         <div v-if="isLoaded" class="movies-grid-container">
             <movie-card v-for="movie in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
-                :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"></movie-card>
+                :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo" :hideWatched="hideWatchedMovies"
+            >
+            </movie-card>
         </div>
         <div class="loader-main" v-if="isDataLoading"></div>
     </div>
@@ -107,6 +142,7 @@
                 isDataLoading: true,
                 movies: [] as any[],
                 showAdvancedFilters: false,
+                hideWatchedMovies: false,
                 queryData: {
                     results: []
                 },
@@ -133,14 +169,19 @@
                     },
                 ],
                 currentPage: 1,
+                minVotes: null,
                 isMovies: true,
                 computedDiscoverQuery: '',
+                selectedTimeFrame: null,
                 ratingOptions: [] as any[],
                 selectedRating: {} as any,
                 selectedKeywords: [] as any[],
                 searchKeywords: [] as any[],
                 genres: [] as any[],
                 selectedGenres: [] as any[],
+                selectedGenresToExclude: [] as any[],
+                timeFrames: [] as any[],
+                allYears: [] as any[],
                 dateRange: {},
                 selectedSortOrder: {
                     name: 'Popularity',
@@ -155,6 +196,7 @@
         },
         created() {
             this.setupRatingOptions();
+            this.setupTimeFrameOptions();
             this.genres = this.movieGenres;
             this.checkRouteQuery();
             this.loadMovies(false);
@@ -164,7 +206,6 @@
             $route (to, from) {
                 this.currentPage = 1;
                 this.checkRouteQuery();
-                // this.loadMovies(false);
             }
         },
         methods: {
@@ -184,6 +225,46 @@
                     }
                 );
                 this.ratingOptions.reverse();
+            },
+            setupTimeFrameOptions() {
+                const currentData = new Date;
+                const allYears = [];
+                for (let year = 1874; year <= currentData.getFullYear(); year++) {
+                    allYears.push({
+                        name: year
+                    });
+                }
+                this.allYears = allYears.reverse();
+                this.timeFrames.push({
+                    name: 'Recent',
+                    startDate: null,
+                    endDate: '2010-01-01',
+                });
+                this.timeFrames.push({
+                    name: '2000s',
+                    startDate: '2010-01-01',
+                    endDate: '2000-01-01',
+                });
+                this.timeFrames.push({
+                    name: '90s',
+                    startDate: '2000-01-01',
+                    endDate: '1990-01-01',
+                });
+                this.timeFrames.push({
+                    name: '80s',
+                    startDate: '1990-01-01',
+                    endDate: '1980-01-01',
+                });
+                this.timeFrames.push({
+                    name: '70s',
+                    startDate: '1980-01-01',
+                    endDate: '1970-01-01',
+                });
+                this.timeFrames.push({
+                    name: 'Vintage',
+                    startDate: '1970-01-01',
+                    endDate: null,
+                });
             },
             checkRouteQuery() {
                 const routeQuery = this.$route.query;
@@ -247,6 +328,46 @@
                         name: `${routeQuery.rating}+`
                     }
                 }
+                // Advanced filters
+                if (routeQuery.without_genres) {
+                    const genreIds = `${routeQuery.without_genres}`.split(',');
+                    const allGenres = this.movieGenres.concat(this.seriesGenres);
+                    this.selectedGenresToExclude = [];
+                    genreIds.forEach(
+                        (id) => {
+                            const genre = find(allGenres, {id: parseInt(id)});
+                            this.selectedGenresToExclude.push(genre);
+                        }
+                    )
+                    this.showAdvancedFilters = true;
+                }
+                if (routeQuery.releaseQueryName) {
+                    this.selectedTimeFrame = {};
+                    this.selectedTimeFrame.name = routeQuery.releaseQueryName;
+                    if (!this.timeFrames.map(({name}) => name).includes(this.selectedTimeFrame.name)) {
+                        this.selectedTimeFrame.name = parseInt(this.selectedTimeFrame.name);
+                    }
+                    if (routeQuery['primary_release_date.lte']) {
+                        this.selectedTimeFrame.startDate = routeQuery['primary_release_date.lte'];
+                    }
+                    if (routeQuery['primary_release_date.gte']) {
+                        this.selectedTimeFrame.endDate = routeQuery['primary_release_date.gte'];
+                    }
+                    this.showAdvancedFilters = true;
+                }
+                if (routeQuery['vote_count.gte']) {
+                    this.minVotes = routeQuery['vote_count.gte'];
+                    this.showAdvancedFilters = true;
+                }
+                if (routeQuery.certification) {
+                    this.selectedCertification = {
+                        certification: routeQuery.certification
+                    };
+                    this.showAdvancedFilters = true;
+                }
+                if (routeQuery.hideWatchedMovies) {
+                    this.hideWatchedMovies = true;
+                }
             },
             async keywordChanged(word: any) {
                 if (word.length>1) {
@@ -306,6 +427,36 @@
                     this.computedDiscoverQuery += `&with_genres=${selectedGenreIds}`;
                     routerQuery.with_genres = selectedGenreIds.toString();
                 }
+                if (this.selectedGenresToExclude.length) {
+                    const selectedExcludeGenreIds = this.selectedGenresToExclude.map(({id}) => id);
+                    this.computedDiscoverQuery += `&without_genres=${selectedExcludeGenreIds}`;
+                    routerQuery.without_genres = selectedExcludeGenreIds.toString();
+                }
+                if (this.selectedTimeFrame && this.selectedTimeFrame.name) {
+                    if (this.selectedTimeFrame.startDate || this.selectedTimeFrame.endDate) {
+                        if (this.selectedTimeFrame.startDate) {
+                            this.computedDiscoverQuery += `&primary_release_date.lte=${
+                                this.selectedTimeFrame.startDate}`;
+                            routerQuery['primary_release_date.lte'] = this.selectedTimeFrame.startDate;
+                        }
+                        if (this.selectedTimeFrame.endDate) {
+                            this.computedDiscoverQuery += `&primary_release_date.gte=${
+                                this.selectedTimeFrame.endDate}`;
+                            routerQuery['primary_release_date.gte'] = this.selectedTimeFrame.endDate;
+                        }
+                    } else {
+                        this.computedDiscoverQuery += `&primary_release_year=${this.selectedTimeFrame.name}`
+                        routerQuery['primary_release_year'] = this.selectedTimeFrame.name;
+                    }
+                    routerQuery['releaseQueryName'] = this.selectedTimeFrame.name;
+                }
+                if (this.minVotes) {
+                    this.computedDiscoverQuery += `&vote_count.gte=${this.minVotes}`;
+                    routerQuery['vote_count.gte'] = this.minVotes;
+                }
+                if (this.hideWatchedMovies) {
+                    routerQuery.hideWatchedMovies = true;
+                }
                 if (this.selectedKeywords.length) {
                     const keywordIds = this.selectedKeywords.map(({id}) => id);
                     const keywords = this.selectedKeywords.map(({name}) => name).toString();
@@ -320,7 +471,7 @@
                 if (this.selectedCertification.certification) {
                     this.computedDiscoverQuery += `&certification_country=US&certification=${
                         this.selectedCertification.certification}`;
-                    // routerQuery.rating = this.selectedRating.id;
+                    routerQuery.certification = this.selectedCertification.certification;
                 }
                 routerQuery.isMovies = this.isMovies;
                 if (updateUrl) {
@@ -387,6 +538,10 @@
         gap: 0.5em;
         padding-right: 3em;
         margin-top: 3.7em;
+    }
+    .advanced-options-row {
+        margin-top: 0;
+        grid-template-columns: 0.6fr 1fr 1fr 0.6fr 1fr 0.6fr 0.5fr 0.8fr;
     }
     @media (max-width: 767px) {
         .query-info {

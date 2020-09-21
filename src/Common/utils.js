@@ -32,6 +32,19 @@ const getCurrencyString = (amount) => {
     return stringCurrency;
 }
 
+const getTMDBTimeFormat = (date) => {
+    const dateObj = new Date(date);
+    let month = dateObj.getMonth() || '';
+    if (month < 10) {
+        month = `0${month}`
+    }
+    let day = dateObj.getDate() || '';
+    if (day < 10) {
+        day = `0${day}`
+    }
+    return `${dateObj.getFullYear()}-${month}-${day}`
+}
+
 const getDateText = (date) => {
     const monthNames = ["January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -40,4 +53,4 @@ const getDateText = (date) => {
     return `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 }
 
-export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText };
+export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText, getTMDBTimeFormat };

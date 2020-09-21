@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-show="!(hideWatched && isWatched)">
         <router-link :to="{
             name: movie.first_air_date?'seriesInfo':'movieInfoFull',
             params:
@@ -53,7 +53,8 @@
 
     export default {
         name: 'movieCard',
-        props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showFullMovieInfo'],
+        props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showFullMovieInfo',
+            'hideWatched'],
         data() {
             return {
                 getRatingColor,
