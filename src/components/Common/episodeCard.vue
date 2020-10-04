@@ -1,14 +1,20 @@
 <template>
     <div class="episode-item">
+        <div class="secondary-text mt-1">
+            Episode {{episode.episode_number}}<span v-if="episode.air_date"> - {{getFullDateText(episode.air_date)}}</span>
+        </div>
         <div class="img-container">
             <img v-lazy="imageObj" class="episode-card-image" @click="showFullEpisodeInfo(episode)"
                 v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.2em' }"/>
         </div>
-        <div class="secondary-text mt-1">{{episode.name}}</div>
+        <div class="secondary-text episode-heading mt-1 mb-1" v-if="showHeader">
+            {{episode.name}}
+        </div>
     </div>
 </template>
 
 <script lang="ts">
+    import { getFullDateText } from '../../Common/utils';
     export default {
         name: 'episodeCard',
         props: [
@@ -17,14 +23,16 @@
             'imageRes',
             'onSelected',
             'disableRatingShadow',
-            'showFullEpisodeInfo'
+            'showFullEpisodeInfo',
+            'showHeader'
         ],
         data() {
             return {
                 imageObj: {
                     src: this.configuration.images.secure_base_url + this.imageRes + this.episode.still_path,
                     error: require('../../Assets/Images/error.svg'),
-                }
+                },
+                getFullDateText,
             };
         },
         methods: {
@@ -60,26 +68,29 @@
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
     .episode-card-image[lazy=error] {
-        // background-size: 4em;
-        // padding: 4em;
-        // width: 20em;
+        background-size: 4em;
+        padding: 4em;
+        width: 20em;
+    }
+    .episode-heading {
+        font-size: 1em !important;
     }
     .episode-card-image[lazy=loading] {
-        // background-image: url('../../Assets/Images/loader-bars.svg');
-        // background-size: contain;
-        // background-size: 4em;
-        // width: 20em;
+        background-image: url('../../Assets/Images/loader-bars.svg');
+        background-size: contain;
+        background-size: 4em;
+        width: 20em;
     }
     .episode-item {
         display: flex;
-        flex-direction: column;
+        flex-direction: column-reverse;
         padding: 0 0.3em;
         cursor: pointer;
         position: relative;
         transition: transform .2s;
     }
     .episode-item:hover {
-        transform: scale(1.05);
+        transform: scale(1.02);
     }
     .episode-card-title {
         font-size: 1em;

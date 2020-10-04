@@ -269,19 +269,19 @@
                 this.detailsLoading = false;
             },
             async updateHistoryData() {
-                firebase.auth().onAuthStateChanged(
-                    async (user) => {
-                        if (user) {
-                            const userDbRef = db.collection('users').doc(user.uid);
-                            const userMovieHistory = await userDbRef.collection('moviesHistory').get();
-                            const historyDocToAdd = {
-                                ...omit(this.details, HISTORY_OMIT_VALUES),
-                                updatedAt: Date.now(),
-                            }
-                            userDbRef.collection('moviesHistory').doc(`${this.details.id}`).set(historyDocToAdd);
-                        }
-                    }
-                );
+                // firebase.auth().onAuthStateChanged(
+                //     async (user) => {
+                //         if (user) {
+                //             const userDbRef = db.collection('users').doc(user.uid);
+                //             const userMovieHistory = await userDbRef.collection('moviesHistory').get();
+                //             const historyDocToAdd = {
+                //                 ...omit(this.details, HISTORY_OMIT_VALUES),
+                //                 updatedAt: Date.now(),
+                //             }
+                //             userDbRef.collection('moviesHistory').doc(`${this.details.id}`).set(historyDocToAdd);
+                //         }
+                //     }
+                // );
             },
             getYoutubeVideos: function() {
                 if (this.details.videos && this.details.videos.results) {

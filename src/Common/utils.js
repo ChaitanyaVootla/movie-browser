@@ -52,5 +52,12 @@ const getDateText = (date) => {
     const dateObj = new Date(date);
     return `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 }
+const getFullDateText = (date) => {
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+    const dateObj = new Date(date);
+    return `${monthNames[dateObj.getMonth()]} ${dateObj.getDate()}`;
+}
 
-export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText, getTMDBTimeFormat };
+export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText, getFullDateText, getTMDBTimeFormat };

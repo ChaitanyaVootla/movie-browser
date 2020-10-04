@@ -8,7 +8,8 @@
         </slot>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft" v-show="isBarFull">
-                <font-awesome-icon :icon="['fas', 'chevron-left']" />
+                <!-- <font-awesome-icon :icon="['fas', 'chevron-left']" /> -->
+                <i class="el-icon-arrow-left"></i>
             </div>
             <div v-show="!isBarFull" class="ml-4"></div>
             <div class="slider-bar" id="scroll-bar">
@@ -16,7 +17,8 @@
                     :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"></movie-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight" v-show="isBarFull">
-                <font-awesome-icon :icon="['fas', 'chevron-right']" />
+                <!-- <font-awesome-icon :icon="['fas', 'chevron-right']" /> -->
+                <i class="el-icon-arrow-right"></i>
             </div>
         </div>
         <!-- <movie-info v-show="showInfo" :movie="selectedMovie" :configuration="configuration" :imageRes="'w500'"
@@ -70,9 +72,9 @@
                 this.showInfo = false;
             },
             checkIsBarFull() {
-                if ($(`.${this.id} .slider-bar`)[0] && $(`.${this.id} .slider-heading`)[0]) {
-                    return $(`.${this.id} .slider-bar`)[0].scrollWidth > $(`.${this.id} .slider-heading`)[0].clientWidth;
-                }
+                // if ($(`.${this.id} .slider-bar`)[0] && $(`.${this.id} .slider-heading`)[0]) {
+                //     return $(`.${this.id} .slider-bar`)[0].scrollWidth > $(`.${this.id} .slider-heading`)[0].clientWidth;
+                // }
                 return true;
             },
         },
@@ -84,12 +86,14 @@
     .slider-bar {
         display: flex;
         overflow-x: auto;
-        overflow-y: hidden;
+        overflow-y: visible !important;
         scroll-behavior: smooth;
-        justify-content: space-between;
+        justify-content: end;
         position: relative;
         padding: 0 0.5em;
         margin-right: 0.5em;
+        padding-top: 0.5em;
+        width: 100%;
     }
     .slider-bar::-webkit-scrollbar {
         display: none;
@@ -100,6 +104,9 @@
         padding-left: 2.2em;
         padding-top: 1em;
         padding-bottom: 0.4em;
+    }
+    .history-slider .slider-heading {
+        padding-top: 0.2em !important;
     }
     .scroll-item {
         background: #333;

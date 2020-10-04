@@ -103,6 +103,7 @@
     padding-bottom: 0.5em;
     cursor: pointer;
     border-bottom: solid 1px #333;
+    line-height: 24px !important;
   }
   .search-image[lazy=error] {
     background-size: 4em;

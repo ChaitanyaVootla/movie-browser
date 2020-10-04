@@ -7,7 +7,15 @@
             text-color="#eee"
             :default-active="activeNavItem"
             active-text-color="#b91d1d">
-            <el-menu-item index="discover" class="ml-5" :route="{name: 'discover'}">
+            <el-menu-item index="Trending" class="ml-5">
+                <router-link :to="{ name: 'trending'}">
+                    <div :class="onTrending?'active':''">
+                        <font-awesome-icon :icon="['fas', 'fire']" class="mr-2 trending-icon"/>
+                        <span class="mobile-hide">Trending</span>
+                    </div>
+                </router-link>
+            </el-menu-item>
+            <el-menu-item index="discover">
                 <router-link :to="{ name: 'discover'}">
                     <div :class="onDiscover?'active':''">
                         <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/>
@@ -15,22 +23,30 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item index="Suggestions">
+            <!-- <el-menu-item index="Suggestions">
                 <router-link :to="{ name: 'Suggestions'}">
                     <div :class="onSuggestions?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
                         <span class="mobile-hide">Suggestions</span>
                     </div>
                 </router-link>
+            </el-menu-item> -->
+            <el-menu-item index="WatchList">
+                <router-link :to="{ name: 'WatchList'}">
+                    <div :class="onWatchList?'active':''">
+                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
+                        <span class="mobile-hide">Stream List</span>
+                    </div>
+                </router-link>
             </el-menu-item>
-            <el-menu-item index="Interests">
+            <!-- <el-menu-item index="Interests">
                 <router-link :to="{ name: 'Interests'}">
                     <div :class="onInterests?'active':''">
                         <font-awesome-icon :icon="['fas', 'eye']" class="mr-2"/>
                         <span class="mobile-hide">Interests</span>
                     </div>
                 </router-link>
-            </el-menu-item>
+            </el-menu-item> -->
             <!-- <el-menu-item index="StreamingNow">
                 <router-link :to="{ name: 'StreamingNow'}">
                     <div :class="onStreamingNow?'active':''">
@@ -47,10 +63,23 @@
                 </router-link>
             </el-menu-item>
             <el-menu-item index="search" class="menu-center-item menu-item-nobg search-menu-item mobile-hide">
-                <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
-                    <el-input placeholder="Search" v-model="searchText">
-                        <el-button slot="append" icon="el-icon-search"></el-button>
-                    </el-input>
+                <div>
+                    <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
+                        <el-input placeholder="Search" v-model="searchText">
+                            <el-button slot="append" icon="el-icon-search"></el-button>
+                        </el-input>
+                    </div>
+                    <div class="search-dropdown" v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults">
+                        <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
+                            No Results
+                        </div>
+                        <search-results
+                            :search-results="searchResults"
+                            :get-genre-name-from-id="getGenreNameFromId"
+                            :image-base-path="imageBasePath"
+                            :search-item-clicked="searchItemclicked">
+                        </search-results>
+                    </div>
                 </div>
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item">
@@ -62,14 +91,20 @@
                         <img :src="user.photoURL" class="user-photo"/>
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
+                                <router-link :to="{name: 'Interests'}">
+                                    <font-awesome-icon :icon="['fas', 'eye']" class="mr-1"/>
+                                    Interests
+                                </router-link>
+                            </el-dropdown-item>
+                            <el-dropdown-item>
                                 <router-link :to="{name: 'History'}">
-                                    <font-awesome-icon :icon="['fas', 'history']"/>
+                                    <font-awesome-icon :icon="['fas', 'history']" class="mr-1"/>
                                     History
                                 </router-link>
                             </el-dropdown-item>
                             <el-dropdown-item  divided>
                                 <div @click="signOutClicked">
-                                    <font-awesome-icon :icon="['fas', 'sign-out-alt']"/>
+                                    <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-1"/>
                                     Sign out
                                 </div>
                             </el-dropdown-item>
@@ -104,23 +139,6 @@
             </el-menu-item>
         </el-menu>
 
-        <div @keydown.stop @click="searchInputclicked" class="search-intput-container desk-hide pl-2 pr-2 pt-2">
-            <el-input placeholder="Search" v-model="searchText">
-                <el-button slot="append" icon="el-icon-search"></el-button>
-            </el-input>
-        </div>
-
-        <div class="search-dropdown" v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults">
-            <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
-                No Results
-            </div>
-            <search-results
-                :search-results="searchResults"
-                :get-genre-name-from-id="getGenreNameFromId"
-                :image-base-path="imageBasePath"
-                :search-item-clicked="searchItemclicked">
-            </search-results>
-        </div>
         <transition name="view">
             <router-view v-if="isLoaded" class="main-router"
                 :isLoaded="isLoaded"
@@ -209,6 +227,9 @@
             onStreamingNow() {
                 return this.$route.name === 'StreamingNow';
             },
+            onWatchList() {
+                return this.$route.name === 'WatchList';
+            },
             onSuggestions() {
                 return this.$route.name === 'Suggestions';
             },
@@ -218,13 +239,20 @@
             onDiscover() {
                 return this.$route.name === 'discover';
             },
+            onTrending() {
+                return this.$route.name === 'trending';
+            },
             activeNavItem() {
                 if (this.$route.name === 'discover') {
                     return 'discover';
+                } else if (this.$route.name === 'WatchList') {
+                    return 'WatchList';
                 } else if (this.$route.name === 'StreamingNow') {
                     return 'StreamingNow';
                 } else if (this.$route.name === 'Interests') {
                     return 'Interests';
+                } else if (this.$route.name === 'trending') {
+                    return 'Trending';
                 } else if (this.$route.name === 'Suggestions') {
                     return 'Suggestions';
                 } else {
@@ -341,13 +369,14 @@
         filter: opacity(0.85);
         padding: 0.2em;
         width: 2.2em;
-        // height: 1.6em;
-        // box-shadow: 0px 0px 200px 150px rgba(0, 0, 0, 0.514);
         height: 100%;
         padding-top: 0.6em;
         display: flex;
         justify-content: center;
         align-content: center;
+    }
+    .trending-icon{
+        font-size: 1.2em;
     }
     .sort-order-container {
         max-width: 24em;
@@ -443,12 +472,11 @@
         border-color: #111;
     }
     .search-dropdown {
-        position: fixed;
+        position: absolute;
         top: 3.4em;
         z-index: 100;
-        right: 6em;
         scroll-behavior: smooth;
-        width: 30%;
+        width: 100%;
         overflow-x: hidden;
         color: #fff !important;
         border-radius: 3px;
@@ -458,6 +486,10 @@
         border-color: #000;
         color: #ccc;
         padding: 0.5em;
+    }
+    .search-intput-container {
+        position: absolute;
+        width: 100%;
     }
     .search-dropdown .dropdown-item {
         color: #fff !important;

@@ -1,8 +1,8 @@
 <template>
     <el-row class="week-trends-container pt-3">
-        <el-col :span="historyAbsent?24:15">
-            <el-carousel height="550px" :interval="7000" :type="historyAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5"
-                :key="historyAbsent">
+        <el-col :span="watchListAbsent?24:15">
+            <el-carousel height="550px" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5"
+                :key="watchListAbsent">
                 <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
                     <div class="carousel-card-container" @click="carouselCardClicked(item)">
                         <div class="background-images-container justify-center">
@@ -41,23 +41,26 @@
                 </el-carousel-item>
             </el-carousel>
         </el-col>
-        <el-col :span="9" class="pr-2 pl-1" v-if="!historyAbsent">
-            <!-- <movie-slider :movies="historyMovies" :configuration="configuration" :heading="'Recently Visited Movies'" :id="'historyMovies'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="historyMovies.length"
-                :history="true"></movie-slider> -->
-            <!-- <movie-slider :movies="seriesHistory" :configuration="configuration" :heading="'Recently Visited Series'" :id="'historySeries'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo" v-if="seriesHistory.length"
-                :history="true" class="pt-3"></movie-slider> -->
-            <movie-slider :movies="recommendedMoviesByPopularity" :configuration="configuration"
-                :heading="'Suggestions - Trending'" :id="'suggestedMoviesPopular'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-                v-if="recommendedMoviesByPopularity.length"
-                :history="true"></movie-slider>
-            <movie-slider :movies="recommendedMoviesAllTime" :configuration="configuration"
-                :heading="'Suggestions - All Time'" :id="'suggestedMoviesAllTime'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-                v-if="recommendedMoviesAllTime.length"
-                :history="true"></movie-slider>
+        <el-col :span="9" class="pr-2 pl-1" v-if="seriesWatchList.length">
+            <movie-slider :movies="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
+            v-if="seriesWatchList.length" :history="true" heading="Upcoming episodes"></movie-slider>
+            <div class="m-4 p-3 heading">
+                <div class="mb-3">Saved Filters</div>
+                <div class="filters-container">
+                    <div v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3 mb-3">
+                        <router-link :to="{
+                            name: 'discover',
+                            query: {
+                                ...savedFilter,
+                                isMovies: true
+                            }}">
+                            <el-button :type="$router.currentRoute.query.name === savedFilter.name?'danger':'primary'">
+                                {{savedFilter.name}}
+                            </el-button>
+                        </router-link>
+                    </div>
+                </div>
+            </div>
         </el-col>
     </el-row>
 </template>
@@ -66,7 +69,8 @@
     import { api } from '../../API/api';
     import { getRatingColor } from '../../Common/utils';
     import { signIn, firebase, signOut, db } from '../../Common/firebase';
-    import { sortBy, groupBy, keyBy, uniqBy } from 'lodash';
+    import { sortBy, groupBy, keyBy, uniqBy, compact } from 'lodash';
+    import * as moment from 'moment';
 
     export default {
         name: 'trendingCarousel',
@@ -92,6 +96,35 @@
             this.loadData();
         },
         computed: {
+            savedFilters() {
+                return sortBy(this.$store.getters.savedFilters, 'name');
+            },
+            seriesWatchList() {
+                let watchListSeries = this.$store.getters.watchListSeries;
+                watchListSeries = compact(watchListSeries.map(
+                    series => {
+                        if (series.next_episode_to_air) {
+                            const nextAirDays = moment({hours: 0}).diff(
+                                series.next_episode_to_air.air_date, 'days')*-1;
+                            let upcomingText = `In ${nextAirDays} day${nextAirDays > 1?'s':''}`;
+                            if (nextAirDays >= 11 || nextAirDays < 0) {
+                                upcomingText = moment(series.next_episode_to_air.air_date).format('DD MMM YYYY')
+                            } else if (nextAirDays === 0) {
+                                upcomingText = 'Today';
+                            }
+                            series.bottomInfo = `${upcomingText} - S${series.next_episode_to_air.season_number
+                                } E${series.next_episode_to_air.episode_number}`;
+                            series.upcomingTime = new Date(series.next_episode_to_air.air_date);
+                            return series;
+                        }
+                    }
+                ));
+                watchListSeries = sortBy(watchListSeries, 'upcomingTime');
+                return watchListSeries;
+            },
+            watchListAbsent() {
+                return !this.seriesWatchList.length;
+            },
             historyAbsent() {
                 return this.historyMovies.length === 0 && this.seriesHistory.length === 0;
             },
@@ -101,73 +134,8 @@
             seriesHistory() {
                 return this.$store.getters.history.series.slice(0, 4);
             },
-            favoriteGenres() {
-                const history = this.$store.getters.history.movies.concat(this.$store.getters.watched.movies);
-                const genresArrayList = history.map(movie => movie.genres);
-                return this.getSortedObjects(genresArrayList);
-            },
-            favoriteKeywords() {
-                const history = this.$store.getters.history.movies.concat(this.$store.getters.watched.movies);
-                const keywordsArrayList = history.map(movie => movie.keywords.keywords);
-                return this.getSortedObjects(keywordsArrayList);
-            },
-            recommendedMoviesByPopularity() {
-                return this.rateMovies(this.trendingMovies, {});
-            },
-            recommendedMoviesAllTime() {
-                return this.rateMovies(this.popularMovies, {ignorePopularity: true});
-            }
         },
         methods: {
-            getSortedObjects(arrayList) {
-                let keywords = [];
-                arrayList.forEach(
-                    array => {
-                        keywords = keywords.concat(array);
-                    }
-                );
-                const grouped = groupBy(keywords, 'name');
-                const keywordsByName = keyBy(keywords, 'name');
-                const names = Object.keys(grouped);
-                const sortedNames = sortBy(names, [
-                    (name) => grouped[name].length
-                ]).reverse();
-                return sortedNames.map(name => ({
-                    name,
-                    id: keywordsByName[name].id,
-                    priority: grouped[name].length
-                }));
-            },
-            rateMovies(moviePool, {
-                ignorePopularity
-            }) {
-                moviePool.forEach(
-                    movie => {
-                        let genreWeight = 0;
-                        let genreIds = [];
-                        if (movie.genre_ids) {
-                            genreIds = movie.genre_ids;
-                        }
-                        if (movie.genres) {
-                            genreIds = movie.genres.map(({id}) => id);
-                        }
-                        genreIds.forEach(
-                            genreId => {
-                                const genre = this.favoriteGenres.find(genre => genre.id === genreId);
-                                if (genre) {
-                                    genreWeight += genre.priority*10;
-                                }
-                            }
-                        );
-                        const ratingWeight = movie.vote_average*100;
-                        movie.favoriteScore = (ignorePopularity?0:movie.popularity) + genreWeight + ratingWeight;
-                        movie.scoreBreakdown = `${(ignorePopularity?0:movie.popularity)} - ${genreWeight} - ${ratingWeight}`;
-                    }
-                );
-                let sortedFavorites = sortBy(moviePool, ['favoriteScore']).reverse();
-                sortedFavorites = sortedFavorites.filter(({vote_average}) => vote_average >= 6.5)
-                return uniqBy(sortedFavorites, 'id');
-            },
             carouselCardClicked(movie: any) {
                 if (movie.id === this.currentCarouselItem.id) {
                     this.showFullMovieInfo(movie);
@@ -200,10 +168,20 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
-
+    .filters-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
     .justify-center {
         display:flex;
         justify-content:center;
+    }
+    .heading {
+        font-size: 17px;
+        font-weight: 500;
+        padding-left: 2.2em;
+        padding-top: 1em;
+        padding-bottom: 0.4em;
     }
     .week-trends-container {
         background-color: rgb(24, 24, 24);

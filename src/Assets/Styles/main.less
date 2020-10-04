@@ -19,6 +19,7 @@
 @text-color: #ddd;
 @primary-gray: rgb(15, 15, 15);
 @background-gray: rgb(24, 24, 24);
+@background-gray-light: rgba(148, 148, 148, 0.05);
 @mobile-card-height: 10em;
 @mobile-card-width: 8em;
 @mobile-mini-card-width: 6em;
@@ -151,6 +152,9 @@ a {
 .el-menu-item:hover {
     color: @link-color-red !important;
 }
+.el-menu-item.is-active {
+    font-weight: 500;
+}
 .el-menu.el-menu--horizontal {
     border: 0;
 }
@@ -209,4 +213,8 @@ a {
 .el-checkbox__input.is-checked .el-checkbox__inner {
     background-color: @main-red !important;
     stroke: white !important;
+}
+
+.el-button--danger, .el-button--danger:hover, .el-button--danger:focus {
+    background-color: @main-red;
 }

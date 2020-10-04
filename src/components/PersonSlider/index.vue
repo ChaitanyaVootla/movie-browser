@@ -3,7 +3,8 @@
         <div class="slider-heading">{{heading}}</div>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft" v-show="isBarFull">
-                <font-awesome-icon :icon="['fas', 'chevron-left']" />
+                <!-- <font-awesome-icon :icon="['fas', 'chevron-left']" /> -->
+                <i class="el-icon-arrow-left"></i>
             </div>
             <div v-show="!isBarFull" class="ml-4"></div>
             <div class="slider-bar" id="scroll-bar">
@@ -11,7 +12,8 @@
                     :selectPerson="selectPerson" :key="person.id + index" :disableRatingShadow="true"></person-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight" v-show="isBarFull">
-                <font-awesome-icon :icon="['fas', 'chevron-right']" />
+                <!-- <font-awesome-icon :icon="['fas', 'chevron-right']" /> -->
+                <i class="el-icon-arrow-right"></i>
             </div>
         </div>
     </div>
@@ -75,6 +77,7 @@
         position: relative;
         padding: 0 0.5em;
         margin-right: 0.5em;
+        padding-top: 0.5em;
     }
     .slider-bar::-webkit-scrollbar {
         display: none;

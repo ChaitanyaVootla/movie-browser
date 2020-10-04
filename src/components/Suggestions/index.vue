@@ -1,5 +1,18 @@
 <template>
     <div class="mb-5 pt-3">
+        <div class="ml-4 pl-3">
+            <router-link v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3" :to="{
+                name: 'discover',
+                query: {
+                    ...savedFilter,
+                    isMovies: true
+                }}">
+                <el-button type="primary">
+                    <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/>
+                    {{savedFilter.name}}
+                </el-button>
+            </router-link>
+        </div>
         <movie-slider :movies="recommendedMoviesByPopularity" :configuration="configuration"
             :heading="'Suggestions - Trending'" :id="'suggestedMoviesPopular'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
@@ -51,6 +64,9 @@
             this.loadData();
         },
         computed: {
+            savedFilters() {
+                return this.$store.getters.savedFilters;
+            },
             favoriteGenres() {
                 const history = this.$store.getters.history.movies;
                 const genresArrayList = history.map(movie => movie.genres);

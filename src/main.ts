@@ -4,6 +4,7 @@ import App from './App.vue';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { fas } from '@fortawesome/free-solid-svg-icons';
 import { fab } from '@fortawesome/free-brands-svg-icons';
+import { far } from '@fortawesome/free-regular-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import _ from 'lodash';
 import 'bootstrap';
@@ -16,13 +17,13 @@ import MovieInfoFull from './components/MovieInfo/index.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
 import StreamingNow from './components/StreamingNow/index.vue';
 import Suggestions from './components/Suggestions/index.vue';
+import WatchList from './components/WatchList/index.vue';
 import Interests from './components/Interests/index.vue';
 import History from './components/History/index.vue';
-import VueLazyload from 'vue-lazyload'
+import VueLazyload from 'vue-lazyload';
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
 import { store } from './store/index.js';
-import Vuex from 'vuex';
 
 Vue.use(Element);
 
@@ -30,6 +31,7 @@ Object.defineProperty(Vue.prototype, '_', { value: _ });
 
 library.add(fas);
 library.add(fab);
+library.add(far);
 
 Vue.component('font-awesome-icon', FontAwesomeIcon);
 Vue.config.productionTip = true;
@@ -48,6 +50,8 @@ Vue.component('discover', require('./components/Discover').default);
 Vue.component('search', require('./components/Search').default);
 Vue.component('streamingNow', require('./components/StreamingNow/index.vue').default);
 Vue.component('suggestions', require('./components/Suggestions/index.vue').default);
+Vue.component('WatchList', require('./components/WatchList/index.vue').default);
+Vue.component('RandomSuggestions', require('./components/RandomSuggestions/index.vue').default);
 Vue.component('personSlider', require('./components/PersonSlider/index.vue').default);
 Vue.component('person', require('./components/Person/index.vue').default);
 Vue.component('searchResults', require('./components/SearchResults/index.vue').default);
@@ -102,6 +106,11 @@ const routes = [
         path: '/suggestions',
         component: Suggestions,
         name: 'Suggestions'
+    },
+    {
+        path: '/watchList',
+        component: WatchList,
+        name: 'WatchList'
     },
     {
         path: '/interests',

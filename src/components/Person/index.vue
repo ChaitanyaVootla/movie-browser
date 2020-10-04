@@ -222,7 +222,7 @@
         background-size: contain;
         background-repeat: no-repeat;
         background-position: 50% 50%;
-        z-index: 100;
+        z-index: 50;
         box-shadow: 0px 0px 60px 20px rgba(0,0,0,0.95);
         border-radius: 0.5em;
     }

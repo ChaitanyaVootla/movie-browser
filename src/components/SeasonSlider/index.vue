@@ -8,14 +8,17 @@
         </div>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft">
-                <font-awesome-icon :icon="['fas', 'chevron-left']" />
+                <!-- <font-awesome-icon :icon="['fas', 'chevron-left']" /> -->
+                <i class="el-icon-arrow-left"></i>
             </div>
             <div class="slider-bar" id="scroll-bar">
                 <episode-card v-for="(movie, index) in movies" :episode="movie" :configuration="configuration" :imageRes="'w500'"
-                    :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"></episode-card>
+                    :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"
+                    :showHeader="showHeader"></episode-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight">
-                <font-awesome-icon :icon="['fas', 'chevron-right']" />
+                <!-- <font-awesome-icon :icon="['fas', 'chevron-right']" /> -->
+                <i class="el-icon-arrow-right"></i>
             </div>
         </div>
         <!-- <movie-info v-show="showInfo" :movie="selectedMovie" :configuration="configuration" :imageRes="'w500'"
@@ -35,6 +38,7 @@
             'airDate',
             'showMovieInfoModal',
             'showFullMovieInfo',
+            'showHeader',
         ],
         data() {
           return {

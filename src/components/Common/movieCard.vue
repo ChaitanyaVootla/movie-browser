@@ -30,14 +30,17 @@
                             color: ${getRatingColor(movie.vote_average)}`">
                             {{movie.vote_average}}
                         </span>
-                        <span class="rating-info watched-action" :class="isWatched?'green':''"
-                            v-on:click.prevent @click="toggleWatched" v-if="movie.release_date">
-                            <font-awesome-icon :icon="['fas', 'check']" :class="isWatched?'green':''"/>
-                        </span>
+                        <el-tooltip class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
+                            :disabled="isWatched">
+                            <span class="rating-info watched-action" :class="isWatched?'green':''"
+                                v-on:click.prevent @click="toggleWatched" v-if="movie.release_date">
+                                <font-awesome-icon :icon="['fas', 'check']" :class="isWatched?'green':''"/>
+                            </span>
+                        </el-tooltip>
                         <!-- {{movie.vote_average}} -->
                     </div>
                 </div>
-                <div class="secondary-text mt-1">{{movie.character || movie.job}}</div>
+                <div class="secondary-text mt-1 ml-1">{{movie.character || movie.job || movie.bottomInfo}}</div>
             </div>
         </router-link>
     </div>
@@ -104,13 +107,18 @@
     .movie-card-image[lazy=error] {
         background-size: 4em;
         padding: 4em;
-        width: 10em;
+        width: 11em;
+        box-shadow: rgba(0, 0, 0, 0.5) 0px 3px 10px 0.2em;
+        background-color: #161616;
     }
     .movie-card-image[lazy=loading] {
         background-image: url('../../Assets/Images/loader-bars.svg');
         background-size: contain;
         background-size: 4em;
-        width: 10em;
+        width: 11em;
+    }
+    .top-overlay {
+        display: none;
     }
     .watched-overlay {
         position: absolute;
@@ -124,10 +132,10 @@
     }
     .movie-item {
         cursor: pointer;
-        transition: transform .2s;
+        transition: transform .3s ease-in-out;
     }
     .movie-item:hover {
-        transform: scale(1.05);
+        transform: scale(1.02);
     }
     .movie-card-title {
         font-size: 1em;
@@ -136,7 +144,7 @@
     }
     .movie-card-image {
         border-radius: 3px;
-        height: 15em;
+        height: 17em;
         background-size: cover;
         background-repeat: no-repeat;
         background-position: 50% 50%;
@@ -171,7 +179,7 @@
         width: 100%;
         opacity: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
+        background: rgba(0, 0, 0, 0.9);
         padding: 0.3em 0.5em;
         transition: 300ms;
         z-index: 1000000;

@@ -42,7 +42,6 @@
             </el-select>
             <div class="mobile-hide"></div>
             <div class="mobile-hide"></div>
-            <div class="mobile-hide"></div>
             <div class="mt-2 switch-container">
                 <span class="mr-2 mobile-hide">Series</span>
                 <font-awesome-icon :icon="['fas', 'stream']" class="mr-2 desk-hide"/>
@@ -54,6 +53,25 @@
                 </el-switch>
                 <font-awesome-icon :icon="['fas', 'film']" class="mr-2 desk-hide"/>
                 <span class="ml-2 mobile-hide">Movies</span>
+            </div>
+            <div class="mobile-hide save-container">
+                <el-button-group v-if="isSavedFilterView">
+                    <el-button type="primary" @click="saveFilter">
+                        <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/>
+                        Update Filter
+                    </el-button>
+                    <el-button type="primary" @click="saveFilterDialogVisible = true; filterName = $router.currentRoute.query.name">
+                        <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
+                            <div>
+                                <i class="el-icon-circle-close"></i>
+                            </div>
+                        </el-tooltip>
+                    </el-button>
+                </el-button-group>
+                <el-button type="primary" @click="saveFilterDialogVisible = true; filterName = '';" v-else>
+                    <font-awesome-icon :icon="['fa', 'star-half-alt']" class="mr-2"/>
+                    Save Filter
+                </el-button>
                 <el-tooltip class="item" effect="light" content="Advanced" placement="bottom">
                     <font-awesome-icon :icon="['fas', 'sliders-h']" class="ml-4 advanced-filters"
                         @click="showAdvancedFilters = !showAdvancedFilters"/>
@@ -103,9 +121,28 @@
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
             <el-checkbox v-model="hideWatchedMovies" class="mt-2" @change="loadMovies(true)">Hide Watched Movies</el-checkbox>
         </div>
+        <div class="pl-5 pt-2 pb-2 favorites-bar">
+            <el-tooltip class="item" effect="light" content="Clear Filter" placement="bottom" v-if="isSavedFilterView">
+                <el-button @click="clearFilter" circle class="mr-3" icon="el-icon-circle-close">
+                </el-button>
+            </el-tooltip>
+            <router-link v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3" :to="{
+                name: 'discover',
+                query: {
+                    ...savedFilter,
+                }}">
+                <el-button @click="filterClicked" :type="$router.currentRoute.query.name === savedFilter.name?'danger':'primary'">
+                    <!-- <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/> -->
+                    {{savedFilter.name}}
+                </el-button>
+            </router-link>
+        </div>
         <div class="query-info text-muted">
             <div class="">
                 {{queryData.total_results === 10000?`${queryData.total_results}+`:queryData.total_results}} results
+                <el-tooltip effect="light" content="including watched movies" placement="bottom">
+                    <font-awesome-icon :icon="['fas', 'info-circle']" class="ml-1" v-show="hideWatchedMovies"/>
+                </el-tooltip>
             </div>
         </div>
         <div v-if="isLoaded" class="movies-grid-container">
@@ -115,15 +152,28 @@
             </movie-card>
         </div>
         <div class="loader-main" v-if="isDataLoading"></div>
+        <el-dialog
+            :title="$router.currentRoute.query.name?'Delete Filter':'Save Filter'"
+            :visible.sync="saveFilterDialogVisible"
+            width="30%">
+            <el-input placeholder="Name" v-model="filterName"></el-input>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="deleteFilter" :disabled="!filterName.length" type="danger"
+                    v-if="$router.currentRoute.query.name">Delete</el-button>
+                <el-button @click="saveFilter" :disabled="!filterName.length" type="success"
+                    v-else>Save</el-button>
+            </span>
+        </el-dialog>
     </div>
 </template>
 
 <script lang="ts">
     import { Component, Prop, Vue } from 'vue-property-decorator';
     import { api } from '../../API/api';
-    import { update, find, debounce, uniqBy  } from 'lodash';
+    import { update, find, debounce, uniqBy, sortBy  } from 'lodash';
     import { movieParams, seriesParams } from '@/API/Constants';
     import { certifications } from '../../Common/certifications';
+    import { signIn, firebase, signOut, db } from '../../Common/firebase';
 
     export default {
         name: 'movieDiscover',
@@ -143,6 +193,8 @@
                 movies: [] as any[],
                 showAdvancedFilters: false,
                 hideWatchedMovies: false,
+                saveFilterDialogVisible: false,
+                filterName: '',
                 queryData: {
                     results: []
                 },
@@ -183,6 +235,7 @@
                 timeFrames: [] as any[],
                 allYears: [] as any[],
                 dateRange: {},
+                isSavedFilterView: false,
                 selectedSortOrder: {
                     name: 'Popularity',
                     id: 'popularity.desc'
@@ -199,6 +252,11 @@
             this.setupTimeFrameOptions();
             this.genres = this.movieGenres;
             this.checkRouteQuery();
+            if (this.$router.currentRoute.query.name) {
+                this.isSavedFilterView = true;
+            } else {
+                this.isSavedFilterView = false;
+            }
             this.loadMovies(false);
             window.addEventListener('scroll', this.scrollHandler);
         },
@@ -206,9 +264,68 @@
             $route (to, from) {
                 this.currentPage = 1;
                 this.checkRouteQuery();
+                if (this.$router.currentRoute.query.name) {
+                    this.isSavedFilterView = true;
+                } else {
+                    this.isSavedFilterView = false;
+                }
             }
         },
+        computed: {
+            savedFilters() {
+                return sortBy(this.$store.getters.savedFilters, 'name');
+            },
+        },
         methods: {
+            filterClicked() {
+                setTimeout(
+                    () => {
+                        this.loadMovies(true);
+                    }
+                )
+            },
+            clearFilter() {
+                this.$router.push({
+                    name: 'discover',
+                }).catch(err => {});
+                setTimeout(
+                    () => {
+                        this.loadMovies(true);
+                    }
+                )
+            },
+            saveFilter() {
+                firebase.auth().onAuthStateChanged(
+                    async (user) => {
+                        if (user) {
+                            const userDbRef = db.collection('users').doc(user.uid);
+                            let filterName = this.filterName;
+                            if (!filterName || !filterName.length) {
+                                filterName = this.$router.currentRoute.query.name;
+                            }
+                            this.$router.currentRoute.query.name = filterName;
+                            userDbRef.collection('savedFilters').doc(filterName).set(this.$router.currentRoute.query);
+                            this.saveFilterDialogVisible = false;
+                            this.$message({
+                                message: 'Filter Saved',
+                                center: true,
+                                type: 'success',
+                            });
+                        }
+                    }
+                );
+            },
+            deleteFilter() {
+                firebase.auth().onAuthStateChanged(
+                    async (user) => {
+                        if (user) {
+                            const userDbRef = db.collection('users').doc(user.uid);
+                            userDbRef.collection('savedFilters').doc(this.$router.currentRoute.query.name).delete();
+                            this.saveFilterDialogVisible = false;
+                        }
+                    }
+                );
+            },
             scrollHandler() {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
                    this.loadMoreMovies();
@@ -268,6 +385,10 @@
             },
             checkRouteQuery() {
                 const routeQuery = this.$route.query;
+                this.selectedSortOrder = {
+                    name: 'Popularity',
+                    id: 'popularity.desc'
+                };
                 if (routeQuery.sort_by) {
                     this.routeQueryPresent = true;
                     if (routeQuery.sort_by === 'vote_average.desc') {
@@ -292,10 +413,10 @@
                         };
                     }
                 }
+                this.selectedGenres = [];
                 if (routeQuery.with_genres) {
                     const genreIds = `${routeQuery.with_genres}`.split(',');
                     const allGenres = this.movieGenres.concat(this.seriesGenres);
-                    this.selectedGenres = [];
                     genreIds.forEach(
                         (id) => {
                             const genre = find(allGenres, {id: parseInt(id)});
@@ -303,10 +424,11 @@
                         }
                     )
                 }
+                this.selectedKeywords = [];
                 if (routeQuery.with_keywords && routeQuery.keywords) {
+                    const selectedKeywords = [];
                     const keywordIds = `${routeQuery.with_keywords}`.split(',');
                     const keywords = `${routeQuery.keywords}`.split(',');
-                    const selectedKeywords = [];
                     keywordIds.forEach(
                         (id, index) => {
                             this.selectedKeywords.push({
@@ -318,10 +440,12 @@
                     this.selectedKeywords = uniqBy(this.selectedKeywords, 'id');
                     this.searchKeywords = this.selectedKeywords;
                 }
-                if (routeQuery.isMovies == 'false') {
+                this.isMovies = true;
+                if (routeQuery.isMovies == 'false' || routeQuery.isMovies === false) {
                     this.isMovies = false;
                     this.genres = this.seriesGenres;
                 }
+                this.selectedRating = {}
                 if (routeQuery.rating) {
                     this.selectedRating = {
                         id: parseInt(`${routeQuery.rating}`),
@@ -329,10 +453,11 @@
                     }
                 }
                 // Advanced filters
+                this.showAdvancedFilters = false;
+                this.selectedGenresToExclude = [];
                 if (routeQuery.without_genres) {
                     const genreIds = `${routeQuery.without_genres}`.split(',');
                     const allGenres = this.movieGenres.concat(this.seriesGenres);
-                    this.selectedGenresToExclude = [];
                     genreIds.forEach(
                         (id) => {
                             const genre = find(allGenres, {id: parseInt(id)});
@@ -341,8 +466,8 @@
                     )
                     this.showAdvancedFilters = true;
                 }
+                this.selectedTimeFrame = {};
                 if (routeQuery.releaseQueryName) {
-                    this.selectedTimeFrame = {};
                     this.selectedTimeFrame.name = routeQuery.releaseQueryName;
                     if (!this.timeFrames.map(({name}) => name).includes(this.selectedTimeFrame.name)) {
                         this.selectedTimeFrame.name = parseInt(this.selectedTimeFrame.name);
@@ -355,18 +480,22 @@
                     }
                     this.showAdvancedFilters = true;
                 }
+                this.minVotes = null;
                 if (routeQuery['vote_count.gte']) {
                     this.minVotes = routeQuery['vote_count.gte'];
                     this.showAdvancedFilters = true;
                 }
+                this.selectedCertification = {};
                 if (routeQuery.certification) {
                     this.selectedCertification = {
                         certification: routeQuery.certification
                     };
                     this.showAdvancedFilters = true;
                 }
+                this.hideWatchedMovies = false;
                 if (routeQuery.hideWatchedMovies) {
                     this.hideWatchedMovies = true;
+                    this.showAdvancedFilters = true;
                 }
             },
             async keywordChanged(word: any) {
@@ -408,7 +537,7 @@
                     return;
                 }
                 this.isDataLoading = true;
-                for (let count = 1; count < 3; count++) {
+                for (let count = 1; count < 4; count++) {
                     await this.fetchMoreMovies();
                 }
             },
@@ -477,8 +606,11 @@
                 if (updateUrl) {
                     this.$router.push({
                         name: 'discover',
-                        query: routerQuery,
-                        replace: this.routeQueryPresent
+                        query: {
+                            ...routerQuery,
+                            name: this.$router.currentRoute.query.name
+                        },
+                        replace: this.routeQueryPresent,
                     }).catch(err => {});
                 }
             },
@@ -534,7 +666,7 @@
     .discover-options-row {
         background: @background-gray;
         display: grid;
-        grid-template-columns: 0.6fr 1fr 1fr 0.6fr 0.6fr 1fr 0.5fr 0.8fr;
+        grid-template-columns: 0.6fr 1fr 1fr 0.6fr 0.6fr 0.3fr 1fr 1fr;
         gap: 0.5em;
         padding-right: 3em;
         margin-top: 3.7em;
@@ -561,6 +693,23 @@
             align-content: center;
             justify-content: center;
         }
+    }
+    .switch-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        align-items: center;
+        align-content: center;
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 0.5em;
+        margin-right: 1em;
+    }
+    .save-container {
+        align-items: center;
+        align-content: center;
+        display: flex;
+        justify-content: flex-end;
+        margin-right: 0.5em;
     }
     .full-width {
         width: 100%;

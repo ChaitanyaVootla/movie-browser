@@ -46,6 +46,18 @@
                 </span>
             </div>
 
+            <!-- bookmarks -->
+            <div class="mt-4 bookmarks">
+                <el-button v-if="isInWatchList" type="success">
+                    In watch List
+                    <font-awesome-icon :icon="['fas', 'check']" class="ml-1"/>
+                </el-button>
+                <el-button @click="AddToWatchList" v-else>
+                    Add to watch list
+                    <font-awesome-icon :icon="['fas', 'plus']" class="ml-1"/>
+                </el-button>
+            </div>
+
             <!-- Movie overview -->
             <div class="movie-overview mobile-hide p-2">
                 <span v-if="showFullOverview">{{details.overview}}</span>
@@ -72,7 +84,8 @@
             </div>
         </div>
         <!-- Trailer/Video -->
-        <div v-if="getYoutubeVideos(details.videos.results).length" style="position: absolute; top: 3em; right: 3em;" class="mobile-hide">
+        <div v-if="getYoutubeVideos(details.videos.results).length" style="position: absolute; top: 3em; right: 3em;" class="mobile-hide"
+            :key="details.id">
             <iframe id="ytplayer" type="text/html" width="640" height="360"
                 :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos(details.videos.results)[0].key}`"
                 frameborder="0" iv_load_policy="3" fs="1" allowfullscreen="true" autoplay="1"
@@ -91,18 +104,22 @@
         </div>
         <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
             :selectPerson="selectPerson"></person-slider>
-        <span class="ml-4 pl-3 mt-4 mr-3">Episodes</span> <el-select v-model="selectedSeason" placeholder="Select"
-            @change="seasonChanged">
-            <el-option
-                v-for="item in seasons"
-                :key="item.id"
-                :label="item.name"
-                :value="item.id">
+
+        <div class="mt-4 pt-3 pb-3 season-container">
+            <span class="ml-4 pl-3 mr-3">Seasons</span>
+            <el-select v-model="selectedSeason" placeholder="Select"
+                @change="seasonChanged">
+                <el-option
+                    v-for="item in seasons"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id">
             </el-option>
-        </el-select> <span class="ml-3">{{getDateText(selectedSeasonInfo.air_date)}}</span>
-        <season-slider v-if="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
-            :id="`season${selectedSeasonInfo.id}`" :showMovieInfoModal="showMovieInfo"
-            :showFullMovieInfo="showSeriesInfo"></season-slider>
+            </el-select> <span class="ml-3">{{selectedSeasonInfo.episodes.length}} Episodes - {{getDateText(selectedSeasonInfo.air_date)}}</span>
+            <season-slider v-if="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
+                :id="`season${selectedSeasonInfo.id}`" :showHeader="true"></season-slider>
+        </div>
+
         <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
             :selectPerson="selectPerson"></person-slider>
         <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
@@ -201,6 +218,11 @@
                 this.getDetails();
             }
         },
+        computed: {
+            isInWatchList() {
+                return this.$store.getters.watchListSeriesById(this.details.id);
+            },
+        },
         methods: {
             openImageModal() {
                 this.dialogVisible = true;
@@ -250,16 +272,29 @@
                 this.detailsLoading = false;
             },
             updateHistoryData() {
+                // firebase.auth().onAuthStateChanged(
+                //     async (user) => {
+                //         if (user) {
+                //             const userDbRef = db.collection('users').doc(user.uid);
+                //             const historyDocToAdd = {
+                //                 ...omit(this.details, HISTORY_OMIT_VALUES),
+                //                 updatedAt: Date.now(),
+                //             }
+                //             userDbRef.collection('seriesHistory').doc(`${this.details.id}`).set(historyDocToAdd);
+                //         }
+                //     }
+                // );
+            },
+            AddToWatchList() {
                 firebase.auth().onAuthStateChanged(
                     async (user) => {
                         if (user) {
                             const userDbRef = db.collection('users').doc(user.uid);
-                            const userSeriesHistory = await userDbRef.collection('seriesHistory').get();
                             const historyDocToAdd = {
                                 ...omit(this.details, HISTORY_OMIT_VALUES),
                                 updatedAt: Date.now(),
                             }
-                            userDbRef.collection('seriesHistory').doc(`${this.details.id}`).set(historyDocToAdd);
+                            userDbRef.collection('seriesWatchList').doc(`${this.details.id}`).set(historyDocToAdd);
                         }
                     }
                 );
@@ -289,6 +324,9 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
+    .season-container {
+        background-color: rgba(148, 148, 148, 0.05);
+    }
     @media (max-width: 767px) {
         .background-images-container {
             height: 20em !important;
@@ -374,7 +412,7 @@
     .movie-overview {
         background: @translucent-bg;
         width: 60%;
-        margin-top: 5em;
+        margin-top: 1em;
     }
     .info-tagline {
         padding-left: 1em;
