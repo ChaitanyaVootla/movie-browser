@@ -196,7 +196,7 @@
         background: rgba(0, 0, 0, 0.9);
         padding: 0.3em 0.5em;
         transition: 300ms;
-        z-index: 1000000;
+        z-index: 50;
     }
     .movie-item:hover .info-overlay {
         opacity: 1;
