@@ -10,8 +10,8 @@
             <el-menu-item index="Trending" class="ml-5">
                 <router-link :to="{ name: 'trending'}">
                     <div :class="onTrending?'active':''">
-                        <font-awesome-icon :icon="['fas', 'fire']" class="mr-2 trending-icon"/>
-                        <span class="mobile-hide">Trending</span>
+                        <font-awesome-icon :icon="['fas', 'home']" class="mr-2 trending-icon"/>
+                        <span class="mobile-hide">Home</span>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -92,16 +92,16 @@
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
                                 <router-link :to="{name: 'Interests'}">
-                                    <font-awesome-icon :icon="['fas', 'eye']" class="mr-1"/>
-                                    Interests
+                                    <font-awesome-icon :icon="['fas', 'user']" class="mr-1"/>
+                                    Profile
                                 </router-link>
                             </el-dropdown-item>
-                            <el-dropdown-item>
+                            <!-- <el-dropdown-item>
                                 <router-link :to="{name: 'History'}">
                                     <font-awesome-icon :icon="['fas', 'history']" class="mr-1"/>
                                     History
                                 </router-link>
-                            </el-dropdown-item>
+                            </el-dropdown-item> -->
                             <el-dropdown-item  divided>
                                 <div @click="signOutClicked">
                                     <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-1"/>

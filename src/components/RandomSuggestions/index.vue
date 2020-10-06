@@ -1,9 +1,15 @@
 <template>
     <div v-if="watchedMovies.length">
+        <div class="ml-4 pl-3 mt-5 mb-4 horBar">
+            <div>RECOMMENDATIONS</div><div class="horBarBg"></div>
+        </div>
         <component v-for="(data, index) in randomSuggestionsArray" :key="`randomListId-${index}`" :is="'movieSlider'"
-            :movies="data.items" :configuration="configuration" class="mt-4"
-            :heading="`Because you saw ${data.parentItem.title}`" :id="`randomListId-${index}`"
-            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></component>
+            :movies="data.items" :configuration="configuration" class="mb-4" :id="`randomListId-${index}`"
+            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo">
+            <div>
+                <span class="slider-heading">{{`${data.parentItem.title}`}}</span> <span class="subText">similar</span>
+            </div>
+        </component>
     </div>
 </template>
 <script lang="ts">
@@ -92,5 +98,31 @@
     }
 </script>
 <style lang="less" scoped>
-
+    .horBar {
+        display: flex;
+        font-weight: 500;
+        font-size: 0.9em;
+        color: #aaa;
+    }
+    .horBarBg {
+        background-color: #333;
+        margin-top: 0.7em;
+        margin-left: 1em;
+        margin-right: 3em;
+        height: 3px;
+        width: 100%;
+    }
+    .slider-heading {
+        font-size: 17px;
+        font-weight: 500;
+        padding-left: 2.2em;
+        padding-top: 1em;
+        padding-bottom: 0.4em;
+        margin-left: 0.5em;
+    }
+    .subText {
+        margin-left: 0.5em;
+        font-size: 0.95em;
+        color: #aaa;
+    }
 </style>

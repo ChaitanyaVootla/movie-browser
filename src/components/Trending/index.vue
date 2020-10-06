@@ -68,7 +68,6 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
-
     .justify-center {
         display:flex;
         justify-content:center;

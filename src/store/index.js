@@ -160,8 +160,6 @@ const store = new Vuex.Store({
                             );
                             series.forEach(
                                 series => {
-                                    console.log((moment({hours: 0}).diff(series.updatedAt, 'days')), series.status,
-                                        series.name);
                                     if ((moment({hours: 0}).diff(series.updatedAt, 'days')*-1 >= 2) ||
                                         (moment({hours: 0}).diff(series.updatedAt, 'days') >= 2)
                                         && series.status !== 'Ended') {

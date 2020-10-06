@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-menu default-active="1-1" class="vertical-menu" :collapse="isMobile">
+        <el-menu default-active="1-1" class="vertical-menu" :collapse="isMobile" :default-openeds="['1','2']">
             <el-submenu index="1">
                 <template slot="title">
                     <font-awesome-icon :icon="['fas', 'film']" class="mr-2"/>
@@ -8,15 +8,15 @@
                 </template>
                     <el-menu-item index="1-1" @click="selectedItem = 'watchListMovies'">Watch List</el-menu-item>
                     <el-menu-item index="1-2" @click="selectedItem = 'watchedMovies'">Watched</el-menu-item>
-                    <el-menu-item index="1-3" @click="selectedItem = 'historyMovies'">Browse History</el-menu-item>
+                    <!-- <el-menu-item index="1-3" @click="selectedItem = 'historyMovies'">Browse History</el-menu-item> -->
             </el-submenu>
             <el-submenu index="2">
                 <template slot="title">
                     <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
                     <span slot="title">Series</span>
                 </template>
-                    <el-menu-item index="2-1">Watch List</el-menu-item>
-                    <el-menu-item index="2-2" @click="selectedItem = 'seriesHistory'">Browse History</el-menu-item>
+                    <el-menu-item index="2-1" @click="selectedItem = 'watchListSeries'">Watch List</el-menu-item>
+                    <!-- <el-menu-item index="2-2" @click="selectedItem = 'seriesHistory'">Browse History</el-menu-item> -->
             </el-submenu>
         </el-menu>
         <div class="history-container">
@@ -53,6 +53,9 @@
             },
             watchListMovies() {
                 return this.$store.getters.watchListMovies;
+            },
+            watchListSeries() {
+                return this.$store.getters.watchListSeries;
             },
             historyMovies() {
                 return this.$store.getters.history.movies;

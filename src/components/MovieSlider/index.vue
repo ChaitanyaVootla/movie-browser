@@ -1,7 +1,7 @@
 <template>
     <div :class="`${id} main-slider-div ${history?'history-slider':''}`">
         <slot>
-            <div class="slider-heading" :style="{'padding-top': history?'10px':'1em'}">
+            <div class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
                 <!-- <font-awesome-icon :icon="['fas', 'history']" v-if="history"/> -->
                 {{heading}}
             </div>

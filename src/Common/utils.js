@@ -3,14 +3,16 @@ const sanitizeName = (string) => {
 }
 
 const getRatingColor = (rating) => {
-  if (rating < 5)
-      return 'red';
-  if (rating < 6.5)
-      return 'orange';
-  if (rating < 8)
-      return 'green';
-  else
-      return 'purple';
+    if (rating === 0) {
+        return 'grey';
+    } else if (rating < 5) {
+        return 'red';
+    } else if (rating < 6.5) {
+        return 'orange';
+    } else if (rating < 8) {
+        return 'green';
+    }
+    return 'purple';
 }
 
 const getYear = (date) => {

@@ -147,8 +147,8 @@
         </div>
         <div v-if="isLoaded" class="movies-grid-container">
             <movie-card v-for="movie in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
-                :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo" :hideWatched="hideWatchedMovies"
-            >
+                :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"
+                :hideWatched="hideWatchedMovies">
             </movie-card>
         </div>
         <div class="loader-main" v-if="isDataLoading"></div>

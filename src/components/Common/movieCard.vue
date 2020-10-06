@@ -25,10 +25,12 @@
                             <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
                         </a>
                     </div> -->
+                    <!-- <div class="top-overlay" v-if="movie.release_date">{{getDateText(movie.release_date)}}</div> -->
                     <div class="info-overlay">
+                        <div v-if="movie.release_date" class="top-overlay">{{getDateText(movie.release_date)}}</div>
                         <span class="rating-info" :style="`border-color: ${getRatingColor(movie.vote_average)};
                             color: ${getRatingColor(movie.vote_average)}`">
-                            {{movie.vote_average}}
+                            {{movie.vote_average?movie.vote_average:'-'}}
                         </span>
                         <el-tooltip class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
                             :disabled="isWatched">
@@ -40,8 +42,8 @@
                         <!-- {{movie.vote_average}} -->
                     </div>
                 </div>
-                <div class="secondary-text mt-1 ml-1">{{movie.character || movie.job || movie.bottomInfo}}</div>
             </div>
+            <div class="secondary-text mt-1 ml-1">{{movie.character || movie.job || movie.bottomInfo}}</div>
         </router-link>
     </div>
 </template>
@@ -49,7 +51,7 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import { sanitizeName } from '../../Common/utils';
-    import { getRatingColor } from '../../Common/utils';
+    import { getRatingColor, getDateText } from '../../Common/utils';
     import { db } from '../../Common/firebase';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants';
     import { omit } from 'lodash';
@@ -66,6 +68,7 @@
                     error: require('../../Assets/Images/error.svg'),
                 },
                 sanitizeName,
+                getDateText,
             };
         },
         methods: {
@@ -117,9 +120,6 @@
         background-size: 4em;
         width: 11em;
     }
-    .top-overlay {
-        display: none;
-    }
     .watched-overlay {
         position: absolute;
         bottom: 0;
@@ -132,6 +132,8 @@
     }
     .movie-item {
         cursor: pointer;
+        display: flex;
+        // flex-direction: column;
         transition: transform .3s ease-in-out;
     }
     .movie-item:hover {
@@ -152,6 +154,12 @@
     .watched {
         opacity: 0.8;
         filter: grayscale();
+        transition: 300ms;
+    }
+    .watched:hover {
+        filter: none;
+        opacity: 1;
+        border: none;
     }
     .watched-action {
         float: right;
@@ -170,6 +178,12 @@
         background: rgba(0, 0, 0, 0.8);
         padding: 0.2em;
         transition: 300ms;
+    }
+    .top-overlay {
+        text-align: center;
+        padding-bottom: 0.2em;
+        font-size: 0.8em;
+        font-weight: 500;
     }
     .movie-item:hover .img-overlay {
         opacity: 1;
@@ -197,6 +211,14 @@
     }
     .img-container {
         position: relative;
+    }
+    .info-overlay:active {
+        transform: none;
+    }
+    .img-container:active {
+        box-shadow: none;
+        // bottom: -2px;
+        transform: scale(0.98);
     }
     .rating-info {
         font-size: 0.9em;
