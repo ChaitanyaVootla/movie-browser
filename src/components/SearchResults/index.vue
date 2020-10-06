@@ -20,9 +20,9 @@
             {{getGenreNameFromId(genreId)}}{{index === result.genre_ids.length -1?'':','}}
           </span>
         </div>
-        <div class="mt-2" v-if="result.vote_average">
+        <div class="mt-3">
           <div class="rating-info" :style="`border-color: ${getRatingColor(result.vote_average)}; color: ${getRatingColor(result.vote_average)}`">
-            {{result.vote_average}}
+            {{result.vote_average?result.vote_average:'-'}}
           </div>
         </div>
         <div v-if="result.media_type==='person'" class="mt-4">
@@ -33,7 +33,7 @@
             </span>
           </div>
         </div>
-        <div style="max-height: 3em; overflow: hidden;" class="mt-4">
+        <div class="word-wrap mt-2">
           {{result.overview}}
         </div>
       </div>
@@ -130,5 +130,12 @@
   .search-info-container {
     display: flex;
     flex-direction: column;
+  }
+  .word-wrap {
+    white-space: initial;
+    word-break: break-word;
+    font-size: 0.8em;
+    overflow: hidden;
+    max-height: 4em;
   }
 </style>
