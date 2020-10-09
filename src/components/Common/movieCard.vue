@@ -184,6 +184,7 @@
         padding-bottom: 0.2em;
         font-size: 0.8em;
         font-weight: 500;
+        color: #aaa;
     }
     .movie-item:hover .img-overlay {
         opacity: 1;

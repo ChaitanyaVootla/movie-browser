@@ -102,7 +102,7 @@
     margin-bottom: 0.5em;
     padding-bottom: 0.5em;
     cursor: pointer;
-    border-bottom: solid 1px #333;
+    border-bottom: solid 1px #252525;
     line-height: 24px !important;
   }
   .search-image[lazy=error] {
@@ -116,10 +116,12 @@
     width: 7em;
   }
   .rating-info {
-    font-size: 1em;
+    font-size: 0.9em;
+    width: 2.3em;
   }
   .search-image {
     height: 10em;
+    border-radius: 3px;
   }
   .search-item:last-child {
     border-bottom: 0;

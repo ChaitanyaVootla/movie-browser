@@ -109,16 +109,18 @@
                 </div>
             </div>
         </div>
-        <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
-            :selectPerson="selectPerson"></person-slider>
-        <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
-            :selectPerson="selectPerson"></person-slider>
+        <div class="">
+            <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
+                :selectPerson="selectPerson"></person-slider>
+            <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
+                :selectPerson="selectPerson"></person-slider>
 
-        <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
-            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
-        <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration" :heading="'Recommended'" :id="'recommended'"
-            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
-        <div class="mb-5"></div>
+            <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+            <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration" :heading="'Recommended'" :id="'recommended'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+            <div class="mb-5"></div>
+        </div>
         <el-dialog
             :visible.sync="dialogVisible"
             :width="defaultImageTab === 'backdrops'?'95%':'50%'"
