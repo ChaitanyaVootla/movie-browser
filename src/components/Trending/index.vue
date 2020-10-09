@@ -11,6 +11,8 @@
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider> -->
                 <movie-slider :movies="trendingTv" :configuration="configuration" :heading="'Trending TV Series'" :id="'trendingSeries'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
+                <movie-slider :movies="currentAiring" :configuration="configuration" :heading="'Currently On Air'" :id="'currentAiring'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
                 <random-suggestions :configuration="configuration" :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showSeriesInfo"></random-suggestions>
             </div>
@@ -38,6 +40,7 @@
               trendingMovies: [],
               trendingPeople: [],
               latestMovies: [] as any[],
+              currentAiring: [] as any[],
           }  
         },
         mounted() {
@@ -48,6 +51,7 @@
                 await this.getTrendingTv();
                 await this.getTrendingMovies();
                 await this.getLatestMovies();
+                await this.getCurrentAiring();
                 this.isTrendingDataLoaded = true;
             },
             async getTrendingTv() {
@@ -61,6 +65,10 @@
             async getLatestMovies() {
                 let {results: latestMovies} = await api.getLatestMovies();
                 this.latestMovies = _.sortBy(latestMovies, ({popularity}) => -popularity);
+            },
+            async getCurrentAiring() {
+                let {results: currentAiring} = await api.getCurrentStreamingSeries();
+                this.currentAiring = _.sortBy(currentAiring, ({popularity}) => -popularity);
             },
         }
     }

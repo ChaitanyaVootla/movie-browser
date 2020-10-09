@@ -49,9 +49,9 @@
                 $(`.${this.id} .slider-bar`)[0].scrollLeft += $(`.${this.id} .slider-bar`)[0].clientWidth;
             },
             checkIsBarFull() {
-                if ($(`.${this.id} .slider-bar`)[0] && $(`.${this.id} .slider-heading`)[0]) {
-                    return $(`.${this.id} .slider-bar`)[0].scrollWidth > $(`.${this.id} .slider-heading`)[0].clientWidth;
-                }
+                // if ($(`.${this.id} .slider-bar`)[0] && $(`.${this.id} .slider-heading`)[0]) {
+                //     return $(`.${this.id} .slider-bar`)[0].scrollWidth > $(`.${this.id} .slider-heading`)[0].clientWidth;
+                // }
                 return true;
             },
         },
@@ -73,11 +73,12 @@
         overflow-x: auto;
         overflow-y: hidden;
         scroll-behavior: smooth;
-        justify-content: space-between;
+        justify-content: end;
         position: relative;
         padding: 0 0.5em;
         margin-right: 0.5em;
         padding-top: 0.5em;
+        width: 100%;
     }
     .slider-bar::-webkit-scrollbar {
         display: none;

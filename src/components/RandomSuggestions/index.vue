@@ -40,7 +40,10 @@
                 if (this.watchedMoviesPool.length) {
                     this.fetchRandomWatchedMovies();
                 }
-            }, 300)
+            }, 300,
+            {
+                leading: true,
+            })
         },
         computed: {
             watchedMovies() {
@@ -65,14 +68,16 @@
                 }
             },
             fetchRandomWatchedMovies() {
-                this.getRandomRecentWatchedMovieData().then(
-                    randomData => {
-                        this.randomSuggestionsArray.push({
-                            type: 'watchHistory',
-                            ...randomData,
-                        });
-                    }
-                );
+                for (let count = 0; count < 3; count++) {
+                    this.getRandomRecentWatchedMovieData().then(
+                        randomData => {
+                            this.randomSuggestionsArray.push({
+                                type: 'watchHistory',
+                                ...randomData,
+                            });
+                        }
+                    );
+                }
             },
             async getRandomRecentWatchedMovieData() {
                 const watchedMovies = this.$store.getters.watched.movies;
