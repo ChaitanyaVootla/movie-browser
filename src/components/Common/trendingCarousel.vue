@@ -1,7 +1,7 @@
 <template>
     <el-row class="week-trends-container pt-3">
         <el-col :span="watchListAbsent?24:15">
-            <el-carousel height="550px" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5"
+            <el-carousel :height="getCarouselHeight" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5" id="trending-carousel"
                 :key="watchListAbsent">
                 <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
                     <div class="carousel-card-container" @click="carouselCardClicked(item)">
@@ -10,7 +10,8 @@
                                     src: `${configuration.images.secure_base_url}h632${item.backdrop_path}`,
                                     error: require('../../Assets/Images/error.svg'),
                                     loading: require('../../Assets/Images/loader-bars.svg'),
-                                }" height="640px"
+                                }"
+                                class="carousel-image"
                             />
                         </div>
                         <div class="info-container" v-if="currentCarouselItem.id === item.id">
@@ -96,6 +97,9 @@
             this.loadData();
         },
         computed: {
+            getCarouselHeight() {
+                return `${window.innerHeight/2}px`;
+            },
             savedFilters() {
                 return sortBy(this.$store.getters.savedFilters, 'name');
             },
@@ -186,11 +190,16 @@
     .week-trends-container {
         background-color: rgb(24, 24, 24);
     }
+    .carousel-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 10% 0;
+    }
     .background-images-container {
         filter: opacity(0.4);
-        height: 30em;
+        height: 100%;
         overflow: hidden;
-        height: 540px;
         border-radius: 0.2em;
     }
     .info-container {
@@ -200,7 +209,7 @@
         overflow: hidden;
         color: #fff;
         width: 80% !important;
-        height: 30em;
+        height: 65%;
     }
     .secondary-info {
         color: rgb(228, 228, 228);

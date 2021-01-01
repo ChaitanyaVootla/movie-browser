@@ -151,6 +151,9 @@
                 :hideWatched="hideWatchedMovies">
             </movie-card>
         </div>
+        <div class="grid-center" v-if="!hideLoadMore">
+            <el-button @click="loadMoreMovies">Load More</el-button>
+        </div>
         <div class="loader-main" v-if="isDataLoading"></div>
         <el-dialog
             :title="$router.currentRoute.query.name?'Delete Filter':'Save Filter'"
@@ -275,6 +278,9 @@
             savedFilters() {
                 return sortBy(this.$store.getters.savedFilters, 'name');
             },
+            hideLoadMore() {
+                return (this.queryData.total_pages < this.currentPage - 1);
+            }
         },
         methods: {
             filterClicked() {
@@ -633,6 +639,10 @@
     .movies-grid-container {
         padding-left: 3em;
         padding-right: 3em;
+    }
+    .grid-center {
+        display: grid;
+        place-items: center;
     }
     .query-info {
         padding: 1em 0 0 3em;

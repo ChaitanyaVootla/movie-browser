@@ -84,6 +84,17 @@
         <movie-slider :movies="completedSeries" :configuration="configuration"
             heading="Completed Series" :id="'completedSeries'" :showFullMovieInfo="showSeriesInfo"
             v-if="completedSeries.length"></movie-slider>
+
+        <div v-if="canShowOnbarding" class="onboarding-container">
+            <div class="onboardingText">
+                <p class="actualonboardingText">
+                    You can track your favorite series here to know when the next episode will be coming out.
+                    <span v-if="user"> You can add series to your watch list by visiting the series homepage and clicking on add to watch list</span>
+                    <span v-else> Please login to access this feature</span>
+                </p>
+            </div>
+            <img src="/images/stream-list.png" class="onboardingImage"/>
+        </div>
     </div>
 </template>
 
@@ -109,6 +120,12 @@
             }
         },
         computed: {
+            canShowOnbarding() {
+                return !this.$store.getters.watchListSeries.length;
+            },
+            user() {
+                return this.$store.getters.user;
+            },
             seriesWatchList() {
                 let watchListSeries = this.$store.getters.watchListSeries;
                 watchListSeries = compact(watchListSeries.map(
@@ -213,5 +230,28 @@
         position: relative;
         cursor: pointer;
         padding: 0 1em;
+    }
+    .onboardingText {
+        font-size: 20px;
+        font-weight: 600;
+        vertical-align: middle;
+        padding-top: 30em;
+        margin-right: 5em;
+    }
+    .actualonboardingText {
+        box-shadow: 4px 4px 30px 7px #333;
+        background: #151515;
+        color: @main-red;
+        padding: .5em;
+        border-radius: 1em;
+    }
+    .onboardingImage {
+        margin-top: 7em;
+        padding: 1em;
+        box-shadow: 4px 4px 30px 7px #333;
+    }
+    .onboarding-container {
+        display: flex;
+        justify-content: space-around;
     }
 </style>
