@@ -92,7 +92,8 @@
         position: relative;
         padding: 0 0.5em;
         margin-right: 0.5em;
-        padding-top: 0.5em;
+        padding-top: 1em;
+        padding-bottom: 1em;
         width: 100%;
     }
     .slider-bar::-webkit-scrollbar {
@@ -133,10 +134,13 @@
         min-width: 8em;
     }
     /deep/ .movie-item {
-        margin-right: 1em !important;
+        margin-right: 1.5em !important;
     }
     .history-slider /deep/.movie-card-image {
-        height: 14em;
+        height: 15em;
+    }
+    .history-slider /deep/ .el-badge__content {
+        display: none;
     }
     @media (max-width: 767px) {
         .scroll-item {

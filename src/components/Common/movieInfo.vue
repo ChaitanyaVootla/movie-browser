@@ -207,8 +207,9 @@
                 const monthNames = ["January", "February", "March", "April", "May", "June",
                     "July", "August", "September", "October", "November", "December"
                 ];
-                const date = new Date(movieDate)
-                return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+                const date = new Date(movieDate);
+                console.log(date.getDate())
+                return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
             },
             getYear: function(movieDate: any) {
                 return new Date(movieDate).getFullYear();

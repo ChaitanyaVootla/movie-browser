@@ -105,19 +105,19 @@
         <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
             :selectPerson="selectPerson"></person-slider>
 
+        <!-- Episodes slider -->
         <div class="mt-4 pt-3 pb-3 season-container">
             <span class="ml-4 pl-3 mr-3">Seasons</span>
-            <el-select v-model="selectedSeason" placeholder="Select"
-                @change="seasonChanged">
+            <el-select v-model="selectedSeason" placeholder="Select" @change="seasonChanged">
                 <el-option
                     v-for="item in seasons"
                     :key="item.id"
                     :label="item.name"
                     :value="item.id">
-            </el-option>
+                </el-option>
             </el-select> <span class="ml-3">{{selectedSeasonInfo.episodes.length}} Episodes - {{getDateText(selectedSeasonInfo.air_date)}}</span>
-            <season-slider v-if="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
-                :id="`season${selectedSeasonInfo.id}`" :showHeader="true"></season-slider>
+            <season-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
+                :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details"></season-slider>
         </div>
 
         <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"

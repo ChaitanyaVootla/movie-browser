@@ -40,6 +40,7 @@ Vue.config.productionTip = true;
 Vue.component('movieSlider', require('./components/MovieSlider').default);
 Vue.component('seasonSlider', require('./components/SeasonSlider').default);
 Vue.component('movieCard', require('./components/Common/movieCard.vue').default);
+Vue.component('sideDrawer', require('./components/SideDrawer/index.vue').default);
 Vue.component('movieInfo', require('./components/Common/movieInfo.vue').default);
 Vue.component('movieInfoFull', require('./components/MovieInfo/index.vue').default);
 Vue.component('seriesInfo', require('./components/SeriesInfo').default);

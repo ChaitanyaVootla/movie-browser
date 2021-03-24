@@ -1,5 +1,7 @@
 <template>
-    <div v-show="!(hideWatched && isWatched)">
+    <div v-show="!(hideWatched && isWatched)"
+        @mouseover="isHoverActive = true"
+        @mouseleave="isHoverActive = false">
         <router-link :to="{
             name: movie.first_air_date?'seriesInfo':'movieInfoFull',
             params:
@@ -8,40 +10,41 @@
                     id: movie.id
                 }
             }">
-            <div class="movie-item">
-                <div class="img-container">
-                    <div v-if="isWatched" class="watched-overlay rating-info">
-                        <font-awesome-icon :icon="['fas', 'check']"/>
-                    </div>
-                    <img v-lazy="imageObj" class="movie-card-image" :class="isWatched?'watched':''">
-                    <!-- TODO check this function is needed -->
-                    <!-- <div class="img-overlay">
-                        <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
-                            target="_blank" class="mr-3 pl-2 pr-2">
-                            <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                        </a>
-                        <a @click="onSelected(movie)"
-                            target="_blank" class="mr-1 pl-2 pr-1">
-                            <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
-                        </a>
-                    </div> -->
-                    <!-- <div class="top-overlay" v-if="movie.release_date">{{getDateText(movie.release_date)}}</div> -->
-                    <div class="info-overlay">
-                        <div v-if="movie.release_date" class="top-overlay">{{getDateText(movie.release_date)}}</div>
-                        <span class="rating-info" :style="`border-color: ${getRatingColor(movie.vote_average)};
-                            color: ${getRatingColor(movie.vote_average)}`">
-                            {{movie.vote_average?movie.vote_average:'-'}}
-                        </span>
-                        <el-tooltip class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
-                            :disabled="isWatched">
-                            <span class="rating-info watched-action" :class="isWatched?'green':''"
-                                v-on:click.prevent @click="toggleWatched" v-if="movie.release_date">
-                                <font-awesome-icon :icon="['fas', 'check']" :class="isWatched?'green':''"/>
+            <div class="movie-item" :class="`${canApplySideBarFilter && !isInSideBarFilter?'sideBarFilter':''} ${isTodayCard?'isTodayCard':''} ${isWatched?'watched':''}`">
+                <el-badge :value="badgeText" :class="`${badgeText} item ${isHoverActive?'isHoverActive':''}`">
+                    <div class="img-container">
+                        <div v-if="isWatched" class="watched-overlay rating-info">
+                            <font-awesome-icon :icon="['fas', 'check']"/>
+                        </div>
+                        <img v-lazy="imageObj" class="movie-card-image">
+                        <!-- TODO check if this function is needed -->
+                        <!-- <div class="img-overlay">
+                            <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
+                                target="_blank" class="mr-3 pl-2 pr-2">
+                                <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
+                            </a>
+                            <a @click="onSelected(movie)"
+                                target="_blank" class="mr-1 pl-2 pr-1">
+                                <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
+                            </a>
+                        </div> -->
+                        <!-- <div class="top-overlay" v-if="movie.release_date">{{getDateText(movie.release_date)}}</div> -->
+                        <div class="info-overlay">
+                            <div v-if="movie.release_date" class="top-overlay">{{getDateText(movie.release_date)}}</div>
+                            <span class="rating-info" :style="`border-color: ${getRatingColor(movie.vote_average)};
+                                color: ${getRatingColor(movie.vote_average)}`">
+                                {{movie.vote_average?movie.vote_average:'-'}}
                             </span>
-                        </el-tooltip>
-                        <!-- {{movie.vote_average}} -->
+                            <el-tooltip class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
+                                :disabled="isWatched">
+                                <span class="rating-info watched-action" :class="isWatched?'green':''"
+                                    v-on:click.prevent @click="toggleWatched" v-if="movie.release_date">
+                                    <font-awesome-icon :icon="['fas', 'check']" :class="isWatched?'green':''"/>
+                                </span>
+                            </el-tooltip>
+                        </div>
                     </div>
-                </div>
+                </el-badge>
             </div>
             <div class="secondary-text mt-1 ml-1">{{movie.character || movie.job || movie.bottomInfo}}</div>
         </router-link>
@@ -54,7 +57,8 @@
     import { getRatingColor, getDateText } from '../../Common/utils';
     import { db } from '../../Common/firebase';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants';
-    import { omit } from 'lodash';
+    import { omit, intersection } from 'lodash';
+    import moment from 'moment';
 
     export default {
         name: 'movieCard',
@@ -69,6 +73,21 @@
                 },
                 sanitizeName,
                 getDateText,
+                isHoverActive: false,
+                badgeTypes: {
+                    NEW: {
+                        text: 'NEW',
+                    },
+                    RECENT: {
+                        text: 'RECENT',
+                    },
+                    UNRELEASED: {
+                        text: 'UNRELEASED',
+                    },
+                    WATCHED: {
+                        text: 'WATCHED',
+                    },
+                }
             };
         },
         methods: {
@@ -94,9 +113,51 @@
             }
         },
         computed: {
+            isInSideBarFilter() {
+                if (this.movie.first_air_date) {
+                    return this.$store.getters.canFilterSeries && intersection(this.$store.getters.sideBarFilters.seriesGenres.map(({ id }) => id), this.movie.genre_ids).length;
+                } else {
+                    return this.$store.getters.canFilterMovies && intersection(this.$store.getters.sideBarFilters.movieGenres.map(({ id }) => id), this.movie.genre_ids).length;
+                }
+            },
+            isTodayCard() {
+                return this.movie.bottomInfo && this.movie.bottomInfo.includes('Today');
+            },
+            canApplySideBarFilter() {
+                if (this.movie.first_air_date) {
+                    return this.$store.getters.canFilterSeries;
+                } else {
+                    return this.$store.getters.canFilterMovies;
+                }
+            },
+            canShowNewBadge() {
+                return this.movie.release_date?moment(this.movie.release_date).isAfter(moment().clone().subtract(14, 'days').startOf('day')):
+                    moment(this.movie.first_air_date).isAfter(moment().clone().subtract(1, 'months').startOf('day'));
+            },
+            canShowRecentBadge() {
+                return this.movie.release_date?moment(this.movie.release_date).isAfter(moment().clone().subtract(1, 'months').startOf('day')):false;
+            },
+            canShowUnreleasedBadge() {
+                return this.movie.release_date?moment(this.movie.release_date).isAfter(moment()):
+                    moment(this.movie.first_air_date).isAfter(moment());
+            },
             isWatched() {
                 return this.$store.getters.watchedMovieIds.includes(this.movie.id) ||
                     this.$store.getters.watchedSeriesIds.includes(this.movie.id);
+            },
+            badgeText() {
+                if (this.isWatched) {
+                    return this.badgeTypes.WATCHED.text;
+                }
+                if (this.canShowUnreleasedBadge) {
+                    return this.badgeTypes.UNRELEASED.text;
+                }
+                if (this.canShowNewBadge) {
+                    return this.badgeTypes.NEW.text;
+                }
+                if (this.canShowRecentBadge) {
+                    return this.badgeTypes.RECENT.text;
+                }
             },
             user() {
                 return this.$store.getters.user;
@@ -113,6 +174,35 @@
         width: 11em;
         box-shadow: rgba(0, 0, 0, 0.5) 0px 3px 10px 0.2em;
         background-color: #161616;
+    }
+    .sideBarFilter {
+        opacity: 0.1;
+    }
+    /deep/ .el-badge__content {
+        font-weight: 700;
+        font-size: 0.7em;
+        right: 10em;
+        top: 24.5em;
+    }
+    /deep/ .el-badge.isHoverActive .el-badge__content {
+        // top: 17em;
+        z-index: 55;
+    }
+    /deep/ .el-badge.RECENT .el-badge__content {
+        background-color:rgb(255, 141, 141)
+    }
+    /deep/ .el-badge.UNRELEASED .el-badge__content {
+        background-color:gray;
+        right: 11.5em;
+    }
+    /deep/ .el-badge.WATCHED .el-badge__content {
+        background-color:black;
+        color: white;
+        right: 11.5em;
+    }
+    .isTodayCard .movie-card-image {
+        // height: 15.5em;
+        box-shadow: rgba(80, 80, 80) 0px -4px 15px 0.2em;
     }
     .movie-card-image[lazy=loading] {
         background-image: url('../../Assets/Images/loader-bars.svg');
@@ -152,9 +242,10 @@
         background-position: 50% 50%;
     }
     .watched {
-        opacity: 0.8;
+        opacity: 0.7;
         filter: grayscale();
         transition: 300ms;
+        transform: scale(0.92);
     }
     .watched:hover {
         filter: none;

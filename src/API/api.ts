@@ -46,6 +46,11 @@ export const api = {
             '?&api_key=' + appConfig.token);
         return details;
     },
+    getEpisodeImages: async function(seriesId: number, seasonNumber: number, episodeNumber: number) {
+        const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + seriesId + `/season/${seasonNumber}/episode/${episodeNumber}/images` +
+            '?&api_key=' + appConfig.token);
+        return details;
+    },
     getPersonDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.personDetails + id + '?&api_key=' + appConfig.token + personDetailsDefaultQuery);
         return details;

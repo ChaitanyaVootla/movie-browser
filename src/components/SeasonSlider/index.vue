@@ -14,7 +14,7 @@
             <div class="slider-bar" id="scroll-bar">
                 <episode-card v-for="(movie, index) in movies" :episode="movie" :configuration="configuration" :imageRes="'w500'"
                     :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"
-                    :showHeader="showHeader"></episode-card>
+                    :showHeader="showHeader" :openEpisodeDialog="openEpisodeDialog"></episode-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight">
                 <!-- <font-awesome-icon :icon="['fas', 'chevron-right']" /> -->
@@ -23,11 +23,33 @@
         </div>
         <!-- <movie-info v-show="showInfo" :movie="selectedMovie" :configuration="configuration" :imageRes="'w500'"
             :closeInfo="closeInfo"></movie-info> -->
+        <el-dialog
+            :visible.sync="episodeDialogVisible">
+            <h5>{{dialogEpisode.name}}</h5>
+            Episode {{dialogEpisode.episode_number}}<span v-if="dialogEpisode.air_date"> - {{getDateText(dialogEpisode.air_date)}}</span>
+
+            <p>{{dialogEpisode.overview}}</p>
+
+            <el-carousel height="700px" style="padding: 1em 0;">
+                <el-carousel-item v-for="image in dialogEpisode.images.stills" :key="image.file_path">
+                    <div class="justify-center">
+                        <img v-lazy="{
+                                src: `${configuration.images.secure_base_url}h632${image.file_path}`,
+                                error: require('../../Assets/Images/error.svg'),
+                                loading: require('../../Assets/Images/loader-bars.svg'),
+                            }" height="700px"
+                        />
+                    </div>
+                </el-carousel-item>
+            </el-carousel>
+        </el-dialog>
     </div>
 </template>
 
 <script lang="ts">
     import { api } from '../../API/api';
+    import { getFullDateText, getDateText } from '../../Common/utils';
+
     export default {
         name: 'seasonSlider',
         props: [
@@ -38,16 +60,32 @@
             'airDate',
             'showMovieInfoModal',
             'showFullMovieInfo',
+            'seriesInfo',
+            'seasonInfo',
             'showHeader',
         ],
         data() {
-          return {
-              scrollValue: 500,
-              selectedMovie: {},
-              showInfo: false,
-          }  
+            return {
+                scrollValue: 500,
+                selectedMovie: {},
+                dialogEpisode: {
+                    images: {
+                        still: []
+                    }
+                },
+                showInfo: false,
+                getFullDateText,
+                getDateText,
+                episodeDialogVisible: false,
+            }
         },
         methods: {
+            async openEpisodeDialog(episode) {
+                this.dialogEpisode = Object.assign(episode, {images: { stills:[] }});
+                this.dialogEpisode.images = await api.getEpisodeImages(this.seriesInfo.id, this.seasonInfo.season_number, this.dialogEpisode.episode_number);
+                this.episodeDialogVisible = true;
+                
+            },
             slideLeft: function () {
                 $(`.${this.id} .slider-bar`)[0].scrollLeft -=  $(`.${this.id} .slider-bar`)[0].clientWidth;
             },
@@ -86,6 +124,10 @@
     }
     .slider-bar::-webkit-scrollbar {
         display: none;
+    }
+    .justify-center {
+        display:flex;
+        justify-content:center;
     }
     .slider-heading {
         font-size: 17px;

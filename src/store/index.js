@@ -31,6 +31,10 @@ const store = new Vuex.Store({
             seriesIds: [],
         },
         savedFilters: [],
+        sideBarFilters: {
+            movieGenres: [],
+            seriesGenres: [],
+        }
     },
     mutations: {
         setUser(state, user) {
@@ -70,6 +74,10 @@ const store = new Vuex.Store({
         setSavedFilters(state, savedFilters) {
             state.savedFilters = savedFilters;
         },
+        setSideBarFilters(state, { movieGenres, seriesGenres }) {
+            state.sideBarFilters.movieGenres = movieGenres;
+            state.sideBarFilters.seriesGenres = seriesGenres;
+        },
     },
     getters: {
         user: state => state.user,
@@ -83,118 +91,124 @@ const store = new Vuex.Store({
         watchListMovies: state => state.watchList.movies,
         watchListSeries: state => state.watchList.series,
         savedFilters: state => state.savedFilters,
+        sideBarFilters: state => state.sideBarFilters,
+        canFilterMovies: state => state.sideBarFilters.movieGenres.length,
+        canFilterSeries: state => state.sideBarFilters.seriesGenres.length,
     },
     actions: {
-      initFirebase ({ commit }) {
-        firebase.auth().onAuthStateChanged(
-            async (user) => {
-                if (user) {
-                    commit('setUser', user);
-                    const userDbRef = db.collection('users').doc(user.uid);
-                    await userDbRef.set({
-                        displayName: user.displayName,
-                        photoURL: user.photoURL
-                    });
-                    // userDbRef.collection('moviesHistory').onSnapshot(
-                    //     snapshot => {
-                    //         const movies = [];
-                    //         snapshot.forEach(
-                    //             doc => doc.id == doc.data().id?movies.push(doc.data()):''
-                    //         );
-                    //         commit('setHistory', {
-                    //             movies: sortBy(movies, 'updatedAt').reverse(),
-                    //         });
-                    //     }, (e) => console.error(e)
-                    // );
-                    // userDbRef.collection('seriesHistory').onSnapshot(
-                    //     snapshot => {
-                    //         const series = [];
-                    //         snapshot.forEach(
-                    //             doc => doc.id == doc.data().id?series.push(doc.data()):''
-                    //         );
-                    //         commit('setHistory', {
-                    //             series: sortBy(series, 'updatedAt').reverse(),
-                    //         });
-                    //     }, (e) => console.error(e)
-                    // );
-                    userDbRef.collection('watchedMovies').onSnapshot(
-                        snapshot => {
-                            const movies = [];
-                            snapshot.forEach(
-                                doc => movies.push(doc.data())
-                            );
-                            commit('setWatched', {
-                                movies: sortBy(movies, 'updatedAt').reverse(),
-                            });
-                        }, (e) => console.error(e)
-                    );
-                    userDbRef.collection('moviesWatchList').onSnapshot(
-                        snapshot => {
-                            const movies = [];
-                            snapshot.forEach(
-                                doc => movies.push(doc.data())
-                            );
-                            commit('setWatchList', {
-                                movies: sortBy(movies, 'updatedAt').reverse(),
-                            });
-                        }, (e) => console.error(e)
-                    );
-                    userDbRef.collection('savedFilters').onSnapshot(
-                        snapshot => {
-                            const savedFilters = [];
-                            snapshot.forEach(
-                                doc => savedFilters.push(
-                                    {
-                                        ...doc.data(),
-                                        name: doc.id,
-                                    })
-                            );
-                            commit('setSavedFilters', savedFilters);
-                        }, (e) => console.error(e)
-                    );
-                    userDbRef.collection('seriesWatchList').onSnapshot(
-                        snapshot => {
-                            const series = [];
-                            snapshot.forEach(
-                                doc => series.push(doc.data())
-                            );
-                            series.forEach(
-                                series => {
-                                    if ((moment({hours: 0}).diff(series.updatedAt, 'days')*-1 >= 2) ||
-                                        (moment({hours: 0}).diff(series.updatedAt, 'days') >= 2)
-                                        && series.status !== 'Ended') {
-                                        api.getTvDetails(parseInt(series.id)).then(
-                                            details => {
-                                                const historyDocToAdd = {
-                                                    ...omit(details, HISTORY_OMIT_VALUES),
-                                                    updatedAt: Date.now(),
+        initFirebase ({ commit }) {
+            firebase.auth().onAuthStateChanged(
+                async (user) => {
+                    if (user) {
+                        commit('setUser', user);
+                        const userDbRef = db.collection('users').doc(user.uid);
+                        await userDbRef.set({
+                            displayName: user.displayName,
+                            photoURL: user.photoURL
+                        });
+                        // userDbRef.collection('moviesHistory').onSnapshot(
+                        //     snapshot => {
+                        //         const movies = [];
+                        //         snapshot.forEach(
+                        //             doc => doc.id == doc.data().id?movies.push(doc.data()):''
+                        //         );
+                        //         commit('setHistory', {
+                        //             movies: sortBy(movies, 'updatedAt').reverse(),
+                        //         });
+                        //     }, (e) => console.error(e)
+                        // );
+                        // userDbRef.collection('seriesHistory').onSnapshot(
+                        //     snapshot => {
+                        //         const series = [];
+                        //         snapshot.forEach(
+                        //             doc => doc.id == doc.data().id?series.push(doc.data()):''
+                        //         );
+                        //         commit('setHistory', {
+                        //             series: sortBy(series, 'updatedAt').reverse(),
+                        //         });
+                        //     }, (e) => console.error(e)
+                        // );
+                        userDbRef.collection('watchedMovies').onSnapshot(
+                            snapshot => {
+                                const movies = [];
+                                snapshot.forEach(
+                                    doc => movies.push(doc.data())
+                                );
+                                commit('setWatched', {
+                                    movies: sortBy(movies, 'updatedAt').reverse(),
+                                });
+                            }, (e) => console.error(e)
+                        );
+                        userDbRef.collection('moviesWatchList').onSnapshot(
+                            snapshot => {
+                                const movies = [];
+                                snapshot.forEach(
+                                    doc => movies.push(doc.data())
+                                );
+                                commit('setWatchList', {
+                                    movies: sortBy(movies, 'updatedAt').reverse(),
+                                });
+                            }, (e) => console.error(e)
+                        );
+                        userDbRef.collection('savedFilters').onSnapshot(
+                            snapshot => {
+                                const savedFilters = [];
+                                snapshot.forEach(
+                                    doc => savedFilters.push(
+                                        {
+                                            ...doc.data(),
+                                            name: doc.id,
+                                        })
+                                );
+                                commit('setSavedFilters', savedFilters);
+                            }, (e) => console.error(e)
+                        );
+                        userDbRef.collection('seriesWatchList').onSnapshot(
+                            snapshot => {
+                                const series = [];
+                                snapshot.forEach(
+                                    doc => series.push(doc.data())
+                                );
+                                series.forEach(
+                                    series => {
+                                        if ((moment({hours: 0}).diff(series.updatedAt, 'days')*-1 >= 2) ||
+                                            (moment({hours: 0}).diff(series.updatedAt, 'days') >= 2)
+                                            && series.status !== 'Ended') {
+                                            api.getTvDetails(parseInt(series.id)).then(
+                                                details => {
+                                                    const historyDocToAdd = {
+                                                        ...omit(details, HISTORY_OMIT_VALUES),
+                                                        updatedAt: Date.now(),
+                                                    }
+                                                    userDbRef.collection('seriesWatchList').doc(`${details.id}`).set(historyDocToAdd);
                                                 }
-                                                userDbRef.collection('seriesWatchList').doc(`${details.id}`).set(historyDocToAdd);
-                                            }
-                                        );
+                                            );
+                                        }
                                     }
-                                }
-                            )
-                            commit('setWatchList', {
-                                series: sortBy(series, 'updatedAt').reverse(),
-                            });
-                        }, (e) => console.error(e)
-                    );
-                } else {
-                    commit('setUser', {});
-                    commit('setHistory', {
-                        movies: [],
-                        series: [],
-                    });
-                    commit('setWatched', {
-                        movies: [],
-                        series: [],
-                    });
-                    commit('setWatchList', []);
+                                )
+                                commit('setWatchList', {
+                                    series: sortBy(series, 'updatedAt').reverse(),
+                                });
+                            }, (e) => console.error(e)
+                        );
+                    } else {
+                        commit('setUser', {});
+                        commit('setHistory', {
+                            movies: [],
+                            series: [],
+                        });
+                        commit('setWatched', {
+                            movies: [],
+                            series: [],
+                        });
+                        commit('setWatchList', []);
+                    }
                 }
-            }
-        );
-      }
+            );
+        },
+        updateSideBarFilters ({ commit }, { movieGenres, seriesGenres }) {
+            commit('setSideBarFilters', { movieGenres, seriesGenres });
+        }
     },
 });
 

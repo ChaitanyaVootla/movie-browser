@@ -52,7 +52,7 @@ const getDateText = (date) => {
         "July", "August", "September", "October", "November", "December"
     ];
     const dateObj = new Date(date);
-    return `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+    return `${dateObj.getDate()} ${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 }
 const getFullDateText = (date) => {
     const monthNames = ["January", "February", "March", "April", "May", "June",

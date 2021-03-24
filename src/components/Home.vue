@@ -35,7 +35,7 @@
                 <router-link :to="{ name: 'WatchList'}">
                     <div :class="onWatchList?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
-                        <span class="mobile-hide">Stream List</span>
+                        <span class="mobile-hide">Watch List</span>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -154,6 +154,15 @@
             ></router-view>
         </transition>
 
+        <!-- Side Drawer -->
+        <div class="drawer-button" @click="$refs.sideDrawer.openDrawer()">
+            <font-awesome-icon :icon="['fas', 'filter']"/>
+        </div>
+        <side-drawer ref="sideDrawer"
+            :movieGenres="movieGenres"
+            :seriesGenres="seriesGenres">
+        </side-drawer>
+
         <!-- Info Modal -->
         <div class="modal fade bd-example-modal-xl" id="movieInfoModal" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-xl">
@@ -195,6 +204,7 @@
                 currentRoute: {} as Object,
                 selectedPerson: {},
                 showSearchResults: true,
+                showDrawer: false,
             };
         },
         created() {
@@ -374,6 +384,19 @@
         display: flex;
         justify-content: center;
         align-content: center;
+    }
+    .drawer-button {
+        position: fixed;
+        right: 0;
+        top: 50%;
+        padding: 2em 0.5em;
+        background: @main-red;
+        border-top-left-radius: 1em;
+        border-bottom-left-radius: 1em;
+        border-top-right-radius: 0em;
+        border-bottom-right-radius: 0em;
+        z-index: 1000000;
+        cursor: pointer;
     }
     .trending-icon{
         font-size: 1.2em;

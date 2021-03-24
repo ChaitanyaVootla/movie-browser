@@ -44,7 +44,7 @@
         </el-col>
         <el-col :span="9" class="pr-2 pl-1" v-if="seriesWatchList.length">
             <movie-slider :movies="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
-            v-if="seriesWatchList.length" :history="true" heading="Upcoming episodes"></movie-slider>
+                v-if="seriesWatchList.length" :history="true" heading="Upcoming Episodes"></movie-slider>
             <div class="m-4 p-3 heading">
                 <div class="mb-3">Saved Filters</div>
                 <div class="filters-container">
@@ -71,7 +71,7 @@
     import { getRatingColor } from '../../Common/utils';
     import { signIn, firebase, signOut, db } from '../../Common/firebase';
     import { sortBy, groupBy, keyBy, uniqBy, compact } from 'lodash';
-    import * as moment from 'moment';
+    import moment from 'moment';
 
     export default {
         name: 'trendingCarousel',
@@ -189,6 +189,7 @@
     }
     .week-trends-container {
         background-color: rgb(24, 24, 24);
+        padding-bottom: 1em;
     }
     .carousel-image {
         width: 100%;

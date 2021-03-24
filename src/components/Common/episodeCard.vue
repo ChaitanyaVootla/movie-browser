@@ -3,8 +3,8 @@
         <div class="secondary-text mt-1">
             Episode {{episode.episode_number}}<span v-if="episode.air_date"> - {{getFullDateText(episode.air_date)}}</span>
         </div>
-        <div class="img-container">
-            <img v-lazy="imageObj" class="episode-card-image" @click="showFullEpisodeInfo(episode)"
+        <div class="img-container" @click="openEpisodeDialog(episode)">
+            <img v-lazy="imageObj" class="episode-card-image"
                 v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.2em' }"/>
         </div>
         <div class="secondary-text episode-heading mt-1 mb-1" v-if="showHeader">
@@ -23,7 +23,7 @@
             'imageRes',
             'onSelected',
             'disableRatingShadow',
-            'showFullEpisodeInfo',
+            'openEpisodeDialog',
             'showHeader'
         ],
         data() {
