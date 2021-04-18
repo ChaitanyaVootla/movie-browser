@@ -14,7 +14,7 @@
                                 class="carousel-image"
                             />
                         </div>
-                        <div class="info-container" v-if="currentCarouselItem.id === item.id">
+                        <div class="info-container shadow-text" v-if="currentCarouselItem.id === item.id">
                             <h3 div="info-heading">
                                 {{item.title || item.name}}
                             </h3>

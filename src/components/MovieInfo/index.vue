@@ -5,7 +5,7 @@
         </div>
         <div class="info-container" v-if="details.title">
             <h3 div="info-heading">
-                {{details.title}}
+                <span class="shadow-text">{{details.title}}</span>
                 <span>
                     <span class="text-muted info-tagline cursor-pointer" @click="openImageModal">
                         <font-awesome-icon :icon="['fas', 'images']"/>
@@ -22,7 +22,7 @@
             </h6>
 
             <!-- External links -->
-            <div class="ext-links-container">
+            <div class="ext-links-container shadow-text">
                 <a :href="`https://google.com/search?q=${details.title} ${getYear(details.release_date)} movie`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
@@ -42,6 +42,7 @@
                     color: ${getRatingColor(details.vote_average)}`">
                     {{details.vote_average}}
                 </span>
+                <span class="vote-count">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
             </div>
 
             <!-- bookmarks -->
@@ -367,6 +368,13 @@
         .bookmarks {
             font-size: 0.9em;
         }
+    }
+    .vote-count {
+        font-size: 0.8em;
+        margin-bottom: 2.5em;
+        padding-left: 0.5em;
+        color: whitesmoke;
+        text-shadow: 1px 1px 2px black;
     }
     .background-images-container {
         filter: opacity(0.3);
