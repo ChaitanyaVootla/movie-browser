@@ -14,7 +14,8 @@
             <div v-show="!isBarFull" class="ml-4"></div>
             <div class="slider-bar" id="scroll-bar">
                 <movie-card v-for="(movie, index) in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
-                    :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"></movie-card>
+                    :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"
+                    :hideBadge="hideBadge"></movie-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight" v-show="isBarFull">
                 <!-- <font-awesome-icon :icon="['fas', 'chevron-right']" /> -->
@@ -38,6 +39,7 @@
             'showMovieInfoModal',
             'showFullMovieInfo',
             'history',
+            'hideBadge',
         ],
         data() {
           return {

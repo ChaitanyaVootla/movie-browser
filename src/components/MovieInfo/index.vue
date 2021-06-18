@@ -42,7 +42,7 @@
                     color: ${getRatingColor(details.vote_average)}`">
                     {{details.vote_average}}
                 </span>
-                <span class="vote-count">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
+                <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
             </div>
 
             <!-- bookmarks -->

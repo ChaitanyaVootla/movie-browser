@@ -44,6 +44,7 @@
                 <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
                     {{details.vote_average}}
                 </span>
+                <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
             </div>
 
             <!-- bookmarks -->

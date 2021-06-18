@@ -12,6 +12,7 @@ import Home from './components/Home.vue';
 import Person from './components/Person/index.vue';
 import Trending from './components/Trending/index.vue';
 import Discover from './components/Discover/index.vue';
+import Content from './components/Content/index.vue';
 import Search from './components/Search/index.vue';
 import MovieInfoFull from './components/MovieInfo/index.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
@@ -24,6 +25,7 @@ import VueLazyload from 'vue-lazyload';
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
 import { store } from './store/index.js';
+import { createProvider } from './vue-apollo'
 
 Vue.use(Element);
 
@@ -48,6 +50,7 @@ Vue.component('personCard', require('./components/Common/personCard.vue').defaul
 Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);
 
 Vue.component('discover', require('./components/Discover').default);
+Vue.component('content', require('./components/Content').default);
 Vue.component('search', require('./components/Search').default);
 Vue.component('streamingNow', require('./components/StreamingNow/index.vue').default);
 Vue.component('suggestions', require('./components/Suggestions/index.vue').default);
@@ -72,6 +75,11 @@ const routes = [
         path: '/trending',
         component: Trending,
         name: 'trending',
+    },
+    {
+        path: '/content',
+        component: Content,
+        name: 'Content',
     },
     {
         path: '/discover',
@@ -133,7 +141,8 @@ Vue.use(VueRouter);
 new Vue({
     render: h => h(App),
     router,
-    store,
+    apolloProvider: createProvider(),
+    store
 }).$mount('#app');
 
 export { Vue };

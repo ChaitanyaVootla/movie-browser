@@ -39,6 +39,14 @@
                     </div>
                 </router-link>
             </el-menu-item>
+            <!-- <el-menu-item index="Content">
+                <router-link :to="{ name: 'Content'}">
+                    <div :class="onContent?'active':''">
+                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
+                        <span class="mobile-hide">Content</span>
+                    </div>
+                </router-link>
+            </el-menu-item> -->
             <!-- <el-menu-item index="Interests">
                 <router-link :to="{ name: 'Interests'}">
                     <div :class="onInterests?'active':''">
@@ -239,6 +247,9 @@
             },
             onWatchList() {
                 return this.$route.name === 'WatchList';
+            },
+            onContent() {
+                return this.$route.name === 'Content';
             },
             onSuggestions() {
                 return this.$route.name === 'Suggestions';
@@ -550,7 +561,7 @@
         width: 2em;
     }
     .menu-center-item {
-        left: calc(50% - 3.5em);
+        left: calc(50% - 2.5em);
         position: absolute;
     }
     .menu-item-right {

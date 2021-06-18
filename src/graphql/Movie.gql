@@ -1,0 +1,27 @@
+query MyQuery {
+  allMovies(condition: { adult: true }, orderBy: POPULARITY_DESC) {
+    nodes {
+      originalTitle
+      backdropPath
+      adult
+      budget
+      id
+      homepage
+      imdbId
+      nodeId
+      originalLanguage
+      overview
+      popularity
+      posterPath
+      releaseDate
+      revenue
+      runtime
+      status
+      tagline
+      title
+      video
+      voteAverage
+      voteCount
+    }
+  }
+}

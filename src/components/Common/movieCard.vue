@@ -11,7 +11,7 @@
                 }
             }">
             <div class="movie-item" :class="`${canApplySideBarFilter && !isInSideBarFilter?'sideBarFilter':''} ${isTodayCard?'isTodayCard':''} ${isWatched?'watched':''}`">
-                <el-badge :value="badgeText" :class="`${badgeText} item ${isHoverActive?'isHoverActive':''}`">
+                <el-badge :value="hideBadge?'':badgeText" :class="`${badgeText} item ${isHoverActive?'isHoverActive':''}`">
                     <div class="img-container">
                         <div v-if="isWatched" class="watched-overlay rating-info">
                             <font-awesome-icon :icon="['fas', 'check']"/>
@@ -33,7 +33,7 @@
                             <div v-if="movie.release_date" class="top-overlay">{{getDateText(movie.release_date)}}</div>
                             <span class="rating-info" :style="`border-color: ${getRatingColor(movie.vote_average)};
                                 color: ${getRatingColor(movie.vote_average)}`">
-                                {{movie.vote_average?movie.vote_average:'-'}}
+                                {{movie.vote_average?Math.round(movie.vote_average * 10) / 10:'-'}}
                             </span>
                             <el-tooltip class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
                                 :disabled="isWatched">
@@ -63,7 +63,7 @@
     export default {
         name: 'movieCard',
         props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showFullMovieInfo',
-            'hideWatched'],
+            'hideWatched', 'hideBadge'],
         data() {
             return {
                 getRatingColor,
@@ -86,6 +86,9 @@
                     },
                     WATCHED: {
                         text: 'WATCHED',
+                    },
+                    WATCHING: {
+                        text: 'WATCHING',
                     },
                 }
             };
@@ -142,12 +145,17 @@
                     moment(this.movie.first_air_date).isAfter(moment());
             },
             isWatched() {
-                return this.$store.getters.watchedMovieIds.includes(this.movie.id) ||
-                    this.$store.getters.watchedSeriesIds.includes(this.movie.id);
+                return this.$store.getters.watchedMovieIds.includes(this.movie.id)
+            },
+            isWatching() {
+                return this.$store.getters.watchListSeriesById(this.movie.id);
             },
             badgeText() {
                 if (this.isWatched) {
                     return this.badgeTypes.WATCHED.text;
+                }
+                if (this.isWatching) {
+                    return this.badgeTypes.WATCHING.text;
                 }
                 if (this.canShowUnreleasedBadge) {
                     return this.badgeTypes.UNRELEASED.text;
@@ -198,6 +206,10 @@
     /deep/ .el-badge.WATCHED .el-badge__content {
         background-color:black;
         color: white;
+        right: 11.5em;
+    }
+    /deep/ .el-badge.WATCHING .el-badge__content {
+        background-color: green;
         right: 11.5em;
     }
     .isTodayCard .movie-card-image {

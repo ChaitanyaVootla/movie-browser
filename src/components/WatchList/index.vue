@@ -77,13 +77,13 @@
             :id="`season${upcomingEpisodes.id}`"></season-slider> -->
         <movie-slider :movies="seriesWatchList" :configuration="configuration"
             heading="Upcoming Episodes" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
-        v-if="seriesWatchList.length"></movie-slider>
+            :hideBadge="true" v-if="seriesWatchList.length"></movie-slider>
         <movie-slider :movies="returningSeries" :configuration="configuration"
             heading="Returning Series" :id="'returningSeries'" :showFullMovieInfo="showSeriesInfo"
-            v-if="returningSeries.length"></movie-slider>
+            :hideBadge="true" v-if="returningSeries.length"></movie-slider>
         <movie-slider :movies="completedSeries" :configuration="configuration"
             heading="Completed Series" :id="'completedSeries'" :showFullMovieInfo="showSeriesInfo"
-            v-if="completedSeries.length"></movie-slider>
+            :hideBadge="true" v-if="completedSeries.length"></movie-slider>
 
         <div v-if="canShowOnbarding" class="onboarding-container">
             <div class="onboardingText">

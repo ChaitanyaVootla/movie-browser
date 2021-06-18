@@ -222,3 +222,17 @@ a {
 .el-button--danger, .el-button--danger:hover, .el-button--danger:focus {
     background-color: @main-red;
 }
+
+// Radio buttons
+.el-radio-button__orig-radio + .el-radio-button__inner {
+    color: @link-color-red !important;
+    border-color:@link-color-red !important;
+    opacity: 0.8;
+}
+.el-radio-button__orig-radio:checked + .el-radio-button__inner {
+    color: @link-color-red !important;
+    border-color: @link-color-red !important;
+    font-size: 16px;
+    transform: scale(1.05);
+    opacity: 1;
+}

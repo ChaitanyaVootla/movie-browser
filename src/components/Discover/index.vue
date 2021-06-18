@@ -1,6 +1,14 @@
 <template>
     <div>
-        <div class="pt-2 pl-5 pb-2 discover-options-row">
+        <div class="content-switch">
+            <el-radio-group
+                v-model="isMovies"
+                @change="typeChanged">
+                <el-radio-button :label="true">Movies</el-radio-button>
+                <el-radio-button :label="false">Series</el-radio-button>
+            </el-radio-group>
+        </div>
+        <div class="pt-2 pl-5 pr-5 pb-2 discover-options-row">
             <el-select v-model="selectedSortOrder" value-key="id" placeholder="Sort By" class="full-width"
                 @change="loadMovies(true)">
                 <el-option
@@ -31,7 +39,7 @@
                     :value="item">
                 </el-option>
             </el-select>
-            <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating"
+            <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating" class="full-width"
                 @change="loadMovies(true)">
                 <el-option
                     v-for="item in ratingOptions"
@@ -40,21 +48,7 @@
                     :value="item">
                 </el-option>
             </el-select>
-            <div class="mobile-hide"></div>
-            <div class="mobile-hide"></div>
-            <div class="mt-2 switch-container">
-                <span class="mr-2 mobile-hide">Series</span>
-                <font-awesome-icon :icon="['fas', 'stream']" class="mr-2 desk-hide"/>
-                <el-switch class="type-switch"
-                    v-model="isMovies"
-                    active-color="#333"
-                    inactive-color="#000"
-                    @change="typeChanged">
-                </el-switch>
-                <font-awesome-icon :icon="['fas', 'film']" class="mr-2 desk-hide"/>
-                <span class="ml-2 mobile-hide">Movies</span>
-            </div>
-            <div class="mobile-hide save-container">
+            <div class="mobile-hide save-container small-filter">
                 <el-button-group v-if="isSavedFilterView">
                     <el-button type="primary" @click="saveFilter">
                         <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/>
@@ -72,15 +66,11 @@
                     <font-awesome-icon :icon="['fa', 'star-half-alt']" class="mr-2"/>
                     Save Filter
                 </el-button>
-                <el-tooltip class="item" effect="light" content="Advanced" placement="bottom">
-                    <font-awesome-icon :icon="['fas', 'sliders-h']" class="ml-4 advanced-filters"
-                        @click="showAdvancedFilters = !showAdvancedFilters"/>
-                </el-tooltip>
             </div>
         </div>
-        <div class="pt-2 pl-5 pb-2 discover-options-row advanced-options-row" v-show="showAdvancedFilters">
+        <div class="pt-2 pl-5 pr-5 pb-2 discover-options-row advanced-options-row" v-show="showAdvancedFilters">
             <el-select v-model="selectedCertification" value-key="certification" clearable placeholder="Certification"
-                @change="loadMovies(true)">
+                @change="loadMovies(true)" class="full-width">
                 <el-option
                     v-for="item in certifications['US']"
                     :key="item.certification"
@@ -119,9 +109,14 @@
                 </el-option-group>
             </el-select>
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
-            <el-checkbox v-model="hideWatchedMovies" class="mt-2" @change="loadMovies(true)">Hide Watched Movies</el-checkbox>
+            <div class="mt-2 small-filter">
+                <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)">Hide Watched Movies</el-checkbox>
+            </div>
         </div>
-        <div class="pl-5 pt-2 pb-2 favorites-bar">
+        <div v-if="savedFilters.length" class="pl-5 pt-2 pb-2 favorites-bar">
+            <div class="pr-3 pt-2">
+                <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/> Saved Filters
+            </div>
             <el-tooltip class="item" effect="light" content="Clear Filter" placement="bottom" v-if="isSavedFilterView">
                 <el-button @click="clearFilter" circle class="mr-3" icon="el-icon-circle-close">
                 </el-button>
@@ -132,7 +127,6 @@
                     ...savedFilter,
                 }}">
                 <el-button @click="filterClicked" :type="$router.currentRoute.query.name === savedFilter.name?'danger':'primary'">
-                    <!-- <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/> -->
                     {{savedFilter.name}}
                 </el-button>
             </router-link>
@@ -194,7 +188,7 @@
                 isLoaded: false,
                 isDataLoading: true,
                 movies: [] as any[],
-                showAdvancedFilters: false,
+                showAdvancedFilters: true,
                 hideWatchedMovies: false,
                 saveFilterDialogVisible: false,
                 filterName: '',
@@ -245,7 +239,7 @@
                 },
                 selectedCertification: {},
                 routeQueryPresent: false,
-            }  
+            }
         },
         beforeDestroy() {
             window.removeEventListener('scroll', this.scrollHandler);
@@ -459,7 +453,8 @@
                     }
                 }
                 // Advanced filters
-                this.showAdvancedFilters = false;
+                // this.showAdvancedFilters = false;
+                this.showAdvancedFilters = true;
                 this.selectedGenresToExclude = [];
                 if (routeQuery.without_genres) {
                     const genreIds = `${routeQuery.without_genres}`.split(',');
@@ -640,6 +635,19 @@
         padding-left: 3em;
         padding-right: 3em;
     }
+    .small-filter {
+        width: 43em;
+    }
+    .content-switch {
+        display: flex;
+        justify-content: center;
+        padding-top: 1em;
+        background: @background-gray;
+    }
+    .favorites-bar {
+        display: flex;
+        justify-content: center;
+    }
     .grid-center {
         display: grid;
         place-items: center;
@@ -675,11 +683,8 @@
     }
     .discover-options-row {
         background: @background-gray;
-        display: grid;
-        grid-template-columns: 0.6fr 1fr 1fr 0.6fr 0.6fr 0.3fr 1fr 1fr;
-        gap: 0.5em;
-        padding-right: 3em;
-        margin-top: 3.7em;
+        display: flex;
+        gap: 1rem;
     }
     .advanced-options-row {
         margin-top: 0;
