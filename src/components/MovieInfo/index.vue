@@ -113,6 +113,11 @@
         <div class="">
             <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
                 :selectPerson="selectPerson"></person-slider>
+
+            <div v-if="details.collectionDetails">
+                <movie-slider :movies="details.collectionDetails.parts" :configuration="configuration" :heading="details.collectionDetails.name"
+                    :id="details.collectionDetails.name" :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+            </div>
             <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
                 :selectPerson="selectPerson"></person-slider>
 
@@ -245,6 +250,10 @@
             async getDetails() {
                 this.detailsLoading = true;
                 this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
+                if (this.details.belongs_to_collection) {
+                    this.details.collectionDetails = await api.collectionDetails(
+                        parseInt(this.details.belongs_to_collection.id));
+                }
                 this.updateHistoryData();
                 this.similarMovies = this.details.similar.results;
                 this.recommendedMovies = this.details.recommendations.results;
@@ -418,7 +427,7 @@
         top: 2em;
         padding-left: 2em !important;
         overflow: hidden;
-        color: #fff;
+        color: @text-color;
         height: 33em;
     }
     .secondary-info {

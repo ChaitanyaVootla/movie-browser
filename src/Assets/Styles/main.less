@@ -16,7 +16,7 @@
 /* Colors */
 @main-red: #850909;
 @link-color-red: #b91d1d;
-@text-color: #ddd;
+@text-color: rgb(236, 236, 236);
 @primary-gray: rgb(15, 15, 15);
 @background-gray: rgb(24, 24, 24);
 @background-gray-light: rgba(148, 148, 148, 0.05);
@@ -27,6 +27,10 @@
 
 /* Backgrounds */
 @translucent-bg: rgba(0, 0, 0, 0.4);
+
+// Variables
+@default-radius: 4px;
+@light-border: #252525;
 
 .shadow-text {
     text-shadow: 1px 1px 2px black;
@@ -46,31 +50,32 @@
 /deep/ .el-carousel__arrow {
     margin: 1em;
     background-color: #0000007a;
-    color: white;
+    color: @text-color;
     border-radius: 1em;
 }
 /deep/ .el-carousel__button {
-    border: 2px solid white;
+    border: 2px solid @text-color;
 }
 // Button styles
 /deep/ .el-button {
-    color: white;
+    color: @text-color;
     border-color: #222;
 }
 /deep/ .el-button:hover {
-    color: white;
+    color: @text-color;
     border-color: #777;
 }
 /deep/ .el-button:focus {
-    color: white;
+    color: @text-color;
     border-color: #777;
 }
 /deep/ .el-input__inner {
-    color: white;
-    border-color: #111;
+    color: @text-color;
+    border-color: @light-border;
+    border-radius: @default-radius;
 }
 /deep/ .el-input__inner:hover {
-    color: white;
+    color: @text-color;
     border-color: #222;
 }
 // date range
@@ -87,7 +92,7 @@
     color: @main-red !important;
 }
 .el-select-dropdown__item.selected {
-    color: white !important;
+    color: @text-color !important;
 }
 /deep/ .el-switch__core::after {
     background-color: #777 !important;
@@ -146,7 +151,7 @@ a {
 }
 // Dropdown styles
 .el-dropdown-menu__item:not(.is-disabled):hover {
-    color: white;
+    color: @text-color;
 }
 // Nav bar Styles
 .el-menu-item {
@@ -216,7 +221,7 @@ a {
 }
 .el-checkbox__input.is-checked .el-checkbox__inner {
     background-color: @main-red !important;
-    stroke: white !important;
+    stroke: @text-color !important;
 }
 
 .el-button--danger, .el-button--danger:hover, .el-button--danger:focus {
@@ -231,8 +236,8 @@ a {
 }
 .el-radio-button__orig-radio:checked + .el-radio-button__inner {
     color: @link-color-red !important;
-    border-color: @link-color-red !important;
+    border: 2px solid @link-color-red !important;
+    border-radius: @default-radius !important;
     font-size: 16px;
-    transform: scale(1.05);
     opacity: 1;
 }

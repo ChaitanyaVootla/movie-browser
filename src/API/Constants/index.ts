@@ -13,6 +13,7 @@ export const endpoints = {
     trendingListWeek: 'trending/all/week',
     trendingPeopleList: 'trending/person/day',
     movieDetails: 'movie/',
+    collectionDetails: 'collection/',
     personDetails: 'person/',
     tvDetails: 'tv/',
     movieGenre: 'genre/movie/list',
@@ -22,6 +23,7 @@ export const endpoints = {
     currentStreamingTv: 'tv/on_the_air',
     searchMovies: 'search/movie',
     searchAll: 'search/multi',
+    searchPeople: 'search/person',
     networkDetails: 'network',
 };
 

@@ -212,7 +212,7 @@
         top: 2em;
         margin-left: 6em !important;
         overflow: hidden;
-        color: #fff;
+        color: @text-color;
         width: 80% !important;
         height: 350px;
     }

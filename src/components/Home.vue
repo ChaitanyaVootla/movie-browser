@@ -7,57 +7,57 @@
             text-color="#eee"
             :default-active="activeNavItem"
             active-text-color="#b91d1d">
-            <el-menu-item index="Trending" class="ml-5">
+            <el-menu-item index="Trending" class="ml-5 p-0">
                 <router-link :to="{ name: 'trending'}">
-                    <div :class="onTrending?'active':''">
+                    <div class="pl-4 pr-4" :class="onTrending?'active':''">
                         <font-awesome-icon :icon="['fas', 'home']" class="mr-2 trending-icon"/>
                         <span class="mobile-hide">Home</span>
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item index="discover">
+            <el-menu-item index="discover" class=" p-0">
                 <router-link :to="{ name: 'discover'}">
-                    <div :class="onDiscover?'active':''">
+                    <div class="pl-4 pr-4" :class="onDiscover?'active':''">
                         <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/>
                         <span class="mobile-hide">Discover</span>
                     </div>
                 </router-link>
             </el-menu-item>
-            <!-- <el-menu-item index="Suggestions">
+            <!-- <el-menu-item index="Suggestions" class=" p-0">
                 <router-link :to="{ name: 'Suggestions'}">
-                    <div :class="onSuggestions?'active':''">
+                    <div class="pl-4 pr-4" :class="onSuggestions?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
                         <span class="mobile-hide">Suggestions</span>
                     </div>
                 </router-link>
             </el-menu-item> -->
-            <el-menu-item index="WatchList">
+            <el-menu-item index="WatchList" class=" p-0">
                 <router-link :to="{ name: 'WatchList'}">
-                    <div :class="onWatchList?'active':''">
+                    <div class="pl-4 pr-4" :class="onWatchList?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
                         <span class="mobile-hide">Watch List</span>
                     </div>
                 </router-link>
             </el-menu-item>
-            <!-- <el-menu-item index="Content">
+            <!-- <el-menu-item index="Content" class=" p-0">
                 <router-link :to="{ name: 'Content'}">
-                    <div :class="onContent?'active':''">
+                    <div class="pl-4 pr-4" :class="onContent?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
                         <span class="mobile-hide">Content</span>
                     </div>
                 </router-link>
             </el-menu-item> -->
-            <!-- <el-menu-item index="Interests">
+            <!-- <el-menu-item index="Interests" class=" p-0">
                 <router-link :to="{ name: 'Interests'}">
-                    <div :class="onInterests?'active':''">
+                    <div class="pl-4 pr-4" :class="onInterests?'active':''">
                         <font-awesome-icon :icon="['fas', 'eye']" class="mr-2"/>
                         <span class="mobile-hide">Interests</span>
                     </div>
                 </router-link>
             </el-menu-item> -->
-            <!-- <el-menu-item index="StreamingNow">
+            <!-- <el-menu-item index="StreamingNow" class=" p-0">
                 <router-link :to="{ name: 'StreamingNow'}">
-                    <div :class="onStreamingNow?'active':''">
+                    <div class="pl-4 pr-4" :class="onStreamingNow?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
                         <span class="mobile-hide">Streaming Now</span>
                     </div>
@@ -70,11 +70,11 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item index="search" class="menu-center-item menu-item-nobg search-menu-item mobile-hide">
+            <el-menu-item index="search" class="menu-item-nobg search-menu-item mobile-hide">
                 <div>
                     <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
                         <el-input placeholder="Search" v-model="searchText">
-                            <el-button slot="append" icon="el-icon-search"></el-button>
+                            <!-- <el-button slot="append" icon="el-icon-search"></el-button> -->
                         </el-input>
                     </div>
                     <div class="search-dropdown" v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults">
@@ -104,12 +104,24 @@
                                     Profile
                                 </router-link>
                             </el-dropdown-item>
-                            <!-- <el-dropdown-item>
-                                <router-link :to="{name: 'History'}">
-                                    <font-awesome-icon :icon="['fas', 'history']" class="mr-1"/>
-                                    History
-                                </router-link>
-                            </el-dropdown-item> -->
+                            <el-dropdown-item  divided>
+                                <a href="https://github.com/ChaitanyaVootla/movie-browser" target="_blank">
+                                    <font-awesome-icon :icon="['fab', 'github']" class="mr-1"/>
+                                    Github Repo
+                                </a>
+                            </el-dropdown-item>
+                            <el-dropdown-item>
+                                <a href="https://www.themoviedb.org/" target="_blank">
+                                    <font-awesome-icon :icon="['fas', 'film']" class="mr-1"/>
+                                    TMDB
+                                </a>
+                            </el-dropdown-item>
+                            <el-dropdown-item>
+                                <a href="https://developers.themoviedb.org/3" target="_blank">
+                                    <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1"/>
+                                    TMDB Docs
+                                </a>
+                            </el-dropdown-item>
                             <el-dropdown-item  divided>
                                 <div @click="signOutClicked">
                                     <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-1"/>
@@ -120,25 +132,25 @@
                     </el-dropdown>
                 </div>
             </el-menu-item>
-            <el-menu-item index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
+            <el-menu-item v-if="!user.photoURL" index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
                 <el-dropdown trigger="click">
                     <div><i class="el-icon-s-tools"></i></div>
                     <el-dropdown-menu slot="dropdown">
                         <el-dropdown-item>
                             <a href="https://github.com/ChaitanyaVootla/movie-browser" target="_blank">
-                                <font-awesome-icon :icon="['fab', 'github']" class="mr-1 dropdown-icon"/>
+                                <font-awesome-icon :icon="['fab', 'github']" class="mr-1"/>
                                 Github Repo
                             </a>
                         </el-dropdown-item>
                         <el-dropdown-item>
                             <a href="https://www.themoviedb.org/" target="_blank">
-                                <font-awesome-icon :icon="['fas', 'film']" class="mr-1 dropdown-icon"/>
+                                <font-awesome-icon :icon="['fas', 'film']" class="mr-1"/>
                                 TMDB
                             </a>
                         </el-dropdown-item>
                         <el-dropdown-item>
                             <a href="https://developers.themoviedb.org/3" target="_blank">
-                                <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1 dropdown-icon"/>
+                                <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1"/>
                                 TMDB Docs
                             </a>
                         </el-dropdown-item>
@@ -163,13 +175,13 @@
         </transition>
 
         <!-- Side Drawer -->
-        <div class="drawer-button" @click="$refs.sideDrawer.openDrawer()">
+        <!-- <div class="drawer-button" @click="$refs.sideDrawer.openDrawer()">
             <font-awesome-icon :icon="['fas', 'filter']"/>
         </div>
         <side-drawer ref="sideDrawer"
             :movieGenres="movieGenres"
             :seriesGenres="seriesGenres">
-        </side-drawer>
+        </side-drawer> -->
 
         <!-- Info Modal -->
         <div class="modal fade bd-example-modal-xl" id="movieInfoModal" tabindex="-1" role="dialog">
@@ -381,6 +393,9 @@
 <style scoped lang="less">
     @import '../Assets/Styles/main.less';
 
+    // .el-menu-item {
+    //     padding: 0;
+    // }
     .app-logo {
         // margin-top: 0.2em;
         cursor: pointer;
@@ -442,7 +457,7 @@
     }
     .discover-container .nav-link.active {
         background-color: #333;
-        color: #fff;
+        color: @text-color;
     }
     .discover-row {
         margin: 0;
@@ -464,7 +479,7 @@
         cursor: pointer;
     }
     .dropdown-item:hover {
-        color: white !important;
+        color: @text-color !important;
         background: #222;
     }
     ::v-deep .info-container {
@@ -512,7 +527,7 @@
         scroll-behavior: smooth;
         width: 100%;
         overflow-x: hidden;
-        color: #fff !important;
+        color: @text-color !important;
         border-radius: 3px;
         max-height: 30em;
         box-shadow: 0px 30px 60px 20px rgba(0,0,0,0.95);
@@ -526,7 +541,7 @@
         width: 100%;
     }
     .search-dropdown .dropdown-item {
-        color: #fff !important;
+        color: @text-color !important;
     }
     .search-button {
         background: #111;
@@ -577,6 +592,8 @@
     .search-menu-item {
         width: 30em;
         margin-left: 17em !important;
+        right: 12em;
+        position: absolute;
     }
     .search-no-results {
         padding: 1em;

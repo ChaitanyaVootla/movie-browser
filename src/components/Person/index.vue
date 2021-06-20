@@ -59,15 +59,18 @@
                 </el-col>
             </el-row>
         </div>
-        <div v-for="(carrerObj, index) in carrerList" :key="index">
+        <div v-for="(careerObj, index) in carrerList" :key="index">
             <movie-slider
-                v-if="carrerObj.items.length"
-                :movies="carrerObj.items"
+                v-if="careerObj.items.length"
+                :movies="careerObj.items"
                 :configuration="configuration"
-                :heading="carrerObj.name"
-                :id="carrerObj.id"
+                :heading="careerObj.name"
+                :id="careerObj.id"
                 :showMovieInfoModal="showMovieInfo"
                 :showFullMovieInfo="showFullMovieInfo"
+                :showDiscoverLink="careerObj.showDiscoverLink"
+                :name="careerObj.personName"
+                :personId="careerObj.personId"
                 >
             </movie-slider>
         </div>
@@ -139,7 +142,15 @@
                     items: [] as any[],
                     name,
                     id,
+                    showDiscoverLink: false,
+                    personName: '',
+                    personId: 0,
                 };
+                if (name === 'Movies') {
+                    mappedList.showDiscoverLink = true;
+                    mappedList.personName = this.details.name;
+                    mappedList.personId = this.details.id;
+                }
                 const groupedItems = _.groupBy(list, 'id');
                 const uniqueItems = [] as any[];
                 _.each(groupedItems,
@@ -251,7 +262,7 @@
     .main-name {
         font-size: 1.3em;
         font-weight: 500;
-        color: #fff;
+        color: @text-color;
     }
     .full-bio {
         background: #000;

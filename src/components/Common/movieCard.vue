@@ -205,7 +205,7 @@
     }
     /deep/ .el-badge.WATCHED .el-badge__content {
         background-color:black;
-        color: white;
+        color: @text-color;
         right: 11.5em;
     }
     /deep/ .el-badge.WATCHING .el-badge__content {

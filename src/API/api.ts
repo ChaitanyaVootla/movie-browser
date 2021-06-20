@@ -36,6 +36,11 @@ export const api = {
             '?&api_key=' + appConfig.token + detailsDefaultQuery);
         return details;
     },
+    collectionDetails: async function(id: number) {
+        const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.collectionDetails + id +
+            '?&api_key=' + appConfig.token);
+        return details;
+    },
     getTvDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + id +
             '?&api_key=' + appConfig.token + detailsDefaultQuery);
@@ -83,6 +88,11 @@ export const api = {
     searchAll: async function(searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.searchAll + '?api_key=' + appConfig.token + searchQuery + '&page=' + page);
+        return res.data;
+    },
+    searchPeople: async function(searchString: string) {
+        const searchQuery = `&query=${searchString}` + searchDefaultQueries;
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.searchPeople + '?api_key=' + appConfig.token + searchQuery);
         return res.data;
     },
     getDiscoverMovies: async function(searchQuery: string) {

@@ -6,26 +6,32 @@
         <div class="info-container" v-if="details.name">
             <h3 div="info-heading">
                 {{details.name}}
-                <span class="text-muted info-tagline" v-if="details.number_of_seasons">
+                <span class="text-muted info-tagline pl-2" v-if="details.number_of_seasons">
                     {{details.number_of_seasons}} Season{{details.number_of_seasons> 1?'s':''}}
-                </span>
-                <span>
-                    <span class="text-muted info-tagline cursor-pointer" @click="openImageModal">
-                        <font-awesome-icon :icon="['fas', 'images']"/>
-                    </span>
                 </span>
             </h3>
 
             <!-- Date and Genres -->
             <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                {{getDateText(details.first_air_date)}} -
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{genre.name}}{{index===details.genres.length-1?'':','}}
                 </span>
             </h6>
 
+            <!-- Additional info -->
+            <div>
+                {{getDateText(details.first_air_date)}} - {{details.status}}
+                <span v-if="details.episode_run_time.length" class=" pl-2">
+                    <font-awesome-icon :icon="['far', 'clock']"/>
+                    {{details.episode_run_time[0]}} mins
+                </span>
+                <span class="cursor-pointer ml-3" @click="openImageModal">
+                    <font-awesome-icon :icon="['fas', 'images']"/>
+                </span>
+            </div>
+
             <!-- External links -->
-            <div class="ext-links-container">
+            <div class="ext-links-container mt-4">
                 <a :href="`https://google.com/search?q=${details.name} series`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
@@ -40,16 +46,19 @@
             </div>
 
             <!-- Rating -->
-            <div class="mt-5 pt-5">
+            <div class="mt-4 pt-4">
                 <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
                     {{details.vote_average}}
                 </span>
-                <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
+                <el-tooltip class="item" effect="dark" :content="`${details.vote_count} ratings`"
+                    placement="top-start">
+                    <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
+                </el-tooltip>
             </div>
 
             <!-- bookmarks -->
             <div class="mt-4 bookmarks">
-                <el-button v-if="isInWatchList" type="success">
+                <el-button v-if="isInWatchList">
                     In watch List
                     <font-awesome-icon :icon="['fas', 'check']" class="ml-1"/>
                 </el-button>
@@ -401,7 +410,7 @@
         top: 2em;
         padding-left: 2em !important;
         overflow: hidden;
-        color: #fff;
+        color: @text-color;
     }
     .secondary-info {
         color: #aaa;
@@ -416,7 +425,6 @@
         margin-top: 1em;
     }
     .info-tagline {
-        padding-left: 1em;
         color: #ddd !important;
         font-size: .5em;
     }

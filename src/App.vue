@@ -53,13 +53,13 @@
         cursor: pointer;
     }
     .custom-control-input ~ .custom-control-label::before {
-        color: #fff;
+        color: @text-color;
         border-color: #804545;
         background-color: #a08c8c;
         border-radius: 2px;
     }
     .custom-control-input:checked ~ .custom-control-label::before {
-        color: #fff;
+        color: @text-color;
         border-color: #850909;
         background-color: #850909;
     }

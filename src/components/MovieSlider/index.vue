@@ -4,6 +4,16 @@
             <div class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
                 <!-- <font-awesome-icon :icon="['fas', 'history']" v-if="history"/> -->
                 {{heading}}
+                <router-link v-if="showDiscoverLink" class="ml-2" :to="{
+                    name: 'discover',
+                    query:
+                        {
+                            with_people: personId,
+                            people: name,
+                        }
+                    }">
+                    <font-awesome-icon :icon="['fas', 'external-link-alt']"/>
+                </router-link>
             </div>
         </slot>
         <div class="slider-container">
@@ -12,10 +22,10 @@
                 <i class="el-icon-arrow-left"></i>
             </div>
             <div v-show="!isBarFull" class="ml-4"></div>
-            <div class="slider-bar" id="scroll-bar">
+            <div class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <movie-card v-for="(movie, index) in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                     :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"
-                    :hideBadge="hideBadge"></movie-card>
+                    :hideBadge="hideBadge" :class="isSliding?'no-pointer-events':''"></movie-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight" v-show="isBarFull">
                 <!-- <font-awesome-icon :icon="['fas', 'chevron-right']" /> -->
@@ -28,16 +38,20 @@
 </template>
 
 <script lang="ts">
-    import { api } from '../../API/api';
+    import { v4 as uuidv4 } from 'uuid';
+
     export default {
         name: 'movieSlider',
         props: [
             'movies',
             'configuration',
             'id',
+            'name',
+            'personId',
             'heading',
             'showMovieInfoModal',
             'showFullMovieInfo',
+            'showDiscoverLink',
             'history',
             'hideBadge',
         ],
@@ -47,17 +61,53 @@
               selectedMovie: {},
               showInfo: false,
               isBarFull: true,
+              uuid: 0,
+              isSliding: false,
           }  
         },
         mounted() {
+            this.uuid = uuidv4();
             this.isBarFull = this.checkIsBarFull();
+            setTimeout(
+                () => {
+                    const slider = document.querySelector(`#scroll-bar-${this.uuid}`);
+                    let isDown = false;
+                    let startX;
+                    let scrollLeft;
+
+                    slider.addEventListener('mousedown', (e) => {
+                        isDown = true;
+                        startX = e.pageX - slider.offsetLeft;
+                        scrollLeft = slider.scrollLeft;
+                    });
+                    slider.addEventListener('mouseleave', () => {
+                        isDown = false;
+                        this.isSliding = false;
+                    });
+                    slider.addEventListener('mouseup', () => {
+                        isDown = false;
+                        this.isSliding = false;
+                    });
+                    slider.addEventListener('mousemove', (e) => {
+                        if(!isDown) return;
+                        this.isSliding = true;
+                        const x = e.pageX - slider.offsetLeft;
+                        const walk = (x - startX);
+                        slider.scrollLeft = scrollLeft - walk;
+                    });
+                }
+            )
         },
         methods: {
             slideLeft: function () {
+                $(`.${this.id} .slider-bar`).css('scroll-behavior', 'smooth')
                 $(`.${this.id} .slider-bar`)[0].scrollLeft -=  $(`.${this.id} .slider-bar`)[0].clientWidth;
+                $(`.${this.id} .slider-bar`).css('scroll-behavior', '')
             },
             slideRight: function () {
+                $(`.${this.id} .slider-bar`).css('scroll-behavior', 'smooth')
                 $(`.${this.id} .slider-bar`)[0].scrollLeft += $(`.${this.id} .slider-bar`)[0].clientWidth;
+                $(`.${this.id} .slider-bar`).css('scroll-behavior', '')
             },
             showMovieInfo: async function (movie: any) {
                 this.showMovieInfoModal(movie);
@@ -89,7 +139,7 @@
         display: flex;
         overflow-x: auto;
         overflow-y: visible !important;
-        scroll-behavior: smooth;
+        // scroll-behavior: smooth;
         justify-content: end;
         position: relative;
         padding: 0 0.5em;
@@ -97,6 +147,9 @@
         padding-top: 1em;
         padding-bottom: 1em;
         width: 100%;
+    }
+    .no-pointer-events {
+        pointer-events: none;
     }
     .slider-bar::-webkit-scrollbar {
         display: none;
@@ -112,19 +165,28 @@
         padding-top: 0.2em !important;
     }
     .scroll-item {
-        background: #333;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        background: linear-gradient(to right, #111 0%,#1b1b1b 100%);
         padding: 0 0.5em;
         cursor: pointer;
-        border-radius: 5px;
+        i {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            // background: @translucent-bg;
+            height: 2em;
+            // width: 2em;
+            border-radius: 5px;
+        }
     }
-    .scroll-item-right {
-        background: linear-gradient(to right, #1b1b1b 0%,#111 100%);
-    }
+    // .scroll-item-right {
+    //     i {
+    //         background: linear-gradient(to right, #1b1b1b 0%,#111 100%);
+    //     }
+    // }
     .slider-container {
         display: flex;
     }

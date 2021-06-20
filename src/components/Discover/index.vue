@@ -39,6 +39,40 @@
                     :value="item">
                 </el-option>
             </el-select>
+            <el-select v-model="selectedPeople" multiple filterable remote :collapse-tags="true"
+                :remote-method="peopleSearchChanged" placeholder="Cast"
+                :no-data-text="'No Results'" value-key="id" class="full-width" clearable
+                @change="loadMovies(true)" :disabled="!isMovies">
+                <el-option
+                    v-for="result in searchPeople"
+                    :key="result.id"
+                    :label="result.name"
+                    :value="result"
+                    class="person-dropdown">
+                    <div style="display: flex; width: 30em">
+                        <img v-lazy="{
+                            src: `${configuration.images.base_url}w500${result.profile_path}`,
+                            error: require('../../Assets/Images/error.svg'),
+                            loading: require('../../Assets/Images/loader-bars.svg'),
+                            }" class="search-image">
+                        <div class="search-info-container ml-3">
+                            <span>
+                                {{result.name}}
+                            </span>
+                            <div class="mt-4">
+                                {{result.known_for_department}}<br/>
+                                <div class="text-muted" style="font-size: 0.9em;
+                                    display: inline-flex;
+                                    flex-wrap: wrap;">
+                                    <span v-for="(content, index) in result.known_for" :key="index">
+                                        {{content.original_title || content.original_name}},
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </el-option>
+            </el-select>
             <el-select v-model="selectedRating" value-key="id" clearable placeholder="Rating" class="full-width"
                 @change="loadMovies(true)">
                 <el-option
@@ -52,10 +86,10 @@
                 <el-button-group v-if="isSavedFilterView">
                     <el-button type="primary" @click="saveFilter">
                         <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/>
-                        Update Filter
+                        Update Search
                     </el-button>
                     <el-button type="primary" @click="saveFilterDialogVisible = true; filterName = $router.currentRoute.query.name">
-                        <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
+                        <el-tooltip class="item" effect="light" content="Delete Search" placement="bottom">
                             <div>
                                 <i class="el-icon-circle-close"></i>
                             </div>
@@ -64,7 +98,7 @@
                 </el-button-group>
                 <el-button type="primary" @click="saveFilterDialogVisible = true; filterName = '';" v-else>
                     <font-awesome-icon :icon="['fa', 'star-half-alt']" class="mr-2"/>
-                    Save Filter
+                    Save Search
                 </el-button>
             </div>
         </div>
@@ -108,9 +142,44 @@
                     </el-option>
                 </el-option-group>
             </el-select>
+            <el-select v-model="selectedPeople" multiple filterable remote :collapse-tags="true"
+                :remote-method="peopleSearchChanged" placeholder="Crew"
+                :no-data-text="'No Results'" value-key="id" class="full-width" clearable
+                @change="loadMovies(true)" :disabled="!isMovies">
+                <el-option
+                    v-for="result in searchPeople"
+                    :key="result.id"
+                    :label="result.name"
+                    :value="result"
+                    class="person-dropdown">
+                    <div style="display: flex; width: 30em">
+                        <img v-lazy="{
+                            src: `${configuration.images.base_url}w500${result.profile_path}`,
+                            error: require('../../Assets/Images/error.svg'),
+                            loading: require('../../Assets/Images/loader-bars.svg'),
+                            }" class="search-image">
+                        <div class="search-info-container ml-3">
+                            <span>
+                                {{result.name}}
+                            </span>
+                            <div class="mt-4">
+                                {{result.known_for_department}}<br/>
+                                <div class="text-muted" style="font-size: 0.9em;
+                                    display: inline-flex;
+                                    flex-wrap: wrap;">
+                                    <span v-for="(content, index) in result.known_for" :key="index">
+                                        {{content.original_title || content.original_name}},
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </el-option>
+            </el-select>
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
-            <div class="mt-2 small-filter">
-                <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)">Hide Watched Movies</el-checkbox>
+            <div class="mt-2 save-container small-filter">
+                <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)"
+                    >Hide Watched</el-checkbox>
             </div>
         </div>
         <div v-if="savedFilters.length" class="pl-5 pt-2 pb-2 favorites-bar">
@@ -150,7 +219,7 @@
         </div>
         <div class="loader-main" v-if="isDataLoading"></div>
         <el-dialog
-            :title="$router.currentRoute.query.name?'Delete Filter':'Save Filter'"
+            :title="$router.currentRoute.query.name?'Delete Search':'Save Search'"
             :visible.sync="saveFilterDialogVisible"
             width="30%">
             <el-input placeholder="Name" v-model="filterName"></el-input>
@@ -176,6 +245,7 @@
         name: 'movieDiscover',
         props: [
             'configuration',
+            'imageBasePath',
             'queryParams',
             'showMovieInfo',
             'showFullMovieInfo',
@@ -225,7 +295,9 @@
                 ratingOptions: [] as any[],
                 selectedRating: {} as any,
                 selectedKeywords: [] as any[],
+                selectedPeople: [] as any[],
                 searchKeywords: [] as any[],
+                searchPeople: [] as any[],
                 genres: [] as any[],
                 selectedGenres: [] as any[],
                 selectedGenresToExclude: [] as any[],
@@ -426,7 +498,6 @@
                 }
                 this.selectedKeywords = [];
                 if (routeQuery.with_keywords && routeQuery.keywords) {
-                    const selectedKeywords = [];
                     const keywordIds = `${routeQuery.with_keywords}`.split(',');
                     const keywords = `${routeQuery.keywords}`.split(',');
                     keywordIds.forEach(
@@ -439,6 +510,21 @@
                     );
                     this.selectedKeywords = uniqBy(this.selectedKeywords, 'id');
                     this.searchKeywords = this.selectedKeywords;
+                }
+                this.selectedPeople = [];
+                if (routeQuery.with_people) {
+                    const peopleIds = `${routeQuery.with_people}`.split(',');
+                    const people = `${routeQuery.people}`.split(',');
+                    peopleIds.forEach(
+                        (id, index) => {
+                            this.selectedPeople.push({
+                                id: parseInt(id),
+                                name: people[index]
+                            });
+                        }
+                    );
+                    this.selectedPeople = uniqBy(this.selectedPeople, 'id');
+                    this.searchPeople = this.selectedPeople;
                 }
                 this.isMovies = true;
                 if (routeQuery.isMovies == 'false' || routeQuery.isMovies === false) {
@@ -503,6 +589,12 @@
                 if (word.length>1) {
                     const fetchedKeywords = await api.searchKeywords(word);
                     this.searchKeywords = uniqBy(fetchedKeywords.concat(this.selectedKeywords), 'id');
+                }
+            },
+            async peopleSearchChanged(word: any) {
+                if (word.length>1) {
+                    const peopleResults = await api.searchPeople(word);
+                    this.searchPeople = peopleResults.results;
                 }
             },
             loadMovies: async function(updateUrl: boolean) {
@@ -594,6 +686,13 @@
                     routerQuery.with_keywords = keywordIds.toString();
                     routerQuery.keywords = keywords.toString();
                 }
+                if (this.selectedPeople.length) {
+                    const peopleIds = this.selectedPeople.map(({id}) => id);
+                    const people = this.selectedPeople.map(({name}) => name).toString();
+                    this.computedDiscoverQuery += `&with_people=${peopleIds.join('|')}`;
+                    routerQuery.with_people = peopleIds.toString();
+                    routerQuery.people = people.toString();
+                }
                 if (this.selectedRating.id) {
                     this.computedDiscoverQuery += `&vote_average.gte=${this.selectedRating.id}`;
                     routerQuery.rating = this.selectedRating.id;
@@ -631,12 +730,34 @@
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
 
+    .person-dropdown {
+        height: auto !important;
+        padding: 1em;
+    }
+    .search-image[lazy=error] {
+        background-size: 4em;
+        padding: 2em;
+        width: 7em;
+    }
+    .search-image[lazy=loading] {
+        background-size: contain;
+        padding: 2em;
+        width: 7em;
+    }
+    .search-image {
+        height: 10em;
+        border-radius: 3px;
+    }
+    .search-info-container {
+        display: flex;
+        flex-direction: column;
+    }
     .movies-grid-container {
         padding-left: 3em;
         padding-right: 3em;
     }
     .small-filter {
-        width: 43em;
+        width: 60%;
     }
     .content-switch {
         display: flex;
@@ -720,11 +841,8 @@
         margin-right: 1em;
     }
     .save-container {
-        align-items: center;
-        align-content: center;
         display: flex;
-        justify-content: flex-end;
-        margin-right: 0.5em;
+        justify-content: center;
     }
     .full-width {
         width: 100%;
