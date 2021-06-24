@@ -5,14 +5,14 @@
             :seriesGenres="seriesGenres" class="mobile-hide" :trendingMovies="trendingMovies"></trending-carousel>
         <div class="pt-2">
             <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
-                <movie-slider :movies="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
-                <!-- <movie-slider :movies="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider> -->
-                <movie-slider :movies="trendingTv" :configuration="configuration" :heading="'Trending TV Series'" :id="'trendingSeries'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
-                <movie-slider :movies="currentAiring" :configuration="configuration" :heading="'Currently On Air'" :id="'currentAiring'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
+                <mb-slider :items="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
+                <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider> -->
+                <mb-slider :items="trendingTv" :configuration="configuration" :heading="'Trending TV Series'" :id="'trendingSeries'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
+                <mb-slider :items="currentAiring" :configuration="configuration" :heading="'Currently On Air'" :id="'currentAiring'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
                 <random-suggestions :configuration="configuration" :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showSeriesInfo"></random-suggestions>
             </div>

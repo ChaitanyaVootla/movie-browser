@@ -16,16 +16,16 @@
             </el-row>
         </div>
         <!-- On Air -->
-        <movie-slider :movies="currentStreaming" :configuration="configuration" :id="'currentStreaming'"
+        <mb-slider :items="currentStreaming" :configuration="configuration" :id="'currentStreaming'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="currentStreaming.length>0">
             <div class="slot-text">
                 <font-awesome-icon :icon="['fas', 'play-circle']" class="mr-2"/> Popular - Currently On Air
             </div>
-        </movie-slider>
+        </mb-slider>
         <!-- User networks -->
         <div  v-if="userNetworksData.length>0">
             <div v-for="network in userNetworksData" :key="network.id">
-                <movie-slider :movies="network.seriesList" :configuration="configuration" :id="network.id"
+                <mb-slider :items="network.seriesList" :configuration="configuration" :id="network.id"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo">
                     <el-row>
                         <el-col :span="12">
@@ -39,22 +39,22 @@
                             </el-button>
                         </el-col>
                     </el-row>
-                </movie-slider>
+                </mb-slider>
             </div>
         </div>
         <!-- Default networks -->
-        <movie-slider :movies="topNetflixSeries" :configuration="configuration" :id="'netflixShows'"
+        <mb-slider :items="topNetflixSeries" :configuration="configuration" :id="'netflixShows'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="topNetflixSeries.length>0">
             <img :src="`${configuration.images.secure_base_url}w500${NETWORKS.NETFLIX.image}`" class="slot-logo"/>
-        </movie-slider>
-        <movie-slider :movies="topHBOSeries" :configuration="configuration" :heading="'Top Shows on HBO'" :id="'amazonShows'"
+        </mb-slider>
+        <mb-slider :items="topHBOSeries" :configuration="configuration" :heading="'Top Shows on HBO'" :id="'amazonShows'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="topHBOSeries.length>0">
             <img :src="`${configuration.images.secure_base_url}w500${NETWORKS.AMAZON.image}`" class="slot-logo"/>
-        </movie-slider>
-        <movie-slider :movies="topAmazonSeries" :configuration="configuration" :heading="'Top Shows on Amazon'" :id="'amazonShows'"
+        </mb-slider>
+        <mb-slider :items="topAmazonSeries" :configuration="configuration" :heading="'Top Shows on Amazon'" :id="'amazonShows'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" v-if="topAmazonSeries.length>0">
             <img :src="`${configuration.images.secure_base_url}w500${NETWORKS.HBO.image}`" class="slot-logo invert-logo"/>
-        </movie-slider>
+        </mb-slider>
     </div>
 </template>
 

@@ -112,8 +112,8 @@
                 </div>
             </div>
         </div>
-        <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
-            :selectPerson="selectPerson"></person-slider>
+        <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
+            :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
         <!-- Episodes slider -->
         <div class="mt-4 pt-3 pb-3 season-container">
@@ -126,17 +126,19 @@
                     :value="item.id">
                 </el-option>
             </el-select> <span class="ml-3">{{selectedSeasonInfo.episodes.length}} Episodes - {{getDateText(selectedSeasonInfo.air_date)}}</span>
-            <season-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
-                :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details"></season-slider>
+            <!-- <season-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
+                :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details"></season-slider> -->
+            <mb-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :items="selectedSeasonInfo.episodes" :configuration="configuration"
+                :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details" :isEpisode="true"></mb-slider>
         </div>
 
-        <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
-            :selectPerson="selectPerson"></person-slider>
-        <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
-            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
-        <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration"
+        <mb-slider v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
+            :selectPerson="selectPerson" :isPerson="true"></mb-slider>
+        <mb-slider v-if="similarMovies.length" :items="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
+            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
+        <mb-slider v-if="recommendedMovies.length" :items="recommendedMovies" :configuration="configuration"
             :heading="'Recommended'" :id="'recommended'"
-            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></movie-slider>
+            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
 
         <div class="mb-5"></div>
         <el-dialog

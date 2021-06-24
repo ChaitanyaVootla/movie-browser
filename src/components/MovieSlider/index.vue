@@ -2,7 +2,6 @@
     <div :class="`${id} main-slider-div ${history?'history-slider':''}`">
         <slot>
             <div class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
-                <!-- <font-awesome-icon :icon="['fas', 'history']" v-if="history"/> -->
                 {{heading}}
                 <router-link v-if="showDiscoverLink" class="ml-2" :to="{
                     name: 'discover',
@@ -17,33 +16,62 @@
             </div>
         </slot>
         <div class="slider-container">
-            <div class="scroll-item" v-on:click="slideLeft" v-show="isBarFull">
-                <!-- <font-awesome-icon :icon="['fas', 'chevron-left']" /> -->
+            <div class="scroll-item" v-on:click="slideLeft">
                 <i class="el-icon-arrow-left"></i>
             </div>
-            <div v-show="!isBarFull" class="ml-4"></div>
-            <div class="slider-bar" :id="`scroll-bar-${uuid}`">
-                <movie-card v-for="(movie, index) in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
+            <div class="ml-4"></div>
+            <div v-if="isPerson" class="slider-bar" :id="`scroll-bar-${uuid}`">
+                <person-card v-for="(person, index) in items" :key="person.id + index" :person="person" :configuration="configuration" :imageRes="'w500'"
+                    :disableRatingShadow="true" :class="isSliding?'no-pointer-events':''"></person-card>
+            </div>
+            <div v-if="isEpisode" class="slider-bar" :id="`scroll-bar-${uuid}`">
+                <episode-card v-for="(episode, index) in items" :episode="episode" :configuration="configuration" :imageRes="'w500'"
+                    :key="episode.id + index" :disableRatingShadow="true" :showHeader="showHeader" :openEpisodeDialog="openEpisodeDialog"
+                    :class="isSliding?'no-pointer-events':''"></episode-card>
+            </div>
+            <div v-if="!isPerson && !isEpisode" class="slider-bar" :id="`scroll-bar-${uuid}`">
+                <movie-card v-for="(movie, index) in items" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                     :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"
                     :hideBadge="hideBadge" :class="isSliding?'no-pointer-events':''"></movie-card>
             </div>
-            <div class="scroll-item scroll-item-right" v-on:click="slideRight" v-show="isBarFull">
-                <!-- <font-awesome-icon :icon="['fas', 'chevron-right']" /> -->
+            <div class="scroll-item scroll-item-right" v-on:click="slideRight">
                 <i class="el-icon-arrow-right"></i>
             </div>
         </div>
-        <!-- <movie-info v-show="showInfo" :movie="selectedMovie" :configuration="configuration" :imageRes="'w500'"
-            :closeInfo="closeInfo"></movie-info> -->
+        <el-dialog
+            :visible.sync="episodeDialogVisible">
+            <h5>{{dialogEpisode.name}}</h5>
+            Episode {{dialogEpisode.episode_number}}<span v-if="dialogEpisode.air_date"> - {{getDateText(dialogEpisode.air_date)}}</span>
+
+            <p>{{dialogEpisode.overview}}</p>
+
+            <el-carousel height="700px" style="padding: 1em 0;">
+                <el-carousel-item v-for="image in dialogEpisode.images.stills" :key="image.file_path">
+                    <div class="justify-center">
+                        <img v-lazy="{
+                                src: `${configuration.images.secure_base_url}h632${image.file_path}`,
+                                error: require('../../Assets/Images/error.svg'),
+                                loading: require('../../Assets/Images/loader-bars.svg'),
+                            }" height="700px"
+                        />
+                    </div>
+                </el-carousel-item>
+            </el-carousel>
+        </el-dialog>
     </div>
 </template>
 
 <script lang="ts">
+    import { api } from '../../API/api';
     import { v4 as uuidv4 } from 'uuid';
+    import { getFullDateText, getDateText } from '../../Common/utils';
 
     export default {
         name: 'movieSlider',
         props: [
-            'movies',
+            'items',
+            'isPerson',
+            'isEpisode',
             'configuration',
             'id',
             'name',
@@ -54,20 +82,29 @@
             'showDiscoverLink',
             'history',
             'hideBadge',
+            'showHeader',
+            'seriesInfo',
+            'seasonInfo',
         ],
         data() {
-          return {
-              scrollValue: 500,
-              selectedMovie: {},
-              showInfo: false,
-              isBarFull: true,
-              uuid: 0,
-              isSliding: false,
-          }  
+            return {
+                scrollValue: 500,
+                selectedMovie: {},
+                showInfo: false,
+                uuid: 0,
+                isSliding: false,
+                episodeDialogVisible: false,
+                dialogEpisode: {
+                    images: {
+                        still: []
+                    }
+                },
+                getFullDateText,
+                getDateText,
+            }  
         },
         mounted() {
             this.uuid = uuidv4();
-            this.isBarFull = this.checkIsBarFull();
             setTimeout(
                 () => {
                     const slider = document.querySelector(`#scroll-bar-${this.uuid}`);
@@ -109,25 +146,11 @@
                 $(`.${this.id} .slider-bar`)[0].scrollLeft += $(`.${this.id} .slider-bar`)[0].clientWidth;
                 $(`.${this.id} .slider-bar`).css('scroll-behavior', '')
             },
-            showMovieInfo: async function (movie: any) {
-                this.showMovieInfoModal(movie);
-                // const self = this;
-                // this.selectedMovie = movie;
-                // this.showInfo = true;
-                // setTimeout(
-                //     function() {
-                //         $(`.${self.id} .info-container`)[0].scrollIntoView({behavior: "smooth"});
-                //     }
-                // );
-            },
-            closeInfo: function() {
-                this.showInfo = false;
-            },
-            checkIsBarFull() {
-                // if ($(`.${this.id} .slider-bar`)[0] && $(`.${this.id} .slider-heading`)[0]) {
-                //     return $(`.${this.id} .slider-bar`)[0].scrollWidth > $(`.${this.id} .slider-heading`)[0].clientWidth;
-                // }
-                return true;
+            async openEpisodeDialog(episode) {
+                this.dialogEpisode = Object.assign(episode, {images: { stills:[] }});
+                this.dialogEpisode.images = await api.getEpisodeImages(this.seriesInfo.id, this.seasonInfo.season_number, this.dialogEpisode.episode_number);
+                this.episodeDialogVisible = true;
+                
             },
         },
     }
@@ -199,6 +222,10 @@
     }
     /deep/ .movie-item {
         margin-right: 1.5em !important;
+    }
+    /deep/ .person-card-image {
+        height: 11em !important;
+        margin: 0 0.2em;
     }
     .history-slider /deep/.movie-card-image {
         height: 15em;

@@ -60,9 +60,9 @@
             </el-row>
         </div>
         <div v-for="(careerObj, index) in carrerList" :key="index">
-            <movie-slider
+            <mb-slider
                 v-if="careerObj.items.length"
-                :movies="careerObj.items"
+                :items="careerObj.items"
                 :configuration="configuration"
                 :heading="careerObj.name"
                 :id="careerObj.id"
@@ -72,7 +72,7 @@
                 :name="careerObj.personName"
                 :personId="careerObj.personId"
                 >
-            </movie-slider>
+            </mb-slider>
         </div>
         <div class="mb-5"></div>
     </div>

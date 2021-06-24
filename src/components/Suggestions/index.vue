@@ -13,22 +13,22 @@
                 </el-button>
             </router-link>
         </div>
-        <movie-slider :movies="recommendedMoviesByPopularity" :configuration="configuration"
+        <mb-slider :items="recommendedMoviesByPopularity" :configuration="configuration"
             :heading="'Suggestions - Trending'" :id="'suggestedMoviesPopular'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-            v-if="recommendedMoviesByPopularity.length"></movie-slider>
-        <movie-slider :movies="randomFavoriteGenreMovies" :configuration="configuration"
+            v-if="recommendedMoviesByPopularity.length"></mb-slider>
+        <mb-slider :items="randomFavoriteGenreMovies" :configuration="configuration"
             :heading="randomFavoriteGenre.name + ' Movies'" :id="'randomFavoriteGenreMovies'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-            v-if="randomFavoriteGenre.name && randomFavoriteGenreMovies.length"></movie-slider>
-        <!-- <movie-slider :movies="recommendedMoviesAllTime" :configuration="configuration"
+            v-if="randomFavoriteGenre.name && randomFavoriteGenreMovies.length"></mb-slider>
+        <!-- <mb-slider :items="recommendedMoviesAllTime" :configuration="configuration"
             :heading="'Suggestions - All Time'" :id="'suggestedMoviesAllTime'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-            v-if="recommendedMoviesAllTime.length"></movie-slider> -->
-        <movie-slider :movies="moviesSimilarToRecent" :configuration="configuration"
+            v-if="recommendedMoviesAllTime.length"></mb-slider> -->
+        <mb-slider :items="moviesSimilarToRecent" :configuration="configuration"
             :heading="'Because you watched - ' + randomRecentWatchedMovie.original_title" :id="'moviesSimilarToRecent'"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"
-            v-if="randomRecentWatchedMovie.original_title && moviesSimilarToRecent.length"></movie-slider>
+            v-if="randomRecentWatchedMovie.original_title && moviesSimilarToRecent.length"></mb-slider>
     </div>
 </template>
 

@@ -111,20 +111,20 @@
             </div>
         </div>
         <div class="">
-            <person-slider v-if="cast.length" :persons="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
-                :selectPerson="selectPerson"></person-slider>
+            <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
+                :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
             <div v-if="details.collectionDetails">
-                <movie-slider :movies="details.collectionDetails.parts" :configuration="configuration" :heading="details.collectionDetails.name"
-                    :id="details.collectionDetails.name" :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+                <mb-slider :items="details.collectionDetails.parts" :configuration="configuration" :heading="details.collectionDetails.name"
+                    :id="details.collectionDetails.name" :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
             </div>
-            <person-slider v-if="crew.length" :persons="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
-                :selectPerson="selectPerson"></person-slider>
+            <mb-slider v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
+                :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
-            <movie-slider v-if="similarMovies.length" :movies="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
-            <movie-slider v-if="recommendedMovies.length" :movies="recommendedMovies" :configuration="configuration" :heading="'Recommended'" :id="'recommended'"
-                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></movie-slider>
+            <mb-slider v-if="similarMovies.length" :items="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
+            <mb-slider v-if="recommendedMovies.length" :items="recommendedMovies" :configuration="configuration" :heading="'Recommended'" :id="'recommended'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
             <div class="mb-5"></div>
         </div>
         <el-dialog

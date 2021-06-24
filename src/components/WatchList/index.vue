@@ -75,15 +75,15 @@
 
         <!-- <season-slider :movies="upcomingEpisodes" :configuration="configuration"
             :id="`season${upcomingEpisodes.id}`"></season-slider> -->
-        <movie-slider :movies="seriesWatchList" :configuration="configuration"
+        <mb-slider :items="seriesWatchList" :configuration="configuration"
             heading="Upcoming Episodes" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
-            :hideBadge="true" v-if="seriesWatchList.length"></movie-slider>
-        <movie-slider :movies="returningSeries" :configuration="configuration"
+            :hideBadge="true" v-if="seriesWatchList.length"></mb-slider>
+        <mb-slider :items="returningSeries" :configuration="configuration"
             heading="Returning Series" :id="'returningSeries'" :showFullMovieInfo="showSeriesInfo"
-            :hideBadge="true" v-if="returningSeries.length"></movie-slider>
-        <movie-slider :movies="completedSeries" :configuration="configuration"
+            :hideBadge="true" v-if="returningSeries.length"></mb-slider>
+        <mb-slider :items="completedSeries" :configuration="configuration"
             heading="Completed Series" :id="'completedSeries'" :showFullMovieInfo="showSeriesInfo"
-            :hideBadge="true" v-if="completedSeries.length"></movie-slider>
+            :hideBadge="true" v-if="completedSeries.length"></mb-slider>
 
         <div v-if="canShowOnbarding" class="onboarding-container">
             <div class="onboardingText">

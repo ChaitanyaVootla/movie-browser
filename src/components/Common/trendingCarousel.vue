@@ -43,8 +43,8 @@
             </el-carousel>
         </el-col>
         <el-col :span="9" class="pr-2 pl-1" v-if="seriesWatchList.length">
-            <movie-slider :movies="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
-                v-if="seriesWatchList.length" :history="true" heading="Upcoming Episodes"></movie-slider>
+            <mb-slider :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
+                v-if="seriesWatchList.length" :history="true" heading="Upcoming Episodes"></mb-slider>
             <div class="m-4 p-3 heading">
                 <div class="mb-3">Saved Filters</div>
                 <div class="filters-container">

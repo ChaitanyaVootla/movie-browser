@@ -39,7 +39,7 @@ Vue.component('font-awesome-icon', FontAwesomeIcon);
 Vue.config.productionTip = true;
 (<any>window).$ = require('jquery')
 
-Vue.component('movieSlider', require('./components/MovieSlider').default);
+Vue.component('mbSlider', require('./components/MovieSlider').default);
 Vue.component('seasonSlider', require('./components/SeasonSlider').default);
 Vue.component('movieCard', require('./components/Common/movieCard.vue').default);
 Vue.component('sideDrawer', require('./components/SideDrawer/index.vue').default);

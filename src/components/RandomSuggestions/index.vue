@@ -3,8 +3,8 @@
         <div class="ml-4 pl-3 mt-5 mb-4 horBar">
             <div>RECOMMENDATIONS</div><div class="horBarBg"></div>
         </div>
-        <component v-for="(data, index) in randomSuggestionsArray" :key="`randomListId-${index}`" :is="'movieSlider'"
-            :movies="data.items" :configuration="configuration" class="mb-4" :id="`randomListId-${index}`"
+        <component v-for="(data, index) in randomSuggestionsArray" :key="`randomListId-${index}`" :is="'mbSlider'"
+            :items="data.items" :configuration="configuration" class="mb-4" :id="`randomListId-${index}`"
             :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo">
             <div>
                 <span class="slider-heading">{{`${data.parentItem.title}`}}</span> <span class="subText">similar</span>
