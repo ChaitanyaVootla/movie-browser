@@ -9,7 +9,7 @@
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
                 <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider> -->
-                <mb-slider :items="trendingTv" :configuration="configuration" :heading="'Trending TV Series'" :id="'trendingSeries'"
+                <mb-slider :items="trendingTv" :configuration="configuration" :heading="'Trending Series'" :id="'trendingSeries'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
                 <mb-slider :items="currentAiring" :configuration="configuration" :heading="'Currently On Air'" :id="'currentAiring'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>

@@ -4,3 +4,4 @@ dist
 bin
 .env
 android
+.github/workflows/do.yaml

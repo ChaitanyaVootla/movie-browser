@@ -68,7 +68,7 @@
             return {
                 getRatingColor,
                 imageObj: {
-                    src: this.configuration.images.secure_base_url + this.imageRes + (this.movie.poster_path || this.movie.posterPath),
+                    src: this.configuration.images.secure_base_url + 'w185' + (this.movie.poster_path || this.movie.posterPath),
                     error: require('../../Assets/Images/error.svg'),
                 },
                 sanitizeName,

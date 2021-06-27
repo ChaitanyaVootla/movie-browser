@@ -7,7 +7,7 @@
                     <div class="carousel-card-container" @click="carouselCardClicked(item)">
                         <div class="background-images-container justify-center">
                             <img v-lazy="{
-                                    src: `${configuration.images.secure_base_url}h632${item.backdrop_path}`,
+                                    src: `${configuration.images.secure_base_url}w1280${item.backdrop_path}`,
                                     error: require('../../Assets/Images/error.svg'),
                                     loading: require('../../Assets/Images/loader-bars.svg'),
                                 }"
@@ -42,10 +42,12 @@
                 </el-carousel-item>
             </el-carousel>
         </el-col>
-        <el-col :span="9" class="pr-2 pl-1" v-if="seriesWatchList.length">
-            <mb-slider :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
-                v-if="seriesWatchList.length" :history="true" heading="Upcoming Episodes"></mb-slider>
-            <div class="m-4 p-3 heading">
+        <el-col :span="9" class="pr-2 pl-1">
+            <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
+                :history="true" heading="Upcoming Episodes"></mb-slider>
+            <mb-slider v-else :items="currentStreaming" :configuration="configuration" :id="'currentStreaming'" :showFullMovieInfo="showSeriesInfo"
+                :history="true" heading="Streaming now"></mb-slider>
+            <div v-if="savedFilters.length" class="m-4 p-3 heading">
                 <div class="mb-3">Saved Filters</div>
                 <div class="filters-container">
                     <div v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3 mb-3">
@@ -61,6 +63,10 @@
                         </router-link>
                     </div>
                 </div>
+            </div>
+            <div v-else>
+                <mb-slider :items="playingNowMovies" :configuration="configuration" :id="'playingNowMovies'" :showFullMovieInfo="showSeriesInfo"
+                    v-if="playingNowMovies.length" :history="true" heading="Now in Theatres"></mb-slider>
             </div>
         </el-col>
     </el-row>
@@ -88,6 +94,8 @@
                 getRatingColor,
                 trendingListWeek: [],
                 currentCarouselItem: {} as any,
+                playingNowMovies: [] as any,
+                currentStreaming: [] as any,
                 historyLength: 4,
                 popularMovies: [],
             }
@@ -100,11 +108,31 @@
                 return `${window.innerHeight/2}px`;
             },
             savedFilters() {
-                return sortBy(this.$store.getters.savedFilters, 'name');
+                return this.$store.getters.savedFilters;
             },
             seriesWatchList() {
                 let watchListSeries = this.$store.getters.watchListSeries;
-                watchListSeries = compact(watchListSeries.map(
+                watchListSeries = this.getUpcomingEpicodes(watchListSeries)
+                watchListSeries = sortBy(watchListSeries, 'upcomingTime');
+                return watchListSeries;
+            },
+            watchListAbsent() {
+                return false;
+                return !this.seriesWatchList.length;
+            },
+            historyAbsent() {
+                return this.historyMovies.length === 0 && this.seriesHistory.length === 0;
+            },
+            historyMovies() {
+                return this.$store.getters.history.movies.slice(0, 4);
+            },
+            seriesHistory() {
+                return this.$store.getters.history.series.slice(0, 4);
+            },
+        },
+        methods: {
+            getUpcomingEpicodes(items) {
+                return compact(items.map(
                     series => {
                         if (series.next_episode_to_air) {
                             const nextAirDays = moment({hours: 0}).diff(
@@ -120,25 +148,10 @@
                             series.upcomingTime = new Date(series.next_episode_to_air.air_date);
                             return series;
                         }
+                        // return series;
                     }
                 ));
-                watchListSeries = sortBy(watchListSeries, 'upcomingTime');
-                return watchListSeries;
             },
-            watchListAbsent() {
-                return !this.seriesWatchList.length;
-            },
-            historyAbsent() {
-                return this.historyMovies.length === 0 && this.seriesHistory.length === 0;
-            },
-            historyMovies() {
-                return this.$store.getters.history.movies.slice(0, 4);
-            },
-            seriesHistory() {
-                return this.$store.getters.history.series.slice(0, 4);
-            },
-        },
-        methods: {
             carouselCardClicked(movie: any) {
                 if (movie.id === this.currentCarouselItem.id) {
                     this.showFullMovieInfo(movie);
@@ -155,15 +168,26 @@
                 if (genre)
                     return genre.name;
             },
+            async getPlayingNowMovies() {
+                const res = await api.getNowPlayingMovies();
+                this.playingNowMovies = res.results.slice(0, 10);
+            },
+            async getCurrentStreaming() {
+                const res = await api.getCurrentStreamingSeries();
+                this.currentStreaming = res.results.slice(0, 10);
+                // this.currentStreaming = this.getUpcomingEpicodes(this.currentStreaming);
+            },
             async getTrendingListWeek() {
                 const res = await api.getTrendingListWeek();
                 this.trendingListWeek = res.results.slice(0, 10);
                 this.currentCarouselItem = this.trendingListWeek[0];
             },
             async loadData() {
-                await this.getTrendingListWeek();
-                const apiData = await api.getDiscoverMoviesFull('&vote_average.gte=7');
-                this.popularMovies = apiData.results;
+                this.getTrendingListWeek();
+                this.getPlayingNowMovies();
+                this.getCurrentStreaming();
+                // const apiData = await api.getDiscoverMoviesFull('&vote_average.gte=7');
+                // this.popularMovies = apiData.results;
             }
         }
     }

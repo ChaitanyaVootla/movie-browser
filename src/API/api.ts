@@ -31,6 +31,10 @@ export const api = {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + latestMovieQuery + query);
         return res.data;
     },
+    getNowPlayingMovies: async function(query: string = '') {
+        const res = await axios.get(appConfig.apiBaseUrl + endpoints.nowPlayingMovies + '?api_key=' + appConfig.token + latestMovieQuery + query);
+        return res.data;
+    },
     getMovieDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.movieDetails + id +
             '?&api_key=' + appConfig.token + detailsDefaultQuery);

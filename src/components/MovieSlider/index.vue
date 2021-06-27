@@ -227,7 +227,7 @@
         margin: 0 0.2em;
     }
     .history-slider /deep/.movie-card-image {
-        height: 15em;
+        height: 16em;
     }
     .history-slider /deep/ .el-badge__content {
         display: none;

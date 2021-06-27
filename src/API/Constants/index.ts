@@ -19,6 +19,7 @@ export const endpoints = {
     movieGenre: 'genre/movie/list',
     seriesGenre: 'genre/tv/list',
     discoverMovies: 'discover/movie',
+    nowPlayingMovies: 'movie/now_playing',
     discoverSeries: 'discover/tv',
     currentStreamingTv: 'tv/on_the_air',
     searchMovies: 'search/movie',
