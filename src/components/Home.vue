@@ -642,9 +642,21 @@
     }
     .view-enter-active, .view.leave-active {
         transition: opacity 0.2s ease-in-out, transform 0.2s ease;
+        animation: bounce-in .4s;
     }
     .view-enter-active {
-        transition-delay: 0.2s;
+        transition-delay: 0.1s;
+    }
+    @keyframes bounce-in {
+        0% {
+            transform: scale(0);
+        }
+        50% {
+            transform: scale(1.03);
+        }
+        100% {
+            transform: scale(1);
+        }
     }
     .view-enter {
         opacity: 0;
@@ -661,5 +673,30 @@
     .view-leave-to {
         opacity: 0;
         // transform: translateY(-50px);
+    }
+    .lightMode {
+        .el-menu {
+            background-color: rgb(248, 248, 248);
+        }
+        .top-navbar {
+            box-shadow: 0px -6px 10px 7px rgba(148, 148, 148);
+        }
+        .el-menu-item {
+            color: @link-color-red !important;
+        }
+        .search-button {
+            background: #eee;
+            border-color: #222;
+            color: black;
+        }
+        .el-menu-item:hover.menu-item-nobg {
+            background-color: rgb(248, 248, 248) !important;
+        }
+        .search-dropdown {
+            background-color: rgb(248, 248, 248) !important;
+        }
+        .dropdown-item:hover {
+            background: #eee !important;
+        }
     }
 </style>

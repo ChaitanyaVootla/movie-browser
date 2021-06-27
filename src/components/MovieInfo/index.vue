@@ -6,23 +6,27 @@
         <div class="info-container" v-if="details.title">
             <h3 div="info-heading">
                 <span class="shadow-text">{{details.title}}</span>
-                <span>
-                    <span class="text-muted info-tagline cursor-pointer" @click="openImageModal">
-                        <font-awesome-icon :icon="['fas', 'images']"/>
-                    </span>
-                </span>
             </h3>
 
             <!-- Date and Genres -->
-            <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                {{getDateText(details.release_date)}} -
+            <h6 class="secondary-info">
+                <span v-if="details.release_date">{{getDateText(details.release_date)}} -</span>
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{genre.name}}{{index===details.genres.length-1?'':','}}
                 </span>
             </h6>
 
+            <!-- Rating images and runtime -->
+            <h6 class="secondary-info">
+                <span v-if="details.runtime">{{getRuntime(details.runtime)}}</span>
+                <span v-if="rating" :class="details.runtime?'ml-2':''">{{rating}} </span>
+                <span class="ml-2" @click="openImageModal">
+                    <font-awesome-icon :icon="['fas', 'images']"/>
+                </span>
+            </h6>
+
             <!-- External links -->
-            <div class="ext-links-container shadow-text">
+            <div class="ext-links-container mt-4 shadow-text">
                 <a :href="`https://google.com/search?q=${details.title} ${getYear(details.release_date)} movie`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
@@ -30,6 +34,14 @@
                 <a :href="`https://www.iptorrents.com/t?q=${details.title};o=seeders#torrents`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon"/>
+                </a>&nbsp;
+                <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}`"
+                    target="_blank" class="mr-3">
+                    <font-awesome-icon :icon="['fab', 'imdb']" class="ext-link-icon"/>
+                </a>&nbsp;
+                <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
+                    target="_blank" class="mr-3">
+                    <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon"/>
                 </a>&nbsp;
                 <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
                     <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon"/>
@@ -62,7 +74,7 @@
             </div>
 
             <!-- budget -->
-            <div style="top: 25em; position: absolute;" class="budget-text mobile-hide">
+            <div style="top: 27em; position: absolute;" class="budget-text mobile-hide">
                 <font-awesome-icon :icon="['fas', 'dollar-sign']" class="budget-icon"/>
                 {{getCurrencyString(details.budget)}}
                 <br/>
@@ -199,6 +211,7 @@
             dialogVisible: false,
             backdrops: [] as any[],
             posters: [] as any[],
+            rating: null,
             defaultImageTab: 'backdrops',
             getCurrencyString,
             getDateText,
@@ -214,6 +227,13 @@
             }
         },
         methods: {
+            getRuntime(runtime) {
+                let hours = 0;
+                if ((runtime/60) >= 1) {
+                    hours = Math.trunc(runtime/60);
+                }
+                return `${hours? Math.trunc(hours) + 'h ':''}${runtime%60} m`;
+            },
             watchedClicked() {
                 if (!this.user.displayName) {
                     return;
@@ -279,6 +299,14 @@
                     }
                 );
                 this.detailsLoading = false;
+                this.getRating();
+            },
+            async getRating() {
+                const {results: releaseDates} = await api.releaseDates(this.details.id);
+                const usRating = releaseDates.find(({iso_3166_1}) => iso_3166_1 === 'US');
+                if (usRating) {
+                    this.rating = usRating.release_dates[0].certification;
+                }
             },
             async updateHistoryData() {
                 // firebase.auth().onAuthStateChanged(

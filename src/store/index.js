@@ -34,11 +34,15 @@ const store = new Vuex.Store({
         sideBarFilters: {
             movieGenres: [],
             seriesGenres: [],
-        }
+        },
+        isLightMode: false,
     },
     mutations: {
         setUser(state, user) {
             state.user = user;
+        },
+        setIsLight(state, mode) {
+            state.isLightMode = mode;
         },
         setHistory(state, { movies, series }) {
             if (movies) {
@@ -94,6 +98,7 @@ const store = new Vuex.Store({
         sideBarFilters: state => state.sideBarFilters,
         canFilterMovies: state => state.sideBarFilters.movieGenres.length,
         canFilterSeries: state => state.sideBarFilters.seriesGenres.length,
+        isLightMode: state => state.isLightMode,
     },
     actions: {
         initFirebase ({ commit }) {

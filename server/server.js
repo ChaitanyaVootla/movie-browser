@@ -8,6 +8,7 @@ app.use(cors())
 app.get('/keywords',
     (req, res) => {
         if (req.query.q && req.query.q.length > 1) {
+            console.log(req.query.q);
             const responseList = [];
             allKeywords.forEach(
                 (keyword) => {

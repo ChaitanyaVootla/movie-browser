@@ -78,6 +78,19 @@
     color: @text-color;
     border-color: #222;
 }
+.lightMode {
+    .el-input__inner {
+        color: black !important;
+        border-color: #fff !important;
+    }
+    .el-input__inner {
+        background-color: #eee !important;
+    }
+    .el-input__inner:hover {
+        color: @text-color;
+        border-color: #222;
+    }
+}
 // date range
 /deep/ .el-range-input {
     background-color: black;
@@ -193,7 +206,7 @@ a {
 .movies-grid-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, 11em);
-    gap: 1em;
+    gap: 1.5em;
     justify-content: space-between;
     padding: 1em;
 }
@@ -240,4 +253,8 @@ a {
     border-radius: @default-radius !important;
     font-size: 16px;
     opacity: 1;
+}
+
+.cursor-pointer {
+    cursor: pointer;
 }

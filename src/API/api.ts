@@ -41,6 +41,11 @@ export const api = {
             '?&api_key=' + appConfig.token);
         return details;
     },
+    releaseDates: async function(id: number) {
+        const { data: details} = await axios.get(appConfig.apiBaseUrl + `movie/${id}/release_dates` +
+            '?&api_key=' + appConfig.token);
+        return details;
+    },
     getTvDetails: async function(id: number) {
         const { data: details} = await axios.get(appConfig.apiBaseUrl + endpoints.tvDetails + id +
             '?&api_key=' + appConfig.token + detailsDefaultQuery);

@@ -17,7 +17,10 @@
         <div class="description-container normal-bio p-4 ml-2 mobile-hide" v-if="!detailsLoading">
             <span class="main-name">{{details.name}}</span>
             <span class="ml-3 text-muted">{{details.known_for_department}}</span>
-            <a :href="`https://google.com/search?q=${details.name}`" target="_blank" class="ml-3 external-link-icon">
+            <span class="ml-3 info-tagline cursor-pointer" @click="dialogVisible = true">
+                <font-awesome-icon :icon="['fas', 'images']"/>
+            </span>
+            <a :href="`https://google.com/search?q=${details.name}`" target="_blank" class="ml-4 external-link-icon">
                 <font-awesome-icon :icon="['fab', 'google']" />
             </a>
             <a v-if="details.external_ids && details.external_ids.imdb_id"
@@ -74,6 +77,21 @@
                 >
             </mb-slider>
         </div>
+        <el-dialog
+            :visible.sync="dialogVisible">
+            <el-carousel type="card" height="500px">
+                <el-carousel-item v-for="image in details.images.profiles" :key="image.file_path">
+                    <div class="justify-center">
+                        <img v-lazy="{
+                                src: `${configuration.images.secure_base_url}h632${image.file_path}`,
+                                error: require('../../Assets/Images/error.svg'),
+                                loading: require('../../Assets/Images/loader-bars.svg'),
+                            }" height="500px"
+                        />
+                    </div>
+                </el-carousel-item>
+            </el-carousel>
+        </el-dialog>
         <div class="mb-5"></div>
     </div>
 </template>
@@ -98,6 +116,7 @@
             },
             detailsLoading: true,
             showFullBio: false,
+            dialogVisible: false,
             carrerList: [] as any[],
           }
         },

@@ -19,7 +19,6 @@
             <div class="scroll-item" v-on:click="slideLeft">
                 <i class="el-icon-arrow-left"></i>
             </div>
-            <div class="ml-4"></div>
             <div v-if="isPerson" class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <person-card v-for="(person, index) in items" :key="person.id + index" :person="person" :configuration="configuration" :imageRes="'w500'"
                     :disableRatingShadow="true" :class="isSliding?'no-pointer-events':''"></person-card>

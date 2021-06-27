@@ -13,8 +13,8 @@
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
                 <mb-slider :items="currentAiring" :configuration="configuration" :heading="'Currently On Air'" :id="'currentAiring'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
-                <random-suggestions :configuration="configuration" :showMovieInfoModal="showMovieInfo"
-                    :showFullMovieInfo="showSeriesInfo"></random-suggestions>
+                <!-- <random-suggestions :configuration="configuration" :showMovieInfoModal="showMovieInfo"
+                    :showFullMovieInfo="showSeriesInfo"></random-suggestions> -->
             </div>
         </div>
     </div>

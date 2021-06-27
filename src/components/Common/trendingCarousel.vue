@@ -69,8 +69,7 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import { getRatingColor } from '../../Common/utils';
-    import { signIn, firebase, signOut, db } from '../../Common/firebase';
-    import { sortBy, groupBy, keyBy, uniqBy, compact } from 'lodash';
+    import { sortBy, compact } from 'lodash';
     import moment from 'moment';
 
     export default {
@@ -198,7 +197,7 @@
         object-position: 10% 0;
     }
     .background-images-container {
-        filter: opacity(0.4);
+        filter: opacity(0.5);
         height: 100%;
         overflow: hidden;
         border-radius: 0.2em;
@@ -227,5 +226,16 @@
         cursor: pointer;
         background-color:rgb(24, 24, 24);
         padding: 0 1em;
+    }
+    .lightMode {
+        .week-trends-container {
+            background-color: rgb(236, 236, 236);
+        }
+        .carousel-card-container {
+            background-color: rgb(236, 236, 236);
+        }
+        .background-images-container {
+            filter: opacity(1);
+        }
     }
 </style>

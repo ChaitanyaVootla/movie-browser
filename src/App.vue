@@ -1,23 +1,32 @@
 <template>
-    <div id="app">
+    <div id="app" :class="isLightMode?'lightMode':''">
         <home/>
     </div>
 </template>
 
 <script lang="ts">
-    import { Component, Vue } from 'vue-property-decorator';
-    import Home from './components/Home.vue';
+    // import { Component, Vue } from 'vue-property-decorator';
+    // import Home from './components/Home.vue';
     import { store } from './store';
 
-    @Component({
-        components: {
-            Home,
-        }
-    })
-    export default class App extends Vue {
+    // @Component({
+    //     components: {
+    //         Home,
+    //     }
+    // })
+    export default {
         created() {
             store.dispatch('initFirebase');
-        }
+        },
+        computed: {
+            isLightMode() {
+                if (store.getters.isLightMode) {
+                    const htmlTag = document.getElementsByTagName('html');
+                    htmlTag[0].classList = ['lightMode'];
+                }
+                return store.getters.isLightMode;
+            }
+        },
     }
 </script>
 
@@ -29,6 +38,11 @@
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         background: #111;
         color: @text-color;
+    }
+    .lightMode {
+        body {
+            background: #eee;
+        }
     }
     /* width */
     ::-webkit-scrollbar {
