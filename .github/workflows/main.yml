@@ -38,9 +38,9 @@ jobs:
           echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
           echo "VUE_APP_SERVER_URL=http://139.59.94.40:3000/" >> .env
           echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
-          # npm i
-          # npm install -g @vue/cli
-          # npm install -g serve
+          npm i
+          npm install -g @vue/cli
+          npm install -g serve
           killall node
           echo "starting vue server..."
           # nohup npm run build && serve -s dist -l 80 > /dev/null 2>&1 &
