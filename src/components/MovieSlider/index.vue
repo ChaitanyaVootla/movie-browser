@@ -1,7 +1,7 @@
 <template>
     <div :class="`${id} main-slider-div ${history?'history-slider':''}`">
         <slot>
-            <div class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
+            <h1 class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
                 {{heading}}
                 <router-link v-if="showDiscoverLink" class="ml-2" :to="{
                     name: 'discover',
@@ -13,7 +13,7 @@
                     }">
                     <font-awesome-icon :icon="['fas', 'external-link-alt']"/>
                 </router-link>
-            </div>
+            </h1>
         </slot>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft">

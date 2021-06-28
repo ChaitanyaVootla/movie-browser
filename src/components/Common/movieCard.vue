@@ -9,14 +9,15 @@
                     name: sanitizeName(movie.name || movie.title),
                     id: movie.id
                 }
-            }">
+            }"
+            :title="movie.name || movie.title">
             <div class="movie-item" :class="`${canApplySideBarFilter && !isInSideBarFilter?'sideBarFilter':''} ${isTodayCard?'isTodayCard':''} ${isWatched?'watched':''}`">
                 <el-badge :value="hideBadge?'':badgeText" :class="`${badgeText} item ${isHoverActive?'isHoverActive':''}`">
                     <div class="img-container">
                         <div v-if="isWatched" class="watched-overlay rating-info">
                             <font-awesome-icon :icon="['fas', 'check']"/>
                         </div>
-                        <img v-lazy="imageObj" class="movie-card-image">
+                        <img v-lazy="imageObj" class="movie-card-image" :alt="movie.name || movie.title">
                         <!-- TODO check if this function is needed -->
                         <!-- <div class="img-overlay">
                             <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"

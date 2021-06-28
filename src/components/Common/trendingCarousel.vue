@@ -12,6 +12,7 @@
                                     loading: require('../../Assets/Images/loader-bars.svg'),
                                 }"
                                 class="carousel-image"
+                                :alt="item.title || item.name"
                             />
                         </div>
                         <div class="info-container shadow-text" v-if="currentCarouselItem.id === item.id">

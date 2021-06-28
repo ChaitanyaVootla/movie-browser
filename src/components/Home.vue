@@ -19,7 +19,7 @@
                 <router-link :to="{ name: 'discover'}">
                     <div class="pl-4 pr-4" :class="onDiscover?'active':''">
                         <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/>
-                        <span class="mobile-hide">Discover</span>
+                        <span class="mobile-hide">Browse</span>
                     </div>
                 </router-link>
             </el-menu-item>
