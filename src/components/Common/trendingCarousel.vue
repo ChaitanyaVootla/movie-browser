@@ -1,7 +1,7 @@
 <template>
     <el-row class="week-trends-container pt-3">
         <el-col :span="watchListAbsent?24:15">
-            <el-carousel :height="getCarouselHeight" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5" id="trending-carousel"
+            <el-carousel height="42em" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5" id="trending-carousel"
                 :key="watchListAbsent">
                 <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
                     <div class="carousel-card-container" @click="carouselCardClicked(item)">
@@ -43,7 +43,7 @@
                 </el-carousel-item>
             </el-carousel>
         </el-col>
-        <el-col :span="9" class="pr-2 pl-1">
+        <el-col :span="9" class="pr-2 pl-1 pt-2">
             <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
                 :history="true" heading="Upcoming Episodes"></mb-slider>
             <mb-slider v-else :items="currentStreaming" :configuration="configuration" :id="'currentStreaming'" :showFullMovieInfo="showSeriesInfo"
