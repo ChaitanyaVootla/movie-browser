@@ -25,7 +25,7 @@ import VueLazyload from 'vue-lazyload';
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
 import { store } from './store/index.js';
-import { createProvider } from './vue-apollo'
+// import { createProvider } from './vue-apollo'
 
 Vue.use(Element);
 
@@ -141,7 +141,7 @@ Vue.use(VueRouter);
 new Vue({
     render: h => h(App),
     router,
-    apolloProvider: createProvider(),
+    // apolloProvider: createProvider(),
     store
 }).$mount('#app');
 
