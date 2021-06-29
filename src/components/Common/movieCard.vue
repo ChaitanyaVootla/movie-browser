@@ -12,7 +12,7 @@
             }"
             :title="movie.name || movie.title">
             <div class="movie-item" :class="`${canApplySideBarFilter && !isInSideBarFilter?'sideBarFilter':''} ${isTodayCard?'isTodayCard':''} ${isWatched?'watched':''}`">
-                <el-badge :value="hideBadge?'':badgeText" :class="`${badgeText} item ${isHoverActive?'isHoverActive':''}`">
+                <el-badge :value="(isMobile() || hideBadge)?'':badgeText" :class="`${badgeText} item ${isHoverActive?'isHoverActive':''}`">
                     <div class="img-container">
                         <div v-if="isWatched" class="watched-overlay rating-info">
                             <font-awesome-icon :icon="['fas', 'check']"/>
@@ -54,7 +54,7 @@
 
 <script lang="ts">
     import { api } from '../../API/api';
-    import { sanitizeName } from '../../Common/utils';
+    import { sanitizeName, isMobile } from '../../Common/utils';
     import { getRatingColor, getDateText } from '../../Common/utils';
     import { db } from '../../Common/firebase';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants';
@@ -73,6 +73,7 @@
                     error: require('../../Assets/Images/error.svg'),
                 },
                 sanitizeName,
+                isMobile,
                 getDateText,
                 isHoverActive: false,
                 badgeTypes: {

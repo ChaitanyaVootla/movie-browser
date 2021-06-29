@@ -242,7 +242,7 @@
             padding: 0;
         }
         .slider-heading {
-            padding-left: 1em;
+            padding-left: 0;
         }
         /deep/ .movie-item {
             width: @mobile-card-width !important;

@@ -39,6 +39,11 @@
         background: #111;
         color: @text-color;
     }
+    @media (max-width: 767px) {
+        body {
+            // padding: 0.5em;
+        }
+    }
     .lightMode {
         body {
             background: #eee;

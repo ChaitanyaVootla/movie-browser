@@ -62,4 +62,8 @@ const getFullDateText = (date) => {
     return `${monthNames[dateObj.getMonth()]} ${dateObj.getDate()}`;
 }
 
-export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText, getFullDateText, getTMDBTimeFormat };
+const isMobile = () => {
+    return ((window.innerWidth > 0) ? window.innerWidth : screen.width) < 767;
+}
+
+export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText, getFullDateText, getTMDBTimeFormat, isMobile };

@@ -36,6 +36,7 @@ const store = new Vuex.Store({
             seriesGenres: [],
         },
         isLightMode: false,
+        isMobile: ((window.innerWidth > 0) ? window.innerWidth : screen.width) < 767
     },
     mutations: {
         setUser(state, user) {

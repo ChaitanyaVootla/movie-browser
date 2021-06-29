@@ -102,7 +102,7 @@
                 </el-button>
             </div>
         </div>
-        <div class="pt-2 pl-5 pr-5 pb-2 discover-options-row advanced-options-row" v-show="showAdvancedFilters">
+        <div class="pt-2 pl-5 pr-5 pb-2 discover-options-row advanced-options-row mobile-hide" v-show="showAdvancedFilters">
             <el-select v-model="selectedCertification" value-key="certification" clearable placeholder="Certification"
                 @change="loadMovies(true)" class="full-width">
                 <el-option
@@ -177,7 +177,7 @@
                 </el-option>
             </el-select>
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
-            <div class="mt-2 save-container small-filter">
+            <div class="mt-2 save-container small-filter mobile-hide">
                 <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)"
                     >Hide Watched</el-checkbox>
             </div>
@@ -813,13 +813,18 @@
     }
     @media (max-width: 767px) {
         .query-info {
-            padding: 1em 0 0 1em;
+            padding: 0.5em;
         }
         .discover-options-row {
-            grid-template-columns: 2fr 2fr 2fr;
-            padding: 0.5em !important;
-            margin: 0 !important;
-            gap: 1em;
+            display: flex;
+            padding: 0 0.5em !important;
+            gap: 0;
+            > div {
+                flex: 0 50%;
+            }
+        }
+        .full-width {
+            width: 50%;
         }
         .switch-container {
             display: grid;
@@ -828,6 +833,9 @@
             justify-items: center;
             align-content: center;
             justify-content: center;
+        }
+        .movie-card-image {
+            height: 10em;
         }
     }
     .switch-container {

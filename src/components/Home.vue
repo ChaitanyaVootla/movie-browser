@@ -63,8 +63,9 @@
                     </div>
                 </router-link>
             </el-menu-item> -->
-            <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg" aria-label="Home">
-                <router-link :to="{ name: 'home'}">
+            <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg mobile-hide" aria-label="Home">
+                <router-link :to="{ name: 'home'}"
+                    title="home">
                     <div class="app-logo">
                         <font-awesome-icon :icon="['fas', 'film']"/>
                     </div>
@@ -91,8 +92,11 @@
                 </div>
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item" aria-label="Settings">
-                <div @click="signInClicked" v-if="!user.photoURL" class="mt-1">
+                <div @click="signInClicked" v-if="!user.photoURL" class="mt-1 mobile-hide">
                     Sign in
+                </div>
+                <div @click="signInClicked" v-if="!user.photoURL" class="desk-hide">
+                    <font-awesome-icon :icon="['fas', 'user']"/>
                 </div>
                 <div v-else>
                     <el-dropdown trigger="click" aria-label="Settings">
@@ -623,7 +627,8 @@
         .top-navbar {
             position: fixed;
             top: inherit;
-            bottom: 0;
+            left: 0;
+            bottom:0;
             box-shadow: none;
             border-top: 1px solid #222 !important;
         }
