@@ -69,7 +69,7 @@ const routes = [
         path: '',
         component: Home,
         name: 'home',
-        redirect: '/',
+        redirect: { name: 'trending' },
     },
     {
         path: '/',
