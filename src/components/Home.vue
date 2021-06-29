@@ -105,19 +105,19 @@
                                 </router-link>
                             </el-dropdown-item>
                             <el-dropdown-item  divided>
-                                <a href="https://github.com/ChaitanyaVootla/movie-browser" target="_blank">
+                                <a href="https://github.com/ChaitanyaVootla/movie-browser" rel="noopener" target="_blank">
                                     <font-awesome-icon :icon="['fab', 'github']" class="mr-1"/>
                                     Github Repo
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item>
-                                <a href="https://www.themoviedb.org/" target="_blank">
+                                <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
                                     <font-awesome-icon :icon="['fas', 'film']" class="mr-1"/>
                                     TMDB
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item>
-                                <a href="https://developers.themoviedb.org/3" target="_blank">
+                                <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
                                     <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1"/>
                                     TMDB Docs
                                 </a>
@@ -137,19 +137,19 @@
                     <div><i class="el-icon-s-tools"></i></div>
                     <el-dropdown-menu slot="dropdown">
                         <el-dropdown-item>
-                            <a href="https://github.com/ChaitanyaVootla/movie-browser" target="_blank">
+                            <a href="https://github.com/ChaitanyaVootla/movie-browser" rel="noopener" target="_blank">
                                 <font-awesome-icon :icon="['fab', 'github']" class="mr-1"/>
                                 Github Repo
                             </a>
                         </el-dropdown-item>
                         <el-dropdown-item>
-                            <a href="https://www.themoviedb.org/" target="_blank">
+                            <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
                                 <font-awesome-icon :icon="['fas', 'film']" class="mr-1"/>
                                 TMDB
                             </a>
                         </el-dropdown-item>
                         <el-dropdown-item>
-                            <a href="https://developers.themoviedb.org/3" target="_blank">
+                            <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
                                 <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1"/>
                                 TMDB Docs
                             </a>
@@ -201,7 +201,6 @@
 </template>
 
 <script lang="ts">
-    import { Component, Prop, Vue } from 'vue-property-decorator';
     import { api } from '../API/api';
     import { sanitizeName } from '../Common/utils';
     import _ from 'lodash';

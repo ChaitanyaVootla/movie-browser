@@ -8,7 +8,10 @@
     <meta name="keywords" content="Movie, Movie browser, Movies, TV, Box office, Netflix, Action, Horror, Comedy, Scifi, New movies, Search Movies,
         Prime Video, amazon prime, screenplay, cast, crew, popular movies, trending series, watch list">
     <meta name="author" content="Vootla Chaitanya">
+    <meta name="theme-color" content="#111"/>
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
     <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+    <link rel="manifest" href="/manifest.json">
     <title>Movie Browser</title>
 </head>
 <body>
@@ -16,6 +19,19 @@
         <strong>We're sorry but Movie browser doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
     </noscript>
     <div id="app"></div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                    // Registration was successful
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function(err) {
+                    // registration failed :(
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
     <!-- built files will be auto injected -->
 </body>
 </html>

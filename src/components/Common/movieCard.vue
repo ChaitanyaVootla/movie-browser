@@ -249,6 +249,7 @@
     }
     .movie-card-image {
         border-radius: 3px;
+        width: auto;
         height: 17em;
         background-size: cover;
         background-repeat: no-repeat;
