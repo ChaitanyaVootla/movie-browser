@@ -63,7 +63,7 @@
                     </div>
                 </router-link>
             </el-menu-item> -->
-            <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg">
+            <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg" aria-label="Home">
                 <router-link :to="{ name: 'home'}">
                     <div class="app-logo">
                         <font-awesome-icon :icon="['fas', 'film']"/>
@@ -90,12 +90,12 @@
                     </div>
                 </div>
             </el-menu-item>
-            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item">
+            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item" aria-label="Settings">
                 <div @click="signInClicked" v-if="!user.photoURL" class="mt-1">
                     Sign in
                 </div>
                 <div v-else>
-                    <el-dropdown trigger="click">
+                    <el-dropdown trigger="click" aria-label="Settings">
                         <img :src="user.photoURL" class="user-photo"/>
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
@@ -134,7 +134,7 @@
             </el-menu-item>
             <el-menu-item v-if="!user.photoURL" index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
                 <el-dropdown trigger="click">
-                    <div><i class="el-icon-s-tools"></i></div>
+                    <div><i class="el-icon-s-tools" aria-label="Settings"></i></div>
                     <el-dropdown-menu slot="dropdown">
                         <el-dropdown-item>
                             <a href="https://github.com/ChaitanyaVootla/movie-browser" rel="noopener" target="_blank">

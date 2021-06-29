@@ -1,6 +1,6 @@
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.1.5/workbox-sw.js');
 const {registerRoute} = workbox.routing;
-const {CacheFirst} = workbox.strategies;
+const {CacheFirst, StaleWhileRevalidate} = workbox.strategies;
 const {CacheableResponse} = workbox.cacheableResponse;
 const { ExpirationPlugin } = workbox.expiration;
 CACHE_NAME = 'test_cache';
@@ -38,4 +38,11 @@ registerRoute(
           }),
         ],
     })
+);
+
+registerRoute(
+    ({request}) =>
+        request.destination === 'script' ||
+        request.destination === 'style',
+    new StaleWhileRevalidate()
 );
