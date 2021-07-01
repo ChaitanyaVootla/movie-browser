@@ -3,7 +3,7 @@
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image"/>
         </div>
-        <div class="info-container" v-if="details.title">
+        <div class="info-container ml-4" v-if="details.title">
             <h3 div="info-heading">
                 <span class="shadow-text">{{details.title}}</span>
             </h3>
@@ -59,13 +59,13 @@
 
             <!-- bookmarks -->
             <div class="mt-4 bookmarks">
-                <el-tooltip class="item" effect="dark" :content="isWatched?'Youve watched this':'Watched this?'"
+                <el-tooltip :disabled="!user.displayName" class="item" effect="dark" :content="isWatched?'Youve watched this':'Watched this?'"
                     placement="top-start">
                     <span :class="`rating-info watch-check ${isWatched?'watched-item':''}`" @click="watchedClicked">
                         <font-awesome-icon :icon="['fas', 'check']"/>
                     </span>
                 </el-tooltip>
-                <el-tooltip class="item" effect="dark" :content="isInWatchList?'Remove from watch list':'Add to watch list'"
+                <el-tooltip :disabled="!user.displayName" class="item" effect="dark" :content="isInWatchList?'Remove from watch list':'Add to watch list'"
                     placement="top-start">
                     <span :class="`rating-info watch-check ${isInWatchList?'watched-item':''}`" @click="addToListClicked">
                         <font-awesome-icon :icon="['fas', 'plus']"/>
@@ -74,13 +74,13 @@
             </div>
 
             <!-- budget -->
-            <div style="top: 27em; position: absolute;" class="budget-text mobile-hide">
+            <!-- <div style="top: 27em; position: absolute;" class="budget-text mobile-hide">
                 <font-awesome-icon :icon="['fas', 'dollar-sign']" class="budget-icon"/>
                 {{getCurrencyString(details.budget)}}
                 <br/>
                 <font-awesome-icon :icon="['fas', 'chart-line']" :class="`${budgetColor} budget-icon`"/>
                 <span :class="budgetColor">{{getCurrencyString(details.revenue)}}</span>
-            </div>
+            </div> -->
 
             <!-- Movie overview -->
             <div class="movie-overview p-2 mobile-hide">
@@ -122,7 +122,7 @@
                 </div>
             </div>
         </div>
-        <div class="">
+        <div class="ml-4 mr-4">
             <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 

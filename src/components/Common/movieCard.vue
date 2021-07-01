@@ -36,7 +36,7 @@
                                 color: ${getRatingColor(movie.vote_average)}`">
                                 {{movie.vote_average?Math.round(movie.vote_average * 10) / 10:'-'}}
                             </span>
-                            <el-tooltip class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
+                            <el-tooltip v-if="user.displayName" class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
                                 :disabled="isWatched">
                                 <span class="rating-info watched-action" :class="isWatched?'green':''"
                                     v-on:click.prevent @click="toggleWatched" v-if="movie.release_date">

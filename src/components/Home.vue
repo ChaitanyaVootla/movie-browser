@@ -63,7 +63,7 @@
                     </div>
                 </router-link>
             </el-menu-item> -->
-            <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg mobile-hide" aria-label="Home">
+            <el-menu-item index="app-logo" class="menu-center-item menu-item-nobg mobile-hide" aria-label="Home" @click="logoClicked">
                 <router-link :to="{ name: 'home'}"
                     title="home">
                     <div class="app-logo">
@@ -210,6 +210,7 @@
     import _ from 'lodash';
     import { configuration, movieGenres, seriesGenres } from '../Common/staticConfig';
     import { signIn, firebase, signOut, db } from '../Common/firebase';
+    import anime from 'animejs';
 
     export default {
         name: 'home',
@@ -228,6 +229,7 @@
                 selectedPerson: {},
                 showSearchResults: true,
                 showDrawer: false,
+                logoAnimation: null,
             };
         },
         created() {
@@ -251,6 +253,15 @@
 
             $('.search-dropdown, .search-intput-container').click(function(event){
                 event.stopPropagation();
+            });
+            this.logoAnimation = anime({
+                targets: '.app-logo',
+                rotate: ['', '1turn', ''],
+                borderRadius: ['0%', '50%', '50%', '0%'],
+                backgroundColor: ['#850909', '#fff', '#850909'],
+                easing: 'easeInOutQuad',
+                autoplay: false,
+                duration: 500,
             });
         },
         computed: {
@@ -297,6 +308,9 @@
             }
         },
         methods: {
+            logoClicked() {
+                this.logoAnimation.play();
+            },
             signInClicked() {
                 signIn();
             },
@@ -396,9 +410,6 @@
 <style scoped lang="less">
     @import '../Assets/Styles/main.less';
 
-    // .el-menu-item {
-    //     padding: 0;
-    // }
     .app-logo {
         // margin-top: 0.2em;
         cursor: pointer;
@@ -585,6 +596,9 @@
     .menu-item-right {
         float: right !important;
     }
+    .el-menu-item {
+        color: white !important;
+    }
     .el-menu-item:hover.menu-item-nobg {
         background-color: #0f0f0f !important;
         border: 0 !important;
@@ -611,7 +625,7 @@
         width: 5em;
     }
     .top-navbar {
-        box-shadow: 0px -6px 10px 7px rgba(148, 148, 148, 0.18);
+        box-shadow: 0px -6px 10px 7px rgba(148, 148, 148, 0.05);
         position: fixed;
         width: 100%;
         z-index: 100;
@@ -653,10 +667,10 @@
     }
     @keyframes bounce-in {
         0% {
-            transform: scale(0);
+            transform: scale(1);
         }
         50% {
-            transform: scale(1.03);
+            transform: scale(1);
         }
         100% {
             transform: scale(1);
