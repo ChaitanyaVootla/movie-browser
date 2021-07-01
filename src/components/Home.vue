@@ -597,7 +597,7 @@
         float: right !important;
     }
     .el-menu-item {
-        color: white !important;
+        color: @text-color !important;
     }
     .el-menu-item:hover.menu-item-nobg {
         background-color: #0f0f0f !important;
