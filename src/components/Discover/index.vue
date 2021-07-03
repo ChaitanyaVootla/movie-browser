@@ -1,9 +1,7 @@
 <template>
     <div>
         <div class="content-switch">
-            <el-radio-group
-                v-model="isMovies"
-                @change="typeChanged">
+            <el-radio-group v-model="isMovies" @change="typeChanged">
                 <el-radio-button :label="true">Movies</el-radio-button>
                 <el-radio-button :label="false">Series</el-radio-button>
             </el-radio-group>
@@ -182,7 +180,7 @@
                     >Hide Watched</el-checkbox>
             </div>
         </div>
-        <div v-if="savedFilters.length" class="pl-5 pt-2 pb-2 favorites-bar">
+        <div v-if="savedFilters.length" class="pl-5 pt-2 pb-2 favorites-bar mobile-hide">
             <div class="pr-3 pt-2">
                 <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/> Saved Filters
             </div>
@@ -234,12 +232,10 @@
 </template>
 
 <script lang="ts">
-    import { Component, Prop, Vue } from 'vue-property-decorator';
     import { api } from '../../API/api';
-    import { update, find, debounce, uniqBy, sortBy  } from 'lodash';
-    import { movieParams, seriesParams } from '@/API/Constants';
+    import { find, uniqBy, sortBy  } from 'lodash';
     import { certifications } from '../../Common/certifications';
-    import { signIn, firebase, signOut, db } from '../../Common/firebase';
+    import { firebase, db } from '../../Common/firebase';
 
     export default {
         name: 'movieDiscover',

@@ -36,7 +36,8 @@
                                 color: ${getRatingColor(movie.vote_average)}`">
                                 {{movie.vote_average?Math.round(movie.vote_average * 10) / 10:'-'}}
                             </span>
-                            <el-tooltip v-if="user.displayName" class="item" effect="light" content="Watched this ?" placement="bottom" :open-delay="500"
+                            <el-tooltip class="item" effect="light"
+                                :content="user.displayName?'Watched this ?':'Sign in to use this feature'" placement="bottom" :open-delay="500"
                                 :disabled="isWatched">
                                 <span class="rating-info watched-action" :class="isWatched?'green':''"
                                     v-on:click.prevent @click="toggleWatched" v-if="movie.release_date">
@@ -47,7 +48,7 @@
                     </div>
                 </el-badge>
             </div>
-            <div class="secondary-text mt-1 ml-1">{{movie.character || movie.job || movie.bottomInfo}}</div>
+            <div class="secondary-text mt-2 ml-1">{{movie.character || movie.job || movie.bottomInfo}}</div>
         </router-link>
     </div>
 </template>
@@ -329,5 +330,10 @@
     }
     .rating-info {
         font-size: 0.9em;
+    }
+    @media (max-width: 767px) {
+        .secondary-text {
+            font-size: 0.8em;
+        }
     }
 </style>

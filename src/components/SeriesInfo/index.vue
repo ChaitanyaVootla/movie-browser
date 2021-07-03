@@ -3,7 +3,7 @@
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image"/>
         </div>
-        <div class="info-container" v-if="details.name">
+        <div class="info-container ml-4" v-if="details.name">
             <h3 div="info-heading">
                 {{details.name}}
                 <span class="text-muted info-tagline pl-2" v-if="details.number_of_seasons">
@@ -51,7 +51,7 @@
                     {{details.vote_average}}
                 </span>
                 <el-tooltip class="item" effect="dark" :content="`${details.vote_count} ratings`"
-                    placement="top-start">
+                    placement="right">
                     <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
                 </el-tooltip>
             </div>
@@ -62,10 +62,13 @@
                     In watch List
                     <font-awesome-icon :icon="['fas', 'check']" class="ml-1"/>
                 </el-button>
-                <el-button @click="AddToWatchList" v-else>
-                    Add to watch list
-                    <font-awesome-icon :icon="['fas', 'plus']" class="ml-1"/>
-                </el-button>
+                <el-tooltip v-else class="item" effect="dark" content="Sign in to use this feature"
+                    placement="right" :disabled="user.displayName">
+                    <el-button @click="AddToWatchList">
+                        Add to watch list
+                        <font-awesome-icon :icon="['fas', 'plus']" class="ml-1"/>
+                    </el-button>
+                </el-tooltip>
             </div>
 
             <!-- Movie overview -->
@@ -112,33 +115,35 @@
                 </div>
             </div>
         </div>
-        <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
-            :selectPerson="selectPerson" :isPerson="true"></mb-slider>
+        <div class="ml-4 mr-4">
+            <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
+                :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
-        <!-- Episodes slider -->
-        <div class="mt-4 pt-3 pb-3 season-container">
-            <span class="ml-4 pl-3 mr-3">Seasons</span>
-            <el-select v-model="selectedSeason" placeholder="Select" @change="seasonChanged">
-                <el-option
-                    v-for="item in seasons"
-                    :key="item.id"
-                    :label="item.name"
-                    :value="item.id">
-                </el-option>
-            </el-select> <span class="ml-3">{{selectedSeasonInfo.episodes.length}} Episodes - {{getDateText(selectedSeasonInfo.air_date)}}</span>
-            <!-- <season-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
-                :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details"></season-slider> -->
-            <mb-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :items="selectedSeasonInfo.episodes" :configuration="configuration"
-                :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details" :isEpisode="true"></mb-slider>
+            <!-- Episodes slider -->
+            <div class="mt-4 pt-3 pb-3 season-container">
+                <span class="ml-4 pl-3 mr-3">Seasons</span>
+                <el-select v-model="selectedSeason" placeholder="Select" @change="seasonChanged">
+                    <el-option
+                        v-for="item in seasons"
+                        :key="item.id"
+                        :label="item.name"
+                        :value="item.id">
+                    </el-option>
+                </el-select> <span class="ml-3">{{selectedSeasonInfo.episodes.length}} Episodes - {{getDateText(selectedSeasonInfo.air_date)}}</span>
+                <!-- <season-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
+                    :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details"></season-slider> -->
+                <mb-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :items="selectedSeasonInfo.episodes" :configuration="configuration"
+                    :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details" :isEpisode="true"></mb-slider>
+            </div>
+
+            <mb-slider v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
+                :selectPerson="selectPerson" :isPerson="true"></mb-slider>
+            <mb-slider v-if="similarMovies.length" :items="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
+            <mb-slider v-if="recommendedMovies.length" :items="recommendedMovies" :configuration="configuration"
+                :heading="'Recommended'" :id="'recommended'"
+                :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
         </div>
-
-        <mb-slider v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
-            :selectPerson="selectPerson" :isPerson="true"></mb-slider>
-        <mb-slider v-if="similarMovies.length" :items="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
-            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
-        <mb-slider v-if="recommendedMovies.length" :items="recommendedMovies" :configuration="configuration"
-            :heading="'Recommended'" :id="'recommended'"
-            :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
 
         <div class="mb-5"></div>
         <el-dialog
@@ -233,6 +238,9 @@
         computed: {
             isInWatchList() {
                 return this.$store.getters.watchListSeriesById(this.details.id);
+            },
+            user() {
+                return this.$store.getters.user;
             },
         },
         methods: {

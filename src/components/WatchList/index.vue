@@ -1,5 +1,5 @@
 <template>
-    <div class="m-4 pt-5">
+    <div class="m-4 pt-5 watch-list-container">
         <!-- <el-row class="mr-5">
             <el-col span="12">
                 <el-carousel height="450px" :interval="7000" arrow="always" class="ml-4 carousel">
@@ -253,5 +253,11 @@
     .onboarding-container {
         display: flex;
         justify-content: space-around;
+    }
+    @media (max-width: 767px) {
+        .watch-list-container {
+            margin: 0.5em !important;
+            padding: 0 !important;
+        }
     }
 </style>

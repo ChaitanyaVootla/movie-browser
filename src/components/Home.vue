@@ -7,7 +7,7 @@
             text-color="#eee"
             :default-active="activeNavItem"
             active-text-color="#b91d1d">
-            <el-menu-item index="Trending" class="ml-5 p-0">
+            <el-menu-item index="Trending" class="first-menu-item p-0">
                 <router-link :to="{ name: 'trending'}">
                     <div class="pl-4 pr-4" :class="onTrending?'active':''">
                         <font-awesome-icon :icon="['fas', 'home']" class="mr-2 trending-icon"/>
@@ -256,9 +256,9 @@
             });
             this.logoAnimation = anime({
                 targets: '.app-logo',
-                rotate: ['', '1turn', ''],
-                borderRadius: ['0%', '50%', '50%', '0%'],
-                backgroundColor: ['#850909', '#fff', '#850909'],
+                rotate: ['', '180', ''],
+                borderRadius: ['0%', '50%', '0%'],
+                backgroundColor: ['#850909', '#fff', '#8f0b0b'],
                 easing: 'easeInOutQuad',
                 autoplay: false,
                 duration: 500,
@@ -625,7 +625,7 @@
         width: 5em;
     }
     .top-navbar {
-        box-shadow: 0px -6px 10px 7px rgba(148, 148, 148, 0.05);
+        box-shadow: 0px -6px 10px 7px rgba(148, 148, 148, 0.1);
         position: fixed;
         width: 100%;
         z-index: 100;
@@ -636,6 +636,9 @@
     }
     .primary-container {
         position: relative;
+    }
+    .first-menu-item {
+        margin-left: 3rem !important;
     }
     @media (max-width: 767px) {                  
         .top-navbar {
@@ -656,6 +659,13 @@
         .search-dropdown {
             width: 80%;
             left: 1em;
+        }
+        // .first-menu-item {
+        //     margin-left: 1em !important;
+        // }
+        .el-menu-item {
+            color: @text-color !important;
+            margin: 0 0.6rem !important;
         }
     }
     .view-enter-active, .view.leave-active {

@@ -58,15 +58,17 @@
             </div>
 
             <!-- bookmarks -->
-            <div class="mt-4 bookmarks">
-                <el-tooltip :disabled="!user.displayName" class="item" effect="dark" :content="isWatched?'Youve watched this':'Watched this?'"
-                    placement="top-start">
+            <div class="mt-4 bookmarks mobile-hide">
+                <el-tooltip class="item" effect="dark" :content="user.displayName?isWatched?
+                    'Youve watched this':'Watched this?':'Sign in to use this feature'"
+                    placement="top">
                     <span :class="`rating-info watch-check ${isWatched?'watched-item':''}`" @click="watchedClicked">
                         <font-awesome-icon :icon="['fas', 'check']"/>
                     </span>
                 </el-tooltip>
-                <el-tooltip :disabled="!user.displayName" class="item" effect="dark" :content="isInWatchList?'Remove from watch list':'Add to watch list'"
-                    placement="top-start">
+                <el-tooltip class="item" effect="dark" :content="user.displayName?isInWatchList?
+                    'Remove from watch list':'Add to watch list':'Sign in to use this feature'"
+                    placement="top">
                     <span :class="`rating-info watch-check ${isInWatchList?'watched-item':''}`" @click="addToListClicked">
                         <font-awesome-icon :icon="['fas', 'plus']"/>
                     </span>
@@ -74,13 +76,12 @@
             </div>
 
             <!-- budget -->
-            <!-- <div style="top: 27em; position: absolute;" class="budget-text mobile-hide">
+            <div style="top: 30em; position: absolute;" class="budget-text mobile-hide">
                 <font-awesome-icon :icon="['fas', 'dollar-sign']" class="budget-icon"/>
                 {{getCurrencyString(details.budget)}}
-                <br/>
                 <font-awesome-icon :icon="['fas', 'chart-line']" :class="`${budgetColor} budget-icon`"/>
                 <span :class="budgetColor">{{getCurrencyString(details.revenue)}}</span>
-            </div> -->
+            </div>
 
             <!-- Movie overview -->
             <div class="movie-overview p-2 mobile-hide">
@@ -375,37 +376,6 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
-    @media (max-width: 767px) {
-        .background-images-container {
-            height: 20em !important;
-            font-size: 0.8em !important;
-        }.background-image {
-            height: 20em !important;
-        }
-        .youtube-player {
-            height: 100 !important;
-            width: 100 !important;
-        }
-        .info-container {
-            top: 1em;
-            display: grid;
-            grid-auto-rows: max(3em);
-        }
-        .info-container > div {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        .rating-info {
-            font-size: 1em;
-        }
-        .budget-text {
-            position: relative !important;
-            top: 0 !important;
-        }
-        .bookmarks {
-            font-size: 0.9em;
-        }
-    }
     .vote-count {
         font-size: 0.8em;
         margin-bottom: 2.5em;
@@ -517,5 +487,38 @@
     .watched-item {
         border-color: green;
         color: green;
+    }
+    @media (max-width: 767px) {
+        .background-images-container {
+            height: 20em !important;
+            font-size: 0.8em !important;
+        }.background-image {
+            height: 20em !important;
+        }
+        .youtube-player {
+            height: 100 !important;
+            width: 100 !important;
+        }
+        .info-container {
+            top: 1em;
+            display: grid;
+            grid-auto-rows: max(3em);
+            margin-left: 0.5em !important;
+            padding-left: 0.5em !important;
+        }
+        .info-container > div {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .rating-info {
+            font-size: 1em;
+        }
+        .budget-text {
+            position: relative !important;
+            top: 0 !important;
+        }
+        .bookmarks {
+            font-size: 0.9em;
+        }
     }
 </style>

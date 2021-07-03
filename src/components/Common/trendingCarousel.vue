@@ -1,76 +1,80 @@
 <template>
-    <el-row class="week-trends-container pt-3">
-        <el-col :span="watchListAbsent?24:15">
-            <el-carousel height="42em" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5" id="trending-carousel"
-                :key="watchListAbsent">
-                <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
-                    <div class="carousel-card-container" @click="carouselCardClicked(item)">
-                        <div class="background-images-container justify-center">
-                            <img v-lazy="{
-                                    src: `${configuration.images.secure_base_url}w1280${item.backdrop_path}`,
-                                    error: require('../../Assets/Images/error.svg'),
-                                    loading: require('../../Assets/Images/loader-bars.svg'),
-                                }"
-                                class="carousel-image"
-                                :alt="item.title || item.name"
-                            />
-                        </div>
-                        <div class="info-container shadow-text" v-if="currentCarouselItem.id === item.id">
-                            <h3 div="info-heading">
-                                {{item.title || item.name}}
-                            </h3>
-                            <!-- Genres -->
-                            <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                                <span v-for="(genreId, index) in item.genre_ids" :key="genreId">
-                                    {{getGenreName(genreId)}}{{index===item.genre_ids.length-1?'':','}}
-                                </span>
-                                 - {{item.media_type}}
-                            </h6>
-
-                            <!-- Rating -->
-                            <div class="mt-5 pt-5">
-                                <span class="rating-info" :style="`border-color: ${getRatingColor(item.vote_average)}; color: ${getRatingColor(item.vote_average)}`">
-                                    {{item.vote_average}}
-                                </span>
+    <div>
+        <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
+            :history="true" heading="Upcoming Episodes"></mb-slider>
+        <el-row class="week-trends-container pt-3 mobile-hide">
+            <el-col :span="watchListAbsent?24:15">
+                <el-carousel height="42em" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5" id="trending-carousel"
+                    :key="watchListAbsent">
+                    <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
+                        <div class="carousel-card-container" @click="carouselCardClicked(item)">
+                            <div class="background-images-container justify-center">
+                                <img v-lazy="{
+                                        src: `${configuration.images.secure_base_url}w1280${item.backdrop_path}`,
+                                        error: require('../../Assets/Images/error.svg'),
+                                        loading: require('../../Assets/Images/loader-bars.svg'),
+                                    }"
+                                    class="carousel-image"
+                                    :alt="item.title || item.name"
+                                />
                             </div>
+                            <div class="info-container shadow-text" v-if="currentCarouselItem.id === item.id">
+                                <h3 div="info-heading">
+                                    {{item.title || item.name}}
+                                </h3>
+                                <!-- Genres -->
+                                <h6 class="secondary-info" style="margin-bottom: 1.5em;">
+                                    <span v-for="(genreId, index) in item.genre_ids" :key="genreId">
+                                        {{getGenreName(genreId)}}{{index===item.genre_ids.length-1?'':','}}
+                                    </span>
+                                    - {{item.media_type}}
+                                </h6>
 
-                            <!-- Item overview -->
-                            <div class="movie-overview p-3 mt-10">
-                                <span>{{item.overview.slice(0, 200)}}</span>
+                                <!-- Rating -->
+                                <div class="mt-5 pt-5">
+                                    <span class="rating-info" :style="`border-color: ${getRatingColor(item.vote_average)}; color: ${getRatingColor(item.vote_average)}`">
+                                        {{item.vote_average}}
+                                    </span>
+                                </div>
+
+                                <!-- Item overview -->
+                                <div class="movie-overview p-3 mt-10">
+                                    <span>{{item.overview.slice(0, 200)}}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </el-carousel-item>
-            </el-carousel>
-        </el-col>
-        <el-col :span="9" class="pr-2 pl-1 pt-2">
-            <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
-                :history="true" heading="Upcoming Episodes"></mb-slider>
-            <mb-slider v-else :items="currentStreaming" :configuration="configuration" :id="'currentStreaming'" :showFullMovieInfo="showSeriesInfo"
-                :history="true" heading="Streaming now"></mb-slider>
-            <div v-if="savedFilters.length" class="m-4 p-3 heading">
-                <div class="mb-3">Saved Filters</div>
-                <div class="filters-container">
-                    <div v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3 mb-3">
-                        <router-link :to="{
-                            name: 'discover',
-                            query: {
-                                ...savedFilter,
-                                isMovies: true
-                            }}">
-                            <el-button :type="$router.currentRoute.query.name === savedFilter.name?'danger':'primary'">
-                                {{savedFilter.name}}
-                            </el-button>
-                        </router-link>
+                    </el-carousel-item>
+                </el-carousel>
+            </el-col>
+            <el-col :span="9" class="pr-2 pl-1 pt-2">
+                <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
+                    :history="true" heading="Upcoming Episodes"></mb-slider>
+                <mb-slider v-else :items="currentStreaming" :configuration="configuration" :id="'currentStreaming'" :showFullMovieInfo="showSeriesInfo"
+                    :history="true" heading="Streaming now"></mb-slider>
+                <div v-if="savedFilters.length" class="m-4 p-3 heading">
+                    <div class="mb-3">Saved Filters</div>
+                    <div class="filters-container">
+                        <div v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3 mb-3">
+                            <router-link :to="{
+                                name: 'discover',
+                                query: {
+                                    ...savedFilter,
+                                    isMovies: true
+                                }}">
+                                <el-button :type="$router.currentRoute.query.name === savedFilter.name?'danger':'primary'">
+                                    {{savedFilter.name}}
+                                </el-button>
+                            </router-link>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div v-else>
-                <mb-slider :items="playingNowMovies" :configuration="configuration" :id="'playingNowMovies'" :showFullMovieInfo="showSeriesInfo"
-                    v-if="playingNowMovies.length" :history="true" heading="Now in Theatres"></mb-slider>
-            </div>
-        </el-col>
-    </el-row>
+                <div v-else>
+                    <mb-slider :items="playingNowMovies" :configuration="configuration" :id="'playingNowMovies'" :showFullMovieInfo="showSeriesInfo"
+                        v-if="playingNowMovies.length" :history="true" heading="Now in Theatres"></mb-slider>
+                </div>
+            </el-col>
+        </el-row>
+    </div>
 </template>
 
 <script lang="ts">
