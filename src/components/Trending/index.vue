@@ -3,7 +3,7 @@
         <trending-carousel class="trending-carousel-container" :configuration="configuration" :showMovieInfoModal="showMovieInfo"
             :showFullMovieInfo="showFullMovieInfo" :showSeriesInfo="showSeriesInfo" :movieGenres="movieGenres"
             :seriesGenres="seriesGenres" :trendingMovies="trendingMovies"></trending-carousel>
-        <div class="pt-2">
+        <div>
             <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
                 <mb-slider :items="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
@@ -82,10 +82,12 @@
     }
     .trending-sliders-container {
         margin: 0 1em 2em 1em;
+        padding-top: 2em;
     }
     @media (max-width: 767px) {
         .trending-sliders-container {
             margin: 0.5em;
+            padding-top: 0;
         }
         .trending-carousel-container {
             margin-top: 0.5em;

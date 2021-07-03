@@ -6,7 +6,7 @@
                 <el-col :span="6" class="mobile-hide">
                     <img v-if="carrerList[0].items[1]" v-lazy="creditImageBasePath + carrerList[0].items[1].backdrop_path" class="background-image"/>
                 </el-col>
-                <el-col :span="isMobile?24:12">
+                <el-col :span="isMobile()?24:12">
                     <img v-if="carrerList[0].items[0]" v-lazy="creditImageBasePath + carrerList[0].items[0].backdrop_path" class="background-image"/>
                 </el-col>
                 <el-col :span="6" class="mobile-hide">

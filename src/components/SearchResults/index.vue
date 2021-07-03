@@ -33,7 +33,7 @@
             </span>
           </div>
         </div>
-        <div class="word-wrap mt-2">
+        <div class="word-wrap mt-2 mobile-hide">
           {{result.overview}}
         </div>
       </div>

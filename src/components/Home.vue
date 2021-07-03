@@ -91,7 +91,7 @@
                     </div>
                 </div>
             </el-menu-item>
-            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item" aria-label="Settings">
+            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item mobile-hide" aria-label="Settings">
                 <div @click="signInClicked" v-if="!user.photoURL" class="mt-1 mobile-hide">
                     Sign in
                 </div>
@@ -162,7 +162,73 @@
                 </el-dropdown>
             </el-menu-item>
         </el-menu>
-
+        <el-menu class="desk-hide" :default-active="activeIndex" mode="horizontal">
+            <el-menu-item index="search" class="menu-item-nobg search-menu-item">
+                <div>
+                    <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
+                        <el-input placeholder="Search" v-model="searchText">
+                            <!-- <el-button slot="append" icon="el-icon-search"></el-button> -->
+                        </el-input>
+                    </div>
+                    <div class="search-dropdown" v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults">
+                        <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
+                            No Results
+                        </div>
+                        <search-results
+                            :search-results="searchResults"
+                            :get-genre-name-from-id="getGenreNameFromId"
+                            :image-base-path="imageBasePath"
+                            :search-item-clicked="searchItemclicked">
+                        </search-results>
+                    </div>
+                </div>
+            </el-menu-item>
+            <el-menu-item class="menu-item-right menu-item-nobg ml-2 user-menu-item" aria-label="Settings">
+                <div @click="signInClicked" v-if="!user.photoURL" class="mt-1 mobile-hide">
+                    Sign in
+                </div>
+                <div @click="signInClicked" v-if="!user.photoURL" class="desk-hide">
+                    <font-awesome-icon :icon="['fas', 'user']"/>
+                </div>
+                <div v-else>
+                    <el-dropdown trigger="click" aria-label="Settings">
+                        <img :src="user.photoURL" class="user-photo"/>
+                        <el-dropdown-menu slot="dropdown">
+                            <el-dropdown-item>
+                                <router-link :to="{name: 'Interests'}">
+                                    <font-awesome-icon :icon="['fas', 'user']" class="mr-1"/>
+                                    Profile
+                                </router-link>
+                            </el-dropdown-item>
+                            <el-dropdown-item  divided>
+                                <a href="https://github.com/ChaitanyaVootla/movie-browser" rel="noopener" target="_blank">
+                                    <font-awesome-icon :icon="['fab', 'github']" class="mr-1"/>
+                                    Github Repo
+                                </a>
+                            </el-dropdown-item>
+                            <el-dropdown-item>
+                                <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
+                                    <font-awesome-icon :icon="['fas', 'film']" class="mr-1"/>
+                                    TMDB
+                                </a>
+                            </el-dropdown-item>
+                            <el-dropdown-item>
+                                <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
+                                    <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1"/>
+                                    TMDB Docs
+                                </a>
+                            </el-dropdown-item>
+                            <el-dropdown-item  divided>
+                                <div @click="signOutClicked">
+                                    <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-1"/>
+                                    Sign out
+                                </div>
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </el-dropdown>
+                </div>
+            </el-menu-item>
+        </el-menu>
         <transition name="view">
             <router-view v-if="isLoaded" class="main-router"
                 :isLoaded="isLoaded"
@@ -640,34 +706,6 @@
     .first-menu-item {
         margin-left: 3rem !important;
     }
-    @media (max-width: 767px) {                  
-        .top-navbar {
-            position: fixed;
-            top: inherit;
-            left: 0;
-            bottom:0;
-            box-shadow: none;
-            border-top: 1px solid #222 !important;
-        }
-        .main-router {
-            margin-top: 0;
-            margin-bottom: 5em;
-        }
-        .menu-center-item {
-            left: auto;
-        }
-        .search-dropdown {
-            width: 80%;
-            left: 1em;
-        }
-        // .first-menu-item {
-        //     margin-left: 1em !important;
-        // }
-        .el-menu-item {
-            color: @text-color !important;
-            margin: 0 0.6rem !important;
-        }
-    }
     .view-enter-active, .view.leave-active {
         transition: opacity 0.2s ease-in-out, transform 0.2s ease;
         animation: bounce-in .4s;
@@ -725,6 +763,61 @@
         }
         .dropdown-item:hover {
             background: #eee !important;
+        }
+    }
+    @media (max-width: 767px) {                  
+        .top-navbar {
+            position: fixed;
+            top: inherit;
+            left: 0;
+            bottom:0;
+            box-shadow: none;
+            border-top: 1px solid #222 !important;
+            display: flex;
+            justify-content: space-around;
+            li {
+                width: 100%;
+                a {
+                    div {
+                        // display: flex;
+                        text-align: center;
+                    }
+                }
+            }
+        }
+        .main-router {
+            margin-top: 0;
+            margin-bottom: 5em;
+        }
+        .menu-center-item {
+            left: auto;
+        }
+        .search-dropdown {
+            width: 80%;
+            left: 1em;
+        }
+        // .first-menu-item {
+        //     margin-left: 1em !important;
+        // }
+        .el-menu-item {
+            color: @text-color !important;
+            margin: 0 0.6rem !important;
+        }
+        .search-menu-item {
+            width: 80%;
+            margin-left: 0 !important;
+            left: 0.5em;
+            padding: 0;
+            // position: relative !important;
+        }
+        .search-dropdown {
+            width: 100%;
+            max-height: 30em;
+            left: 0;
+        }
+        .user-menu-item {
+            display: flex;
+            flex-direction: row-reverse;
         }
     }
 </style>
