@@ -3,24 +3,26 @@
         <img v-lazy="mainImgObj" class="main-img" v-if="!detailsLoading"/>
         <div class="background-images-container" v-loading="detailsLoading">
             <el-row class="background-images-row" v-if="carrerList[0]">
-                <el-col :span="6">
+                <el-col :span="6" class="mobile-hide">
                     <img v-if="carrerList[0].items[1]" v-lazy="creditImageBasePath + carrerList[0].items[1].backdrop_path" class="background-image"/>
                 </el-col>
-                <el-col :span="12">
+                <el-col :span="isMobile?24:12">
                     <img v-if="carrerList[0].items[0]" v-lazy="creditImageBasePath + carrerList[0].items[0].backdrop_path" class="background-image"/>
                 </el-col>
-                <el-col :span="6">
+                <el-col :span="6" class="mobile-hide">
                     <img v-if="carrerList[0].items[2]" v-lazy="creditImageBasePath + carrerList[0].items[2].backdrop_path" class="background-image"/>
                 </el-col>
             </el-row>
         </div>
-        <div class="description-container normal-bio p-4 ml-2 mobile-hide" v-if="!detailsLoading">
+        <div class="description-container normal-bio p-4 ml-2" v-if="!detailsLoading">
             <span class="main-name">{{details.name}}</span>
-            <span class="ml-3 text-muted">{{details.known_for_department}}</span>
+            <br class="desk-hide"/>
+            <span class="secondary-info ml-3 text-muted">{{details.known_for_department}}</span>
             <span class="ml-3 info-tagline cursor-pointer" @click="dialogVisible = true">
                 <font-awesome-icon :icon="['fas', 'images']"/>
             </span>
-            <a :href="`https://google.com/search?q=${details.name}`" target="_blank" class="ml-4 external-link-icon">
+            <br class="desk-hide"/>
+            <a :href="`https://google.com/search?q=${details.name}`" target="_blank" class="secondary-info ml-4 external-link-icon">
                 <font-awesome-icon :icon="['fab', 'google']" />
             </a>
             <a v-if="details.external_ids && details.external_ids.imdb_id"
@@ -35,7 +37,7 @@
                 :href="`https://www.facebook.com/${details.external_ids && details.external_ids.facebook_id}`" target="_blank" class="ml-3 external-link-icon">
                 <font-awesome-icon :icon="['fab', 'facebook']" />
             </a>
-            <el-row class="mt-3" v-if="details.birthday">
+            <el-row class="mt-3 mobile-hide" v-if="details.birthday">
                 <el-col :span="1">
                     <span class="info-header">
                         Born
@@ -47,7 +49,7 @@
                     </span>
                 </el-col>
             </el-row>
-            <el-row class="mt-3" v-if="details.biography">
+            <el-row class="mt-3 mobile-hide" v-if="details.biography">
                 <el-col :span="1">
                     <span class="info-header">
                         Bio
@@ -62,7 +64,7 @@
                 </el-col>
             </el-row>
         </div>
-        <div v-for="(careerObj, index) in carrerList" :key="index">
+        <div class="sliders-container" v-for="(careerObj, index) in carrerList" :key="index">
             <mb-slider
                 v-if="careerObj.items.length"
                 :items="careerObj.items"
@@ -99,6 +101,8 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import _ from 'lodash';
+    import { isMobile } from '../../Common/utils';
+
     export default {
         name: 'person',
         props: [
@@ -118,6 +122,7 @@
             showFullBio: false,
             dialogVisible: false,
             carrerList: [] as any[],
+            isMobile,
           }
         },
         created() {
@@ -292,5 +297,31 @@
     .external-link-icon {
         font-size: 1.1em;
         color: @link-color-red;
+    }
+    @media (max-width: 767px) {
+        .background-images-container {
+            height: 15em;
+        }
+        .main-img {
+            top: 1em;
+            margin: 1em;
+            width: 8em;
+            height: auto;
+            box-shadow: 0px 0px 10px 2px rgba(0,0,0,0.95);
+        }
+        .sliders-container {
+            margin: 0.6em !important;
+        }
+        .description-container {
+            top: 2em;
+            left: 10em;
+            width: 50%;
+        }
+        .normal-bio {
+            background: none;
+        }
+        .secondary-info {
+            margin-left: 0 !important;
+        }
     }
 </style>

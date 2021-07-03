@@ -12,14 +12,14 @@
             </h3>
 
             <!-- Date and Genres -->
-            <h6 class="secondary-info" style="margin-bottom: 1.5em;">
+            <h6 class="mb-3 secondary-info">
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{genre.name}}{{index===details.genres.length-1?'':','}}
                 </span>
             </h6>
 
             <!-- Additional info -->
-            <div>
+            <div class="secondary-info">
                 {{getDateText(details.first_air_date)}} - {{details.status}}
                 <span v-if="details.episode_run_time.length" class=" pl-2">
                     <font-awesome-icon :icon="['far', 'clock']"/>
@@ -115,14 +115,14 @@
                 </div>
             </div>
         </div>
-        <div class="ml-4 mr-4">
-            <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
+        <div class="ml-4 mr-4 sliders-container">
+            <mb-slider class="mb-container" v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
             <!-- Episodes slider -->
             <div class="mt-4 pt-3 pb-3 season-container">
-                <span class="ml-4 pl-3 mr-3">Seasons</span>
-                <el-select v-model="selectedSeason" placeholder="Select" @change="seasonChanged">
+                <span class="ml-4 pl-3 mr-3 seasons-heading mobile-hide">Seasons</span>
+                <el-select class="season-dropdown" v-model="selectedSeason" placeholder="Select" @change="seasonChanged">
                     <el-option
                         v-for="item in seasons"
                         :key="item.id"
@@ -130,17 +130,15 @@
                         :value="item.id">
                     </el-option>
                 </el-select> <span class="ml-3">{{selectedSeasonInfo.episodes.length}} Episodes - {{getDateText(selectedSeasonInfo.air_date)}}</span>
-                <!-- <season-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :movies="selectedSeasonInfo.episodes" :configuration="configuration"
-                    :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details"></season-slider> -->
-                <mb-slider v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :items="selectedSeasonInfo.episodes" :configuration="configuration"
+                <mb-slider class="mt-2" v-if="selectedSeasonInfo" :seasonInfo="selectedSeasonInfo" :items="selectedSeasonInfo.episodes" :configuration="configuration"
                     :id="`season${selectedSeasonInfo.id}`" :showHeader="true" :seriesInfo="details" :isEpisode="true"></mb-slider>
             </div>
 
-            <mb-slider v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
+            <mb-slider class="mb-container" v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
-            <mb-slider v-if="similarMovies.length" :items="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
+            <mb-slider class="mb-container" v-if="similarMovies.length" :items="similarMovies" :configuration="configuration" :heading="'Similar'" :id="'similar'"
                 :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
-            <mb-slider v-if="recommendedMovies.length" :items="recommendedMovies" :configuration="configuration"
+            <mb-slider class="mb-container" v-if="recommendedMovies.length" :items="recommendedMovies" :configuration="configuration"
                 :heading="'Recommended'" :id="'recommended'"
                 :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
         </div>
@@ -347,37 +345,6 @@
     .season-container {
         background-color: rgba(148, 148, 148, 0.05);
     }
-    @media (max-width: 767px) {
-        .background-images-container {
-            height: 20em !important;
-            font-size: 0.8em !important;
-        }.background-image {
-            height: 20em !important;
-        }
-        .youtube-player {
-            height: 100 !important;
-            width: 100 !important;
-        }
-        .info-container {
-            top: 1em;
-            display: grid;
-            grid-auto-rows: max(3em);
-        }
-        .info-container > div {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        .rating-info {
-            font-size: 1em;
-        }
-        .budget-text {
-            position: relative !important;
-            top: 0 !important;
-        }
-        .bookmarks {
-            font-size: 0.9em;
-        }
-    }
     .background-images-container {
         filter: opacity(0.3);
         height: 30em;
@@ -453,5 +420,63 @@
     }
     /deep/ .el-dialog__body {
         padding-top: 0;
+    }
+    @media (max-width: 767px) {
+        .background-images-container {
+            height: 20em !important;
+            font-size: 0.8em !important;
+        }
+        .background-image {
+            height: 20em !important;
+        }
+        .youtube-player {
+            height: 100 !important;
+            width: 100 !important;
+        }
+        .info-container {
+            top: 1em;
+            display: grid;
+            grid-auto-rows: max(3em);
+            margin: 0 !important;
+            padding: 1em !important;
+            top: 0;
+            > div {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+        .rating-info {
+            font-size: 1em;
+        }
+        .budget-text {
+            position: relative !important;
+            top: 0 !important;
+        }
+        .bookmarks {
+            font-size: 0.9em;
+            position: absolute;
+            right: 2em;
+            top: 13rem;
+        }
+        .secondary-info {
+            font-size: 0.8em;
+            margin: 0 !important;
+        }
+        .mb-container {
+            margin: 0.5em !important;
+        }
+        .sliders-container {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .season-container {
+            margin: 0 !important;
+            padding: 0.5em !important;
+            font-size: 0.8em;
+        }
+        .seasons-heading {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
     }
 </style>

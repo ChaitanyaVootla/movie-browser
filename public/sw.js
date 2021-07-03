@@ -25,16 +25,16 @@ registerRoute(
 registerRoute(
     ({url}) => url.origin === 'https://api.themoviedb.org',
     new CacheFirst({
-        // Put all cached files in a cache named 'images'
+        // Put all cached files in a cache named 'tmdb'
         cacheName: 'tmdb',
         plugins: [
           // Ensure that only requests that result in a 200 status are cached
           new CacheableResponse({
             statuses: [200],
           }),
-          // Expire them after 1 day
+          // Expire them after 2 hours
           new ExpirationPlugin({
-            maxAgeSeconds: 60 * 60 * 24 * 1, // 1 Day
+            maxAgeSeconds: 60 * 60 * 2, // 2 hours
           }),
         ],
     })

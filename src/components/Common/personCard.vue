@@ -114,4 +114,9 @@
     .info-container {
         max-width: 8em;
     }
+    @media (max-width: 767px) {
+        .info-container {
+            font-size: 0.8em;
+        }
+    }
 </style>

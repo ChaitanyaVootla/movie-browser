@@ -93,7 +93,7 @@
                     <span v-else> Please login to access this feature</span>
                 </p>
             </div>
-            <img src="/images/stream-list.png" class="onboardingImage"/>
+            <img src="/images/stream-list.png" class="onboardingImage mobile-hide"/>
         </div>
     </div>
 </template>
@@ -258,6 +258,22 @@
         .watch-list-container {
             margin: 0.5em !important;
             padding: 0 !important;
+        }
+        .onboardingText {
+            padding: 0;
+            margin: 0;
+        }
+        .onboarding-container {
+            margin-top: 50%;
+        }
+        .actualonboardingText {
+            box-shadow: none;
+            background: none;
+            color: @text-color;
+            padding: .5em;
+            border-radius: 1em;
+            font-size: 0.8em;
+            text-align: center;
         }
     }
 </style>

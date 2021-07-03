@@ -1,6 +1,6 @@
 <template>
     <div>
-        <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
+        <mb-slider class="desk-hide" v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
             :history="true" heading="Upcoming Episodes"></mb-slider>
         <el-row class="week-trends-container pt-3 mobile-hide">
             <el-col :span="watchListAbsent?24:15">

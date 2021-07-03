@@ -58,7 +58,7 @@
             </div>
 
             <!-- bookmarks -->
-            <div class="mt-4 bookmarks mobile-hide">
+            <div class="mt-4 bookmarks">
                 <el-tooltip class="item" effect="dark" :content="user.displayName?isWatched?
                     'Youve watched this':'Watched this?':'Sign in to use this feature'"
                     placement="top">
@@ -123,7 +123,7 @@
                 </div>
             </div>
         </div>
-        <div class="ml-4 mr-4">
+        <div class="ml-4 mr-4 sliders-container">
             <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
@@ -503,7 +503,7 @@
             top: 1em;
             display: grid;
             grid-auto-rows: max(3em);
-            margin-left: 0.5em !important;
+            margin: 0 !important;
             padding-left: 0.5em !important;
         }
         .info-container > div {
@@ -519,6 +519,18 @@
         }
         .bookmarks {
             font-size: 0.9em;
+            position: absolute;
+            top: 12rem;
+            right: 2em;
+            span {
+                margin-left: 1em;
+            }
+        }
+        .secondary-info {
+            font-size: 0.9em;
+        }
+        .sliders-container {
+            margin: 0.5em !important;
         }
     }
 </style>

@@ -1,7 +1,7 @@
 <template>
     <div :class="`${id} main-slider-div ${history?'history-slider':''}`">
         <slot>
-            <h1 class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
+            <h1 v-if="heading" class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
                 {{heading}}
                 <router-link v-if="showDiscoverLink" class="ml-2" :to="{
                     name: 'discover',
@@ -250,10 +250,6 @@
             margin-right: 0.5em !important;
         }
         /deep/ .movie-card-image {
-            width: @mobile-card-width !important;
-            height: auto !important;
-        }
-        /deep/ .img-container {
             width: @mobile-card-width !important;
             height: auto !important;
         }
