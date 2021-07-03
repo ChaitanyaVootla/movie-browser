@@ -4,12 +4,12 @@
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image"/>
         </div>
         <div class="info-container ml-4" v-if="details.title">
-            <h3 div="info-heading">
+            <h3 class="info-heading ml-3">
                 <span class="shadow-text">{{details.title}}</span>
             </h3>
 
             <!-- Date and Genres -->
-            <h6 class="secondary-info">
+            <h6 class="secondary-info ml-3">
                 <span v-if="details.release_date">{{getDateText(details.release_date)}} -</span>
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{genre.name}}{{index===details.genres.length-1?'':','}}
@@ -17,28 +17,38 @@
             </h6>
 
             <!-- Rating images and runtime -->
-            <h6 class="secondary-info">
+            <h6 class="secondary-info ml-3">
                 <span v-if="details.runtime">{{getRuntime(details.runtime)}}</span>
                 <span v-if="rating" :class="details.runtime?'ml-2':''">{{rating}} </span>
                 <span class="ml-2" @click="openImageModal">
                     <font-awesome-icon :icon="['fas', 'images']"/>
                 </span>
             </h6>
-
+            <!-- Watch links -->
+            <div class="ext-links-container ml-3 mt-4">
+                <a v-if="googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
+                    <div class="ott-container">
+                        <img :src="googleData.imagePath" class="ott-icon"/>
+                        <div>Watch Now</div>
+                    </div>
+                </a>
+                <div v-else style="height: 7em">
+                </div>
+            </div>
+            <br/>
             <!-- External links -->
-            <div class="ext-links-container mt-4 shadow-text">
-                <a :href="`https://google.com/search?q=${details.title} ${getYear(details.release_date)} movie`"
-                    target="_blank" class="mr-3">
+            <div class="mt-1 ml-3 shadow-text">
+                <!-- <a :href="googleLink" target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                </a>&nbsp;
+                </a>&nbsp; -->
                 <a :href="`https://www.iptorrents.com/t?q=${details.title};o=seeders#torrents`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon"/>
                 </a>&nbsp;
-                <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}`"
+                <!-- <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'imdb']" class="ext-link-icon"/>
-                </a>&nbsp;
+                </a>&nbsp; -->
                 <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon"/>
@@ -49,24 +59,39 @@
             </div>
 
             <!-- Rating -->
-            <div class="mt-3 pt-5">
-                <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)};
-                    color: ${getRatingColor(details.vote_average)}`">
-                    {{details.vote_average}}
-                </span>
-                <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
+            <div class="mt-4 pt-2 ratings-main-container">
+                <!-- <el-tooltip class="item" effect="light" :content="`${details.vote_count} ratings`"
+                    placement="top">
+                    <div class="rating-info mr-4" :style="`border-color: ${getRatingColor(details.vote_average)};
+                        color: ${getRatingColor(details.vote_average)}`">
+                        {{details.vote_average}}
+                    </div>
+                </el-tooltip> -->
+                <!-- <div class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></div> -->
+                <div class="rating-container">
+                    <a href="" target="_blank">
+                        <img src="/images/rating/tmdb.svg"/><br/>
+                        <span>{{details.vote_average}}/10</span>
+                    </a>
+                </div>
+                <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
+                    <a :href="rating.link" target="_blank">
+                        <img :src="rating.imagePath"/><br/>
+                        <span>{{rating.rating}}</span>
+                    </a>
+                </div>
             </div>
 
             <!-- bookmarks -->
-            <div class="mt-4 bookmarks">
-                <el-tooltip class="item" effect="dark" :content="user.displayName?isWatched?
+            <div class="mt-3 pt-4 bookmarks">
+                <el-tooltip class="item" effect="light" :content="user.displayName?isWatched?
                     'Youve watched this':'Watched this?':'Sign in to use this feature'"
                     placement="top">
                     <span :class="`rating-info watch-check ${isWatched?'watched-item':''}`" @click="watchedClicked">
                         <font-awesome-icon :icon="['fas', 'check']"/>
                     </span>
                 </el-tooltip>
-                <el-tooltip class="item" effect="dark" :content="user.displayName?isInWatchList?
+                <el-tooltip class="item" effect="light" :content="user.displayName?isInWatchList?
                     'Remove from watch list':'Add to watch list':'Sign in to use this feature'"
                     placement="top">
                     <span :class="`rating-info watch-check ${isInWatchList?'watched-item':''}`" @click="addToListClicked">
@@ -76,12 +101,12 @@
             </div>
 
             <!-- budget -->
-            <div style="top: 30em; position: absolute;" class="budget-text mobile-hide">
+            <!-- <div style="top: 31em; position: absolute;" class="budget-text mobile-hide">
                 <font-awesome-icon :icon="['fas', 'dollar-sign']" class="budget-icon"/>
                 {{getCurrencyString(details.budget)}}
                 <font-awesome-icon :icon="['fas', 'chart-line']" :class="`${budgetColor} budget-icon`"/>
                 <span :class="budgetColor">{{getCurrencyString(details.revenue)}}</span>
-            </div>
+            </div> -->
 
             <!-- Movie overview -->
             <div class="movie-overview p-2 mobile-hide">
@@ -181,9 +206,8 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import _ from 'lodash';
-    import { pushItemByName } from '../../Common/localStorageAdapter';
-    import { getCurrencyString, getDateText } from '../../Common/utils';
-    import { signIn, firebase, signOut, db } from '../../Common/firebase';
+    import { getCurrencyString, getDateText, mapGoogleData } from '../../Common/utils';
+    import { db } from '../../Common/firebase';
     import { omit, sortBy } from 'lodash';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 
@@ -212,6 +236,7 @@
             dialogVisible: false,
             backdrops: [] as any[],
             posters: [] as any[],
+            googleData: {},
             rating: null,
             defaultImageTab: 'backdrops',
             getCurrencyString,
@@ -270,6 +295,7 @@
             },
             async getDetails() {
                 this.detailsLoading = true;
+                this.googleData = {};
                 this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
                 if (this.details.belongs_to_collection) {
                     this.details.collectionDetails = await api.collectionDetails(
@@ -308,6 +334,8 @@
                 if (usRating) {
                     this.rating = usRating.release_dates[0].certification;
                 }
+                const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
+                this.googleData = mapGoogleData(googleData);
             },
             async updateHistoryData() {
                 // firebase.auth().onAuthStateChanged(
@@ -349,6 +377,9 @@
             },
         },
         computed: {
+            googleLink() {
+                return `https://google.com/search?q=${this.details.title} ${this.getYear(this.details.release_date)} movie`;
+            },
             budgetColor() {
                 if (this.details.budget && this.details.revenue) {
                     if (this.details.budget > this.details.revenue) {
@@ -378,10 +409,14 @@
     @import '../../Assets/Styles/main.less';
     .vote-count {
         font-size: 0.8em;
-        margin-bottom: 2.5em;
         padding-left: 0.5em;
         color: whitesmoke;
         text-shadow: 1px 1px 2px black;
+        text-align: center;
+        line-height: 4em;
+    }
+    .ott-icon {
+        width: 3em;
     }
     .background-images-container {
         filter: opacity(0.3);
@@ -430,6 +465,31 @@
     }
     .secondary-info {
         color: #aaa;
+    }
+    .ott-container {
+        width: 7em;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: @default-radius;
+        padding: 0.5em;
+        float: left;
+    }
+    .rating-container {
+        padding-top: 0.2em;
+        width: 4em;
+        text-align: center;
+        img {
+            width: 2.2em;
+        }
+        span {
+            font-size: 0.9em;
+        }
+    }
+    .ratings-main-container {
+        display: flex;
+    }
+    .ext-links-container{
+        height: 5em;
     }
     .ext-link-icon {
         font-size: 1.2em;

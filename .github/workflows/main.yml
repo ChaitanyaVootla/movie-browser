@@ -44,8 +44,11 @@ jobs:
           killall node
           echo "starting vue server..."
           nohup npm run build || true
-          # serve -s dist -l 80 > /dev/null 2>&1 &
           cd /movie-browser/server
           echo "starting node server..."
+          nohup node server.js > /dev/null 2>&1 &
+          cd /movie-browser/server/puppeteer
+          npm i
+          echo "starting puppeteer server..."
           nohup node server.js > /dev/null 2>&1 &
           exit 0

@@ -30,9 +30,22 @@
                 </span>
             </div>
 
+            <!-- Watch links -->
+            <div class="ext-links-container ml-2 mt-4">
+                <a v-if="googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
+                    <div class="ott-container">
+                        <img :src="googleData.imagePath" class="ott-icon"/>
+                        <div>Watch Now</div>
+                    </div>
+                </a>
+                <div v-else style="height: 7em">
+                </div>
+            </div>
+            <br/>
+
             <!-- External links -->
-            <div class="ext-links-container mt-4">
-                <a :href="`https://google.com/search?q=${details.name} series`"
+            <div class="mt-1 ml-2">
+                <a :href="googleLink"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
                 </a>&nbsp;
@@ -46,23 +59,35 @@
             </div>
 
             <!-- Rating -->
-            <div class="mt-4 pt-4">
-                <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
+            <div class="mt-3 pt-1 ratings-main-container">
+                <!-- <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
                     {{details.vote_average}}
                 </span>
-                <el-tooltip class="item" effect="dark" :content="`${details.vote_count} ratings`"
+                <el-tooltip class="item" effect="light" :content="`${details.vote_count} ratings`"
                     placement="right">
                     <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
-                </el-tooltip>
+                </el-tooltip> -->
+                <div class="rating-container">
+                    <a href="" target="_blank">
+                        <img src="/images/rating/tmdb.svg"/><br/>
+                        <span>{{details.vote_average}}/10</span>
+                    </a>
+                </div>
+                <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
+                    <a :href="rating.link" target="_blank">
+                        <img :src="rating.imagePath"/><br/>
+                        <span>{{rating.rating}}</span>
+                    </a>
+                </div>
             </div>
 
             <!-- bookmarks -->
-            <div class="mt-4 bookmarks">
+            <div class="mt-5 bookmarks">
                 <el-button v-if="isInWatchList">
                     In watch List
                     <font-awesome-icon :icon="['fas', 'check']" class="ml-1"/>
                 </el-button>
-                <el-tooltip v-else class="item" effect="dark" content="Sign in to use this feature"
+                <el-tooltip v-else class="item" effect="light" content="Sign in to use this feature"
                     placement="right" :disabled="user.displayName">
                     <el-button @click="AddToWatchList">
                         Add to watch list
@@ -72,7 +97,7 @@
             </div>
 
             <!-- Movie overview -->
-            <div class="movie-overview mobile-hide p-2">
+            <div class="movie-overview mobile-hide mt-3 p-2">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
@@ -185,9 +210,8 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import _ from 'lodash';
-    import { pushItemByName } from '../../Common/localStorageAdapter';
-    import { getDateText } from '../../Common/utils';
-    import { signIn, firebase, signOut, db } from '../../Common/firebase';
+    import { getDateText, mapGoogleData } from '../../Common/utils';
+    import { firebase, db } from '../../Common/firebase';
     import { omit } from 'lodash';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants'
 
@@ -219,6 +243,7 @@
             activeTab: 'seasons',
             dialogVisible: false,
             backdrops: [] as any[],
+            googleData: {},
             posters: [] as any[],
             defaultImageTab: 'backdrops',
             getDateText,
@@ -240,6 +265,9 @@
             user() {
                 return this.$store.getters.user;
             },
+            googleLink() {
+                return `https://google.com/search?q=${this.details.name} tv series`;
+            },
         },
         methods: {
             openImageModal() {
@@ -253,6 +281,7 @@
             },
             async getDetails() {
                 this.detailsLoading = true;
+                this.googleData = {};
                 this.details = await api.getTvDetails(parseInt(this.$route.params.id));
                 this.updateHistoryData();
                 this.similarMovies = this.details.similar.results;
@@ -288,6 +317,8 @@
                 this.selectedSeason = this.details.number_of_seasons;
                 await this.seasonChanged();
                 this.detailsLoading = false;
+                const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
+                this.googleData = mapGoogleData(googleData);
             },
             updateHistoryData() {
                 // firebase.auth().onAuthStateChanged(
@@ -347,12 +378,12 @@
     }
     .background-images-container {
         filter: opacity(0.3);
-        height: 30em;
+        height: 35em;
         overflow: hidden;
     }
     .background-image {
         background-size: contain;
-        height: 30em;
+        height: 35em;
         object-fit: cover;
         object-position: 50% 5%;
         width: 100%;
@@ -365,6 +396,34 @@
         border-color: #111;
         color: #ccc;
         width: 100%;
+    }
+    .ratings-main-container {
+        display: flex;
+    }
+    .rating-container {
+        padding-top: 0.2em;
+        width: 4em;
+        text-align: center;
+        img {
+            width: 2.2em;
+        }
+        span {
+            font-size: 0.9em;
+        }
+    }
+    .ext-links-container{
+        height: 5em;
+    }
+    .ott-container{
+        width: 7em;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: @default-radius;
+        padding: 0.5em;
+        float: left;
+    }
+    .ott-icon {
+        width: 3em;
     }
     .dropdown-menu {
         max-height: 20em;

@@ -4,6 +4,7 @@ export const appConfig = {
     token: process.env.VUE_APP_API_KEY,
     apiBaseUrl: 'https://api.themoviedb.org/3/',
     serverBaseUrl: process.env.VUE_APP_SERVER_URL || 'http://localhost:3000/',
+    newServerBaseUrl: 'http://localhost:3300/',
 };
 
 export const endpoints = {
@@ -30,6 +31,7 @@ export const endpoints = {
 
 const serverEndpoints = {
     keywords: 'keywords',
+    ottLink: 'googleData',
 }
 
 export const discoverDefaultQueries = '&include_video=true&vote_count.gte=10&';

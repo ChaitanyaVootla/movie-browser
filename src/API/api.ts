@@ -134,4 +134,8 @@ export const api = {
         const res = await axios.get(appConfig.serverBaseUrl +`${serverEndpoints.keywords}?q=${query}`);
         return res.data;
     },
+    getOTTLink: async function(query: string) {
+        const res = await axios.get(appConfig.newServerBaseUrl +`${serverEndpoints.ottLink}?q=${query}`);
+        return res.data;
+    },
 };
