@@ -116,7 +116,7 @@
             </div> -->
 
             <!-- Movie overview -->
-            <div class="movie-overview p-2 mobile-hide">
+            <div class="frosted movie-overview p-2 mobile-hide">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>

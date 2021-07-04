@@ -19,6 +19,7 @@ import SeriesInfo from './components/SeriesInfo/index.vue';
 import StreamingNow from './components/StreamingNow/index.vue';
 import Suggestions from './components/Suggestions/index.vue';
 import WatchList from './components/WatchList/index.vue';
+import ShareView from './components/ShareView/index.vue';
 import Interests from './components/Interests/index.vue';
 import History from './components/History/index.vue';
 import VueLazyload from 'vue-lazyload';
@@ -55,6 +56,7 @@ Vue.component('search', require('./components/Search').default);
 Vue.component('streamingNow', require('./components/StreamingNow/index.vue').default);
 Vue.component('suggestions', require('./components/Suggestions/index.vue').default);
 Vue.component('WatchList', require('./components/WatchList/index.vue').default);
+Vue.component('ShareView', require('./components/ShareView/index.vue').default);
 Vue.component('RandomSuggestions', require('./components/RandomSuggestions/index.vue').default);
 Vue.component('personSlider', require('./components/PersonSlider/index.vue').default);
 Vue.component('person', require('./components/Person/index.vue').default);
@@ -120,6 +122,11 @@ const routes = [
         path: '/watchList',
         component: WatchList,
         name: 'WatchList'
+    },
+    {
+        path: '/shareView/:userID',
+        component: ShareView,
+        name: 'ShareView'
     },
     {
         path: '/interests',

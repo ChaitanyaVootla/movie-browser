@@ -104,7 +104,7 @@
             </div>
 
             <!-- Movie overview -->
-            <div class="movie-overview mobile-hide mt-3 p-2">
+            <div class="movie-overview frosted mobile-hide mt-3 p-2">
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
@@ -456,7 +456,7 @@
         color: @link-color-red;
     }
     .movie-overview {
-        background: @translucent-bg;
+        // background: @translucent-bg;
         width: 60%;
         margin-top: 1em;
     }

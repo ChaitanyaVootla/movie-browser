@@ -75,6 +75,11 @@
 
         <!-- <season-slider :movies="upcomingEpisodes" :configuration="configuration"
             :id="`season${upcomingEpisodes.id}`"></season-slider> -->
+        <div class="share-list" v-if="user.displayName" @click="shareListModalVisible = true">
+            <el-tooltip class="item" effect="light" content="Share this list" placement="left">
+                <font-awesome-icon :icon="['fas', 'share-alt']"/>
+            </el-tooltip>
+        </div>
         <mb-slider :items="seriesWatchList" :configuration="configuration"
             heading="Upcoming Episodes" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
             :hideBadge="true" v-if="seriesWatchList.length"></mb-slider>
@@ -95,14 +100,19 @@
             </div>
             <img src="/images/stream-list.png" class="onboardingImage mobile-hide"/>
         </div>
+
+        <el-dialog title="Share Watch list link" :visible.sync="shareListModalVisible"
+            width="30%">
+            <el-input v-model="shareLink"></el-input>
+        </el-dialog>
     </div>
 </template>
 
 <script lang="ts">
-    import { api } from '../../API/api';
     import { compact, sortBy } from 'lodash';
     import { getRatingColor } from '../../Common/utils';
-    import * as moment from 'moment';
+    import moment from 'moment';
+    import { db } from '../../Common/firebase';
 
     export default {
         name: 'watchList',
@@ -117,9 +127,16 @@
         data() {
             return {
                 getRatingColor,
+                shareListModalVisible: false,
             }
         },
+        created() {
+            this.getUsers();
+        },
         computed: {
+            shareLink() {
+                return `${window.location.hostname}/shareView/${this.user.uid}`
+            },
             canShowOnbarding() {
                 return !this.$store.getters.watchListSeries.length;
             },
@@ -188,12 +205,33 @@
             },
         },
         methods: {
+            async getUsers() {
+                const usersDB = await db.collection('users').get();
+                const users = usersDB.docs.map(user => {
+                    const userInfo = user.data();
+                    return {
+                        ...userInfo,
+                        id: user.id,
+                    } as any;
+                });
+
+                const surya = users.find(({displayName}) => displayName.includes('Surya'));
+                console.log(surya);
+                const res = await db.collection('users').doc(surya.id).collection('seriesWatchList').get();
+                console.log(res.docs.map(doc => doc.data()));
+            }
         }
     }
 </script>
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
+    .share-list {
+        position: absolute;
+        right: 3em;
+        top: 4em;
+        cursor: pointer;
+    }
     .justify-center {
         display:flex;
         justify-content:center;

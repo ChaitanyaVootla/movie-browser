@@ -14,7 +14,7 @@
                 </el-col>
             </el-row>
         </div>
-        <div class="description-container normal-bio p-4 ml-2" v-if="!detailsLoading">
+        <div class="description-container frosted normal-bio p-4 ml-2" v-if="!detailsLoading">
             <span class="main-name">{{details.name}}</span>
             <br class="desk-hide"/>
             <span class="secondary-info ml-3 text-muted">{{details.known_for_department}}</span>
@@ -290,9 +290,6 @@
     }
     .full-bio {
         background: #000;
-    }
-    .normal-bio {
-        background: rgba(0, 0, 0, 0.4);
     }
     .external-link-icon {
         font-size: 1.1em;
