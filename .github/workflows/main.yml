@@ -37,6 +37,7 @@ jobs:
           touch .env
           echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
           echo "VUE_APP_SERVER_URL=http://139.59.94.40:3000/" >> .env
+          echo "VUE_APP_PUPPETEER_URL=http://139.59.94.40:3300/" >> .env
           echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
           npm i
           npm install -g @vue/cli
