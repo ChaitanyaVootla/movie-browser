@@ -3,6 +3,7 @@ const app = express()
 const cors = require('cors')
 const port = 3000
 const allKeywords = require('./allKeywords')
+const googleData = require('./puppeteer/googleData')
 
 app.use(cors())
 app.get('/keywords',
@@ -19,6 +20,20 @@ app.get('/keywords',
             return res.send(responseList);
         }
         res.sendStatus(400);
+    }
+);
+app.get('/googleData',
+    async (req, res) => {
+        try {
+
+            if (req.query.q && req.query.q.length > 1) {
+                const gsData = await googleData(req.query.q);
+                return res.json(gsData);
+            }
+            res.sendStatus(400);
+        } catch (e) {
+            res.sendStatus(500);
+        }
     }
 );
 

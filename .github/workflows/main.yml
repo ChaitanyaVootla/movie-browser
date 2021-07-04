@@ -36,8 +36,7 @@ jobs:
           sudo rm -f .env
           touch .env
           echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
-          echo "VUE_APP_SERVER_URL=http://139.59.94.40:3000/" >> .env
-          echo "VUE_APP_PUPPETEER_URL=http://139.59.94.40:3300/" >> .env
+          echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
           echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
           npm i
           npm install -g @vue/cli
@@ -47,9 +46,5 @@ jobs:
           nohup npm run build || true
           cd /movie-browser/server
           echo "starting node server..."
-          nohup node server.js > /dev/null 2>&1 &
-          cd /movie-browser/server/puppeteer
-          npm i
-          echo "starting puppeteer server..."
           nohup node server.js > /dev/null 2>&1 &
           exit 0

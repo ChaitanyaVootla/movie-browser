@@ -3,7 +3,6 @@ const app = express()
 const cors = require('cors')
 const port = 3300
 const googleData = require('./googleData')
-var url = require('url');
 
 app.use(cors())
 app.get('/googleData',
