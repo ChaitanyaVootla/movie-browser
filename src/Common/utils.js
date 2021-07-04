@@ -102,10 +102,36 @@ const mapGoogleData = (data) => {
             }
         }
     );
+
+    let allWatchOptions = [];
+    data.allWatchOptions.forEach(
+        watchOption => {
+            let imagePath;
+            if (watchOption.name.toLowerCase().includes('hotstar')) {
+                imagePath = '/images/ott/hotstar.svg';
+            } else if (watchOption.name.toLowerCase().includes('netflix')) {
+                imagePath = '/images/ott/netflix.svg';
+            } else if (watchOption.name.toLowerCase().includes('prime')) {
+                imagePath = '/images/ott/prime.svg';
+            } else if (watchOption.name.toLowerCase().includes('youtube')) {
+                imagePath = '/images/ott/youtube.png';
+            } else if (watchOption.name.toLowerCase().includes('google')) {
+                imagePath = '/images/ott/google.svg';
+            } else if (watchOption.name.toLowerCase().includes('sony')) {
+                imagePath = '/images/ott/sonyliv.png';
+            }
+            allWatchOptions.push({
+                imagePath,
+                name: watchOption.name,
+                link: watchOption.link,
+            });
+        }
+    );
     return {
         ...data,
         imagePath,
         ratings,
+        allWatchOptions,
     }
 }
 

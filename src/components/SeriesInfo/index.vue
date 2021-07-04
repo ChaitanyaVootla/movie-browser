@@ -32,7 +32,14 @@
 
             <!-- Watch links -->
             <div class="ext-links-container ml-2 mt-4">
-                <a v-if="googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
+                <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank">
+                    <div class="ott-container mr-3">
+                        <img :src="watchOption.imagePath" class="ott-icon"/>
+                        <div>Watch Now</div>
+                    </div>
+                </a>
+
+                <a v-if="!googleData.allWatchOptions.length && googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
                     <div class="ott-container">
                         <img :src="googleData.imagePath" class="ott-icon"/>
                         <div>Watch Now</div>
@@ -243,7 +250,9 @@
             activeTab: 'seasons',
             dialogVisible: false,
             backdrops: [] as any[],
-            googleData: {},
+            googleData: {
+                allWatchOptions: [],
+            },
             posters: [] as any[],
             defaultImageTab: 'backdrops',
             getDateText,
@@ -281,7 +290,9 @@
             },
             async getDetails() {
                 this.detailsLoading = true;
-                this.googleData = {};
+                this.googleData = {
+                    allWatchOptions: [],
+                };
                 this.details = await api.getTvDetails(parseInt(this.$route.params.id));
                 this.updateHistoryData();
                 this.similarMovies = this.details.similar.results;
@@ -410,17 +421,6 @@
         span {
             font-size: 0.9em;
         }
-    }
-    .ext-links-container{
-        height: 5em;
-    }
-    .ott-container{
-        width: 7em;
-        text-align: center;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: @default-radius;
-        padding: 0.5em;
-        float: left;
     }
     .ott-icon {
         width: 3em;

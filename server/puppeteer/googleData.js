@@ -17,14 +17,16 @@ const googleData = async (str) => {
 
         let ratingsDOM = await page.$$('a.NY3LVe');
         const ratings = [];
-        for (rating of ratingsDOM) {
-            const data = await rating.getProperty('innerText')
-            const info = await (await data.jsonValue()).toString();
-            let link = await rating.getProperty('href');
+        for (ratingDOM of ratingsDOM) {
+            const rating = await (await (await (await ratingDOM.$('span.gsrt'))
+                .getProperty('innerText')).jsonValue()).toString()
+            const name = await (await (await (await ratingDOM.$('span.wDgjf'))
+                .getProperty('innerText')).jsonValue()).toString()
+            let link = await ratingDOM.getProperty('href');
             link = await link.jsonValue();
             ratings.push({
-                rating: info.split('\n')[0],
-                name: info.split('\n')[1],
+                rating,
+                name,
                 link,
             });
         };
@@ -42,10 +44,29 @@ const googleData = async (str) => {
             });
         }
 
+        const watchOptionsDOM = await page.$('span.hVUO8e');
+        const allWatchOptions = [];
+        if (watchOptionsDOM) {
+            await watchOptionsDOM.click();
+            await page.waitForSelector("g-expandable-content.rXtXab", {timeout: 2000})
+            let ottDOMContainer = await page.$("g-expandable-content.rXtXab");
+            let ottDOMs = await ottDOMContainer.$$("a");
+            for (ottDom of ottDOMs) {
+                const link = await (await ottDom.getProperty('href')).jsonValue();
+                const name = await (await (await (await ottDom.$('div.bclEt'))
+                    .getProperty('innerText')).jsonValue()).toString();
+                allWatchOptions.push({
+                    link,
+                    name,
+                });
+            }
+        }
+
         console.timeEnd("getting link");
         return {
             watchLink: linkString,
             ratings,
+            allWatchOptions,
         };
     }
     catch(e) {

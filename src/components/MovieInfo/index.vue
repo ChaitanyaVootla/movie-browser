@@ -26,7 +26,14 @@
             </h6>
             <!-- Watch links -->
             <div class="ext-links-container ml-3 mt-4">
-                <a v-if="googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
+                <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank">
+                    <div class="ott-container mr-3">
+                        <img :src="watchOption.imagePath" class="ott-icon"/>
+                        <div>Watch Now</div>
+                    </div>
+                </a>
+
+                <a v-if="!googleData.allWatchOptions.length && googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
                     <div class="ott-container">
                         <img :src="googleData.imagePath" class="ott-icon"/>
                         <div>Watch Now</div>
@@ -149,13 +156,12 @@
             </div>
         </div>
         <div class="ml-4 mr-4 sliders-container">
-            <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
-                :selectPerson="selectPerson" :isPerson="true"></mb-slider>
-
             <div v-if="details.collectionDetails">
                 <mb-slider :items="details.collectionDetails.parts" :configuration="configuration" :heading="details.collectionDetails.name"
                     :id="details.collectionDetails.name" :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
             </div>
+            <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
+                :selectPerson="selectPerson" :isPerson="true"></mb-slider>
             <mb-slider v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
@@ -236,7 +242,9 @@
             dialogVisible: false,
             backdrops: [] as any[],
             posters: [] as any[],
-            googleData: {},
+            googleData: {
+                allWatchOptions: [],
+            },
             rating: null,
             defaultImageTab: 'backdrops',
             getCurrencyString,
@@ -295,7 +303,9 @@
             },
             async getDetails() {
                 this.detailsLoading = true;
-                this.googleData = {};
+                this.googleData = {
+                    allWatchOptions: [],
+                };
                 this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
                 if (this.details.belongs_to_collection) {
                     this.details.collectionDetails = await api.collectionDetails(
@@ -466,14 +476,6 @@
     .secondary-info {
         color: #aaa;
     }
-    .ott-container {
-        width: 7em;
-        text-align: center;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: @default-radius;
-        padding: 0.5em;
-        float: left;
-    }
     .rating-container {
         padding-top: 0.2em;
         width: 4em;
@@ -487,9 +489,6 @@
     }
     .ratings-main-container {
         display: flex;
-    }
-    .ext-links-container{
-        height: 5em;
     }
     .ext-link-icon {
         font-size: 1.2em;
