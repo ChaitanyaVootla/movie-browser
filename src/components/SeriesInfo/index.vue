@@ -108,11 +108,7 @@
                 <span v-if="showFullOverview">{{details.overview}}</span>
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
-            </div>
-
-            <!-- keywords -->
-            <div class="mobile-hide">
-                <router-link v-for="keyword in details.keywords.results" :key="keyword.id" class="mr-2"
+                <router-link v-for="keyword in details.keywords.results" :key="keyword.id"
                     :to="{
                         name: 'discover',
                         query:

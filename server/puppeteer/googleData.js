@@ -36,12 +36,13 @@ const googleData = async (str) => {
             const googleRatingItem = await googleRatingDOM.getProperty('innerText')
             let googleRating = await (await googleRatingItem.jsonValue()).toString();
             googleRating = `${googleRating.split('%')[0]}%`;
-    
-            ratings.push({
-                rating: googleRating,
-                name: 'google',
-                link: str,
-            });
+            if (!isNaN(googleRating.split('%')[0])) {
+                ratings.push({
+                    rating: googleRating,
+                    name: 'google',
+                    link: str,
+                });
+            }
         }
 
         const watchOptionsDOM = await page.$('span.hVUO8e');
@@ -62,11 +63,32 @@ const googleData = async (str) => {
             }
         }
 
+        const criticReviewsDOM = await page.$('critic-reviews-container');
+        const criticReviews = [];
+        if (criticReviewsDOM) {
+            const reviewsDOMs = await criticReviewsDOM.$$('div.beulkd');
+            for (reviewDOM of reviewsDOMs) {
+                const review = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.NIUoNb i'));
+                const author = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.Htriib'));
+                const site = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.Htriib a'));
+                const link = await page.evaluate(el => el?.href, await reviewDOM.$('div.Htriib a'));
+                const imagePath = await page.evaluate(el => el?.src, await reviewDOM.$('div.Htriib img'));
+                criticReviews.push({
+                    review,
+                    author: author.replace(site, ''),
+                    site,
+                    link,
+                    imagePath,
+                });
+            }
+        }
+
         console.timeEnd("getting link");
         return {
             watchLink: linkString,
             ratings,
             allWatchOptions,
+            criticReviews,
         };
     }
     catch(e) {

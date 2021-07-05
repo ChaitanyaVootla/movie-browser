@@ -45,6 +45,7 @@ jobs:
           echo "starting vue server..."
           nohup npm run build || true
           cd /movie-browser/server
+          npm i || true
           echo "starting node server..."
           nohup node server.js > /dev/null 2>&1 &
           exit 0

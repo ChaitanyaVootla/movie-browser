@@ -106,12 +106,12 @@
             this.uuid = uuidv4();
             setTimeout(
                 () => {
-                    const slider = document.querySelector(`#scroll-bar-${this.uuid}`);
+                    const slider = document.querySelector(`#scroll-bar-${this.uuid}`) as any;
                     let isDown = false;
                     let startX;
                     let scrollLeft;
 
-                    slider.addEventListener('mousedown', (e) => {
+                    slider.addEventListener('mousedown', (e: any) => {
                         isDown = true;
                         startX = e.pageX - slider.offsetLeft;
                         scrollLeft = slider.scrollLeft;

@@ -162,6 +162,19 @@
             </div>
             <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
+            <div class="ml-4 p-3 mr-4 mt-3 mb-3 frosted" style="background: rgba(50, 50, 50, 0.3)" v-if="googleData.criticReviews && googleData.criticReviews.length">
+                <h5 class="mb-5">Critic Reviews</h5>
+                <div class="reviews-container mb-5">
+                    <div v-for="review in googleData.criticReviews" :key="review.author" class="mr-5">
+                        <a :href="review.link" target="_blank">
+                            <img :src="review.imagePath" class="review-image"/>
+                                <span class="ml-3">{{review.site}}</span>
+                                <span v-if="review.author"> - {{review.author}}</span>
+                            <div class="mt-2 ml-5 secondary-info">{{review.review}}</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
             <mb-slider v-if="crew.length" :items="crew" :configuration="configuration" :heading="'Crew'" :id="'crew'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
 
@@ -308,8 +321,13 @@
                 };
                 this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
                 if (this.details.belongs_to_collection) {
-                    this.details.collectionDetails = await api.collectionDetails(
+                    const collectionDetails = await api.collectionDetails(
                         parseInt(this.details.belongs_to_collection.id));
+                    collectionDetails.parts = _.sortBy(collectionDetails.parts,
+                        ({release_date}) => {
+                            return release_date?release_date:'zzzz';
+                        });
+                    this.details.collectionDetails = collectionDetails;
                 }
                 this.updateHistoryData();
                 this.similarMovies = this.details.similar.results;
@@ -417,6 +435,19 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
+    .review-image {
+        border-radius: 50%;
+        width: 2em;
+        height: 2em;
+        background: white;
+        padding: 0.2em;
+    }
+    .reviews-container {
+        display: flex;
+        > div {
+            width: 35em;
+        }
+    }
     .vote-count {
         font-size: 0.8em;
         padding-left: 0.5em;
