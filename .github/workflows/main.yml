@@ -28,7 +28,7 @@ jobs:
           else
             echo "Repo already exists fetching latest changes"
             cd movie-browser
-            sudo git reset --hard HEAD~10
+            # sudo git reset --hard HEAD~3
             sudo git pull origin master
             echo "Last change:"
             git log --name-status HEAD^..HEAD

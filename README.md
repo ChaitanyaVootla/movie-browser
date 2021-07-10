@@ -1,7 +1,8 @@
-# movie-browser
+# The Movie Browser
 
-Live link: http://139.59.94.40
+Live link: https://themoviebrowser.com
 
+![image](./public/images/tmbscreen.png)
 ## Setup steps:
 
 Add a `.env` file to the project root with your TMDB API KEY
@@ -12,8 +13,7 @@ VUE_APP_SERVER_URL=<SERVER URL HERE - IGNORE IF RUNNING ON LOCALHOST>
 ```
 ##### linux terminal / mac terminal / windows powershell
 Run server (uses port 3000):
-  - `cd /server && node ./server.js` 
+  - `cd ./server && node ./server.js` 
  
 Run Webapp (uses port 80):
- - `npm install`
- - `npm run serve`
+ - `npm install && npm run serve`
