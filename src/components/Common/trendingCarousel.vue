@@ -238,7 +238,7 @@
         overflow: hidden;
         color: @text-color;
         width: 80% !important;
-        height: 65%;
+        height: 90%;
     }
     .secondary-info {
         color: rgb(228, 228, 228);
