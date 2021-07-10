@@ -2,7 +2,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import { firebase, db } from '../Common/firebase';
 import { sortBy, omit } from 'lodash';
-import * as moment from 'moment';
+import moment from 'moment';
 import { api } from '../API/api';
 import { HISTORY_OMIT_VALUES } from '../Common/constants';
 Vue.use(Vuex);

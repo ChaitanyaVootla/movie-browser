@@ -56,19 +56,19 @@
             },
             async getTrendingTv() {
                 const res = await api.getTrendingTv();
-                this.trendingTv = res.results;
+                this.trendingTv = res.results.filter(({poster_path}) => poster_path);
             },
             async getTrendingMovies() {
                 const res = await api.getTrendingMovies();
-                this.trendingMovies = res.results;
+                this.trendingMovies = res.results.filter(({poster_path}) => poster_path);
             },
             async getLatestMovies() {
                 let {results: latestMovies} = await api.getLatestMovies();
-                this.latestMovies = _.sortBy(latestMovies, ({popularity}) => -popularity);
+                this.latestMovies = _.sortBy(latestMovies, ({popularity}) => -popularity).filter(({poster_path}) => poster_path);
             },
             async getCurrentAiring() {
                 let {results: currentAiring} = await api.getCurrentStreamingSeries();
-                this.currentAiring = _.sortBy(currentAiring, ({popularity}) => -popularity);
+                this.currentAiring = _.sortBy(currentAiring, ({popularity}) => -popularity).filter(({poster_path}) => poster_path);
             },
         }
     }

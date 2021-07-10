@@ -21,7 +21,7 @@
         computed: {
             isLightMode() {
                 if (store.getters.isLightMode) {
-                    const htmlTag = document.getElementsByTagName('html');
+                    const htmlTag: any = document.getElementsByTagName('html');
                     htmlTag[0].classList = ['lightMode'];
                 }
                 return store.getters.isLightMode;

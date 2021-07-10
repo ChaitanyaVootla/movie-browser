@@ -175,11 +175,11 @@
             },
             async getPlayingNowMovies() {
                 const res = await api.getNowPlayingMovies();
-                this.playingNowMovies = res.results.slice(0, 10);
+                this.playingNowMovies = res.results.filter(({poster_path}) => poster_path);
             },
             async getCurrentStreaming() {
                 const res = await api.getCurrentStreamingSeries();
-                this.currentStreaming = res.results.slice(0, 10);
+                this.currentStreaming = res.results.filter(({poster_path}) => poster_path);
                 // this.currentStreaming = this.getUpcomingEpicodes(this.currentStreaming);
             },
             async getTrendingListWeek() {
