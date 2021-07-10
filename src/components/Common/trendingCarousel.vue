@@ -38,7 +38,7 @@
                                 </div>
 
                                 <!-- Item overview -->
-                                <div class="movie-overview p-3 mt-10">
+                                <div class="movie-overview frosted p-3 mt-10">
                                     <span>{{item.overview.slice(0, 200)}}</span>
                                 </div>
                             </div>
@@ -244,17 +244,18 @@
         color: rgb(228, 228, 228);
     }
     .movie-overview {
-        background: @translucent-bg;
-        width: 80%;
+        width: auto;
         margin-top: 5em;
         position: absolute;
         bottom: 0;
+        font-size: 0.9em;
     }
     .carousel-card-container {
         position: relative;
         cursor: pointer;
         background-color:rgb(24, 24, 24);
         padding: 0 1em;
+        height: 100%;
     }
     .lightMode {
         .week-trends-container {

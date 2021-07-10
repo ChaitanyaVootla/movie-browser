@@ -3,7 +3,7 @@
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image"/>
         </div>
-        <div class="info-container ml-4" v-if="details.title">
+        <div class="info-container pl-5" v-if="details.title">
             <h3 class="info-heading ml-3">
                 <span class="shadow-text">{{details.title}}</span>
             </h3>
@@ -44,7 +44,7 @@
             </div>
             <br/>
             <!-- External links -->
-            <div class="mt-1 ml-3 shadow-text">
+            <div class="mt-1 ml-3 shadow-text mobile-hide">
                 <!-- <a :href="googleLink" target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
                 </a>&nbsp; -->
@@ -66,7 +66,7 @@
             </div>
 
             <!-- Rating -->
-            <div class="mt-4 pt-2 ratings-main-container">
+            <div class="mt-4 pt-2 ratings-main-container mobile-hide">
                 <!-- <el-tooltip class="item" effect="light" :content="`${details.vote_count} ratings`"
                     placement="top">
                     <div class="rating-info mr-4" :style="`border-color: ${getRatingColor(details.vote_average)};
@@ -162,7 +162,7 @@
             </div>
             <mb-slider v-if="cast.length" :items="cast" :configuration="configuration" :heading="'Cast'" :id="'cast'"
                 :selectPerson="selectPerson" :isPerson="true"></mb-slider>
-            <div class="ml-4 p-3 mr-4 mt-3 mb-3 frosted" style="background: rgba(50, 50, 50, 0.3)" v-if="googleData.criticReviews && googleData.criticReviews.length">
+            <div class="ml-4 p-3 mr-4 mt-3 mb-3 frosted reviews-main-container" style="background: rgba(50, 50, 50, 0.3)" v-if="googleData.criticReviews && googleData.criticReviews.length">
                 <h5 class="mb-5">Critic Reviews</h5>
                 <div class="reviews-container mb-5">
                     <div v-for="review in googleData.criticReviews" :key="review.author" class="mr-5">
@@ -499,7 +499,7 @@
     .info-container {
         position: absolute;
         top: 2em;
-        padding-left: 2em !important;
+        padding-left: 3.5rem !important;
         overflow: hidden;
         color: @text-color;
         height: 33em;
@@ -610,7 +610,7 @@
         .bookmarks {
             font-size: 0.9em;
             position: absolute;
-            top: 12rem;
+            top: 11rem;
             right: 2em;
             span {
                 margin-left: 1em;
@@ -620,6 +620,17 @@
             font-size: 0.9em;
         }
         .sliders-container {
+            margin: 0.5em !important;
+        }
+        .reviews-container {
+            flex-direction: column;
+            margin-bottom: 0 !important;
+            > div {
+                width: 100%;
+                padding-bottom: 1em;
+            }
+        }
+        .reviews-main-container {
             margin: 0.5em !important;
         }
     }

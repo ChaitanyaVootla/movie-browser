@@ -3,7 +3,7 @@
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image"/>
         </div>
-        <div class="info-container ml-4" v-if="details.name">
+        <div class="info-container" v-if="details.name">
             <h3 div="info-heading">
                 {{details.name}}
                 <span class="text-muted info-tagline pl-2" v-if="details.number_of_seasons">
@@ -51,7 +51,7 @@
             <br/>
 
             <!-- External links -->
-            <div class="mt-1 ml-2">
+            <div class="mt-1 ml-2 mobile-hide">
                 <a :href="googleLink"
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
@@ -66,7 +66,7 @@
             </div>
 
             <!-- Rating -->
-            <div class="mt-3 pt-1 ratings-main-container">
+            <div class="mt-3 pt-1 ratings-main-container mobile-hide">
                 <!-- <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
                     {{details.vote_average}}
                 </span>
@@ -440,7 +440,7 @@
     .info-container {
         position: absolute;
         top: 2em;
-        padding-left: 2em !important;
+        padding-left: 4.5rem !important;
         overflow: hidden;
         color: @text-color;
     }
@@ -511,7 +511,7 @@
             font-size: 0.9em;
             position: absolute;
             right: 2em;
-            top: 13rem;
+            top: 12rem;
         }
         .secondary-info {
             font-size: 0.8em;

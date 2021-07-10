@@ -42,10 +42,15 @@ jobs:
           npm install -g @vue/cli
           npm install -g serve
           killall node
-          echo "starting vue server..."
+          echo "==============================================================="
+          echo "===================== starting vue server ====================="
+          echo "==============================================================="
           nohup npm run build || true
+          echo "==============================================================="
+          echo "===================== starting node server ====================="
+          echo "==============================================================="
           cd /movie-browser/server
           npm i || true
-          echo "starting node server..."
+          pwd
           nohup node server.js > /dev/null 2>&1 &
           exit 0
