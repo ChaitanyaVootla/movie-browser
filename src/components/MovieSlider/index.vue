@@ -66,7 +66,7 @@
     import { getFullDateText, getDateText } from '../../Common/utils';
 
     export default {
-        name: 'movieSlider',
+        name: 'mbSlider',
         props: [
             'items',
             'isPerson',
@@ -161,8 +161,6 @@
         display: flex;
         overflow-x: auto;
         overflow-y: visible !important;
-        // scroll-behavior: smooth;
-        justify-content: end;
         position: relative;
         padding: 0 0.5em;
         margin-right: 0.5em;

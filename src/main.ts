@@ -20,6 +20,7 @@ import StreamingNow from './components/StreamingNow/index.vue';
 import Suggestions from './components/Suggestions/index.vue';
 import WatchList from './components/WatchList/index.vue';
 import ShareView from './components/ShareView/index.vue';
+import Friends from './components/Friends/index.vue';
 import Interests from './components/Interests/index.vue';
 import History from './components/History/index.vue';
 import VueLazyload from 'vue-lazyload';
@@ -87,6 +88,11 @@ const routes = [
         path: '/discover',
         component: Discover,
         name: 'discover',
+    },
+    {
+        path: '/friends',
+        component: Friends,
+        name: 'Friends',
     },
     {
         path: '/search',

@@ -23,6 +23,7 @@ const store = new Vuex.Store({
             seriesIds: [],
         },
         moviesWatchList: [],
+        friends: [],
         watchList: {
             isLoading: true,
             movies: [],
@@ -36,7 +37,7 @@ const store = new Vuex.Store({
             seriesGenres: [],
         },
         isLightMode: false,
-        isMobile: ((window.innerWidth > 0) ? window.innerWidth : screen.width) < 767
+        isMobile: () => ((window.innerWidth > 0) ? window.innerWidth : screen.width) < 767
     },
     mutations: {
         setUser(state, user) {
@@ -64,6 +65,9 @@ const store = new Vuex.Store({
                 state.watched.seriesIds = series.map(({id}) => id);
             }
             state.watched.isLoading = false;
+        },
+        setFriends(state, friends) {
+            state.friends = friends;
         },
         setWatchList(state, { movies, series }) {
             if (movies) {
@@ -96,6 +100,7 @@ const store = new Vuex.Store({
         watchListMovies: state => state.watchList.movies,
         watchListSeries: state => state.watchList.series,
         savedFilters: state => state.savedFilters,
+        friends: state => state.friends,
         sideBarFilters: state => state.sideBarFilters,
         canFilterMovies: state => state.sideBarFilters.movieGenres.length,
         canFilterSeries: state => state.sideBarFilters.seriesGenres.length,
@@ -143,6 +148,15 @@ const store = new Vuex.Store({
                                 commit('setWatched', {
                                     movies: sortBy(movies, 'updatedAt').reverse(),
                                 });
+                            }, (e) => console.error(e)
+                        );
+                        userDbRef.collection('friends').onSnapshot(
+                            snapshot => {
+                                const friends = [];
+                                snapshot.forEach(
+                                    doc => friends.push(doc.data())
+                                );
+                                commit('setFriends', friends);
                             }, (e) => console.error(e)
                         );
                         userDbRef.collection('moviesWatchList').onSnapshot(

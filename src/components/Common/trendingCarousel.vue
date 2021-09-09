@@ -51,7 +51,9 @@
                     :history="true" heading="Upcoming Episodes"></mb-slider>
                 <mb-slider v-else :items="currentStreaming" :configuration="configuration" :id="'currentStreaming'" :showFullMovieInfo="showSeriesInfo"
                     :history="true" heading="Streaming now"></mb-slider>
-                <div v-if="savedFilters.length" class="m-4 p-3 heading">
+                <mb-slider v-if="watchListMovies.length" :items="watchListMovies" :configuration="configuration" :id="'watchListMovies'" :showFullMovieInfo="showSeriesInfo"
+                    :history="true" heading="Movies Watch list"></mb-slider>
+                <div v-else-if="savedFilters.length" class="m-4 p-3 heading">
                     <div class="mb-3">Saved Filters</div>
                     <div class="filters-container">
                         <div v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3 mb-3">
@@ -133,6 +135,9 @@
             },
             seriesHistory() {
                 return this.$store.getters.history.series.slice(0, 4);
+            },
+            watchListMovies() {
+                return this.$store.getters.watchListMovies;
             },
         },
         methods: {

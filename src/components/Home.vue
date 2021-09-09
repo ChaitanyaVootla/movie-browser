@@ -39,6 +39,14 @@
                     </div>
                 </router-link>
             </el-menu-item>
+            <!-- <el-menu-item index="Friends" class=" p-0">
+                <router-link :to="{ name: 'Friends'}">
+                    <div class="pl-4 pr-4" :class="onWatchList?'active':''">
+                        <font-awesome-icon :icon="['fas', 'user-friends']" class="mr-2"/>
+                        <span class="mobile-hide">Friends</span>
+                    </div>
+                </router-link>
+            </el-menu-item> -->
             <!-- <el-menu-item index="Content" class=" p-0">
                 <router-link :to="{ name: 'Content'}">
                     <div class="pl-4 pr-4" :class="onContent?'active':''">
@@ -339,6 +347,9 @@
             },
             onWatchList() {
                 return this.$route.name === 'WatchList';
+            },
+            onFriends() {
+                return this.$route.name === 'Friends';
             },
             onContent() {
                 return this.$route.name === 'Content';
