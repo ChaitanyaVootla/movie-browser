@@ -47,12 +47,18 @@
                 </el-carousel>
             </el-col>
             <el-col :span="9" class="pr-2 pl-1 pt-2">
-                <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
-                    :history="true" heading="Upcoming Episodes"></mb-slider>
+                <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'"
+                    :showFullMovieInfo="showSeriesInfo" :history="true" heading="Upcoming Episodes"
+                    :externalLink="{
+                        name: 'WatchList',
+                    }"></mb-slider>
                 <mb-slider v-else :items="currentStreaming" :configuration="configuration" :id="'currentStreaming'" :showFullMovieInfo="showSeriesInfo"
                     :history="true" heading="Streaming now"></mb-slider>
-                <mb-slider v-if="watchListMovies.length" :items="watchListMovies" :configuration="configuration" :id="'watchListMovies'" :showFullMovieInfo="showSeriesInfo"
-                    :history="true" heading="Movies Watch list"></mb-slider>
+                <mb-slider v-if="watchListMovies.length" :items="watchListMovies" :configuration="configuration" :id="'watchListMovies'"
+                    :showFullMovieInfo="showSeriesInfo" :history="true" heading="Movies Watch list"
+                    :externalLink="{
+                        name: 'Interests',
+                    }"></mb-slider>
                 <div v-else-if="savedFilters.length" class="m-4 p-3 heading">
                     <div class="mb-3">Saved Filters</div>
                     <div class="filters-container">

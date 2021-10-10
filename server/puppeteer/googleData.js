@@ -3,7 +3,7 @@ let page;
 const setupPuppeteer = async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox'], headless: true});
     page = await browser.newPage();
-}
+};
 const googleData = async (str) => {
     try {
         console.time("getting link");
@@ -17,11 +17,11 @@ const googleData = async (str) => {
 
         let ratingsDOM = await page.$$('a.NY3LVe');
         const ratings = [];
-        for (ratingDOM of ratingsDOM) {
+        for (const ratingDOM of ratingsDOM) {
             const rating = await (await (await (await ratingDOM.$('span.gsrt'))
-                .getProperty('innerText')).jsonValue()).toString()
+                .getProperty('innerText')).jsonValue()).toString().split('/')[0];
             const name = await (await (await (await ratingDOM.$('span.wDgjf'))
-                .getProperty('innerText')).jsonValue()).toString()
+                .getProperty('innerText')).jsonValue()).toString();
             let link = await ratingDOM.getProperty('href');
             link = await link.jsonValue();
             ratings.push({
@@ -29,11 +29,11 @@ const googleData = async (str) => {
                 name,
                 link,
             });
-        };
+        }
 
         let googleRatingDOM = await page.$('div.srBp4');
         if (googleRatingDOM) {
-            const googleRatingItem = await googleRatingDOM.getProperty('innerText')
+            const googleRatingItem = await googleRatingDOM.getProperty('innerText');
             let googleRating = await (await googleRatingItem.jsonValue()).toString();
             googleRating = `${googleRating.split('%')[0]}%`;
             if (!isNaN(googleRating.split('%')[0])) {
@@ -49,10 +49,10 @@ const googleData = async (str) => {
         const allWatchOptions = [];
         if (watchOptionsDOM) {
             await watchOptionsDOM.click();
-            await page.waitForSelector("g-expandable-content.rXtXab", {timeout: 2000})
+            await page.waitForSelector("g-expandable-content.rXtXab", {timeout: 2000});
             let ottDOMContainer = await page.$("g-expandable-content.rXtXab");
             let ottDOMs = await ottDOMContainer.$$("a");
-            for (ottDom of ottDOMs) {
+            for (const ottDom of ottDOMs) {
                 const link = await (await ottDom.getProperty('href')).jsonValue();
                 const name = await (await (await (await ottDom.$('div.bclEt'))
                     .getProperty('innerText')).jsonValue()).toString();
@@ -67,7 +67,7 @@ const googleData = async (str) => {
         const criticReviews = [];
         if (criticReviewsDOM) {
             const reviewsDOMs = await criticReviewsDOM.$$('div.beulkd');
-            for (reviewDOM of reviewsDOMs) {
+            for (const reviewDOM of reviewsDOMs) {
                 const review = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.NIUoNb i'));
                 const author = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.Htriib'));
                 const site = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.Htriib a'));
@@ -95,7 +95,7 @@ const googleData = async (str) => {
         console.error(e);
         return e;
     }
-}
+};
 
 setupPuppeteer();
 module.exports = googleData;

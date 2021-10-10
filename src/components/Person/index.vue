@@ -73,9 +73,7 @@
                 :id="careerObj.id"
                 :showMovieInfoModal="showMovieInfo"
                 :showFullMovieInfo="showFullMovieInfo"
-                :showDiscoverLink="careerObj.showDiscoverLink"
-                :name="careerObj.personName"
-                :personId="careerObj.personId"
+                :externalLink="careerObj.externalLink"
                 >
             </mb-slider>
         </div>
@@ -169,11 +167,17 @@
                     showDiscoverLink: false,
                     personName: '',
                     personId: 0,
+                    externalLink: null,
                 };
                 if (name === 'Movies') {
-                    mappedList.showDiscoverLink = true;
-                    mappedList.personName = this.details.name;
-                    mappedList.personId = this.details.id;
+                    mappedList.externalLink = {
+                        name: 'discover',
+                        query:
+                        {
+                            with_people: this.details.id,
+                            people: this.details.name,
+                        }
+                    };
                 }
                 const groupedItems = _.groupBy(list, 'id');
                 const uniqueItems = [] as any[];

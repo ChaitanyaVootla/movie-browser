@@ -80,25 +80,6 @@
                     :value="item">
                 </el-option>
             </el-select>
-            <div class="mobile-hide save-container small-filter">
-                <el-button-group v-if="isSavedFilterView">
-                    <el-button type="primary" @click="saveFilter">
-                        <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/>
-                        Update Search
-                    </el-button>
-                    <el-button type="primary" @click="saveFilterDialogVisible = true; filterName = $router.currentRoute.query.name">
-                        <el-tooltip class="item" effect="light" content="Delete Search" placement="bottom">
-                            <div>
-                                <i class="el-icon-circle-close"></i>
-                            </div>
-                        </el-tooltip>
-                    </el-button>
-                </el-button-group>
-                <el-button type="primary" @click="saveFilterDialogVisible = true; filterName = '';" v-else>
-                    <font-awesome-icon :icon="['fa', 'star-half-alt']" class="mr-2"/>
-                    Save Search
-                </el-button>
-            </div>
         </div>
         <div class="pt-2 pl-5 pr-5 pb-2 discover-options-row advanced-options-row mobile-hide" v-show="showAdvancedFilters">
             <el-select v-model="selectedCertification" value-key="certification" clearable placeholder="Certification"
@@ -175,19 +156,11 @@
                 </el-option>
             </el-select>
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
-            <div class="mt-2 save-container small-filter mobile-hide">
-                <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)"
-                    >Hide Watched</el-checkbox>
-            </div>
         </div>
         <div v-if="savedFilters.length" class="pl-5 pt-2 pb-2 favorites-bar mobile-hide">
             <div class="pr-3 pt-2">
                 <font-awesome-icon :icon="['fas', 'star']" class="mr-2"/> Saved Filters
             </div>
-            <el-tooltip class="item" effect="light" content="Clear Filter" placement="bottom" v-if="isSavedFilterView">
-                <el-button @click="clearFilter" circle class="mr-3" icon="el-icon-circle-close">
-                </el-button>
-            </el-tooltip>
             <router-link v-for="savedFilter in savedFilters" :key="savedFilter.name" class="mr-3" :to="{
                 name: 'discover',
                 query: {
@@ -198,18 +171,45 @@
                 </el-button>
             </router-link>
         </div>
-        <div class="query-info text-muted">
+        <div class="query-info text-muted" style="display:flex; justify-content:space-between;">
             <div class="">
                 {{queryData.total_results === 10000?`${queryData.total_results}+`:queryData.total_results}} results
-                <el-tooltip effect="light" content="including watched movies" placement="bottom">
+                <el-tooltip effect="light" content="including watched movies" placement="right">
                     <font-awesome-icon :icon="['fas', 'info-circle']" class="ml-1" v-show="hideWatchedMovies"/>
                 </el-tooltip>
+            </div>
+            <div style="display:flex">
+                <div class="ml-3 mt-2 save-container mobile-hide">
+                    <el-checkbox v-model="hideWatcListMovies" @change="loadMovies(true)">Hide Watch list</el-checkbox>
+                </div>
+                <div class="ml-3 mt-2 save-container mobile-hide">
+                    <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)">Hide Watched</el-checkbox>
+                </div>
+                <div class="ml-3 mobile-hide save-container">
+                    <el-button-group v-if="isSavedFilterView">
+                        <el-button type="primary" circle @click="saveFilter" icon="el-icon-star-on">
+                            Update Search
+                        </el-button>
+                        <el-tooltip class="item" effect="light" content="Clear Filter" placement="bottom" v-if="isSavedFilterView">
+                            <el-button @click="clearFilter" circle icon="el-icon-circle-close">
+                            </el-button>
+                        </el-tooltip>
+                        <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
+                            <el-button @click="saveFilterDialogVisible = true; filterName = $router.currentRoute.query.name"
+                                type="danger" circle icon="el-icon-delete">
+                            </el-button>
+                        </el-tooltip>
+                    </el-button-group>
+                    <el-button type="primary" @click="saveFilterDialogVisible = true; filterName = '';" icon="el-icon-star-off" v-else>
+                        Save Search
+                    </el-button>
+                </div>
             </div>
         </div>
         <div v-if="isLoaded" class="movies-grid-container">
             <movie-card v-for="movie in movies" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                 :onSelected="showMovieInfo" :key="movie.id" :showFullMovieInfo="showFullMovieInfo"
-                :hideWatched="hideWatchedMovies">
+                :hideWatched="hideWatchedMovies" :hideWatchList="hideWatcListMovies">
             </movie-card>
         </div>
         <div class="grid-center" v-if="!hideLoadMore">
@@ -256,6 +256,7 @@
                 movies: [] as any[],
                 showAdvancedFilters: true,
                 hideWatchedMovies: false,
+                hideWatcListMovies: false,
                 saveFilterDialogVisible: false,
                 filterName: '',
                 queryData: {
@@ -770,7 +771,7 @@
         place-items: center;
     }
     .query-info {
-        padding: 1em 0 0 3em;
+        padding: 1em 3em 0 3em;
         font-weight: 500;
         display: flex;
     }

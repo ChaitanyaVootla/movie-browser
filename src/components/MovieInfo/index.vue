@@ -78,7 +78,7 @@
                 <div class="rating-container">
                     <a href="" target="_blank">
                         <img src="/images/rating/tmdb.svg"/><br/>
-                        <span>{{details.vote_average}}/10</span>
+                        <span>{{details.vote_average}}</span>
                     </a>
                 </div>
                 <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
@@ -121,7 +121,8 @@
                 <span v-if="!showFullOverview">{{details.overview.slice(0, 200)}}</span>
                 <span v-if="details.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
                 <div>
-                    <router-link v-for="keyword in details.keywords.keywords" :key="keyword.id" class="mr-2"
+                    <router-link v-for="keyword in showAllTags?details.keywords.keywords:details.keywords.keywords.slice(0, 15)"
+                        :key="keyword.id" class="mr-2"
                         :to="{
                             name: 'discover',
                             query:
@@ -134,6 +135,7 @@
                             {{keyword.name}}
                         </el-tag>
                     </router-link>
+                    <span v-if="details.keywords.keywords.length > 15" class="expand-ellipsis" @click="showAllTags = !showAllTags">...</span>
                 </div>
             </div>
         </div>
@@ -252,6 +254,7 @@
             crew: [] as any[],
             selectedVideo: {},
             showFullOverview: false,
+            showAllTags: false,
             dialogVisible: false,
             backdrops: [] as any[],
             posters: [] as any[],

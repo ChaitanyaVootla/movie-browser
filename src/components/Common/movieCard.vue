@@ -1,5 +1,5 @@
 <template>
-    <div v-show="!(hideWatched && isWatched)"
+    <div v-show="!(hideWatched && isWatched) && !(isInWatchList && hideWatchList)"
         @mouseover="isHoverActive = true"
         @mouseleave="isHoverActive = false">
         <router-link :to="{
@@ -11,13 +11,54 @@
                 }
             }"
             :title="movie.name || movie.title">
-            <div class="movie-item" :class="`${canApplySideBarFilter && !isInSideBarFilter?'sideBarFilter':''} ${isTodayCard?'isTodayCard':''} ${isWatched?'watched':''}`">
+            <div class="movie-item" :class="`${canApplySideBarFilter && !isInSideBarFilter?'sideBarFilter':''}
+                ${isTodayCard?'isTodayCard':''} ${isWatched?'watched':''}`">
                 <el-badge :value="(isMobile() || hideBadge)?'':badgeText" :class="`${badgeText} item ${isHoverActive?'isHoverActive':''}`">
                     <div class="img-container">
                         <div v-if="isWatched" class="watched-overlay rating-info">
                             <font-awesome-icon :icon="['fas', 'check']"/>
                         </div>
-                        <img v-lazy="imageObj" class="movie-card-image" :alt="movie.name || movie.title">
+                        <el-popover
+                            trigger="hover"
+                            :open-delay="1000"
+                            width="400"
+                            @show="getGoogleData"
+                            content="this is content, this is content, this is content">
+                            <img slot="reference" v-lazy="imageObj" class="movie-card-image" :alt="movie.name || movie.title">
+                            <div>
+                                <div>
+                                    <span v-for="(genre, index) in movie.genres" :key="genre.id">
+                                        {{genre.name}}{{index===movie.genres.length-1?'':','}}
+                                    </span>
+                                </div>
+                                <div v-if="googleData.allWatchOptions.length || googleData.watchLink" class="ext-links-container ml-2">
+                                    <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank">
+                                        <div class="ott-container mr-3">
+                                            <img :src="watchOption.imagePath" class="ott-icon"/>
+                                            <div>Watch Now</div>
+                                        </div>
+                                    </a>
+                                    <a v-if="!googleData.allWatchOptions.length && googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
+                                        <div class="ott-container">
+                                            <img :src="googleData.imagePath" class="ott-icon"/>
+                                            <div>Watch Now</div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <br/>
+                                <div style="display:flex">
+                                    <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
+                                        <a :href="rating.link" target="_blank">
+                                            <img :src="rating.imagePath"/><br/>
+                                            <span>{{rating.rating}}</span>
+                                        </a>
+                                    </div>
+                                </div>
+                                <span v-if="showFullOverview">{{movie.overview}}</span>
+                                <span v-if="!showFullOverview">{{movie.overview.slice(0, 200)}}</span>
+                                <span v-if="movie.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
+                            </div>
+                        </el-popover>
                         <!-- TODO check if this function is needed -->
                         <!-- <div class="img-overlay">
                             <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
@@ -56,7 +97,7 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import { sanitizeName, isMobile } from '../../Common/utils';
-    import { getRatingColor, getDateText } from '../../Common/utils';
+    import { getRatingColor, getDateText, mapGoogleData } from '../../Common/utils';
     import { db } from '../../Common/firebase';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants';
     import { omit, intersection } from 'lodash';
@@ -65,7 +106,7 @@
     export default {
         name: 'movieCard',
         props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showFullMovieInfo',
-            'hideWatched', 'hideBadge'],
+            'hideWatched', 'hideWatchList', 'hideBadge'],
         data() {
             return {
                 getRatingColor,
@@ -76,7 +117,11 @@
                 sanitizeName,
                 isMobile,
                 getDateText,
+                googleData: {
+                    allWatchOptions: [],
+                },
                 isHoverActive: false,
+                showFullOverview: false,
                 badgeTypes: {
                     NEW: {
                         text: 'NEW',
@@ -93,10 +138,17 @@
                     WATCHING: {
                         text: 'WATCHING',
                     },
+                    WATCH_LIST: {
+                        text: 'WATCH LIST',
+                    },
                 }
             };
         },
         methods: {
+            async getGoogleData() {
+                const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
+                this.googleData = mapGoogleData(googleData);
+            },
             getYear: function(movieDate: any) {
                 return new Date(movieDate).getFullYear();
             },
@@ -119,6 +171,13 @@
             }
         },
         computed: {
+            googleLink() {
+                return `https://google.com/search?q=${this.movie.name || this.movie.title}
+                    ${this.movie.first_air_date?'tv series':this.getYear(this.movie.release_date) + ' movie'}`;
+            },
+            isInWatchList() {
+                return this.$store.getters.watchListMovieById(this.movie.id);
+            },
             isInSideBarFilter() {
                 if (this.movie.first_air_date) {
                     return this.$store.getters.canFilterSeries && intersection(this.$store.getters.sideBarFilters.seriesGenres.map(({ id }) => id), this.movie.genre_ids).length;
@@ -154,6 +213,9 @@
                 return this.$store.getters.watchListSeriesById(this.movie.id);
             },
             badgeText() {
+                if (this.isInWatchList) {
+                    return this.badgeTypes.WATCH_LIST.text;
+                }
                 if (this.isWatched) {
                     return this.badgeTypes.WATCHED.text;
                 }
@@ -183,6 +245,7 @@
         background-size: 4em;
         padding: 4em;
         width: 11em;
+        height: 10em;
         box-shadow: rgba(0, 0, 0, 0.5) 0px 3px 10px 0.2em;
         background-color: #161616;
     }
@@ -199,8 +262,22 @@
         // top: 17em;
         z-index: 55;
     }
+    .rating-container {
+        width: 4em;
+        text-align: center;
+        img {
+            width: 2.2em;
+        }
+        span {
+            font-size: 0.9em;
+        }
+    }
     /deep/ .el-badge.RECENT .el-badge__content {
         background-color:rgb(255, 141, 141)
+    }
+    /deep/ .el-badge.WATCH .el-badge__content {
+        background-color:rgb(255, 255, 255);
+        right: 11em;
     }
     /deep/ .el-badge.UNRELEASED .el-badge__content {
         background-color:gray;

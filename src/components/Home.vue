@@ -170,7 +170,7 @@
                 </el-dropdown>
             </el-menu-item>
         </el-menu>
-        <el-menu class="desk-hide" :default-active="activeIndex" mode="horizontal">
+        <el-menu class="desk-hide" :default-active="activeNavItem" mode="horizontal">
             <el-menu-item index="search" class="menu-item-nobg search-menu-item">
                 <div>
                     <div @keydown.stop @click="searchInputclicked" class="search-intput-container">

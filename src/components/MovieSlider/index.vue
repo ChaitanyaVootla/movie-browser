@@ -3,15 +3,9 @@
         <slot>
             <h1 v-if="heading" class="slider-heading ml-1" :style="{'padding-top': history?'10px':'1em'}">
                 {{heading}}
-                <router-link v-if="showDiscoverLink" class="ml-2" :to="{
-                    name: 'discover',
-                    query:
-                        {
-                            with_people: personId,
-                            people: name,
-                        }
-                    }">
-                    <font-awesome-icon :icon="['fas', 'external-link-alt']"/>
+                <router-link v-if="externalLink" class="ml-2" :to="externalLink">
+                    <span class="external-link-text">see all</span>
+                    <!-- <font-awesome-icon :icon="['fas', 'external-link-alt']"/> -->
                 </router-link>
             </h1>
         </slot>
@@ -73,12 +67,10 @@
             'isEpisode',
             'configuration',
             'id',
-            'name',
-            'personId',
             'heading',
             'showMovieInfoModal',
             'showFullMovieInfo',
-            'showDiscoverLink',
+            'externalLink',
             'history',
             'hideBadge',
             'showHeader',
@@ -167,6 +159,14 @@
         padding-top: 1em;
         padding-bottom: 1em;
         width: 100%;
+    }
+    .external-link-text {
+        text-decoration: underline;
+        font-size: 80%;
+        font-weight: 400;
+        &:hover {
+            color: @link-color-red;
+        }
     }
     .no-pointer-events {
         pointer-events: none;
