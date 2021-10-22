@@ -195,8 +195,7 @@
         },
         computed: {
             googleLink() {
-                return `https://google.com/search?q=${this.movie.name || this.movie.title}
-                    ${this.movie.first_air_date?'tv series':this.getYear(this.movie.release_date) + ' movie'}`;
+                return `https://google.com/search?q=${this.movie.name || this.movie.title} ${this.movie.first_air_date?'tv series':this.getYear(this.movie.release_date) + ' movie'}`;
             },
             isInWatchList() {
                 return this.$store.getters.watchListMovieById(this.movie.id);

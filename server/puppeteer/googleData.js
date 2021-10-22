@@ -1,11 +1,15 @@
 const puppeteer = require('puppeteer');
 let page;
+const pageCache = {};
 const setupPuppeteer = async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox'], headless: true});
     page = await browser.newPage();
 };
 const googleData = async (str) => {
     try {
+        if (pageCache[str]) {
+            return pageCache[str];
+        }
         console.time("getting link");
         await page.goto(str);
         const res = await page.$('div.fOYFme>a');
@@ -84,6 +88,12 @@ const googleData = async (str) => {
         }
 
         console.timeEnd("getting link");
+        pageCache[str] = {
+            watchLink: linkString,
+            ratings,
+            allWatchOptions,
+            criticReviews,
+        };
         return {
             watchLink: linkString,
             ratings,

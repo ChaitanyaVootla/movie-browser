@@ -119,6 +119,8 @@ const mapGoogleData = (data) => {
                 imagePath = '/images/ott/google.svg';
             } else if (watchOption.name.toLowerCase().includes('sony')) {
                 imagePath = '/images/ott/sonyliv.png';
+            } else if (watchOption.name.toLowerCase().includes('apple')) {
+                imagePath = '/images/ott/apple.png';
             }
             allWatchOptions.push({
                 imagePath,
