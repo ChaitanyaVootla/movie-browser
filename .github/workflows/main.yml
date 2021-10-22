@@ -20,19 +20,9 @@ jobs:
         envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
         script: |
           cd /
-          if [ ! -d "movie-browser" ]
-          then
-            echo "Repo not found cloning..."
-            git clone https://github.com/ChaitanyaVootla/movie-browser.git
-            cd movie-browser
-          else
-            echo "Repo already exists fetching latest changes"
-            cd movie-browser
-            # sudo git reset --hard HEAD~3
-            sudo git pull origin master
-            echo "Last change:"
-            git log --name-status HEAD^..HEAD
-          fi
+          sudo rm -rf ./movie-browser
+          git clone https://github.com/ChaitanyaVootla/movie-browser.git
+          cd movie-browser
           touch .env
           echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
           echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
