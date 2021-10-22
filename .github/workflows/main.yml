@@ -33,7 +33,6 @@ jobs:
             echo "Last change:"
             git log --name-status HEAD^..HEAD
           fi
-          sudo rm -f .env
           touch .env
           echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
           echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
