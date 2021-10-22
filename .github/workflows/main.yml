@@ -19,10 +19,8 @@ jobs:
         password: ${{ secrets.DIGITAL_OCEAN_PASS }}
         envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
         script: |
-          cd /
-          sudo rm -rf ./movie-browser
-          git clone git@github.com:ChaitanyaVootla/movie-browser.git
-          cd movie-browser
+          cd /movie-browser
+          git pull origin master
           touch .env
           echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
           echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
