@@ -12,7 +12,7 @@ import Home from './components/Home.vue';
 import Person from './components/Person/index.vue';
 import Trending from './components/Trending/index.vue';
 import Discover from './components/Discover/index.vue';
-import Content from './components/Content/index.vue';
+// import Content from './components/Content/index.vue';
 import Search from './components/Search/index.vue';
 import MovieInfoFull from './components/MovieInfo/index.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
@@ -52,7 +52,7 @@ Vue.component('personCard', require('./components/Common/personCard.vue').defaul
 Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);
 
 Vue.component('discover', require('./components/Discover').default);
-Vue.component('content', require('./components/Content').default);
+// Vue.component('content', require('./components/Content').default);
 Vue.component('search', require('./components/Search').default);
 Vue.component('streamingNow', require('./components/StreamingNow/index.vue').default);
 Vue.component('suggestions', require('./components/Suggestions/index.vue').default);
@@ -79,11 +79,11 @@ const routes = [
         component: Trending,
         name: 'trending',
     },
-    {
-        path: '/content',
-        component: Content,
-        name: 'Content',
-    },
+    // {
+    //     path: '/content',
+    //     component: Content,
+    //     name: 'Content',
+    // },
     {
         path: '/discover',
         component: Discover,
