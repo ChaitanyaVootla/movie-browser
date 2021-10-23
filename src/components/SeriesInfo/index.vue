@@ -77,7 +77,7 @@
                 <div class="rating-container">
                     <a href="" target="_blank">
                         <img src="/images/rating/tmdb.svg"/><br/>
-                        <span>{{details.vote_average}}/10</span>
+                        <span>{{details.vote_average}}</span>
                     </a>
                 </div>
                 <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">

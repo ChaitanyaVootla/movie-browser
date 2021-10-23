@@ -1,14 +1,22 @@
 const puppeteer = require('puppeteer');
 let page;
-const pageCache = {};
 const setupPuppeteer = async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox'], headless: true});
     page = await browser.newPage();
 };
+const api = require('../api');
+const HOURS_TO_UPDATE = 72;
 const googleData = async (str) => {
     try {
-        if (pageCache[str]) {
-            return pageCache[str];
+        const apiResult = await api.GoogleData.findOne({where: {searchString: str}});
+        if (apiResult) {
+            const createdTime = new Date(apiResult.createdAt);
+            const hoursSinceUpdate = (Date.now() - createdTime.getTime())/(1000*60*60);
+            if (hoursSinceUpdate > HOURS_TO_UPDATE) {
+                await apiResult.destroy();
+            } else {
+                return apiResult.data;
+            }
         }
         console.time("getting link");
         await page.goto(str);
@@ -88,12 +96,15 @@ const googleData = async (str) => {
         }
 
         console.timeEnd("getting link");
-        pageCache[str] = {
-            watchLink: linkString,
-            ratings,
-            allWatchOptions,
-            criticReviews,
-        };
+        await api.GoogleData.create({
+            searchString: str,
+            data: {
+                watchLink: linkString,
+                ratings,
+                allWatchOptions,
+                criticReviews,
+            }
+        });
         return {
             watchLink: linkString,
             ratings,
