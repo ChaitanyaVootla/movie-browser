@@ -59,7 +59,7 @@ jobs:
           echo "====================== Downloading dist ======================"
           echo "==============================================================="
           y | wget https://github.com/ChaitanyaVootla/movie-browser/releases/download/latest/dist.zip
-          y | unzip dist.zip
+          y | unzip -o dist.zip
           echo "==============================================================="
           echo "===================== starting node server ====================="
           echo "==============================================================="
