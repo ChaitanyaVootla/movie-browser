@@ -11,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: |
-      ls
+        ls
     # - name: Push APK to Releases
     #   uses: ncipollo/release-action@v1
     #   with:
