@@ -23,6 +23,7 @@ jobs:
         echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
         npm install
         npm run build
+        ls
     # - name: Push APK to Releases
     #   uses: ncipollo/release-action@v1
     #   with:
