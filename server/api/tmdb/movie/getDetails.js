@@ -34,6 +34,4 @@ async function getDetails(id) {
     return details;
 }
 
-getDetails();
-
 module.exports = getDetails;

@@ -53,6 +53,8 @@ jobs:
         envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
         script: |
           cd /movie-browser
+          git checkout -f master
+          git pull origin master
           echo "==============================================================="
           echo "====================== Downloading dist ======================"
           echo "==============================================================="
