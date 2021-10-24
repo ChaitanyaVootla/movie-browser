@@ -13,8 +13,9 @@ jobs:
       env:
         VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
         VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
-    - timeout-minutes: 2
-    - run: |
+    - name: Build
+      timeout-minutes: 2
+      run: |
         ls
         touch .env
         echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
