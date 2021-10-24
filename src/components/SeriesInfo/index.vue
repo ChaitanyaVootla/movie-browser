@@ -32,7 +32,8 @@
 
             <!-- Watch links -->
             <div class="ext-links-container ml-2 mt-4">
-                <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank">
+                <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank"
+                    @click="watchNowClicked(watchOption)">
                     <div class="ott-container mr-3">
                         <img :src="watchOption.imagePath" class="ott-icon"/>
                         <div>Watch Now</div>
@@ -60,6 +61,10 @@
                     target="_blank" class="mr-3">
                     <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon"/>
                 </a>&nbsp;
+                <a v-if="googleData.imdbId" :href="`https://www.imdb.com/title/${googleData.imdbId}/parentalguide`"
+                    target="_blank" class="mr-3">
+                    <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon"/>&nbsp;
+                </a>
                 <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
                     <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon"/>
                 </a>
@@ -276,6 +281,17 @@
             },
         },
         methods: {
+            watchNowClicked(watchOption) {
+                if (!this.user.displayName) {
+                    return;
+                }
+                const userDbRef = db.collection('users').doc(this.user.uid);
+                userDbRef.collection('continueWatching').doc(`${this.details.id}`).set({
+                    watchOption,
+                    ...this.details,
+                    updatedAt: Date.now(),
+                });
+            },
             openImageModal() {
                 this.dialogVisible = true;
                 this.backdrops = this.details.images.backdrops;

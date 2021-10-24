@@ -26,7 +26,8 @@
             </h6>
             <!-- Watch links -->
             <div class="ext-links-container ml-3 mt-4">
-                <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank">
+                <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank"
+                    @click="watchNowClicked(watchOption)">
                     <div class="ott-container mr-3">
                         <img :src="watchOption.imagePath" class="ott-icon"/>
                         <div>Watch Now</div>
@@ -277,6 +278,17 @@
             }
         },
         methods: {
+            watchNowClicked(watchOption) {
+                if (!this.user.displayName) {
+                    return;
+                }
+                const userDbRef = db.collection('users').doc(this.user.uid);
+                userDbRef.collection('continueWatching').doc(`${this.details.id}`).set({
+                    watchOption,
+                    ...this.details,
+                    updatedAt: Date.now(),
+                });
+            },
             getRuntime(runtime) {
                 let hours = 0;
                 if ((runtime/60) >= 1) {

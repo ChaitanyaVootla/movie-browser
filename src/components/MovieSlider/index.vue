@@ -22,7 +22,12 @@
                     :key="episode.id + index" :disableRatingShadow="true" :showHeader="showHeader" :openEpisodeDialog="openEpisodeDialog"
                     :class="isSliding?'no-pointer-events':''"></episode-card>
             </div>
-            <div v-if="!isPerson && !isEpisode" class="slider-bar" :id="`scroll-bar-${uuid}`">
+            <div v-if="isContinueWatching" class="slider-bar" :id="`scroll-bar-${uuid}`">
+                <continue-watching v-for="(item, index) in items" :item="item" :configuration="configuration" :imageRes="'w500'"
+                    :key="item.id + index" :disableRatingShadow="true" :showHeader="showHeader"
+                    :class="isSliding?'no-pointer-events':''"></continue-watching>
+            </div>
+            <div v-else class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <movie-card v-for="(movie, index) in items" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                     :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"
                     :hideBadge="hideBadge" :class="isSliding?'no-pointer-events':''"></movie-card>
@@ -65,6 +70,7 @@
             'items',
             'isPerson',
             'isEpisode',
+            'isContinueWatching',
             'configuration',
             'id',
             'heading',

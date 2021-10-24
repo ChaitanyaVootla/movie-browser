@@ -5,6 +5,8 @@
             :seriesGenres="seriesGenres" :trendingMovies="trendingMovies"></trending-carousel>
         <div>
             <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
+                <mb-slider v-if="continueWatching.length" :items="continueWatching" :configuration="configuration" :heading="'Continue Watching'" :id="'continueWatching'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" :isContinueWatching="true"></mb-slider>
                 <mb-slider :items="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
                 <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
@@ -45,6 +47,11 @@
         },
         mounted() {
             this.loadData();
+        },
+        computed: {
+            continueWatching() {
+                return this.$store.getters.continueWatching;
+            }
         },
         methods: {
             async loadData() {

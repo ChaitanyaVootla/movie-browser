@@ -23,6 +23,7 @@ const store = new Vuex.Store({
             seriesIds: [],
         },
         moviesWatchList: [],
+        continueWatching: [],
         friends: [],
         watchList: {
             isLoading: true,
@@ -66,6 +67,9 @@ const store = new Vuex.Store({
             }
             state.watched.isLoading = false;
         },
+        setContinueWatching(state, items) {
+            state.continueWatching = items;
+        },
         setFriends(state, friends) {
             state.friends = friends;
         },
@@ -93,6 +97,7 @@ const store = new Vuex.Store({
         history: state => state.history,
         watched: state => state.watched,
         watchedMovieIds: state => state.watched.movieIds,
+        continueWatching: state => state.continueWatching,
         watchedSeriesIds: state => state.watched.seriesIds,
         watchedMovieById: state => (id) => state.watched.movies.find(movie => movie.id === id),
         watchListMovieById: state => (id) => state.watchList.movies.find(movie => movie.id === id),
@@ -148,6 +153,15 @@ const store = new Vuex.Store({
                                 commit('setWatched', {
                                     movies: sortBy(movies, 'updatedAt').reverse(),
                                 });
+                            }, (e) => console.error(e)
+                        );
+                        userDbRef.collection('continueWatching').onSnapshot(
+                            snapshot => {
+                                const items = [];
+                                snapshot.forEach(
+                                    doc => items.push(doc.data())
+                                );
+                                commit('setContinueWatching', sortBy(items, 'updatedAt').reverse());
                             }, (e) => console.error(e)
                         );
                         userDbRef.collection('friends').onSnapshot(

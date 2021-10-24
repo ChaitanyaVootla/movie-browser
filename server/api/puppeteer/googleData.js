@@ -29,6 +29,7 @@ const googleData = async (str) => {
 
         let ratingsDOM = await page.$$('a.NY3LVe');
         const ratings = [];
+        let imdbId = null;
         for (const ratingDOM of ratingsDOM) {
             const rating = await (await (await (await ratingDOM.$('span.gsrt'))
                 .getProperty('innerText')).jsonValue()).toString().split('/')[0];
@@ -36,6 +37,9 @@ const googleData = async (str) => {
                 .getProperty('innerText')).jsonValue()).toString();
             let link = await ratingDOM.getProperty('href');
             link = await link.jsonValue();
+            if (link.includes('/title/')) {
+                imdbId = link.split('/title/')[1].split('/')[0];
+            }
             ratings.push({
                 rating,
                 name,
@@ -96,21 +100,18 @@ const googleData = async (str) => {
         }
 
         console.timeEnd("getting link");
-        await api.GoogleData.create({
-            searchString: str,
-            data: {
-                watchLink: linkString,
-                ratings,
-                allWatchOptions,
-                criticReviews,
-            }
-        });
-        return {
+        const result = {
             watchLink: linkString,
             ratings,
             allWatchOptions,
             criticReviews,
+            imdbId,
         };
+        await api.GoogleData.create({
+            searchString: str,
+            data: result
+        });
+        return result;
     }
     catch(e) {
         console.error(e);
