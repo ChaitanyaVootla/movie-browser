@@ -19,6 +19,9 @@ jobs:
         node-version: '14'
     - name: Setup
       timeout-minutes: 2
+      env:
+        VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
+        VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
       run: |
         ls
         touch .env
