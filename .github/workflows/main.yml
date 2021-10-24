@@ -33,12 +33,13 @@ jobs:
         npm run build
         apt install zip || true
         zip -r dist.zip dist/
+        ls
     - name: Release
       uses: ncipollo/release-action@v1
       with:
         name: "release"
         allowUpdates: true
-        artifacts: "dist.zip/"
+        artifacts: "dist.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
         tag: "latest"
     # - uses: appleboy/ssh-action@master
