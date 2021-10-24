@@ -1,11 +1,6 @@
-const { Sequelize, DataTypes } = require('sequelize');
+const { DataTypes } = require('sequelize');
 
-const sequelize = new Sequelize('mb', 'postgres', 'password', {
-  host: '139.59.94.40',
-  dialect: 'postgres',
-});
-
-const GoogleData = sequelize.define('googleData',
+const GoogleData = global.sequelize.define('googleData',
     {
         id: {
             type: DataTypes.BIGINT,
@@ -31,6 +26,4 @@ const GoogleData = sequelize.define('googleData',
     }
 );
 
-sequelize.sync();
-
-module.exports = { GoogleData, sequelize };
+module.exports = { GoogleData };

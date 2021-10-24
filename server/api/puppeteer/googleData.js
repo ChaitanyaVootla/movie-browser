@@ -4,7 +4,7 @@ const setupPuppeteer = async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox'], headless: true});
     page = await browser.newPage();
 };
-const api = require('../api');
+const api = require('../db');
 const HOURS_TO_UPDATE = 72;
 const googleData = async (str) => {
     try {

@@ -20,6 +20,7 @@ jobs:
         envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
         script: |
           cd /movie-browser
+          git checkout -f master
           git pull origin master
           sudo rm -f .env
           touch .env
@@ -31,7 +32,7 @@ jobs:
           npm install -g serve
           killall node
           echo "==============================================================="
-          echo "===================== starting vue server ====================="
+          echo "====================== building web app ======================"
           echo "==============================================================="
           nohup npm run build || true
           serve -s dist -l 80 > /dev/null 2>&1 &
@@ -39,6 +40,9 @@ jobs:
           echo "===================== starting node server ====================="
           echo "==============================================================="
           cd /movie-browser/server
+          sudo rm -f .env
+          touch .env
+          echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
           npm i || true
           pwd
           nohup node server.js > /dev/null 2>&1 &
