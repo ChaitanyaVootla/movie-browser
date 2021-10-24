@@ -9,41 +9,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: appleboy/ssh-action@master
-      env:
-        VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
-        VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
-      with:
-        host: 139.59.94.40
-        username: root
-        password: ${{ secrets.DIGITAL_OCEAN_PASS }}
-        envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
-        script: |
-          cd /movie-browser
-          git checkout -f master
-          git pull origin master
-          sudo rm -f .env
-          touch .env
-          echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
-          echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
-          echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
-          npm i || true
-          npm install -g @vue/cli || true
-          npm install -g serve || true
-          killall node
-          echo "==============================================================="
-          echo "====================== building web app ======================"
-          echo "==============================================================="
-          npm run build || true
-          serve -s dist -l 80 > /dev/null 2>&1 &
-          echo "==============================================================="
-          echo "===================== starting node server ====================="
-          echo "==============================================================="
-          cd /movie-browser/server
-          sudo rm -f .env
-          touch .env
-          echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
-          npm i || true
-          pwd
-          nohup node server.js > /dev/null 2>&1 &
-          exit 0
+    - uses: actions/checkout@v2
+    - run: |
+      ls
+    # - name: Push APK to Releases
+    #   uses: ncipollo/release-action@v1
+    #   with:
+    #     name: "release"
+    #     allowUpdates: true
+    #     artifacts: "build/app/outputs/flutter-apk/app-profile.apk"
+    #     token: ${{ secrets.GITHUB_TOKEN }}
+    #     tag: "latest"
+    # - uses: appleboy/ssh-action@master
+    #   env:
+    #     VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
+    #     VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
+    #   with:
+    #     host: 139.59.94.40
+    #     username: root
+    #     password: ${{ secrets.DIGITAL_OCEAN_PASS }}
+    #     envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
+    #     script: |
+    #       cd /movie-browser
+    #       git checkout -f master
+    #       git pull origin master
+    #       sudo rm -f .env
+    #       touch .env
+    #       echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
+    #       echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
+    #       echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
+    #       npm i || true
+    #       npm install -g @vue/cli || true
+    #       npm install -g serve || true
+    #       killall node
+    #       echo "==============================================================="
+    #       echo "====================== building web app ======================"
+    #       echo "==============================================================="
+    #       npm run build || true
+    #       serve -s dist -l 80 > /dev/null 2>&1 &
+    #       echo "==============================================================="
+    #       echo "===================== starting node server ====================="
+    #       echo "==============================================================="
+    #       cd /movie-browser/server
+    #       sudo rm -f .env
+    #       touch .env
+    #       echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
+    #       npm i || true
+    #       pwd
+    #       nohup node server.js > /dev/null 2>&1 &
+    #       exit 0
