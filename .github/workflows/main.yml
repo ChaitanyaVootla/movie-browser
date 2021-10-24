@@ -13,7 +13,11 @@ jobs:
       env:
         VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
         VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
-    - name: Build
+    - name: Set Node.js 12
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+    - name: Setup
       timeout-minutes: 2
       run: |
         ls
@@ -22,8 +26,10 @@ jobs:
         echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
         echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
         npm install
-        npm run build
         ls
+    - name: Build
+      timeout-minutes: 2
+      run: npm run build
     # - name: Push APK to Releases
     #   uses: ncipollo/release-action@v1
     #   with:
