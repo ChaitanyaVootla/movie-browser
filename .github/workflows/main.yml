@@ -35,7 +35,7 @@ jobs:
       with:
         name: "release"
         allowUpdates: true
-        artifacts: "dist"
+        artifacts: "dist/"
         token: ${{ secrets.GITHUB_TOKEN }}
         tag: "latest"
     # - uses: appleboy/ssh-action@master
