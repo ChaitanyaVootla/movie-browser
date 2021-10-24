@@ -61,6 +61,7 @@ jobs:
           echo "==============================================================="
           echo "====================== Downloading dist ======================"
           echo "==============================================================="
+          rm -f dist.zip
           y | wget https://github.com/ChaitanyaVootla/movie-browser/releases/download/latest/dist.zip
           y | unzip -o dist.zip
           echo "==============================================================="
