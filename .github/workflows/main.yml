@@ -27,14 +27,14 @@ jobs:
           echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
           echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
           echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
-          npm i
-          npm install -g @vue/cli
-          npm install -g serve
+          npm i || true
+          npm install -g @vue/cli || true
+          npm install -g serve || true
           killall node
           echo "==============================================================="
           echo "====================== building web app ======================"
           echo "==============================================================="
-          nohup npm run build || true
+          npm run build || true
           serve -s dist -l 80 > /dev/null 2>&1 &
           echo "==============================================================="
           echo "===================== starting node server ====================="
