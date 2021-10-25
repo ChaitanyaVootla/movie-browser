@@ -17,12 +17,12 @@
                 <person-card v-for="(person, index) in items" :key="person.id + index" :person="person" :configuration="configuration" :imageRes="'w500'"
                     :disableRatingShadow="true" :class="isSliding?'no-pointer-events':''"></person-card>
             </div>
-            <div v-if="isEpisode" class="slider-bar" :id="`scroll-bar-${uuid}`">
+            <div v-else-if="isEpisode" class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <episode-card v-for="(episode, index) in items" :episode="episode" :configuration="configuration" :imageRes="'w500'"
                     :key="episode.id + index" :disableRatingShadow="true" :showHeader="showHeader" :openEpisodeDialog="openEpisodeDialog"
                     :class="isSliding?'no-pointer-events':''"></episode-card>
             </div>
-            <div v-if="isContinueWatching" class="slider-bar" :id="`scroll-bar-${uuid}`">
+            <div v-else-if="isContinueWatching" class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <continue-watching v-for="(item, index) in items" :item="item" :configuration="configuration" :imageRes="'w500'"
                     :key="item.id + index" :disableRatingShadow="true" :showHeader="showHeader"
                     :class="isSliding?'no-pointer-events':''"></continue-watching>

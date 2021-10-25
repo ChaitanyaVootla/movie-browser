@@ -96,7 +96,7 @@
         width: 100%;
         z-index: 10;
         opacity: 0.5;
-        background-color: #333;
+        background-color: #111;
     }
     .play-icon {
         margin-top: 22%;

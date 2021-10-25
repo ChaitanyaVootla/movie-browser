@@ -7,14 +7,14 @@ const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommen
 async function getDetails(id) {
     const dbResult = await db.MovieDetails.findOne({where: {id: id}});
     if (dbResult) {
-        await dbResult.destroy();
-        // const createdTime = new Date(dbResult.createdAt);
-        // const hoursSinceUpdate = (Date.now() - createdTime.getTime())/(1000*60*60);
-        // if (hoursSinceUpdate > HOURS_TO_UPDATE) {
-        //     await dbResult.destroy();
-        // } else {
-        //     return dbResult.data;
-        // }
+        // await dbResult.destroy();
+        const createdTime = new Date(dbResult.createdAt);
+        const hoursSinceUpdate = (Date.now() - createdTime.getTime())/(1000*60*60);
+        if (hoursSinceUpdate > HOURS_TO_UPDATE) {
+            await dbResult.destroy();
+        } else {
+            return dbResult.data;
+        }
     }
     const [{ data:details }, {data: release_dates}] = await Promise.all([
         axios.get(`${tmdb.BASE_URL}movie/${id}?${tmdb.API_KEY}${QUERY_PARAMS}`),
