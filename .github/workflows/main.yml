@@ -75,7 +75,7 @@ jobs:
           npm i || true
           pwd
           nohup node server.js > /dev/null 2>&1 &
-          exit 0
+          /etc/init.d/postgresql restart
     #       git checkout -f master
     #       git pull origin master
     #       sudo rm -f .env
