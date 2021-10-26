@@ -232,6 +232,7 @@
     import { db } from '../../Common/firebase';
     import { omit, sortBy } from 'lodash';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants';
+    import firebase from 'firebase';
 
     export default {
         name: 'movieInfo',
@@ -381,19 +382,24 @@
                 this.googleData = mapGoogleData(googleData);
             },
             async updateHistoryData() {
-                // firebase.auth().onAuthStateChanged(
-                //     async (user) => {
-                //         if (user) {
-                //             const userDbRef = db.collection('users').doc(user.uid);
-                //             const userMovieHistory = await userDbRef.collection('moviesHistory').get();
-                //             const historyDocToAdd = {
-                //                 ...omit(this.details, HISTORY_OMIT_VALUES),
-                //                 updatedAt: Date.now(),
-                //             }
-                //             userDbRef.collection('moviesHistory').doc(`${this.details.id}`).set(historyDocToAdd);
-                //         }
-                //     }
-                // );
+                firebase.auth().onAuthStateChanged(
+                    async (user) => {
+                        if (user) {
+                            const userDbRef = db.collection('users').doc(this.user.uid);
+                            let recentVisits = this.$store.getters.recentVisits;
+                            const historyDocToAdd = {
+                                ...omit(this.details, HISTORY_OMIT_VALUES),
+                                updatedAt: Date.now(),
+                            } as any;
+                            const addedItem = recentVisits.find(({id, title}) => historyDocToAdd.id === id && historyDocToAdd.title === title);
+                            if (addedItem) {
+                                recentVisits = recentVisits.filter(({id, title}) => !(historyDocToAdd.id === id && historyDocToAdd.title === title));
+                            }
+                            recentVisits.push(historyDocToAdd);
+                            userDbRef.collection('userData').doc('recentVisits').set(Object.assign({}, sortBy(recentVisits, 'updatedAt').reverse().slice(0,10)));
+                        }
+                    }
+                );
             },
             getYoutubeVideos: function() {
                 if (this.details.videos && this.details.videos.results) {

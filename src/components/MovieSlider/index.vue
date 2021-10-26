@@ -27,6 +27,11 @@
                     :key="item.id + index" :disableRatingShadow="true" :showHeader="showHeader"
                     :class="isSliding?'no-pointer-events':''"></continue-watching>
             </div>
+            <div v-else-if="isWideCard" class="slider-bar" :id="`scroll-bar-${uuid}`">
+                <wide-card v-for="(item, index) in items" :item="item" :configuration="configuration" :imageRes="'w500'"
+                    :key="item.id + index" :disableRatingShadow="true" :showHeader="showHeader"
+                    :class="isSliding?'no-pointer-events':''"></wide-card>
+            </div>
             <div v-else class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <movie-card v-for="(movie, index) in items" :movie="movie" :configuration="configuration" :imageRes="'w500'"
                     :onSelected="showMovieInfoModal" :key="movie.id + index" :disableRatingShadow="true" :showFullMovieInfo="showFullMovieInfo"
@@ -71,6 +76,7 @@
             'isPerson',
             'isEpisode',
             'isContinueWatching',
+            'isWideCard',
             'configuration',
             'id',
             'heading',

@@ -9,6 +9,8 @@
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" :isContinueWatching="true"></mb-slider>
                 <mb-slider :items="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
+                <mb-slider v-if="recentVisits.length" :items="recentVisits" :configuration="configuration" :id="'recentVisits'"
+                    :showFullMovieInfo="showSeriesInfo" :history="true" heading="Recent visits" :isWideCard="true"></mb-slider>
                 <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider> -->
                 <mb-slider :items="trendingTv" :configuration="configuration" :heading="'Trending Series'" :id="'trendingSeries'"
@@ -51,7 +53,10 @@
         computed: {
             continueWatching() {
                 return this.$store.getters.continueWatching;
-            }
+            },
+            recentVisits() {
+                return this.$store.getters.recentVisits;
+            },
         },
         methods: {
             async loadData() {

@@ -51,6 +51,7 @@ Vue.component('seriesInfo', require('./components/SeriesInfo').default);
 Vue.component('personCard', require('./components/Common/personCard.vue').default);
 Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);
 Vue.component('continueWatching', require('./components/Common/continueWatching.vue').default);
+Vue.component('wideCard', require('./components/Common/wideCard.vue').default);
 
 Vue.component('discover', require('./components/Discover').default);
 // Vue.component('content', require('./components/Content').default);

@@ -15,6 +15,7 @@ const store = new Vuex.Store({
             movies: [],
             series: [],
         },
+        recentVisits: [],
         watched: {
             isLoading: true,
             movies: [],
@@ -46,6 +47,9 @@ const store = new Vuex.Store({
         },
         setIsLight(state, mode) {
             state.isLightMode = mode;
+        },
+        setRecentVisits(state, recentVisits) {
+            state.recentVisits = recentVisits;
         },
         setHistory(state, { movies, series }) {
             if (movies) {
@@ -97,6 +101,7 @@ const store = new Vuex.Store({
         history: state => state.history,
         watched: state => state.watched,
         watchedMovieIds: state => state.watched.movieIds,
+        recentVisits: state => state.recentVisits,
         continueWatching: state => state.continueWatching,
         watchedSeriesIds: state => state.watched.seriesIds,
         watchedMovieById: state => (id) => state.watched.movies.find(movie => movie.id === id),
@@ -153,6 +158,15 @@ const store = new Vuex.Store({
                                 commit('setWatched', {
                                     movies: sortBy(movies, 'updatedAt').reverse(),
                                 });
+                            }, (e) => console.error(e)
+                        );
+                        userDbRef.collection('userData').onSnapshot(
+                            snapshot => {
+                                const userDataItems = {};
+                                snapshot.forEach(
+                                    doc => userDataItems[doc.id] = doc.data()
+                                );
+                                commit('setRecentVisits', sortBy(userDataItems['recentVisits'] || [], 'updatedAt').reverse());
                             }, (e) => console.error(e)
                         );
                         userDbRef.collection('continueWatching').onSnapshot(
