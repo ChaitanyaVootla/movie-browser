@@ -11,6 +11,10 @@ firebase.initializeApp({
     measurementId: "G-H7YQ02DFNL"
 });
 const db = firebase.firestore();
+db.enablePersistence({synchronizeTabs: true})
+  .catch((err) => {
+      console.error(err);
+  });
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 const signIn = () => {

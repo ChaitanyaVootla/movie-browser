@@ -5,19 +5,29 @@
             <div class="img-container mt-2">
                 <img v-lazy="imageObj" class="item-card-image"/>
                 <div class="watch-overlay">
-                    <div>
-                    <font-awesome-icon :icon="['fas', 'play-circle']" class="play-icon"/></div>
+                    <img :src="item.watchOption.imagePath" class="watch-ott-icon"/>
                 </div>
             </div>
         </a>
-        <div class="secondary-text mt-1">
-            {{item.title || item.name}}
-        </div>
+        <router-link :to="{
+            name: item.first_air_date?'seriesInfo':'movieInfoFull',
+            params:
+                {
+                    name: sanitizeName(item.name || item.title),
+                    id: item.id
+                }
+            }"
+            :title="item.name || item.title">
+            <div class="secondary-text mt-1">
+                {{item.title || item.name}}
+            </div>
+        </router-link>
     </div>
 </template>
 
 <script lang="ts">
     import { getFullDateText } from '../../Common/utils';
+    import { sanitizeName } from '../../Common/utils';
     export default {
         name: 'continueWatching',
         props: [
@@ -35,6 +45,7 @@
                     error: require('../../Assets/Images/error.svg'),
                 },
                 getFullDateText,
+                sanitizeName,
             };
         },
         methods: {
@@ -49,6 +60,9 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
+    .watch-ott-icon {
+        height: 2.2em;
+    }
     .item-card-image[lazy=error] {
         background-size: 4em;
         padding: 4em;
@@ -80,23 +94,26 @@
         background-size: cover;
         background-repeat: no-repeat;
         background-position: 50% 50%;
+        opacity: 0.6;
     }
     .secondary-text {
         color: #aaa;
         font-size: 0.9em;
         max-width: 20em;
+        &:hover {
+            text-decoration: underline;
+        }
     }
     .img-container {
         position: relative;
     }
     .watch-overlay {
         position: absolute;
-        top: 0;
+        top: 0.5em;
+        left: 0.5em;
         height: 100%;
         width: 100%;
         z-index: 10;
-        opacity: 0.5;
-        background-color: #111;
     }
     .play-icon {
         margin-top: 22%;

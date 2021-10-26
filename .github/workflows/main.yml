@@ -76,13 +76,3 @@ jobs:
           pwd
           nohup node server.js > /dev/null 2>&1 &
           /etc/init.d/postgresql restart
-    #       git checkout -f master
-    #       git pull origin master
-    #       sudo rm -f .env
-    #       touch .env
-    #       echo "VUE_APP_API_KEY=$VUE_APP_API_KEY" >> .env
-    #       echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
-    #       echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
-    #       npm i || true
-    #       npm install -g @vue/cli || true
-    #       npm install -g serve || true
