@@ -94,7 +94,7 @@
             </div>
 
             <!-- bookmarks -->
-            <div class="mt-5 bookmarks">
+            <div class="mt-3 bookmarks">
                 <el-button v-if="isInWatchList">
                     In watch List
                     <font-awesome-icon :icon="['fas', 'check']" class="ml-1"/>
@@ -136,7 +136,8 @@
             <iframe id="ytplayer" type="text/html" width="640" height="360"
                 :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos(details.videos.results)[0].key}`"
                 frameborder="0" iv_load_policy="3" fs="1" allowfullscreen="true" autoplay="1"
-                style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0,0,0,0.75);">
+                style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0,0,0,0.75);"
+                :key="selectedVideo.key || getYoutubeVideos(details.videos.results)[0].key">
             </iframe>
             <div class="dropdown">
                 <button class="btn dropdown-toggle video-dropdown btn-dark m-0"

@@ -91,7 +91,7 @@
             </div>
 
             <!-- bookmarks -->
-            <div class="mt-3 pt-4 bookmarks">
+            <div class="mt-2 pt-3 bookmarks">
                 <el-tooltip class="item" effect="light" :content="user.displayName?isWatched?
                     'Youve watched this':'Watched this?':'Sign in to use this feature'"
                     placement="top">
@@ -145,7 +145,8 @@
             <iframe id="ytplayer" type="text/html" :width="isMobile?200:640" :height="isMobile?120:360" class="youtube-player"
                 :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}`"
                 frameborder="0" iv_load_policy="3" fs="1" allowfullscreen="true" autoplay="1"
-                style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0,0,0,0.75);">
+                style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0,0,0,0.75);"
+                :key="selectedVideo.key || getYoutubeVideos()[0].key">
             </iframe>
             <div class="dropdown">
                 <button class="btn dropdown-toggle video-dropdown btn-dark m-0"

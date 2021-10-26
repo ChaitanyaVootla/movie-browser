@@ -191,7 +191,7 @@
         font-weight: 500;
         padding-left: 2.2em;
         padding-top: 1em;
-        padding-bottom: 0.4em;
+        margin-bottom: 0;
     }
     .history-slider .slider-heading {
         padding-top: 0.2em !important;
@@ -223,7 +223,7 @@
         display: flex;
     }
     .main-slider-div {
-        padding-bottom: 0;
+        padding-bottom: 1em;
     }
     /deep/ .img-container {
         margin: 0 0.2em;
