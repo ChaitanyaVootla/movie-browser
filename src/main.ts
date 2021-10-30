@@ -152,6 +152,16 @@ const router = new VueRouter({
     mode: 'history',
     routes
 });
+router.afterEach((to, from) => {
+    console.log(to);
+    if (to.name === 'movieInfoFull' || to.name === 'seriesInfo') {
+        document.title = to.params.name.replaceAll('-', ' ');
+    } else if (to.name === 'person') {
+        document.title = to.params.name.replaceAll('-', ' ');
+    } else {
+        document.title = 'Movie Browser'; 
+    }
+});
 Vue.use(VueRouter);
 new Vue({
     render: h => h(App),

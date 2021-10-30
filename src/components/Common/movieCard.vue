@@ -327,7 +327,7 @@
     }
     .isTodayCard .movie-card-image {
         // height: 15.5em;
-        box-shadow: rgba(80, 80, 80) 0px -4px 15px 0.2em;
+        box-shadow: rgba(80, 80, 80) 0px 0px 10px 0.2em;
     }
     .movie-card-image[lazy=loading] {
         background-image: url('../../Assets/Images/loader-bars.svg');

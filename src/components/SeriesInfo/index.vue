@@ -348,7 +348,7 @@
             updateHistoryData() {
                 firebase.auth().onAuthStateChanged(
                     async (user) => {
-                        if (user) {
+                        if (user && this.$store.getters.allLoaded) {
                             const userDbRef = db.collection('users').doc(this.user.uid);
                             let recentVisits = this.$store.getters.recentVisits;
                             const historyDocToAdd = {
