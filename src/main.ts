@@ -155,9 +155,9 @@ const router = new VueRouter({
 router.afterEach((to, from) => {
     console.log(to);
     if (to.name === 'movieInfoFull' || to.name === 'seriesInfo') {
-        document.title = to.params.name.replaceAll('-', ' ');
+        document.title = to.params.name.replace(/-/g, " ");
     } else if (to.name === 'person') {
-        document.title = to.params.name.replaceAll('-', ' ');
+        document.title = to.params.name.replace(/-/g, " ");
     } else {
         document.title = 'Movie Browser'; 
     }
