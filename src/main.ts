@@ -153,7 +153,6 @@ const router = new VueRouter({
     routes
 });
 router.afterEach((to, from) => {
-    console.log(to);
     if (to.name === 'movieInfoFull' || to.name === 'seriesInfo') {
         document.title = to.params.name.replace(/-/g, " ");
     } else if (to.name === 'person') {

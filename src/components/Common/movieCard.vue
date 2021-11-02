@@ -125,7 +125,7 @@
                     error: require('../../Assets/Images/error.svg'),
                 },
                 bgImageObj: {
-                    src: this.configuration.images.secure_base_url + 'w780' + (this.movie.backdrop_path || this.movie.backdropPath),
+                    src: this.configuration.images.secure_base_url + 'w300' + (this.movie.backdrop_path || this.movie.backdropPath),
                     error: require('../../Assets/Images/error.svg'),
                 },
                 sanitizeName,
