@@ -50,6 +50,7 @@ Vue.component('movieInfoFull', require('./components/MovieInfo/index.vue').defau
 Vue.component('seriesInfo', require('./components/SeriesInfo').default);
 Vue.component('personCard', require('./components/Common/personCard.vue').default);
 Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);
+Vue.component('popoverInfo', require('./components/Common/popoverInfo.vue').default);
 Vue.component('continueWatching', require('./components/Common/continueWatching.vue').default);
 Vue.component('wideCard', require('./components/Common/wideCard.vue').default);
 

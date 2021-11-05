@@ -222,6 +222,13 @@
     .slider-container {
         display: flex;
     }
+    .slider-container:hover {
+        .scroll-item {
+            transition-duration: 150ms;
+            transform: scale(1.8);
+            color: white !important;
+        }
+    }
     .main-slider-div {
         padding-bottom: 1em;
     }

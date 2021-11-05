@@ -187,16 +187,16 @@
                 </div>
                 <div class="ml-3 mobile-hide save-container">
                     <el-button-group v-if="isSavedFilterView">
-                        <el-button type="primary" circle @click="saveFilter" icon="el-icon-star-on">
+                        <el-button type="primary" @click="saveFilter" icon="el-icon-star-on">
                             Update Search
                         </el-button>
                         <el-tooltip class="item" effect="light" content="Clear Filter" placement="bottom" v-if="isSavedFilterView">
-                            <el-button @click="clearFilter" circle icon="el-icon-circle-close">
+                            <el-button @click="clearFilter" icon="el-icon-circle-close">
                             </el-button>
                         </el-tooltip>
                         <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
                             <el-button @click="saveFilterDialogVisible = true; filterName = $router.currentRoute.query.name"
-                                type="danger" circle icon="el-icon-delete">
+                                type="danger" icon="el-icon-delete">
                             </el-button>
                         </el-tooltip>
                     </el-button-group>

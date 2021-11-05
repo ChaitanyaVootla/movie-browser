@@ -22,51 +22,9 @@
                             trigger="hover"
                             :open-delay="700"
                             width="450"
-                            @show="getGoogleData"
-                            content="this is content, this is content, this is content">
+                            @show="getGoogleData">
                             <img slot="reference" v-lazy="imageObj" class="movie-card-image" :alt="movie.name || movie.title">
-                            <div>
-                                <img class="popover-bg-image" v-lazy="bgImageObj">
-                                <div class="p-3">
-                                    <h4>{{movie.name || movie.title}}</h4>
-                                    <div v-if="movie.genres && movie.genres.length">
-                                        <span v-for="(genre, index) in movie.genres" :key="genre.id">
-                                            {{genre.name}}{{index===movie.genres.length-1?'':','}}
-                                        </span>
-                                    </div>
-                                    <div v-if="movie.genre_ids && movie.genre_ids.length">
-                                        <span v-for="(genreId, index) in movie.genre_ids" :key="genreId">
-                                            {{getGenreNameFromId(genreId)}}{{index===movie.genre_ids.length-1?'':','}}
-                                        </span>
-                                    </div>
-                                    <div style="display:flex" class="mt-3">
-                                        <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                                            <a :href="rating.link" target="_blank">
-                                                <img :src="rating.imagePath"/><br/>
-                                                <span>{{rating.rating}}</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <div v-if="googleData.allWatchOptions.length || googleData.watchLink" class="ext-links-container mt-3">
-                                        <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank">
-                                            <div class="ott-container mr-3">
-                                                <img :src="watchOption.imagePath" class="ott-icon"/>
-                                                <div>Watch Now</div>
-                                            </div>
-                                        </a>
-                                        <a v-if="!googleData.allWatchOptions.length && googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
-                                            <div class="ott-container">
-                                                <img :src="googleData.imagePath" class="ott-icon"/>
-                                                <div>Watch Now</div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                    <br/>
-                                    <span v-if="showFullOverview">{{movie.overview}}</span>
-                                    <span v-if="!showFullOverview">{{movie.overview.slice(0, 200)}}</span>
-                                    <span v-if="movie.overview.length > 200" class="expand-ellipsis ml-3" @click="showFullOverview = !showFullOverview">...</span>
-                                </div>
-                            </div>
+                            <popover-info :item="movie" :configuration="configuration" ref="popoverInfo"></popover-info>
                         </el-popover>
                         <!-- TODO check if this function is needed -->
                         <!-- <div class="img-overlay">
@@ -106,14 +64,16 @@
 <script lang="ts">
     import { api } from '../../API/api';
     import { sanitizeName, isMobile } from '../../Common/utils';
-    import { getRatingColor, getDateText, mapGoogleData } from '../../Common/utils';
+    import { getRatingColor, getDateText } from '../../Common/utils';
     import { db } from '../../Common/firebase';
     import { HISTORY_OMIT_VALUES } from '../../Common/constants';
     import { omit, intersection } from 'lodash';
     import moment from 'moment';
     import { movieGenres, seriesGenres } from '../../Common/staticConfig';
+import popoverInfo from './popoverInfo.vue';
 
     export default {
+    components: { popoverInfo },
         name: 'movieCard',
         props: ['movie', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showFullMovieInfo',
             'hideWatched', 'hideWatchList', 'hideBadge'],
@@ -131,12 +91,8 @@
                 sanitizeName,
                 isMobile,
                 getDateText,
-                googleData: {
-                    allWatchOptions: [],
-                },
                 isHoverActive: false,
                 showFullOverview: false,
-                isGoogleDataLoading: false,
                 badgeTypes: {
                     NEW: {
                         text: 'NEW',
@@ -160,17 +116,14 @@
             };
         },
         methods: {
+            getGoogleData() {
+                this.$refs.popoverInfo.getGoogleData();
+            },
             getGenreNameFromId(genreId: number) {
                 const genre = movieGenres.concat(seriesGenres).find(({id}) => genreId === id);
                 if (genre) {
                     return genre.name;
                 }
-            },
-            async getGoogleData() {
-                this.isGoogleDataLoading = true;
-                const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
-                this.googleData = mapGoogleData(googleData);
-                this.isGoogleDataLoading = false;
             },
             getYear: function(movieDate: any) {
                 return new Date(movieDate).getFullYear();

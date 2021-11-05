@@ -10,7 +10,14 @@
             }"
             :title="item.name || item.title">
             <div class="img-container mt-2">
-                <img v-lazy="imageObj" class="item-card-image"/>
+                <el-popover
+                    trigger="hover"
+                    :open-delay="700"
+                    @show="getGoogleData"
+                    width="450">
+                    <img slot="reference" v-lazy="imageObj" class="item-card-image"/>
+                    <popover-info :item="item" :configuration="configuration" ref="popoverInfo"></popover-info>
+                </el-popover>
             </div>
             <div class="secondary-text mt-1">
                 {{item.title || item.name}}
@@ -43,6 +50,9 @@
             };
         },
         methods: {
+            getGoogleData() {
+                this.$refs.popoverInfo.getGoogleData();
+            },
             getYear: function(episodeDate: any) {
                 return new Date(episodeDate).getFullYear();
             },

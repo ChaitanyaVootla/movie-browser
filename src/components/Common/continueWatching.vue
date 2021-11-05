@@ -1,28 +1,35 @@
 <template>
-    <div class="item-container">
-        <a :href="item.watchOption.link" target="_blank"
-            @click="watchNowClicked(watchOption)">
-            <div class="img-container mt-2">
-                <img v-lazy="imageObj" class="item-card-image"/>
+    <el-popover
+        trigger="hover"
+        :open-delay="700"
+        @show="getGoogleData"
+        width="450">
+        <popover-info :item="item" :configuration="configuration" ref="popoverInfo"></popover-info>
+        <div slot="reference" class="item-container">
+            <a :href="item.watchOption.link" target="_blank"
+                @click="watchNowClicked(watchOption)">
+                <div class="img-container mt-2">
+                    <img v-lazy="imageObj" class="item-card-image"/>
+                </div>
                 <div class="watch-overlay">
                     <img :src="item.watchOption.imagePath" class="watch-ott-icon"/>
                 </div>
-            </div>
-        </a>
-        <router-link :to="{
-            name: item.first_air_date?'seriesInfo':'movieInfoFull',
-            params:
-                {
-                    name: sanitizeName(item.name || item.title),
-                    id: item.id
-                }
-            }"
-            :title="item.name || item.title">
-            <div class="secondary-text mt-1">
-                {{item.title || item.name}}
-            </div>
-        </router-link>
-    </div>
+            </a>
+            <router-link :to="{
+                name: item.first_air_date?'seriesInfo':'movieInfoFull',
+                params:
+                    {
+                        name: sanitizeName(item.name || item.title),
+                        id: item.id
+                    }
+                }"
+                :title="item.name || item.title">
+                <div class="secondary-text mt-1">
+                    {{item.title || item.name}}
+                </div>
+            </router-link>
+        </div>
+    </el-popover>
 </template>
 
 <script lang="ts">
@@ -49,6 +56,9 @@
             };
         },
         methods: {
+            getGoogleData() {
+                this.$refs.popoverInfo.getGoogleData();
+            },
             getYear: function(episodeDate: any) {
                 return new Date(episodeDate).getFullYear();
             },
