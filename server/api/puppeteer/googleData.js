@@ -18,6 +18,11 @@ const googleData = async (str) => {
                 return apiResult.data;
             }
         }
+    }
+    catch(e) {
+        console.error(e);
+    }
+    finally {
         console.time("getting link");
         await page.goto(str);
         const res = await page.$('div.fOYFme>a');
@@ -107,15 +112,15 @@ const googleData = async (str) => {
             criticReviews,
             imdbId,
         };
-        await api.GoogleData.create({
-            searchString: str,
-            data: result
-        });
+        try {
+            await api.GoogleData.create({
+                searchString: str,
+                data: result,
+            });
+        } catch(e) {
+            console.error(e);
+        }
         return result;
-    }
-    catch(e) {
-        console.error(e);
-        return e;
     }
 };
 
