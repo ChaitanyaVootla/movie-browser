@@ -8,19 +8,19 @@ const api = require('../db');
 const HOURS_TO_UPDATE = 72;
 const googleData = async (str) => {
     try {
-        const apiResult = await api.GoogleData.findOne({where: {searchString: str}});
-        if (apiResult) {
-            const createdTime = new Date(apiResult.createdAt);
-            const hoursSinceUpdate = (Date.now() - createdTime.getTime())/(1000*60*60);
-            if (hoursSinceUpdate > HOURS_TO_UPDATE) {
-                await apiResult.destroy();
-            } else {
-                return apiResult.data;
-            }
-        }
+        // const apiResult = await api.GoogleData.findOne({where: {searchString: str}});
+        // if (apiResult) {
+        //     const createdTime = new Date(apiResult.createdAt);
+        //     const hoursSinceUpdate = (Date.now() - createdTime.getTime())/(1000*60*60);
+        //     if (hoursSinceUpdate > HOURS_TO_UPDATE) {
+        //         await apiResult.destroy();
+        //     } else {
+        //         return apiResult.data;
+        //     }
+        // }
     }
     catch(e) {
-        console.error(e);
+        // console.error(e);
     }
     finally {
         console.time("getting link");
@@ -112,14 +112,14 @@ const googleData = async (str) => {
             criticReviews,
             imdbId,
         };
-        try {
-            await api.GoogleData.create({
-                searchString: str,
-                data: result,
-            });
-        } catch(e) {
-            console.error(e);
-        }
+        // try {
+        //     await api.GoogleData.create({
+        //         searchString: str,
+        //         data: result,
+        //     });
+        // } catch(e) {
+        //     console.error(e);
+        // }
         return result;
     }
 };
