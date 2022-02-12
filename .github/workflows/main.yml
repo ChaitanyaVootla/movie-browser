@@ -74,5 +74,5 @@ jobs:
           echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
           npm i || true
           pwd
-          nohup node server.js > /dev/null 2>&1 &
-          /etc/init.d/postgresql restart
+          nohup npx ts-node server.ts > /dev/null 2>&1 &
+          # /etc/init.d/postgresql restart

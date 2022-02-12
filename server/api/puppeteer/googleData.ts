@@ -1,10 +1,10 @@
-const puppeteer = require('puppeteer');
-let page;
+import puppeteer from 'puppeteer';
+let page: puppeteer.Page;
 const setupPuppeteer = async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox'], headless: true});
     page = await browser.newPage();
 };
-const api = require('../db');
+// const api = require('../db');
 const HOURS_TO_UPDATE = 72;
 const googleData = async (str) => {
     try {
@@ -23,8 +23,8 @@ const googleData = async (str) => {
         // console.error(e);
     }
     finally {
-        console.time("getting link");
-        await page.goto(str);
+        console.time(`getting link`);
+        await page.goto(str, {waitUntil: 'domcontentloaded'});
         const res = await page.$('div.fOYFme>a');
         let linkString = null;
         if (res) {
@@ -41,23 +41,23 @@ const googleData = async (str) => {
             const name = await (await (await (await ratingDOM.$('span.wDgjf'))
                 .getProperty('innerText')).jsonValue()).toString();
             let link = await ratingDOM.getProperty('href');
-            link = await link.jsonValue();
-            if (link.includes('/title/')) {
-                imdbId = link.split('/title/')[1].split('/')[0];
+            let linkStr = (await link.jsonValue()) as string;
+            if (linkStr.includes('/title/')) {
+                imdbId = linkStr.split('/title/')[1].split('/')[0];
             }
             ratings.push({
                 rating,
                 name,
-                link,
+                link: linkStr,
             });
         }
 
         let googleRatingDOM = await page.$('div.srBp4');
         if (googleRatingDOM) {
             const googleRatingItem = await googleRatingDOM.getProperty('innerText');
-            let googleRating = await (await googleRatingItem.jsonValue()).toString();
+            let googleRating = (await googleRatingItem.jsonValue()).toString();
             googleRating = `${googleRating.split('%')[0]}%`;
-            if (!isNaN(googleRating.split('%')[0])) {
+            if (!isNaN(parseInt(googleRating.split('%')[0]))) {
                 ratings.push({
                     rating: googleRating,
                     name: 'google',
@@ -89,11 +89,11 @@ const googleData = async (str) => {
         if (criticReviewsDOM) {
             const reviewsDOMs = await criticReviewsDOM.$$('div.beulkd');
             for (const reviewDOM of reviewsDOMs) {
-                const review = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.NIUoNb i'));
-                const author = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.Htriib'));
-                const site = await page.evaluate(el => el?.textContent, await reviewDOM.$('div.Htriib a'));
-                const link = await page.evaluate(el => el?.href, await reviewDOM.$('div.Htriib a'));
-                const imagePath = await page.evaluate(el => el?.src, await reviewDOM.$('div.Htriib img'));
+                const review = await page.evaluate(el => el.textContent, await reviewDOM.$('div.NIUoNb i'));
+                const author = await page.evaluate(el => el.textContent, await reviewDOM.$('div.Htriib'));
+                const site = await page.evaluate(el => el.textContent, await reviewDOM.$('div.Htriib a'));
+                const link = await page.evaluate(el => el.href, await reviewDOM.$('div.Htriib a'));
+                const imagePath = await page.evaluate(el => el.src, await reviewDOM.$('div.Htriib img'));
                 criticReviews.push({
                     review,
                     author: author.replace(site, ''),
@@ -125,4 +125,4 @@ const googleData = async (str) => {
 };
 
 setupPuppeteer();
-module.exports = googleData;
+export default googleData;

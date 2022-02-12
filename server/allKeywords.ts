@@ -42359,4 +42359,4 @@ const allKeywords = [{"id":378,"name":"prison"},
 {"id":267249,"name":"evil family relative"},
 {"id":267251,"name":"german countryside"}]
 
-module.exports = allKeywords
+export default allKeywords;

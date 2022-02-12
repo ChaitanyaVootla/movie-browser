@@ -1,13 +1,14 @@
-require('dotenv').config();
-const express = require('express');
+import dotenv from "dotenv"
+import express from 'express';
 const app = express();
-const cors = require('cors');
+import cors from 'cors';
 const port = 3000;
-const allKeywords = require('./allKeywords');
-const googleData = require('./api/puppeteer/googleData');
-const movieDetails = require('./api/tmdb/movie/getDetails');
+import allKeywords from './allKeywords';
+import googleData from './api/puppeteer/googleData';
+// const movieDetails = require('./api/tmdb/movie/getDetails');
 
 app.use(cors());
+dotenv.config()
 
 app.get('/keywords',
     (req, res) => {
@@ -38,18 +39,16 @@ app.get('/googleData',
         }
     }
 );
-app.get('/movieDetails/:id',
-    async (req, res) => {
-        try {
-            const details = await movieDetails(req.params.id);
-            return res.json(details);
-        } catch (e) {
-            console.error(e);
-            res.sendStatus(500);
-        }
-    }
-);
+// app.get('/movieDetails/:id',
+//     async (req, res) => {
+//         try {
+//             const details = await movieDetails(req.params.id);
+//             return res.json(details);
+//         } catch (e) {
+//             console.error(e);
+//             res.sendStatus(500);
+//         }
+//     }
+// );
 
 app.listen(port, () => console.log(`Server started at port: ${port}`));
-
-console.log("========================", process.env.TMDB_API_KEY);
