@@ -67,12 +67,14 @@ jobs:
           echo "==============================================================="
           echo "===================== starting node server ====================="
           echo "==============================================================="
-          killall node
           cd /movie-browser/server
           sudo rm -f .env
           touch .env
           echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
           npm i || true
           pwd
-          nohup npx ts-node server.ts > /dev/null 2>&1 &
+          killall node
+          npx pm2 kill
+          npx pm2 --name server start npm -- start
+          # nohup npx ts-node server.ts > /dev/null 2>&1 &
           # /etc/init.d/postgresql restart
