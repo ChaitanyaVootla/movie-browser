@@ -16,7 +16,7 @@ app.get('/keywords',
             const responseList = [];
             allKeywords.forEach(
                 (keyword) => {
-                    if (keyword.name.indexOf(req.query.q) !== -1)
+                    if (keyword.name.indexOf(`${req.query.q}`) !== -1)
                         responseList.push(keyword);
                 }
             );

@@ -5,7 +5,6 @@
                 {{heading}}
                 <router-link v-if="externalLink" class="ml-2" :to="externalLink">
                     <span class="external-link-text">see all</span>
-                    <!-- <font-awesome-icon :icon="['fas', 'external-link-alt']"/> -->
                 </router-link>
             </h1>
         </slot>
@@ -187,7 +186,7 @@
         display: none;
     }
     .slider-heading {
-        font-size: 17px;
+        font-size: 1.4em;
         font-weight: 500;
         padding-left: 2.2em;
         padding-top: 1em;
@@ -195,6 +194,7 @@
     }
     .history-slider .slider-heading {
         padding-top: 0.2em !important;
+        font-size: 1.2em;
     }
     .scroll-item {
         display: flex;

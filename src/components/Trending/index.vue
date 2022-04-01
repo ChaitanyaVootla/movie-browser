@@ -6,15 +6,15 @@
         <div>
             <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
                 <mb-slider v-if="continueWatching.length" :items="continueWatching" :configuration="configuration" :heading="'Continue Watching'" :id="'continueWatching'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" :isContinueWatching="true"></mb-slider>
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo" :isContinueWatching="true" class="slider-bg"></mb-slider>
                 <mb-slider :items="trendingMovies" :configuration="configuration" :heading="'Trending Movies'" :id="'trendingMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider>
-                <mb-slider v-if="recentVisits.length" :items="recentVisits" :configuration="configuration" :id="'recentVisits'"
-                    :showFullMovieInfo="showSeriesInfo" :history="true" heading="Recent visits" :isWideCard="true"></mb-slider>
-                <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider> -->
                 <mb-slider :items="trendingTv" :configuration="configuration" :heading="'Trending Series'" :id="'trendingSeries'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
+                <mb-slider v-if="recentVisits.length" :items="recentVisits" :configuration="configuration" :id="'recentVisits'"
+                    :showFullMovieInfo="showSeriesInfo" heading="Recent visits" :isWideCard="true" class="slider-bg"></mb-slider>
+                <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
+                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider> -->
                 <mb-slider :items="currentAiring" :configuration="configuration" :heading="'Currently On Air'" :id="'currentAiring'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showSeriesInfo"></mb-slider>
                 <!-- <random-suggestions :configuration="configuration" :showMovieInfoModal="showMovieInfo"
@@ -45,7 +45,7 @@
               trendingPeople: [],
               latestMovies: [] as any[],
               currentAiring: [] as any[],
-          }  
+          }
         },
         mounted() {
             this.loadData();
@@ -91,6 +91,23 @@
     .justify-center {
         display:flex;
         justify-content:center;
+    }
+    .slider-bg {
+        border-radius: 5px;
+        background-size: 300% 300%;
+        background-image: linear-gradient(
+            -45deg,
+            @background-gray-light 0%,
+            #8f0b0b5e 25%,
+            @background-gray-light 50%,
+            #8f0b0b5e 100%,
+        );
+        animation: AnimateBG 10s ease infinite;
+    }
+    @keyframes AnimateBG {
+        0%{background-position:0% 50%}
+        50%{background-position:100% 50%}
+        100%{background-position:0% 50%}
     }
     .trending-sliders-container {
         margin: 0 1em 2em 1em;

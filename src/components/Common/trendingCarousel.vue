@@ -46,7 +46,7 @@
                     </el-carousel-item>
                 </el-carousel>
             </el-col>
-            <el-col :span="9" class="pr-2 pl-1 pt-2">
+            <el-col :span="9" class="sliders-container">
                 <mb-slider v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'"
                     :showFullMovieInfo="showSeriesInfo" :history="true" heading="Upcoming Episodes"
                     :externalLink="{
@@ -228,7 +228,12 @@
     }
     .week-trends-container {
         background-color: rgb(24, 24, 24);
-        padding-bottom: 1em;
+    }
+    .sliders-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
     }
     .carousel-image {
         width: 100%;

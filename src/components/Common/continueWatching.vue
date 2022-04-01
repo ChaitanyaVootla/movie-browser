@@ -104,7 +104,7 @@
         background-size: cover;
         background-repeat: no-repeat;
         background-position: 50% 50%;
-        opacity: 0.6;
+        // opacity: 0.6;
     }
     .secondary-text {
         color: #aaa;
