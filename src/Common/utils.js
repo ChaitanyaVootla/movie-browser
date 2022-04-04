@@ -69,16 +69,24 @@ const isMobile = () => {
 const mapGoogleData = (data) => {
     let imagePath;
     if (data.watchLink) {
-        if (data.watchLink.includes('hotstar')) {
+        const url = new URL(data.watchLink);
+        const site = url.hostname.toLowerCase();
+        if (site.includes('hotstar')) {
             imagePath = '/images/ott/hotstar.svg';
-        } else if (data.watchLink.includes('netflix')) {
+        } else if (site.includes('netflix')) {
             imagePath = '/images/ott/netflix.svg';
-        } else if (data.watchLink.includes('prime')) {
+        } else if (site.includes('prime')) {
             imagePath = '/images/ott/prime.svg';
-        } else if (data.watchLink.includes('youtube')) {
+        } else if (site.includes('youtube')) {
             imagePath = '/images/ott/youtube.png';
-        } else if (data.watchLink.includes('google')) {
+        } else if (site.includes('google')) {
             imagePath = '/images/ott/google.svg';
+        } else if (site.includes('sony')) {
+            imagePath = '/images/ott/sonyliv.png';
+        } else if (site.includes('apple')) {
+            imagePath = '/images/ott/apple.png';
+        } else if (site.includes('voot')) {
+            imagePath = '/images/ott/voot.png';
         }
     }
 
@@ -138,6 +146,16 @@ const mapGoogleData = (data) => {
         allWatchOptions,
     }
 }
+const getGoogleLink = (item) => {
+    let str = `https://google.com/search?q=${item.title || item.name}`;
+    if (item.release_date) {
+        const year =  new Date(item.release_date).getFullYear();
+        str += ` ${year} movie`;
+    } else {
+        str += ` tv series`;
+    }
+    return str;
+}
 
-
-export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText, getFullDateText, getTMDBTimeFormat, isMobile, mapGoogleData };
+export { sanitizeName, getRatingColor, getYear, getCurrencyString, getDateText, getFullDateText, getTMDBTimeFormat,
+    isMobile, mapGoogleData, getGoogleLink };

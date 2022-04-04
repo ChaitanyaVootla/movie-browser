@@ -478,9 +478,6 @@
         text-align: center;
         line-height: 4em;
     }
-    .ott-icon {
-        width: 3em;
-    }
     .background-images-container {
         filter: opacity(0.3);
         height: 35em;

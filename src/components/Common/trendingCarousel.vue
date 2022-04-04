@@ -1,10 +1,12 @@
 <template>
     <div>
-        <mb-slider class="desk-hide" v-if="seriesWatchList.length" :items="seriesWatchList" :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
+        <mb-slider class="desk-hide" v-if="seriesWatchList.length" :items="seriesWatchList"
+            :configuration="configuration" :id="'seriesWatchList'" :showFullMovieInfo="showSeriesInfo"
             :history="true" heading="Upcoming Episodes"></mb-slider>
         <el-row class="week-trends-container pt-3 mobile-hide">
             <el-col :span="watchListAbsent?24:15">
-                <el-carousel height="42em" :interval="7000" :type="watchListAbsent?'card':''" @change="carouselChanged" arrow="always" class="ml-5" id="trending-carousel"
+                <el-carousel height="42em" :interval="7000" :type="watchListAbsent?'card':''"
+                    @change="carouselChanged" arrow="always" class="ml-5" id="trending-carousel"
                     :key="watchListAbsent">
                     <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
                         <div class="carousel-card-container" @click="carouselCardClicked(item)">
@@ -31,10 +33,44 @@
                                 </h6>
 
                                 <!-- Rating -->
-                                <div class="mt-5 pt-5">
+                                <!-- <div class="mt-5 pt-5">
                                     <span class="rating-info" :style="`border-color: ${getRatingColor(item.vote_average)}; color: ${getRatingColor(item.vote_average)}`">
                                         {{item.vote_average}}
                                     </span>
+                                </div> -->
+                                
+                                <div class="mt-5 pt-5 ratings-main-container">
+                                    <div class="rating-container">
+                                        <a href="" target="_blank">
+                                            <img src="/images/rating/tmdb.svg"/><br/>
+                                            <span>{{item.vote_average}}</span>
+                                        </a>
+                                    </div>
+                                    <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
+                                        <a :href="rating.link" target="_blank">
+                                            <img :src="rating.imagePath"/><br/>
+                                            <span>{{rating.rating}}</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="ext-links-container ml-3 mt-4">
+                                    <a v-for="watchOption in googleData.allWatchOptions" :key="watchOption.name" :href="watchOption.link" target="_blank"
+                                        @click="watchNowClicked(watchOption)">
+                                        <div class="ott-container mr-3">
+                                            <img :src="watchOption.imagePath" class="ott-icon"/>
+                                            <div>Watch Now</div>
+                                        </div>
+                                    </a>
+
+                                    <a v-if="!googleData.allWatchOptions.length && googleData.watchLink" :href="googleData.watchLink" target="_blank" class="mr-3">
+                                        <div class="ott-container">
+                                            <img :src="googleData.imagePath" class="ott-icon"/>
+                                            <div>Watch Now</div>
+                                        </div>
+                                    </a>
+                                    <div v-else style="height: 7em">
+                                    </div>
                                 </div>
 
                                 <!-- Item overview -->
@@ -87,7 +123,7 @@
 
 <script lang="ts">
     import { api } from '../../API/api';
-    import { getRatingColor } from '../../Common/utils';
+    import { getGoogleLink, getRatingColor, mapGoogleData } from '../../Common/utils';
     import { sortBy, compact } from 'lodash';
     import moment from 'moment';
 
@@ -111,6 +147,10 @@
                 currentStreaming: [] as any,
                 historyLength: 4,
                 popularMovies: [],
+                googleData: {
+                    ratings: [],
+                    allWatchOptions: [],
+                },
             }
         },
         mounted() {
@@ -173,8 +213,12 @@
                     this.showFullMovieInfo(movie);
                 }
             },
-            carouselChanged(currentIndex: number) {
+            async carouselChanged(currentIndex: number) {
                 this.currentCarouselItem = this.trendingListWeek[currentIndex];
+                this.googleData = {ratings: [], allWatchOptions: []};
+                const googleLink = getGoogleLink(this.currentCarouselItem);
+                const googleData = await api.getOTTLink(encodeURIComponent(googleLink.replace('&', '')));
+                this.googleData = mapGoogleData(googleData);
             },
             getGenreName(id: any) {
                 let genre = this.movieGenres.find(genre => genre.id === id);
@@ -196,7 +240,7 @@
             async getTrendingListWeek() {
                 const res = await api.getTrendingListWeek();
                 this.trendingListWeek = res.results.slice(0, 10);
-                this.currentCarouselItem = this.trendingListWeek[0];
+                this.carouselChanged(0);
             },
             async loadData() {
                 this.getTrendingListWeek();
@@ -218,6 +262,14 @@
     .justify-center {
         display:flex;
         justify-content:center;
+    }
+    .rating-container {
+        span {
+            font-size: 1em;
+        }
+    }
+    .ratings-main-container {
+        display: flex;
     }
     .heading {
         font-size: 17px;

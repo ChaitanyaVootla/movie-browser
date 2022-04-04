@@ -4,6 +4,7 @@ const setupPuppeteer = async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox'], headless: true});
     page = await browser.newPage();
 };
+const pageCache = {};
 // const api = require('../db');
 const HOURS_TO_UPDATE = 72;
 const googleData = async (str) => {
@@ -24,6 +25,10 @@ const googleData = async (str) => {
     }
     finally {
         try {
+            if (pageCache[str]) {
+                console.log("Using cached page");
+                return pageCache[str];
+            }
             console.time(`getting link`);
             await page.goto(str, {waitUntil: 'domcontentloaded'});
             const res = await page.$('div.fOYFme>a');
@@ -68,8 +73,8 @@ const googleData = async (str) => {
                 }
             }
     
-            const watchOptionsDOM = await page.$('span.hVUO8e');
             const allWatchOptions = [];
+            let watchOptionsDOM = await page.$('span.hVUO8e');
             if (watchOptionsDOM) {
                 await watchOptionsDOM.click();
                 await page.waitForSelector("g-expandable-content.rXtXab", {timeout: 2000});
@@ -83,6 +88,20 @@ const googleData = async (str) => {
                         link,
                         name,
                     });
+                }
+            } else {
+                watchOptionsDOM = await page.$('div.nGOerd');
+                if (watchOptionsDOM) {
+                    let ottDOMs = await page.$$("div.nGOerd>div");
+                    for (const ottDom of ottDOMs) {
+                        const link = await (await (await ottDom.$('a')).getProperty('href')).jsonValue();
+                        const name = await (await (await (await ottDom.$('div.bclEt'))
+                            .getProperty('innerText')).jsonValue()).toString();
+                        allWatchOptions.push({
+                            link,
+                            name,
+                        });
+                    }
                 }
             }
     
@@ -122,6 +141,7 @@ const googleData = async (str) => {
             // } catch(e) {
             //     console.error(e);
             // }
+            pageCache[str] = result;
             return result;
         } catch(e) {
             console.error(e);
