@@ -67,9 +67,11 @@ const isMobile = () => {
 }
 
 const mapGoogleData = (data) => {
-    let imagePath;
+    let allWatchOptions = [];
     if (data.watchLink) {
-        const url = new URL(data.watchLink);
+        let imagePath = null;
+        console.log(data.watchLink)
+        const url = new URL(data.watchLink.link);
         const site = url.hostname.toLowerCase();
         if (site.includes('hotstar')) {
             imagePath = '/images/ott/hotstar.svg';
@@ -88,6 +90,11 @@ const mapGoogleData = (data) => {
         } else if (site.includes('voot')) {
             imagePath = '/images/ott/voot.png';
         }
+        allWatchOptions.push({
+            imagePath,
+            link: watchLink.link,
+            price: watchLink.price,
+        });
     }
 
     let ratings = [];
@@ -111,7 +118,6 @@ const mapGoogleData = (data) => {
         }
     );
 
-    let allWatchOptions = [];
     data.allWatchOptions.forEach(
         watchOption => {
             let imagePath;
@@ -136,12 +142,13 @@ const mapGoogleData = (data) => {
                 imagePath,
                 name: watchOption.name,
                 link: watchOption.link,
+                price: watchOption.price,
             });
         }
     );
     return {
         ...data,
-        imagePath,
+        // imagePath,
         ratings,
         allWatchOptions,
     }

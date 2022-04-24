@@ -75,6 +75,7 @@ jobs:
           pwd
           killall node
           npx pm2 kill
+          killall node
           npx pm2 --name server start npm -- start
           # nohup npx ts-node server.ts > /dev/null 2>&1 &
           # /etc/init.d/postgresql restart

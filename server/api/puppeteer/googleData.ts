@@ -1,3 +1,4 @@
+import { sortBy } from 'lodash';
 import puppeteer from 'puppeteer';
 let page: puppeteer.Page;
 const setupPuppeteer = async () => {
@@ -31,12 +32,6 @@ const googleData = async (str) => {
             }
             console.time(`getting link`);
             await page.goto(str, {waitUntil: 'domcontentloaded'});
-            const res = await page.$('div.fOYFme>a');
-            let linkString = null;
-            if (res) {
-                const link = await res.getProperty('href');
-                linkString = await link.jsonValue();
-            }
     
             let ratingsDOM = await page.$$('a.vIUFYd');
             const ratings = [];
@@ -75,6 +70,8 @@ const googleData = async (str) => {
     
             const allWatchOptions = [];
             let watchOptionsDOM = await page.$('span.hVUO8e');
+            let secondaryWatchOptionsDOM = await page.$('div.nGOerd');
+
             if (watchOptionsDOM) {
                 await watchOptionsDOM.click();
                 await page.waitForSelector("g-expandable-content.rXtXab", {timeout: 2000});
@@ -84,24 +81,57 @@ const googleData = async (str) => {
                     const link = await (await ottDom.getProperty('href')).jsonValue();
                     const name = await (await (await (await ottDom.$('div.bclEt'))
                         .getProperty('innerText')).jsonValue()).toString();
+                    let price = null;
+                    try {
+                        price = await (await (await (await ottDom.$('div.rsj3fb'))
+                            .getProperty('innerText')).jsonValue()).toString();
+                    } catch(e) {}
                     allWatchOptions.push({
                         link,
                         name,
+                        price,
+                    });
+                }
+            } else if (secondaryWatchOptionsDOM) {
+                try {
+                    await (await page.$('g-expandable-container')).click();
+                    await page.waitForSelector("g-expandable-content.rXtXab", {timeout: 2000});
+                } catch(e) {}
+                let ottDOMs = await page.$$("div.nGOerd a");
+                for (const ottDom of ottDOMs) {
+                    const link = await (await ottDom.getProperty('href')).jsonValue();
+                    const name = await (await (await (await ottDom.$('div.bclEt'))
+                        .getProperty('innerText')).jsonValue()).toString();
+                    let price = null;
+                    try {
+                        price = await (await (await (await ottDom.$('div.rsj3fb'))
+                            .getProperty('innerText')).jsonValue()).toString();
+                    } catch(e) {}
+                    allWatchOptions.push({
+                        link,
+                        name,
+                        price: priceMapper(price),
                     });
                 }
             } else {
-                watchOptionsDOM = await page.$('div.nGOerd');
-                if (watchOptionsDOM) {
-                    let ottDOMs = await page.$$("div.nGOerd>div");
-                    for (const ottDom of ottDOMs) {
-                        const link = await (await (await ottDom.$('a')).getProperty('href')).jsonValue();
-                        const name = await (await (await (await ottDom.$('div.bclEt'))
-                            .getProperty('innerText')).jsonValue()).toString();
-                        allWatchOptions.push({
-                            link,
-                            name,
-                        });
+                const res = await page.$('div.fOYFme>a');
+                let mainLink = null;
+                if (res) {
+                    const link: string = await (await res.getProperty('href')).jsonValue();
+                    const hostname = new URL(link).hostname;
+                    mainLink = {
+                        link,
+                        name: hostname,
+                    };
+                    let priceDom = await res.$('span');
+                    if (!priceDom) {
+                        priceDom = await res.$('.uiBRm');
                     }
+                    if (priceDom) {
+                        const price = await (await (await priceDom.getProperty('innerText')).jsonValue()).toString();
+                        mainLink.price = priceMapper(price);
+                    }
+                    allWatchOptions.push(mainLink);
                 }
             }
     
@@ -127,9 +157,8 @@ const googleData = async (str) => {
     
             console.timeEnd("getting link");
             const result = {
-                watchLink: linkString,
                 ratings,
-                allWatchOptions,
+                allWatchOptions: sortBy(allWatchOptions, 'price').reverse(),
                 criticReviews,
                 imdbId,
             };
@@ -148,6 +177,13 @@ const googleData = async (str) => {
         }
     }
 };
+
+const priceMapper = (price: string) => {
+    if (price.toLowerCase().includes('free')) {
+        return 'Subscription';
+    }
+    return price;
+}
 
 setupPuppeteer();
 export default googleData;

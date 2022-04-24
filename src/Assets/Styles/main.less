@@ -218,18 +218,27 @@ a {
     color: @text-color;
 }
 // Nav bar Styles
-.el-menu-item {
-    font-weight: 400;
-    font-size: 16px;
-}
-.el-menu-item:hover {
-    color: @link-color-red !important;
-}
-.el-menu-item.is-active {
-    font-weight: 500;
-}
-.el-menu.el-menu--horizontal {
-    border: 0;
+.el-menu {
+    .el-menu-item {
+        color: @text-color !important;
+        background: none;
+        font-weight: 400;
+        font-size: 16px;
+        &.is-active {
+            background: none !important;
+            font-weight: 500;
+            color: @main-red !important;
+        }
+        :hover {
+            color: @link-color-red !important;
+        }
+        :visited {
+            color: @text-color !important;
+        }
+    }
+    &.el-menu--horizontal {
+        border: 0;
+    }
 }
 /deep/ .el-input-group__append {
     border-color: #111 !important;

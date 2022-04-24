@@ -37,6 +37,7 @@
                     <div class="ott-container mr-3">
                         <img :src="watchOption.imagePath" class="ott-icon"/>
                         <div>Watch Now</div>
+                        <div class="watch-price">{{watchOption.price}}</div>
                     </div>
                 </a>
 
@@ -404,6 +405,10 @@
 
 <style scoped lang="less">
     @import '../../Assets/Styles/main.less';
+    .watch-price {
+        font-size: 0.7rem;
+        color: #aaa;
+    }
     .season-container {
         background-color: rgba(148, 148, 148, 0.05);
     }
