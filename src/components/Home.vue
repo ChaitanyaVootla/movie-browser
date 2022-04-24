@@ -7,7 +7,7 @@
             text-color="#eee"
             :default-active="activeNavItem"
             active-text-color="#b91d1d">
-            <el-menu-item index="Trending" class="first-menu-item p-0">
+            <el-menu-item index="Trending" class="first-menu-item p-0 nav-menu-item">
                 <router-link :to="{ name: 'trending'}">
                     <div class="pl-4 pr-4" :class="onTrending?'active':''">
                         <font-awesome-icon :icon="['fas', 'home']" class="mr-2 trending-icon"/>
@@ -15,7 +15,7 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item index="discover" class=" p-0">
+            <el-menu-item index="discover" class="nav-menu-item p-0">
                 <router-link :to="{ name: 'discover'}">
                     <div class="pl-4 pr-4" :class="onDiscover?'active':''">
                         <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2"/>
@@ -31,7 +31,7 @@
                     </div>
                 </router-link>
             </el-menu-item> -->
-            <el-menu-item index="WatchList" class=" p-0">
+            <el-menu-item index="WatchList" class=" nav-menu-item p-0">
                 <router-link :to="{ name: 'WatchList'}">
                     <div class="pl-4 pr-4" :class="onWatchList?'active':''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
