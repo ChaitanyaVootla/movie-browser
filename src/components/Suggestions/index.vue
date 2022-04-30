@@ -122,7 +122,6 @@ export default {
             setTimeout(() => {
                 this.fetchRandomFavoriteGenreMovies();
             }, 300);
-            console.log('randomFavoriteGenre');
             return randomFavoriteGenre;
         },
     },

@@ -17,7 +17,6 @@ db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 const signIn = () => {
-    console.log(process.env);
     firebase
         .auth()
         .signInWithPopup(googleProvider)

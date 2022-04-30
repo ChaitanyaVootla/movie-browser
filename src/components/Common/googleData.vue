@@ -71,7 +71,6 @@ export default Vue.extend({
                 return;
             }
             const userDbRef = db.collection('users').doc(this.user.uid);
-            console.log(userDbRef, watchOption);
             userDbRef
                 .collection('continueWatching')
                 .doc(`${this.item.id}`)

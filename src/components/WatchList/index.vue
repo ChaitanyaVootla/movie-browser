@@ -226,9 +226,7 @@ export default {
             });
 
             const surya = users.find(({ displayName }) => displayName.includes('Surya'));
-            console.log(surya);
             const res = await db.collection('users').doc(surya.id).collection('seriesWatchList').get();
-            console.log(res.docs.map((doc) => doc.data()));
         },
     },
 };

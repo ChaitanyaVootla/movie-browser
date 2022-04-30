@@ -289,7 +289,6 @@ export default {
                 'December',
             ];
             const date = new Date(movieDate);
-            console.log(date.getDate());
             return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
         },
         getYear: function (movieDate: any) {

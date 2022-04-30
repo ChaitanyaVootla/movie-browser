@@ -92,7 +92,6 @@ const mapGoogleData = (data) => {
     let allWatchOptions = [];
     if (data.watchLink) {
         let imagePath = null;
-        console.log(data.watchLink);
         const url = new URL(data.watchLink.link);
         const site = url.hostname.toLowerCase();
         if (site.includes('hotstar')) {

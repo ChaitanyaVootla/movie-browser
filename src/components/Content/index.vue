@@ -31,7 +31,6 @@ export default {
     },
     methods: {
         onClick(movie) {
-            console.log(movie);
             this.$router
                 .push({
                     name: 'movieInfoFull',
