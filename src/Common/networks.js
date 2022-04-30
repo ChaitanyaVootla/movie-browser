@@ -19,6 +19,6 @@ const NETWORKS = {
         name: 'Disney',
         image: '/PQxvkeK8cTtD7vjataBsNpjbJ5.png',
     },
-}
+};
 
 export { NETWORKS };

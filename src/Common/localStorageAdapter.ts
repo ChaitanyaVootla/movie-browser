@@ -7,39 +7,35 @@ const getItemByName = (name: string) => {
     } else {
         return [];
     }
-}
+};
 
 const pushItemByName = (name: string, item: any) => {
     const localDataString = localStorage[name];
     let localData = [];
     if (localDataString) {
         localData = JSON.parse(localDataString);
-        localData = _.filter(localData,
-            ({ id }) => {
-                return id !== parseInt(item.id);
-            }
-        );
+        localData = _.filter(localData, ({ id }) => {
+            return id !== parseInt(item.id);
+        });
         localData.push(item);
-    } else{
-        localData = [item]
+    } else {
+        localData = [item];
     }
     localData = localData.reverse().splice(0, maxItems).reverse();
     const newLocalString = JSON.stringify(localData);
     localStorage.setItem(name, newLocalString);
-}
+};
 
 const removeItemByName = (name: string, item: any) => {
     const localDataString = localStorage[name];
     if (localDataString) {
         let localData = JSON.parse(localDataString);
-        localData = _.filter(localData,
-            ({ id }) => {
-                return id !== parseInt(item.id);
-            }
-        );
+        localData = _.filter(localData, ({ id }) => {
+            return id !== parseInt(item.id);
+        });
         const newLocalString = JSON.stringify(localData);
         localStorage.setItem(name, newLocalString);
     }
-}
+};
 
 export { getItemByName, pushItemByName, removeItemByName };

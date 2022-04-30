@@ -43,4 +43,4 @@ export class TvDetails {
         this.first_air_date = obj.first_air_date;
         this.keywords = obj.keywords;
     }
-};
+}

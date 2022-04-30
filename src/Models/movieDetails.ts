@@ -43,4 +43,4 @@ export class MovieDetails {
         this.budget = obj.budget;
         this.revenue = obj.revenue;
     }
-};
+}

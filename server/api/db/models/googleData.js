@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 
-const GoogleData = global.sequelize.define('googleData',
+const GoogleData = global.sequelize.define(
+    'googleData',
     {
         id: {
             type: DataTypes.BIGINT,
@@ -14,16 +15,16 @@ const GoogleData = global.sequelize.define('googleData',
         },
         data: {
             type: DataTypes.JSON,
-        }
+        },
     },
     {
         indexes: [
             {
                 unique: true,
-                fields: ['searchString']
-            }
-        ]
-    }
+                fields: ['searchString'],
+            },
+        ],
+    },
 );
 
 module.exports = { GoogleData };

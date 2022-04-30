@@ -1,31 +1,31 @@
 {
-  "name": "movieserver",
-  "version": "1.0.0",
-  "main": "server.js",
-  "scripts": {
-    "start": "npx ts-node server.ts",
-    "serve": "npx nodemon server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "cors": "^2.8.5",
-    "axios": "0.23.0",
-    "dotenv": "10.0.0",
-    "cross-fetch": "^3.1.4",
-    "express": "^4.17.1",
-    "lodash": "^4.17.21",
-    "pg": "^8.7.1",
-    "pg-hstore": "^2.3.4",
-    "puppeteer": "^10.1.0",
-    "sequelize": "^6.7.0"
-  },
-  "devDependencies": {
-    "nodemon": "2.0.15",
-    "ts-node": "10.5.0",
-    "typescript": "4.5.5",
-    "pm2": "5.1.2"
-  },
-  "description": ""
+    "name": "movieserver",
+    "version": "1.0.0",
+    "main": "server.js",
+    "scripts": {
+        "start": "npx ts-node server.ts",
+        "serve": "npx nodemon server.ts",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "cors": "^2.8.5",
+        "axios": "0.23.0",
+        "dotenv": "10.0.0",
+        "cross-fetch": "^3.1.4",
+        "express": "^4.17.1",
+        "lodash": "^4.17.21",
+        "pg": "^8.7.1",
+        "pg-hstore": "^2.3.4",
+        "puppeteer": "^10.1.0",
+        "sequelize": "^6.7.0"
+    },
+    "devDependencies": {
+        "nodemon": "2.0.15",
+        "ts-node": "10.5.0",
+        "typescript": "4.5.5",
+        "pm2": "5.1.2"
+    },
+    "description": ""
 }

@@ -39,7 +39,7 @@ library.add(far);
 
 Vue.component('font-awesome-icon', FontAwesomeIcon);
 Vue.config.productionTip = true;
-(<any>window).$ = require('jquery')
+(<any>window).$ = require('jquery');
 
 Vue.component('mbSlider', require('./components/MovieSlider').default);
 Vue.component('seasonSlider', require('./components/SeasonSlider').default);
@@ -105,66 +105,66 @@ const routes = [
     {
         path: '/person/:name/:id',
         component: Person,
-        name: 'person'
+        name: 'person',
     },
     {
         path: '/movie/:name/:id',
         component: MovieInfoFull,
-        name: 'movieInfoFull'
+        name: 'movieInfoFull',
     },
     {
         path: '/series/:name/:id',
         component: SeriesInfo,
-        name: 'seriesInfo'
+        name: 'seriesInfo',
     },
     {
         path: '/streamingNow',
         component: StreamingNow,
-        name: 'StreamingNow'
+        name: 'StreamingNow',
     },
     {
         path: '/suggestions',
         component: Suggestions,
-        name: 'Suggestions'
+        name: 'Suggestions',
     },
     {
         path: '/watchList',
         component: WatchList,
-        name: 'WatchList'
+        name: 'WatchList',
     },
     {
         path: '/shareView/:userID',
         component: ShareView,
-        name: 'ShareView'
+        name: 'ShareView',
     },
     {
         path: '/interests',
         component: Interests,
-        name: 'Interests'
+        name: 'Interests',
     },
     {
         path: '/history',
         component: History,
-        name: 'History'
+        name: 'History',
     },
 ];
 Vue.use(VueLazyload);
 const router = new VueRouter({
     mode: 'history',
-    routes
+    routes,
 });
 router.afterEach((to, from) => {
     if (to.name === 'movieInfoFull' || to.name === 'seriesInfo') {
-        document.title = to.params.name.replace(/-/g, " ");
+        document.title = to.params.name.replace(/-/g, ' ');
     } else if (to.name === 'person') {
-        document.title = to.params.name.replace(/-/g, " ");
+        document.title = to.params.name.replace(/-/g, ' ');
     } else {
-        document.title = 'Movie Browser'; 
+        document.title = 'Movie Browser';
     }
 });
 Vue.use(VueRouter);
 new Vue({
-    render: h => h(App),
+    render: (h) => h(App),
     router,
     // apolloProvider: createProvider(),
     store,
