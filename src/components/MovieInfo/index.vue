@@ -24,127 +24,9 @@
                     <font-awesome-icon :icon="['fas', 'images']" />
                 </span>
             </h6>
+
             <!-- Watch links -->
-            <div class="ext-links-container ml-3 mt-4">
-                <a
-                    v-for="watchOption in googleData.allWatchOptions"
-                    :key="watchOption.name"
-                    :href="watchOption.link"
-                    target="_blank"
-                    @click="watchNowClicked(watchOption)"
-                >
-                    <div class="ott-container mr-3">
-                        <img :src="watchOption.imagePath" class="ott-icon" />
-                        <div>Watch Now</div>
-                        <div class="watch-price">{{ watchOption.price }}</div>
-                    </div>
-                </a>
-
-                <a
-                    v-if="!googleData.allWatchOptions.length && googleData.watchLink"
-                    :href="googleData.watchLink"
-                    target="_blank"
-                    class="mr-3"
-                >
-                    <div class="ott-container">
-                        <img :src="googleData.imagePath" class="ott-icon" />
-                        <div>Watch Now</div>
-                    </div>
-                </a>
-                <div v-else style="height: 7em"> </div>
-            </div>
-            <br />
-            <!-- External links -->
-            <div class="mt-1 ml-3 shadow-text mobile-hide">
-                <!-- <a :href="googleLink" target="_blank" class="mr-3">
-                    <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                </a>&nbsp; -->
-                <a
-                    :href="`https://www.iptorrents.com/t?q=${details.title};o=seeders#torrents`"
-                    target="_blank"
-                    class="mr-3"
-                >
-                    <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" /> </a
-                >&nbsp;
-                <!-- <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}`"
-                    target="_blank" class="mr-3">
-                    <font-awesome-icon :icon="['fab', 'imdb']" class="ext-link-icon"/>
-                </a>&nbsp; -->
-                <a
-                    v-if="details.imdb_id"
-                    :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
-                    target="_blank"
-                    class="mr-3"
-                >
-                    <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" /> </a
-                >&nbsp;
-                <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
-                    <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
-                </a>
-            </div>
-
-            <!-- Rating -->
-            <div class="mt-4 pt-2 ratings-main-container mobile-hide">
-                <!-- <el-tooltip class="item" effect="light" :content="`${details.vote_count} ratings`"
-                    placement="top">
-                    <div class="rating-info mr-4" :style="`border-color: ${getRatingColor(details.vote_average)};
-                        color: ${getRatingColor(details.vote_average)}`">
-                        {{details.vote_average}}
-                    </div>
-                </el-tooltip> -->
-                <!-- <div class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></div> -->
-                <div class="rating-container">
-                    <a href="" target="_blank">
-                        <img src="/images/rating/tmdb.svg" /><br />
-                        <span>{{ details.vote_average }}</span>
-                    </a>
-                </div>
-                <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                    <a :href="rating.link" target="_blank">
-                        <img :src="rating.imagePath" /><br />
-                        <span>{{ rating.rating }}</span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- bookmarks -->
-            <div class="mt-2 pt-3 bookmarks">
-                <el-tooltip
-                    class="item"
-                    effect="light"
-                    :content="
-                        user.displayName
-                            ? isWatched
-                                ? 'Youve watched this'
-                                : 'Watched this?'
-                            : 'Sign in to use this feature'
-                    "
-                    placement="top"
-                >
-                    <span :class="`rating-info watch-check ${isWatched ? 'watched-item' : ''}`" @click="watchedClicked">
-                        <font-awesome-icon :icon="['fas', 'check']" />
-                    </span>
-                </el-tooltip>
-                <el-tooltip
-                    class="item"
-                    effect="light"
-                    :content="
-                        user.displayName
-                            ? isInWatchList
-                                ? 'Remove from watch list'
-                                : 'Add to watch list'
-                            : 'Sign in to use this feature'
-                    "
-                    placement="top"
-                >
-                    <span
-                        :class="`rating-info watch-check ${isInWatchList ? 'watched-item' : ''}`"
-                        @click="addToListClicked"
-                    >
-                        <font-awesome-icon :icon="['fas', 'plus']" />
-                    </span>
-                </el-tooltip>
-            </div>
+            <GoogleData :item="details" :key="details.id" />
 
             <!-- budget -->
             <!-- <div style="top: 31em; position: absolute;" class="budget-text mobile-hide">
@@ -154,41 +36,114 @@
                 <span :class="budgetColor">{{getCurrencyString(details.revenue)}}</span>
             </div> -->
 
-            <!-- Movie overview -->
-            <div class="frosted movie-overview p-2 mobile-hide">
-                <span v-if="showFullOverview">{{ details.overview }}</span>
-                <span v-if="!showFullOverview">{{ details.overview.slice(0, 200) }}</span>
-                <span
-                    v-if="details.overview.length > 200"
-                    class="expand-ellipsis ml-3"
-                    @click="showFullOverview = !showFullOverview"
-                    >...</span
-                >
-                <div>
-                    <router-link
-                        v-for="keyword in showAllTags
-                            ? details.keywords.keywords
-                            : details.keywords.keywords.slice(0, 15)"
-                        :key="keyword.id"
-                        class="mr-2"
-                        :to="{
-                            name: 'discover',
-                            query: {
-                                keywords: keyword.name,
-                                with_keywords: keyword.id,
-                            },
-                        }"
+            <!-- Movie additional info -->
+            <div class="additional-info">
+                <!-- External links -->
+                <div class="mt-2 mb-3 shadow-text mobile-hide">
+                    <!-- <a :href="googleLink" target="_blank" class="mr-3">
+                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
+                    </a>&nbsp; -->
+                    <a
+                        :href="`https://www.iptorrents.com/t?q=${details.title};o=seeders#torrents`"
+                        target="_blank"
+                        class="mr-3"
                     >
-                        <el-tag type="info" size="mini">
-                            {{ keyword.name }}
-                        </el-tag>
-                    </router-link>
+                        <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" /> </a
+                    >&nbsp;
+                    <!-- <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}`"
+                        target="_blank" class="mr-3">
+                        <font-awesome-icon :icon="['fab', 'imdb']" class="ext-link-icon"/>
+                    </a>&nbsp; -->
+                    <a
+                        v-if="details.imdb_id"
+                        :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
+                        target="_blank"
+                        class="mr-3"
+                    >
+                        <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" /> </a
+                    >&nbsp;
+                    <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
+                        <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
+                    </a>
+                </div>
+
+                <!-- bookmarks -->
+                <div class="mt-2 mb-3 bookmarks">
+                    <el-tooltip
+                        class="item"
+                        effect="light"
+                        :content="
+                            user.displayName
+                                ? isWatched
+                                    ? 'Youve watched this'
+                                    : 'Watched this?'
+                                : 'Sign in to use this feature'
+                        "
+                        placement="top"
+                    >
+                        <span
+                            :class="`rating-info mr-3 watch-check ${isWatched ? 'watched-item' : ''}`"
+                            @click="watchedClicked"
+                        >
+                            <font-awesome-icon :icon="['fas', 'check']" />
+                        </span>
+                    </el-tooltip>
+                    <el-tooltip
+                        class="item"
+                        effect="light"
+                        :content="
+                            user.displayName
+                                ? isInWatchList
+                                    ? 'Remove from watch list'
+                                    : 'Add to watch list'
+                                : 'Sign in to use this feature'
+                        "
+                        placement="top"
+                    >
+                        <span
+                            :class="`rating-info mr-3 watch-check ${isInWatchList ? 'watched-item' : ''}`"
+                            @click="addToListClicked"
+                        >
+                            <font-awesome-icon :icon="['fas', 'plus']" />
+                        </span>
+                    </el-tooltip>
+                </div>
+                <!-- overview -->
+                <div class="frosted movie-overview p-2 mobile-hide">
+                    <span v-if="showFullOverview">{{ details.overview }}</span>
+                    <span v-if="!showFullOverview">{{ details.overview.slice(0, 200) }}</span>
                     <span
-                        v-if="details.keywords.keywords.length > 15"
-                        class="expand-ellipsis"
-                        @click="showAllTags = !showAllTags"
+                        v-if="details.overview.length > 200"
+                        class="expand-ellipsis ml-3"
+                        @click="showFullOverview = !showFullOverview"
                         >...</span
                     >
+                    <div>
+                        <router-link
+                            v-for="keyword in showAllTags
+                                ? details.keywords.keywords
+                                : details.keywords.keywords.slice(0, 15)"
+                            :key="keyword.id"
+                            class="mr-2"
+                            :to="{
+                                name: 'discover',
+                                query: {
+                                    keywords: keyword.name,
+                                    with_keywords: keyword.id,
+                                },
+                            }"
+                        >
+                            <el-tag type="info" size="mini">
+                                {{ keyword.name }}
+                            </el-tag>
+                        </router-link>
+                        <span
+                            v-if="details.keywords.keywords.length > 15"
+                            class="expand-ellipsis"
+                            @click="showAllTags = !showAllTags"
+                            >...</span
+                        >
+                    </div>
                 </div>
             </div>
         </div>
@@ -252,7 +207,7 @@
                 :selectPerson="selectPerson"
                 :isPerson="true"
             ></mb-slider>
-            <div
+            <!-- <div
                 class="ml-4 p-3 mr-4 mt-3 mb-3 frosted reviews-main-container"
                 style="background: rgba(50, 50, 50, 0.3)"
                 v-if="googleData.criticReviews && googleData.criticReviews.length"
@@ -268,7 +223,7 @@
                         </a>
                     </div>
                 </div>
-            </div>
+            </div> -->
             <mb-slider
                 v-if="crew.length"
                 :items="crew"
@@ -341,15 +296,19 @@
 <script lang="ts">
 import { api } from '../../API/api';
 import _ from 'lodash';
-import { getCurrencyString, getDateText, mapGoogleData } from '../../Common/utils';
+import { getCurrencyString, getDateText } from '../../Common/utils';
 import { db } from '../../Common/firebase';
 import { omit, sortBy } from 'lodash';
 import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 import firebase from 'firebase';
+import GoogleData from '../Common/googleData.vue';
 
 export default {
     name: 'movieInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showFullMovieInfo'],
+    components: {
+        GoogleData,
+    },
     data() {
         return {
             details: {} as any,
@@ -368,9 +327,6 @@ export default {
             dialogVisible: false,
             backdrops: [] as any[],
             posters: [] as any[],
-            googleData: {
-                allWatchOptions: [],
-            },
             rating: null,
             defaultImageTab: 'backdrops',
             getCurrencyString,
@@ -387,20 +343,6 @@ export default {
         },
     },
     methods: {
-        watchNowClicked(watchOption) {
-            if (!this.user.displayName) {
-                return;
-            }
-            const userDbRef = db.collection('users').doc(this.user.uid);
-            userDbRef
-                .collection('continueWatching')
-                .doc(`${this.details.id}`)
-                .set({
-                    watchOption,
-                    ...this.details,
-                    updatedAt: Date.now(),
-                });
-        },
         getRuntime(runtime) {
             let hours = 0;
             if (runtime / 60 >= 1) {
@@ -449,9 +391,6 @@ export default {
         },
         async getDetails() {
             this.detailsLoading = true;
-            this.googleData = {
-                allWatchOptions: [],
-            };
             this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
             if (this.details.belongs_to_collection) {
                 const collectionDetails = await api.collectionDetails(parseInt(this.details.belongs_to_collection.id));
@@ -484,8 +423,6 @@ export default {
             if (usRating) {
                 this.rating = usRating.release_dates[0].certification;
             }
-            const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
-            this.googleData = mapGoogleData(googleData);
         },
         async updateHistoryData() {
             firebase.auth().onAuthStateChanged(async (user) => {
@@ -656,6 +593,8 @@ export default {
 }
 .movie-overview {
     background: @translucent-bg;
+}
+.additional-info {
     width: 60%;
     margin-top: 5em;
     bottom: 0.5em;
@@ -700,7 +639,6 @@ export default {
 }
 .watch-check {
     font-size: 1em;
-    margin-left: 0.5em;
     cursor: pointer;
 }
 .watched-item {

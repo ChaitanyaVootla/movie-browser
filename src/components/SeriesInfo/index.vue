@@ -31,35 +31,7 @@
             </div>
 
             <!-- Watch links -->
-            <div class="ext-links-container ml-2 mt-4">
-                <a
-                    v-for="watchOption in googleData.allWatchOptions"
-                    :key="watchOption.name"
-                    :href="watchOption.link"
-                    target="_blank"
-                    @click="watchNowClicked(watchOption)"
-                >
-                    <div class="ott-container mr-3">
-                        <img :src="watchOption.imagePath" class="ott-icon" />
-                        <div>Watch Now</div>
-                        <div class="watch-price">{{ watchOption.price }}</div>
-                    </div>
-                </a>
-
-                <a
-                    v-if="!googleData.allWatchOptions.length && googleData.watchLink"
-                    :href="googleData.watchLink"
-                    target="_blank"
-                    class="mr-3"
-                >
-                    <div class="ott-container">
-                        <img :src="googleData.imagePath" class="ott-icon" />
-                        <div>Watch Now</div>
-                    </div>
-                </a>
-                <div v-else style="height: 7em"> </div>
-            </div>
-            <br />
+            <GoogleData :item="details" :key="details.id" />
 
             <!-- External links -->
             <div class="mt-1 ml-2 mobile-hide">
@@ -74,8 +46,8 @@
                     <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" /> </a
                 >&nbsp;
                 <a
-                    v-if="googleData.imdbId"
-                    :href="`https://www.imdb.com/title/${googleData.imdbId}/parentalguide`"
+                    v-if="details.imdb_id"
+                    :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
                     target="_blank"
                     class="mr-3"
                 >
@@ -84,29 +56,6 @@
                 <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
                     <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
                 </a>
-            </div>
-
-            <!-- Rating -->
-            <div class="mt-3 pt-1 ratings-main-container mobile-hide">
-                <!-- <span class="rating-info" :style="`border-color: ${getRatingColor(details.vote_average)}; color: ${getRatingColor(details.vote_average)}`">
-                    {{details.vote_average}}
-                </span>
-                <el-tooltip class="item" effect="light" :content="`${details.vote_count} ratings`"
-                    placement="right">
-                    <span class="vote-count ml-2">{{details.vote_count}} <i class="el-icon-star-off"></i></span>
-                </el-tooltip> -->
-                <div class="rating-container">
-                    <a href="" target="_blank">
-                        <img src="/images/rating/tmdb.svg" /><br />
-                        <span>{{ details.vote_average }}</span>
-                    </a>
-                </div>
-                <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                    <a :href="rating.link" target="_blank">
-                        <img :src="rating.imagePath" /><br />
-                        <span>{{ rating.rating }}</span>
-                    </a>
-                </div>
             </div>
 
             <!-- bookmarks -->
@@ -320,14 +269,18 @@
 <script lang="ts">
 import { api } from '../../API/api';
 import _, { sortBy } from 'lodash';
-import { getDateText, mapGoogleData } from '../../Common/utils';
+import { getDateText } from '../../Common/utils';
 import { firebase, db } from '../../Common/firebase';
 import { omit } from 'lodash';
 import { HISTORY_OMIT_VALUES } from '../../Common/constants';
+import GoogleData from '../Common/googleData.vue';
 
 export default {
     name: 'seriesInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showSeriesInfo'],
+    components: {
+        GoogleData,
+    },
     data() {
         return {
             details: {} as any,
@@ -348,9 +301,6 @@ export default {
             activeTab: 'seasons',
             dialogVisible: false,
             backdrops: [] as any[],
-            googleData: {
-                allWatchOptions: [],
-            },
             posters: [] as any[],
             defaultImageTab: 'backdrops',
             getDateText,
@@ -401,9 +351,6 @@ export default {
         },
         async getDetails() {
             this.detailsLoading = true;
-            this.googleData = {
-                allWatchOptions: [],
-            };
             this.details = await api.getTvDetails(parseInt(this.$route.params.id));
             this.updateHistoryData();
             this.similarMovies = this.details.similar.results;
@@ -430,8 +377,6 @@ export default {
             this.selectedSeason = this.details.number_of_seasons;
             await this.seasonChanged();
             this.detailsLoading = false;
-            const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
-            this.googleData = mapGoogleData(googleData);
         },
         updateHistoryData() {
             firebase.auth().onAuthStateChanged(async (user) => {

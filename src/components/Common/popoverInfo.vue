@@ -2,7 +2,18 @@
     <div>
         <img class="popover-bg-image" v-lazy="bgImageObj" />
         <div class="p-3">
-            <h4>{{ item.name || item.title }}</h4>
+            <router-link
+                :to="{
+                    name: item.first_air_date ? 'seriesInfo' : 'movieInfoFull',
+                    params: {
+                        name: sanitizeName(item.name || item.title),
+                        id: item.id,
+                    },
+                }"
+                :title="item.name || item.title"
+            >
+                <h4>{{ item.name || item.title }}</h4>
+            </router-link>
             <div v-if="item.genres && item.genres.length">
                 <span v-for="(genre, index) in item.genres" :key="genre.id">
                     {{ genre.name }}{{ index === item.genres.length - 1 ? '' : ',' }}
@@ -13,39 +24,7 @@
                     {{ getGenreNameFromId(genreId) }}{{ index === item.genre_ids.length - 1 ? '' : ',' }}
                 </span>
             </div>
-            <div style="display: flex" class="mt-3">
-                <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                    <a :href="rating.link" target="_blank">
-                        <img :src="rating.imagePath" /><br />
-                        <span>{{ rating.rating }}</span>
-                    </a>
-                </div>
-            </div>
-            <div v-if="googleData.allWatchOptions.length || googleData.watchLink" class="ext-links-container mt-3">
-                <a
-                    v-for="watchOption in googleData.allWatchOptions"
-                    :key="watchOption.name"
-                    :href="watchOption.link"
-                    target="_blank"
-                >
-                    <div class="ott-container mr-3">
-                        <img :src="watchOption.imagePath" class="ott-icon" />
-                        <div>Watch Now</div>
-                    </div>
-                </a>
-                <a
-                    v-if="!googleData.allWatchOptions.length && googleData.watchLink"
-                    :href="googleData.watchLink"
-                    target="_blank"
-                    class="mr-3"
-                >
-                    <div class="ott-container">
-                        <img :src="googleData.imagePath" class="ott-icon" />
-                        <div>Watch Now</div>
-                    </div>
-                </a>
-            </div>
-            <br />
+            <GoogleData :item="item" />
             <span v-if="showFullOverview">{{ item.overview }}</span>
             <span v-if="!showFullOverview">{{ item.overview.slice(0, 200) }}</span>
             <span
@@ -59,15 +38,19 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
 import { movieGenres, seriesGenres } from '../../Common/staticConfig';
-import { mapGoogleData } from '../../Common/utils';
+import { sanitizeName } from '@/Common/utils';
+import GoogleData from './googleData.vue';
 
 export default {
     name: 'popoverInfo',
     props: ['item', 'configuration'],
+    components: {
+        GoogleData,
+    },
     data() {
         return {
+            sanitizeName,
             googleData: {
                 allWatchOptions: [],
             },
@@ -87,22 +70,6 @@ export default {
             if (genre) {
                 return genre.name;
             }
-        },
-        async getGoogleData() {
-            this.isGoogleDataLoading = true;
-            const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
-            this.googleData = mapGoogleData(googleData);
-            this.isGoogleDataLoading = false;
-        },
-        getYear(movieDate: any) {
-            return new Date(movieDate).getFullYear();
-        },
-    },
-    computed: {
-        googleLink() {
-            return `https://google.com/search?q=${this.item.name || this.item.title} ${
-                this.item.first_air_date ? 'tv series' : this.getYear(this.item.release_date) + ' movie'
-            }`;
         },
     },
 };

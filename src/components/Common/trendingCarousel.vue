@@ -54,48 +54,7 @@
                                     </span>
                                 </div> -->
 
-                                <div class="mt-5 pt-5 ratings-main-container">
-                                    <div class="rating-container">
-                                        <a href="" target="_blank">
-                                            <img src="/images/rating/tmdb.svg" /><br />
-                                            <span>{{ item.vote_average }}</span>
-                                        </a>
-                                    </div>
-                                    <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                                        <a :href="rating.link" target="_blank">
-                                            <img :src="rating.imagePath" /><br />
-                                            <span>{{ rating.rating }}</span>
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <div class="ext-links-container ml-3 mt-4">
-                                    <a
-                                        v-for="watchOption in googleData.allWatchOptions"
-                                        :key="watchOption.name"
-                                        :href="watchOption.link"
-                                        target="_blank"
-                                        @click="watchNowClicked(watchOption)"
-                                    >
-                                        <div class="ott-container mr-3">
-                                            <img :src="watchOption.imagePath" class="ott-icon" />
-                                            <div>Watch Now</div>
-                                        </div>
-                                    </a>
-
-                                    <a
-                                        v-if="!googleData.allWatchOptions.length && googleData.watchLink"
-                                        :href="googleData.watchLink"
-                                        target="_blank"
-                                        class="mr-3"
-                                    >
-                                        <div class="ott-container">
-                                            <img :src="googleData.imagePath" class="ott-icon" />
-                                            <div>Watch Now</div>
-                                        </div>
-                                    </a>
-                                    <div v-else style="height: 7em"> </div>
-                                </div>
+                                <GoogleData class="mt-5 pt-5" :item="item" />
 
                                 <!-- Item overview -->
                                 <div class="movie-overview frosted p-3 mt-10">
@@ -183,6 +142,7 @@ import { api } from '../../API/api';
 import { getGoogleLink, getRatingColor, mapGoogleData } from '../../Common/utils';
 import { sortBy, compact } from 'lodash';
 import moment from 'moment';
+import GoogleData from '../Common/googleData.vue';
 
 export default {
     name: 'trendingCarousel',
@@ -195,6 +155,9 @@ export default {
         'seriesGenres',
         'trendingMovies',
     ],
+    components: {
+        GoogleData,
+    },
     data() {
         return {
             getRatingColor,

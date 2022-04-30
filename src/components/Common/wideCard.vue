@@ -11,9 +11,14 @@
             :title="item.name || item.title"
         >
             <div class="img-container mt-2">
-                <el-popover trigger="hover" :open-delay="700" @show="getGoogleData" width="450">
+                <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible">
                     <img slot="reference" v-lazy="imageObj" class="item-card-image" />
-                    <popover-info :item="item" :configuration="configuration" ref="popoverInfo"></popover-info>
+                    <popover-info
+                        v-if="isPopoverVisible"
+                        :item="item"
+                        :configuration="configuration"
+                        ref="popoverInfo"
+                    ></popover-info>
                 </el-popover>
             </div>
             <div class="secondary-text mt-1">
@@ -31,6 +36,7 @@ export default {
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
     data() {
         return {
+            isPopoverVisible: false,
             imageObj: {
                 src: this.configuration.images.secure_base_url + this.imageRes + this.item.backdrop_path,
                 error: require('../../Assets/Images/error.svg'),
@@ -40,9 +46,6 @@ export default {
         };
     },
     methods: {
-        getGoogleData() {
-            this.$refs.popoverInfo.getGoogleData();
-        },
         getYear: function (episodeDate: any) {
             return new Date(episodeDate).getFullYear();
         },

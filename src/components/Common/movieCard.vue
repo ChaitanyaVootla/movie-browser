@@ -27,14 +27,14 @@
                         <div v-if="isWatched" class="watched-overlay rating-info">
                             <font-awesome-icon :icon="['fas', 'check']" />
                         </div>
-                        <el-popover trigger="hover" :open-delay="700" width="450" @show="getGoogleData">
+                        <el-popover trigger="hover" :open-delay="700" width="500" v-model="isPopoverVisible">
                             <img
                                 slot="reference"
                                 v-lazy="imageObj"
                                 class="movie-card-image"
                                 :alt="movie.name || movie.title"
                             />
-                            <popover-info :item="movie" :configuration="configuration" ref="popoverInfo"></popover-info>
+                            <popover-info v-if="isPopoverVisible" :item="movie" :configuration="configuration" />
                         </el-popover>
                         <!-- TODO check if this function is needed -->
                         <!-- <div class="img-overlay">
@@ -114,6 +114,7 @@ export default {
     data() {
         return {
             getRatingColor,
+            isPopoverVisible: false,
             imageObj: {
                 src:
                     this.configuration.images.secure_base_url +
@@ -156,9 +157,6 @@ export default {
         };
     },
     methods: {
-        getGoogleData() {
-            this.$refs.popoverInfo.getGoogleData();
-        },
         getGenreNameFromId(genreId: number) {
             const genre = movieGenres.concat(seriesGenres).find(({ id }) => genreId === id);
             if (genre) {

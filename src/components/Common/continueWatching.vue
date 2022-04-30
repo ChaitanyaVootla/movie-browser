@@ -1,6 +1,11 @@
 <template>
-    <el-popover trigger="hover" :open-delay="700" @show="getGoogleData" width="450">
-        <popover-info :item="item" :configuration="configuration" ref="popoverInfo"></popover-info>
+    <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible">
+        <popover-info
+            v-if="isPopoverVisible"
+            :item="item"
+            :configuration="configuration"
+            ref="popoverInfo"
+        ></popover-info>
         <div slot="reference" class="item-container">
             <a :href="item.watchOption.link" target="_blank" @click="watchNowClicked(watchOption)">
                 <div class="img-container mt-2">
@@ -36,6 +41,7 @@ export default {
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
     data() {
         return {
+            isPopoverVisible: false,
             imageObj: {
                 src: this.configuration.images.secure_base_url + this.imageRes + this.item.backdrop_path,
                 error: require('../../Assets/Images/error.svg'),
@@ -45,9 +51,6 @@ export default {
         };
     },
     methods: {
-        getGoogleData() {
-            this.$refs.popoverInfo.getGoogleData();
-        },
         getYear: function (episodeDate: any) {
             return new Date(episodeDate).getFullYear();
         },

@@ -2,9 +2,7 @@
     <div>
         <div class="query-info text-muted">
             <div class="">
-                {{
-                    queryData.total_results === 10000 ? `${queryData.total_results}+` : queryData.total_results
-                }}
+                {{ queryData.total_results === 10000 ? `${queryData.total_results}+` : queryData.total_results }}
                 result{{ queryData.total_results > 1 ? 's' : '' }}
             </div>
         </div>

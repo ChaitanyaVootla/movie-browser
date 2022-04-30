@@ -229,9 +229,7 @@
         </div>
         <div class="query-info text-muted" style="display: flex; justify-content: space-between">
             <div class="">
-                {{
-                    queryData.total_results === 10000 ? `${queryData.total_results}+` : queryData.total_results
-                }}
+                {{ queryData.total_results === 10000 ? `${queryData.total_results}+` : queryData.total_results }}
                 results
                 <el-tooltip effect="light" content="including watched movies" placement="right">
                     <font-awesome-icon :icon="['fas', 'info-circle']" class="ml-1" v-show="hideWatchedMovies" />
