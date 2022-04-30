@@ -26,7 +26,7 @@
             </h6>
 
             <!-- Watch links -->
-            <GoogleData :item="details" :key="details.id" />
+            <GoogleData class="pt-2" :item="details" :key="details.id" />
 
             <!-- budget -->
             <!-- <div style="top: 31em; position: absolute;" class="budget-text mobile-hide">
@@ -122,7 +122,7 @@
                         <router-link
                             v-for="keyword in showAllTags
                                 ? details.keywords.keywords
-                                : details.keywords.keywords.slice(0, 15)"
+                                : details.keywords.keywords.slice(0, 10)"
                             :key="keyword.id"
                             class="mr-2"
                             :to="{
@@ -138,7 +138,7 @@
                             </el-tag>
                         </router-link>
                         <span
-                            v-if="details.keywords.keywords.length > 15"
+                            v-if="details.keywords.keywords.length > 10"
                             class="expand-ellipsis"
                             @click="showAllTags = !showAllTags"
                             >...</span
@@ -451,7 +451,9 @@ export default {
         },
         getYoutubeVideos: function () {
             if (this.details.videos && this.details.videos.results) {
-                return this.details.videos.results.filter((result) => result.site === 'YouTube');
+                let youtubeVideos = this.details.videos.results.filter((result) => result.site === 'YouTube');
+                youtubeVideos = sortBy(youtubeVideos, (video) => video.type === 'Trailer').reverse();
+                return youtubeVideos;
             } else {
                 return [];
             }
@@ -526,8 +528,7 @@ export default {
     line-height: 4em;
 }
 .background-images-container {
-    filter: opacity(0.3);
-    height: 35em;
+    height: 35rem;
     overflow: hidden;
 }
 .background-image {
@@ -537,7 +538,7 @@ export default {
     object-position: 50% 10%;
     width: 100%;
     overflow: hidden;
-    box-shadow: 0px 0px 200px 100px rgba(0, 0, 0, 1);
+    filter: opacity(0.3);
 }
 .video-dropdown {
     margin-top: 0.6em;

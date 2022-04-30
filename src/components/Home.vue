@@ -177,6 +177,11 @@
                                 TMDB Docs
                             </a>
                         </el-dropdown-item>
+                        <el-dropdown-item v-if="isAllResultsShown">
+                            <div @click="removeAllResultsShown">
+                                Clear cache
+                            </div>
+                        </el-dropdown-item>
                     </el-dropdown-menu>
                 </el-dropdown>
             </el-menu-item>
@@ -359,6 +364,9 @@ export default {
         });
     },
     computed: {
+        isAllResultsShown() {
+            return localStorage.getItem('showAllResults') == 'true';
+        },
         user() {
             return this.$store.getters.user;
         },
@@ -405,6 +413,10 @@ export default {
         },
     },
     methods: {
+        removeAllResultsShown() {
+            localStorage.setItem('showAllResults', "false");
+            window.location.reload();
+        },
         logoClicked() {
             this.logoAnimation.play();
         },

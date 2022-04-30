@@ -24,8 +24,8 @@
             >
                 <div class="ott-container mr-3">
                     <img :src="watchOption.imagePath" class="ott-icon" />
-                    <div>Watch Now</div>
-                    <div class="watch-price">{{ watchOption.price }}</div>
+                    <!-- <div class="watch-text">Watch Now</div> -->
+                    <div class="watch-price pt-1">{{ watchOption.price }}</div>
                 </div>
             </a>
         </div>
@@ -95,19 +95,16 @@ export default Vue.extend({
 </script>
 
 <style lang="less" scoped>
+@import '../../Assets/Styles/main.less';
 .rating-container {
     margin-right: 1rem;
     text-align: center;
     img {
-        width: 2.2em;
+        width: 2rem;
     }
     span {
         font-size: 0.9em;
     }
-}
-.watch-price {
-    font-size: 0.7rem;
-    color: #aaa;
 }
 .ott-links-container {
     display: flex;
@@ -115,7 +112,22 @@ export default Vue.extend({
     flex-wrap: wrap;
 }
 .ott-container {
-    width: 6rem;
+    width: 6em;
     margin-bottom: 1rem;
+    text-align: center;
+    background: rgba(39, 39, 39, 0.436);
+    border-radius: @default-radius;
+    padding: 0.5em 0;
+    float: left;
+    box-shadow: inset 0 0 20px rgb(56, 56, 56);
+    backdrop-filter: blur(3px);
+    .ott-icon {
+        width: 2.5rem;
+    }
+    .watch-price {
+        font-size: 0.7rem;
+        color: rgb(198, 198, 198);
+        text-shadow: none;
+    }
 }
 </style>

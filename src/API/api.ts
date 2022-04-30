@@ -10,6 +10,8 @@ import {
 } from './Constants';
 import axios from 'axios';
 
+const showAllResults = localStorage.getItem('showAllResults') || false;
+
 export const api = {
     getTrendingTv: async function () {
         const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingTvList + '?api_key=' + appConfig.token);
@@ -145,7 +147,8 @@ export const api = {
     searchAll: async function (searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.searchAll + '?api_key=' + appConfig.token + searchQuery + '&page=' + page,
+            appConfig.apiBaseUrl + endpoints.searchAll + '?api_key=' + appConfig.token + searchQuery + '&page=' + page
+                + `&include_adult=${showAllResults}`,
         );
         return res.data;
     },
@@ -159,20 +162,23 @@ export const api = {
     getDiscoverMovies: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + searchQuery,
+            appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + searchQuery
+                + `&include_adult=${showAllResults}`,
         );
         return res.data;
     },
     getDiscoverMoviesFull: async function (searchQuery: string) {
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + searchQuery,
+            appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + searchQuery
+                + `&include_adult=${showAllResults}`,
         );
         return res.data;
     },
     getDiscoverSeries: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.discoverSeries + '?api_key=' + appConfig.token + searchQuery,
+            appConfig.apiBaseUrl + endpoints.discoverSeries + '?api_key=' + appConfig.token + searchQuery
+                + '&include_adult=true',
         );
         return res.data;
     },

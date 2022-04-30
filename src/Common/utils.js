@@ -95,7 +95,7 @@ const mapGoogleData = (data) => {
         const url = new URL(data.watchLink.link);
         const site = url.hostname.toLowerCase();
         if (site.includes('hotstar')) {
-            imagePath = '/images/ott/hotstar.svg';
+            imagePath = '/images/ott/hotstar.png';
         } else if (site.includes('netflix')) {
             imagePath = '/images/ott/netflix.svg';
         } else if (site.includes('prime')) {
@@ -140,7 +140,7 @@ const mapGoogleData = (data) => {
     data.allWatchOptions.forEach((watchOption) => {
         let imagePath;
         if (watchOption.name.toLowerCase().includes('hotstar')) {
-            imagePath = '/images/ott/hotstar.svg';
+            imagePath = '/images/ott/hotstar.png';
         } else if (watchOption.name.toLowerCase().includes('netflix')) {
             imagePath = '/images/ott/netflix.svg';
         } else if (watchOption.name.toLowerCase().includes('prime')) {
