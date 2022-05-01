@@ -4,7 +4,7 @@
             <div class="rating-container tmdb-rating" v-if="item.vote_average">
                 <a href="" target="_blank">
                     <img src="/images/rating/tmdb.svg" /><br />
-                    <span>{{ item.vote_average }}</span>
+                    <span>{{ item.vote_average.toFixed(1) }}</span>
                 </a>
             </div>
             <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
@@ -115,16 +115,14 @@ export default Vue.extend({
 <style lang="less" scoped>
 @import '../../Assets/Styles/main.less';
 .watch-options-container {
-    margin-top: 1rem;
     // min-width: 13rem;
     position: relative;
     padding-left: 1rem;
     // padding-top: 1rem;
-    display: flex;
+    display: inline-flex;
     background: rgba(28, 28, 28, 0.43);
     box-shadow: inset 0 0 15px rgb(104, 104, 104);
     backdrop-filter: blur(3px);
-    float: left;
     flex-direction: column;
     border-radius: 0.5rem;
     .watch-options-heading {
