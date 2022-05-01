@@ -1,7 +1,7 @@
 <template>
     <div>
         <div style="display: flex" class="mt-3 mb-3">
-            <div class="rating-container">
+            <div class="rating-container" v-if="item.vote_average">
                 <a href="" target="_blank">
                     <img src="/images/rating/tmdb.svg" /><br />
                     <span>{{ item.vote_average }}</span>

@@ -178,9 +178,7 @@
                             </a>
                         </el-dropdown-item>
                         <el-dropdown-item v-if="isAllResultsShown">
-                            <div @click="removeAllResultsShown">
-                                Clear cache
-                            </div>
+                            <div @click="removeAllResultsShown"> Clear cache </div>
                         </el-dropdown-item>
                     </el-dropdown-menu>
                 </el-dropdown>
@@ -414,7 +412,7 @@ export default {
     },
     methods: {
         removeAllResultsShown() {
-            localStorage.setItem('showAllResults', "false");
+            localStorage.setItem('showAllResults', 'false');
             window.location.reload();
         },
         logoClicked() {

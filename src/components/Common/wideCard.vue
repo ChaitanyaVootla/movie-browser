@@ -1,5 +1,5 @@
 <template>
-    <div class="item-container">
+    <div class="item-container pb-3">
         <router-link
             :to="{
                 name: item.first_air_date ? 'seriesInfo' : 'movieInfoFull',

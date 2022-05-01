@@ -142,6 +142,10 @@ export default {
         #8f0b0b5e 100%
     );
     animation: AnimateBG 10s ease infinite;
+    /deep/ .slider-bar {
+        padding: 0;
+    }
+    padding: 0 !important;
 }
 @keyframes AnimateBG {
     0% {

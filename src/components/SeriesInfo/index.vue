@@ -31,81 +31,84 @@
             </div>
 
             <!-- Watch links -->
-            <GoogleData :item="details" :key="details.id" />
+            <GoogleData class="mt-4" :item="details" :key="details.id" />
 
-            <!-- External links -->
-            <div class="mt-1 ml-2 mobile-hide">
-                <a :href="googleLink" target="_blank" class="mr-3">
-                    <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" /> </a
-                >&nbsp;
-                <a
-                    :href="`https://www.iptorrents.com/t?q=${details.name};o=seeders#torrents`"
-                    target="_blank"
-                    class="mr-3"
-                >
-                    <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" /> </a
-                >&nbsp;
-                <a
-                    v-if="details.imdb_id"
-                    :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
-                    target="_blank"
-                    class="mr-3"
-                >
-                    <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" />&nbsp;
-                </a>
-                <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
-                    <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
-                </a>
-            </div>
+            <!-- Additional info -->
+            <div class="additional-info">
+                <!-- External links -->
+                <div class="mt-1 ml-2 mobile-hide">
+                    <a :href="googleLink" target="_blank" class="mr-3">
+                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" /> </a
+                    >&nbsp;
+                    <a
+                        :href="`https://www.iptorrents.com/t?q=${details.name};o=seeders#torrents`"
+                        target="_blank"
+                        class="mr-3"
+                    >
+                        <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" /> </a
+                    >&nbsp;
+                    <a
+                        v-if="details.imdb_id"
+                        :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
+                        target="_blank"
+                        class="mr-3"
+                    >
+                        <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" />&nbsp;
+                    </a>
+                    <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
+                        <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
+                    </a>
+                </div>
 
-            <!-- bookmarks -->
-            <div class="mt-3 bookmarks">
-                <el-button v-if="isInWatchList">
-                    In watch List
-                    <font-awesome-icon :icon="['fas', 'check']" class="ml-1" />
-                </el-button>
-                <el-tooltip
-                    v-else
-                    class="item"
-                    effect="light"
-                    content="Sign in to use this feature"
-                    placement="right"
-                    :disabled="user.displayName"
-                >
-                    <el-button @click="AddToWatchList">
-                        Add to watch list
-                        <font-awesome-icon :icon="['fas', 'plus']" class="ml-1" />
+                <!-- bookmarks -->
+                <div class="mt-3 bookmarks">
+                    <el-button v-if="isInWatchList">
+                        In watch List
+                        <font-awesome-icon :icon="['fas', 'check']" class="ml-1" />
                     </el-button>
-                </el-tooltip>
-            </div>
+                    <el-tooltip
+                        v-else
+                        class="item"
+                        effect="light"
+                        content="Sign in to use this feature"
+                        placement="right"
+                        :disabled="user.displayName"
+                    >
+                        <el-button @click="AddToWatchList">
+                            Add to watch list
+                            <font-awesome-icon :icon="['fas', 'plus']" class="ml-1" />
+                        </el-button>
+                    </el-tooltip>
+                </div>
 
-            <!-- Movie overview -->
-            <div class="movie-overview frosted mobile-hide mt-3 p-2">
-                <span v-if="showFullOverview">{{ details.overview }}</span>
-                <span v-if="!showFullOverview">{{ details.overview.slice(0, 200) }}</span>
-                <span
-                    v-if="details.overview.length > 200"
-                    class="expand-ellipsis ml-3"
-                    @click="showFullOverview = !showFullOverview"
-                    >...</span
-                >
-                <br />
-                <router-link
-                    v-for="keyword in details.keywords.results"
-                    :key="keyword.id"
-                    :to="{
-                        name: 'discover',
-                        query: {
-                            keywords: keyword.name,
-                            with_keywords: keyword.id,
-                            isMovies: 'false',
-                        },
-                    }"
-                >
-                    <el-tag type="info" size="mini">
-                        {{ keyword.name }}
-                    </el-tag>
-                </router-link>
+                <!-- overview -->
+                <div class="movie-overview frosted mobile-hide mt-3 p-2">
+                    <span v-if="showFullOverview">{{ details.overview }}</span>
+                    <span v-if="!showFullOverview">{{ details.overview.slice(0, 200) }}</span>
+                    <span
+                        v-if="details.overview.length > 200"
+                        class="expand-ellipsis ml-3"
+                        @click="showFullOverview = !showFullOverview"
+                        >...</span
+                    >
+                    <br />
+                    <router-link
+                        v-for="keyword in details.keywords.results"
+                        :key="keyword.id"
+                        :to="{
+                            name: 'discover',
+                            query: {
+                                keywords: keyword.name,
+                                with_keywords: keyword.id,
+                                isMovies: 'false',
+                            },
+                        }"
+                    >
+                        <el-tag type="info" size="mini" class="mr-2">
+                            {{ keyword.name }}
+                        </el-tag>
+                    </router-link>
+                </div>
             </div>
         </div>
         <!-- Trailer/Video -->
@@ -436,6 +439,9 @@ export default {
 
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
+
+@primary-container-height: 35rem;
+
 .watch-price {
     font-size: 0.7rem;
     color: #aaa;
@@ -445,12 +451,12 @@ export default {
 }
 .background-images-container {
     filter: opacity(0.3);
-    height: 35em;
+    height: @primary-container-height;
     overflow: hidden;
 }
 .background-image {
     background-size: contain;
-    height: 35em;
+    height: @primary-container-height;
     object-fit: cover;
     object-position: 50% 5%;
     width: 100%;
@@ -500,6 +506,7 @@ export default {
 .info-container {
     position: absolute;
     top: 2em;
+    height: calc(@primary-container-height - 1.5rem);
     padding-left: 4.5rem !important;
     overflow: hidden;
     color: @text-color;
@@ -511,10 +518,14 @@ export default {
     font-size: 1.2em;
     color: @link-color-red;
 }
-.movie-overview {
-    // background: @translucent-bg;
-    width: 60%;
-    margin-top: 1em;
+.additional-info {
+    position: absolute;
+    bottom: 1rem;
+    left: 4rem;
+    .movie-overview {
+        width: 60%;
+        margin-top: 1em;
+    }
 }
 .info-tagline {
     color: #ddd !important;
