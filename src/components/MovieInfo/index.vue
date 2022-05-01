@@ -26,7 +26,7 @@
             </h6>
 
             <!-- Watch links -->
-            <GoogleData class="pt-2" :item="details" :key="details.id" />
+            <GoogleData class="pt-3" :item="details" :key="details.id" />
 
             <!-- budget -->
             <!-- <div style="top: 31em; position: absolute;" class="budget-text mobile-hide">
@@ -39,36 +39,40 @@
             <!-- Movie additional info -->
             <div class="additional-info">
                 <!-- External links -->
-                <div class="mt-2 mb-3 shadow-text mobile-hide">
-                    <!-- <a :href="googleLink" target="_blank" class="mr-3">
-                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                    </a>&nbsp; -->
+                <div class="mt-2 mb-3 pl-2 shadow-text mobile-hide">
+                    <a :href="googleLink" target="_blank" class="mr-4">
+                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" />
+                    </a>
                     <a
                         :href="`https://www.iptorrents.com/t?q=${details.title};o=seeders#torrents`"
                         target="_blank"
-                        class="mr-3"
+                        class="mr-4"
                     >
-                        <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" /> </a
-                    >&nbsp;
-                    <!-- <a v-if="details.imdb_id" :href="`https://www.imdb.com/title/${details.imdb_id}`"
-                        target="_blank" class="mr-3">
-                        <font-awesome-icon :icon="['fab', 'imdb']" class="ext-link-icon"/>
-                    </a>&nbsp; -->
+                        <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" />
+                    </a>
+                    <a
+                        v-if="details.imdb_id"
+                        :href="`https://www.imdb.com/title/${details.imdb_id}`"
+                        target="_blank"
+                        class="mr-4"
+                    >
+                        <font-awesome-icon :icon="['fab', 'imdb']" class="ext-link-icon" />
+                    </a>
                     <a
                         v-if="details.imdb_id"
                         :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
                         target="_blank"
-                        class="mr-3"
+                        class="mr-4"
                     >
-                        <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" /> </a
-                    >&nbsp;
-                    <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
+                        <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" />
+                    </a>
+                    <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-4">
                         <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
                     </a>
                 </div>
 
                 <!-- bookmarks -->
-                <div class="mt-2 mb-3 bookmarks">
+                <div class="mt-2 mb-3 pl-2 bookmarks">
                     <el-tooltip
                         class="item"
                         effect="light"
@@ -538,7 +542,7 @@ export default {
     object-position: 50% 10%;
     width: 100%;
     overflow: hidden;
-    filter: opacity(0.3);
+    filter: opacity(0.3) blur(2px);
 }
 .video-dropdown {
     margin-top: 0.6em;
@@ -593,6 +597,7 @@ export default {
     color: @link-color-red;
 }
 .movie-overview {
+    width: 90%;
     background: @translucent-bg;
 }
 .additional-info {

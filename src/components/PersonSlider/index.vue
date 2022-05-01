@@ -12,7 +12,7 @@
                     v-for="(person, index) in persons"
                     :person="person"
                     :configuration="configuration"
-                    :imageRes="'w500'"
+                    :imageRes="'w185'"
                     :selectPerson="selectPerson"
                     :key="person.id + index"
                     :disableRatingShadow="true"

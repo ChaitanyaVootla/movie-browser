@@ -18,7 +18,7 @@
                     :key="person.id + index"
                     :person="person"
                     :configuration="configuration"
-                    :imageRes="'w500'"
+                    :imageRes="'w185'"
                     :disableRatingShadow="true"
                     :class="isSliding ? 'no-pointer-events' : ''"
                 ></person-card>

@@ -48,8 +48,8 @@
                         <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" /> </a
                     >&nbsp;
                     <a
-                        v-if="details.imdb_id"
-                        :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
+                        v-if="details.external_ids.imdb_id"
+                        :href="`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`"
                         target="_blank"
                         class="mr-3"
                     >
@@ -158,27 +158,17 @@
             </div>
         </div>
         <div class="ml-4 mr-4 sliders-container">
-            <mb-slider
-                class="mb-container"
-                v-if="cast.length"
-                :items="cast"
-                :configuration="configuration"
-                :heading="'Cast'"
-                :id="'cast'"
-                :selectPerson="selectPerson"
-                :isPerson="true"
-            ></mb-slider>
-
             <!-- Episodes slider -->
             <div class="mt-4 pt-3 pb-3 season-container">
-                <span class="ml-4 pl-3 mr-3 seasons-heading mobile-hide">Seasons</span>
                 <el-select
-                    class="season-dropdown"
+                    class="season-dropdown ml-4 pl-3"
                     v-model="selectedSeason"
                     placeholder="Select"
                     @change="seasonChanged"
                 >
-                    <el-option v-for="item in seasons" :key="item.id" :label="item.name" :value="item.id"> </el-option>
+                    <el-option v-for="item in seasons" :key="item.id" :label="item.name" :value="item.id">
+                        {{ item.name }}
+                    </el-option>
                 </el-select>
                 <span class="ml-3"
                     >{{ selectedSeasonInfo.episodes.length }} Episodes -
@@ -196,6 +186,17 @@
                     :isEpisode="true"
                 ></mb-slider>
             </div>
+
+            <mb-slider
+                class="mb-container"
+                v-if="cast.length"
+                :items="cast"
+                :configuration="configuration"
+                :heading="'Cast'"
+                :id="'cast'"
+                :selectPerson="selectPerson"
+                :isPerson="true"
+            ></mb-slider>
 
             <mb-slider
                 class="mb-container"
@@ -372,10 +373,17 @@ export default {
             });
             this.seasons = [] as any[];
             for (let seasonNumber = 1; seasonNumber <= this.details.number_of_seasons; seasonNumber++) {
-                this.seasons.push({
+                const season = {
                     name: `Season ${seasonNumber}`,
                     id: seasonNumber,
-                });
+                };
+                const seasonDetails = this.details.seasons.find(
+                    (apiSeason) => apiSeason.season_number === seasonNumber,
+                );
+                if (seasonDetails) {
+                    season.name += ` - ${seasonDetails.name}`;
+                }
+                this.seasons.push(season);
             }
             this.selectedSeason = this.details.number_of_seasons;
             await this.seasonChanged();
@@ -450,7 +458,6 @@ export default {
     background-color: rgba(148, 148, 148, 0.05);
 }
 .background-images-container {
-    filter: opacity(0.3);
     height: @primary-container-height;
     overflow: hidden;
 }
@@ -462,6 +469,7 @@ export default {
     width: 100%;
     overflow: hidden;
     box-shadow: 0px 0px 200px 100px rgba(0, 0, 0, 1);
+    filter: opacity(0.3) blur(2px);
 }
 .video-dropdown {
     margin-top: 0.6em;
@@ -523,7 +531,7 @@ export default {
     bottom: 1rem;
     left: 4rem;
     .movie-overview {
-        width: 60%;
+        width: 90%;
         margin-top: 1em;
     }
 }
@@ -546,6 +554,11 @@ export default {
 }
 /deep/ .el-dialog__body {
     padding-top: 0;
+}
+@media (min-width: 768px) {
+    .season-dropdown {
+        width: 25rem;
+    }
 }
 @media (max-width: 767px) {
     .background-images-container {

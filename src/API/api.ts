@@ -161,7 +161,12 @@ export const api = {
     searchPeople: async function (searchString: string) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.searchPeople + '?api_key=' + appConfig.token + searchQuery,
+            appConfig.apiBaseUrl +
+                endpoints.searchPeople +
+                '?api_key=' +
+                appConfig.token +
+                searchQuery +
+                `&include_adult=${showAllResults}`,
         );
         return res.data;
     },

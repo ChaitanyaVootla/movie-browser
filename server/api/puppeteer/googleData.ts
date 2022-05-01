@@ -164,7 +164,7 @@ const googleData = async (str) => {
             console.timeEnd('getting link');
             const result = {
                 ratings,
-                allWatchOptions: sortBy(allWatchOptions, 'price').reverse(),
+                allWatchOptions: sortBy(allWatchOptions, ({ price }) => price == 'Subscription').reverse(),
                 criticReviews,
                 imdbId,
             };
