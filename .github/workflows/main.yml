@@ -50,7 +50,7 @@ jobs:
                   VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
                   VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
               with:
-                  host: 139.59.94.40
+                  host: 143.110.190.72
                   username: root
                   password: ${{ secrets.DIGITAL_OCEAN_PASS }}
                   envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
