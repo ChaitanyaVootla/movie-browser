@@ -6,3 +6,5 @@ bin
 android
 .github/workflows/do.yaml
 dump
+postgres
+.DS_Store

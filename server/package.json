@@ -19,7 +19,13 @@
         "pg": "^8.7.1",
         "pg-hstore": "^2.3.4",
         "puppeteer": "^10.1.0",
-        "sequelize": "^6.7.0"
+        "sequelize": "^6.7.0",
+        "simple-eta": "3.0.2",
+        "decompress": "4.2.1",
+        "decompress-targz": "4.1.1",
+        "puppeteer-extra": "^3.2.3",
+        "puppeteer-extra-plugin-stealth": "^2.9.0",
+        "winston": "3.7.2"
     },
     "devDependencies": {
         "nodemon": "2.0.15",

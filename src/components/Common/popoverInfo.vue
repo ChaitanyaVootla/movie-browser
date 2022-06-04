@@ -24,7 +24,7 @@
                     {{ getGenreNameFromId(genreId) }}{{ index === item.genre_ids.length - 1 ? '' : ',' }}
                 </span>
             </div>
-            <GoogleData :item="item" />
+            <GoogleData class="mb-2" :item="item" />
             <span v-if="showFullOverview">{{ item.overview }}</span>
             <span v-if="!showFullOverview">{{ item.overview.slice(0, 200) }}</span>
             <span

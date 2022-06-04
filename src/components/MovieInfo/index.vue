@@ -542,7 +542,7 @@ export default {
     object-position: 50% 10%;
     width: 100%;
     overflow: hidden;
-    filter: opacity(0.3) blur(2px);
+    filter: opacity(0.3) blur(1px);
 }
 .video-dropdown {
     margin-top: 0.6em;

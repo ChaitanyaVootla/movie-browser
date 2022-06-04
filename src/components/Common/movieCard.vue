@@ -153,6 +153,9 @@ export default {
                 WATCH_LIST: {
                     text: 'WATCH LIST',
                 },
+                BACKDROP: {
+                    text: 'BACKDROP',
+                },
             },
         };
     },
@@ -247,6 +250,9 @@ export default {
             return this.$store.getters.watchListSeriesById(this.movie.id);
         },
         badgeText() {
+            if (this.movie.adult && this.movie.backdrop_path) {
+                return this.badgeTypes.BACKDROP.text;
+            }
             if (this.isInWatchList) {
                 return this.badgeTypes.WATCH_LIST.text;
             }
@@ -336,6 +342,10 @@ export default {
 }
 /deep/ .el-badge.WATCHING .el-badge__content {
     background-color: green;
+    right: 11.5em;
+}
+/deep/ .el-badge.BACKDROP .el-badge__content {
+    background-color: purple;
     right: 11.5em;
 }
 .isTodayCard .movie-card-image {

@@ -469,7 +469,7 @@ export default {
     width: 100%;
     overflow: hidden;
     box-shadow: 0px 0px 200px 100px rgba(0, 0, 0, 1);
-    filter: opacity(0.3) blur(2px);
+    filter: opacity(0.3) blur(1px);
 }
 .video-dropdown {
     margin-top: 0.6em;
