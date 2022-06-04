@@ -110,6 +110,8 @@ const mapGoogleData = (data) => {
             imagePath = '/images/ott/apple.png';
         } else if (site.includes('voot')) {
             imagePath = '/images/ott/voot.png';
+        } else if (site.includes('zee')) {
+            imagePath = '/images/ott/zee.png';
         }
         allWatchOptions.push({
             imagePath,
@@ -155,6 +157,8 @@ const mapGoogleData = (data) => {
             imagePath = '/images/ott/apple.png';
         } else if (watchOption.name.toLowerCase().includes('voot')) {
             imagePath = '/images/ott/voot.png';
+        } else if (watchOption.name.toLowerCase().includes('zee')) {
+            imagePath = '/images/ott/zee.png';
         }
         allWatchOptions.push({
             imagePath,

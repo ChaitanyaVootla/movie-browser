@@ -41,7 +41,9 @@
                     @click="watchNowClicked(watchOption)"
                 >
                     <div class="ott-container mr-3">
-                        <img :src="watchOption.imagePath" class="ott-icon" />
+                        <div class="icon-container">
+                            <img :src="watchOption.imagePath" class="ott-icon" />
+                        </div>
                         <div class="watch-price pt-1">{{ watchOption.price }}</div>
                     </div>
                 </a>
@@ -162,8 +164,15 @@ export default Vue.extend({
     float: left;
     // box-shadow: inset 0 0 20px rgb(56, 56, 56);
     // backdrop-filter: blur(3px);
-    .ott-icon {
-        width: 2.5rem;
+    .icon-container {
+        height: 2.5rem;
+        .ott-icon {
+            width: 2.5rem;
+            &[src='/images/ott/zee.png'] {
+                height: 2rem;
+                width: auto;
+            }
+        }
     }
     .watch-price {
         font-size: 0.65rem;
