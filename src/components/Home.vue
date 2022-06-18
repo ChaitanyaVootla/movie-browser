@@ -10,17 +10,17 @@
         >
             <el-menu-item index="Trending" class="first-menu-item p-0 nav-menu-item">
                 <router-link :to="{ name: 'trending' }">
-                    <div class="pl-4 pr-4" :class="onTrending ? 'active' : ''">
+                    <div class="pl-4 pr-4 flex-nav-item" :class="onTrending ? 'active' : ''">
                         <font-awesome-icon :icon="['fas', 'home']" class="mr-2 trending-icon" />
-                        <span class="mobile-hide">Home</span>
+                        <div class="">Home</div>
                     </div>
                 </router-link>
             </el-menu-item>
             <el-menu-item index="discover" class="nav-menu-item p-0">
                 <router-link :to="{ name: 'discover' }">
-                    <div class="pl-4 pr-4" :class="onDiscover ? 'active' : ''">
+                    <div class="pl-4 pr-4 flex-nav-item" :class="onDiscover ? 'active' : ''">
                         <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2" />
-                        <span class="mobile-hide">Browse</span>
+                        <div class="">Browse</div>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -34,9 +34,9 @@
             </el-menu-item> -->
             <el-menu-item index="WatchList" class="nav-menu-item p-0">
                 <router-link :to="{ name: 'WatchList' }">
-                    <div class="pl-4 pr-4" :class="onWatchList ? 'active' : ''">
+                    <div class="pl-4 pr-4 flex-nav-item" :class="onWatchList ? 'active' : ''">
                         <font-awesome-icon :icon="['fas', 'stream']" class="mr-2" />
-                        <span class="mobile-hide">Watch List</span>
+                        <div class="">Watch List</div>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -813,7 +813,33 @@ export default {
         background: #eee !important;
     }
 }
+.nav-menu-item {
+    .flex-nav-item {
+        display: flex;
+        svg {
+            height: 3.7rem;
+        }
+    }
+}
 @media (max-width: 767px) {
+    .nav-menu-item {
+        .flex-nav-item {
+            display: flex;
+            flex-direction: column;
+            padding: 10px 0;
+            svg {
+                font-size: 1em;
+                height: 1.2rem;
+                width: 100%;
+            }
+            div {
+                padding-top: 10px;
+                line-height: 10px;
+                font-size: 0.8em;
+                color: #ccc;
+            }
+        }
+    }
     .top-navbar {
         position: fixed;
         top: inherit;
