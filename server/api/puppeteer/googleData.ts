@@ -188,7 +188,7 @@ const priceMapper = (price: string) => {
     if (price.toLowerCase().includes('free')) {
         return 'Subscription';
     }
-    return price.replaceAll('.00', '');
+    return price.replace('.00', '');
 };
 
 setupPuppeteer();
