@@ -215,14 +215,13 @@ const store = new Vuex.Store({
                         (e) => console.error(e),
                     );
                     userDbRef.collection('seriesWatchList').onSnapshot(
-                        (snapshot) => {
+                        async (snapshot) => {
                             const series = [];
                             snapshot.forEach((doc) => series.push(doc.data()));
                             series.forEach((series) => {
                                 if (
-                                    moment({ hours: 0 }).diff(series.updatedAt, 'days') * -1 >= 2 ||
-                                    (moment({ hours: 0 }).diff(series.updatedAt, 'days') >= 2 &&
-                                        series.status !== 'Ended')
+                                    (moment({ hours: 0 }).diff(series.updatedAt, 'days') * -1 >= 2) &&
+                                    series.status !== 'Ended'
                                 ) {
                                     api.getTvDetails(parseInt(series.id)).then((details) => {
                                         const historyDocToAdd = {

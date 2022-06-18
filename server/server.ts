@@ -6,6 +6,7 @@ const port = 3000;
 import allKeywords from './allKeywords';
 import googleData from './api/puppeteer/googleData';
 // const movieDetails = require('./api/tmdb/movie/getDetails');
+const tmdbPassthrough = require('./api/tmdb/tmdb');
 
 app.use(cors());
 dotenv.config();
@@ -27,6 +28,15 @@ app.get('/googleData', async (req, res) => {
             return res.json(gsData);
         }
         res.sendStatus(400);
+    } catch (e) {
+        res.sendStatus(500);
+    }
+});
+
+app.get('/tmdb/*', async (req, res) => {
+    try {
+        const tmdbRes = await tmdbPassthrough(req.url.split('/tmdb')[1]);
+        res.json(tmdbRes);
     } catch (e) {
         res.sendStatus(500);
     }

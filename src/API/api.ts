@@ -14,216 +14,151 @@ const showAllResults = localStorage.getItem('showAllResults') || false;
 
 export const api = {
     getTrendingTv: async function () {
-        const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingTvList + '?api_key=' + appConfig.token);
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingTvList}`);
         return res.data;
     },
     getTrendingMovies: async function () {
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.trendingMoviesList + '?api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.trendingMoviesList}`
         );
         return res.data;
     },
     getTrendingListWeek: async function () {
-        const res = await axios.get(appConfig.apiBaseUrl + endpoints.trendingListWeek + '?api_key=' + appConfig.token);
+        const res = await axios.get(
+            `${appConfig.serverBaseTMDBUrl}${endpoints.trendingListWeek}`
+        );
         return res.data;
     },
     getTrendingPeople: async function () {
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.trendingPeopleList + '?api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.trendingPeopleList}`,
         );
         return res.data;
     },
     getLatestMovies: async function (query: string = '') {
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.discoverMovies + '?api_key=' + appConfig.token + latestMovieQuery + query,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${latestMovieQuery}${query}`,
         );
         return res.data;
     },
     getNowPlayingMovies: async function (query: string = '') {
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.nowPlayingMovies +
-                '?api_key=' +
-                appConfig.token +
-                latestMovieQuery +
-                query,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.nowPlayingMovies}?${latestMovieQuery}${query}`,
         );
         return res.data;
     },
     getMovieDetails: async function (id: number) {
         const { data: details } = await axios.get(
-            appConfig.apiBaseUrl + endpoints.movieDetails + id + '?&api_key=' + appConfig.token + detailsDefaultQuery,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.movieDetails}${id}?${detailsDefaultQuery}`,
         );
         return details;
     },
     collectionDetails: async function (id: number) {
         const { data: details } = await axios.get(
-            appConfig.apiBaseUrl + endpoints.collectionDetails + id + '?&api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.collectionDetails}${id}`,
         );
         return details;
     },
     releaseDates: async function (id: number) {
         const { data: details } = await axios.get(
-            appConfig.apiBaseUrl + `movie/${id}/release_dates` + '?&api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}movie/${id}/release_dates`,
         );
         return details;
     },
     getTvDetails: async function (id: number) {
         const { data: details } = await axios.get(
-            appConfig.apiBaseUrl + endpoints.tvDetails + id + '?&api_key=' + appConfig.token + detailsDefaultQuery,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${id}?${detailsDefaultQuery}`,
         );
         return details;
     },
     getSeasonDetails: async function (seriesId: number, seasonNumber: number) {
         const { data: details } = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.tvDetails +
-                seriesId +
-                `/season/${seasonNumber}` +
-                '?&api_key=' +
-                appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${seriesId}/season/${seasonNumber}`,
         );
         return details;
     },
     getEpisodeImages: async function (seriesId: number, seasonNumber: number, episodeNumber: number) {
         const { data: details } = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.tvDetails +
-                seriesId +
-                `/season/${seasonNumber}/episode/${episodeNumber}/images` +
-                '?&api_key=' +
-                appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${seriesId}/season/${seasonNumber
+                }/episode/${episodeNumber}/images`,
         );
         return details;
     },
     getPersonDetails: async function (id: number) {
         const { data: details } = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.personDetails +
-                id +
-                '?&api_key=' +
-                appConfig.token +
-                personDetailsDefaultQuery,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.personDetails}${id}?${personDetailsDefaultQuery}`,
         );
         return details;
     },
     getMovieCredits: async function (id: number) {
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.movieDetails + id + '/credits?api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.movieDetails}${id}/credits`,
         );
         return res.data;
     },
     getTvCredits: async function (id: number) {
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.tvDetails + id + '/credits?api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${id}/credits`,
         );
         return res.data;
-    },
-    getConfiguration: async function () {
-        const res = await axios.get(appConfig.apiBaseUrl + endpoints.configuration + '?api_key=' + appConfig.token);
-        return res.data;
-    },
-    getMovieGenres: async function () {
-        const res = await axios.get(appConfig.apiBaseUrl + endpoints.movieGenre + '?api_key=' + appConfig.token);
-        return res.data.genres;
-    },
-    getSeriesGenres: async function () {
-        const res = await axios.get(appConfig.apiBaseUrl + endpoints.seriesGenre + '?api_key=' + appConfig.token);
-        return res.data.genres;
     },
     searchMovies: async function (searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.searchMovies +
-                '?api_key=' +
-                appConfig.token +
-                searchQuery +
-                '&page=' +
-                page,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.searchMovies}?${searchQuery}&page=${page}`,
         );
         return res.data;
     },
     searchAll: async function (searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.searchAll +
-                '?api_key=' +
-                appConfig.token +
-                searchQuery +
-                '&page=' +
-                page +
-                `&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.searchAll}?${searchQuery}&page=${page
+                }&include_adult=${showAllResults}`,
         );
         return res.data;
     },
     searchPeople: async function (searchString: string) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.searchPeople +
-                '?api_key=' +
-                appConfig.token +
-                searchQuery +
-                `&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.searchPeople}?${searchQuery}&include_adult=${showAllResults}`,
         );
         return res.data;
     },
     getDiscoverMovies: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.discoverMovies +
-                '?api_key=' +
-                appConfig.token +
-                searchQuery +
-                `&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults}`,
         );
         return res.data;
     },
     getDiscoverMoviesFull: async function (searchQuery: string) {
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.discoverMovies +
-                '?api_key=' +
-                appConfig.token +
-                searchQuery +
-                `&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults}`,
         );
         return res.data;
     },
     getDiscoverSeries: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.discoverSeries +
-                '?api_key=' +
-                appConfig.token +
-                searchQuery +
-                '&include_adult=true',
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverSeries}?${searchQuery}&include_adult=${showAllResults}`,
         );
         return res.data;
     },
     getTopSeriesByNetwork: async function (networkId: number) {
         const res = await axios.get(
-            appConfig.apiBaseUrl +
-                endpoints.discoverSeries +
-                '?api_key=' +
-                appConfig.token +
-                `&with_networks=${networkId}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverSeries}?&with_networks=${networkId}`,
         );
         return res.data;
     },
     getCurrentStreamingSeries: async function () {
         const res = await axios.get(
-            appConfig.apiBaseUrl + endpoints.currentStreamingTv + '?api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.currentStreamingTv}`,
         );
         return res.data;
     },
     getNetworkImages: async function (id: number) {
         const res = await axios.get(
-            appConfig.apiBaseUrl + `${endpoints.networkDetails}/${id}/images` + '?api_key=' + appConfig.token,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.networkDetails}/${id}/images`,
         );
         return res.data;
     },
