@@ -26,7 +26,7 @@
                 }"
                 :title="item.name || item.title"
             >
-                <div class="secondary-text mt-1">
+                <div class="continue-card-text mt-1">
                     {{ item.title || item.name }}
                 </div>
             </router-link>
@@ -100,8 +100,13 @@ export default {
     background-position: 50% 50%;
     // opacity: 0.6;
 }
-.secondary-text {
+.continue-card-text {
     color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-bottom: 10px;
+    width: 17em;
     font-size: 0.9em;
     max-width: 20em;
     &:hover {

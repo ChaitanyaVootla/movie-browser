@@ -179,7 +179,7 @@ const store = new Vuex.Store({
                         (snapshot) => {
                             const items = [];
                             snapshot.forEach((doc) => items.push(doc.data()));
-                            commit('setContinueWatching', sortBy(items, 'updatedAt').reverse());
+                            commit('setContinueWatching', sortBy(items, 'updatedAt').slice(0, 10).reverse());
                         },
                         (e) => console.error(e),
                     );

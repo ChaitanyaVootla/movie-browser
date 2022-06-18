@@ -36,7 +36,7 @@
                     :class="isSliding ? 'no-pointer-events' : ''"
                 ></episode-card>
             </div>
-            <div v-else-if="isContinueWatching" class="slider-bar" :id="`scroll-bar-${uuid}`">
+            <div v-else-if="isContinueWatching" class="slider-bar wide-card-slider-container" :id="`scroll-bar-${uuid}`">
                 <continue-watching
                     v-for="(item, index) in items"
                     :item="item"
@@ -48,7 +48,7 @@
                     :class="isSliding ? 'no-pointer-events' : ''"
                 ></continue-watching>
             </div>
-            <div v-else-if="isWideCard" class="slider-bar" :id="`scroll-bar-${uuid}`">
+            <div v-else-if="isWideCard" class="slider-bar wide-card-slider-container" :id="`scroll-bar-${uuid}`">
                 <wide-card
                     v-for="(item, index) in items"
                     :item="item"
@@ -296,11 +296,15 @@ export default {
         padding: 0.3em;
         display: none;
     }
+    .wide-card-slider-container {
+        overflow-y: hidden !important;
+    }
     .slider-bar {
         padding: 0;
     }
     .slider-heading {
         padding-left: 0;
+        padding-bottom: 5px;
     }
     /deep/ .movie-item {
         width: @mobile-card-width !important;

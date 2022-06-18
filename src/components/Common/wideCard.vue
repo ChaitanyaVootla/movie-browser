@@ -22,7 +22,7 @@
                     ></popover-info>
                 </el-popover>
             </div>
-            <div class="secondary-text mt-1">
+            <div class="wide-card-text mt-1">
                 {{ item.title || item.name }}
             </div>
         </router-link>
@@ -91,8 +91,12 @@ export default {
     background-repeat: no-repeat;
     background-position: 50% 50%;
 }
-.secondary-text {
+.wide-card-text {
     color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 17em;
     font-size: 0.9em;
     max-width: 20em;
     &:hover {
