@@ -14,10 +14,18 @@
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{ genre.name }}{{ index === details.genres.length - 1 ? '' : ',' }}
                 </span>
+                <span class="desk-hide">
+                    <br/>
+                    <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
+                    <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
+                    <span class="ml-2" @click="openImageModal">
+                        <font-awesome-icon :icon="['fas', 'images']" />
+                    </span>
+                </span>
             </h6>
 
             <!-- Rating images and runtime -->
-            <h6 class="secondary-info ml-3">
+            <h6 class="secondary-info ml-3 mobile-hide">
                 <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
                 <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
                 <span class="ml-2" @click="openImageModal">
@@ -39,7 +47,7 @@
             <!-- Movie additional info -->
             <div class="additional-info">
                 <!-- External links -->
-                <div class="mt-2 mb-3 pl-2 shadow-text mobile-hide">
+                <div class="mt-2 mb-3 pl-2 shadow-text">
                     <a :href="googleLink" target="_blank" class="mr-4">
                         <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" />
                     </a>
@@ -652,12 +660,17 @@ export default {
     color: green;
 }
 @media (max-width: 767px) {
+    .additional-info {
+        position: absolute;
+        bottom: 7rem;
+        left: 1rem;
+    }
     .background-images-container {
-        height: 20em !important;
+        height: calc(100vh/2) !important;
         font-size: 0.8em !important;
     }
     .background-image {
-        height: 20em !important;
+        height: calc(100vh/2) !important;
     }
     .youtube-player {
         height: 100 !important;
@@ -680,15 +693,6 @@ export default {
     .budget-text {
         position: relative !important;
         top: 0 !important;
-    }
-    .bookmarks {
-        font-size: 0.9em;
-        position: absolute;
-        top: 11rem;
-        right: 2em;
-        span {
-            margin-left: 1em;
-        }
     }
     .secondary-info {
         font-size: 0.9em;

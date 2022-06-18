@@ -11,7 +11,8 @@
             :title="item.name || item.title"
         >
             <div class="img-container mt-2">
-                <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible">
+                <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible"
+                    :disabled="isMobile()">
                     <img slot="reference" v-lazy="imageObj" class="item-card-image" />
                     <popover-info
                         v-if="isPopoverVisible"
@@ -31,6 +32,7 @@
 <script lang="ts">
 import { getFullDateText } from '../../Common/utils';
 import { sanitizeName } from '../../Common/utils';
+import { isMobile } from '../../Common/utils';
 export default {
     name: 'wideCard',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
@@ -43,6 +45,7 @@ export default {
             },
             getFullDateText,
             sanitizeName,
+            isMobile,
         };
     },
     methods: {

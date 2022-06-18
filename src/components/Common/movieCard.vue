@@ -27,7 +27,8 @@
                         <div v-if="isWatched" class="watched-overlay rating-info">
                             <font-awesome-icon :icon="['fas', 'check']" />
                         </div>
-                        <el-popover trigger="hover" :open-delay="700" width="500" v-model="isPopoverVisible">
+                        <el-popover trigger="hover" :open-delay="700" width="500" v-model="isPopoverVisible"
+                            :disabled="isMobile()">
                             <img
                                 slot="reference"
                                 v-lazy="imageObj"

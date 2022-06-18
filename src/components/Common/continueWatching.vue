@@ -1,5 +1,6 @@
 <template>
-    <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible">
+    <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible"
+        :disabled="isMobile()">
         <popover-info
             v-if="isPopoverVisible"
             :item="item"
@@ -36,6 +37,7 @@
 <script lang="ts">
 import { getFullDateText } from '../../Common/utils';
 import { sanitizeName } from '../../Common/utils';
+import { isMobile } from '../../Common/utils';
 export default {
     name: 'continueWatching',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
@@ -48,6 +50,7 @@ export default {
             },
             getFullDateText,
             sanitizeName,
+            isMobile,
         };
     },
     methods: {

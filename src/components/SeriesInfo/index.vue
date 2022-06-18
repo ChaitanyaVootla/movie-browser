@@ -16,19 +16,22 @@
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{ genre.name }}{{ index === details.genres.length - 1 ? '' : ',' }}
                 </span>
+                <br/>
+                <span style="line-height: 2rem;">
+                    <span>{{ getDateText(details.first_air_date) }} - {{ details.status }}</span>
+                    <span v-if="details.episode_run_time.length" class="pl-2">
+                        <font-awesome-icon :icon="['far', 'clock']" />
+                        {{ details.episode_run_time[0] }} mins
+                    </span>
+                    <span class="cursor-pointer ml-3" @click="openImageModal">
+                        <font-awesome-icon :icon="['fas', 'images']" />
+                    </span>
+                </span>
             </h6>
 
             <!-- Additional info -->
-            <div class="secondary-info">
-                {{ getDateText(details.first_air_date) }} - {{ details.status }}
-                <span v-if="details.episode_run_time.length" class="pl-2">
-                    <font-awesome-icon :icon="['far', 'clock']" />
-                    {{ details.episode_run_time[0] }} mins
-                </span>
-                <span class="cursor-pointer ml-3" @click="openImageModal">
-                    <font-awesome-icon :icon="['fas', 'images']" />
-                </span>
-            </div>
+            <!-- <div class="secondary-info">
+            </div> -->
 
             <!-- Watch links -->
             <GoogleData class="mt-4" :item="details" :key="details.id" />
@@ -36,7 +39,7 @@
             <!-- Additional info -->
             <div class="additional-info">
                 <!-- External links -->
-                <div class="mt-1 ml-2 mobile-hide">
+                <div class="mt-1 ml-2 external-links">
                     <a :href="googleLink" target="_blank" class="mr-3">
                         <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" /> </a
                     >&nbsp;
@@ -561,12 +564,30 @@ export default {
     }
 }
 @media (max-width: 767px) {
+    .season-dropdown {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
     .background-images-container {
-        height: 20em !important;
+        height: calc(100vh/2) !important;
         font-size: 0.8em !important;
     }
     .background-image {
-        height: 20em !important;
+        height: calc(100vh/2) !important;
+    }
+    .additional-info {
+        position: absolute;
+        bottom: 12rem;
+        left: 0;
+        .bookmarks {
+            top: 2rem;
+            left: 1rem;
+        }
+        .external-links {
+            position: absolute;
+            display: flex;
+            margin-left: 1rem !important;
+        }
     }
     .youtube-player {
         height: 100 !important;
