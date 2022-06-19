@@ -11,68 +11,68 @@ jobs:
         steps:
             - uses: actions/checkout@v2
               env:
-                  VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
+                VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
             - name: Set Node.js 12
               uses: actions/setup-node@v2
               with:
-                  node-version: '14'
+                node-version: '12'
             - name: Setup
               timeout-minutes: 2
               env:
-                  VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
+                VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
               run: |
-                  ls
-                  touch .env
-                  echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
-                  echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
-                  npm install
-                  ls
+                ls
+                touch .env
+                echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
+                echo "VUE_APP_FIREBASE_API_KEY=$VUE_APP_FIREBASE_API_KEY" >> .env
+                npm install
+                ls
             - name: Build
               timeout-minutes: 2
               run: |
-                  npm run build
-                  apt install zip || true
-                  zip -r dist.zip dist/
-                  ls
+                npm run build
+                apt install zip || true
+                zip -r dist.zip dist/
+                ls
             - name: Release
               uses: ncipollo/release-action@v1
               with:
-                  name: 'release'
-                  allowUpdates: true
-                  artifacts: 'dist.zip'
-                  token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: 'latest'
+                name: 'release'
+                allowUpdates: true
+                artifacts: 'dist.zip'
+                token: ${{ secrets.GITHUB_TOKEN }}
+                tag: 'latest'
             - uses: appleboy/ssh-action@master
               env:
-                  VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
-                  VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
+                VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
+                VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
               with:
-                  host: 143.110.190.72
-                  username: root
-                  password: ${{ secrets.DIGITAL_OCEAN_PASS }}
-                  envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
-                  script: |
-                      cd /movie-browser
-                      git checkout -f master
-                      git pull origin master
-                      echo "==============================================================="
-                      echo "====================== Downloading dist ======================"
-                      echo "==============================================================="
-                      rm -f dist.zip
-                      y | wget https://github.com/ChaitanyaVootla/movie-browser/releases/download/latest/dist.zip
-                      y | unzip -o dist.zip
-                      echo "==============================================================="
-                      echo "===================== starting node server ====================="
-                      echo "==============================================================="
-                      cd /movie-browser/server
-                      sudo rm -f .env
-                      touch .env
-                      echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
-                      npm i || true
-                      pwd
-                      killall node
-                      npx pm2 kill
-                      killall node
-                      npx pm2 --name server start npm -- start
-                      # nohup npx ts-node server.ts > /dev/null 2>&1 &
-                      # /etc/init.d/postgresql restart
+                host: 143.110.190.72
+                username: root
+                password: ${{ secrets.DIGITAL_OCEAN_PASS }}
+                envs: VUE_APP_API_KEY,VUE_APP_FIREBASE_API_KEY
+                script: |
+                    cd /movie-browser
+                    git checkout -f master
+                    git pull origin master
+                    echo "==============================================================="
+                    echo "====================== Downloading dist ======================"
+                    echo "==============================================================="
+                    rm -f dist.zip
+                    y | wget https://github.com/ChaitanyaVootla/movie-browser/releases/download/latest/dist.zip
+                    y | unzip -o dist.zip
+                    echo "==============================================================="
+                    echo "===================== starting node server ====================="
+                    echo "==============================================================="
+                    cd /movie-browser/server
+                    sudo rm -f .env
+                    touch .env
+                    echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
+                    npm i || true
+                    pwd
+                    killall node
+                    npx pm2 kill
+                    killall node
+                    npx pm2 --name server start npm -- start
+                    # nohup npx ts-node server.ts > /dev/null 2>&1 &
+                    # /etc/init.d/postgresql restart
