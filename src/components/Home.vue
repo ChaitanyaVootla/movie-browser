@@ -123,6 +123,12 @@
                                     Profile
                                 </router-link>
                             </el-dropdown-item>
+                            <el-dropdown-item>
+                                <router-link :to="{ name: 'Sandbox' }">
+                                    <font-awesome-icon :icon="['fas', 'flask']" class="mr-1" />
+                                    Sandbox
+                                </router-link>
+                            </el-dropdown-item>
                             <el-dropdown-item divided>
                                 <a
                                     href="https://github.com/ChaitanyaVootla/movie-browser"

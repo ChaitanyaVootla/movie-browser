@@ -31,6 +31,7 @@
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showFullMovieInfo"
                 ></mb-slider>
+                <CustomView :configuration="configuration"/>
                 <mb-slider
                     :items="trendingTv"
                     :configuration="configuration"
@@ -68,10 +69,14 @@
 
 <script lang="ts">
 import { api } from '../../API/api';
+import CustomView from '../CustomView/index.vue';
 import _ from 'lodash';
 export default {
     name: 'trending',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
+    components: {
+        CustomView,
+    },
     data() {
         return {
             isTrendingDataLoaded: false,
@@ -91,6 +96,9 @@ export default {
         },
         recentVisits() {
             return this.$store.getters.recentVisits;
+        },
+        user() {
+            return this.$store.getters.user;
         },
     },
     methods: {
