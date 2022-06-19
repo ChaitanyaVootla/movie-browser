@@ -117,16 +117,16 @@ export default {
     },
     methods: {
         async getUsers() {
-            this.isLoading = true;
-            const user = await db.collection('users').doc(this.$route.params.userID).get();
-            this.user = user.data();
-            const seriesList = await db
-                .collection('users')
-                .doc(this.$route.params.userID)
-                .collection('seriesWatchList')
-                .get();
-            this.seriesList = seriesList.docs.map((doc) => doc.data());
-            this.isLoading = false;
+            // this.isLoading = true;
+            // const user = await db.collection('users').doc(this.$route.params.userID).get();
+            // this.user = user.data();
+            // const seriesList = await db
+            //     .collection('users')
+            //     .doc(this.$route.params.userID)
+            //     .collection('seriesWatchList')
+            //     .get();
+            // this.seriesList = seriesList.docs.map((doc) => doc.data());
+            // this.isLoading = false;
         },
     },
 };

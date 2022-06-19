@@ -143,9 +143,6 @@ export default {
             shareListModalVisible: false,
         };
     },
-    created() {
-        this.getUsers();
-    },
     computed: {
         shareLink() {
             return `${window.location.hostname}/shareView/${this.user.uid}`;
@@ -212,21 +209,6 @@ export default {
             );
             watchListSeries = sortBy(watchListSeries, 'lastTime').reverse();
             return watchListSeries;
-        },
-    },
-    methods: {
-        async getUsers() {
-            const usersDB = await db.collection('users').get();
-            const users = usersDB.docs.map((user) => {
-                const userInfo = user.data();
-                return {
-                    ...userInfo,
-                    id: user.id,
-                } as any;
-            });
-
-            const surya = users.find(({ displayName }) => displayName.includes('Surya'));
-            const res = await db.collection('users').doc(surya.id).collection('seriesWatchList').get();
         },
     },
 };

@@ -24,10 +24,8 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
-import { sanitizeName } from '../../Common/utils';
 import _ from 'lodash';
-import { signIn, firebase, signOut, db } from '../../Common/firebase';
+import { db } from '../../Common/firebase';
 
 export default {
     name: 'friends',
@@ -64,21 +62,20 @@ export default {
     },
     methods: {
         async getUsers() {
-            const usersDocs = await db.collection('users').get();
-            this.users = usersDocs.docs
-                .map((doc) => {
-                    const data = doc.data();
-                    return {
-                        ...data,
-                        id: doc.id,
-                    };
-                })
-                .filter(Boolean);
-            this.isLoading = false;
+            // const usersDocs = await db.collection('users').get();
+            // this.users = usersDocs.docs
+            //     .map((doc) => {
+            //         const data = doc.data();
+            //         return {
+            //             ...data,
+            //             id: doc.id,
+            //         };
+            //     })
+            //     .filter(Boolean);
+            // this.isLoading = false;
         },
         async addFriend(user) {
-            console.log(this.user.uid, user.id);
-            await db.collection('users').doc(this.user.uid).collection('friends').doc(user.id).set(user);
+            // await db.collection('users').doc(this.user.uid).collection('friends').doc(user.id).set(user);
         },
     },
 };

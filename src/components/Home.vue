@@ -306,7 +306,7 @@ import { api } from '../API/api';
 import { sanitizeName } from '../Common/utils';
 import _ from 'lodash';
 import { configuration, movieGenres, seriesGenres } from '../Common/staticConfig';
-import { signIn, firebase, signOut, db } from '../Common/firebase';
+import { signIn, signOut, db } from '../Common/firebase';
 import anime from 'animejs';
 
 export default {

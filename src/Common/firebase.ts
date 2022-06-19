@@ -1,6 +1,14 @@
-import firebase from 'firebase';
+import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
+import {
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut as fireBaseSignOut,
+    onAuthStateChanged,
+    getAuth
+} from 'firebase/auth';
 
-firebase.initializeApp({
+const app = initializeApp({
     apiKey: process.env.VUE_APP_FIREBASE_API_KEY,
     authDomain: 'moviebrowser-fc94c.firebaseapp.com',
     databaseURL: 'https://moviebrowser-fc94c.firebaseio.com',
@@ -10,16 +18,17 @@ firebase.initializeApp({
     appId: '1:885461279936:web:02825eca43b8bf28b2b925',
     measurementId: 'G-H7YQ02DFNL',
 });
-const db = firebase.firestore();
-db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-    console.error(err);
-});
-const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+const db = getFirestore(app);
+// db.app.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+//     console.error(err);
+// });
+enableMultiTabIndexedDbPersistence(db);
+const googleProvider = new GoogleAuthProvider();
+const auth = getAuth(app);
 
 const signIn = () => {
-    firebase
-        .auth()
-        .signInWithPopup(googleProvider)
+    signInWithPopup(auth, googleProvider)
         .then((result) => {
             // Sign in successful
         })
@@ -29,9 +38,7 @@ const signIn = () => {
 };
 
 const signOut = () => {
-    firebase
-        .auth()
-        .signOut()
+    fireBaseSignOut(auth)
         .then(() => {
             // Sign out successful
         })
@@ -40,4 +47,4 @@ const signOut = () => {
         });
 };
 
-export { firebase, signIn, signOut, db };
+export { onAuthStateChanged, signIn, signOut, db, auth };

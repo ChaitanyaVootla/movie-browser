@@ -309,11 +309,11 @@
 import { api } from '../../API/api';
 import _ from 'lodash';
 import { getCurrencyString, getDateText } from '../../Common/utils';
-import { db } from '../../Common/firebase';
+import { db, auth, onAuthStateChanged } from '../../Common/firebase';
 import { omit, sortBy } from 'lodash';
 import { HISTORY_OMIT_VALUES } from '../../Common/constants';
-import firebase from 'firebase';
 import GoogleData from '../Common/googleData.vue';
+import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 export default {
     name: 'movieInfo',
@@ -366,34 +366,28 @@ export default {
             if (!this.user.displayName) {
                 return;
             }
-            const userDbRef = db.collection('users').doc(this.user.uid);
             if (this.isWatched) {
-                userDbRef.collection('watchedMovies').doc(`${this.details.id}`).delete();
+                const ref = doc(db, `users/${this.user.uid}/watchedMovies/${this.details.id}`);
+                deleteDoc(ref);
             } else {
-                userDbRef
-                    .collection('watchedMovies')
-                    .doc(`${this.details.id}`)
-                    .set({
-                        ...omit(this.details, HISTORY_OMIT_VALUES),
-                        updatedAt: Date.now(),
-                    });
+                setDoc(doc(db, `users/${this.user.uid}/watchedMovies/${this.details.id}`),{
+                    ...omit(this.details, HISTORY_OMIT_VALUES),
+                    updatedAt: Date.now(),
+                });
             }
         },
         addToListClicked() {
             if (!this.user.displayName) {
                 return;
             }
-            const userDbRef = db.collection('users').doc(this.user.uid);
             if (this.isInWatchList) {
-                userDbRef.collection('moviesWatchList').doc(`${this.details.id}`).delete();
+                const ref = doc(db, `users/${this.user.uid}/moviesWatchList/${this.details.id}`);
+                deleteDoc(ref);
             } else {
-                userDbRef
-                    .collection('moviesWatchList')
-                    .doc(`${this.details.id}`)
-                    .set({
-                        ...omit(this.details, HISTORY_OMIT_VALUES),
-                        updatedAt: Date.now(),
-                    });
+                setDoc(doc(db, `users/${this.user.uid}/moviesWatchList/${this.details.id}`),{
+                    ...omit(this.details, HISTORY_OMIT_VALUES),
+                    updatedAt: Date.now(),
+                });
             }
         },
         openImageModal() {
@@ -437,9 +431,8 @@ export default {
             }
         },
         async updateHistoryData() {
-            firebase.auth().onAuthStateChanged(async (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user && this.$store.getters.allLoaded) {
-                    const userDbRef = db.collection('users').doc(this.user.uid);
                     let recentVisits = this.$store.getters.recentVisits;
                     const historyDocToAdd = {
                         ...omit(this.details, HISTORY_OMIT_VALUES),
@@ -454,10 +447,8 @@ export default {
                         );
                     }
                     recentVisits.push(historyDocToAdd);
-                    userDbRef
-                        .collection('userData')
-                        .doc('recentVisits')
-                        .set(Object.assign({}, sortBy(recentVisits, 'updatedAt').reverse().slice(0, 10)));
+                    setDoc(doc(db, `users/${this.user.uid}/userData/recentVisits`),
+                        Object.assign({}, sortBy(recentVisits, 'updatedAt').reverse().slice(0, 10)));
                 }
             });
         },

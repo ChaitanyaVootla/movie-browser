@@ -97,6 +97,7 @@ import { omit, intersection } from 'lodash';
 import moment from 'moment';
 import { movieGenres, seriesGenres } from '../../Common/staticConfig';
 import popoverInfo from './popoverInfo.vue';
+import { doc, deleteDoc, addDoc, collection } from 'firebase/firestore';
 
 export default {
     components: { popoverInfo },
@@ -175,18 +176,15 @@ export default {
             if (!this.user.displayName) {
                 return;
             }
-            const userDbRef = db.collection('users').doc(this.user.uid);
             if (details.release_date) {
                 if (this.isWatched) {
-                    userDbRef.collection('watchedMovies').doc(`${details.id}`).delete();
+                    const movieRef = doc(db, `users/${this.user.uid}/watchedMovies/${this.movie.id}`);
+                    deleteDoc(movieRef);
                 } else {
-                    userDbRef
-                        .collection('watchedMovies')
-                        .doc(`${details.id}`)
-                        .set({
-                            ...omit(details, HISTORY_OMIT_VALUES),
-                            updatedAt: Date.now(),
-                        });
+                    addDoc(collection(db, `users/${this.user.uid}/watchedMovies`),  {
+                        ...omit(details, HISTORY_OMIT_VALUES),
+                        updatedAt: Date.now(),
+                    });
                 }
             }
         },

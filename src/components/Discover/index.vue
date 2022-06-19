@@ -322,7 +322,8 @@
 import { api } from '../../API/api';
 import { find, uniqBy, sortBy } from 'lodash';
 import { certifications } from '../../Common/certifications';
-import { firebase, db } from '../../Common/firebase';
+import { db, onAuthStateChanged, auth } from '../../Common/firebase';
+import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 export default {
     name: 'movieDiscover',
@@ -449,15 +450,14 @@ export default {
             });
         },
         saveFilter() {
-            firebase.auth().onAuthStateChanged(async (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
-                    const userDbRef = db.collection('users').doc(user.uid);
                     let filterName = this.filterName;
                     if (!filterName || !filterName.length) {
                         filterName = this.$router.currentRoute.query.name;
                     }
                     this.$router.currentRoute.query.name = filterName;
-                    userDbRef.collection('savedFilters').doc(filterName).set(this.$router.currentRoute.query);
+                    setDoc(doc(db, `users/${user.uid}/savedFilters/${filterName}`), this.$router.currentRoute.query);
                     this.saveFilterDialogVisible = false;
                     this.$message({
                         message: 'Filter Saved',
@@ -468,10 +468,10 @@ export default {
             });
         },
         deleteFilter() {
-            firebase.auth().onAuthStateChanged(async (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
-                    const userDbRef = db.collection('users').doc(user.uid);
-                    userDbRef.collection('savedFilters').doc(this.$router.currentRoute.query.name).delete();
+                    const filterRef = doc(db, `users/${user.uid}/savedFilters/${this.$router.currentRoute.query.name}`);
+                    deleteDoc(filterRef);
                     this.saveFilterDialogVisible = false;
                 }
             });

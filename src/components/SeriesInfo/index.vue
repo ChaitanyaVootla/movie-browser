@@ -277,10 +277,11 @@
 import { api } from '../../API/api';
 import _, { sortBy } from 'lodash';
 import { getDateText } from '../../Common/utils';
-import { firebase, db } from '../../Common/firebase';
+import { onAuthStateChanged, auth, db } from '../../Common/firebase';
 import { omit } from 'lodash';
 import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 import GoogleData from '../Common/googleData.vue';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default {
     name: 'seriesInfo',
@@ -338,15 +339,11 @@ export default {
             if (!this.user.displayName) {
                 return;
             }
-            const userDbRef = db.collection('users').doc(this.user.uid);
-            userDbRef
-                .collection('continueWatching')
-                .doc(`${this.details.id}`)
-                .set({
-                    watchOption,
-                    ...this.details,
-                    updatedAt: Date.now(),
-                });
+            setDoc(doc(db, `users/${this.user.uid}/continueWatching/${this.details.id}`), {
+                watchOption,
+                ...this.details,
+                updatedAt: Date.now(),
+            });
         },
         openImageModal() {
             this.dialogVisible = true;
@@ -393,9 +390,8 @@ export default {
             this.detailsLoading = false;
         },
         updateHistoryData() {
-            firebase.auth().onAuthStateChanged(async (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user && this.$store.getters.allLoaded) {
-                    const userDbRef = db.collection('users').doc(this.user.uid);
                     let recentVisits = this.$store.getters.recentVisits;
                     const historyDocToAdd = {
                         ...omit(this.details, HISTORY_OMIT_VALUES),
@@ -410,22 +406,19 @@ export default {
                         );
                     }
                     recentVisits.push(historyDocToAdd);
-                    userDbRef
-                        .collection('userData')
-                        .doc('recentVisits')
-                        .set(Object.assign({}, sortBy(recentVisits, 'updatedAt').reverse().slice(0, 10)));
+                    setDoc(doc(db, `users/${this.user.uid}/userData/recentVisits`),
+                        Object.assign({}, sortBy(recentVisits, 'updatedAt').reverse().slice(0, 10)));
                 }
             });
         },
         AddToWatchList() {
-            firebase.auth().onAuthStateChanged(async (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
-                    const userDbRef = db.collection('users').doc(user.uid);
                     const historyDocToAdd = {
                         ...omit(this.details, HISTORY_OMIT_VALUES),
                         updatedAt: Date.now(),
                     };
-                    userDbRef.collection('seriesWatchList').doc(`${this.details.id}`).set(historyDocToAdd);
+                    setDoc(doc(db, `users/${this.user.uid}/seriesWatchList/${this.details.id}`), historyDocToAdd);
                 }
             });
         },

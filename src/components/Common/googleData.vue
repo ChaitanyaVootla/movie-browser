@@ -57,6 +57,8 @@ import { api } from '@/API/api';
 import { db } from '@/Common/firebase';
 import { mapGoogleData } from '@/Common/utils';
 import Vue from 'vue';
+import { doc, setDoc } from 'firebase/firestore';
+
 export default Vue.extend({
     name: 'GoogleData',
     props: {
@@ -90,15 +92,20 @@ export default Vue.extend({
             if (!this.user.displayName) {
                 return;
             }
-            const userDbRef = db.collection('users').doc(this.user.uid);
-            userDbRef
-                .collection('continueWatching')
-                .doc(`${this.item.id}`)
-                .set({
-                    watchOption,
-                    ...this.item,
-                    updatedAt: Date.now(),
-                });
+            setDoc(doc(db, `users/${this.user.uid}/continueWatching/${this.item.id}`),  {
+                watchOption,
+                ...this.item,
+                updatedAt: Date.now(),
+            });
+            // const userDbRef = db.collection('users').doc(this.user.uid);
+            // userDbRef
+            //     .collection('continueWatching')
+            //     .doc(`${this.item.id}`)
+            //     .set({
+            //         watchOption,
+            //         ...this.item,
+            //         updatedAt: Date.now(),
+            //     });
         },
     },
     computed: {

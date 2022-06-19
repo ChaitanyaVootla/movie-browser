@@ -1,8 +1,9 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
-import { firebase, db } from '../Common/firebase';
+import { onAuthStateChanged, auth, db } from '../Common/firebase';
 import { sortBy, omit } from 'lodash';
 import moment from 'moment';
+import { collection, doc, getDoc, setDoc, onSnapshot, writeBatch } from "firebase/firestore";
 import { api } from '../API/api';
 import { HISTORY_OMIT_VALUES } from '../Common/constants';
 Vue.use(Vuex);
@@ -123,14 +124,15 @@ const store = new Vuex.Store({
     },
     actions: {
         initFirebase({ commit }) {
-            firebase.auth().onAuthStateChanged(async (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     commit('setUser', user);
-                    const userDbRef = db.collection('users').doc(user.uid);
-                    await userDbRef.set({
+                    const userDbRef = doc(db, "users", user.uid);
+                    setDoc(userDbRef, {
                         displayName: user.displayName,
                         photoURL: user.photoURL,
                     });
+
                     // userDbRef.collection('moviesHistory').onSnapshot(
                     //     snapshot => {
                     //         const movies = [];
@@ -153,7 +155,8 @@ const store = new Vuex.Store({
                     //         });
                     //     }, (e) => console.error(e)
                     // );
-                    userDbRef.collection('watchedMovies').onSnapshot(
+
+                    onSnapshot(collection(userDbRef, 'watchedMovies'),
                         (snapshot) => {
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
@@ -163,7 +166,8 @@ const store = new Vuex.Store({
                         },
                         (e) => console.error(e),
                     );
-                    userDbRef.collection('userData').onSnapshot(
+
+                    onSnapshot(collection(userDbRef, 'userData'),
                         (snapshot) => {
                             const userDataItems = {};
                             snapshot.forEach((doc) => (userDataItems[doc.id] = doc.data()));
@@ -175,7 +179,8 @@ const store = new Vuex.Store({
                         },
                         (e) => console.error(e),
                     );
-                    userDbRef.collection('continueWatching').onSnapshot(
+
+                    onSnapshot(collection(userDbRef, 'continueWatching'),
                         (snapshot) => {
                             const items = [];
                             snapshot.forEach((doc) => items.push(doc.data()));
@@ -183,7 +188,8 @@ const store = new Vuex.Store({
                         },
                         (e) => console.error(e),
                     );
-                    userDbRef.collection('friends').onSnapshot(
+
+                    onSnapshot(collection(userDbRef, 'friends'),
                         (snapshot) => {
                             const friends = [];
                             snapshot.forEach((doc) => friends.push(doc.data()));
@@ -191,7 +197,8 @@ const store = new Vuex.Store({
                         },
                         (e) => console.error(e),
                     );
-                    userDbRef.collection('moviesWatchList').onSnapshot(
+
+                    onSnapshot(collection(userDbRef, 'moviesWatchList'),
                         (snapshot) => {
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
@@ -201,7 +208,8 @@ const store = new Vuex.Store({
                         },
                         (e) => console.error(e),
                     );
-                    userDbRef.collection('savedFilters').onSnapshot(
+
+                    onSnapshot(collection(userDbRef, 'savedFilters'),
                         (snapshot) => {
                             const savedFilters = [];
                             snapshot.forEach((doc) =>
@@ -214,29 +222,29 @@ const store = new Vuex.Store({
                         },
                         (e) => console.error(e),
                     );
-                    userDbRef.collection('seriesWatchList').onSnapshot(
+
+                    onSnapshot(collection(userDbRef, 'seriesWatchList'),
                         async (snapshot) => {
-                            const series = [];
-                            snapshot.forEach((doc) => series.push(doc.data()));
-                            series.forEach((series) => {
+                            const Allseries = [];
+                            snapshot.forEach((doc) => Allseries.push(doc.data()));
+                            const batch = writeBatch(db);
+                            for (const series of Allseries) {
                                 if (
-                                    (moment({ hours: 0 }).diff(series.updatedAt, 'days') * -1 >= 2) &&
+                                    (moment.duration(moment().diff(new Date(series.updatedAt))).asDays() >= 2) &&
                                     series.status !== 'Ended'
                                 ) {
-                                    api.getTvDetails(parseInt(series.id)).then((details) => {
-                                        const historyDocToAdd = {
-                                            ...omit(details, HISTORY_OMIT_VALUES),
-                                            updatedAt: Date.now(),
-                                        };
-                                        userDbRef
-                                            .collection('seriesWatchList')
-                                            .doc(`${details.id}`)
-                                            .set(historyDocToAdd);
-                                    });
+                                    const details = await api.getTvDetails(parseInt(series.id))
+
+                                    const historyDocToAdd = {
+                                        ...omit(details, HISTORY_OMIT_VALUES),
+                                        updatedAt: Date.now(),
+                                    };
+                                    batch.set(doc(db, `users/${user.uid}/seriesWatchList/${details.id}`), historyDocToAdd);
                                 }
-                            });
+                            };
+                            await batch.commit();
                             commit('setWatchList', {
-                                series: sortBy(series, 'updatedAt').reverse(),
+                                series: sortBy(Allseries, 'updatedAt').reverse(),
                             });
                         },
                         (e) => console.error(e),
