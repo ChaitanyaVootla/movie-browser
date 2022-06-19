@@ -84,6 +84,7 @@ import axios from 'axios';
 import { appConfig } from '@/API/Constants';
 import * as watchProvidersArray from '@/Common/watchProviders.json';
 import languages from '@/Common/languages.json';
+import { flatten } from 'lodash';
 
 export default {
     name: 'Sandbox',
@@ -156,7 +157,7 @@ export default {
         },
         async getMovies() {
             const {data: res} = await axios.get(`${appConfig.serverBaseTMDBUrl
-                }discover/movie?&watch_region=IN&with_watch_providers=${this.selectedWatchProviders.join('|')
+                }discover/movie?&watch_region=IN&with_watch_providers=${flatten(this.selectedWatchProviders).join('|')
                 }&with_original_language=${this.selectedLanguage}&sort_by=${this.selectedSortOrder}`);
             this.updateStorage();
             this.moviesList = res.results;
