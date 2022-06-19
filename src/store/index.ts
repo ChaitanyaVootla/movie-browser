@@ -3,7 +3,7 @@ import Vuex from 'vuex';
 import { onAuthStateChanged, auth, db } from '../Common/firebase';
 import { sortBy, omit } from 'lodash';
 import moment from 'moment';
-import { collection, doc, getDoc, setDoc, onSnapshot, writeBatch } from "firebase/firestore";
+import { collection, doc, setDoc, onSnapshot, writeBatch } from "firebase/firestore";
 import { api } from '../API/api';
 import { HISTORY_OMIT_VALUES } from '../Common/constants';
 Vue.use(Vuex);
