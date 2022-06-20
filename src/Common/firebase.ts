@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth';
 
 const app = initializeApp({
-    apiKey: process.env.VUE_APP_FIREBASE_API_KEY,
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: 'moviebrowser-fc94c.firebaseapp.com',
     databaseURL: 'https://moviebrowser-fc94c.firebaseio.com',
     projectId: 'moviebrowser-fc94c',

@@ -7,8 +7,9 @@
         "name": ""
     },
     "scripts": {
-        "serve": "vue-cli-service serve --port 80",
-        "build": "vue-cli-service build --port 81"
+        "dev": "vite",
+        "build": "vite build",
+        "serve": "vite preview"
     },
     "dependencies": {
         "@fortawesome/fontawesome-svg-core": "^1.2.25",
@@ -51,6 +52,11 @@
         "vue-template-compiler": "2.5.17",
         "prettier": "2.6.2",
         "postcss": "8.4.14",
-        "autoprefixer": "10.4.7"
+        "autoprefixer": "10.4.7",
+        "vite": "2.9.12",
+        "@vitejs/plugin-vue": "^1.6.1",
+        "vite-plugin-vue2": "1.9.0",
+        "sass": "1.52.3",
+        "@originjs/vite-plugin-commonjs": "1.0.3"
     }
 }

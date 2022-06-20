@@ -31,7 +31,7 @@ export default {
 </script>
 
 <style lang="less">
-@import '~bootstrap/dist/css/bootstrap.css';
+@import 'bootstrap/dist/css/bootstrap.css';
 @import './Assets/Styles/main.less';
 
 body {
