@@ -27,10 +27,11 @@ import Sandbox from './components/Sandbox/index.vue';
 import VueLazyload from 'vue-lazyload';
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
+import locale from 'element-ui/lib/locale/lang/en'
 import { store } from './store';
 // import { createProvider } from './vue-apollo'
 
-Vue.use(Element);
+Vue.use(Element, { locale });
 
 Object.defineProperty(Vue.prototype, '_', { value: _ });
 

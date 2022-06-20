@@ -380,7 +380,7 @@ export default {
                 const seasonDetails = this.details.seasons.find(
                     (apiSeason) => apiSeason.season_number === seasonNumber,
                 );
-                if (seasonDetails) {
+                if (seasonDetails?.name && seasonDetails?.name !== season.name) {
                     season.name += ` - ${seasonDetails.name}`;
                 }
                 this.seasons.push(season);
@@ -509,6 +509,7 @@ export default {
 }
 .info-container {
     position: absolute;
+    width: 100%;
     top: 2em;
     height: calc(@primary-container-height - 1.5rem);
     padding-left: 4.5rem !important;

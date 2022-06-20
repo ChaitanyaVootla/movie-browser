@@ -615,10 +615,6 @@ export default {
     color: @text-color !important;
     background: #222;
 }
-::v-deep .info-container {
-    padding: 0 !important;
-    width: 100% !important;
-}
 .modal-xl {
     max-width: 95%;
 }

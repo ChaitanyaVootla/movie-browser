@@ -306,8 +306,8 @@ export default {
 /deep/ .el-badge__content {
     font-weight: 700;
     font-size: 0.7em;
-    right: 10em;
-    top: 24.5em;
+    right: 10em !important;
+    top: 24.5em !important;
 }
 /deep/ .el-badge.isHoverActive .el-badge__content {
     // top: 17em;

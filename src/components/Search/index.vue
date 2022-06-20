@@ -92,10 +92,6 @@ export default {
 .back-icon {
     color: bisque;
 }
-::v-deep .info-container {
-    padding: 0;
-    width: 100%;
-}
 .modal-xl {
     max-width: 90%;
 }

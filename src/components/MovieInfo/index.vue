@@ -569,6 +569,7 @@ export default {
 .info-container {
     position: absolute;
     top: 2em;
+    width: 100%;
     padding-left: 3.5rem !important;
     overflow: hidden;
     color: @text-color;
@@ -670,6 +671,7 @@ export default {
     .info-container {
         top: 1em;
         display: grid;
+        width: 100%;
         grid-auto-rows: max(3em);
         margin: 0 !important;
         padding-left: 0.5em !important;
