@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 const app = express();
 import cors from 'cors';
-const port = 3000;
+const port = 3001;
 import tmdbPassthrough from './tmdb/index';
 
 app.use(cors());
