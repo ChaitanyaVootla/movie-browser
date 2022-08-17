@@ -52,13 +52,6 @@
                         <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" />
                     </a>
                     <a
-                        :href="`https://www.iptorrents.com/t?q=${details.title};o=seeders#torrents`"
-                        target="_blank"
-                        class="mr-4"
-                    >
-                        <font-awesome-icon :icon="['fas', 'magnet']" class="ext-link-icon" />
-                    </a>
-                    <a
                         v-if="details.imdb_id"
                         :href="`https://www.imdb.com/title/${details.imdb_id}`"
                         target="_blank"

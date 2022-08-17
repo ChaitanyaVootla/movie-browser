@@ -9,7 +9,7 @@ export const appConfig = {
 export const endpoints = {
     configuration: 'configuration',
     trendingTvList: 'trending/tv/day',
-    trendingMoviesList: 'trending/movie/week',
+    trendingMoviesList: 'trending/movie/day',
     trendingListWeek: 'trending/all/week',
     trendingPeopleList: 'trending/person/day',
     movieDetails: 'movie/',

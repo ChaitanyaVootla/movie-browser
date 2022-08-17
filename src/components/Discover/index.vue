@@ -437,7 +437,7 @@ export default {
         filterClicked() {
             setTimeout(() => {
                 this.loadMovies(true);
-            });
+            }, 10);
         },
         clearFilter() {
             this.$router
@@ -780,6 +780,7 @@ export default {
                     })
                     .catch((err) => {});
             }
+            console.log(this.computedDiscoverQuery)
         },
         typeChanged() {
             this.selectedGenres = [];
