@@ -206,26 +206,67 @@
             </el-select>
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
         </div>
-        <div v-if="savedFilters.length" class="pl-5 pt-2 pb-2 favorites-bar mobile-hide">
-            <div class="pr-3 pt-2"> <font-awesome-icon :icon="['fas', 'star']" class="mr-2" /> Saved Filters </div>
-            <router-link
-                v-for="savedFilter in savedFilters"
-                :key="savedFilter.name"
-                class="mr-3"
-                :to="{
-                    name: 'discover',
-                    query: {
-                        ...savedFilter,
-                    },
-                }"
-            >
-                <el-button
-                    @click="filterClicked"
-                    :type="$router.currentRoute.query.name === savedFilter.name ? 'danger' : 'primary'"
+        <div class="pl-5 pt-2 pb-2 favorites-bar mobile-hide">
+            <div v-if="savedFilters.length" class="pr-3 pt-2"> <font-awesome-icon :icon="['fas', 'star']" class="mr-2" /> Saved Filters </div>
+            <div v-if="savedFilters.length">
+                <router-link
+                    v-for="savedFilter in savedFilters"
+                    :key="savedFilter.name"
+                    class="mr-3"
+                    :to="{
+                        name: 'discover',
+                        query: {
+                            ...savedFilter,
+                        },
+                    }"
                 >
-                    {{ savedFilter.name }}
+                    <el-button
+                        @click="filterClicked"
+                        :type="$router.currentRoute.query.name === savedFilter.name ? 'danger' : 'primary'"
+                    >
+                        {{ savedFilter.name }}
+                    </el-button>
+                </router-link>
+            </div>
+            <div class="ml-3 mobile-hide save-container">
+                <el-button-group v-if="isSavedFilterView">
+                    <el-button type="primary" @click="saveFilter" icon="el-icon-star-on"> Update Search </el-button>
+                    <el-tooltip
+                        class="item"
+                        effect="light"
+                        content="Clear Filter"
+                        placement="bottom"
+                        v-if="isSavedFilterView"
+                    >
+                        <el-button @click="clearFilter" icon="el-icon-circle-close"> </el-button>
+                    </el-tooltip>
+                    <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
+                        <el-button
+                            @click="
+                                saveFilterDialogVisible = true;
+                                filterName = $router.currentRoute.query.name;
+                            "
+                            type="danger"
+                            icon="el-icon-delete"
+                        >
+                        </el-button>
+                    </el-tooltip>
+                </el-button-group>
+                <el-button
+                    type="primary"
+                    @click="
+                        saveFilterDialogVisible = true;
+                        filterName = '';
+                    "
+                    icon="el-icon-star-off"
+                    v-else
+                >
+                    Save Search
                 </el-button>
-            </router-link>
+            </div>
+            <div class="ml-3">
+                <el-button @click="shareClicked" plain type="info" icon="el-icon-share">Share</el-button>
+            </div>
         </div>
         <div class="query-info text-muted" style="display: flex; justify-content: space-between">
             <div class="">
@@ -241,42 +282,6 @@
                 </div>
                 <div class="ml-3 mt-2 save-container mobile-hide">
                     <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)">Hide Watched</el-checkbox>
-                </div>
-                <div class="ml-3 mobile-hide save-container">
-                    <el-button-group v-if="isSavedFilterView">
-                        <el-button type="primary" @click="saveFilter" icon="el-icon-star-on"> Update Search </el-button>
-                        <el-tooltip
-                            class="item"
-                            effect="light"
-                            content="Clear Filter"
-                            placement="bottom"
-                            v-if="isSavedFilterView"
-                        >
-                            <el-button @click="clearFilter" icon="el-icon-circle-close"> </el-button>
-                        </el-tooltip>
-                        <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
-                            <el-button
-                                @click="
-                                    saveFilterDialogVisible = true;
-                                    filterName = $router.currentRoute.query.name;
-                                "
-                                type="danger"
-                                icon="el-icon-delete"
-                            >
-                            </el-button>
-                        </el-tooltip>
-                    </el-button-group>
-                    <el-button
-                        type="primary"
-                        @click="
-                            saveFilterDialogVisible = true;
-                            filterName = '';
-                        "
-                        icon="el-icon-star-off"
-                        v-else
-                    >
-                        Save Search
-                    </el-button>
                 </div>
             </div>
         </div>
@@ -434,6 +439,14 @@ export default {
         },
     },
     methods: {
+        shareClicked() {
+            navigator.clipboard.writeText(window.location.href);
+            this.$message({
+                message: 'Link copied to clipboard',
+                center: true,
+                type: 'success',
+            });
+        },
         filterClicked() {
             setTimeout(() => {
                 this.loadMovies(true);
@@ -780,7 +793,6 @@ export default {
                     })
                     .catch((err) => {});
             }
-            console.log(this.computedDiscoverQuery)
         },
         typeChanged() {
             this.selectedGenres = [];

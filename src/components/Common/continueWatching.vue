@@ -66,6 +66,9 @@ export default {
 @import '../../Assets/Styles/main.less';
 .watch-ott-icon {
     height: 2.2em;
+    // &[src="/images/ott/apple.png"] {
+        padding: 3px;
+    // }
 }
 .item-card-image[lazy='error'] {
     background-size: 4em;

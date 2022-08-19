@@ -38,7 +38,8 @@ app.get('/tmdb/*', async (req, res) => {
         const tmdbRes = await tmdbPassthrough(req.url.split('/tmdb')[1]);
         res.json(tmdbRes);
     } catch (e) {
-        res.sendStatus(500);
+        console.error(e);
+        res.json(e);
     }
 });
 // app.get('/movieDetails/:id',
@@ -54,3 +55,13 @@ app.get('/tmdb/*', async (req, res) => {
 // );
 
 app.listen(port, () => console.log(`Server started at port: ${port}`));
+
+// on unhandled rejection
+process.on('unhandledRejection', (reason, p) => {
+    console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
+}).on('uncaughtException', (err) => {
+    console.log('Uncaught Exception thrown:', err);
+}).on('SIGINT', () => {
+    console.log('SIGINT');
+    process.exit(0);
+});

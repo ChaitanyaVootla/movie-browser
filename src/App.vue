@@ -39,10 +39,14 @@ body {
         'Helvetica Neue', sans-serif;
     background: #111;
     color: @text-color;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    text-shadow: rgba(0,0,0,.01) 0 0 1px;
 }
 @media (max-width: 767px) {
     body {
-        // padding: 0.5em;
+        padding-bottom: 0.5em;
     }
 }
 .lightMode {

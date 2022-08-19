@@ -825,6 +825,8 @@ export default {
         svg {
             height: 3.7rem;
         }
+        font-weight: 500;
+        font-size: 1.1em;
     }
 }
 @media (max-width: 767px) {

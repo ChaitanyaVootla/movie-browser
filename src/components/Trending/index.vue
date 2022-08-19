@@ -103,10 +103,12 @@ export default {
     },
     methods: {
         async loadData() {
-            await this.getTrendingTv();
-            await this.getTrendingMovies();
-            await this.getLatestMovies();
-            await this.getCurrentAiring();
+            await Promise.all([
+                this.getTrendingTv(),
+                this.getTrendingMovies(),
+                this.getLatestMovies(),
+                this.getCurrentAiring(),
+            ]);
             this.isTrendingDataLoaded = true;
         },
         async getTrendingTv() {
