@@ -74,7 +74,7 @@ export default Vue.extend({
         return {
             googleData: {
                 allWatchOptions: [],
-            },
+            } as any,
             isGoogleDataLoading: false,
         };
     },
@@ -131,7 +131,7 @@ export default Vue.extend({
     display: inline-flex;
     background: rgba(28, 28, 28, 0.43);
     box-shadow: inset 0 0 15px rgb(104, 104, 104);
-    backdrop-filter: blur(3px);
+    backdrop-filter: blur(10px);
     flex-direction: column;
     border-radius: 0.5rem;
     .watch-options-heading {

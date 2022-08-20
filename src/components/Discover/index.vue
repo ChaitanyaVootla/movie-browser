@@ -228,44 +228,46 @@
                     </el-button>
                 </router-link>
             </div>
-            <div class="ml-3 mobile-hide save-container">
-                <el-button-group v-if="isSavedFilterView">
-                    <el-button type="primary" @click="saveFilter" icon="el-icon-star-on"> Update Search </el-button>
-                    <el-tooltip
-                        class="item"
-                        effect="light"
-                        content="Clear Filter"
-                        placement="bottom"
-                        v-if="isSavedFilterView"
-                    >
-                        <el-button @click="clearFilter" icon="el-icon-circle-close"> </el-button>
-                    </el-tooltip>
-                    <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
-                        <el-button
-                            @click="
-                                saveFilterDialogVisible = true;
-                                filterName = $router.currentRoute.query.name;
-                            "
-                            type="danger"
-                            icon="el-icon-delete"
+            <div class="right-action-items">
+                <div class="ml-3 mobile-hide save-container">
+                    <el-button-group v-if="isSavedFilterView">
+                        <el-button type="primary" @click="saveFilter" icon="el-icon-star-on"> Update Search </el-button>
+                        <el-tooltip
+                            class="item"
+                            effect="light"
+                            content="Clear Filter"
+                            placement="bottom"
+                            v-if="isSavedFilterView"
                         >
-                        </el-button>
-                    </el-tooltip>
-                </el-button-group>
-                <el-button
-                    type="primary"
-                    @click="
-                        saveFilterDialogVisible = true;
-                        filterName = '';
-                    "
-                    icon="el-icon-star-off"
-                    v-else
-                >
-                    Save Search
-                </el-button>
-            </div>
-            <div class="ml-3">
-                <el-button @click="shareClicked" plain type="info" icon="el-icon-share">Share</el-button>
+                            <el-button @click="clearFilter" icon="el-icon-circle-close"> </el-button>
+                        </el-tooltip>
+                        <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
+                            <el-button
+                                @click="
+                                    saveFilterDialogVisible = true;
+                                    filterName = $router.currentRoute.query.name;
+                                "
+                                type="danger"
+                                icon="el-icon-delete"
+                            >
+                            </el-button>
+                        </el-tooltip>
+                    </el-button-group>
+                    <el-button
+                        type="primary"
+                        @click="
+                            saveFilterDialogVisible = true;
+                            filterName = '';
+                        "
+                        icon="el-icon-star-off"
+                        v-else
+                    >
+                        Save Search
+                    </el-button>
+                </div>
+                <div class="ml-3">
+                    <el-button @click="shareClicked" plain type="info" icon="el-icon-share">Share</el-button>
+                </div>
             </div>
         </div>
         <div class="query-info text-muted" style="display: flex; justify-content: space-between">
@@ -847,7 +849,11 @@ export default {
 }
 .favorites-bar {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
+    .right-action-items {
+        display: flex;
+        padding-right: 3rem;
+    }
 }
 .grid-center {
     display: grid;

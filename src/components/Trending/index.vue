@@ -33,6 +33,7 @@
                 ></mb-slider>
                 <!-- <CustomView :configuration="configuration"/> -->
                 <FilterView
+                    v-if="user.displayName"
                     :movieGenres="movieGenres"
                     :seriesGenres="seriesGenres"
                     :configuration="configuration"

@@ -13,6 +13,15 @@
             <el-col :span="6" class="ml-3">
                 <div class="info-text"><b class="mr-2">{{users.length}}</b> users in the system</div>
             </el-col>
+            <el-col :span="10" class="ml-3" style="text-decoration: underline; text-align: right;">
+                <div class="info-text">
+                    <a href="https://search.google.com/search-console?resource_id=sc-domain%3Athemoviebrowser.com"
+                        target="_blank">
+                        <font-awesome-icon :icon="['fas', 'up-right-from-square']" />
+                        Google search console
+                    </a>
+                </div>
+            </el-col>
         </el-row>
         <el-table
             :data="filteredData"
