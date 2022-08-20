@@ -1,34 +1,25 @@
 <template>
     <div>
-        <!-- <router-link
-            v-for="savedFilter in savedFilters"
-            :key="savedFilter.name"
-            class="mr-3"
-            :to="{
-                name: 'discover',
-                query: {
-                    ...savedFilter,
-                },
-            }"
-        >
-            <el-button>
-                {{ savedFilter.name }}
-            </el-button>
-        </router-link> -->
         <mb-slider
             :items="movies"
             :configuration="configuration"
-            :heading="selectedFilter.name"
             :id="'FilterView'"
             :showMovieInfoModal="showMovieInfo"
             :showFullMovieInfo="showFullMovieInfo"
+            :history="true"
+            :hideWatched="hideWatchedMovies"
+            :heading="`${selectedFilterComputed.name} - Your filters`"
+            :externalLink="{
+                name: 'discover',
+                query: {
+                    ...selectedFilterComputed,
+                },
+            }"
         ></mb-slider>
     </div>
 </template>
 
 <script lang="ts">
-import axios from 'axios';
-import { appConfig } from '@/API/Constants';
 import { find, sortBy, uniqBy, random } from 'lodash';
 import { api } from '@/API/api';
 
@@ -51,16 +42,21 @@ export default {
         }
     },
     computed: {
-        savedFilters() {
+        selectedFilterComputed() {
             const savedFilters = sortBy(this.$store.getters.savedFilters, 'name');
             if (savedFilters?.length) {
                 this.selectedFilter = savedFilters[random(0, savedFilters.length - 1)];
                 this.parseFilter(this.selectedFilter);
-                this.computeQuery(this.selectedFilter);
+                this.computeQuery();
                 this.loadMovies();
             }
-            return savedFilters
+            return this.selectedFilter
         },
+        filteredMovies() {
+            if (this.hideWatchedMovies) {
+                return this.movies.filter(movie => !movie.watched);
+            }
+        }
     },
     methods: {
         parseFilter(filter) {
@@ -185,8 +181,7 @@ export default {
                 this.showAdvancedFilters = true;
             }
         },
-        computeQuery(filter) {
-            console.log(filter)
+        computeQuery() {
             this.currentPage = 1;
             this.computedDiscoverQuery = '';
 
@@ -216,9 +211,6 @@ export default {
             if (this.minVotes) {
                 this.computedDiscoverQuery += `&vote_count.gte=${this.minVotes}`;
             }
-            if (this.hideWatchedMovies) {
-                // TODO
-            }
             if (this.selectedKeywords.length) {
                 const keywordIds = this.selectedKeywords.map(({ id }) => id);
                 const keywords = this.selectedKeywords.map(({ name }) => name).toString();
@@ -235,7 +227,6 @@ export default {
             if (this.selectedCertification.certification) {
                 this.computedDiscoverQuery += `&certification_country=US&certification=${this.selectedCertification.certification}`;
             }
-            console.log(this.computedDiscoverQuery)
         },
         loadMovies: async function () {
             this.currentPage = 1;
@@ -250,14 +241,14 @@ export default {
             }
             this.isLoaded = true;
         },
-        loadMoreMovies: async function (this: any) {
+        checkFetchMoreMovies: async function (this: any) {
             if (this.queryData.total_pages < this.currentPage - 1) {
                 return;
             }
-            this.isDataLoading = true;
-            for (let count = 1; count < 4; count++) {
-                await this.fetchMoreMovies();
+            if (this.movies.length >= 30) {
+                return;
             }
+            await this.fetchMoreMovies();
         },
         fetchMoreMovies: async function () {
             this.currentPage++;
@@ -270,8 +261,6 @@ export default {
                 queryResult = await api.getDiscoverSeries(currentdiscoverQuery);
             }
             this.movies = this.movies.concat(queryResult.results);
-            this.isLoaded = true;
-            this.isDataLoading = false;
         },
     }
 }

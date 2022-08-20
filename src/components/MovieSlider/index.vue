@@ -70,6 +70,7 @@
                     :key="movie.id + index"
                     :disableRatingShadow="true"
                     :showFullMovieInfo="showFullMovieInfo"
+                    :hideWatched="hideWatched"
                     :hideBadge="hideBadge"
                     :class="isSliding ? 'no-pointer-events' : ''"
                 ></movie-card>
@@ -119,6 +120,7 @@ export default {
         'configuration',
         'id',
         'heading',
+        'hideWatched',
         'showMovieInfoModal',
         'showFullMovieInfo',
         'externalLink',
