@@ -124,13 +124,20 @@ const store = new Vuex.Store({
     },
     actions: {
         initFirebase({ commit }) {
-            onAuthStateChanged(auth, async (user) => {
+            onAuthStateChanged(auth, async (user: any) => {
                 if (user) {
+                    if (user.email === 'speedblaze@gmail.com') {
+                        user.isAdmin = true;
+                    }
                     commit('setUser', user);
                     const userDbRef = doc(db, "users", user.uid);
+                    const usersRef = collection(db, "users");
                     setDoc(userDbRef, {
                         displayName: user.displayName,
                         photoURL: user.photoURL,
+                        email: user.email,
+                        lastLoggedIn: moment().format(),
+                        metadata: {...user.metadata},
                     });
 
                     // userDbRef.collection('moviesHistory').onSnapshot(

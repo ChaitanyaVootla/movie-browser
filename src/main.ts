@@ -24,6 +24,7 @@ import Friends from './components/Friends/index.vue';
 import Interests from './components/Interests/index.vue';
 import History from './components/History/index.vue';
 import Sandbox from './components/Sandbox/index.vue';
+import Admin from './components/Admin/index.vue';
 import VueLazyload from 'vue-lazyload';
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
@@ -152,6 +153,11 @@ const routes = [
         path: '/sandbox',
         component: Sandbox,
         name: 'Sandbox',
+    },
+    {
+        path: '/admin',
+        component: Admin,
+        name: 'admin',
     },
 ];
 Vue.use(VueLazyload);

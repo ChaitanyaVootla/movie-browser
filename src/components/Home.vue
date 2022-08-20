@@ -156,6 +156,12 @@
                                     <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-1" />
                                     Sign out
                                 </div>
+                                <div v-if="user.isAdmin">
+                                    <router-link :to="{ name: 'admin' }">
+                                        <font-awesome-icon :icon="['fas', 'lock']" class="mr-2" />
+                                        Admin
+                                    </router-link>
+                                </div>
                             </el-dropdown-item>
                         </el-dropdown-menu>
                     </el-dropdown>
