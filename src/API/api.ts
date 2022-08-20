@@ -10,7 +10,7 @@ import {
 } from './Constants';
 import axios from 'axios';
 
-const showAllResults = localStorage.getItem('showAllResults') || false;
+const showAllResults = () => localStorage.getItem('showAllResults') || false;
 
 export const api = {
     getTrendingTv: async function () {
@@ -113,34 +113,34 @@ export const api = {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
             `${appConfig.serverBaseTMDBUrl}${endpoints.searchAll}?${searchQuery}&page=${page
-                }&include_adult=${showAllResults}`,
+                }&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
     searchPeople: async function (searchString: string) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.searchPeople}?${searchQuery}&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.searchPeople}?${searchQuery}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
     getDiscoverMovies: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
     getDiscoverMoviesFull: async function (searchQuery: string) {
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
     getDiscoverSeries: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverSeries}?${searchQuery}&include_adult=${showAllResults}`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverSeries}?${searchQuery}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },

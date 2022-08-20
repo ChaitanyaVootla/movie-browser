@@ -1,7 +1,21 @@
 <template>
     <div class="main-container">
+        <el-row class="mt-2 mb-4">
+            <el-col :span="6">
+                <el-input
+                    v-model="search"
+                    placeholder="Search"
+                    class="search-input"
+                    icon="el-icon-search"
+                    @keyup.enter="filterTable"
+                ></el-input>
+            </el-col>
+            <el-col :span="6" class="ml-3">
+                <div class="info-text"><b class="mr-2">{{users.length}}</b> users in the system</div>
+            </el-col>
+        </el-row>
         <el-table
-            :data="users"
+            :data="filteredData"
             style="width: 100%"
             :default-sort = "{prop: 'lastLoggedIn', order: 'ascending'}"
             :border="true">
@@ -61,6 +75,7 @@ export default {
     data() {
         return {
             users: [],
+            search: '',
         }
     },
     created() {
@@ -70,6 +85,14 @@ export default {
             snapshot.forEach((doc) => users.push(doc.data()));
             this.users = users;
         });
+    },
+    computed: {
+        filteredData() {
+            return this.users.filter((user) => {
+                return user.displayName.toLowerCase().includes(this.search.toLowerCase()) ||
+                    user.email?.toLowerCase().includes(this.search.toLowerCase());
+            });
+        }
     },
     methods: {
         getTime(time) {
@@ -108,5 +131,10 @@ export default {
     width: 50px;
     height: 50px;
     border-radius: 50%;
+}
+.info-text {
+    display: flex;
+    align-items: center;
+    line-height: 2.2rem;
 }
 </style>

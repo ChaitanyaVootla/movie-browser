@@ -18,6 +18,15 @@
                 <el-menu-item index="2-1" @click="selectedItem = 'watchListSeries'">Watch List</el-menu-item>
                 <!-- <el-menu-item index="2-2" @click="selectedItem = 'seriesHistory'">Browse History</el-menu-item> -->
             </el-submenu>
+            <el-menu-item index="3">
+                Show all results
+                <el-switch
+                    class="ml-2"
+                    v-model="showAllEnabled"
+                    active-color="#13ce66"
+                    inactive-color="#ff4949">
+                </el-switch>
+            </el-menu-item>
         </el-menu>
         <div class="history-container">
             <search-grid
@@ -33,13 +42,19 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
 export default {
-    name: 'trending',
+    name: 'Profile',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     data() {
         return {
             selectedItem: 'watchListMovies',
+            get showAllEnabled() {
+                return localStorage.getItem('showAllResults') &&
+                    localStorage.getItem('showAllResults') == 'true' ? true:false;
+            },
+            set showAllEnabled(value: boolean) {
+                localStorage.setItem('showAllResults', value? 'true':'false');
+            }
         };
     },
     computed: {

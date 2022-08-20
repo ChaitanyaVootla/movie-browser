@@ -4,9 +4,12 @@
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
         </div>
         <div class="info-container pl-5" v-if="details.title">
-            <h3 class="info-heading ml-3">
-                <span class="shadow-text">{{ details.title }}</span>
-            </h3>
+            <div class="heading-container">
+                <h3 class="info-heading ml-3">
+                    <span class="shadow-text">{{ details.title }}</span>
+                </h3>
+                <el-tag v-if="details.adult" type="danger">Adult</el-tag>
+            </div>
 
             <!-- Date and Genres -->
             <h6 class="secondary-info ml-3">
@@ -398,7 +401,9 @@ export default {
                 });
                 this.details.collectionDetails = collectionDetails;
             }
-            this.updateHistoryData();
+            if (!this.details.adult) {
+                this.updateHistoryData();
+            }
             this.similarMovies = this.details.similar.results;
             this.recommendedMovies = this.details.recommendations.results;
             this.cast = this.details.credits.cast;
@@ -498,6 +503,11 @@ export default {
 
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
+.heading-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 .watch-price {
     font-size: 0.7rem;
     color: #aaa;
