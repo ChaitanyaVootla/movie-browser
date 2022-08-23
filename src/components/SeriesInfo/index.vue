@@ -454,7 +454,7 @@ export default {
     background-size: contain;
     height: @primary-container-height;
     object-fit: cover;
-    object-position: 50% 5%;
+    object-position: 50% 25%;
     width: 100%;
     overflow: hidden;
     box-shadow: 0px 0px 200px 100px rgba(0, 0, 0, 1);

@@ -541,10 +541,10 @@ export default {
     background-size: contain;
     height: 35em;
     object-fit: cover;
-    object-position: 50% 10%;
+    object-position: 50% 25%;
     width: 100%;
     overflow: hidden;
-    filter: opacity(0.3) blur(1px);
+    filter: opacity(0.3) blur(0px);
 }
 .video-dropdown {
     margin-top: 0.6em;
