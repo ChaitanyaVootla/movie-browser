@@ -3,7 +3,7 @@
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
         </div>
-        <div class="info-container" v-if="details.name">
+        <div class="all-info-container" v-if="details.name">
             <h3 div="info-heading">
                 {{ details.name }}
                 <span class="text-muted info-tagline pl-2" v-if="details.number_of_seasons">
@@ -500,13 +500,14 @@ export default {
     width: 100%;
     max-width: 100%;
 }
-.info-container {
+.all-info-container {
     position: absolute;
     top: 2em;
     height: calc(@primary-container-height - 1.5rem);
     padding-left: 4.5rem !important;
     overflow: hidden;
     color: @text-color;
+    width: 100%;
 }
 .secondary-info {
     color: #aaa;
@@ -579,7 +580,7 @@ export default {
         height: 100 !important;
         width: 100 !important;
     }
-    .info-container {
+    .all-info-container {
         top: 1em;
         display: grid;
         grid-auto-rows: max(3em);

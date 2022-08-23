@@ -7,12 +7,10 @@ import { fab } from '@fortawesome/free-brands-svg-icons';
 import { far } from '@fortawesome/free-regular-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import _ from 'lodash';
-import 'bootstrap';
 import Home from './components/Home.vue';
 import Person from './components/Person/index.vue';
 import Trending from './components/Trending/index.vue';
 import Discover from './components/Discover/index.vue';
-// import Content from './components/Content/index.vue';
 import Search from './components/Search/index.vue';
 import MovieInfoFull from './components/MovieInfo/index.vue';
 import SeriesInfo from './components/SeriesInfo/index.vue';
@@ -75,13 +73,13 @@ Vue.component('Home', require('./components/Home.vue').default);
 const routes = [
     {
         path: '',
-        component: Home,
+        component: () => import(/* webpackChunkName: "landing" */'@/components/Home.vue'),
         name: 'home',
         redirect: { name: 'trending' },
     },
     {
         path: '/',
-        component: Trending,
+        component: () => import(/* webpackChunkName: "landing" */'@/components/Trending/index.vue'),
         name: 'trending',
     },
     // {
@@ -91,72 +89,72 @@ const routes = [
     // },
     {
         path: '/discover',
-        component: Discover,
+        component: () => import(/* webpackChunkName: "discover" */'@/components/Discover/index.vue'),
         name: 'discover',
     },
     {
         path: '/friends',
-        component: Friends,
+        component: () => import('@/components/Friends/index.vue'),
         name: 'Friends',
     },
     {
         path: '/search',
-        component: Search,
+        component: () => import('@/components/Search/index.vue'),
         name: 'search',
     },
     {
         path: '/person/:name/:id',
-        component: Person,
+        component: () => import('@/components/Person/index.vue'),
         name: 'person',
     },
     {
         path: '/movie/:name/:id',
-        component: MovieInfoFull,
+        component: () => import(/* webpackChunkName: "movie" */'@/components/MovieInfo/index.vue'),
         name: 'movieInfoFull',
     },
     {
         path: '/series/:name/:id',
-        component: SeriesInfo,
+        component: () => import(/* webpackChunkName: "series" */'@/components/SeriesInfo/index.vue'),
         name: 'seriesInfo',
     },
     {
         path: '/streamingNow',
-        component: StreamingNow,
+        component: () => import('@/components/StreamingNow/index.vue'),
         name: 'StreamingNow',
     },
     {
         path: '/suggestions',
-        component: Suggestions,
+        component: () => import('@/components/Suggestions/index.vue'),
         name: 'Suggestions',
     },
     {
         path: '/watchList',
-        component: WatchList,
+        component: () => import(/* webpackChunkName: "watchList" */'@/components/WatchList/index.vue'),
         name: 'WatchList',
     },
     {
         path: '/shareView/:userID',
-        component: ShareView,
+        component: () => import('@/components/ShareView/index.vue'),
         name: 'ShareView',
     },
     {
         path: '/interests',
-        component: Interests,
+        component: () => import(/* webpackChunkName: "profile" */'@/components/Interests/index.vue'),
         name: 'Interests',
     },
     {
         path: '/history',
-        component: History,
+        component: () => import('@/components/History/index.vue'),
         name: 'History',
     },
     {
         path: '/sandbox',
-        component: Sandbox,
+        component: () => import('@/components/Sandbox/index.vue'),
         name: 'Sandbox',
     },
     {
         path: '/admin',
-        component: Admin,
+        component: () => import(/* webpackChunkName: "admin" */'@/components/Admin/index.vue'),
         name: 'admin',
     },
 ];

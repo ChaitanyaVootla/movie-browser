@@ -3,7 +3,7 @@
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
         </div>
-        <div class="info-container pl-5" v-if="details.title">
+        <div class="all-info-container pl-5" v-if="details.title">
             <div class="heading-container">
                 <h3 class="info-heading ml-3">
                     <span class="shadow-text">{{ details.title }}</span>
@@ -569,13 +569,14 @@ export default {
     width: 100%;
     max-width: 100%;
 }
-.info-container {
+.all-info-container {
     position: absolute;
     top: 2em;
     padding-left: 3.5rem !important;
     overflow: hidden;
     color: @text-color;
     height: 33em;
+    width: 100%;
 }
 .secondary-info {
     color: #aaa;
@@ -670,14 +671,14 @@ export default {
         height: 100 !important;
         width: 100 !important;
     }
-    .info-container {
+    .all-info-container {
         top: 1em;
         display: grid;
         grid-auto-rows: max(3em);
         margin: 0 !important;
         padding-left: 0.5em !important;
     }
-    .info-container > div {
+    .all-info-container > div {
         margin: 0 !important;
         padding: 0 !important;
     }

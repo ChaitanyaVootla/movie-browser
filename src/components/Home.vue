@@ -485,13 +485,13 @@ export default {
                 })
                 .catch((err) => {});
         },
-        showMovieInfo(movie: any) {
-            this.selectedMovie = movie;
-            $('#movieInfoModal').modal('show');
-        },
-        closeInfo() {
-            $('#movieInfoModal').modal('hide');
-        },
+        // showMovieInfo(movie: any) {
+        //     this.selectedMovie = movie;
+        //     $('#movieInfoModal').modal('show');
+        // },
+        // closeInfo() {
+        //     $('#movieInfoModal').modal('hide');
+        // },
         goToDiscover() {
             this.$router
                 .push({
