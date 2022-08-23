@@ -23,7 +23,7 @@ registerRoute(
 );
 
 registerRoute(
-    ({ url }) => url.origin === 'https://api.themoviedb.org',
+    ({ url }) => url.pathname.includes('tmdb/'),
     new CacheFirst({
         // Put all cached files in a cache named 'tmdb'
         cacheName: 'tmdb',

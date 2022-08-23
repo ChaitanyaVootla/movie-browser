@@ -58,7 +58,7 @@ app.listen(port, () => console.log(`Server started at port: ${port}`));
 
 // on unhandled rejection
 process.on('unhandledRejection', (reason, p) => {
-    console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
+    console.log('Unhandled Rejection reason:', reason);
 }).on('uncaughtException', (err) => {
     console.log('Uncaught Exception thrown:', err);
 }).on('SIGINT', () => {

@@ -1,7 +1,7 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
 import { onAuthStateChanged, auth, db } from '../Common/firebase';
-import { sortBy, omit } from 'lodash';
+import { sortBy, omit, random } from 'lodash';
 import moment from 'moment';
 import { collection, doc, setDoc, onSnapshot, writeBatch } from "firebase/firestore";
 import { api } from '../API/api';
@@ -36,6 +36,7 @@ const store = new Vuex.Store({
             seriesIds: [],
         },
         savedFilters: [],
+        randomFilters: {},
         sideBarFilters: {
             movieGenres: [],
             seriesGenres: [],
@@ -121,6 +122,22 @@ const store = new Vuex.Store({
         canFilterMovies: (state) => state.sideBarFilters.movieGenres.length,
         canFilterSeries: (state) => state.sideBarFilters.seriesGenres.length,
         isLightMode: (state) => state.isLightMode,
+        randomFilter: (state) => (identifier) => {
+            if (!state.savedFilters.length) {
+                return {};
+            }
+            if (!state.randomFilters[identifier]) {
+                state.randomFilters[identifier] = {
+                    availableFilters: state.savedFilters,
+                };
+            }
+            const randomFilter = state.randomFilters[identifier]
+                .availableFilters[random(0, state.randomFilters[identifier].availableFilters.length - 1)];
+            console.log(state.savedFilters, randomFilter, state.randomFilters[identifier])
+            state.randomFilters[identifier].availableFilters = state.randomFilters[identifier]
+                .availableFilters.filter((filter) => filter.name !== randomFilter.name);
+            return randomFilter;
+        },
     },
     actions: {
         initFirebase({ commit }) {

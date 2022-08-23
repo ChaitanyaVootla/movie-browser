@@ -207,7 +207,7 @@
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
         </div>
         <div class="pl-5 pt-2 pb-2 favorites-bar mobile-hide">
-            <div v-if="savedFilters.length" class="pr-3 pt-2"> <font-awesome-icon :icon="['fas', 'star']" class="mr-2" /> Saved Filters </div>
+            <div class="pr-3 pt-2"> <font-awesome-icon :icon="['fas', 'star']" class="mr-2" /> Saved Filters </div>
             <div v-if="savedFilters.length">
                 <router-link
                     v-for="savedFilter in savedFilters"
@@ -229,9 +229,15 @@
                 </router-link>
             </div>
             <div class="right-action-items">
+                <el-alert v-if="!savedFilters.length"
+                    type="info"
+                    :closable="false">
+                    You don't have any saved filters, you can create one by choosing filters above and saving it here
+                    <font-awesome-icon :icon="['fas', 'arrow-right']" class="mr-2" />
+                </el-alert>
                 <div class="ml-3 mobile-hide save-container">
                     <el-button-group v-if="isSavedFilterView">
-                        <el-button type="primary" @click="saveFilter" icon="el-icon-star-on"> Update Search </el-button>
+                        <el-button type="primary" @click="saveFilter" icon="el-icon-star-on"> Update Filter </el-button>
                         <el-tooltip
                             class="item"
                             effect="light"
@@ -262,7 +268,7 @@
                         icon="el-icon-star-off"
                         v-else
                     >
-                        Save Search
+                        Save Filter
                     </el-button>
                 </div>
                 <div class="ml-3">
@@ -840,6 +846,9 @@ export default {
 }
 .small-filter {
     width: 60%;
+}
+.info-text {
+    line-height: 2.5rem;
 }
 .content-switch {
     display: flex;

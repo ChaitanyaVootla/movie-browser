@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-if="selectedFilter.name">
         <mb-slider
             :items="movies"
             :configuration="configuration"
@@ -8,11 +8,11 @@
             :showFullMovieInfo="showFullMovieInfo"
             :history="true"
             :hideWatched="hideWatchedMovies"
-            :heading="`${selectedFilterComputed.name} - Your filters`"
+            :heading="`${selectedFilter.name} - Your filters`"
             :externalLink="{
                 name: 'discover',
                 query: {
-                    ...selectedFilterComputed,
+                    ...selectedFilter,
                 },
             }"
         ></mb-slider>
@@ -20,7 +20,7 @@
 </template>
 
 <script lang="ts">
-import { find, sortBy, uniqBy, random } from 'lodash';
+import { find, uniqBy } from 'lodash';
 import { api } from '@/API/api';
 
 export default {
@@ -33,25 +33,25 @@ export default {
         'showFullMovieInfo',
         'movieGenres',
         'seriesGenres',
+        'uuid',
     ],
     data() {
         return {
             computedDiscoverQuery: '',
             movies: [],
-            selectedFilter: {},
             hideWatchedMovies: false,
         }
     },
     computed: {
-        selectedFilterComputed() {
-            const savedFilters = sortBy(this.$store.getters.savedFilters, 'name');
-            if (savedFilters?.length) {
-                this.selectedFilter = savedFilters[random(0, savedFilters.length - 1)];
-                this.parseFilter(this.selectedFilter);
+        selectedFilter() {
+            const randomFilter = this.$store.getters.randomFilter(`${this.uuid}`);
+            console.log("uuid", this.uuid);
+            if (randomFilter?.name) {
+                this.parseFilter(randomFilter);
                 this.computeQuery();
                 this.loadMovies();
             }
-            return this.selectedFilter
+            return randomFilter;
         },
         filteredMovies() {
             if (this.hideWatchedMovies) {
@@ -241,15 +241,6 @@ export default {
                 await this.loadMoreMovies();
             }
             this.isLoaded = true;
-        },
-        checkFetchMoreMovies: async function (this: any) {
-            if (this.queryData.total_pages < this.currentPage - 1) {
-                return;
-            }
-            if (this.movies.length >= 30) {
-                return;
-            }
-            await this.fetchMoreMovies();
         },
         fetchMoreMovies: async function () {
             this.currentPage++;

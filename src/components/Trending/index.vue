@@ -32,12 +32,6 @@
                     :showFullMovieInfo="showFullMovieInfo"
                 ></mb-slider>
                 <!-- <CustomView :configuration="configuration"/> -->
-                <FilterView
-                    v-if="user.displayName"
-                    :movieGenres="movieGenres"
-                    :seriesGenres="seriesGenres"
-                    :configuration="configuration"
-                />
                 <mb-slider
                     :items="trendingTv"
                     :configuration="configuration"
@@ -54,8 +48,22 @@
                     :showFullMovieInfo="showSeriesInfo"
                     heading="Recent visits"
                     :isWideCard="true"
-                    class="slider-bg"
+                    class="slider-bg mb-4"
                 ></mb-slider>
+                <div v-if="uuid.length && user.displayName">
+                    <FilterView
+                        :uuid="uuid"
+                        :movieGenres="movieGenres"
+                        :seriesGenres="seriesGenres"
+                        :configuration="configuration"
+                    />
+                    <FilterView
+                        :uuid="uuid"
+                        :movieGenres="movieGenres"
+                        :seriesGenres="seriesGenres"
+                        :configuration="configuration"
+                    />
+                </div>
                 <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
                     :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider> -->
                 <mb-slider
@@ -66,6 +74,20 @@
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showSeriesInfo"
                 ></mb-slider>
+                <div v-if="uuid.length && user.displayName">
+                    <FilterView
+                        :uuid="uuid"
+                        :movieGenres="movieGenres"
+                        :seriesGenres="seriesGenres"
+                        :configuration="configuration"
+                    />
+                    <FilterView
+                        :uuid="uuid"
+                        :movieGenres="movieGenres"
+                        :seriesGenres="seriesGenres"
+                        :configuration="configuration"
+                    />
+                </div>
                 <!-- <random-suggestions :configuration="configuration" :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showSeriesInfo"></random-suggestions> -->
             </div>
@@ -78,6 +100,8 @@ import { api } from '../../API/api';
 import CustomView from '../CustomView/index.vue';
 import FilterView from '../FilterView/index.vue';
 import _ from 'lodash';
+import { v4 as uuidv4 } from 'uuid';
+
 export default {
     name: 'trending',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
@@ -93,9 +117,11 @@ export default {
             trendingPeople: [],
             latestMovies: [] as any[],
             currentAiring: [] as any[],
+            uuid: '',
         };
     },
     mounted() {
+        this.uuid = uuidv4();
         this.loadData();
     },
     computed: {
@@ -162,6 +188,7 @@ export default {
     animation: AnimateBG 10s ease infinite;
     /deep/ .slider-bar {
         padding: 0;
+        overflow-y: clip !important;
     }
     padding: 0 !important;
 }

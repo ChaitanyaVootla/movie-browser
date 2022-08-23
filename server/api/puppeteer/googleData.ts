@@ -1,13 +1,16 @@
 import { sortBy } from 'lodash';
 import puppeteer from 'puppeteer';
+import nodeCache from 'node-cache';
+
+const ttl = 60 * 60 * 24 * 1;
+const cache = new nodeCache({checkperiod: 120});
+
 let page: puppeteer.Page;
 const setupPuppeteer = async () => {
     const browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: true });
     page = await browser.newPage();
 };
-const pageCache = {};
 // const api = require('../db');
-const HOURS_TO_UPDATE = 72;
 const googleData = async (str) => {
     try {
         // const apiResult = await api.GoogleData.findOne({where: {searchString: str}});
@@ -24,10 +27,8 @@ const googleData = async (str) => {
         // console.error(e);
     } finally {
         try {
-            if (pageCache[str]) {
-                console.log('Using cached page');
-                forceGetGoogleData(str);
-                return pageCache[str];
+            if (cache.has(str)) {
+                return cache.get(str);
             } else {
                 return forceGetGoogleData(str);
             }
@@ -38,7 +39,6 @@ const googleData = async (str) => {
 };
 
 const forceGetGoogleData = async (str: string) => {
-    console.time(`getting link`);
     await page.goto(str, { waitUntil: 'domcontentloaded' });
 
     let ratingsDOM = await page.$$('a.vIUFYd');
@@ -171,7 +171,6 @@ const forceGetGoogleData = async (str: string) => {
         }
     }
 
-    console.timeEnd('getting link');
     const result = {
         ratings,
         allWatchOptions: sortBy(allWatchOptions, ({ price }) => price == 'Subscription').reverse(),
@@ -186,7 +185,7 @@ const forceGetGoogleData = async (str: string) => {
     // } catch(e) {
     //     console.error(e);
     // }
-    pageCache[str] = result;
+    cache.set(str, result, ttl);
     return result;
 }
 

@@ -87,8 +87,8 @@
             <el-menu-item index="search" class="menu-item-nobg search-menu-item mobile-hide">
                 <div>
                     <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
-                        <el-input placeholder="Search" v-model="searchText">
-                            <!-- <el-button slot="append" icon="el-icon-search"></el-button> -->
+                        <el-input placeholder="Search" v-model="searchText" class="search-append-button">
+                            <el-button slot="append" icon="el-icon-search"></el-button>
                         </el-input>
                     </div>
                     <div
@@ -565,6 +565,9 @@ export default {
 }
 .trending-icon {
     font-size: 1.2em;
+}
+/deep/ .search-append-button .el-input-group__append {
+    border: 1px solid #222 !important;
 }
 .sort-order-container {
     max-width: 24em;
