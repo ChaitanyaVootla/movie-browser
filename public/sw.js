@@ -32,9 +32,9 @@ registerRoute(
             new CacheableResponse({
                 statuses: [200],
             }),
-            // Expire them after 2 hours
+            // Expire them after 1 day
             new ExpirationPlugin({
-                maxAgeSeconds: 60 * 60 * 2, // 2 hours
+                maxAgeSeconds: 60 * 60 * 24 * 1, // 1 day
             }),
         ],
     }),
