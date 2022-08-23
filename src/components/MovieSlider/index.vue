@@ -292,6 +292,9 @@ export default {
 .history-slider /deep/ .el-badge__content {
     display: none;
 }
+.wide-card-slider-container {
+    margin-top: 0.5rem;
+}
 @media (max-width: 767px) {
     .scroll-item {
         background: transparent;

@@ -314,7 +314,8 @@ export default {
     filter: opacity(0.5);
     height: 100%;
     overflow: hidden;
-    border-radius: 0.2em;
+    border-radius: 10px;
+    border: 4px solid rgba(133, 133, 133, 0.274);
 }
 .info-container {
     position: absolute;
