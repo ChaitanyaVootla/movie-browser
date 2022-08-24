@@ -437,7 +437,7 @@ export default {
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
 
-@primary-container-height: 35rem;
+@primary-container-height: 50vh;
 
 .watch-price {
     font-size: 0.7rem;

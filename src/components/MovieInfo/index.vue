@@ -503,6 +503,7 @@ export default {
 
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
+@primary-container-height: 50vh;
 .heading-container {
     display: flex;
     align-items: center;
@@ -534,12 +535,12 @@ export default {
     line-height: 4em;
 }
 .background-images-container {
-    height: 35rem;
+    height: @primary-container-height;
     overflow: hidden;
 }
 .background-image {
     background-size: contain;
-    height: 35em;
+    height: @primary-container-height;
     object-fit: cover;
     object-position: 50% 25%;
     width: 100%;

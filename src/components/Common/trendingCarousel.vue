@@ -330,7 +330,7 @@ export default {
     color: rgb(228, 228, 228);
 }
 .movie-overview {
-    width: auto;
+    width: 80%;
     margin-top: 5em;
     position: absolute;
     bottom: 0;
