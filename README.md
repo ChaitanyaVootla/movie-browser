@@ -64,7 +64,7 @@ VUE_APP_SERVER_URL=<SERVER URL HERE - IGNORE IF RUNNING ON LOCALHOST>
 
 Run server (uses port 3000):
 
--   `cd ./server && node ./server.js`
+-   `cd ./server && npm install && npm run serve`
 
 Run Webapp (uses port 80):
 
