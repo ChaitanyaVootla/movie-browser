@@ -503,7 +503,7 @@ export default {
 
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
-@primary-container-height: 50vh;
+@primary-container-height: max(50vh, 35rem);
 .heading-container {
     display: flex;
     align-items: center;
