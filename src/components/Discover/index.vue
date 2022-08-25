@@ -337,6 +337,7 @@ import { find, uniqBy, sortBy } from 'lodash';
 import { certifications } from '../../Common/certifications';
 import { db, onAuthStateChanged, auth } from '../../Common/firebase';
 import { deleteDoc, doc, setDoc } from 'firebase/firestore';
+import moment from 'moment';
 
 export default {
     name: 'movieDiscover',
@@ -522,6 +523,10 @@ export default {
             }
             this.allYears = allYears.reverse();
             this.timeFrames.push({
+                name: 'Upcoming',
+                endDate: moment().format('YYYY-MM-DD'),
+            });
+            this.timeFrames.push({
                 name: 'Recent',
                 startDate: null,
                 endDate: '2010-01-01',
@@ -654,10 +659,17 @@ export default {
                 if (routeQuery['primary_release_date.gte']) {
                     this.selectedTimeFrame.endDate = routeQuery['primary_release_date.gte'];
                 }
+                if (routeQuery['first_air_date.lte']) {
+                    this.selectedTimeFrame.startDate = routeQuery['first_air_date.lte'];
+                }
+                if (routeQuery['first_air_date.gte']) {
+                    this.selectedTimeFrame.endDate = routeQuery['first_air_date.gte'];
+                }
                 this.showAdvancedFilters = true;
             }
             this.minVotes = null;
             if (routeQuery['vote_count.gte']) {
+                console.log("=======asjldhaojlsdhljkas======")
                 this.minVotes = routeQuery['vote_count.gte'];
                 this.showAdvancedFilters = true;
             }
@@ -746,12 +758,22 @@ export default {
             if (this.selectedTimeFrame && this.selectedTimeFrame.name) {
                 if (this.selectedTimeFrame.startDate || this.selectedTimeFrame.endDate) {
                     if (this.selectedTimeFrame.startDate) {
-                        this.computedDiscoverQuery += `&primary_release_date.lte=${this.selectedTimeFrame.startDate}`;
-                        routerQuery['primary_release_date.lte'] = this.selectedTimeFrame.startDate;
+                        if (this.isMovies) {
+                            this.computedDiscoverQuery += `&primary_release_date.lte=${this.selectedTimeFrame.startDate}`;
+                            routerQuery['primary_release_date.lte'] = this.selectedTimeFrame.startDate;
+                        } else {
+                            this.computedDiscoverQuery += `&first_air_date.lte=${this.selectedTimeFrame.startDate}`;
+                            routerQuery['first_air_date.lte'] = this.selectedTimeFrame.startDate;
+                        }
                     }
                     if (this.selectedTimeFrame.endDate) {
-                        this.computedDiscoverQuery += `&primary_release_date.gte=${this.selectedTimeFrame.endDate}`;
-                        routerQuery['primary_release_date.gte'] = this.selectedTimeFrame.endDate;
+                        if (this.isMovies) {
+                            this.computedDiscoverQuery += `&primary_release_date.gte=${this.selectedTimeFrame.endDate}`;
+                            routerQuery['primary_release_date.gte'] = this.selectedTimeFrame.endDate;
+                        } else {
+                            this.computedDiscoverQuery += `&first_air_date.gte=${this.selectedTimeFrame.endDate}`;
+                            routerQuery['first_air_date.gte'] = this.selectedTimeFrame.endDate;
+                        }
                     }
                 } else {
                     this.computedDiscoverQuery += `&primary_release_year=${this.selectedTimeFrame.name}`;
@@ -760,6 +782,7 @@ export default {
                 routerQuery['releaseQueryName'] = this.selectedTimeFrame.name;
             }
             if (this.minVotes) {
+                console.log("==============================")
                 this.computedDiscoverQuery += `&vote_count.gte=${this.minVotes}`;
                 routerQuery['vote_count.gte'] = this.minVotes;
             }

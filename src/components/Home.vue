@@ -275,7 +275,6 @@
                 class="main-router"
                 :isLoaded="isLoaded"
                 :configuration="configuration"
-                :showMovieInfo="showMovieInfo"
                 :searchString="searchText"
                 :person="selectedPerson"
                 :showFullMovieInfo="showFullMovieInfo"
@@ -296,7 +295,7 @@
         </side-drawer> -->
 
         <!-- Info Modal -->
-        <div class="modal fade bd-example-modal-xl" id="movieInfoModal" tabindex="-1" role="dialog">
+        <!-- <div class="modal fade bd-example-modal-xl" id="movieInfoModal" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <movie-info
@@ -304,12 +303,11 @@
                         :movie="selectedMovie"
                         :configuration="configuration"
                         :imageRes="'w500'"
-                        :closeInfo="closeInfo"
                         :selectPerson="goToPerson"
                     ></movie-info>
                 </div>
             </div>
-        </div>
+        </div> -->
     </div>
 </template>
 

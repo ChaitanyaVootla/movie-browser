@@ -53,13 +53,12 @@
                                         {{item.vote_average}}
                                     </span>
                                 </div> -->
-
-                                <GoogleData class="mt-5 pt-5" :item="item" />
+                                <GoogleData class="googleData-container" :item="item" />
 
                                 <!-- Item overview -->
-                                <div class="movie-overview frosted p-3 mt-10">
+                                <!-- <div class="movie-overview frosted p-3 mt-10">
                                     <span>{{ item.overview.slice(0, 200) }}</span>
-                                </div>
+                                </div> -->
                             </div>
                         </div>
                     </el-carousel-item>
@@ -275,6 +274,10 @@ export default {
 .filters-container {
     display: flex;
     flex-wrap: wrap;
+}
+.googleData-container {
+    position: absolute;
+    bottom: 2rem;
 }
 .justify-center {
     display: flex;

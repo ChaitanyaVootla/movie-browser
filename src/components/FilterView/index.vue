@@ -45,7 +45,6 @@ export default {
     computed: {
         selectedFilter() {
             const randomFilter = this.$store.getters.randomFilter(`${this.uuid}`);
-            console.log("uuid", this.uuid);
             if (randomFilter?.name) {
                 this.parseFilter(randomFilter);
                 this.computeQuery();

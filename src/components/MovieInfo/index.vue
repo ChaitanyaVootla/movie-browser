@@ -36,8 +36,9 @@
                 </span>
             </h6>
 
+
             <!-- Watch links -->
-            <GoogleData class="pt-3" :item="details" :key="details.id" />
+            <GoogleData class="mt-5 googleData-container ml-3" :item="details" :key="details.id" />
 
             <!-- budget -->
             <!-- <div style="top: 31em; position: absolute;" class="budget-text mobile-hide">
@@ -74,7 +75,6 @@
                         <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
                     </a>
                 </div>
-
                 <!-- bookmarks -->
                 <div class="mt-2 mb-3 pl-2 bookmarks">
                     <el-tooltip
@@ -116,42 +116,32 @@
                         </span>
                     </el-tooltip>
                 </div>
-                <!-- overview -->
-                <div class="frosted movie-overview p-2 mobile-hide">
-                    <span v-if="showFullOverview">{{ details.overview }}</span>
-                    <span v-if="!showFullOverview">{{ details.overview.slice(0, 200) }}</span>
+                <!-- keywords -->
+                <div class="mt-5 ml-2">
+                    <router-link
+                        v-for="keyword in showAllTags
+                            ? details.keywords.keywords
+                            : details.keywords.keywords.slice(0, 5)"
+                        :key="keyword.id"
+                        class="mr-2"
+                        :to="{
+                            name: 'discover',
+                            query: {
+                                keywords: keyword.name,
+                                with_keywords: keyword.id,
+                            },
+                        }"
+                    >
+                        <div class="keyword">
+                            {{ keyword.name }}
+                        </div>
+                    </router-link>
                     <span
-                        v-if="details.overview.length > 200"
-                        class="expand-ellipsis ml-3"
-                        @click="showFullOverview = !showFullOverview"
+                        v-if="details.keywords.keywords.length > 5"
+                        class="expand-ellipsis"
+                        @click="showAllTags = !showAllTags"
                         >...</span
                     >
-                    <div>
-                        <router-link
-                            v-for="keyword in showAllTags
-                                ? details.keywords.keywords
-                                : details.keywords.keywords.slice(0, 10)"
-                            :key="keyword.id"
-                            class="mr-2"
-                            :to="{
-                                name: 'discover',
-                                query: {
-                                    keywords: keyword.name,
-                                    with_keywords: keyword.id,
-                                },
-                            }"
-                        >
-                            <el-tag type="info" size="mini">
-                                {{ keyword.name }}
-                            </el-tag>
-                        </router-link>
-                        <span
-                            v-if="details.keywords.keywords.length > 10"
-                            class="expand-ellipsis"
-                            @click="showAllTags = !showAllTags"
-                            >...</span
-                        >
-                    </div>
                 </div>
             </div>
         </div>
@@ -196,6 +186,13 @@
             </div>
         </div>
         <div class="ml-4 mr-4 sliders-container">
+            <!-- overview -->
+            <div class="ml-5 mt-5 mb-3 mobile-hide">
+                <h4>Overview</h4>
+                <div class="pt-3 overview">
+                    {{ details.overview }}
+                </div>
+            </div>
             <div v-if="details.collectionDetails">
                 <mb-slider
                     :items="details.collectionDetails.parts"
@@ -504,10 +501,26 @@ export default {
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
 @primary-container-height: max(50vh, 35rem);
+@all-info-container: calc(max(50vh, 35rem) - 2rem);
 .heading-container {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+.keyword {
+    display: inline;
+    background-color: rgba(0, 0, 0, 0.534);
+    padding: 0.5rem 1rem;
+    border-radius: 3rem;
+    font-size: 14px;
+    backdrop-filter: blur(15px);
+}
+.additional-info {
+    width: 60%;
+    margin-top: 2rem;
+    margin-left: 1rem;
+    bottom: 1rem;
+    position: absolute;
 }
 .watch-price {
     font-size: 0.7rem;
@@ -536,6 +549,7 @@ export default {
 }
 .background-images-container {
     height: @primary-container-height;
+    background: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgba(0,0,0,0) 100%);
     overflow: hidden;
 }
 .background-image {
@@ -576,7 +590,7 @@ export default {
     padding-left: 3.5rem !important;
     overflow: hidden;
     color: @text-color;
-    height: 33em;
+    height: @all-info-container;
     width: 100%;
 }
 .secondary-info {
@@ -603,12 +617,6 @@ export default {
 .movie-overview {
     width: 90%;
     background: @translucent-bg;
-}
-.additional-info {
-    width: 60%;
-    margin-top: 5em;
-    bottom: 0.5em;
-    position: absolute;
 }
 ::v-deep .el-tabs__header {
     padding: 0 2em !important;

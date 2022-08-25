@@ -187,7 +187,6 @@ export default {
             watchListSeries = compact(
                 watchListSeries.map((series) => {
                     if (series.status !== 'Ended' && !series.next_episode_to_air) {
-                        if (!series.last_episode_to_air) console.log(series);
                         series.lastTime = new Date(series.last_episode_to_air.air_date);
                         series.bottomInfo = `Season ${series.last_episode_to_air.season_number + 1}`;
                         return series;

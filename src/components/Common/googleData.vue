@@ -1,40 +1,9 @@
 <template>
     <div>
-        <div style="display: flex" class="mt-3 mb-3">
-            <div class="rating-container tmdb-rating" v-if="item.vote_average">
-                <a href="" target="_blank">
-                    <img src="/images/rating/tmdb.svg" /><br />
-                    <span>{{ item.vote_average.toFixed(1) }}</span>
-                </a>
-            </div>
-            <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                <a :href="rating.link" target="_blank">
-                    <img :src="rating.imagePath" /><br />
-                    <span>{{ rating.rating }}</span>
-                </a>
-            </div>
-        </div>
-        <!-- <div v-if="googleData.allWatchOptions.length || googleData.watchLink" class="ott-links-container mt-4">
-            <a
-                v-for="watchOption in googleData.allWatchOptions"
-                :key="watchOption.name"
-                :href="watchOption.link"
-                target="_blank"
-                @click="watchNowClicked(watchOption)"
-            >
-                <div class="ott-container mr-3">
-                    <img :src="watchOption.imagePath" class="ott-icon" />
-                    <div class="watch-price pt-1">{{ watchOption.price }}</div>
-                </div>
-            </a>
-        </div> -->
         <div class="watch-options-container">
-            <!-- <div class="watch-options-heading">
-                <font-awesome-icon :icon="['fas', 'play']" class="mr-2" /> Watch options
-            </div> -->
-            <div v-if="googleData.allWatchOptions.length || googleData.watchLink" class="ott-links-container mt-3">
+            <div v-if="this.watchOptions.length || googleData.watchLink" class="ott-links-container mt-3">
                 <a
-                    v-for="watchOption in googleData.allWatchOptions"
+                    v-for="watchOption in this.watchOptions"
                     :key="watchOption.name"
                     :href="watchOption.link"
                     target="_blank"
@@ -46,6 +15,29 @@
                         </div>
                         <div class="watch-price pt-1">{{ watchOption.price }}</div>
                     </div>
+                </a>
+                <div v-if="canShowMoreWatchOptions" class="more-options" @click="toggleExpandWatchOptions">
+                    <div v-if="watchOptionsExpanded" class="ott-container mr-3 more-options">
+                        <font-awesome-icon :icon="['fas', 'angle-left']" />
+                    </div>
+                    <div v-if="!watchOptionsExpanded" class="ott-container mr-3 more-options">
+                        <font-awesome-icon :icon="['fas', 'angle-right']" />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <br/>
+        <div class="frosted mt-3 mb-3">
+            <div class="rating-container tmdb-rating" v-if="item.vote_average">
+                <a href="" target="_blank">
+                    <img src="/images/rating/tmdb.svg" /><br />
+                    <span>{{ item.vote_average.toFixed(1) }}</span>
+                </a>
+            </div>
+            <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
+                <a :href="rating.link" target="_blank">
+                    <img :src="rating.imagePath" /><br />
+                    <span>{{ rating.rating }}</span>
                 </a>
             </div>
         </div>
@@ -76,13 +68,24 @@ export default Vue.extend({
                 allWatchOptions: [],
             } as any,
             isGoogleDataLoading: false,
+            watchOptionsExpanded: false,
+            watchOptions: [],
         };
     },
     methods: {
+        toggleExpandWatchOptions() {
+            this.watchOptionsExpanded = !this.watchOptionsExpanded;
+            if (this.watchOptionsExpanded) {
+                this.watchOptions = this.googleData.allWatchOptions;
+            } else {
+                this.watchOptions = this.googleData.allWatchOptions.slice(0, 3);
+            }
+        },
         async getGoogleData() {
             this.isGoogleDataLoading = true;
             const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
             this.googleData = mapGoogleData(googleData);
+            this.watchOptions = this.googleData.allWatchOptions.slice(0, 3);
             this.isGoogleDataLoading = false;
         },
         getYear(movieDate: any) {
@@ -109,6 +112,9 @@ export default Vue.extend({
         },
     },
     computed: {
+        canShowMoreWatchOptions() {
+            return this.googleData.allWatchOptions.length > 3;
+        },
         googleLink() {
             return `https://google.com/search?q=${this.item.name || this.item.title} ${
                 this.item.first_air_date ? 'tv series' : this.getYear(this.item.release_date) + ' movie'
@@ -124,10 +130,8 @@ export default Vue.extend({
 <style lang="less" scoped>
 @import '../../Assets/Styles/main.less';
 .watch-options-container {
-    // min-width: 13rem;
     position: relative;
     padding-left: 1rem;
-    // padding-top: 1rem;
     display: inline-flex;
     background: rgba(28, 28, 28, 0.43);
     box-shadow: inset 0 0 15px rgb(104, 104, 104);
@@ -143,6 +147,26 @@ export default Vue.extend({
         border-radius: 1rem;
         background: rgb(15, 15, 15);
     }
+    .more-options {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-size: 10px;
+        color: whitesmoke;
+        padding-left: 5px;
+        cursor: pointer;
+        width: 2rem;
+        svg {
+            font-size: 2rem;
+        }
+    }
+}
+.frosted {
+    box-shadow: inset 0 0 15px rgb(104, 104, 104);
+    display: inline-flex;
+    padding: 1rem;
+    border-radius: 3rem;
 }
 .rating-container {
     text-align: center;

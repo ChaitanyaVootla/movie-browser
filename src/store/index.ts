@@ -133,7 +133,6 @@ const store = new Vuex.Store({
             }
             const randomFilter = state.randomFilters[identifier]
                 .availableFilters[random(0, state.randomFilters[identifier].availableFilters.length - 1)];
-            console.log(state.savedFilters, randomFilter, state.randomFilters[identifier])
             state.randomFilters[identifier].availableFilters = state.randomFilters[identifier]
                 .availableFilters.filter((filter) => filter.name !== randomFilter.name);
             return randomFilter;

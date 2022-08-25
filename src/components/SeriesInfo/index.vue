@@ -78,8 +78,8 @@
                 </div>
 
                 <!-- overview -->
-                <div class="movie-overview frosted mobile-hide mt-3 p-2">
-                    <span v-if="showFullOverview">{{ details.overview }}</span>
+                <div class="mobile-hide mt-3 p-2">
+                    <!-- <span v-if="showFullOverview">{{ details.overview }}</span>
                     <span v-if="!showFullOverview">{{ details.overview.slice(0, 200) }}</span>
                     <span
                         v-if="details.overview.length > 200"
@@ -87,7 +87,7 @@
                         @click="showFullOverview = !showFullOverview"
                         >...</span
                     >
-                    <br />
+                    <br /> -->
                     <router-link
                         v-for="keyword in details.keywords.results"
                         :key="keyword.id"
@@ -100,9 +100,9 @@
                             },
                         }"
                     >
-                        <el-tag type="info" size="mini" class="mr-2">
+                        <div class="keyword">
                             {{ keyword.name }}
-                        </el-tag>
+                        </div>
                     </router-link>
                 </div>
             </div>
@@ -154,6 +154,13 @@
             </div>
         </div>
         <div class="ml-4 mr-4 sliders-container">
+            <!-- overview -->
+            <div class="ml-5 mt-5 mb-5 mobile-hide">
+                <h4>Overview</h4>
+                <div class="overview pt-3">
+                    {{ details.overview }}
+                </div>
+            </div>
             <!-- Episodes slider -->
             <div class="mt-4 pt-3 pb-3 season-container">
                 <el-select
@@ -443,11 +450,20 @@ export default {
     font-size: 0.7rem;
     color: #aaa;
 }
+.keyword {
+    display: inline;
+    background-color: rgba(0, 0, 0, 0.534);
+    padding: 0.5rem 1rem;
+    border-radius: 3rem;
+    font-size: 14px;
+    backdrop-filter: blur(15px);
+}
 .season-container {
     background-color: rgba(148, 148, 148, 0.05);
 }
 .background-images-container {
     height: @primary-container-height;
+    background: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgba(0,0,0,0) 100%);
     overflow: hidden;
 }
 .background-image {
