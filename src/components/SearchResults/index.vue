@@ -30,7 +30,7 @@
                         {{ getGenreNameFromId(genreId) }}{{ index === result.genre_ids.length - 1 ? '' : ',' }}
                     </span>
                 </div>
-                <div class="mt-3">
+                <div v-if="result.media_type !== 'person'" class="mt-3">
                     <div
                         class="rating-info"
                         :style="`border-color: ${getRatingColor(result.vote_average)}; color: ${getRatingColor(
@@ -42,7 +42,7 @@
                 </div>
                 <div v-if="result.media_type === 'person'" class="mt-4">
                     {{ result.known_for_department }}<br />
-                    <div class="text-muted" style="font-size: 0.9em">
+                    <div class="text-muted wrap-text" style="font-size: 0.9em">
                         <span v-for="(content, index) in result.known_for" :key="index">
                             {{ content.original_title || content.original_name }},
                         </span>
@@ -149,10 +149,16 @@ export default {
     flex-direction: column;
 }
 .word-wrap {
+    display: flex;
+    width: 75%;
     white-space: initial;
     word-break: break-word;
     font-size: 0.8em;
     overflow: hidden;
     max-height: 4em;
+}
+.wrap-text {
+    display: flex;
+    flex-wrap: wrap;
 }
 </style>

@@ -17,7 +17,7 @@
             <div
                 class="movie-item"
                 :class="`${canApplySideBarFilter && !isInSideBarFilter ? 'sideBarFilter' : ''}
-                ${isTodayCard ? 'isTodayCard' : ''} ${isWatched ? 'watched' : ''}`"
+                ${isTodayCard ? 'isTodayCard' : ''} ${isWatched ? 'watched' : ''} ${hideBadge ? 'trim-height':''}`"
             >
                 <el-badge
                     :value="isMobile() || hideBadge ? '' : badgeText"
@@ -32,7 +32,7 @@
                             <img
                                 slot="reference"
                                 v-lazy="imageObj"
-                                class="movie-card-image"
+                                class="movie-card-image shimmer-img"
                                 :alt="movie.name || movie.title"
                             />
                             <popover-info v-if="isPopoverVisible" :item="movie" :configuration="configuration" />
@@ -280,6 +280,9 @@ export default {
 
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
+@img-height-percent: 96%;
+@img-trim-height-percent: 92%;
+
 .movie-card-image[lazy='error'] {
     background-size: 4em;
     padding: 4em;
@@ -348,13 +351,9 @@ export default {
     right: 11.5em;
 }
 .isTodayCard .movie-card-image {
-    // height: 15.5em;
     box-shadow: rgba(80, 80, 80) 0px 0px 10px 0.2em;
 }
 .movie-card-image[lazy='loading'] {
-    background-image: url('../../Assets/Images/loader-bars.svg');
-    background-size: contain;
-    background-size: 4em;
     width: 11em;
 }
 .watched-overlay {
@@ -370,8 +369,11 @@ export default {
 .movie-item {
     cursor: pointer;
     display: flex;
-    // flex-direction: column;
     transition: transform 0.3s ease-in-out;
+    height: @img-height-percent !important;
+    &.trim-height {
+        height: @img-trim-height-percent !important;
+    }
 }
 .movie-item:hover {
     transform: scale(1.02);
@@ -388,6 +390,7 @@ export default {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: 50% 50%;
+    height: 100% !important;
 }
 .watched {
     opacity: 0.7;
@@ -451,6 +454,7 @@ export default {
 }
 .img-container {
     position: relative;
+    height: 100% !important;
 }
 .info-overlay:active {
     transform: none;

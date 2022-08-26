@@ -13,7 +13,7 @@
             <div class="img-container mt-2">
                 <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible"
                     :disabled="isMobile()">
-                    <img slot="reference" v-lazy="imageObj" class="item-card-image" />
+                    <img slot="reference" v-lazy="imageObj" class="item-card-image shimmer-img" />
                     <popover-info
                         v-if="isPopoverVisible"
                         :item="item"
@@ -68,8 +68,6 @@ export default {
     font-size: 1em !important;
 }
 .item-card-image[lazy='loading'] {
-    background-image: url('../../Assets/Images/loader-bars.svg');
-    background-size: contain;
     background-size: 4em;
     width: 20em;
 }

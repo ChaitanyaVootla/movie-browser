@@ -13,7 +13,7 @@
         <el-row class="week-trends-container pt-3 mobile-hide">
             <el-col :span="watchListAbsent ? 24 : 15">
                 <el-carousel
-                    height="42em"
+                    height="43em"
                     :interval="7000"
                     :type="watchListAbsent ? 'card' : ''"
                     @change="carouselChanged"
@@ -29,9 +29,8 @@
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}w1280${item.backdrop_path}`,
                                         error: require('../../Assets/Images/error.svg'),
-                                        loading: require('../../Assets/Images/loader-bars.svg'),
                                     }"
-                                    class="carousel-image"
+                                    class="carousel-image shimmer-img"
                                     :alt="item.title || item.name"
                                 />
                             </div>
@@ -72,6 +71,7 @@
                     :id="'seriesWatchList'"
                     :showFullMovieInfo="showSeriesInfo"
                     :history="true"
+                    :hideBadge="true"
                     heading="Upcoming Episodes"
                     :externalLink="{
                         name: 'WatchList',
@@ -84,6 +84,7 @@
                     :id="'currentStreaming'"
                     :showFullMovieInfo="showSeriesInfo"
                     :history="true"
+                    :hideBadge="true"
                     heading="Streaming now"
                 ></mb-slider>
                 <mb-slider
@@ -93,6 +94,7 @@
                     :id="'watchListMovies'"
                     :showFullMovieInfo="showSeriesInfo"
                     :history="true"
+                    :hideBadge="true"
                     heading="Movies Watch list"
                     :externalLink="{
                         name: 'Interests',
@@ -128,6 +130,7 @@
                         :showFullMovieInfo="showSeriesInfo"
                         v-if="playingNowMovies.length"
                         :history="true"
+                        :hideBadge="true"
                         heading="Now in Theatres"
                     ></mb-slider>
                 </div>
@@ -275,6 +278,9 @@ export default {
     display: flex;
     flex-wrap: wrap;
 }
+#trending-carousel {
+    margin-top: 1rem;
+}
 .googleData-container {
     position: absolute;
     bottom: 2rem;
@@ -312,6 +318,9 @@ export default {
     height: 100%;
     object-fit: cover;
     object-position: 10% 0;
+}
+.carousel-image[lazy="loading"] {
+    animation-duration: 1s;
 }
 .background-images-container {
     filter: opacity(0.5);

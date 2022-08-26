@@ -134,10 +134,10 @@ export default Vue.extend({
     padding-left: 1rem;
     display: inline-flex;
     background: rgba(28, 28, 28, 0.43);
-    box-shadow: inset 0 0 15px rgb(104, 104, 104);
+    box-shadow: inset 0 0 7px rgb(104, 104, 104);
     backdrop-filter: blur(10px);
     flex-direction: column;
-    border-radius: 0.5rem;
+    border-radius: 3rem;
     .watch-options-heading {
         position: absolute;
         top: -1rem;
@@ -158,12 +158,12 @@ export default Vue.extend({
         cursor: pointer;
         width: 2rem;
         svg {
-            font-size: 2rem;
+            font-size: 1.5rem;
         }
     }
 }
 .frosted {
-    box-shadow: inset 0 0 15px rgb(104, 104, 104);
+    box-shadow: inset 0 0 7px rgb(104, 104, 104);
     display: inline-flex;
     padding: 1rem;
     border-radius: 3rem;

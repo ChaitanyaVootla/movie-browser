@@ -31,7 +31,7 @@
             <h6 class="secondary-info ml-3 mobile-hide">
                 <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
                 <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
-                <span class="ml-2" @click="openImageModal">
+                <span class="ml-2 cursor-pointer" @click="openImageModal">
                     <font-awesome-icon :icon="['fas', 'images']" />
                 </span>
             </h6>
@@ -506,14 +506,6 @@ export default {
     display: flex;
     align-items: center;
     gap: 10px;
-}
-.keyword {
-    display: inline;
-    background-color: rgba(0, 0, 0, 0.534);
-    padding: 0.5rem 1rem;
-    border-radius: 3rem;
-    font-size: 14px;
-    backdrop-filter: blur(15px);
 }
 .additional-info {
     width: 60%;

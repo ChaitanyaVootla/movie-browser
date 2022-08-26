@@ -31,6 +31,20 @@
 @default-radius: 4px;
 @light-border: #252525;
 
+.shimmer-img[lazy='loading'] {
+    animation: shimmer 8s infinite;
+    animation-timing-function: linear;
+    background: linear-gradient(to right, #222 4%, #252525 25%, #222 36%);
+}
+@keyframes shimmer{
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+}
+
 .shadow-text {
     text-shadow: 1px 1px 2px black;
 }
@@ -72,7 +86,7 @@ img[src='/images/ott/hotstar.svg'] {
 }
 .frosted {
     background: @translucent-bg;
-    box-shadow: inset 0 0 20px rgb(42, 42, 42);
+    box-shadow: inset 0 0 7px rgb(42, 42, 42);
     backdrop-filter: blur(15px);
     border-radius: @default-radius;
 }
@@ -189,6 +203,17 @@ a {
 }
 .overview {
     font-size: 14px;
+}
+.keyword {
+    display: inline;
+    line-height: 2.5rem;
+    background-color: rgba(0, 0, 0, 0.534);
+    box-shadow: inset 0 0 5px rgb(116, 116, 116);
+    color: #ccc;
+    padding: 0.5rem 1rem;
+    border-radius: 3rem;
+    font-size: 14px;
+    backdrop-filter: blur(15px);
 }
 .el-tag.el-tag--info {
     background-color: #0e0f0fec;

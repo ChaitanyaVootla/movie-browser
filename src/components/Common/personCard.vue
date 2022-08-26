@@ -10,7 +10,7 @@
             }"
         >
             <div class="person-item">
-                <img v-lazy="imageObj" class="person-card-image" />
+                <img v-lazy="imageObj" class="person-card-image shimmer-img" />
                 <!-- TODO check this function is needed -->
                 <!-- <div class="img-overlay">
                     <a :href="`https://google.com/search?q=${person.name}`"
@@ -46,7 +46,9 @@ export default {
 };
 </script>
 
-<style scoped>
+<style scoped lang="less">
+@import '../../Assets/Styles/main.less';
+
 .person-card-image[lazy='error'] {
     background-image: url('../../Assets/Images/error.svg');
     background-size: 2em;
@@ -54,9 +56,6 @@ export default {
     width: 8em;
 }
 .person-card-image[lazy='loading'] {
-    background-image: url('../../Assets/Images/loader-bars.svg');
-    background-size: contain;
-    background-size: 4em;
     width: 8em;
 }
 .person-item {
