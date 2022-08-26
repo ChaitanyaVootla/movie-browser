@@ -328,6 +328,9 @@ export default {
     font-size: 1.1em;
     color: @link-color-red;
 }
+/deep/ .movie-item {
+    margin-right: 3.5em !important;
+}
 @media (max-width: 767px) {
     .background-images-container {
         height: 15em;

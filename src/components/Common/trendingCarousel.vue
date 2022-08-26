@@ -331,7 +331,7 @@ export default {
 }
 .info-container {
     position: absolute;
-    top: 2em;
+    top: 4em;
     margin-left: 6em !important;
     overflow: hidden;
     color: @text-color;

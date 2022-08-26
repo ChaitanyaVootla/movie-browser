@@ -21,7 +21,6 @@
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showFullMovieInfo"
                     :isContinueWatching="true"
-                    class="slider-bg"
                 ></mb-slider>
                 <mb-slider
                     :items="trendingMovies"
@@ -48,7 +47,7 @@
                     :showFullMovieInfo="showSeriesInfo"
                     heading="Recent visits"
                     :isWideCard="true"
-                    class="slider-bg mb-4"
+                    class="mb-4"
                 ></mb-slider>
                 <div v-if="uuid.length && user.displayName">
                     <FilterView

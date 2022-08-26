@@ -64,16 +64,17 @@ export default {
 
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
+
+@card-width: 20rem;
+@card-height: 11rem;
 .watch-ott-icon {
     height: 2.2em;
-    // &[src="/images/ott/apple.png"] {
-        padding: 3px;
-    // }
+    padding: 3px;
 }
 .item-card-image[lazy='error'] {
     background-size: 4em;
     padding: 4em;
-    width: 20em;
+    width: @card-width;
 }
 .item-heading {
     font-size: 1em !important;
@@ -82,7 +83,7 @@ export default {
     background-image: url('../../Assets/Images/loader-bars.svg');
     background-size: contain;
     background-size: 4em;
-    width: 20em;
+    width: @card-width;
 }
 .item-container {
     display: flex;
@@ -97,21 +98,20 @@ export default {
 }
 .item-card-image {
     border-radius: 3px;
-    height: 9em;
+    height: @card-height;
     background-size: cover;
     background-repeat: no-repeat;
     background-position: 50% 50%;
-    // opacity: 0.6;
 }
 .continue-card-text {
-    color: #aaa;
+    color: #ddd;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     padding-bottom: 10px;
-    width: 17em;
+    width: @card-width;
     font-size: 0.9em;
-    max-width: 20em;
+    max-width: @card-width;
     &:hover {
         text-decoration: underline;
     }
