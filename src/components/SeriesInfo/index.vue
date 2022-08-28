@@ -34,7 +34,7 @@
             </div> -->
 
             <!-- Watch links -->
-            <GoogleData class="mt-4" :item="details" :key="details.id" />
+            <GoogleData class="mt-4 googleData-container" :item="details" :key="details.id" />
 
             <!-- Additional info -->
             <div class="additional-info">
@@ -156,7 +156,7 @@
         </div>
         <div class="ml-4 mr-4 sliders-container">
             <!-- overview -->
-            <div class="ml-5 mt-5 mb-2">
+            <div class="overview-container mb-2">
                 <div class="overview-heading">
                     <h4>Overview</h4>
                     <a
@@ -165,35 +165,35 @@
                         target="_blank"
                         class="mr-4"
                     >
-                    <div class="parental-guide">
-                        Parental Guide
-                        <i class="el-icon-top-right"></i>
-                    </div>
+                        <div class="parental-guide">
+                            Parental Guide
+                            <i class="el-icon-top-right"></i>
+                        </div>
                     </a>
                 </div>
                 <div class="overview pt-3">
                     {{ details.overview }}
                 </div>
-            </div>
-            <!-- keywords -->
-            <div class="mt-2 ml-5">
-                <router-link
-                    v-for="keyword in details.keywords.results"
-                    :key="keyword.id"
-                    class="mr-2"
-                    :to="{
-                        name: 'discover',
-                        query: {
-                            keywords: keyword.name,
-                            with_keywords: keyword.id,
-                            isMovies: 'false',
-                        },
-                    }"
-                >
-                    <div class="keyword">
-                        {{ keyword.name }}
-                    </div>
-                </router-link>
+                <!-- keywords -->
+                <div class="keywords-container">
+                    <router-link
+                        v-for="keyword in details.keywords.results"
+                        :key="keyword.id"
+                        class="mr-2"
+                        :to="{
+                            name: 'discover',
+                            query: {
+                                keywords: keyword.name,
+                                with_keywords: keyword.id,
+                                isMovies: 'false',
+                            },
+                        }"
+                    >
+                        <div class="keyword">
+                            {{ keyword.name }}
+                        </div>
+                    </router-link>
+                </div>
             </div>
             <!-- Episodes slider -->
             <div class="mt-4 pt-3 pb-3 season-container">
@@ -627,13 +627,17 @@ export default {
         top: 1em;
         display: grid;
         grid-auto-rows: max(3em);
-        margin: 0 !important;
+        margin: 0;
         padding: 1em !important;
         top: 0;
         > div {
-            margin: 0 !important;
+            margin: 0;
             padding: 0 !important;
         }
+    }
+    .googleData-container {
+        margin-top: 2rem !important;
+        margin-left: 0 !important;
     }
     .rating-info {
         font-size: 1em;

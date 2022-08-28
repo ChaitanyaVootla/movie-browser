@@ -14,7 +14,7 @@
             <el-col :span="watchListAbsent ? 24 : 15">
                 <el-carousel
                     height="43em"
-                    :interval="70000000000"
+                    :interval="7000"
                     :type="watchListAbsent ? 'card' : ''"
                     @change="carouselChanged"
                     arrow="always"

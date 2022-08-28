@@ -160,7 +160,7 @@
         </div>
         <div class="ml-4 mr-4 sliders-container">
             <!-- overview -->
-            <div class="ml-5 mt-5 mb-3">
+            <div class="overview-container">
                 <div class="overview-heading">
                     <h4>Overview</h4>
                     <a
@@ -178,33 +178,31 @@
                 <div class="pt-3 overview">
                     {{ details.overview }}
                 </div>
-            </div>
-            <!-- keywords -->
-            <div class="mt-2 ml-5">
-                <router-link
-                    v-for="keyword in showAllTags
-                        ? details.keywords.keywords
-                        : details.keywords.keywords.slice(0, 5)"
-                    :key="keyword.id"
-                    class="mr-2"
-                    :to="{
-                        name: 'discover',
-                        query: {
-                            keywords: keyword.name,
-                            with_keywords: keyword.id,
-                        },
-                    }"
-                >
-                    <div class="keyword">
-                        {{ keyword.name }}
-                    </div>
-                </router-link>
-                <span
-                    v-if="details.keywords.keywords.length > 5"
-                    class="expand-ellipsis"
-                    @click="showAllTags = !showAllTags"
-                    >...</span
-                >
+                <div class="keywords-container">
+                    <router-link
+                        v-for="keyword in showAllTags
+                            ? details.keywords.keywords
+                            : details.keywords.keywords.slice(0, 5)"
+                        :key="keyword.id"
+                        :to="{
+                            name: 'discover',
+                            query: {
+                                keywords: keyword.name,
+                                with_keywords: keyword.id,
+                            },
+                        }"
+                    >
+                        <div class="keyword">
+                            {{ keyword.name }}
+                        </div>
+                    </router-link>
+                    <span
+                        v-if="details.keywords.keywords.length > 5"
+                        class="expand-ellipsis"
+                        @click="showAllTags = !showAllTags"
+                        >...</span
+                    >
+                </div>
             </div>
             <div v-if="details.collectionDetails">
                 <mb-slider
@@ -693,8 +691,12 @@ export default {
         padding-left: 0.5em !important;
     }
     .all-info-container > div {
-        margin: 0 !important;
+        margin: 0;
         padding: 0 !important;
+    }
+    .googleData-container {
+        margin-top: 2rem !important;
+        margin-left: 0 !important;
     }
     .rating-info {
         font-size: 1em;

@@ -15,6 +15,9 @@
                 <div class="watch-overlay">
                     <img :src="item.watchOption.imagePath" class="watch-ott-icon" />
                 </div>
+                <div class="watch-overlay-play-icon">
+                    <font-awesome-icon :icon="['fas', 'play-circle']" />
+                </div>
             </a>
             <router-link
                 :to="{
@@ -71,10 +74,27 @@ export default {
     height: 2.2em;
     padding: 3px;
 }
+.watch-overlay-play-icon {
+    position: absolute;
+    bottom: 3rem;
+    right: 2rem;
+    @media (max-width: @mobile-width) {
+        bottom: 3rem;
+        right: 1rem;
+    }
+    svg {
+        font-size: 1.2rem;
+        color: #ddd;
+        opacity: 0.7;
+    }
+}
 .item-card-image[lazy='error'] {
     background-size: 4em;
     padding: 4em;
     width: @card-width;
+    @media (max-width: @mobile-width) {
+        width: @mobile-wide-card-width;
+    }
 }
 .item-heading {
     font-size: 1em !important;
@@ -92,6 +112,9 @@ export default {
     cursor: pointer;
     position: relative;
     transition: transform 0.2s;
+    @media (max-width: @mobile-width) {
+        width: @mobile-wide-card-width;
+    }
 }
 .item-container:hover {
     transform: scale(1.02);
@@ -102,6 +125,9 @@ export default {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: 50% 50%;
+    @media (max-width: @mobile-width) {
+        height: @mobile-wide-card-height;
+    }
 }
 .continue-card-text {
     color: #ddd;

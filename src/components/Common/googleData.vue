@@ -138,6 +138,9 @@ export default Vue.extend({
     backdrop-filter: blur(10px);
     flex-direction: column;
     border-radius: 3rem;
+    @media (max-width: @mobile-width) {
+        padding-left: 0.7rem;
+    }
     .watch-options-heading {
         position: absolute;
         top: -1rem;
@@ -159,6 +162,9 @@ export default Vue.extend({
         width: 2rem;
         svg {
             font-size: 1.5rem;
+            @media (max-width: @mobile-width) {
+                font-size: 1.2rem;
+            }
         }
     }
 }
@@ -167,14 +173,25 @@ export default Vue.extend({
     display: inline-flex;
     padding: 1rem;
     border-radius: 3rem;
+    @media (max-width: @mobile-width) {
+        padding: 0.7rem;
+    }
 }
 .rating-container {
     text-align: center;
     img {
         width: 2rem;
+        @media (max-width: @mobile-width) {
+            width: 1.7rem;
+        }
     }
     span {
         font-size: 0.9em;
+        font-weight: 600;
+        color: #ddd;
+        @media (max-width: @mobile-width) {
+            font-size: 0.8em;
+        }
     }
     img {
         height: 2rem;
@@ -203,12 +220,18 @@ export default Vue.extend({
                 height: 2rem;
                 width: auto;
             }
+            @media (max-width: @mobile-width) {
+                width: 2.3rem;
+            }
         }
     }
     .watch-price {
         font-size: 0.65rem;
         color: rgb(207, 207, 207);
         text-shadow: none;
+        @media (max-width: @mobile-width) {
+            font-size: 0.5rem;
+        }
     }
 }
 </style>

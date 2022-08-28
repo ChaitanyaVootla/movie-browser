@@ -20,10 +20,11 @@
 @background-gray: rgb(24, 24, 24);
 @background-gray-light: rgba(148, 148, 148, 0.05);
 @mobile-card-height: 10em;
-@mobile-card-width: 7.5em;
+@mobile-card-width: 8em;
 @mobile-mini-card-width: 6em;
-@mobile-wide-card-width: 15em;
-
+@mobile-wide-card-height: 6em;
+@mobile-wide-card-width: 11.4em;
+@mobile-width: 767px;
 /* Backgrounds */
 @translucent-bg: rgba(0, 0, 0, 0.4);
 
@@ -204,13 +205,30 @@ a {
 .overview {
     font-size: 14px;
 }
-.overview-heading {
-    display: flex;
-    gap: 20px;
-    .parental-guide {
-        background-color: #222;
-        padding: 0.2rem 1rem;
-        border-radius: 0.5rem;
+.overview-container {
+    margin-top: 2rem;
+    margin-left: 3rem;
+    @media (max-width: @mobile-width) {
+        margin-left: 1rem;
+    }
+    .overview-heading {
+        display: flex;
+        gap: 20px;
+        .parental-guide {
+            background-color: #222;
+            padding: 0.2rem 1rem;
+            border-radius: 0.5rem;
+        }
+    }
+    .keywords-container {
+        display: flex;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        gap: 10px;
+        .keyword {
+            display: block;
+            line-height: 1rem;
+        }
     }
 }
 .keyword {
