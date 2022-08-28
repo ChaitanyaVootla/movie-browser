@@ -351,7 +351,7 @@ export default {
     right: 11.5em;
 }
 .isTodayCard .movie-card-image {
-    box-shadow: rgba(80, 80, 80) 0px 0px 10px 0.2em;
+    // box-shadow: rgba(80, 80, 80) 0px 0px 10px 0.2em;
 }
 .movie-card-image[lazy='loading'] {
     width: 11em;
@@ -393,10 +393,10 @@ export default {
     height: 100% !important;
 }
 .watched {
-    opacity: 0.7;
-    filter: grayscale();
-    transition: 300ms;
-    transform: scale(0.92);
+    // opacity: 0.7;
+    // filter: grayscale();
+    // transition: 300ms;
+    // transform: scale(0.92);
 }
 .watched:hover {
     filter: none;

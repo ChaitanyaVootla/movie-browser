@@ -80,6 +80,9 @@ export default {
     cursor: pointer;
     position: relative;
     transition: transform 0.2s;
+    @media (max-width: @mobile-width) {
+        width: @mobile-wide-card-width;
+    }
 }
 .item-container:hover {
     transform: scale(1.02);
@@ -90,6 +93,9 @@ export default {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: 50% 50%;
+    @media (max-width: @mobile-width) {
+        height: @mobile-wide-card-height;
+    }
 }
 .wide-card-text {
     color: #ddd;
