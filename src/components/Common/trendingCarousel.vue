@@ -14,7 +14,7 @@
             <el-col :span="watchListAbsent ? 24 : 15">
                 <el-carousel
                     height="43em"
-                    :interval="7000"
+                    :interval="70000000000"
                     :type="watchListAbsent ? 'card' : ''"
                     @change="carouselChanged"
                     arrow="always"
@@ -35,7 +35,7 @@
                                 />
                             </div>
                             <div class="info-container shadow-text" v-if="currentCarouselItem.id === item.id">
-                                <h3 div="info-heading">
+                                <h3 class="info-heading">
                                     {{ item.title || item.name }}
                                 </h3>
                                 <!-- Genres -->
@@ -337,9 +337,15 @@ export default {
     color: @text-color;
     width: 80% !important;
     height: 90%;
+    .info-heading {
+        font-size: 2.3rem;
+        color: #fff;
+        text-shadow: 0px 0px 20px rgba(0, 0, 0);
+    }
 }
 .secondary-info {
     color: rgb(228, 228, 228);
+    text-shadow: 0px 0px 20px rgba(0, 0, 0);
 }
 .movie-overview {
     width: 80%;

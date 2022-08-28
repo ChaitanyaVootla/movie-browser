@@ -46,7 +46,7 @@
 }
 
 .shadow-text {
-    text-shadow: 1px 1px 2px black;
+    text-shadow: 0px 0px 10px rgba(0, 0, 0);
 }
 .el-loading-mask {
     background-color: rgba(50, 50, 50, 0.9) !important;
@@ -204,6 +204,15 @@ a {
 .overview {
     font-size: 14px;
 }
+.overview-heading {
+    display: flex;
+    gap: 20px;
+    .parental-guide {
+        background-color: #222;
+        padding: 0.2rem 1rem;
+        border-radius: 0.5rem;
+    }
+}
 .keyword {
     display: inline;
     line-height: 2.5rem;
@@ -212,7 +221,7 @@ a {
     color: #ccc;
     padding: 0.5rem 1rem;
     border-radius: 3rem;
-    font-size: 14px;
+    font-size: 13px;
     backdrop-filter: blur(15px);
 }
 .el-tag.el-tag--info {

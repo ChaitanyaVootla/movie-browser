@@ -51,7 +51,7 @@
             <!-- Movie additional info -->
             <div class="additional-info">
                 <!-- External links -->
-                <div class="mt-2 mb-3 pl-2 shadow-text">
+                <!-- <div class="mt-2 mb-3 pl-2 shadow-text">
                     <a :href="googleLink" target="_blank" class="mr-4">
                         <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" />
                     </a>
@@ -74,7 +74,7 @@
                     <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-4">
                         <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
                     </a>
-                </div>
+                </div> -->
                 <!-- bookmarks -->
                 <div class="mt-2 mb-3 pl-2 bookmarks">
                     <el-tooltip
@@ -115,33 +115,6 @@
                             <font-awesome-icon :icon="['fas', 'plus']" />
                         </span>
                     </el-tooltip>
-                </div>
-                <!-- keywords -->
-                <div class="mt-5 ml-2">
-                    <router-link
-                        v-for="keyword in showAllTags
-                            ? details.keywords.keywords
-                            : details.keywords.keywords.slice(0, 5)"
-                        :key="keyword.id"
-                        class="mr-2"
-                        :to="{
-                            name: 'discover',
-                            query: {
-                                keywords: keyword.name,
-                                with_keywords: keyword.id,
-                            },
-                        }"
-                    >
-                        <div class="keyword">
-                            {{ keyword.name }}
-                        </div>
-                    </router-link>
-                    <span
-                        v-if="details.keywords.keywords.length > 5"
-                        class="expand-ellipsis"
-                        @click="showAllTags = !showAllTags"
-                        >...</span
-                    >
                 </div>
             </div>
         </div>
@@ -187,11 +160,51 @@
         </div>
         <div class="ml-4 mr-4 sliders-container">
             <!-- overview -->
-            <div class="ml-5 mt-5 mb-3 mobile-hide">
-                <h4>Overview</h4>
+            <div class="ml-5 mt-5 mb-3">
+                <div class="overview-heading">
+                    <h4>Overview</h4>
+                    <a
+                        v-if="details.imdb_id"
+                        :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
+                        target="_blank"
+                        class="mr-4"
+                    >
+                    <div class="parental-guide">
+                        Parental Guide
+                        <i class="el-icon-top-right"></i>
+                    </div>
+                    </a>
+                </div>
                 <div class="pt-3 overview">
                     {{ details.overview }}
                 </div>
+            </div>
+            <!-- keywords -->
+            <div class="mt-2 ml-5">
+                <router-link
+                    v-for="keyword in showAllTags
+                        ? details.keywords.keywords
+                        : details.keywords.keywords.slice(0, 5)"
+                    :key="keyword.id"
+                    class="mr-2"
+                    :to="{
+                        name: 'discover',
+                        query: {
+                            keywords: keyword.name,
+                            with_keywords: keyword.id,
+                        },
+                    }"
+                >
+                    <div class="keyword">
+                        {{ keyword.name }}
+                    </div>
+                </router-link>
+                <span
+                    v-if="details.keywords.keywords.length > 5"
+                    class="expand-ellipsis"
+                    @click="showAllTags = !showAllTags"
+                    >...</span
+                >
             </div>
             <div v-if="details.collectionDetails">
                 <mb-slider

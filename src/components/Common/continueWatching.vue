@@ -26,7 +26,7 @@
                 }"
                 :title="item.name || item.title"
             >
-                <div class="continue-card-text mt-1">
+                <div class="continue-card-text mt-1 ml-1">
                     {{ item.title || item.name }}
                 </div>
             </router-link>

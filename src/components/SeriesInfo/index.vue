@@ -39,7 +39,7 @@
             <!-- Additional info -->
             <div class="additional-info">
                 <!-- External links -->
-                <div class="mt-1 ml-2 external-links">
+                <!-- <div class="mt-1 ml-2 external-links">
                     <a :href="googleLink" target="_blank" class="mr-3">
                         <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" /> </a
                     >&nbsp;
@@ -54,10 +54,10 @@
                     <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
                         <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
                     </a>
-                </div>
+                </div> -->
 
                 <!-- bookmarks -->
-                <div class="mt-3 bookmarks">
+                <div class="mt-3 ml-2 bookmarks">
                     <el-button v-if="isInWatchList">
                         In watch List
                         <font-awesome-icon :icon="['fas', 'check']" class="ml-1" />
@@ -88,9 +88,10 @@
                         >...</span
                     >
                     <br /> -->
-                    <router-link
+                    <!-- <router-link
                         v-for="keyword in details.keywords.results"
                         :key="keyword.id"
+                        class="mr-2"
                         :to="{
                             name: 'discover',
                             query: {
@@ -103,7 +104,7 @@
                         <div class="keyword">
                             {{ keyword.name }}
                         </div>
-                    </router-link>
+                    </router-link> -->
                 </div>
             </div>
         </div>
@@ -155,11 +156,44 @@
         </div>
         <div class="ml-4 mr-4 sliders-container">
             <!-- overview -->
-            <div class="ml-5 mt-5 mb-5 mobile-hide">
-                <h4>Overview</h4>
+            <div class="ml-5 mt-5 mb-2">
+                <div class="overview-heading">
+                    <h4>Overview</h4>
+                    <a
+                        v-if="details.external_ids.imdb_id"
+                        :href="`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`"
+                        target="_blank"
+                        class="mr-4"
+                    >
+                    <div class="parental-guide">
+                        Parental Guide
+                        <i class="el-icon-top-right"></i>
+                    </div>
+                    </a>
+                </div>
                 <div class="overview pt-3">
                     {{ details.overview }}
                 </div>
+            </div>
+            <!-- keywords -->
+            <div class="mt-2 ml-5">
+                <router-link
+                    v-for="keyword in details.keywords.results"
+                    :key="keyword.id"
+                    class="mr-2"
+                    :to="{
+                        name: 'discover',
+                        query: {
+                            keywords: keyword.name,
+                            with_keywords: keyword.id,
+                            isMovies: 'false',
+                        },
+                    }"
+                >
+                    <div class="keyword">
+                        {{ keyword.name }}
+                    </div>
+                </router-link>
             </div>
             <!-- Episodes slider -->
             <div class="mt-4 pt-3 pb-3 season-container">
@@ -444,19 +478,12 @@ export default {
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
 
-@primary-container-height: 50vh;
+@primary-container-height: max(50vh, 35rem);
+@all-info-container: calc(max(50vh, 35rem) - 2rem);
 
 .watch-price {
     font-size: 0.7rem;
     color: #aaa;
-}
-.keyword {
-    display: inline;
-    background-color: rgba(0, 0, 0, 0.534);
-    padding: 0.5rem 1rem;
-    border-radius: 3rem;
-    font-size: 14px;
-    backdrop-filter: blur(15px);
 }
 .season-container {
     background-color: rgba(148, 148, 148, 0.05);
@@ -519,7 +546,7 @@ export default {
 .all-info-container {
     position: absolute;
     top: 2em;
-    height: calc(@primary-container-height - 1.5rem);
+    height: @all-info-container;
     padding-left: 4.5rem !important;
     overflow: hidden;
     color: @text-color;
