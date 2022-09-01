@@ -69,6 +69,7 @@ jobs:
                     echo "===================== starting node server ====================="
                     echo "==============================================================="
                     cd /movie-browser/server
+                    docker-compose down
                     docker-compose up -d
                     sudo rm -f .env
                     touch .env
