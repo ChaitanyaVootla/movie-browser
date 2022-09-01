@@ -27,7 +27,6 @@ import VueLazyload from 'vue-lazyload';
 import Element from 'element-ui';
 import './Assets/Styles/element-ui.scss';
 import { store } from './store';
-// import { createProvider } from './vue-apollo'
 
 Vue.use(Element);
 
@@ -55,7 +54,6 @@ Vue.component('continueWatching', require('./components/Common/continueWatching.
 Vue.component('wideCard', require('./components/Common/wideCard.vue').default);
 
 Vue.component('discover', require('./components/Discover').default);
-// Vue.component('content', require('./components/Content').default);
 Vue.component('search', require('./components/Search').default);
 Vue.component('streamingNow', require('./components/StreamingNow/index.vue').default);
 Vue.component('suggestions', require('./components/Suggestions/index.vue').default);
@@ -176,7 +174,6 @@ Vue.use(VueRouter);
 new Vue({
     render: (h) => h(App),
     router,
-    // apolloProvider: createProvider(),
     store,
 }).$mount('#app');
 

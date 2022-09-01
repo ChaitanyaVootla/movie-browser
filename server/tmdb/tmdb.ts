@@ -1,12 +1,14 @@
 const axios = require('axios').default;
-const tmdb = require('./index');
+import { tmdb } from './';
 const nodeCache = require('node-cache');
+import { Db } from 'mongodb';
 
 const ttl = 60 * 60 * 24 * 1;
 const cache = new nodeCache({checkperiod: 120});
 
-async function tmdbPassthrough(path) {
+async function tmdbPassthrough(path, db: Db) {
     if (cache.has(path)) {
+        // db.collection('tmdb').insertOne(cache.get(path))
         return cache.get(path);
     }
     const url = `${tmdb.BASE_URL}${path}${path.includes('?')?'':'?'}&api_key=${process.env.TMDB_API_KEY}`;
@@ -15,4 +17,4 @@ async function tmdbPassthrough(path) {
     return details;
 }
 
-module.exports = tmdbPassthrough;
+export {tmdbPassthrough};
