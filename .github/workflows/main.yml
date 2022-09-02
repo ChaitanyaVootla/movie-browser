@@ -69,16 +69,12 @@ jobs:
                     echo "===================== starting node server ====================="
                     echo "==============================================================="
                     cd /movie-browser/server
-                    docker-compose down
-                    docker-compose up -d
                     sudo rm -f .env
                     touch .env
                     echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
                     npm i || true
                     pwd
-                    killall node
-                    npx pm2 kill
-                    killall node
-                    npx pm2 --name server start npm -- start
+                    npm run stop
+                    npm run start:pm2
                     # nohup npx ts-node server.ts > /dev/null 2>&1 &
                     # /etc/init.d/postgresql restart
