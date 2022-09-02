@@ -4,9 +4,9 @@
     "main": "server.js",
     "scripts": {
         "start": "npx ts-node server.ts",
-        "start:pm2": "docker compose up -d && npx pm2 --name server start npm -- start",
-        "stop": "docker compose down && killall node && npx pm2 kill && killall node",
-        "serve": "docker compose up -d && npx nodemon server.ts",
+        "start:pm2": "docker-compose up -d && npx pm2 --name server start npm -- start",
+        "stop": "docker-compose down && killall node && npx pm2 kill && killall node",
+        "serve": "docker-compose up -d && npx nodemon server.ts",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "author": "",
