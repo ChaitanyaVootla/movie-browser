@@ -45,7 +45,6 @@
 </template>
 
 <script lang="ts">
-import { api } from '@/API/api';
 import { db } from '@/Common/firebase';
 import { mapGoogleData } from '@/Common/utils';
 import Vue from 'vue';
@@ -58,15 +57,15 @@ export default Vue.extend({
             type: Object,
             required: true,
         },
-    },
-    created() {
-        this.getGoogleData();
+        rawGoogleData: {
+            type: Object,
+            default: {
+                allWatchOptions: [],
+            }
+        }
     },
     data() {
         return {
-            googleData: {
-                allWatchOptions: [],
-            } as any,
             isGoogleDataLoading: false,
             watchOptionsExpanded: false,
             watchOptions: [],
@@ -81,16 +80,6 @@ export default Vue.extend({
                 this.watchOptions = this.googleData.allWatchOptions.slice(0, 3);
             }
         },
-        async getGoogleData() {
-            this.isGoogleDataLoading = true;
-            const googleData = await api.getOTTLink(encodeURIComponent(this.googleLink.replace('&', '')));
-            this.googleData = mapGoogleData(googleData);
-            this.watchOptions = this.googleData.allWatchOptions.slice(0, 3);
-            this.isGoogleDataLoading = false;
-        },
-        getYear(movieDate: any) {
-            return new Date(movieDate).getFullYear();
-        },
         watchNowClicked(watchOption) {
             if (!this.user.displayName) {
                 return;
@@ -100,25 +89,16 @@ export default Vue.extend({
                 ...this.item,
                 updatedAt: Date.now(),
             });
-            // const userDbRef = db.collection('users').doc(this.user.uid);
-            // userDbRef
-            //     .collection('continueWatching')
-            //     .doc(`${this.item.id}`)
-            //     .set({
-            //         watchOption,
-            //         ...this.item,
-            //         updatedAt: Date.now(),
-            //     });
         },
     },
     computed: {
         canShowMoreWatchOptions() {
             return this.googleData.allWatchOptions.length > 3;
         },
-        googleLink() {
-            return `https://google.com/search?q=${this.item.name || this.item.title} ${
-                this.item.first_air_date ? 'tv series' : this.getYear(this.item.release_date) + ' movie'
-            }`;
+        googleData() {
+            const googleData = mapGoogleData(this.rawGoogleData);
+            this.watchOptions = googleData.allWatchOptions.slice(0, 3);
+            return googleData;
         },
         user() {
             return this.$store.getters.user;
@@ -171,7 +151,7 @@ export default Vue.extend({
 .frosted {
     box-shadow: inset 0 0 7px rgb(104, 104, 104);
     display: inline-flex;
-    padding: 1rem;
+    padding: 0.7rem;
     border-radius: 3rem;
     @media (max-width: @mobile-width) {
         padding: 0.7rem;
@@ -180,13 +160,13 @@ export default Vue.extend({
 .rating-container {
     text-align: center;
     img {
-        width: 2rem;
+        width: 1.8rem;
         @media (max-width: @mobile-width) {
             width: 1.7rem;
         }
     }
     span {
-        font-size: 0.9em;
+        font-size: 0.8em;
         font-weight: 600;
         color: #ddd;
         @media (max-width: @mobile-width) {
@@ -215,7 +195,7 @@ export default Vue.extend({
     .icon-container {
         height: 2.5rem;
         .ott-icon {
-            width: 2.5rem;
+            width: 2.3rem;
             &[src='/images/ott/zee.png'] {
                 height: 2rem;
                 width: auto;
@@ -226,7 +206,7 @@ export default Vue.extend({
         }
     }
     .watch-price {
-        font-size: 0.65rem;
+        font-size: 0.5rem;
         color: rgb(207, 207, 207);
         text-shadow: none;
         @media (max-width: @mobile-width) {

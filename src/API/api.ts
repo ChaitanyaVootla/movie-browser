@@ -49,7 +49,7 @@ export const api = {
     },
     getMovieDetails: async function (id: number) {
         const { data: details } = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.movieDetails}${id}?${detailsDefaultQuery}`,
+            `${appConfig.serverBaseUrl}${serverEndpoints.movieDetails}/${id}`,
         );
         return details;
     },
@@ -67,7 +67,7 @@ export const api = {
     },
     getTvDetails: async function (id: number) {
         const { data: details } = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${id}?${detailsDefaultQuery}`,
+            `${appConfig.serverBaseUrl}${serverEndpoints.tvDetails}/${id}?`,
         );
         return details;
     },

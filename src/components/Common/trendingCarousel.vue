@@ -52,7 +52,7 @@
                                         {{item.vote_average}}
                                     </span>
                                 </div> -->
-                                <GoogleData class="googleData-container" :item="item" />
+                                <GoogleData class="googleData-container" :item="item" :rawGoogleData="googleData"/>
 
                                 <!-- Item overview -->
                                 <!-- <div class="movie-overview frosted p-3 mt-10">
@@ -236,8 +236,14 @@ export default {
         async carouselChanged(currentIndex: number) {
             this.currentCarouselItem = this.trendingListWeek[currentIndex];
             this.googleData = { ratings: [], allWatchOptions: [] };
-            const googleLink = getGoogleLink(this.currentCarouselItem);
-            const googleData = await api.getOTTLink(encodeURIComponent(googleLink.replace('&', '')));
+            let googleData = {};
+            if (this.currentCarouselItem.media_type === 'tv') {
+                const details = await api.getTvDetails(this.currentCarouselItem.id);
+                googleData = details.googleData;
+            } else {
+                const details = await api.getMovieDetails(this.currentCarouselItem.id);
+                googleData = details.googleData;
+            }
             this.googleData = mapGoogleData(googleData);
         },
         getGenreName(id: any) {

@@ -24,7 +24,7 @@
                     {{ getGenreNameFromId(genreId) }}{{ index === item.genre_ids.length - 1 ? '' : ',' }}
                 </span>
             </div>
-            <GoogleData class="mb-2" :item="item" />
+            <GoogleData class="mb-2" :item="item" :rawGoogleData="googleData" :key="googleData.allWatchOptions.length"/>
             <span v-if="showFullOverview">{{ item.overview }}</span>
             <span v-if="!showFullOverview">{{ item.overview.slice(0, 200) }}</span>
             <span
@@ -39,8 +39,9 @@
 
 <script lang="ts">
 import { movieGenres, seriesGenres } from '../../Common/staticConfig';
-import { sanitizeName } from '@/Common/utils';
+import { sanitizeName, isMovie } from '@/Common/utils';
 import GoogleData from './googleData.vue';
+import { api } from '@/API/api';
 
 export default {
     name: 'popoverInfo',
@@ -64,7 +65,20 @@ export default {
             showFullOverview: false,
         };
     },
+    created() {
+        this.getGoogleData();
+    },
     methods: {
+        async getGoogleData() {
+            if (isMovie(this.item)) {
+                const details = await api.getMovieDetails(this.item.id);
+                this.googleData = details.googleData;
+            } else {
+                const details = await api.getTvDetails(this.item.id);
+                this.googleData = details.googleData;
+            }
+            console.log(this.googleData)
+        },
         getGenreNameFromId(genreId: number) {
             const genre = movieGenres.concat(seriesGenres).find(({ id }) => genreId === id);
             if (genre) {

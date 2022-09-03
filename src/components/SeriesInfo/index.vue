@@ -29,33 +29,12 @@
                 </span>
             </h6>
 
-            <!-- Additional info -->
-            <!-- <div class="secondary-info">
-            </div> -->
-
             <!-- Watch links -->
-            <GoogleData class="mt-4 googleData-container" :item="details" :key="details.id" />
+            <GoogleData class="mt-4 googleData-container" :item="details" :key="details.id"
+                :rawGoogleData="details.googleData"/>
 
             <!-- Additional info -->
             <div class="additional-info">
-                <!-- External links -->
-                <!-- <div class="mt-1 ml-2 external-links">
-                    <a :href="googleLink" target="_blank" class="mr-3">
-                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" /> </a
-                    >&nbsp;
-                    <a
-                        v-if="details.external_ids.imdb_id"
-                        :href="`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`"
-                        target="_blank"
-                        class="mr-3"
-                    >
-                        <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" />&nbsp;
-                    </a>
-                    <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-3">
-                        <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
-                    </a>
-                </div> -->
-
                 <!-- bookmarks -->
                 <div class="mt-3 ml-2 bookmarks">
                     <el-button v-if="isInWatchList">
@@ -75,36 +54,6 @@
                             <font-awesome-icon :icon="['fas', 'plus']" class="ml-1" />
                         </el-button>
                     </el-tooltip>
-                </div>
-
-                <!-- overview -->
-                <div class="mobile-hide mt-3 p-2">
-                    <!-- <span v-if="showFullOverview">{{ details.overview }}</span>
-                    <span v-if="!showFullOverview">{{ details.overview.slice(0, 200) }}</span>
-                    <span
-                        v-if="details.overview.length > 200"
-                        class="expand-ellipsis ml-3"
-                        @click="showFullOverview = !showFullOverview"
-                        >...</span
-                    >
-                    <br /> -->
-                    <!-- <router-link
-                        v-for="keyword in details.keywords.results"
-                        :key="keyword.id"
-                        class="mr-2"
-                        :to="{
-                            name: 'discover',
-                            query: {
-                                keywords: keyword.name,
-                                with_keywords: keyword.id,
-                                isMovies: 'false',
-                            },
-                        }"
-                    >
-                        <div class="keyword">
-                            {{ keyword.name }}
-                        </div>
-                    </router-link> -->
                 </div>
             </div>
         </div>

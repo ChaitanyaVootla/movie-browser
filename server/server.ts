@@ -11,6 +11,7 @@ import googleData from './api/puppeteer/googleData';
 import { getMovieDetails } from './db/movieDetails'; 
 import { tmdbPassthrough } from './tmdb/tmdb';
 import { setupDb } from './db/setup';
+import { getTVDetails } from './db/tvDetails';
 
 const mongoUser = `${process.env.MONGO_USER?process.env.TMDB_API_KEY:'root'}`;
 const mongoPass = `${process.env.MONGO_PASS?process.env.MONGO_PASS:'rootpassword'}`;
@@ -54,9 +55,9 @@ app.get('/tmdb/*', async (req, res) => {
         res.json(e);
     }
 });
-app.get('/mongo', async (req, res) => {
+app.get('/cleanmongo', async (req, res) => {
     try {
-        const docs = await db.collection('movie').find().toArray();
+        const docs = await db.collection('movie').drop();
         res.json(docs)
     } catch(e) {
         console.log(e);
@@ -67,6 +68,18 @@ app.get('/movieDetails/:id',
         try {
             const movieId = parseInt(req.params.id);
             const details = await getMovieDetails(db, movieId);
+            return res.json(details);
+        } catch (e) {
+            console.error(e);
+            res.sendStatus(500);
+        }
+    }
+);
+app.get('/tvDetails/:id',
+    async (req, res) => {
+        try {
+            const tvId = parseInt(req.params.id);
+            const details = await getTVDetails(db, tvId);
             return res.json(details);
         } catch (e) {
             console.error(e);

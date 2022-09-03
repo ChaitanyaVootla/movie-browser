@@ -38,7 +38,8 @@
 
 
             <!-- Watch links -->
-            <GoogleData class="mt-5 googleData-container ml-3" :item="details" :key="details.id" />
+            <GoogleData class="mt-5 googleData-container ml-3" :item="details" :key="details.id"
+                :rawGoogleData="details.googleData" />
 
             <!-- budget -->
             <!-- <div style="top: 31em; position: absolute;" class="budget-text mobile-hide">
@@ -50,31 +51,6 @@
 
             <!-- Movie additional info -->
             <div class="additional-info">
-                <!-- External links -->
-                <!-- <div class="mt-2 mb-3 pl-2 shadow-text">
-                    <a :href="googleLink" target="_blank" class="mr-4">
-                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon" />
-                    </a>
-                    <a
-                        v-if="details.imdb_id"
-                        :href="`https://www.imdb.com/title/${details.imdb_id}`"
-                        target="_blank"
-                        class="mr-4"
-                    >
-                        <font-awesome-icon :icon="['fab', 'imdb']" class="ext-link-icon" />
-                    </a>
-                    <a
-                        v-if="details.imdb_id"
-                        :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
-                        target="_blank"
-                        class="mr-4"
-                    >
-                        <font-awesome-icon :icon="['fas', 'exclamation-circle']" class="ext-link-icon" />
-                    </a>
-                    <a v-if="details && details.homepage" :href="details.homepage" target="_blank" class="mr-4">
-                        <font-awesome-icon icon="external-link-square-alt" class="ext-link-icon" />
-                    </a>
-                </div> -->
                 <!-- bookmarks -->
                 <div class="mt-2 mb-3 pl-2 bookmarks">
                     <el-tooltip
@@ -402,13 +378,6 @@ export default {
         async getDetails() {
             this.detailsLoading = true;
             this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
-            if (this.details.belongs_to_collection) {
-                const collectionDetails = await api.collectionDetails(parseInt(this.details.belongs_to_collection.id));
-                collectionDetails.parts = _.sortBy(collectionDetails.parts, ({ release_date }) => {
-                    return release_date ? release_date : 'zzzz';
-                });
-                this.details.collectionDetails = collectionDetails;
-            }
             if (!this.details.adult) {
                 this.updateHistoryData();
             }

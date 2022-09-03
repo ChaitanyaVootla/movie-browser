@@ -1,24 +1,14 @@
 import { sortBy } from 'lodash';
 import puppeteer from 'puppeteer';
-import nodeCache from 'node-cache';
-
-const ttl = 60 * 60 * 24 * 1;
-const cache = new nodeCache({checkperiod: 120});
 
 let page: puppeteer.Page;
 const setupPuppeteer = async () => {
+    console.log("=================== setting up puppeteer ===================");
     const browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: true });
     page = await browser.newPage();
 };
-const googleData = async (str) => {
-    if (cache.has(str)) {
-        return cache.get(str);
-    } else {
-        return forceGetGoogleData(str);
-    }
-};
 
-const forceGetGoogleData = async (str: string) => {
+const getGoogleData = async (str: string) => {
     await page.goto(str, { waitUntil: 'domcontentloaded' });
 
     let ratingsDOM = await page.$$('a.vIUFYd');
@@ -157,7 +147,6 @@ const forceGetGoogleData = async (str: string) => {
         criticReviews,
         imdbId,
     };
-    cache.set(str, result, ttl);
     return result;
 }
 
@@ -169,4 +158,4 @@ const priceMapper = (price: string) => {
 };
 
 setupPuppeteer();
-export default googleData;
+export default getGoogleData;

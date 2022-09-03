@@ -2,6 +2,10 @@ const sanitizeName = (string) => {
     return string.replace(/\s+/g, '-');
 };
 
+const isMovie = (item) => {
+    return item.first_air_date?false:true;
+}
+
 const getRatingColor = (rating) => {
     if (rating === 0) {
         return 'grey';
@@ -196,4 +200,5 @@ export {
     isMobile,
     mapGoogleData,
     getGoogleLink,
+    isMovie,
 };

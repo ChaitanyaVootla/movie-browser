@@ -31,6 +31,8 @@ export const endpoints = {
 const serverEndpoints = {
     keywords: 'keywords',
     ottLink: 'googleData',
+    movieDetails: 'movieDetails',
+    tvDetails: 'tvDetails',
 };
 
 export const discoverDefaultQueries = '&include_video=true&';
