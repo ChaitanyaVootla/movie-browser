@@ -256,7 +256,10 @@ const store = new Vuex.Store({
                                     (moment.duration(moment().diff(new Date(series.updatedAt))).asDays() >= 2) &&
                                     series.status !== 'Ended'
                                 ) {
-                                    const details = await api.getTvDetails(parseInt(series.id))
+                                    let details:any = {};
+                                    if (series?.id) {
+                                        details = await api.getTvDetails(parseInt(series.id))
+                                    }
 
                                     const historyDocToAdd = {
                                         ...omit(details, HISTORY_OMIT_VALUES),

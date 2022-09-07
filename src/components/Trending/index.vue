@@ -204,7 +204,6 @@ export default {
 }
 .trending-sliders-container {
     margin: 0 1em 2em 1em;
-    padding-top: 2em;
 }
 @media (max-width: 767px) {
     .trending-sliders-container {
