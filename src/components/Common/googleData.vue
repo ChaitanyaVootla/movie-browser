@@ -195,7 +195,7 @@ export default Vue.extend({
     .icon-container {
         height: 2.5rem;
         .ott-icon {
-            width: 2.3rem;
+            width: 2.5rem;
             &[src='/images/ott/zee.png'] {
                 height: 2rem;
                 width: auto;
@@ -206,7 +206,7 @@ export default Vue.extend({
         }
     }
     .watch-price {
-        font-size: 0.5rem;
+        font-size: 0.65rem;
         color: rgb(207, 207, 207);
         text-shadow: none;
         @media (max-width: @mobile-width) {

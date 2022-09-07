@@ -1,8 +1,5 @@
 <template>
     <div style="position: relative">
-        <div class="background-images-container" v-loading="detailsLoading">
-            <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
-        </div>
         <div class="all-info-container pl-5" v-if="details.title">
             <div class="heading-container">
                 <h3 class="info-heading ml-3">
@@ -94,44 +91,54 @@
                 </div>
             </div>
         </div>
-        <!-- Trailer/Video -->
-        <div v-if="getYoutubeVideos().length" style="position: absolute; top: 5em; right: 3em" class="mobile-hide">
-            <iframe
-                id="ytplayer"
-                type="text/html"
-                :width="isMobile ? 200 : 640"
-                :height="isMobile ? 120 : 360"
-                class="youtube-player"
-                :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}`"
-                frameborder="0"
-                iv_load_policy="3"
-                fs="1"
-                allowfullscreen="true"
-                autoplay="1"
-                style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0, 0, 0, 0.75)"
-                :key="selectedVideo.key || getYoutubeVideos()[0].key"
-            >
-            </iframe>
-            <div class="dropdown">
-                <button
-                    class="btn dropdown-toggle video-dropdown btn-dark m-0"
-                    type="button"
-                    id="dropdownMenuButton"
-                    data-toggle="dropdown"
-                    aria-haspopup="true"
-                    aria-expanded="false"
+        <div class="background-images-container" v-loading="detailsLoading">
+            <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
+            <div v-if="details.backdrop_path && !showVideo && getYoutubeVideos().length" class="play-trailer" @click="showVideo=true">
+                <font-awesome-icon :icon="['fas', 'play-circle']" />
+                Play Trailer
+            </div>
+            <img v-if="details.backdrop_path && !showVideo" v-lazy="creditImageBasePath + details.backdrop_path" class="main-image" />
+            <!-- Trailer/Video -->
+            <div v-else-if="getYoutubeVideos().length" class="mobile-hide video-player"
+                :key="details.id">
+                <iframe
+                    :id="`ytplayer-${details.id}`"
+                    title="YouTube video player"
+                    width="50%"
+                    height="100%"
+                    class="youtube-player"
+                    :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${selectedVideo.key || getYoutubeVideos()[0].key}`"
+                    frameborder="0"
+                    controls="1"
+                    modestbranding
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                    enablejsapi="1"
+                    style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0, 0, 0, 0.75)"
+                    :key="selectedVideo.key || getYoutubeVideos()[0].key"
                 >
-                    {{ selectedVideo.name || getYoutubeVideos()[0].name }}
-                </button>
-                <div class="dropdown-menu dropdown-menu-middle" aria-labelledby="dropdownMenuButton">
-                    <a
-                        class="dropdown-item"
-                        v-for="video in getYoutubeVideos()"
-                        :key="video.key"
-                        v-on:click="selectVideo(video)"
-                        >{{ video.name }}</a
+                </iframe>
+                <!-- <div class="dropdown">
+                    <button
+                        class="btn dropdown-toggle video-dropdown btn-dark m-0"
+                        type="button"
+                        id="dropdownMenuButton"
+                        data-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false"
                     >
-                </div>
+                        {{ selectedVideo.name || getYoutubeVideos()[0].name }}
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-middle" aria-labelledby="dropdownMenuButton">
+                        <a
+                            class="dropdown-item"
+                            v-for="video in getYoutubeVideos()"
+                            :key="video.key"
+                            v-on:click="selectVideo(video)"
+                            >{{ video.name }}</a
+                        >
+                    </div>
+                </div> -->
             </div>
         </div>
         <div class="ml-4 mr-4 sliders-container">
@@ -307,6 +314,8 @@ export default {
             creditImageBasePath: this.configuration.images.secure_base_url + 'h632',
             detailsLoading: true,
             activeName: 'movies',
+            showVideo: false,
+            videoTimeout: null,
             showFullBio: false,
             movie: {},
             recommendedMovies: [] as any[],
@@ -326,6 +335,12 @@ export default {
         };
     },
     created() {
+        $("#myvideo").on("mouseenter", () => {
+            $(this).attr("controls", "");
+        });
+        $("#myvideo").on("mouseleave", () => {
+            $(this).removeAttr("controls");
+        });
         this.getDetails();
     },
     watch: {
@@ -397,6 +412,7 @@ export default {
             });
             this.detailsLoading = false;
             this.getRating();
+            this.showVideo = false;
         },
         async getRating() {
             const { results: releaseDates } = await api.releaseDates(this.details.id);
@@ -521,17 +537,74 @@ export default {
 }
 .background-images-container {
     height: @primary-container-height;
-    background: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgba(0,0,0,0) 100%);
     overflow: hidden;
-}
-.background-image {
-    background-size: contain;
-    height: @primary-container-height;
-    object-fit: cover;
-    object-position: 50% 25%;
-    width: 100%;
-    overflow: hidden;
-    filter: opacity(0.3) blur(0px);
+    display: flex;
+    justify-content: center;
+    filter: opacity(0.7);
+    pointer-events: none;
+    .play-trailer {
+        position: absolute;
+        bottom: 3rem;
+        left: 30vw;
+        z-index: 10;
+        color: black;
+        background-color: rgba(245, 245, 245, 0.808);
+        opacity: 0.9;
+        font-weight: 700;
+        padding: 1rem;
+        border-radius: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0px 0px 35px 5px rgba(0,0,0,0.75);
+        cursor: pointer;
+        pointer-events: all;
+        svg {
+            font-size: 1.5rem;
+        }
+    }
+    .main-image[lazy='loading'] {
+        box-shadow: none;
+        .play-trailer {
+            display: none;
+        }
+    }
+    .main-image {
+        background-size: auto;
+        height: @primary-container-height;
+        object-fit: cover;
+        object-position: 50% 5%;
+        overflow: hidden;
+        border-bottom-left-radius: 1rem;
+        border-bottom-right-radius: 1rem;
+        z-index: 1;
+        box-shadow: 0px 0px 35px 5px rgba(0,0,0,0.75);
+    }
+    .background-image {
+        position: absolute;
+        background-size: auto;
+        height: @primary-container-height;
+        object-fit: cover;
+        object-position: 50% 25%;
+        width: 100%;
+        overflow: hidden;
+        filter: opacity(0.3) blur(2px);
+    }
+    .video-player {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        right: 1rem;
+        display: flex;
+        justify-content: center;
+        align-content: center;
+        align-items: center;
+        iframe {
+            pointer-events: all;
+            border-radius: 1rem;
+        }
+    }
 }
 .video-dropdown {
     margin-top: 0.6em;
@@ -666,6 +739,7 @@ export default {
     .googleData-container {
         margin-top: 2rem !important;
         margin-left: 0 !important;
+        z-index: 1000000000000;
     }
     .rating-info {
         font-size: 1em;

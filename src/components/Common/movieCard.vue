@@ -393,10 +393,10 @@ export default {
     height: 100% !important;
 }
 .watched {
-    // opacity: 0.7;
-    // filter: grayscale();
-    // transition: 300ms;
-    // transform: scale(0.92);
+    opacity: 0.7;
+    filter: grayscale(0.3);
+    transition: 300ms;
+    transform: scale(0.92);
 }
 .watched:hover {
     filter: none;
