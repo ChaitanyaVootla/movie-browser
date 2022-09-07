@@ -1,5 +1,55 @@
 <template>
     <div style="position: relative">
+        <div class="background-images-container" v-loading="detailsLoading">
+            <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
+            <div v-if="details.backdrop_path && !showVideo && getYoutubeVideos().length" class="play-trailer" @click="showVideo=true">
+                <font-awesome-icon :icon="['fas', 'play-circle']" />
+                Play Trailer
+            </div>
+            <img v-if="details.backdrop_path && !showVideo" v-lazy="creditImageBasePath + details.backdrop_path" class="main-image" />
+            <!-- Trailer/Video -->
+            <div v-else-if="getYoutubeVideos().length" class="mobile-hide video-player"
+                :key="details.id">
+                <iframe
+                    :id="`ytplayer-${details.id}`"
+                    title="YouTube video player"
+                    width="50%"
+                    height="100%"
+                    class="youtube-player"
+                    :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${selectedVideo.key || getYoutubeVideos()[0].key}`"
+                    frameborder="0"
+                    controls="1"
+                    modestbranding
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                    enablejsapi="1"
+                    style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0, 0, 0, 0.75)"
+                    :key="selectedVideo.key || getYoutubeVideos()[0].key"
+                >
+                </iframe>
+                <!-- <div class="dropdown">
+                    <button
+                        class="btn dropdown-toggle video-dropdown btn-dark m-0"
+                        type="button"
+                        id="dropdownMenuButton"
+                        data-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                    >
+                        {{ selectedVideo.name || getYoutubeVideos()[0].name }}
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-middle" aria-labelledby="dropdownMenuButton">
+                        <a
+                            class="dropdown-item"
+                            v-for="video in getYoutubeVideos()"
+                            :key="video.key"
+                            v-on:click="selectVideo(video)"
+                            >{{ video.name }}</a
+                        >
+                    </div>
+                </div> -->
+            </div>
+        </div>
         <div class="all-info-container" v-if="details.name">
             <h3 div="info-heading">
                 {{ details.name }}
@@ -52,56 +102,6 @@
                         </el-button>
                     </el-tooltip>
                 </div>
-            </div>
-        </div>
-        <div class="background-images-container" v-loading="detailsLoading">
-            <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
-            <div v-if="details.backdrop_path && !showVideo && getYoutubeVideos().length" class="play-trailer" @click="showVideo=true">
-                <font-awesome-icon :icon="['fas', 'play-circle']" />
-                Play Trailer
-            </div>
-            <img v-if="details.backdrop_path && !showVideo" v-lazy="creditImageBasePath + details.backdrop_path" class="main-image" />
-            <!-- Trailer/Video -->
-            <div v-else-if="getYoutubeVideos().length" class="mobile-hide video-player"
-                :key="details.id">
-                <iframe
-                    :id="`ytplayer-${details.id}`"
-                    title="YouTube video player"
-                    width="50%"
-                    height="100%"
-                    class="youtube-player"
-                    :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${selectedVideo.key || getYoutubeVideos()[0].key}`"
-                    frameborder="0"
-                    controls="1"
-                    modestbranding
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen
-                    enablejsapi="1"
-                    style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0, 0, 0, 0.75)"
-                    :key="selectedVideo.key || getYoutubeVideos()[0].key"
-                >
-                </iframe>
-                <!-- <div class="dropdown">
-                    <button
-                        class="btn dropdown-toggle video-dropdown btn-dark m-0"
-                        type="button"
-                        id="dropdownMenuButton"
-                        data-toggle="dropdown"
-                        aria-haspopup="true"
-                        aria-expanded="false"
-                    >
-                        {{ selectedVideo.name || getYoutubeVideos()[0].name }}
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-middle" aria-labelledby="dropdownMenuButton">
-                        <a
-                            class="dropdown-item"
-                            v-for="video in getYoutubeVideos()"
-                            :key="video.key"
-                            v-on:click="selectVideo(video)"
-                            >{{ video.name }}</a
-                        >
-                    </div>
-                </div> -->
             </div>
         </div>
         <div class="ml-4 mr-4 sliders-container">
@@ -445,7 +445,8 @@ export default {
     overflow: hidden;
     display: flex;
     justify-content: center;
-    filter: opacity(0.7);
+    position: relative;
+    filter: opacity(0.9);
     pointer-events: none;
     .play-trailer {
         position: absolute;
@@ -558,7 +559,7 @@ export default {
     padding-left: 4.5rem !important;
     overflow: hidden;
     color: @text-color;
-    width: 100%;
+    width: 25%;
 }
 .secondary-info {
     color: #aaa;
