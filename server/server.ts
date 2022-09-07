@@ -15,12 +15,15 @@ import { getTVDetails } from './db/tvDetails';
 
 const mongoUser = `${process.env.MONGO_USER?process.env.TMDB_API_KEY:'root'}`;
 const mongoPass = `${process.env.MONGO_PASS?process.env.MONGO_PASS:'rootpassword'}`;
-const dbUri = `mongodb://${mongoUser}:${mongoPass}@localhost:27017`;
+const dbUri = `mongodb://${mongoUser}:${mongoPass}@${process.env.IS_PROD?.length?'mongodb_container':'localhost'}:27017`;
 const dbClient = new MongoClient(dbUri);
 let db:Db;
 dbClient.connect().then(() => {
+    console.log("SETUP DB COMPLETE")
     db = dbClient.db('test');
     setupDb(db);
+}).catch((e) => {
+    console.error(e);
 });
 app.use(cors());
 

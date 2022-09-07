@@ -10,6 +10,12 @@ services:
       - 27017:27017
     volumes:
       - mongodb:/data/db
+  server:
+    image: chaitanyavootla/tmb:latest
+    profiles:
+      - prod
+    ports:
+      - 3000:3000
 
 volumes:
   mongodb:
