@@ -2,7 +2,7 @@
     <div style="position: relative">
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
-            <div v-if="details.backdrop_path && !showVideo && getYoutubeVideos().length" class="play-trailer" @click="showVideo=true">
+            <div v-if="details.backdrop_path && !showVideo && getYoutubeVideos().length" class="mobile-hide play-trailer" @click="showVideo=true">
                 <font-awesome-icon :icon="['fas', 'play-circle']" />
                 Play Trailer
             </div>
@@ -638,6 +638,7 @@ export default {
         grid-auto-rows: max(3em);
         margin: 0;
         padding: 1em !important;
+        width: 100%;
         top: 0;
         > div {
             margin: 0;
