@@ -37,6 +37,7 @@ jobs:
                 touch .env
                 echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
                 echo "IS_PROD=true" >> .env
+                cat .env
             - name: Set up QEMU
               uses: docker/setup-qemu-action@v2
             - name: Set up Docker Buildx
@@ -49,7 +50,7 @@ jobs:
             - name: Build and push
               uses: docker/build-push-action@v3
               with:
-                context: .
+                context: "{{defaultContext}}:server"
                 push: true
                 tags: chaitanyavootla/tmb:latest
             - name: Build
