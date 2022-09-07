@@ -304,7 +304,6 @@ export default {
     },
     watch: {
         '$route.params.id': function () {
-            document.body.scrollTop = document.documentElement.scrollTop = 0;
             this.getDetails();
         },
     },
@@ -339,6 +338,7 @@ export default {
             this.selectedSeasonInfo = await api.getSeasonDetails(parseInt(this.$route.params.id), this.selectedSeason);
         },
         async getDetails() {
+            document.body.scrollTop = document.documentElement.scrollTop = 0;
             this.detailsLoading = true;
             this.details = await api.getTvDetails(parseInt(this.$route.params.id));
             this.updateHistoryData();

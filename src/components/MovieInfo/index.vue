@@ -345,7 +345,6 @@ export default {
     },
     watch: {
         '$route.params.id': function () {
-            document.body.scrollTop = document.documentElement.scrollTop = 0;
             this.getDetails();
         },
     },
@@ -391,6 +390,7 @@ export default {
             this.posters = this.details.images.posters;
         },
         async getDetails() {
+            document.body.scrollTop = document.documentElement.scrollTop = 0;
             this.detailsLoading = true;
             this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
             if (!this.details.adult) {
