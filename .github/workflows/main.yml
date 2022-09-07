@@ -29,15 +29,6 @@ jobs:
                 echo "MONGO_PASS=$MONGO_PASS" >> .env
                 npm install
                 ls
-            - name: Build server image
-              env:
-                VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
-              run: |
-                cd server
-                touch .env
-                echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
-                echo "IS_PROD=true" >> .env
-                cat .env
             - name: Set up QEMU
               uses: docker/setup-qemu-action@v2
             - name: Set up Docker Buildx
@@ -47,6 +38,16 @@ jobs:
               with:
                 username: ${{ secrets.DOCKERHUB_USERNAME }}
                 password: ${{ secrets.DOCKERHUB_PASSWORD }}
+            - name: Build server image
+              env:
+                VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
+              run: |
+                cd server
+                touch .env
+                echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
+                echo "IS_PROD=true" >> .env
+                cat .env
+                ls
             - name: Build and push
               uses: docker/build-push-action@v3
               with:
