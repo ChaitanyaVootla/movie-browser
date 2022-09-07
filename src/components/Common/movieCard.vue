@@ -394,7 +394,7 @@ export default {
 }
 .watched {
     opacity: 0.7;
-    filter: grayscale(0.3);
+    filter: grayscale();
     transition: 300ms;
     transform: scale(0.92);
 }

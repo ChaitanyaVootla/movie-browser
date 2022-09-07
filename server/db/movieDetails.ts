@@ -14,8 +14,12 @@ const getMovieDetails = async (db: Db, id: number) => {
         return dbEntry;
     }
     const movieDetails = await getTMDBMovieDetails(id);
-    console.log(getSearchQuery(movieDetails))
-    const googleData = await getGoogleData(getSearchQuery(movieDetails));
+    let googleData:any = {};
+    try {
+        googleData = await getGoogleData(getSearchQuery(movieDetails));
+    } catch(e) {
+        console.error(`Failed to get google data for movie: ${movieDetails.title}`)
+    }
 
     if (!movieDetails.imdb_id || (movieDetails.imdb_id === googleData.imdbId)) {
         movieDetails.googleData = googleData;
