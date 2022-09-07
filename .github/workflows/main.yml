@@ -42,16 +42,16 @@ jobs:
               env:
                 VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
               run: |
-                cd server
+                pushd server
                 touch .env
                 echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
                 echo "IS_PROD=true" >> .env
                 cat .env
-                ls
+                popd
             - name: Build and push
               uses: docker/build-push-action@v3
               with:
-                context: "{{defaultContext}}:server"
+                context: ./server
                 push: true
                 tags: chaitanyavootla/tmb:latest
             - name: Build
