@@ -256,7 +256,6 @@ const store = new Vuex.Store({
                             const Allseries = [];
                             snapshot.forEach((doc) => Allseries.push(doc.data()));
                             const batch = writeBatch(db);
-                            console.log("====================================", Allseries)
                             for (const series of Allseries) {
                                 if (
                                     (moment.duration(moment().diff(new Date(series.updatedAt))).asDays() >= 2) &&
@@ -275,7 +274,6 @@ const store = new Vuex.Store({
                                 }
                             };
                             await batch.commit();
-                            console.log("+++++++++++++++++++++++++++++++++++++++", sortBy(Allseries, 'updatedAt').reverse().map(series => trimTmdbObject(series)))
                             commit('setWatchList', {
                                 series: sortBy(Allseries, 'updatedAt').reverse().map(series => trimTmdbObject(series)),
                             });

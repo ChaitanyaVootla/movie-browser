@@ -669,7 +669,6 @@ export default {
             }
             this.minVotes = null;
             if (routeQuery['vote_count.gte']) {
-                console.log("=======asjldhaojlsdhljkas======")
                 this.minVotes = routeQuery['vote_count.gte'];
                 this.showAdvancedFilters = true;
             }
@@ -782,7 +781,6 @@ export default {
                 routerQuery['releaseQueryName'] = this.selectedTimeFrame.name;
             }
             if (this.minVotes) {
-                console.log("==============================")
                 this.computedDiscoverQuery += `&vote_count.gte=${this.minVotes}`;
                 routerQuery['vote_count.gte'] = this.minVotes;
             }

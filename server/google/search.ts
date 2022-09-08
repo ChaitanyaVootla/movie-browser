@@ -3,7 +3,6 @@ import puppeteer from 'puppeteer';
 
 let page: puppeteer.Page;
 const setupPuppeteer = async () => {
-    console.log("=================== setting up puppeteer ===================");
     const browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: true });
     page = await browser.newPage();
 };
