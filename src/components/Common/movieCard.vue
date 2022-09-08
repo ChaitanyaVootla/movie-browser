@@ -243,7 +243,7 @@ export default {
                 : moment(this.movie.first_air_date).isAfter(moment());
         },
         isWatched() {
-            return this.$store.getters.watchedMovieIds.includes(this.movie.id);
+            return this.$store.getters.watchedMovieById(this.movie.id);
         },
         isWatching() {
             return this.$store.getters.watchListSeriesById(this.movie.id);

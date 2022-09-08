@@ -51,7 +51,7 @@ app.get('/googleData', async (req, res) => {
 
 app.get('/tmdb/*', async (req, res) => {
     try {
-        const tmdbRes = await tmdbPassthrough(req.url.split('/tmdb')[1], db);
+        const tmdbRes = await tmdbPassthrough(req.url.split('/tmdb')[1]);
         res.json(tmdbRes);
     } catch (e) {
         console.error(e);

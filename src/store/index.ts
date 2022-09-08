@@ -6,6 +6,7 @@ import moment from 'moment';
 import { collection, doc, setDoc, onSnapshot, writeBatch } from "firebase/firestore";
 import { api } from '../API/api';
 import { HISTORY_OMIT_VALUES } from '../Common/constants';
+import { trimTmdbObject } from './utils';
 Vue.use(Vuex);
 
 const store = new Vuex.Store({
@@ -22,6 +23,7 @@ const store = new Vuex.Store({
             isLoading: true,
             movies: [],
             movieIds: [],
+            movieIdsSet: new Set(),
             series: [],
             seriesIds: [],
         },
@@ -32,8 +34,10 @@ const store = new Vuex.Store({
             isLoading: true,
             movies: [],
             movieIds: [],
+            movieIdsSet: new Set(),
             series: [],
             seriesIds: [],
+            seriesIdsSet: new Set(),
         },
         savedFilters: [],
         randomFilters: {},
@@ -70,6 +74,7 @@ const store = new Vuex.Store({
             if (movies) {
                 state.watched.movies = movies;
                 state.watched.movieIds = movies.map(({ id }) => id);
+                state.watched.movieIdsSet = new Set(state.watched.movieIds)
             }
             if (series) {
                 state.watched.series = series;
@@ -87,10 +92,12 @@ const store = new Vuex.Store({
             if (movies) {
                 state.watchList.movies = movies;
                 state.watchList.movieIds = movies.map(({ id }) => id);
+                state.watchList.movieIdsSet = new Set(state.watchList.movieIds)
             }
             if (series) {
                 state.watchList.series = series;
                 state.watchList.seriesIds = series.map(({ id }) => id);
+                state.watchList.seriesIdsSet = new Set(state.watchList.seriesIds)
             }
             state.watchList.isLoading = false;
         },
@@ -106,14 +113,12 @@ const store = new Vuex.Store({
         user: (state) => state.user,
         history: (state) => state.history,
         watched: (state) => state.watched,
-        watchedMovieIds: (state) => state.watched.movieIds,
         recentVisits: (state) => state.recentVisits,
         allLoaded: (state) => state.allLoaded,
         continueWatching: (state) => state.continueWatching,
-        watchedSeriesIds: (state) => state.watched.seriesIds,
-        watchedMovieById: (state) => (id) => state.watched.movies.find((movie) => movie.id === id),
-        watchListMovieById: (state) => (id) => state.watchList.movies.find((movie) => movie.id === id),
-        watchListSeriesById: (state) => (id) => state.watchList.series.find((series) => series.id === id),
+        watchedMovieById: (state) => (id) => state.watched.movieIdsSet.has(id),
+        watchListMovieById: (state) => (id) => state.watchList.movieIdsSet.has(id),
+        watchListSeriesById: (state) => (id) => state.watchList.seriesIdsSet.has(id),
         watchListMovies: (state) => state.watchList.movies,
         watchListSeries: (state) => state.watchList.series,
         savedFilters: (state) => state.savedFilters,
@@ -184,7 +189,7 @@ const store = new Vuex.Store({
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
                             commit('setWatched', {
-                                movies: sortBy(movies, 'updatedAt').reverse(),
+                                movies: sortBy(movies, 'updatedAt').reverse().map(movie => trimTmdbObject(movie)),
                             });
                         },
                         (e) => console.error(e),
@@ -226,7 +231,7 @@ const store = new Vuex.Store({
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
                             commit('setWatchList', {
-                                movies: sortBy(movies, 'updatedAt').reverse(),
+                                movies: sortBy(movies, 'updatedAt').reverse().map(movie => trimTmdbObject(movie)),
                             });
                         },
                         (e) => console.error(e),
@@ -251,6 +256,7 @@ const store = new Vuex.Store({
                             const Allseries = [];
                             snapshot.forEach((doc) => Allseries.push(doc.data()));
                             const batch = writeBatch(db);
+                            console.log("====================================", Allseries)
                             for (const series of Allseries) {
                                 if (
                                     (moment.duration(moment().diff(new Date(series.updatedAt))).asDays() >= 2) &&
@@ -269,8 +275,9 @@ const store = new Vuex.Store({
                                 }
                             };
                             await batch.commit();
+                            console.log("+++++++++++++++++++++++++++++++++++++++", sortBy(Allseries, 'updatedAt').reverse().map(series => trimTmdbObject(series)))
                             commit('setWatchList', {
-                                series: sortBy(Allseries, 'updatedAt').reverse(),
+                                series: sortBy(Allseries, 'updatedAt').reverse().map(series => trimTmdbObject(series)),
                             });
                         },
                         (e) => console.error(e),
