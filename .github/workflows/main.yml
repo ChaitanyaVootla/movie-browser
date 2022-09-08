@@ -94,5 +94,4 @@ jobs:
                     echo "===================== starting docker services ====================="
                     echo "==============================================================="
                     cd /movie-browser/server
-                    docker-compose --profile prod down
-                    docker-compose --profile prod up -d
+                    npm run start:prod
