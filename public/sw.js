@@ -23,57 +23,6 @@ registerRoute(
 );
 
 registerRoute(
-    ({ url }) => url.pathname.includes('tmdb/'),
-    new CacheFirst({
-        // Put all cached files in a cache named 'tmdb'
-        cacheName: 'tmdb',
-        plugins: [
-            // Ensure that only requests that result in a 200 status are cached
-            new CacheableResponse({
-                statuses: [200],
-            }),
-            new ExpirationPlugin({
-                maxAgeSeconds: 60 * 60 * 3, // 3 hours
-            }),
-        ],
-    }),
-);
-
-registerRoute(
-    ({ url }) => url.pathname.includes('tvDetails/'),
-    new CacheFirst({
-        // Put all cached files in a cache named 'tmdb'
-        cacheName: 'tvDetails',
-        plugins: [
-            // Ensure that only requests that result in a 200 status are cached
-            new CacheableResponse({
-                statuses: [200],
-            }),
-            new ExpirationPlugin({
-                maxAgeSeconds: 60 * 60 * 24 * 1, // 1 day
-            }),
-        ],
-    }),
-);
-
-registerRoute(
-    ({ url }) => url.pathname.includes('movieDetails/'),
-    new CacheFirst({
-        // Put all cached files in a cache named 'tmdb'
-        cacheName: 'movieDetails',
-        plugins: [
-            // Ensure that only requests that result in a 200 status are cached
-            new CacheableResponse({
-                statuses: [200],
-            }),
-            new ExpirationPlugin({
-                maxAgeSeconds: 60 * 60 * 24 * 1, // 1 day
-            }),
-        ],
-    }),
-);
-
-registerRoute(
     ({ request }) => request.destination === 'script' || request.destination === 'style',
     new StaleWhileRevalidate(),
 );
