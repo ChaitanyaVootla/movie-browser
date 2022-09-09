@@ -158,15 +158,15 @@ export default {
             watchListSeries = compact(
                 watchListSeries.map((series) => {
                     if (series.next_episode_to_air) {
-                        const nextAirDays = moment({ hours: 0 }).diff(series.next_episode_to_air.air_date, 'days') * -1;
+                        const nextAirDays = moment({ hours: 0 }).diff(series.next_episode_to_air?.air_date, 'days') * -1;
                         let upcomingText = `In ${nextAirDays} day${nextAirDays > 1 ? 's' : ''}`;
                         if (nextAirDays >= 11 || nextAirDays < 0) {
-                            upcomingText = moment(series.next_episode_to_air.air_date).format('DD MMM YYYY');
+                            upcomingText = moment(series.next_episode_to_air?.air_date).format('DD MMM YYYY');
                         } else if (nextAirDays === 0) {
                             upcomingText = 'Today';
                         }
-                        series.bottomInfo = `${upcomingText} - S${series.next_episode_to_air.season_number} E${series.next_episode_to_air.episode_number}`;
-                        series.upcomingTime = new Date(series.next_episode_to_air.air_date);
+                        series.bottomInfo = `${upcomingText} - S${series.next_episode_to_air?.season_number} E${series.next_episode_to_air.episode_number}`;
+                        series.upcomingTime = new Date(series.next_episode_to_air?.air_date);
                         return series;
                     }
                 }),
@@ -187,8 +187,8 @@ export default {
             watchListSeries = compact(
                 watchListSeries.map((series) => {
                     if (series.status !== 'Ended' && !series.next_episode_to_air) {
-                        series.lastTime = new Date(series.last_episode_to_air.air_date);
-                        series.bottomInfo = `Season ${series.last_episode_to_air.season_number + 1}`;
+                        series.lastTime = new Date(series.last_episode_to_air?.air_date);
+                        series.bottomInfo = `Season ${series.last_episode_to_air?.season_number + 1}`;
                         return series;
                     }
                 }),
@@ -201,7 +201,7 @@ export default {
             watchListSeries = compact(
                 watchListSeries.map((series) => {
                     if (series.status === 'Ended') {
-                        series.lastTime = new Date(series.last_episode_to_air.air_date);
+                        series.lastTime = new Date(series.last_episode_to_air?.air_date);
                         return series;
                     }
                 }),
