@@ -14,6 +14,7 @@ services:
     image: chaitanyavootla/tmb:latest
     profiles:
       - prod
+    pull_policy: always
     ports:
       - 3000:3000
 
