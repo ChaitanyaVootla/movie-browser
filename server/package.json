@@ -20,10 +20,13 @@
         "decompress-targz": "4.1.1",
         "dotenv": "10.0.0",
         "express": "^4.17.1",
+        "express-session": "1.17.3",
         "lodash": "^4.17.21",
         "moment": "^2.29.4",
         "mongodb": "^4.9.0",
         "node-cache": "^5.1.2",
+        "passport": "0.6.0",
+        "passport-google-oauth2": "0.2.0",
         "pg": "^8.7.1",
         "pg-hstore": "^2.3.4",
         "puppeteer": "^10.1.0",
@@ -34,6 +37,8 @@
         "winston": "3.7.2"
     },
     "devDependencies": {
+        "@types/cors": "^2.8.12",
+        "@types/express-session": "^1.17.5",
         "nodemon": "2.0.15",
         "pm2": "5.1.2",
         "ts-node": "10.5.0",

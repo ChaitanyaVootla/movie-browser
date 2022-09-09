@@ -12,6 +12,16 @@ import { getMovieDetails } from './db/movieDetails';
 import { tmdbPassthrough } from './tmdb/tmdb';
 import { setupDb } from './db/setup';
 import { getTVDetails } from './db/tvDetails';
+const passport = require('passport');
+import expressSession from 'express-session';
+require('./passport');
+
+app.use(expressSession({
+    name: 'google-auth-session',
+    secret: 'asdkasidjij*!@#*(ASDH',
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 
 const mongoUser = `${process.env.MONGO_USER?process.env.TMDB_API_KEY:'root'}`;
 const mongoPass = `${process.env.MONGO_PASS?process.env.MONGO_PASS:'rootpassword'}`;
@@ -26,6 +36,30 @@ dbClient.connect().then(() => {
     console.error(e);
 });
 app.use(cors());
+
+// Auth 
+app.get('/auth' , passport.authenticate('google', { scope:
+    [ 'email', 'profile' ]
+}));
+  
+// Auth Callback
+app.get( '/auth/callback',
+    passport.authenticate( 'google', {
+        successRedirect: '/auth/callback/success',
+        failureRedirect: '/auth/callback/failure'
+}));
+  
+// Success 
+app.get('/auth/callback/success' , (req:any , res) => {
+    if(!req.user)
+        res.redirect('/auth/callback/failure');
+    res.json(req.user._json);
+});
+  
+// failure
+app.get('/auth/callback/failure' , (req , res) => {
+    res.send("Error");
+});
 
 app.get('/keywords', (req, res) => {
     if (req.query.q && req.query.q.length > 1) {
