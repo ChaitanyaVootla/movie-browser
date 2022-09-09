@@ -11,7 +11,7 @@ passport.deserializeUser((user, done) => {
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_AUTH_CLIENT_ID,
     clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET,
-    callbackURL:`${process.env.IS_PROD?.length?'http://localhost:3000':'https://themoviebrowser.com/node'}/auth/callback`,
+    callbackURL:`${process.env.IS_PROD?.length?'https://themoviebrowser.com/node':'http://localhost:3000'}/auth/callback`,
     passReqToCallback:true
   },
   function(request, accessToken, refreshToken, profile, done) {
