@@ -41,10 +41,16 @@ jobs:
             - name: Build server image
               env:
                 VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
+                GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
+                GOOGLE_AUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_AUTH_CLIENT_SECRET }}
+                SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
               run: |
                 pushd server
                 touch .env
                 echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
+                echo "GOOGLE_AUTH_CLIENT_ID=$VUE_APP_API_KEY" >> .env
+                echo "GOOGLE_AUTH_CLIENT_SECRET=$VUE_APP_API_KEY" >> .env
+                echo "SESSION_SECRET=$VUE_APP_API_KEY" >> .env
                 echo "IS_PROD=true" >> .env
                 cat .env
                 popd

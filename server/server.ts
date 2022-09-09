@@ -8,7 +8,7 @@ const port = 3000;
 import { Db, MongoClient } from 'mongodb';
 import allKeywords from './allKeywords';
 import googleData from './api/puppeteer/googleData';
-import { getMovieDetails } from './db/movieDetails'; 
+import { getMovieDetails } from './db/movieDetails';
 import { tmdbPassthrough } from './tmdb/tmdb';
 import { setupDb } from './db/setup';
 import { getTVDetails } from './db/tvDetails';
@@ -17,8 +17,10 @@ import expressSession from 'express-session';
 require('./passport');
 
 app.use(expressSession({
-    name: 'google-auth-session',
-    secret: 'asdkasidjij*!@#*(ASDH',
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.IS_PROD?.length > 0 }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -37,29 +39,36 @@ dbClient.connect().then(() => {
 });
 app.use(cors());
 
-// Auth 
+// Auth
 app.get('/auth' , passport.authenticate('google', { scope:
     [ 'email', 'profile' ]
 }));
-  
+
 // Auth Callback
 app.get( '/auth/callback',
     passport.authenticate( 'google', {
         successRedirect: '/auth/callback/success',
         failureRedirect: '/auth/callback/failure'
 }));
-  
-// Success 
+
+// Success
 app.get('/auth/callback/success' , (req:any , res) => {
     if(!req.user)
-        res.redirect('/auth/callback/failure');
-    res.json(req.user._json);
+        return res.redirect('/auth/callback/failure');
+    res.redirect('/');
 });
-  
+
 // failure
 app.get('/auth/callback/failure' , (req , res) => {
     res.send("Error");
 });
+
+app.get("/logout", (req:any, res) => {
+    req.logout((err) => {
+        if (err) { return console.error(err); }
+        res.redirect('/');
+    });
+})
 
 app.get('/keywords', (req, res) => {
     if (req.query.q && req.query.q.length > 1) {
