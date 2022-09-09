@@ -48,9 +48,9 @@ jobs:
                 pushd server
                 touch .env
                 echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
-                echo "GOOGLE_AUTH_CLIENT_ID=$VUE_APP_API_KEY" >> .env
-                echo "GOOGLE_AUTH_CLIENT_SECRET=$VUE_APP_API_KEY" >> .env
-                echo "SESSION_SECRET=$VUE_APP_API_KEY" >> .env
+                echo "GOOGLE_AUTH_CLIENT_ID=$GOOGLE_AUTH_CLIENT_ID" >> .env
+                echo "GOOGLE_AUTH_CLIENT_SECRET=$GOOGLE_AUTH_CLIENT_SECRET" >> .env
+                echo "SESSION_SECRET=$SESSION_SECRET" >> .env
                 echo "IS_PROD=true" >> .env
                 cat .env
                 popd
