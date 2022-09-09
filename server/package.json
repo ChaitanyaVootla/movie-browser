@@ -5,7 +5,7 @@
     "scripts": {
         "start": "npx ts-node server.ts",
         "start:pm2": "docker-compose up -d && npx pm2 --name server start npm -- start",
-        "start:prod": "docker-compose --profile prod down && docker-compose pull && docker-compose --profile prod up -d",
+        "start:prod": "docker-compose --profile prod down && docker pull chaitanyavootla/tmb:latest && docker-compose --profile prod up -d",
         "stop": "docker-compose down && killall node && npx pm2 kill && killall node",
         "serve": "docker-compose up -d && npx nodemon server.ts",
         "test": "echo \"Error: no test specified\" && exit 1"
