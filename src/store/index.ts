@@ -12,6 +12,7 @@ Vue.use(Vuex);
 const store = new Vuex.Store({
     state: {
         user: {},
+        oneTapUser: {},
         history: {
             isLoading: true,
             movies: [],
@@ -51,6 +52,9 @@ const store = new Vuex.Store({
     mutations: {
         setUser(state, user) {
             state.user = user;
+        },
+        setOneTapUser(state, user) {
+            state.oneTapUser = user;
         },
         setAllLoaded(state, isLoaded) {
             state.allLoaded = isLoaded;
@@ -111,6 +115,7 @@ const store = new Vuex.Store({
     },
     getters: {
         user: (state) => state.user,
+        oneTapUser: (state) => state.oneTapUser,
         history: (state) => state.history,
         watched: (state) => state.watched,
         recentVisits: (state) => state.recentVisits,
@@ -144,6 +149,18 @@ const store = new Vuex.Store({
         },
     },
     actions: {
+        init({ commit, state }) {
+            api.getUser().then(
+                (res) => {
+                    commit('setOneTapUser', res);
+                }
+            )
+            api.getLoadData().then(
+                ({user, watchedMovieIds}) => {
+                    state.watched.movieIdsSet = new Set(watchedMovieIds)
+                }
+            )
+        },
         initFirebase({ commit }) {
             onAuthStateChanged(auth, async (user: any) => {
                 if (user) {

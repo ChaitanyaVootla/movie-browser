@@ -17,6 +17,7 @@ import { store } from './store';
 export default {
     created() {
         store.dispatch('initFirebase');
+        // store.dispatch('init');
     },
     computed: {
         isLightMode() {

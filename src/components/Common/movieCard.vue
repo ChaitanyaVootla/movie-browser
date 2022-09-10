@@ -173,6 +173,8 @@ export default {
         },
         async toggleWatched() {
             const details = await api.getMovieDetails(parseInt(this.movie.id));
+            console.log("adding watched")
+            api.addWatched(details.id);
             if (!this.user.displayName) {
                 return;
             }

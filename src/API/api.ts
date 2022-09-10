@@ -13,6 +13,22 @@ import axios from 'axios';
 const showAllResults = () => localStorage.getItem('showAllResults') || false;
 
 export const api = {
+    getUser: async function () {
+        const res = await axios.get(`${appConfig.serverBaseUrl}user`, { withCredentials: true });
+        return res.data;
+    },
+    getLoadData: async function () {
+        const res = await axios.get(`${appConfig.serverBaseUrl}loadData`, { withCredentials: true });
+        return res.data;
+    },
+    signOutOneTap: async function () {
+        const res = await axios.get(`${appConfig.serverBaseUrl}logout`, { withCredentials: true });
+        return res.data;
+    },
+    addWatched: async function (id: number) {
+        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMovies/${id}`, {}, { withCredentials: true });
+        return res.data;
+    },
     getTrendingTv: async function () {
         const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingTvList}`);
         return res.data;

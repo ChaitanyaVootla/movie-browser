@@ -109,13 +109,32 @@
                 </div>
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item mobile-hide" aria-label="Settings">
-                <div @click="signInClicked" v-if="!user.photoURL" class="mt-1 mobile-hide"> Sign in </div>
-                <div @click="signInClicked" v-if="!user.photoURL" class="desk-hide">
+                <div v-if="isNewSignInEnabled">
+                    <div v-if="!oneTapUser.name" class="mt-1 mobile-hide">
+                        <div id="g_id_onload"
+                            data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
+                            data-login_uri="http://localhost:3000/auth/callback"
+                            data-skip_prompt_cookie="googleonetap">
+                        </div>
+                        <div class="g_id_signin mt-3"
+                            data-type="icon"
+                            data-size="medium"
+                            data-shape="circle"
+                            data-theme="outline"
+                            data-text="sign_in_with"
+                            data-logo_alignment="left">
+                        </div>
+                    </div>
+                </div>
+                <div v-else-if="!user.photoURL" @click="signInClicked">
+                    Sign in
+                </div>
+                <div @click="signInClicked" v-if="!user.photoURL && !oneTapUser.name" class="desk-hide">
                     <font-awesome-icon :icon="['fas', 'user']" />
                 </div>
                 <div v-else>
                     <el-dropdown trigger="click" aria-label="Settings">
-                        <img :src="user.photoURL" class="user-photo" />
+                        <img :src="user.photoURL || oneTapUser.picture" class="user-photo" :class="{green: oneTapUser.picture}" />
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
                                 <router-link :to="{ name: 'Interests' }">
@@ -372,11 +391,17 @@ export default {
         });
     },
     computed: {
+        isNewSignInEnabled() {
+            return localStorage.getItem('NEW_LOGIN');
+        },
         isAllResultsShown() {
             return localStorage.getItem('showAllResults') == 'true';
         },
         user() {
             return this.$store.getters.user;
+        },
+        oneTapUser() {
+            return this.$store.getters.oneTapUser;
         },
         onStreamingNow() {
             return this.$route.name === 'StreamingNow';
@@ -433,6 +458,7 @@ export default {
         },
         signOutClicked() {
             signOut();
+            api.signOutOneTap().then(() => location.reload());
         },
         searchInputclicked() {
             this.showSearchResults = true;
@@ -746,6 +772,9 @@ export default {
     height: 2em;
     width: auto;
     border-radius: 100%;
+    &.green {
+        outline: 2px solid orange;
+    }
 }
 .user-menu-item {
     width: 5em;

@@ -15,4 +15,4 @@ async function tmdbPassthrough(path) {
     return details;
 }
 
-export {tmdbPassthrough};
+export { tmdbPassthrough };

@@ -1,15 +1,14 @@
-import { Db } from "mongodb";
-import { dbConstants } from '../utils/constants';
 import { getSearchQuery } from '../utils/google';
 import moment from 'moment';
 import getGoogleData from "../google/search";
 import { getTMDBTVDetails } from "../tmdb/tvDetails";
+import { Series } from "./schemas/Series";
 
 const retainHours = 24;
 
-const getTVDetails = async (db: Db, id: number) => {
+const getTVDetails = async (id: number) => {
     const currentTime = new Date();
-    const dbEntry = await db.collection(dbConstants.tvCollection).findOne({id});
+    const dbEntry = await Series.findOne({id});
     if (dbEntry && moment(dbEntry.updatedAt).diff(currentTime, 'hours') < retainHours) {
         return dbEntry;
     }
@@ -26,12 +25,12 @@ const getTVDetails = async (db: Db, id: number) => {
     } else {
         tvDetails.googleData = {allWatchOptions: []};
     }
-    await db.collection(dbConstants.tvCollection).updateOne(
+    await Series.updateOne(
         {id: id},
         {$set:
             {
                 ...tvDetails,
-                updateAt: new Date(),
+                updatedAt: new Date(),
             },
         },
         {upsert: true});

@@ -5,7 +5,10 @@
         "outDir": "./build",
         "rootDir": ".",
         "moduleResolution": "node",
-        "baseUrl": ".",
+        "baseUrl": "./",
+        "paths": {
+          "@/*": ["src/*"]
+        },
         "esModuleInterop": true,
         "resolveJsonModule": true,
     }
