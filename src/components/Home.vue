@@ -111,9 +111,9 @@
             <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item mobile-hide" aria-label="Settings">
                 <div v-if="isNewSignInEnabled">
                     <div v-if="!oneTapUser.name" class="mt-1 mobile-hide">
-                        <div id="g_id_onload"
+                        <div v-if="loginUrl.length" id="g_id_onload"
                             data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
-                            data-login_uri="http://localhost:3000/auth/callback"
+                            :data-login_uri="loginUrl + '/auth/callback'"
                             data-skip_prompt_cookie="googleonetap">
                         </div>
                         <div class="g_id_signin mt-3"
@@ -391,6 +391,13 @@ export default {
         });
     },
     computed: {
+        loginUrl() {
+            if (window.location.hostname == 'localhost') {
+                return 'http://localhost:3000'
+            } else {
+                return 'https://themoviebrowser.com/node'
+            }
+        },
         isNewSignInEnabled() {
             return localStorage.getItem('NEW_LOGIN');
         },
