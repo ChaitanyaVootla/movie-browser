@@ -205,6 +205,7 @@ const store = new Vuex.Store({
                         (snapshot) => {
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
+                            console.log("watchedMovies", movies.map(({id, updatedAt}) => ({id, updatedAt})));
                             commit('setWatched', {
                                 movies: sortBy(movies, 'updatedAt').reverse().map(movie => trimTmdbObject(movie)),
                             });
@@ -247,6 +248,7 @@ const store = new Vuex.Store({
                         (snapshot) => {
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
+                            console.log("watch list", movies.map(({id, updatedAt}) => ({id, updatedAt})));
                             commit('setWatchList', {
                                 movies: sortBy(movies, 'updatedAt').reverse().map(movie => trimTmdbObject(movie)),
                             });
@@ -272,6 +274,7 @@ const store = new Vuex.Store({
                         async (snapshot) => {
                             const Allseries = [];
                             snapshot.forEach((doc) => Allseries.push(doc.data()));
+                            console.log("series list", Allseries.map(({id, updatedAt}) => ({id, updatedAt})));
                             const batch = writeBatch(db);
                             for (const series of Allseries) {
                                 if (

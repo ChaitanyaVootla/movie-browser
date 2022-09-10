@@ -173,16 +173,16 @@ export default {
         },
         async toggleWatched() {
             const details = await api.getMovieDetails(parseInt(this.movie.id));
-            console.log("adding watched")
-            api.addWatched(details.id);
-            if (!this.user.displayName) {
+            if (!this.user.displayName && !this.oneTapUser.name) {
                 return;
             }
             if (details.release_date) {
                 if (this.isWatched) {
                     const movieRef = doc(db, `users/${this.user.uid}/watchedMovies/${this.movie.id}`);
                     deleteDoc(movieRef);
+                    api.deleteWatched(details.id);
                 } else {
+                    api.addWatched(details.id);
                     addDoc(collection(db, `users/${this.user.uid}/watchedMovies`),  {
                         ...omit(details, HISTORY_OMIT_VALUES),
                         updatedAt: Date.now(),
@@ -276,6 +276,9 @@ export default {
         user() {
             return this.$store.getters.user;
         },
+        oneTapUser() {
+            return this.$store.getters.oneTapUser;
+        }
     },
 };
 </script>

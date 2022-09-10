@@ -29,6 +29,10 @@ export const api = {
         const res = await axios.post(`${appConfig.serverBaseUrl}watchedMovies/${id}`, {}, { withCredentials: true });
         return res.data;
     },
+    deleteWatched: async function (id: number) {
+        const res = await axios.delete(`${appConfig.serverBaseUrl}watchedMovies/${id}`, { withCredentials: true });
+        return res.data;
+    },
     getTrendingTv: async function () {
         const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingTvList}`);
         return res.data;

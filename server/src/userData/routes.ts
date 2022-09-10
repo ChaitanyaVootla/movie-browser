@@ -41,6 +41,21 @@ const setupRoute = (app, db: Db) => {
             }
         }
     );
+    app.delete('/watchedMovies/:id',
+        async (req:IGetUserAuthInfoRequest, res: Response) => {
+            if (req.user?.sub) {
+                const objectToDelete = 
+                    {
+                        movieId: parseInt(req.params.id),
+                        userId: parseInt(req.user.sub),
+                    };
+                await WatchedMovies.deleteOne(objectToDelete)
+                res.status(200).send();
+            } else {
+                res.status(401).json(ERRORS.UNAUTHORIZED)
+            }
+        }
+    );
     app.get('/watchedMovies',
         async (req:IGetUserAuthInfoRequest, res) => {
             if (req.user?.sub) {
