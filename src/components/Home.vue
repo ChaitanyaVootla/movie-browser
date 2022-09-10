@@ -134,7 +134,10 @@
                 </div>
                 <div v-else>
                     <el-dropdown trigger="click" aria-label="Settings">
-                        <img :src="user.photoURL || oneTapUser.picture" class="user-photo" :class="{green: oneTapUser.picture}" />
+                        <img
+                            v-lazy="{src: user.photoURL || oneTapUser.picture}"
+                            class="user-photo"
+                            :class="{green: oneTapUser.picture}"/>
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
                                 <router-link :to="{ name: 'Interests' }">

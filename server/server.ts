@@ -41,7 +41,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.IS_PROD?.length > 0,
+        // secure: process.env.IS_PROD?.length > 0,
         httpOnly: false,
         maxAge: 7 * 24 * 60 * 60 * 1000, // a week of login
     }
