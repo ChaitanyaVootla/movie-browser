@@ -17,7 +17,6 @@ import { IGetUserAuthInfoRequest } from '@/auth/utils';
 
 // routes
 import watchedMoviesRoutes from './src/userData/routes';
-import userRoutes from '@/userData/user/routes';
 import authRoutes from '@/auth/routes';
 import keywordRoutes from '@/keywords/routes';
 import tmdbRoutes from '@/tmdb/routes';
@@ -30,6 +29,7 @@ const dbClient = new MongoClient(dbUri);
 let db:Db;
 
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 app.use(cors({
     origin : "http://localhost",
     credentials: true,
@@ -58,7 +58,6 @@ dbClient.connect().then(() => {
         console.log("mongoose connected")
         // setup routes
         watchedMoviesRoutes(app, db);
-        userRoutes(app);
         authRoutes(app);
         keywordRoutes(app);
         tmdbRoutes(app);

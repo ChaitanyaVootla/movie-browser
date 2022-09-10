@@ -205,7 +205,8 @@ const store = new Vuex.Store({
                         (snapshot) => {
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
-                            console.log("watchedMovies", movies.map(({id, updatedAt}) => ({id, updatedAt})));
+                            const bulk = movies.map(({id, updatedAt}) => ({id, updatedAt}));
+                            api.addWatchedBulk({movieData: bulk});
                             commit('setWatched', {
                                 movies: sortBy(movies, 'updatedAt').reverse().map(movie => trimTmdbObject(movie)),
                             });

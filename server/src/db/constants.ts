@@ -3,6 +3,8 @@ const dbConstants = {
     collections: {
         movies: 'movies',
         watchedMovies: 'watchedMovies',
+        moviesWatchList: 'moviesWatchList',
+        seriesList: 'seriesList',
         tv: 'tv',
         users: 'users',
     }

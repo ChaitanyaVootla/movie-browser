@@ -29,6 +29,10 @@ export const api = {
         const res = await axios.post(`${appConfig.serverBaseUrl}watchedMovies/${id}`, {}, { withCredentials: true });
         return res.data;
     },
+    addWatchedBulk: async function (bulk: any) {
+        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMoviesBulk`, bulk, { withCredentials: true });
+        return res.data;
+    },
     deleteWatched: async function (id: number) {
         const res = await axios.delete(`${appConfig.serverBaseUrl}watchedMovies/${id}`, { withCredentials: true });
         return res.data;
