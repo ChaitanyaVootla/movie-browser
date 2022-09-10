@@ -5,9 +5,43 @@ on:
         branches: [master]
 
 jobs:
-    build:
+    Docker_Build:
         runs-on: ubuntu-latest
+        steps:
+          - name: Set up QEMU
+            uses: docker/setup-qemu-action@v2
+          - name: Set up Docker Buildx
+            uses: docker/setup-buildx-action@v2
+          - name: Login to DockerHub
+            uses: docker/login-action@v2
+            with:
+              username: ${{ secrets.DOCKERHUB_USERNAME }}
+              password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          - name: Build server image
+            env:
+              VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
+              GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
+              GOOGLE_AUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_AUTH_CLIENT_SECRET }}
+              SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+            run: |
+              pushd server
+              touch .env
+              echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
+              echo "GOOGLE_AUTH_CLIENT_ID=$GOOGLE_AUTH_CLIENT_ID" >> .env
+              echo "GOOGLE_AUTH_CLIENT_SECRET=$GOOGLE_AUTH_CLIENT_SECRET" >> .env
+              echo "SESSION_SECRET=$SESSION_SECRET" >> .env
+              echo "IS_PROD=true" >> .env
+              cat .env
+              popd
+          - name: Build and push
+            uses: docker/build-push-action@v3
+            with:
+              context: ./server
+              push: true
+              tags: chaitanyavootla/tmb:latest
 
+    Vue_Build:
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
               env:
@@ -29,37 +63,6 @@ jobs:
                 echo "MONGO_PASS=$MONGO_PASS" >> .env
                 npm install
                 ls
-            - name: Set up QEMU
-              uses: docker/setup-qemu-action@v2
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v2
-            - name: Login to DockerHub
-              uses: docker/login-action@v2
-              with:
-                username: ${{ secrets.DOCKERHUB_USERNAME }}
-                password: ${{ secrets.DOCKERHUB_PASSWORD }}
-            - name: Build server image
-              env:
-                VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
-                GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
-                GOOGLE_AUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_AUTH_CLIENT_SECRET }}
-                SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-              run: |
-                pushd server
-                touch .env
-                echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
-                echo "GOOGLE_AUTH_CLIENT_ID=$GOOGLE_AUTH_CLIENT_ID" >> .env
-                echo "GOOGLE_AUTH_CLIENT_SECRET=$GOOGLE_AUTH_CLIENT_SECRET" >> .env
-                echo "SESSION_SECRET=$SESSION_SECRET" >> .env
-                echo "IS_PROD=true" >> .env
-                cat .env
-                popd
-            - name: Build and push
-              uses: docker/build-push-action@v3
-              with:
-                context: ./server
-                push: true
-                tags: chaitanyavootla/tmb:latest
             - name: Build
               timeout-minutes: 2
               run: |
@@ -75,6 +78,11 @@ jobs:
                 artifacts: 'dist.zip'
                 token: ${{ secrets.GITHUB_TOKEN }}
                 tag: 'latest'
+
+    Deploy:
+        runs-on: ubuntu-latest
+        needs: ['Vue_Build', 'Docker_Build']
+        steps:
             - uses: appleboy/ssh-action@master
               env:
                 VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
