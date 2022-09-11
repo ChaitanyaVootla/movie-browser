@@ -28,7 +28,7 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
         }
     }
 
-    if (!movieDetails.imdb_id || (movieDetails.imdb_id === googleData.imdbId)) {
+    if (!movieDetails.imdb_id || (movieDetails.imdb_id === googleData?.imdbId)) {
         movieDetails.googleData = googleData;
     } else {
         movieDetails.googleData = {allWatchOptions: []};

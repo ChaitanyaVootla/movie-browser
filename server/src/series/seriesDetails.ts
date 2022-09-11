@@ -28,7 +28,7 @@ const getSeriesDetails = async (id: number, options?: seriesGetOptions) => {
         }
     }
 
-    if (!tvDetails?.external_ids?.imdb_id || (tvDetails?.external_ids?.imdb_id === googleData.imdbId)) {
+    if (!tvDetails?.external_ids?.imdb_id || (tvDetails?.external_ids?.imdb_id === googleData?.imdbId)) {
         tvDetails.googleData = googleData;
     } else {
         tvDetails.googleData = {allWatchOptions: []};
