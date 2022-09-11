@@ -5,19 +5,27 @@ import { getTMDBTVDetails } from "../tmdb/tvDetails";
 import { Series } from "../db/schemas/Series";
 
 const retainHours = 24;
+interface seriesGetOptions {
+    force?: Boolean,
+    skipGoogle?: Boolean,
+}
 
-const getTVDetails = async (id: number) => {
+const getSeriesDetails = async (id: number, options?: seriesGetOptions) => {
     const currentTime = new Date();
     const dbEntry = await Series.findOne({id});
-    if (dbEntry && moment(dbEntry.updatedAt).diff(currentTime, 'hours') < retainHours) {
+    if (!options?.force && dbEntry && moment(dbEntry.updatedAt).diff(currentTime, 'hours') < retainHours) {
         return dbEntry;
     }
     const tvDetails = await getTMDBTVDetails(id);
+    if (!tvDetails?.id) {
+        return console.log(`TMDB get for series failed for id: ${id}`)
+    }
     let googleData:any = {};
-    try {
+    if (!options?.skipGoogle) {
         googleData = await getGoogleData(getSearchQuery(tvDetails));
-    } catch(e) {
-        console.error(`Failed to get google data for tv: ${tvDetails.name}`)
+        if (!googleData) {
+            console.error(`Failed to get google data for movie: ${tvDetails?.name}`)
+        }
     }
 
     if (!tvDetails?.external_ids?.imdb_id || (tvDetails?.external_ids?.imdb_id === googleData.imdbId)) {
@@ -37,4 +45,4 @@ const getTVDetails = async (id: number) => {
     return tvDetails;
 }
 
-export { getTVDetails };
+export { getSeriesDetails as getTVDetails };

@@ -1,12 +1,10 @@
 import { sortBy } from 'lodash';
-import puppeteer from 'puppeteer';
-
-let browser: puppeteer.Browser;
-const setupPuppeteer = async () => {
-    browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: true });
-};
+import puppeteer from 'puppeteer-extra';
+import stealth from 'puppeteer-extra-plugin-stealth';
 
 const getGoogleData = async (str: string) => {
+    puppeteer.use(stealth());
+    let browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: true });
     const page = await browser.newPage();
     await page.goto(str, { waitUntil: 'domcontentloaded' });
     try {
@@ -128,9 +126,9 @@ const getGoogleData = async (str: string) => {
         return result;
     } catch(e) {
         console.error('puppeteer failed for string: ', str);
-        return {};
+        return null;
     } finally {
-        await page.close();
+        await browser.close();
     }
 }
 
@@ -141,5 +139,4 @@ const priceMapper = (price: string) => {
     return price.replace('.00', '');
 };
 
-setupPuppeteer();
 export default getGoogleData;

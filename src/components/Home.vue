@@ -772,9 +772,7 @@ export default {
     height: 2em;
     width: auto;
     border-radius: 100%;
-    &.green {
-        outline: 2px solid @main-red;
-    }
+    outline: 2px solid @main-red;
 }
 .user-menu-item {
     width: 5em;

@@ -4,8 +4,8 @@ import { IMoviesWatchList, MoviesWatchList } from "@/db/schemas/MovieWatchList";
 import { Series, SeriesLightFileds } from "@/db/schemas/Series";
 import { ISeriesList, SeriesList } from "@/db/schemas/seriesList";
 import { IWatchedMovie, WatchedMovies } from "@/db/schemas/WatchedMovies";
-import { updateMovies } from "@/tmdb/updateMovies";
-import { updateSeries } from "@/tmdb/updateSeries";
+import { updateMovies } from "@/movies/updateMovies";
+import { updateSeries } from "@/series/updateSeries";
 import { TokenPayload } from "google-auth-library";
 import { keyBy } from "lodash";
 
