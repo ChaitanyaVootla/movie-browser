@@ -7,6 +7,7 @@ const dbConstants = {
         seriesList: 'seriesList',
         tv: 'tv',
         users: 'users',
+        filters: 'filters',
     }
 }
 

@@ -7,7 +7,6 @@ const app = express();
 import cors from 'cors';
 const port = 3000;
 import { Db, MongoClient } from 'mongodb';
-import { setupDb } from '@/db/setup';
 import bodyParser from 'body-parser';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
@@ -21,6 +20,9 @@ import authRoutes from '@/auth/routes';
 import keywordRoutes from '@/keywords/routes';
 import tmdbRoutes from '@/tmdb/routes';
 import dbRoutes from '@/db/routes';
+import moviesRoutes from '@/movies/routes';
+import seriesRoutes from '@/series/routes';
+import filtersRoutes from '@/filters/routes';
 
 const mongoUser = `${process.env.MONGO_USER?process.env.TMDB_API_KEY:'root'}`;
 const mongoPass = `${process.env.MONGO_PASS?process.env.MONGO_PASS:'rootpassword'}`;
@@ -49,7 +51,6 @@ app.use(session({
 
 dbClient.connect().then(() => {
     db = dbClient.db('test');
-    setupDb(db);
 
     // inject user
     app.use((req:IGetUserAuthInfoRequest, res, next) => authInjector(req, res, next));
@@ -61,6 +62,9 @@ dbClient.connect().then(() => {
         authRoutes(app);
         keywordRoutes(app);
         tmdbRoutes(app);
+        moviesRoutes(app);
+        seriesRoutes(app);
+        filtersRoutes(app);
         dbRoutes(app, db);
     
         app.listen(port, () => console.log(`Server started at port: ${port}`));

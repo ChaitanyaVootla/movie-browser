@@ -19,7 +19,6 @@ const getTMDBMovieDetails = async (id: number) => {
         });
         details.collectionDetails = collectionDetails;
     }
-
     return details;
 }
 

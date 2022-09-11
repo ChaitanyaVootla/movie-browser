@@ -11,7 +11,7 @@ Vue.use(Vuex);
 
 const store = new Vuex.Store({
     state: {
-        user: {},
+        user: {} as any,
         oneTapUser: {},
         history: {
             isLoading: true,
@@ -112,8 +112,25 @@ const store = new Vuex.Store({
             state.sideBarFilters.movieGenres = movieGenres;
             state.sideBarFilters.seriesGenres = seriesGenres;
         },
+        addWatched(state, id: number) {
+            state.watched.movieIdsSet.add(id);
+            state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet))
+        },
+        deleteWatched(state, id: number) {
+            state.watched.movieIdsSet.delete(id);
+            state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet))
+        },
+        addWatchListMovie(state, id: number) {
+            state.watchList.movieIdsSet.add(id);
+            state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet))
+        },
+        delteWatchListMovie(state, id: number) {
+            state.watchList.movieIdsSet.delete(id);
+            state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet))
+        },
     },
     getters: {
+        isSignedIn: (state) => state.user.name?true:false,
         user: (state) => state.user,
         oneTapUser: (state) => state.oneTapUser,
         history: (state) => state.history,
@@ -121,9 +138,9 @@ const store = new Vuex.Store({
         recentVisits: (state) => state.recentVisits,
         allLoaded: (state) => state.allLoaded,
         continueWatching: (state) => state.continueWatching,
-        watchedMovieById: (state) => (id) => state.watched.movieIdsSet.has(id),
-        watchListMovieById: (state) => (id) => state.watchList.movieIdsSet.has(id),
-        watchListSeriesById: (state) => (id) => state.watchList.seriesIdsSet.has(id),
+        watchedMovieById: (state) => (id: number) => state.watched.movieIdsSet.has(id),
+        watchListMovieById: (state) => (id: number) => state.watchList.movieIdsSet.has(id),
+        watchListSeriesById: (state) => (id: number) => state.watchList.seriesIdsSet.has(id),
         watchListMovies: (state) => state.watchList.movies,
         watchListSeries: (state) => state.watchList.series,
         savedFilters: (state) => state.savedFilters,
@@ -152,14 +169,35 @@ const store = new Vuex.Store({
         init({ commit, state }) {
             api.getUser().then(
                 (res) => {
-                    commit('setOneTapUser', res);
+                    commit('setUser', res);
                 }
             )
             api.getLoadData().then(
-                ({user, watchedMovieIds}) => {
+                ({watchedMovieIds, watchListMovieIds, watchListMovies, seriesListIds, seriesList, filters}) => {
                     state.watched.movieIdsSet = new Set(watchedMovieIds)
+                    state.watchList.movieIdsSet = new Set(watchListMovieIds)
+                    state.watchList.movies = sortBy(watchListMovies, 'createdAt').reverse()
+                    state.watchList.seriesIdsSet = new Set(seriesListIds)
+                    state.watchList.series = seriesList
+                    state.savedFilters = filters
                 }
             )
+        },
+        addWatchedMovie({ commit, state }, id: number) {
+            api.addWatched(id);
+            commit('addWatched', id);
+        },
+        delteWatchedMovie({ commit, state }, id: number) {
+            api.deleteWatched(id);
+            commit('deleteWatched', id);
+        },
+        addWatchListMovie({ commit, state }, id: number) {
+            api.addWatchListMovie(id);
+            commit('addWatchListMovie', id);
+        },
+        delteWatchListMovie({ commit, state }, id: number) {
+            api.deleteWatchListMovie(id);
+            commit('delteWatchListMovie', id);
         },
         initFirebase({ commit }) {
             onAuthStateChanged(auth, async (user: any) => {
@@ -205,8 +243,6 @@ const store = new Vuex.Store({
                         (snapshot) => {
                             const movies = [];
                             snapshot.forEach((doc) => movies.push(doc.data()));
-                            const bulk = movies.map(({id, updatedAt}) => ({id, updatedAt}));
-                            api.addWatchedBulk({movieData: bulk});
                             commit('setWatched', {
                                 movies: sortBy(movies, 'updatedAt').reverse().map(movie => trimTmdbObject(movie)),
                             });
@@ -266,6 +302,7 @@ const store = new Vuex.Store({
                                     name: doc.id,
                                 }),
                             );
+                            console.log(savedFilters)
                             commit('setSavedFilters', savedFilters);
                         },
                         (e) => console.error(e),

@@ -108,9 +108,9 @@
                     </div>
                 </div>
             </el-menu-item>
-            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item mobile-hide" aria-label="Settings">
-                <div v-if="isNewSignInEnabled">
-                    <div v-if="!oneTapUser.name" class="mt-1 mobile-hide">
+            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item" aria-label="Settings">
+                <div>
+                    <div v-if="!user.name" class="mt-1">
                         <div v-if="loginUrl.length" id="g_id_onload"
                             data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
                             :data-login_uri="loginUrl + '/auth/callback'"
@@ -126,18 +126,11 @@
                         </div>
                     </div>
                 </div>
-                <div v-else-if="!user.photoURL" @click="signInClicked">
-                    Sign in
-                </div>
-                <div @click="signInClicked" v-if="!user.photoURL && !oneTapUser.name" class="desk-hide">
-                    <font-awesome-icon :icon="['fas', 'user']" />
-                </div>
-                <div v-else>
+                <div>
                     <el-dropdown trigger="click" aria-label="Settings">
                         <img
-                            v-lazy="{src: user.photoURL || oneTapUser.picture}"
-                            class="user-photo"
-                            :class="{green: oneTapUser.picture}"/>
+                            v-lazy="{src: user.picture}"
+                            class="user-photo"/>
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
                                 <router-link :to="{ name: 'Interests' }">
@@ -400,9 +393,6 @@ export default {
             } else {
                 return 'https://themoviebrowser.com/node'
             }
-        },
-        isNewSignInEnabled() {
-            return localStorage.getItem('NEW_LOGIN');
         },
         isAllResultsShown() {
             return localStorage.getItem('showAllResults') == 'true';
@@ -783,7 +773,7 @@ export default {
     width: auto;
     border-radius: 100%;
     &.green {
-        outline: 2px solid orange;
+        outline: 2px solid @main-red;
     }
 }
 .user-menu-item {

@@ -104,7 +104,7 @@
                         class="item"
                         effect="light"
                         :content="
-                            user.displayName
+                            isSignedIn
                                 ? isWatched
                                     ? 'Youve watched this'
                                     : 'Watched this?'
@@ -123,7 +123,7 @@
                         class="item"
                         effect="light"
                         :content="
-                            user.displayName
+                            isSignedIn
                                 ? isInWatchList
                                     ? 'Remove from watch list'
                                     : 'Add to watch list'
@@ -301,6 +301,7 @@ import { omit, sortBy } from 'lodash';
 import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 import GoogleData from '../Common/googleData.vue';
 import { deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { mapActions } from 'vuex';
 
 export default {
     name: 'movieInfo',
@@ -349,6 +350,12 @@ export default {
         },
     },
     methods: {
+        ...mapActions({
+            deleteWatched: 'delteWatchedMovie',
+            addWatchedMovie: 'addWatchedMovie',
+            addWatchListMovie: 'addWatchListMovie',
+            delteWatchListMovie: 'delteWatchListMovie',
+        }),
         getRuntime(runtime) {
             let hours = 0;
             if (runtime / 60 >= 1) {
@@ -357,31 +364,17 @@ export default {
             return `${hours ? Math.trunc(hours) + 'h ' : ''}${runtime % 60} m`;
         },
         watchedClicked() {
-            if (!this.user.displayName) {
-                return;
-            }
             if (this.isWatched) {
-                const ref = doc(db, `users/${this.user.uid}/watchedMovies/${this.details.id}`);
-                deleteDoc(ref);
+                this.deleteWatched(this.details.id);
             } else {
-                setDoc(doc(db, `users/${this.user.uid}/watchedMovies/${this.details.id}`),{
-                    ...omit(this.details, HISTORY_OMIT_VALUES),
-                    updatedAt: Date.now(),
-                });
+                this.addWatchedMovie(this.details.id)
             }
         },
         addToListClicked() {
-            if (!this.user.displayName) {
-                return;
-            }
             if (this.isInWatchList) {
-                const ref = doc(db, `users/${this.user.uid}/moviesWatchList/${this.details.id}`);
-                deleteDoc(ref);
+                this.delteWatchListMovie(this.details.id);
             } else {
-                setDoc(doc(db, `users/${this.user.uid}/moviesWatchList/${this.details.id}`),{
-                    ...omit(this.details, HISTORY_OMIT_VALUES),
-                    updatedAt: Date.now(),
-                });
+                this.addWatchListMovie(this.details.id)
             }
         },
         openImageModal() {
@@ -466,6 +459,9 @@ export default {
         },
     },
     computed: {
+        isSignedIn() {
+            return this.$store.getters.isSignedIn;
+        },
         googleLink() {
             return `https://google.com/search?q=${this.details.title} ${this.getYear(this.details.release_date)} movie`;
         },

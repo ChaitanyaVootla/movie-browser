@@ -1,8 +1,8 @@
 import { getSearchQuery } from '@/utils/google';
-import { getTMDBMovieDetails } from '../tmdb/movieDetails';
+import { getTMDBMovieDetails } from '@/tmdb/movieDetails';
 import moment from 'moment';
-import getGoogleData from "../google/search";
-import { Movie } from "./schemas/Movies";
+import getGoogleData from "@/google/search";
+import { Movie } from "@/db/schemas/Movies";
 
 const retainHours = 24;
 

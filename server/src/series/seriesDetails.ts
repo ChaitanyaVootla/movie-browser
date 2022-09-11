@@ -2,7 +2,7 @@ import { getSearchQuery } from '../utils/google';
 import moment from 'moment';
 import getGoogleData from "../google/search";
 import { getTMDBTVDetails } from "../tmdb/tvDetails";
-import { Series } from "./schemas/Series";
+import { Series } from "../db/schemas/Series";
 
 const retainHours = 24;
 

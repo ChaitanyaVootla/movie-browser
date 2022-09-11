@@ -23,7 +23,7 @@ interface IMovie {
     any: Schema.Types.Mixed,
 }
 
-const MovieLightFileds = 'id title adult original_title overview popularity release_date imdb_id';
+const MovieLightFileds = 'id title adult original_title overview popularity release_date imdb_id vote_average genres poster_path backdrop_path';
 
 const Movie = model<IMovie>(dbConstants.collections.movies, MovieSchema);
 export { MovieSchema, IMovie, Movie, MovieLightFileds};

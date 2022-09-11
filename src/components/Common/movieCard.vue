@@ -37,18 +37,6 @@
                             />
                             <popover-info v-if="isPopoverVisible" :item="movie" :configuration="configuration" />
                         </el-popover>
-                        <!-- TODO check if this function is needed -->
-                        <!-- <div class="img-overlay">
-                            <a :href="`https://google.com/search?q=${movie.original_title || movie.name} ${movie.release_date?getYear(movie.release_date):'series'}`"
-                                target="_blank" class="mr-3 pl-2 pr-2">
-                                <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                            </a>
-                            <a @click="onSelected(movie)"
-                                target="_blank" class="mr-1 pl-2 pr-1">
-                                <font-awesome-icon :icon="['fas', 'eye']" class="ext-link-icon"/>
-                            </a>
-                        </div> -->
-                        <!-- <div class="top-overlay" v-if="movie.release_date">{{getDateText(movie.release_date)}}</div> -->
                         <div class="info-overlay">
                             <div v-if="movie.release_date" class="top-overlay">{{
                                 getDateText(movie.release_date)
@@ -63,7 +51,7 @@
                             <el-tooltip
                                 class="item"
                                 effect="light"
-                                :content="user.displayName ? 'Watched this ?' : 'Sign in to use this feature'"
+                                :content="isSignedIn ? 'Watched this ?' : 'Sign in to use this feature'"
                                 placement="bottom"
                                 :open-delay="500"
                                 :disabled="isWatched"
@@ -88,16 +76,12 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
 import { sanitizeName, isMobile } from '../../Common/utils';
 import { getRatingColor, getDateText } from '../../Common/utils';
-import { db } from '../../Common/firebase';
-import { HISTORY_OMIT_VALUES } from '../../Common/constants';
-import { omit, intersection } from 'lodash';
+import { intersection } from 'lodash';
 import moment from 'moment';
-import { movieGenres, seriesGenres } from '../../Common/staticConfig';
 import popoverInfo from './popoverInfo.vue';
-import { doc, deleteDoc, addDoc, collection } from 'firebase/firestore';
+import { mapActions } from 'vuex';
 
 export default {
     components: { popoverInfo },
@@ -162,40 +146,29 @@ export default {
         };
     },
     methods: {
-        getGenreNameFromId(genreId: number) {
-            const genre = movieGenres.concat(seriesGenres).find(({ id }) => genreId === id);
-            if (genre) {
-                return genre.name;
-            }
-        },
-        getYear: function (movieDate: any) {
-            return new Date(movieDate).getFullYear();
-        },
         async toggleWatched() {
-            const details = await api.getMovieDetails(parseInt(this.movie.id));
-            if (!this.user.displayName && !this.oneTapUser.name) {
-                return;
-            }
-            if (details.release_date) {
+            if (this.isMovie) {
                 if (this.isWatched) {
-                    const movieRef = doc(db, `users/${this.user.uid}/watchedMovies/${this.movie.id}`);
-                    deleteDoc(movieRef);
-                    api.deleteWatched(details.id);
+                    this.deleteWatched(this.movie.id);
                 } else {
-                    api.addWatched(details.id);
-                    addDoc(collection(db, `users/${this.user.uid}/watchedMovies`),  {
-                        ...omit(details, HISTORY_OMIT_VALUES),
-                        updatedAt: Date.now(),
-                    });
+                    this.addWatchedMovie(this.movie.id)
                 }
             }
         },
+        ...mapActions({
+            deleteWatched: 'delteWatchedMovie',
+            addWatchedMovie: 'addWatchedMovie',
+        })
     },
     computed: {
-        googleLink() {
-            return `https://google.com/search?q=${this.movie.name || this.movie.title} ${
-                this.movie.first_air_date ? 'tv series' : this.getYear(this.movie.release_date) + ' movie'
-            }`;
+        isSignedIn() {
+            return this.$store.getters.isSignedIn;
+        },
+        isWatched() {
+            return this.$store.getters.watchedMovieById(this.movie.id);
+        },
+        isMovie() {
+            return this.movie.release_date?true:false;
         },
         isInWatchList() {
             return this.$store.getters.watchListMovieById(this.movie.id);
@@ -243,9 +216,6 @@ export default {
             return this.movie.release_date
                 ? moment(this.movie.release_date).isAfter(moment())
                 : moment(this.movie.first_air_date).isAfter(moment());
-        },
-        isWatched() {
-            return this.$store.getters.watchedMovieById(this.movie.id);
         },
         isWatching() {
             return this.$store.getters.watchListSeriesById(this.movie.id);
