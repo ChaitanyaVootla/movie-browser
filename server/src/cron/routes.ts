@@ -40,10 +40,8 @@ const setupRoute = (app: Application) => {
             const allWatchListMoviesIds = (await MoviesWatchList.find({}).select('movieId -_id')).map(doc => doc.toJSON()).map(({movieId}) => movieId);
             const allSeriesIds = (await SeriesList.find({}).select('seriesId -_id')).map(doc => doc.toJSON()).map(({seriesId}) => seriesId);
 
-            await Promise.all([
-                updateMovies(allWatchedMovieIds.concat(allWatchListMoviesIds)),
-                updateSeries(allSeriesIds)
-            ]);
+            await updateMovies(allWatchedMovieIds.concat(allWatchListMoviesIds));
+            await updateSeries(allSeriesIds)
             res.status(200).send('ok')
         }
     );
