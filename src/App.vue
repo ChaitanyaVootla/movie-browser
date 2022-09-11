@@ -16,11 +16,7 @@ import { store } from './store';
 // })
 export default {
     created() {
-        if (localStorage.getItem('NEW_LOGIN')) {
-            store.dispatch('init');
-        } else {
-            store.dispatch('initFirebase');
-        }
+        store.dispatch('init');
     },
     computed: {
         isLightMode() {
