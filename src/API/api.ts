@@ -15,35 +15,39 @@ const showAllResults = () => localStorage.getItem('showAllResults') || false;
 
 export const api = {
     getUser: async function () {
-        const res = await axios.get(`${appConfig.serverBaseUrl}user`, { withCredentials: true });
+        const res = await axios.get(`${appConfig.serverBaseUrl}user`);
         return res.data;
     },
     getLoadData: async function () {
-        const res = await axios.get(`${appConfig.serverBaseUrl}loadData`, { withCredentials: true });
+        const res = await axios.get(`${appConfig.serverBaseUrl}loadData`);
         return res.data;
     },
     signOutOneTap: async function () {
-        const res = await axios.get(`${appConfig.serverBaseUrl}logout`, { withCredentials: true });
+        const res = await axios.get(`${appConfig.serverBaseUrl}logout`);
         return res.data;
     },
     addWatched: async function (id: number) {
-        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMovies/${id}`, {}, { withCredentials: true });
+        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMovies/${id}`, {});
         return res.data;
     },
     addWatchedBulk: async function (bulk: any) {
-        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMoviesBulk`, bulk, { withCredentials: true });
+        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMoviesBulk`, bulk);
         return res.data;
     },
     deleteWatched: async function (id: number) {
-        const res = await axios.delete(`${appConfig.serverBaseUrl}watchedMovies/${id}`, { withCredentials: true });
+        const res = await axios.delete(`${appConfig.serverBaseUrl}watchedMovies/${id}`);
         return res.data;
     },
     addWatchListMovie: async function (id: number) {
-        const res = await axios.post(`${appConfig.serverBaseUrl}watchListMovie/${id}`, {}, { withCredentials: true });
+        const res = await axios.post(`${appConfig.serverBaseUrl}watchListMovie/${id}`, {});
         return res.data;
     },
     deleteWatchListMovie: async function (id: number) {
-        const res = await axios.delete(`${appConfig.serverBaseUrl}watchListMovie/${id}`, { withCredentials: true });
+        const res = await axios.delete(`${appConfig.serverBaseUrl}watchListMovie/${id}`);
+        return res.data;
+    },
+    addRecent: async function (itemId: number, isMovie: Boolean) {
+        const res = await axios.post(`${appConfig.serverBaseUrl}recents`, {itemId, isMovie});
         return res.data;
     },
     getTrendingTv: async function () {

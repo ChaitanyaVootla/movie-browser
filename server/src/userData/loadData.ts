@@ -1,6 +1,7 @@
 import { Filters, IFilter } from "@/db/schemas/filters";
 import { Movie, MovieLightFileds } from "@/db/schemas/Movies";
 import { IMoviesWatchList, MoviesWatchList } from "@/db/schemas/MovieWatchList";
+import { IRecent, Recent } from "@/db/schemas/recents";
 import { Series, SeriesLightFileds } from "@/db/schemas/Series";
 import { ISeriesList, SeriesList } from "@/db/schemas/seriesList";
 import { IWatchedMovie, WatchedMovies } from "@/db/schemas/WatchedMovies";
@@ -21,6 +22,12 @@ const loadData = async (user: TokenPayload) => {
         ).map(doc=> doc.toJSON()) as ISeriesList[];
     const filters = (
         await Filters.find({userId: user.sub})).map(doc=> doc.toJSON()) as IFilter[];
+    const recentsDocs = (
+        await Recent.find({userId: user.sub}).select('itemId isMovie -_id')).map(doc=> doc.toJSON()) as IRecent[];
+
+    const recentMovieIds = recentsDocs.filter(({isMovie}) => isMovie).map(({itemId}) => itemId);
+    const recentSeriesIds = recentsDocs.filter(({isMovie}) => !isMovie).map(({itemId}) => itemId);
+    
     const watchedMovieIds = watchedMovies.map(({movieId}) => movieId);
     const watchListMovieIds = watchListMovies.map(({movieId}) => movieId);
     const watchListMovieToCreatedAt = keyBy(watchListMovies, 'movieId');
@@ -31,6 +38,10 @@ const loadData = async (user: TokenPayload) => {
             ...movie,
             createdAt: watchListMovieToCreatedAt[movie.id]?.createdAt
         }));
+    const recentMovies = await (await Movie.find({id: {$in: recentMovieIds}})
+        .select(MovieLightFileds)).map(doc => doc.toJSON());
+    const recentSeries = await (await Series.find({id: {$in: recentSeriesIds}})
+        .select(SeriesLightFileds)).map(doc => doc.toJSON());
     const seriesData = await (await Series.find({id: {$in: seriesListIds}})
         .select(SeriesLightFileds)).map(doc => doc.toJSON());
 
@@ -38,6 +49,7 @@ const loadData = async (user: TokenPayload) => {
     // updateSeries(seriesListIds);
     return {
         user,
+        recents: recentMovies.concat(recentSeries),
         watchedMovieIds,
         watchListMovieIds,
         watchListMovies: watchListMoviesData,

@@ -173,13 +173,14 @@ const store = new Vuex.Store({
                 }
             )
             api.getLoadData().then(
-                ({watchedMovieIds, watchListMovieIds, watchListMovies, seriesListIds, seriesList, filters}) => {
+                ({watchedMovieIds, watchListMovieIds, watchListMovies, seriesListIds, seriesList, filters, recents}) => {
                     state.watched.movieIdsSet = new Set(watchedMovieIds)
                     state.watchList.movieIdsSet = new Set(watchListMovieIds)
                     state.watchList.movies = sortBy(watchListMovies, 'createdAt').reverse()
                     state.watchList.seriesIdsSet = new Set(seriesListIds)
                     state.watchList.series = seriesList
                     state.savedFilters = filters
+                    state.recentVisits = sortBy(recents, 'updatedAt').reverse()
                 }
             )
         },

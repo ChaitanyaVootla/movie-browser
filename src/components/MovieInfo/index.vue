@@ -432,26 +432,7 @@ export default {
             }
         },
         async updateHistoryData() {
-            onAuthStateChanged(auth, async (user) => {
-                if (user && this.$store.getters.allLoaded) {
-                    let recentVisits = this.$store.getters.recentVisits;
-                    const historyDocToAdd = {
-                        ...omit(this.details, HISTORY_OMIT_VALUES),
-                        updatedAt: Date.now(),
-                    } as any;
-                    const addedItem = recentVisits.find(
-                        ({ id, title }) => historyDocToAdd.id === id && historyDocToAdd.title === title,
-                    );
-                    if (addedItem) {
-                        recentVisits = recentVisits.filter(
-                            ({ id, title }) => !(historyDocToAdd.id === id && historyDocToAdd.title === title),
-                        );
-                    }
-                    recentVisits.push(historyDocToAdd);
-                    setDoc(doc(db, `users/${this.user.uid}/userData/recentVisits`),
-                        Object.assign({}, sortBy(recentVisits, 'updatedAt').reverse().slice(0, 10)));
-                }
-            });
+            api.addRecent(this.details.id, true);
         },
         getYoutubeVideos: function () {
             if (this.details.videos && this.details.videos.results) {
