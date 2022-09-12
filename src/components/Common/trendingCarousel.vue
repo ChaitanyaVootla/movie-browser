@@ -318,6 +318,10 @@ export default {
     flex-direction: column;
     justify-content: space-between;
     height: 100%;
+    .main-slider-div {
+        padding-top: 0.5rem;
+        padding-bottom: 0;
+    }
 }
 .carousel-image {
     width: 100%;

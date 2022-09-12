@@ -110,8 +110,8 @@
                 <div class="overview-heading">
                     <h4>Overview</h4>
                     <a
-                        v-if="details.external_ids.imdb_id"
-                        :href="`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`"
+                        v-if="imdbId"
+                        :href="`https://www.imdb.com/title/${imdbId}/parentalguide`"
                         target="_blank"
                         class="mr-4"
                     >
@@ -127,15 +127,15 @@
                 <!-- keywords -->
                 <div class="keywords-container">
                     <router-link
-                        v-for="keyword in details.keywords.results"
+                        v-for="keyword in showAllTags
+                            ? keywords
+                            : keywords.slice(0, 5)"
                         :key="keyword.id"
-                        class="mr-2"
                         :to="{
                             name: 'discover',
                             query: {
                                 keywords: keyword.name,
                                 with_keywords: keyword.id,
-                                isMovies: 'false',
                             },
                         }"
                     >
@@ -143,10 +143,16 @@
                             {{ keyword.name }}
                         </div>
                     </router-link>
+                    <span
+                        v-if="keywords.length > 5"
+                        class="expand-ellipsis"
+                        @click="showAllTags = !showAllTags"
+                        >...</span
+                    >
                 </div>
                 <div class="mt-3 updatedInfo">
                     Last updated: {{sincetime(details.updatedAt)}}
-                    <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
+                    <a @click="requestUpdate" class="ml-3">request update</a>
                 </div>
             </div>
             <!-- Episodes slider -->
@@ -162,7 +168,7 @@
                     </el-option>
                 </el-select>
                 <span class="ml-3"
-                    >{{ selectedSeasonInfo.episodes.length }} Episodes -
+                    >{{ selectedSeasonInfo.episodes && selectedSeasonInfo.episodes.length }} Episodes -
                     {{ getDateText(selectedSeasonInfo.air_date) }}</span
                 >
                 <mb-slider
@@ -286,6 +292,7 @@ export default {
             showVideo: false,
             videoTimeout: null,
             showFullBio: false,
+            showAllTags: false,
             movie: {},
             selectedSeason: null,
             selectedSeasonInfo: {},
@@ -313,6 +320,12 @@ export default {
         },
     },
     computed: {
+        imdbId() {
+            return this.details?.external_ids?.imdb_id;
+        },
+        keywords() {
+            return this.details?.keywords?.results || [];
+        },
         isInWatchList() {
             return this.$store.getters.watchListSeriesById(this.details.id);
         },

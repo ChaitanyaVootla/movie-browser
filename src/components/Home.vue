@@ -108,7 +108,7 @@
                     </div>
                 </div>
             </el-menu-item>
-            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item" aria-label="Settings">
+            <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item mobile-hide" aria-label="Settings">
                 <div>
                     <div v-if="!user.name" class="mt-1">
                         <div v-if="loginUrl.length" id="g_id_onload"
@@ -239,9 +239,22 @@
                 </div>
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg ml-2 user-menu-item" aria-label="Settings">
-                <div @click="signInClicked" v-if="!user.photoURL" class="mt-1 mobile-hide"> Sign in </div>
-                <div @click="signInClicked" v-if="!user.photoURL" class="desk-hide">
-                    <font-awesome-icon :icon="['fas', 'user']" />
+                <div @click="signInClicked" v-if="!user.name" class="mt-1 desk-hide">
+                    <div v-if="loginUrl.length" id="g_id_onload"
+                            data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
+                            :data-login_uri="loginUrl + '/auth/callback'"
+                            data-skip_prompt_cookie="googleonetap">
+                        </div>
+                </div>
+                <div @click="signInClicked" v-if="!user.name" class="desk-hide">
+                    <div class="g_id_signin mt-3"
+                        data-type="icon"
+                        data-size="medium"
+                        data-shape="circle"
+                        data-theme="outline"
+                        data-text="sign_in_with"
+                        data-logo_alignment="left">
+                    </div>
                 </div>
                 <div v-else>
                     <el-dropdown trigger="click" aria-label="Settings">

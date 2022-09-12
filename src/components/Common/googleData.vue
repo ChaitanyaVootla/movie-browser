@@ -50,7 +50,7 @@ import { mapGoogleData } from '@/Common/utils';
 import Vue from 'vue';
 import { doc, setDoc } from 'firebase/firestore';
 
-export default Vue.extend({
+export default {
     name: 'GoogleData',
     props: {
         item: {
@@ -104,7 +104,7 @@ export default Vue.extend({
             return this.$store.getters.user;
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

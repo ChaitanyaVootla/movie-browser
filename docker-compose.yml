@@ -1,4 +1,3 @@
-# mongo -u root -p rootpassword
 version: '3.7'
 services:
   mongodb_container:

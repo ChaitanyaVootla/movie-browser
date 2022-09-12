@@ -164,8 +164,8 @@
                 <div class="keywords-container">
                     <router-link
                         v-for="keyword in showAllTags
-                            ? details.keywords.keywords
-                            : details.keywords.keywords.slice(0, 5)"
+                            ? keywords
+                            : keywords.slice(0, 5)"
                         :key="keyword.id"
                         :to="{
                             name: 'discover',
@@ -180,7 +180,7 @@
                         </div>
                     </router-link>
                     <span
-                        v-if="details.keywords.keywords.length > 5"
+                        v-if="keywords.length > 5"
                         class="expand-ellipsis"
                         @click="showAllTags = !showAllTags"
                         >...</span
@@ -476,6 +476,9 @@ export default {
         },
     },
     computed: {
+        keywords() {
+            return this.details?.keywords?.keywords || [];
+        },
         isSignedIn() {
             return this.$store.getters.isSignedIn;
         },
