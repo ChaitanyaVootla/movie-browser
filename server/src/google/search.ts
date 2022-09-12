@@ -100,13 +100,13 @@ const getGoogleData = async (str: string) => {
             const res = await page.$('div.fOYFme>a');
             let mainLink = null;
             if (res) {
-                const link: string = await (await res.getProperty('href')).jsonValue();
+                const link: string = await (await res.getProperty('href')).jsonValue() as string;
                 const hostname = new URL(link).hostname;
                 mainLink = {
                     link,
                     name: hostname,
                 };
-                let priceDom = await res.$('span');
+                let priceDom: any = await res.$('span');
                 if (!priceDom) {
                     priceDom = await res.$('.uiBRm');
                 }

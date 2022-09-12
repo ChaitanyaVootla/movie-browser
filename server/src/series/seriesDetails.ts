@@ -12,7 +12,11 @@ interface seriesGetOptions {
 
 const getSeriesDetails = async (id: number, options?: seriesGetOptions) => {
     const dbEntry = await Series.findOne({id});
-    if (!options?.force && dbEntry && (moment().diff(dbEntry.updatedAt, 'hours') < retainHours)) {
+    if (
+        !options?.force
+        && dbEntry
+        // && (moment().diff(dbEntry.updatedAt, 'hours') < retainHours)
+        ) {
         return dbEntry;
     }
     const tvDetails = await getTMDBTVDetails(id);

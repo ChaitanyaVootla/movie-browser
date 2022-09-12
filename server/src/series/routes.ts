@@ -6,10 +6,15 @@ import { Application, Response } from 'express';
 
 const setupRoute = (app: Application) => {
     app.get('/seriesDetails/:id',
-        async (req, res) => {
+        async (req: IGetUserAuthInfoRequest, res) => {
             try {
                 const tvId = parseInt(req.params.id);
-                const details = await getTVDetails(tvId);
+                const details = await getTVDetails(
+                    tvId,
+                    {
+                        force: req.query.force && req.isAuthenticated,
+                    },
+                );
                 return res.json(details);
             } catch (e) {
                 console.error(e);

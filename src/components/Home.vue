@@ -128,9 +128,11 @@
                 </div>
                 <div>
                     <el-dropdown trigger="click" aria-label="Settings">
-                        <img
-                            v-lazy="{src: user.picture}"
-                            class="user-photo"/>
+                        <div  v-show="user.name">
+                            <img
+                                v-lazy="{src: user.picture}"
+                                class="user-photo"/>
+                        </div>
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
                                 <router-link :to="{ name: 'Interests' }">

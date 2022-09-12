@@ -2,6 +2,7 @@ import { IGetUserAuthInfoRequest } from "./utils";
 import { Users } from "@/db/schemas/User";
 
 const authInjector = async (req: IGetUserAuthInfoRequest, res, next) => {
+    req.isAuthenticated = false;
     if (req.session.user) {
         const dbUser = await Users.findOne({id: req.session.user.sub});
         if (!dbUser) {
@@ -16,6 +17,7 @@ const authInjector = async (req: IGetUserAuthInfoRequest, res, next) => {
                 {upsert: true});
         }
         req.user = dbUser as any;
+        req.isAuthenticated = true;
     } else {
         // console.log(req.path)
     }

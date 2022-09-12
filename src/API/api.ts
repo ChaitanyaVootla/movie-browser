@@ -8,7 +8,8 @@ import {
     detailsDefaultQuery,
     serverEndpoints,
 } from './Constants';
-import axios from 'axios';
+import Axios from 'axios';
+const axios = Axios.create({withCredentials: true});
 
 const showAllResults = () => localStorage.getItem('showAllResults') || false;
 
@@ -79,9 +80,9 @@ export const api = {
         );
         return res.data;
     },
-    getMovieDetails: async function (id: number) {
+    getMovieDetails: async function (id: number, query?: string) {
         const { data: details } = await axios.get(
-            `${appConfig.serverBaseUrl}${serverEndpoints.movieDetails}/${id}`,
+            `${appConfig.serverBaseUrl}${serverEndpoints.movieDetails}/${id}?${query}`,
         );
         return details;
     },
@@ -97,9 +98,9 @@ export const api = {
         );
         return details;
     },
-    getTvDetails: async function (id: number) {
+    getTvDetails: async function (id: number, query?: string) {
         const { data: details } = await axios.get(
-            `${appConfig.serverBaseUrl}${serverEndpoints.tvDetails}/${id}?`,
+            `${appConfig.serverBaseUrl}${serverEndpoints.tvDetails}/${id}?${query}`,
         );
         return details;
     },

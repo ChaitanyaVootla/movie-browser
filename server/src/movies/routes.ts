@@ -7,10 +7,15 @@ import { IMoviesWatchList, MoviesWatchList } from "@/db/schemas/MovieWatchList";
 
 const setupRoute = (app: Application) => {
     app.get('/movieDetails/:id',
-        async (req, res) => {
+        async (req: IGetUserAuthInfoRequest, res) => {
             try {
                 const movieId = parseInt(req.params.id);
-                const details = await getMovieDetails(movieId);
+                const details = await getMovieDetails(
+                    movieId,
+                    {
+                        force: req.query.force && req.isAuthenticated,
+                    },
+                );
                 return res.json(details);
             } catch (e) {
                 console.error(e);

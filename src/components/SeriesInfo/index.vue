@@ -144,6 +144,10 @@
                         </div>
                     </router-link>
                 </div>
+                <div class="mt-3 updatedInfo">
+                    Last updated: {{sincetime(details.updatedAt)}}
+                    <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
+                </div>
             </div>
             <!-- Episodes slider -->
             <div class="mt-4 pt-3 pb-3 season-container">
@@ -265,6 +269,7 @@ import { omit } from 'lodash';
 import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 import GoogleData from '../Common/googleData.vue';
 import { doc, setDoc } from 'firebase/firestore';
+import moment from 'moment';
 
 export default {
     name: 'seriesInfo',
@@ -319,6 +324,17 @@ export default {
         },
     },
     methods: {
+        sincetime(time) {
+            return moment(time).fromNow();
+        },
+        async requestUpdate() {
+            this.detailsLoading = true;
+            try {
+                this.details = await api.getTvDetails(this.details.id, 'force=true');
+            } catch(e) {} finally {
+                this.detailsLoading = false;
+            }
+        },
         watchNowClicked(watchOption) {
             if (!this.user.displayName) {
                 return;

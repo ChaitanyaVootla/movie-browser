@@ -20,10 +20,22 @@ const setupRoute = (app: Application) => {
                 const allMoviesSet = new Set(allWatchedMovieIds.concat(allWatchListMoviesIds));
                 const dbMoviesSize = await Movie.count({})
                 const dbSeriesSize = await Series.count({})
+
+                const withImdbId = await Movie.count({imdb_id: {$ne: null}})
+                const withoutGoogleDetails = await Movie.count({
+                    imdb_id: {
+                        $ne: null
+                    },
+                    "googleData.imdbId": {
+                        $ne: null
+                    },
+                });
                 res.json({
                     movies: {
                         userMovies: allMoviesSet.size,
                         fetched: dbMoviesSize,
+                        withImdbId,
+                        withoutGoogleDetails,
                     },
                     series: {
                         userSeries: allSeriesIds.length,

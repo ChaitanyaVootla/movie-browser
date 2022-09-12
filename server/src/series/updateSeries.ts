@@ -7,7 +7,7 @@ const updateSeries = async (seriesIds: number[]) => {
 
     let count = 0;
     for (let seriesIds of chunks) {
-        const getDetailsCalls = seriesIds.map(id => getTVDetails(id, {force: false, skipGoogle: false}));
+        const getDetailsCalls = seriesIds.map(id => getTVDetails(id, {force: true, skipGoogle: false}));
         await Promise.all(getDetailsCalls)
         console.log(`Series chunk ${count++} of ${chunks.length} done ${seriesIds}`)
     }

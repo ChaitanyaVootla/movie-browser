@@ -186,6 +186,10 @@
                         >...</span
                     >
                 </div>
+                <div class="mt-3 updatedInfo">
+                    Last updated: {{sincetime(details.updatedAt)}}
+                    <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
+                </div>
             </div>
             <div v-if="details.collectionDetails">
                 <mb-slider
@@ -302,6 +306,7 @@ import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 import GoogleData from '../Common/googleData.vue';
 import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { mapActions } from 'vuex';
+import moment from 'moment';
 
 export default {
     name: 'movieInfo',
@@ -316,6 +321,7 @@ export default {
             detailsLoading: true,
             activeName: 'movies',
             showVideo: false,
+            isUpdating: false,
             videoTimeout: null,
             showFullBio: false,
             movie: {},
@@ -350,6 +356,17 @@ export default {
         },
     },
     methods: {
+        sincetime(time) {
+            return moment(time).fromNow();
+        },
+        async requestUpdate() {
+            this.detailsLoading = true;
+            try {
+                this.details = await api.getMovieDetails(this.details.id, 'force=true');
+            } catch(e) {} finally {
+                this.detailsLoading = false;
+            }
+        },
         ...mapActions({
             deleteWatched: 'delteWatchedMovie',
             addWatchedMovie: 'addWatchedMovie',

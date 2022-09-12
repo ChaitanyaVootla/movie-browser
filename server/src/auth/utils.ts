@@ -4,6 +4,7 @@ import { TokenPayload } from "google-auth-library"
 export interface IGetUserAuthInfoRequest extends Request {
     session: SessionWithUser
     user: TokenPayload
+    isAuthenticated: Boolean
 }
 
 interface SessionWithUser extends Session {

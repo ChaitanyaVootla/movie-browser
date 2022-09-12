@@ -12,7 +12,11 @@ interface movieGetOptions {
 
 const getMovieDetails = async (id: number, options?: movieGetOptions) => {
     const dbEntry = await Movie.findOne({id});
-    if (!options?.force && dbEntry && (moment().diff(dbEntry.updatedAt, 'hours') < retainHours)) {
+    if (
+        !options?.force
+        && dbEntry
+        // && (moment().diff(dbEntry.updatedAt, 'hours') < retainHours)
+        ) {
         return dbEntry;
     }
     const movieDetails = await getTMDBMovieDetails(id);
