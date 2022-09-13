@@ -5,6 +5,7 @@ import { SeriesList } from "@/db/schemas/seriesList";
 import { WatchedMovies } from "@/db/schemas/WatchedMovies";
 import { updateMovies } from "@/movies/updateMovies";
 import { updateSeries } from "@/series/updateSeries";
+import axios from "axios";
 import { Application } from "express";
 import { cronMovies } from "./movies";
 import { cronSeries } from "./series";
@@ -56,7 +57,7 @@ const setupRoute = (app: Application) => {
                 movieCount: allWatchedMovieIds.length,
                 seriesCount: allSeriesIds.length,
             })
-            
+
             await updateMovies(allWatchedMovieIds.concat(allWatchListMoviesIds));
             await updateSeries(allSeriesIds)
         }
@@ -71,6 +72,16 @@ const setupRoute = (app: Application) => {
         async (req, res) => {
             const count = await cronSeries();
             res.json({count});
+        }
+    );
+    app.get('/cron/trigger',
+        async () => {
+            try {
+                const {data: status} = await axios.get('cron_container/cron/status');
+                console.log(status);
+            } catch (e) {
+                console.log(e.message)
+            }
         }
     );
 }
