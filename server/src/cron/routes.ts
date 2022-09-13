@@ -10,7 +10,7 @@ import { cronMovies } from "./movies";
 import { cronSeries } from "./series";
 
 const setupRoute = (app: Application) => {
-    app.get('/updateDetails',
+    app.get('/cron/status',
         async (req, res) => {
             try {
                 const allWatchedMovieIds = (await WatchedMovies.find({}).select('movieId -_id')).map(doc => doc.toJSON()).map(({movieId}) => movieId);
@@ -46,24 +46,28 @@ const setupRoute = (app: Application) => {
             }
         }
     );
-    app.get('/updateAll',
+    app.get('/cron/loadAll',
         async (req, res) => {
             const allWatchedMovieIds = (await WatchedMovies.find({}).select('movieId -_id')).map(doc => doc.toJSON()).map(({movieId}) => movieId);
             const allWatchListMoviesIds = (await MoviesWatchList.find({}).select('movieId -_id')).map(doc => doc.toJSON()).map(({movieId}) => movieId);
             const allSeriesIds = (await SeriesList.find({}).select('seriesId -_id')).map(doc => doc.toJSON()).map(({seriesId}) => seriesId);
 
+            res.json({
+                movieCount: allWatchedMovieIds.length,
+                seriesCount: allSeriesIds.length,
+            })
+            
             await updateMovies(allWatchedMovieIds.concat(allWatchListMoviesIds));
             await updateSeries(allSeriesIds)
-            res.status(200).send('ok')
         }
     );
-    app.get('/updateAllMovies',
+    app.get('/cron/popular/movies',
         async (req, res) => {
             const count = await cronMovies();
             res.json({count});
         }
     );
-    app.get('/updateAllSeries',
+    app.get('/cron/popular/series',
         async (req, res) => {
             const count = await cronSeries();
             res.json({count});

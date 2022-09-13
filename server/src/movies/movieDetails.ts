@@ -48,4 +48,4 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
     return movieDetails;
 }
 
-export { getMovieDetails };
+export { getMovieDetails, movieGetOptions };

@@ -136,6 +136,7 @@
                             query: {
                                 keywords: keyword.name,
                                 with_keywords: keyword.id,
+                                isMovies: 'false',
                             },
                         }"
                     >
