@@ -8,6 +8,7 @@ import {
     detailsDefaultQuery,
     serverEndpoints,
 } from './Constants';
+import Timezone from 'countries-and-timezones';
 import Axios from 'axios';
 const axios = Axios.create({withCredentials: true});
 
@@ -19,7 +20,13 @@ export const api = {
         return res.data;
     },
     getLoadData: async function () {
-        const res = await axios.get(`${appConfig.serverBaseUrl}loadData`);
+        let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+        if ((timeZone.includes('Calcutta'))) {
+            timeZone = timeZone.replace('Calcutta', 'Kolkata');
+        }
+        const country = Timezone.getCountryForTimezone(timeZone)
+        console.log(timeZone, country, Timezone)
+        const res = await axios.get(`${appConfig.serverBaseUrl}loadData?country=${country?.id}`);
         return res.data;
     },
     signOutOneTap: async function () {

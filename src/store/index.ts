@@ -7,6 +7,8 @@ import { collection, doc, setDoc, onSnapshot, writeBatch } from "firebase/firest
 import { api } from '../API/api';
 import { HISTORY_OMIT_VALUES } from '../Common/constants';
 import { trimTmdbObject } from './utils';
+import Timezone from 'countries-and-timezones';
+
 Vue.use(Vuex);
 
 const store = new Vuex.Store({
@@ -181,7 +183,12 @@ const store = new Vuex.Store({
         init({ commit, state }) {
             api.getUser().then(
                 (res) => {
-                    commit('setUser', res);
+                    let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+                    if ((timeZone.includes('Calcutta'))) {
+                        timeZone = timeZone.replace('Calcutta', 'Kolkata');
+                    }
+                    const country = Timezone.getCountryForTimezone(timeZone)
+                    commit('setUser', {...res, country});
                 }
             )
             api.getLoadData().then(

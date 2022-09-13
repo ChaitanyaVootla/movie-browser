@@ -134,7 +134,11 @@
                                 class="user-photo"/>
                         </div>
                         <el-dropdown-menu slot="dropdown">
-                            <el-dropdown-item>
+                            <el-dropdown-item v-if="countryName" class="country-flag">
+                                <span class="mr-2">{{countryName}}</span>
+                                <img height="15px" :src="countryFlag"/>
+                            </el-dropdown-item>
+                            <el-dropdown-item :divided="countryName">
                                 <router-link :to="{ name: 'Interests' }">
                                     <font-awesome-icon :icon="['fas', 'user']" class="mr-1" />
                                     Profile
@@ -402,6 +406,12 @@ export default {
         });
     },
     computed: {
+        countryName() {
+            return (this.user?.country?.name || '').toUpperCase();
+        },
+        countryFlag() {
+            return 'https://cdn.statically.io/flags/' + (this.user?.country?.id || '').toLocaleLowerCase() + '.svg';
+        },
         loginUrl() {
             if (window.location.hostname == 'localhost') {
                 return 'http://localhost:3000'
@@ -588,6 +598,9 @@ export default {
     display: flex;
     justify-content: center;
     align-content: center;
+}
+.country-flag {
+    font-weight: 600;
 }
 .drawer-button {
     position: fixed;
