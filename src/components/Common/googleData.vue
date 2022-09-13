@@ -7,6 +7,7 @@
                     :key="watchOption.name"
                     :href="watchOption.link"
                     target="_blank"
+                    rel="noreferrer noopener"
                     @click="watchNowClicked(watchOption)"
                 >
                     <div class="ott-container mr-3">
@@ -29,13 +30,15 @@
         <br/>
         <div class="frosted mt-3 mb-3">
             <div class="rating-container tmdb-rating" v-if="item.vote_average">
-                <a href="" target="_blank">
+                <a href="" target="_blank"
+                    rel="noreferrer noopener">
                     <img src="/images/rating/tmdb.svg" /><br />
                     <span>{{ item.vote_average.toFixed(1) }}</span>
                 </a>
             </div>
             <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                <a :href="rating.link" target="_blank">
+                <a :href="rating.link" target="_blank"
+                    rel="noreferrer noopener">
                     <img :src="rating.imagePath" /><br />
                     <span>{{ rating.rating }}</span>
                 </a>
@@ -45,10 +48,9 @@
 </template>
 
 <script lang="ts">
-import { db } from '@/Common/firebase';
+import { api } from '@/API/api';
 import { mapGoogleData } from '@/Common/utils';
-import Vue from 'vue';
-import { doc, setDoc } from 'firebase/firestore';
+import { mapActions } from 'vuex';
 
 export default {
     name: 'GoogleData',
@@ -72,6 +74,9 @@ export default {
         };
     },
     methods: {
+        ...mapActions({
+            addContinueWatching: 'addContinueWatching',
+        }),
         toggleExpandWatchOptions() {
             this.watchOptionsExpanded = !this.watchOptionsExpanded;
             if (this.watchOptionsExpanded) {
@@ -81,14 +86,15 @@ export default {
             }
         },
         watchNowClicked(watchOption) {
-            if (!this.user.displayName) {
-                return;
-            }
-            setDoc(doc(db, `users/${this.user.uid}/continueWatching/${this.item.id}`),  {
-                watchOption,
-                ...this.item,
-                updatedAt: Date.now(),
-            });
+            this.addContinueWatching({
+                watchLink: watchOption.link,
+                itemId: this.item.id,
+                isMovie: this.item.release_date?true:false,
+                item: {
+                    ...this.item,
+                    watchOption,
+                },
+            })
         },
     },
     computed: {

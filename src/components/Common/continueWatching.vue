@@ -41,9 +41,14 @@
 import { getFullDateText } from '../../Common/utils';
 import { sanitizeName } from '../../Common/utils';
 import { isMobile } from '../../Common/utils';
+import { getIconFromLink } from '@/Common/utils';
+
 export default {
     name: 'continueWatching',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
+    created() {
+        this.item.watchOption = getIconFromLink(this.item.watchLink);
+    },
     data() {
         return {
             isPopoverVisible: false,

@@ -92,37 +92,37 @@ const isMobile = () => {
     return (window.innerWidth > 0 ? window.innerWidth : screen.width) < 767;
 };
 
-const mapGoogleData = (data) => {
-    let allWatchOptions = [];
-    if (data.watchLink) {
-        let imagePath = null;
-        const url = new URL(data.watchLink.link);
-        const site = url.hostname.toLowerCase();
-        if (site.includes('hotstar')) {
-            imagePath = '/images/ott/hotstar.png';
-        } else if (site.includes('netflix')) {
-            imagePath = '/images/ott/netflix.svg';
-        } else if (site.includes('prime')) {
-            imagePath = '/images/ott/prime.svg';
-        } else if (site.includes('youtube')) {
-            imagePath = '/images/ott/youtube.png';
-        } else if (site.includes('google')) {
-            imagePath = '/images/ott/google.svg';
-        } else if (site.includes('sony')) {
-            imagePath = '/images/ott/sonyliv.png';
-        } else if (site.includes('apple')) {
-            imagePath = '/images/ott/apple.png';
-        } else if (site.includes('voot')) {
-            imagePath = '/images/ott/voot.png';
-        } else if (site.includes('zee')) {
-            imagePath = '/images/ott/zee.png';
-        }
-        allWatchOptions.push({
-            imagePath,
-            link: watchLink.link,
-            price: watchLink.price,
-        });
+const getIconFromLink = (watchLink: string) => {
+    let imagePath = null;
+    const url = new URL(watchLink);
+    const site = url.hostname.toLowerCase();
+    if (site.includes('hotstar')) {
+        imagePath = '/images/ott/hotstar.png';
+    } else if (site.includes('netflix')) {
+        imagePath = '/images/ott/netflix.svg';
+    } else if (site.includes('prime')) {
+        imagePath = '/images/ott/prime.svg';
+    } else if (site.includes('youtube')) {
+        imagePath = '/images/ott/youtube.png';
+    } else if (site.includes('google')) {
+        imagePath = '/images/ott/google.svg';
+    } else if (site.includes('sony')) {
+        imagePath = '/images/ott/sonyliv.png';
+    } else if (site.includes('apple')) {
+        imagePath = '/images/ott/apple.png';
+    } else if (site.includes('voot')) {
+        imagePath = '/images/ott/voot.png';
+    } else if (site.includes('zee')) {
+        imagePath = '/images/ott/zee.png';
     }
+    return {
+        imagePath,
+        link: watchLink,
+    }
+}
+
+const mapGoogleData = (data: any) => {
+    let allWatchOptions = [];
 
     let ratings = [];
     data.ratings.forEach((rating) => {
@@ -201,4 +201,5 @@ export {
     mapGoogleData,
     getGoogleLink,
     isMovie,
+    getIconFromLink,
 };

@@ -356,16 +356,6 @@ export default {
                 this.detailsLoading = false;
             }
         },
-        watchNowClicked(watchOption) {
-            if (!this.user.displayName) {
-                return;
-            }
-            setDoc(doc(db, `users/${this.user.uid}/continueWatching/${this.details.id}`), {
-                watchOption,
-                ...this.details,
-                updatedAt: Date.now(),
-            });
-        },
         openImageModal() {
             this.dialogVisible = true;
             this.backdrops = this.details.images.backdrops;

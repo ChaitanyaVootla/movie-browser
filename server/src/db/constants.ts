@@ -5,6 +5,7 @@ const dbConstants = {
         watchedMovies: 'watchedMovies',
         moviesWatchList: 'moviesWatchList',
         recents: 'recents',
+        continueWatching: 'continueWatching',
         seriesList: 'seriesList',
         series: 'series',
         users: 'users',

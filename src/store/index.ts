@@ -130,12 +130,15 @@ const store = new Vuex.Store({
         },
         addRecent(state, {item, isMovie}) {
             let newRecents = state.recentVisits;
-            console.log(newRecents.map(({title, name}) => title || name))
             newRecents = newRecents.filter(({id, isMovie: itemIsMovie}) => !((id == item.id) && (isMovie == itemIsMovie)));
-            console.log(newRecents.map(({title, name}) => title || name))
             newRecents.unshift(item);
-            console.log(newRecents.map(({title, name}) => title || name))
             state.recentVisits = newRecents
+        },
+        addContinueWatching(state, {item, isMovie}) {
+            let newContinueWatching = state.continueWatching;
+            newContinueWatching = newContinueWatching.filter(({id, isMovie: itemIsMovie}) => !((id == item.id) && (isMovie == itemIsMovie)));
+            newContinueWatching.unshift(item);
+            state.continueWatching = newContinueWatching
         },
     },
     getters: {
@@ -182,7 +185,8 @@ const store = new Vuex.Store({
                 }
             )
             api.getLoadData().then(
-                ({watchedMovieIds, watchListMovieIds, watchListMovies, seriesListIds, seriesList, filters, recents}) => {
+                ({watchedMovieIds, watchListMovieIds, watchListMovies, seriesListIds, seriesList, filters, recents,
+                    continueWatching}) => {
                     state.watched.movieIdsSet = new Set(watchedMovieIds)
                     state.watchList.movieIdsSet = new Set(watchListMovieIds)
                     state.watchList.movies = sortBy(watchListMovies, 'createdAt').reverse()
@@ -190,6 +194,7 @@ const store = new Vuex.Store({
                     state.watchList.series = seriesList
                     state.savedFilters = filters
                     state.recentVisits = sortBy(recents, 'updatedAt').reverse()
+                    state.continueWatching = sortBy(continueWatching, 'updatedAt').reverse()
                 }
             )
         },
@@ -212,6 +217,10 @@ const store = new Vuex.Store({
         addRecent({ commit, state }, {id, isMovie, item}) {
             api.addRecent(id, isMovie);
             commit('addRecent', {item, isMovie});
+        },
+        addContinueWatching({ commit, state }, {itemId, isMovie, watchLink, item}) {
+            api.addContinueWatching({itemId, isMovie, watchLink});
+            commit('addContinueWatching', {isMovie, item});
         },
         initFirebase({ commit }) {
             onAuthStateChanged(auth, async (user: any) => {

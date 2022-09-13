@@ -50,6 +50,10 @@ export const api = {
         const res = await axios.post(`${appConfig.serverBaseUrl}recents`, {itemId, isMovie});
         return res.data;
     },
+    addContinueWatching: async function (body) {
+        const res = await axios.post(`${appConfig.serverBaseUrl}continueWatching`, body);
+        return res.data;
+    },
     getTrendingTv: async function () {
         const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingTvList}`);
         return res.data;
