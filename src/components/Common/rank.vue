@@ -23,9 +23,9 @@ export default {
         font-weight: 700;
     }
     .fire {
-        color: red;
+        color: #ff5100;
     }
     .hot {
-        color: rgb(255, 0, 0);
+        color: #ff8349;
     }
 </style>
