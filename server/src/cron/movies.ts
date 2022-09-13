@@ -29,8 +29,9 @@ const cronMovies = async () => {
     });
     let movieIds = [];
     for await (const line of rl) {
-        if (JSON.parse(line).popularity > 100)
+        if (JSON.parse(line).popularity >= 100) {
             movieIds.push(JSON.parse(line).id);
+        }
     }
     updateMovies(movieIds, true);
     return movieIds.length;

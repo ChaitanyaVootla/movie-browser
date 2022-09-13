@@ -51,12 +51,13 @@
             </div>
         </div>
         <div class="all-info-container" v-if="details.name">
-            <h3 div="info-heading">
-                {{ details.name }}
+            <div class="heading-container">
+                <h3>{{ details.name }}</h3>
                 <span class="text-muted info-tagline pl-2" v-if="details.number_of_seasons">
                     {{ details.number_of_seasons }} Season{{ details.number_of_seasons > 1 ? 's' : '' }}
                 </span>
-            </h3>
+                <rank :item="details"></rank>
+            </div>
 
             <!-- Date and Genres -->
             <h6 class="mb-3 secondary-info">
@@ -278,12 +279,14 @@ import GoogleData from '../Common/googleData.vue';
 import { doc, setDoc } from 'firebase/firestore';
 import moment from 'moment';
 import { mapActions } from 'vuex';
+import rank from '@/components/Common/rank.vue';
 
 export default {
     name: 'seriesInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showSeriesInfo'],
     components: {
         GoogleData,
+        rank,
     },
     data() {
         return {
@@ -455,6 +458,11 @@ export default {
 .season-container {
     background-color: rgba(148, 148, 148, 0.05);
 }
+.heading-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 .background-images-container {
     height: @primary-container-height;
     overflow: hidden;
@@ -594,7 +602,6 @@ export default {
 }
 .info-tagline {
     color: #ddd !important;
-    font-size: 0.5em;
 }
 /deep/ .el-tabs__header {
     padding: 0 2em !important;

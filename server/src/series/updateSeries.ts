@@ -1,3 +1,4 @@
+import { Series } from "@/db/schemas/Series";
 import { getTVDetails } from "@/series/seriesDetails";
 import { chunk } from "lodash"
 
@@ -10,6 +11,21 @@ const updateSeries = async (seriesIds: number[], force = false) => {
         const getDetailsCalls = seriesIds.map(id => getTVDetails(id, {force, skipGoogle: false}));
         await Promise.all(getDetailsCalls)
         console.log(`Series chunk ${count++} of ${chunks.length} done ${seriesIds}`)
+    }
+
+    // add rank
+    const topSeries = (await Series.find({popularity: {$gte: 100}}).sort({popularity: -1})
+        .select('id')).map(doc => doc.toJSON());
+    let rank = 1;
+    for (let series of topSeries) {
+        await Series.updateOne(
+            {id: series.id},
+            {$set:
+                {
+                    rank: rank++,
+                },
+            },
+        );
     }
     return;
 }

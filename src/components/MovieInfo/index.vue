@@ -56,6 +56,7 @@
                     <span class="shadow-text">{{ details.title }}</span>
                 </h3>
                 <el-tag v-if="details.adult" type="danger">Adult</el-tag>
+                <rank :item="details"></rank>
             </div>
 
             <!-- Date and Genres -->
@@ -82,7 +83,6 @@
                     <font-awesome-icon :icon="['fas', 'images']" />
                 </span>
             </h6>
-
 
             <!-- Watch links -->
             <GoogleData class="mt-5 googleData-container ml-3" :item="details" :key="details.id"
@@ -307,12 +307,14 @@ import GoogleData from '../Common/googleData.vue';
 import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { mapActions } from 'vuex';
 import moment from 'moment';
+import rank from '@/components/Common/rank.vue';
 
 export default {
     name: 'movieInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showFullMovieInfo'],
     components: {
         GoogleData,
+        rank,
     },
     data() {
         return {

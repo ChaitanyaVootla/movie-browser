@@ -29,8 +29,9 @@ const cronSeries = async () => {
     });
     let seriesIds = [];
     for await (const line of rl) {
-        if (JSON.parse(line).popularity > 100)
+        if (JSON.parse(line).popularity >= 100) {
             seriesIds.push(JSON.parse(line).id);
+        }
     }
     updateSeries(seriesIds, true);
     return seriesIds.length;

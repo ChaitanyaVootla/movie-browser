@@ -1,4 +1,4 @@
-import { Movie } from "@/db/schemas/Movies";
+import { Movie, MovieLightFileds } from "@/db/schemas/Movies";
 import { MoviesWatchList } from "@/db/schemas/MovieWatchList";
 import { Series } from "@/db/schemas/Series";
 import { SeriesList } from "@/db/schemas/seriesList";
@@ -7,6 +7,7 @@ import { updateMovies } from "@/movies/updateMovies";
 import { updateSeries } from "@/series/updateSeries";
 import axios from "axios";
 import { Application } from "express";
+import moment from "moment";
 import { cronMovies } from "./movies";
 import { cronSeries } from "./series";
 
@@ -79,6 +80,19 @@ const setupRoute = (app: Application) => {
             try {
                 const {data: status} = await axios.get('cron_container/cron/status');
                 console.log(status);
+            } catch (e) {
+                console.log(e.message)
+            }
+        }
+    );
+    app.get('/cron/test',
+        async (req, res) => {
+            try {
+                const movies = (await Movie.find({popularity: {$gte: 100}}).sort({popularity: -1})
+                    .select('-_id title rank popularity')).map(doc => doc.toJSON());
+                // let rank = 1;
+                // const mappedMovies = movies.map(movie => ({...movie, rank: rank++}))
+                res.json(movies)
             } catch (e) {
                 console.log(e.message)
             }
