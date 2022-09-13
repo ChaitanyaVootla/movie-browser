@@ -76,8 +76,6 @@
 
 <script lang="ts">
 import moment from 'moment';
-import {db,} from '@/Common/firebase';
-import { collection, getDocs} from "firebase/firestore";
 
 export default {
     name: 'home',
@@ -88,12 +86,12 @@ export default {
         }
     },
     created() {
-        const usersRef = collection(db, "users");
-        getDocs(usersRef).then((snapshot) => {
-            const users = [];
-            snapshot.forEach((doc) => users.push(doc.data()));
-            this.users = users;
-        });
+        // const usersRef = collection(db, "users");
+        // getDocs(usersRef).then((snapshot) => {
+        //     const users = [];
+        //     snapshot.forEach((doc) => users.push(doc.data()));
+        //     this.users = users;
+        // });
     },
     computed: {
         filteredData() {

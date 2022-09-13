@@ -38,7 +38,6 @@
 import { compact, sortBy } from 'lodash';
 import { getRatingColor } from '../../Common/utils';
 import moment from 'moment';
-import { db } from '../../Common/firebase';
 
 export default {
     name: 'shareView',

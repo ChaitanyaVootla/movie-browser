@@ -25,7 +25,6 @@ export const api = {
             timeZone = timeZone.replace('Calcutta', 'Kolkata');
         }
         const country = Timezone.getCountryForTimezone(timeZone)
-        console.log(timeZone, country, Timezone)
         const res = await axios.get(`${appConfig.serverBaseUrl}loadData?country=${country?.id}`);
         return res.data;
     },

@@ -270,13 +270,9 @@
 
 <script lang="ts">
 import { api } from '../../API/api';
-import _, { sortBy } from 'lodash';
+import _ from 'lodash';
 import { getDateText } from '../../Common/utils';
-import { onAuthStateChanged, auth, db } from '../../Common/firebase';
-import { omit } from 'lodash';
-import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 import GoogleData from '../Common/googleData.vue';
-import { doc, setDoc } from 'firebase/firestore';
 import moment from 'moment';
 import { mapActions } from 'vuex';
 import rank from '@/components/Common/rank.vue';
@@ -406,15 +402,15 @@ export default {
             this.addRecent({id: this.details.id, isMovie: false, item: this.details})
         },
         AddToWatchList() {
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    const historyDocToAdd = {
-                        ...omit(this.details, HISTORY_OMIT_VALUES),
-                        updatedAt: Date.now(),
-                    };
-                    setDoc(doc(db, `users/${this.user.uid}/seriesWatchList/${this.details.id}`), historyDocToAdd);
-                }
-            });
+            // onAuthStateChanged(auth, async (user) => {
+            //     if (user) {
+            //         const historyDocToAdd = {
+            //             ...omit(this.details, HISTORY_OMIT_VALUES),
+            //             updatedAt: Date.now(),
+            //         };
+            //         setDoc(doc(db, `users/${this.user.uid}/seriesWatchList/${this.details.id}`), historyDocToAdd);
+            //     }
+            // });
         },
         getYoutubeVideos: function () {
             return _.filter(this.details.videos?.results|| [], { site: 'YouTube' });

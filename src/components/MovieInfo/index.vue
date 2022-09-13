@@ -300,11 +300,8 @@
 import { api } from '../../API/api';
 import _ from 'lodash';
 import { getCurrencyString, getDateText } from '../../Common/utils';
-import { db, auth, onAuthStateChanged } from '../../Common/firebase';
-import { omit, sortBy } from 'lodash';
-import { HISTORY_OMIT_VALUES } from '../../Common/constants';
+import { sortBy } from 'lodash';
 import GoogleData from '../Common/googleData.vue';
-import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { mapActions } from 'vuex';
 import moment from 'moment';
 import rank from '@/components/Common/rank.vue';

@@ -138,7 +138,7 @@
                                 <span class="mr-2">{{countryName}}</span>
                                 <img height="15px" :src="countryFlag"/>
                             </el-dropdown-item>
-                            <el-dropdown-item :divided="countryName">
+                            <el-dropdown-item :divided="countryName.length > 0">
                                 <router-link :to="{ name: 'Interests' }">
                                     <font-awesome-icon :icon="['fas', 'user']" class="mr-1" />
                                     Profile
@@ -243,14 +243,14 @@
                 </div>
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg ml-2 user-menu-item" aria-label="Settings">
-                <div @click="signInClicked" v-if="!user.name" class="mt-1 desk-hide">
+                <div v-if="!user.name" class="mt-1 desk-hide">
                     <div v-if="loginUrl.length" id="g_id_onload"
                             data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
                             :data-login_uri="loginUrl + '/auth/callback'"
                             data-skip_prompt_cookie="googleonetap">
                         </div>
                 </div>
-                <div @click="signInClicked" v-if="!user.name" class="desk-hide">
+                <div v-if="!user.name" class="desk-hide">
                     <div class="g_id_signin mt-3"
                         data-type="icon"
                         data-size="medium"
@@ -350,7 +350,6 @@ import { api } from '../API/api';
 import { sanitizeName } from '../Common/utils';
 import _ from 'lodash';
 import { configuration, movieGenres, seriesGenres } from '../Common/staticConfig';
-import { signIn, signOut, db } from '../Common/firebase';
 import anime from 'animejs';
 
 export default {
@@ -478,11 +477,7 @@ export default {
         logoClicked() {
             this.logoAnimation.play();
         },
-        signInClicked() {
-            signIn();
-        },
         signOutClicked() {
-            signOut();
             api.signOutOneTap().then(() => location.reload());
         },
         searchInputclicked() {

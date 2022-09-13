@@ -25,7 +25,6 @@
 
 <script lang="ts">
 import _ from 'lodash';
-import { db } from '../../Common/firebase';
 
 export default {
     name: 'friends',
