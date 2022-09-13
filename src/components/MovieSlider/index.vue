@@ -286,9 +286,6 @@ export default {
     height: 11em !important;
     margin: 0 0.2em;
 }
-.history-slider /deep/.movie-card-image {
-    height: 16em;
-}
 .history-slider /deep/ .el-badge__content {
     display: none;
 }

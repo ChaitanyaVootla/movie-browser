@@ -104,7 +104,7 @@ export default {
             imageObj: {
                 src:
                     this.configuration.images.secure_base_url +
-                    'w185' +
+                    'w300' +
                     (this.movie.poster_path || this.movie.posterPath),
                 error: require('../../Assets/Images/error.svg'),
             },
@@ -349,9 +349,9 @@ export default {
     &.trim-height {
         height: @img-trim-height-percent !important;
     }
-}
-.movie-item:hover {
-    transform: scale(1.02);
+    &:hover {
+        transform: scale(1.02);
+    }
 }
 .movie-card-title {
     font-size: 1em;
@@ -365,7 +365,7 @@ export default {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: 50% 50%;
-    height: 100% !important;
+    // height: 100% !important;
 }
 .watched {
     opacity: 0.7;

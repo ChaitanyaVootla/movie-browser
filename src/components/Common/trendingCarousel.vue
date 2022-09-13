@@ -319,7 +319,7 @@ export default {
     justify-content: space-between;
     height: 100%;
     .main-slider-div {
-        padding-top: 0.5rem;
+        padding-top: 1rem;
         padding-bottom: 0;
     }
 }
