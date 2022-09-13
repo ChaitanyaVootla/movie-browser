@@ -8,3 +8,4 @@ android
 dump
 postgres
 .DS_Store
+server/src/cron/data

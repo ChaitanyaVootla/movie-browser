@@ -276,6 +276,7 @@ import { HISTORY_OMIT_VALUES } from '../../Common/constants';
 import GoogleData from '../Common/googleData.vue';
 import { doc, setDoc } from 'firebase/firestore';
 import moment from 'moment';
+import { mapActions } from 'vuex';
 
 export default {
     name: 'seriesInfo',
@@ -340,6 +341,9 @@ export default {
         sincetime(time) {
             return moment(time).fromNow();
         },
+        ...mapActions({
+            addRecent: 'addRecent',
+        }),
         async requestUpdate() {
             this.detailsLoading = true;
             try {
@@ -405,7 +409,7 @@ export default {
             this.showVideo = false;
         },
         updateHistoryData() {
-            api.addRecent(this.details.id, false);
+            this.addRecent({id: this.details.id, isMovie: false, item: this.details})
         },
         AddToWatchList() {
             onAuthStateChanged(auth, async (user) => {

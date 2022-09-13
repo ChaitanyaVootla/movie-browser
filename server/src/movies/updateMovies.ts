@@ -7,7 +7,7 @@ const updateMovies = async (movieIds: number[]) => {
  
     let count = 0;
     for (let movieIds of chunks) {
-        const getDetailsCalls = movieIds.map(id => getMovieDetails(id, {force: false, skipGoogle: false}));
+        const getDetailsCalls = movieIds.map(id => getMovieDetails(id, {force: true, skipGoogle: false}));
         await Promise.all(getDetailsCalls)
         console.log(`------ Movies chunk ${count++} of ${chunks.length} ------`)
     }

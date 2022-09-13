@@ -46,7 +46,14 @@ const setupRoute = (app: Application) => {
                 }
                 await Recent.create(recentObj);
                 res.status(200).send('ok');
+
+                // clean up
+                const excessRecents = await (await Recent.find({userId: req.user.sub}).sort({updatedAt: -1}))
+                    .slice(10).map(doc => doc._id);
+                await Recent.deleteMany({_id: {$in: excessRecents}})
+
             } catch(e) {
+                console.log(e)
                 res.status(500).json(ERRORS.SERVER_ERROR)
             }
         }

@@ -1,3 +1,4 @@
+import { dbConstants } from "@/db/constants";
 import { Filters, IFilter } from "@/db/schemas/filters";
 import { Movie, MovieLightFileds } from "@/db/schemas/Movies";
 import { IMoviesWatchList, MoviesWatchList } from "@/db/schemas/MovieWatchList";
@@ -9,8 +10,9 @@ import { updateMovies } from "@/movies/updateMovies";
 import { updateSeries } from "@/series/updateSeries";
 import { TokenPayload } from "google-auth-library";
 import { keyBy } from "lodash";
+import { Db } from "mongodb";
 
-const loadData = async (user: TokenPayload) => {
+const loadData = async (user: TokenPayload, db: Db) => {
     const watchedMovies = (
         await WatchedMovies.find({userId: user.sub}).select('movieId -_id')
         ).map(doc=> doc.toJSON()) as IWatchedMovie[];
@@ -22,11 +24,6 @@ const loadData = async (user: TokenPayload) => {
         ).map(doc=> doc.toJSON()) as ISeriesList[];
     const filters = (
         await Filters.find({userId: user.sub})).map(doc=> doc.toJSON()) as IFilter[];
-    const recentsDocs = (
-        await Recent.find({userId: user.sub}).select('itemId isMovie -_id')).map(doc=> doc.toJSON()) as IRecent[];
-
-    const recentMovieIds = recentsDocs.filter(({isMovie}) => isMovie).map(({itemId}) => itemId);
-    const recentSeriesIds = recentsDocs.filter(({isMovie}) => !isMovie).map(({itemId}) => itemId);
     
     const watchedMovieIds = watchedMovies.map(({movieId}) => movieId);
     const watchListMovieIds = watchListMovies.map(({movieId}) => movieId);
@@ -38,10 +35,99 @@ const loadData = async (user: TokenPayload) => {
             ...movie,
             createdAt: watchListMovieToCreatedAt[movie.id]?.createdAt
         }));
-    const recentMovies = await (await Movie.find({id: {$in: recentMovieIds}})
-        .select(MovieLightFileds)).map(doc => doc.toJSON());
-    const recentSeries = await (await Series.find({id: {$in: recentSeriesIds}})
-        .select(SeriesLightFileds)).map(doc => doc.toJSON());
+    const recentMovies = await Recent.aggregate([
+        {
+            $match: {userId: user.sub, isMovie: true}
+        },
+        {
+            $project: {
+                id: '$itemId',
+                updatedAt: '$updatedAt',
+            }
+        },
+        {
+            $lookup: {
+                from: dbConstants.collections.movies,
+                as: 'movie',
+                localField: 'id',
+                foreignField: 'id',
+                pipeline: [
+                    {
+                        $project: {
+                            id: '$id',
+                            title: '$title',
+                            backdrop_path: '$backdrop_path',
+                            vote_average: '$vote_average',
+                            overview: '$overview',
+                            genres: '$genres',
+                            googleData: '$googleData',
+                            _id: 0,
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $replaceRoot: { newRoot: { $mergeObjects: [ { $arrayElemAt: [ "$movie", 0 ] }, "$$ROOT" ] } }
+        },
+        {
+            $project: {
+                movie: 0,
+            }
+        },
+        {
+            $addFields: {
+                isMovie: true,
+            }
+        },
+    ]);
+    const recentSeries = await Recent.aggregate([
+        {
+            $match: {userId: user.sub, isMovie: false}
+        },
+        {
+            $project: {
+                id: '$itemId',
+                updatedAt: '$updatedAt',
+            }
+        },
+        {
+            $lookup: {
+                from: dbConstants.collections.series,
+                as: 'series',
+                localField: 'id',
+                foreignField: 'id',
+                pipeline: [
+                    {
+                        $project: {
+                            id: '$id',
+                            name: '$name',
+                            backdrop_path: '$backdrop_path',
+                            vote_average: '$vote_average',
+                            first_air_date: '$first_air_date',
+                            overview: '$overview',
+                            genres: '$genres',
+                            googleData: '$googleData',
+                            _id: 0,
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $replaceRoot: { newRoot: { $mergeObjects: [ { $arrayElemAt: [ "$series", 0 ] }, "$$ROOT" ] } }
+        },
+        {
+            $project: {
+                series: 0,
+            }
+        },
+        {
+            $addFields: {
+                isMovie: false,
+            }
+        },
+    ]);
     const seriesData = await (await Series.find({id: {$in: seriesListIds}})
         .select(SeriesLightFileds)).map(doc => doc.toJSON());
 
@@ -49,6 +135,7 @@ const loadData = async (user: TokenPayload) => {
     // updateSeries(seriesListIds);
     return {
         user,
+        // recents: recentMovies.concat(recentSeries),
         recents: recentMovies.concat(recentSeries),
         watchedMovieIds,
         watchListMovieIds,

@@ -372,6 +372,7 @@ export default {
             addWatchedMovie: 'addWatchedMovie',
             addWatchListMovie: 'addWatchListMovie',
             delteWatchListMovie: 'delteWatchListMovie',
+            addRecent: 'addRecent',
         }),
         getRuntime(runtime) {
             let hours = 0;
@@ -432,7 +433,7 @@ export default {
             }
         },
         async updateHistoryData() {
-            api.addRecent(this.details.id, true);
+            this.addRecent({id: this.details.id, isMovie: true, item: this.details})
         },
         getYoutubeVideos: function () {
             if (this.details.videos && this.details.videos.results) {

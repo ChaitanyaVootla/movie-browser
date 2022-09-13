@@ -26,5 +26,5 @@ interface ISeries {
 const SeriesLightFileds = `id name adult overview popularity release_date imdb_id poster_path backdrop_path vote_average
     genres updatedAt status next_episode_to_air first_air_date last_episode_to_air`;
 
-const Series = model<ISeries>(dbConstants.collections.tv, SeriesSchema);
+const Series = model<ISeries>(dbConstants.collections.series, SeriesSchema);
 export { SeriesSchema, ISeries, SeriesLightFileds, Series};

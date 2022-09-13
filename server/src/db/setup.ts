@@ -10,7 +10,7 @@ const setupDb = (db: Db) => {
     db.collection(dbConstants.collections.watchedMovies).createIndex({userId:1, movieId: 1}, {unique: true});
 
     // tv
-    db.collection(dbConstants.collections.tv).createIndex({id:1}, {unique: true});
+    db.collection(dbConstants.collections.series).createIndex({id:1}, {unique: true});
 }
 
 export { setupDb };

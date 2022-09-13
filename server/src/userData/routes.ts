@@ -20,7 +20,7 @@ const setupRoute = (app: Application, db: Db) => {
     app.get('/loadData',
         async(req:IGetUserAuthInfoRequest, res:Response) => {
             if (req.user?.sub) {
-                const data = await loadData(req.user);
+                const data = await loadData(req.user, db);
                 res.json(data);
             } else {
                 res.status(401).json(ERRORS.UNAUTHORIZED)

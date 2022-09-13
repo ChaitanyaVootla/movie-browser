@@ -128,6 +128,15 @@ const store = new Vuex.Store({
             state.watchList.movieIdsSet.delete(id);
             state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet))
         },
+        addRecent(state, {item, isMovie}) {
+            let newRecents = state.recentVisits;
+            console.log(newRecents.map(({title, name}) => title || name))
+            newRecents = newRecents.filter(({id, isMovie: itemIsMovie}) => !((id == item.id) && (isMovie == itemIsMovie)));
+            console.log(newRecents.map(({title, name}) => title || name))
+            newRecents.unshift(item);
+            console.log(newRecents.map(({title, name}) => title || name))
+            state.recentVisits = newRecents
+        },
     },
     getters: {
         isSignedIn: (state) => state.user.name?true:false,
@@ -199,6 +208,10 @@ const store = new Vuex.Store({
         delteWatchListMovie({ commit, state }, id: number) {
             api.deleteWatchListMovie(id);
             commit('delteWatchListMovie', id);
+        },
+        addRecent({ commit, state }, {id, isMovie, item}) {
+            api.addRecent(id, isMovie);
+            commit('addRecent', {item, isMovie});
         },
         initFirebase({ commit }) {
             onAuthStateChanged(auth, async (user: any) => {
