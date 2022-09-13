@@ -70,7 +70,7 @@
                     </div>
                 </el-badge>
             </div>
-            <div class="secondary-text mt-2 ml-1">{{ movie.character || movie.job || movie.bottomInfo }}</div>
+            <div class="secondary-text mt-1 ml-1">{{ movie.character || movie.job || movie.bottomInfo }}</div>
         </router-link>
     </div>
 </template>
@@ -359,7 +359,7 @@ export default {
     text-align: center;
 }
 .movie-card-image {
-    border-radius: 3px;
+    border-radius: 5px;
     width: auto;
     height: 17em;
     background-size: cover;
@@ -410,7 +410,7 @@ export default {
     position: absolute;
     width: 100%;
     opacity: 0;
-    bottom: 0;
+    bottom: -3px;
     background: rgba(0, 0, 0, 0.9);
     padding: 0.3em 0.5em;
     transition: 300ms;

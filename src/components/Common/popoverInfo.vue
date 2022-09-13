@@ -24,7 +24,7 @@
                     {{ getGenreNameFromId(genreId) }}{{ index === item.genre_ids.length - 1 ? '' : ',' }}
                 </span>
             </div>
-            <GoogleData class="mb-2" :item="item" :rawGoogleData="googleData" :key="googleData.allWatchOptions.length"/>
+            <GoogleData class="mb-2 mt-2" :item="item" :rawGoogleData="googleData" :key="googleData.allWatchOptions.length"/>
             <span v-if="showFullOverview">{{ item.overview }}</span>
             <span v-if="!showFullOverview">{{ item.overview.slice(0, 200) }}</span>
             <span

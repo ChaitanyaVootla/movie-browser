@@ -27,7 +27,7 @@ const setupRoute = (app: Application) => {
         async (req: IGetUserAuthInfoRequest, res: Response) => {
             if (req.user?.sub) {
                 const movieId = parseInt(req.params.id);
-                const objectToAdd: IWatchedMovie = 
+                const objectToAdd: IWatchedMovie =
                 {
                     movieId,
                     userId: parseInt(req.user.sub),
@@ -45,7 +45,7 @@ const setupRoute = (app: Application) => {
     app.delete('/watchedMovies/:id',
         async (req: IGetUserAuthInfoRequest, res: Response) => {
             if (req.user?.sub) {
-                const objectToDelete = 
+                const objectToDelete =
                     {
                         movieId: parseInt(req.params.id),
                         userId: parseInt(req.user.sub),
@@ -61,7 +61,7 @@ const setupRoute = (app: Application) => {
         async (req: IGetUserAuthInfoRequest, res: Response) => {
             if (req.user?.sub) {
                 const movieId = parseInt(req.params.id);
-                const objectToAdd: IMoviesWatchList = 
+                const objectToAdd: IMoviesWatchList =
                 {
                     movieId,
                     userId: parseInt(req.user.sub),
@@ -79,7 +79,7 @@ const setupRoute = (app: Application) => {
     app.delete('/watchListMovie/:id',
         async (req: IGetUserAuthInfoRequest, res: Response) => {
             if (req.user?.sub) {
-                const objectToDelete = 
+                const objectToDelete =
                     {
                         movieId: parseInt(req.params.id),
                         userId: parseInt(req.user.sub),

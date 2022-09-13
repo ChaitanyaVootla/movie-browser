@@ -85,7 +85,7 @@
             <div class="additional-info">
                 <!-- bookmarks -->
                 <div class="mt-3 ml-2 bookmarks">
-                    <el-button v-if="isInWatchList">
+                    <el-button @click="removeFromWatchList" v-if="isInWatchList">
                         In watch List
                         <font-awesome-icon :icon="['fas', 'check']" class="ml-1" />
                     </el-button>
@@ -97,7 +97,7 @@
                         placement="right"
                         :disabled="user.displayName"
                     >
-                        <el-button @click="AddToWatchList">
+                        <el-button @click="addToWatchList">
                             Add to watch list
                             <font-awesome-icon :icon="['fas', 'plus']" class="ml-1" />
                         </el-button>
@@ -401,16 +401,11 @@ export default {
         updateHistoryData() {
             this.addRecent({id: this.details.id, isMovie: false, item: this.details})
         },
-        AddToWatchList() {
-            // onAuthStateChanged(auth, async (user) => {
-            //     if (user) {
-            //         const historyDocToAdd = {
-            //             ...omit(this.details, HISTORY_OMIT_VALUES),
-            //             updatedAt: Date.now(),
-            //         };
-            //         setDoc(doc(db, `users/${this.user.uid}/seriesWatchList/${this.details.id}`), historyDocToAdd);
-            //     }
-            // });
+        addToWatchList() {
+            api.addSeriesList(this.details.id);
+        },
+        removeFromWatchList() {
+            api.removeSeriesList(this.details.id);
         },
         getYoutubeVideos: function () {
             return _.filter(this.details.videos?.results|| [], { site: 'YouTube' });
@@ -504,7 +499,7 @@ export default {
         object-position: 50% 25%;
         width: 100%;
         overflow: hidden;
-        filter: opacity(0.3) blur(2px);
+        filter: opacity(0.1) blur(2px);
     }
     .video-player {
         position: absolute;

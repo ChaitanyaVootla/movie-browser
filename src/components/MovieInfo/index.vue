@@ -587,7 +587,7 @@ export default {
         object-position: 50% 25%;
         width: 100%;
         overflow: hidden;
-        filter: opacity(0.3) blur(2px);
+        filter: opacity(0.1) blur(2px);
     }
     .video-player {
         position: absolute;

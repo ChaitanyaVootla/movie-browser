@@ -33,7 +33,7 @@ export const api = {
         return res.data;
     },
     addWatched: async function (id: number) {
-        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMovies/${id}`, {});
+        const res = await axios.post(`${appConfig.serverBaseUrl}watchedMovies/${id}`);
         return res.data;
     },
     addWatchedBulk: async function (bulk: any) {
@@ -45,7 +45,7 @@ export const api = {
         return res.data;
     },
     addWatchListMovie: async function (id: number) {
-        const res = await axios.post(`${appConfig.serverBaseUrl}watchListMovie/${id}`, {});
+        const res = await axios.post(`${appConfig.serverBaseUrl}watchListMovie/${id}`);
         return res.data;
     },
     deleteWatchListMovie: async function (id: number) {
@@ -58,6 +58,14 @@ export const api = {
     },
     addContinueWatching: async function (body) {
         const res = await axios.post(`${appConfig.serverBaseUrl}continueWatching`, body);
+        return res.data;
+    },
+    addSeriesList: async function (id: number) {
+        const res = await axios.post(`${appConfig.serverBaseUrl}seriesList/${id}`);
+        return res.data;
+    },
+    removeSeriesList: async function (id: number) {
+        const res = await axios.delete(`${appConfig.serverBaseUrl}seriesList/${id}`);
         return res.data;
     },
     getTrendingTv: async function () {
