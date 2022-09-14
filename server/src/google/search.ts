@@ -1,13 +1,27 @@
 import { sortBy } from 'lodash';
 import puppeteer from 'puppeteer-extra';
 import stealth from 'puppeteer-extra-plugin-stealth';
+import adBlocker from 'puppeteer-extra-plugin-adblocker';
+import { DEFAULT_INTERCEPT_RESOLUTION_PRIORITY } from 'puppeteer';
 
 const getGoogleData = async (str: string) => {
     puppeteer.use(stealth());
+    puppeteer.use(adBlocker({
+        blockTrackers: true,
+        interceptResolutionPriority: DEFAULT_INTERCEPT_RESOLUTION_PRIORITY,
+    }));
     let browser = await puppeteer.launch({ args: ['--no-sandbox'], headless: true });
     const page = await browser.newPage();
+    const cookies = [{name: 'Google', value: 'asdawda2easd32q3123', domain: 'https://google.com'}];
+    await page.setCookie(...cookies);
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36');''
     await page.goto(str, { waitUntil: 'domcontentloaded' });
     try {
+        const googleSaidno = await (await (page.content())).match('detected unusual traffic from your computer');
+        if (googleSaidno) {
+            console.log('--------- Google said no --------', str);
+            throw new Error('googleSaidno')
+        }
         let ratingsDOM = await page.$$('a.vIUFYd');
         const ratings = [];
         let imdbId = null;
