@@ -365,7 +365,6 @@ export default {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: 50% 50%;
-    // height: 100% !important;
 }
 .watched {
     opacity: 0.7;

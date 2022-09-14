@@ -120,7 +120,7 @@ export default {
     padding-left: 1rem;
     display: inline-flex;
     background: rgba(28, 28, 28, 0.43);
-    box-shadow: inset 0 0 7px rgb(104, 104, 104);
+    box-shadow: inset 0 0 5px rgb(104, 104, 104);
     backdrop-filter: blur(10px);
     flex-direction: column;
     border-radius: 3rem;
@@ -155,7 +155,7 @@ export default {
     }
 }
 .frosted {
-    box-shadow: inset 0 0 7px rgb(104, 104, 104);
+    box-shadow: inset 0 0 5px rgb(104, 104, 104);
     display: inline-flex;
     padding: 0.7rem;
     border-radius: 3rem;
@@ -192,12 +192,8 @@ export default {
     width: 4.5em;
     margin-bottom: 1rem;
     text-align: center;
-    // background: rgba(39, 39, 39, 0.436);
     border-radius: @default-radius;
-    // padding: 0.4rem 0.3rem;
     float: left;
-    // box-shadow: inset 0 0 20px rgb(56, 56, 56);
-    // backdrop-filter: blur(3px);
     .icon-container {
         height: 2.5rem;
         .ott-icon {

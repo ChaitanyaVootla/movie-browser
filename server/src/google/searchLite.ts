@@ -1,8 +1,6 @@
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { load } from 'cheerio';
-import fs from 'fs';
-import path from 'path';
 
 axiosRetry(axios, {retries: 3});
 
