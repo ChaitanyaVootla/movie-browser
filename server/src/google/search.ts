@@ -10,7 +10,7 @@ const getGoogleData = async (str: string) => {
         blockTrackers: true,
         interceptResolutionPriority: DEFAULT_INTERCEPT_RESOLUTION_PRIORITY,
     }));
-    let browser = await puppeteer.launch({ headless: true });
+    let browser = await puppeteer.launch({args: ["--no-sandbox", "--disable-setuid-sandbox"], headless: true });
     const page = await browser.newPage();
     const cookies = [{name: 'Google', value: 'asdawda2easd32q3123', domain: 'https://google.com'}];
     await page.setCookie(...cookies);
