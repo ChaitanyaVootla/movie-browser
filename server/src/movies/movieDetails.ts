@@ -3,6 +3,7 @@ import { getTMDBMovieDetails } from '@/tmdb/movieDetails';
 import moment from 'moment';
 import getGoogleData from "@/google/search";
 import { Movie } from "@/db/schemas/Movies";
+import { getGoogleDataLite } from '@/google/searchLite';
 
 const retainHours = 24;
 interface movieGetOptions {
@@ -23,19 +24,23 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
     if (!movieDetails?.id) {
         return console.log(`TMDB get for movie failed for id: ${id}`)
     }
-    let googleData:any = {};
+    let googleData:any = {allWatchOptions: []};
+    movieDetails.googleData = googleData;
     if (!options?.skipGoogle) {
-        googleData = await getGoogleData(getSearchQuery(movieDetails));
-        if (!googleData) {
-            console.error(`Failed to get google data for movie: ${movieDetails?.title}`)
+        let response = await getGoogleData(getSearchQuery(movieDetails));
+        if (!response) {
+            console.error(`Failed to get proper google data for movie: ${movieDetails?.title}`);
+            response = await getGoogleDataLite(getSearchQuery(movieDetails));
+            if (!response) {
+                console.error(`Failed to get lite google data for movie: ${movieDetails?.title}`);
+            } else if (!movieDetails.imdb_id || (movieDetails.imdb_id === response?.imdbId)) {
+                movieDetails.googleData = response;
+            }
+        } else {
+            movieDetails.googleData = response;
         }
     }
 
-    if (!movieDetails.imdb_id || (movieDetails.imdb_id === googleData?.imdbId)) {
-        movieDetails.googleData = googleData;
-    } else {
-        movieDetails.googleData = {allWatchOptions: []};
-    }
     await Movie.updateOne(
         {id: id},
         {$set:
