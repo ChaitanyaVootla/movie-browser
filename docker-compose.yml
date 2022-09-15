@@ -15,9 +15,6 @@ services:
       - prod
     ports:
       - 3000:3000
-  cron:
-    container_name: cron_container
-    image: chaitanyavootla/tmb:latest
 
 volumes:
   mongodb:
