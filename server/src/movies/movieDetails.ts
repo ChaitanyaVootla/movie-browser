@@ -4,6 +4,7 @@ import moment from 'moment';
 import getGoogleData from "@/google/search";
 import { Movie } from "@/db/schemas/Movies";
 import { getGoogleDataLite } from '@/google/searchLite';
+import { getRottenTomatoesLite } from '@/rottenTomatoes/searchLite';
 
 const retainHours = 24;
 interface movieGetOptions {
@@ -38,6 +39,11 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
             }
         } else {
             movieDetails.googleData = response;
+        }
+        const rtLink = movieDetails.googleData.ratings?.find(({name}) => name === 'Rotten Tomatoes')?.link;
+        if (rtLink) {
+            let rtRes = await getRottenTomatoesLite(rtLink);
+            movieDetails.rottenTomatoes = rtRes;
         }
     }
 

@@ -8,11 +8,11 @@ const getGoogleDataLite = async (str: string) => {
     try {
         const { data }: {data: string} = await axios.get(str);
         const $= load(data)
-    
+
         const ratings = [];
         let imdbIndex = -1;
         let imdbId = null;
-    
+
         $(".BNeawe.s3v9rd.AP7Wnd .Ap5OSd .BNeawe.s3v9rd.AP7Wnd .BNeawe").each(
             (index, element) => {
                 const name = $(element).text();
@@ -22,7 +22,7 @@ const getGoogleDataLite = async (str: string) => {
                 }
             }
         );
-    
+
         $(".BNeawe.s3v9rd.AP7Wnd .Ap5OSd .BNeawe.s3v9rd.AP7Wnd").each(
             (index, element) => {
             const values = $(element).text().split('\n').map(str => str.split(' ')[0]).filter(Boolean);
@@ -32,7 +32,7 @@ const getGoogleDataLite = async (str: string) => {
                 }
             }
         });
-    
+
         $(".BNeawe.s3v9rd.AP7Wnd .Ap5OSd .BNeawe.s3v9rd.AP7Wnd .BNeawe a").each(
             (index, element) =>{
             ratings[index].link = $(element).attr('href')?.split('/url?q=')[1].split('&sa=')[0]

@@ -125,6 +125,7 @@
                 <div class="overview pt-3">
                     {{ details.overview }}
                 </div>
+                <rtReviews :item="details"></rtReviews>
                 <!-- keywords -->
                 <div class="keywords-container">
                     <router-link
@@ -276,6 +277,7 @@ import GoogleData from '../Common/googleData.vue';
 import moment from 'moment';
 import { mapActions } from 'vuex';
 import rank from '@/components/Common/rank.vue';
+import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 
 export default {
     name: 'seriesInfo',
@@ -283,6 +285,7 @@ export default {
     components: {
         GoogleData,
         rank,
+        rtReviews,
     },
     data() {
         return {

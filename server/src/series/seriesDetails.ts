@@ -3,6 +3,7 @@ import moment from 'moment';
 import getGoogleData from "../google/search";
 import { getTMDBTVDetails } from "../tmdb/tvDetails";
 import { Series } from "../db/schemas/Series";
+import { getRottenTomatoesSeriesLite } from '@/rottenTomatoes/searchLite';
 
 const retainHours = 24;
 interface seriesGetOptions {
@@ -35,6 +36,11 @@ const getSeriesDetails = async (id: number, options?: seriesGetOptions) => {
         tvDetails.googleData = googleData;
     } else {
         tvDetails.googleData = {allWatchOptions: []};
+    }
+    const rtLink = tvDetails.googleData.ratings?.find(({name}) => name === 'Rotten Tomatoes')?.link;
+    if (rtLink) {
+        let rtRes = await getRottenTomatoesSeriesLite(rtLink);
+        tvDetails.rottenTomatoes = rtRes;
     }
     await Series.updateOne(
         {id: id},

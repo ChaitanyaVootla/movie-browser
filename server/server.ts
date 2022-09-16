@@ -26,6 +26,7 @@ import filtersRoutes from '@/filters/routes';
 import cronRoutes from '@/cron/routes';
 import recentsRoutes from '@/recents/routes';
 import continueWatchingRoutes from '@/continueWatching/routes';
+import rottenTomatoesRoutes from '@/rottenTomatoes/routes';
 
 const mongoUser = `${process.env.MONGO_USER?process.env.TMDB_API_KEY:'root'}`;
 const mongoPass = `${process.env.MONGO_PASS?process.env.MONGO_PASS:'rootpassword'}`;
@@ -71,6 +72,7 @@ dbClient.connect().then(() => {
         cronRoutes(app);
         recentsRoutes(app);
         continueWatchingRoutes(app);
+        rottenTomatoesRoutes(app);
         dbRoutes(app, db);
     
         app.listen(port, () => console.log(`Server started at port: ${port}`));
