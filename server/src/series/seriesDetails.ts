@@ -42,6 +42,11 @@ const getSeriesDetails = async (id: number, options?: seriesGetOptions) => {
         let rtRes = await getRottenTomatoesSeriesLite(rtLink);
         tvDetails.rottenTomatoes = rtRes;
     }
+
+    const existingSeriesObj: any = await Series.findOne({id});
+    if (existingSeriesObj?.googleData?.ratings?.length) {
+        tvDetails.googleData = existingSeriesObj.googleData;
+    }
     await Series.updateOne(
         {id: id},
         {$set:

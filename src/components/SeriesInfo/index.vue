@@ -210,21 +210,21 @@
             ></mb-slider>
             <mb-slider
                 class="mb-container"
-                v-if="similarMovies.length"
-                :items="similarMovies"
-                :configuration="configuration"
-                :heading="'Similar'"
-                :id="'similar'"
-                :showMovieInfoModal="showMovieInfo"
-                :showFullMovieInfo="showSeriesInfo"
-            ></mb-slider>
-            <mb-slider
-                class="mb-container"
                 v-if="recommendedMovies.length"
                 :items="recommendedMovies"
                 :configuration="configuration"
                 :heading="'Recommended'"
                 :id="'recommended'"
+                :showMovieInfoModal="showMovieInfo"
+                :showFullMovieInfo="showSeriesInfo"
+            ></mb-slider>
+            <mb-slider
+                class="mb-container"
+                v-if="similarMovies.length"
+                :items="similarMovies"
+                :configuration="configuration"
+                :heading="'Similar'"
+                :id="'similar'"
                 :showMovieInfoModal="showMovieInfo"
                 :showFullMovieInfo="showSeriesInfo"
             ></mb-slider>

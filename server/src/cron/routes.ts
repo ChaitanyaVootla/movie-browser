@@ -1,4 +1,4 @@
-import { Movie, MovieLightFileds } from "@/db/schemas/Movies";
+import { Movie } from "@/db/schemas/Movies";
 import { MoviesWatchList } from "@/db/schemas/MovieWatchList";
 import { Series } from "@/db/schemas/Series";
 import { SeriesList } from "@/db/schemas/seriesList";
@@ -7,9 +7,8 @@ import { updateMovies } from "@/movies/updateMovies";
 import { updateSeries } from "@/series/updateSeries";
 import axios from "axios";
 import { Application } from "express";
-import moment from "moment";
 import { cronMovies } from "./movies";
-import { cronSeries } from "./series";
+import { cronSeries, updateSeriesList } from "./series";
 
 const setupRoute = (app: Application) => {
     app.get('/cron/status',
@@ -61,6 +60,12 @@ const setupRoute = (app: Application) => {
 
             await updateMovies(allWatchedMovieIds.concat(allWatchListMoviesIds));
             await updateSeries(allSeriesIds)
+        }
+    );
+    app.get('/cron/updateSeriesList',
+        async (req, res) => {
+            const seriesCount = await updateSeriesList();
+            res.json({seriesCount});
         }
     );
     app.get('/cron/popular/movies',

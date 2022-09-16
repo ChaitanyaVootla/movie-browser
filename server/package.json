@@ -32,6 +32,7 @@
         "mongodb": "^4.9.0",
         "mongoose": "^6.6.0",
         "node-cache": "^5.1.2",
+        "node-cron": "^3.0.2",
         "passport": "0.6.0",
         "passport-google-oauth2": "0.2.0",
         "pg": "^8.7.1",
@@ -48,6 +49,7 @@
     "devDependencies": {
         "@types/cors": "^2.8.12",
         "@types/express-session": "^1.17.5",
+        "@types/node-cron": "^3.0.4",
         "nodemon": "2.0.15",
         "pm2": "5.1.2",
         "ts-node": "10.5.0",

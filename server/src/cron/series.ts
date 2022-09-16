@@ -7,6 +7,7 @@ import zlib from 'zlib';
 import {promisify} from 'util';
 import { pipeline } from 'stream';
 import { updateSeries } from "@/series/updateSeries";
+import { SeriesList } from '@/db/schemas/seriesList';
 
 const fileName = 'latestSeries';
 
@@ -37,4 +38,10 @@ const cronSeries = async () => {
     return seriesIds.length;
 }
 
-export { cronSeries };
+const updateSeriesList = async () => {
+    const allSeriesIds = (await SeriesList.find({}).select('seriesId -_id')).map(doc => doc.toJSON()).map(({seriesId}) => seriesId);
+    updateSeries(allSeriesIds, true, true);
+    return allSeriesIds.length;
+}
+
+export { cronSeries, updateSeriesList };

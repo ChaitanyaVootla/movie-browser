@@ -13,6 +13,7 @@ import MongoStore from 'connect-mongo';
 import mongoose from 'mongoose';
 import { authInjector } from '@/auth/middleware';
 import { IGetUserAuthInfoRequest } from '@/auth/utils';
+import cron from 'node-cron';
 
 // routes
 import watchedMoviesRoutes from './src/userData/routes';
@@ -27,6 +28,8 @@ import cronRoutes from '@/cron/routes';
 import recentsRoutes from '@/recents/routes';
 import continueWatchingRoutes from '@/continueWatching/routes';
 import rottenTomatoesRoutes from '@/rottenTomatoes/routes';
+import { updateSeriesList } from '@/cron/series';
+import moment from 'moment';
 
 const mongoUser = `${process.env.MONGO_USER?process.env.TMDB_API_KEY:'root'}`;
 const mongoPass = `${process.env.MONGO_PASS?process.env.MONGO_PASS:'rootpassword'}`;
@@ -76,6 +79,15 @@ dbClient.connect().then(() => {
         dbRoutes(app, db);
     
         app.listen(port, () => console.log(`Server started at port: ${port}`));
+
+        console.log("setting up cron");
+        cron.schedule('0 3 * * *', () => {
+            console.log("updating series list for cron job, time:", moment().format('dddd MMMM Do YYYY, h:mm:ss a'))
+            updateSeriesList();
+        }, {
+            scheduled: true,
+            timezone: 'Asia/Kolkata'
+        })
     });
 }).catch((e) => {
     console.error(e);

@@ -47,6 +47,10 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
         }
     }
 
+    const existingMovieObj: any = await Movie.findOne({id});
+    if (existingMovieObj?.googleData?.ratings?.length) {
+        movieDetails.googleData = existingMovieObj.googleData;
+    }
     await Movie.updateOne(
         {id: id},
         {$set:

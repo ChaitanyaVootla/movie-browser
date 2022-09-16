@@ -13,6 +13,7 @@ const setupRoute = (app: Application) => {
                     tvId,
                     {
                         force: req.query.force && req.isAuthenticated,
+                        skipGoogle: true
                     },
                 );
                 return res.json(details);

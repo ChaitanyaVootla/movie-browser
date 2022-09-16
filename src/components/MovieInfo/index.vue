@@ -239,20 +239,20 @@
             ></mb-slider>
 
             <mb-slider
-                v-if="similarMovies.length"
-                :items="similarMovies"
-                :configuration="configuration"
-                :heading="'Similar'"
-                :id="'similar'"
-                :showMovieInfoModal="showMovieInfo"
-                :showFullMovieInfo="showFullMovieInfo"
-            ></mb-slider>
-            <mb-slider
                 v-if="recommendedMovies.length"
                 :items="recommendedMovies"
                 :configuration="configuration"
                 :heading="'Recommended'"
                 :id="'recommended'"
+                :showMovieInfoModal="showMovieInfo"
+                :showFullMovieInfo="showFullMovieInfo"
+            ></mb-slider>
+            <mb-slider
+                v-if="similarMovies.length"
+                :items="similarMovies"
+                :configuration="configuration"
+                :heading="'Similar'"
+                :id="'similar'"
                 :showMovieInfoModal="showMovieInfo"
                 :showFullMovieInfo="showFullMovieInfo"
             ></mb-slider>
