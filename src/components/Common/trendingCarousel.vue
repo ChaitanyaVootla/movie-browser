@@ -10,7 +10,7 @@
             :history="true"
             heading="Upcoming Episodes"
         ></mb-slider>
-        <el-row class="week-trends-container pt-3 mobile-hide">
+        <el-row class="week-trends-container pt-2 mobile-hide">
             <el-col :span="watchListAbsent ? 24 : 15">
                 <el-carousel
                     height="43em"

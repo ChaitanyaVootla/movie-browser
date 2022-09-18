@@ -117,13 +117,27 @@ const store = new Vuex.Store({
             state.watched.movieIdsSet.delete(id);
             state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet))
         },
-        addWatchListMovie(state, id: number) {
+        addWatchListMovie(state, {id, details}) {
             state.watchList.movieIdsSet.add(id);
             state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet))
+            state.watchList.movies.push({...details, createdAt: new Date()})
+            state.watchList.movies = sortBy(state.watchList.movies, 'createdAt').reverse()
         },
-        delteWatchListMovie(state, id: number) {
+        deleteWatchListMovie(state, id: number) {
             state.watchList.movieIdsSet.delete(id);
             state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet))
+            state.watchList.movies = state.watchList.movies.filter(({id: movieId}) => movieId !== id)
+        },
+        addSeriesList(state, {id, details}) {
+            state.watchList.seriesIdsSet.add(id);
+            state.watchList.seriesIdsSet = new Set(Array.from(state.watchList.seriesIdsSet))
+            state.watchList.series.push({...details, createdAt: new Date()})
+            state.watchList.series = sortBy(state.watchList.series, 'createdAt').reverse()
+        },
+        removeSeriesList(state, id: number) {
+            state.watchList.seriesIdsSet.delete(id);
+            state.watchList.seriesIdsSet = new Set(Array.from(state.watchList.seriesIdsSet))
+            state.watchList.series = state.watchList.series.filter(({id: seriesId}) => seriesId !== id)
         },
         addRecent(state, {item, isMovie}) {
             let newRecents = state.recentVisits;
@@ -208,13 +222,21 @@ const store = new Vuex.Store({
             api.deleteWatched(id);
             commit('deleteWatched', id);
         },
-        addWatchListMovie({ commit, state }, id: number) {
+        addWatchListMovie({ commit, state }, {id, details}: {id: number, details: any}) {
             api.addWatchListMovie(id);
-            commit('addWatchListMovie', id);
+            commit('addWatchListMovie', {id, details});
         },
-        delteWatchListMovie({ commit, state }, id: number) {
+        deleteWatchListMovie({ commit, state }, id: number) {
             api.deleteWatchListMovie(id);
-            commit('delteWatchListMovie', id);
+            commit('deleteWatchListMovie', id);
+        },
+        addSeriesList({ commit, state }, {id, details}: {id: number, details: any}) {
+            api.addSeriesList(id);
+            commit('addSeriesList', {id, details});
+        },
+        removeSeriesList({ commit, state }, id: number) {
+            api.removeSeriesList(id);
+            commit('removeSeriesList', id);
         },
         addRecent({ commit, state }, {id, isMovie, item}) {
             api.addRecent(id, isMovie);

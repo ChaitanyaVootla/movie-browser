@@ -161,7 +161,6 @@
                 <div class="pt-3 overview">
                     {{ details.overview }}
                 </div>
-                <rtReviews :item="details"></rtReviews>
                 <div class="keywords-container">
                     <router-link
                         v-for="keyword in showAllTags
@@ -191,6 +190,7 @@
                     Last updated: {{sincetime(details.updatedAt)}}
                     <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
                 </div>
+                <rtReviews class="mt-5" :item="details"></rtReviews>
             </div>
             <div v-if="details.collectionDetails">
                 <mb-slider
@@ -373,7 +373,7 @@ export default {
             deleteWatched: 'delteWatchedMovie',
             addWatchedMovie: 'addWatchedMovie',
             addWatchListMovie: 'addWatchListMovie',
-            delteWatchListMovie: 'delteWatchListMovie',
+            deleteWatchListMovie: 'deleteWatchListMovie',
             addRecent: 'addRecent',
         }),
         getRuntime(runtime) {
@@ -392,9 +392,9 @@ export default {
         },
         addToListClicked() {
             if (this.isInWatchList) {
-                this.delteWatchListMovie(this.details.id);
+                this.deleteWatchListMovie(this.details.id);
             } else {
-                this.addWatchListMovie(this.details.id)
+                this.addWatchListMovie({id: this.details.id, details: this.details})
             }
         },
         openImageModal() {

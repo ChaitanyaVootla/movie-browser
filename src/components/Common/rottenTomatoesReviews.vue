@@ -1,5 +1,9 @@
 <template>
     <div>
+        <div v-if="(item.rottenTomatoes && item.rottenTomatoes.criticsConsensus) ||
+            (item.rottenTomatoes && item.rottenTomatoes.criticsRating)" class="heading">
+            Rotten Tomatoes
+        </div>
         <div v-if="item.rottenTomatoes && item.rottenTomatoes.criticsConsensus" class="rottenTomatoes">
             <div class="frosted">
                 <div class="heading">
@@ -41,6 +45,10 @@ export default {
 </script>
 
 <style scoped lang="less">
+.heading {
+    font-size: 1.8rem;
+    font-weight: 500;
+}
 .rottenTomatoes {
     margin: 2rem 0;
     display: flex;

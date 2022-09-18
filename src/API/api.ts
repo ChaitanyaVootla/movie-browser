@@ -68,6 +68,11 @@ export const api = {
         const res = await axios.delete(`${appConfig.serverBaseUrl}seriesList/${id}`);
         return res.data;
     },
+    getEpisode: async function (seriesId: number, seasonNumber: number, episodeNumber: number) {
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${seriesId
+            }/season/${seasonNumber}/episode/${episodeNumber}?append_to_response=images,external_ids,credits`);
+        return res.data;
+    },
     getTrendingTv: async function () {
         const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingTvList}`);
         return res.data;

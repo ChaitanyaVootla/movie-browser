@@ -74,7 +74,7 @@ export default {
 @import '../../Assets/Styles/main.less';
 
 @card-width: 20rem;
-@card-height: 11rem;
+@card-height: 12rem;
 .watch-ott-icon {
     height: 2.2em;
     padding: 3px;

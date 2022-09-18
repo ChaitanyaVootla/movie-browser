@@ -95,7 +95,7 @@
                         effect="light"
                         content="Sign in to use this feature"
                         placement="right"
-                        :disabled="user.displayName"
+                        :disabled="user.name"
                     >
                         <el-button @click="addToWatchList">
                             Add to watch list
@@ -125,7 +125,6 @@
                 <div class="overview pt-3">
                     {{ details.overview }}
                 </div>
-                <rtReviews :item="details"></rtReviews>
                 <!-- keywords -->
                 <div class="keywords-container">
                     <router-link
@@ -185,6 +184,15 @@
                     :seriesInfo="details"
                     :isEpisode="true"
                 ></mb-slider>
+            </div>
+            <div class="more-info mt-4 mb-4">
+                <div class="episodeDetails">
+                    <episodeDetails v-if="lastEpisodeDetails.name" :configuration="configuration"
+                        :details="lastEpisodeDetails" class="mt-4 mb-4"></episodeDetails>
+                </div>
+                <div class="rtReviews">
+                    <rtReviews :item="details"></rtReviews>
+                </div>
             </div>
 
             <mb-slider
@@ -278,6 +286,7 @@ import moment from 'moment';
 import { mapActions } from 'vuex';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
+import episodeDetails from '@/components/Common/episodeDetails.vue';
 
 export default {
     name: 'seriesInfo',
@@ -286,6 +295,7 @@ export default {
         GoogleData,
         rank,
         rtReviews,
+        episodeDetails,
     },
     data() {
         return {
@@ -300,6 +310,7 @@ export default {
             movie: {},
             selectedSeason: null,
             selectedSeasonInfo: {},
+            lastEpisodeDetails: {},
             recommendedMovies: [] as any[],
             similarMovies: [] as any[],
             cast: [] as any[],
@@ -346,6 +357,8 @@ export default {
         },
         ...mapActions({
             addRecent: 'addRecent',
+            addSeriesList: 'addSeriesList',
+            removeSeriesList: 'removeSeriesList',
         }),
         async requestUpdate() {
             this.detailsLoading = true;
@@ -397,18 +410,25 @@ export default {
                 this.seasons.push(season);
             }
             this.selectedSeason = this.details.number_of_seasons;
-            await this.seasonChanged();
+            this.seasonChanged();
+            this.getLastEpisode();
             this.detailsLoading = false;
             this.showVideo = false;
+        },
+        async getLastEpisode() {
+            if (this.details.last_episode_to_air?.episode_number) {
+                this.lastEpisodeDetails = await api.getEpisode(this.details.id, this.selectedSeason,
+                    this.details.last_episode_to_air.episode_number);
+            }
         },
         updateHistoryData() {
             this.addRecent({id: this.details.id, isMovie: false, item: this.details})
         },
         addToWatchList() {
-            api.addSeriesList(this.details.id);
+            this.addSeriesList({id: this.details.id, details: this.details})
         },
         removeFromWatchList() {
-            api.removeSeriesList(this.details.id);
+            this.removeSeriesList(this.details.id)
         },
         getYoutubeVideos: function () {
             return _.filter(this.details.videos?.results|| [], { site: 'YouTube' });
@@ -447,6 +467,17 @@ export default {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
+}
+.more-info {
+    display: flex;
+    justify-items: left;
+    .episodeDetails {
+        flex-grow: 1;
+    }
+    .rtReviews {
+        margin-top: 2rem;
+        flex-grow: 4;
+    }
 }
 .background-images-container {
     height: @primary-container-height;

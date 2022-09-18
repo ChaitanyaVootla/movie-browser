@@ -60,7 +60,7 @@ export default {
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
 @card-width: 20rem;
-@card-height: 11rem;
+@card-height: 12rem;
 .item-card-image[lazy='error'] {
     background-size: 4em;
     padding: 4em;

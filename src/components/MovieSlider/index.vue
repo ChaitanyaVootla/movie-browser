@@ -80,7 +80,13 @@
             </div>
         </div>
         <el-dialog :visible.sync="episodeDialogVisible">
-            <h5>{{ dialogEpisode.name }}</h5>
+            <div class="episode-dialog-heading">
+                <h5>{{ dialogEpisode.name }}</h5>
+                <div class="tmdb-rating" v-if="dialogEpisode.vote_average">
+                    <div>{{ dialogEpisode.vote_average.toFixed(1) }} <font-awesome-icon :icon="['fas', 'star']" /></div>
+                    <div class="vote_count">{{ dialogEpisode.vote_count }} votes</div>
+                </div>
+            </div>
             Episode {{ dialogEpisode.episode_number
             }}<span v-if="dialogEpisode.air_date"> - {{ getDateText(dialogEpisode.air_date) }}</span>
 
@@ -213,6 +219,26 @@ export default {
     padding-top: 1em;
     padding-bottom: 1em;
     width: 100%;
+}
+.episode-dialog-heading {
+    display: flex;
+    align-items: center;
+}
+.tmdb-rating {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 500;
+    margin-left: 0.5rem;
+    svg {
+        font-size: 12px;
+        color: gold;
+    }
+    .vote_count {
+        margin-left: 0.5rem;
+        font-size: 0.8rem;
+        color: #bdbdbd;
+    }
 }
 .external-link-text {
     text-decoration: underline;
