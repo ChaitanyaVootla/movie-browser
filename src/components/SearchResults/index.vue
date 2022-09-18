@@ -4,8 +4,6 @@
             <img
                 v-lazy="{
                     src: imageBasePath + (result.poster_path || result.profile_path),
-                    error: require('../../Assets/Images/error.svg'),
-                    loading: require('../../Assets/Images/loader-bars.svg'),
                 }"
                 class="search-image"
             />

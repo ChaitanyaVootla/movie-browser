@@ -98,8 +98,6 @@
                         <img
                             v-lazy="{
                                 src: `${configuration.images.secure_base_url}h632${image.file_path}`,
-                                error: require('../../Assets/Images/error.svg'),
-                                loading: require('../../Assets/Images/loader-bars.svg'),
                             }"
                             height="700px"
                         />

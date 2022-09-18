@@ -14,6 +14,7 @@ const getRottenTomatoesLite = async (str: string) => {
         const rt = {
             criticsConsensus: '',
             audienceSays: '',
+            link: str,
         }
         const whatToKnow = [];
         $(".what-to-know__section-body span").each(
@@ -38,6 +39,7 @@ const getRottenTomatoesSeriesLite = async (str: string) => {
         const rt = {
             criticsRating: '',
             audienceRating: '',
+            link: str,
         }
         $("[data-qa='tomatometer']").each(
             (index, element) => {

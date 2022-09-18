@@ -34,7 +34,6 @@ export default {
         return {
             imageObj: {
                 src: this.configuration.images.secure_base_url + this.imageRes + this.episode.still_path,
-                error: require('../../Assets/Images/error.svg'),
             },
             getFullDateText,
         };
@@ -80,7 +79,6 @@ export default {
     font-size: 1em !important;
 }
 .episode-card-image[lazy='loading'] {
-    background-image: url('../../Assets/Images/loader-bars.svg');
     background-size: contain;
     background-size: 4em;
     width: 20em;

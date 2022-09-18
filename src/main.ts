@@ -140,7 +140,11 @@ const routes = [
         name: 'admin',
     },
 ];
-Vue.use(VueLazyload);
+import errorImage from '@/Assets/Images/error.svg';
+Vue.use(VueLazyload, {
+    error: errorImage,
+    attempt: 3
+});
 const router = new VueRouter({
     mode: 'history',
     routes,

@@ -8,8 +8,6 @@
                             <div class="background-images-container justify-center">
                                 <img v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${series.backdrop_path}`,
-                                        error: require('../../Assets/Images/error.svg'),
-                                        loading: require('../../Assets/Images/loader-bars.svg'),
                                     }" height="640px"
                                 />
                             </div>
@@ -43,8 +41,6 @@
                             <div class="background-images-container justify-center">
                                 <img v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${series.backdrop_path}`,
-                                        error: require('../../Assets/Images/error.svg'),
-                                        loading: require('../../Assets/Images/loader-bars.svg'),
                                     }" height="640px"
                                 />
                             </div>

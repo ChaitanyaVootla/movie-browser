@@ -50,7 +50,6 @@ export default {
 @import '../../Assets/Styles/main.less';
 
 .person-card-image[lazy='error'] {
-    background-image: url('../../Assets/Images/error.svg');
     background-size: 2em;
     padding: 2.5em;
     width: 8em;

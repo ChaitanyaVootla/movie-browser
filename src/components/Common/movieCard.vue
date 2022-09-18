@@ -106,14 +106,12 @@ export default {
                     this.configuration.images.secure_base_url +
                     'w300' +
                     (this.movie.poster_path || this.movie.posterPath),
-                error: require('../../Assets/Images/error.svg'),
             },
             bgImageObj: {
                 src:
                     this.configuration.images.secure_base_url +
                     'w300' +
                     (this.movie.backdrop_path || this.movie.backdropPath),
-                error: require('../../Assets/Images/error.svg'),
             },
             sanitizeName,
             isMobile,
@@ -257,12 +255,14 @@ export default {
 @import '../../Assets/Styles/main.less';
 @img-height-percent: 96%;
 @img-trim-height-percent: 92%;
+@img-height: 17rem;
+@img-width: 11.33rem;
 
 .movie-card-image[lazy='error'] {
-    background-size: 4em;
-    padding: 4em;
-    width: 11em;
-    height: 10em;
+    padding: 3rem;
+    object-fit: contain;
+    width: @img-width;
+    height: @img-height;
     box-shadow: rgba(0, 0, 0, 0.5) 0px 3px 10px 0.2em;
     background-color: #161616;
 }
@@ -288,7 +288,6 @@ export default {
     top: 24.5em;
 }
 /deep/ .el-badge.isHoverActive .el-badge__content {
-    // top: 17em;
     z-index: 55;
 }
 .rating-container {
@@ -328,9 +327,6 @@ export default {
 .isTodayCard .movie-card-image {
     // box-shadow: rgba(80, 80, 80) 0px 0px 10px 0.2em;
 }
-.movie-card-image[lazy='loading'] {
-    width: 11em;
-}
 .watched-overlay {
     position: absolute;
     bottom: 0;
@@ -361,9 +357,9 @@ export default {
 .movie-card-image {
     border-radius: 5px;
     width: auto;
-    height: 17em;
-    background-size: cover;
-    background-repeat: no-repeat;
+    height: @img-height;
+    width: @img-width;
+    object-fit: cover;
     background-position: 50% 50%;
 }
 .watched {
@@ -409,7 +405,7 @@ export default {
     position: absolute;
     width: 100%;
     opacity: 0;
-    bottom: -3px;
+    bottom: 0;
     background: rgba(0, 0, 0, 0.9);
     padding: 0.3em 0.5em;
     transition: 300ms;
@@ -428,14 +424,14 @@ export default {
 }
 .img-container {
     position: relative;
-    height: 100% !important;
+    height: @img-height;
+    width: @img-width;
 }
 .info-overlay:active {
     transform: none;
 }
 .img-container:active {
     box-shadow: none;
-    // bottom: -2px;
     transform: scale(0.98);
 }
 .rating-info {

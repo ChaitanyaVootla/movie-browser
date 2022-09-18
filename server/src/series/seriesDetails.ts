@@ -37,15 +37,15 @@ const getSeriesDetails = async (id: number, options?: seriesGetOptions) => {
     } else {
         tvDetails.googleData = {allWatchOptions: []};
     }
-    const rtLink = tvDetails.googleData.ratings?.find(({name}) => name === 'Rotten Tomatoes')?.link;
-    if (rtLink) {
-        let rtRes = await getRottenTomatoesSeriesLite(rtLink);
-        tvDetails.rottenTomatoes = rtRes;
-    }
 
     const existingSeriesObj: any = await Series.findOne({id});
     if (existingSeriesObj?.googleData?.ratings?.length) {
         tvDetails.googleData = existingSeriesObj.googleData;
+    }
+    const rtLink = tvDetails.googleData.ratings?.find(({name}) => name === 'Rotten Tomatoes')?.link;
+    if (rtLink) {
+        let rtRes = await getRottenTomatoesSeriesLite(rtLink);
+        tvDetails.rottenTomatoes = rtRes;
     }
     await Series.updateOne(
         {id: id},

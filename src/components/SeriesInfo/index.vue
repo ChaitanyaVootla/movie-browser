@@ -194,6 +194,7 @@
                     <rtReviews :item="details"></rtReviews>
                 </div>
             </div>
+            <videoSlider class="ml-5 mr-5 mt-4 mb-4" :videos="youtubeVideos"></videoSlider>
 
             <mb-slider
                 class="mb-container"
@@ -247,8 +248,6 @@
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
-                                        error: require('../../Assets/Images/error.svg'),
-                                        loading: require('../../Assets/Images/loader-bars.svg'),
                                     }"
                                     height="500px"
                                 />
@@ -263,8 +262,6 @@
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
-                                        error: require('../../Assets/Images/error.svg'),
-                                        loading: require('../../Assets/Images/loader-bars.svg'),
                                     }"
                                     height="500px"
                                 />
@@ -287,6 +284,7 @@ import { mapActions } from 'vuex';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import episodeDetails from '@/components/Common/episodeDetails.vue';
+import videoSlider from '@/components/Common/videoSlider.vue';
 
 export default {
     name: 'seriesInfo',
@@ -296,6 +294,7 @@ export default {
         rank,
         rtReviews,
         episodeDetails,
+        videoSlider,
     },
     data() {
         return {
@@ -349,6 +348,9 @@ export default {
         },
         googleLink() {
             return `https://google.com/search?q=${this.details.name} tv series`;
+        },
+        youtubeVideos() {
+            return this.details?.videos?.results.filter(({site}) => site === 'YouTube') || [];
         },
     },
     methods: {

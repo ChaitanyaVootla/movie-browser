@@ -190,7 +190,7 @@
                     Last updated: {{sincetime(details.updatedAt)}}
                     <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
                 </div>
-                <rtReviews class="mt-5" :item="details"></rtReviews>
+                <rtReviews class="mt-4" :item="details"></rtReviews>
             </div>
             <div v-if="details.collectionDetails">
                 <mb-slider
@@ -202,6 +202,7 @@
                     :showFullMovieInfo="showFullMovieInfo"
                 ></mb-slider>
             </div>
+            <videoSlider class="ml-5 mr-5 mt-4 mb-4" :videos="youtubeVideos"></videoSlider>
             <mb-slider
                 v-if="cast.length"
                 :items="cast"
@@ -261,32 +262,28 @@
         <el-dialog :visible.sync="dialogVisible" :width="defaultImageTab === 'backdrops' ? '95%' : '50%'" top="10vh">
             <el-tabs v-model="defaultImageTab">
                 <el-tab-pane label="Backdrops" name="backdrops">
-                    <el-carousel type="card" height="500px">
+                    <el-carousel height="70vh" :interval="7000">
                         <el-carousel-item v-for="image in backdrops" :key="image.file_path">
                             <div class="justify-center">
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
-                                        error: require('../../Assets/Images/error.svg'),
-                                        loading: require('../../Assets/Images/loader-bars.svg'),
                                     }"
-                                    height="500px"
+                                    height="100%"
                                 />
                             </div>
                         </el-carousel-item>
                     </el-carousel>
                 </el-tab-pane>
                 <el-tab-pane label="Posters" name="posters">
-                    <el-carousel type="card" height="500px">
+                    <el-carousel height="70vh" :interval="7000">
                         <el-carousel-item v-for="image in posters" :key="image.file_path">
                             <div class="justify-center">
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
-                                        error: require('../../Assets/Images/error.svg'),
-                                        loading: require('../../Assets/Images/loader-bars.svg'),
                                     }"
-                                    height="500px"
+                                    height="100%"
                                 />
                             </div>
                         </el-carousel-item>
@@ -307,6 +304,7 @@ import { mapActions } from 'vuex';
 import moment from 'moment';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
+import videoSlider from '@/components/Common/videoSlider.vue';
 
 export default {
     name: 'movieInfo',
@@ -315,6 +313,7 @@ export default {
         GoogleData,
         rank,
         rtReviews,
+        videoSlider,
     },
     data() {
         return {
@@ -460,6 +459,9 @@ export default {
         },
     },
     computed: {
+        youtubeVideos() {
+            return this.details?.videos?.results.filter(({site}) => site === 'YouTube') || [];
+        },
         keywords() {
             return this.details?.keywords?.keywords || [];
         },

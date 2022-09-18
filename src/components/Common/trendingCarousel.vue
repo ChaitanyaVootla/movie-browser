@@ -11,16 +11,14 @@
             heading="Upcoming Episodes"
         ></mb-slider>
         <el-row class="week-trends-container pt-2 mobile-hide">
-            <el-col :span="watchListAbsent ? 24 : 15">
+            <el-col :span="15">
                 <el-carousel
                     height="43em"
                     :interval="7000"
-                    :type="watchListAbsent ? 'card' : ''"
                     @change="carouselChanged"
                     arrow="always"
                     class="ml-5"
                     id="trending-carousel"
-                    :key="watchListAbsent"
                 >
                     <el-carousel-item v-for="item in trendingListWeek" :key="item.id">
                         <div class="carousel-card-container" @click="carouselCardClicked(item)">
@@ -28,7 +26,6 @@
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}w1280${item.backdrop_path}`,
-                                        error: require('../../Assets/Images/error.svg'),
                                     }"
                                     class="carousel-image shimmer-img"
                                     :alt="item.title || item.name"
@@ -191,10 +188,6 @@ export default {
             watchListSeries = sortBy(watchListSeries, 'upcomingTime');
             return watchListSeries;
         },
-        watchListAbsent() {
-            return false;
-            return !this.seriesWatchList.length;
-        },
         historyAbsent() {
             return this.historyMovies.length === 0 && this.seriesHistory.length === 0;
         },
@@ -329,7 +322,7 @@ export default {
     object-fit: cover;
     object-position: 10% 0;
 }
-.carousel-image[lazy="loading"] {
+.carousel-image[lazy='loading'] {
     animation-duration: 1s;
 }
 .background-images-container {

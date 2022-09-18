@@ -113,8 +113,6 @@
                         <img
                             v-lazy="{
                                 src: `${configuration.images.secure_base_url}h632${image.file_path}`,
-                                error: require('../../Assets/Images/error.svg'),
-                                loading: require('../../Assets/Images/loader-bars.svg'),
                             }"
                             height="500px"
                         />
@@ -300,7 +298,6 @@ export default {
     width: 8em;
 }
 .main-img[lazy='loading'] {
-    background-image: url('../../Assets/Images/loader-bars.svg');
     background-size: 2em;
     width: 8em;
 }

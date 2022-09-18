@@ -2,7 +2,7 @@
     <div>
         <div v-if="(item.rottenTomatoes && item.rottenTomatoes.criticsConsensus) ||
             (item.rottenTomatoes && item.rottenTomatoes.criticsRating)" class="heading">
-            Rotten Tomatoes
+            <a :href="item.rottenTomatoes.link" target="_blank" rel="noreferrer noopener">Rotten Tomatoes <i class="el-icon-top-right"></i></a>
         </div>
         <div v-if="item.rottenTomatoes && item.rottenTomatoes.criticsConsensus" class="rottenTomatoes">
             <div class="frosted">
@@ -46,7 +46,7 @@ export default {
 
 <style scoped lang="less">
 .heading {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 500;
 }
 .rottenTomatoes {

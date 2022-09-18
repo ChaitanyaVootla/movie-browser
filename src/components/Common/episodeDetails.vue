@@ -85,7 +85,7 @@ import moment from 'moment';
             font-weight: 500;
             padding-bottom: 1rem;
             .episode-name {
-                font-size: 1.8rem;
+                font-size: 1.5rem;
             }
             .sub-text {
                 font-size: 1rem;

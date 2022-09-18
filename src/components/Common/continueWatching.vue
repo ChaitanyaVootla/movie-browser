@@ -54,7 +54,6 @@ export default {
             isPopoverVisible: false,
             imageObj: {
                 src: this.configuration.images.secure_base_url + this.imageRes + this.item.backdrop_path,
-                error: require('../../Assets/Images/error.svg'),
             },
             getFullDateText,
             sanitizeName,
@@ -105,7 +104,6 @@ export default {
     font-size: 1em !important;
 }
 .item-card-image[lazy='loading'] {
-    background-image: url('../../Assets/Images/loader-bars.svg');
     background-size: contain;
     background-size: 4em;
     width: @card-width;

@@ -41,7 +41,6 @@ export default {
             isPopoverVisible: false,
             imageObj: {
                 src: this.configuration.images.secure_base_url + this.imageRes + this.item.backdrop_path,
-                error: require('../../Assets/Images/error.svg'),
             },
             getFullDateText,
             sanitizeName,

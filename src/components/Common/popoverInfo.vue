@@ -60,7 +60,6 @@ export default {
                     this.configuration.images.secure_base_url +
                     'w300' +
                     (this.item.backdrop_path || this.item.backdropPath),
-                error: require('../../Assets/Images/error.svg'),
             },
             showFullOverview: false,
         };

@@ -72,8 +72,6 @@
                         <img
                             v-lazy="{
                                 src: `${configuration.images.base_url}w500${result.profile_path}`,
-                                error: require('../../Assets/Images/error.svg'),
-                                loading: require('../../Assets/Images/loader-bars.svg'),
                             }"
                             class="search-image"
                         />
@@ -183,8 +181,6 @@
                         <img
                             v-lazy="{
                                 src: `${configuration.images.base_url}w500${result.profile_path}`,
-                                error: require('../../Assets/Images/error.svg'),
-                                loading: require('../../Assets/Images/loader-bars.svg'),
                             }"
                             class="search-image"
                         />
@@ -896,7 +892,6 @@ export default {
     color: bisque;
 }
 .loader-main {
-    background-image: url('../../Assets/Images/loader-bars.svg');
     background-size: contain;
     background-size: 4em;
     width: 100%;

@@ -32,10 +32,18 @@
 @default-radius: 4px;
 @light-border: #252525;
 
-.shimmer-img[lazy='loading'] {
+/deep/ .el-button--danger {
+    background-color: @main-red;
+}
+
+img[lazy='loading'] {
     animation: shimmer 8s infinite;
     animation-timing-function: linear;
     background: linear-gradient(to right, #222 4%, #252525 25%, #222 36%);
+}
+img[lazy='error'] {
+    object-fit: contain;
+    padding: 20%;
 }
 @keyframes shimmer{
     0% {

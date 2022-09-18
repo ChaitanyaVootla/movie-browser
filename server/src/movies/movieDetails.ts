@@ -40,16 +40,16 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
         } else {
             movieDetails.googleData = response;
         }
-        const rtLink = movieDetails.googleData.ratings?.find(({name}) => name === 'Rotten Tomatoes')?.link;
-        if (rtLink) {
-            let rtRes = await getRottenTomatoesLite(rtLink);
-            movieDetails.rottenTomatoes = rtRes;
-        }
     }
 
     const existingMovieObj: any = await Movie.findOne({id});
     if (existingMovieObj?.googleData?.ratings?.length) {
         movieDetails.googleData = existingMovieObj.googleData;
+    }
+    const rtLink = movieDetails.googleData.ratings?.find(({name}) => name === 'Rotten Tomatoes')?.link;
+    if (rtLink) {
+        let rtRes = await getRottenTomatoesLite(rtLink);
+        movieDetails.rottenTomatoes = rtRes;
     }
     await Movie.updateOne(
         {id: id},
