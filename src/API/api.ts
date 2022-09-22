@@ -113,6 +113,12 @@ export const api = {
         );
         return details;
     },
+    getMovieImages: async function (id: number) {
+        const { data: details } = await axios.get(
+            `${appConfig.serverBaseTMDBUrl}${endpoints.movieDetails}/${id}/images`,
+        );
+        return details;
+    },
     collectionDetails: async function (id: number) {
         const { data: details } = await axios.get(
             `${appConfig.serverBaseTMDBUrl}${endpoints.collectionDetails}${id}`,

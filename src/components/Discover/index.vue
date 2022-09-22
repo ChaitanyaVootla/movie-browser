@@ -279,6 +279,9 @@
                 <el-tooltip effect="light" content="including watched movies" placement="right">
                     <font-awesome-icon :icon="['fas', 'info-circle']" class="ml-1" v-show="hideWatchedMovies" />
                 </el-tooltip>
+                <el-button @click="toggleGallery">
+                    Gallery
+                </el-button>
             </div>
             <div style="display: flex">
                 <div class="ml-3 mt-2 save-container mobile-hide">
@@ -289,7 +292,7 @@
                 </div>
             </div>
         </div>
-        <div v-if="isLoaded" class="movies-grid-container">
+        <div v-if="isLoaded && !showGallery" class="movies-grid-container">
             <movie-card
                 v-for="movie in movies"
                 :movie="movie"
@@ -302,6 +305,13 @@
                 :hideWatchList="hideWatcListMovies"
             >
             </movie-card>
+        </div>
+        <div v-else-if="showGallery" class="imageGallery">
+            <img
+                v-for="image in images"
+                :key="image.file_path"
+                v-lazy="{src: configuration.images.secure_base_url + 'w300' + image.file_path}"
+                class="" />
         </div>
         <div class="grid-center" v-if="!hideLoadMore">
             <el-button @click="loadMoreMovies">Load More</el-button>
@@ -348,6 +358,7 @@ export default {
         return {
             certifications,
             isLoaded: false,
+            showGallery: false,
             isDataLoading: true,
             movies: [] as any[],
             showAdvancedFilters: true,
@@ -385,6 +396,7 @@ export default {
             isMovies: true,
             computedDiscoverQuery: '',
             selectedTimeFrame: null,
+            images: [],
             ratingOptions: [] as any[],
             selectedRating: {} as any,
             selectedKeywords: [] as any[],
@@ -442,6 +454,25 @@ export default {
         },
     },
     methods: {
+        async toggleGallery() {
+            this.showGallery = !this.showGallery;
+            if (this.showGallery) {
+                const idsToFetchImages = this.movies.map(
+                    ({id, backdrop_path}) => {
+                        if (backdrop_path) {
+                            return id;
+                        }
+                    }
+                ).filter(Boolean).slice(0, 7);
+                console.log(idsToFetchImages);
+                const allBackdrops = [];
+                for (let movieId of idsToFetchImages) {
+                    const {backdrops}: {backdrops:  any[]} = await api.getMovieImages(movieId);
+                    allBackdrops.push(...backdrops);
+                }
+                this.images = allBackdrops;
+            }
+        },
         shareClicked() {
             navigator.clipboard.writeText(window.location.href);
             this.$message({
@@ -833,6 +864,15 @@ export default {
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
 
+.imageGallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3vw;
+    margin: 5vw;
+    img {
+        width: 40vw;
+    }
+}
 .person-dropdown {
     height: auto !important;
     padding: 1em;
