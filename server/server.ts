@@ -39,10 +39,11 @@ let db:Db;
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(cors({
-    origin : "http://localhost",
-    credentials: true,
-}));
+// app.use(cors({
+//     origin : "http://localhost",
+//     credentials: true,
+// }));
+app.use(cors());
 app.use(session({
     secret: process.env.SESSION_SECRET,
     name: 'googleonetap',
