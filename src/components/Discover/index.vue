@@ -496,31 +496,36 @@ export default {
                 this.loadMovies(true);
             });
         },
-        saveFilter() {
-            // onAuthStateChanged(auth, async (user) => {
-            //     if (user) {
-            //         let filterName = this.filterName;
-            //         if (!filterName || !filterName.length) {
-            //             filterName = this.$router.currentRoute.query.name;
-            //         }
-            //         this.$router.currentRoute.query.name = filterName;
-            //         setDoc(doc(db, `users/${user.uid}/savedFilters/${filterName}`), this.$router.currentRoute.query);
-            //         this.saveFilterDialogVisible = false;
-            //         this.$message({
-            //             message: 'Filter Saved',
-            //             center: true,
-            //             type: 'success',
-            //         });
-            //     }
-            // });
+        async saveFilter() {
+            await api.createOrUpdateFilter({
+                ...this.$router.currentRoute.query,
+                name: this.filterName || this.$router.currentRoute.query.name,
+            });
+            this.$router.currentRoute.query.name = this.filterName || this.$router.currentRoute.query.name;
+            this.saveFilterDialogVisible = false;
+            this.$message({
+                message: 'Filter Saved',
+                center: true,
+                type: 'success',
+            });
+            this.$store.dispatch('updateFilters');
         },
-        deleteFilter() {
-            // onAuthStateChanged(auth, async (user) => {
-            //     if (user) {
-            //         const filterRef = doc(db, `users/${user.uid}/savedFilters/${this.$router.currentRoute.query.name}`);
-            //         deleteDoc(filterRef);
-            //         this.saveFilterDialogVisible = false;
-            //     }
+        async deleteFilter() {
+            await api.deleteFilter(this.$router.currentRoute.query.name);
+            this.saveFilterDialogVisible = false;
+            this.$message({
+                message: 'Filter Deleted',
+                center: true,
+                type: 'success',
+            });
+            this.$router
+                .push({
+                    name: 'discover',
+                })
+                .catch((err) => {});
+            this.$store.dispatch('updateFilters');
+            // setTimeout(() => {
+            //     this.loadMovies(true);
             // });
         },
         scrollHandler() {

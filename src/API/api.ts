@@ -236,4 +236,16 @@ export const api = {
         const res = await axios.get(appConfig.serverBaseUrl + `${serverEndpoints.ottLink}?q=${query}`);
         return res.data;
     },
+    createOrUpdateFilter: async function (filter: any) {
+        const res = await axios.post(appConfig.serverBaseUrl + serverEndpoints.filters, filter);
+        return res.data;
+    },
+    getFilters: async function () {
+        const res = await axios.get(appConfig.serverBaseUrl + serverEndpoints.filters);
+        return res.data;
+    },
+    deleteFilter: async function (filterName: string) {
+        const res = await axios.delete(appConfig.serverBaseUrl + serverEndpoints.filters + `/${filterName}`);
+        return res.data;
+    },
 };

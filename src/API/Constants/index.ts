@@ -33,6 +33,7 @@ const serverEndpoints = {
     ottLink: 'googleData',
     movieDetails: 'movieDetails',
     tvDetails: 'seriesDetails',
+    filters: 'filters',
 };
 
 export const discoverDefaultQueries = '&include_video=true&';

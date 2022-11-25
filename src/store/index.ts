@@ -214,6 +214,10 @@ const store = new Vuex.Store({
                 }
             )
         },
+        async updateFilters({ commit, state }) {
+            const filters = await api.getFilters();
+            state.savedFilters = filters;
+        },
         addWatchedMovie({ commit, state }, id: number) {
             api.addWatched(id);
             commit('addWatched', id);

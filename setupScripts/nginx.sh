@@ -14,6 +14,7 @@ sudo apt-get install certbot
 apt-get install python3-certbot-nginx
 
 sudo certbot --nginx -d themoviebrowser.com -d www.themoviebrowser.com
+sudo certbot --nginx -d vootlachaitanya.com -d www.vootlachaitanya.com
 
 # Nginx config
 map $sent_http_content_type $expires {
