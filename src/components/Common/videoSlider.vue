@@ -1,11 +1,15 @@
 <template>
     <div v-if="videos.length" class="main-container">
         <div class="heading">
-            <img src="/images/branding/ytLogo.png" class="ytLogo"/>
+            <img src="/images/branding/ytLogo.png" class="ytLogo" />
             <el-button-group class="ml-3">
-                <el-button v-for="videoType in videoTypes" :key="videoType" @click="setVideoType(videoType)"
-                    :type="selectedVideoType === videoType?`danger`:`secondary`">
-                    {{videoType}}
+                <el-button
+                    v-for="videoType in videoTypes"
+                    :key="videoType"
+                    @click="setVideoType(videoType)"
+                    :type="selectedVideoType === videoType ? `danger` : `secondary`"
+                >
+                    {{ videoType }}
                 </el-button>
             </el-button-group>
         </div>
@@ -43,25 +47,26 @@ export default Vue.extend({
     data() {
         return {
             selectedVideoType: '',
-        }
+        };
     },
     methods: {
         setVideoType(videoType: string) {
             if (videoType === this.selectedVideoType) {
-                return this.selectedVideoType = '';
+                return (this.selectedVideoType = '');
             }
             this.selectedVideoType = videoType;
-        }
+        },
     },
     computed: {
         videoTypes() {
-            return Array.from(new Set(this.videos.map(({type}) => type))) as string[];
+            return Array.from(new Set(this.videos.map(({ type }) => type))) as string[];
         },
         filteredVideos() {
-            return this.videos.filter(({type}) => !this.selectedVideoType || (type === this.selectedVideoType))
+            return this.videos
+                .filter(({ type }) => !this.selectedVideoType || type === this.selectedVideoType)
                 .slice(0, 5);
         },
-    }
+    },
 });
 </script>
 

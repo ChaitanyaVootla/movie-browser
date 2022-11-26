@@ -43,7 +43,7 @@
                                     - {{ item.media_type }}
                                 </h6>
 
-                                <GoogleData class="googleData-container" :item="item" :rawGoogleData="googleData"/>
+                                <GoogleData class="googleData-container" :item="item" :rawGoogleData="googleData" />
                             </div>
                         </div>
                     </el-carousel-item>

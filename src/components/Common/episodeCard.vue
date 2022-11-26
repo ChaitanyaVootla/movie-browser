@@ -5,10 +5,7 @@
             }}<span v-if="episode.air_date"> - {{ getFullDateText(episode.air_date) }}</span>
         </div>
         <div class="img-container" @click="openEpisodeDialog(episode)">
-            <img
-                v-lazy="imageObj"
-                class="episode-card-image"
-            />
+            <img v-lazy="imageObj" class="episode-card-image" />
         </div>
         <div class="secondary-text episode-heading mt-1 mb-1" v-if="showHeader">
             {{ episode.name }}

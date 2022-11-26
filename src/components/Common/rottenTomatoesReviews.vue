@@ -1,33 +1,36 @@
 <template>
     <div>
-        <div v-if="(item.rottenTomatoes && item.rottenTomatoes.criticsConsensus) ||
-            (item.rottenTomatoes && item.rottenTomatoes.criticsRating)" class="heading">
-            <a :href="item.rottenTomatoes.link" target="_blank" rel="noreferrer noopener">Rotten Tomatoes <i class="el-icon-top-right"></i></a>
+        <div
+            v-if="
+                (item.rottenTomatoes && item.rottenTomatoes.criticsConsensus) ||
+                (item.rottenTomatoes && item.rottenTomatoes.criticsRating)
+            "
+            class="heading"
+        >
+            <a :href="item.rottenTomatoes.link" target="_blank" rel="noreferrer noopener"
+                >Rotten Tomatoes <i class="el-icon-top-right"></i
+            ></a>
         </div>
         <div v-if="item.rottenTomatoes && item.rottenTomatoes.criticsConsensus" class="rottenTomatoes">
             <div class="frosted">
-                <div class="heading">
-                    <img src="/images/rating/rottenTomatoes.svg" /> Critics consensus
-                </div>
-                <div class="review">{{item.rottenTomatoes.criticsConsensus}}</div>
+                <div class="heading"> <img src="/images/rating/rottenTomatoes.svg" /> Critics consensus </div>
+                <div class="review">{{ item.rottenTomatoes.criticsConsensus }}</div>
             </div>
             <div class="frosted">
-                <div class="heading">
-                    <img src="/images/rating/rottenAudience.svg" /> Audience says
-                </div>
-                <div class="review">{{item.rottenTomatoes.audienceSays}}</div>
+                <div class="heading"> <img src="/images/rating/rottenAudience.svg" /> Audience says </div>
+                <div class="review">{{ item.rottenTomatoes.audienceSays }}</div>
             </div>
         </div>
         <div v-if="item.rottenTomatoes && item.rottenTomatoes.criticsRating" class="rottenTomatoes">
             <div class="frosted">
                 <div class="heading centered">
-                    <img src="/images/rating/rottenTomatoes.svg" /> {{item.rottenTomatoes.criticsRating}}
+                    <img src="/images/rating/rottenTomatoes.svg" /> {{ item.rottenTomatoes.criticsRating }}
                 </div>
                 <div class="subText">Critics rating</div>
             </div>
             <div class="frosted">
                 <div class="heading centered">
-                    <img src="/images/rating/rottenAudience.svg" /> {{item.rottenTomatoes.audienceRating}}
+                    <img src="/images/rating/rottenAudience.svg" /> {{ item.rottenTomatoes.audienceRating }}
                 </div>
                 <div class="subText">Audience rating</div>
             </div>
@@ -41,7 +44,7 @@ import Vue from 'vue';
 export default Vue.extend({
     name: 'rottenTomatoesReviews',
     props: {
-        item: Object
+        item: Object,
     },
 });
 </script>

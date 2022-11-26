@@ -215,7 +215,7 @@ export default Vue.extend({
             }
             const groupedItems = groupBy(list, 'id');
             const uniqueItems = [] as any[];
-           each(groupedItems, (items, id) => {
+            each(groupedItems, (items, id) => {
                 let jobs = '';
                 let characters = '';
                 each(items, (item) => {

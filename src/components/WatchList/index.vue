@@ -83,7 +83,8 @@ export default Vue.extend({
             watchListSeries = compact(
                 watchListSeries.map((series) => {
                     if (series.next_episode_to_air) {
-                        const nextAirDays = moment({ hours: 0 }).diff(series.next_episode_to_air?.air_date, 'days') * -1;
+                        const nextAirDays =
+                            moment({ hours: 0 }).diff(series.next_episode_to_air?.air_date, 'days') * -1;
                         let upcomingText = `In ${nextAirDays} day${nextAirDays > 1 ? 's' : ''}`;
                         if (nextAirDays >= 11 || nextAirDays < 0) {
                             upcomingText = moment(series.next_episode_to_air?.air_date).format('DD MMM YYYY');

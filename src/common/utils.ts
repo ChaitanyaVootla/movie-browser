@@ -5,8 +5,8 @@ const sanitizeName = (string) => {
 };
 
 const isMovie = (item) => {
-    return item.first_air_date?false:true;
-}
+    return item.first_air_date ? false : true;
+};
 
 const getRatingColor = (rating) => {
     if (rating === 0) {
@@ -120,8 +120,8 @@ const getIconFromLink = (watchLink: string) => {
     return {
         imagePath,
         link: watchLink,
-    }
-}
+    };
+};
 
 const mapGoogleData = (data: any) => {
     let allWatchOptions = [];

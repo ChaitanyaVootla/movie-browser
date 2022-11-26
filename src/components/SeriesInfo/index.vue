@@ -2,21 +2,32 @@
     <div style="position: relative">
         <div class="background-images-container" v-loading="detailsLoading">
             <img v-lazy="creditImageBasePath + details.backdrop_path" class="background-image" />
-            <div v-if="details.backdrop_path && !showVideo && getYoutubeVideos().length" class="mobile-hide play-trailer" @click="showVideo=true">
+            <div
+                v-if="details.backdrop_path && !showVideo && getYoutubeVideos().length"
+                class="mobile-hide play-trailer"
+                @click="showVideo = true"
+            >
                 <font-awesome-icon :icon="['fas', 'play-circle']" />
                 Play Trailer
             </div>
-            <img v-if="details.backdrop_path && !showVideo" v-lazy="creditImageBasePath + details.backdrop_path" class="main-image" />
+            <img
+                v-if="details.backdrop_path && !showVideo"
+                v-lazy="creditImageBasePath + details.backdrop_path"
+                class="main-image"
+            />
             <!-- Trailer/Video -->
-            <div v-else-if="getYoutubeVideos().length" class="mobile-hide video-player"
-                :key="details.id">
+            <div v-else-if="getYoutubeVideos().length" class="mobile-hide video-player" :key="details.id">
                 <iframe
                     :id="`ytplayer-${details.id}`"
                     title="YouTube video player"
                     width="50%"
                     height="100%"
                     class="youtube-player"
-                    :src="`https://www.youtube.com/embed/${selectedVideo.key || getYoutubeVideos()[0].key}?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${selectedVideo.key || getYoutubeVideos()[0].key}`"
+                    :src="`https://www.youtube.com/embed/${
+                        selectedVideo.key || getYoutubeVideos()[0].key
+                    }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${
+                        selectedVideo.key || getYoutubeVideos()[0].key
+                    }`"
                     frameborder="0"
                     controls="1"
                     modestbranding
@@ -64,8 +75,8 @@
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{ genre.name }}{{ index === details.genres.length - 1 ? '' : ',' }}
                 </span>
-                <br/>
-                <span style="line-height: 2rem;">
+                <br />
+                <span style="line-height: 2rem">
                     <span>{{ getDateText(details.first_air_date) }} - {{ details.status }}</span>
                     <span v-if="details.episode_run_time.length" class="pl-2">
                         <font-awesome-icon :icon="['far', 'clock']" />
@@ -78,8 +89,12 @@
             </h6>
 
             <!-- Watch links -->
-            <GoogleData class="mt-4 googleData-container" :item="details" :key="details.id"
-                :rawGoogleData="details.googleData"/>
+            <GoogleData
+                class="mt-4 googleData-container"
+                :item="details"
+                :key="details.id"
+                :rawGoogleData="details.googleData"
+            />
 
             <!-- Additional info -->
             <div class="additional-info">
@@ -128,9 +143,7 @@
                 <!-- keywords -->
                 <div class="keywords-container">
                     <router-link
-                        v-for="keyword in showAllTags
-                            ? keywords
-                            : keywords.slice(0, 5)"
+                        v-for="keyword in showAllTags ? keywords : keywords.slice(0, 5)"
                         :key="keyword.id"
                         :to="{
                             name: 'discover',
@@ -145,15 +158,12 @@
                             {{ keyword.name }}
                         </div>
                     </router-link>
-                    <span
-                        v-if="keywords.length > 5"
-                        class="expand-ellipsis"
-                        @click="showAllTags = !showAllTags"
+                    <span v-if="keywords.length > 5" class="expand-ellipsis" @click="showAllTags = !showAllTags"
                         >...</span
                     >
                 </div>
                 <div class="mt-3 updatedInfo">
-                    Last updated: {{sincetime(details.updatedAt)}}
+                    Last updated: {{ sincetime(details.updatedAt) }}
                     <a @click="requestUpdate" class="ml-3">request update</a>
                 </div>
             </div>
@@ -187,8 +197,12 @@
             </div>
             <div class="more-info mt-4 mb-4">
                 <div class="episodeDetails">
-                    <episodeDetails v-if="lastEpisodeDetails.name" :configuration="configuration"
-                        :details="lastEpisodeDetails" class="mt-4 mb-4"></episodeDetails>
+                    <episodeDetails
+                        v-if="lastEpisodeDetails.name"
+                        :configuration="configuration"
+                        :details="lastEpisodeDetails"
+                        class="mt-4 mb-4"
+                    ></episodeDetails>
                 </div>
                 <div class="rtReviews">
                     <rtReviews :item="details"></rtReviews>
@@ -351,7 +365,7 @@ export default Vue.extend({
             return `https://google.com/search?q=${this.details.name} tv series`;
         },
         youtubeVideos() {
-            return this.details?.videos?.results.filter(({site}) => site === 'YouTube') || [];
+            return this.details?.videos?.results.filter(({ site }) => site === 'YouTube') || [];
         },
     },
     methods: {
@@ -367,7 +381,8 @@ export default Vue.extend({
             this.detailsLoading = true;
             try {
                 this.details = await api.getTvDetails(this.details.id, 'force=true');
-            } catch(e) {} finally {
+            } catch (e) {
+            } finally {
                 this.detailsLoading = false;
             }
         },
@@ -420,21 +435,24 @@ export default Vue.extend({
         },
         async getLastEpisode() {
             if (this.details.last_episode_to_air?.episode_number) {
-                this.lastEpisodeDetails = await api.getEpisode(this.details.id, this.selectedSeason,
-                    this.details.last_episode_to_air.episode_number);
+                this.lastEpisodeDetails = await api.getEpisode(
+                    this.details.id,
+                    this.selectedSeason,
+                    this.details.last_episode_to_air.episode_number,
+                );
             }
         },
         updateHistoryData() {
-            this.addRecent({id: this.details.id, isMovie: false, item: this.details})
+            this.addRecent({ id: this.details.id, isMovie: false, item: this.details });
         },
         addToWatchList() {
-            this.addSeriesList({id: this.details.id, details: this.details})
+            this.addSeriesList({ id: this.details.id, details: this.details });
         },
         removeFromWatchList() {
-            this.removeSeriesList(this.details.id)
+            this.removeSeriesList(this.details.id);
         },
         getYoutubeVideos: function () {
-            return _.filter(this.details.videos?.results|| [], { site: 'YouTube' });
+            return _.filter(this.details.videos?.results || [], { site: 'YouTube' });
         },
         selectVideo(video: Object) {
             this.selectedVideo = video;
@@ -504,7 +522,7 @@ export default Vue.extend({
         display: flex;
         align-items: center;
         gap: 10px;
-        box-shadow: 0px 0px 35px 5px rgba(0,0,0,0.75);
+        box-shadow: 0px 0px 35px 5px rgba(0, 0, 0, 0.75);
         cursor: pointer;
         pointer-events: all;
         svg {
@@ -526,7 +544,7 @@ export default Vue.extend({
         border-bottom-left-radius: 1rem;
         border-bottom-right-radius: 1rem;
         z-index: 1;
-        box-shadow: 0px 0px 35px 5px rgba(0,0,0,0.75);
+        box-shadow: 0px 0px 35px 5px rgba(0, 0, 0, 0.75);
     }
     .background-image {
         position: absolute;
@@ -649,11 +667,11 @@ export default Vue.extend({
         padding: 0 !important;
     }
     .background-images-container {
-        height: calc(100vh/2) !important;
+        height: calc(100vh / 2) !important;
         font-size: 0.8em !important;
     }
     .background-image {
-        height: calc(100vh/2) !important;
+        height: calc(100vh / 2) !important;
     }
     .additional-info {
         position: absolute;

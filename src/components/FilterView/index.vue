@@ -41,7 +41,7 @@ export default Vue.extend({
             computedDiscoverQuery: '',
             movies: [],
             hideWatchedMovies: false,
-        }
+        };
     },
     computed: {
         selectedFilter() {
@@ -55,9 +55,9 @@ export default Vue.extend({
         },
         filteredMovies() {
             if (this.hideWatchedMovies) {
-                return this.movies.filter(movie => !movie.watched);
+                return this.movies.filter((movie) => !movie.watched);
             }
-        }
+        },
     },
     methods: {
         parseFilter(filter) {
@@ -254,9 +254,8 @@ export default Vue.extend({
             }
             this.movies = this.movies.concat(queryResult.results);
         },
-    }
+    },
 });
 </script>
 
-<style lang="less" scoped>
-</style>
+<style lang="less" scoped></style>

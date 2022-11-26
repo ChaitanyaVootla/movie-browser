@@ -1,6 +1,5 @@
 <template>
-    <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible"
-        :disabled="isMobile()">
+    <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible" :disabled="isMobile()">
         <popover-info
             v-if="isPopoverVisible"
             :item="item"

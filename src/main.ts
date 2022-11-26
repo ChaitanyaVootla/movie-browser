@@ -46,18 +46,18 @@ Vue.component('Home', require('./components/Home.vue').default);
 const routes = [
     {
         path: '',
-        component: () => import(/* webpackChunkName: "landing" */'@/components/Home.vue'),
+        component: () => import(/* webpackChunkName: "landing" */ '@/components/Home.vue'),
         name: 'home',
         redirect: { name: 'trending' },
     },
     {
         path: '/',
-        component: () => import(/* webpackChunkName: "landing" */'@/components/Trending/index.vue'),
+        component: () => import(/* webpackChunkName: "landing" */ '@/components/Trending/index.vue'),
         name: 'trending',
     },
     {
         path: '/discover',
-        component: () => import(/* webpackChunkName: "discover" */'@/components/Discover/index.vue'),
+        component: () => import(/* webpackChunkName: "discover" */ '@/components/Discover/index.vue'),
         name: 'discover',
     },
     {
@@ -72,17 +72,17 @@ const routes = [
     },
     {
         path: '/movie/:name/:id',
-        component: () => import(/* webpackChunkName: "movie" */'@/components/MovieInfo/index.vue'),
+        component: () => import(/* webpackChunkName: "movie" */ '@/components/MovieInfo/index.vue'),
         name: 'movieInfoFull',
     },
     {
         path: '/series/:name/:id',
-        component: () => import(/* webpackChunkName: "series" */'@/components/SeriesInfo/index.vue'),
+        component: () => import(/* webpackChunkName: "series" */ '@/components/SeriesInfo/index.vue'),
         name: 'seriesInfo',
     },
     {
         path: '/watchList',
-        component: () => import(/* webpackChunkName: "watchList" */'@/components/WatchList/index.vue'),
+        component: () => import(/* webpackChunkName: "watchList" */ '@/components/WatchList/index.vue'),
         name: 'WatchList',
     },
     {
@@ -92,7 +92,7 @@ const routes = [
     },
     {
         path: '/interests',
-        component: () => import(/* webpackChunkName: "profile" */'@/components/Interests/index.vue'),
+        component: () => import(/* webpackChunkName: "profile" */ '@/components/Interests/index.vue'),
         name: 'Interests',
     },
     {
@@ -102,14 +102,14 @@ const routes = [
     },
     {
         path: '/admin',
-        component: () => import(/* webpackChunkName: "admin" */'@/components/Admin/index.vue'),
+        component: () => import(/* webpackChunkName: "admin" */ '@/components/Admin/index.vue'),
         name: 'admin',
     },
 ];
 import errorImage from '@/Assets/Images/error.svg';
 Vue.use(VueLazyload, {
     error: errorImage,
-    attempt: 3
+    attempt: 3,
 });
 const router = new VueRouter({
     mode: 'history',

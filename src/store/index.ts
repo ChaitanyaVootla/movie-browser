@@ -71,7 +71,7 @@ const store = new Vuex.Store({
             if (movies) {
                 state.watched.movies = movies;
                 state.watched.movieIds = movies.map(({ id }) => id);
-                state.watched.movieIdsSet = new Set(state.watched.movieIds)
+                state.watched.movieIdsSet = new Set(state.watched.movieIds);
             }
             if (series) {
                 state.watched.series = series;
@@ -89,12 +89,12 @@ const store = new Vuex.Store({
             if (movies) {
                 state.watchList.movies = movies;
                 state.watchList.movieIds = movies.map(({ id }) => id);
-                state.watchList.movieIdsSet = new Set(state.watchList.movieIds)
+                state.watchList.movieIdsSet = new Set(state.watchList.movieIds);
             }
             if (series) {
                 state.watchList.series = series;
                 state.watchList.seriesIds = series.map(({ id }) => id);
-                state.watchList.seriesIdsSet = new Set(state.watchList.seriesIds)
+                state.watchList.seriesIdsSet = new Set(state.watchList.seriesIds);
             }
             state.watchList.isLoading = false;
         },
@@ -103,49 +103,53 @@ const store = new Vuex.Store({
         },
         addWatched(state, id: number) {
             state.watched.movieIdsSet.add(id);
-            state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet))
+            state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet));
         },
         deleteWatched(state, id: number) {
             state.watched.movieIdsSet.delete(id);
-            state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet))
+            state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet));
         },
-        addWatchListMovie(state, {id, details}) {
+        addWatchListMovie(state, { id, details }) {
             state.watchList.movieIdsSet.add(id);
-            state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet))
-            state.watchList.movies.push({...details, createdAt: new Date()})
-            state.watchList.movies = sortBy(state.watchList.movies, 'createdAt').reverse()
+            state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet));
+            state.watchList.movies.push({ ...details, createdAt: new Date() });
+            state.watchList.movies = sortBy(state.watchList.movies, 'createdAt').reverse();
         },
         deleteWatchListMovie(state, id: number) {
             state.watchList.movieIdsSet.delete(id);
-            state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet))
-            state.watchList.movies = state.watchList.movies.filter(({id: movieId}) => movieId !== id)
+            state.watchList.movieIdsSet = new Set(Array.from(state.watchList.movieIdsSet));
+            state.watchList.movies = state.watchList.movies.filter(({ id: movieId }) => movieId !== id);
         },
-        addSeriesList(state, {id, details}) {
+        addSeriesList(state, { id, details }) {
             state.watchList.seriesIdsSet.add(id);
-            state.watchList.seriesIdsSet = new Set(Array.from(state.watchList.seriesIdsSet))
-            state.watchList.series.push({...details, createdAt: new Date()})
-            state.watchList.series = sortBy(state.watchList.series, 'createdAt').reverse()
+            state.watchList.seriesIdsSet = new Set(Array.from(state.watchList.seriesIdsSet));
+            state.watchList.series.push({ ...details, createdAt: new Date() });
+            state.watchList.series = sortBy(state.watchList.series, 'createdAt').reverse();
         },
         removeSeriesList(state, id: number) {
             state.watchList.seriesIdsSet.delete(id);
-            state.watchList.seriesIdsSet = new Set(Array.from(state.watchList.seriesIdsSet))
-            state.watchList.series = state.watchList.series.filter(({id: seriesId}) => seriesId !== id)
+            state.watchList.seriesIdsSet = new Set(Array.from(state.watchList.seriesIdsSet));
+            state.watchList.series = state.watchList.series.filter(({ id: seriesId }) => seriesId !== id);
         },
-        addRecent(state, {item, isMovie}) {
+        addRecent(state, { item, isMovie }) {
             let newRecents = state.recentVisits;
-            newRecents = newRecents.filter(({id, isMovie: itemIsMovie}) => !((id == item.id) && (isMovie == itemIsMovie)));
+            newRecents = newRecents.filter(
+                ({ id, isMovie: itemIsMovie }) => !(id == item.id && isMovie == itemIsMovie),
+            );
             newRecents.unshift(item);
-            state.recentVisits = newRecents
+            state.recentVisits = newRecents;
         },
-        addContinueWatching(state, {item, isMovie}) {
+        addContinueWatching(state, { item, isMovie }) {
             let newContinueWatching = state.continueWatching;
-            newContinueWatching = newContinueWatching.filter(({id, isMovie: itemIsMovie}) => !((id == item.id) && (isMovie == itemIsMovie)));
+            newContinueWatching = newContinueWatching.filter(
+                ({ id, isMovie: itemIsMovie }) => !(id == item.id && isMovie == itemIsMovie),
+            );
             newContinueWatching.unshift(item);
-            state.continueWatching = newContinueWatching
+            state.continueWatching = newContinueWatching;
         },
     },
     getters: {
-        isSignedIn: (state) => state.user.name?true:false,
+        isSignedIn: (state) => (state.user.name ? true : false),
         user: (state) => state.user,
         oneTapUser: (state) => state.oneTapUser,
         history: (state) => state.history,
@@ -170,38 +174,47 @@ const store = new Vuex.Store({
                     availableFilters: state.savedFilters,
                 };
             }
-            const randomFilter = state.randomFilters[identifier]
-                .availableFilters[random(0, state.randomFilters[identifier].availableFilters.length - 1)];
-            state.randomFilters[identifier].availableFilters = state.randomFilters[identifier]
-                .availableFilters.filter((filter) => filter.name !== randomFilter.name);
+            const randomFilter =
+                state.randomFilters[identifier].availableFilters[
+                    random(0, state.randomFilters[identifier].availableFilters.length - 1)
+                ];
+            state.randomFilters[identifier].availableFilters = state.randomFilters[identifier].availableFilters.filter(
+                (filter) => filter.name !== randomFilter.name,
+            );
             return randomFilter;
         },
     },
     actions: {
         init({ commit, state }) {
-            api.getUser().then(
-                (res) => {
-                    let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-                    if ((timeZone.includes('Calcutta'))) {
-                        timeZone = timeZone.replace('Calcutta', 'Kolkata');
-                    }
-                    const country = Timezone.getCountryForTimezone(timeZone)
-                    commit('setUser', {...res, country});
+            api.getUser().then((res) => {
+                let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (timeZone.includes('Calcutta')) {
+                    timeZone = timeZone.replace('Calcutta', 'Kolkata');
                 }
-            )
+                const country = Timezone.getCountryForTimezone(timeZone);
+                commit('setUser', { ...res, country });
+            });
             api.getLoadData().then(
-                ({watchedMovieIds, watchListMovieIds, watchListMovies, seriesListIds, seriesList, filters, recents,
-                    continueWatching}) => {
-                    state.watched.movieIdsSet = new Set(watchedMovieIds)
-                    state.watchList.movieIdsSet = new Set(watchListMovieIds)
-                    state.watchList.movies = sortBy(watchListMovies, 'createdAt').reverse()
-                    state.watchList.seriesIdsSet = new Set(seriesListIds)
-                    state.watchList.series = seriesList
-                    state.savedFilters = filters
-                    state.recentVisits = sortBy(recents, 'updatedAt').reverse()
-                    state.continueWatching = sortBy(continueWatching, 'updatedAt').reverse()
-                }
-            )
+                ({
+                    watchedMovieIds,
+                    watchListMovieIds,
+                    watchListMovies,
+                    seriesListIds,
+                    seriesList,
+                    filters,
+                    recents,
+                    continueWatching,
+                }) => {
+                    state.watched.movieIdsSet = new Set(watchedMovieIds);
+                    state.watchList.movieIdsSet = new Set(watchListMovieIds);
+                    state.watchList.movies = sortBy(watchListMovies, 'createdAt').reverse();
+                    state.watchList.seriesIdsSet = new Set(seriesListIds);
+                    state.watchList.series = seriesList;
+                    state.savedFilters = filters;
+                    state.recentVisits = sortBy(recents, 'updatedAt').reverse();
+                    state.continueWatching = sortBy(continueWatching, 'updatedAt').reverse();
+                },
+            );
         },
         async updateFilters({ commit, state }) {
             const filters = await api.getFilters();
@@ -215,29 +228,29 @@ const store = new Vuex.Store({
             api.deleteWatched(id);
             commit('deleteWatched', id);
         },
-        addWatchListMovie({ commit, state }, {id, details}: {id: number, details: any}) {
+        addWatchListMovie({ commit, state }, { id, details }: { id: number; details: any }) {
             api.addWatchListMovie(id);
-            commit('addWatchListMovie', {id, details});
+            commit('addWatchListMovie', { id, details });
         },
         deleteWatchListMovie({ commit, state }, id: number) {
             api.deleteWatchListMovie(id);
             commit('deleteWatchListMovie', id);
         },
-        addSeriesList({ commit, state }, {id, details}: {id: number, details: any}) {
+        addSeriesList({ commit, state }, { id, details }: { id: number; details: any }) {
             api.addSeriesList(id);
-            commit('addSeriesList', {id, details});
+            commit('addSeriesList', { id, details });
         },
         removeSeriesList({ commit, state }, id: number) {
             api.removeSeriesList(id);
             commit('removeSeriesList', id);
         },
-        addRecent({ commit, state }, {id, isMovie, item}) {
+        addRecent({ commit, state }, { id, isMovie, item }) {
             api.addRecent(id, isMovie);
-            commit('addRecent', {item, isMovie});
+            commit('addRecent', { item, isMovie });
         },
-        addContinueWatching({ commit, state }, {itemId, isMovie, watchLink, item}) {
-            api.addContinueWatching({itemId, isMovie, watchLink});
-            commit('addContinueWatching', {isMovie, item});
+        addContinueWatching({ commit, state }, { itemId, isMovie, watchLink, item }) {
+            api.addContinueWatching({ itemId, isMovie, watchLink });
+            commit('addContinueWatching', { isMovie, item });
         },
     },
 });

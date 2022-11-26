@@ -27,18 +27,16 @@
                 </div>
             </div>
         </div>
-        <br/>
+        <br />
         <div class="frosted mt-3 mb-3">
             <div class="rating-container tmdb-rating" v-if="item.vote_average">
-                <a href="" target="_blank"
-                    rel="noreferrer noopener">
+                <a href="" target="_blank" rel="noreferrer noopener">
                     <img src="/images/rating/tmdb.svg" /><br />
                     <span>{{ item.vote_average.toFixed(1) }}</span>
                 </a>
             </div>
             <div class="rating-container" v-for="rating in googleData.ratings" :key="rating[1]">
-                <a :href="rating.link" target="_blank"
-                    rel="noreferrer noopener">
+                <a :href="rating.link" target="_blank" rel="noreferrer noopener">
                     <img :src="rating.imagePath" /><br />
                     <span>{{ rating.rating }}</span>
                 </a>
@@ -63,8 +61,8 @@ export default Vue.extend({
             type: Object,
             default: {
                 allWatchOptions: [],
-            }
-        }
+            },
+        },
     },
     data() {
         return {
@@ -89,12 +87,12 @@ export default Vue.extend({
             this.addContinueWatching({
                 watchLink: watchOption.link,
                 itemId: this.item.id,
-                isMovie: this.item.release_date?true:false,
+                isMovie: this.item.release_date ? true : false,
                 item: {
                     ...this.item,
                     watchOption,
                 },
-            })
+            });
         },
     },
     computed: {

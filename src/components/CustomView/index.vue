@@ -1,71 +1,80 @@
 <template>
     <div>
-        <mb-slider
-            :items="moviesList"
-            :configuration="configuration"
-            :id="'continueWatching'"
-        >
-        <div class="custom-heading">
-            <h4>{{viewName}}</h4>
-            <font-awesome-icon :icon="['fas', 'pen']" class="ml-3 mt-2 edit-icon" @click="showEditModal = true"/>
-        </div>
+        <mb-slider :items="moviesList" :configuration="configuration" :id="'continueWatching'">
+            <div class="custom-heading">
+                <h4>{{ viewName }}</h4>
+                <font-awesome-icon :icon="['fas', 'pen']" class="ml-3 mt-2 edit-icon" @click="showEditModal = true" />
+            </div>
         </mb-slider>
         <el-dialog title="Edit custom view" :visible.sync="showEditModal" custom-class="view-modal">
             <div class="filter-selections">
                 <div>
-                    <span class="select-label">
-                        Name
-                    </span>
-                    <el-input placeholder="Name" v-model="viewName" @change="updateStorage" class="name-input"/>
+                    <span class="select-label"> Name </span>
+                    <el-input placeholder="Name" v-model="viewName" @change="updateStorage" class="name-input" />
                 </div>
                 <div>
-                    <span class="select-label">
-                        Watch Provider
-                    </span>
-                    <el-select class="modal-select" v-model="selectedWatchProviders" filterable multiple clearable collapse-tags
-                        placeholder="Select OTT providers" @change="getMovies">
+                    <span class="select-label"> Watch Provider </span>
+                    <el-select
+                        class="modal-select"
+                        v-model="selectedWatchProviders"
+                        filterable
+                        multiple
+                        clearable
+                        collapse-tags
+                        placeholder="Select OTT providers"
+                        @change="getMovies"
+                    >
                         <el-option
                             :key="-1"
                             label="Any Watch Provider"
                             :value="allWatchProviders()"
-                            class="watchProviders">
+                            class="watchProviders"
+                        >
                         </el-option>
                         <el-option
                             v-for="item in watchProviders"
                             :key="item.provider_id"
                             :label="item.provider_name"
                             :value="item.provider_id"
-                            class="watchProviders">
+                            class="watchProviders"
+                        >
                             <div class="m-3">
-                                <img v-lazy="getWatchImage(item.logo_path)" class="watchProviderImg"/>
-                                <span>{{item.provider_name}}</span>
+                                <img v-lazy="getWatchImage(item.logo_path)" class="watchProviderImg" />
+                                <span>{{ item.provider_name }}</span>
                             </div>
                         </el-option>
                     </el-select>
                 </div>
                 <div>
-                    <span class="select-label">
-                        Language
-                    </span>
-                    <el-select class="modal-select" v-model="selectedLanguage" filterable clearable placeholder="Language" @change="getMovies">
+                    <span class="select-label"> Language </span>
+                    <el-select
+                        class="modal-select"
+                        v-model="selectedLanguage"
+                        filterable
+                        clearable
+                        placeholder="Language"
+                        @change="getMovies"
+                    >
                         <el-option
                             v-for="item in languages"
                             :key="item.iso_639_1"
                             :label="item.english_name"
-                            :value="item.iso_639_1">
+                            :value="item.iso_639_1"
+                        >
                         </el-option>
                     </el-select>
                 </div>
                 <div>
-                    <span class="select-label">
-                        Sort by
-                    </span>
-                    <el-select class="modal-select" v-model="selectedSortOrder" filterable clearable placeholder="Sort by" @change="getMovies">
-                        <el-option
-                            v-for="item in sortOrders"
-                            :key="item.id"
-                            :label="item.name"
-                            :value="item.id">
+                    <span class="select-label"> Sort by </span>
+                    <el-select
+                        class="modal-select"
+                        v-model="selectedSortOrder"
+                        filterable
+                        clearable
+                        placeholder="Sort by"
+                        @change="getMovies"
+                    >
+                        <el-option v-for="item in sortOrders" :key="item.id" :label="item.name" :value="item.id">
                         </el-option>
                     </el-select>
                 </div>
@@ -91,7 +100,7 @@ export default Vue.extend({
         return {
             moviesList: [],
             selectedWatchProviders: [],
-            selectedLanguage: "",
+            selectedLanguage: '',
             viewName: 'Available for streaming',
             showEditModal: false,
             languages,
@@ -118,7 +127,7 @@ export default Vue.extend({
                 },
             ],
             selectedSortOrder: 'popularity.desc',
-        }
+        };
     },
     props: {
         configuration: Object,
@@ -138,37 +147,44 @@ export default Vue.extend({
     },
     computed: {
         watchProviders() {
-            return watchProvidersArray.map(item => {
+            return watchProvidersArray.map((item) => {
                 return {
                     provider_id: item.provider_id,
                     provider_name: item.provider_name.slice(0, 15),
                     logo_path: item.logo_path,
-                }
+                };
             });
         },
     },
     methods: {
         allWatchProviders() {
-            return watchProvidersArray.map(({provider_id}) => provider_id);
+            return watchProvidersArray.map(({ provider_id }) => provider_id);
         },
         getWatchImage(path: string) {
             return { src: `${this.configuration.images.secure_base_url}/original${path}` };
         },
         async getMovies() {
-            const {data: res} = await axios.get(`${appConfig.serverBaseTMDBUrl
-                }discover/movie?&watch_region=IN&with_watch_providers=${flatten(this.selectedWatchProviders).join('|')
-                }&with_original_language=${this.selectedLanguage}&sort_by=${this.selectedSortOrder}`);
+            const { data: res } = await axios.get(
+                `${appConfig.serverBaseTMDBUrl}discover/movie?&watch_region=IN&with_watch_providers=${flatten(
+                    this.selectedWatchProviders,
+                ).join('|')}&with_original_language=${this.selectedLanguage}&sort_by=${this.selectedSortOrder}`,
+            );
             this.updateStorage();
             this.moviesList = res.results;
         },
         updateStorage() {
-            localStorage.setItem('customViews', JSON.stringify([{
-                watchProviders: this.selectedWatchProviders,
-                originalLanguage: this.selectedLanguage,
-                sortOrder: this.selectedSortOrder,
-                name: this.viewName,
-            }]));
-        }
+            localStorage.setItem(
+                'customViews',
+                JSON.stringify([
+                    {
+                        watchProviders: this.selectedWatchProviders,
+                        originalLanguage: this.selectedLanguage,
+                        sortOrder: this.selectedSortOrder,
+                        name: this.viewName,
+                    },
+                ]),
+            );
+        },
     },
 });
 </script>
@@ -178,7 +194,7 @@ export default Vue.extend({
     display: column;
     padding: 0 1rem;
     flex-wrap: wrap;
-    >div {
+    > div {
         width: 23rem;
         margin-bottom: 2rem;
         display: flex;
@@ -191,7 +207,7 @@ export default Vue.extend({
 .select-label {
     line-height: 2.5rem;
     margin-left: 2rem;
-    margin-right: .5rem;
+    margin-right: 0.5rem;
     color: #ccc;
     font-size: 0.9em;
 }
@@ -244,7 +260,7 @@ export default Vue.extend({
         }
     }
     .filter-selections {
-        >div {
+        > div {
             display: flex;
             flex-direction: column;
         }

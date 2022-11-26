@@ -71,32 +71,35 @@
             <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item mobile-hide" aria-label="Settings">
                 <div>
                     <div v-if="!user.name" class="mt-1">
-                        <div v-if="loginUrl.length" id="g_id_onload"
+                        <div
+                            v-if="loginUrl.length"
+                            id="g_id_onload"
                             data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
                             :data-login_uri="loginUrl + '/auth/callback'"
-                            data-skip_prompt_cookie="googleonetap">
+                            data-skip_prompt_cookie="googleonetap"
+                        >
                         </div>
-                        <div class="g_id_signin mt-3"
+                        <div
+                            class="g_id_signin mt-3"
                             data-type="icon"
                             data-size="medium"
                             data-shape="circle"
                             data-theme="outline"
                             data-text="sign_in_with"
-                            data-logo_alignment="left">
+                            data-logo_alignment="left"
+                        >
                         </div>
                     </div>
                 </div>
                 <div>
                     <el-dropdown trigger="click" aria-label="Settings">
-                        <div  v-show="user.name">
-                            <img
-                                v-lazy="{src: user.picture}"
-                                class="user-photo"/>
+                        <div v-show="user.name">
+                            <img v-lazy="{ src: user.picture }" class="user-photo" />
                         </div>
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item v-if="countryName" class="country-flag">
-                                <span class="mr-2">{{countryName}}</span>
-                                <img height="15px" :src="countryFlag"/>
+                                <span class="mr-2">{{ countryName }}</span>
+                                <img height="15px" :src="countryFlag" />
                             </el-dropdown-item>
                             <el-dropdown-item :divided="countryName.length > 0">
                                 <router-link :to="{ name: 'Interests' }">
@@ -203,20 +206,25 @@
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg ml-2 user-menu-item" aria-label="Settings">
                 <div v-if="!user.name" class="mt-1 desk-hide">
-                    <div v-if="loginUrl.length" id="g_id_onload"
-                            data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
-                            :data-login_uri="loginUrl + '/auth/callback'"
-                            data-skip_prompt_cookie="googleonetap">
-                        </div>
+                    <div
+                        v-if="loginUrl.length"
+                        id="g_id_onload"
+                        data-client_id="997611698244-2svdjnmr6bpl2k97togvmktg4l4shs81.apps.googleusercontent.com"
+                        :data-login_uri="loginUrl + '/auth/callback'"
+                        data-skip_prompt_cookie="googleonetap"
+                    >
+                    </div>
                 </div>
                 <div v-if="!user.name" class="desk-hide">
-                    <div class="g_id_signin mt-3"
+                    <div
+                        class="g_id_signin mt-3"
                         data-type="icon"
                         data-size="medium"
                         data-shape="circle"
                         data-theme="outline"
                         data-text="sign_in_with"
-                        data-logo_alignment="left">
+                        data-logo_alignment="left"
+                    >
                     </div>
                 </div>
                 <div v-else>
@@ -353,9 +361,9 @@ export default Vue.extend({
         },
         loginUrl() {
             if (window.location.hostname == 'localhost') {
-                return 'http://localhost:3000'
+                return 'http://localhost:3000';
             } else {
-                return 'https://themoviebrowser.com/node'
+                return 'https://themoviebrowser.com/node';
             }
         },
         isAllResultsShown() {

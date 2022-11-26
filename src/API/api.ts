@@ -10,7 +10,7 @@ import {
 } from './Constants';
 import Timezone from 'countries-and-timezones';
 import Axios from 'axios';
-const axios = Axios.create({withCredentials: true});
+const axios = Axios.create({ withCredentials: true });
 
 const showAllResults = () => localStorage.getItem('showAllResults') || false;
 
@@ -20,11 +20,11 @@ export const api = {
         return res.data;
     },
     getLoadData: async function () {
-        let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-        if ((timeZone.includes('Calcutta'))) {
+        let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (timeZone.includes('Calcutta')) {
             timeZone = timeZone.replace('Calcutta', 'Kolkata');
         }
-        const country = Timezone.getCountryForTimezone(timeZone)
+        const country = Timezone.getCountryForTimezone(timeZone);
         const res = await axios.get(`${appConfig.serverBaseUrl}loadData?country=${country?.id}`);
         return res.data;
     },
@@ -53,7 +53,7 @@ export const api = {
         return res.data;
     },
     addRecent: async function (itemId: number, isMovie: Boolean) {
-        const res = await axios.post(`${appConfig.serverBaseUrl}recents`, {itemId, isMovie});
+        const res = await axios.post(`${appConfig.serverBaseUrl}recents`, { itemId, isMovie });
         return res.data;
     },
     addContinueWatching: async function (body) {
@@ -69,8 +69,9 @@ export const api = {
         return res.data;
     },
     getEpisode: async function (seriesId: number, seasonNumber: number, episodeNumber: number) {
-        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${seriesId
-            }/season/${seasonNumber}/episode/${episodeNumber}?append_to_response=images,external_ids,credits`);
+        const res = await axios.get(
+            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${seriesId}/season/${seasonNumber}/episode/${episodeNumber}?append_to_response=images,external_ids,credits`,
+        );
         return res.data;
     },
     getTrendingTv: async function () {
@@ -78,21 +79,15 @@ export const api = {
         return res.data;
     },
     getTrendingMovies: async function () {
-        const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.trendingMoviesList}`
-        );
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingMoviesList}`);
         return res.data;
     },
     getTrendingListWeek: async function () {
-        const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.trendingListWeek}`
-        );
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingListWeek}`);
         return res.data;
     },
     getTrendingPeople: async function () {
-        const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.trendingPeopleList}`,
-        );
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.trendingPeopleList}`);
         return res.data;
     },
     getLatestMovies: async function (query: string = '') {
@@ -120,15 +115,11 @@ export const api = {
         return details;
     },
     collectionDetails: async function (id: number) {
-        const { data: details } = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.collectionDetails}${id}`,
-        );
+        const { data: details } = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.collectionDetails}${id}`);
         return details;
     },
     releaseDates: async function (id: number) {
-        const { data: details } = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}movie/${id}/release_dates`,
-        );
+        const { data: details } = await axios.get(`${appConfig.serverBaseTMDBUrl}movie/${id}/release_dates`);
         return details;
     },
     getTvDetails: async function (id: number, query?: string) {
@@ -145,8 +136,7 @@ export const api = {
     },
     getEpisodeImages: async function (seriesId: number, seasonNumber: number, episodeNumber: number) {
         const { data: details } = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${seriesId}/season/${seasonNumber
-                }/episode/${episodeNumber}/images`,
+            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${seriesId}/season/${seasonNumber}/episode/${episodeNumber}/images`,
         );
         return details;
     },
@@ -157,15 +147,11 @@ export const api = {
         return details;
     },
     getMovieCredits: async function (id: number) {
-        const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.movieDetails}${id}/credits`,
-        );
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.movieDetails}${id}/credits`);
         return res.data;
     },
     getTvCredits: async function (id: number) {
-        const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${id}/credits`,
-        );
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.tvDetails}${id}/credits`);
         return res.data;
     },
     searchMovies: async function (searchString: string, page: number) {
@@ -178,8 +164,9 @@ export const api = {
     searchAll: async function (searchString: string, page: number) {
         const searchQuery = `&query=${searchString}` + searchDefaultQueries;
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.searchAll}?${searchQuery}&page=${page
-                }&include_adult=${showAllResults()}`,
+            `${appConfig.serverBaseTMDBUrl}${
+                endpoints.searchAll
+            }?${searchQuery}&page=${page}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
@@ -193,20 +180,26 @@ export const api = {
     getDiscoverMovies: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults()}`,
+            `${appConfig.serverBaseTMDBUrl}${
+                endpoints.discoverMovies
+            }?${searchQuery}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
     getDiscoverMoviesFull: async function (searchQuery: string) {
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverMovies}?${searchQuery}&include_adult=${showAllResults()}`,
+            `${appConfig.serverBaseTMDBUrl}${
+                endpoints.discoverMovies
+            }?${searchQuery}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
     getDiscoverSeries: async function (searchQuery: string) {
         searchQuery += discoverDefaultQueries;
         const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.discoverSeries}?${searchQuery}&include_adult=${showAllResults()}`,
+            `${appConfig.serverBaseTMDBUrl}${
+                endpoints.discoverSeries
+            }?${searchQuery}&include_adult=${showAllResults()}`,
         );
         return res.data;
     },
@@ -217,15 +210,11 @@ export const api = {
         return res.data;
     },
     getCurrentStreamingSeries: async function () {
-        const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.currentStreamingTv}`,
-        );
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.currentStreamingTv}`);
         return res.data;
     },
     getNetworkImages: async function (id: number) {
-        const res = await axios.get(
-            `${appConfig.serverBaseTMDBUrl}${endpoints.networkDetails}/${id}/images`,
-        );
+        const res = await axios.get(`${appConfig.serverBaseTMDBUrl}${endpoints.networkDetails}/${id}/images`);
         return res.data;
     },
     searchKeywords: async function (query: string) {

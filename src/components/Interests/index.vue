@@ -18,11 +18,7 @@
             </el-submenu>
             <el-menu-item index="3">
                 Show all results
-                <el-switch
-                    class="ml-2"
-                    v-model="showAllEnabled"
-                    active-color="#13ce66"
-                    inactive-color="#ff4949">
+                <el-switch class="ml-2" v-model="showAllEnabled" active-color="#13ce66" inactive-color="#ff4949">
                 </el-switch>
             </el-menu-item>
         </el-menu>
@@ -49,12 +45,13 @@ export default Vue.extend({
         return {
             selectedItem: 'watchListMovies',
             get showAllEnabled() {
-                return localStorage.getItem('showAllResults') &&
-                    localStorage.getItem('showAllResults') == 'true' ? true:false;
+                return localStorage.getItem('showAllResults') && localStorage.getItem('showAllResults') == 'true'
+                    ? true
+                    : false;
             },
             set showAllEnabled(value: boolean) {
-                localStorage.setItem('showAllResults', value? 'true':'false');
-            }
+                localStorage.setItem('showAllResults', value ? 'true' : 'false');
+            },
         };
     },
     computed: {

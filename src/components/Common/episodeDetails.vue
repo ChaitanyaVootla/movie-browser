@@ -3,10 +3,10 @@
         <div class="heading-container">
             <div class="heading">
                 <div>
-                    <span class="episode-name">Last aired episode, {{airDate}}</span>
+                    <span class="episode-name">Last aired episode, {{ airDate }}</span>
                 </div>
                 <div>
-                    <span class="sub-text">{{details.name}}</span>
+                    <span class="sub-text">{{ details.name }}</span>
                 </div>
             </div>
             <div>
@@ -21,18 +21,14 @@
         </div>
         <div class="main-info">
             <div class="carousel-container">
-                <el-carousel
-                    height="25rem"
-                    :interval="7000"
-                    arrow="always"
-                >
+                <el-carousel height="25rem" :interval="7000" arrow="always">
                     <el-carousel-item v-for="image in stills" :key="image.file_path">
-                            <img
-                                v-lazy="{
-                                    src: `${configuration.images.secure_base_url}w780${image.file_path}`,
-                                }"
-                                :alt="details.name"
-                            />
+                        <img
+                            v-lazy="{
+                                src: `${configuration.images.secure_base_url}w780${image.file_path}`,
+                            }"
+                            :alt="details.name"
+                        />
                     </el-carousel-item>
                 </el-carousel>
             </div>
@@ -57,9 +53,7 @@ export default Vue.extend({
         },
     },
     data() {
-        return {
-
-        }
+        return {};
     },
     computed: {
         airDate() {
@@ -68,13 +62,13 @@ export default Vue.extend({
         stills() {
             return this.details.images.stills.slice(0, 7);
         },
-    }
+    },
 });
 </script>
 
 <style scoped lang="less">
-@image-width:40rem;
-@image-height:25rem;
+@image-width: 40rem;
+@image-height: 25rem;
 .main-container {
     margin-left: 3rem;
     .heading-container {

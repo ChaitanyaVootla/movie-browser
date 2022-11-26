@@ -36,7 +36,11 @@
                     :class="isSliding ? 'no-pointer-events' : ''"
                 ></episode-card>
             </div>
-            <div v-else-if="isContinueWatching" class="slider-bar wide-card-slider-container" :id="`scroll-bar-${uuid}`">
+            <div
+                v-else-if="isContinueWatching"
+                class="slider-bar wide-card-slider-container"
+                :id="`scroll-bar-${uuid}`"
+            >
                 <continue-watching
                     v-for="(item, index) in items"
                     :item="item"

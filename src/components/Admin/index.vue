@@ -2,20 +2,19 @@
     <div class="main-container">
         <el-row class="mt-2 mb-4">
             <el-col :span="6">
-                <el-input
-                    v-model="search"
-                    placeholder="Search"
-                    class="search-input"
-                    icon="el-icon-search"
-                ></el-input>
+                <el-input v-model="search" placeholder="Search" class="search-input" icon="el-icon-search"></el-input>
             </el-col>
             <el-col :span="6" class="ml-3">
-                <div class="info-text"><b class="mr-2">{{users.length}}</b> users in the system</div>
+                <div class="info-text"
+                    ><b class="mr-2">{{ users.length }}</b> users in the system</div
+                >
             </el-col>
-            <el-col :span="10" class="ml-3" style="text-decoration: underline; text-align: right;">
+            <el-col :span="10" class="ml-3" style="text-decoration: underline; text-align: right">
                 <div class="info-text">
-                    <a href="https://search.google.com/search-console?resource_id=sc-domain%3Athemoviebrowser.com"
-                        target="_blank">
+                    <a
+                        href="https://search.google.com/search-console?resource_id=sc-domain%3Athemoviebrowser.com"
+                        target="_blank"
+                    >
                         <font-awesome-icon :icon="['fas', 'up-right-from-square']" />
                         Google search console
                     </a>
@@ -25,48 +24,29 @@
         <el-table
             :data="filteredData"
             style="width: 100%"
-            :default-sort = "{prop: 'lastLoggedIn', order: 'ascending'}"
-            :border="true">
-            <el-table-column
-                prop="displayName"
-                label="User"
-                sortable
-                :fit="true">
+            :default-sort="{ prop: 'lastLoggedIn', order: 'ascending' }"
+            :border="true"
+        >
+            <el-table-column prop="displayName" label="User" sortable :fit="true">
                 <template slot-scope="scope">
-                    <img class="user-image" :src="scope.row.photoURL" alt=""/>
-                    <span class="ml-3">{{scope.row.displayName}}</span>
+                    <img class="user-image" :src="scope.row.photoURL" alt="" />
+                    <span class="ml-3">{{ scope.row.displayName }}</span>
                 </template>
             </el-table-column>
-            <el-table-column
-                prop="lastLoggedIn"
-                label="Last seen"
-                sortable
-                :sort-method="lastLoggedInSort"
-                :fit="true">
+            <el-table-column prop="lastLoggedIn" label="Last seen" sortable :sort-method="lastLoggedInSort" :fit="true">
                 <template slot-scope="scope">
-                    {{getTime(scope.row.lastLoggedIn)}}
+                    {{ getTime(scope.row.lastLoggedIn) }}
                 </template>
             </el-table-column>
-            <el-table-column
-                prop="email"
-                label="Email"
-                sortable
-                width="200">
-            </el-table-column>
-            <el-table-column
-                label="Last login"
-                sortable
-                :fit="true">
+            <el-table-column prop="email" label="Email" sortable width="200"> </el-table-column>
+            <el-table-column label="Last login" sortable :fit="true">
                 <template slot-scope="scope">
-                    {{getLastLogin(scope.row)}}
+                    {{ getLastLogin(scope.row) }}
                 </template>
             </el-table-column>
-            <el-table-column
-                label="Created at"
-                sortable
-                :fit="true">
+            <el-table-column label="Created at" sortable :fit="true">
                 <template slot-scope="scope">
-                    {{getCreatedAt(scope.row)}}
+                    {{ getCreatedAt(scope.row) }}
                 </template>
             </el-table-column>
         </el-table>
@@ -84,7 +64,7 @@ export default Vue.extend({
             users: [],
             search: '',
             scope: {} as any,
-        }
+        };
     },
     created() {
         // const usersRef = collection(db, "users");
@@ -97,10 +77,12 @@ export default Vue.extend({
     computed: {
         filteredData() {
             return this.users.filter((user) => {
-                return user.displayName.toLowerCase().includes(this.search.toLowerCase()) ||
-                    user.email?.toLowerCase().includes(this.search.toLowerCase());
+                return (
+                    user.displayName.toLowerCase().includes(this.search.toLowerCase()) ||
+                    user.email?.toLowerCase().includes(this.search.toLowerCase())
+                );
             });
-        }
+        },
     },
     methods: {
         getTime(time) {
@@ -127,7 +109,7 @@ export default Vue.extend({
                 return '-';
             }
         },
-    }
+    },
 });
 </script>
 

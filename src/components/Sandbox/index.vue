@@ -1,44 +1,42 @@
 <template>
     <div>
         <div class="filter-selections">
-            <div class="select-label">
-                Watch Provider
-            </div>
-            <el-select v-model="selectedWatchProviders" filterable multiple clearable collapse-tags placeholder="Select"
-                @change="getMovies">
+            <div class="select-label"> Watch Provider </div>
+            <el-select
+                v-model="selectedWatchProviders"
+                filterable
+                multiple
+                clearable
+                collapse-tags
+                placeholder="Select"
+                @change="getMovies"
+            >
                 <el-option
                     v-for="item in watchProviders"
                     :key="item.provider_id"
                     :label="item.provider_name"
                     :value="item.provider_id"
-                    class="watchProviders">
+                    class="watchProviders"
+                >
                     <div class="m-3">
-                        <img v-lazy="getWatchImage(item.logo_path)" class="watchProviderImg"/>
-                        <span>{{item.provider_name}}</span>
+                        <img v-lazy="getWatchImage(item.logo_path)" class="watchProviderImg" />
+                        <span>{{ item.provider_name }}</span>
                     </div>
                 </el-option>
             </el-select>
-            <div class="select-label">
-                Language
-            </div>
+            <div class="select-label"> Language </div>
             <el-select v-model="selectedLanguage" filterable clearable placeholder="Select" @change="getMovies">
                 <el-option
                     v-for="item in languages"
                     :key="item.iso_639_1"
                     :label="item.english_name"
-                    :value="item.iso_639_1">
+                    :value="item.iso_639_1"
+                >
                 </el-option>
             </el-select>
-            <div class="select-label">
-                Sort by
-            </div>
+            <div class="select-label"> Sort by </div>
             <el-select v-model="selectedSortOrder" filterable clearable placeholder="Select" @change="getMovies">
-                <el-option
-                    v-for="item in sortOrders"
-                    :key="item.id"
-                    :label="item.name"
-                    :value="item.id">
-                </el-option>
+                <el-option v-for="item in sortOrders" :key="item.id" :label="item.name" :value="item.id"> </el-option>
             </el-select>
         </div>
         <mb-slider
@@ -90,7 +88,7 @@ export default Vue.extend({
                 },
             ],
             selectedSortOrder: 'primary_release_date.desc',
-        }
+        };
     },
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     created() {
@@ -101,9 +99,13 @@ export default Vue.extend({
             return { src: `${this.configuration.images.secure_base_url}/original${path}` };
         },
         async getMovies() {
-            const {data: res} = await axios.get(`${appConfig.serverBaseTMDBUrl
-                }discover/movie?&watch_region=IN&with_watch_providers=${this.selectedWatchProviders.join('|')
-                }&with_original_language=${this.selectedLanguage}&sort_by=${this.selectedSortOrder}`);
+            const { data: res } = await axios.get(
+                `${
+                    appConfig.serverBaseTMDBUrl
+                }discover/movie?&watch_region=IN&with_watch_providers=${this.selectedWatchProviders.join(
+                    '|',
+                )}&with_original_language=${this.selectedLanguage}&sort_by=${this.selectedSortOrder}`,
+            );
             this.moviesList = res.results;
         },
     },
@@ -118,7 +120,7 @@ export default Vue.extend({
 .select-label {
     line-height: 2.5rem;
     margin-left: 2rem;
-    margin-right: .5rem;
+    margin-right: 0.5rem;
     color: #ccc;
     font-size: 0.9em;
 }

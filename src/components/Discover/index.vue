@@ -225,9 +225,7 @@
                 </router-link>
             </div>
             <div class="right-action-items">
-                <el-alert v-if="!savedFilters.length"
-                    type="info"
-                    :closable="false">
+                <el-alert v-if="!savedFilters.length" type="info" :closable="false">
                     You don't have any saved filters, you can create one by choosing filters above and saving it here
                     <font-awesome-icon :icon="['fas', 'arrow-right']" class="mr-2" />
                 </el-alert>
@@ -244,12 +242,7 @@
                             <el-button @click="clearFilter" icon="el-icon-circle-close"> </el-button>
                         </el-tooltip>
                         <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
-                            <el-button
-                                @click="deleteClicked"
-                                type="danger"
-                                icon="el-icon-delete"
-                            >
-                            </el-button>
+                            <el-button @click="deleteClicked" type="danger" icon="el-icon-delete"> </el-button>
                         </el-tooltip>
                     </el-button-group>
                     <el-button
@@ -307,8 +300,9 @@
             <img
                 v-for="image in images"
                 :key="image.file_path"
-                v-lazy="{src: configuration.images.secure_base_url + 'w300' + image.file_path}"
-                class="" />
+                v-lazy="{ src: configuration.images.secure_base_url + 'w300' + image.file_path }"
+                class=""
+            />
         </div>
         <div class="grid-center" v-if="!hideLoadMore">
             <el-button @click="loadMoreMovies">Load More</el-button>
@@ -455,17 +449,18 @@ export default Vue.extend({
         async toggleGallery() {
             this.showGallery = !this.showGallery;
             if (this.showGallery) {
-                const idsToFetchImages = this.movies.map(
-                    ({id, backdrop_path}) => {
+                const idsToFetchImages = this.movies
+                    .map(({ id, backdrop_path }) => {
                         if (backdrop_path) {
                             return id;
                         }
-                    }
-                ).filter(Boolean).slice(0, 7);
+                    })
+                    .filter(Boolean)
+                    .slice(0, 7);
                 console.log(idsToFetchImages);
                 const allBackdrops = [];
                 for (let movieId of idsToFetchImages) {
-                    const {backdrops}: {backdrops:  any[]} = await api.getMovieImages(movieId);
+                    const { backdrops }: { backdrops: any[] } = await api.getMovieImages(movieId);
                     allBackdrops.push(...backdrops);
                 }
                 this.images = allBackdrops;
@@ -863,8 +858,7 @@ export default Vue.extend({
         deleteClicked() {
             this.saveFilterDialogVisible = true;
             this.filterName = this.$router.currentRoute.query.name as string;
-                                
-        }
+        },
     },
 });
 </script>

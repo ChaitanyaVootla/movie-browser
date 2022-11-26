@@ -17,7 +17,7 @@
             <div
                 class="movie-item"
                 :class="`${canApplySideBarFilter && !isInSideBarFilter ? 'sideBarFilter' : ''}
-                ${isTodayCard ? 'isTodayCard' : ''} ${isWatched ? 'watched' : ''} ${hideBadge ? 'trim-height':''}`"
+                ${isTodayCard ? 'isTodayCard' : ''} ${isWatched ? 'watched' : ''} ${hideBadge ? 'trim-height' : ''}`"
             >
                 <el-badge
                     :value="isMobile() || hideBadge ? '' : badgeText"
@@ -27,8 +27,13 @@
                         <div v-if="isWatched" class="watched-overlay rating-info">
                             <font-awesome-icon :icon="['fas', 'check']" />
                         </div>
-                        <el-popover trigger="hover" :open-delay="700" width="500" v-model="isPopoverVisible"
-                            :disabled="isMobile()">
+                        <el-popover
+                            trigger="hover"
+                            :open-delay="700"
+                            width="500"
+                            v-model="isPopoverVisible"
+                            :disabled="isMobile()"
+                        >
                             <img
                                 slot="reference"
                                 v-lazy="imageObj"
@@ -149,14 +154,14 @@ export default Vue.extend({
                 if (this.isWatched) {
                     this.deleteWatched(this.movie.id);
                 } else {
-                    this.addWatchedMovie(this.movie.id)
+                    this.addWatchedMovie(this.movie.id);
                 }
             }
         },
         ...mapActions({
             deleteWatched: 'delteWatchedMovie',
             addWatchedMovie: 'addWatchedMovie',
-        })
+        }),
     },
     computed: {
         isSignedIn() {
@@ -166,7 +171,7 @@ export default Vue.extend({
             return this.$store.getters.watchedMovieById(this.movie.id);
         },
         isMovie() {
-            return this.movie.release_date?true:false;
+            return this.movie.release_date ? true : false;
         },
         isInWatchList() {
             return this.$store.getters.watchListMovieById(this.movie.id);
@@ -246,7 +251,7 @@ export default Vue.extend({
         },
         oneTapUser() {
             return this.$store.getters.oneTapUser;
-        }
+        },
     },
 });
 </script>
