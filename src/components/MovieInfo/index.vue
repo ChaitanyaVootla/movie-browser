@@ -297,7 +297,7 @@
 <script lang="ts">
 import { api } from '../../API/api';
 import _ from 'lodash';
-import { getCurrencyString, getDateText } from '../../Common/utils';
+import { getCurrencyString, getDateText } from '../../common/utils';
 import { sortBy } from 'lodash';
 import GoogleData from '../Common/googleData.vue';
 import { mapActions } from 'vuex';
@@ -305,8 +305,9 @@ import moment from 'moment';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'movieInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showFullMovieInfo'],
     components: {
@@ -330,7 +331,7 @@ export default {
             similarMovies: [] as any[],
             cast: [] as any[],
             crew: [] as any[],
-            selectedVideo: {},
+            selectedVideo: {} as any,
             showFullOverview: false,
             showAllTags: false,
             dialogVisible: false,
@@ -493,7 +494,7 @@ export default {
             return window.innerWidth < 768 ? true : false;
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

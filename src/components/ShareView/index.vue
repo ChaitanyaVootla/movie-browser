@@ -36,10 +36,11 @@
 
 <script lang="ts">
 import { compact, sortBy } from 'lodash';
-import { getRatingColor } from '../../Common/utils';
+import { getRatingColor } from '@/common/utils';
 import moment from 'moment';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'shareView',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     data() {
@@ -128,7 +129,7 @@ export default {
             // this.isLoading = false;
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

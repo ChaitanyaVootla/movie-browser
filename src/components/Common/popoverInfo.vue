@@ -38,12 +38,13 @@
 </template>
 
 <script lang="ts">
-import { movieGenres, seriesGenres } from '../../Common/staticConfig';
-import { sanitizeName, isMovie } from '@/Common/utils';
+import { movieGenres, seriesGenres } from '../../common/staticConfig';
+import { sanitizeName, isMovie } from '@/common/utils';
 import GoogleData from './googleData.vue';
 import { api } from '@/API/api';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'popoverInfo',
     props: ['item', 'configuration'],
     components: {
@@ -85,7 +86,7 @@ export default {
             }
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

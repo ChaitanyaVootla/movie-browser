@@ -76,14 +76,14 @@
 </template>
 
 <script lang="ts">
-import { sanitizeName, isMobile } from '../../Common/utils';
-import { getRatingColor, getDateText } from '../../Common/utils';
+import { sanitizeName, isMobile, getRatingColor, getDateText } from '../../common/utils';
 import { intersection } from 'lodash';
 import moment from 'moment';
 import popoverInfo from './popoverInfo.vue';
 import { mapActions } from 'vuex';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     components: { popoverInfo },
     name: 'movieCard',
     props: [
@@ -248,7 +248,7 @@ export default {
             return this.$store.getters.oneTapUser;
         }
     },
-};
+});
 </script>
 
 <style scoped lang="less">

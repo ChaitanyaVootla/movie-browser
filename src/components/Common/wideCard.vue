@@ -30,10 +30,10 @@
 </template>
 
 <script lang="ts">
-import { getFullDateText } from '../../Common/utils';
-import { sanitizeName } from '../../Common/utils';
-import { isMobile } from '../../Common/utils';
-export default {
+import { getFullDateText, sanitizeName, isMobile } from '@/common/utils';
+import Vue from 'vue';
+
+export default Vue.extend({
     name: 'wideCard',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
     data() {
@@ -53,7 +53,7 @@ export default {
         },
     },
     computed: {},
-};
+});
 </script>
 
 <style scoped lang="less">

@@ -54,10 +54,11 @@
 <script lang="ts">
 import axios from 'axios';
 import { appConfig } from '@/API/Constants';
-import watchProviders from '@/Common/watchProviders.json';
-import languages from '@/Common/languages.json';
+import watchProviders from '@/common/watchProviders.json';
+import languages from '@/common/languages.json';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'Sandbox',
     data() {
         return {
@@ -106,7 +107,7 @@ export default {
             this.moviesList = res.results;
         },
     },
-}
+});
 </script>
 
 <style lang="less" scoped>

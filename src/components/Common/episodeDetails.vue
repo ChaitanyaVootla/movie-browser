@@ -42,33 +42,34 @@
 
 <script lang="ts">
 import moment from 'moment';
+import Vue from 'vue';
 
-    export default {
-        name: 'episodeDetails',
-        props: {
-            details: {
-                type: Object,
-                required: true,
-            },
-            configuration: {
-                type: Object,
-                required: true,
-            },
+export default Vue.extend({
+    name: 'episodeDetails',
+    props: {
+        details: {
+            type: Object,
+            required: true,
         },
-        data() {
-            return {
+        configuration: {
+            type: Object,
+            required: true,
+        },
+    },
+    data() {
+        return {
 
-            }
-        },
-        computed: {
-            airDate() {
-                return moment(this.details.air_date).fromNow();
-            },
-            stills() {
-                return this.details.images.stills.slice(0, 7);
-            },
         }
+    },
+    computed: {
+        airDate() {
+            return moment(this.details.air_date).fromNow();
+        },
+        stills() {
+            return this.details.images.stills.slice(0, 7);
+        },
     }
+});
 </script>
 
 <style scoped lang="less">

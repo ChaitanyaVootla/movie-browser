@@ -24,10 +24,8 @@ Vue.component('font-awesome-icon', FontAwesomeIcon);
 Vue.config.productionTip = true;
 (<any>window).$ = require('jquery');
 
-Vue.component('mbSlider', require('./components/MovieSlider').default);
-Vue.component('seasonSlider', require('./components/SeasonSlider').default);
+Vue.component('mbSlider', require('./components/Slider').default);
 Vue.component('movieCard', require('./components/Common/movieCard.vue').default);
-Vue.component('movieInfo', require('./components/Common/movieInfo.vue').default);
 Vue.component('movieInfoFull', require('./components/MovieInfo/index.vue').default);
 Vue.component('seriesInfo', require('./components/SeriesInfo').default);
 Vue.component('personCard', require('./components/Common/personCard.vue').default);
@@ -37,14 +35,11 @@ Vue.component('continueWatching', require('./components/Common/continueWatching.
 Vue.component('wideCard', require('./components/Common/wideCard.vue').default);
 
 Vue.component('discover', require('./components/Discover').default);
-Vue.component('search', require('./components/Search').default);
 Vue.component('WatchList', require('./components/WatchList/index.vue').default);
 Vue.component('ShareView', require('./components/ShareView/index.vue').default);
-Vue.component('personSlider', require('./components/PersonSlider/index.vue').default);
 Vue.component('person', require('./components/Person/index.vue').default);
 Vue.component('searchResults', require('./components/SearchResults/index.vue').default);
 Vue.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
-Vue.component('searchGrid', require('./components/Common/searchGrid.vue').default);
 
 Vue.component('Home', require('./components/Home.vue').default);
 
@@ -60,11 +55,6 @@ const routes = [
         component: () => import(/* webpackChunkName: "landing" */'@/components/Trending/index.vue'),
         name: 'trending',
     },
-    // {
-    //     path: '/content',
-    //     component: Content,
-    //     name: 'Content',
-    // },
     {
         path: '/discover',
         component: () => import(/* webpackChunkName: "discover" */'@/components/Discover/index.vue'),
@@ -74,11 +64,6 @@ const routes = [
         path: '/friends',
         component: () => import('@/components/Friends/index.vue'),
         name: 'Friends',
-    },
-    {
-        path: '/search',
-        component: () => import('@/components/Search/index.vue'),
-        name: 'search',
     },
     {
         path: '/person/:name/:id',

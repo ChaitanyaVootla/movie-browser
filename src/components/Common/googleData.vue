@@ -48,7 +48,7 @@
 </template>
 
 <script lang="ts">
-import { mapGoogleData } from '@/Common/utils';
+import { mapGoogleData } from '@/common/utils';
 import { mapActions } from 'vuex';
 import Vue from 'vue';
 

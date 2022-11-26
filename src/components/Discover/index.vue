@@ -245,10 +245,7 @@
                         </el-tooltip>
                         <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
                             <el-button
-                                @click="
-                                    saveFilterDialogVisible = true;
-                                    filterName = $router.currentRoute.query.name;
-                                "
+                                @click="deleteClicked"
                                 type="danger"
                                 icon="el-icon-delete"
                             >
@@ -340,10 +337,11 @@
 <script lang="ts">
 import { api } from '../../API/api';
 import { find, uniqBy, sortBy } from 'lodash';
-import { certifications } from '../../Common/certifications';
+import { certifications } from '../../common/certifications';
 import moment from 'moment';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'movieDiscover',
     props: [
         'configuration',
@@ -368,7 +366,7 @@ export default {
             filterName: '',
             queryData: {
                 results: [],
-            },
+            } as any,
             sortOrders: [
                 {
                     name: 'Popularity',
@@ -862,8 +860,13 @@ export default {
             }
             this.loadMovies(true);
         },
+        deleteClicked() {
+            this.saveFilterDialogVisible = true;
+            this.filterName = this.$router.currentRoute.query.name as string;
+                                
+        }
     },
-};
+});
 </script>
 
 <style scoped lang="less">

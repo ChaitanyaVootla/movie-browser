@@ -24,9 +24,9 @@
 </template>
 
 <script lang="ts">
-import _ from 'lodash';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'friends',
     data: function () {
         return {
@@ -77,7 +77,7 @@ export default {
             // await db.collection('users').doc(this.user.uid).collection('friends').doc(user.id).set(user);
         },
     },
-};
+});
 </script>
 
 <style lang="less" scoped>

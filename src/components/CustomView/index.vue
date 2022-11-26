@@ -4,8 +4,6 @@
             :items="moviesList"
             :configuration="configuration"
             :id="'continueWatching'"
-            :showMovieInfoModal="showMovieInfo"
-            :showFullMovieInfo="showFullMovieInfo"
         >
         <div class="custom-heading">
             <h4>{{viewName}}</h4>
@@ -82,11 +80,12 @@
 <script lang="ts">
 import axios from 'axios';
 import { appConfig } from '@/API/Constants';
-import * as watchProvidersArray from '@/Common/watchProviders.json';
-import languages from '@/Common/languages.json';
+import * as watchProvidersArray from '@/common/watchProviders.json';
+import languages from '@/common/languages.json';
 import { flatten } from 'lodash';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'Sandbox',
     data() {
         return {
@@ -171,7 +170,7 @@ export default {
             }]));
         }
     },
-}
+});
 </script>
 
 <style lang="less" scoped>

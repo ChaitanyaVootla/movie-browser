@@ -24,14 +24,6 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <!-- <el-menu-item index="Suggestions" class=" p-0">
-                <router-link :to="{ name: 'Suggestions'}">
-                    <div class="pl-4 pr-4" :class="onSuggestions?'active':''">
-                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
-                        <span class="mobile-hide">Suggestions</span>
-                    </div>
-                </router-link>
-            </el-menu-item> -->
             <el-menu-item index="WatchList" class="nav-menu-item p-0">
                 <router-link :to="{ name: 'WatchList' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onWatchList ? 'active' : ''">
@@ -40,38 +32,6 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <!-- <el-menu-item index="Friends" class=" p-0">
-                <router-link :to="{ name: 'Friends'}">
-                    <div class="pl-4 pr-4" :class="onWatchList?'active':''">
-                        <font-awesome-icon :icon="['fas', 'user-friends']" class="mr-2"/>
-                        <span class="mobile-hide">Friends</span>
-                    </div>
-                </router-link>
-            </el-menu-item> -->
-            <!-- <el-menu-item index="Content" class=" p-0">
-                <router-link :to="{ name: 'Content'}">
-                    <div class="pl-4 pr-4" :class="onContent?'active':''">
-                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
-                        <span class="mobile-hide">Content</span>
-                    </div>
-                </router-link>
-            </el-menu-item> -->
-            <!-- <el-menu-item index="Interests" class=" p-0">
-                <router-link :to="{ name: 'Interests'}">
-                    <div class="pl-4 pr-4" :class="onInterests?'active':''">
-                        <font-awesome-icon :icon="['fas', 'eye']" class="mr-2"/>
-                        <span class="mobile-hide">Interests</span>
-                    </div>
-                </router-link>
-            </el-menu-item> -->
-            <!-- <el-menu-item index="StreamingNow" class=" p-0">
-                <router-link :to="{ name: 'StreamingNow'}">
-                    <div class="pl-4 pr-4" :class="onStreamingNow?'active':''">
-                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2"/>
-                        <span class="mobile-hide">Streaming Now</span>
-                    </div>
-                </router-link>
-            </el-menu-item> -->
             <el-menu-item
                 index="app-logo"
                 class="menu-center-item menu-item-nobg mobile-hide"
@@ -232,13 +192,12 @@
                         <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
                             No Results
                         </div>
-                        <search-results
+                        <SearchResults
                             :search-results="searchResults"
                             :get-genre-name-from-id="getGenreNameFromId"
                             :image-base-path="imageBasePath"
                             :search-item-clicked="searchItemclicked"
-                        >
-                        </search-results>
+                        />
                     </div>
                 </div>
             </el-menu-item>
@@ -318,41 +277,19 @@
                 :seriesGenres="seriesGenres"
             ></router-view>
         </transition>
-
-        <!-- Side Drawer -->
-        <!-- <div class="drawer-button" @click="$refs.sideDrawer.openDrawer()">
-            <font-awesome-icon :icon="['fas', 'filter']"/>
-        </div>
-        <side-drawer ref="sideDrawer"
-            :movieGenres="movieGenres"
-            :seriesGenres="seriesGenres">
-        </side-drawer> -->
-
-        <!-- Info Modal -->
-        <!-- <div class="modal fade bd-example-modal-xl" id="movieInfoModal" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <movie-info
-                        v-if="configuration.images"
-                        :movie="selectedMovie"
-                        :configuration="configuration"
-                        :imageRes="'w500'"
-                        :selectPerson="goToPerson"
-                    ></movie-info>
-                </div>
-            </div>
-        </div> -->
     </div>
 </template>
 
 <script lang="ts">
 import { api } from '../API/api';
-import { sanitizeName } from '../Common/utils';
+import { sanitizeName } from '../common/utils';
 import _ from 'lodash';
-import { configuration, movieGenres, seriesGenres } from '../Common/staticConfig';
+import { configuration, movieGenres, seriesGenres } from '../common/staticConfig';
 import anime from 'animejs';
+import Vue from 'vue';
+import SearchResults from '@/components/SearchResults/index.vue';
 
-export default {
+export default Vue.extend({
     name: 'home',
     data: function () {
         return {
@@ -365,12 +302,15 @@ export default {
             searchResults: [],
             imageBasePath: '',
             selectedMovie: {},
-            currentRoute: {} as Object,
+            currentRoute: {} as any,
             selectedPerson: {},
             showSearchResults: true,
             showDrawer: false,
             logoAnimation: null,
         };
+    },
+    components: {
+        SearchResults,
     },
     created() {
         this.loadData();
@@ -529,13 +469,6 @@ export default {
                 })
                 .catch((err) => {});
         },
-        // showMovieInfo(movie: any) {
-        //     this.selectedMovie = movie;
-        //     $('#movieInfoModal').modal('show');
-        // },
-        // closeInfo() {
-        //     $('#movieInfoModal').modal('hide');
-        // },
         goToDiscover() {
             this.$router
                 .push({
@@ -573,14 +506,13 @@ export default {
             this.currentRoute = currentRoute;
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">
 @import '../Assets/Styles/main.less';
 
 .app-logo {
-    // margin-top: 0.2em;
     cursor: pointer;
     font-size: 1.7em;
     color: #000;
@@ -837,19 +769,15 @@ export default {
 }
 .view-enter {
     opacity: 0;
-    // transform: translateY(-50px);
 }
 .view-enter-to {
     opacity: 1;
-    // transform: translateY(0px);
 }
 .view-leave {
     opacity: 1;
-    // transform: translateY(0px);
 }
 .view-leave-to {
     opacity: 0;
-    // transform: translateY(-50px);
 }
 .lightMode {
     .el-menu {
@@ -918,7 +846,6 @@ export default {
             width: 100%;
             a {
                 div {
-                    // display: flex;
                     text-align: center;
                 }
             }
@@ -935,9 +862,6 @@ export default {
         width: 80%;
         left: 1em;
     }
-    // .first-menu-item {
-    //     margin-left: 1em !important;
-    // }
     .el-menu-item {
         color: @text-color !important;
         margin: 0 0.6rem !important;
@@ -947,7 +871,6 @@ export default {
         margin-left: 0 !important;
         left: 0.5em;
         padding: 0;
-        // position: relative !important;
     }
     .search-dropdown {
         width: 100%;

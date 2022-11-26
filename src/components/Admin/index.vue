@@ -7,7 +7,6 @@
                     placeholder="Search"
                     class="search-input"
                     icon="el-icon-search"
-                    @keyup.enter="filterTable"
                 ></el-input>
             </el-col>
             <el-col :span="6" class="ml-3">
@@ -76,13 +75,15 @@
 
 <script lang="ts">
 import moment from 'moment';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'home',
     data() {
         return {
             users: [],
             search: '',
+            scope: {} as any,
         }
     },
     created() {
@@ -127,7 +128,7 @@ export default {
             }
         },
     }
-}
+});
 </script>
 
 <style lang="less" scoped>

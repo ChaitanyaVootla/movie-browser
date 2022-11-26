@@ -8,7 +8,6 @@
             <img
                 v-lazy="imageObj"
                 class="episode-card-image"
-                v-bind:style="{ boxShadow: getRatingColor() + ' 0px 3px 10px 0.2em' }"
             />
         </div>
         <div class="secondary-text episode-heading mt-1 mb-1" v-if="showHeader">
@@ -18,8 +17,10 @@
 </template>
 
 <script lang="ts">
-import { getFullDateText } from '../../Common/utils';
-export default {
+import { getFullDateText } from '@/common/utils';
+import Vue from 'vue';
+
+export default Vue.extend({
     name: 'episodeCard',
     props: [
         'episode',
@@ -39,23 +40,6 @@ export default {
         };
     },
     methods: {
-        getRatingColor() {
-            return 'rgba(0, 0, 0, 0.5)';
-            if (this.disableRatingShadow) {
-                return 'none';
-            }
-
-            const rating = this.episode.vote_average;
-            if (rating < 5) {
-                return 'rgba(200, 0, 0, 1)';
-            } else if (rating < 6.5) {
-                return 'rgba(150, 100, 0, 1)';
-            } else if (rating < 8) {
-                return 'rgba(0, 100, 0, 1)';
-            } else {
-                return 'rgba(91, 17, 130, 1)';
-            }
-        },
         getYear: function (episodeDate: any) {
             return new Date(episodeDate).getFullYear();
         },
@@ -65,7 +49,7 @@ export default {
             return this.episode.character || this.episode.job;
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

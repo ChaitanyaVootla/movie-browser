@@ -33,7 +33,9 @@
 </template>
 
 <script lang="ts">
-export default {
+import Vue from 'vue';
+
+export default Vue.extend({
     name: 'videoSlider',
     props: {
         videos: Array,
@@ -53,14 +55,14 @@ export default {
     },
     computed: {
         videoTypes() {
-            return Array.from(new Set(this.videos.map(({type}) => type)));
+            return Array.from(new Set(this.videos.map(({type}) => type))) as string[];
         },
         filteredVideos() {
             return this.videos.filter(({type}) => !this.selectedVideoType || (type === this.selectedVideoType))
                 .slice(0, 5);
         },
     }
-}
+});
 </script>
 
 <style scoped lang="less">

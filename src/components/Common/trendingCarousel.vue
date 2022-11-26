@@ -43,18 +43,7 @@
                                     - {{ item.media_type }}
                                 </h6>
 
-                                <!-- Rating -->
-                                <!-- <div class="mt-5 pt-5">
-                                    <span class="rating-info" :style="`border-color: ${getRatingColor(item.vote_average)}; color: ${getRatingColor(item.vote_average)}`">
-                                        {{item.vote_average}}
-                                    </span>
-                                </div> -->
                                 <GoogleData class="googleData-container" :item="item" :rawGoogleData="googleData"/>
-
-                                <!-- Item overview -->
-                                <!-- <div class="movie-overview frosted p-3 mt-10">
-                                    <span>{{ item.overview.slice(0, 200) }}</span>
-                                </div> -->
                             </div>
                         </div>
                     </el-carousel-item>
@@ -137,13 +126,14 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
-import { getGoogleLink, getRatingColor, mapGoogleData } from '../../Common/utils';
+import { api } from '@/API/api';
+import { getRatingColor, mapGoogleData } from '@/common/utils';
 import { sortBy, compact } from 'lodash';
 import moment from 'moment';
 import GoogleData from '../Common/googleData.vue';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'trendingCarousel',
     props: [
         'configuration',
@@ -217,7 +207,6 @@ export default {
                         series.upcomingTime = new Date(series.next_episode_to_air.air_date);
                         return series;
                     }
-                    // return series;
                 }),
             );
         },
@@ -253,7 +242,6 @@ export default {
         async getCurrentStreaming() {
             const res = await api.getCurrentStreamingSeries();
             this.currentStreaming = res.results.filter(({ poster_path }) => poster_path);
-            // this.currentStreaming = this.getUpcomingEpicodes(this.currentStreaming);
         },
         async getTrendingListWeek() {
             const res = await api.getTrendingListWeek();
@@ -264,11 +252,9 @@ export default {
             this.getTrendingListWeek();
             this.getPlayingNowMovies();
             this.getCurrentStreaming();
-            // const apiData = await api.getDiscoverMoviesFull('&vote_average.gte=7');
-            // this.popularMovies = apiData.results;
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

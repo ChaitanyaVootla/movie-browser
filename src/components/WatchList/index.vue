@@ -1,76 +1,5 @@
 <template>
     <div class="m-4 pt-5 watch-list-container">
-        <!-- <el-row class="mr-5">
-            <el-col span="12">
-                <el-carousel height="450px" :interval="7000" arrow="always" class="ml-4 carousel">
-                    <el-carousel-item v-for="series in seriesWatchList" :key="series.id">
-                        <div class="carousel-card-container" @click="carouselCardClicked(series)">
-                            <div class="background-images-container justify-center">
-                                <img v-lazy="{
-                                        src: `${configuration.images.secure_base_url}h632${series.backdrop_path}`,
-                                    }" height="640px"
-                                />
-                            </div>
-                            <div class="info-container">
-                                <h3 div="info-heading">
-                                    {{series.title || series.name}}
-                                </h3>
-                                <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                                    <span v-for="(genre, index) in series.genres" :key="genre.id">
-                                        {{genre.name}}{{index===series.genres.length-1?'':','}}
-                                    </span>
-                                </h6>
-                                <div class="mt-5 pt-5">
-                                    <span class="rating-info" :style="`border-color: ${getRatingColor(series.vote_average)};
-                                        color: ${getRatingColor(series.vote_average)}`">
-                                        {{series.vote_average}}
-                                    </span>
-                                </div>
-                                <div class="movie-overview p-3 mt-10">
-                                    <span>{{series.overview.slice(0, 200)}}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </el-carousel-item>
-                </el-carousel>
-            </el-col>
-            <el-col span="12">
-                <el-carousel height="450px" :interval="7000" arrow="always" class="ml-4 carousel">
-                    <el-carousel-item v-for="series in returningSeries" :key="series.id">
-                        <div class="carousel-card-container" @click="carouselCardClicked(series)">
-                            <div class="background-images-container justify-center">
-                                <img v-lazy="{
-                                        src: `${configuration.images.secure_base_url}h632${series.backdrop_path}`,
-                                    }" height="640px"
-                                />
-                            </div>
-                            <div class="info-container">
-                                <h3 div="info-heading">
-                                    {{series.title || series.name}}
-                                </h3>
-                                <h6 class="secondary-info" style="margin-bottom: 1.5em;">
-                                    <span v-for="(genre, index) in series.genres" :key="genre.id">
-                                        {{genre.name}}{{index===series.genres.length-1?'':','}}
-                                    </span>
-                                </h6>
-                                <div class="mt-5 pt-5">
-                                    <span class="rating-info" :style="`border-color: ${getRatingColor(series.vote_average)};
-                                        color: ${getRatingColor(series.vote_average)}`">
-                                        {{series.vote_average}}
-                                    </span>
-                                </div>
-                                <div class="movie-overview p-3 mt-10">
-                                    <span>{{series.overview.slice(0, 200)}}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </el-carousel-item>
-                </el-carousel>
-            </el-col>
-        </el-row> -->
-
-        <!-- <season-slider :movies="upcomingEpisodes" :configuration="configuration"
-            :id="`season${upcomingEpisodes.id}`"></season-slider> -->
         <div class="share-list" v-if="user.displayName" @click="shareListModalVisible = true">
             <el-tooltip class="item" effect="light" content="Share this list" placement="left">
                 <font-awesome-icon :icon="['fas', 'share-alt']" />
@@ -126,10 +55,11 @@
 
 <script lang="ts">
 import { compact, sortBy } from 'lodash';
-import { getRatingColor } from '../../Common/utils';
+import { getRatingColor } from '@/common/utils';
 import moment from 'moment';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'watchList',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     data() {
@@ -205,7 +135,7 @@ export default {
             return watchListSeries;
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

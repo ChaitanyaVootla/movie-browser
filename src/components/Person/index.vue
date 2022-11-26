@@ -125,11 +125,12 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
-import _ from 'lodash';
-import { isMobile } from '../../Common/utils';
+import { api } from '@/API/api';
+import { filter, sortBy, groupBy, each, first } from 'lodash';
+import { isMobile } from '@/common/utils';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'person',
     props: ['person', 'configuration', 'showMovieInfo', 'showFullMovieInfo'],
     data() {
@@ -157,19 +158,19 @@ export default {
             this.details = await api.getPersonDetails(parseInt(this.$route.params.id));
             this.mainImgObj.src = this.creditImageBasePath + this.details.profile_path;
 
-            const movieCredits = _.filter(this.details.combined_credits.cast, { media_type: 'movie' });
+            const movieCredits = filter(this.details.combined_credits.cast, { media_type: 'movie' });
             this.carrerList.push(this.getMappedList(movieCredits, 'Movies', 'movies'));
 
-            const seriesCredits = _.filter(this.details.combined_credits.cast, { media_type: 'tv' });
+            const seriesCredits = filter(this.details.combined_credits.cast, { media_type: 'tv' });
             this.carrerList.push(this.getMappedList(seriesCredits, 'Series', 'series'));
 
-            const movieCrew = _.filter(this.details.combined_credits.crew, { media_type: 'movie' });
+            const movieCrew = filter(this.details.combined_credits.crew, { media_type: 'movie' });
             this.carrerList.push(this.getMappedList(movieCrew, 'Movies (as crew)', 'moviesCrew'));
 
-            const seriesCrew = _.filter(this.details.combined_credits.crew, { media_type: 'tv' });
+            const seriesCrew = filter(this.details.combined_credits.crew, { media_type: 'tv' });
             this.carrerList.push(this.getMappedList(seriesCrew, 'Series (as crew)', 'seriesCrew'));
 
-            this.carrerList = _.sortBy(this.carrerList, 'totalPopularity').reverse();
+            this.carrerList = sortBy(this.carrerList, 'totalPopularity').reverse();
             this.detailsLoading = false;
         },
         getBirthDate(birthday: Date) {
@@ -212,12 +213,12 @@ export default {
                     },
                 };
             }
-            const groupedItems = _.groupBy(list, 'id');
+            const groupedItems = groupBy(list, 'id');
             const uniqueItems = [] as any[];
-            _.each(groupedItems, (items, id) => {
+           each(groupedItems, (items, id) => {
                 let jobs = '';
                 let characters = '';
-                _.each(items, (item) => {
+                each(items, (item) => {
                     if (item.job) {
                         jobs += `${item.job}, `;
                     }
@@ -225,7 +226,7 @@ export default {
                         characters += `${item.character}, `;
                     }
                 });
-                const groupedItem = _.first(items);
+                const groupedItem = first(items);
                 if (jobs) {
                     groupedItem.job = jobs.slice(0, jobs.length - 2);
                 }
@@ -234,7 +235,7 @@ export default {
                 }
                 uniqueItems.push(groupedItem);
             });
-            mappedList.items = _.sortBy(uniqueItems, (item) => {
+            mappedList.items = sortBy(uniqueItems, (item) => {
                 mappedList.totalPopularity += item.popularity;
                 return -item.popularity;
             });
@@ -249,7 +250,7 @@ export default {
             this.getDetails();
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

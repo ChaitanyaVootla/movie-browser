@@ -1,22 +1,20 @@
 <template>
     <div id="app" :class="isLightMode ? 'lightMode' : ''">
-        <home />
+        <Home />
     </div>
 </template>
 
 <script lang="ts">
-// import { Component, Vue } from 'vue-property-decorator';
-// import Home from './components/Home.vue';
 import { store } from './store';
+import Vue from 'vue';
+import Home from '@/components/Home.vue';
 
-// @Component({
-//     components: {
-//         Home,
-//     }
-// })
-export default {
+export default Vue.extend({
     created() {
         store.dispatch('init');
+    },
+    components: {
+        Home,
     },
     computed: {
         isLightMode() {
@@ -27,7 +25,7 @@ export default {
             return store.getters.isLightMode;
         },
     },
-};
+});
 </script>
 
 <style lang="less">

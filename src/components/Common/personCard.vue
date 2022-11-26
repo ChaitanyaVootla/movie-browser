@@ -11,13 +11,6 @@
         >
             <div class="person-item">
                 <img v-lazy="imageObj" class="person-card-image shimmer-img" />
-                <!-- TODO check this function is needed -->
-                <!-- <div class="img-overlay">
-                    <a :href="`https://google.com/search?q=${person.name}`"
-                        target="_blank" class="mr-3 pl-2 pr-2">
-                        <font-awesome-icon :icon="['fab', 'google']" class="ext-link-icon"/>
-                    </a>
-                </div> -->
                 <div class="info-container mt-1">
                     <div class="ml-1 person-name">{{ person.name }}</div>
                     <div class="ml-1 person-job text-muted">{{ person.character || person.job }}</div>
@@ -28,7 +21,8 @@
 </template>
 
 <script lang="ts">
-export default {
+import Vue from 'vue';
+export default Vue.extend({
     name: 'personCard',
     props: ['person', 'configuration', 'imageRes', 'selectPerson'],
     data() {
@@ -43,7 +37,7 @@ export default {
             return new Date(movieDate).getFullYear();
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">
@@ -65,11 +59,6 @@ export default {
     position: relative;
     transition: transform 0.2s;
 }
-.person-card-title {
-    font-size: 1em;
-    font-weight: 900;
-    text-align: center;
-}
 .person-card-image {
     border-radius: 3px;
     height: 15em;
@@ -81,20 +70,6 @@ export default {
 }
 .person-card-image:hover {
     transform: scale(1.05);
-}
-.img-overlay {
-    position: absolute;
-    width: 90%;
-    opacity: 0;
-    left: 0.5em;
-    right: 1em;
-    top: 9.3em;
-    background: rgba(100, 100, 100, 0.6);
-    padding: 0.2em;
-    transition: 300ms;
-}
-.person-item:hover .img-overlay {
-    opacity: 1;
 }
 .ext-link-icon {
     color: #000;

@@ -109,11 +109,12 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
+import { api } from '@/API/api';
 import { v4 as uuidv4 } from 'uuid';
-import { getFullDateText, getDateText } from '../../Common/utils';
+import { getFullDateText, getDateText } from '@/common/utils';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'mbSlider',
     props: [
         'items',
@@ -146,7 +147,7 @@ export default {
                 images: {
                     still: [],
                 },
-            },
+            } as any,
             getFullDateText,
             getDateText,
         };
@@ -202,7 +203,7 @@ export default {
             this.episodeDialogVisible = true;
         },
     },
-};
+});
 </script>
 
 <style lang="less" scoped>

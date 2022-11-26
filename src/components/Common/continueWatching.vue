@@ -8,7 +8,7 @@
             ref="popoverInfo"
         ></popover-info>
         <div slot="reference" class="item-container">
-            <a :href="item.watchOption.link" target="_blank" @click="watchNowClicked(watchOption)">
+            <a :href="item.watchOption.link" target="_blank">
                 <div class="img-container mt-2">
                     <img v-lazy="imageObj" class="item-card-image" />
                 </div>
@@ -38,12 +38,10 @@
 </template>
 
 <script lang="ts">
-import { getFullDateText } from '../../Common/utils';
-import { sanitizeName } from '../../Common/utils';
-import { isMobile } from '../../Common/utils';
-import { getIconFromLink } from '@/Common/utils';
+import { getIconFromLink, isMobile, sanitizeName, getFullDateText } from '@/common/utils';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'continueWatching',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
     created() {
@@ -66,7 +64,7 @@ export default {
         },
     },
     computed: {},
-};
+});
 </script>
 
 <style scoped lang="less">

@@ -30,7 +30,6 @@
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showFullMovieInfo"
                 ></mb-slider>
-                <!-- <CustomView :configuration="configuration"/> -->
                 <mb-slider
                     :items="trendingTv"
                     :configuration="configuration"
@@ -63,8 +62,6 @@
                         :configuration="configuration"
                     />
                 </div>
-                <!-- <mb-slider :items="latestMovies" :configuration="configuration" :heading="'Latest Movies'" :id="'latestMovies'"
-                    :showMovieInfoModal="showMovieInfo" :showFullMovieInfo="showFullMovieInfo"></mb-slider> -->
                 <mb-slider
                     :items="currentAiring"
                     :configuration="configuration"
@@ -87,21 +84,20 @@
                         :configuration="configuration"
                     />
                 </div>
-                <!-- <random-suggestions :configuration="configuration" :showMovieInfoModal="showMovieInfo"
-                    :showFullMovieInfo="showSeriesInfo"></random-suggestions> -->
             </div>
         </div>
     </div>
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
-import CustomView from '../CustomView/index.vue';
-import FilterView from '../FilterView/index.vue';
+import { api } from '@/API/api';
+import CustomView from '@/components/CustomView/index.vue';
+import FilterView from '@/components/FilterView/index.vue';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'trending',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     components: {
@@ -165,7 +161,7 @@ export default {
             );
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

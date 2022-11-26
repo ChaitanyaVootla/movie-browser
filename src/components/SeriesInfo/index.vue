@@ -275,18 +275,19 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
+import { api } from '@/API/api';
 import _ from 'lodash';
-import { getDateText } from '../../Common/utils';
-import GoogleData from '../Common/googleData.vue';
+import { getDateText } from '@/common/utils';
+import GoogleData from '@/components/Common/googleData.vue';
 import moment from 'moment';
 import { mapActions } from 'vuex';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import episodeDetails from '@/components/Common/episodeDetails.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'seriesInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showSeriesInfo'],
     components: {
@@ -306,16 +307,16 @@ export default {
             videoTimeout: null,
             showFullBio: false,
             showAllTags: false,
-            movie: {},
+            movie: {} as any,
             selectedSeason: null,
-            selectedSeasonInfo: {},
-            lastEpisodeDetails: {},
+            selectedSeasonInfo: {} as any,
+            lastEpisodeDetails: {} as any,
             recommendedMovies: [] as any[],
             similarMovies: [] as any[],
             cast: [] as any[],
             crew: [] as any[],
             seasons: [] as any[],
-            selectedVideo: {},
+            selectedVideo: {} as any,
             showFullOverview: false,
             activeTab: 'seasons',
             dialogVisible: false,
@@ -448,7 +449,7 @@ export default {
             else return 'purple';
         },
     },
-};
+});
 </script>
 
 <style scoped lang="less">

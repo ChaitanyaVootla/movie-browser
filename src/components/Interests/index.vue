@@ -8,7 +8,6 @@
                 </template>
                 <el-menu-item index="1-1" @click="selectedItem = 'watchListMovies'">Watch List</el-menu-item>
                 <el-menu-item index="1-2" @click="selectedItem = 'watchedMovies'">Watched</el-menu-item>
-                <!-- <el-menu-item index="1-3" @click="selectedItem = 'historyMovies'">Browse History</el-menu-item> -->
             </el-submenu>
             <el-submenu index="2">
                 <template slot="title">
@@ -16,7 +15,6 @@
                     <span slot="title">Series</span>
                 </template>
                 <el-menu-item index="2-1" @click="selectedItem = 'watchListSeries'">Watch List</el-menu-item>
-                <!-- <el-menu-item index="2-2" @click="selectedItem = 'seriesHistory'">Browse History</el-menu-item> -->
             </el-submenu>
             <el-menu-item index="3">
                 Show all results
@@ -42,7 +40,9 @@
 </template>
 
 <script lang="ts">
-export default {
+import Vue from 'vue';
+
+export default Vue.extend({
     name: 'Profile',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     data() {
@@ -70,17 +70,11 @@ export default {
         watchListSeries() {
             return this.$store.getters.watchListSeries;
         },
-        historyMovies() {
-            return this.$store.getters.history.movies;
-        },
-        seriesHistory() {
-            return this.$store.getters.history.series;
-        },
         isMobile() {
             return window.innerWidth < 768 ? true : false;
         },
     },
-};
+});
 </script>
 
 <style lang="less" scoped>
