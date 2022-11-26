@@ -3,7 +3,7 @@
         <mb-slider :items="moviesList" :configuration="configuration" :id="'continueWatching'">
             <div class="custom-heading">
                 <h4>{{ viewName }}</h4>
-                <font-awesome-icon :icon="['fas', 'pen']" class="ml-3 mt-2 edit-icon" @click="showEditModal = true" />
+                <i class="fa-solid fa-pen ml-3 mt-2 edit-icon" @click="showEditModal = true"></i>
             </div>
         </mb-slider>
         <el-dialog title="Edit custom view" :visible.sync="showEditModal" custom-class="view-modal">

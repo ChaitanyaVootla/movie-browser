@@ -19,10 +19,10 @@
                 </a>
                 <div v-if="canShowMoreWatchOptions" class="more-options" @click="toggleExpandWatchOptions">
                     <div v-if="watchOptionsExpanded" class="ott-container mr-3 more-options">
-                        <font-awesome-icon :icon="['fas', 'angle-left']" />
+                        <i class="fa-solid fa-angle-left"></i>
                     </div>
                     <div v-if="!watchOptionsExpanded" class="ott-container mr-3 more-options">
-                        <font-awesome-icon :icon="['fas', 'angle-right']" />
+                        <i class="fa-solid fa-angle-right"></i>
                     </div>
                 </div>
             </div>

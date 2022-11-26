@@ -11,7 +11,7 @@
             <el-menu-item index="Trending" class="first-menu-item p-0 nav-menu-item">
                 <router-link :to="{ name: 'trending' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onTrending ? 'active' : ''">
-                        <font-awesome-icon :icon="['fas', 'home']" class="mr-2 trending-icon" />
+                        <i class="fa-solid fa-house pr-2"></i>
                         <div class="">Home</div>
                     </div>
                 </router-link>
@@ -19,7 +19,7 @@
             <el-menu-item index="discover" class="nav-menu-item p-0">
                 <router-link :to="{ name: 'discover' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onDiscover ? 'active' : ''">
-                        <font-awesome-icon :icon="['fas', 'photo-video']" class="mr-2" />
+                        <i class="fa-solid fa-photo-video mr-2"></i>
                         <div class="">Browse</div>
                     </div>
                 </router-link>
@@ -27,7 +27,7 @@
             <el-menu-item index="WatchList" class="nav-menu-item p-0">
                 <router-link :to="{ name: 'WatchList' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onWatchList ? 'active' : ''">
-                        <font-awesome-icon :icon="['fas', 'stream']" class="mr-2" />
+                        <i class="fa-solid fa-bars-staggered mr-2"></i>
                         <div class="">Watch List</div>
                     </div>
                 </router-link>
@@ -40,7 +40,7 @@
             >
                 <router-link :to="{ name: 'home' }" title="home">
                     <div class="app-logo">
-                        <font-awesome-icon :icon="['fas', 'film']" />
+                        <i class="fa-solid fa-clapperboard"></i>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -103,13 +103,13 @@
                             </el-dropdown-item>
                             <el-dropdown-item :divided="countryName.length > 0">
                                 <router-link :to="{ name: 'Interests' }">
-                                    <font-awesome-icon :icon="['fas', 'user']" class="mr-1" />
+                                    <i class="fa-solid fa-user mr-1"></i>
                                     Profile
                                 </router-link>
                             </el-dropdown-item>
                             <el-dropdown-item>
                                 <router-link :to="{ name: 'Sandbox' }">
-                                    <font-awesome-icon :icon="['fas', 'flask']" class="mr-1" />
+                                    <i class="fa-solid fa-flask mr-1"></i>
                                     Sandbox
                                 </router-link>
                             </el-dropdown-item>
@@ -119,30 +119,30 @@
                                     rel="noopener"
                                     target="_blank"
                                 >
-                                    <font-awesome-icon :icon="['fab', 'github']" class="mr-1" />
+                                    <i class="fa-brands fa-github mr-1"></i>
                                     Github Repo
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item>
                                 <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
-                                    <font-awesome-icon :icon="['fas', 'film']" class="mr-1" />
+                                    <i class="fa-solid fa-film mr-1"></i>
                                     TMDB
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item>
                                 <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
-                                    <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1" />
+                                    <i class="fa-solid fa-file-alt mr-1"></i>
                                     TMDB Docs
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item divided>
                                 <div @click="signOutClicked">
-                                    <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-1" />
+                                    <i class="fa-solid fa-sign-out-alt mr-1"></i>
                                     Sign out
                                 </div>
                                 <div v-if="user.isAdmin">
                                     <router-link :to="{ name: 'admin' }">
-                                        <font-awesome-icon :icon="['fas', 'lock']" class="mr-2" />
+                                        <i class="fa-solid fa-lock mr-1"></i>
                                         Admin
                                     </router-link>
                                 </div>
@@ -157,19 +157,19 @@
                     <el-dropdown-menu slot="dropdown">
                         <el-dropdown-item>
                             <a href="https://github.com/ChaitanyaVootla/movie-browser" rel="noopener" target="_blank">
-                                <font-awesome-icon :icon="['fab', 'github']" class="mr-1" />
+                                <i class="fa-brands fa-github mr-1"></i>
                                 Github Repo
                             </a>
                         </el-dropdown-item>
                         <el-dropdown-item>
                             <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
-                                <font-awesome-icon :icon="['fas', 'film']" class="mr-1" />
+                                <i class="fa-solid fa-film mr-1"></i>
                                 TMDB
                             </a>
                         </el-dropdown-item>
                         <el-dropdown-item>
                             <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
-                                <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1" />
+                                <i class="fa-solid fa-file-alt mr-1"></i>
                                 TMDB Docs
                             </a>
                         </el-dropdown-item>
@@ -233,7 +233,7 @@
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
                                 <router-link :to="{ name: 'Interests' }">
-                                    <font-awesome-icon :icon="['fas', 'user']" class="mr-1" />
+                                    <i class="fa-solid fa-user mr-1"></i>
                                     Profile
                                 </router-link>
                             </el-dropdown-item>
@@ -243,25 +243,25 @@
                                     rel="noopener"
                                     target="_blank"
                                 >
-                                    <font-awesome-icon :icon="['fab', 'github']" class="mr-1" />
+                                    <i class="fa-brands fa-github mr-1"></i>
                                     Github Repo
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item>
                                 <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
-                                    <font-awesome-icon :icon="['fas', 'film']" class="mr-1" />
+                                    <i class="fa-solid fa-film mr-1"></i>
                                     TMDB
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item>
                                 <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
-                                    <font-awesome-icon :icon="['fas', 'file-alt']" class="mr-1" />
+                                    <i class="fa-solid fa-file-alt mr-1"></i>
                                     TMDB Docs
                                 </a>
                             </el-dropdown-item>
                             <el-dropdown-item divided>
                                 <div @click="signOutClicked">
-                                    <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="mr-1" />
+                                    <i class="fa-solid fa-sign-out-alt mr-1"></i>
                                     Sign out
                                 </div>
                             </el-dropdown-item>
@@ -291,7 +291,7 @@
 <script lang="ts">
 import { api } from '../API/api';
 import { sanitizeName } from '../common/utils';
-import _ from 'lodash';
+import { throttle, find, sortBy } from 'lodash';
 import { configuration, movieGenres, seriesGenres } from '../common/staticConfig';
 import anime from 'animejs';
 import Vue from 'vue';
@@ -329,7 +329,7 @@ export default Vue.extend({
         const self = this as any;
         // TODO is a separate search page required?
         // if (searchInput) {
-        //     searchInput.addEventListener("keyup", _.bind(function(event) {
+        //     searchInput.addEventListener("keyup", bind(function(event) {
         //         if (event.keyCode === 13) {
         //             self.goToSearch();
         //         }
@@ -439,15 +439,15 @@ export default Vue.extend({
             this.imageBasePath = configuration.images.secure_base_url + 'w500';
             this.isLoaded = true;
         },
-        executeSearch: _.throttle(async function (this: any) {
+        executeSearch: throttle(async function (this: any) {
             if (this.searchText.length > 1) {
                 $('.search-dropdown')[0].scrollTop = 0;
                 const response = await api.searchAll(this.searchText + '', 1);
-                this.searchResults = _.sortBy(response.results, 'popularity').reverse();
+                this.searchResults = sortBy(response.results, 'popularity').reverse();
             }
         }, 200),
         getGenreNameFromId(id: number) {
-            const genre = _.find(this.genres, { id: id });
+            const genre = find(this.genres, { id: id });
             if (genre) {
                 return genre.name;
             }
@@ -552,6 +552,7 @@ export default Vue.extend({
 }
 .trending-icon {
     font-size: 1.2em;
+    height: 10px;
 }
 /deep/ .search-append-button .el-input-group__append {
     border: 1px solid #222 !important;
@@ -815,8 +816,10 @@ export default Vue.extend({
 .nav-menu-item {
     .flex-nav-item {
         display: flex;
+        align-items: center;
         svg {
-            height: 3.7rem;
+            height: 1.2rem;
+            vertical-align: middle;
         }
         font-weight: 500;
         font-size: 1.1em;
@@ -826,6 +829,7 @@ export default Vue.extend({
     .nav-menu-item {
         .flex-nav-item {
             display: flex;
+            align-items: center;
             flex-direction: column;
             padding: 10px 0;
             svg {

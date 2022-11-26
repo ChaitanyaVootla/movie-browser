@@ -13,7 +13,7 @@
                 <div class="tmdb-rating" v-if="details.vote_average">
                     <img src="/images/rating/tmdb.svg" />
                     <div class="rating-details">
-                        <div>{{ details.vote_average.toFixed(1) }} <font-awesome-icon :icon="['fas', 'star']" /></div>
+                        <div>{{ details.vote_average.toFixed(1) }} <i class="fa-solid fa-star"></i></div>
                         <div class="vote_count">{{ details.vote_count }} votes</div>
                     </div>
                 </div>

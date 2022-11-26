@@ -93,7 +93,7 @@
 import { api } from '@/API/api';
 import CustomView from '@/components/CustomView/index.vue';
 import FilterView from '@/components/FilterView/index.vue';
-import _ from 'lodash';
+import { sortBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import Vue from 'vue';
 
@@ -150,13 +150,13 @@ export default Vue.extend({
         },
         async getLatestMovies() {
             let { results: latestMovies } = await api.getLatestMovies();
-            this.latestMovies = _.sortBy(latestMovies, ({ popularity }) => -popularity).filter(
+            this.latestMovies = sortBy(latestMovies, ({ popularity }) => -popularity).filter(
                 ({ poster_path }) => poster_path,
             );
         },
         async getCurrentAiring() {
             let { results: currentAiring } = await api.getCurrentStreamingSeries();
-            this.currentAiring = _.sortBy(currentAiring, ({ popularity }) => -popularity).filter(
+            this.currentAiring = sortBy(currentAiring, ({ popularity }) => -popularity).filter(
                 ({ poster_path }) => poster_path,
             );
         },

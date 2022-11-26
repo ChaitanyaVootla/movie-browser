@@ -1,7 +1,7 @@
 <template>
     <div v-if="item.rank" class="ml-3">
-        <div v-if="item.rank < 10" class="fire"> <font-awesome-icon :icon="['fas', 'fire']" /> TOP 10 </div>
-        <div v-else-if="item.rank < 50" class="hot"> <font-awesome-icon :icon="['fas', 'burn']" /> HOT </div>
+        <div v-if="item.rank < 10" class="fire"> <i class="fa-solid fa-fire"></i> TOP 10 </div>
+        <div v-else-if="item.rank < 50" class="hot"> <i class="fa-solid fa-fire-flame-simple"></i> HOT </div>
     </div>
 </template>
 

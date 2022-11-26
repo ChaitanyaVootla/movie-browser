@@ -2,7 +2,7 @@
     <div class="m-4 pt-5 watch-list-container">
         <div class="share-list" v-if="user.displayName" @click="shareListModalVisible = true">
             <el-tooltip class="item" effect="light" content="Share this list" placement="left">
-                <font-awesome-icon :icon="['fas', 'share-alt']" />
+                <i class="fa-solid fa-share-nodes"></i>
             </el-tooltip>
         </div>
         <mb-slider

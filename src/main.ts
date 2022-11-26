@@ -1,27 +1,12 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
 import App from './App.vue';
-import { library } from '@fortawesome/fontawesome-svg-core';
-import { fas } from '@fortawesome/free-solid-svg-icons';
-import { fab } from '@fortawesome/free-brands-svg-icons';
-import { far } from '@fortawesome/free-regular-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
-import _ from 'lodash';
 import VueLazyload from 'vue-lazyload';
-import Element from 'element-ui';
-import './Assets/Styles/element-ui.scss';
+import ElementUI from 'element-ui';
 import { store } from './store';
+import './Assets/Styles/element-ui.scss';
 
-Vue.use(Element);
-
-Object.defineProperty(Vue.prototype, '_', { value: _ });
-
-library.add(fas);
-library.add(fab);
-library.add(far);
-
-Vue.component('font-awesome-icon', FontAwesomeIcon);
-Vue.config.productionTip = true;
+Vue.use(ElementUI);
 (<any>window).$ = require('jquery');
 
 Vue.component('mbSlider', require('./components/Slider').default);
@@ -40,6 +25,7 @@ Vue.component('ShareView', require('./components/ShareView/index.vue').default);
 Vue.component('person', require('./components/Person/index.vue').default);
 Vue.component('searchResults', require('./components/SearchResults/index.vue').default);
 Vue.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
+Vue.component('searchGrid', require('./components/Common/searchGrid.vue').default);
 
 Vue.component('Home', require('./components/Home.vue').default);
 

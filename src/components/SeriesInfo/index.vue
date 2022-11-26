@@ -7,7 +7,7 @@
                 class="mobile-hide play-trailer"
                 @click="showVideo = true"
             >
-                <font-awesome-icon :icon="['fas', 'play-circle']" />
+                <i class="fa-solid fa-circle-play"></i>
                 Play Trailer
             </div>
             <img
@@ -79,11 +79,11 @@
                 <span style="line-height: 2rem">
                     <span>{{ getDateText(details.first_air_date) }} - {{ details.status }}</span>
                     <span v-if="details.episode_run_time.length" class="pl-2">
-                        <font-awesome-icon :icon="['far', 'clock']" />
+                        <i class="fa-regular fa-clock"></i>
                         {{ details.episode_run_time[0] }} mins
                     </span>
                     <span class="cursor-pointer ml-3" @click="openImageModal">
-                        <font-awesome-icon :icon="['fas', 'images']" />
+                        <i class="fa-solid fa-images"></i>
                     </span>
                 </span>
             </h6>
@@ -102,7 +102,7 @@
                 <div class="mt-3 ml-2 bookmarks">
                     <el-button @click="removeFromWatchList" v-if="isInWatchList">
                         In watch List
-                        <font-awesome-icon :icon="['fas', 'check']" class="ml-1" />
+                        <i class="fa-solid fa-check ml-1"></i>
                     </el-button>
                     <el-tooltip
                         v-else
@@ -114,7 +114,7 @@
                     >
                         <el-button @click="addToWatchList">
                             Add to watch list
-                            <font-awesome-icon :icon="['fas', 'plus']" class="ml-1" />
+                            <i class="fa-solid fa-plus ml-1"></i>
                         </el-button>
                     </el-tooltip>
                 </div>
@@ -290,7 +290,7 @@
 
 <script lang="ts">
 import { api } from '@/API/api';
-import _ from 'lodash';
+import { filter, sortBy } from 'lodash';
 import { getDateText } from '@/common/utils';
 import GoogleData from '@/components/Common/googleData.vue';
 import moment from 'moment';
@@ -402,7 +402,7 @@ export default Vue.extend({
             this.similarMovies = this.details.similar.results;
             this.recommendedMovies = this.details.recommendations.results;
             this.cast = this.details.credits.cast;
-            this.crew = _.sortBy(this.details.credits.crew, (person) => {
+            this.crew = sortBy(this.details.credits.crew, (person) => {
                 if (person.job === 'Director') return 0;
                 if (person.department === 'Directing') return 1;
                 if (person.department === 'Writing') return 2;
@@ -410,7 +410,7 @@ export default Vue.extend({
                 if (person.department === 'Camera') return 4;
                 return 100;
             });
-            this.crew = _.sortBy(this.crew, ({ profile_path }) => {
+            this.crew = sortBy(this.crew, ({ profile_path }) => {
                 return profile_path ? 0 : 1;
             });
             this.seasons = [] as any[];
@@ -452,7 +452,7 @@ export default Vue.extend({
             this.removeSeriesList(this.details.id);
         },
         getYoutubeVideos: function () {
-            return _.filter(this.details.videos?.results || [], { site: 'YouTube' });
+            return filter(this.details.videos?.results || [], { site: 'YouTube' });
         },
         selectVideo(video: Object) {
             this.selectedVideo = video;

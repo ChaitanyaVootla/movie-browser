@@ -31,7 +31,7 @@
             <br class="desk-hide" />
             <span class="secondary-info ml-3 text-muted">{{ details.known_for_department }}</span>
             <span class="ml-3 info-tagline cursor-pointer" @click="dialogVisible = true">
-                <font-awesome-icon :icon="['fas', 'images']" />
+                <i class="fa-solid fa-images"></i>
             </span>
             <br class="desk-hide" />
             <a
@@ -39,7 +39,7 @@
                 target="_blank"
                 class="secondary-info ml-4 external-link-icon"
             >
-                <font-awesome-icon :icon="['fab', 'google']" />
+                <i class="fa-brands fa-google"></i>
             </a>
             <a
                 v-if="details.external_ids && details.external_ids.imdb_id"
@@ -47,7 +47,7 @@
                 target="_blank"
                 class="ml-3 external-link-icon"
             >
-                <font-awesome-icon :icon="['fab', 'imdb']" />
+                <i class="fa-brands fa-imdb"></i>
             </a>
             <a
                 v-if="details.external_ids && details.external_ids.twitter_id"
@@ -55,7 +55,7 @@
                 target="_blank"
                 class="ml-3 external-link-icon"
             >
-                <font-awesome-icon :icon="['fab', 'twitter']" />
+                <i class="fa-brands fa-twitter"></i>
             </a>
             <a
                 v-if="details.external_ids && details.external_ids.facebook_id"
@@ -63,7 +63,7 @@
                 target="_blank"
                 class="ml-3 external-link-icon"
             >
-                <font-awesome-icon :icon="['fab', 'facebook']" />
+                <i class="fa-brands fa-facebook"></i>
             </a>
             <el-row class="mt-3 mobile-hide" v-if="details.birthday">
                 <el-col :span="1">

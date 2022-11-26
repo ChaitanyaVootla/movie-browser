@@ -3,7 +3,7 @@
         <el-menu default-active="1-1" class="vertical-menu" :collapse="isMobile" :default-openeds="['1', '2']">
             <el-submenu index="1">
                 <template slot="title">
-                    <font-awesome-icon :icon="['fas', 'film']" class="mr-2" />
+                    <i class="fa-solid fa-clapperboard mr-2"></i>
                     <span slot="title">Movies</span>
                 </template>
                 <el-menu-item index="1-1" @click="selectedItem = 'watchListMovies'">Watch List</el-menu-item>
@@ -11,7 +11,7 @@
             </el-submenu>
             <el-submenu index="2">
                 <template slot="title">
-                    <font-awesome-icon :icon="['fas', 'stream']" class="mr-2" />
+                    <i class="fa-solid fa-bars-staggered mr-2"></i>
                     <span slot="title">Series</span>
                 </template>
                 <el-menu-item index="2-1" @click="selectedItem = 'watchListSeries'">Watch List</el-menu-item>

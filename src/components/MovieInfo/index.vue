@@ -7,7 +7,7 @@
                 class="mobile-hide play-trailer"
                 @click="showVideo = true"
             >
-                <font-awesome-icon :icon="['fas', 'play-circle']" />
+                <i class="fa-solid fa-circle-play"></i>
                 Play Trailer
             </div>
             <img
@@ -81,7 +81,7 @@
                     <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
                     <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
                     <span class="ml-2" @click="openImageModal">
-                        <font-awesome-icon :icon="['fas', 'images']" />
+                        <i class="fa-solid fa-images"></i>
                     </span>
                 </span>
             </h6>
@@ -91,7 +91,7 @@
                 <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
                 <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
                 <span class="ml-2 cursor-pointer" @click="openImageModal">
-                    <font-awesome-icon :icon="['fas', 'images']" />
+                    <i class="fa-solid fa-images"></i>
                 </span>
             </h6>
 
@@ -131,7 +131,7 @@
                             :class="`rating-info mr-3 watch-check ${isWatched ? 'watched-item' : ''}`"
                             @click="watchedClicked"
                         >
-                            <font-awesome-icon :icon="['fas', 'check']" />
+                            <i class="fa-solid fa-check"></i>
                         </span>
                     </el-tooltip>
                     <el-tooltip
@@ -150,7 +150,7 @@
                             :class="`rating-info mr-3 watch-check ${isInWatchList ? 'watched-item' : ''}`"
                             @click="addToListClicked"
                         >
-                            <font-awesome-icon :icon="['fas', 'plus']" />
+                            <i class="fa-solid fa-plus"></i>
                         </span>
                     </el-tooltip>
                 </div>

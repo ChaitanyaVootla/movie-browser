@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import { filter } from 'lodash';
 const maxItems = 50;
 
 const getItemByName = (name: string) => {
@@ -14,7 +14,7 @@ const pushItemByName = (name: string, item: any) => {
     let localData = [];
     if (localDataString) {
         localData = JSON.parse(localDataString);
-        localData = _.filter(localData, ({ id }) => {
+        localData = filter(localData, ({ id }) => {
             return id !== parseInt(item.id);
         });
         localData.push(item);
@@ -30,7 +30,7 @@ const removeItemByName = (name: string, item: any) => {
     const localDataString = localStorage[name];
     if (localDataString) {
         let localData = JSON.parse(localDataString);
-        localData = _.filter(localData, ({ id }) => {
+        localData = filter(localData, ({ id }) => {
             return id !== parseInt(item.id);
         });
         const newLocalString = JSON.stringify(localData);

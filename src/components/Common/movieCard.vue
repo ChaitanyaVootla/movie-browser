@@ -25,7 +25,7 @@
                 >
                     <div class="img-container">
                         <div v-if="isWatched" class="watched-overlay rating-info">
-                            <font-awesome-icon :icon="['fas', 'check']" />
+                            <i class="fa-solid fa-check"></i>
                         </div>
                         <el-popover
                             trigger="hover"
@@ -68,7 +68,7 @@
                                     @click="toggleWatched"
                                     v-if="movie.release_date"
                                 >
-                                    <font-awesome-icon :icon="['fas', 'check']" :class="isWatched ? 'green' : ''" />
+                                    <i class="fa-solid fa-check" :class="isWatched ? 'green' : ''"></i>
                                 </span>
                             </el-tooltip>
                         </div>

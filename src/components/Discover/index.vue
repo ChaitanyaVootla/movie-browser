@@ -203,7 +203,7 @@
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
         </div>
         <div class="pl-5 pt-2 pb-2 favorites-bar mobile-hide">
-            <div class="pr-3 pt-2"> <font-awesome-icon :icon="['fas', 'star']" class="mr-2" /> Saved Filters </div>
+            <div class="pr-3 pt-2"> <i class="fa-solid fa-star mr-2"></i> Saved Filters </div>
             <div v-if="savedFilters.length">
                 <router-link
                     v-for="savedFilter in savedFilters"
@@ -227,7 +227,7 @@
             <div class="right-action-items">
                 <el-alert v-if="!savedFilters.length" type="info" :closable="false">
                     You don't have any saved filters, you can create one by choosing filters above and saving it here
-                    <font-awesome-icon :icon="['fas', 'arrow-right']" class="mr-2" />
+                    <i class="fa-solid fa-arrow-right mr-2"></i>
                 </el-alert>
                 <div class="ml-3 mobile-hide save-container">
                     <el-button-group v-if="isSavedFilterView">
@@ -267,7 +267,7 @@
                 {{ queryData.total_results === 10000 ? `${queryData.total_results}+` : queryData.total_results }}
                 results
                 <el-tooltip effect="light" content="including watched movies" placement="right">
-                    <font-awesome-icon :icon="['fas', 'info-circle']" class="ml-1" v-show="hideWatchedMovies" />
+                    <i class="fa-solid fa-circle-info ml-1" v-show="hideWatchedMovies"></i>
                 </el-tooltip>
                 <!-- <el-button @click="toggleGallery">
                     Gallery

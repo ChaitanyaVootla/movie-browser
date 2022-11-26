@@ -1,50 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head lang="en">
-        <meta charset="utf-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-        <meta
-            name="description"
-            content="Search, Browse and follow your favorite TV Series and Movies with The Movie Browser | Powered by TMDB API"
-        />
-        <meta
-            name="keywords"
-            content="Movie, Movie browser, Movies, TV, Box office, Netflix, Action, Horror, Comedy, Scifi, New movies, Search Movies,
-        Prime Video, amazon prime, screenplay, cast, crew, popular movies, trending series, watch list"
-        />
-        <meta name="author" content="Vootla Chaitanya" />
-        <meta name="theme-color" content="#111" />
-        <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
-        <link rel="icon" href="<%= BASE_URL %>favicon.ico" />
-        <link rel="manifest" href="/manifest.json" />
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
-        <title>Movie Browser</title>
-    </head>
-    <body>
-        <noscript>
-            <strong
-                >We're sorry but Movie browser doesn't work properly without JavaScript enabled. Please enable it to
-                continue.</strong
-            >
-        </noscript>
-        <div id="app"></div>
-        <script>
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function () {
-                    navigator.serviceWorker.register('/sw.js').then(
-                        function (registration) {
-                            // Registration was successful
-                            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                        },
-                        function (err) {
-                            // registration failed :(
-                            console.log('ServiceWorker registration failed: ', err);
-                        },
-                    );
-                });
-            }
-        </script>
-        <!-- built files will be auto injected -->
-    </body>
+
+<head lang="en">
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="description"
+        content="Search, Browse and follow your favorite TV Series and Movies with The Movie Browser | Powered by TMDB API" />
+    <meta name="keywords" content="Movie, Movie browser, Movies, TV, Box office, Netflix, Action, Horror, Comedy, Scifi, New movies, Search Movies,
+        Prime Video, amazon prime, screenplay, cast, crew, popular movies, trending series, watch list" />
+    <meta name="author" content="Vootla Chaitanya" />
+    <meta name="theme-color" content="#111" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+    <link rel="icon" href="<%= BASE_URL %>favicon.ico" />
+    <link rel="manifest" href="/manifest.json" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://kit.fontawesome.com/f6999c0ae2.js" crossorigin="anonymous"></script>
+    <title>Movie Browser</title>
+</head>
+
+<body>
+    <noscript>
+        <strong>We're sorry but Movie browser doesn't work properly without JavaScript enabled. Please enable it to
+            continue.</strong>
+    </noscript>
+    <div id="app"></div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').then(
+                    function (registration) {
+                        // Registration was successful
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    },
+                    function (err) {
+                        // registration failed :(
+                        console.log('ServiceWorker registration failed: ', err);
+                    },
+                );
+            });
+        }
+    </script>
+    <!-- built files will be auto injected -->
+</body>
+
 </html>

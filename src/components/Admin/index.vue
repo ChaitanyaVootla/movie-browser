@@ -15,7 +15,6 @@
                         href="https://search.google.com/search-console?resource_id=sc-domain%3Athemoviebrowser.com"
                         target="_blank"
                     >
-                        <font-awesome-icon :icon="['fas', 'up-right-from-square']" />
                         Google search console
                     </a>
                 </div>

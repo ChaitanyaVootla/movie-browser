@@ -15,7 +15,7 @@
                     <img :src="item.watchOption.imagePath" class="watch-ott-icon" />
                 </div>
                 <div class="watch-overlay-play-icon">
-                    <font-awesome-icon :icon="['fas', 'play-circle']" />
+                    <i class="fa-solid fa-circle-play"></i>
                 </div>
             </a>
             <router-link

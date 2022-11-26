@@ -87,7 +87,7 @@
             <div class="episode-dialog-heading">
                 <h5>{{ dialogEpisode.name }}</h5>
                 <div class="tmdb-rating" v-if="dialogEpisode.vote_average">
-                    <div>{{ dialogEpisode.vote_average.toFixed(1) }} <font-awesome-icon :icon="['fas', 'star']" /></div>
+                    <div>{{ dialogEpisode.vote_average.toFixed(1) }} <i class="fa-solid fa-star"></i></div>
                     <div class="vote_count">{{ dialogEpisode.vote_count }} votes</div>
                 </div>
             </div>

@@ -1,7 +1,7 @@
 <template>
     <div>
         <div @click="showAddFriendDialog = true" class="add-friend">
-            <font-awesome-icon :icon="['fas', 'user-plus']" class="mr-2 cursor-pointer" />
+            <i class="fa-solid fa-user-plus mr-2 cursor-pointer"></i>
         </div>
         <div class="main-container" v-loading="isLoading"> {{ friends.length }} friends </div>
         <div v-for="user in friends" :key="user.photoURL" class="pt-3 pl-5 ml-4 pr-5">
@@ -15,7 +15,7 @@
             <div v-for="user in filteredUsers" :key="user.photoURL" class="pt-3 pl-5 pr-5">
                 <img :src="user.photoURL" class="user-photo" /> {{ user.displayName }}
                 <el-button @click="addFriend(user)" class="add-friend-btn">
-                    <font-awesome-icon :icon="['fas', 'user-plus']" class="mr-2 cursor-pointer" />Add Friend
+                    <i class="fa-solid fa-user-plus mr-2 cursor-pointer"></i>Add Friend
                 </el-button>
             </div>
             <span slot="footer" class="dialog-footer"> </span>
