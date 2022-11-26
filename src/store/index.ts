@@ -39,10 +39,6 @@ const store = new Vuex.Store({
         },
         savedFilters: [],
         randomFilters: {},
-        sideBarFilters: {
-            movieGenres: [],
-            seriesGenres: [],
-        },
         isLightMode: false,
         isMobile: () => (window.innerWidth > 0 ? window.innerWidth : screen.width) < 767,
     },
@@ -105,10 +101,6 @@ const store = new Vuex.Store({
         setSavedFilters(state, savedFilters) {
             state.savedFilters = savedFilters;
         },
-        setSideBarFilters(state, { movieGenres, seriesGenres }) {
-            state.sideBarFilters.movieGenres = movieGenres;
-            state.sideBarFilters.seriesGenres = seriesGenres;
-        },
         addWatched(state, id: number) {
             state.watched.movieIdsSet.add(id);
             state.watched.movieIdsSet = new Set(Array.from(state.watched.movieIdsSet))
@@ -168,9 +160,6 @@ const store = new Vuex.Store({
         watchListSeries: (state) => state.watchList.series,
         savedFilters: (state) => state.savedFilters,
         friends: (state) => state.friends,
-        sideBarFilters: (state) => state.sideBarFilters,
-        canFilterMovies: (state) => state.sideBarFilters.movieGenres.length,
-        canFilterSeries: (state) => state.sideBarFilters.seriesGenres.length,
         isLightMode: (state) => state.isLightMode,
         randomFilter: (state) => (identifier) => {
             if (!state.savedFilters.length) {
@@ -249,9 +238,6 @@ const store = new Vuex.Store({
         addContinueWatching({ commit, state }, {itemId, isMovie, watchLink, item}) {
             api.addContinueWatching({itemId, isMovie, watchLink});
             commit('addContinueWatching', {isMovie, item});
-        },
-        updateSideBarFilters({ commit }, { movieGenres, seriesGenres }) {
-            commit('setSideBarFilters', { movieGenres, seriesGenres });
         },
     },
 });

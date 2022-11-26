@@ -279,9 +279,9 @@
                 <el-tooltip effect="light" content="including watched movies" placement="right">
                     <font-awesome-icon :icon="['fas', 'info-circle']" class="ml-1" v-show="hideWatchedMovies" />
                 </el-tooltip>
-                <el-button @click="toggleGallery">
+                <!-- <el-button @click="toggleGallery">
                     Gallery
-                </el-button>
+                </el-button> -->
             </div>
             <div style="display: flex">
                 <div class="ml-3 mt-2 save-container mobile-hide">

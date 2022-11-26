@@ -1,3 +1,5 @@
+import { uniqBy } from 'lodash';
+
 const sanitizeName = (string) => {
     return string.replace(/\s+/g, '-');
 };
@@ -174,7 +176,7 @@ const mapGoogleData = (data: any) => {
     return {
         ...data,
         // imagePath,
-        ratings,
+        ratings: uniqBy(ratings, 'name'),
         allWatchOptions,
     };
 };

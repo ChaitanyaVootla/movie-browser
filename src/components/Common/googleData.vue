@@ -48,11 +48,11 @@
 </template>
 
 <script lang="ts">
-import { api } from '@/API/api';
 import { mapGoogleData } from '@/Common/utils';
 import { mapActions } from 'vuex';
+import Vue from 'vue';
 
-export default {
+export default Vue.extend({
     name: 'GoogleData',
     props: {
         item: {
@@ -110,7 +110,7 @@ export default {
             return this.$store.getters.user;
         },
     },
-};
+});
 </script>
 
 <style lang="less" scoped>
