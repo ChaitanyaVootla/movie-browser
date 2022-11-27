@@ -30,6 +30,7 @@
                                     class="carousel-image shimmer-img"
                                     :alt="item.title || item.name"
                                 />
+                                <div class="background-image-gradient"></div>
                             </div>
                             <div class="info-container shadow-text" v-if="currentCarouselItem.id === item.id">
                                 <h3 class="info-heading">
@@ -302,21 +303,30 @@ export default Vue.extend({
         padding-bottom: 0;
     }
 }
-.carousel-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: 10% 0;
-}
-.carousel-image[lazy='loading'] {
-    animation-duration: 1s;
-}
 .background-images-container {
     filter: opacity(0.5);
     height: 100%;
     overflow: hidden;
     border-radius: 10px;
     border: 4px solid rgba(133, 133, 133, 0.274);
+    .carousel-image {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 10% 0;
+    }
+    .carousel-image[lazy='loading'] {
+        animation-duration: 1s;
+    }
+    .background-image-gradient {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, rgba(0,0,0,0.7) 20%, rgba(0,0,0,0) 100%);
+    }
 }
 .info-container {
     position: absolute;

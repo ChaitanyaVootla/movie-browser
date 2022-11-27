@@ -113,7 +113,6 @@ export default Vue.extend({
             return this.$store.getters.recentVisits;
         },
         user() {
-            console.log(this.$store.getters.user);
             return this.$store.getters.user;
         },
     },

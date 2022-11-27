@@ -60,6 +60,7 @@ export default Vue.extend({
             sanitizeName,
             googleData: {
                 allWatchOptions: [],
+                ratings: [],
             },
             bgImageObj: {
                 src:
@@ -82,7 +83,6 @@ export default Vue.extend({
                 const details = await api.getTvDetails(this.item.id);
                 this.googleData = details.googleData;
             }
-            console.log(this.googleData);
         },
         getGenreNameFromId(genreId: number) {
             const genre = movieGenres.concat(seriesGenres).find(({ id }) => genreId === id);
