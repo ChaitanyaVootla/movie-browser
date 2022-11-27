@@ -269,9 +269,9 @@
                 <el-tooltip effect="light" content="including watched movies" placement="right">
                     <i class="fa-solid fa-circle-info ml-1" v-show="hideWatchedMovies"></i>
                 </el-tooltip>
-                <!-- <el-button @click="toggleGallery">
+                <el-button @click="toggleGallery">
                     Gallery
-                </el-button> -->
+                </el-button>
             </div>
             <div style="display: flex">
                 <div class="ml-3 mt-2 save-container mobile-hide">
@@ -300,7 +300,7 @@
             <img
                 v-for="image in images"
                 :key="image.file_path"
-                v-lazy="{ src: configuration.images.secure_base_url + 'w300' + image.file_path }"
+                v-lazy="{ src: configuration.images.secure_base_url + 'w1280' + image.file_path }"
                 class=""
             />
         </div>

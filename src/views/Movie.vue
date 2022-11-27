@@ -113,45 +113,44 @@
 
             <!-- Movie additional info -->
             <div class="additional-info">
-                <!-- bookmarks -->
                 <div class="mt-2 mb-3 pl-2 bookmarks">
                     <el-tooltip
                         class="item"
                         effect="light"
-                        :content="
-                            isSignedIn
-                                ? isWatched
-                                    ? 'Youve watched this'
-                                    : 'Watched this?'
-                                : 'Sign in to use this feature'
-                        "
+                        content="Sign in to use this feature"
+                        :disabled="isSignedIn"
                         placement="top"
                     >
-                        <span
-                            :class="`rating-info mr-3 watch-check ${isWatched ? 'watched-item' : ''}`"
+                        <el-button
+                            :type="isWatched ? 'danger' : ''"
                             @click="watchedClicked"
                         >
-                            <i class="fa-solid fa-check"></i>
-                        </span>
+                            <div v-show="isWatched">
+                                Watched <i class="fa-solid fa-check ml-2"></i>
+                            </div>
+                            <div v-show="!isWatched">
+                                Watched this?
+                            </div>
+                        </el-button>
                     </el-tooltip>
                     <el-tooltip
                         class="item"
                         effect="light"
-                        :content="
-                            isSignedIn
-                                ? isInWatchList
-                                    ? 'Remove from watch list'
-                                    : 'Add to watch list'
-                                : 'Sign in to use this feature'
-                        "
+                        content="Sign in to use this feature"
+                        :disabled="isSignedIn"
                         placement="top"
                     >
-                        <span
-                            :class="`rating-info mr-3 watch-check ${isInWatchList ? 'watched-item' : ''}`"
+                        <el-button
+                            :type="isInWatchList ? 'danger' : ''"
                             @click="addToListClicked"
                         >
-                            <i class="fa-solid fa-plus"></i>
-                        </span>
+                            <div v-show="isInWatchList">
+                                In Watch List <i class="fa-solid fa-check ml-2"></i>
+                            </div>
+                            <div v-show="!isInWatchList">
+                                Add to Watch List <i class="fa-solid fa-plus ml-2"></i>
+                            </div>
+                        </el-button>
                     </el-tooltip>
                 </div>
             </div>
@@ -200,7 +199,7 @@
                     Last updated: {{ sincetime(details.updatedAt) }}
                     <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
                 </div>
-                <rtReviews class="mt-4" :item="details"></rtReviews>
+                <rtReviews class="mt-5" :item="details"></rtReviews>
             </div>
             <div v-if="details.collectionDetails">
                 <mb-slider
@@ -524,6 +523,9 @@ export default Vue.extend({
     margin-left: 1rem;
     bottom: 1rem;
     position: absolute;
+    .bookmarks {
+        display: flex;
+    }
 }
 .watch-price {
     font-size: 0.7rem;

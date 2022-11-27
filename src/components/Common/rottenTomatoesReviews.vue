@@ -55,7 +55,8 @@ export default Vue.extend({
     font-weight: 500;
 }
 .rottenTomatoes {
-    margin: 2rem 0;
+    margin-bottom: 3rem;
+    margin-top: 1rem;
     display: flex;
     justify-content: left;
     gap: 20px;

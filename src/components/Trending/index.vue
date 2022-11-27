@@ -57,7 +57,7 @@
                     :isWideCard="true"
                     class="mb-4"
                 ></mb-slider>
-                <div v-if="uuid.length && user.name">
+                <!-- <div v-if="uuid.length && user.name">
                     <FilterView
                         :uuid="uuid"
                         :movieGenres="movieGenres"
@@ -70,21 +70,7 @@
                         :seriesGenres="seriesGenres"
                         :configuration="configuration"
                     />
-                </div>
-                <div v-if="uuid.length && user.name">
-                    <FilterView
-                        :uuid="uuid"
-                        :movieGenres="movieGenres"
-                        :seriesGenres="seriesGenres"
-                        :configuration="configuration"
-                    />
-                    <FilterView
-                        :uuid="uuid"
-                        :movieGenres="movieGenres"
-                        :seriesGenres="seriesGenres"
-                        :configuration="configuration"
-                    />
-                </div>
+                </div> -->
             </div>
         </div>
     </div>

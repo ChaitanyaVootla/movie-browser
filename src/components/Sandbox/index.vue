@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="mt-5 pt-5">
         <div class="filter-selections">
             <div class="select-label"> Watch Provider </div>
             <el-select
