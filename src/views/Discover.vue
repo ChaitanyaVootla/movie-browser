@@ -329,9 +329,9 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
+import { api } from '@/API/api';
 import { find, uniqBy, sortBy } from 'lodash';
-import { certifications } from '../../common/certifications';
+import { certifications } from '@/common/certifications';
 import moment from 'moment';
 import Vue from 'vue';
 
@@ -864,7 +864,7 @@ export default Vue.extend({
 </script>
 
 <style scoped lang="less">
-@import '../../Assets/Styles/main.less';
+@import '../Assets/Styles/main.less';
 
 .imageGallery {
     display: flex;

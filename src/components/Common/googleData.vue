@@ -1,9 +1,9 @@
 <template>
     <div>
         <div class="watch-options-container">
-            <div v-if="this.watchOptions.length || googleData.watchLink" class="ott-links-container mt-3">
+            <div v-if="watchOptions.length || googleData.watchLink" class="ott-links-container mt-3">
                 <a
-                    v-for="watchOption in this.watchOptions"
+                    v-for="watchOption in watchOptions"
                     :key="watchOption.name"
                     :href="watchOption.link"
                     target="_blank"

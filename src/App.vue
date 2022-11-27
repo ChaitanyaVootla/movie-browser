@@ -7,7 +7,7 @@
 <script lang="ts">
 import { store } from './store';
 import Vue from 'vue';
-import Home from '@/components/Home.vue';
+import Home from '@/views/Home.vue';
 
 export default Vue.extend({
     created() {

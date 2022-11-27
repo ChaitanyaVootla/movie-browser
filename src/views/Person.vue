@@ -254,7 +254,7 @@ export default Vue.extend({
 </script>
 
 <style scoped lang="less">
-@import '../../Assets/Styles/main.less';
+@import '../Assets/Styles/main.less';
 .description-container {
     position: absolute;
     width: 75%;

@@ -3,12 +3,12 @@ module.exports = {
         browser: true,
         es2021: true,
     },
-    extends: ['plugin:vue/recommended', 'plugin:prettier-vue/recommended'],
+    extends: ['eslint:recommended', '@vue/eslint-config-typescript', 'plugin:prettier-vue/recommended'],
     overrides: [],
     parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
     },
-    plugins: ['vue'],
+    plugins: [],
     rules: {},
 };

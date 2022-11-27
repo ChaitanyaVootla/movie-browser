@@ -140,7 +140,7 @@ export default Vue.extend({
 </script>
 
 <style scoped lang="less">
-@import '../../Assets/Styles/main.less';
+@import '../Assets/Styles/main.less';
 .share-list {
     position: absolute;
     right: 3em;

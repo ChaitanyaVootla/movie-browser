@@ -61,109 +61,73 @@
                 </div> -->
             </div>
         </div>
-        <div class="all-info-container pl-5" v-if="details.title">
+        <div class="all-info-container" v-if="details.name">
             <div class="heading-container">
-                <h3 class="info-heading ml-3">
-                    <span class="shadow-text">{{ details.title }}</span>
-                </h3>
-                <el-tag v-if="details.adult" type="danger">Adult</el-tag>
+                <h3>{{ details.name }}</h3>
+                <span class="text-muted info-tagline pl-2" v-if="details.number_of_seasons">
+                    {{ details.number_of_seasons }} Season{{ details.number_of_seasons > 1 ? 's' : '' }}
+                </span>
                 <rank :item="details"></rank>
             </div>
 
             <!-- Date and Genres -->
-            <h6 class="secondary-info ml-3">
-                <span v-if="details.release_date">{{ getDateText(details.release_date) }} -</span>
+            <h6 class="mb-3 secondary-info">
                 <span v-for="(genre, index) in details.genres" :key="index">
                     {{ genre.name }}{{ index === details.genres.length - 1 ? '' : ',' }}
                 </span>
-                <span class="desk-hide">
-                    <br />
-                    <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
-                    <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
-                    <span class="ml-2" @click="openImageModal">
+                <br />
+                <span style="line-height: 2rem">
+                    <span>{{ getDateText(details.first_air_date) }} - {{ details.status }}</span>
+                    <span v-if="details.episode_run_time.length" class="pl-2">
+                        <i class="fa-regular fa-clock"></i>
+                        {{ details.episode_run_time[0] }} mins
+                    </span>
+                    <span class="cursor-pointer ml-3" @click="openImageModal">
                         <i class="fa-solid fa-images"></i>
                     </span>
                 </span>
             </h6>
 
-            <!-- Rating images and runtime -->
-            <h6 class="secondary-info ml-3 mobile-hide">
-                <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
-                <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
-                <span class="ml-2 cursor-pointer" @click="openImageModal">
-                    <i class="fa-solid fa-images"></i>
-                </span>
-            </h6>
-
             <!-- Watch links -->
             <GoogleData
-                class="mt-5 googleData-container ml-3"
+                class="mt-4 googleData-container"
                 :item="details"
                 :key="details.id"
                 :rawGoogleData="details.googleData"
             />
 
-            <!-- budget -->
-            <!-- <div style="top: 31em; position: absolute;" class="budget-text mobile-hide">
-                <font-awesome-icon :icon="['fas', 'dollar-sign']" class="budget-icon"/>
-                {{getCurrencyString(details.budget)}}
-                <font-awesome-icon :icon="['fas', 'chart-line']" :class="`${budgetColor} budget-icon`"/>
-                <span :class="budgetColor">{{getCurrencyString(details.revenue)}}</span>
-            </div> -->
-
-            <!-- Movie additional info -->
+            <!-- Additional info -->
             <div class="additional-info">
                 <!-- bookmarks -->
-                <div class="mt-2 mb-3 pl-2 bookmarks">
+                <div class="mt-3 ml-2 bookmarks">
+                    <el-button @click="removeFromWatchList" v-if="isInWatchList">
+                        In watch List
+                        <i class="fa-solid fa-check ml-1"></i>
+                    </el-button>
                     <el-tooltip
+                        v-else
                         class="item"
                         effect="light"
-                        :content="
-                            isSignedIn
-                                ? isWatched
-                                    ? 'Youve watched this'
-                                    : 'Watched this?'
-                                : 'Sign in to use this feature'
-                        "
-                        placement="top"
+                        content="Sign in to use this feature"
+                        placement="right"
+                        :disabled="user.name"
                     >
-                        <span
-                            :class="`rating-info mr-3 watch-check ${isWatched ? 'watched-item' : ''}`"
-                            @click="watchedClicked"
-                        >
-                            <i class="fa-solid fa-check"></i>
-                        </span>
-                    </el-tooltip>
-                    <el-tooltip
-                        class="item"
-                        effect="light"
-                        :content="
-                            isSignedIn
-                                ? isInWatchList
-                                    ? 'Remove from watch list'
-                                    : 'Add to watch list'
-                                : 'Sign in to use this feature'
-                        "
-                        placement="top"
-                    >
-                        <span
-                            :class="`rating-info mr-3 watch-check ${isInWatchList ? 'watched-item' : ''}`"
-                            @click="addToListClicked"
-                        >
-                            <i class="fa-solid fa-plus"></i>
-                        </span>
+                        <el-button @click="addToWatchList">
+                            Add to watch list
+                            <i class="fa-solid fa-plus ml-1"></i>
+                        </el-button>
                     </el-tooltip>
                 </div>
             </div>
         </div>
         <div class="ml-4 mr-4 sliders-container">
             <!-- overview -->
-            <div class="overview-container">
+            <div class="overview-container mb-2">
                 <div class="overview-heading">
                     <h4>Overview</h4>
                     <a
-                        v-if="details.imdb_id"
-                        :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
+                        v-if="imdbId"
+                        :href="`https://www.imdb.com/title/${imdbId}/parentalguide`"
                         target="_blank"
                         class="mr-4"
                     >
@@ -173,9 +137,10 @@
                         </div>
                     </a>
                 </div>
-                <div class="pt-3 overview">
+                <div class="overview pt-3">
                     {{ details.overview }}
                 </div>
+                <!-- keywords -->
                 <div class="keywords-container">
                     <router-link
                         v-for="keyword in showAllTags ? keywords : keywords.slice(0, 5)"
@@ -185,6 +150,7 @@
                             query: {
                                 keywords: keyword.name,
                                 with_keywords: keyword.id,
+                                isMovies: 'false',
                             },
                         }"
                     >
@@ -198,22 +164,54 @@
                 </div>
                 <div class="mt-3 updatedInfo">
                     Last updated: {{ sincetime(details.updatedAt) }}
-                    <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
+                    <a @click="requestUpdate" class="ml-3">request update</a>
                 </div>
-                <rtReviews class="mt-4" :item="details"></rtReviews>
             </div>
-            <div v-if="details.collectionDetails">
+            <!-- Episodes slider -->
+            <div class="mt-4 pt-3 pb-3 season-container">
+                <el-select
+                    class="season-dropdown ml-4 pl-3"
+                    v-model="selectedSeason"
+                    placeholder="Select"
+                    @change="seasonChanged"
+                >
+                    <el-option v-for="item in seasons" :key="item.id" :label="item.name" :value="item.id">
+                        {{ item.name }}
+                    </el-option>
+                </el-select>
+                <span class="ml-3"
+                    >{{ selectedSeasonInfo.episodes && selectedSeasonInfo.episodes.length }} Episodes -
+                    {{ getDateText(selectedSeasonInfo.air_date) }}</span
+                >
                 <mb-slider
-                    :items="details.collectionDetails.parts"
+                    class="mt-2"
+                    v-if="selectedSeasonInfo"
+                    :seasonInfo="selectedSeasonInfo"
+                    :items="selectedSeasonInfo.episodes"
                     :configuration="configuration"
-                    :heading="details.collectionDetails.name"
-                    :id="details.collectionDetails.name"
-                    :showMovieInfoModal="showMovieInfo"
-                    :showFullMovieInfo="showFullMovieInfo"
+                    :id="`season${selectedSeasonInfo.id}`"
+                    :showHeader="true"
+                    :seriesInfo="details"
+                    :isEpisode="true"
                 ></mb-slider>
             </div>
+            <div class="more-info mt-4 mb-4">
+                <div class="episodeDetails">
+                    <episodeDetails
+                        v-if="lastEpisodeDetails.name"
+                        :configuration="configuration"
+                        :details="lastEpisodeDetails"
+                        class="mt-4 mb-4"
+                    ></episodeDetails>
+                </div>
+                <div class="rtReviews">
+                    <rtReviews :item="details"></rtReviews>
+                </div>
+            </div>
             <videoSlider class="ml-5 mr-5 mt-4 mb-4" :videos="youtubeVideos"></videoSlider>
+
             <mb-slider
+                class="mb-container"
                 v-if="cast.length"
                 :items="cast"
                 :configuration="configuration"
@@ -222,24 +220,9 @@
                 :selectPerson="selectPerson"
                 :isPerson="true"
             ></mb-slider>
-            <!-- <div
-                class="ml-4 p-3 mr-4 mt-3 mb-3 frosted reviews-main-container"
-                style="background: rgba(50, 50, 50, 0.3)"
-                v-if="googleData.criticReviews && googleData.criticReviews.length"
-            >
-                <h5 class="mb-5">Critic Reviews</h5>
-                <div class="reviews-container mb-5">
-                    <div v-for="review in googleData.criticReviews" :key="review.author" class="mr-5">
-                        <a :href="review.link" target="_blank">
-                            <img :src="review.imagePath" class="review-image" />
-                            <span class="ml-3">{{ review.site }}</span>
-                            <span v-if="review.author"> - {{ review.author }}</span>
-                            <div class="mt-2 ml-5 secondary-info">{{ review.review }}</div>
-                        </a>
-                    </div>
-                </div>
-            </div> -->
+
             <mb-slider
+                class="mb-container"
                 v-if="crew.length"
                 :items="crew"
                 :configuration="configuration"
@@ -248,52 +231,53 @@
                 :selectPerson="selectPerson"
                 :isPerson="true"
             ></mb-slider>
-
             <mb-slider
+                class="mb-container"
                 v-if="recommendedMovies.length"
                 :items="recommendedMovies"
                 :configuration="configuration"
                 :heading="'Recommended'"
                 :id="'recommended'"
                 :showMovieInfoModal="showMovieInfo"
-                :showFullMovieInfo="showFullMovieInfo"
+                :showFullMovieInfo="showSeriesInfo"
             ></mb-slider>
             <mb-slider
+                class="mb-container"
                 v-if="similarMovies.length"
                 :items="similarMovies"
                 :configuration="configuration"
                 :heading="'Similar'"
                 :id="'similar'"
                 :showMovieInfoModal="showMovieInfo"
-                :showFullMovieInfo="showFullMovieInfo"
+                :showFullMovieInfo="showSeriesInfo"
             ></mb-slider>
-            <div class="mb-5"></div>
         </div>
+        <div class="mb-5"></div>
         <el-dialog :visible.sync="dialogVisible" :width="defaultImageTab === 'backdrops' ? '95%' : '50%'" top="10vh">
             <el-tabs v-model="defaultImageTab">
                 <el-tab-pane label="Backdrops" name="backdrops">
-                    <el-carousel height="70vh" :interval="7000">
+                    <el-carousel type="card" height="500px">
                         <el-carousel-item v-for="image in backdrops" :key="image.file_path">
                             <div class="justify-center">
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
                                     }"
-                                    height="100%"
+                                    height="500px"
                                 />
                             </div>
                         </el-carousel-item>
                     </el-carousel>
                 </el-tab-pane>
                 <el-tab-pane label="Posters" name="posters">
-                    <el-carousel height="70vh" :interval="7000">
+                    <el-carousel type="card" height="500px">
                         <el-carousel-item v-for="image in posters" :key="image.file_path">
                             <div class="justify-center">
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
                                     }"
-                                    height="100%"
+                                    height="500px"
                                 />
                             </div>
                         </el-carousel-item>
@@ -305,25 +289,26 @@
 </template>
 
 <script lang="ts">
-import { api } from '../../API/api';
-import _ from 'lodash';
-import { getCurrencyString, getDateText } from '../../common/utils';
-import { sortBy } from 'lodash';
-import GoogleData from '../Common/googleData.vue';
-import { mapActions } from 'vuex';
+import { api } from '@/API/api';
+import { filter, sortBy } from 'lodash';
+import { getDateText } from '@/common/utils';
+import GoogleData from '@/components/Common/googleData.vue';
 import moment from 'moment';
+import { mapActions } from 'vuex';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
+import episodeDetails from '@/components/Common/episodeDetails.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
 import Vue from 'vue';
 
 export default Vue.extend({
-    name: 'movieInfo',
-    props: ['configuration', 'showMovieInfo', 'selectPerson', 'showFullMovieInfo'],
+    name: 'seriesInfo',
+    props: ['configuration', 'showMovieInfo', 'selectPerson', 'showSeriesInfo'],
     components: {
         GoogleData,
         rank,
         rtReviews,
+        episodeDetails,
         videoSlider,
     },
     data() {
@@ -333,33 +318,29 @@ export default Vue.extend({
             detailsLoading: true,
             activeName: 'movies',
             showVideo: false,
-            isUpdating: false,
             videoTimeout: null,
             showFullBio: false,
-            movie: {},
+            showAllTags: false,
+            movie: {} as any,
+            selectedSeason: null,
+            selectedSeasonInfo: {} as any,
+            lastEpisodeDetails: {} as any,
             recommendedMovies: [] as any[],
             similarMovies: [] as any[],
             cast: [] as any[],
             crew: [] as any[],
+            seasons: [] as any[],
             selectedVideo: {} as any,
             showFullOverview: false,
-            showAllTags: false,
+            activeTab: 'seasons',
             dialogVisible: false,
             backdrops: [] as any[],
             posters: [] as any[],
-            rating: null,
             defaultImageTab: 'backdrops',
-            getCurrencyString,
             getDateText,
         };
     },
     created() {
-        $('#myvideo').on('mouseenter', () => {
-            $(this).attr('controls', '');
-        });
-        $('#myvideo').on('mouseleave', () => {
-            $(this).removeAttr('controls');
-        });
         this.getDetails();
     },
     watch: {
@@ -367,45 +348,42 @@ export default Vue.extend({
             this.getDetails();
         },
     },
+    computed: {
+        imdbId() {
+            return this.details?.external_ids?.imdb_id;
+        },
+        keywords() {
+            return this.details?.keywords?.results || [];
+        },
+        isInWatchList() {
+            return this.$store.getters.watchListSeriesById(this.details.id);
+        },
+        user() {
+            return this.$store.getters.user;
+        },
+        googleLink() {
+            return `https://google.com/search?q=${this.details.name} tv series`;
+        },
+        youtubeVideos() {
+            return this.details?.videos?.results.filter(({ site }) => site === 'YouTube') || [];
+        },
+    },
     methods: {
         sincetime(time) {
             return moment(time).fromNow();
         },
+        ...mapActions({
+            addRecent: 'addRecent',
+            addSeriesList: 'addSeriesList',
+            removeSeriesList: 'removeSeriesList',
+        }),
         async requestUpdate() {
             this.detailsLoading = true;
             try {
-                this.details = await api.getMovieDetails(this.details.id, 'force=true');
+                this.details = await api.getTvDetails(this.details.id, 'force=true');
             } catch (e) {
             } finally {
                 this.detailsLoading = false;
-            }
-        },
-        ...mapActions({
-            deleteWatched: 'delteWatchedMovie',
-            addWatchedMovie: 'addWatchedMovie',
-            addWatchListMovie: 'addWatchListMovie',
-            deleteWatchListMovie: 'deleteWatchListMovie',
-            addRecent: 'addRecent',
-        }),
-        getRuntime(runtime) {
-            let hours = 0;
-            if (runtime / 60 >= 1) {
-                hours = Math.trunc(runtime / 60);
-            }
-            return `${hours ? Math.trunc(hours) + 'h ' : ''}${runtime % 60} m`;
-        },
-        watchedClicked() {
-            if (this.isWatched) {
-                this.deleteWatched(this.details.id);
-            } else {
-                this.addWatchedMovie(this.details.id);
-            }
-        },
-        addToListClicked() {
-            if (this.isInWatchList) {
-                this.deleteWatchListMovie(this.details.id);
-            } else {
-                this.addWatchListMovie({ id: this.details.id, details: this.details });
             }
         },
         openImageModal() {
@@ -413,13 +391,14 @@ export default Vue.extend({
             this.backdrops = this.details.images.backdrops;
             this.posters = this.details.images.posters;
         },
+        async seasonChanged() {
+            this.selectedSeasonInfo = await api.getSeasonDetails(parseInt(this.$route.params.id), this.selectedSeason);
+        },
         async getDetails() {
             document.body.scrollTop = document.documentElement.scrollTop = 0;
             this.detailsLoading = true;
-            this.details = await api.getMovieDetails(parseInt(this.$route.params.id));
-            if (!this.details.adult) {
-                this.updateHistoryData();
-            }
+            this.details = await api.getTvDetails(parseInt(this.$route.params.id));
+            this.updateHistoryData();
             this.similarMovies = this.details.similar.results;
             this.recommendedMovies = this.details.recommendations.results;
             this.cast = this.details.credits.cast;
@@ -434,28 +413,46 @@ export default Vue.extend({
             this.crew = sortBy(this.crew, ({ profile_path }) => {
                 return profile_path ? 0 : 1;
             });
+            this.seasons = [] as any[];
+            for (let seasonNumber = 1; seasonNumber <= this.details.number_of_seasons; seasonNumber++) {
+                const season = {
+                    name: `Season ${seasonNumber}`,
+                    id: seasonNumber,
+                };
+                const seasonDetails = this.details.seasons.find(
+                    (apiSeason) => apiSeason.season_number === seasonNumber,
+                );
+                if (seasonDetails) {
+                    season.name += ` - ${seasonDetails.name}`;
+                }
+                this.seasons.push(season);
+            }
+            this.selectedSeason = this.details.number_of_seasons;
+            this.seasonChanged();
+            this.getLastEpisode();
             this.detailsLoading = false;
-            this.getRating();
             this.showVideo = false;
         },
-        async getRating() {
-            const { results: releaseDates } = await api.releaseDates(this.details.id);
-            const usRating = releaseDates.find(({ iso_3166_1 }) => iso_3166_1 === 'US');
-            if (usRating) {
-                this.rating = usRating.release_dates[0].certification;
+        async getLastEpisode() {
+            if (this.details.last_episode_to_air?.episode_number) {
+                this.lastEpisodeDetails = await api.getEpisode(
+                    this.details.id,
+                    this.selectedSeason,
+                    this.details.last_episode_to_air.episode_number,
+                );
             }
         },
-        async updateHistoryData() {
-            this.addRecent({ id: this.details.id, isMovie: true, item: this.details });
+        updateHistoryData() {
+            this.addRecent({ id: this.details.id, isMovie: false, item: this.details });
+        },
+        addToWatchList() {
+            this.addSeriesList({ id: this.details.id, details: this.details });
+        },
+        removeFromWatchList() {
+            this.removeSeriesList(this.details.id);
         },
         getYoutubeVideos: function () {
-            if (this.details.videos && this.details.videos.results) {
-                let youtubeVideos = this.details.videos.results.filter((result) => result.site === 'YouTube');
-                youtubeVideos = sortBy(youtubeVideos, (video) => video.type === 'Trailer').reverse();
-                return youtubeVideos;
-            } else {
-                return [];
-            }
+            return filter(this.details.videos?.results || [], { site: 'YouTube' });
         },
         selectVideo(video: Object) {
             this.selectedVideo = video;
@@ -470,85 +467,38 @@ export default Vue.extend({
             else return 'purple';
         },
     },
-    computed: {
-        youtubeVideos() {
-            return this.details?.videos?.results.filter(({ site }) => site === 'YouTube') || [];
-        },
-        keywords() {
-            return this.details?.keywords?.keywords || [];
-        },
-        isSignedIn() {
-            return this.$store.getters.isSignedIn;
-        },
-        googleLink() {
-            return `https://google.com/search?q=${this.details.title} ${this.getYear(this.details.release_date)} movie`;
-        },
-        budgetColor() {
-            if (this.details.budget && this.details.revenue) {
-                if (this.details.budget > this.details.revenue) {
-                    return 'budget-loss';
-                } else {
-                    return 'budget-profit';
-                }
-            }
-        },
-        user() {
-            return this.$store.getters.user;
-        },
-        isWatched() {
-            return this.$store.getters.watchedMovieById(this.details.id);
-        },
-        isInWatchList() {
-            return this.$store.getters.watchListMovieById(this.details.id);
-        },
-        isMobile() {
-            return window.innerWidth < 768 ? true : false;
-        },
-    },
 });
 </script>
 
 <style scoped lang="less">
-@import '../../Assets/Styles/main.less';
+@import '../Assets/Styles/main.less';
+
 @primary-container-height: max(50vh, 35rem);
 @all-info-container: calc(max(50vh, 35rem) - 2rem);
-.heading-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.additional-info {
-    width: 60%;
-    margin-top: 2rem;
-    margin-left: 1rem;
-    bottom: 1rem;
-    position: absolute;
-}
+
 .watch-price {
     font-size: 0.7rem;
     color: #aaa;
 }
-.review-image {
-    border-radius: 50%;
-    width: 2em;
-    height: 2em;
-    background: white;
-    padding: 0.2em;
+.season-container {
+    background-color: rgba(148, 148, 148, 0.05);
 }
-.reviews-container {
+.heading-container {
     display: flex;
-    > div {
-        width: 35em;
-    }
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
 }
-.vote-count {
-    font-size: 0.8em;
-    padding-left: 0.5em;
-    color: whitesmoke;
-    text-shadow: 1px 1px 2px black;
-    text-align: center;
-    line-height: 4em;
+.more-info {
+    display: flex;
+    justify-items: left;
+    .episodeDetails {
+        flex-grow: 1;
+    }
+    .rtReviews {
+        margin-top: 2rem;
+        flex-grow: 4;
+    }
 }
 .background-images-container {
     height: @primary-container-height;
@@ -562,7 +512,7 @@ export default Vue.extend({
         position: absolute;
         bottom: 3rem;
         left: 30vw;
-        z-index: 10000000000000000;
+        z-index: 10;
         color: black;
         background-color: rgba(245, 245, 245, 0.808);
         opacity: 0.9;
@@ -629,6 +579,23 @@ export default Vue.extend({
     color: #ccc;
     width: 100%;
 }
+.ratings-main-container {
+    display: flex;
+}
+.rating-container {
+    padding-top: 0.2em;
+    width: 4em;
+    text-align: center;
+    img {
+        width: 2.2em;
+    }
+    span {
+        font-size: 0.9em;
+    }
+}
+.ott-icon {
+    width: 3em;
+}
 .dropdown-menu {
     max-height: 20em;
     overflow: auto;
@@ -648,41 +615,35 @@ export default Vue.extend({
 .all-info-container {
     position: absolute;
     top: 2em;
-    padding-left: 3.5rem !important;
+    height: @all-info-container;
+    padding-left: 4.5rem !important;
     overflow: hidden;
     color: @text-color;
-    height: @all-info-container;
     width: 25%;
 }
 .secondary-info {
     color: #aaa;
 }
-.rating-container {
-    padding-top: 0.2em;
-    width: 4em;
-    text-align: center;
-    img {
-        width: 2.2em;
-    }
-    span {
-        font-size: 0.9em;
-    }
-}
-.ratings-main-container {
-    display: flex;
-}
 .ext-link-icon {
     font-size: 1.2em;
     color: @link-color-red;
 }
-.movie-overview {
-    width: 90%;
-    background: @translucent-bg;
+.additional-info {
+    position: absolute;
+    bottom: 1rem;
+    left: 4rem;
+    .movie-overview {
+        width: 90%;
+        margin-top: 1em;
+    }
 }
-::v-deep .el-tabs__header {
+.info-tagline {
+    color: #ddd !important;
+}
+/deep/ .el-tabs__header {
     padding: 0 2em !important;
 }
-::v-deep .el-tabs__nav-wrap::after {
+/deep/ .el-tabs__nav-wrap::after {
     height: 0;
 }
 .cursor-pointer {
@@ -692,43 +653,18 @@ export default Vue.extend({
     display: flex;
     justify-content: center;
 }
-.info-tagline {
-    padding-left: 1em;
-    color: #ddd !important;
-    font-size: 0.5em;
-}
 /deep/ .el-dialog__body {
     padding-top: 0;
 }
-.budget-icon {
-    width: 2em;
-}
-.budget-loss {
-    color: red;
-}
-.budget-profit {
-    color: green;
-}
-.budget-text {
-    font-weight: 500;
-    background-color: rgba(0, 0, 0, 0.4);
-    border-radius: 3px;
-    padding: 0.4em;
-    font-size: 0.8em;
-}
-.watch-check {
-    font-size: 1em;
-    cursor: pointer;
-}
-.watched-item {
-    border-color: green;
-    color: green;
+@media (min-width: 768px) {
+    .season-dropdown {
+        width: 25rem;
+    }
 }
 @media (max-width: 767px) {
-    .additional-info {
-        position: absolute;
-        bottom: 7rem;
-        left: 1rem;
+    .season-dropdown {
+        margin: 0 !important;
+        padding: 0 !important;
     }
     .background-images-container {
         height: calc(100vh / 2) !important;
@@ -736,6 +672,20 @@ export default Vue.extend({
     }
     .background-image {
         height: calc(100vh / 2) !important;
+    }
+    .additional-info {
+        position: absolute;
+        bottom: 12rem;
+        left: 0;
+        .bookmarks {
+            top: 2rem;
+            left: 1rem;
+        }
+        .external-links {
+            position: absolute;
+            display: flex;
+            margin-left: 1rem !important;
+        }
     }
     .youtube-player {
         height: 100 !important;
@@ -745,18 +695,18 @@ export default Vue.extend({
         top: 1em;
         display: grid;
         grid-auto-rows: max(3em);
-        margin: 0 !important;
-        width: 100%;
-        padding-left: 0.5em !important;
-    }
-    .all-info-container > div {
         margin: 0;
-        padding: 0 !important;
+        padding: 1em !important;
+        width: 100%;
+        top: 0;
+        > div {
+            margin: 0;
+            padding: 0 !important;
+        }
     }
     .googleData-container {
         margin-top: 2rem !important;
         margin-left: 0 !important;
-        z-index: 1000000000000;
     }
     .rating-info {
         font-size: 1em;
@@ -765,22 +715,31 @@ export default Vue.extend({
         position: relative !important;
         top: 0 !important;
     }
-    .secondary-info {
+    .bookmarks {
         font-size: 0.9em;
+        position: absolute;
+        right: 2em;
+        top: 12rem;
+    }
+    .secondary-info {
+        font-size: 0.8em;
+        margin: 0 !important;
+    }
+    .mb-container {
+        margin: 0.5em !important;
     }
     .sliders-container {
-        margin: 0.5em !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
-    .reviews-container {
-        flex-direction: column;
-        margin-bottom: 0 !important;
-        > div {
-            width: 100%;
-            padding-bottom: 1em;
-        }
+    .season-container {
+        margin: 0 !important;
+        padding: 0.5em !important;
+        font-size: 0.8em;
     }
-    .reviews-main-container {
-        margin: 0.5em !important;
+    .seasons-heading {
+        margin: 0 !important;
+        padding: 0 !important;
     }
 }
 </style>
