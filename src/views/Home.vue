@@ -289,10 +289,10 @@
 </template>
 
 <script lang="ts">
-import { api } from '../API/api';
-import { sanitizeName } from '../common/utils';
+import { api } from '@/API/api';
+import { sanitizeName } from '@/common/utils';
 import { throttle, find, sortBy } from 'lodash';
-import { configuration, movieGenres, seriesGenres } from '../common/staticConfig';
+import { configuration, movieGenres, seriesGenres } from '@/common/staticConfig';
 import anime from 'animejs';
 import Vue from 'vue';
 import SearchResults from '@/components/SearchResults/index.vue';

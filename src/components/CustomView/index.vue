@@ -1,9 +1,9 @@
 <template>
     <div>
         <mb-slider :items="moviesList" :configuration="configuration" :id="'continueWatching'">
-            <div class="custom-heading">
+            <div class="custom-heading" @click="isDefinedView?null:showEditModal = true">
                 <h4>{{ viewName }}</h4>
-                <i class="fa-solid fa-pen ml-3 mt-2 edit-icon" @click="showEditModal = true"></i>
+                <i v-if="!isDefinedView" class="fa-solid fa-pen ml-3 mt-2 edit-icon"></i>
             </div>
         </mb-slider>
         <el-dialog title="Edit custom view" :visible.sync="showEditModal" custom-class="view-modal">
@@ -131,21 +131,22 @@ export default Vue.extend({
     },
     props: {
         configuration: Object,
+        viewSettings: Object,
     },
     created() {
-        const customViews = JSON.parse(localStorage.getItem('customViews')) || [];
-        const customView = customViews[0];
-        if (customView) {
-            this.selectedWatchProviders = customView.watchProviders;
-            this.selectedLanguage = customView.originalLanguage;
-            this.selectedSortOrder = customView.sortOrder;
-            this.viewName = customView.name;
+        if (!this.viewSettings) {
+            this.getFromLocalStorage();
         } else {
-            this.selectedWatchProviders = this.allWatchProviders();
+            this.selectedWatchProviders = this.viewSettings.watchProvider;
+            this.selectedLanguage = this.viewSettings.language;
+            this.viewName = this.viewSettings.name;
         }
         this.getMovies();
     },
     computed: {
+        isDefinedView() {
+            return this.viewSettings !== undefined;
+        },
         watchProviders() {
             return watchProvidersArray.map((item) => {
                 return {
@@ -157,6 +158,18 @@ export default Vue.extend({
         },
     },
     methods: {
+        getFromLocalStorage() {
+            const customViews = JSON.parse(localStorage.getItem('customViews')) || [];
+            const customView = customViews[0];
+            if (customView) {
+                this.selectedWatchProviders = customView.watchProviders;
+                this.selectedLanguage = customView.originalLanguage;
+                this.selectedSortOrder = customView.sortOrder;
+                this.viewName = customView.name;
+            } else {
+                this.selectedWatchProviders = this.allWatchProviders();
+            }
+        },
         allWatchProviders() {
             return watchProvidersArray.map(({ provider_id }) => provider_id);
         },
@@ -164,11 +177,19 @@ export default Vue.extend({
             return { src: `${this.configuration.images.secure_base_url}/original${path}` };
         },
         async getMovies() {
-            const { data: res } = await axios.get(
-                `${appConfig.serverBaseTMDBUrl}discover/movie?&watch_region=IN&with_watch_providers=${flatten(
-                    this.selectedWatchProviders,
-                ).join('|')}&with_original_language=${this.selectedLanguage}&sort_by=${this.selectedSortOrder}`,
-            );
+            let query = `${appConfig.serverBaseTMDBUrl}discover/movie?&watch_region=IN`;
+            if (this.selectedWatchProviders?.length) {
+                query += `&with_watch_providers=${this.selectedWatchProviders.join('|')}`;
+            } else if (this.viewSettings.streaming) {
+                query += `&with_watch_providers=${this.allWatchProviders().join('|')}`;
+            }
+            if (this.selectedLanguage) {
+                query += `&with_original_language=${this.selectedLanguage}`;
+            }
+            if (this.selectedSortOrder) {
+                query += `&sort_by=${this.selectedSortOrder}`;
+            }
+            const { data: res } = await axios.get(query);
             this.updateStorage();
             this.moviesList = res.results;
         },

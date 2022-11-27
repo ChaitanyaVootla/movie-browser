@@ -50,6 +50,8 @@ export default Vue.extend({
                 this.parseFilter(randomFilter);
                 this.computeQuery();
                 this.loadMovies();
+                this.fetchMoreMovies();
+                this.fetchMoreMovies();
             }
             return randomFilter;
         },

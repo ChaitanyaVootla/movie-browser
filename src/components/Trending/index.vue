@@ -30,6 +30,15 @@
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showFullMovieInfo"
                 ></mb-slider>
+                <CustomView
+                    :configuration="configuration"
+                    class="mt-4"
+                    :viewSettings="{
+                        // language: 'en',
+                        name: 'Trending on streaming services',
+                        streaming: true,
+                    }"
+                />
                 <mb-slider
                     :items="trendingTv"
                     :configuration="configuration"
@@ -48,7 +57,7 @@
                     :isWideCard="true"
                     class="mb-4"
                 ></mb-slider>
-                <div v-if="uuid.length && user.displayName">
+                <div v-if="uuid.length && user.name">
                     <FilterView
                         :uuid="uuid"
                         :movieGenres="movieGenres"
@@ -62,15 +71,7 @@
                         :configuration="configuration"
                     />
                 </div>
-                <mb-slider
-                    :items="currentAiring"
-                    :configuration="configuration"
-                    :heading="'Currently On Air'"
-                    :id="'currentAiring'"
-                    :showMovieInfoModal="showMovieInfo"
-                    :showFullMovieInfo="showSeriesInfo"
-                ></mb-slider>
-                <div v-if="uuid.length && user.displayName">
+                <div v-if="uuid.length && user.name">
                     <FilterView
                         :uuid="uuid"
                         :movieGenres="movieGenres"
@@ -111,7 +112,6 @@ export default Vue.extend({
             trendingMovies: [],
             trendingPeople: [],
             latestMovies: [] as any[],
-            currentAiring: [] as any[],
             uuid: '',
         };
     },
@@ -127,6 +127,7 @@ export default Vue.extend({
             return this.$store.getters.recentVisits;
         },
         user() {
+            console.log(this.$store.getters.user);
             return this.$store.getters.user;
         },
     },
@@ -136,7 +137,6 @@ export default Vue.extend({
                 this.getTrendingTv(),
                 this.getTrendingMovies(),
                 this.getLatestMovies(),
-                this.getCurrentAiring(),
             ]);
             this.isTrendingDataLoaded = true;
         },
@@ -151,12 +151,6 @@ export default Vue.extend({
         async getLatestMovies() {
             let { results: latestMovies } = await api.getLatestMovies();
             this.latestMovies = sortBy(latestMovies, ({ popularity }) => -popularity).filter(
-                ({ poster_path }) => poster_path,
-            );
-        },
-        async getCurrentAiring() {
-            let { results: currentAiring } = await api.getCurrentStreamingSeries();
-            this.currentAiring = sortBy(currentAiring, ({ popularity }) => -popularity).filter(
                 ({ poster_path }) => poster_path,
             );
         },
