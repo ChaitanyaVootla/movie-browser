@@ -35,7 +35,7 @@
             <el-menu-item v-if="user.isAdmin" index="Admin" class="nav-menu-item p-0">
                 <router-link :to="{ name: 'admin' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onAdmin ? 'active' : ''">
-                        <i class="fa-solid fa-bars-staggered mr-2"></i>
+                        <i class="fa-solid fa-lock mr-2"></i>
                         <div class="">Admin</div>
                     </div>
                 </router-link>
