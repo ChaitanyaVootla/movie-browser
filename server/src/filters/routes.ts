@@ -3,26 +3,44 @@ import { ERRORS } from '@/utils/errors';
 import { Application, Response } from 'express';
 import { Filters, IFilter } from '@/db/schemas/filters';
 
+export const mapDbFilters = (filters: any[]) => {
+    // map filters to join deep objects with dot notation
+    return filters.map((filter) => {
+        const newFilter: any = {};
+        Object.entries(filter).forEach(([key, value]) => {
+            if (typeof value === 'object') {
+                Object.entries(value).forEach(([subKey, subValue]) => {
+                    if (typeof subValue === 'string' && !isNaN(parseInt(subValue))) {
+                        subValue = parseInt(subValue);
+                    }
+                    newFilter[`${key}.${subKey}`] = subValue;
+                });
+            } else {
+                newFilter[key] = value;
+            }
+        });
+        return newFilter;
+    });
+}
+
 const setupRoute = (app: Application) => {
     app.get('/filters', async (req: IGetUserAuthInfoRequest, res) => {
         if (!req.user?.sub) {
             return res.json(ERRORS.UNAUTHORIZED);
         }
-        const filters = (await Filters.find({ userId: req.user.sub })).map((doc) => doc.toJSON());
-        res.json(filters);
+        let filters = (await Filters.find({ userId: req.user.sub })).map((doc) => doc.toJSON());
+        res.json(mapDbFilters(filters));
     });
     app.post('/filters', async (req: IGetUserAuthInfoRequest, res: Response) => {
         if (req.user?.sub) {
             const filterName = req.body.name;
             const filterToUpdate = await Filters.findOne({ userId: req.user.sub, name: filterName });
             if (filterToUpdate) {
-                await Filters.updateOne(
+                await Filters.replaceOne(
                     { userId: req.user.sub, name: filterName },
                     {
-                        $set: {
-                            ...req.body,
-                            userId: req.user.sub,
-                        } as IFilter,
+                        ...req.body,
+                        userId: req.user.sub,
                     },
                 );
             } else {

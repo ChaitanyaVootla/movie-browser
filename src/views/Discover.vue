@@ -31,6 +31,45 @@
                 <el-option v-for="item in genres" :key="item.id" :label="item.name" :value="item"> </el-option>
             </el-select>
             <el-select
+                v-model="selectedWatchProviders"
+                filterable
+                multiple
+                clearable
+                collapse-tags
+                placeholder="Select"
+                class="full-width"
+                @change="loadMovies(true)"
+            >
+                <el-option
+                    v-for="item in watchProviders"
+                    :key="item.provider_id"
+                    :label="item.provider_name"
+                    :value="item.provider_id"
+                    class="watchProviders"
+                >
+                    <div class="m-3">
+                        <img v-lazy="getWatchImage(item.logo_path)" class="watchProviderImg" />
+                        <span>{{ item.provider_name }}</span>
+                    </div>
+                </el-option>
+            </el-select>
+            <el-select
+                v-model="selectedLanguage"
+                filterable
+                clearable
+                placeholder="Language"
+                class="full-width"
+                @change="loadMovies(true)"
+            >
+                <el-option
+                    v-for="item in languages"
+                    :key="item.iso_639_1"
+                    :label="item.english_name"
+                    :value="item.iso_639_1"
+                >
+                </el-option>
+            </el-select>
+            <el-select
                 v-model="selectedKeywords"
                 multiple
                 filterable
@@ -45,51 +84,6 @@
                 @change="loadMovies(true)"
             >
                 <el-option v-for="item in searchKeywords" :key="item.id" :label="item.name" :value="item"> </el-option>
-            </el-select>
-            <el-select
-                v-model="selectedPeople"
-                multiple
-                filterable
-                remote
-                :collapse-tags="true"
-                :remote-method="peopleSearchChanged"
-                placeholder="Cast"
-                :no-data-text="'No Results'"
-                value-key="id"
-                class="full-width"
-                clearable
-                @change="loadMovies(true)"
-                :disabled="!isMovies"
-            >
-                <el-option
-                    v-for="result in searchPeople"
-                    :key="result.id"
-                    :label="result.name"
-                    :value="result"
-                    class="person-dropdown"
-                >
-                    <div style="display: flex; width: 30em">
-                        <img
-                            v-lazy="{
-                                src: `${configuration.images.base_url}w500${result.profile_path}`,
-                            }"
-                            class="search-image"
-                        />
-                        <div class="search-info-container ml-3">
-                            <span>
-                                {{ result.name }}
-                            </span>
-                            <div class="mt-4">
-                                {{ result.known_for_department }}<br />
-                                <div class="text-muted" style="font-size: 0.9em; display: inline-flex; flex-wrap: wrap">
-                                    <span v-for="(content, index) in result.known_for" :key="index">
-                                        {{ content.original_title || content.original_name }},
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </el-option>
             </el-select>
             <el-select
                 v-model="selectedRating"
@@ -162,6 +156,51 @@
                 remote
                 :collapse-tags="true"
                 :remote-method="peopleSearchChanged"
+                placeholder="Cast"
+                :no-data-text="'No Results'"
+                value-key="id"
+                class="full-width"
+                clearable
+                @change="loadMovies(true)"
+                :disabled="!isMovies"
+            >
+                <el-option
+                    v-for="result in searchPeople"
+                    :key="result.id"
+                    :label="result.name"
+                    :value="result"
+                    class="person-dropdown"
+                >
+                    <div style="display: flex; width: 30em">
+                        <img
+                            v-lazy="{
+                                src: `${configuration.images.base_url}w500${result.profile_path}`,
+                            }"
+                            class="search-image"
+                        />
+                        <div class="search-info-container ml-3">
+                            <span>
+                                {{ result.name }}
+                            </span>
+                            <div class="mt-4">
+                                {{ result.known_for_department }}<br />
+                                <div class="text-muted" style="font-size: 0.9em; display: inline-flex; flex-wrap: wrap">
+                                    <span v-for="(content, index) in result.known_for" :key="index">
+                                        {{ content.original_title || content.original_name }},
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </el-option>
+            </el-select>
+            <el-select
+                v-model="selectedPeople"
+                multiple
+                filterable
+                remote
+                :collapse-tags="true"
+                :remote-method="peopleSearchChanged"
                 placeholder="Crew"
                 :no-data-text="'No Results'"
                 value-key="id"
@@ -202,7 +241,7 @@
             </el-select>
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
         </div>
-        <div class="pl-5 pt-2 pb-2 favorites-bar mobile-hide">
+        <div class="pl-5 pt-4 pb-2 favorites-bar mobile-hide">
             <div class="pr-3 pt-2"> <i class="fa-solid fa-star mr-2"></i> Saved Filters </div>
             <div v-if="savedFilters.length">
                 <router-link
@@ -269,9 +308,7 @@
                 <el-tooltip effect="light" content="including watched movies" placement="right">
                     <i class="fa-solid fa-circle-info ml-1" v-show="hideWatchedMovies"></i>
                 </el-tooltip>
-                <el-button @click="toggleGallery">
-                    Gallery
-                </el-button>
+                <el-button @click="toggleGallery"> Gallery </el-button>
             </div>
             <div style="display: flex">
                 <div class="ml-3 mt-2 save-container mobile-hide">
@@ -332,6 +369,8 @@
 import { api } from '@/API/api';
 import { find, uniqBy, sortBy } from 'lodash';
 import { certifications } from '@/common/certifications';
+import watchProviders from '@/common/watchProviders.json';
+import languages from '@/common/languages.json';
 import moment from 'moment';
 import Vue from 'vue';
 
@@ -349,10 +388,14 @@ export default Vue.extend({
     data() {
         return {
             certifications,
+            watchProviders,
+            languages,
             isLoaded: false,
             showGallery: false,
             isDataLoading: true,
+            selectedLanguage: '',
             movies: [] as any[],
+            selectedWatchProviders: [],
             showAdvancedFilters: true,
             hideWatchedMovies: false,
             hideWatcListMovies: false,
@@ -446,6 +489,9 @@ export default Vue.extend({
         },
     },
     methods: {
+        getWatchImage(path: string) {
+            return { src: `${this.configuration.images.secure_base_url}/original${path}` };
+        },
         async toggleGallery() {
             this.showGallery = !this.showGallery;
             if (this.showGallery) {
@@ -457,7 +503,6 @@ export default Vue.extend({
                     })
                     .filter(Boolean)
                     .slice(0, 7);
-                console.log(idsToFetchImages);
                 const allBackdrops = [];
                 for (let movieId of idsToFetchImages) {
                     const { backdrops }: { backdrops: any[] } = await api.getMovieImages(movieId);
@@ -670,6 +715,13 @@ export default Vue.extend({
                 });
                 this.showAdvancedFilters = true;
             }
+            this.selectedWatchProviders = [];
+            if (routeQuery.with_watch_providers) {
+                this.selectedWatchProviders = routeQuery.with_watch_providers.split(',').map((id) => Number(id));
+            }
+            if (routeQuery.with_original_language) {
+                this.selectedLanguage = routeQuery.with_original_language;
+            }
             this.selectedTimeFrame = {};
             if (routeQuery.releaseQueryName) {
                 this.selectedTimeFrame.name = routeQuery.releaseQueryName;
@@ -777,6 +829,18 @@ export default Vue.extend({
                 this.computedDiscoverQuery += `&without_genres=${selectedExcludeGenreIds}`;
                 routerQuery.without_genres = selectedExcludeGenreIds.toString();
             }
+            if (this.selectedWatchProviders.length) {
+                const selectedWatchProviderIds = this.selectedWatchProviders.map((id) => id);
+                this.computedDiscoverQuery += `&with_watch_providers=${selectedWatchProviderIds.join(
+                    '|',
+                )}&watch_region=IN`;
+                routerQuery.with_watch_providers = selectedWatchProviderIds.toString();
+                routerQuery.watch_region = 'IN';
+            }
+            if (this.selectedLanguage.length) {
+                this.computedDiscoverQuery += `&with_original_language=${this.selectedLanguage}`;
+                routerQuery.with_original_language = this.selectedLanguage;
+            }
             if (this.selectedTimeFrame && this.selectedTimeFrame.name) {
                 if (this.selectedTimeFrame.startDate || this.selectedTimeFrame.endDate) {
                     if (this.selectedTimeFrame.startDate) {
@@ -866,6 +930,18 @@ export default Vue.extend({
 <style scoped lang="less">
 @import '../Assets/Styles/main.less';
 
+.watchProviders {
+    &.el-select-dropdown__item {
+        height: 4rem;
+        .watchProviderImg {
+            height: 30px;
+        }
+        span {
+            margin-left: 1rem;
+            font-size: 1rem;
+        }
+    }
+}
 .imageGallery {
     display: flex;
     flex-wrap: wrap;

@@ -3,10 +3,11 @@ import { dbConstants } from "@/db/constants";
 import { Filters, IFilter } from "@/db/schemas/filters";
 import { Movie, MovieLightFileds } from "@/db/schemas/Movies";
 import { IMoviesWatchList, MoviesWatchList } from "@/db/schemas/MovieWatchList";
-import { IRecent, Recent } from "@/db/schemas/recents";
+import { Recent } from "@/db/schemas/recents";
 import { Series, SeriesLightFileds } from "@/db/schemas/Series";
 import { ISeriesList, SeriesList } from "@/db/schemas/seriesList";
 import { IWatchedMovie, WatchedMovies } from "@/db/schemas/WatchedMovies";
+import { mapDbFilters } from "@/filters/routes";
 import { TokenPayload } from "google-auth-library";
 import { keyBy } from "lodash";
 import { Db } from "mongodb";
@@ -21,9 +22,9 @@ const loadData = async (user: TokenPayload, db: Db) => {
     const seriesList = (
         await SeriesList.find({userId: user.sub}).select('seriesId -_id')
         ).map(doc=> doc.toJSON()) as ISeriesList[];
-    const filters = (
+    const dbFilters = (
         await Filters.find({userId: user.sub})).map(doc=> doc.toJSON()) as IFilter[];
-    
+    const filters = mapDbFilters(dbFilters);
     const watchedMovieIds = watchedMovies.map(({movieId}) => movieId);
     const watchListMovieIds = watchListMovies.map(({movieId}) => movieId);
     const watchListMovieToCreatedAt = keyBy(watchListMovies, 'movieId');
