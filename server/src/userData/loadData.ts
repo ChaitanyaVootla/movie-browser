@@ -7,8 +7,6 @@ import { IRecent, Recent } from "@/db/schemas/recents";
 import { Series, SeriesLightFileds } from "@/db/schemas/Series";
 import { ISeriesList, SeriesList } from "@/db/schemas/seriesList";
 import { IWatchedMovie, WatchedMovies } from "@/db/schemas/WatchedMovies";
-import { updateMovies } from "@/movies/updateMovies";
-import { updateSeries } from "@/series/updateSeries";
 import { TokenPayload } from "google-auth-library";
 import { keyBy } from "lodash";
 import { Db } from "mongodb";
@@ -133,9 +131,6 @@ const loadData = async (user: TokenPayload, db: Db) => {
         .select(SeriesLightFileds)).map(doc => doc.toJSON());
 
     const continueWatching = await getUserContinueWatching(user);
-
-    // updateMovies(watchListMovieIds);
-    // updateSeries(seriesListIds);
     return {
         user,
         continueWatching,

@@ -32,6 +32,14 @@
                     </div>
                 </router-link>
             </el-menu-item>
+            <el-menu-item v-if="user.isAdmin" index="Admin" class="nav-menu-item p-0">
+                <router-link :to="{ name: 'admin' }">
+                    <div class="pl-4 pr-4 flex-nav-item" :class="onAdmin ? 'active' : ''">
+                        <i class="fa-solid fa-bars-staggered mr-2"></i>
+                        <div class="">Admin</div>
+                    </div>
+                </router-link>
+            </el-menu-item>
             <el-menu-item
                 index="app-logo"
                 class="menu-center-item menu-item-nobg mobile-hide"
@@ -380,6 +388,9 @@ export default Vue.extend({
         },
         onWatchList() {
             return this.$route.name === 'WatchList';
+        },
+        onAdmin() {
+            return this.$route.name === 'admin';
         },
         onFriends() {
             return this.$route.name === 'Friends';

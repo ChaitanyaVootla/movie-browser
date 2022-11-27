@@ -28,8 +28,8 @@
         >
             <el-table-column prop="displayName" label="User" sortable :fit="true">
                 <template slot-scope="scope">
-                    <img class="user-image" :src="scope.row.photoURL" alt="" />
-                    <span class="ml-3">{{ scope.row.displayName }}</span>
+                    <img class="user-image" :src="scope.row.picture" alt="" />
+                    <span class="ml-3">{{ scope.row.name }}</span>
                 </template>
             </el-table-column>
             <el-table-column prop="lastLoggedIn" label="Last seen" sortable :sort-method="lastLoggedInSort" :fit="true">
@@ -53,6 +53,7 @@
 </template>
 
 <script lang="ts">
+import { api } from '@/API/api';
 import moment from 'moment';
 import Vue from 'vue';
 
@@ -66,24 +67,22 @@ export default Vue.extend({
         };
     },
     created() {
-        // const usersRef = collection(db, "users");
-        // getDocs(usersRef).then((snapshot) => {
-        //     const users = [];
-        //     snapshot.forEach((doc) => users.push(doc.data()));
-        //     this.users = users;
-        // });
+        this.getUsers();
     },
     computed: {
         filteredData() {
             return this.users.filter((user) => {
                 return (
-                    user.displayName.toLowerCase().includes(this.search.toLowerCase()) ||
+                    user.name.toLowerCase().includes(this.search.toLowerCase()) ||
                     user.email?.toLowerCase().includes(this.search.toLowerCase())
                 );
             });
         },
     },
     methods: {
+        async getUsers() {
+            this.users = await api.getUsers();
+        },
         getTime(time) {
             if (time) {
                 return moment(time).fromNow();
@@ -95,15 +94,15 @@ export default Vue.extend({
             return moment(a.lastLoggedIn).isAfter(b.lastLoggedIn) ? 1 : -1;
         },
         getLastLogin(row) {
-            if (row.metadata?.lastLoginAt) {
-                return moment(parseInt(row.metadata?.lastLoginAt)).fromNow();
+            if (row.updatedAt) {
+                return moment(row.updatedAt).fromNow();
             } else {
                 return '-';
             }
         },
         getCreatedAt(row) {
-            if (row.metadata?.createdAt) {
-                return moment(parseInt(row.metadata?.createdAt)).fromNow();
+            if (row.createdAt) {
+                return moment(row.createdAt).fromNow();
             } else {
                 return '-';
             }

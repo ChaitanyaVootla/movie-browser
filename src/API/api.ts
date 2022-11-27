@@ -19,6 +19,10 @@ export const api = {
         const res = await axios.get(`${appConfig.serverBaseUrl}user`);
         return res.data;
     },
+    getUsers: async function () {
+        const res = await axios.get(`${appConfig.serverBaseUrl}users`);
+        return res.data;
+    },
     getLoadData: async function () {
         let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (timeZone.includes('Calcutta')) {
