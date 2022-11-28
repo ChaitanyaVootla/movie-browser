@@ -325,7 +325,7 @@ export default Vue.extend({
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, rgba(0,0,0,0.6) 10%, rgba(0,0,0,0) 100%);
+        background: linear-gradient(90deg, rgba(0,0,0,0.5) 10%, rgba(0,0,0,0) 100%);
     }
 }
 .info-container {

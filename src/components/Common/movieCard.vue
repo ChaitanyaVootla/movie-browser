@@ -411,8 +411,8 @@ export default Vue.extend({
     width: 100%;
     opacity: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.9);
-    padding: 0.3em 0.5em;
+    background: linear-gradient(0deg, rgba(0,0,0,0.9) 90%, rgba(0,0,0,0) 100%);
+    padding: 0.5em 0.5em;
     transition: 300ms;
     z-index: 50;
 }

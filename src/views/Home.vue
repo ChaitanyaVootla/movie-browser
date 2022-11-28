@@ -53,27 +53,32 @@
                 </router-link>
             </el-menu-item>
             <el-menu-item index="search" class="menu-item-nobg search-menu-item mobile-hide">
-                <div>
-                    <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
-                        <el-input placeholder="Search" v-model="searchText" class="search-append-button">
-                            <el-button slot="append" icon="el-icon-search"></el-button>
-                        </el-input>
-                    </div>
-                    <div
-                        class="search-dropdown"
-                        v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults"
+                <div @keydown.stop>
+                    <el-autocomplete
+                        v-model="autoSearchText"
+                        :fetch-suggestions="autocompleteSearch"
+                        placeholder="Search"
+                        class="autoCompleteSearch"
+                        min="2"
+                        id="autoCompleteSearch"
+                        :highlight-first-item="true"
+                        :hide-loading="true"
+                        ref="searchInput"
+                        @select="searchItemclicked"
                     >
-                        <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
-                            No Results
+                        <!-- <div slot="suffix">
+                            <span class="search-shortcut">/</span>
+                        </div> -->
+                        <div slot="suffix">
+                            <i class="el-icon-search"></i>
                         </div>
-                        <search-results
-                            :search-results="searchResults"
-                            :get-genre-name-from-id="getGenreNameFromId"
-                            :image-base-path="imageBasePath"
-                            :search-item-clicked="searchItemclicked"
-                        >
-                        </search-results>
-                    </div>
+                        <template slot-scope="{ item }">
+                            <SearchResult 
+                                :searchItem="item"
+                                :get-genre-name-from-id="getGenreNameFromId"
+                                :image-base-path="imageBasePath"/>
+                        </template>
+                    </el-autocomplete>
                 </div>
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg mr-4 user-menu-item mobile-hide" aria-label="Settings">
@@ -191,25 +196,26 @@
         <el-menu class="desk-hide" :default-active="activeNavItem" mode="horizontal">
             <el-menu-item index="search" class="menu-item-nobg search-menu-item">
                 <div>
-                    <div @keydown.stop @click="searchInputclicked" class="search-intput-container">
-                        <el-input placeholder="Search" v-model="searchText">
-                            <!-- <el-button slot="append" icon="el-icon-search"></el-button> -->
-                        </el-input>
-                    </div>
-                    <div
-                        class="search-dropdown"
-                        v-show="searchText.length > 0 && currentRoute.name !== 'search' && showSearchResults"
+                    <el-autocomplete
+                        v-model="autoSearchText"
+                        :fetch-suggestions="autocompleteSearch"
+                        placeholder="Search"
+                        class="autoCompleteSearch"
+                        min="2"
+                        :highlight-first-item="true"
+                        @select="searchItemclicked"
                     >
-                        <div class="search-item dropdown-item search-no-results" v-if="searchResults.length === 0">
-                            No Results
-                        </div>
-                        <SearchResults
-                            :search-results="searchResults"
-                            :get-genre-name-from-id="getGenreNameFromId"
-                            :image-base-path="imageBasePath"
-                            :search-item-clicked="searchItemclicked"
-                        />
-                    </div>
+                        <i
+                            class="el-icon-search"
+                            slot="suffix">
+                        </i>
+                        <template slot-scope="{ item }">
+                            <SearchResult 
+                                :searchItem="item"
+                                :get-genre-name-from-id="getGenreNameFromId"
+                                :image-base-path="imageBasePath"/>
+                        </template>
+                    </el-autocomplete>
                 </div>
             </el-menu-item>
             <el-menu-item class="menu-item-right menu-item-nobg ml-2 user-menu-item" aria-label="Settings">
@@ -304,6 +310,7 @@ import { configuration, movieGenres, seriesGenres } from '@/common/staticConfig'
 import anime from 'animejs';
 import Vue from 'vue';
 import SearchResults from '@/components/SearchResults/index.vue';
+import SearchResult from '@/components/Common/searchResult.vue';
 
 export default Vue.extend({
     name: 'home',
@@ -315,6 +322,7 @@ export default Vue.extend({
             seriesGenres,
             isLoaded: false,
             searchText: '',
+            autoSearchText: '',
             searchResults: [],
             imageBasePath: '',
             selectedMovie: {},
@@ -327,29 +335,17 @@ export default Vue.extend({
     },
     components: {
         SearchResults,
+        SearchResult,
     },
     created() {
         this.loadData();
         this.currentRoute = this.$route;
     },
     mounted() {
-        const searchInput = document.getElementById('searchInput');
-        const self = this as any;
-        // TODO is a separate search page required?
-        // if (searchInput) {
-        //     searchInput.addEventListener("keyup", bind(function(event) {
-        //         if (event.keyCode === 13) {
-        //             self.goToSearch();
-        //         }
-        //     }, this));
-        // }
-        $(window).click(function () {
-            self.showSearchResults = false;
-        });
-
         $('.search-dropdown, .search-intput-container').click(function (event) {
             event.stopPropagation();
         });
+        window.addEventListener("keypress", this.onKeyPress);
         this.logoAnimation = anime({
             targets: '.app-logo',
             rotate: ['', '180', ''],
@@ -439,24 +435,55 @@ export default Vue.extend({
         signOutClicked() {
             api.signOutOneTap().then(() => location.reload());
         },
-        searchInputclicked() {
-            this.showSearchResults = true;
-        },
-        searchItemclicked() {
-            this.showSearchResults = false;
+        searchItemclicked(item: any) {
+            if (item.media_type === 'movie') {
+                this.$router
+                    .push({
+                        name: 'movieInfoFull',
+                        params: {
+                            name: sanitizeName(item.name || item.original_title),
+                            id: item.id,
+                        },
+                    })
+                    .catch((err) => {});
+            } else if (item.media_type === 'tv') {
+                this.$router
+                    .push({
+                        name: 'seriesInfo',
+                        params: {
+                            name: sanitizeName(item.name),
+                            id: item.id,
+                        },
+                    })
+                    .catch((err) => {});
+            } else if (item.media_type === 'person') {
+                this.$router
+                    .push({
+                        name: 'person',
+                        params: {
+                            name: sanitizeName(item.name),
+                            id: item.id,
+                        },
+                    })
+                    .catch((err) => {
+                        console.log(err);
+                    });
+            }
         },
         async loadData() {
             this.genres = movieGenres;
             this.imageBasePath = configuration.images.secure_base_url + 'w500';
             this.isLoaded = true;
         },
-        executeSearch: throttle(async function (this: any) {
-            if (this.searchText.length > 1) {
-                $('.search-dropdown')[0].scrollTop = 0;
-                const response = await api.searchAll(this.searchText + '', 1);
-                this.searchResults = sortBy(response.results, 'popularity').reverse();
+        autocompleteSearch(searchQuery, callBack) {
+            if (searchQuery.length > 2) {
+                api.searchAll(searchQuery, 1).then((response) => {
+                    callBack(response.results);
+                });
+            } else {
+                callBack([]);
             }
-        }, 200),
+        },
         getGenreNameFromId(id: number) {
             const genre = find(this.genres, { id: id });
             if (genre) {
@@ -515,12 +542,21 @@ export default Vue.extend({
                     .catch((err) => {});
             }
         },
+        onKeyPress(event: any) {
+            if (event.key !== "/") {
+                return;
+            }
+            if (document.activeElement === this.$refs.searchInput) {
+                return;
+            }
+            event.preventDefault();
+            this.$refs.searchInput.focus();
+        },
+    },
+    beforeDestroy() {
+        window.removeEventListener("keypress", this.onKeyPress);
     },
     watch: {
-        searchText() {
-            this.showSearchResults = true;
-            this.executeSearch();
-        },
         $route(currentRoute) {
             this.currentRoute = currentRoute;
         },
@@ -547,6 +583,18 @@ export default Vue.extend({
 }
 .country-flag {
     font-weight: 600;
+}
+.autoCompleteSearch {
+    width: 100%;
+    /deep/ #autoCompleteSearch {
+        border-radius: 1rem;
+    }
+    .search-shortcut {
+        border: 1px #444 solid;
+        padding: 2px 10px;
+        border-radius: 5px;
+        margin-right: 0.5rem;
+    }
 }
 .drawer-button {
     position: fixed;

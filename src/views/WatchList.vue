@@ -37,7 +37,7 @@
             <div class="onboardingText">
                 <p class="actualonboardingText">
                     You can track your favorite series here to know when the next episode will be coming out.
-                    <span v-if="user">
+                    <span v-if="user.name">
                         You can add series to your watch list by visiting the series homepage and clicking on add to
                         watch list</span
                     >
@@ -192,16 +192,19 @@ export default Vue.extend({
     margin-right: 5em;
 }
 .actualonboardingText {
-    box-shadow: 4px 4px 30px 7px #333;
+    box-shadow: 0px 0px 15px 2px #222;
+    border: 1px #222 solid;
     background: #151515;
-    color: @main-red;
-    padding: 0.5em;
+    color: #aaa;
+    padding: 1rem;
     border-radius: 1em;
 }
 .onboardingImage {
     margin-top: 7em;
     padding: 1em;
-    box-shadow: 4px 4px 30px 7px #333;
+    border-radius: 1rem;
+    box-shadow: 0px 0px 15px 2px #222;
+    border: 1px #222 solid;
 }
 .onboarding-container {
     display: flex;

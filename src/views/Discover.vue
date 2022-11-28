@@ -36,7 +36,7 @@
                 multiple
                 clearable
                 collapse-tags
-                placeholder="Select"
+                placeholder="Watch providers"
                 class="full-width"
                 @change="loadMovies(true)"
             >
@@ -241,27 +241,49 @@
             </el-select>
             <el-input placeholder="Min Votes" v-model="minVotes" @change="loadMovies(true)" clearable></el-input>
         </div>
+        <div class="query-info text-muted" style="display: flex; justify-content: space-between">
+            <div class="">
+                {{ queryData.total_results === 10000 ? `${queryData.total_results}+` : queryData.total_results }}
+                results
+                <el-tooltip effect="light" content="including watched movies" placement="right">
+                    <i class="fa-solid fa-circle-info ml-1" v-show="hideWatchedMovies"></i>
+                </el-tooltip>
+                <a class="gallery-button" @click="toggleGallery"> view gallery </a>
+            </div>
+            <div style="display: flex">
+                <div class="ml-3 mt-2 save-container mobile-hide">
+                    <el-checkbox v-model="hideWatcListMovies" @change="loadMovies(true)">Hide Watch list</el-checkbox>
+                </div>
+                <div class="ml-3 mt-2 save-container mobile-hide">
+                    <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)">Hide Watched</el-checkbox>
+                </div>
+            </div>
+        </div>
         <div class="pl-5 pt-4 pb-2 favorites-bar mobile-hide">
-            <div class="pr-3 pt-2"> <i class="fa-solid fa-star mr-2"></i> Saved Filters </div>
-            <div v-if="savedFilters.length">
-                <router-link
-                    v-for="savedFilter in savedFilters"
-                    :key="savedFilter.name"
-                    class="mr-3"
-                    :to="{
-                        name: 'discover',
-                        query: {
-                            ...savedFilter,
-                        },
-                    }"
-                >
-                    <el-button
-                        @click="filterClicked"
-                        :type="$router.currentRoute.query.name === savedFilter.name ? 'danger' : 'primary'"
+            <div class="saved-filter-container">
+                <div class="pr-3 pt-2 heading"> Saved Filters </div>
+                <div v-if="savedFilters.length">
+                    <router-link
+                        v-for="savedFilter in savedFilters"
+                        :key="savedFilter.name"
+                        class="mr-3"
+                        :to="{
+                            name: 'discover',
+                            query: {
+                                ...savedFilter,
+                            },
+                        }"
                     >
-                        {{ savedFilter.name }}
-                    </el-button>
-                </router-link>
+                        <el-button
+                            @click="filterClicked"
+                            class="filter"
+                            round
+                            :type="$router.currentRoute.query.name === savedFilter.name ? 'danger' : 'primary'"
+                        >
+                            {{ savedFilter.name }}
+                        </el-button>
+                    </router-link>
+                </div>
             </div>
             <div class="right-action-items">
                 <el-alert v-if="!savedFilters.length" type="info" :closable="false">
@@ -270,7 +292,7 @@
                 </el-alert>
                 <div class="ml-3 mobile-hide save-container">
                     <el-button-group v-if="isSavedFilterView">
-                        <el-button type="primary" @click="saveFilter" icon="el-icon-star-on"> Update Filter </el-button>
+                        <el-button type="primary" @click="saveFilter"> Update Filter </el-button>
                         <el-tooltip
                             class="item"
                             effect="light"
@@ -278,10 +300,10 @@
                             placement="bottom"
                             v-if="isSavedFilterView"
                         >
-                            <el-button @click="clearFilter" icon="el-icon-circle-close"> </el-button>
+                            <el-button @click="clearFilter">Clear</el-button>
                         </el-tooltip>
                         <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
-                            <el-button @click="deleteClicked" type="danger" icon="el-icon-delete"> </el-button>
+                            <el-button @click="deleteClicked" type="danger" icon="el-icon-delete"> Delete </el-button>
                         </el-tooltip>
                     </el-button-group>
                     <el-button
@@ -290,32 +312,13 @@
                             saveFilterDialogVisible = true;
                             filterName = '';
                         "
-                        icon="el-icon-star-off"
                         v-else
                     >
-                        Save Filter
+                        Create Filter
                     </el-button>
                 </div>
                 <div class="ml-3">
                     <el-button @click="shareClicked" plain type="info" icon="el-icon-share">Share</el-button>
-                </div>
-            </div>
-        </div>
-        <div class="query-info text-muted" style="display: flex; justify-content: space-between">
-            <div class="">
-                {{ queryData.total_results === 10000 ? `${queryData.total_results}+` : queryData.total_results }}
-                results
-                <el-tooltip effect="light" content="including watched movies" placement="right">
-                    <i class="fa-solid fa-circle-info ml-1" v-show="hideWatchedMovies"></i>
-                </el-tooltip>
-                <el-button @click="toggleGallery"> Gallery </el-button>
-            </div>
-            <div style="display: flex">
-                <div class="ml-3 mt-2 save-container mobile-hide">
-                    <el-checkbox v-model="hideWatcListMovies" @change="loadMovies(true)">Hide Watch list</el-checkbox>
-                </div>
-                <div class="ml-3 mt-2 save-container mobile-hide">
-                    <el-checkbox v-model="hideWatchedMovies" @change="loadMovies(true)">Hide Watched</el-checkbox>
                 </div>
             </div>
         </div>
@@ -942,6 +945,11 @@ export default Vue.extend({
         }
     }
 }
+.gallery-button {
+    text-decoration: underline !important;
+    margin-left: 1rem;
+    cursor: pointer;
+}
 .imageGallery {
     display: flex;
     flex-wrap: wrap;
@@ -992,6 +1000,13 @@ export default Vue.extend({
 .favorites-bar {
     display: flex;
     justify-content: space-between;
+    .saved-filter-container {
+        .filter {
+            // border-radius: 1rem;
+        }
+        display: flex;
+        align-items: center;
+    }
     .right-action-items {
         display: flex;
         padding-right: 3rem;
