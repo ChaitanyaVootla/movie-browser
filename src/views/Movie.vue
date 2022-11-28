@@ -121,16 +121,9 @@
                         :disabled="isSignedIn"
                         placement="top"
                     >
-                        <el-button
-                            :type="isWatched ? 'danger' : ''"
-                            @click="watchedClicked"
-                        >
-                            <div v-show="isWatched">
-                                Watched <i class="fa-solid fa-check ml-2"></i>
-                            </div>
-                            <div v-show="!isWatched">
-                                Watched this?
-                            </div>
+                        <el-button round :type="isWatched ? 'danger' : ''" @click="watchedClicked">
+                            <div v-show="isWatched"> Watched <i class="fa-solid fa-check ml-2"></i> </div>
+                            <div v-show="!isWatched"> Watched this? </div>
                         </el-button>
                     </el-tooltip>
                     <el-tooltip
@@ -140,16 +133,9 @@
                         :disabled="isSignedIn"
                         placement="top"
                     >
-                        <el-button
-                            :type="isInWatchList ? 'danger' : ''"
-                            @click="addToListClicked"
-                        >
-                            <div v-show="isInWatchList">
-                                In Watch List <i class="fa-solid fa-check ml-2"></i>
-                            </div>
-                            <div v-show="!isInWatchList">
-                                Add to Watch List <i class="fa-solid fa-plus ml-2"></i>
-                            </div>
+                        <el-button round :type="isInWatchList ? 'danger' : ''" @click="addToListClicked">
+                            <div v-show="isInWatchList"> In Watch List <i class="fa-solid fa-check ml-2"></i> </div>
+                            <div v-show="!isInWatchList"> Add to Watch List <i class="fa-solid fa-plus ml-2"></i> </div>
                         </el-button>
                     </el-tooltip>
                 </div>

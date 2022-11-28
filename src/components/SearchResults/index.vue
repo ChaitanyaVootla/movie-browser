@@ -76,7 +76,7 @@ export default Vue.extend({
                     .push({
                         name: 'movieInfoFull',
                         params: {
-                            name: sanitizeName(result.name || result.original_title),
+                            name: sanitizeName(result.title || result.name),
                             id: result.id,
                         },
                     })

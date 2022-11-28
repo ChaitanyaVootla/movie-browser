@@ -6,7 +6,7 @@
                 :to="{
                     name: item.first_air_date ? 'seriesInfo' : 'movieInfoFull',
                     params: {
-                        name: sanitizeName(item.name || item.title),
+                        name: sanitizeName(item.title || item.name),
                         id: item.id,
                     },
                 }"

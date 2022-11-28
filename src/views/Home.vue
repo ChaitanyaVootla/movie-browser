@@ -73,10 +73,11 @@
                             <i class="el-icon-search"></i>
                         </div>
                         <template slot-scope="{ item }">
-                            <SearchResult 
+                            <SearchResult
                                 :searchItem="item"
                                 :get-genre-name-from-id="getGenreNameFromId"
-                                :image-base-path="imageBasePath"/>
+                                :image-base-path="imageBasePath"
+                            />
                         </template>
                     </el-autocomplete>
                 </div>
@@ -205,15 +206,13 @@
                         :highlight-first-item="true"
                         @select="searchItemclicked"
                     >
-                        <i
-                            class="el-icon-search"
-                            slot="suffix">
-                        </i>
+                        <i class="el-icon-search" slot="suffix"> </i>
                         <template slot-scope="{ item }">
-                            <SearchResult 
+                            <SearchResult
                                 :searchItem="item"
                                 :get-genre-name-from-id="getGenreNameFromId"
-                                :image-base-path="imageBasePath"/>
+                                :image-base-path="imageBasePath"
+                            />
                         </template>
                     </el-autocomplete>
                 </div>
@@ -345,7 +344,7 @@ export default Vue.extend({
         $('.search-dropdown, .search-intput-container').click(function (event) {
             event.stopPropagation();
         });
-        window.addEventListener("keypress", this.onKeyPress);
+        window.addEventListener('keypress', this.onKeyPress);
         this.logoAnimation = anime({
             targets: '.app-logo',
             rotate: ['', '180', ''],
@@ -441,7 +440,7 @@ export default Vue.extend({
                     .push({
                         name: 'movieInfoFull',
                         params: {
-                            name: sanitizeName(item.name || item.original_title),
+                            name: sanitizeName(item.title || item.name),
                             id: item.id,
                         },
                     })
@@ -498,7 +497,7 @@ export default Vue.extend({
                 .push({
                     name: 'movieInfoFull',
                     params: {
-                        name: sanitizeName(movie.name || movie.original_title),
+                        name: sanitizeName(movie.title || movie.name),
                         id: movie.id,
                     },
                 })
@@ -543,7 +542,7 @@ export default Vue.extend({
             }
         },
         onKeyPress(event: any) {
-            if (event.key !== "/") {
+            if (event.key !== '/') {
                 return;
             }
             if (document.activeElement === this.$refs.searchInput) {
@@ -554,7 +553,7 @@ export default Vue.extend({
         },
     },
     beforeDestroy() {
-        window.removeEventListener("keypress", this.onKeyPress);
+        window.removeEventListener('keypress', this.onKeyPress);
     },
     watch: {
         $route(currentRoute) {

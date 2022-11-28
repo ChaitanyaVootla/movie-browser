@@ -100,7 +100,7 @@
             <div class="additional-info">
                 <!-- bookmarks -->
                 <div class="mt-3 ml-2 bookmarks">
-                    <el-button @click="removeFromWatchList" v-if="isInWatchList">
+                    <el-button @click="removeFromWatchList" v-if="isInWatchList" round type="danger">
                         In watch List
                         <i class="fa-solid fa-check ml-1"></i>
                     </el-button>
@@ -112,7 +112,7 @@
                         placement="right"
                         :disabled="user.name"
                     >
-                        <el-button @click="addToWatchList">
+                        <el-button @click="addToWatchList" round>
                             Add to watch list
                             <i class="fa-solid fa-plus ml-1"></i>
                         </el-button>
