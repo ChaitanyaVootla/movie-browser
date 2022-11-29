@@ -1,38 +1,50 @@
 <template>
-    <el-popover trigger="hover" :open-delay="700" width="450" v-model="isPopoverVisible" :disabled="isMobile()">
-        <popover-info
-            v-if="isPopoverVisible"
-            :item="item"
-            :configuration="configuration"
-            ref="popoverInfo"
-        ></popover-info>
-        <div slot="reference" class="item-container">
-            <a :href="item.watchOption.link" target="_blank">
-                <div class="img-container mt-2">
-                    <img v-lazy="imageObj" class="item-card-image" />
-                </div>
-                <div class="watch-overlay">
-                    <img :src="item.watchOption.imagePath" class="watch-ott-icon" />
-                </div>
-                <div class="watch-overlay-play-icon">
-                    <i class="fa-solid fa-circle-play"></i>
-                </div>
-            </a>
-            <router-link
-                :to="{
-                    name: item.first_air_date ? 'seriesInfo' : 'movieInfoFull',
-                    params: {
-                        name: sanitizeName(item.title || item.name),
-                        id: item.id,
-                    },
-                }"
-                :title="item.name || item.title"
-            >
-                <div class="continue-card-text mt-1 ml-1">
-                    {{ item.title || item.name }}
-                </div>
-            </router-link>
-        </div>
+    <el-popover
+        :show-after="700"
+        :hide-after="300"
+        v-model:visible="isPopoverVisible"
+        trigger="hover"
+        :open-delay="700"
+        width="450"
+        :disabled="isMobile()"
+    >
+        <template #default>
+            <popover-info
+                v-if="isPopoverVisible"
+                :item="item"
+                :configuration="configuration"
+                ref="popoverInfo"
+            ></popover-info>
+        </template>
+        <template #reference>
+            <div class="item-container">
+                <a :href="item.watchOption.link" target="_blank">
+                    <div class="img-container mt-2">
+                        <img v-lazy="imageObj" class="item-card-image" />
+                    </div>
+                    <div class="watch-overlay">
+                        <img :src="item.watchOption.imagePath" class="watch-ott-icon" />
+                    </div>
+                    <div class="watch-overlay-play-icon">
+                        <i class="fa-solid fa-circle-play"></i>
+                    </div>
+                </a>
+                <router-link
+                    :to="{
+                        name: item.first_air_date ? 'seriesInfo' : 'movieInfoFull',
+                        params: {
+                            name: sanitizeName(item.title || item.name),
+                            id: item.id,
+                        },
+                    }"
+                    :title="item.name || item.title"
+                >
+                    <div class="continue-card-text mt-1 ml-1">
+                        {{ item.title || item.name }}
+                    </div>
+                </router-link>
+            </div>
+        </template>
     </el-popover>
 </template>
 
@@ -40,7 +52,7 @@
 import { getIconFromLink, isMobile, sanitizeName, getFullDateText } from '@/common/utils';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'continueWatching',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
     created() {
@@ -63,7 +75,7 @@ export default Vue.extend({
         },
     },
     computed: {},
-});
+};
 </script>
 
 <style scoped lang="less">

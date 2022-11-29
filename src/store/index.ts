@@ -1,12 +1,12 @@
 import Vue from 'vue';
-import Vuex from 'vuex';
+import Vuex, { createStore } from 'vuex';
 import { sortBy, random } from 'lodash';
 import { api } from '../API/api';
 import Timezone from 'countries-and-timezones';
 
-Vue.use(Vuex);
+// Vue.use(Vuex);
 
-const store = new Vuex.Store({
+const store = createStore({
     state: {
         user: {} as any,
         oneTapUser: {},

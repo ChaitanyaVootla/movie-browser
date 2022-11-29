@@ -56,7 +56,7 @@ import watchProviders from '@/common/watchProviders.json';
 import languages from '@/common/languages.json';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'Sandbox',
     data() {
         return {
@@ -109,7 +109,7 @@ export default Vue.extend({
             this.moviesList = res.results;
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

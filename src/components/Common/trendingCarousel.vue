@@ -134,7 +134,7 @@ import moment from 'moment';
 import GoogleData from '../Common/googleData.vue';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'trendingCarousel',
     props: [
         'configuration',
@@ -255,7 +255,7 @@ export default Vue.extend({
             this.getCurrentStreaming();
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

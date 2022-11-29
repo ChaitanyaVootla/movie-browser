@@ -278,7 +278,7 @@
                             @click="filterClicked"
                             class="filter"
                             round
-                            :type="$router.currentRoute.query.name === savedFilter.name ? 'danger' : 'primary'"
+                            :type="filterName === savedFilter.name ? 'danger' : ''"
                         >
                             {{ savedFilter.name }}
                         </el-button>
@@ -292,7 +292,7 @@
                 </el-alert>
                 <div class="ml-3 mobile-hide save-container">
                     <el-button-group v-if="isSavedFilterView">
-                        <el-button type="primary" @click="saveFilter"> Update Filter </el-button>
+                        <el-button @click="saveFilter"> Update Filter </el-button>
                         <el-tooltip
                             class="item"
                             effect="light"
@@ -303,11 +303,10 @@
                             <el-button @click="clearFilter">Clear</el-button>
                         </el-tooltip>
                         <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
-                            <el-button @click="deleteClicked" type="danger" icon="el-icon-delete"> Delete </el-button>
+                            <el-button @click="deleteClicked" type="danger"> Delete </el-button>
                         </el-tooltip>
                     </el-button-group>
                     <el-button
-                        type="primary"
                         @click="
                             saveFilterDialogVisible = true;
                             filterName = '';
@@ -318,7 +317,7 @@
                     </el-button>
                 </div>
                 <div class="ml-3">
-                    <el-button @click="shareClicked" plain type="info" icon="el-icon-share">Share</el-button>
+                    <el-button @click="shareClicked" plain type="info"><i class="fa-solid fa-share-nodes mr-2 p-2"></i>Share</el-button>
                 </div>
             </div>
         </div>
@@ -349,7 +348,7 @@
         </div>
         <div class="loader-main" v-if="isDataLoading"></div>
         <el-dialog
-            :title="$router.currentRoute.query.name ? 'Delete Search' : 'Save Search'"
+            :title="filterName ? 'Delete Search' : 'Save Search'"
             :visible.sync="saveFilterDialogVisible"
             width="30%"
         >
@@ -359,7 +358,7 @@
                     @click="deleteFilter"
                     :disabled="!filterName.length"
                     type="danger"
-                    v-if="$router.currentRoute.query.name"
+                    v-if="filterName"
                     >Delete</el-button
                 >
                 <el-button @click="saveFilter" :disabled="!filterName.length" type="success" v-else>Save</el-button>
@@ -377,7 +376,7 @@ import languages from '@/common/languages.json';
 import moment from 'moment';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'movieDiscover',
     props: [
         'configuration',
@@ -403,7 +402,6 @@ export default Vue.extend({
             hideWatchedMovies: false,
             hideWatcListMovies: false,
             saveFilterDialogVisible: false,
-            filterName: '',
             queryData: {
                 results: [],
             } as any,
@@ -464,7 +462,7 @@ export default Vue.extend({
         this.setupTimeFrameOptions();
         this.genres = this.movieGenres;
         this.checkRouteQuery();
-        if (this.$router.currentRoute.query.name) {
+        if (this.$route.query.name) {
             this.isSavedFilterView = true;
         } else {
             this.isSavedFilterView = false;
@@ -476,7 +474,7 @@ export default Vue.extend({
         $route(to, from) {
             this.currentPage = 1;
             this.checkRouteQuery();
-            if (this.$router.currentRoute.query.name) {
+            if (this.$route.query.name) {
                 this.isSavedFilterView = true;
             } else {
                 this.isSavedFilterView = false;
@@ -489,6 +487,9 @@ export default Vue.extend({
         },
         hideLoadMore() {
             return this.queryData.total_pages < this.currentPage - 1;
+        },
+        filterName() {
+            return this.$route.query.name;
         },
     },
     methods: {
@@ -539,10 +540,10 @@ export default Vue.extend({
         },
         async saveFilter() {
             await api.createOrUpdateFilter({
-                ...this.$router.currentRoute.query,
-                name: this.filterName || this.$router.currentRoute.query.name,
+                ...this.$route.query,
+                name: this.filterName || this.$route.query.name,
             });
-            this.$router.currentRoute.query.name = this.filterName || this.$router.currentRoute.query.name;
+            this.$route.query.name = this.filterName || this.$route.query.name;
             this.saveFilterDialogVisible = false;
             this.$message({
                 message: 'Filter Saved',
@@ -552,7 +553,7 @@ export default Vue.extend({
             this.$store.dispatch('updateFilters');
         },
         async deleteFilter() {
-            await api.deleteFilter(this.$router.currentRoute.query.name);
+            await api.deleteFilter(this.$route.query.name);
             this.saveFilterDialogVisible = false;
             this.$message({
                 message: 'Filter Deleted',
@@ -906,7 +907,7 @@ export default Vue.extend({
                         name: 'discover',
                         query: {
                             ...routerQuery,
-                            name: this.$router.currentRoute.query.name,
+                            name: this.$route.query.name,
                         },
                         replace: this.routeQueryPresent,
                     })
@@ -924,10 +925,9 @@ export default Vue.extend({
         },
         deleteClicked() {
             this.saveFilterDialogVisible = true;
-            this.filterName = this.$router.currentRoute.query.name as string;
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">
@@ -1002,7 +1002,7 @@ export default Vue.extend({
     justify-content: space-between;
     .saved-filter-container {
         .filter {
-            // border-radius: 1rem;
+            border-radius: 1rem;
         }
         display: flex;
         align-items: center;
@@ -1052,6 +1052,7 @@ export default Vue.extend({
 .advanced-options-row {
     margin-top: 0;
     grid-template-columns: 0.6fr 1fr 1fr 0.6fr 1fr 0.6fr 0.5fr 0.8fr;
+    padding-bottom: 1rem !important;
 }
 @media (max-width: 767px) {
     .query-info {

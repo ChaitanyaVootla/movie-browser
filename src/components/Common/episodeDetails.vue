@@ -40,7 +40,7 @@
 import moment from 'moment';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'episodeDetails',
     props: {
         details: {
@@ -63,7 +63,7 @@ export default Vue.extend({
             return this.details.images.stills.slice(0, 7);
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

@@ -55,9 +55,8 @@
 <script lang="ts">
 import { api } from '@/API/api';
 import moment from 'moment';
-import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'home',
     data() {
         return {
@@ -108,7 +107,7 @@ export default Vue.extend({
             }
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

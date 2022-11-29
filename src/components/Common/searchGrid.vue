@@ -61,7 +61,7 @@ import { api } from '@/API/api';
 import { uniqBy, intersection, sortBy } from 'lodash';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'searchGrid',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'genres', 'movies'],
     data() {
@@ -150,7 +150,7 @@ export default Vue.extend({
             this.ratingOptions.reverse();
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

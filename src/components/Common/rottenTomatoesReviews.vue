@@ -41,12 +41,12 @@
 <script lang="ts">
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'rottenTomatoesReviews',
     props: {
         item: Object,
     },
-});
+};
 </script>
 
 <style scoped lang="less">

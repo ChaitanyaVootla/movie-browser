@@ -130,7 +130,7 @@ import { filter, sortBy, groupBy, each, first } from 'lodash';
 import { isMobile } from '@/common/utils';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'person',
     props: ['person', 'configuration', 'showMovieInfo', 'showFullMovieInfo'],
     data() {
@@ -250,7 +250,7 @@ export default Vue.extend({
             this.getDetails();
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

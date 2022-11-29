@@ -118,7 +118,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getFullDateText, getDateText } from '@/common/utils';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'mbSlider',
     props: [
         'items',
@@ -207,7 +207,7 @@ export default Vue.extend({
             this.episodeDialogVisible = true;
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

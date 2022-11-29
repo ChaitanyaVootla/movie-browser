@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="main-container">
         <img class="popover-bg-image" v-lazy="bgImageObj" />
         <div class="p-3">
             <router-link
@@ -49,7 +49,7 @@ import GoogleData from './googleData.vue';
 import { api } from '@/API/api';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'popoverInfo',
     props: ['item', 'configuration'],
     components: {
@@ -91,7 +91,7 @@ export default Vue.extend({
             }
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">
@@ -104,6 +104,9 @@ export default Vue.extend({
     span {
         font-size: 0.9em;
     }
+}
+.main-container {
+    background-color: rgba(0, 0, 0, 0.382);
 }
 .popover-bg-image {
     position: absolute;

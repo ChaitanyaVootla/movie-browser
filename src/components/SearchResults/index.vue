@@ -59,7 +59,7 @@
 import { getRatingColor, getYear, sanitizeName } from '@/common/utils';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'searchResults',
     props: ['searchResults', 'getGenreNameFromId', 'imageBasePath', 'searchItemClicked'],
     data() {
@@ -107,7 +107,7 @@ export default Vue.extend({
             this.searchItemClicked();
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

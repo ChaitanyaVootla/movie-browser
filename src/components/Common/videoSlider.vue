@@ -39,7 +39,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'videoSlider',
     props: {
         videos: Array,
@@ -67,7 +67,7 @@ export default Vue.extend({
                 .slice(0, 5);
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

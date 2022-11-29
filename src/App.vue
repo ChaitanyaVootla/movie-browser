@@ -1,15 +1,15 @@
 <template>
-    <div id="app" :class="isLightMode ? 'lightMode' : ''">
+    <div id="app">
         <Home />
     </div>
 </template>
 
 <script lang="ts">
 import { store } from './store';
-import Vue from 'vue';
+import { createApp } from 'vue';
 import Home from '@/views/Home.vue';
 
-export default Vue.extend({
+export default {
     created() {
         store.dispatch('init');
     },
@@ -17,20 +17,21 @@ export default Vue.extend({
         Home,
     },
     computed: {
-        isLightMode() {
-            if (store.getters.isLightMode) {
-                const htmlTag: any = document.getElementsByTagName('html');
-                htmlTag[0].classList = ['lightMode'];
-            }
-            return store.getters.isLightMode;
-        },
+        // isLightMode() {
+        //     if (store.getters.isLightMode) {
+        //         const htmlTag: any = document.getElementsByTagName('html');
+        //         htmlTag[0].classList = ['lightMode'];
+        //     }
+        //     return store.getters.isLightMode;
+        // },
     },
-});
+};
 </script>
 
 <style lang="less">
 @import '~bootstrap/dist/css/bootstrap.css';
 @import './Assets/Styles/main.less';
+@import './Assets/Styles/element-custom.less';
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',

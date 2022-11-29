@@ -8,12 +8,12 @@
 <script lang="ts">
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'movieInfo',
     props: {
         item: Object,
     },
-});
+};
 </script>
 
 <style scoped lang="less">

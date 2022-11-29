@@ -50,7 +50,7 @@ import { mapGoogleData } from '@/common/utils';
 import { mapActions } from 'vuex';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'GoogleData',
     props: {
         item: {
@@ -108,7 +108,7 @@ export default Vue.extend({
             return this.$store.getters.user;
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

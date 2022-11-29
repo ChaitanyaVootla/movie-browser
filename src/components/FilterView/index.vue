@@ -24,7 +24,7 @@ import { find, uniqBy } from 'lodash';
 import { api } from '@/API/api';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'FilterView',
     props: [
         'configuration',
@@ -257,7 +257,7 @@ export default Vue.extend({
             this.movies = this.movies.concat(queryResult.results);
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped></style>

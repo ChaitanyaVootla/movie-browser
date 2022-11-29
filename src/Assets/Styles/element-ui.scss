@@ -7,5 +7,6 @@ $--color-text-regular: #fff;
 
 /* icon font path, required */
 $--font-path: '~element-ui/lib/theme-chalk/fonts';
+$--color-primary: #ffe100 !default;
 
-@import '~element-ui/packages/theme-chalk/src/index';
+@import '~element-plus/dist/index.css';

@@ -6,7 +6,7 @@
                 <i v-if="!isDefinedView" class="fa-solid fa-pen ml-3 mt-2 edit-icon"></i>
             </div>
         </mb-slider>
-        <el-dialog title="Edit custom view" :visible.sync="showEditModal" custom-class="view-modal">
+        <el-dialog title="Edit custom view" :visible.sync="showEditModal" class="view-modal">
             <div class="filter-selections">
                 <div>
                     <span class="select-label"> Name </span>
@@ -94,7 +94,7 @@ import languages from '@/common/languages.json';
 import { flatten } from 'lodash';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'Sandbox',
     data() {
         return {
@@ -207,7 +207,7 @@ export default Vue.extend({
             );
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

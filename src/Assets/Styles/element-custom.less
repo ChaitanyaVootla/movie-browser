@@ -1,0 +1,198 @@
+/deep/ .el-tabs__item {
+    font-size: 1.1em;
+    color: #ccc;
+}
+/deep/ .el-tabs__item.is-active {
+    color: #c01111;
+}
+/deep/ .el-tabs__active-bar {
+    background-color: #c01111;
+}
+/deep/ .el-tabs__nav-wrap::after {
+    background-color: rgb(29, 29, 29);
+}
+
+/deep/ .el-button--danger {
+    background-color: @main-red;
+}
+.el-loading-mask {
+    background-color: rgba(50, 50, 50, 0.9) !important;
+}
+Carousel styles
+/deep/ .el-carousel__arrow {
+    margin: 1em;
+    background-color: #0000007a;
+    color: @text-color;
+    border-radius: 1em;
+}
+/deep/ .el-carousel__button {
+    border: 2px solid @text-color;
+}
+// Button styles
+/deep/ .el-button {
+    color: @text-color;
+    border-color: #222;
+}
+/deep/ .el-button:hover {
+    color: @text-color;
+    border-color: #777;
+}
+/deep/ .el-button:focus {
+    color: @text-color;
+    border-color: #777;
+}
+/deep/ .el-input__wrapper {
+    color: @text-color;
+    border-color: @light-border;
+    border-radius: @default-radius;
+    // background-color: black;
+}
+/deep/ .el-input__wrapper:hover {
+    color: @text-color;
+    border-color: #222;
+}
+.lightMode {
+    .el-input__wrapper {
+        color: black !important;
+        border-color: #fff !important;
+    }
+    .el-input__wrapper {
+        background-color: #eee !important;
+    }
+    .el-input__wrapper:hover {
+        color: @text-color;
+        border-color: #222;
+    }
+}
+.el-popover {
+    border: 1px solid black !important;
+    box-shadow: 0 2px 70px 25px rgb(0 0 0) !important;
+    padding: 0 !important;
+    overflow: hidden;
+    .popper__arrow {
+        display: none !important;
+    }
+}
+// date range
+/deep/ .el-range-input {
+    background-color: black;
+}
+/deep/ .el-date-editor .el-range-separator {
+    width: 10%;
+}
+/deep/ .el-picker-panel {
+    color: black;
+}
+/deep/ .el-date-table td.today {
+    color: @main-red !important;
+}
+.el-select-dropdown__item.selected {
+    color: @text-color !important;
+}
+/deep/ .el-switch__core::after {
+    background-color: #777 !important;
+}
+/deep/ .el-tabs__item {
+    font-size: 1.1em;
+    color: #ccc;
+}
+/deep/ .el-tabs__item:hover {
+    color: #c01111;
+}
+/deep/ .el-tabs__item.is-active {
+    color: #c01111;
+}
+/deep/ .el-tabs__active-bar {
+    background-color: #c01111;
+}
+/deep/ .el-tabs__nav-wrap::after {
+    background-color: #333;
+}
+.el-tag.el-tag--info {
+    background-color: #0e0f0fec;
+    border-color: #000000;
+    color: #a1a1a1;
+    cursor: pointer;
+}
+Dropdown styles
+.el-dropdown-menu__item:not(.is-disabled):hover {
+    color: @text-color;
+}
+// Nav bar Styles
+.el-menu {
+    .nav-menu-item {
+        color: @text-color !important;
+        background: none;
+        font-weight: 400;
+        font-size: 16px;
+        &.is-active {
+            background: none !important;
+            font-weight: 500;
+            color: @main-red !important;
+        }
+        :hover {
+            color: @link-color-red !important;
+        }
+        :visited {
+            color: @text-color !important;
+        }
+    }
+    .el-menu-item {
+        color: @text-color !important;
+        background: none;
+        font-weight: 400;
+        font-size: 16px;
+    }
+    &.el-menu--horizontal {
+        border: 0;
+    }
+}
+/deep/ .el-input-group__append {
+    border-color: #111 !important;
+}
+/deep/ .el-input-group__append:hover {
+    border-color: #222 !important;
+}
+/deep/ .el-button:hover {
+    border-color: #222 !important;
+}
+/deep/ .el-button:focus {
+    border-color: #222 !important;
+    outline: none !important;
+}
+Checkbox
+.el-checkbox__input.is-checked + .el-checkbox__label {
+    color: #bbb !important;
+}
+.el-checkbox__input.is-checked .el-checkbox__wrapper {
+    background-color: @main-red !important;
+    stroke: @text-color !important;
+}
+
+.el-button--danger,
+.el-button--danger:hover,
+.el-button--danger:focus {
+    background-color: @main-red;
+}
+
+// Radio buttons
+.el-radio-button__original-radio + .el-radio-button__inner {
+    color: @text-color !important;
+    border-color: @link-color-red !important;
+    opacity: 0.8;
+    background-color: black !important;
+}
+.el-radio-button__original-radio:checked + .el-radio-button__inner {
+    color: @text-color !important;
+    border: 2px solid @link-color-red !important;
+    border-radius: @default-radius !important;
+    font-size: 16px;
+    opacity: 1;
+}
+
+.el-dialog {
+    border: 1px solid #333;
+}
+.el-alert {
+    border: 1px solid #333;
+}

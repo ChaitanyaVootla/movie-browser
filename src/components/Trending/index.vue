@@ -84,7 +84,7 @@ import { sortBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'trending',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     components: {
@@ -140,7 +140,7 @@ export default Vue.extend({
             );
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

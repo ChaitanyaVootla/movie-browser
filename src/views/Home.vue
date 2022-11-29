@@ -53,7 +53,7 @@
                 </router-link>
             </el-menu-item>
             <el-menu-item index="search" class="menu-item-nobg search-menu-item mobile-hide">
-                <div @keydown.stop>
+                <div @keydown.stop class="width-100">
                     <el-autocomplete
                         v-model="autoSearchText"
                         :fetch-suggestions="autocompleteSearch"
@@ -64,15 +64,16 @@
                         :highlight-first-item="true"
                         :hide-loading="true"
                         ref="searchInput"
+                        :fit-input-width="true"
                         @select="searchItemclicked"
                     >
                         <!-- <div slot="suffix">
                             <span class="search-shortcut">/</span>
                         </div> -->
-                        <div slot="suffix">
-                            <i class="el-icon-search"></i>
-                        </div>
-                        <template slot-scope="{ item }">
+                        <template #suffix>
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </template>
+                        <template #default="{ item }">
                             <SearchResult
                                 :searchItem="item"
                                 :get-genre-name-from-id="getGenreNameFromId"
@@ -105,34 +106,69 @@
                         </div>
                     </div>
                 </div>
-                <div>
+                <div style="margin-top: -0.6rem;">
                     <el-dropdown trigger="click" aria-label="Settings">
                         <div v-show="user.name">
                             <img v-lazy="{ src: user.picture }" class="user-photo" />
                         </div>
-                        <el-dropdown-menu slot="dropdown">
-                            <el-dropdown-item v-if="countryName" class="country-flag">
-                                <span class="mr-2">{{ countryName }}</span>
-                                <img height="15px" :src="countryFlag" />
-                            </el-dropdown-item>
-                            <el-dropdown-item :divided="countryName.length > 0">
-                                <router-link :to="{ name: 'Interests' }">
-                                    <i class="fa-solid fa-user mr-1"></i>
-                                    Profile
-                                </router-link>
-                            </el-dropdown-item>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item v-if="countryName" class="country-flag">
+                                    <span class="mr-2">{{ countryName }}</span>
+                                    <img :src="countryFlag" />
+                                </el-dropdown-item>
+                                <el-dropdown-item :divided="countryName.length > 0">
+                                    <router-link :to="{ name: 'Interests' }">
+                                        <i class="fa-solid fa-user mr-1"></i>
+                                        Profile
+                                    </router-link>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <router-link :to="{ name: 'Sandbox' }">
+                                        <i class="fa-solid fa-flask mr-1"></i>
+                                        Sandbox
+                                    </router-link>
+                                </el-dropdown-item>
+                                <el-dropdown-item divided>
+                                    <a
+                                        href="https://github.com/ChaitanyaVootla/movie-browser"
+                                        rel="noopener"
+                                        target="_blank"
+                                    >
+                                        <i class="fa-brands fa-github mr-1"></i>
+                                        Github Repo
+                                    </a>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
+                                        <i class="fa-solid fa-film mr-1"></i>
+                                        TMDB
+                                    </a>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
+                                        <i class="fa-solid fa-file-alt mr-1"></i>
+                                        TMDB Docs
+                                    </a>
+                                </el-dropdown-item>
+                                <el-dropdown-item divided>
+                                    <div @click="signOutClicked">
+                                        <i class="fa-solid fa-sign-out-alt mr-1"></i>
+                                        Sign out
+                                    </div>
+                                </el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
+                </div>
+            </el-menu-item>
+            <el-menu-item v-if="!user.picture" index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
+                <el-dropdown trigger="click">
+                    <div><i class="el-icon-s-tools" aria-label="Settings"></i></div>
+                    <template #dropdown>
+                        <el-dropdown-menu>
                             <el-dropdown-item>
-                                <router-link :to="{ name: 'Sandbox' }">
-                                    <i class="fa-solid fa-flask mr-1"></i>
-                                    Sandbox
-                                </router-link>
-                            </el-dropdown-item>
-                            <el-dropdown-item divided>
-                                <a
-                                    href="https://github.com/ChaitanyaVootla/movie-browser"
-                                    rel="noopener"
-                                    target="_blank"
-                                >
+                                <a href="https://github.com/ChaitanyaVootla/movie-browser" rel="noopener" target="_blank">
                                     <i class="fa-brands fa-github mr-1"></i>
                                     Github Repo
                                 </a>
@@ -149,48 +185,11 @@
                                     TMDB Docs
                                 </a>
                             </el-dropdown-item>
-                            <el-dropdown-item divided>
-                                <div @click="signOutClicked">
-                                    <i class="fa-solid fa-sign-out-alt mr-1"></i>
-                                    Sign out
-                                </div>
-                                <div v-if="user.isAdmin">
-                                    <router-link :to="{ name: 'admin' }">
-                                        <i class="fa-solid fa-lock mr-1"></i>
-                                        Admin
-                                    </router-link>
-                                </div>
+                            <el-dropdown-item v-if="isAllResultsShown">
+                                <div @click="removeAllResultsShown"> Clear cache </div>
                             </el-dropdown-item>
                         </el-dropdown-menu>
-                    </el-dropdown>
-                </div>
-            </el-menu-item>
-            <el-menu-item v-if="!user.picture" index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
-                <el-dropdown trigger="click">
-                    <div><i class="el-icon-s-tools" aria-label="Settings"></i></div>
-                    <el-dropdown-menu slot="dropdown">
-                        <el-dropdown-item>
-                            <a href="https://github.com/ChaitanyaVootla/movie-browser" rel="noopener" target="_blank">
-                                <i class="fa-brands fa-github mr-1"></i>
-                                Github Repo
-                            </a>
-                        </el-dropdown-item>
-                        <el-dropdown-item>
-                            <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
-                                <i class="fa-solid fa-film mr-1"></i>
-                                TMDB
-                            </a>
-                        </el-dropdown-item>
-                        <el-dropdown-item>
-                            <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
-                                <i class="fa-solid fa-file-alt mr-1"></i>
-                                TMDB Docs
-                            </a>
-                        </el-dropdown-item>
-                        <el-dropdown-item v-if="isAllResultsShown">
-                            <div @click="removeAllResultsShown"> Clear cache </div>
-                        </el-dropdown-item>
-                    </el-dropdown-menu>
+                    </template>
                 </el-dropdown>
             </el-menu-item>
         </el-menu>
@@ -206,8 +205,10 @@
                         :highlight-first-item="true"
                         @select="searchItemclicked"
                     >
-                        <i class="el-icon-search" slot="suffix"> </i>
-                        <template slot-scope="{ item }">
+                        <template #suffix>
+                            <i class="el-icon-search"></i>
+                        </template>
+                        <template #default="{ item }">
                             <SearchResult
                                 :searchItem="item"
                                 :get-genre-name-from-id="getGenreNameFromId"
@@ -242,48 +243,50 @@
                 </div>
                 <div v-else>
                     <el-dropdown trigger="click" aria-label="Settings">
-                        <img :src="user.picture" class="user-photo" />
-                        <el-dropdown-menu slot="dropdown">
-                            <el-dropdown-item>
-                                <router-link :to="{ name: 'Interests' }">
-                                    <i class="fa-solid fa-user mr-1"></i>
-                                    Profile
-                                </router-link>
-                            </el-dropdown-item>
-                            <el-dropdown-item divided>
-                                <a
-                                    href="https://github.com/ChaitanyaVootla/movie-browser"
-                                    rel="noopener"
-                                    target="_blank"
-                                >
-                                    <i class="fa-brands fa-github mr-1"></i>
-                                    Github Repo
-                                </a>
-                            </el-dropdown-item>
-                            <el-dropdown-item>
-                                <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
-                                    <i class="fa-solid fa-film mr-1"></i>
-                                    TMDB
-                                </a>
-                            </el-dropdown-item>
-                            <el-dropdown-item>
-                                <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
-                                    <i class="fa-solid fa-file-alt mr-1"></i>
-                                    TMDB Docs
-                                </a>
-                            </el-dropdown-item>
-                            <el-dropdown-item divided>
-                                <div @click="signOutClicked">
-                                    <i class="fa-solid fa-sign-out-alt mr-1"></i>
-                                    Sign out
-                                </div>
-                            </el-dropdown-item>
-                        </el-dropdown-menu>
+                        <img :src="user.picture" class="user-photo" /> asd
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item>
+                                    <router-link :to="{ name: 'Interests' }">
+                                        <i class="fa-solid fa-user mr-1"></i>
+                                        Profile
+                                    </router-link>
+                                </el-dropdown-item>
+                                <el-dropdown-item divided>
+                                    <a
+                                        href="https://github.com/ChaitanyaVootla/movie-browser"
+                                        rel="noopener"
+                                        target="_blank"
+                                    >
+                                        <i class="fa-brands fa-github mr-1"></i>
+                                        Github Repo
+                                    </a>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <a href="https://www.themoviedb.org/" rel="noopener" target="_blank">
+                                        <i class="fa-solid fa-film mr-1"></i>
+                                        TMDB
+                                    </a>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <a href="https://developers.themoviedb.org/3" rel="noopener" target="_blank">
+                                        <i class="fa-solid fa-file-alt mr-1"></i>
+                                        TMDB Docs
+                                    </a>
+                                </el-dropdown-item>
+                                <el-dropdown-item divided>
+                                    <div @click="signOutClicked">
+                                        <i class="fa-solid fa-sign-out-alt mr-1"></i>
+                                        Sign out
+                                    </div>
+                                </el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
                     </el-dropdown>
                 </div>
             </el-menu-item>
         </el-menu>
-        <transition name="view">
+        <!-- <transition name="view"> -->
             <router-view
                 v-if="isLoaded"
                 class="main-router"
@@ -297,7 +300,7 @@
                 :movieGenres="movieGenres"
                 :seriesGenres="seriesGenres"
             ></router-view>
-        </transition>
+        <!-- </transition> -->
     </div>
 </template>
 
@@ -311,7 +314,7 @@ import Vue from 'vue';
 import SearchResults from '@/components/SearchResults/index.vue';
 import SearchResult from '@/components/Common/searchResult.vue';
 
-export default Vue.extend({
+export default {
     name: 'home',
     data: function () {
         return {
@@ -560,7 +563,7 @@ export default Vue.extend({
             this.currentRoute = currentRoute;
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">
@@ -582,9 +585,17 @@ export default Vue.extend({
 }
 .country-flag {
     font-weight: 600;
+    img {
+        height: 1rem;
+    }
 }
-.autoCompleteSearch {
+/deep/ .autoCompleteSearch {
     width: 100%;
+    display: flex;
+    align-items: center;
+    .el-input__wrapper {
+        border-radius: 1rem;
+    }
     /deep/ #autoCompleteSearch {
         border-radius: 1rem;
         margin-top: -3px;
@@ -767,6 +778,9 @@ export default Vue.extend({
 .menu-center-item {
     left: calc(50% - 2.5em);
     position: absolute;
+    a {
+        height: 100%;
+    }
 }
 .menu-item-right {
     float: right !important;
@@ -806,6 +820,7 @@ export default Vue.extend({
     width: 100%;
     z-index: 100;
     top: 0;
+    display: block;
 }
 .main-router {
     margin-top: 3.5em;

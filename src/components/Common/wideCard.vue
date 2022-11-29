@@ -12,19 +12,24 @@
         >
             <div class="img-container mt-2">
                 <el-popover
+                    :show-after="700"
+                    :hide-after="300"
+                    v-model:visible="isPopoverVisible"
                     trigger="hover"
-                    :open-delay="700"
                     width="450"
-                    v-model="isPopoverVisible"
                     :disabled="isMobile()"
                 >
-                    <img slot="reference" v-lazy="imageObj" class="item-card-image shimmer-img" />
-                    <popover-info
-                        v-if="isPopoverVisible"
-                        :item="item"
-                        :configuration="configuration"
-                        ref="popoverInfo"
-                    ></popover-info>
+                    <template #reference>
+                        <img v-lazy="imageObj" class="item-card-image shimmer-img" />
+                    </template>
+                    <template #default>
+                        <popover-info
+                            v-if="isPopoverVisible"
+                            :item="item"
+                            :configuration="configuration"
+                            ref="popoverInfo"
+                        ></popover-info>
+                    </template>
                 </el-popover>
             </div>
             <div class="wide-card-text mt-1">
@@ -38,7 +43,7 @@
 import { getFullDateText, sanitizeName, isMobile } from '@/common/utils';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'wideCard',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
     data() {
@@ -58,7 +63,7 @@ export default Vue.extend({
         },
     },
     computed: {},
-});
+};
 </script>
 
 <style scoped lang="less">

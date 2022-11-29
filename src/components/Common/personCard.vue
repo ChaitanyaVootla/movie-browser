@@ -22,7 +22,7 @@
 
 <script lang="ts">
 import Vue from 'vue';
-export default Vue.extend({
+export default {
     name: 'personCard',
     props: ['person', 'configuration', 'imageRes', 'selectPerson'],
     data() {
@@ -37,7 +37,7 @@ export default Vue.extend({
             return new Date(movieDate).getFullYear();
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

@@ -59,7 +59,7 @@ import { getRatingColor } from '@/common/utils';
 import moment from 'moment';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'watchList',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     data() {
@@ -136,7 +136,7 @@ export default Vue.extend({
             return watchListSeries;
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

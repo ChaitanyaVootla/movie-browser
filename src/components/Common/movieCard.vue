@@ -29,18 +29,22 @@
                         </div>
                         <el-popover
                             trigger="hover"
-                            :open-delay="700"
+                            :show-after="700"
+                            :hide-after="300"
                             width="500"
-                            v-model="isPopoverVisible"
+                            v-model:visible="isPopoverVisible"
                             :disabled="isMobile()"
                         >
-                            <img
-                                slot="reference"
-                                v-lazy="imageObj"
-                                class="movie-card-image shimmer-img"
-                                :alt="movie.name || movie.title"
-                            />
-                            <popover-info v-if="isPopoverVisible" :item="movie" :configuration="configuration" />
+                            <template #reference>
+                                <img
+                                    v-lazy="imageObj"
+                                    class="movie-card-image shimmer-img"
+                                    :alt="movie.name || movie.title"
+                                />
+                            </template>
+                            <template #default>
+                                <popover-info v-if="isPopoverVisible" :item="movie" :configuration="configuration" />
+                            </template>
                         </el-popover>
                         <div class="info-overlay">
                             <div v-if="movie.release_date" class="top-overlay">{{
@@ -86,9 +90,8 @@ import { intersection } from 'lodash';
 import moment from 'moment';
 import popoverInfo from './popoverInfo.vue';
 import { mapActions } from 'vuex';
-import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     components: { popoverInfo },
     name: 'movieCard',
     props: [
@@ -253,7 +256,7 @@ export default Vue.extend({
             return this.$store.getters.oneTapUser;
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">
@@ -262,6 +265,7 @@ export default Vue.extend({
 @img-trim-height-percent: 92%;
 @img-height: 17rem;
 @img-width: 11.33rem;
+@red-badge-color: #a01d1d;
 
 .movie-card-image[lazy='error'] {
     padding: 3rem;
@@ -306,10 +310,16 @@ export default Vue.extend({
     }
 }
 /deep/ .el-badge.RECENT .el-badge__content {
-    background-color: rgb(255, 141, 141);
+    background-color: @red-badge-color;
+    color: @primary-gray;
+}
+/deep/ .el-badge.NEW .el-badge__content {
+    background-color: @red-badge-color;
+    color: @primary-gray;
 }
 /deep/ .el-badge.WATCH .el-badge__content {
     background-color: rgb(255, 255, 255);
+    color: @primary-gray;
     right: 11em;
 }
 /deep/ .el-badge.UNRELEASED .el-badge__content {
@@ -328,9 +338,6 @@ export default Vue.extend({
 /deep/ .el-badge.BACKDROP .el-badge__content {
     background-color: purple;
     right: 11.5em;
-}
-.isTodayCard .movie-card-image {
-    // box-shadow: rgba(80, 80, 80) 0px 0px 10px 0.2em;
 }
 .watched-overlay {
     position: absolute;

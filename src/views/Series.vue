@@ -112,7 +112,7 @@
                         placement="right"
                         :disabled="user.name"
                     >
-                        <el-button @click="addToWatchList" round>
+                        <el-button @click="addToWatchList" round plain>
                             Add to watch list
                             <i class="fa-solid fa-plus ml-1"></i>
                         </el-button>
@@ -301,7 +301,7 @@ import episodeDetails from '@/components/Common/episodeDetails.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'seriesInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showSeriesInfo'],
     components: {
@@ -467,7 +467,7 @@ export default Vue.extend({
             else return 'purple';
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

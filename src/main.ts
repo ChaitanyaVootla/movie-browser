@@ -1,33 +1,37 @@
-import Vue from 'vue';
-import VueRouter from 'vue-router';
+import Vue, { createApp } from 'vue';
+import * as VueRouter from 'vue-router';
 import App from './App.vue';
 import VueLazyload from 'vue-lazyload';
-import ElementUI from 'element-ui';
+import ElementPlus from 'element-plus';
 import { store } from './store';
+import 'element-plus/dist/index.css';
+import 'element-plus/theme-chalk/dark/css-vars.css'
 import './Assets/Styles/element-ui.scss';
 
-Vue.use(ElementUI);
+const VueApp = createApp(App);
+VueApp.use(store);
+VueApp.use(ElementPlus, { zIndex: 3000 });
 (<any>window).$ = require('jquery');
 
-Vue.component('mbSlider', require('./components/Slider').default);
-Vue.component('movieCard', require('./components/Common/movieCard.vue').default);
-Vue.component('movieInfoFull', require('./views/Movie.vue').default);
-Vue.component('seriesInfo', require('./views/Series.vue').default);
-Vue.component('personCard', require('./components/Common/personCard.vue').default);
-Vue.component('episodeCard', require('./components/Common/episodeCard.vue').default);
-Vue.component('popoverInfo', require('./components/Common/popoverInfo.vue').default);
-Vue.component('continueWatching', require('./components/Common/continueWatching.vue').default);
-Vue.component('wideCard', require('./components/Common/wideCard.vue').default);
+VueApp.component('mbSlider', require('./components/Slider').default);
+VueApp.component('movieCard', require('./components/Common/movieCard.vue').default);
+VueApp.component('movieInfoFull', require('./views/Movie.vue').default);
+VueApp.component('seriesInfo', require('./views/Series.vue').default);
+VueApp.component('personCard', require('./components/Common/personCard.vue').default);
+VueApp.component('episodeCard', require('./components/Common/episodeCard.vue').default);
+VueApp.component('popoverInfo', require('./components/Common/popoverInfo.vue').default);
+VueApp.component('continueWatching', require('./components/Common/continueWatching.vue').default);
+VueApp.component('wideCard', require('./components/Common/wideCard.vue').default);
 
-Vue.component('discover', require('./views/Discover.vue').default);
-Vue.component('WatchList', require('./views/WatchList.vue').default);
-Vue.component('ShareView', require('./components/ShareView/index.vue').default);
-Vue.component('person', require('./views/Person.vue').default);
-Vue.component('searchResults', require('./components/SearchResults/index.vue').default);
-Vue.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
-Vue.component('searchGrid', require('./components/Common/searchGrid.vue').default);
+VueApp.component('discover', require('./views/Discover.vue').default);
+VueApp.component('WatchList', require('./views/WatchList.vue').default);
+VueApp.component('ShareView', require('./components/ShareView/index.vue').default);
+VueApp.component('person', require('./views/Person.vue').default);
+VueApp.component('searchResults', require('./components/SearchResults/index.vue').default);
+VueApp.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
+VueApp.component('searchGrid', require('./components/Common/searchGrid.vue').default);
 
-Vue.component('Home', require('./views/Home.vue').default);
+VueApp.component('Home', require('./views/Home.vue').default);
 
 const routes = [
     {
@@ -93,28 +97,24 @@ const routes = [
     },
 ];
 import errorImage from '@/Assets/Images/error.svg';
-Vue.use(VueLazyload, {
+VueApp.use(VueLazyload, {
     error: errorImage,
     attempt: 3,
 });
-const router = new VueRouter({
-    mode: 'history',
-    routes,
+const router = VueRouter.createRouter({
+    history: VueRouter.createWebHistory(),
+    routes: routes as unknown as VueRouter.RouteRecordRaw[],
 });
 router.afterEach((to, from) => {
     if (to.name === 'movieInfoFull' || to.name === 'seriesInfo') {
-        document.title = to.params.name.replace(/-/g, ' ');
+        document.title = (to.params.name as string).replace(/-/g, ' ');
     } else if (to.name === 'person') {
-        document.title = to.params.name.replace(/-/g, ' ');
+        document.title = (to.params.name as string).replace(/-/g, ' ');
     } else {
         document.title = 'Movie Browser';
     }
 });
-Vue.use(VueRouter);
-new Vue({
-    render: (h) => h(App),
-    router,
-    store,
-}).$mount('#app');
+VueApp.use(router);
+VueApp.mount('#app')
 
-export { Vue };
+export { VueApp as Vue };

@@ -17,7 +17,7 @@
 import { getFullDateText } from '@/common/utils';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default{
     name: 'episodeCard',
     props: [
         'episode',
@@ -46,7 +46,7 @@ export default Vue.extend({
             return this.episode.character || this.episode.job;
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">

@@ -26,7 +26,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'friends',
     data: function () {
         return {
@@ -77,7 +77,7 @@ export default Vue.extend({
             // await db.collection('users').doc(this.user.uid).collection('friends').doc(user.id).set(user);
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

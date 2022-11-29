@@ -36,9 +36,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-
-export default Vue.extend({
+export default {
     name: 'Profile',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     data() {
@@ -71,7 +69,7 @@ export default Vue.extend({
             return window.innerWidth < 768 ? true : false;
         },
     },
-});
+};
 </script>
 
 <style lang="less" scoped>

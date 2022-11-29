@@ -121,7 +121,7 @@
                         :disabled="isSignedIn"
                         placement="top"
                     >
-                        <el-button round :type="isWatched ? 'danger' : ''" @click="watchedClicked">
+                        <el-button round plain :type="isWatched ? 'danger' : ''" @click="watchedClicked">
                             <div v-show="isWatched"> Watched <i class="fa-solid fa-check ml-2"></i> </div>
                             <div v-show="!isWatched"> Watched this? </div>
                         </el-button>
@@ -133,7 +133,7 @@
                         :disabled="isSignedIn"
                         placement="top"
                     >
-                        <el-button round :type="isInWatchList ? 'danger' : ''" @click="addToListClicked">
+                        <el-button round plain :type="isInWatchList ? 'danger' : ''" @click="addToListClicked">
                             <div v-show="isInWatchList"> In Watch List <i class="fa-solid fa-check ml-2"></i> </div>
                             <div v-show="!isInWatchList"> Add to Watch List <i class="fa-solid fa-plus ml-2"></i> </div>
                         </el-button>
@@ -302,7 +302,7 @@ import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
 import Vue from 'vue';
 
-export default Vue.extend({
+export default {
     name: 'movieInfo',
     props: ['configuration', 'showMovieInfo', 'selectPerson', 'showFullMovieInfo'],
     components: {
@@ -490,7 +490,7 @@ export default Vue.extend({
             return window.innerWidth < 768 ? true : false;
         },
     },
-});
+};
 </script>
 
 <style scoped lang="less">
