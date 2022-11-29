@@ -165,7 +165,7 @@
                     </el-dropdown>
                 </div>
             </el-menu-item>
-            <el-menu-item v-if="!user.photoURL" index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
+            <el-menu-item v-if="!user.picture" index="settings" class="menu-item-right menu-item-nobg p-0 mobile-hide">
                 <el-dropdown trigger="click">
                     <div><i class="el-icon-s-tools" aria-label="Settings"></i></div>
                     <el-dropdown-menu slot="dropdown">
@@ -242,7 +242,7 @@
                 </div>
                 <div v-else>
                     <el-dropdown trigger="click" aria-label="Settings">
-                        <img :src="user.photoURL" class="user-photo" />
+                        <img :src="user.picture" class="user-photo" />
                         <el-dropdown-menu slot="dropdown">
                             <el-dropdown-item>
                                 <router-link :to="{ name: 'Interests' }">
@@ -587,6 +587,7 @@ export default Vue.extend({
     width: 100%;
     /deep/ #autoCompleteSearch {
         border-radius: 1rem;
+        margin-top: -3px;
     }
     .search-shortcut {
         border: 1px #444 solid;
