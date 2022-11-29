@@ -2,8 +2,8 @@ import { movieParams, seriesParams } from './discoverParams';
 
 export const appConfig = {
     apiBaseUrl: 'https://api.themoviedb.org/3/',
-    serverBaseUrl: (import.meta as any).env.VUE_APP_SERVER_URL || 'http://localhost:3000/',
-    serverBaseTMDBUrl: ((import.meta as any).env.VUE_APP_SERVER_URL || 'http://localhost:3000/') + 'tmdb/',
+    serverBaseUrl: (import.meta as any).env.VITE_APP_SERVER_URL || 'http://localhost:3000/',
+    serverBaseTMDBUrl: ((import.meta as any).env.VITE_APP_SERVER_URL || 'http://localhost:3000/') + 'tmdb/',
 };
 
 export const endpoints = {

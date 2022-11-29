@@ -54,7 +54,7 @@ jobs:
               run: |
                 ls
                 touch .env
-                echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
+                echo "VITE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
                 npm install
                 ls
             - name: Build
