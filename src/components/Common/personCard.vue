@@ -21,7 +21,6 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
 export default {
     name: 'personCard',
     props: ['person', 'configuration', 'imageRes', 'selectPerson'],

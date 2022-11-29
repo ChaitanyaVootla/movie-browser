@@ -101,7 +101,7 @@
                                 }"
                             >
                                 <el-button
-                                    :type="$router.currentRoute.query.name === savedFilter.name ? 'danger' : 'primary'"
+                                    :type="$route.query.name === savedFilter.name ? 'danger' : 'primary'"
                                 >
                                     {{ savedFilter.name }}
                                 </el-button>
@@ -132,7 +132,6 @@ import { getRatingColor, mapGoogleData } from '@/common/utils';
 import { sortBy, compact } from 'lodash';
 import moment from 'moment';
 import GoogleData from '../Common/googleData.vue';
-import Vue from 'vue';
 
 export default {
     name: 'trendingCarousel',

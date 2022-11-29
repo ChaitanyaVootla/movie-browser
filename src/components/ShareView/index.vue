@@ -38,7 +38,6 @@
 import { compact, sortBy } from 'lodash';
 import { getRatingColor } from '@/common/utils';
 import moment from 'moment';
-import Vue from 'vue';
 
 export default {
     name: 'shareView',

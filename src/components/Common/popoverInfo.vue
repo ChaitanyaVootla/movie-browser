@@ -47,7 +47,6 @@ import { movieGenres, seriesGenres } from '../../common/staticConfig';
 import { sanitizeName, isMovie } from '@/common/utils';
 import GoogleData from './googleData.vue';
 import { api } from '@/API/api';
-import Vue from 'vue';
 
 export default {
     name: 'popoverInfo',

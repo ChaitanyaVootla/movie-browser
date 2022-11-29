@@ -116,7 +116,6 @@
 import { api } from '@/API/api';
 import { v4 as uuidv4 } from 'uuid';
 import { getFullDateText, getDateText } from '@/common/utils';
-import Vue from 'vue';
 
 export default {
     name: 'mbSlider',

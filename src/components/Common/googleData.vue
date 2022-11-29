@@ -48,7 +48,6 @@
 <script lang="ts">
 import { mapGoogleData } from '@/common/utils';
 import { mapActions } from 'vuex';
-import Vue from 'vue';
 
 export default {
     name: 'GoogleData',

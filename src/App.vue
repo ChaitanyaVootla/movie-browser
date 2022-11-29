@@ -6,7 +6,6 @@
 
 <script lang="ts">
 import { store } from './store';
-import { createApp } from 'vue';
 import Home from '@/views/Home.vue';
 
 export default {
@@ -33,7 +32,7 @@ export default {
 @import './Assets/Styles/main.less';
 @import './Assets/Styles/element-custom.less';
 :root {
-    --primary: #dc3545 !important;
+    --el-color-primary: @main-red !important;
 }
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',

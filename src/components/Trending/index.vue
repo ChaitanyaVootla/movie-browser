@@ -82,7 +82,6 @@ import CustomView from '@/components/CustomView/index.vue';
 import FilterView from '@/components/FilterView/index.vue';
 import { sortBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import Vue from 'vue';
 
 export default {
     name: 'trending',

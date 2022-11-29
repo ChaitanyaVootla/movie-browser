@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import Vuex, { createStore } from 'vuex';
+import { createStore } from 'vuex';
 import { sortBy, random } from 'lodash';
 import { api } from '../API/api';
 import Timezone from 'countries-and-timezones';

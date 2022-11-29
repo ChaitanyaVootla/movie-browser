@@ -91,8 +91,6 @@ import axios from 'axios';
 import { appConfig } from '@/API/Constants';
 import * as watchProvidersArray from '@/common/watchProviders.json';
 import languages from '@/common/languages.json';
-import { flatten } from 'lodash';
-import Vue from 'vue';
 
 export default {
     name: 'Sandbox',

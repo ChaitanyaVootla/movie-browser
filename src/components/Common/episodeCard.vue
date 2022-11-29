@@ -15,7 +15,6 @@
 
 <script lang="ts">
 import { getFullDateText } from '@/common/utils';
-import Vue from 'vue';
 
 export default{
     name: 'episodeCard',

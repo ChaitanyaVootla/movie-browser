@@ -128,7 +128,6 @@
 import { api } from '@/API/api';
 import { filter, sortBy, groupBy, each, first } from 'lodash';
 import { isMobile } from '@/common/utils';
-import Vue from 'vue';
 
 export default {
     name: 'person',

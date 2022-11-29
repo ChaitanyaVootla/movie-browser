@@ -41,7 +41,6 @@
 
 <script lang="ts">
 import { getFullDateText, sanitizeName, isMobile } from '@/common/utils';
-import Vue from 'vue';
 
 export default {
     name: 'wideCard',

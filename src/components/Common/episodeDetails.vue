@@ -38,7 +38,6 @@
 
 <script lang="ts">
 import moment from 'moment';
-import Vue from 'vue';
 
 export default {
     name: 'episodeDetails',

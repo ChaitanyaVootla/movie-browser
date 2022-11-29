@@ -50,7 +50,6 @@
 
 <script lang="ts">
 import { getIconFromLink, isMobile, sanitizeName, getFullDateText } from '@/common/utils';
-import Vue from 'vue';
 
 export default {
     name: 'continueWatching',

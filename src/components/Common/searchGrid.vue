@@ -59,8 +59,6 @@
 <script lang="ts">
 import { api } from '@/API/api';
 import { uniqBy, intersection, sortBy } from 'lodash';
-import Vue from 'vue';
-
 export default {
     name: 'searchGrid',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'genres', 'movies'],

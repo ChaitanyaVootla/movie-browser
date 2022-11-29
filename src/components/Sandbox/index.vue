@@ -54,7 +54,6 @@ import axios from 'axios';
 import { appConfig } from '@/API/Constants';
 import watchProviders from '@/common/watchProviders.json';
 import languages from '@/common/languages.json';
-import Vue from 'vue';
 
 export default {
     name: 'Sandbox',

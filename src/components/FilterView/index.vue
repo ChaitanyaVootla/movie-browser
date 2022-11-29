@@ -22,7 +22,6 @@
 <script lang="ts">
 import { find, uniqBy } from 'lodash';
 import { api } from '@/API/api';
-import Vue from 'vue';
 
 export default {
     name: 'FilterView',

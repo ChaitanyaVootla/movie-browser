@@ -300,7 +300,6 @@ import moment from 'moment';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
-import Vue from 'vue';
 
 export default {
     name: 'movieInfo',
