@@ -304,7 +304,7 @@
                             <el-button @click="clearFilter">Clear</el-button>
                         </el-tooltip>
                         <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
-                            <el-button @click="deleteClicked" type="danger"> Delete </el-button>
+                            <el-button @click="deleteClicked"> Delete </el-button>
                         </el-tooltip>
                     </el-button-group>
                     <el-button
@@ -318,7 +318,7 @@
                     </el-button>
                 </div>
                 <div class="ml-3">
-                    <el-button @click="shareClicked" plain type="info"><i class="fa-solid fa-share-nodes mr-2 p-2"></i>Share</el-button>
+                    <el-button @click="shareClicked" plain><i class="fa-solid fa-share-nodes mr-2"></i>Share</el-button>
                 </div>
             </div>
         </div>

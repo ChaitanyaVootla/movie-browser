@@ -286,7 +286,7 @@
                 </div>
             </el-menu-item>
         </el-menu>
-        <!-- <transition name="view"> -->
+        <transition name="el-fade-in-linear">
             <router-view
                 v-if="isLoaded"
                 class="main-router"
@@ -300,7 +300,7 @@
                 :movieGenres="movieGenres"
                 :seriesGenres="seriesGenres"
             ></router-view>
-        <!-- </transition> -->
+        </transition>
     </div>
 </template>
 

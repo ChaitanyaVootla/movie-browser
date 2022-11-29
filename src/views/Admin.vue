@@ -27,24 +27,24 @@
             :border="true"
         >
             <el-table-column prop="displayName" label="User" sortable :fit="true">
-                <template slot-scope="scope">
+                <template #default="scope">
                     <img class="user-image" :src="scope.row.picture" alt="" />
                     <span class="ml-3">{{ scope.row.name }}</span>
                 </template>
             </el-table-column>
             <el-table-column prop="lastLoggedIn" label="Last seen" sortable :sort-method="lastLoggedInSort" :fit="true">
-                <template slot-scope="scope">
+                <template #default="scope">
                     {{ getTime(scope.row.lastLoggedIn) }}
                 </template>
             </el-table-column>
             <el-table-column prop="email" label="Email" sortable width="200"> </el-table-column>
             <el-table-column label="Last login" sortable :fit="true">
-                <template slot-scope="scope">
+                <template #default="scope">
                     {{ getLastLogin(scope.row) }}
                 </template>
             </el-table-column>
             <el-table-column label="Created at" sortable :fit="true">
-                <template slot-scope="scope">
+                <template #default="scope">
                     {{ getCreatedAt(scope.row) }}
                 </template>
             </el-table-column>

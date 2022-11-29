@@ -12,9 +12,6 @@
     background-color: rgb(29, 29, 29);
 }
 
-/deep/ .el-button--danger {
-    background-color: @main-red;
-}
 .el-loading-mask {
     background-color: rgba(50, 50, 50, 0.9) !important;
 }
@@ -29,11 +26,6 @@
 /deep/ .el-carousel__button {
     border: 2px solid @text-color;
 }
-// Button styles
-/deep/ .el-button {
-    color: @text-color;
-    border-color: #222;
-}
 /deep/ .el-button:hover {
     color: @text-color;
     border-color: #777;
@@ -41,29 +33,6 @@
 /deep/ .el-button:focus {
     color: @text-color;
     border-color: #777;
-}
-/deep/ .el-input__wrapper {
-    color: @text-color;
-    border-color: @light-border;
-    border-radius: @default-radius;
-    // background-color: black;
-}
-/deep/ .el-input__wrapper:hover {
-    color: @text-color;
-    border-color: #222;
-}
-.lightMode {
-    .el-input__wrapper {
-        color: black !important;
-        border-color: #fff !important;
-    }
-    .el-input__wrapper {
-        background-color: #eee !important;
-    }
-    .el-input__wrapper:hover {
-        color: @text-color;
-        border-color: #222;
-    }
 }
 .el-popover {
     border: 1px solid black !important;
@@ -73,10 +42,6 @@
     .popper__arrow {
         display: none !important;
     }
-}
-// date range
-/deep/ .el-range-input {
-    background-color: black;
 }
 /deep/ .el-date-editor .el-range-separator {
     width: 10%;
@@ -147,33 +112,6 @@ Dropdown styles
     &.el-menu--horizontal {
         border: 0;
     }
-}
-/deep/ .el-input-group__append {
-    border-color: #111 !important;
-}
-/deep/ .el-input-group__append:hover {
-    border-color: #222 !important;
-}
-/deep/ .el-button:hover {
-    border-color: #222 !important;
-}
-/deep/ .el-button:focus {
-    border-color: #222 !important;
-    outline: none !important;
-}
-Checkbox
-.el-checkbox__input.is-checked + .el-checkbox__label {
-    color: #bbb !important;
-}
-.el-checkbox__input.is-checked .el-checkbox__wrapper {
-    background-color: @main-red !important;
-    stroke: @text-color !important;
-}
-
-.el-button--danger,
-.el-button--danger:hover,
-.el-button--danger:focus {
-    background-color: @main-red;
 }
 
 // Radio buttons
