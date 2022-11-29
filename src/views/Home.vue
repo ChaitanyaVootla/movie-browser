@@ -581,7 +581,7 @@ export default {
     display: flex;
     align-items: center;
     .el-input__wrapper {
-        border-radius: 1rem;
+        height: 2.5rem;
     }
     /deep/ #autoCompleteSearch {
         border-radius: 1rem;
@@ -703,9 +703,9 @@ export default {
     border: 0 !important;
 }
 .search-menu-item {
-    width: 30em;
+    width: 32em;
     margin-left: 17em !important;
-    right: 12em;
+    right: 10em;
     position: absolute;
 }
 .user-photo {

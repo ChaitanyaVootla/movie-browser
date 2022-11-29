@@ -26,19 +26,19 @@
             :default-sort="{ prop: 'lastLoggedIn', order: 'ascending' }"
             :border="true"
         >
-            <el-table-column prop="displayName" label="User" sortable :fit="true">
+            <el-table-column prop="displayName" label="User" sortable>
                 <template #default="scope">
                     <img class="user-image" :src="scope.row.picture" alt="" />
                     <span class="ml-3">{{ scope.row.name }}</span>
                 </template>
             </el-table-column>
-            <el-table-column prop="email" label="Email" sortable width="200"> </el-table-column>
-            <el-table-column label="Last seen" sortable :fit="true">
+            <el-table-column prop="email" label="Email" sortable> </el-table-column>
+            <el-table-column label="Last seen" sortable>
                 <template #default="scope">
                     {{ getLastLogin(scope.row) }}
                 </template>
             </el-table-column>
-            <el-table-column label="Created at" sortable :fit="true">
+            <el-table-column label="Created at" sortable>
                 <template #default="scope">
                     {{ getCreatedAt(scope.row) }}
                 </template>

@@ -96,26 +96,30 @@ const isMobile = () => {
 
 const getIconFromLink = (watchLink: string) => {
     let imagePath = null;
-    const url = new URL(watchLink);
-    const site = url.hostname.toLowerCase();
-    if (site.includes('hotstar')) {
-        imagePath = '/images/ott/hotstar.png';
-    } else if (site.includes('netflix')) {
-        imagePath = '/images/ott/netflix.svg';
-    } else if (site.includes('prime')) {
-        imagePath = '/images/ott/prime.svg';
-    } else if (site.includes('youtube')) {
-        imagePath = '/images/ott/youtube.png';
-    } else if (site.includes('google')) {
-        imagePath = '/images/ott/google.svg';
-    } else if (site.includes('sony')) {
-        imagePath = '/images/ott/sonyliv.png';
-    } else if (site.includes('apple')) {
-        imagePath = '/images/ott/apple.png';
-    } else if (site.includes('voot')) {
-        imagePath = '/images/ott/voot.png';
-    } else if (site.includes('zee')) {
-        imagePath = '/images/ott/zee.png';
+    try {
+        const url = new URL(watchLink);
+        const site = url.hostname.toLowerCase();
+        if (site.includes('hotstar')) {
+            imagePath = '/images/ott/hotstar.png';
+        } else if (site.includes('netflix')) {
+            imagePath = '/images/ott/netflix.svg';
+        } else if (site.includes('prime')) {
+            imagePath = '/images/ott/prime.svg';
+        } else if (site.includes('youtube')) {
+            imagePath = '/images/ott/youtube.png';
+        } else if (site.includes('google')) {
+            imagePath = '/images/ott/google.svg';
+        } else if (site.includes('sony')) {
+            imagePath = '/images/ott/sonyliv.png';
+        } else if (site.includes('apple')) {
+            imagePath = '/images/ott/apple.png';
+        } else if (site.includes('voot')) {
+            imagePath = '/images/ott/voot.png';
+        } else if (site.includes('zee')) {
+            imagePath = '/images/ott/zee.png';
+        }
+    } catch (error) {
+        console.log(error);
     }
     return {
         imagePath,
