@@ -247,7 +247,7 @@ export default {
     }
 }
 .custom-heading {
-    margin-left: 3rem;
+    margin-left: 2rem;
     display: flex;
     .edit-icon {
         cursor: pointer;

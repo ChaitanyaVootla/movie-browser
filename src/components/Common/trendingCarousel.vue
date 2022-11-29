@@ -84,7 +84,7 @@
                     :hideBadge="true"
                     heading="Movies Watch list"
                     :externalLink="{
-                        name: 'Interests',
+                        name: 'Profile',
                     }"
                 />
                 <div v-else-if="savedFilters.length" class="m-4 p-3 heading">

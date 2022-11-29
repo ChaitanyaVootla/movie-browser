@@ -78,7 +78,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@import '../../Assets/Styles/main.less';
+@import '../Assets/Styles/main.less';
 
 /deep/ .movie-item {
     margin-left: 0.5em;

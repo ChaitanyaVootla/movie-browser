@@ -59,6 +59,8 @@
 <script lang="ts">
 import { api } from '@/API/api';
 import { uniqBy, intersection, sortBy } from 'lodash';
+import MovieCard from '@/components/Common/movieCard.vue';
+
 export default {
     name: 'searchGrid',
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'genres', 'movies'],
@@ -88,6 +90,9 @@ export default {
                 },
             ],
         };
+    },
+    components: {
+        MovieCard,
     },
     computed: {
         filteredMovies() {

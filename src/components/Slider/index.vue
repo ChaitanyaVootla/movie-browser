@@ -271,7 +271,7 @@ export default {
 .slider-heading {
     font-size: 1.4em;
     font-weight: 500;
-    padding-left: 2.2em;
+    padding-left: 1.5rem;
     padding-top: 1em;
     margin-bottom: 0;
 }

@@ -118,7 +118,7 @@
                                     <img :src="countryFlag" />
                                 </el-dropdown-item>
                                 <el-dropdown-item :divided="countryName.length > 0">
-                                    <router-link :to="{ name: 'Interests' }">
+                                    <router-link :to="{ name: 'Profile' }">
                                         <i class="fa-solid fa-user mr-1"></i>
                                         Profile
                                     </router-link>
@@ -247,7 +247,7 @@
                         <template #dropdown>
                             <el-dropdown-menu>
                                 <el-dropdown-item>
-                                    <router-link :to="{ name: 'Interests' }">
+                                    <router-link :to="{ name: 'Profile' }">
                                         <i class="fa-solid fa-user mr-1"></i>
                                         Profile
                                     </router-link>
@@ -386,9 +386,6 @@ export default {
         onSuggestions() {
             return this.$route.name === 'Suggestions';
         },
-        onInterests() {
-            return this.$route.name === 'Interests';
-        },
         onDiscover() {
             return this.$route.name === 'discover';
         },
@@ -402,8 +399,8 @@ export default {
                 return 'WatchList';
             } else if (this.$route.name === 'StreamingNow') {
                 return 'StreamingNow';
-            } else if (this.$route.name === 'Interests') {
-                return 'Interests';
+            } else if (this.$route.name === 'Profile') {
+                return 'Profile';
             } else if (this.$route.name === 'trending') {
                 return 'Trending';
             } else if (this.$route.name === 'Suggestions') {
@@ -556,6 +553,9 @@ export default {
 <style scoped lang="less">
 @import '../Assets/Styles/main.less';
 
+/deep/ .haAclf {
+    background: black;
+}
 .app-logo {
     cursor: pointer;
     font-size: 1.7em;

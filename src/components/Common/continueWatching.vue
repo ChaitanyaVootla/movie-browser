@@ -50,12 +50,16 @@
 
 <script lang="ts">
 import { getIconFromLink, isMobile, sanitizeName, getFullDateText } from '@/common/utils';
+import PopoverInfo from '@/components/Common/popoverInfo.vue';
 
 export default {
     name: 'continueWatching',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
     created() {
         this.item.watchOption = getIconFromLink(this.item.watchLink);
+    },
+    components: {
+        PopoverInfo,
     },
     data() {
         return {

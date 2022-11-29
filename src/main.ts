@@ -80,9 +80,9 @@ const routes = [
         name: 'ShareView',
     },
     {
-        path: '/interests',
-        component: () => import(/* webpackChunkName: "profile" */ '@/components/Interests/index.vue'),
-        name: 'Interests',
+        path: '/profile',
+        component: () => import(/* webpackChunkName: "profile" */ '@/views/Profile.vue'),
+        name: 'Profile',
     },
     {
         path: '/sandbox',

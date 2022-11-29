@@ -41,10 +41,14 @@
 
 <script lang="ts">
 import { getFullDateText, sanitizeName, isMobile } from '@/common/utils';
+import PopoverInfo from '@/components/Common/popoverInfo.vue';
 
 export default {
     name: 'wideCard',
     props: ['item', 'configuration', 'imageRes', 'onSelected', 'disableRatingShadow', 'showHeader'],
+    components: {
+        PopoverInfo,
+    },
     data() {
         return {
             isPopoverVisible: false,
