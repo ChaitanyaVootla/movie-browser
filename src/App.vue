@@ -32,7 +32,9 @@ export default {
 @import '~bootstrap/dist/css/bootstrap.css';
 @import './Assets/Styles/main.less';
 @import './Assets/Styles/element-custom.less';
-
+:root {
+    --primary: #dc3545 !important;
+}
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
         'Helvetica Neue', sans-serif;

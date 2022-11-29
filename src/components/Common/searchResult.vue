@@ -54,8 +54,7 @@
 </template>
 
 <script lang="ts">
-import { getRatingColor, getYear, sanitizeName } from '@/common/utils';
-import Vue from 'vue';
+import { getRatingColor, getYear } from '@/common/utils';
 
 export default {
     name: 'searchResults',

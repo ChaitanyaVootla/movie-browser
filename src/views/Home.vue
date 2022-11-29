@@ -310,8 +310,6 @@ import { sanitizeName } from '@/common/utils';
 import { throttle, find, sortBy } from 'lodash';
 import { configuration, movieGenres, seriesGenres } from '@/common/staticConfig';
 import anime from 'animejs';
-import Vue from 'vue';
-import SearchResults from '@/components/SearchResults/index.vue';
 import SearchResult from '@/components/Common/searchResult.vue';
 
 export default {
@@ -336,7 +334,6 @@ export default {
         };
     },
     components: {
-        SearchResults,
         SearchResult,
     },
     created() {
@@ -633,32 +630,6 @@ export default {
 .left-dropdown-item {
     max-width: 8em;
 }
-.discover-container {
-    box-shadow: 0 7px 20px -5px #222;
-    background: @primary-gray;
-    padding-left: 1.5em;
-    padding-top: 0.2em;
-    font-weight: 400;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    z-index: 101;
-}
-.discover-container .nav-link {
-    margin: 0.6em 0.3em;
-    background: #212121;
-    cursor: pointer;
-    transition: all 300ms;
-    font-weight: 400;
-    color: @text-color;
-}
-.discover-container .nav-link:hover {
-    background: #333;
-}
-.discover-container .nav-link.active {
-    background-color: #333;
-    color: @text-color;
-}
 .discover-row {
     margin: 0;
     position: relative;
@@ -699,60 +670,6 @@ export default {
 .btn-dark {
     background: #111;
     border-radius: 2;
-}
-/* Search Styles */
-.search-bar {
-    padding-left: 1em;
-    border-radius: 3px;
-    background: #111;
-    border-color: #222;
-    color: #eee;
-    font-weight: 400;
-    border-bottom-right-radius: 0;
-    border-top-right-radius: 0;
-    border-bottom-left-radius: 7px;
-    border-top-left-radius: 7px;
-    width: 85% !important;
-    position: relative;
-    text-transform: capitalize;
-}
-.search-bar:focus {
-    background: #000;
-    border-color: #111;
-}
-.search-dropdown {
-    position: absolute;
-    top: 3.4em;
-    z-index: 100;
-    scroll-behavior: smooth;
-    width: 100%;
-    overflow-x: hidden;
-    color: @text-color !important;
-    border-radius: 3px;
-    max-height: 30em;
-    box-shadow: 0px 30px 60px 20px rgba(0, 0, 0, 0.95);
-    background: #000;
-    border-color: #000;
-    color: #ccc;
-    padding: 0.5em;
-}
-.search-intput-container {
-    position: absolute;
-    width: 100%;
-}
-.search-dropdown .dropdown-item {
-    color: @text-color !important;
-}
-.search-button {
-    background: #111;
-    border-color: #222;
-    color: #eee;
-    font-weight: 500;
-    border-bottom-left-radius: 0;
-    border-top-left-radius: 0;
-    border-bottom-right-radius: 7px;
-    border-top-right-radius: 7px;
-    position: relative;
 }
 .type-switch-container {
     display: flex;
@@ -801,10 +718,6 @@ export default {
     right: 12em;
     position: absolute;
 }
-.search-no-results {
-    padding: 1em;
-    text-align: center;
-}
 .user-photo {
     height: 2em;
     width: auto;
@@ -815,7 +728,7 @@ export default {
     width: 5em;
 }
 .top-navbar {
-    box-shadow: 0px -6px 10px 7px rgba(148, 148, 148, 0.1);
+    box-shadow: 0px -6px 10px 7px rgba(167, 167, 167, 0.1);
     position: fixed;
     width: 100%;
     z-index: 100;
@@ -861,31 +774,6 @@ export default {
 }
 .view-leave-to {
     opacity: 0;
-}
-.lightMode {
-    .el-menu {
-        background-color: rgb(248, 248, 248);
-    }
-    .top-navbar {
-        box-shadow: 0px -6px 10px 7px rgba(148, 148, 148);
-    }
-    .el-menu-item {
-        color: @link-color-red !important;
-    }
-    .search-button {
-        background: #eee;
-        border-color: #222;
-        color: black;
-    }
-    .el-menu-item:hover.menu-item-nobg {
-        background-color: rgb(248, 248, 248) !important;
-    }
-    .search-dropdown {
-        background-color: rgb(248, 248, 248) !important;
-    }
-    .dropdown-item:hover {
-        background: #eee !important;
-    }
 }
 .nav-menu-item {
     .flex-nav-item {
@@ -944,10 +832,6 @@ export default {
     .menu-center-item {
         left: auto;
     }
-    .search-dropdown {
-        width: 80%;
-        left: 1em;
-    }
     .el-menu-item {
         color: @text-color !important;
         margin: 0 0.6rem !important;
@@ -957,11 +841,6 @@ export default {
         margin-left: 0 !important;
         left: 0.5em;
         padding: 0;
-    }
-    .search-dropdown {
-        width: 100%;
-        max-height: 30em;
-        left: 0;
     }
     .user-menu-item {
         display: flex;

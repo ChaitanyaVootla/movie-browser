@@ -27,7 +27,6 @@ VueApp.component('discover', require('./views/Discover.vue').default);
 VueApp.component('WatchList', require('./views/WatchList.vue').default);
 VueApp.component('ShareView', require('./components/ShareView/index.vue').default);
 VueApp.component('person', require('./views/Person.vue').default);
-VueApp.component('searchResults', require('./components/SearchResults/index.vue').default);
 VueApp.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
 VueApp.component('searchGrid', require('./components/Common/searchGrid.vue').default);
 

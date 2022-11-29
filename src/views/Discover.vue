@@ -278,6 +278,7 @@
                             @click="filterClicked"
                             class="filter"
                             round
+                            plain
                             :type="filterName === savedFilter.name ? 'danger' : ''"
                         >
                             {{ savedFilter.name }}
