@@ -154,9 +154,9 @@
                             },
                         }"
                     >
-                        <div class="keyword">
+                        <el-button round plain>
                             {{ keyword.name }}
-                        </div>
+                        </el-button>
                     </router-link>
                     <span v-if="keywords.length > 5" class="expand-ellipsis" @click="showAllTags = !showAllTags"
                         >...</span

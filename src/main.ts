@@ -6,7 +6,6 @@ import ElementPlus from 'element-plus';
 import { store } from './store';
 import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css'
-import './Assets/Styles/element-ui.scss';
 
 const VueApp = createApp(App);
 VueApp.use(store);
