@@ -97,7 +97,7 @@
             <p>{{ dialogEpisode.overview }}</p>
 
             <el-carousel height="700px" style="padding: 1em 0">
-                <el-carousel-item v-for="image in dialogEpisode.images.stills" :key="image.file_path">
+                <el-carousel-item v-for="image in dialogEpisode.images?.stills" :key="image.file_path">
                     <div class="justify-center">
                         <img
                             v-lazy="{

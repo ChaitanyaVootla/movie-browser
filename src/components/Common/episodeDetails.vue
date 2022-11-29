@@ -59,7 +59,7 @@ export default {
             return moment(this.details.air_date).fromNow();
         },
         stills() {
-            return this.details.images.stills.slice(0, 7);
+            return this.details.images?.stills.slice(0, 7);
         },
     },
 };

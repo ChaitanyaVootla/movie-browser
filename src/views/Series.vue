@@ -195,10 +195,10 @@
                     :isEpisode="true"
                 ></mb-slider>
             </div>
-            <div class="more-info mt-4 mb-4">
+            <div class="more-info mt-4 mb-4" v-if="false">
                 <div class="episodeDetails">
                     <episodeDetails
-                        v-if="lastEpisodeDetails.name"
+                        v-if="lastEpisodeDetails.overview?.length"
                         :configuration="configuration"
                         :details="lastEpisodeDetails"
                         class="mt-4 mb-4"
