@@ -32,13 +32,8 @@
                     <span class="ml-3">{{ scope.row.name }}</span>
                 </template>
             </el-table-column>
-            <el-table-column prop="lastLoggedIn" label="Last seen" sortable :sort-method="lastLoggedInSort" :fit="true">
-                <template #default="scope">
-                    {{ getTime(scope.row.lastLoggedIn) }}
-                </template>
-            </el-table-column>
             <el-table-column prop="email" label="Email" sortable width="200"> </el-table-column>
-            <el-table-column label="Last login" sortable :fit="true">
+            <el-table-column label="Last seen" sortable :fit="true">
                 <template #default="scope">
                     {{ getLastLogin(scope.row) }}
                 </template>

@@ -13,7 +13,6 @@
     "dependencies": {
         "@types/jquery": "^3.3.31",
         "@types/lodash": "^4.14.144",
-        "animejs": "^3.2.1",
         "bootstrap": "4.3.1",
         "countries-and-timezones": "^3.3.0",
         "element-plus": "2.2.25",

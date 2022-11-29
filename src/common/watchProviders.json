@@ -12,6 +12,30 @@
         "provider_id": 122
     },
     {
+        "display_priority": 1,
+        "logo_path": "/emthp39XA2YScoYL1p0sdbAH2WA.jpg",
+        "provider_name": "Amazon Prime Video",
+        "provider_id": 119
+    },
+    {
+        "display_priority": 13,
+        "logo_path": "/m3NWxxR23l1w1e156fyTuw931gx.jpg",
+        "provider_name": "aha",
+        "provider_id": 532
+    },
+    {
+        "display_priority": 11,
+        "logo_path": "/6uhKBfmtzFqOcLousHwZuzcrScK.jpg",
+        "provider_name": "Apple TV Plus",
+        "provider_id": 350
+    },
+    {
+        "display_priority": 6,
+        "logo_path": "/zxrVdFjIjLqkfnwyghnfywTn3Lh.jpg",
+        "provider_name": "Hulu",
+        "provider_id": 15
+    },
+    {
         "display_priority": 0,
         "logo_path": "/w1T8s7FqakcfucR8cgOvbe6UeXN.jpg",
         "provider_name": "Okko",
@@ -22,18 +46,6 @@
         "logo_path": "/bKy2YjC0QxViRnd8ayd2pv2ugJZ.jpg",
         "provider_name": "Fetch TV",
         "provider_id": 436
-    },
-    {
-        "display_priority": 1,
-        "logo_path": "/emthp39XA2YScoYL1p0sdbAH2WA.jpg",
-        "provider_name": "Amazon Prime Video",
-        "provider_id": 119
-    },
-    {
-        "display_priority": 1,
-        "logo_path": "/emthp39XA2YScoYL1p0sdbAH2WA.jpg",
-        "provider_name": "Amazon Prime Video",
-        "provider_id": 9
     },
     {
         "display_priority": 1,
@@ -270,10 +282,10 @@
         "provider_id": 323
     },
     {
-        "display_priority": 6,
-        "logo_path": "/zxrVdFjIjLqkfnwyghnfywTn3Lh.jpg",
-        "provider_name": "Hulu",
-        "provider_id": 15
+        "display_priority": 1,
+        "logo_path": "/emthp39XA2YScoYL1p0sdbAH2WA.jpg",
+        "provider_name": "Amazon Prime Video",
+        "provider_id": 9
     },
     {
         "display_priority": 6,
@@ -559,12 +571,6 @@
     },
     {
         "display_priority": 11,
-        "logo_path": "/6uhKBfmtzFqOcLousHwZuzcrScK.jpg",
-        "provider_name": "Apple TV Plus",
-        "provider_id": 350
-    },
-    {
-        "display_priority": 11,
         "logo_path": "/5NyLm42TmCqCMOZFvH4fcoSNKEW.jpg",
         "provider_name": "Amazon Video",
         "provider_id": 10
@@ -700,12 +706,6 @@
         "logo_path": "/oSJqnUUeoHfUj86Wsu2oq6VXLXE.jpg",
         "provider_name": "RTPplay",
         "provider_id": 452
-    },
-    {
-        "display_priority": 13,
-        "logo_path": "/m3NWxxR23l1w1e156fyTuw931gx.jpg",
-        "provider_name": "aha",
-        "provider_id": 532
     },
     {
         "display_priority": 13,

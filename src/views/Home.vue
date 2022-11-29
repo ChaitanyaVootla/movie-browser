@@ -307,9 +307,8 @@
 <script lang="ts">
 import { api } from '@/API/api';
 import { sanitizeName } from '@/common/utils';
-import { throttle, find, sortBy } from 'lodash';
+import { find } from 'lodash';
 import { configuration, movieGenres, seriesGenres } from '@/common/staticConfig';
-import anime from 'animejs';
 import SearchResult from '@/components/Common/searchResult.vue';
 
 export default {
@@ -345,15 +344,6 @@ export default {
             event.stopPropagation();
         });
         window.addEventListener('keypress', this.onKeyPress);
-        this.logoAnimation = anime({
-            targets: '.app-logo',
-            rotate: ['', '180', ''],
-            borderRadius: ['0%', '50%', '0%'],
-            backgroundColor: ['#850909', '#fff', '#8f0b0b'],
-            easing: 'easeInOutQuad',
-            autoplay: false,
-            duration: 500,
-        });
     },
     computed: {
         countryName() {

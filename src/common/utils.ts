@@ -127,7 +127,7 @@ const mapGoogleData = (data: any) => {
     let allWatchOptions = [];
 
     let ratings = [];
-    data.ratings.forEach((rating) => {
+    data.ratings?.forEach((rating) => {
         let imagePath = null;
         if (rating.name === 'IMDb') {
             imagePath = '/images/rating/imdb.svg';
@@ -145,7 +145,7 @@ const mapGoogleData = (data: any) => {
         }
     });
 
-    data.allWatchOptions.forEach((watchOption) => {
+    data.allWatchOptions?.forEach((watchOption) => {
         let imagePath;
         if (watchOption.name.toLowerCase().includes('hotstar')) {
             imagePath = '/images/ott/hotstar.png';

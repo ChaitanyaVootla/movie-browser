@@ -1,5 +1,20 @@
 [
     {
+        "iso_639_1": "en",
+        "english_name": "English",
+        "name": "English"
+    },
+    {
+        "iso_639_1": "hi",
+        "english_name": "Hindi",
+        "name": "हिन्दी"
+    },
+    {
+        "iso_639_1": "te",
+        "english_name": "Telugu",
+        "name": "తెలుగు"
+    },
+    {
         "iso_639_1": "bi",
         "english_name": "Bislama",
         "name": ""
@@ -188,11 +203,6 @@
         "iso_639_1": "uk",
         "english_name": "Ukrainian",
         "name": "Український"
-    },
-    {
-        "iso_639_1": "en",
-        "english_name": "English",
-        "name": "English"
     },
     {
         "iso_639_1": "ay",
@@ -755,11 +765,6 @@
         "name": "广州话 / 廣州話"
     },
     {
-        "iso_639_1": "hi",
-        "english_name": "Hindi",
-        "name": "हिन्दी"
-    },
-    {
         "iso_639_1": "cy",
         "english_name": "Welsh",
         "name": "Cymraeg"
@@ -793,11 +798,6 @@
         "iso_639_1": "ss",
         "english_name": "Swati",
         "name": ""
-    },
-    {
-        "iso_639_1": "te",
-        "english_name": "Telugu",
-        "name": "తెలుగు"
     },
     {
         "iso_639_1": "kg",
