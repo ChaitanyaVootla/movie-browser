@@ -22,6 +22,7 @@
 <script lang="ts">
 import { find, uniqBy } from 'lodash';
 import { api } from '@/API/api';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'FilterView',
@@ -35,6 +36,9 @@ export default {
         'seriesGenres',
         'uuid',
     ],
+    components: {
+        MbSlider,
+    },
     data() {
         return {
             computedDiscoverQuery: '',

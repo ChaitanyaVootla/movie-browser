@@ -10,26 +10,27 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 const VueApp = createApp(App);
 VueApp.use(store);
 VueApp.use(ElementPlus, { zIndex: 3000 });
-(<any>window).$ = require('jquery');
+import jquery from 'jquery';
+(<any>window).$ = jquery;
 
-VueApp.component('mbSlider', require('./components/Slider').default);
-VueApp.component('movieCard', require('./components/Common/movieCard.vue').default);
-VueApp.component('movieInfoFull', require('./views/Movie.vue').default);
-VueApp.component('seriesInfo', require('./views/Series.vue').default);
-VueApp.component('personCard', require('./components/Common/personCard.vue').default);
-VueApp.component('episodeCard', require('./components/Common/episodeCard.vue').default);
-VueApp.component('popoverInfo', require('./components/Common/popoverInfo.vue').default);
-VueApp.component('continueWatching', require('./components/Common/continueWatching.vue').default);
-VueApp.component('wideCard', require('./components/Common/wideCard.vue').default);
+// VueApp.component('mbSlider', require('./components/Slider').default);
+// VueApp.component('movieCard', require('./components/Common/movieCard.vue').default);
+// VueApp.component('movieInfoFull', require('./views/Movie.vue').default);
+// VueApp.component('seriesInfo', require('./views/Series.vue').default);
+// VueApp.component('personCard', require('./components/Common/personCard.vue').default);
+// VueApp.component('episodeCard', require('./components/Common/episodeCard.vue').default);
+// VueApp.component('popoverInfo', require('./components/Common/popoverInfo.vue').default);
+// VueApp.component('continueWatching', require('./components/Common/continueWatching.vue').default);
+// VueApp.component('wideCard', require('./components/Common/wideCard.vue').default);
 
-VueApp.component('discover', require('./views/Discover.vue').default);
-VueApp.component('WatchList', require('./views/WatchList.vue').default);
-VueApp.component('ShareView', require('./components/ShareView/index.vue').default);
-VueApp.component('person', require('./views/Person.vue').default);
-VueApp.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
-VueApp.component('searchGrid', require('./components/Common/searchGrid.vue').default);
+// VueApp.component('discover', require('./views/Discover.vue').default);
+// VueApp.component('WatchList', require('./views/WatchList.vue').default);
+// VueApp.component('ShareView', require('./components/ShareView/index.vue').default);
+// VueApp.component('person', require('./views/Person.vue').default);
+// VueApp.component('trendingCarousel', require('./components/Common/trendingCarousel.vue').default);
+// VueApp.component('searchGrid', require('./components/Common/searchGrid.vue').default);
 
-VueApp.component('Home', require('./views/Home.vue').default);
+// VueApp.component('Home', require('./views/Home.vue').default);
 
 const routes = [
     {

@@ -38,6 +38,7 @@
 import { compact, sortBy } from 'lodash';
 import { getRatingColor } from '@/common/utils';
 import moment from 'moment';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'shareView',
@@ -49,6 +50,9 @@ export default {
             seriesList: [] as any[],
             user: {} as any,
         };
+    },
+    components: {
+        MbSlider,
     },
     created() {
         this.getUsers();

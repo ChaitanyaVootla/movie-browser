@@ -116,6 +116,11 @@
 import { api } from '@/API/api';
 import { v4 as uuidv4 } from 'uuid';
 import { getFullDateText, getDateText } from '@/common/utils';
+import EpisodeCard from '@/components/Common/episodeCard.vue';
+import PersonCard from '@/components/Common/personCard.vue';
+import MovieCard from '@/components/Common/movieCard.vue';
+import ContinueWatching from '@/components/Common/continueWatching.vue';
+import WideCard from '@/components/Common/wideCard.vue';
 
 export default {
     name: 'mbSlider',
@@ -138,6 +143,13 @@ export default {
         'seriesInfo',
         'seasonInfo',
     ],
+    components: {
+        EpisodeCard,
+        PersonCard,
+        MovieCard,
+        ContinueWatching,
+        WideCard,
+    },
     data() {
         return {
             scrollValue: 500,

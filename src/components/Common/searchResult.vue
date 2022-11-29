@@ -28,13 +28,11 @@
                 </span>
             </div>
             <div v-if="searchItem.media_type !== 'person'" class="mt-3">
-                <div
-                    class="rating-info"
-                    :style="`border-color: ${getRatingColor(searchItem.vote_average)}; color: ${getRatingColor(
-                        searchItem.vote_average,
-                    )}`"
-                >
-                    {{ searchItem.vote_average ? searchItem.vote_average : '-' }}
+                <div class="rating-container tmdb-rating">
+                    <a href="" target="_blank" rel="noreferrer noopener">
+                        <img src="/images/rating/tmdb.svg" /><br />
+                        <span>{{ searchItem.vote_average? searchItem.vote_average.toFixed(1): '-' }}</span>
+                    </a>
                 </div>
             </div>
             <div v-if="searchItem.media_type === 'person'" class="mt-4">
@@ -69,6 +67,17 @@ export default {
 </script>
 
 <style scoped lang="less">
+.rating-container {
+    display: flex;
+    a {
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+    img {
+        height: 1rem;
+    }
+}
 .search-item {
     display: flex;
     margin-bottom: 0.5em;

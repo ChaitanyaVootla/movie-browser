@@ -299,6 +299,7 @@ import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import episodeDetails from '@/components/Common/episodeDetails.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'seriesInfo',
@@ -309,6 +310,7 @@ export default {
         rtReviews,
         episodeDetails,
         videoSlider,
+        MbSlider,
     },
     data() {
         return {

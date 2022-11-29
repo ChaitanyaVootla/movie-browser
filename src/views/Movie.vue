@@ -300,6 +300,7 @@ import moment from 'moment';
 import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'movieInfo',
@@ -309,6 +310,7 @@ export default {
         rank,
         rtReviews,
         videoSlider,
+        MbSlider,
     },
     data() {
         return {

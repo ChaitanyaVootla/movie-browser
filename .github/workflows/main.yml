@@ -41,22 +41,20 @@ jobs:
               push: true
               tags: chaitanyavootla/tmb:latest
 
-    Vue_Build:
+    Build_Frontend:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-            - name: Set Node.js 14
+            - name: Set Node.js 16
               uses: actions/setup-node@v2
               with:
-                node-version: '14'
+                node-version: '16'
             - name: Setup
               timeout-minutes: 2
               run: |
                 ls
                 touch .env
                 echo "VUE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
-                echo "MONGO_USER=$MONGO_USER" >> .env
-                echo "MONGO_PASS=$MONGO_PASS" >> .env
                 npm install
                 ls
             - name: Build

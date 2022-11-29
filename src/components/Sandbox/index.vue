@@ -54,6 +54,7 @@ import axios from 'axios';
 import { appConfig } from '@/API/Constants';
 import watchProviders from '@/common/watchProviders.json';
 import languages from '@/common/languages.json';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'Sandbox',
@@ -88,6 +89,9 @@ export default {
             ],
             selectedSortOrder: 'primary_release_date.desc',
         };
+    },
+    components: {
+        MbSlider,
     },
     props: ['configuration', 'showMovieInfo', 'showFullMovieInfo', 'showSeriesInfo', 'movieGenres', 'seriesGenres'],
     created() {

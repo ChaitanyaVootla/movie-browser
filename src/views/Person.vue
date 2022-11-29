@@ -128,10 +128,14 @@
 import { api } from '@/API/api';
 import { filter, sortBy, groupBy, each, first } from 'lodash';
 import { isMobile } from '@/common/utils';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'person',
     props: ['person', 'configuration', 'showMovieInfo', 'showFullMovieInfo'],
+    components: {
+        MbSlider,
+    },
     data() {
         return {
             details: {} as any,

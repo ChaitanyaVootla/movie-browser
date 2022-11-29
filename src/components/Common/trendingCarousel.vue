@@ -1,6 +1,6 @@
 <template>
     <div>
-        <mb-slider
+        <MbSlider
             class="desk-hide"
             v-if="seriesWatchList.length"
             :items="seriesWatchList"
@@ -9,7 +9,7 @@
             :showFullMovieInfo="showSeriesInfo"
             :history="true"
             heading="Upcoming Episodes"
-        ></mb-slider>
+        />
         <el-row class="week-trends-container pt-2 mobile-hide">
             <el-col :span="15">
                 <el-carousel
@@ -51,7 +51,7 @@
                 </el-carousel>
             </el-col>
             <el-col :span="9" class="sliders-container">
-                <mb-slider
+                <MbSlider
                     v-if="seriesWatchList.length"
                     :items="seriesWatchList"
                     :configuration="configuration"
@@ -63,8 +63,8 @@
                     :externalLink="{
                         name: 'WatchList',
                     }"
-                ></mb-slider>
-                <mb-slider
+                />
+                <MbSlider
                     v-else
                     :items="currentStreaming"
                     :configuration="configuration"
@@ -73,8 +73,8 @@
                     :history="true"
                     :hideBadge="true"
                     heading="Streaming now"
-                ></mb-slider>
-                <mb-slider
+                />
+                <MbSlider
                     v-if="watchListMovies.length"
                     :items="watchListMovies"
                     :configuration="configuration"
@@ -86,7 +86,7 @@
                     :externalLink="{
                         name: 'Interests',
                     }"
-                ></mb-slider>
+                />
                 <div v-else-if="savedFilters.length" class="m-4 p-3 heading">
                     <div class="mb-3">Saved Filters</div>
                     <div class="filters-container">
@@ -110,7 +110,7 @@
                     </div>
                 </div>
                 <div v-else>
-                    <mb-slider
+                    <MbSlider
                         :items="playingNowMovies"
                         :configuration="configuration"
                         :id="'playingNowMovies'"
@@ -119,7 +119,7 @@
                         :history="true"
                         :hideBadge="true"
                         heading="Now in Theatres"
-                    ></mb-slider>
+                    />
                 </div>
             </el-col>
         </el-row>
@@ -132,6 +132,7 @@ import { getRatingColor, mapGoogleData } from '@/common/utils';
 import { sortBy, compact } from 'lodash';
 import moment from 'moment';
 import GoogleData from '../Common/googleData.vue';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'trendingCarousel',
@@ -146,6 +147,7 @@ export default {
     ],
     components: {
         GoogleData,
+        MbSlider,
     },
     data() {
         return {

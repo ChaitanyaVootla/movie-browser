@@ -89,8 +89,9 @@
 <script lang="ts">
 import axios from 'axios';
 import { appConfig } from '@/API/Constants';
-import * as watchProvidersArray from '@/common/watchProviders.json';
+import watchProvidersArray from '@/common/watchProviders.json';
 import languages from '@/common/languages.json';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'Sandbox',
@@ -126,6 +127,9 @@ export default {
             ],
             selectedSortOrder: 'popularity.desc',
         };
+    },
+    components: {
+        MbSlider,
     },
     props: {
         configuration: Object,

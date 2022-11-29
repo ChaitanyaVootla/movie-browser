@@ -1,6 +1,6 @@
 <template>
     <div>
-        <trending-carousel
+        <TrendingCarousel
             class="trending-carousel-container"
             :configuration="configuration"
             :showMovieInfoModal="showMovieInfo"
@@ -9,10 +9,10 @@
             :movieGenres="movieGenres"
             :seriesGenres="seriesGenres"
             :trendingMovies="trendingMovies"
-        ></trending-carousel>
+        />
         <div>
             <div v-if="isTrendingDataLoaded" class="trending-sliders-container">
-                <mb-slider
+                <MbSlider
                     v-if="continueWatching.length"
                     :items="continueWatching"
                     :configuration="configuration"
@@ -21,15 +21,15 @@
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showFullMovieInfo"
                     :isContinueWatching="true"
-                ></mb-slider>
-                <mb-slider
+                />
+                <MbSlider
                     :items="trendingMovies"
                     :configuration="configuration"
                     :heading="'Trending Movies'"
                     :id="'trendingMovies'"
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showFullMovieInfo"
-                ></mb-slider>
+                />
                 <CustomView
                     :configuration="configuration"
                     class="mt-4"
@@ -39,15 +39,15 @@
                         streaming: true,
                     }"
                 />
-                <mb-slider
+                <MbSlider
                     :items="trendingTv"
                     :configuration="configuration"
                     :heading="'Trending Series'"
                     :id="'trendingSeries'"
                     :showMovieInfoModal="showMovieInfo"
                     :showFullMovieInfo="showSeriesInfo"
-                ></mb-slider>
-                <mb-slider
+                />
+                <MbSlider
                     v-if="recentVisits.length"
                     :items="recentVisits"
                     :configuration="configuration"
@@ -56,7 +56,7 @@
                     heading="Recent visits"
                     :isWideCard="true"
                     class="mb-4"
-                ></mb-slider>
+                />
                 <!-- <div v-if="uuid.length && user.name">
                     <FilterView
                         :uuid="uuid"
@@ -80,6 +80,8 @@
 import { api } from '@/API/api';
 import CustomView from '@/components/CustomView/index.vue';
 import FilterView from '@/components/FilterView/index.vue';
+import TrendingCarousel from '@/components/Common/trendingCarousel.vue';
+import MbSlider from '@/components/Slider/index.vue';
 import { sortBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -89,6 +91,8 @@ export default {
     components: {
         CustomView,
         FilterView,
+        TrendingCarousel,
+        MbSlider,
     },
     data() {
         return {

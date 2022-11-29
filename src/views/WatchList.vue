@@ -57,6 +57,7 @@
 import { compact, sortBy } from 'lodash';
 import { getRatingColor } from '@/common/utils';
 import moment from 'moment';
+import MbSlider from '@/components/Slider/index.vue';
 
 export default {
     name: 'watchList',
@@ -66,6 +67,9 @@ export default {
             getRatingColor,
             shareListModalVisible: false,
         };
+    },
+    components: {
+        MbSlider,
     },
     computed: {
         shareLink() {

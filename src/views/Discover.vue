@@ -374,6 +374,7 @@ import { find, uniqBy, sortBy } from 'lodash';
 import { certifications } from '@/common/certifications';
 import watchProviders from '@/common/watchProviders.json';
 import languages from '@/common/languages.json';
+import MovieCard from '@/components/Common/movieCard.vue';
 import moment from 'moment';
 
 export default {
@@ -387,6 +388,9 @@ export default {
         'movieGenres',
         'seriesGenres',
     ],
+    components: {
+        MovieCard,
+    },
     data() {
         return {
             certifications,

@@ -16,8 +16,7 @@
         >
             <div
                 class="movie-item"
-                :class="`${canApplySideBarFilter && !isInSideBarFilter ? 'sideBarFilter' : ''}
-                ${isTodayCard ? 'isTodayCard' : ''} ${isWatched ? 'watched' : ''} ${hideBadge ? 'trim-height' : ''}`"
+                :class="`${isTodayCard ? 'isTodayCard' : ''} ${isWatched ? 'watched' : ''} ${hideBadge ? 'trim-height' : ''}`"
             >
                 <el-badge
                     :value="isMobile() || hideBadge ? '' : badgeText"
@@ -278,23 +277,14 @@ export default {
 .sideBarFilter {
     opacity: 0.1;
 }
-.popover-bg-image {
-    position: absolute;
-    object-fit: cover;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    z-index: -1;
-    opacity: 0.2;
-}
 .ott-icon {
     width: 3em;
 }
 /deep/ .el-badge__content {
     font-weight: 700;
     font-size: 0.7em;
-    right: 10em;
-    top: 24.5em;
+    right: 10em !important;
+    top: 24.5em !important;
 }
 /deep/ .el-badge.isHoverActive .el-badge__content {
     z-index: 55;
@@ -312,6 +302,7 @@ export default {
 /deep/ .el-badge.RECENT .el-badge__content {
     background-color: @red-badge-color;
     color: @primary-gray;
+    right: 11em !important;
 }
 /deep/ .el-badge.NEW .el-badge__content {
     background-color: @red-badge-color;
@@ -320,29 +311,29 @@ export default {
 /deep/ .el-badge.WATCH .el-badge__content {
     background-color: rgb(255, 255, 255);
     color: @primary-gray;
-    right: 11em;
+    right: 11em !important;
 }
 /deep/ .el-badge.UNRELEASED .el-badge__content {
     background-color: gray;
-    right: 11.5em;
+    right: 11.5em !important;
 }
 /deep/ .el-badge.WATCHED .el-badge__content {
     background-color: black;
     color: @text-color;
-    right: 11.5em;
+    right: 11.5em !important;
 }
 /deep/ .el-badge.WATCHING .el-badge__content {
     background-color: green;
-    right: 11.5em;
+    right: 11.5em !important;
 }
 /deep/ .el-badge.BACKDROP .el-badge__content {
     background-color: purple;
-    right: 11.5em;
+    right: 11.5em !important;
 }
 .watched-overlay {
     position: absolute;
     bottom: 0;
-    right: 0;
+    right: 0 !important;
     font-size: 1em;
     margin: 0.5em;
     opacity: 1;
