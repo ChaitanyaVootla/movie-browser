@@ -67,10 +67,8 @@
                         :fit-input-width="true"
                         @select="searchItemclicked"
                     >
-                        <!-- <div slot="suffix">
-                            <span class="search-shortcut">/</span>
-                        </div> -->
                         <template #suffix>
+                            <span class="search-shortcut">/</span>
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </template>
                         <template #default="{ item }">
@@ -583,16 +581,20 @@ export default {
     .el-input__wrapper {
         height: 2.5rem;
         border-radius: 1.5rem;
+        padding-left: 1rem;
     }
     /deep/ #autoCompleteSearch {
         border-radius: 1rem;
         margin-top: -3px;
     }
     .search-shortcut {
-        border: 1px #444 solid;
-        padding: 2px 10px;
-        border-radius: 5px;
-        margin-right: 0.5rem;
+        border: 1px rgb(72, 72, 72) solid;
+        padding: 0 10px;
+        height: 1.5rem;
+        line-height: 1.5rem;
+        font-weight: bold;
+        border-radius: 3px;
+        margin-right: 1rem;
     }
 }
 .drawer-button {

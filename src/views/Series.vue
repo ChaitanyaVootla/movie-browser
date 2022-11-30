@@ -112,7 +112,7 @@
                         placement="right"
                         :disabled="user.name"
                     >
-                        <el-button @click="addToWatchList" round plain>
+                        <el-button @click="addToWatchList" round plain type="info">
                             Add to watch list
                             <i class="fa-solid fa-plus ml-1"></i>
                         </el-button>
@@ -131,10 +131,10 @@
                         target="_blank"
                         class="mr-4"
                     >
-                        <div class="parental-guide">
+                        <el-button link>
                             Parental Guide
-                            <i class="el-icon-top-right"></i>
-                        </div>
+                            <i class="ml-1 fa-solid fa-arrow-right fa-rotate-by" style="--fa-rotate-angle: -45deg;"></i>
+                        </el-button>
                     </a>
                 </div>
                 <div class="overview pt-3">

@@ -121,7 +121,7 @@
                         :disabled="isSignedIn"
                         placement="top"
                     >
-                        <el-button round plain :type="isWatched ? 'danger' : ''" @click="watchedClicked">
+                        <el-button round plain :type="isWatched ? 'danger' : 'info'" @click="watchedClicked">
                             <div v-show="isWatched"> Watched <i class="fa-solid fa-check ml-2"></i> </div>
                             <div v-show="!isWatched"> Watched this? </div>
                         </el-button>
@@ -133,7 +133,7 @@
                         :disabled="isSignedIn"
                         placement="top"
                     >
-                        <el-button round plain :type="isInWatchList ? 'danger' : ''" @click="addToListClicked">
+                        <el-button round plain :type="isInWatchList ? 'danger' : 'info'" @click="addToListClicked">
                             <div v-show="isInWatchList"> In Watch List <i class="fa-solid fa-check ml-2"></i> </div>
                             <div v-show="!isInWatchList"> Add to Watch List <i class="fa-solid fa-plus ml-2"></i> </div>
                         </el-button>
@@ -150,12 +150,11 @@
                         v-if="details.imdb_id"
                         :href="`https://www.imdb.com/title/${details.imdb_id}/parentalguide`"
                         target="_blank"
-                        class="mr-4"
                     >
-                        <div class="parental-guide">
+                        <el-button link>
                             Parental Guide
-                            <i class="el-icon-top-right"></i>
-                        </div>
+                            <i class="ml-1 fa-solid fa-arrow-right fa-rotate-by" style="--fa-rotate-angle: -45deg;"></i>
+                        </el-button>
                     </a>
                 </div>
                 <div class="pt-3 overview">
