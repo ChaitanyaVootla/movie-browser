@@ -582,6 +582,7 @@ export default {
     align-items: center;
     .el-input__wrapper {
         height: 2.5rem;
+        border-radius: 1.5rem;
     }
     /deep/ #autoCompleteSearch {
         border-radius: 1rem;

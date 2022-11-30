@@ -33,7 +33,6 @@ export default {
 @import './Assets/Styles/element-custom.less';
 :root {
     --el-color-primary: @link-color-red !important;
-    --el-border-radius-base: 2rem !important;
     --el-border-width: 1.5px !important;
     --el-border-color: #3f3f3f !important;
 }

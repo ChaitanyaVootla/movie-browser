@@ -349,7 +349,7 @@ export default {
         height: @img-trim-height-percent !important;
     }
     &:hover {
-        transform: scale(1.02);
+        transform: scale(1.01);
     }
 }
 .movie-card-title {
@@ -435,7 +435,7 @@ export default {
 }
 .img-container:active {
     box-shadow: none;
-    transform: scale(0.98);
+    // transform: scale(0.98);
 }
 .rating-info {
     font-size: 0.9em;
