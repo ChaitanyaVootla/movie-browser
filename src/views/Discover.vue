@@ -293,25 +293,13 @@
                 </el-alert>
                 <div class="ml-3 mobile-hide save-container">
                     <el-button-group v-if="isSavedFilterView">
-                        <el-button @click="saveFilter"> Update Filter </el-button>
-                        <el-tooltip
-                            class="item"
-                            effect="light"
-                            content="Clear Filter"
-                            placement="bottom"
-                            v-if="isSavedFilterView"
-                        >
-                            <el-button @click="clearFilter">Clear</el-button>
-                        </el-tooltip>
-                        <el-tooltip class="item" effect="light" content="Delete Filter" placement="bottom">
-                            <el-button @click="deleteClicked"> Delete </el-button>
-                        </el-tooltip>
+                        <el-button plain @click="saveFilter"> Update Filter </el-button>
+                        <el-button plain @click="clearFilter">Clear</el-button>
+                        <el-button plain @click="deleteClicked"> Delete </el-button>
                     </el-button-group>
                     <el-button
-                        @click="
-                            saveFilterDialogVisible = true;
-                            filterName = '';
-                        "
+                        plain
+                        @click="saveFilterClicked()"
                         v-else
                     >
                         Create Filter
@@ -350,10 +338,10 @@
         <div class="loader-main" v-if="isDataLoading"></div>
         <el-dialog
             :title="filterName ? 'Delete Search' : 'Save Search'"
-            :visible.sync="saveFilterDialogVisible"
+            v-model="saveFilterDialogVisible"
             width="30%"
         >
-            <el-input placeholder="Name" v-model="filterName"></el-input>
+            <el-input placeholder="Name" v-model="tempFilterName"></el-input>
             <span slot="footer" class="dialog-footer">
                 <el-button
                     @click="deleteFilter"
@@ -362,7 +350,8 @@
                     v-if="filterName"
                     >Delete</el-button
                 >
-                <el-button @click="saveFilter" :disabled="!filterName.length" type="success" v-else>Save</el-button>
+                <el-button @click="saveFilter" :disabled="(!tempFilterName?.length && !filterName?.length)"
+                    type="success" v-else>Save</el-button>
             </span>
         </el-dialog>
     </div>
@@ -435,6 +424,7 @@ export default {
             minVotes: null,
             isMovies: true,
             computedDiscoverQuery: '',
+            tempFilterName: '',
             selectedTimeFrame: null,
             images: [],
             ratingOptions: [] as any[],
@@ -542,12 +532,16 @@ export default {
                 this.loadMovies(true);
             });
         },
+        saveFilterClicked() {
+            this.tempFilterName = '';
+            this.saveFilterDialogVisible = true;
+        },
         async saveFilter() {
             await api.createOrUpdateFilter({
                 ...this.$route.query,
-                name: this.filterName || this.$route.query.name,
+                name: this.tempFilterName || this.$route.query.name,
             });
-            this.$route.query.name = this.filterName || this.$route.query.name;
+            this.$route.query.name = this.tempFilterName || this.$route.query.name;
             this.saveFilterDialogVisible = false;
             this.$message({
                 message: 'Filter Saved',

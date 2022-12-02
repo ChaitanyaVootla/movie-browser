@@ -40,7 +40,7 @@ let db:Db;
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(cors({
-    origin : "http://localhost",
+    origin : "http://localhost:8080",
     credentials: true,
 }));
 app.use(session({

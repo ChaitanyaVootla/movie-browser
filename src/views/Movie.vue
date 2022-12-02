@@ -495,8 +495,8 @@ export default {
 
 <style scoped lang="less">
 @import '../Assets/Styles/main.less';
-@primary-container-height: max(50vh, 35rem);
-@all-info-container: calc(max(50vh, 35rem) - 2rem);
+@primary-container-height: max(50vh, 30rem);
+@all-info-container: calc(max(50vh, 30rem) - 2rem);
 .heading-container {
     display: flex;
     align-items: center;

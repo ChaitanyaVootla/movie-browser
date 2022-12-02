@@ -45,7 +45,7 @@
                                 <popover-info v-if="isPopoverVisible" :item="movie" :configuration="configuration" />
                             </template>
                         </el-popover>
-                        <div class="info-overlay">
+                        <div class="info-overlay mobile-hide">
                             <div v-if="movie.release_date" class="top-overlay">{{
                                 getDateText(movie.release_date)
                             }}</div>
@@ -443,6 +443,9 @@ export default {
 @media (max-width: 767px) {
     .secondary-text {
         font-size: 0.8em;
+    }
+    .img-container {
+        height: auto;
     }
 }
 </style>

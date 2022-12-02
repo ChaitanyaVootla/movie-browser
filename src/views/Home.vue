@@ -1,6 +1,8 @@
 <template>
     <div class="primary-container">
         <el-menu
+            :ellipsis="false"
+            :collapse="false"
             class="top-navbar"
             mode="horizontal"
             background-color="#0f0f0f"
@@ -32,7 +34,7 @@
                     </div>
                 </router-link>
             </el-menu-item>
-            <el-menu-item v-if="user.isAdmin" index="Admin" class="nav-menu-item p-0">
+            <el-menu-item v-if="user.isAdmin" index="Admin" class="nav-menu-item p-0 mobile-hide">
                 <router-link :to="{ name: 'admin' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onAdmin ? 'active' : ''">
                         <i class="fa-solid fa-lock mr-2"></i>
@@ -191,8 +193,13 @@
                 </el-dropdown>
             </el-menu-item>
         </el-menu>
-        <el-menu class="desk-hide" :default-active="activeNavItem" mode="horizontal">
-            <el-menu-item index="search" class="menu-item-nobg search-menu-item">
+        <el-menu
+            class="desk-hide horizontal-menu menu-item-nobg"
+            :default-active="activeNavItem"
+            mode="horizontal"
+            :ellipsis="false"
+            :collapse="false">
+            <el-menu-item index="search" class="">
                 <div>
                     <el-autocomplete
                         v-model="autoSearchText"
@@ -200,7 +207,11 @@
                         placeholder="Search"
                         class="autoCompleteSearch"
                         min="2"
+                        id="autoCompleteSearch"
                         :highlight-first-item="true"
+                        :hide-loading="true"
+                        ref="searchInput"
+                        :fit-input-width="true"
                         @select="searchItemclicked"
                     >
                         <template #suffix>
@@ -216,7 +227,7 @@
                     </el-autocomplete>
                 </div>
             </el-menu-item>
-            <el-menu-item class="menu-item-right menu-item-nobg ml-2 user-menu-item" aria-label="Settings">
+            <el-menu-item aria-label="Settings">
                 <div v-if="!user.name" class="mt-1 desk-hide">
                     <div
                         v-if="loginUrl.length"
@@ -304,7 +315,7 @@
 
 <script lang="ts">
 import { api } from '@/API/api';
-import { sanitizeName } from '@/common/utils';
+import { isMobile, sanitizeName } from '@/common/utils';
 import { find } from 'lodash';
 import { configuration, movieGenres, seriesGenres } from '@/common/staticConfig';
 import SearchResult from '@/components/Common/searchResult.vue';
@@ -344,6 +355,9 @@ export default {
         window.addEventListener('keypress', this.onKeyPress);
     },
     computed: {
+        isMobileView() {
+            return isMobile();
+        },
         countryName() {
             return (this.user?.country?.name || '').toUpperCase();
         },
@@ -568,6 +582,19 @@ export default {
     justify-content: center;
     align-content: center;
 }
+.horizontal-menu {
+    height: 4rem;
+    :deep(.el-menu-item *) {
+        vertical-align: middle !important;
+    }
+    .search-menu-item {
+        width: 50%;
+    }
+    .user-menu-item {
+        display: block;
+        width: 10px;
+    }
+}
 .country-flag {
     font-weight: 600;
     img {
@@ -591,7 +618,7 @@ export default {
         border: 1px rgb(72, 72, 72) solid;
         padding: 0 10px;
         height: 1.5rem;
-        line-height: 1.5rem;
+        line-height: 1.3rem;
         font-weight: bold;
         border-radius: 3px;
         margin-right: 1rem;
