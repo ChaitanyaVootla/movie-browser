@@ -35,16 +35,23 @@ export default {
     --el-color-primary: @link-color-red !important;
     --el-border-width: 1.5px !important;
     --el-border-color: #3f3f3f !important;
+    --el-menu-hover-bg-color: white !important;
+    --el-menu-bg-color: white !important;
 }
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
         'Helvetica Neue', sans-serif;
-    background: #111;
-    color: @text-color;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     text-shadow: rgba(0, 0, 0, 0.01) 0 0 1px;
+    color: black;
+}
+html.dark {
+    body {
+        background: #111;
+        color: @text-color;
+    }
 }
 @media (max-width: 767px) {
     body {

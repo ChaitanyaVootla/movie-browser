@@ -39,7 +39,7 @@
                     }"
                     :title="item.name || item.title"
                 >
-                    <div class="continue-card-text mt-1 ml-1">
+                    <div class="continue-card-text secondary-text mt-1 ml-1">
                         {{ item.title || item.name }}
                     </div>
                 </router-link>
@@ -145,7 +145,6 @@ export default {
     }
 }
 .continue-card-text {
-    color: #ddd;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

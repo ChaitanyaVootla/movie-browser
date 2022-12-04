@@ -152,6 +152,12 @@
                                     </a>
                                 </el-dropdown-item>
                                 <el-dropdown-item divided>
+                                    <el-radio-group v-model="isDarkMode" @change="darkModeSwitched">
+                                        <el-radio-button :label="true">Dark</el-radio-button>
+                                        <el-radio-button :label="false">Light</el-radio-button>
+                                    </el-radio-group>
+                                </el-dropdown-item>
+                                <el-dropdown-item divided>
                                     <div @click="signOutClicked">
                                         <i class="fa-solid fa-sign-out-alt mr-1"></i>
                                         Sign out
@@ -329,6 +335,7 @@ export default {
             movieGenres,
             seriesGenres,
             isLoaded: false,
+            isDarkMode: true,
             searchText: '',
             autoSearchText: '',
             searchResults: [],
@@ -423,6 +430,10 @@ export default {
         },
     },
     methods: {
+        darkModeSwitched() {
+            this.isDarkMode = !this.isDarkMode;
+            $('html').toggleClass('dark');
+        },
         removeAllResultsShown() {
             localStorage.setItem('showAllResults', 'false');
             window.location.reload();
@@ -564,10 +575,6 @@ export default {
 
 <style scoped lang="less">
 @import '../Assets/Styles/main.less';
-
-/deep/ .haAclf {
-    background: black;
-}
 .app-logo {
     cursor: pointer;
     font-size: 1.7em;

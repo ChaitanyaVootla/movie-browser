@@ -32,7 +32,7 @@
                     </template>
                 </el-popover>
             </div>
-            <div class="wide-card-text mt-1">
+            <div class="wide-card-text secondary-text mt-1">
                 {{ item.title || item.name }}
             </div>
         </router-link>
@@ -110,7 +110,6 @@ export default {
     }
 }
 .wide-card-text {
-    color: #ddd;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

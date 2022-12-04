@@ -291,8 +291,10 @@ export default {
     padding-top: 1em;
     padding-bottom: 0.4em;
 }
-.week-trends-container {
-    background-color: rgb(24, 24, 24);
+html.dark {
+    .week-trends-container {
+        background-color: rgb(24, 24, 24);
+    }
 }
 .sliders-container {
     display: flex;

@@ -993,7 +993,6 @@ export default {
     display: flex;
     justify-content: center;
     padding-top: 1em;
-    background: @background-gray;
 }
 .favorites-bar {
     display: flex;
@@ -1043,9 +1042,16 @@ export default {
     border-color: #222;
 }
 .discover-options-row {
-    background: @background-gray;
     display: flex;
     gap: 1rem;
+}
+html.dark {
+    .discover-options-row {
+        background: @background-gray;
+    }
+    .content-switch {
+        background: @background-gray;
+    }
 }
 .advanced-options-row {
     margin-top: 0;

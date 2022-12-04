@@ -421,7 +421,6 @@ export default {
     color: @link-color-red;
 }
 .secondary-text {
-    color: #aaa;
     font-size: 0.9em;
     max-width: 10em;
 }

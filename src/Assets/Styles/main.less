@@ -2,6 +2,7 @@
 @main-red: #8f0b0b;
 @link-color-red: #b91d1d;
 @text-color: rgb(236, 236, 236);
+@text-color-secondary: rgb(185, 185, 185);
 @primary-gray: rgb(15, 15, 15);
 @background-gray: rgb(22, 22, 22);
 @background-gray-light: rgba(148, 148, 148, 0.05);
@@ -219,5 +220,13 @@ a {
     a {
         cursor: pointer;
         text-decoration: underline;
+    }
+}
+.secondary-text {
+    color: @background-gray;
+}
+html.dark {
+    .secondary-text {
+        color: @text-color-secondary;
     }
 }

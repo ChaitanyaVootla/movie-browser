@@ -87,30 +87,45 @@ Dropdown styles
 // Nav bar Styles
 .el-menu {
     .nav-menu-item {
-        color: @text-color !important;
-        background: none;
         font-weight: 400;
         font-size: 16px;
-        &.is-active {
-            background: none !important;
-            font-weight: 500;
-            color: @main-red !important;
-        }
-        :hover {
-            color: @link-color-red !important;
-        }
-        :visited {
-            color: @text-color !important;
-        }
     }
     .el-menu-item {
         color: @text-color !important;
-        background: none;
         font-weight: 400;
         font-size: 16px;
     }
     &.el-menu--horizontal {
         border: 0;
+    }
+}
+html {
+    .el-menu {
+        background-color: #ffffff !important;
+        .nav-menu-item {
+            color: @background-gray !important;
+            &:visited {
+                color: @background-gray !important;
+            }
+        }
+    }
+}
+html.dark {
+    .el-menu {
+        background-color: #0f0f0f !important;
+        .nav-menu-item {
+            color: @text-color !important;
+            &.is-active {
+                font-weight: 500;
+                color: @main-red !important;
+            }
+            :hover {
+                color: @link-color-red !important;
+            }
+            :visited {
+                color: @text-color !important;
+            }
+        }
     }
 }
 
