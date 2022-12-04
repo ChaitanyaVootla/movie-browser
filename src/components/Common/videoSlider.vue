@@ -102,4 +102,9 @@ export default {
         border-bottom-right-radius: 10px;
     }
 }
+@media (max-width: 767px) {
+    .main-container {
+        display: none;
+    }
+}
 </style>

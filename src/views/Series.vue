@@ -672,7 +672,7 @@ export default {
     }
     .additional-info {
         position: absolute;
-        bottom: 12rem;
+        bottom: 8rem;
         left: 0;
         .bookmarks {
             top: 2rem;
@@ -689,11 +689,11 @@ export default {
         width: 100 !important;
     }
     .background-images-container {
-        height: calc(100vh - 10rem) !important;
+        height: calc(100vh - 15rem) !important;
         font-size: 0.8em !important;
     }
     .all-info-container {
-        height: calc(100vh - 4rem) !important;
+        height: calc(100vh - 15rem) !important;
         top: 1em;
         display: grid;
         grid-auto-rows: max(3em);
