@@ -14,7 +14,7 @@
                 <router-link :to="{ name: 'trending' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onTrending ? 'active' : ''">
                         <i class="fa-solid fa-house pr-2"></i>
-                        <div class="">Home</div>
+                        <div class="mobile-hide">Home</div>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -22,7 +22,7 @@
                 <router-link :to="{ name: 'discover' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onDiscover ? 'active' : ''">
                         <i class="fa-solid fa-photo-video mr-2"></i>
-                        <div class="">Browse</div>
+                        <div class="mobile-hide">Browse</div>
                     </div>
                 </router-link>
             </el-menu-item>
@@ -30,7 +30,7 @@
                 <router-link :to="{ name: 'WatchList' }">
                     <div class="pl-4 pr-4 flex-nav-item" :class="onWatchList ? 'active' : ''">
                         <i class="fa-solid fa-bars-staggered mr-2"></i>
-                        <div class="">Watch List</div>
+                        <div class="mobile-hide">Watch List</div>
                     </div>
                 </router-link>
             </el-menu-item>
