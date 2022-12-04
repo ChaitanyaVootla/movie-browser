@@ -5,11 +5,11 @@
 @primary-gray: rgb(15, 15, 15);
 @background-gray: rgb(22, 22, 22);
 @background-gray-light: rgba(148, 148, 148, 0.05);
-@mobile-card-height: 10em;
-@mobile-card-width: 8em;
-@mobile-mini-card-width: 6em;
-@mobile-wide-card-height: 6em;
-@mobile-wide-card-width: 11.4em;
+@mobile-card-height: 10rem;
+@mobile-card-width: 8rem;
+@mobile-mini-card-width: 6rem;
+@mobile-wide-card-height: 6rem;
+@mobile-wide-card-width: 11.4rem;
 @mobile-width: 767px;
 /* Backgrounds */
 @translucent-bg: rgba(0, 0, 0, 0.4);
@@ -162,10 +162,24 @@ a {
     }
     .movies-grid-container {
         display: grid;
-        grid-template-columns: repeat(auto-fill, @mobile-card-width);
+        grid-template-columns: repeat(3, 1fr);
         gap: 0.5em;
         justify-content: space-between;
         padding: 0.5em !important;
+        width: 100%;
+        a {
+            width: calc(100vw/3 - 0.5rem) !important;
+        }
+        .movie-card-image {
+            width: calc(100vw/3 - 0.5rem) !important;
+        }
+        .img-container {
+            width: calc(100vw/3 - 0.5rem) !important;
+        }
+        >div {
+            width: calc(100vw/3 - 1rem) !important;
+            overflow: hidden;
+        }
     }
     /deep/ .movie-item {
         width: @mobile-card-width !important;
