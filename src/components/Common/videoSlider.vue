@@ -14,24 +14,21 @@
             </el-button-group>
         </div>
         <div class="videos-container mt-3">
-            <div v-for="video in filteredVideos">
-                <div>
-                    <iframe
-                        :id="`ytplayer-${video.id}`"
-                        title="YouTube video player"
-                        width="550px"
-                        height="300px"
-                        class="youtube-player"
-                        :src="`https://www.youtube.com/embed/${video.key}`"
-                        frameborder="0"
-                        controls="1"
-                        modestbranding="1"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowfullscreen
-                        referrerpolicy="no-referrer"
-                    ></iframe>
-                </div>
-            </div>
+            <iframe
+                v-for="video in filteredVideos"
+                :id="`ytplayer-${video.id}`"
+                title="YouTube video player"
+                width="550px"
+                height="300px"
+                class="youtube-player"
+                :src="`https://www.youtube.com/embed/${video.key}`"
+                frameborder="0"
+                controls="1"
+                modestbranding="1"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+                referrerpolicy="no-referrer"
+            ></iframe>
         </div>
     </div>
 </template>
@@ -78,12 +75,23 @@ export default {
         }
     }
     .videos-container {
-        display: flex;
-        justify-content: left;
+        overflow-x: auto;
+        overflow-y: visible !important;
+        position: relative;
+        padding: 0 0.5em;
+        margin-right: 0.5em;
+        padding-top: 1em;
+        padding-bottom: 1em;
+        width: 100%;
         gap: 20px;
+        display: grid;
         iframe {
-            border-radius: 10px;
+            grid-row: 1 / span 2;
+            border-radius: 1rem;
         }
+    }
+    .videos-container::-webkit-scrollbar {
+        display: none;
     }
     .el-button-group > .el-button:first-child {
         border-top-left-radius: 10px;

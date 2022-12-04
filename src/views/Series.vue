@@ -154,7 +154,7 @@
                             },
                         }"
                     >
-                        <el-button round plain>
+                        <el-button round plain size="small">
                             {{ keyword.name }}
                         </el-button>
                     </router-link>
@@ -667,10 +667,6 @@ export default {
         margin: 0 !important;
         padding: 0 !important;
     }
-    .background-images-container {
-        height: calc(100vh / 2) !important;
-        font-size: 0.8em !important;
-    }
     .background-image {
         height: calc(100vh / 2) !important;
     }
@@ -692,7 +688,12 @@ export default {
         height: 100 !important;
         width: 100 !important;
     }
+    .background-images-container {
+        height: calc(100vh - 10rem) !important;
+        font-size: 0.8em !important;
+    }
     .all-info-container {
+        height: calc(100vh - 4rem) !important;
         top: 1em;
         display: grid;
         grid-auto-rows: max(3em);
