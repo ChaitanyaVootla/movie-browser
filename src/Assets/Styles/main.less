@@ -230,3 +230,14 @@ html.dark {
         color: @text-color-secondary;
     }
 }
+
+.genres {
+    font-size: 0.8rem;
+    color: @text-color-secondary;
+    span {
+        &:not(:last-child):after {
+            content: '•';
+            margin: 0 0.2rem;
+        }
+    }
+}

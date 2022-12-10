@@ -13,7 +13,7 @@
         <el-row class="week-trends-container pt-2 mobile-hide">
             <el-col :span="15">
                 <el-carousel
-                    height="43em"
+                    height="42rem"
                     :interval="7000"
                     @change="carouselChanged"
                     arrow="always"
@@ -37,9 +37,9 @@
                                     {{ item.title || item.name }}
                                 </h3>
                                 <!-- Genres -->
-                                <h6 class="secondary-info" style="margin-bottom: 1.5em">
+                                <h6 class="genres" style="margin-bottom: 1.5em">
                                     <span v-for="(genreId, index) in item.genre_ids" :key="genreId">
-                                        {{ getGenreName(genreId) }}{{ index === item.genre_ids.length - 1 ? '' : ',' }}
+                                        {{ getGenreName(genreId) }}
                                     </span>
                                     - {{ item.media_type }}
                                 </h6>
@@ -261,6 +261,9 @@ export default {
 
 <style scoped lang="less">
 @import '../../Assets/Styles/main.less';
+.genres {
+    font-size: 1rem;
+}
 .filters-container {
     display: flex;
     flex-wrap: wrap;
@@ -330,6 +333,16 @@ html.dark {
         height: 100%;
         background: linear-gradient(90deg, rgba(0,0,0,0.5) 10%, rgba(0,0,0,0) 100%);
     }
+}
+:deep(.movie-item) {
+    height: 16rem;
+    .movie-card-image {
+        height: 16rem;
+        margin-bottom: 1rem;
+    }
+}
+:deep(.movie-card-text) {
+    display: inherit;
 }
 .info-container {
     position: absolute;

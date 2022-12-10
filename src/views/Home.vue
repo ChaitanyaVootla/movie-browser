@@ -151,12 +151,12 @@
                                         TMDB Docs
                                     </a>
                                 </el-dropdown-item>
-                                <el-dropdown-item divided>
+                                <!-- <el-dropdown-item divided>
                                     <el-radio-group v-model="isDarkMode" @change="darkModeSwitched">
                                         <el-radio-button :label="true">Dark</el-radio-button>
                                         <el-radio-button :label="false">Light</el-radio-button>
                                     </el-radio-group>
-                                </el-dropdown-item>
+                                </el-dropdown-item> -->
                                 <el-dropdown-item divided>
                                     <div @click="signOutClicked">
                                         <i class="fa-solid fa-sign-out-alt mr-1"></i>
@@ -615,7 +615,7 @@ export default {
     .el-input__wrapper {
         height: 2.5rem;
         border-radius: 1.5rem;
-        padding-left: 1rem;
+        padding: 1rem;
     }
     /deep/ #autoCompleteSearch {
         border-radius: 1rem;

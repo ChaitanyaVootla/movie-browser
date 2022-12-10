@@ -71,29 +71,19 @@
             </div>
 
             <!-- Date and Genres -->
-            <h6 class="secondary-info ml-3">
-                <span v-if="details.release_date">{{ getDateText(details.release_date) }} -</span>
-                <span v-for="(genre, index) in details.genres" :key="index">
-                    {{ genre.name }}{{ index === details.genres.length - 1 ? '' : ',' }}
-                </span>
-                <span class="desk-hide">
-                    <br />
-                    <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
-                    <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
-                    <span class="ml-2" @click="openImageModal">
-                        <i class="fa-solid fa-images"></i>
-                    </span>
-                </span>
-            </h6>
-
-            <!-- Rating images and runtime -->
-            <h6 class="secondary-info ml-3 mobile-hide">
+            <h6 class="genres ml-3">
+                <span v-if="details.release_date">{{ getDateText(details.release_date) }}</span>
                 <span v-if="details.runtime">{{ getRuntime(details.runtime) }}</span>
-                <span v-if="rating" :class="details.runtime ? 'ml-2' : ''">{{ rating }} </span>
-                <span class="ml-2 cursor-pointer" @click="openImageModal">
+                <span v-if="rating">{{ rating }} </span>
+                <span class="cursor-pointer" @click="openImageModal">
                     <i class="fa-solid fa-images"></i>
                 </span>
             </h6>
+            <div class="genres ml-3">
+                <span v-for="(genre, index) in details.genres" :key="index">
+                    {{ genre.name }}
+                </span>
+            </div>
 
             <!-- Watch links -->
             <GoogleData
@@ -553,7 +543,6 @@ export default {
         z-index: 10000000000000000;
         color: black;
         background-color: rgba(245, 245, 245, 0.808);
-        opacity: 0.9;
         font-weight: 700;
         padding: 1rem;
         border-radius: 2rem;

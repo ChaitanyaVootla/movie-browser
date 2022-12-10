@@ -117,7 +117,8 @@ export default {
     padding-left: 1rem;
     display: inline-flex;
     background: rgba(28, 28, 28, 0.43);
-    box-shadow: inset 0 0 5px rgb(104, 104, 104);
+    // box-shadow: inset 0 0 5px rgb(104, 104, 104);
+    border: 1px solid rgb(78, 78, 78);
     backdrop-filter: blur(10px);
     flex-direction: column;
     border-radius: 3rem;
@@ -152,7 +153,8 @@ export default {
     }
 }
 .frosted {
-    box-shadow: inset 0 0 5px rgb(104, 104, 104);
+    // box-shadow: inset 0 0 5px rgb(104, 104, 104);
+    border: 1px solid rgb(78, 78, 78);
     display: inline-flex;
     padding: 0.7rem;
     border-radius: 3rem;
@@ -163,17 +165,14 @@ export default {
 .rating-container {
     text-align: center;
     img {
-        width: 1.8rem;
-        @media (max-width: @mobile-width) {
-            width: 1.7rem;
-        }
+        width: 1.7rem;
     }
     span {
-        font-size: 0.8em;
+        font-size: 0.8rem;
         font-weight: 600;
         color: #ddd;
         @media (max-width: @mobile-width) {
-            font-size: 0.8em;
+            font-size: 0.8rem;
         }
     }
     img {
@@ -184,6 +183,7 @@ export default {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
+    padding: 0 0.5rem;
 }
 .ott-container {
     width: 4.5em;
@@ -192,9 +192,9 @@ export default {
     border-radius: @default-radius;
     float: left;
     .icon-container {
-        height: 2.5rem;
+        // height: 2rem;
         .ott-icon {
-            width: 2.5rem;
+            width: 2.2rem;
             &[src='/images/ott/zee.png'] {
                 height: 2rem;
                 width: auto;
@@ -208,6 +208,7 @@ export default {
         font-size: 0.65rem;
         color: rgb(207, 207, 207);
         text-shadow: none;
+        margin-top: 3px;
         @media (max-width: @mobile-width) {
             font-size: 0.5rem;
         }

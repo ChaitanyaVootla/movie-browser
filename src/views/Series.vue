@@ -64,7 +64,7 @@
         <div class="all-info-container" v-if="details.name">
             <div class="heading-container">
                 <h3>{{ details.name }}</h3>
-                <span class="text-muted info-tagline pl-2" v-if="details.number_of_seasons">
+                <span class="secondary-text" v-if="details.number_of_seasons">
                     {{ details.number_of_seasons }} Season{{ details.number_of_seasons > 1 ? 's' : '' }}
                 </span>
                 <rank :item="details"></rank>
@@ -72,20 +72,22 @@
 
             <!-- Date and Genres -->
             <h6 class="mb-3 secondary-info">
-                <span v-for="(genre, index) in details.genres" :key="index">
-                    {{ genre.name }}{{ index === details.genres.length - 1 ? '' : ',' }}
-                </span>
-                <br />
-                <span style="line-height: 2rem">
-                    <span>{{ getDateText(details.first_air_date) }} - {{ details.status }}</span>
-                    <span v-if="details.episode_run_time.length" class="pl-2">
+                <span style="line-height: 2rem" class="genres">
+                    <span>{{ getDateText(details.first_air_date) }}</span>
+                    <span>{{ details.status }}</span>
+                    <span v-if="details.episode_run_time.length">
                         <i class="fa-regular fa-clock"></i>
                         {{ details.episode_run_time[0] }} mins
                     </span>
-                    <span class="cursor-pointer ml-3" @click="openImageModal">
+                    <span class="cursor-pointer" @click="openImageModal">
                         <i class="fa-solid fa-images"></i>
                     </span>
                 </span>
+                <div class="genres">
+                    <span v-for="(genre, index) in details.genres" :key="index">
+                        {{ genre.name }}
+                    </span>
+                </div>
             </h6>
 
             <!-- Watch links -->
@@ -484,12 +486,6 @@ export default {
 .season-container {
     background-color: rgba(148, 148, 148, 0.05);
 }
-.heading-container {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-}
 .more-info {
     display: flex;
     justify-items: left;
@@ -516,7 +512,6 @@ export default {
         z-index: 10;
         color: black;
         background-color: rgba(245, 245, 245, 0.808);
-        opacity: 0.9;
         font-weight: 700;
         padding: 1rem;
         border-radius: 2rem;
@@ -624,6 +619,7 @@ export default {
 }
 .secondary-info {
     color: #aaa;
+    font-size: 0.9rem;
 }
 .ext-link-icon {
     font-size: 1.2em;
@@ -637,9 +633,6 @@ export default {
         width: 90%;
         margin-top: 1em;
     }
-}
-.info-tagline {
-    color: #ddd !important;
 }
 /deep/ .el-tabs__header {
     padding: 0 2em !important;

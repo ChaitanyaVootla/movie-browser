@@ -78,7 +78,7 @@
                     </div>
                 </el-badge>
             </div>
-            <div class="secondary-text mt-1 ml-1">{{ movie.character || movie.job || movie.bottomInfo }}</div>
+            <div class="secondary-text movie-card-text mt-1 ml-1">{{ movie.character || movie.job || movie.bottomInfo }}</div>
         </router-link>
     </div>
 </template>
@@ -318,10 +318,10 @@ export default {
     cursor: pointer;
     display: flex;
     transition: transform 0.3s ease-in-out;
-    height: @img-height-percent !important;
-    &.trim-height {
-        height: @img-trim-height-percent !important;
-    }
+    // height: @img-height-percent !important;
+    // &.trim-height {
+    //     height: @img-trim-height-percent !important;
+    // }
     &:hover {
         transform: scale(1.01);
     }
