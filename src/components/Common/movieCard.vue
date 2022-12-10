@@ -178,34 +178,8 @@ export default {
         isInWatchList() {
             return this.$store.getters.watchListMovieById(this.movie.id);
         },
-        isInSideBarFilter() {
-            if (this.movie.first_air_date) {
-                return (
-                    this.$store.getters.canFilterSeries &&
-                    intersection(
-                        this.$store.getters.sideBarFilters.seriesGenres.map(({ id }) => id),
-                        this.movie.genre_ids,
-                    ).length
-                );
-            } else {
-                return (
-                    this.$store.getters.canFilterMovies &&
-                    intersection(
-                        this.$store.getters.sideBarFilters.movieGenres.map(({ id }) => id),
-                        this.movie.genre_ids,
-                    ).length
-                );
-            }
-        },
         isTodayCard() {
             return this.movie.bottomInfo && this.movie.bottomInfo.includes('Today');
-        },
-        canApplySideBarFilter() {
-            if (this.movie.first_air_date) {
-                return this.$store.getters.canFilterSeries;
-            } else {
-                return this.$store.getters.canFilterMovies;
-            }
         },
         canShowNewBadge() {
             return this.movie.release_date

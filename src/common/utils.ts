@@ -1,4 +1,5 @@
 import { uniqBy } from 'lodash';
+import { movieGenres, seriesGenres } from './staticConfig';
 
 const sanitizeName = (string) => {
     return string.replace(/\s+/g, '-');
@@ -195,6 +196,11 @@ const getGoogleLink = (item) => {
     return str;
 };
 
+const getGrenreFromId = (id) => {
+    const genre = movieGenres.concat(seriesGenres).find((genre) => genre.id === id);
+    return genre?.name || '';
+};
+
 export {
     sanitizeName,
     getRatingColor,
@@ -208,4 +214,5 @@ export {
     getGoogleLink,
     isMovie,
     getIconFromLink,
+    getGrenreFromId,
 };

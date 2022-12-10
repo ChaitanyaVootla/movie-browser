@@ -34,11 +34,19 @@
                     :configuration="configuration"
                     class="mt-4"
                     :viewSettings="{
-                        // language: 'en',
+                        language: 'en',
                         name: 'Trending on streaming services',
                         streaming: true,
                     }"
                 />
+                <!-- <CardSection
+                    :items="trendingMovies.slice(0, 8)"
+                    :title="'Trending Movies'"
+                />
+                <CardSection
+                    :items="trendingTv.slice(0, 8)"
+                    :title="'Trending Series'"
+                /> -->
                 <MbSlider
                     :items="trendingTv"
                     :configuration="configuration"
@@ -84,6 +92,7 @@ import TrendingCarousel from '@/components/Common/trendingCarousel.vue';
 import MbSlider from '@/components/Slider/index.vue';
 import { sortBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import CardSection from '../CardSection.vue';
 
 export default {
     name: 'trending',
@@ -93,6 +102,7 @@ export default {
         FilterView,
         TrendingCarousel,
         MbSlider,
+        CardSection,
     },
     data() {
         return {

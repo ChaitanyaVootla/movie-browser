@@ -49,7 +49,7 @@ body {
 }
 html.dark {
     body {
-        background: #111;
+        background: #0f0f0f;
         color: @text-color;
     }
 }

@@ -64,6 +64,18 @@
                     :class="isSliding ? 'no-pointer-events' : ''"
                 ></wide-card>
             </div>
+            <div v-else-if="isInfoCard" class="slider-bar wide-card-slider-container" :id="`scroll-bar-${uuid}`">
+                <info-card
+                    v-for="(item, index) in items"
+                    :item="item"
+                    :configuration="configuration"
+                    :imageRes="'w500'"
+                    :key="`${item.id}-${index}`"
+                    :disableRatingShadow="true"
+                    :showHeader="showHeader"
+                    :class="isSliding ? 'no-pointer-events' : ''"
+                ></info-card>
+            </div>
             <div v-else class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <movie-card
                     v-for="(movie, index) in items"
@@ -121,6 +133,7 @@ import PersonCard from '@/components/Common/personCard.vue';
 import MovieCard from '@/components/Common/movieCard.vue';
 import ContinueWatching from '@/components/Common/continueWatching.vue';
 import WideCard from '@/components/Common/wideCard.vue';
+import InfoCard from '@/components/Common/infoCard.vue';
 
 export default {
     name: 'mbSlider',
@@ -130,6 +143,7 @@ export default {
         'isEpisode',
         'isContinueWatching',
         'isWideCard',
+        'isInfoCard',
         'configuration',
         'id',
         'heading',
@@ -149,6 +163,7 @@ export default {
         MovieCard,
         ContinueWatching,
         WideCard,
+        InfoCard,
     },
     data() {
         return {
