@@ -85,6 +85,7 @@ export default {
         width: 100%;
         gap: 20px;
         display: grid;
+        justify-content: start;
         iframe {
             grid-row: 1 / span 2;
             border-radius: 1rem;

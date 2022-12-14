@@ -1,7 +1,7 @@
 <template>
     <div>
-        <div class="watch-options-container">
-            <div v-if="watchOptions.length || googleData.watchLink" class="ott-links-container mt-3">
+        <div v-if="watchOptions.length || googleData.watchLink" class="watch-options-container">
+            <div class="ott-links-container mt-3">
                 <a
                     v-for="watchOption in watchOptions"
                     :key="watchOption.name"
