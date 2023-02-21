@@ -37,14 +37,11 @@
         "passport-google-oauth2": "0.2.0",
         "pg": "^8.7.1",
         "pg-hstore": "^2.3.4",
-        "puppeteer": "17.1.3",
-        "puppeteer-extra": "^3.3.4",
-        "puppeteer-extra-plugin-adblocker": "^2.13.5",
-        "puppeteer-extra-plugin-stealth": "^2.11.1",
         "request": "^2.88.2",
         "sequelize": "^6.7.0",
         "simple-eta": "^3.0.2",
-        "winston": "3.7.2"
+        "winston": "3.7.2",
+        "aws-sdk": "2.1318.0"
     },
     "devDependencies": {
         "@types/cors": "^2.8.12",
