@@ -6,7 +6,7 @@ import express from 'express';
 const app = express();
 import cors from 'cors';
 const port = 3000;
-import { Db, MongoClient } from 'mongodb';
+import { Db, MongoClient } from 'mongodb';
 import bodyParser from 'body-parser';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
@@ -30,6 +30,7 @@ import continueWatchingRoutes from '@/continueWatching/routes';
 import rottenTomatoesRoutes from '@/rottenTomatoes/routes';
 import { updateSeriesList } from '@/cron/series';
 import moment from 'moment';
+import { setupDb } from '@/db/setup';
 
 const mongoUser = `${process.env.MONGO_USER?process.env.TMDB_API_KEY:'root'}`;
 const mongoPass = `${process.env.MONGO_PASS?process.env.MONGO_PASS:'rootpassword'}`;
@@ -64,6 +65,7 @@ dbClient.connect().then(() => {
 
     mongoose.connect(dbUri).then(() => {
         console.log("mongoose connected")
+        setupDb(db);
         // setup routes
         watchedMoviesRoutes(app, db);
         authRoutes(app);

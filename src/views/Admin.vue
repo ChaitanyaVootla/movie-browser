@@ -1,5 +1,6 @@
 <template>
     <div class="main-container">
+        <Stats class="mb-5 mt-3" />
         <el-row class="mt-2 mb-4">
             <el-col :span="6">
                 <el-input v-model="search" placeholder="Search" class="search-input" icon="el-icon-search"></el-input>
@@ -49,10 +50,14 @@
 
 <script lang="ts">
 import { api } from '@/API/api';
+import Stats from '@/components/Stats/index.vue';
 import moment from 'moment';
 
 export default {
     name: 'home',
+    components: {
+        Stats,
+    },
     data() {
         return {
             users: [],

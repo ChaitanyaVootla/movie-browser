@@ -1,5 +1,6 @@
 import { Application } from 'express-serve-static-core';
 import { Db } from 'mongodb';
+import { getStats } from './stats';
 
 const setupRoute = (app: Application, db: Db) => {
     // app.get('/cleanmongo', async (req, res) => {
@@ -12,6 +13,14 @@ const setupRoute = (app: Application, db: Db) => {
     //         console.log(e);
     //     }
     // });
+    app.get('/stats', async (req, res) => {
+        try {
+            const stats = await getStats();
+            res.json(stats);
+        } catch(e) {
+            console.log(e);
+        }
+    });
 }
 
 export {setupRoute as default};

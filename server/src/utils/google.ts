@@ -8,4 +8,11 @@ const getSearchQuery = (item: any) => {
     }`;
 }
 
-export { getSearchQuery };
+const getSearchQueryNew = (item: any) => {
+    return {
+        mainStr: `https://google.com/search?q=${item.name || item.title}`,
+        dateInfo: `${item.first_air_date ? 'tv series' : getYear(item.release_date) + ' movie'}`,
+    };
+}
+
+export { getSearchQuery, getSearchQueryNew };

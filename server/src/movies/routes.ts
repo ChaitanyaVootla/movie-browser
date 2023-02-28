@@ -4,6 +4,7 @@ import { Application, Response } from "express";
 import { getMovieDetails } from "@/movies/movieDetails";
 import { IWatchedMovie, WatchedMovies } from "@/db/schemas/WatchedMovies";
 import { IMoviesWatchList, MoviesWatchList } from "@/db/schemas/MovieWatchList";
+import { getHistoricalData } from "./stats";
 
 const setupRoute = (app: Application) => {
     app.get('/movieDetails/:id',
@@ -17,6 +18,18 @@ const setupRoute = (app: Application) => {
                     },
                 );
                 return res.json(details);
+            } catch (e) {
+                console.error(e);
+                res.sendStatus(500);
+            }
+        }
+    );
+    app.get('/movieDetails/:id/stats',
+        async (req: IGetUserAuthInfoRequest, res) => {
+            try {
+                const movieId = parseInt(req.params.id);
+                const stats = await getHistoricalData(movieId);
+                return res.json(stats);
             } catch (e) {
                 console.error(e);
                 res.sendStatus(500);

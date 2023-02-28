@@ -15,6 +15,14 @@ const axios = Axios.create({ withCredentials: true });
 const showAllResults = () => localStorage.getItem('showAllResults') || false;
 
 export const api = {
+    getStats: async function () {
+        const res = await axios.get(`${appConfig.serverBaseUrl}stats`);
+        return res.data;
+    },
+    getHistoricalStats: async function (id: number) {
+        const res = await axios.get(`${appConfig.serverBaseUrl}movieDetails/${id}/stats`);
+        return res.data;
+    },
     getUser: async function () {
         const res = await axios.get(`${appConfig.serverBaseUrl}user`);
         return res.data;

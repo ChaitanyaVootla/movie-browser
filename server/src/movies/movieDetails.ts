@@ -1,7 +1,6 @@
-import { getSearchQuery } from '@/utils/google';
+import { getSearchQuery, getSearchQueryNew } from '@/utils/google';
 import { getTMDBMovieDetails } from '@/tmdb/movieDetails';
-import moment from 'moment';
-import getGoogleData from "@/google/search";
+import { getGoogleDataNew } from "@/google/search";
 import { Movie } from "@/db/schemas/Movies";
 import { getGoogleDataLite } from '@/google/searchLite';
 import { getRottenTomatoesLite } from '@/rottenTomatoes/searchLite';
@@ -10,10 +9,11 @@ const retainHours = 24;
 interface movieGetOptions {
     force?: Boolean,
     skipGoogle?: Boolean,
+    skipRt?: Boolean,
 }
 
 const getMovieDetails = async (id: number, options?: movieGetOptions) => {
-    const dbEntry = await Movie.findOne({id});
+    const dbEntry: any = await Movie.findOne({id});
     if (
         !options?.force
         && dbEntry
@@ -28,7 +28,8 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
     let googleData:any = {allWatchOptions: []};
     movieDetails.googleData = googleData;
     if (!options?.skipGoogle) {
-        let response = await getGoogleData(getSearchQuery(movieDetails));
+        console.log("Getting google data for movie: ", movieDetails?.title);
+        let response = await getGoogleDataNew(getSearchQueryNew(movieDetails));
         if (!response) {
             console.error(`Failed to get proper google data for movie: ${movieDetails?.title}`);
             response = await getGoogleDataLite(getSearchQuery(movieDetails));
@@ -42,12 +43,12 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
         }
     }
 
-    const existingMovieObj: any = await Movie.findOne({id});
-    if (existingMovieObj?.googleData?.ratings?.length) {
-        movieDetails.googleData = existingMovieObj.googleData;
+    if (!movieDetails?.googleData?.ratings?.length && dbEntry?.googleData?.ratings?.length) {
+        movieDetails.googleData = dbEntry.googleData;
     }
     const rtLink = movieDetails.googleData.ratings?.find(({name}) => name === 'Rotten Tomatoes')?.link;
-    if (rtLink) {
+    if (!options?.skipRt && rtLink) {
+        console.log("Getting rotten tomatoes data for movie: ", movieDetails?.title);
         let rtRes = await getRottenTomatoesLite(rtLink);
         movieDetails.rottenTomatoes = rtRes;
     }

@@ -11,6 +11,10 @@ const setupDb = (db: Db) => {
 
     // tv
     db.collection(dbConstants.collections.series).createIndex({id:1}, {unique: true});
+
+    // historicalData
+    console.log("creating index")
+    db.collection(dbConstants.collections.historicalData).createIndex({id: 1, isMovie: 1, date: 1}, {unique: true});
 }
 
 export { setupDb };

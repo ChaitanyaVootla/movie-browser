@@ -23,4 +23,13 @@ const getGoogleData = async (str: string) => {
     return jsonRes;
 };
 
+export const getGoogleDataNew = async ({mainStr, dateInfo}: {mainStr: string, dateInfo: string}) => {
+    const fullStringAttempt = await getGoogleData(`${mainStr} ${dateInfo}`);
+    if (fullStringAttempt.ratings?.length > 0) {
+        return fullStringAttempt;
+    } else {
+        return await getGoogleData(mainStr);
+    }
+};
+
 export default getGoogleData;

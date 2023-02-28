@@ -10,6 +10,7 @@ const dbConstants = {
         series: 'series',
         users: 'users',
         filters: 'filters',
+        historicalData: 'historicaldatas',
     }
 }
 
