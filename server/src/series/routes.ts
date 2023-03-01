@@ -3,6 +3,7 @@ import { ISeriesList, SeriesList } from '@/db/schemas/seriesList';
 import { getTVDetails } from '@/series/seriesDetails';
 import { ERRORS } from '@/utils/errors';
 import { Application, Response } from 'express';
+import { getHistoricalData } from './stats';
 
 const setupRoute = (app: Application) => {
     app.get('/seriesDetails/:id',
@@ -16,6 +17,18 @@ const setupRoute = (app: Application) => {
                     },
                 );
                 return res.json(details);
+            } catch (e) {
+                console.error(e);
+                res.sendStatus(500);
+            }
+        }
+    );
+    app.get('/seriesDetails/:id/stats',
+        async (req: IGetUserAuthInfoRequest, res) => {
+            try {
+                const seriesId = parseInt(req.params.id);
+                const stats = await getHistoricalData(seriesId);
+                return res.json(stats);
             } catch (e) {
                 console.error(e);
                 res.sendStatus(500);

@@ -4,7 +4,9 @@
 
 <script lang="ts">
 import { api } from '@/API/api';
+import { isMovie } from '@/common/utils';
 import * as echarts from 'echarts';
+import moment from 'moment';
 
 export default {
     name: 'HistoryChart',
@@ -26,7 +28,11 @@ export default {
             this.drawChart();
         },
         async getHistoricalStats() {
-            this.stats = await api.getHistoricalStats(this.details.id);
+            if (isMovie(this.details)) {
+                this.stats = await api.getHistoricalMovieStats(this.details.id);
+            } else {
+                this.stats = await api.getHistoricalSeriesStats(this.details.id);
+            }
         },
         drawChart() {
             var chartDom = document.getElementById('historyChart');
@@ -35,15 +41,33 @@ export default {
             const option = {
                 xAxis: {
                     type: 'time',
+                    axisLabel: {
+                        hideOverlap: true
+                    }
                 },
                 yAxis: {
                     type: 'value'
+                },
+                tooltip: {
+                    trigger: "axis",
+                    axisPointer: {
+                        type: "shadow",
+                    },
+                    formatter: (params) => {
+                        console.log(params)
+                        return `
+                            <b>Popularity - ${moment(params[0].data[0]).format('DD MMM YYYY')}</b>
+                            <br />
+                            ${Number(params[0].data[1]).toFixed(0)}
+                        `;
+                    },
                 },
                 series: [
                     {
                         name: 'Popularity',
                         data: this.stats.map((stat: any) => [stat.date, stat.popularity]),
                         type: 'line',
+                        showSymbol: false,
                         areaStyle: {}
                     }
                 ]

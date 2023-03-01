@@ -9,7 +9,7 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 
 const VueApp = createApp(App);
 VueApp.use(store);
-VueApp.use(ElementPlus, { zIndex: 3000 });
+VueApp.use(ElementPlus);
 import jquery from 'jquery';
 (<any>window).$ = jquery;
 

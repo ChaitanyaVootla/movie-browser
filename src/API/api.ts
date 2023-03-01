@@ -19,8 +19,12 @@ export const api = {
         const res = await axios.get(`${appConfig.serverBaseUrl}stats`);
         return res.data;
     },
-    getHistoricalStats: async function (id: number) {
+    getHistoricalMovieStats: async function (id: number) {
         const res = await axios.get(`${appConfig.serverBaseUrl}movieDetails/${id}/stats`);
+        return res.data;
+    },
+    getHistoricalSeriesStats: async function (id: number) {
+        const res = await axios.get(`${appConfig.serverBaseUrl}seriesDetails/${id}/stats`);
         return res.data;
     },
     getUser: async function () {

@@ -165,6 +165,10 @@
                     >
                 </div>
                 <div class="mt-3 updatedInfo">
+                    <el-button round plain type="info" class="mr-2" @click="statisticsModalClicked">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <span class="ml-2">Statistics</span>
+                    </el-button>
                     Last updated: {{ sincetime(details.updatedAt) }}
                     <a @click="requestUpdate" class="ml-3">request update</a>
                 </div>
@@ -255,6 +259,9 @@
             ></mb-slider>
         </div>
         <div class="mb-5"></div>
+        <el-dialog v-model="statisticsModalVisible" title="Statistics" width="30%">
+            <HistoryStats :details="details" />
+        </el-dialog>
         <el-dialog :visible.sync="dialogVisible" :width="defaultImageTab === 'backdrops' ? '95%' : '50%'" top="10vh">
             <el-tabs v-model="defaultImageTab">
                 <el-tab-pane label="Backdrops" name="backdrops">
@@ -302,6 +309,7 @@ import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import episodeDetails from '@/components/Common/episodeDetails.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
 import MbSlider from '@/components/Slider/index.vue';
+import HistoryStats from '@/components/HistoryStats/index.vue';
 
 export default {
     name: 'seriesInfo',
@@ -313,6 +321,7 @@ export default {
         episodeDetails,
         videoSlider,
         MbSlider,
+        HistoryStats,
     },
     data() {
         return {
@@ -324,6 +333,7 @@ export default {
             videoTimeout: null,
             showFullBio: false,
             showAllTags: false,
+            statisticsModalVisible: false,
             movie: {} as any,
             selectedSeason: null,
             selectedSeasonInfo: {} as any,
@@ -372,6 +382,9 @@ export default {
         },
     },
     methods: {
+        statisticsModalClicked() {
+            this.statisticsModalVisible = true;
+        },
         sincetime(time) {
             return moment(time).fromNow();
         },

@@ -171,6 +171,10 @@
                     >
                 </div>
                 <div class="mt-3 updatedInfo">
+                    <el-button round plain type="info" class="mr-2" @click="statisticsModalClicked">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <span class="ml-2">Statistics</span>
+                    </el-button>
                     Last updated: {{ sincetime(details.updatedAt) }}
                     <a @click="requestUpdate" class="ml-3" :disable="isUpdating">request update</a>
                 </div>
@@ -243,7 +247,10 @@
             ></mb-slider>
             <div class="mb-5"></div>
         </div>
-        <el-dialog :visible.sync="dialogVisible" :width="defaultImageTab === 'backdrops' ? '95%' : '50%'" top="10vh">
+        <el-dialog v-model="statisticsModalVisible" title="Statistics" width="30%">
+            <HistoryStats :details="details" />
+        </el-dialog>
+        <el-dialog v-model="dialogVisible" :width="defaultImageTab === 'backdrops' ? '95%' : '50%'" top="10vh">
             <el-tabs v-model="defaultImageTab">
                 <el-tab-pane label="Backdrops" name="backdrops">
                     <el-carousel height="70vh" :interval="7000">
@@ -290,6 +297,7 @@ import rank from '@/components/Common/rank.vue';
 import rtReviews from '@/components/Common/rottenTomatoesReviews.vue';
 import videoSlider from '@/components/Common/videoSlider.vue';
 import MbSlider from '@/components/Slider/index.vue';
+import HistoryStats from '@/components/HistoryStats/index.vue';
 
 export default {
     name: 'movieInfo',
@@ -300,6 +308,7 @@ export default {
         rtReviews,
         videoSlider,
         MbSlider,
+        HistoryStats,
     },
     data() {
         return {
@@ -320,6 +329,7 @@ export default {
             showFullOverview: false,
             showAllTags: false,
             dialogVisible: false,
+            statisticsModalVisible: false,
             backdrops: [] as any[],
             posters: [] as any[],
             rating: null,
@@ -343,6 +353,9 @@ export default {
         },
     },
     methods: {
+        statisticsModalClicked() {
+            this.statisticsModalVisible = true;
+        },
         sincetime(time) {
             return moment(time).fromNow();
         },

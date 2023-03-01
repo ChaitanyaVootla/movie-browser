@@ -9,16 +9,34 @@ import { pipeline } from 'stream';
 import { chunk } from "lodash";
 import { getMovieDetails } from '@/movies/movieDetails';
 
-const fileName = 'latestMovie';
+const movieFileName = 'latestMovie';
+const seriesFileName = 'latestSeries';
 
 export const loadMovieDataByDate = async (date: string) => {
     const latest = moment(date).format('MM_DD_YYYY');
     await download(`http://files.tmdb.org/p/exports/movie_ids_${latest}.json.gz`, path.join(__dirname, 'data'), {
-        filename: `${fileName}.json.gz`,
+        filename: `${movieFileName}.json.gz`,
     });
 
-    const fileContents = fs.createReadStream(path.join(__dirname, 'data', `${fileName}.json.gz`));
-    const writeStream = fs.createWriteStream(path.join(__dirname, 'data', `${fileName}.json`));
+    const fileContents = fs.createReadStream(path.join(__dirname, 'data', `${movieFileName}.json.gz`));
+    const writeStream = fs.createWriteStream(path.join(__dirname, 'data', `${movieFileName}.json`));
+    const unzip = zlib.createGunzip();
+
+    const pipe = promisify(pipeline);
+    await pipe(fileContents, unzip, writeStream);
+    fileContents.close();
+    writeStream.close();
+    unzip.close();
+}
+
+export const loadSeriesDataByDate = async (date: string) => {
+    const latest = moment(date).format('MM_DD_YYYY');
+    await download(`http://files.tmdb.org/p/exports/tv_series_ids_${latest}.json.gz`, path.join(__dirname, 'data'), {
+        filename: `${seriesFileName}.json.gz`,
+    });
+
+    const fileContents = fs.createReadStream(path.join(__dirname, 'data', `${seriesFileName}.json.gz`));
+    const writeStream = fs.createWriteStream(path.join(__dirname, 'data', `${seriesFileName}.json`));
     const unzip = zlib.createGunzip();
 
     const pipe = promisify(pipeline);
@@ -31,16 +49,16 @@ export const loadMovieDataByDate = async (date: string) => {
 export const getAllTmdbMovieIds = async () => {
     const latest = moment().subtract(1, 'days').format('MM_DD_YYYY');
     await download(`http://files.tmdb.org/p/exports/movie_ids_${latest}.json.gz`, path.join(__dirname, 'data'), {
-        filename: `${fileName}.json.gz`,
+        filename: `${movieFileName}.json.gz`,
     });
     
-    const fileContents = fs.createReadStream(path.join(__dirname, 'data', `${fileName}.json.gz`));
-    const writeStream = fs.createWriteStream(path.join(__dirname, 'data', `${fileName}.json`));
+    const fileContents = fs.createReadStream(path.join(__dirname, 'data', `${movieFileName}.json.gz`));
+    const writeStream = fs.createWriteStream(path.join(__dirname, 'data', `${movieFileName}.json`));
     const unzip = zlib.createGunzip();
 
     const pipe = promisify(pipeline);
     await pipe(fileContents, unzip, writeStream);
-    const fileStream = fs.createReadStream(path.join(__dirname, 'data', `${fileName}.json`));
+    const fileStream = fs.createReadStream(path.join(__dirname, 'data', `${movieFileName}.json`));
     const rl = readline.createInterface({
         input: fileStream,
         crlfDelay: Infinity

@@ -7,7 +7,7 @@ import { updateMovies } from "@/movies/updateMovies";
 import { updateSeries } from "@/series/updateSeries";
 import axios from "axios";
 import { Application } from "express";
-import { getHistoricalMovieStats } from "./historicalStats";
+import { getHistoricalMovieStats, getHistoricalSeriesStats } from "./historicalStats";
 import { cronMovies } from "./movies";
 import { cronSeries, updateSeriesList } from "./series";
 import { getAllTmdbMovies } from "./updateTmdbItems";
@@ -111,9 +111,17 @@ const setupRoute = (app: Application) => {
             res.json({status: 'ok'})
         }
     );
-    app.get('/cron/loadHistoricalData', async (req, res) => {
+    app.get('/cron/loadHistoricalMoviesData', async (req, res) => {
         try {
             getHistoricalMovieStats();
+            res.json({status: 'ok'})
+        } catch(e) {
+            console.log(e);
+        }
+    });
+    app.get('/cron/loadHistoricalSeriesData', async (req, res) => {
+        try {
+            getHistoricalSeriesStats();
             res.json({status: 'ok'})
         } catch(e) {
             console.log(e);
