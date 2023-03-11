@@ -10,7 +10,7 @@
         </slot>
         <div class="slider-container">
             <div class="scroll-item" v-on:click="slideLeft">
-                <i class="el-icon-arrow-left"></i>
+                <el-icon><ArrowLeft /></el-icon>
             </div>
             <div v-if="isPerson" class="slider-bar" :id="`scroll-bar-${uuid}`">
                 <person-card
@@ -92,7 +92,7 @@
                 ></movie-card>
             </div>
             <div class="scroll-item scroll-item-right" v-on:click="slideRight">
-                <i class="el-icon-arrow-right"></i>
+                <el-icon><ArrowRight /></el-icon>
             </div>
         </div>
         <el-dialog :visible.sync="episodeDialogVisible">

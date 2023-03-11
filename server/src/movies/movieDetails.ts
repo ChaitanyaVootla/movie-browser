@@ -25,6 +25,10 @@ const getMovieDetails = async (id: number, options?: movieGetOptions) => {
     if (!movieDetails?.id) {
         return console.log(`TMDB get for movie failed for id: ${id}`)
     }
+    if (movieDetails.adult === true) {
+        options.skipGoogle = true;
+        options.skipRt = true;
+    }
     let googleData:any = {allWatchOptions: []};
     movieDetails.googleData = googleData;
     if (!options?.skipGoogle) {

@@ -78,7 +78,8 @@
                     </div>
                 </el-badge>
             </div>
-            <div class="secondary-text movie-card-text mt-1 ml-1">{{ movie.character || movie.job || movie.bottomInfo }}</div>
+            <div v-if="bottomInfo" class="secondary-text movie-card-text mt-1 ml-1">{{ bottomInfo }}</div>
+            <div v-else class="secondary-text movie-card-text movie-card-main-text mt-1 ml-1">{{ movie.title || movie.name }}</div>
         </router-link>
     </div>
 </template>
@@ -166,6 +167,9 @@ export default {
         }),
     },
     computed: {
+        bottomInfo() {
+            return this.movie.character || this.movie.job || this.movie.bottomInfo
+        },
         isSignedIn() {
             return this.$store.getters.isSignedIn;
         },
@@ -247,6 +251,12 @@ export default {
     height: @img-height;
     box-shadow: rgba(0, 0, 0, 0.5) 0px 3px 10px 0.2em;
     background-color: #161616;
+}
+.movie-card-main-text {
+    padding-top: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .sideBarFilter {
     opacity: 0.1;
@@ -396,7 +406,8 @@ export default {
 }
 .secondary-text {
     font-size: 0.9em;
-    max-width: 10em;
+    max-width: 12em;
+    display: block !important;
 }
 .img-container {
     position: relative;

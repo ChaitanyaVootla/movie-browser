@@ -253,14 +253,13 @@
         <el-dialog v-model="dialogVisible" :width="defaultImageTab === 'backdrops' ? '95%' : '50%'" top="10vh">
             <el-tabs v-model="defaultImageTab">
                 <el-tab-pane label="Backdrops" name="backdrops">
-                    <el-carousel height="70vh" :interval="7000">
+                    <el-carousel height="70vh" :interval="7000000">
                         <el-carousel-item v-for="image in backdrops" :key="image.file_path">
-                            <div class="justify-center">
+                            <div class="full-image">
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
                                     }"
-                                    height="100%"
                                 />
                             </div>
                         </el-carousel-item>
@@ -269,12 +268,11 @@
                 <el-tab-pane label="Posters" name="posters">
                     <el-carousel height="70vh" :interval="7000">
                         <el-carousel-item v-for="image in posters" :key="image.file_path">
-                            <div class="justify-center">
+                            <div class="full-image">
                                 <img
                                     v-lazy="{
                                         src: `${configuration.images.secure_base_url}h632${image.file_path}`,
                                     }"
-                                    height="100%"
                                 />
                             </div>
                         </el-carousel-item>
@@ -678,9 +676,14 @@ export default {
 .cursor-pointer {
     cursor: pointer;
 }
-.justify-center {
-    display: flex;
-    justify-content: center;
+.full-image {
+    height: 100%;
+    width: 100%;
+    img {
+        height: 90%;
+        width: 100%;
+        object-fit: contain;
+    }
 }
 .info-tagline {
     padding-left: 1em;
