@@ -38,7 +38,7 @@
         "pg": "^8.7.1",
         "pg-hstore": "^2.3.4",
         "request": "^2.88.2",
-        "sequelize": "^6.7.0",
+        "sequelize": "^6.29.0",
         "simple-eta": "^3.0.2",
         "winston": "3.7.2",
         "aws-sdk": "2.1318.0"
