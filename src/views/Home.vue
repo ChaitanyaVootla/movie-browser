@@ -65,7 +65,7 @@
                         id="autoCompleteSearch"
                         :highlight-first-item="true"
                         :hide-loading="true"
-                        ref="searchInput"
+                        ref="searchinput"
                         :fit-input-width="true"
                         @select="searchItemclicked"
                     >
@@ -216,7 +216,7 @@
                         id="autoCompleteSearch"
                         :highlight-first-item="true"
                         :hide-loading="true"
-                        ref="searchInput"
+                        ref="searchinput"
                         :fit-input-width="true"
                         @select="searchItemclicked"
                     >
@@ -555,11 +555,11 @@ export default {
             if (event.key !== '/') {
                 return;
             }
-            if (document.activeElement === this.$refs.searchInput) {
+            if (document.activeElement === this.$refs.searchinput) {
                 return;
             }
             event.preventDefault();
-            this.$refs.searchInput.focus();
+            document.getElementById('autoCompleteSearch').focus();
         },
     },
     beforeDestroy() {
