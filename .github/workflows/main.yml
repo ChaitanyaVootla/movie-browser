@@ -99,8 +99,8 @@ jobs:
                     echo "====================== Downloading dist ======================"
                     echo "==============================================================="
                     rm -f dist.zip
-                    y | wget https://github.com/ChaitanyaVootla/movie-browser/releases/download/latest/dist.zip
-                    y | unzip -o dist.zip
+                    yes | wget https://github.com/ChaitanyaVootla/movie-browser/releases/download/latest/dist.zip
+                    yes | unzip -o dist.zip
                     echo "==============================================================="
                     echo "===================== starting docker services ====================="
                     echo "==============================================================="
