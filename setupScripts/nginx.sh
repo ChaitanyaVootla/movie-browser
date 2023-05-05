@@ -4,6 +4,8 @@ yes | sudo ufw allow 'Nginx HTTP'
 yes | sudo ufw allow 22
 yes | sudo ufw allow https
 yes | sudo ufw enable
+yes | sudo apt-get install unzip
+yes | sudo apt-get install zip
 
 # cert bot SSL
 apt-get update
