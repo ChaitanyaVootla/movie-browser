@@ -87,7 +87,7 @@ jobs:
                 MONGO_USER: ${{ secrets.MONGO_USER }}
                 MONGO_PASS: ${{ secrets.MONGO_PASS }}
               with:
-                host: 143.110.190.72
+                host: 64.227.132.75
                 username: root
                 password: ${{ secrets.DIGITAL_OCEAN_PASS }}
                 envs: VUE_APP_API_KEY,MONGO_USER,MONGO_PASS
