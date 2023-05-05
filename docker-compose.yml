@@ -11,6 +11,7 @@ services:
       - mongodb:/data/db
   server:
     image: chaitanyavootla/tmb:latest
+    mem_limit: 700m
     profiles:
       - prod
     ports:
