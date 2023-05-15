@@ -51,6 +51,7 @@
                 :onSelected="showMovieInfo"
                 :key="movie.id"
                 :showFullMovieInfo="showFullMovieInfo"
+                :hideBadge="true"
             ></movie-card>
         </div>
     </div>

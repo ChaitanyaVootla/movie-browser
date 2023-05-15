@@ -1,5 +1,21 @@
 <template>
-    <div class="m-4 pt-5 watch-list-container">
+    <div class="content-switch">
+        <el-radio-group v-model="isMovies">
+            <el-radio-button :label="false">Series</el-radio-button>
+            <el-radio-button :label="true">Movies</el-radio-button>
+        </el-radio-group>
+    </div>
+    <div v-if="isMovies">
+        <search-grid
+            :movies="watchListMovies"
+            :configuration="configuration"
+            :imageRes="'w500'"
+            :onSelected="showMovieInfo"
+            :showFullMovieInfo="showFullMovieInfo"
+            :genres="movieGenres"
+            ></search-grid>
+    </div>
+    <div v-else class="watch-list-container">
         <div class="share-list" v-if="user.displayName" @click="shareListModalVisible = true">
             <el-tooltip class="item" effect="light" content="Share this list" placement="left">
                 <i class="fa-solid fa-share-nodes"></i>
@@ -58,6 +74,7 @@ import { compact, sortBy } from 'lodash';
 import { getRatingColor } from '@/common/utils';
 import moment from 'moment';
 import MbSlider from '@/components/Slider/index.vue';
+import SearchGrid from '@/components/Common/searchGrid.vue';
 
 export default {
     name: 'watchList',
@@ -66,14 +83,19 @@ export default {
         return {
             getRatingColor,
             shareListModalVisible: false,
+            isMovies: false,
         };
     },
     components: {
         MbSlider,
+        SearchGrid,
     },
     computed: {
         shareLink() {
             return `${window.location.hostname}/shareView/${this.user.uid}`;
+        },
+        watchListMovies() {
+            return this.$store.getters.watchListMovies;
         },
         canShowOnbarding() {
             return !this.$store.getters.watchListSeries.length;
@@ -144,6 +166,12 @@ export default {
 
 <style scoped lang="less">
 @import '../Assets/Styles/main.less';
+
+.content-switch {
+    display: flex;
+    justify-content: center;
+    padding-top: 5rem;
+}
 .share-list {
     position: absolute;
     right: 3em;

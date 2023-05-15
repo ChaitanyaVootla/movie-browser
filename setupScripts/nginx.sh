@@ -5,7 +5,6 @@ yes | sudo ufw allow 22
 yes | sudo ufw allow https
 yes | sudo ufw enable
 yes | sudo apt-get install unzip
-yes | sudo apt-get install zip
 
 # cert bot SSL
 apt-get update
@@ -13,7 +12,6 @@ sudo apt-get install certbot
 apt-get install python3-certbot-nginx
 
 sudo certbot --nginx -d themoviebrowser.com -d www.themoviebrowser.com
-sudo certbot --nginx -d vootlachaitanya.com -d www.vootlachaitanya.com
 
 # Nginx config
 map $sent_http_content_type $expires {
