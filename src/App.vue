@@ -46,6 +46,7 @@ body {
     text-rendering: optimizeLegibility;
     text-shadow: rgba(0, 0, 0, 0.01) 0 0 1px;
     color: black;
+    word-spacing: 1px;
 }
 html.dark {
     body {

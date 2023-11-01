@@ -30,7 +30,7 @@
         <br />
         <div class="frosted mt-3 mb-3">
             <div class="rating-container tmdb-rating" v-if="item.vote_average">
-                <a href="" target="_blank" rel="noreferrer noopener">
+                <a :href="tmdbLink" target="_blank" rel="noreferrer noopener">
                     <img src="/images/rating/tmdb.svg" /><br />
                     <span>{{ item.vote_average.toFixed(1) }}</span>
                 </a>
@@ -106,6 +106,12 @@ export default {
         user() {
             return this.$store.getters.user;
         },
+        isMovie() {
+            return this.item.release_date ? true : false;
+        },
+        tmdbLink() {
+            return `https://www.themoviedb.org/${this.isMovie ? 'movie' : 'tv'}/${this.item.id}`;
+        }
     },
 };
 </script>
