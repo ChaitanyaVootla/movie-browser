@@ -19,6 +19,10 @@ export const api = {
         const res = await axios.get(`${appConfig.serverBaseUrl}stats`);
         return res.data;
     },
+    askAI: async function (message: string, threadId?: string) {
+        const res = await axios.get(`${appConfig.serverBaseUrl}assistant?message=${message}${threadId?'&threadId='+threadId:''}`);
+        return res.data;
+    },
     getHistoricalMovieStats: async function (id: number) {
         const res = await axios.get(`${appConfig.serverBaseUrl}movieDetails/${id}/stats`);
         return res.data;

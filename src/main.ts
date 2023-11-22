@@ -7,10 +7,16 @@ import { store } from './store';
 import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import { createHead } from '@unhead/vue'
 
 const VueApp = createApp(App);
 VueApp.use(store);
 VueApp.use(ElementPlus);
+const head = createHead()
+VueApp.use(head);
+
+console.log(head);
+
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
     VueApp.component(key, component)
 }

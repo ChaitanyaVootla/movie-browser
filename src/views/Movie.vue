@@ -308,6 +308,25 @@ export default {
         MbSlider,
         HistoryStats,
     },
+    head() {
+        return {
+            title: `${this.details.title} - The Movie Browser`,
+            meta: [
+                { name: 'description', content: this.details.overview },
+                { name: 'keywords', content: this.keywords.map(({ name }) => name).join(',') },
+                { name: 'og:title', content: `${this.details.title} - The Movie Browser` },
+                { name: 'og:type', content: 'video.movie' },
+                { name: 'og:url', content: window.location.href },
+                { name: 'og:image', content: this.configuration.images.secure_base_url + 'h632' + this.details.backdrop_path },
+                { name: 'og:description', content: this.details.overview },
+                { name: 'og:site_name', content: 'The Movie Browser' },
+                { name: 'twitter:card', content: 'summary_large_image' },
+                { name: 'twitter:title', content: `${this.details.title} - The Movie Browser` },
+                { name: 'twitter:description', content: this.details.overview },
+                { name: 'twitter:image', content: this.configuration.images.secure_base_url + 'h632' + this.details.backdrop_path },
+            ]
+        };
+    },
     data() {
         return {
             details: {} as any,

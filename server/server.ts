@@ -5,7 +5,7 @@ import 'module-alias/register';
 import express from 'express';
 const app = express();
 import cors from 'cors';
-const port = 3000;
+const port = 3001;
 import { Db, MongoClient } from 'mongodb';
 import bodyParser from 'body-parser';
 import session from 'express-session';
@@ -21,6 +21,7 @@ import authRoutes from '@/auth/routes';
 import keywordRoutes from '@/keywords/routes';
 import tmdbRoutes from '@/tmdb/routes';
 import dbRoutes from '@/db/routes';
+import aiRoutes from '@/ai/routes';
 import moviesRoutes from '@/movies/routes';
 import seriesRoutes from '@/series/routes';
 import filtersRoutes from '@/filters/routes';
@@ -79,6 +80,7 @@ dbClient.connect().then(() => {
         continueWatchingRoutes(app);
         rottenTomatoesRoutes(app);
         dbRoutes(app, db);
+        aiRoutes(app, db);
     
         app.listen(port, () => console.log(`Server started at port: ${port}`));
 

@@ -1,12 +1,14 @@
 <template>
     <div id="app">
         <Home />
+        <AIChat />
     </div>
 </template>
 
 <script lang="ts">
 import { store } from './store';
 import Home from '@/views/Home.vue';
+import AIChat from '@/views/AIChat.vue';
 
 export default {
     created() {
@@ -14,6 +16,7 @@ export default {
     },
     components: {
         Home,
+        AIChat,
     },
     computed: {
         // isLightMode() {
