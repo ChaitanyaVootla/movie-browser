@@ -3,7 +3,7 @@ import { getMovieDetails } from "@/movies/movieDetails";
 import { chunk } from "lodash";
 
 const updateMovies = async (movieIds: number[], force = false, skipGoogle = true) => {
-    const chunks = chunk(movieIds, 5);
+    const chunks = chunk(movieIds, 10);
     console.log("Movies total chunks: ", chunks.length);
 
     let count = 1;

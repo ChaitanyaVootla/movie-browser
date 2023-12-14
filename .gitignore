@@ -11,3 +11,4 @@ postgres
 server/src/cron/data
 server/src/db/data
 dump.tar.gz
+__pycache__

@@ -15,7 +15,7 @@ const cronMovies = async () => {
     await download(`http://files.tmdb.org/p/exports/movie_ids_${latest}.json.gz`, path.join(__dirname, 'data'), {
         filename: `${fileName}.json.gz`,
     });
-    
+
     const fileContents = fs.createReadStream(path.join(__dirname, 'data', `${fileName}.json.gz`));
     const writeStream = fs.createWriteStream(path.join(__dirname, 'data', `${fileName}.json`));
     const unzip = zlib.createGunzip();
@@ -29,11 +29,12 @@ const cronMovies = async () => {
     });
     let movieIds = [];
     for await (const line of rl) {
-        if (JSON.parse(line).popularity >= 100) {
-            movieIds.push(JSON.parse(line).id);
-        }
+        // if (JSON.parse(line).popularity >= 100) {
+        //     movieIds.push(JSON.parse(line).id);
+        // }
+        movieIds.push(JSON.parse(line).id);
     }
-    updateMovies(movieIds, true);
+    updateMovies(movieIds, false);
     return movieIds.length;
 }
 
