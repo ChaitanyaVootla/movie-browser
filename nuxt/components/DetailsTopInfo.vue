@@ -17,7 +17,7 @@
                     <v-btn v-if="item.youtubeVideos?.length" @click="showTrailer = !showTrailer"
                         class="rounded-pill !absolute bottom-4 left-4" color="#ccc" prepend-icon="mdi-play"
                         :elevation="10">
-                        Show Trailer
+                        Play Trailer
                     </v-btn>
                 </div>
                 <div v-else class="bg-image min-w-full flex justify-center">
@@ -54,7 +54,7 @@
                         </div>
                         <div class="flex pt-16 gap-6">
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn prepend-icon="mdi-check" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
+                                <v-btn prepend-icon="mdi-check" variant="outlined" :color="item.watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
                                     class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
                                     Watched
                                 </v-btn>

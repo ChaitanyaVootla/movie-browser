@@ -11,6 +11,9 @@ export default defineNuxtConfig({
       enabled: true
     }
   },
+  experimental: {
+    writeEarlyHints: false,
+  },
   postcss: {
     plugins: {
       tailwindcss: {},
@@ -19,6 +22,11 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      script: [
+        {
+          src: 'https://accounts.google.com/gsi/client',
+        }
+      ],
       titleTemplate: (titleChunk) => {
         return titleChunk ? `${titleChunk} - Movie Browser` : 'Movie Browser'
       },
@@ -28,6 +36,7 @@ export default defineNuxtConfig({
   modules: [
     "@nuxt/image",
     "nuxt-lodash",
+    "@sidebase/nuxt-auth",
     (_options, nuxt) => {
       nuxt.hooks.hook('vite:extendConfig', (config) => {
         // @ts-expect-error
@@ -36,6 +45,11 @@ export default defineNuxtConfig({
     },
     'nuxt-time',
   ],
+  auth: {
+    provider: {
+      type: 'authjs'
+    }
+  },
   routeRules: {
     // '/api/**': { swr: 60 * 60 * 24, cors: true },
     '/api/**': { cors: true },

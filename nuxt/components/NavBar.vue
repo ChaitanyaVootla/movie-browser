@@ -32,10 +32,31 @@
                         </v-chip>
                     </div>
                 </v-chip>
+                <div class="ml-5">
+                    <div v-if="status === 'unauthenticated' || status === 'loading'">
+                        <v-btn @click="signIn('google')" color="#333" prepend-icon="mdi-google">
+                            Continue with Google
+                        </v-btn>
+                    </div>
+                    <div v-else>
+                        <v-menu>
+                            <template v-slot:activator="{ props }">
+                                <v-avatar :image="(data?.user?.image as string)" :size="35" class="relative cursor-pointer"
+                                    v-bind="props">
+                                </v-avatar>
+                            </template>
+                            <v-list>
+                                <v-list-item @click="signOut">
+                                    Sign Out
+                                </v-list-item>
+                            </v-list>
+                        </v-menu>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <v-overlay v-model="showSearchOverlay" absolute width="100%" height="100%">
+    <v-overlay v-model="showSearchOverlay" absolute width="100%" height="100%" contained>
         <div class="flex justify-center relative min-h-full">
         <div class="absolute w-4/5 top-36 md:w-1/3">
             <v-autocomplete
@@ -93,6 +114,10 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '#imports'
+
+const { data, status, signIn, signOut } = useAuth();
+
 const showSearchOverlay = ref(false);
 let searchResults = ref([] as any[]);
 

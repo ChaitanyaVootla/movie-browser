@@ -12,6 +12,7 @@
   "devDependencies": {
     "@nuxt/devtools": "latest",
     "@nuxt/image": "^1.1.0",
+    "@sidebase/nuxt-auth": "^0.6.3",
     "autoprefixer": "^10.4.16",
     "nuxt": "^3.8.2",
     "nuxt-lodash": "^2.5.3",
@@ -26,6 +27,10 @@
   "dependencies": {
     "@iconify/json": "^2.2.145",
     "@mdi/font": "^7.3.67",
-    "mongoose": "8.0.2"
+    "@types/google.accounts": "^0.0.14",
+    "google-auth-library": "^9.4.1",
+    "mongoose": "8.0.2",
+    "next-auth": "4.22.5",
+    "node-cache": "^5.1.2"
   }
 }

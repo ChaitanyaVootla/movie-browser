@@ -93,14 +93,17 @@
 <script setup lang="ts">
 let movie = ref({} as any);
 let aiRecommendations = ref([] as any);
-
+const headers = useRequestHeaders(['cookie']) as HeadersInit
 const { data: movieAPI, pending }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}`,
-    () => $fetch(`/api/movie/${useRoute().params.movieId}`).catch((err) => {
+    () => $fetch(`/api/movie/${useRoute().params.movieId}`, {
+        headers
+    }).catch((err) => {
         console.log(err);
         return {};
     }),
     {
         transform: (movie: any) => {
+            // console.log(movie);
             if (!movie) return {};
             if (movie?.release_date) {
                 movie.releaseYear = movie?.release_date?.split('-')[0];
