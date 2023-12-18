@@ -1,11 +1,13 @@
 <template>
     <div>
-        <div class="title text-2xl mb-5">
+        <div class="title text-2xl mb-5 ml-14">
             {{ title }}
         </div>
-        <div class="scroller scroll pb-3">
-            <PosterCard v-for="item in items" :item="item" />
-        </div>
+        <v-slide-group show-arrows="desktop">
+            <v-slide-group-item v-for="movie in (items || Array(10))">
+                <PosterCard :item="movie" :pending="pending" class="mr-6"/>
+            </v-slide-group-item>
+        </v-slide-group>
     </div>
 </template>
 
@@ -19,6 +21,10 @@ export default {
         },
         title: {
             type: String,
+            required: true
+        },
+        pending: {
+            type: Boolean,
             required: true
         }
     },

@@ -1,7 +1,8 @@
 <template>
     <div class="flex">
-        <div v-if="ratings.length || props.tmdbRating" class="flex gap-8 px-8 py-3 backdrop-blur-lg border-2 border-neutral-600 rounded-pill">
-            <div v-for="rating in ratings" class="">
+        <div v-if="ratings.length || props.tmdbRating"
+            class="flex gap-8 px-8 pt-3 pb-2 backdrop-blur-lg border-2 border-neutral-600 rounded-pill">
+            <div v-for="rating in ratings">
                 <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                     <div class="w-12 flex flex-col items-center justify-between gap-2">
                         <v-img :src="rating.image" class="w-7 h-7"></v-img>

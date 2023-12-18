@@ -11,7 +11,7 @@
 
 <script lang="ts">
 export default {
-    name: "Scroller",
+    name: "Grid",
     props: {
         items: {
             type: Object,

@@ -16,16 +16,8 @@
                     <div class="text-neutral-300 mt-3 text">
                         {{ movie.overview }}
                     </div>
-                    <v-divider class="my-5"></v-divider>
-                    <div class="flex">
-                        <div v-if="movie.googleData?.allWatchOptions?.length" class="mb-5">
-                            <div class="text-2xl">Watch Options</div>
-                            <WatchOptions class="mt-4" :googleData="movie.googleData" :tmdbRating="movie.vote_average" :movieId="movie.id"/>
-                        </div>
-                        <v-divider vertical inset class="mx-10"></v-divider>
-                    </div>
-                    <v-divider class="my-5"></v-divider>
-                    <div class="flex flex-wrap gap-3">
+
+                    <div class="flex flex-wrap gap-3 mt-5">
                         <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'">
                             {{ keyword.name }}
                         </v-chip>
@@ -220,28 +212,7 @@ useHead(() => {
 </script>
 
 <style scoped lang="less">
-@info-height: calc(max(50vh, 500px) - 4rem);
 
-.top-info {
-    height: @info-height;
-    background: rgb(18,18,18);
-    background: linear-gradient(0deg, rgba(18,18,18,1) 0%, rgba(0,0,0,0) 100%);
-    :deep(.bg-image) {
-        height: @info-height;
-    }
-    :deep(.bg-banner) {
-        &::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: linear-gradient(to bottom, rgba(255,0,0,0), #2c2c2c);
-            opacity: 0.9;
-        }
-    }
-}
 :deep(.v-skeleton-loader) {
     .v-skeleton-loader__bone {
         &.v-skeleton-loader__image {

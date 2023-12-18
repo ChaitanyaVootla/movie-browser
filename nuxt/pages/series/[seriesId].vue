@@ -15,16 +15,8 @@
                     <div class="text-neutral-300 mt-3 text">
                         {{ series.overview }}
                     </div>
-                    <v-divider class="my-5"></v-divider>
-                    <div class="flex">
-                        <div v-if="series.googleData?.allWatchOptions?.length" class="mb-5">
-                            <div class="text-2xl">Watch now</div>
-                            <WatchOptions class="mt-4" :googleData="series.googleData" :tmdbRating="series.vote_average" :movieId="series.id"/>
-                        </div>
-                        <v-divider vertical inset class="mx-10"></v-divider>
-                    </div>
-                    <v-divider class="my-5"></v-divider>
-                    <div class="flex flex-wrap gap-3">
+
+                    <div class="flex flex-wrap gap-3 mt-5">
                         <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill" :color="'#ddd'">
                             {{ keyword.name }}
                         </v-chip>

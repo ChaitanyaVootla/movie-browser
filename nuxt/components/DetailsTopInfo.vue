@@ -54,21 +54,23 @@
                         </div>
                         <div class="flex pt-16 gap-6">
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn prepend-icon="mdi-check" variant="outlined" :color="item.watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
+                                <v-btn @click="watchClicked(item.watched)" prepend-icon="mdi-check" variant="outlined" :color="item.watched?'red':'#ccc'"
+                                    :elevation="5" :height="50" :width="150"
                                     class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
                                     Watched
                                 </v-btn>
                             </div>
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn prepend-icon="mdi-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
+                                <v-btn prepend-icon="mdi-playlist-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
                                     class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
                                     Watch list
                                 </v-btn>
                             </div>
                         </div>
                     </div>
-                    <div class="w-full flex pb-10">
+                    <div class="w-full flex pb-10 flex-col gap-5">
                         <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                        <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
                     </div>
                 </div>
             </div>
@@ -82,17 +84,34 @@
 <script setup lang="ts">
 let showTrailer = ref(false);
 
-defineProps({
+const { item } = defineProps({
     item: {
         type: Object,
         required: true,
         default: {}
     },
 });
+
+const watchClicked = (watched: boolean) => {
+    if (watched) {
+        item.watched = false;
+    } else {
+        item.watched = true;
+    }
+    if (item.watched) {
+        $fetch(`/api/movie/${item.id}/watched`, {
+            method: 'POST',
+        })
+    } else {
+        $fetch(`/api/movie/${item.id}/watched`, {
+            method: 'DELETE',
+        })
+    }
+}
 </script>
 
 <style scoped lang="less">
-@info-height: calc(max(50vh, 500px) - 4rem);
+@info-height: calc(max(55vh, 500px) - 4rem);
 
 .top-info {
     height: @info-height;

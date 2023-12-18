@@ -9,6 +9,12 @@
                     Home
                 </div>
             </NuxtLink>
+            <NuxtLink to="/watchList">
+                <div class="flex items-center gap-2">
+                    <v-icon icon="mdi-playlist-play" class="text-3xl" />
+                    Watch List
+                </div>
+            </NuxtLink>
             <NuxtLink to="/ai">
                 <div class="flex items-center gap-2">
                     <v-icon icon="mdi-alien" class="text-3xl" />
@@ -27,7 +33,7 @@
                 <v-chip class="rounded-xl px-6 py-5 cursor-pointer" @click="showSearchOverlay = true">
                     <v-icon icon="mdi-magnify" />
                     <div class="ml-2">Search
-                        <v-chip class="rounded-pill ml-1" size="small">
+                        <v-chip class="rounded-pill ml-1 -mt-1" size="small">
                             Ctrl + K
                         </v-chip>
                     </div>

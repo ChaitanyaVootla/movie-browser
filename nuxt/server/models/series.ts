@@ -1,7 +1,6 @@
-import mongoose, { model, Schema } from "mongoose";
-// import { dbConstants } from "../constants";
+import { model, Schema } from "mongoose";
 
-const MovieSchema = new Schema({
+const SeriesSchema = new Schema({
     id: Number,
     title: String,
     adult: Boolean,
@@ -12,7 +11,7 @@ const MovieSchema = new Schema({
     any: Schema.Types.Mixed,
 }, {strict: false});
 
-interface IMovie {
+interface ISeries {
     id: Number,
     title: String,
     adult: Boolean,
@@ -23,11 +22,8 @@ interface IMovie {
     any: Schema.Types.Mixed,
 }
 
-const MovieLightFileds = 'id title adult original_title overview popularity release_date imdb_id vote_average genres poster_path backdrop_path';
+const SeriesLightFileds = `-_id id name adult overview popularity release_date imdb_id poster_path backdrop_path vote_average
+    genres updatedAt status next_episode_to_air first_air_date last_episode_to_air`;
 
-const Movie = model<IMovie>("Movie", MovieSchema, "movies");
-
-export {
-    Movie,
-    MovieLightFileds,
-};
+const Series = model<ISeries>('series', SeriesSchema);
+export { SeriesSchema, ISeries, SeriesLightFileds, Series};

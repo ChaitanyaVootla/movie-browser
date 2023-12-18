@@ -1,10 +1,11 @@
 <template>
     <div class="flex">
-        <div v-if="watchOptions.length" class="flex gap-8">
-            <div v-for="watchOption in watchOptions" class="">
+        <div v-if="watchOptions.length"
+            class="flex gap-8 px-8 pt-3 pb-2 backdrop-blur-lg border-2 border-neutral-600 rounded-pill">
+            <div v-for="watchOption in watchOptions">
                 <NuxtLink :to="watchOption.link" target="blank" noreferrer noopener>
                     <div class="w-18 flex flex-col items-center justify-between gap-2">
-                        <v-img :src="watchOption.image" class="w-10 h-10"></v-img>
+                        <v-img :src="watchOption.image" class="w-7 h-7"></v-img>
                         <div v-if="watchOption?.price?.length" class="text-sm text-neutral-300 text-center">
                             {{ watchOption.price }}
                         </div>

@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
     const userData = await getUserData(event);
-    if (userData) {
+    if (userData.watchedMovieIds) {
         movie = {
             ...movie,
             watched: userData.watchedMovieIds.includes(parseInt(movieId as string)),
