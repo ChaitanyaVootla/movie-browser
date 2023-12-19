@@ -86,7 +86,7 @@
 let movie = ref({} as any);
 let aiRecommendations = ref([] as any);
 const headers = useRequestHeaders(['cookie']) as HeadersInit
-const { data: movieAPI, pending }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}`,
+const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}`,
     () => $fetch(`/api/movie/${useRoute().params.movieId}`, {
         headers
     }).catch((err) => {

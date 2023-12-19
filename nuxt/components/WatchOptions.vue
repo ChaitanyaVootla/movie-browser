@@ -1,7 +1,7 @@
 <template>
     <div class="flex">
         <div v-if="watchOptions.length"
-            class="flex gap-8 px-8 pt-3 pb-2 backdrop-blur-lg border-2 border-neutral-600 rounded-pill">
+            class="flex gap-8 px-8 pt-2 pb-2 backdrop-blur-lg border-2 border-neutral-600 rounded-pill">
             <div v-for="watchOption in watchOptions">
                 <NuxtLink :to="watchOption.link" target="blank" noreferrer noopener>
                     <div class="w-18 flex flex-col items-center justify-between gap-2">

@@ -16,6 +16,28 @@
                         {{ series.overview }}
                     </div>
 
+                    <div class="mt-10">
+                        <div class="flex w-full">
+                            <div class="w-fit">
+                                <v-select
+                                    v-model="series.selectedSeason"
+                                    label="Select Season"
+                                    item-title="name"
+                                    item-value="id"
+                                    :items="series.seasons || []"
+                                    variant="outlined"
+                                    persistent-hint
+                                    return-object
+                                    single-line
+                                    density="compact"
+                                ></v-select>
+                            </div>
+                            <div class="">
+
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex flex-wrap gap-3 mt-5">
                         <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill" :color="'#ddd'">
                             {{ keyword.name }}
@@ -73,9 +95,7 @@
 </template>
 
 <script setup lang="ts">
-let series = ref({} as any);
-
-const { data: seriesAPI, pending }: any = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
+const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
     () => $fetch(`/api/series/${useRoute().params.seriesId}`).catch((err) => {
         console.log(err);
         return {};
@@ -84,6 +104,7 @@ const { data: seriesAPI, pending }: any = await useLazyAsyncData(`seriesDetails-
         transform: ((series: any) => {
             return {
                 ...series,
+                selectedSeason: series.seasons?.[series.seasons?.length - 1] || null,
                 youtubeVideos: ( series.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
                     (a: any, b: any) => {
                     if (a.type === 'Trailer' && b.type !== 'Trailer') {
@@ -104,7 +125,6 @@ const { data: seriesAPI, pending }: any = await useLazyAsyncData(`seriesDetails-
         })
     }
 );
-series = seriesAPI;
 
 useHead(() => {
     return {

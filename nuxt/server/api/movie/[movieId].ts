@@ -1,5 +1,5 @@
 import { JWT } from "next-auth/jwt";
-import { Movie, WatchedMovies } from "~/server/models";
+import { IMovie, Movie, WatchedMovies } from "~/server/models";
 
 export default defineEventHandler(async (event) => {
     const userData = event.context.userData as JWT;
@@ -30,5 +30,5 @@ export default defineEventHandler(async (event) => {
             watched: !!watchedDbRes,
         }
     }
-    return movie;
+    return movie as IMovie;
 });
