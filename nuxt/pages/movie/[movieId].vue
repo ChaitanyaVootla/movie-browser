@@ -126,7 +126,7 @@ const { data: movieAPI, pending }: any = await useLazyAsyncData(`movieDetails-${
 movie = movieAPI;
 
 const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-recommend`,
-    () => $fetch(`/api/movie/${useRoute().params.movieId}/recommend`).catch((err) => {
+    () => $fetch(`/api/movie/${useRoute().params.movieId}/recommend`, { headers }).catch((err) => {
         console.log(err);
         return {};
     }),

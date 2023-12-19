@@ -30,4 +30,5 @@ const Movie = model<IMovie>("Movie", MovieSchema, "movies");
 export {
     Movie,
     MovieLightFileds,
+    IMovie,
 };

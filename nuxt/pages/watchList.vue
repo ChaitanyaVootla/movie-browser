@@ -15,12 +15,26 @@
         </div>
         <div v-else>
             <div v-if="selectedType === 0" class="flex flex-col gap-10 mb-14">
-                <Scroller :items="seriesListData?.currentRunningSeries" title="Running now" :pending="pending" />
-                <Scroller :items="seriesListData?.returingSeries" title="Returning Series" :pending="pending" />
-                <Scroller :items="seriesListData?.completedSeries" title="Completed" :pending="pending" />
+                <div v-if="!seriesListData?.totalCount"
+                    class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
+                    No Series in your watch list
+                </div>
+                <div v-else>
+                    <Scroller v-if="seriesListData?.currentRunningSeries?.length" :items="seriesListData?.currentRunningSeries"
+                        title="Running now" :pending="pending" />
+                    <Scroller v-if="seriesListData?.returingSeries?.length" :items="seriesListData?.returingSeries"
+                        title="Returning" :pending="pending" />
+                    <Scroller v-if="seriesListData?.completedSeries?.length" :items="seriesListData?.completedSeries"
+                        title="Completed" :pending="pending" />
+                </div>
             </div>
             <div v-else-if="selectedType === 1">
-                <Grid :items="moviesList" title="" />
+                <Grid v-if="moviesList?.length" :items="moviesList" title="" />
+                <div v-else>
+                    <div class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
+                        No Movies in your watch list
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -31,8 +45,9 @@ const selectedType = ref(0);
 useHead({
     title: 'Watch List'
 })
-const { pending, data: seriesListData }: any = await useLazyAsyncData('watchList-series',
-    () => $fetch('/api/series/watchList').catch((err) => {
+const headers = useRequestHeaders(['cookie']) as HeadersInit
+const { pending, data: seriesListData } = await useLazyAsyncData('watchList-series',
+    () => $fetch('/api/series/watchList', { headers }).catch((err) => {
         console.log(err);
         return {
             currentRunningSeries: [],
@@ -59,13 +74,14 @@ const { pending, data: seriesListData }: any = await useLazyAsyncData('watchList
             return {
                 currentRunningSeries,
                 completedSeries,
-                returingSeries
+                returingSeries,
+                totalCount: series.length
             };
         }
     }
 );
-const { pending: movieListPending, data: moviesList }: any = await useLazyAsyncData('watchList-series',
-    () => $fetch('/api/movie/watchList').catch((err) => {
+const { pending: movieListPending, data: moviesList } = await useLazyAsyncData('watchList-series',
+    () => $fetch('/api/movie/watchList', { headers }).catch((err) => {
         console.log(err);
         return [];
     }),
