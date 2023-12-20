@@ -5,7 +5,7 @@ on:
         branches: [nuxt]
 
 jobs:
-    Build_Frontend:
+    Build_Nuxt:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
@@ -22,4 +22,5 @@ jobs:
             - name: Nuxt Build
               timeout-minutes: 2
               run: |
+                cd nuxt
                 npm run build
