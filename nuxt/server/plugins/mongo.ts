@@ -2,7 +2,7 @@ import { connect } from "mongoose";
 
 export default defineNitroPlugin(async (nitroApp) => {
     try {
-        await connect("mongodb://root:rootpassword@localhost:27017", {
+        await connect(`mongodb://root:${process.env.MONGO_PASS}@${process.env.MONGO_IP}:27017`, {
             dbName: "test",
         });
         console.log("DB connection established.");
