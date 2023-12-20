@@ -1,8 +1,8 @@
-import mongoose, { Schema } from "mongoose";
+import { Schema, model } from "mongoose";
 
 const UserSchema = new Schema({
     sub: Number,
     name: String,
 }, {strict: false});
 
-export default mongoose.model("users", UserSchema);
+export default model<any>("users", UserSchema);

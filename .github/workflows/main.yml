@@ -2,107 +2,24 @@ name: Deploy
 
 on:
     push:
-        branches: [master]
+        branches: [nuxt]
 
 jobs:
-    Docker_Build:
-        runs-on: ubuntu-latest
-        steps:
-          - uses: actions/checkout@v2
-          - name: Set up QEMU
-            uses: docker/setup-qemu-action@v2
-          - name: Set up Docker Buildx
-            uses: docker/setup-buildx-action@v2
-          - name: Login to DockerHub
-            uses: docker/login-action@v2
-            with:
-              username: ${{ secrets.DOCKERHUB_USERNAME }}
-              password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          - name: Build server image
-            env:
-              VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
-              GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
-              GOOGLE_AUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_AUTH_CLIENT_SECRET }}
-              SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-              AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-              AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            run: |
-              pushd server
-              touch .env
-              echo "TMDB_API_KEY=$VUE_APP_API_KEY" >> .env
-              echo "GOOGLE_AUTH_CLIENT_ID=$GOOGLE_AUTH_CLIENT_ID" >> .env
-              echo "GOOGLE_AUTH_CLIENT_SECRET=$GOOGLE_AUTH_CLIENT_SECRET" >> .env
-              echo "SESSION_SECRET=$SESSION_SECRET" >> .env
-              echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> .env
-              echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> .env
-              echo "IS_PROD=true" >> .env
-              cat .env
-              popd
-          - name: Build and push
-            uses: docker/build-push-action@v3
-            with:
-              context: ./server
-              push: true
-              tags: chaitanyavootla/tmb:latest
-
     Build_Frontend:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-            - name: Set Node.js 16
+            - name: Set Node.js 18
               uses: actions/setup-node@v2
               with:
-                node-version: '16'
-            - name: Setup
+                node-version: '18'
+            - name: NPM intall
               timeout-minutes: 2
               run: |
-                ls
+                cd nuxt
                 touch .env
-                echo "VITE_APP_SERVER_URL=https://themoviebrowser.com/node/" >> .env
                 npm install
-                ls
-            - name: Build
+            - name: Nuxt Build
               timeout-minutes: 2
               run: |
                 npm run build
-                apt install zip || true
-                zip -r dist.zip dist/
-                ls
-            - name: Release
-              uses: ncipollo/release-action@v1
-              with:
-                name: 'release'
-                allowUpdates: true
-                artifacts: 'dist.zip'
-                token: ${{ secrets.GITHUB_TOKEN }}
-                tag: 'latest'
-
-    Deploy:
-        runs-on: ubuntu-latest
-        needs: ['Build_Frontend', 'Docker_Build']
-        steps:
-            - uses: appleboy/ssh-action@master
-              env:
-                VUE_APP_API_KEY: ${{ secrets.VUE_APP_API_KEY }}
-                MONGO_USER: ${{ secrets.MONGO_USER }}
-                MONGO_PASS: ${{ secrets.MONGO_PASS }}
-              with:
-                host: 64.227.132.75
-                username: root
-                password: ${{ secrets.DIGITAL_OCEAN_PASS }}
-                envs: VUE_APP_API_KEY,MONGO_USER,MONGO_PASS
-                script: |
-                    cd /movie-browser
-                    git checkout -f master
-                    git pull origin master
-                    echo "==============================================================="
-                    echo "====================== Downloading dist ======================"
-                    echo "==============================================================="
-                    rm -f dist.zip
-                    yes | wget https://github.com/ChaitanyaVootla/movie-browser/releases/download/latest/dist.zip
-                    yes | unzip -o dist.zip
-                    echo "==============================================================="
-                    echo "===================== starting docker services ====================="
-                    echo "==============================================================="
-                    cd /movie-browser/server
-                    npm run start:prod

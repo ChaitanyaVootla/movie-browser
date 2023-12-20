@@ -1,11 +1,8 @@
-import mongoose from "mongoose";
+import { connect, connection } from "mongoose";
 
 export default defineNitroPlugin(async (nitroApp) => {
-    if (mongoose.connection?.readyState === 1) {
-        return;
-    }
     try {
-        await mongoose.connect("mongodb://root:rootpassword@localhost:27017", {
+        await connect("mongodb://root:rootpassword@localhost:27017", {
             dbName: "test",
         });
         console.log("DB connection established.");

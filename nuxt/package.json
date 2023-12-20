@@ -27,8 +27,6 @@
   "dependencies": {
     "@iconify/json": "^2.2.145",
     "@mdi/font": "^7.3.67",
-    "@types/google.accounts": "^0.0.14",
-    "google-auth-library": "^9.4.1",
     "mongoose": "8.0.2",
     "next-auth": "4.22.5",
     "node-cache": "^5.1.2"

@@ -19,7 +19,7 @@ db = client['test']
 mongo_collection = db['movies']
 
 # ChromaDB setup
-path = os.path.join(os.path.dirname(__file__), f'./{flatModelName}')
+path = os.path.join(os.path.dirname(__file__), f'./db/{flatModelName}')
 chroma_client = chromadb.PersistentClient(path=path)
 chroma_collection = chroma_client.get_or_create_collection(name="movies", metadata={"hnsw:space": "cosine"})
 

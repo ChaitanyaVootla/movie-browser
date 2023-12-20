@@ -10,5 +10,6 @@ postgres
 .DS_Store
 server/src/cron/data
 server/src/db/data
+VectorDB/db
 dump.tar.gz
 __pycache__

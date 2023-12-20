@@ -15,11 +15,11 @@
         </div>
         <div v-else>
             <div v-if="selectedType === 0" class="flex flex-col gap-10 mb-14">
-                <div v-if="!seriesListData?.totalCount"
+                <div v-if="seriesListData?.totalCount === 0"
                     class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
                     No Series in your watch list
                 </div>
-                <div v-else>
+                <div>
                     <Scroller v-if="seriesListData?.currentRunningSeries?.length" :items="seriesListData?.currentRunningSeries"
                         title="Running now" :pending="pending" />
                     <Scroller v-if="seriesListData?.returingSeries?.length" :items="seriesListData?.returingSeries"
@@ -52,7 +52,8 @@ const { pending, data: seriesListData } = await useLazyAsyncData('watchList-seri
         return {
             currentRunningSeries: [],
             returingSeries: [],
-            completedSeries: []
+            completedSeries: [],
+            totalCount: 0
         };
     }),
     {
@@ -80,7 +81,7 @@ const { pending, data: seriesListData } = await useLazyAsyncData('watchList-seri
         }
     }
 );
-const { pending: movieListPending, data: moviesList } = await useLazyAsyncData('watchList-series',
+const { pending: movieListPending, data: moviesList } = await useLazyAsyncData('watchList-movies',
     () => $fetch('/api/movie/watchList', { headers }).catch((err) => {
         console.log(err);
         return [];
