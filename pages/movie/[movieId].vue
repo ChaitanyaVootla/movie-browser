@@ -75,7 +75,6 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
     }),
     {
         transform: (movie: any) => {
-            // console.log(movie);
             if (!movie) return {};
             if (movie?.release_date) {
                 movie.releaseYear = movie?.release_date?.split('-')[0];
