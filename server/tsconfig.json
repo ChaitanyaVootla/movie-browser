@@ -1,15 +1,3 @@
 {
-    "compilerOptions": {
-        "target": "ESNEXT",
-        "module": "commonjs",
-        "outDir": "./build",
-        "rootDir": ".",
-        "moduleResolution": "node",
-        "baseUrl": "./",
-        "paths": {
-          "@/*": ["src/*"]
-        },
-        "esModuleInterop": true,
-        "resolveJsonModule": true,
-    }
+  "extends": "../.nuxt/tsconfig.server.json"
 }
