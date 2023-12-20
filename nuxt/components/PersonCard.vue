@@ -5,6 +5,7 @@
                 <v-img
                     aspect-ratio="16/9"
                     cover
+                    :alt="item.name"
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800
                         hover:transition-all duration-300 hover:mb-2 hover:-mt-2 border-2 border-transparent
                         hover:border-neutral-700 border-neutral-800 w-full h-full"

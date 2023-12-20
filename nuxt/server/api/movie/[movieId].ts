@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
-    if (userData.sub) {
+    if (userData?.sub) {
         const watchedDbRes = await WatchedMovies.findOne({ movieId: parseInt(movieId as string), userId: parseInt(userData.sub as string) }).select('movieId -_id');
         movie = {
             ...movie,

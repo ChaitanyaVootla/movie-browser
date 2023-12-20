@@ -4,38 +4,16 @@
             <v-skeleton-loader
                 class="min-w-full h-full"
                 max-width="300"
-                type="image, article"
+                type="image"
             ></v-skeleton-loader>
         </div>
         <div v-else>
             <DetailsTopInfo :item="series"/>
-            <div class="pl-20 pr-20 pt-10">
-                <div class="overview">
-                    <div class="text-3xl">Overview</div>
+            <div class="pt-10">
+                <div class="pl-14 pr-14 overview">
+                    <div class="text-2xl">Overview</div>
                     <div class="text-neutral-300 mt-3 text">
                         {{ series.overview }}
-                    </div>
-
-                    <div class="mt-10">
-                        <div class="flex w-full">
-                            <div class="w-fit">
-                                <v-select
-                                    v-model="series.selectedSeason"
-                                    label="Select Season"
-                                    item-title="name"
-                                    item-value="id"
-                                    :items="series.seasons || []"
-                                    variant="outlined"
-                                    persistent-hint
-                                    return-object
-                                    single-line
-                                    density="compact"
-                                ></v-select>
-                            </div>
-                            <div class="">
-
-                            </div>
-                        </div>
                     </div>
 
                     <div class="flex flex-wrap gap-3 mt-5">
@@ -45,49 +23,86 @@
                     </div>
                 </div>
 
-                <div v-if="series?.collectionDetails?.parts?.length" class="cast mt-10">
-                    <div class="text-2xl">{{ series.collectionDetails.name }}</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="part in (series.collectionDetails.parts || [])">
-                            <PosterCard :item="part" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div class="pl-14 pr-14 mt-5">
+                    <div class="flex w-full items-center gap-4">
+                        <div class="mt-5">
+                            <v-select
+                                v-model="series.selectedSeason"
+                                label="Select Season"
+                                item-title="name"
+                                item-value="id"
+                                :items="series.seasons || []"
+                                variant="outlined"
+                                persistent-hint
+                                return-object
+                                single-line
+                                density="compact"
+                                rounded
+                                @update:modelValue="seasonSelected"
+                            ></v-select>
+                        </div>
+                        <div>
+                            {{ series.selectedSeason?.episodes?.length || 0 }} Episodes
+                        </div>
+                        <div>
+                            <NuxtTime v-if="series.selectedSeason?.air_date" :datetime="new Date(series.selectedSeason?.air_date)"
+                                year="numeric" month="long" day="numeric" />
+                        </div>
+                    </div>
+                </div>
+                <div class="">
+                    <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
+                        <template v-slot:default="{ item }">
+                            <div class="flex flex-col gap-3 mt-2">
+                                <v-img :src="`https://image.tmdb.org/t/p/w500${item.still_path}`"
+                                    width="400"
+                                    class="rounded-lg mr-5"
+                                    :alt="item.name">
+                                    <template v-slot:placeholder>
+                                        <v-skeleton-loader
+                                            class="min-w-full h-full"
+                                            max-width="300"
+                                            type="image"
+                                        ></v-skeleton-loader>
+                                    </template>
+                                    <template v-slot:error>
+                                        <v-skeleton-loader
+                                            class="min-w-full h-full"
+                                            max-width="300"
+                                            type="image"
+                                        >
+                                            <div></div>
+                                        </v-skeleton-loader>
+                                    </template>
+                                </v-img>
+                                <div class="text-neutral-200">{{ item.name }}</div>
+                            </div>
+                        </template>
+                    </Scroller>
                 </div>
 
-                <div class="cast mt-10">
-                    <div class="text-2xl">Cast</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="person in (series.credits?.cast || [])">
-                            <PersonCard :item="person" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div class="mt-10">
+                    <Scroller :items="series.credits?.cast || []" title="Cast" :pending="pending" >
+                        <template v-slot:default="{ item }">
+                            <PersonCard :item="item" :pending="pending" class="mr-3" />
+                        </template>
+                    </Scroller>
                 </div>
 
-                <div class="cast mt-10">
-                    <div class="text-2xl">Crew</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="person in (series.credits?.crew || [])">
-                            <PersonCard :item="person" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div class="mt-10">
+                    <Scroller :items="series.credits?.crew || []" title="Crew" :pending="pending" >
+                        <template v-slot:default="{ item }">
+                            <PersonCard :item="item" :pending="pending" class="mr-3" />
+                        </template>
+                    </Scroller>
                 </div>
 
                 <div v-if="series.recommendations?.results?.length" class="cast mt-10">
-                    <div class="text-2xl">Recommended</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="item in (series.recommendations.results || [])">
-                            <PosterCard :item="item" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                    <Scroller :items="series.recommendations?.results || []" title="Recommended" :pending="pending" />
                 </div>
 
                 <div v-if="series.similar?.results?.length" class="cast mt-10">
-                    <div class="text-2xl">Similar</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="item in (series.similar.results || [])">
-                            <PosterCard :item="item" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                    <Scroller :items="series.similar?.results || []" title="Similar" :pending="pending" />
                 </div>
             </div>
         </div>
@@ -104,7 +119,6 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
         transform: ((series: any) => {
             return {
                 ...series,
-                selectedSeason: series.seasons?.[series.seasons?.length - 1] || null,
                 youtubeVideos: ( series.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
                     (a: any, b: any) => {
                     if (a.type === 'Trailer' && b.type !== 'Trailer') {
@@ -126,9 +140,16 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
     }
 );
 
+const seasonSelected = async (season: any) => {
+    series.value.selectedSeason = await $fetch(`/api/series/${useRoute().params.seriesId}/season/${season?.season_number}`).catch((err) => {
+        console.log(err);
+        return {};
+    });
+}
+
 useHead(() => {
     return {
-        title: series.value?.title,
+        title: series.value?.name,
         meta: [
             {
                 hid: 'description',
@@ -213,7 +234,7 @@ useHead(() => {
         align-items: start;
         .v-skeleton-loader__bone {
             &.v-skeleton-loader__image {
-                height: 40vh;
+                height: 50vh;
             }
         }
     }

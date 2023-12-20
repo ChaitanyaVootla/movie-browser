@@ -22,6 +22,9 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      htmlAttrs: {
+        lang: 'en',
+      },
       script: [
         {
           src: 'https://accounts.google.com/gsi/client',
@@ -33,7 +36,13 @@ export default defineNuxtConfig({
     },
   },
   css: ['~/assets/css/main.css'],
+  googleFonts: {
+    families: {
+      Montserrat: [100, 200, 300, 400, 500, 600, 700, 800, 900],
+    }
+  },
   modules: [
+    "@nuxtjs/google-fonts",
     "@nuxt/image",
     "nuxt-lodash",
     "@sidebase/nuxt-auth",
@@ -52,7 +61,7 @@ export default defineNuxtConfig({
   },
   routeRules: {
     // '/api/**': { swr: 60 * 60 * 24, cors: true },
-    '/api/**': { cors: true },
+    '/api/**': { cors: true, swr: true },
     '/images/**': {
       headers: {
         'Cache-Control': 'public, max-age=31536000, immutable',

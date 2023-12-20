@@ -5,7 +5,8 @@
             <div v-for="rating in ratings">
                 <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                     <div class="w-12 flex flex-col items-center justify-between gap-2">
-                        <v-img :src="rating.image" class="w-7 h-7"></v-img>
+                        <v-img :src="rating.image" class="w-7 h-7" :alt="rating.name">
+                        </v-img>
                         <div class="text-md text-neutral-200">{{ rating.rating }}</div>
                     </div>
                 </NuxtLink>
@@ -16,7 +17,12 @@
 
 <script setup lang="ts">
 const props = defineProps(['googleData', 'tmdbRating', 'movieId'])
-let ratings = [] as any[]
+let ratings = [] as {
+    name: string,
+    link: string,
+    rating: string,
+    image: string,
+}[]
 
 const ratingImageMapper = {
     'imdb': '/images/rating/imdb.svg',

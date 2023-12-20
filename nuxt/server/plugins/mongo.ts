@@ -1,4 +1,4 @@
-import { connect, connection } from "mongoose";
+import { connect } from "mongoose";
 
 export default defineNitroPlugin(async (nitroApp) => {
     try {

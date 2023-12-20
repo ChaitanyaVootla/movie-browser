@@ -8,6 +8,7 @@
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800
                         hover:transition-all duration-300 hover:mb-2 hover:-mt-2 border-2 hover:border-2
                         hover:border-neutral-700 border-transparent w-full h-full"
+                    :alt="item.title || item.name"
                     :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
                     <template v-slot:placeholder>
                         <v-skeleton-loader type="image" class="iamge w-full h-full"></v-skeleton-loader>

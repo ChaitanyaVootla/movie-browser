@@ -1,11 +1,13 @@
 <template>
     <div>
-        <div class="title text-2xl mb-5 ml-14">
+        <div class="title text-2xl font-light mb-1 ml-14">
             {{ title }}
         </div>
         <v-slide-group show-arrows="desktop">
-            <v-slide-group-item v-for="movie in (items || Array(10))">
-                <PosterCard :item="movie" :pending="pending" class="mr-6"/>
+            <v-slide-group-item v-for="item in (items || Array(10))">
+                <slot :item="item">
+                    <PosterCard :item="item" :pending="pending" class="mr-6"/>
+                </slot>
             </v-slide-group-item>
         </v-slide-group>
     </div>

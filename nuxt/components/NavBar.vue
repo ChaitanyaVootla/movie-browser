@@ -3,26 +3,26 @@
         shadow-lg shadow-neutral-900 pl-14 pr-14 overflow-visible bg-neutral-950 h-16
         z-50">
         <div class="left-actions flex-1 flex gap-20">
-            <NuxtLink to="/">
+            <NuxtLink to="/" aria-label="Go Home">
                 <div class="flex items-center gap-2">
                     <v-icon icon="mdi-home" class="text-3xl" />
                     Home
                 </div>
             </NuxtLink>
-            <NuxtLink to="/watchList">
+            <NuxtLink to="/watchList" aria-label="Go To Watch List">
                 <div class="flex items-center gap-2">
                     <v-icon icon="mdi-playlist-play" class="text-3xl" />
                     Watch List
                 </div>
             </NuxtLink>
             <NuxtLink to="/ai">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2" aria-label="Go To AI search">
                     <v-icon icon="mdi-alien" class="text-3xl" />
                     AI
                 </div>
             </NuxtLink>
         </div>
-        <NuxtLink to="/" class="h-full flex items-center justify-center">
+        <NuxtLink to="/" class="h-full flex items-center justify-center" aria-label="Go Home">
             <div class="center border-1 border-gray-700 bg-red-900 p-2 pl-3 pr-3 text-black h-full
                 flex items-center justify-center">
                 <v-icon icon="mdi-filmstrip" size="large" />

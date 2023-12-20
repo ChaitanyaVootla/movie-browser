@@ -3,7 +3,7 @@
         <div class="flex relative z-10">
             <div class="flex justify-center items-center w-full h-full relative">
                 <div v-if="!showTrailer" class="image-width relative">
-                    <v-img :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`"
+                    <v-img :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`" :alt="item.title || item.name"
                         class="bg-image bg-main object-cover image-width h-full rounded-b-xl shadow-lg shadow-neutral-800">
                         <template v-slot:placeholder>
                             <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
@@ -42,7 +42,7 @@
                 </div>
                 <div class="absolute left-20 flex flex-col justify-between h-full pt-10">
                     <div>
-                        <div class="text-white font-semibold text-3xl">
+                        <div class="text-white font-bold text-4xl">
                             {{ item.title || item.name }}
                         </div>
                         <NuxtTime v-if="item.release_date" class="text-neutral-200 mt-1 block" :datetime="new Date(item.release_date)"
@@ -52,18 +52,26 @@
                                 {{ genre.name }}
                             </div>
                         </div>
-                        <div class="flex pt-16 gap-6">
+                        <div v-if="item.title" class="flex pt-16 gap-6">
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchClicked(item.watched)" prepend-icon="mdi-check" variant="outlined" :color="item.watched?'red':'#ccc'"
-                                    :elevation="5" :height="50" :width="150"
+                                <v-btn @click="watchClicked(item.watched)" prepend-icon="mdi-check" variant="outlined"
+                                    :color="item.watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
                                     class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
                                     Watched
                                 </v-btn>
                             </div>
                             <div class="flex flex-col items-center justify-center">
+                                <v-btn @click="watchListClicked(item.watched)" prepend-icon="mdi-playlist-plus" variant="outlined"
+                                    color="#ccc" :elevation="5" :height="50" :width="150" class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
+                                    Watch list
+                                </v-btn>
+                            </div>
+                        </div>
+                        <div v-else class="flex pt-16 gap-6">
+                            <div class="flex flex-col items-center justify-center">
                                 <v-btn prepend-icon="mdi-playlist-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
                                     class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
-                                    Watch list
+                                    Watching
                                 </v-btn>
                             </div>
                         </div>
@@ -77,7 +85,7 @@
         </div>
         <NuxtImg :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`"
             class="bg-image bg-banner object-top w-full !absolute top-0 opacity-10 bg-black object-cover
-            shadow-lg shadow-neutral-400" />
+            shadow-lg shadow-neutral-400" :alt="item.title || item.name" />
     </div>
 </template>
 
@@ -104,6 +112,23 @@ const watchClicked = (watched: boolean) => {
         })
     } else {
         $fetch(`/api/movie/${item.id}/watched`, {
+            method: 'DELETE',
+        })
+    }
+}
+
+const watchListClicked = (watched: boolean) => {
+    if (watched) {
+        item.watched = false;
+    } else {
+        item.watched = true;
+    }
+    if (item.watched) {
+        $fetch(`/api/movie/${item.id}/watchlist`, {
+            method: 'POST',
+        })
+    } else {
+        $fetch(`/api/movie/${item.id}/watchlist`, {
             method: 'DELETE',
         })
     }

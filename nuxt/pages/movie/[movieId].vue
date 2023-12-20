@@ -4,15 +4,15 @@
             <v-skeleton-loader
                 class="min-w-full h-full"
                 max-width="300"
-                type="image, article"
+                type="image"
             ></v-skeleton-loader>
         </div>
         <div v-else>
             <DetailsTopInfo :item="movie"/>
 
-            <div class="pl-20 pr-20 pt-10">
-                <div class="overview">
-                    <div class="text-3xl">Overview</div>
+            <div class="pt-10">
+                <div class="pl-20 pr-20 overview">
+                    <div class="text-2xl">Overview</div>
                     <div class="text-neutral-300 mt-3 text">
                         {{ movie.overview }}
                     </div>
@@ -25,15 +25,10 @@
                 </div>
 
                 <div v-if="movie?.collectionDetails?.parts?.length" class="cast mt-10">
-                    <div class="text-2xl">{{ movie.collectionDetails.name }}</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="part in (movie.collectionDetails.parts || [])">
-                            <PosterCard :item="part" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                    <Scroller :items="movie.collectionDetails.parts || []" :title="movie.collectionDetails.name" :pending="pending" />
                 </div>
 
-                <div class="cast mt-10">
+                <div class="pl-20 pr-20 mt-10">
                     <div class="text-2xl">Cast</div>
                     <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
                         <v-slide-group-item v-for="person in (movie.credits?.cast || [])">
@@ -42,7 +37,7 @@
                     </v-slide-group>
                 </div>
 
-                <div class="cast mt-10">
+                <div class="pl-20 pr-20 mt-10">
                     <div class="text-2xl">Crew</div>
                     <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
                         <v-slide-group-item v-for="person in (movie.credits?.crew || [])">
@@ -51,31 +46,16 @@
                     </v-slide-group>
                 </div>
 
-                <div v-if="aiRecommendations?.length" class="cast mt-10">
-                    <div class="text-2xl">AI Recommendations</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="item in (aiRecommendations || [])">
-                            <PosterCard :item="item" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div v-if="aiRecommendations?.length" class="mt-10">
+                    <Scroller :items="aiRecommendations || []" title="AI Recommendations" :pending="pending" />
                 </div>
 
-                <div v-if="movie.recommendations?.results?.length" class="cast mt-10">
-                    <div class="text-2xl">Recommended</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="item in (movie.recommendations.results || [])">
-                            <PosterCard :item="item" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div v-if="movie.recommendations?.results?.length" class="mt-10">
+                    <Scroller :items="movie.recommendations.results || []" title="Recommended" :pending="pending" />
                 </div>
 
-                <div v-if="movie.similar?.results?.length" class="cast mt-10">
-                    <div class="text-2xl">Similar</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="item in (movie.similar.results || [])">
-                            <PosterCard :item="item" :pending="pending" class="mr-3" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div v-if="movie.similar?.results?.length" class="mt-10">
+                    <Scroller :items="movie.similar.results || []" title="Similar" :pending="pending" />
                 </div>
             </div>
         </div>
@@ -225,7 +205,7 @@ useHead(() => {
         align-items: start;
         .v-skeleton-loader__bone {
             &.v-skeleton-loader__image {
-                height: 40vh;
+                height: 50vh;
             }
         }
     }
