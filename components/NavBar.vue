@@ -40,12 +40,10 @@
                 </v-chip>
                 <div class="ml-5">
                     <div v-if="status === 'unauthenticated' || status === 'loading'">
-                        {{ status }}
-                        {{ data }}
                         <v-btn @click="signIn('google')" color="#333" prepend-icon="mdi-google">
                             Continue with Google
                         </v-btn>
-                        <v-btn @click="signOut()">Signout</v-btn>
+                        <v-btn @click="signOut()" class="ml-5">Signout</v-btn>
                     </div>
                     <div v-else>
                         <v-menu>

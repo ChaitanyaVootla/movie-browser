@@ -3,7 +3,7 @@
         <div class="flex relative z-10">
             <div class="flex justify-center items-center w-full h-full relative">
                 <div v-if="!showTrailer" class="image-width relative">
-                    <v-img :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`" :alt="item.title || item.name"
+                    <NuxtImg :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`" :alt="item.title || item.name"
                         class="bg-image bg-main object-cover image-width h-full rounded-b-xl shadow-lg shadow-neutral-800">
                         <template v-slot:placeholder>
                             <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
@@ -13,7 +13,7 @@
                                 <div></div>
                             </v-skeleton-loader>
                         </template>
-                    </v-img>
+                    </NuxtImg>
                     <v-btn v-if="item.youtubeVideos?.length" @click="showTrailer = !showTrailer"
                         class="rounded-pill !absolute bottom-4 left-4" color="#ccc" prepend-icon="mdi-play"
                         :elevation="10">
