@@ -54,8 +54,8 @@
                         </div>
                         <div v-if="item.title" class="flex pt-16 gap-6">
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchClicked(item.watched)" prepend-icon="mdi-check" variant="outlined"
-                                    :color="item.watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
+                                <v-btn @click="watchClicked(watched)" prepend-icon="mdi-check" variant="outlined"
+                                    :color="watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
                                     class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
                                     Watched
                                 </v-btn>
@@ -98,20 +98,22 @@ const { item } = defineProps({
         required: true,
         default: {}
     },
+    watched: {
+        type: Boolean,
+        required: true,
+        default: {}
+    },
 });
+const emit = defineEmits(['watchClicked'])
 
 const watchClicked = (watched: boolean) => {
-    if (watched) {
-        item.watched = false;
-    } else {
-        item.watched = true;
-    }
+    emit('watchClicked', !watched);
     if (item.watched) {
-        $fetch(`/api/movie/${item.id}/watched`, {
+        $fetch(`/api/user/movie/${item.id}/watched`, {
             method: 'POST',
         })
     } else {
-        $fetch(`/api/movie/${item.id}/watched`, {
+        $fetch(`/api/user/movie/${item.id}/watched`, {
             method: 'DELETE',
         })
     }
@@ -124,11 +126,11 @@ const watchListClicked = (watched: boolean) => {
         item.watched = true;
     }
     if (item.watched) {
-        $fetch(`/api/movie/${item.id}/watchlist`, {
+        $fetch(`/api/user/movie/${item.id}/watchlist`, {
             method: 'POST',
         })
     } else {
-        $fetch(`/api/movie/${item.id}/watchlist`, {
+        $fetch(`/api/user/movie/${item.id}/watchlist`, {
             method: 'DELETE',
         })
     }

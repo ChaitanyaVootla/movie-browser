@@ -8,7 +8,7 @@
             ></v-skeleton-loader>
         </div>
         <div v-else>
-            <DetailsTopInfo :item="movie"/>
+            <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
 
             <div class="pt-10">
                 <div class="pl-20 pr-20 overview">
@@ -103,6 +103,19 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
     }
 );
 movie = movieAPI;
+
+const watched = ref(false);
+const { data: watchedAPI } = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-watched`,
+    () => $fetch(`/api/user/movie/${useRoute().params.movieId}/watched`, { headers }).catch((err) => {
+        console.log(err);
+        return {};
+    })
+);
+watched.value = (watchedAPI as unknown as boolean) || false;
+
+const watchClicked = (watchedSignal: boolean) => {
+    watched.value = watchedSignal;
+}
 
 const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-recommend`,
     () => $fetch(`/api/movie/${useRoute().params.movieId}/recommend`, { headers }).catch((err) => {

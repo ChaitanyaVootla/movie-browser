@@ -15,21 +15,21 @@
         </div>
         <div v-else>
             <div v-if="selectedType === 0" class="flex flex-col gap-10 mb-14">
-                <div v-if="seriesListData?.totalCount === 0"
+                <div v-if="watchListData?.series?.totalCount === 0"
                     class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
                     No Series in your watch list
                 </div>
                 <div>
-                    <Scroller v-if="seriesListData?.currentRunningSeries?.length" :items="seriesListData?.currentRunningSeries"
+                    <Scroller v-if="watchListData?.series?.currentRunningSeries?.length" :items="watchListData?.series?.currentRunningSeries"
                         title="Running now" :pending="pending" />
-                    <Scroller v-if="seriesListData?.returingSeries?.length" :items="seriesListData?.returingSeries"
+                    <Scroller v-if="watchListData?.series?.returingSeries?.length" :items="watchListData?.series?.returingSeries"
                         title="Returning" :pending="pending" />
-                    <Scroller v-if="seriesListData?.completedSeries?.length" :items="seriesListData?.completedSeries"
+                    <Scroller v-if="watchListData?.series?.completedSeries?.length" :items="watchListData?.series?.completedSeries"
                         title="Completed" :pending="pending" />
                 </div>
             </div>
             <div v-else-if="selectedType === 1">
-                <Grid v-if="moviesList?.length" :items="moviesList" title="" />
+                <Grid v-if="watchListData?.movies?.length" :items="watchListData?.movies" title="" />
                 <div v-else>
                     <div class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
                         No Movies in your watch list
@@ -46,18 +46,21 @@ useHead({
     title: 'Watch List'
 })
 const headers = useRequestHeaders(['cookie']) as HeadersInit
-const { pending, data: seriesListData } = await useLazyAsyncData('watchList-series',
-    () => $fetch('/api/series/watchList', { headers }).catch((err) => {
+const { pending, data: watchListData } = await useLazyAsyncData('watchList',
+    () => $fetch('/api/user/watchList', { headers }).catch((err) => {
         console.log(err);
         return {
-            currentRunningSeries: [],
-            returingSeries: [],
-            completedSeries: [],
-            totalCount: 0
+            movies: [],
+            series: {
+                currentRunningSeries: [],
+                returingSeries: [],
+                completedSeries: [],
+                totalCount: 0
+            }
         };
     }),
     {
-        transform: (series: any) => {
+        transform: ({movies, series}: any) => {
             const currentRunningSeries = [] as any[];
             const returingSeries = [] as any[];
             const completedSeries = [] as any[];
@@ -73,18 +76,15 @@ const { pending, data: seriesListData } = await useLazyAsyncData('watchList-seri
                 }
             });
             return {
-                currentRunningSeries,
-                completedSeries,
-                returingSeries,
-                totalCount: series.length
+                movies,
+                series: {
+                    currentRunningSeries,
+                    completedSeries,
+                    returingSeries,
+                    totalCount: series.length
+                }
             };
         }
     }
-);
-const { pending: movieListPending, data: moviesList } = await useLazyAsyncData('watchList-movies',
-    () => $fetch('/api/movie/watchList', { headers }).catch((err) => {
-        console.log(err);
-        return [];
-    }),
 );
 </script>
