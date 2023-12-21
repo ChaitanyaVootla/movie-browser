@@ -60,8 +60,8 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
-    // '/api/**': { swr: 60 * 60 * 24, cors: true },
-    '/api/**': { cors: true, swr: true },
+    '/api/movie/**': { cors: true, swr:  60 * 60 * 24 },
+    '/api/series/**': { cors: true, swr:  60 * 60 * 24 },
     '/images/**': {
       headers: {
         'Cache-Control': 'public, max-age=31536000, immutable',
