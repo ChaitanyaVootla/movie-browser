@@ -8,7 +8,7 @@ services:
     ports:
       - 27017:27017
     volumes:
-      - mongodb:/data/db
+      - movie-browser_mongodb:/data/db
   server:
     image: chaitanyavootla/tmb:latest
     mem_limit: 6g
@@ -18,4 +18,5 @@ services:
       - 3000:3000
 
 volumes:
-  mongodb:
+  movie-browser_mongodb:
+    external: true
