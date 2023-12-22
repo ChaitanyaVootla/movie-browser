@@ -144,7 +144,13 @@ const searchUpdated = useDebounce(async (query: string) => {
 const searchItemClicked = (item: any) => {
   showSearchOverlay.value = false;
   setTimeout(() => {
-    useRouter().push(`/movie/${item.id}`);
+    if (item.media_type === 'person') {
+      return useRouter().push(`/person/${item.id}`);
+    } else if (item.media_type === 'tv') {
+      return useRouter().push(`/series/${item.id}`);
+    } else if (item.media_type === 'movie') {
+        useRouter().push(`/movie/${item.id}`);
+    }
   }, 100);
 };
 </script>
