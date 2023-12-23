@@ -2,7 +2,7 @@ import { IMovie } from "~/server/models";
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { TMDB } from "~/server/utils/api";
-import { sortBy } from "lodash";
+import _ from "lodash";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
                 const collectionDetails: any = await $fetch(
                     `${TMDB.BASE_URL}/collection/${details.belongs_to_collection.id}?api_key=${process.env.TMDB_API_KEY}`,
                 )
-                collectionDetails.parts = sortBy(collectionDetails.parts, ({ release_date }: any) => {
+                collectionDetails.parts = _.sortBy(collectionDetails.parts, ({ release_date }: any) => {
                     return release_date ? release_date : 'zzzz';
                 });
                 details.collectionDetails = collectionDetails;
