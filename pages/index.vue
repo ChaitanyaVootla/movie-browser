@@ -8,7 +8,7 @@
             <template v-slot:next="{ props }">
                 <v-btn class="invisible group-hover:visible" icon="mdi-chevron-right" @click="props.onClick" color="#333"></v-btn>
             </template>
-            <v-carousel-item v-for="item in (trending?.all || [])">
+            <v-carousel-item v-for="item in (trending?.allItems || [])">
                 <div class="flex h-full w-full bg-black rounded-l-lg">
                     <div class="flex-2 flex h-full w-full flex-col justify-between">
                         <div class="top-info ml-16 mt-10">
@@ -49,14 +49,15 @@
 useHead({
     title: 'The Movie Browser',
 });
-const { pending, data: trending }: any = await useLazyFetch('/api/trending',
+const { pending, data: trending }: any = await useLazyAsyncData('trending',
+    () => $fetch('/api/trending').catch((err) => {
+        console.log(err);
+        return {};
+    }),
     {
-        key: 'trending',
-        default: () => ({
-            all: [],
-            movies: [],
-            tv: []
-        })
+        transform: (trending: any) => {
+            return trending;
+        },
     }
 );
 </script>
