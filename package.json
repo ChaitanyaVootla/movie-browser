@@ -27,9 +27,10 @@
     "vuetify": "^3.4.5"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.478.0",
+    "@aws-sdk/lib-dynamodb": "3.478.0",
     "@iconify/json": "^2.2.145",
     "@mdi/font": "^7.3.67",
-    "aws-sdk": "^2.1524.0",
     "lodash": "^4.17.21",
     "mongoose": "8.0.2",
     "next-auth": "4.21.1",

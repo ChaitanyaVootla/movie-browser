@@ -1,5 +1,6 @@
 import { IMovie } from "~/server/models";
-import DynamoDB from 'aws-sdk/clients/dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { TMDB } from "~/server/utils/api";
 import sortBy from "lodash/sortBy";
 
@@ -15,13 +16,15 @@ export default defineEventHandler(async (event) => {
     let movie = {} as any;
 
     // dynamoDB
-    const dynamoDB = new DynamoDB.DocumentClient();
-    const { Item: dbMovie } = await dynamoDB.get({
+    const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+    const docClient = DynamoDBDocumentClient.from(client);
+    const getCommand = new GetCommand({
         TableName: 'movies',
         Key: {
             id: movieId,
         },
-    }).promise();
+    });
+    const { Item: dbMovie } = await docClient.send(getCommand);
 
     if (dbMovie?.title) {
         movie = dbMovie;
@@ -48,20 +51,23 @@ export default defineEventHandler(async (event) => {
                 ...details,
                 googleData: {},
                 rottenTomatoes: {},
-                updatedAt: new Date(),
+                updatedAt: Date.now(),
             };
         } catch (e) {
             console.error(`TMDB get movie failed for id: ${movieId}`, e);
         }
 
         if (movie?.title) {
-            await dynamoDB.put({
+            const putCommand = new PutCommand({
                 TableName: 'movies',
                 Item: {
                     ...movie,
                     id: `${movieId}`,
                 },
-            }).promise();
+            });
+            docClient.send(putCommand).catch((e) => {
+                console.error(`DynamoDB put movie failed for id: ${movieId}`, e);
+            });
         }
     }
     if (!movie) {

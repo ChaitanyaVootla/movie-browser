@@ -87,7 +87,7 @@ const movieGenres = {
         "id": 10770,
         "name": "TV Movie"
     }
-};
+} as Record<string, any>;
 
 const seriesGenres = {
     "16": {
@@ -154,6 +154,6 @@ const seriesGenres = {
         "id": 10768,
         "name": "War & Politics"
     }
-};
+} as Record<string, any>;
 
 export { configuration, movieGenres, seriesGenres };
