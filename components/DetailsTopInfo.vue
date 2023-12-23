@@ -18,31 +18,42 @@
                     <div v-if="!minimal">
                         <div v-if="item.title" class="flex pt-16 gap-6">
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'red':''"
-                                    :elevation="5" :height="50" :width="150" class="!bg-neutral-800" :min-width="200">
+                                <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
+                                    :elevation="5" :height="50" class="px-5">
                                     Watched
                                 </v-btn>
                             </div>
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchListClicked(item.watched)" prepend-icon="mdi-playlist-plus"
-                                    :elevation="5" :height="50" :width="150" class="!bg-neutral-800" :min-width="200">
+                                <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
+                                    :elevation="5" :height="50" class="px-5">
                                     Watch list
                                 </v-btn>
                             </div>
                         </div>
                         <div v-else class="flex pt-16 gap-6">
                             <div class="flex flex-col items-center justify-center">
-                                <v-btn prepend-icon="mdi-playlist-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
-                                    class="!bg-neutral-800">
+                                <v-btn prepend-icon="mdi-playlist-plus" :elevation="5" :height="50" class="px-5" :color="(watchlist === true)?'primary':''">
                                     Watching
                                 </v-btn>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="w-full flex pb-10 flex-col gap-5">
+                <div class="w-full flex pb-2 flex-col gap-5">
                     <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
                     <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <div v-if="minimal" class="flex gap-5 mt-10">
+                        <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
+                            <NuxtImg
+                                class="object-cover rounded-full w-20 h-20 object-center opacity-90"
+                                :src="`https://image.tmdb.org/t/p/w200${cast.profile_path}`"
+                                :alt="cast.name"
+                            />
+                            <div class="mt-1 text-neutral-400 text-xs overflow-ellipsis whitespace-nowrap overflow-hidden">
+                                {{ cast.name }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="w-2/3 h-full">
@@ -53,8 +64,8 @@
                             class="bg-main object-cover object-top image-width h-full w-full absolute">
                         </NuxtImg>
                     </div>
-                    <v-btn v-if="item.youtubeVideos?.length"
-                        class="rounded-pill !absolute bottom-4 right-16 group-hover:scale-110" color="#ccc" prepend-icon="mdi-play"
+                    <v-btn v-if="item.youtubeVideos?.length" color="primary"
+                        class="rounded-pill !absolute bottom-4 right-16 group-hover:scale-110" prepend-icon="mdi-play"
                         :elevation="10">
                         Play Trailer
                     </v-btn>
@@ -93,6 +104,10 @@ const props = defineProps({
         required: true,
         default: {}
     },
+    watchlist: {
+        type: Boolean,
+        default: false
+    },
     minimal: {
         type: Boolean,
         default: false
@@ -121,26 +136,12 @@ const watchClicked = () => {
     }
 }
 
-const watchListClicked = (watched: boolean) => {
-    if (watched) {
-        item.watched = false;
-    } else {
-        item.watched = true;
-    }
-    if (item.watched) {
-        $fetch(`/api/user/movie/${item.id}/watchlist`, {
-            method: 'POST',
-        })
-    } else {
-        $fetch(`/api/user/movie/${item.id}/watchlist`, {
-            method: 'DELETE',
-        })
-    }
+const watchListClicked = () => {
 }
 </script>
 
 <style scoped lang="less">
-@info-height: calc(max(55vh, 500px) - 4rem);
+@info-height: calc(max(60vh, 500px) - 4rem);
 
 .top-info {
     height: @info-height;

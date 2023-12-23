@@ -1,6 +1,6 @@
 <template>
-    <div class="mx-14 invisible md:visible">
-        <v-carousel height="50vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
+    <div class="mx-14 hidden md:block">
+        <v-carousel height="58vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-minus-thick" class="group carousel">
             <template v-slot:prev="{ props }">
                 <v-btn class="invisible group-hover:visible" icon="mdi-chevron-left" @click="props.onClick" color="#333"></v-btn>
@@ -16,7 +16,7 @@
         </v-carousel>
     </div>
     <div>
-        <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="mt-8" />
+        <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
         <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-12" />
     </div>
 </template>
