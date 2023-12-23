@@ -27,6 +27,7 @@ export default defineEventHandler(async (event) => {
     const { Item: dbMovie } = await docClient.send(getCommand);
 
     if (dbMovie?.title) {
+        console.log("found in DynamoDB")
         movie = dbMovie;
     }
     if (!movie.title) {
