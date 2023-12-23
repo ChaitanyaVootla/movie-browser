@@ -10,19 +10,6 @@
         <div v-else>
             <DetailsTopInfo :item="series" :watched="false"/>
             <div class="pt-10">
-                <div class="pl-14 pr-14 overview">
-                    <div class="text-2xl">Overview</div>
-                    <div class="text-neutral-300 mt-3 text">
-                        {{ series.overview }}
-                    </div>
-
-                    <div class="flex flex-wrap gap-3 mt-5">
-                        <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill" :color="'#ddd'">
-                            {{ keyword.name }}
-                        </v-chip>
-                    </div>
-                </div>
-
                 <div class="pl-14 pr-14 mt-5">
                     <div class="flex w-full items-center gap-4">
                         <div class="mt-5">
@@ -56,13 +43,16 @@
                             <div class="flex flex-col gap-3 mt-2 w-96">
                                 <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4 text-sm -mb-1
                                     flex items-center justify-between mr-1">
-                                    <div>
-                                        Episode {{ item.episode_number }} -
-                                        <NuxtTime v-if="item.air_date" :datetime="new Date(item.air_date)"
+                                    <div class="flex gap-2">
+                                        Episode {{ item.episode_number }}
+                                        <div v-if="item.air_date">
+                                            - 
+                                        <NuxtTime :datetime="new Date(item.air_date)"
                                             year="numeric" month="long" day="numeric" class="ml-1" />
+                                        </div>
                                     </div>
                                     <div v-if="(new Date(item.air_date)).getTime() > Date.now()">
-                                        <v-chip rounded size="small" color="purple">
+                                        <v-chip rounded size="small">
                                             <span class="text-neutral-200">Upcoming</span>
                                         </v-chip>
                                     </div>
@@ -93,6 +83,21 @@
                             </div>
                         </template>
                     </Scroller>
+                </div>
+
+                <div class="pl-14 pr-14 overview mt-10">
+                    <v-card class="px-5 py-5" color="#151515">
+                        <div class="text-2xl">Overview</div>
+                        <div class="text-neutral-300 mt-3 text">
+                            {{ series.overview }}
+                        </div>
+
+                        <div class="flex flex-wrap gap-3 mt-5">
+                            <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill" :color="'#ddd'">
+                                {{ keyword.name }}
+                            </v-chip>
+                        </div>
+                    </v-card>
                 </div>
 
                 <div class="mt-10">

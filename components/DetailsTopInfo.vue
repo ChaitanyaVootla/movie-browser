@@ -4,19 +4,27 @@
             <div class="w-1/3 ml-14 flex flex-col justify-between h-full pt-10">
                 <div>
                     <div class="text-white font-bold text-3xl">
-                        {{ item.title || item.name }}
+                        <div v-if="logo" class="title-logo">
+                            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes[1]}${logo}`"
+                                :alt="item.title || item.name" class="object-contain" />
+                        </div>
+                        <div v-else>
+                            {{ item.title || item.name }}
+                        </div>
                     </div>
-                    <NuxtTime v-if="item.release_date" class="text-neutral-200 mt-1 block" :datetime="new Date(item.release_date)"
-                        year="numeric" month="long" day="numeric" />
-                    <div class="flex gap-3 pt-3">
+                </div>
+                <div class="w-full flex pb-2 flex-col gap-5">
+                    <div class="flex gap-3 mt-5">
                         <div v-for="genre in item.genres">
-                            <v-chip size="small" rounded>
+                            <v-chip class="text-md" rounded>
                                 {{ genre.name }}
                             </v-chip>
                         </div>
                     </div>
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" class="mt-4"/>
                     <div v-if="!minimal">
-                        <div v-if="item.title" class="flex pt-16 gap-6">
+                        <div v-if="item.title" class="flex mt-10 gap-6">
                             <div class="flex flex-col items-center justify-center">
                                 <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
                                     :elevation="5" :height="50" class="px-5">
@@ -38,14 +46,10 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="w-full flex pb-2 flex-col gap-5">
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
-                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
-                    <div v-if="minimal" class="flex gap-5 mt-10">
+                    <div v-if="minimal" class="flex gap-5 mt-16">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg
-                                class="object-cover rounded-full w-20 h-20 object-center opacity-90"
+                                class="object-cover rounded-full h-24 w-24 object-center opacity-85"
                                 :src="`https://image.tmdb.org/t/p/w200${cast.profile_path}`"
                                 :alt="cast.name"
                             />
@@ -65,7 +69,7 @@
                         </NuxtImg>
                     </div>
                     <v-btn v-if="item.youtubeVideos?.length" color="primary"
-                        class="rounded-pill !absolute bottom-4 right-16 group-hover:scale-110" prepend-icon="mdi-play"
+                        class="rounded-pill !absolute bottom-10 right-16 group-hover:scale-110" prepend-icon="mdi-play"
                         :elevation="10">
                         Play Trailer
                     </v-btn>
@@ -116,6 +120,14 @@ const props = defineProps({
 const item = props.item;
 const watched = ref(props.watched);
 
+const logo = computed(() => {
+    let logo = item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path;
+    if (!logo) {
+        logo = item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === null)?.file_path;
+    }
+    return logo;
+})
+
 watch(() => props.watched, (newValue) => {
     watched.value = newValue;
 })
@@ -143,6 +155,10 @@ const watchListClicked = () => {
 <style scoped lang="less">
 @info-height: calc(max(60vh, 500px) - 4rem);
 
+.title-logo {
+    min-height: 10rem;
+    max-width: 50%;
+}
 .top-info {
     height: @info-height;
     :deep(.image-container) {
@@ -154,7 +170,8 @@ const watchListClicked = () => {
             right: 0;
             bottom: 0;
             background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%,
-                rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%);
+                rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
+                linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 5%, rgba(0,0,0,0) 100%);
         }
     }
 }

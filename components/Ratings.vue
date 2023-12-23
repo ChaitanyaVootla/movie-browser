@@ -1,10 +1,9 @@
 <template>
     <div class="flex">
-        <div v-if="ratings.length || props.tmdbRating"
-            class="flex gap-8">
+        <div v-if="ratings.length" class="flex gap-8">
             <div v-for="rating in ratings">
                 <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
-                    <div class="w-12 flex flex-col items-center justify-between gap-2">
+                    <div class="w-16 flex flex-col items-center justify-between gap-2">
                         <v-img :src="rating.image" class="w-8 h-8" :alt="rating.name">
                         </v-img>
                         <div class="text-lg text-neutral-200 font-normal">{{ rating.rating }}</div>
@@ -43,10 +42,12 @@ if (props.googleData?.ratings) {
         }
     }).filter(Boolean)
 }
-ratings.unshift({
-    name: 'TMDB',
-    rating: props.tmdbRating?.toFixed(1) || '',
-    image: '/images/rating/tmdb.svg',
-    link: `https://www.themoviedb.org/movie/${props.movieId}`
-})
+if (props.tmdbRating) {
+    ratings.unshift({
+        name: 'TMDB',
+        rating: props.tmdbRating?.toFixed(1) || '',
+        image: '/images/rating/tmdb.svg',
+        link: `https://www.themoviedb.org/movie/${props.movieId}`
+    })
+}
 </script>

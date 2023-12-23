@@ -10,17 +10,23 @@
         <div v-else>
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="pt-10">
-                <div class="px-16 overview">
-                    <div class="text-2xl">Overview</div>
-                    <div class="text-neutral-300 mt-3 text">
-                        {{ movie.overview }}
-                    </div>
+                <div class="px-14 overview">
+                    <v-card class="px-5 py-5" color="#151515">
+                        <div class="flex items-baseline justify-start gap-2">
+                            <div class="text-xl">Released</div>
+                            <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block" :datetime="new Date(movie.release_date)"
+                                year="numeric" month="long" day="numeric" />
+                        </div>
+                        <div class="text-neutral-300 mt-3 text">
+                            {{ movie.overview }}
+                        </div>
 
-                    <div class="flex flex-wrap gap-3 mt-5">
-                        <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'">
-                            {{ keyword.name }}
-                        </v-chip>
-                    </div>
+                        <div class="flex flex-wrap gap-3 mt-5">
+                            <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'">
+                                {{ keyword.name }}
+                            </v-chip>
+                        </div>
+                    </v-card>
                 </div>
 
                 <div v-if="movie?.collectionDetails?.parts?.length" class="cast mt-10">
@@ -31,7 +37,7 @@
                     <div class="text-2xl">Cast</div>
                     <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
                         <v-slide-group-item v-for="person in (movie.credits?.cast || [])">
-                            <PersonCard :item="person" :pending="pending" class="mr-3" />
+                            <PersonCard :item="person" :pending="pending" class="mr-4" />
                         </v-slide-group-item>
                     </v-slide-group>
                 </div>
@@ -40,7 +46,7 @@
                     <div class="text-2xl">Crew</div>
                     <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
                         <v-slide-group-item v-for="person in (movie.credits?.crew || [])">
-                            <PersonCard :item="person" :pending="pending" class="mr-3" />
+                            <PersonCard :item="person" :pending="pending" class="mr-4" />
                         </v-slide-group-item>
                     </v-slide-group>
                 </div>
@@ -49,13 +55,13 @@
                     <Scroller :items="aiRecommendations || []" title="AI Recommendations" :pending="pending" />
                 </div>
 
-                <div v-if="movie.recommendations?.results?.length" class="mt-10">
+                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="mt-10">
                     <Scroller :items="movie.recommendations.results || []" title="Recommended" :pending="pending" />
                 </div>
 
-                <div v-if="movie.similar?.results?.length" class="mt-10">
+                <!-- <div v-if="movie.similar?.results?.length" class="mt-10">
                     <Scroller :items="movie.similar.results || []" title="Similar" :pending="pending" />
-                </div>
+                </div> -->
             </div>
         </div>
     </div>

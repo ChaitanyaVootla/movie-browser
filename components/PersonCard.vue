@@ -48,7 +48,7 @@
 </script>
 
 <style scoped lang="less">
-@image-width: 7rem;
+@image-width: 7.5rem;
 @image-height: calc(@image-width * (3/2));
 
 .card {

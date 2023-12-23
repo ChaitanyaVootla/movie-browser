@@ -1,12 +1,12 @@
 <template>
     <div class="mx-14 hidden md:block">
         <v-carousel height="58vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
-            delimiterIcon="mdi-minus-thick" class="group carousel">
+            delimiterIcon="mdi-minus-thick" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
-                <v-btn class="invisible group-hover:visible" icon="mdi-chevron-left" @click="props.onClick" color="#333"></v-btn>
+                <v-icon icon="mdi-chevron-left" @click="props.onClick"></v-icon>
             </template>
             <template v-slot:next="{ props }">
-                <v-btn class="invisible group-hover:visible" icon="mdi-chevron-right" @click="props.onClick" color="#333"></v-btn>
+                <v-icon icon="mdi-chevron-right" @click="props.onClick"></v-icon>
             </template>
             <v-carousel-item v-for="item in (trending?.allItems || [])">
                 <NuxtLink :to="`/${item.release_date ? 'movie': 'series'}/${item.id}`">
@@ -112,16 +112,6 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
         bottom: 0;
         background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%,
             rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.1) 100%);
-    }
-}
-:deep(.carousel) {
-    .v-carousel__controls {
-        display: none;
-    }
-    &:hover {
-        .v-carousel__controls {
-            display: flex;
-        }
     }
 }
 </style>

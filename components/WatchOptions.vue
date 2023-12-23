@@ -4,12 +4,12 @@
             class="flex gap-8">
             <div v-for="watchOption in watchOptions">
                 <NuxtLink :to="watchOption.link" target="blank" noreferrer noopener>
-                    <div class="w-18 flex flex-col items-center justify-between gap-2">
+                    <div class="w-18 flex flex-col items-center justify-between">
                         <v-img :src="watchOption.image" class="w-8 h-8" :alt="watchOption.name"></v-img>
-                        <div v-if="watchOption?.displayName" class="text-md text-neutral-300 text-center">
+                        <div v-if="watchOption?.displayName" class="text-sm text-neutral-300 text-center mt-2">
                             {{ watchOption.displayName }}
                         </div>
-                        <div v-if="watchOption?.price?.length" class="text-sm text-neutral-300 text-center">
+                        <div v-if="watchOption?.price?.length" class="text-xs text-neutral-400 text-center">
                             {{ watchOption.price }}
                         </div>
                     </div>

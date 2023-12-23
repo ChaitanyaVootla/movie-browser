@@ -27,8 +27,6 @@
     "vuetify": "^3.4.5"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "3.478.0",
-    "@aws-sdk/lib-dynamodb": "3.478.0",
     "@iconify/json": "^2.2.145",
     "@mdi/font": "^7.3.67",
     "lodash": "^4.17.21",

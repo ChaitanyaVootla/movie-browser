@@ -1,6 +1,4 @@
-import { IMovie } from "~/server/models";
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { IMovie, Movie } from "~/server/models";
 import { TMDB } from "~/server/utils/api";
 import _ from "lodash";
 
@@ -15,16 +13,8 @@ export default defineEventHandler(async (event) => {
 
     let movie = {} as any;
 
-    // dynamoDB
-    const client = new DynamoDBClient({ region: process.env.AWS_REGION });
-    const docClient = DynamoDBDocumentClient.from(client);
-    const getCommand = new GetCommand({
-        TableName: 'movies',
-        Key: {
-            id: movieId,
-        },
-    });
-    const { Item: dbMovie } = await docClient.send(getCommand);
+    // DB
+    const dbMovie = await Movie.findOne({ id: movieId });
 
     if (dbMovie?.title) {
         console.log("found in DynamoDB")
@@ -59,16 +49,7 @@ export default defineEventHandler(async (event) => {
         }
 
         if (movie?.title) {
-            const putCommand = new PutCommand({
-                TableName: 'movies',
-                Item: {
-                    ...movie,
-                    id: `${movieId}`,
-                },
-            });
-            docClient.send(putCommand).catch((e) => {
-                console.error(`DynamoDB put movie failed for id: ${movieId}`, e);
-            });
+            // TODO: Add to db
         }
     }
     if (!movie) {
