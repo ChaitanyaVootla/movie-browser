@@ -1,30 +1,66 @@
 <template>
-    <div class="top-info relative">
-        <div class="flex relative z-10">
-            <div class="flex justify-center items-center w-full h-full relative">
-                <div v-if="!showTrailer" class="image-width relative">
-                    <NuxtImg :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`" :alt="item.title || item.name"
-                        class="bg-image bg-main object-cover image-width h-full rounded-b-xl shadow-lg shadow-neutral-800">
-                        <template v-slot:placeholder>
-                            <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
-                        </template>
-                        <template v-slot:error>
-                            <v-skeleton-loader type="image" class="image w-full h-full">
-                                <div></div>
-                            </v-skeleton-loader>
-                        </template>
-                    </NuxtImg>
-                    <v-btn v-if="item.youtubeVideos?.length" @click="showTrailer = !showTrailer"
-                        class="rounded-pill !absolute bottom-4 left-4" color="#ccc" prepend-icon="mdi-play"
+    <div class="top-info bg-black">
+        <div class="flex w-full h-full">
+            <div class="w-1/3 ml-14 flex flex-col justify-between h-full pt-10">
+                <div>
+                    <div class="text-white font-bold text-3xl">
+                        {{ item.title || item.name }}
+                    </div>
+                    <NuxtTime v-if="item.release_date" class="text-neutral-200 mt-1 block" :datetime="new Date(item.release_date)"
+                        year="numeric" month="long" day="numeric" />
+                    <div class="flex gap-3 pt-3">
+                        <div v-for="genre in item.genres">
+                            {{ genre.name }}
+                        </div>
+                    </div>
+                    <div v-if="item.title" class="flex pt-16 gap-6">
+                        <div class="flex flex-col items-center justify-center">
+                            <v-btn @click="watchClicked(watched)" prepend-icon="mdi-check" variant="outlined"
+                                :color="watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
+                                class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
+                                Watched
+                            </v-btn>
+                        </div>
+                        <div class="flex flex-col items-center justify-center">
+                            <v-btn @click="watchListClicked(item.watched)" prepend-icon="mdi-playlist-plus" variant="outlined"
+                                color="#ccc" :elevation="5" :height="50" :width="150" class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
+                                Watch list
+                            </v-btn>
+                        </div>
+                    </div>
+                    <div v-else class="flex pt-16 gap-6">
+                        <div class="flex flex-col items-center justify-center">
+                            <v-btn prepend-icon="mdi-playlist-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
+                                class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
+                                Watching
+                            </v-btn>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full flex pb-10 flex-col gap-5">
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                </div>
+            </div>
+            <div class="w-2/3 h-full">
+                <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer"
+                    @click="showTrailer = !showTrailer">
+                    <div>
+                        <NuxtImg :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`" :alt="item.title || item.name"
+                            class="bg-main object-cover object-top image-width h-full w-full absolute">
+                        </NuxtImg>
+                    </div>
+                    <v-btn v-if="item.youtubeVideos?.length"
+                        class="rounded-pill !absolute bottom-4 right-16 group-hover:scale-110" color="#ccc" prepend-icon="mdi-play"
                         :elevation="10">
                         Play Trailer
                     </v-btn>
                 </div>
-                <div v-else class="bg-image min-w-full flex justify-center">
+                <div v-else class="bg-image w-full h-full">
                     <iframe
                         :id="`ytplayer-${item.id}`"
                         title="YouTube video player"
-                        width="50%"
+                        width="100%"
                         height="100%"
                         class="youtube-player"
                         :src="`https://www.youtube.com/embed/${item.youtubeVideos[0].key
@@ -40,52 +76,8 @@
                     >
                     </iframe>
                 </div>
-                <div class="absolute left-20 flex flex-col justify-between h-full pt-10">
-                    <div>
-                        <div class="text-white font-bold text-3xl">
-                            {{ item.title || item.name }}
-                        </div>
-                        <NuxtTime v-if="item.release_date" class="text-neutral-200 mt-1 block" :datetime="new Date(item.release_date)"
-                            year="numeric" month="long" day="numeric" />
-                        <div class="flex gap-3 pt-3">
-                            <div v-for="genre in item.genres">
-                                {{ genre.name }}
-                            </div>
-                        </div>
-                        <div v-if="item.title" class="flex pt-16 gap-6">
-                            <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchClicked(watched)" prepend-icon="mdi-check" variant="outlined"
-                                    :color="watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
-                                    class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
-                                    Watched
-                                </v-btn>
-                            </div>
-                            <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchListClicked(item.watched)" prepend-icon="mdi-playlist-plus" variant="outlined"
-                                    color="#ccc" :elevation="5" :height="50" :width="150" class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
-                                    Watch list
-                                </v-btn>
-                            </div>
-                        </div>
-                        <div v-else class="flex pt-16 gap-6">
-                            <div class="flex flex-col items-center justify-center">
-                                <v-btn prepend-icon="mdi-playlist-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
-                                    class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
-                                    Watching
-                                </v-btn>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full flex pb-10 flex-col gap-5">
-                        <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
-                        <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
-                    </div>
-                </div>
             </div>
         </div>
-        <NuxtImg :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`"
-            class="bg-image bg-banner object-top w-full !absolute top-0 opacity-10 bg-black object-cover
-            shadow-lg shadow-neutral-400" :alt="item.title || item.name" />
     </div>
 </template>
 
@@ -138,20 +130,11 @@ const watchListClicked = (watched: boolean) => {
 </script>
 
 <style scoped lang="less">
-@info-height: calc(max(55vh, 500px) - 4rem);
+@info-height: calc(max(60vh, 500px) - 4rem);
 
 .top-info {
     height: @info-height;
-    background: rgb(18,18,18);
-    background: linear-gradient(0deg, rgba(18,18,18,1) 0%, rgba(0,0,0,0) 100%);
-    :deep(.bg-image) {
-        height: @info-height;
-    }
-    :deep(.image-width) {
-        width: calc(@info-height * 1.78);
-    }
-    :deep(.bg-banner) {
-        height: calc(@info-height - 1rem) !important;
+    :deep(.image-container) {
         &::after {
             content: '';
             position: absolute;
@@ -159,8 +142,8 @@ const watchListClicked = (watched: boolean) => {
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: linear-gradient(to bottom, rgba(255,0,0,0), #2c2c2c);
-            opacity: 0.9;
+            background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%,
+                rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%);
         }
     }
 }

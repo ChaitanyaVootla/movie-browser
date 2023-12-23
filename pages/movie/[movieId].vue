@@ -11,7 +11,7 @@
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
 
             <div class="pt-10">
-                <div class="pl-20 pr-20 overview">
+                <div class="px-16 overview">
                     <div class="text-2xl">Overview</div>
                     <div class="text-neutral-300 mt-3 text">
                         {{ movie.overview }}
