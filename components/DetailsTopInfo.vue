@@ -42,7 +42,7 @@
                 </div>
                 <div class="absolute left-20 flex flex-col justify-between h-full pt-10">
                     <div>
-                        <div class="text-white font-bold text-4xl">
+                        <div class="text-white font-bold text-3xl">
                             {{ item.title || item.name }}
                         </div>
                         <NuxtTime v-if="item.release_date" class="text-neutral-200 mt-1 block" :datetime="new Date(item.release_date)"

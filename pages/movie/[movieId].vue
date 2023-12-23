@@ -80,6 +80,14 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
                 movie.releaseYear = movie?.release_date?.split('-')[0];
                 movie.fullReleaseString = movie?.release_date;
             }
+            movie.credits.crew = useSortBy(movie.credits.crew, (person) => {
+                if (person.job === 'Director') return 0;
+                if (person.department === 'Directing') return 1;
+                if (person.department === 'Writing') return 2;
+                if (person.department === 'Production') return 3;
+                if (person.department === 'Camera') return 4;
+                return 100;
+            });
             return {
                 ...movie,
                 youtubeVideos: ( movie.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(

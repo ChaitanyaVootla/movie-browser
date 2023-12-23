@@ -8,7 +8,7 @@
             ></v-skeleton-loader>
         </div>
         <div v-else>
-            <DetailsTopInfo :item="series"/>
+            <DetailsTopInfo :item="series" :watched="false"/>
             <div class="pt-10">
                 <div class="pl-14 pr-14 overview">
                     <div class="text-2xl">Overview</div>
@@ -53,9 +53,21 @@
                 <div class="">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
-                            <div class="flex flex-col gap-3 mt-2">
+                            <div class="flex flex-col gap-3 mt-2 w-96">
+                                <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4 text-sm -mb-1
+                                    flex items-center justify-between mr-1">
+                                    <div>
+                                        Episode {{ item.episode_number }} -
+                                        <NuxtTime v-if="item.air_date" :datetime="new Date(item.air_date)"
+                                            year="numeric" month="long" day="numeric" class="ml-1" />
+                                    </div>
+                                    <div v-if="(new Date(item.air_date)).getTime() > Date.now()">
+                                        <v-chip rounded size="small" color="purple">
+                                            <span class="text-neutral-200">Upcoming</span>
+                                        </v-chip>
+                                    </div>
+                                </div>
                                 <v-img :src="`https://image.tmdb.org/t/p/w500${item.still_path}`"
-                                    width="400"
                                     class="rounded-lg mr-5"
                                     :alt="item.name">
                                     <template v-slot:placeholder>
@@ -75,7 +87,9 @@
                                         </v-skeleton-loader>
                                     </template>
                                 </v-img>
-                                <div class="text-neutral-200">{{ item.name }}</div>
+                                <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4">
+                                    {{ item.name }}
+                                </div>
                             </div>
                         </template>
                     </Scroller>
@@ -117,6 +131,14 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
     }),
     {
         transform: ((series: any) => {
+            series.credits.crew = useSortBy(series.credits.crew, (person) => {
+                if (person.job === 'Director') return 0;
+                if (person.department === 'Directing') return 1;
+                if (person.department === 'Writing') return 2;
+                if (person.department === 'Production') return 3;
+                if (person.department === 'Camera') return 4;
+                return 100;
+            });
             return {
                 ...series,
                 youtubeVideos: ( series.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
