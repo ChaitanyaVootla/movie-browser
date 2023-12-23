@@ -2,7 +2,7 @@ import { IMovie } from "~/server/models";
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { TMDB } from "~/server/utils/api";
-import sortBy from "lodash/sortBy";
+import { sortBy } from "lodash";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
