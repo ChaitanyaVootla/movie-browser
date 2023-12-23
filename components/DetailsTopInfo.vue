@@ -10,30 +10,33 @@
                         year="numeric" month="long" day="numeric" />
                     <div class="flex gap-3 pt-3">
                         <div v-for="genre in item.genres">
-                            {{ genre.name }}
+                            <v-chip size="small" rounded>
+                                {{ genre.name }}
+                            </v-chip>
                         </div>
                     </div>
-                    <div v-if="item.title" class="flex pt-16 gap-6">
-                        <div class="flex flex-col items-center justify-center">
-                            <v-btn @click="watchClicked(watched)" prepend-icon="mdi-check" variant="outlined"
-                                :color="watched?'red':'#ccc'" :elevation="5" :height="50" :width="150"
-                                class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
-                                Watched
-                            </v-btn>
+                    <div v-if="!minimal">
+                        <div v-if="item.title" class="flex pt-16 gap-6">
+                            <div class="flex flex-col items-center justify-center">
+                                <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'red':''"
+                                    :elevation="5" :height="50" :width="150" class="!bg-neutral-800" :min-width="200">
+                                    Watched
+                                </v-btn>
+                            </div>
+                            <div class="flex flex-col items-center justify-center">
+                                <v-btn @click="watchListClicked(item.watched)" prepend-icon="mdi-playlist-plus"
+                                    :elevation="5" :height="50" :width="150" class="!bg-neutral-800" :min-width="200">
+                                    Watch list
+                                </v-btn>
+                            </div>
                         </div>
-                        <div class="flex flex-col items-center justify-center">
-                            <v-btn @click="watchListClicked(item.watched)" prepend-icon="mdi-playlist-plus" variant="outlined"
-                                color="#ccc" :elevation="5" :height="50" :width="150" class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
-                                Watch list
-                            </v-btn>
-                        </div>
-                    </div>
-                    <div v-else class="flex pt-16 gap-6">
-                        <div class="flex flex-col items-center justify-center">
-                            <v-btn prepend-icon="mdi-playlist-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
-                                class="backdrop-blur-lg !bg-neutral-800 bg-opacity-70">
-                                Watching
-                            </v-btn>
+                        <div v-else class="flex pt-16 gap-6">
+                            <div class="flex flex-col items-center justify-center">
+                                <v-btn prepend-icon="mdi-playlist-plus" variant="outlined" color="#ccc" :elevation="5" :height="50" :width="150"
+                                    class="!bg-neutral-800">
+                                    Watching
+                                </v-btn>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -62,17 +65,12 @@
                         title="YouTube video player"
                         width="100%"
                         height="100%"
-                        class="youtube-player"
                         :src="`https://www.youtube.com/embed/${item.youtubeVideos[0].key
                             }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${item.youtubeVideos[0].key}`"
                         frameborder="0"
                         controls="1"
-                        modestbranding
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen
-                        enablejsapi="1"
-                        style="margin-bottom: -0.4em; box-shadow: 0px 0px 44px 10px rgba(0, 0, 0, 0.75)"
-                        :key="item.youtubeVideos[0].key"
                     >
                     </iframe>
                 </div>
@@ -84,7 +82,7 @@
 <script setup lang="ts">
 let showTrailer = ref(false);
 
-const { item } = defineProps({
+const props = defineProps({
     item: {
         type: Object,
         required: true,
@@ -95,12 +93,24 @@ const { item } = defineProps({
         required: true,
         default: {}
     },
+    minimal: {
+        type: Boolean,
+        default: false
+    }
 });
+const item = props.item;
+const watched = ref(props.watched);
+
+watch(() => props.watched, (newValue) => {
+    watched.value = newValue;
+})
+
 const emit = defineEmits(['watchClicked'])
 
-const watchClicked = (watched: boolean) => {
-    emit('watchClicked', !watched);
-    if (item.watched) {
+const watchClicked = () => {
+    watched.value = !watched.value;
+    emit('watchClicked', watched.value);
+    if (watched.value === true) {
         $fetch(`/api/user/movie/${item.id}/watched`, {
             method: 'POST',
         })
@@ -130,7 +140,7 @@ const watchListClicked = (watched: boolean) => {
 </script>
 
 <style scoped lang="less">
-@info-height: calc(max(60vh, 500px) - 4rem);
+@info-height: calc(max(55vh, 500px) - 4rem);
 
 .top-info {
     height: @info-height;

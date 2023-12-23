@@ -1,13 +1,13 @@
 <template>
     <div class="flex">
         <div v-if="ratings.length || props.tmdbRating"
-            class="flex gap-8 px-8 pt-3 pb-2 backdrop-blur-lg border-2 border-neutral-600 rounded-pill">
+            class="flex gap-8">
             <div v-for="rating in ratings">
                 <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                     <div class="w-12 flex flex-col items-center justify-between gap-2">
-                        <v-img :src="rating.image" class="w-7 h-7" :alt="rating.name">
+                        <v-img :src="rating.image" class="w-8 h-8" :alt="rating.name">
                         </v-img>
-                        <div class="text-md text-neutral-200">{{ rating.rating }}</div>
+                        <div class="text-lg text-neutral-200 font-normal">{{ rating.rating }}</div>
                     </div>
                 </NuxtLink>
             </div>

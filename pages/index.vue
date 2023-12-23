@@ -1,5 +1,5 @@
 <template>
-    <div class="mt-2 mx-14 invisible md:visible">
+    <div class="mx-14 invisible md:visible">
         <v-carousel height="50vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-minus-thick" class="group carousel">
             <template v-slot:prev="{ props }">
@@ -10,38 +10,7 @@
             </template>
             <v-carousel-item v-for="item in (trending?.allItems || [])">
                 <NuxtLink :to="`/${item.release_date ? 'movie': 'series'}/${item.id}`">
-                    <div class="flex h-full w-full bg-black rounded-l-lg">
-                        <div class="w-1/3 flex h-full flex-col justify-between">
-                            <div class="top-info ml-16 mt-10">
-                                <div class="text-3xl font-semibold">
-                                    {{ item.title || item.name }}
-                                </div>
-                                <NuxtTime v-if="item.release_date" class="text-neutral-200 mt-1 block"
-                                    :datetime="new Date(item.release_date)" year="numeric" month="long" day="numeric" />
-                                <div class="flex gap-3 font-semibold mt-3">
-                                    <div v-if="item.media_type === 'movie'" v-for="genreId in item.genre_ids">
-                                        <v-chip color="#ccc" size="small" rounded>
-                                            {{ movieGenres[genreId]?.name }}
-                                        </v-chip>
-                                    </div>
-                                    <div v-if="item.media_type === 'tv'" v-for="genreId in item.genre_ids">
-                                        <v-chip color="#ccc" size="small" rounded>
-                                            {{ seriesGenres[genreId]?.name }}
-                                        </v-chip>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="ml-16 mb-10">
-                                <Ratings :tmdbRating="item.vote_average" :movieId="item.id" />
-                            </div>
-                        </div>
-                        <div class="w-2/3 relative trending-image-container h-full">
-                            <div class="h-full w-full">
-                                <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes[2]}${item.backdrop_path}`"
-                                    class="h-full w-full object-cover object-top !absolute trending-image bg-black rounded-r-md" />
-                            </div>
-                        </div>
-                    </div>
+                    <DetailsTopInfo :item="item" :watched="false" :minimal="true" />
                 </NuxtLink>
             </v-carousel-item>
         </v-carousel>
@@ -54,6 +23,53 @@
 <script setup lang="ts">
 useHead({
     title: 'The Movie Browser',
+    meta: [
+        {
+            hid: 'description',
+            name: 'description',
+            content: 'Track, discover and find where to watch TV shows and movies.',
+        },
+        {
+            hid: 'og:title',
+            property: 'og:title',
+            content: 'The Movie Browser',
+        },
+        {
+            hid: 'og:description',
+            property: 'og:description',
+            content: 'The Movie Browser',
+        },
+        {
+            hid: 'og:image',
+            property: 'og:image',
+            content: 'https://themoviebrowser.vercel.app/popcorn.png',
+        },
+        {
+            hid: 'og:url',
+            property: 'og:url',
+            content: 'https://themoviebrowser.vercel.app',
+        },
+        {
+            hid: 'twitter:title',
+            name: 'twitter:title',
+            content: 'The Movie Browser',
+        },
+        {
+            hid: 'twitter:description',
+            name: 'twitter:description',
+            content: 'The Movie Browser',
+        },
+        {
+            hid: 'twitter:image',
+            name: 'twitter:image',
+            content: 'https://themoviebrowser.vercel.app/favicon.ico',
+        },
+        {
+            hid: 'twitter:card',
+            name: 'twitter:card',
+            content: 'summary_large_image',
+        },
+    ],
 });
 const { pending, data: trending }: any = await useLazyAsyncData('trending',
     () => $fetch('/api/trending').catch((err) => {
@@ -62,7 +78,24 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
     }),
     {
         transform: (trending: any) => {
-            return trending;
+            return {
+                ...trending,
+                allItems: trending.allItems.map(
+                    (item: any) => {
+                        if (item.media_type === 'movie') {
+                            return {
+                                ...item,
+                                genres: item.genre_ids.map((genreId: number) => movieGenres[genreId]),
+                            }
+                        } else if (item.media_type === 'tv') {
+                            return {
+                                ...item,
+                                genres: item.genre_ids.map((genreId: number) => seriesGenres[genreId]),
+                            }
+                        }
+                    }
+                )
+            }
         },
     }
 );

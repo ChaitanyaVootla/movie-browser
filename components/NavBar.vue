@@ -1,7 +1,6 @@
 <template>
     <div class="navbar hidden md:flex justify-between font-semibold text-xl items-center
-        shadow-lg shadow-neutral-900 pl-14 pr-14 overflow-visible bg-neutral-950 h-16
-        z-50">
+        shadow-md shadow-neutral-900 pl-14 pr-14 overflow-visible bg-neutral-950 h-16 z-50">
         <div class="left-actions flex-1 flex gap-20">
             <NuxtLink to="/" aria-label="Go Home">
                 <div class="flex items-center gap-2">
