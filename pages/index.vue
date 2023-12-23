@@ -1,10 +1,16 @@
 <template>
     <div class="mt-2 mx-14 invisible md:visible">
-        <v-carousel height="50vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
-            delimiterIcon="mdi-minus-thick">
+        <v-carousel height="40vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
+            delimiterIcon="mdi-minus-thick" class="group carousel">
+            <template v-slot:prev="{ props }">
+                <v-btn class="invisible group-hover:visible" icon="mdi-chevron-left" @click="props.onClick" color="#333"></v-btn>
+            </template>
+            <template v-slot:next="{ props }">
+                <v-btn class="invisible group-hover:visible" icon="mdi-chevron-right" @click="props.onClick" color="#333"></v-btn>
+            </template>
             <v-carousel-item v-for="item in (trending?.all || [])">
-                <div class="flex h-full w-full bg-black">
-                    <div class="flex-1 flex flex-col justify-between h-full">
+                <div class="flex h-full w-full bg-black rounded-l-lg">
+                    <div class="flex-2 flex h-full w-full flex-col justify-between">
                         <div class="top-info ml-16 mt-10">
                             <div class="text-3xl font-semibold">
                                 {{ item.title || item.name }}
@@ -24,9 +30,11 @@
                             <Ratings :tmdbRating="item.vote_average" :movieId="item.id" />
                         </div>
                     </div>
-                    <div class="flex-1 relative h-full w-full trending-image-container after:bg-gradient-to-r from-indigo-500">
-                        <NuxtImg :src="`https://image.tmdb.org/t/p/h632${item.backdrop_path}`" class="h-full w-full
-                            object-cover !absolute trending-image bg-black" />
+                    <div class="flex-3 relative trending-image-container h-full w-full">
+                        <div class="h-full w-full">
+                            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes[2]}${item.backdrop_path}`"
+                                class="h-full w-full object-cover object-top !absolute trending-image bg-black rounded-r-md" />
+                        </div>
                     </div>
                 </div>
             </v-carousel-item>
@@ -63,6 +71,18 @@ const { pending, data: trending }: any = await useLazyFetch('/api/trending',
         right: 0;
         bottom: 0;
         background-image: linear-gradient(to left, rgba(255, 255, 255, 0), #000000);
+        background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%,
+            rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.1) 100%);
+    }
+}
+:deep(.carousel) {
+    .v-carousel__controls {
+        display: none;
+    }
+    &:hover {
+        .v-carousel__controls {
+            display: flex;
+        }
     }
 }
 </style>
