@@ -20,7 +20,7 @@
             <div class="flex-1">
                 <div class="font-bold text-xl">Watched Similarity</div>
                 <div>
-                    <v-btn-toggle class="mt-5" v-model="watchedQuery" @update:modelValue="recommend()">
+                    <v-btn-toggle class="mt-5" v-model="watchedQuery" @update:modelValue="recommend()" mandatory>
                         <v-btn value="similar" text="Similar" />
                         <v-btn value="neutral" text="Neutral" />
                         <v-btn value="contrast" text="Contrast" />

@@ -1,7 +1,7 @@
 <template>
     <div class="details-container bg-black">
         <div class="flex w-full h-full">
-            <div class="w-2/5 pl-14 flex flex-col justify-between h-full pt-10 left-info">
+            <div class="w-full md:w-2/5 pl-14 flex flex-col justify-between h-full pt-10 left-info">
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
                         <div v-if="logo" class="title-logo w-full h-full">
@@ -60,7 +60,7 @@
                     </div>
                 </div>
             </div>
-            <div class="w-3/5 h-full">
+            <div class="hidden md:block w-3/5 h-full">
                 <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer"
                     @click="showTrailer = !showTrailer">
                     <div>
@@ -80,8 +80,8 @@
                         title="YouTube video player"
                         width="100%"
                         height="100%"
-                        :src="`https://www.youtube.com/embed/${item.youtubeVideos[0].key
-                            }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${item.youtubeVideos[0].key}`"
+                        :src="`https://www.youtube.com/embed/${item?.youtubeVideos[0]?.key
+                            }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${item?.youtubeVideos[0]?.key}`"
                         frameborder="0"
                         controls="1"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

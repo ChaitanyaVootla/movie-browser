@@ -33,7 +33,7 @@
             </div>
 
             <div class="px-14 mt-10">
-                <v-btn-toggle v-model="selectedMediaType">
+                <v-btn-toggle v-model="selectedMediaType" mandatory>
                     <v-btn>
                         Movies
                     </v-btn>
@@ -41,7 +41,7 @@
                         Series
                     </v-btn>
                 </v-btn-toggle>
-                <v-btn-toggle v-model="selectedCreditType" class="ml-10">
+                <v-btn-toggle v-model="selectedCreditType" mandatory class="ml-10">
                     <v-btn>
                         Cast
                     </v-btn>

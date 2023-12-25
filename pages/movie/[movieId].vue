@@ -10,7 +10,7 @@
         <div v-else>
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="pt-10">
-                <div class="px-14 overview">
+                <div class="px-3 md:px-14 overview">
                     <v-card class="px-5 py-5" color="#151515">
                         <div class="flex items-baseline justify-start gap-2">
                             <div class="text-xl">Released</div>
@@ -29,33 +29,31 @@
                     </v-card>
                 </div>
 
-                <div v-if="movie?.collectionDetails?.parts?.length" class="cast mt-10">
+                <div v-if="movie?.collectionDetails?.parts?.length" class="px-3 md:px-0 cast mt-10">
                     <Scroller :items="movie.collectionDetails.parts || []" :title="movie.collectionDetails.name" :pending="pending" />
                 </div>
 
-                <div class="pl-20 pr-20 mt-10">
-                    <div class="text-2xl">Cast</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="person in (movie.credits?.cast || [])">
-                            <PersonCard :item="person" :pending="pending" class="mr-4" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div class="px-3 md:px-20 mt-10">
+                    <Scroller :items="movie.credits?.cast || []" title="Cast" :pending="pending" >
+                        <template v-slot:default="{ item }">
+                            <PersonCard :item="item" :pending="pending" class="mr-3" />
+                        </template>
+                    </Scroller>
                 </div>
 
-                <div class="pl-20 pr-20 mt-10">
-                    <div class="text-2xl">Crew</div>
-                    <v-slide-group show-arrows="desktop" class="-ml-14 -mr-14 mt-3">
-                        <v-slide-group-item v-for="person in (movie.credits?.crew || [])">
-                            <PersonCard :item="person" :pending="pending" class="mr-4" />
-                        </v-slide-group-item>
-                    </v-slide-group>
+                <div class="px-3 md:px-20 mt-10">
+                    <Scroller :items="movie.credits?.crew || []" title="Crew" :pending="pending" >
+                        <template v-slot:default="{ item }">
+                            <PersonCard :item="item" :pending="pending" class="mr-3" />
+                        </template>
+                    </Scroller>
                 </div>
 
-                <div v-if="aiRecommendations?.length" class="mt-10">
+                <div v-if="aiRecommendations?.length" class="px-3 md:px-0 marker:mt-10">
                     <Scroller :items="aiRecommendations || []" title="AI Recommendations" :pending="pending" />
                 </div>
 
-                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="mt-10">
+                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="px-3 md:px-0 mt-10">
                     <Scroller :items="movie.recommendations.results || []" title="Recommended" :pending="pending" />
                 </div>
 

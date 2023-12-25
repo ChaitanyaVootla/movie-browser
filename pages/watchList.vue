@@ -1,7 +1,7 @@
 <template>
     <div class="px-3 md:px-0">
         <div class="top-action flex justify-center mt-10">
-            <v-btn-toggle v-model="selectedType">
+            <v-btn-toggle v-model="selectedType" mandatory>
                 <v-btn>
                     Series
                 </v-btn>

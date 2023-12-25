@@ -8,6 +8,12 @@
                     Home
                 </div>
             </NuxtLink>
+            <NuxtLink to="/browse">
+                <div class="flex items-center gap-2" aria-label="Go To AI search">
+                    <v-icon icon="mdi-movie-search" class="text-3xl" />
+                    Browse
+                </div>
+            </NuxtLink>
             <NuxtLink to="/watchList" aria-label="Go To Watch List">
                 <div class="flex items-center gap-2">
                     <v-icon icon="mdi-playlist-play" class="text-3xl" />
@@ -17,7 +23,7 @@
             <NuxtLink to="/ai">
                 <div class="flex items-center gap-2" aria-label="Go To AI search">
                     <v-icon icon="mdi-alien" class="text-3xl" />
-                    AI
+                    AI <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>
             </NuxtLink>
         </div>
@@ -68,6 +74,11 @@
                 <span>Home</span>
             </v-btn>
 
+            <v-btn value="browse">
+                <v-icon>mdi-movie-search</v-icon>
+                <span>Browse</span>
+            </v-btn>
+
             <v-btn value="search">
                 <v-icon>mdi-magnify</v-icon>
                 <span>Search</span>
@@ -100,11 +111,11 @@
     </div>
     <v-overlay v-model="showSearchOverlay" absolute width="100%" height="100%" contained>
         <div class="flex justify-center relative min-h-full">
-        <div class="absolute w-4/5 top-36 md:w-1/3">
+        <div class="absolute w-full px-10 top-36 flex justify-center md:w-1/2">
             <v-autocomplete
                 auto-select-first
                 label="Search"
-                class="search"
+                class="search relative"
                 autofocus
                 variant="solo-filled"
                 return-object
@@ -195,6 +206,8 @@ const bottomNavItemClicked = (item: any) => {
         return useRouter().push('/');
     } else if (item === 'search') {
         showSearchOverlay.value = true;
+    } else if (item === 'browse') {
+        return useRouter().push('/browse');
     } else if (item === 'watchList') {
         return useRouter().push('/watchList');
     } else if (item === 'profile') {
@@ -204,11 +217,19 @@ const bottomNavItemClicked = (item: any) => {
 </script>
 
 <style lang="less">
-.search {
-    width: 50vw;
+:deep(.search) {
+    .v-list-item__content {
+        width: 100% !important;
+    }
 }
-.v-list-item__content {
-    max-width: calc(50vw - 3rem);
+
+@media (min-width: 768px) {
+    .v-list-item__content {
+        max-width: calc(50vw - 3rem);
+    }
+    .search {
+        width: 50% !important;
+    }
 }
 .v-autocomplete__content {
     max-height: calc(100vh - 20rem) !important;

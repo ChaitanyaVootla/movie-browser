@@ -10,7 +10,7 @@
         <div v-else>
             <DetailsTopInfo :item="series" :watched="false"/>
             <div class="pt-10">
-                <div class="pl-14 pr-14 mt-5">
+                <div class="px-3 md:px-14 mt-5">
                     <div class="flex w-full items-center gap-4">
                         <div class="mt-5">
                             <v-select
@@ -37,7 +37,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="">
+                <div class="px-3 md:px-0">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <div class="flex flex-col gap-3 mt-2 w-96">
@@ -85,7 +85,7 @@
                     </Scroller>
                 </div>
 
-                <div class="pl-14 pr-14 overview mt-10">
+                <div class="px-3 md:px-14 overview mt-10">
                     <v-card class="px-5 py-5" color="#151515">
                         <div class="text-2xl">Overview</div>
                         <div class="text-neutral-300 mt-3 text">
@@ -100,7 +100,7 @@
                     </v-card>
                 </div>
 
-                <div class="mt-10">
+                <div class="px-3 md:px-0 mt-10">
                     <Scroller :items="series.credits?.cast || []" title="Cast" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
@@ -108,7 +108,7 @@
                     </Scroller>
                 </div>
 
-                <div class="mt-10">
+                <div class="px-3 md:px-0mt-10">
                     <Scroller :items="series.credits?.crew || []" title="Crew" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
@@ -116,11 +116,11 @@
                     </Scroller>
                 </div>
 
-                <div v-if="series.recommendations?.results?.length" class="cast mt-10">
+                <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0cast mt-10">
                     <Scroller :items="series.recommendations?.results || []" title="Recommended" :pending="pending" />
                 </div>
 
-                <div v-if="series.similar?.results?.length" class="cast mt-10">
+                <div v-if="series.similar?.results?.length" class="px-3 md:px-0cast mt-10">
                     <Scroller :items="series.similar?.results || []" title="Similar" :pending="pending" />
                 </div>
             </div>
