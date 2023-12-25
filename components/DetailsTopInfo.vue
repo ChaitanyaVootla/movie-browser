@@ -1,19 +1,19 @@
 <template>
     <div class="details-container bg-black">
         <div class="flex w-full h-full">
-            <div class="w-1/3 pl-14 flex flex-col justify-between h-full pt-10 left-info">
-                <div>
-                    <div class="text-white font-bold text-3xl">
-                        <div v-if="logo" class="title-logo">
-                            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.logo_sizes.w500}${logo}`"
-                                :alt="item.title || item.name" class="object-contain w-full h-full" />
+            <div class="w-2/5 pl-14 flex flex-col justify-between h-full pt-10 left-info">
+                <div class="h-1/2">
+                    <div class="text-white font-bold text-3xl h-full">
+                        <div v-if="logo" class="title-logo w-full h-full">
+                            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${logo}`"
+                                :alt="item.title || item.name" class="object-contain" />
                         </div>
                         <div v-else>
                             {{ item.title || item.name }}
                         </div>
                     </div>
                 </div>
-                <div class="w-full flex mb-5 flex-col gap-5">
+                <div class="w-full h-1/2 flex pb-10 flex-col gap-5 justify-end">
                     <div class="flex gap-3 mt-5">
                         <div v-for="genre in item.genres">
                             <v-chip class="text-md" rounded>
@@ -21,10 +21,8 @@
                             </v-chip>
                         </div>
                     </div>
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
-                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" class="mt-4"/>
                     <div v-if="!minimal">
-                        <div v-if="item.title" class="flex mt-10 gap-6">
+                        <div v-if="item.title" class="flex gap-6">
                             <div class="flex flex-col items-center justify-center">
                                 <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
                                     :elevation="5" :height="50" class="px-5">
@@ -38,7 +36,7 @@
                                 </v-btn>
                             </div>
                         </div>
-                        <div v-else class="flex pt-16 gap-6">
+                        <div v-else class="flex gap-6">
                             <div class="flex flex-col items-center justify-center">
                                 <v-btn prepend-icon="mdi-playlist-plus" :elevation="5" :height="50" class="px-5" :color="(watchlist === true)?'primary':''">
                                     Watching
@@ -46,6 +44,8 @@
                             </div>
                         </div>
                     </div>
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" class="mt-3"/>
+                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
                     <div v-if="false" class="flex gap-5 mt-16">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg
@@ -60,7 +60,7 @@
                     </div>
                 </div>
             </div>
-            <div class="w-2/3 h-full">
+            <div class="w-3/5 h-full">
                 <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer"
                     @click="showTrailer = !showTrailer">
                     <div>
@@ -158,10 +158,14 @@ const watchListClicked = () => {
 .details-container {
     height: @info-height;
     .left-info {
-        background-image: linear-gradient(135deg, #252525 0%, #151515 40%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0) 100%);
+        background-image: linear-gradient(145deg, #252525 0%, #151515 40%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0) 100%);
         .title-logo {
-            min-height: 10rem;
-            max-width: 60%;
+            img {
+                min-height: 50%;
+                max-height: 70%;
+                min-width: 50%;
+                max-width: 80%;
+            }
         }
     }
     :deep(.image-container) {
@@ -173,7 +177,7 @@ const watchListClicked = () => {
             right: 0;
             bottom: 0;
             background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
-                linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 5%, rgba(0,0,0,0) 100%);
+                // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%);
         }
     }
 }

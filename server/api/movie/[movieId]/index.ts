@@ -13,13 +13,11 @@ export default defineEventHandler(async (event) => {
 
     let movie = {} as any;
 
-    // DB
     const dbMovie = await Movie.findOne({ id: movieId });
-
     if (dbMovie?.title) {
-        console.log("found in DynamoDB")
         movie = dbMovie;
     }
+
     if (!movie.title) {
         console.log("Fetching from TMDB")
         try {

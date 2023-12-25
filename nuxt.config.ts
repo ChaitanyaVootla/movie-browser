@@ -60,10 +60,11 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
-    // '/api/movie/**': { cors: true, swr:  60 * 60 * 12 },
-    // '/api/series/**': { cors: true, swr:  60 * 60 * 12 },
-    // '/api/search/**': { cors: true, swr:  60 * 60 * 12 },
-    // '/api/trending/**': { cors: true, swr:  60 * 60 * 12 },
+    '/api/movie/**': { cors: true, swr:  60 * 60 * 12 },
+    '/api/series/**': { cors: true, swr:  60 * 60 * 12 },
+    '/api/search/**': { cors: true, swr:  60 * 60 * 12 },
+    '/api/person/**': { cors: true, swr:  60 * 60 * 12 },
+    '/api/trending/**': { cors: true, swr:  60 * 60 * 12 },
     '/images/**': {
       headers: {
         'Cache-Control': 'public, max-age=31536000, immutable',

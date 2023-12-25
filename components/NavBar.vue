@@ -61,6 +61,43 @@
             </div>
         </div>
     </div>
+    <div class="md:hidden">
+        <v-bottom-navigation :grow="true" @update:modelValue="bottomNavItemClicked">
+            <v-btn value="home">
+                <v-icon>mdi-home</v-icon>
+                <span>Home</span>
+            </v-btn>
+
+            <v-btn value="search">
+                <v-icon>mdi-magnify</v-icon>
+                <span>Search</span>
+            </v-btn>
+
+            <v-btn value="watchList">
+                <v-icon>mdi-playlist-play</v-icon>
+                <span>Watch List</span>
+            </v-btn>
+
+            <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile">
+                <v-icon>mdi-google</v-icon>
+                <span>Login</span>
+            </v-btn>
+            <v-btn v-else>
+                <v-menu>
+                    <template v-slot:activator="{ props }">
+                        <v-avatar :image="(data?.user?.image as string)" :size="35" class="relative cursor-pointer"
+                            v-bind="props">
+                        </v-avatar>
+                    </template>
+                    <v-list>
+                        <v-list-item @click="signOut">
+                            Sign Out
+                        </v-list-item>
+                    </v-list>
+                </v-menu>
+            </v-btn>
+        </v-bottom-navigation>
+    </div>
     <v-overlay v-model="showSearchOverlay" absolute width="100%" height="100%" contained>
         <div class="flex justify-center relative min-h-full">
         <div class="absolute w-4/5 top-36 md:w-1/3">
@@ -152,6 +189,18 @@ const searchItemClicked = (item: any) => {
     }
   }, 100);
 };
+
+const bottomNavItemClicked = (item: any) => {
+    if (item === 'home') {
+        return useRouter().push('/');
+    } else if (item === 'search') {
+        showSearchOverlay.value = true;
+    } else if (item === 'watchList') {
+        return useRouter().push('/watchList');
+    } else if (item === 'profile') {
+        return;
+    }
+}
 </script>
 
 <style lang="less">

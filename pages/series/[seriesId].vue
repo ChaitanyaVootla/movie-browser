@@ -196,7 +196,7 @@ useHead(() => {
             {
                 hid: 'og:image',
                 property: 'og:image',
-                content: `https://image.tmdb.org/t/p/w500${series.value?.poster_path}`
+                content: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${series.value?.backdrop_path}`
             },
             {
                 hid: 'og:url',
@@ -236,7 +236,7 @@ useHead(() => {
             {
                 hid: 'twitter:image',
                 name: 'twitter:image',
-                content: `https://image.tmdb.org/t/p/w500${series.value?.poster_path}`
+                content: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${series.value?.backdrop_path}`
             },
             {
                 hid: 'twitter:url',

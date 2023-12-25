@@ -1,5 +1,5 @@
 <template>
-    <NuxtLink :to="`https://themoviebrowser.com/person/${item.name}/${item.id}`" target="blank" noreferrer noopener>
+    <NuxtLink :to="`/person/${item.id}`">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative">
                 <v-img

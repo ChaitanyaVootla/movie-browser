@@ -1,7 +1,7 @@
 <template>
     <div class="hidden md:block">
-        <v-carousel height="58vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
-            delimiterIcon="mdi-minus-thick" class="carousel" :key="trending?.allItems?.length">
+        <v-carousel height="55vh" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
+            delimiterIcon="mdi-square-small" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
                 <v-icon icon="mdi-chevron-left" @click="props.onClick"></v-icon>
             </template>
@@ -15,7 +15,7 @@
             </v-carousel-item>
         </v-carousel>
     </div>
-    <div>
+    <div class="mt-5 md:mt-0 p-3">
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
         <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-12" />
     </div>
@@ -37,12 +37,12 @@ useHead({
         {
             hid: 'og:description',
             property: 'og:description',
-            content: 'The Movie Browser',
+            content: 'Track, discover and find where to watch TV shows and movies.',
         },
         {
             hid: 'og:image',
             property: 'og:image',
-            content: 'https://themoviebrowser.vercel.app/popcorn.png',
+            content: '/backdrop.webp',
         },
         {
             hid: 'og:url',
@@ -57,12 +57,12 @@ useHead({
         {
             hid: 'twitter:description',
             name: 'twitter:description',
-            content: 'The Movie Browser',
+            content: 'Track, discover and find where to watch TV shows and movies.',
         },
         {
             hid: 'twitter:image',
             name: 'twitter:image',
-            content: 'https://themoviebrowser.vercel.app/favicon.ico',
+            content: '/backdrop.webp',
         },
         {
             hid: 'twitter:card',
@@ -102,6 +102,16 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
 </script>
 
 <style scoped lang="less">
+:deep(.carousel) {
+    .v-carousel__controls {
+        display: none;
+    }
+    &:hover {
+        .v-carousel__controls {
+            display: flex;
+        }
+    }
+}
 :deep(.trending-image-container) {
     &::after {
         content: '';
