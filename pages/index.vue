@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-14 hidden md:block">
+    <div class="hidden md:block">
         <v-carousel height="58vh" color="white" :cycle="false" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-minus-thick" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
