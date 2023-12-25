@@ -2,7 +2,7 @@
   <NuxtLayout>
     <v-app>
       <NavBar/>
-      <NuxtPage :page-key="route => route.fullPath" class="mb-10" />
+      <NuxtPage :page-key="route => route.path" class="mb-10" />
     </v-app>
   </NuxtLayout>
 </template>

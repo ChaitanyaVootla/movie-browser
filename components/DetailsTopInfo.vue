@@ -16,7 +16,7 @@
                 <div class="w-full h-1/2 flex pb-10 flex-col gap-5 justify-end">
                     <div class="flex gap-3 mt-5">
                         <div v-for="genre in item.genres">
-                            <v-chip class="text-md" rounded>
+                            <v-chip class="text-md" rounded @click="genreClicked(genre)">
                                 {{ genre.name }}
                             </v-chip>
                         </div>
@@ -149,6 +149,15 @@ const watchClicked = () => {
 }
 
 const watchListClicked = () => {
+}
+
+const genreClicked = (genre: any) => {
+    useRouter().push({
+        name: 'browse',
+        query: {
+            with_genres: genre.id
+        }
+    })
 }
 </script>
 
