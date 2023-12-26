@@ -19,4 +19,4 @@ jobs:
                   npm install
                   npm run build
                   pm2 delete all
-                  export AUTH_ORIGIN=http://134.209.159.54 && pm2 start ./.output/server/index.mjs --name Nuxt
+                  export AUTH_ORIGIN=http://134.209.159.54 && pm2 start "npm run preview" --name Nuxt
