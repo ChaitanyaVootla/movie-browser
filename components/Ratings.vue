@@ -1,6 +1,6 @@
 <template>
     <div class="flex">
-        <div v-if="ratings.length" class="flex gap-8">
+        <!-- <div v-if="ratings.length" class="flex gap-8">
             <div v-for="rating in ratings">
                 <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                     <div class="w-16 flex flex-col items-center justify-between gap-2">
@@ -10,18 +10,57 @@
                     </div>
                 </NuxtLink>
             </div>
+        </div> -->
+        <div v-if="ratings.length" v-for="rating in ratings">
+            <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
+                <div class="progress-wrapper relative w-full h-full">
+                    <svg width="100" height="100" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="35" :stroke="rating.color" stroke-width="5" fill="transparent"
+                            stroke-dasharray="164.93 54.98" stroke-dashoffset="-39.25" transform="rotate(72 50 50)" />
+                        <image :href="rating.image" x="35" y="35" height="30" width="30" />
+                        <text x="50" y="85" font-family="Arial" font-size="14" fill="#ddd" text-anchor="middle"
+                            class="font-normal text-base">
+                            {{ rating.percentage }}
+                        </text>
+                    </svg>
+                </div>
+            </NuxtLink>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
 const props = defineProps(['googleData', 'tmdbRating', 'movieId'])
-let ratings = [] as {
+type Rating = {
     name: string,
     link: string,
     rating: string,
     image: string,
-}[]
+    color: string,
+    percentage?: string
+};
+let ratings = [] as Rating[];
+
+const getColorForRating = (ratingObj: Rating) => {
+    let ratingString = `${ratingObj.rating}`;
+    if (ratingString.includes('%')) {
+        ratingString = ratingString.split('%')[0];
+    }
+    let ratingNumber = parseFloat(ratingString);
+    if (ratingObj.name === 'IMDb') {
+        ratingNumber *= 10;
+    } else if (ratingObj.name === 'TMDB') {
+        ratingNumber *= 10;
+    }
+    const cutoff = 30;
+    const safeValue = Math.max(cutoff, Math.min(100, ratingNumber));
+    const scaledValue = safeValue - cutoff;
+    const hue = (120 * scaledValue) / 70;
+    return {
+        color: `hsl(${hue}, 100%, 35%)`,
+        percentage: `${ratingNumber.toFixed()}`
+    };
+}
 
 const ratingImageMapper = {
     'imdb': '/images/rating/imdb.svg',
@@ -38,6 +77,7 @@ if (props.googleData?.ratings) {
                 link: rating.link,
                 rating: rating.rating,
                 image,
+                ...getColorForRating(rating)
             }
         }
     }).filter(Boolean)
@@ -47,7 +87,11 @@ if (props.tmdbRating) {
         name: 'TMDB',
         rating: props.tmdbRating?.toFixed(1) || '',
         image: '/images/rating/tmdb.svg',
-        link: `https://www.themoviedb.org/movie/${props.movieId}`
+        link: `https://www.themoviedb.org/movie/${props.movieId}`,
+        ...getColorForRating({
+            name: 'TMDB',
+            rating: props.tmdbRating,
+        } as Rating)
     })
 }
 </script>

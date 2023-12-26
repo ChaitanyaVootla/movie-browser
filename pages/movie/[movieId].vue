@@ -10,7 +10,7 @@
         <div v-else>
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="pt-10">
-                <div class="px-3 md:px-14 overview">
+                <div class="px-3 md:mx-12 overview">
                     <v-card class="px-5 py-5" color="#151515">
                         <div class="flex items-baseline justify-start gap-2">
                             <div class="text-xl">Released</div>

@@ -1,24 +1,22 @@
 name: Nuxt Test
 
 on:
-    push:
-        branches: [nuxt]
+  push:
+    branches: [nuxt]
 
 jobs:
-    Build_Nuxt:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v2
-            - name: Set Node.js 18
-              uses: actions/setup-node@v2
-              with:
-                node-version: '18'
-            - name: NPM intall
-              timeout-minutes: 2
-              run: |
-                touch .env
-                npm install
-            - name: Nuxt Build
-              timeout-minutes: 2
-              run: |
-                npm run build
+  Deploy:
+      runs-on: ubuntu-latest
+      steps:
+          - uses: appleboy/ssh-action@master
+            with:
+              host: 134.209.159.54
+              username: root
+              password: ${{ secrets.DIGITAL_OCEAN_PASS }}
+              script: |
+                  cd /movie-browser
+                  git pull origin nuxt
+                  npm install
+                  npm run build
+                  sudo kill -9 `sudo lsof -t -i:3000`
+                  export AUTH_ORIGIN=http://134.209.159.54 && nohup npm run preview &

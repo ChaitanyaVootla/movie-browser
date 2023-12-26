@@ -109,6 +109,10 @@ const sortByValues = [
 ];
 
 const query = useRouter().currentRoute.value.query as any;
+if (query.media_type === 'tv') {
+    selectedType.value = 1;
+}
+
 const queryParams = ref<any>({
     page: 1,
     media_type: 'movie',
@@ -133,6 +137,8 @@ const queryParams = ref<any>({
 
 const mediaTypeUpdated = () => {
     queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
+    queryParams.value.with_genres = [];
+    queryParams.value.without_genres = [];
     refresh();
 }
 

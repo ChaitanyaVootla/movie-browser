@@ -9,8 +9,8 @@
         </div>
         <div v-else>
             <DetailsTopInfo :item="series" :watched="false"/>
-            <div class="pt-10">
-                <div class="px-3 md:px-14 mt-5">
+            <div>
+                <div class="px-3 md:mx-12 mt-5">
                     <div class="flex w-full items-center gap-4">
                         <div class="mt-5">
                             <v-select
@@ -85,7 +85,7 @@
                     </Scroller>
                 </div>
 
-                <div class="px-3 md:px-14 overview mt-10">
+                <div class="px-3 md:mx-12 overview mt-10">
                     <v-card class="px-5 py-5" color="#151515">
                         <div class="text-2xl">Overview</div>
                         <div class="text-neutral-300 mt-3 text">
@@ -108,7 +108,7 @@
                     </Scroller>
                 </div>
 
-                <div class="px-3 md:px-0mt-10">
+                <div class="px-3 md:px-0 mt-10">
                     <Scroller :items="series.credits?.crew || []" title="Crew" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />

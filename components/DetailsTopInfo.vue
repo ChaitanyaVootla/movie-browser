@@ -13,7 +13,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="w-full h-1/2 flex pb-10 flex-col gap-5 justify-end">
+                <div class="w-full h-1/2 flex mb-5 flex-col gap-5 justify-end">
                     <div class="flex gap-3 mt-5">
                         <div v-for="genre in item.genres">
                             <v-chip class="text-md" rounded @click="genreClicked(genre)">
@@ -44,8 +44,8 @@
                             </div>
                         </div>
                     </div>
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" class="mt-3"/>
                     <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" class="mt-3"/>
                     <div v-if="false" class="flex gap-5 mt-16">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg
