@@ -18,6 +18,5 @@ jobs:
                   git pull origin nuxt
                   npm install
                   npm run build
-                  sudo kill -9 `sudo lsof -t -i:3000`
                   pm2 delete all
-                  pm2 start ./.output/server/index.mjs --name Nuxt
+                  export AUTH_ORIGIN=http://134.209.159.54 && pm2 start ./.output/server/index.mjs --name Nuxt
