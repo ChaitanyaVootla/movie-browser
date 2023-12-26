@@ -19,4 +19,5 @@ jobs:
                   npm install
                   npm run build
                   sudo kill -9 `sudo lsof -t -i:3000`
-                  export AUTH_ORIGIN=http://134.209.159.54 && nohup npm run preview &
+                  pm2 delete all
+                  pm2 start ./.output/server/index.mjs --name Nuxt

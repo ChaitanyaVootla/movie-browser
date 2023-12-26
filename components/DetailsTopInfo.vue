@@ -13,15 +13,16 @@
                         </div>
                     </div>
                 </div>
-                <div class="w-full h-1/2 flex mb-5 flex-col gap-5 justify-end">
-                    <div class="flex gap-3 mt-5">
+                <div class="w-full h-1/2 flex mb-3 flex-col gap-5 justify-end">
+                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <div class="flex gap-3">
                         <div v-for="genre in item.genres">
                             <v-chip class="text-md" rounded @click="genreClicked(genre)">
                                 {{ genre.name }}
                             </v-chip>
                         </div>
                     </div>
-                    <div v-if="!minimal">
+                    <div v-if="false">
                         <div v-if="item.title" class="flex gap-6">
                             <div class="flex flex-col items-center justify-center">
                                 <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
@@ -44,9 +45,8 @@
                             </div>
                         </div>
                     </div>
-                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" class="mt-3"/>
-                    <div v-if="false" class="flex gap-5 mt-16">
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <div v-if="false" class="flex gap-5">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg
                                 class="object-cover rounded-full h-24 w-24 object-center opacity-85"

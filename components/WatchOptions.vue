@@ -1,12 +1,14 @@
 <template>
     <div class="flex">
-        <div v-if="watchOptions.length"
-            class="flex gap-8">
+        <div v-if="watchOptions.length" class="flex justify-center gap-8 bg-neutral-800 px-4 pt-5 pb-2 rounded-2xl relative min-w-28">
+            <div class="absolute -top-2 left-2 bg-neutral-600 px-2 py-0 rounded-full text-sm text-neutral-200">
+                Watch Now
+            </div>
             <div v-for="watchOption in watchOptions">
-                <NuxtLink :to="watchOption.link" target="blank" noreferrer noopener>
+                <NuxtLink :to="watchOption.link" target="blank" event="" noreferrer noopener>
                     <div class="w-18 flex flex-col items-center justify-between">
-                        <v-img :src="watchOption.image" class="w-8 h-8" :alt="watchOption.name"></v-img>
-                        <div v-if="watchOption?.displayName" class="text-sm text-neutral-300 text-center mt-2">
+                        <v-img :src="watchOption.image" class="w-7 h-7" :alt="watchOption.name"></v-img>
+                        <div v-if="watchOption?.displayName" class="text-xs text-neutral-200 text-center mt-1">
                             {{ watchOption.displayName }}
                         </div>
                         <div v-if="watchOption?.price?.length" class="text-xs text-neutral-400 text-center">
@@ -63,6 +65,10 @@ const watchOptionImageMapper = {
     'zee5': {
         image: '/images/ott/zee.png',
         name: 'Zee5'
+    },
+    'jio': {
+        image: '/images/ott/jiocinema.png',
+        name: 'JioCinema'
     },
 } as Record<string, any>;
 

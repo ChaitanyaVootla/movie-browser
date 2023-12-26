@@ -1,5 +1,5 @@
 <template>
-    <div class="flex">
+    <div class="flex -mt-2">
         <!-- <div v-if="ratings.length" class="flex gap-8">
             <div v-for="rating in ratings">
                 <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
@@ -14,12 +14,14 @@
         <div v-if="ratings.length" v-for="rating in ratings">
             <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                 <div class="progress-wrapper relative w-full h-full">
-                    <svg width="100" height="100" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="35" :stroke="rating.color" stroke-width="5" fill="transparent"
-                            stroke-dasharray="164.93 54.98" stroke-dashoffset="-39.25" transform="rotate(72 50 50)" />
+                    <svg width="80" height="80" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="35" stroke="#333" stroke-width="10" fill="transparent"
+                            :stroke-dasharray="`${164} 1000`" stroke-dashoffset="-39.25" transform="rotate(72 50 50)" stroke-linecap="round" />
+                        <circle cx="50" cy="50" r="35" :stroke="rating.color" stroke-width="7" fill="transparent"
+                            :stroke-dasharray="`${rating.percentage*164/100} 1000`" stroke-dashoffset="-39.25" transform="rotate(72 50 50)" stroke-linecap="round" />
                         <image :href="rating.image" x="35" y="35" height="30" width="30" />
                         <text x="50" y="85" font-family="Arial" font-size="14" fill="#ddd" text-anchor="middle"
-                            class="font-normal text-base">
+                            class="font-normal text-base" letter-spacing="1">
                             {{ rating.percentage }}
                         </text>
                     </svg>
@@ -37,7 +39,7 @@ type Rating = {
     rating: string,
     image: string,
     color: string,
-    percentage?: string
+    percentage: number
 };
 let ratings = [] as Rating[];
 
@@ -58,7 +60,7 @@ const getColorForRating = (ratingObj: Rating) => {
     const hue = (120 * scaledValue) / 70;
     return {
         color: `hsl(${hue}, 100%, 35%)`,
-        percentage: `${ratingNumber.toFixed()}`
+        percentage: parseInt(ratingNumber.toFixed())
     };
 }
 

@@ -22,7 +22,7 @@
             </NuxtLink>
             <NuxtLink to="/ai">
                 <div class="flex items-center gap-2" aria-label="Go To AI search">
-                    <v-icon icon="mdi-alien" class="text-3xl" />
+                    <v-icon icon="mdi-panorama-sphere-outline" class="text-3xl" />
                     AI <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>
             </NuxtLink>
