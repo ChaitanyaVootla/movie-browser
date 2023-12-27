@@ -12,6 +12,12 @@
             <div>
                 <div class="px-3 md:mx-12 mt-5">
                     <div class="flex w-full items-center gap-4">
+                        <div v-if="series.status">
+                            <v-chip rounded :color="seriesStatusColor" density="comfortable"
+                                size="x-large" variant="elevated">
+                                Status <b class="ml-2">{{ statusText }}</b> 
+                            </v-chip>
+                        </div>
                         <div class="mt-5">
                             <v-select
                                 v-model="series.selectedSeason"
@@ -173,6 +179,27 @@ const seasonSelected = async (season: any) => {
         return {};
     });
 }
+
+const seriesStatusColor = computed(() => {
+    switch (series.value?.status) {
+        case 'Returning Series':
+            return '#3a983a';
+        case 'Ended':
+            return '#3a983a';
+        case 'Canceled':
+            return 'red';
+    }
+});
+
+const statusText = computed(() => {
+    if (series.value?.status === 'Returning Series' && series.value?.next_episode_to_air) {
+        return 'Ongoing';
+    } else if (series.value?.status === 'Ended') {
+        return 'Ended';
+    } else {
+        return series.value?.status;
+    }
+});
 
 useHead(() => {
     return {

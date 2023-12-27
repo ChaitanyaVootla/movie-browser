@@ -1,7 +1,7 @@
 <template>
     <div class="hidden md:block">
         <v-carousel height="55vh" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
-            delimiterIcon="mdi-square-small" class="carousel" :key="trending?.allItems?.length">
+            delimiterIcon="mdi-minus" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
                 <v-icon icon="mdi-chevron-left" @click="props.onClick"></v-icon>
             </template>
