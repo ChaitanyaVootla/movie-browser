@@ -1,6 +1,6 @@
 <template>
     <div class="details-container bg-black">
-        <div class="flex w-full h-full">
+        <div class="hidden md:flex w-full h-full">
             <div class="w-full md:w-2/5 pl-14 flex flex-col justify-between h-full pt-10 left-info">
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
@@ -21,29 +21,6 @@
                                 {{ genre.name }}
                             </v-chip>
                         </div>
-                    </div>
-                    <div v-if="false">
-                        <!-- <div v-if="item.title" class="flex gap-6">
-                            <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
-                                    :elevation="5" :height="50" class="px-5">
-                                    Watched
-                                </v-btn>
-                            </div>
-                            <div class="flex flex-col items-center justify-center">
-                                <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
-                                    :elevation="5" :height="50" class="px-5">
-                                    Watch list
-                                </v-btn>
-                            </div>
-                        </div>
-                        <div v-else class="flex gap-6">
-                            <div class="flex flex-col items-center justify-center">
-                                <v-btn prepend-icon="mdi-playlist-plus" :elevation="5" :height="50" class="px-5" :color="(watchlist === true)?'primary':''">
-                                    Watching
-                                </v-btn>
-                            </div>
-                        </div> -->
                     </div>
                     <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
                     <div v-if="false" class="flex gap-5">
@@ -89,6 +66,23 @@
                     >
                     </iframe>
                 </div>
+            </div>
+        </div>
+        <div>
+            <div class="h-1/3 bg-mobile-container relative">
+                <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
+                    :alt="item.title || item.name" class="bg-mobile object-top image-width w-full">
+                </NuxtImg>
+            </div>
+            <div class="text-white font-bold text-3xl flex justify-center">
+                <NuxtImg v-if="logo" :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${logo}`"
+                    :alt="item.title || item.name" class="object-contain h-20 w-auto" />
+                <div v-else>
+                    {{ item.title || item.name }}
+                </div>
+            </div>
+            <div class="flex justify-center mt-7">
+                <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" :small="true"/>
             </div>
         </div>
     </div>
@@ -154,6 +148,17 @@ const genreClicked = (genre: any) => {
             bottom: 0;
             background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
                 // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%);
+        }
+    }
+    :deep(.bg-mobile-container) {
+        &::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%);
         }
     }
 }

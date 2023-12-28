@@ -1,7 +1,7 @@
 <template>
     <div class="flex">
         <div v-if="watchOptions.length" class="flex justify-center gap-8 bg-neutral-800 px-4 pt-5 pb-2 rounded-2xl relative min-w-28">
-            <div class="absolute -top-2 left-2 bg-neutral-600 px-2 py-0 rounded-full text-sm text-neutral-200">
+            <div class="absolute -top-2 left-2 bg-neutral-600 px-2 py-0 rounded-full text-sm text-neutral-200 font-light">
                 Watch Now
             </div>
             <div v-for="watchOption in watchOptions">
