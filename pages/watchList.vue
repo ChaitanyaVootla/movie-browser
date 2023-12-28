@@ -23,9 +23,9 @@
                     <Scroller v-if="watchListData?.series?.currentRunningSeries?.length" :items="watchListData?.series?.currentRunningSeries"
                         title="Running now" :pending="pending" />
                     <Scroller v-if="watchListData?.series?.returingSeries?.length" :items="watchListData?.series?.returingSeries"
-                        title="Returning" :pending="pending" />
+                        title="Returning" :pending="pending" class="mt-10" />
                     <Scroller v-if="watchListData?.series?.completedSeries?.length" :items="watchListData?.series?.completedSeries"
-                        title="Completed" :pending="pending" />
+                        title="Completed" :pending="pending" class="mt-10" />
                 </div>
             </div>
             <div v-else-if="selectedType === 1">
@@ -41,6 +41,8 @@
 </template>
 
 <script setup lang="ts">
+import { mapWatchListSeries } from '~/utils/seriesMapper';
+
 const selectedType = ref(0);
 useHead({
     title: 'Watch List'
@@ -61,27 +63,11 @@ const { pending, data: watchListData } = await useLazyAsyncData('watchList',
     }),
     {
         transform: ({movies, series}: any) => {
-            const currentRunningSeries = [] as any[];
-            const returingSeries = [] as any[];
-            const completedSeries = [] as any[];
-            series.forEach((item: any) => {
-                if (item.status === 'Canceled') {
-                    completedSeries.push(item);
-                } else {
-                    if (item.next_episode_to_air) {
-                        currentRunningSeries.push(item);
-                    } else {
-                        returingSeries.push(item);
-                    }
-                }
-            });
             return {
                 movies,
                 series: {
-                    currentRunningSeries,
-                    completedSeries,
-                    returingSeries,
-                    totalCount: series.length
+                    ...mapWatchListSeries(series),
+                    totalCount: series?.totalCount
                 }
             };
         }

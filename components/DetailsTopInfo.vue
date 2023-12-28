@@ -23,7 +23,7 @@
                         </div>
                     </div>
                     <div v-if="false">
-                        <div v-if="item.title" class="flex gap-6">
+                        <!-- <div v-if="item.title" class="flex gap-6">
                             <div class="flex flex-col items-center justify-center">
                                 <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
                                     :elevation="5" :height="50" class="px-5">
@@ -43,7 +43,7 @@
                                     Watching
                                 </v-btn>
                             </div>
-                        </div>
+                        </div> -->
                     </div>
                     <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
                     <div v-if="false" class="flex gap-5">
@@ -80,8 +80,8 @@
                         title="YouTube video player"
                         width="100%"
                         height="100%"
-                        :src="`https://www.youtube.com/embed/${item?.youtubeVideos[0]?.key
-                            }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${item?.youtubeVideos[0]?.key}`"
+                        :src="`https://www.youtube.com/embed/${(item?.youtubeVideos || [])[0]?.key
+                            }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${(item?.youtubeVideos || [])[0]?.key}`"
                         frameborder="0"
                         controls="1"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -103,22 +103,12 @@ const props = defineProps({
         required: true,
         default: {}
     },
-    watched: {
-        type: Boolean,
-        required: true,
-        default: {}
-    },
-    watchlist: {
-        type: Boolean,
-        default: false
-    },
     minimal: {
         type: Boolean,
         default: false
     }
 });
 const item = props.item;
-const watched = ref(props.watched);
 
 const logo = computed(() => {
     let logo = item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path;
@@ -127,29 +117,6 @@ const logo = computed(() => {
     }
     return logo;
 })
-
-watch(() => props.watched, (newValue) => {
-    watched.value = newValue;
-})
-
-const emit = defineEmits(['watchClicked'])
-
-const watchClicked = () => {
-    watched.value = !watched.value;
-    emit('watchClicked', watched.value);
-    if (watched.value === true) {
-        $fetch(`/api/user/movie/${item.id}/watched`, {
-            method: 'POST',
-        })
-    } else {
-        $fetch(`/api/user/movie/${item.id}/watched`, {
-            method: 'DELETE',
-        })
-    }
-}
-
-const watchListClicked = () => {
-}
 
 const genreClicked = (genre: any) => {
     useRouter().push({

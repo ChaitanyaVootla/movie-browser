@@ -29,12 +29,15 @@
                     </div>
                 </div>
             </div>
-            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-sm md:text-lg text-neutral-200">
+            <div v-if="item.infoText" class="mt-1 text-neutral-300 text-sm">
+                {{ item.infoText }}
+            </div>
+            <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-sm md:text-base text-neutral-200">
                 {{ item.character || item.title || item.name }}
             </div>
-            <div v-if="item.distance" class="text-neutral-400">
+            <!-- <div v-if="item.distance" class="text-neutral-400">
                 {{  item.distance }} (distance)
-            </div>
+            </div> -->
         </div>
     </NuxtLink>
 </template>

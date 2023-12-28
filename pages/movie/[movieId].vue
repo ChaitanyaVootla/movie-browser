@@ -11,6 +11,20 @@
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="pt-10">
                 <div class="px-3 md:mx-12 overview">
+                    <div class="flex gap-6 mb-5">
+                        <div class="flex flex-col items-center justify-center">
+                            <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
+                                :elevation="5" :height="50" class="px-5">
+                                Watched
+                            </v-btn>
+                        </div>
+                        <div class="flex flex-col items-center justify-center">
+                            <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
+                                :elevation="5" :height="50" class="px-5">
+                                Watch list
+                            </v-btn>
+                        </div>
+                    </div>
                     <v-card class="px-5 py-5" color="#151515">
                         <div class="flex items-baseline justify-start gap-2">
                             <div class="text-xl">Released</div>
@@ -20,7 +34,6 @@
                         <div class="text-neutral-300 mt-3 text">
                             {{ movie.overview }}
                         </div>
-
                         <div class="flex flex-wrap gap-3 mt-5">
                             <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'">
                                 {{ keyword.name }}
@@ -66,6 +79,10 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '#imports'
+
+const { status } = useAuth();
+
 let movie = ref({} as any);
 let aiRecommendations = ref([] as any);
 const headers = useRequestHeaders(['cookie']) as HeadersInit
@@ -115,17 +132,29 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
 );
 movie = movieAPI;
 
-let watched = ref(false);
-let { data: watchedAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-watched`,
+let { data: watched }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-watched`,
     () => $fetch(`/api/user/movie/${useRoute().params.movieId}/watched`, { headers }).catch((err) => {
         console.log(err);
         return {};
     })
 );
-watched.value = watchedAPI;
 
-const watchClicked = (watchedSignal: boolean) => {
-    watched.value = watchedSignal;
+let watchlist = ref(false);
+
+const watchClicked = () => {
+    watched.value = !watched.value;
+    if (watched.value === true) {
+        $fetch(`/api/user/movie/${movie.value.id}/watched`, {
+            method: 'POST',
+        })
+    } else {
+        $fetch(`/api/user/movie/${movie.value.id}/watched`, {
+            method: 'DELETE',
+        })
+    }
+}
+
+const watchListClicked = () => {
 }
 
 const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-recommend`,

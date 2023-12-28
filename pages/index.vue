@@ -16,11 +16,59 @@
         </v-carousel>
     </div>
     <div class="mt-5 md:mt-0 p-3">
+        <div v-if="status === 'authenticated' && ongoingSeries?.length">
+            <Scroller :items="ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-12" />
+        </div>
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
         <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-12" />
     </div>
 </template>
 <script setup lang="ts">
+import { useAuth } from '#imports'
+
+const { status } = useAuth();
+
+const { pending, data: trending }: any = await useLazyAsyncData('trending',
+    () => $fetch('/api/trending').catch((err) => {
+        console.log(err);
+        return {};
+    }),
+    {
+        transform: (trending: any) => {
+            return {
+                ...trending,
+                allItems: trending.allItems.map(
+                    (item: any) => {
+                        if (item.media_type === 'movie') {
+                            return {
+                                ...item,
+                                genres: item.genre_ids.map((genreId: number) => movieGenres[genreId]),
+                            }
+                        } else if (item.media_type === 'tv') {
+                            return {
+                                ...item,
+                                genres: item.genre_ids.map((genreId: number) => seriesGenres[genreId]),
+                            }
+                        }
+                    }
+                )
+            }
+        },
+    }
+);
+
+const { data: ongoingSeries } = await useLazyAsyncData('ongoingSeries',
+    () => $fetch('/api/user/watchList/series').catch((err) => {
+        console.log(err);
+        return {};
+    }),
+    {
+        transform: (series: any) => {
+            return mapWatchListSeries(series)?.currentRunningSeries;
+        },
+    }
+);
+
 useHead({
     title: 'The Movie Browser',
     meta: [
@@ -71,34 +119,6 @@ useHead({
         },
     ],
 });
-const { pending, data: trending }: any = await useLazyAsyncData('trending',
-    () => $fetch('/api/trending').catch((err) => {
-        console.log(err);
-        return {};
-    }),
-    {
-        transform: (trending: any) => {
-            return {
-                ...trending,
-                allItems: trending.allItems.map(
-                    (item: any) => {
-                        if (item.media_type === 'movie') {
-                            return {
-                                ...item,
-                                genres: item.genre_ids.map((genreId: number) => movieGenres[genreId]),
-                            }
-                        } else if (item.media_type === 'tv') {
-                            return {
-                                ...item,
-                                genres: item.genre_ids.map((genreId: number) => seriesGenres[genreId]),
-                            }
-                        }
-                    }
-                )
-            }
-        },
-    }
-);
 </script>
 
 <style scoped lang="less">

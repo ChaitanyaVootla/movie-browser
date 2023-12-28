@@ -15,6 +15,7 @@ jobs:
               password: ${{ secrets.DIGITAL_OCEAN_PASS }}
               script: |
                   cd /movie-browser
+                  git checkout -f nuxt
                   git pull origin nuxt
                   npm install
                   npm run build

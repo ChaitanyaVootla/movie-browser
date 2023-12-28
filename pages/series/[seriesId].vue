@@ -10,7 +10,7 @@
         <div v-else>
             <DetailsTopInfo :item="series" :watched="false"/>
             <div>
-                <div class="px-3 md:mx-12 mt-5">
+                <div class="px-3 md:mx-12 mt-3">
                     <div class="flex w-full items-center gap-4">
                         <div v-if="series.status">
                             <v-chip rounded :color="seriesStatusColor" density="comfortable"
@@ -174,7 +174,7 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
 );
 
 const seasonSelected = async (season: any) => {
-    series.value.selectedSeason = await $fetch(`/api/series/${useRoute().params.seriesId}/season/${season?.season_number}`).catch((err) => {
+    series.value.selectedSeason = await $fetch(`/api/series/${series.value.id}/season/${season?.season_number}`).catch((err) => {
         console.log(err);
         return {};
     });
