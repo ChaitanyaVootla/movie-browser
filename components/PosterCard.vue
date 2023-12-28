@@ -29,7 +29,7 @@
                     </div>
                 </div>
             </div>
-            <div v-if="item.infoText" class="mt-1 text-neutral-300 text-sm">
+            <div v-if="item.infoText" class="mt-1 text-neutral-300 text-sm capitalize">
                 {{ item.infoText }}
             </div>
             <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-sm md:text-base text-neutral-200">

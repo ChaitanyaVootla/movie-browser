@@ -10,14 +10,14 @@ jobs:
       steps:
           - uses: appleboy/ssh-action@master
             with:
-              host: 134.209.159.54
+              host: 64.227.132.75
               username: root
               password: ${{ secrets.DIGITAL_OCEAN_PASS }}
               script: |
-                  cd /movie-browser
+                  cd /beta/movie-browser
                   git checkout -f nuxt
                   git pull origin nuxt
                   npm install
                   npm run build
                   pm2 delete all
-                  export AUTH_ORIGIN=http://134.209.159.54 && pm2 start "npm run preview" --name Nuxt
+                  pm2 start "npm run preview" --name Nuxt

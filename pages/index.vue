@@ -16,8 +16,9 @@
         </v-carousel>
     </div>
     <div class="mt-5 md:mt-0 p-3">
-        <div v-if="status === 'authenticated' && ongoingSeries?.length">
-            <Scroller :items="ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-12" />
+        <div v-if="status === 'authenticated' && watchList?.ongoingSeries?.length">
+            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-12" />
+            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-12" />
         </div>
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
         <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-12" />
@@ -57,14 +58,17 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
     }
 );
 
-const { data: ongoingSeries } = await useLazyAsyncData('ongoingSeries',
-    () => $fetch('/api/user/watchList/series').catch((err) => {
+const { data: watchList } = await useLazyAsyncData('ongoingSeries',
+    () => $fetch('/api/user/watchList').catch((err) => {
         console.log(err);
         return {};
     }),
     {
-        transform: (series: any) => {
-            return mapWatchListSeries(series)?.currentRunningSeries;
+        transform: ({movies, series}: any) => {
+            return {
+                movies,
+                ongoingSeries: mapWatchListSeries(series)?.currentRunningSeries
+            };
         },
     }
 );

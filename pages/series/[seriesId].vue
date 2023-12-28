@@ -183,7 +183,7 @@ const seasonSelected = async (season: any) => {
 const seriesStatusColor = computed(() => {
     switch (series.value?.status) {
         case 'Returning Series':
-            return '#3a983a';
+            return '#ddd';
         case 'Ended':
             return '#3a983a';
         case 'Canceled':
@@ -196,6 +196,8 @@ const statusText = computed(() => {
         return 'Ongoing';
     } else if (series.value?.status === 'Ended') {
         return 'Ended';
+    } else if (series.value?.status === 'Returning Series') {
+        return `Season ${(series.value?.last_episode_to_air?.season_number + 1)} upcoming`;
     } else {
         return series.value?.status;
     }
