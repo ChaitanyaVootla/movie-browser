@@ -17,6 +17,7 @@ jobs:
                   cd /beta/movie-browser
                   git checkout -f nuxt
                   git pull origin nuxt
+                  nvm use default
                   npm install
                   npm run build
                   pm2 delete all
