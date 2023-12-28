@@ -1,13 +1,10 @@
-import AWS from 'aws-sdk';
+import { LambdaClient, InvokeCommand, InvokeCommandInput } from '@aws-sdk/client-lambda';
+
+const decoder = new TextDecoder('utf-8');
 
 const getGoogleData = async (str: string) => {
     console.time(`Calling aws lambda ${str}`);
-    AWS.config.update({
-        region: process.env.AWS_REGION,
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    });
-    const lambda = new AWS.Lambda();
+    const client = new LambdaClient();
     const params = {
         FunctionName: 'puppeteer-node14',
         InvocationType: 'RequestResponse',
@@ -16,9 +13,10 @@ const getGoogleData = async (str: string) => {
                 searchString: str.split('search?q=')[1],
             }
         }),
-    };
-    const res = await lambda.invoke(params).promise();
-    const jsonRes = JSON.parse(res.Payload as string);
+    } as InvokeCommandInput;
+    const command = new InvokeCommand(params);
+    const res = await client.send(command)
+    const jsonRes = JSON.parse(decoder.decode(res.Payload));
     console.timeEnd(`Calling aws lambda ${str}`);
     return jsonRes;
 };
