@@ -80,7 +80,7 @@ const addToParentFilter = () => {
 }
 // reduce image-width for mobile
 @media (max-width: 640px) {
-    @image-width: 10rem;
+    @image-width: 7rem;
     @image-height: calc(@image-width * (3/2));
     .card {
         width: @image-width;

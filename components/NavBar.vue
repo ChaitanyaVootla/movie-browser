@@ -84,12 +84,7 @@
                 <span>Search</span>
             </v-btn>
 
-            <v-btn value="watchList">
-                <v-icon>mdi-playlist-play</v-icon>
-                <span>Watch List</span>
-            </v-btn>
-
-            <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile">
+            <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile" @click="signIn('google')">
                 <v-icon>mdi-google</v-icon>
                 <span>Login</span>
             </v-btn>

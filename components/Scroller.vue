@@ -1,12 +1,12 @@
 <template>
     <div>
-        <div class="title text-2xl font-light md:mb-1 md:ml-14">
+        <div class="title text-lg md:text-2xl font-light -mb-2 md:mb-1 md:ml-14">
             {{ title }}
         </div>
         <v-slide-group show-arrows="desktop">
             <v-slide-group-item v-for="item in (items || Array(10))">
                 <slot :item="item">
-                    <PosterCard :item="item" :pending="pending" class="mr-6"/>
+                    <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
                 </slot>
             </v-slide-group-item>
         </v-slide-group>

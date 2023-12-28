@@ -68,7 +68,7 @@
                 </div>
             </div>
         </div>
-        <div>
+        <div class="md:hidden">
             <div class="h-1/3 bg-mobile-container relative">
                 <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
                     :alt="item.title || item.name" class="bg-mobile object-top image-width w-full">
@@ -81,8 +81,16 @@
                     {{ item.title || item.name }}
                 </div>
             </div>
-            <div class="flex justify-center mt-7">
+            <div class="flex flex-col gap-4 justify-center items-center mt-5">
                 <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" :small="true"/>
+                <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                <div v-if="!minimal" class="flex gap-3 flex-wrap justify-center">
+                    <div v-for="genre in item.genres">
+                        <v-chip class="text-md" rounded @click="genreClicked(genre)">
+                            {{ genre.name }}
+                        </v-chip>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -160,6 +168,11 @@ const genreClicked = (genre: any) => {
             bottom: 0;
             background-image: linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%);
         }
+    }
+}
+@media (max-width: 768px) {
+    .details-container {
+        height: auto;
     }
 }
 </style>

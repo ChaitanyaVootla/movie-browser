@@ -11,7 +11,7 @@
             <DetailsTopInfo :item="series" :watched="false"/>
             <div>
                 <div class="px-3 md:mx-12 mt-3">
-                    <div class="flex w-full items-center gap-4">
+                    <div class="flex w-full items-center gap-4 flex-wrap">
                         <div v-if="series.status">
                             <v-chip rounded :color="seriesStatusColor" density="comfortable"
                                 size="x-large" variant="elevated">
@@ -46,9 +46,9 @@
                 <div class="px-3 md:px-0">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
-                            <div class="flex flex-col gap-3 mt-2 w-96">
-                                <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4 text-sm -mb-1
-                                    flex items-center justify-between mr-1">
+                            <div class="flex flex-col gap-3 mt-2 w-56 md:w-96">
+                                <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
+                                    text-xs md:text-sm -mb-1 flex items-center justify-between mr-1">
                                     <div class="flex gap-2">
                                         Episode {{ item.episode_number }}
                                         <div v-if="item.air_date">
@@ -83,7 +83,8 @@
                                         </v-skeleton-loader>
                                     </template>
                                 </v-img>
-                                <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4">
+                                <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
+                                    text-xs md:text-base">
                                     {{ item.name }}
                                 </div>
                             </div>

@@ -1,5 +1,5 @@
 <template>
-    <div class="hidden md:block">
+    <div class="-mb-24 md:mb-0">
         <v-carousel height="55vh" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-minus" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
@@ -15,13 +15,13 @@
             </v-carousel-item>
         </v-carousel>
     </div>
-    <div class="mt-5 md:mt-0 p-3">
+    <div class="mt-5 md:mt-0 p-3 pb-16">
         <div v-if="status === 'authenticated' && watchList?.ongoingSeries?.length">
-            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-12" />
-            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-12" />
+            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-2 md:mb-12" />
+            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-2 md:mb-12" />
         </div>
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
-        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-12" />
+        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-3 md:mt-12" />
     </div>
 </template>
 <script setup lang="ts">
@@ -130,13 +130,23 @@ useHead({
 </script>
 
 <style scoped lang="less">
-:deep(.carousel) {
-    .v-carousel__controls {
-        display: none;
-    }
-    &:hover {
+
+@media (max-width: 768px) {
+    :deep(.carousel) {
         .v-carousel__controls {
-            display: flex;
+            display: none;
+        }
+    }
+}
+@media (min-width: 768px) {
+    :deep(.carousel) {
+        .v-carousel__controls {
+            display: none;
+        }
+        &:hover {
+            .v-carousel__controls {
+                display: flex;
+            }
         }
     }
 }
