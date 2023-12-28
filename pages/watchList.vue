@@ -15,17 +15,22 @@
         </div>
         <div v-else>
             <div v-if="selectedType === 0" class="flex flex-col gap-10 mb-14">
-                <div v-if="watchListData?.series?.totalCount === 0"
-                    class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
-                    No Series in your watch list
+                <div v-if="pending">
+                    pending
+                    <Scroller :items="Array(10)" title="" :pending="pending" />
+                    <Scroller :items="Array(10)" title="" :pending="pending" />
+                    <Scroller :items="Array(10)" title="" :pending="pending" />
                 </div>
-                <div>
+                <div v-if="watchListData?.series?.totalCount">
                     <Scroller v-if="watchListData?.series?.currentRunningSeries?.length" :items="watchListData?.series?.currentRunningSeries"
                         title="Running now" :pending="pending" />
                     <Scroller v-if="watchListData?.series?.returingSeries?.length" :items="watchListData?.series?.returingSeries"
                         title="Returning" :pending="pending" class="mt-10" />
                     <Scroller v-if="watchListData?.series?.completedSeries?.length" :items="watchListData?.series?.completedSeries"
                         title="Completed" :pending="pending" class="mt-10" />
+                </div>
+                <div v-else class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
+                    No Series in your watch list
                 </div>
             </div>
             <div v-else-if="selectedType === 1">
@@ -67,7 +72,6 @@ const { pending, data: watchListData } = await useLazyAsyncData('watchList',
                 movies,
                 series: {
                     ...mapWatchListSeries(series),
-                    totalCount: series?.totalCount
                 }
             };
         }

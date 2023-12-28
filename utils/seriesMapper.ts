@@ -30,6 +30,7 @@ export const mapWatchListSeries = (series: any[]) => {
     return {
         currentRunningSeries: currentRunningSeries.sort((a: any, b: any) => a.dateToSort - b.dateToSort),
         returingSeries,
-        completedSeries
+        completedSeries,
+        totalCount: series.length
     }
 }

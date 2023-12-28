@@ -1,21 +1,65 @@
 import { ISeries, Series } from "~/server/models";
+import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
+import { JWT } from "next-auth/jwt";
+
+const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
 export default defineEventHandler(async (event) => {
     const seriesId = getRouterParam(event, 'seriesId');
+    const isForce = getQuery(event).force? true: false;
+    const userData = event.context.userData as JWT;
+
+    if (isForce && (!userData || !userData?.sub)) {
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
+        return;
+    }
     if (!seriesId) {
         event.node.res.statusCode = 404;
         event.node.res.end(`Series not found for id: ${seriesId}`);
     }
 
     let series = {} as any;
-    const dbSeries = Series.findOne({ id: seriesId });
-    if (dbSeries) {
-        series = dbSeries;
+
+    const dbSeries = await Series.findOne({ id: seriesId }).select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar');
+    // @ts-ignore
+    if (dbSeries?.name) {
+        series = dbSeries.toJSON();
     }
-    if (!series.title) {
-        series = await $fetch(`https://themoviebrowser.com/node/seriesDetails/${seriesId}`).catch((error: Error) => {
-            return {};
-        });
+    if (isForce || !series.name) {
+        console.log("Fetching from TMDB")
+        try {
+            const details: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`).catch(() => {
+                return {};
+            });
+            let googleData = {};
+            const lambdaResponse = await getGoogleLambdaData(details);
+            if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
+                googleData = lambdaResponse;
+            } else if (series.googleData) {
+                googleData = series.googleData;
+            }
+            series = {
+                ...details,
+                googleData,
+                rottenTomatoes: {},
+                updatedAt: Date.now(),
+            };
+        } catch(e) {
+            console.error(`Error getting series details for id: ${seriesId}`);
+        }
+        if (series?.name) {
+            Series.updateOne(
+                { id: seriesId },
+                {
+                    $set: {
+                        ...series,
+                        updatedAt: new Date(),
+                    },
+                },
+                { upsert: true },
+            ).exec();
+        }
     }
     if (!series) {
         event.node.res.statusCode = 404;
@@ -23,8 +67,12 @@ export default defineEventHandler(async (event) => {
     }
 
     const latestSeasonNumber = series.seasons[series.seasons.length - 1]?.season_number;
+    let selectedSeason = {};
     if (latestSeasonNumber) {
-        series.selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`);
+        selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`);
     }
-    return series as ISeries;
+    return {
+        ...series,
+        selectedSeason,
+    } as ISeries;
 });

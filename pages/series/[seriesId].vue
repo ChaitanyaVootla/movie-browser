@@ -103,10 +103,17 @@
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
+                        <div class="mt-4 text-sm text-neutral-400 flex items-baseline">
+                            Last Updated: {{ humanizeDateFull(series.updatedAt) }}
+                            <v-btn @click="updateSeries" :loading="updatingSeries" variant="text" size="x-small"
+                                class="ml-3" color="#bbb">
+                                Request Update
+                            </v-btn>
+                        </div>
                     </v-card>
                 </div>
 
-                <div class="px-3 md:px-0 mt-10">
+                <div v-if="series.credits?.cast?.length" class="px-3 md:px-0 mt-10">
                     <Scroller :items="series.credits?.cast || []" title="Cast" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
@@ -114,8 +121,8 @@
                     </Scroller>
                 </div>
 
-                <div class="px-3 md:px-0 mt-10">
-                    <Scroller :items="series.credits?.crew || []" title="Crew" :pending="pending" >
+                <div v-if="series.credits?.crew?.length" class="px-3 md:px-0 mt-10">
+                    <Scroller :items="series.credits?.crew" title="Crew" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
                         </template>
@@ -135,6 +142,10 @@
 </template>
 
 <script setup lang="ts">
+import { humanizeDateFull } from '~/utils/dateFormatter';
+
+const updatingSeries = ref(false);
+
 const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
     () => $fetch(`/api/series/${useRoute().params.seriesId}`).catch((err) => {
         console.log(err);
@@ -169,7 +180,8 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
                     return 0;
                 }) || [],
             };
-        })
+        }),
+        default: () => ({})
     }
 );
 
@@ -202,6 +214,13 @@ const statusText = computed(() => {
         return series.value?.status;
     }
 });
+
+const updateSeries = async () => {
+    updatingSeries.value = true;
+    await $fetch(`/api/series/${series.value.id}?force=true`);
+    updatingSeries.value = false;
+    window.location.reload();
+}
 
 useHead(() => {
     return {

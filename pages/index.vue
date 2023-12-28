@@ -58,7 +58,7 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
     }
 );
 
-const { data: watchList } = await useLazyAsyncData('ongoingSeries',
+const { data: watchList, execute } = await useLazyAsyncData('ongoingSeries',
     () => $fetch('/api/user/watchList').catch((err) => {
         console.log(err);
         return {};
@@ -72,6 +72,10 @@ const { data: watchList } = await useLazyAsyncData('ongoingSeries',
         },
     }
 );
+
+setTimeout(() => {
+    execute();
+});
 
 useHead({
     title: 'The Movie Browser',

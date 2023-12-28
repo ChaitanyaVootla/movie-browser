@@ -9,7 +9,7 @@
         </div>
         <div v-else>
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
-            <div class="pt-10">
+            <div class="pt-5">
                 <div class="px-3 md:mx-12 overview">
                     <div class="flex gap-6 mb-5">
                         <div class="flex flex-col items-center justify-center">
@@ -25,7 +25,7 @@
                             </v-btn>
                         </div>
                     </div>
-                    <v-card class="px-5 py-5" color="#151515">
+                    <v-card class="px-5 py-2" color="#151515">
                         <div class="flex items-baseline justify-start gap-2">
                             <div class="text-xl">Released</div>
                             <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block" :datetime="new Date(movie.release_date)"
@@ -38,6 +38,13 @@
                             <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'">
                                 {{ keyword.name }}
                             </v-chip>
+                        </div>
+                        <div class="mt-4 text-sm text-neutral-400 flex items-baseline">
+                            Last Updated: {{ humanizeDateFull(movie.updatedAt) }}
+                            <v-btn @click="updateMovie" :loading="updatingMovie" variant="text" size="x-small"
+                                class="ml-3" color="#bbb">
+                                Request Update
+                            </v-btn>
                         </div>
                     </v-card>
                 </div>
@@ -80,10 +87,12 @@
 
 <script setup lang="ts">
 import { useAuth } from '#imports'
+import { humanizeDateFull } from '~/utils/dateFormatter';
 
 const { status } = useAuth();
 
 let movie = ref({} as any);
+let updatingMovie = ref(false);
 let aiRecommendations = ref([] as any);
 const headers = useRequestHeaders(['cookie']) as HeadersInit
 const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}`,
@@ -139,7 +148,12 @@ let { data: watched }: any = await useLazyAsyncData(`movieDetails-${useRoute().p
     })
 );
 
-let watchlist = ref(false);
+let { data: watchlist }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-watchList`,
+    () => $fetch(`/api/user/movie/${useRoute().params.movieId}/watchList`, { headers }).catch((err) => {
+        console.log(err);
+        return {};
+    })
+);
 
 const watchClicked = () => {
     watched.value = !watched.value;
@@ -155,6 +169,23 @@ const watchClicked = () => {
 }
 
 const watchListClicked = () => {
+    watchlist.value = !watchlist.value;
+    if (watchlist.value === true) {
+        $fetch(`/api/user/movie/${movie.value.id}/watchList`, {
+            method: 'POST',
+        })
+    } else {
+        $fetch(`/api/user/movie/${movie.value.id}/watchList`, {
+            method: 'DELETE',
+        })
+    }
+}
+
+const updateMovie = async () => {
+    updatingMovie.value = true;
+    await $fetch(`/api/movie/${movie.value.id}?force=true`);
+    updatingMovie.value = false;
+    window.location.reload();
 }
 
 const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-recommend`,

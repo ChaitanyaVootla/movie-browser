@@ -1,11 +1,22 @@
 import { IMovie, Movie } from "~/server/models";
 import { TMDB } from "~/server/utils/api";
 import _ from "lodash";
+import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
+import { JWT } from "next-auth/jwt";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
 export default defineEventHandler(async (event) => {
     const movieId = getRouterParam(event, 'movieId');
+    const isForce = getQuery(event).force? true: false;
+    const userData = event.context.userData as JWT;
+
+    if (isForce && (!userData || !userData?.sub)) {
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
+        return;
+    }
+
     if (!movieId) {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
@@ -13,12 +24,13 @@ export default defineEventHandler(async (event) => {
 
     let movie = {} as any;
 
-    const dbMovie = await Movie.findOne({ id: movieId });
+    const dbMovie = await Movie.findOne({ id: movieId })
+        .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates -similar');
     if (dbMovie?.title) {
         movie = dbMovie;
     }
 
-    if (!movie.title) {
+    if (isForce || !movie.title) {
         console.log("Fetching from TMDB")
         try {
             const [details, releaseDates]: [any, any] = await Promise.all([
@@ -36,9 +48,16 @@ export default defineEventHandler(async (event) => {
                 });
                 details.collectionDetails = collectionDetails;
             }
+            let googleData = {};
+            const lambdaResponse = await getGoogleLambdaData(details);
+            if (lambdaResponse?.imdbId === details.imdb_id) {
+                googleData = lambdaResponse;
+            } else if (details.googleData) {
+                googleData = details.googleData;
+            }
             movie = {
                 ...details,
-                googleData: {},
+                googleData,
                 rottenTomatoes: {},
                 updatedAt: Date.now(),
             };
@@ -47,7 +66,16 @@ export default defineEventHandler(async (event) => {
         }
 
         if (movie?.title) {
-            // TODO: Add to db
+            Movie.updateOne(
+                { id: movieId },
+                {
+                    $set: {
+                        ...movie,
+                        updatedAt: new Date(),
+                    },
+                },
+                { upsert: true },
+            ).exec();
         }
     }
     if (!movie) {

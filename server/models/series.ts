@@ -23,7 +23,7 @@ interface ISeries {
 }
 
 const SeriesLightFileds = `-_id id name adult overview popularity release_date imdb_id poster_path backdrop_path vote_average
-    genres updatedAt status next_episode_to_air first_air_date last_episode_to_air credits googleData images`;
+    genres updatedAt status next_episode_to_air first_air_date last_episode_to_air googleData images.logos`;
 
 const Series = model<ISeries>('series', SeriesSchema);
 export { SeriesSchema, ISeries, SeriesLightFileds, Series};

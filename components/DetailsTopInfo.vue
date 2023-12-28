@@ -62,7 +62,7 @@
             </div>
             <div class="hidden md:block w-3/5 h-full">
                 <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer"
-                    @click="showTrailer = !showTrailer">
+                    @click="minimal?'':showTrailer = !showTrailer">
                     <div>
                         <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
                             :alt="item.title || item.name" class="bg-main object-cover object-top image-width h-full w-full absolute">

@@ -1,3 +1,4 @@
+import _ from "lodash";
 import { JWT } from "next-auth/jwt";
 import { IMovie, ISeries, Movie, MovieLightFileds, MoviesWatchList } from "~/server/models";
 import { Series, SeriesLightFileds, SeriesList } from "~/server/models";
@@ -9,8 +10,8 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Unauthorized`);
     }
     const [moviesList, seriesList] = await Promise.all([
-        MoviesWatchList.find({userId: userData?.sub}).select('movieId -_id'),
-        SeriesList.find({userId: userData?.sub}).select('seriesId -_id')
+        MoviesWatchList.find({userId: userData?.sub}).select('movieId createdAt -_id').sort({createdAt: -1}),
+        SeriesList.find({userId: userData?.sub}).select('seriesId createdAt -_id')
     ]);
     const movieListIds = moviesList.map((movie) => movie.movieId);
     const seriesListIds = seriesList.map((series) => series.seriesId);
@@ -18,8 +19,12 @@ export default defineEventHandler(async (event) => {
         Movie.find({id: {$in: movieListIds}}).select(MovieLightFileds),
         Series.find({id: {$in: seriesListIds}}).select(SeriesLightFileds),
     ]);
+    const moviesById = _.keyBy(movies, 'id');
     return {
-        movies,
+        movies: moviesList.map((listMovie) => ({
+            ...listMovie.toObject(),
+            ...moviesById[listMovie.movieId].toObject(),
+        })),
         series,
     } as {
         movies: IMovie[],

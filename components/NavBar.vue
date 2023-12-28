@@ -20,12 +20,12 @@
                     Watch List
                 </div>
             </NuxtLink>
-            <NuxtLink to="/ai">
+            <!-- <NuxtLink to="/ai">
                 <div class="flex items-center gap-2" aria-label="Go To AI search">
                     <v-icon icon="mdi-panorama-sphere-outline" class="text-3xl" />
                     AI <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>
-            </NuxtLink>
+            </NuxtLink> -->
         </div>
         <NuxtLink to="/" class="h-full flex items-center justify-center" aria-label="Go Home">
             <div class="center border-1 border-gray-700 bg-red-900 p-2 pl-3 pr-3 text-black h-full
