@@ -87,7 +87,7 @@
                 </div>
             </div>
         </div>
-        <div v-if="!isNaN(discoverResults?.total_results)" class="md:ml-16 mt-2 text-neutral-200 text-lg">
+        <div v-if="!isNaN(discoverResults?.total_results)" class="md:ml-16 mt-2 text-neutral-200 text-sm md:text-lg">
             {{ discoverResults?.total_results }} Results
         </div>
         <Grid :items="discoverResults?.results || []" :pending="pending" title="" class="md:px-14"/>

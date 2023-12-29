@@ -68,7 +68,8 @@
         </div>
     </div>
     <div class="md:hidden">
-        <v-bottom-navigation :grow="true" @update:modelValue="bottomNavItemClicked">
+        <v-bottom-navigation :grow="true" @update:modelValue="bottomNavItemClicked" bg-color="#111" color="#aaa"
+            density="comfortable" mandatory rounded v-model="defaultNavBarItem">
             <v-btn value="home">
                 <v-icon>mdi-home</v-icon>
                 <span>Home</span>
@@ -165,6 +166,8 @@
 import { useAuth } from '#imports'
 
 const { data, status, signIn, signOut } = useAuth();
+
+const defaultNavBarItem = ref(0);
 
 const showSearchOverlay = ref(false);
 let searchResults = ref([] as any[]);

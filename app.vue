@@ -2,7 +2,7 @@
   <NuxtLayout>
     <v-app>
       <NavBar/>
-      <NuxtPage :page-key="route => route.path" class="mb-10" />
+      <NuxtPage :page-key="route => route.path" class="mb-10" :class="$vuetify.display.mobile?'pb-20':''" />
     </v-app>
   </NuxtLayout>
 </template>

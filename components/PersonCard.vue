@@ -20,10 +20,10 @@
                     </template>
                 </v-img>
             </div>
-            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1">
+            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-xs md:text-base">
                 {{ item.name }}
             </div>
-            <div v-if="item.job || item.character" class="text-neutral-400 text-sm">
+            <div v-if="item.job || item.character" class="text-neutral-400 text-xs md:text-sm">
                 {{  item.job || item.character }}
             </div>
         </div>

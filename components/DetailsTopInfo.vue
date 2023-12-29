@@ -86,7 +86,7 @@
                 <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
                 <div v-if="!minimal" class="flex gap-3 flex-wrap justify-center">
                     <div v-for="genre in item.genres">
-                        <v-chip class="text-md" rounded @click="genreClicked(genre)">
+                        <v-chip class="text-md" size="small" rounded @click="genreClicked(genre)">
                             {{ genre.name }}
                         </v-chip>
                     </div>

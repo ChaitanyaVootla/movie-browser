@@ -34,4 +34,11 @@ export default {
     grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
     grid-gap: 2rem;
 }
+@media screen and (max-width: 768px) {
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+        grid-gap: 2px;
+    }
+    
+}
 </style>

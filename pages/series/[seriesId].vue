@@ -14,7 +14,7 @@
                     <div class="flex w-full items-center gap-4 flex-wrap">
                         <div v-if="series.status">
                             <v-chip rounded :color="seriesStatusColor" density="comfortable"
-                                size="x-large" variant="elevated">
+                                :size="$vuetify.display.mobile?'default':'x-large'" variant="elevated">
                                 Status <b class="ml-2">{{ statusText }}</b> 
                             </v-chip>
                         </div>
@@ -34,10 +34,10 @@
                                 @update:modelValue="seasonSelected"
                             ></v-select>
                         </div>
-                        <div>
+                        <div v-if="!$vuetify.display.mobile">
                             {{ series.selectedSeason?.episodes?.length || 0 }} Episodes
                         </div>
-                        <div>
+                        <div v-if="!$vuetify.display.mobile">
                             <NuxtTime v-if="series.selectedSeason?.air_date" :datetime="new Date(series.selectedSeason?.air_date)"
                                 year="numeric" month="long" day="numeric" />
                         </div>
@@ -94,17 +94,18 @@
 
                 <div class="px-3 md:mx-12 overview mt-10">
                     <v-card class="px-5 py-5" color="#151515">
-                        <div class="text-2xl">Overview</div>
-                        <div class="text-neutral-300 mt-3 text">
+                        <div class="text-md md:text-2xl">Overview</div>
+                        <div class="text-sm md:text-base text-neutral-300 mt-3 text">
                             {{ series.overview }}
                         </div>
 
-                        <div class="flex flex-wrap gap-3 mt-5">
-                            <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill" :color="'#ddd'">
+                        <div class="flex flex-wrap gap-3 mt-2 md:mt-5">
+                            <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill" :color="'#ddd'"
+                                :size="$vuetify.display.mobile?'x-small':'default'">
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
-                        <div class="mt-4 text-sm text-neutral-400 flex items-baseline">
+                        <div class="mt-4 text-xs md:text-sm text-neutral-400 flex items-baseline">
                             Last Updated: {{ humanizeDateFull(series.updatedAt) }}
                             <v-btn @click="updateSeries" :loading="updatingSeries" variant="text" size="x-small"
                                 class="ml-3" color="#bbb">
@@ -114,7 +115,7 @@
                     </v-card>
                 </div>
 
-                <div v-if="series.credits?.cast?.length" class="px-3 md:px-0 mt-10">
+                <div v-if="series.credits?.cast?.length" class="px-3 md:px-0 mt-3 md:mt-10">
                     <Scroller :items="series.credits?.cast || []" title="Cast" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
@@ -122,7 +123,7 @@
                     </Scroller>
                 </div>
 
-                <div v-if="series.credits?.crew?.length" class="px-3 md:px-0 mt-10">
+                <div v-if="series.credits?.crew?.length" class="px-3 md:px-0 mt-3 md:mt-10">
                     <Scroller :items="series.credits?.crew" title="Crew" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
@@ -130,11 +131,11 @@
                     </Scroller>
                 </div>
 
-                <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0cast mt-10">
+                <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0 mt-3 md:mt-10">
                     <Scroller :items="series.recommendations?.results || []" title="Recommended" :pending="pending" />
                 </div>
 
-                <div v-if="series.similar?.results?.length" class="px-3 md:px-0cast mt-10">
+                <div v-if="series.similar?.results?.length" class="px-3 md:px-0 mt-3 md:mt-10">
                     <Scroller :items="series.similar?.results || []" title="Similar" :pending="pending" />
                 </div>
             </div>
