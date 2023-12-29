@@ -23,8 +23,8 @@
                     </div>
                     <v-card class="px-5 py-2" color="#151515">
                         <div class="flex items-baseline justify-start gap-2">
-                            <div class="text-base md:text-xl">Released</div>
-                            <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block text-sm md:text-base"
+                            <div class="text-sm md:text-xl">Released</div>
+                            <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block text-xs md:text-base"
                                 :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
                         </div>
                         <div class="text-neutral-300 mt-1 md:mt-3 text text-sm md:text-base">

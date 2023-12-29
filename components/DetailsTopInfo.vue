@@ -76,7 +76,7 @@
             </div>
             <div class="text-white font-bold text-2xl flex justify-center">
                 <NuxtImg v-if="logo" :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${logo}`"
-                    :alt="item.title || item.name" class="object-contain h-14" />
+                    :alt="item.title || item.name" class="object-contain h-20 w-4/5" />
                 <div v-else>
                     {{ item.title || item.name }}
                 </div>

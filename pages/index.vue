@@ -1,6 +1,6 @@
 <template>
     <div class="-mb-5 md:mb-0">
-        <v-carousel :height="$vuetify.display.mobile?'21rem':'55vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
+        <v-carousel :height="$vuetify.display.mobile?'calc((100vw * 0.5625) + 9rem)':'55vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-circle" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
                 <v-icon icon="mdi-chevron-left" @click="props.onClick"></v-icon>

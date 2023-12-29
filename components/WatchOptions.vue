@@ -9,8 +9,8 @@
             <div v-for="watchOption in watchOptions">
                 <NuxtLink :to="watchOption.link" target="blank" event="" noreferrer noopener>
                     <div class="w-18 flex flex-col items-center justify-between">
-                        <v-img :src="watchOption.image" class="w-7 h-7" :alt="watchOption.name"></v-img>
-                        <div v-if="watchOption?.displayName" class="text-xs text-neutral-200 text-center mt-1">
+                        <v-img :src="watchOption.image" class="max-md:w-6 max-md:h-6 md:w-7 md:h-7" :alt="watchOption.name"></v-img>
+                        <div v-if="watchOption?.displayName" class="text-2xs md:text-xs text-neutral-200 text-center mt-1">
                             {{ watchOption.displayName }}
                         </div>
                         <div v-if="watchOption?.price?.length" class="text-2xs md:text-xs text-neutral-400 text-center">
