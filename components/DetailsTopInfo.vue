@@ -69,21 +69,22 @@
             </div>
         </div>
         <div class="md:hidden">
-            <div class="h-1/3 bg-mobile-container relative">
+            <div class="bg-mobile-container relative">
                 <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
-                    :alt="item.title || item.name" class="bg-mobile object-top image-width w-full">
+                    :alt="item.title || item.name" class="bg-mobile object-top image-width object-cover w-full">
                 </NuxtImg>
             </div>
-            <div class="text-white font-bold text-3xl flex justify-center">
+            <div class="text-white font-bold text-2xl flex justify-center">
                 <NuxtImg v-if="logo" :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${logo}`"
-                    :alt="item.title || item.name" class="object-contain h-20 w-auto" />
+                    :alt="item.title || item.name" class="object-contain h-14" />
                 <div v-else>
                     {{ item.title || item.name }}
                 </div>
             </div>
             <div class="flex flex-col gap-4 justify-center items-center mt-5">
                 <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" :small="true"/>
-                <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"
+                    class="px-3 md:px-0"/>
                 <div v-if="!minimal" class="flex gap-3 flex-wrap justify-center">
                     <div v-for="genre in item.genres">
                         <v-chip class="text-md" size="small" rounded @click="genreClicked(genre)">
@@ -159,6 +160,9 @@ const genreClicked = (genre: any) => {
         }
     }
     :deep(.bg-mobile-container) {
+        .bg-mobile {
+            height: calc(100vw * 0.5625);
+        }
         &::after {
             content: '';
             position: absolute;

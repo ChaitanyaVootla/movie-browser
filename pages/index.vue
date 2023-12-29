@@ -1,7 +1,7 @@
 <template>
-    <div class="-mb-24 md:mb-0">
-        <v-carousel height="55vh" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
-            delimiterIcon="mdi-minus" class="carousel" :key="trending?.allItems?.length">
+    <div class="-mb-5 md:mb-0">
+        <v-carousel :height="$vuetify.display.mobile?'21rem':'55vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
+            delimiterIcon="mdi-circle" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
                 <v-icon icon="mdi-chevron-left" @click="props.onClick"></v-icon>
             </template>
@@ -17,11 +17,11 @@
     </div>
     <div class="mt-5 md:mt-0 p-3 pb-16">
         <div v-if="status === 'authenticated' && watchList?.ongoingSeries?.length">
-            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-2 md:mb-12" />
-            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-2 md:mb-12" />
+            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-2 md:pb-12" />
+            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-2 md:pb-12" />
         </div>
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
-        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-3 md:mt-12" />
+        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-3 md:pt-12" />
     </div>
 </template>
 <script setup lang="ts">

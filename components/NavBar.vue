@@ -70,17 +70,17 @@
     <div class="md:hidden">
         <v-bottom-navigation :grow="true" @update:modelValue="bottomNavItemClicked" bg-color="#111" color="#aaa"
             density="comfortable" mandatory rounded v-model="defaultNavBarItem">
-            <v-btn value="home">
+            <v-btn value="home" @click="bottomNavItemClicked('home')">
                 <v-icon>mdi-home</v-icon>
                 <span>Home</span>
             </v-btn>
 
-            <v-btn value="browse">
+            <v-btn value="browse" @click="bottomNavItemClicked('browse')">
                 <v-icon>mdi-movie-search</v-icon>
                 <span>Browse</span>
             </v-btn>
 
-            <v-btn value="search">
+            <v-btn value="search" @click="bottomNavItemClicked('search')">
                 <v-icon>mdi-magnify</v-icon>
                 <span>Search</span>
             </v-btn>

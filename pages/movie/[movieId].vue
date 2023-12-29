@@ -11,35 +11,32 @@
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="pt-5">
                 <div class="px-3 md:mx-12 overview">
-                    <div class="flex gap-6 mb-5">
-                        <div class="flex flex-col items-center justify-center">
-                            <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
-                                :elevation="5" :height="50" class="px-5">
-                                Watched
-                            </v-btn>
-                        </div>
-                        <div class="flex flex-col items-center justify-center">
-                            <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
-                                :elevation="5" :height="50" class="px-5">
-                                Watch list
-                            </v-btn>
-                        </div>
+                    <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-5">
+                        <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
+                            :elevation="5" class="px-5" >
+                            Watched
+                        </v-btn>
+                        <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
+                            :elevation="5" class="px-5" >
+                            Watch list
+                        </v-btn>
                     </div>
                     <v-card class="px-5 py-2" color="#151515">
                         <div class="flex items-baseline justify-start gap-2">
-                            <div class="text-xl">Released</div>
-                            <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block" :datetime="new Date(movie.release_date)"
-                                year="numeric" month="long" day="numeric" />
+                            <div class="text-base md:text-xl">Released</div>
+                            <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block text-sm md:text-base"
+                                :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
                         </div>
-                        <div class="text-neutral-300 mt-3 text">
+                        <div class="text-neutral-300 mt-1 md:mt-3 text text-sm md:text-base">
                             {{ movie.overview }}
                         </div>
                         <div class="flex flex-wrap gap-3 mt-5">
-                            <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'">
+                            <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'"
+                                :size="$vuetify.display.mobile?'x-small':'default'">
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
-                        <div class="mt-4 text-sm text-neutral-400 flex items-baseline">
+                        <div class="mt-4 text-xs md:text-sm text-neutral-400 flex items-baseline">
                             Last Updated: {{ humanizeDateFull(movie.updatedAt) }}
                             <v-btn @click="updateMovie" :loading="updatingMovie" variant="text" size="x-small"
                                 class="ml-3" color="#bbb">
@@ -53,7 +50,7 @@
                     <Scroller :items="movie.collectionDetails.parts || []" :title="movie.collectionDetails.name" :pending="pending" />
                 </div>
 
-                <div class="px-3 md:px-20 mt-10">
+                <div class="px-3 md:px-20 mt-3 md:mt-10">
                     <Scroller :items="movie.credits?.cast || []" title="Cast" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
@@ -61,7 +58,7 @@
                     </Scroller>
                 </div>
 
-                <div class="px-3 md:px-20 mt-10">
+                <div class="px-3 md:px-20 mt-3 md:mt-10">
                     <Scroller :items="movie.credits?.crew || []" title="Crew" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
@@ -69,11 +66,11 @@
                     </Scroller>
                 </div>
 
-                <div v-if="aiRecommendations?.length" class="px-3 md:px-0 marker:mt-10">
+                <div v-if="aiRecommendations?.length" class="px-3 md:px-0 mt-3 md:mt-10">
                     <Scroller :items="aiRecommendations || []" title="AI Recommendations" :pending="pending" />
                 </div>
 
-                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="px-3 md:px-0 mt-10">
+                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="px-3 md:px-0 mt-3 md:mt-10">
                     <Scroller :items="movie.recommendations.results || []" title="Recommended" :pending="pending" />
                 </div>
 
@@ -88,6 +85,9 @@
 <script setup lang="ts">
 import { useAuth } from '#imports'
 import { humanizeDateFull } from '~/utils/dateFormatter';
+import { useDisplay } from 'vuetify'
+
+const { mobile } = useDisplay()
 
 const { status } = useAuth();
 

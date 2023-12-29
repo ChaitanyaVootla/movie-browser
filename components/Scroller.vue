@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="title text-lg md:text-2xl font-light -mb-2 md:mb-1 md:ml-14">
+        <div class="title text-lg md:text-lg font-light -mb-2 md:mb-0 md:ml-14">
             {{ title }}
         </div>
         <v-slide-group show-arrows="desktop">
