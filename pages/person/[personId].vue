@@ -8,32 +8,32 @@
             ></v-skeleton-loader>
         </div>
         <div v-else>
-            <div class="top-info px-14 pt-10">
+            <div class="top-info max-md:px-3 md:px-14 pt-10">
                 <div class="flex gap-10">
-                    <div class="w-1/12">
+                    <div class="w-1/12 min-w-32">
                         <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.profile_path}`"
-                            :alt="person.name" />
+                            :alt="person.name" class="rounded-lg" />
                     </div>
                     <div class="w-11/12">
-                        <div class="text-4xl font-bold flex items-baseline gap-5">
+                        <div class="max-md:text-xl md:text-4xl font-bold flex items-baseline gap-5">
                             {{ person.name }}
                             <div class="text-neutral-400 text-lg">
                                 {{ person.known_for_department }}
                             </div>
                         </div>
-                        <div class="text-2xl text-neutral-400 flex align-baseline gap-3">
+                        <div class="max-md:text-sm md:text-2xl text-neutral-400 flex align-baseline gap-3">
                             Born: 
                             <NuxtTime v-if="person.birthday" class="text-neutral-200 mt-2 block" :datetime="new Date(person.birthday)"
                                 year="numeric" month="long" day="numeric" />
                             {{ person.place_of_birth }}
                         </div>
-                        <div class="text-md text-neutral-400 mt-5 line-clamp-6">{{ person.biography }}</div>
+                        <div class="max-md:text-sm md:text-base text-neutral-400 mt-5 line-clamp-6">{{ person.biography }}</div>
                     </div>
                 </div>
             </div>
 
-            <div class="px-14 mt-10">
-                <v-btn-toggle v-model="selectedMediaType" mandatory>
+            <div class="max-md:px-3 md:px-14 max-md:mt-3 md:mt-10">
+                <v-btn-toggle v-model="selectedMediaType" mandatory density="compact">
                     <v-btn>
                         Movies
                     </v-btn>
@@ -41,7 +41,7 @@
                         Series
                     </v-btn>
                 </v-btn-toggle>
-                <v-btn-toggle v-model="selectedCreditType" mandatory class="ml-10">
+                <v-btn-toggle v-model="selectedCreditType" mandatory density="compact" class="max-md:ml-0 md:ml-10">
                     <v-btn>
                         Cast
                     </v-btn>
@@ -118,6 +118,57 @@ const filteredItems = computed(() => {
             return person.value.series_credits?.crew || [];
         }
     }
+});
+
+useHead({
+    title: `${person.value?.name}`,
+    meta: [
+        {
+            hid: 'description',
+            name: 'description',
+            content: person.value?.biography,
+        },
+        {
+            hid: 'og:title',
+            property: 'og:title',
+            content: `${person.value?.name}`,
+        },
+        {
+            hid: 'og:description',
+            property: 'og:description',
+            content: person.value?.biography,
+        },
+        {
+            hid: 'og:image',
+            property: 'og:image',
+            content: `https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.value?.profile_path}`,
+        },
+        {
+            hid: 'og:url',
+            property: 'og:url',
+            content: `https://www.themoviedb.org/person/${person.value?.id}`,
+        },
+        {
+            hid: 'twitter:title',
+            name: 'twitter:title',
+            content: `${person.value?.name}`,
+        },
+        {
+            hid: 'twitter:description',
+            name: 'twitter:description',
+            content: person.value?.biography,
+        },
+        {
+            hid: 'twitter:image',
+            name: 'twitter:image',
+            content: `https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.value?.profile_path}`,
+        },
+        {
+            hid: 'twitter:card',
+            name: 'twitter:card',
+            content: 'summary_large_image',
+        },
+    ],
 });
 </script>
 

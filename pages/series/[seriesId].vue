@@ -10,12 +10,12 @@
         <div v-else>
             <DetailsTopInfo :item="series" :watched="false"/>
             <div>
-                <div class="px-3 md:mx-12 mt-3">
+                <div class="px-3 md:mx-12 md:mt-3">
                     <div class="flex w-full items-center gap-4 flex-wrap">
                         <div v-if="series.status">
                             <v-chip rounded :color="seriesStatusColor" density="comfortable"
                                 :size="$vuetify.display.mobile?'default':'x-large'" variant="elevated">
-                                Status <b class="ml-2">{{ statusText }}</b> 
+                                Status <b class="ml-2">{{ statusText }}</b>
                             </v-chip>
                         </div>
                         <div class="mt-5">
@@ -43,7 +43,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="px-3 md:px-0">
+                <div class="px-3 md:px-0 max-md:-mt-5">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <div class="flex flex-col gap-3 mt-2 w-56 md:w-96">
@@ -52,7 +52,7 @@
                                     <div class="flex gap-2">
                                         Episode {{ item.episode_number }}
                                         <div v-if="item.air_date">
-                                            - 
+                                            -
                                         <NuxtTime :datetime="new Date(item.air_date)"
                                             year="numeric" month="long" day="numeric" class="ml-1" />
                                         </div>
@@ -92,7 +92,7 @@
                     </Scroller>
                 </div>
 
-                <div class="px-3 md:mx-12 overview mt-10">
+                <div class="px-3 md:mx-12 overview max-md:mt-5 md:mt-10">
                     <v-card class="px-5 py-5" color="#151515">
                         <div class="text-md md:text-2xl">Overview</div>
                         <div class="text-sm md:text-base text-neutral-300 mt-3 text">
@@ -105,7 +105,7 @@
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
-                        <div class="mt-4 text-xs md:text-sm text-neutral-400 flex items-baseline">
+                        <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
                             Last Updated: {{ humanizeDateFull(series.updatedAt) }}
                             <v-btn @click="updateSeries" :loading="updatingSeries" variant="text" size="x-small"
                                 class="ml-3" color="#bbb">
@@ -313,6 +313,23 @@ useHead(() => {
             &.v-skeleton-loader__image {
                 height: 50vh;
             }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    :deep(.v-field) {
+        height: 1.7rem;
+        .v-field__field {
+            height: 1.7rem;
+            margin-top: -5px;
+        }
+        .v-label {
+            font-size: 12px;
+        }
+        .v-field__input {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
         }
     }
 }
