@@ -32,11 +32,14 @@ export default defineEventHandler(async (event) => {
             const details: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`).catch(() => {
                 return {};
             });
-            let googleData = {};
-            const lambdaResponse = await getGoogleLambdaData(details);
-            if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
-                googleData = lambdaResponse;
-            } else if (series.googleData) {
+            let googleData = {} as any;
+            if (details?.external_ids?.imdb_id) {
+                const lambdaResponse = await getGoogleLambdaData(details);
+                if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
+                    googleData = lambdaResponse;
+                }
+            }
+            if (!googleData?.imdbId && details.googleData) {
                 googleData = series.googleData;
             }
             series = {
