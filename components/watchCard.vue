@@ -5,7 +5,7 @@
                 <v-img
                     cover
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800
-                        hover:transition-all duration-300 hover:mb-2 hover:-mt-2 border-2 hover:border-2
+                        hover:transition-all duration-300 hover:mb-2 md:hover:-mt-2 border-2 hover:border-2
                         hover:border-neutral-700 border-transparent w-full h-full"
                     :alt="item.title || item.name"
                     :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`">
@@ -19,8 +19,7 @@
                     </template>
                 </v-img>
             </div>
-            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200
-                hidden md:block">
+            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-base">
                 {{ item.character || item.title || item.name }}
             </div>
         </div>
@@ -34,22 +33,12 @@ const props = defineProps({
         required: true,
         default: {}
     },
-    addToFilter: {
-        type: Function,
-    },
 });
-const isAiRoute = useRoute().name === 'ai'
-
-const addToParentFilter = () => {
-    if (props.addToFilter) {
-        props.addToFilter(props.item);
-    }
-};
 </script>
 
 <style scoped lang="less">
 @lg-height: 14rem;
-@mobile-height: 7rem;
+@mobile-height: 6.5rem;
 
 :deep(.image) {
     height: @lg-height;
