@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { v4 as uuidv4 } from 'uuid';
+import { uid } from '~/utils/uid';
 
 defineProps({
     items: {
@@ -40,7 +40,7 @@ defineProps({
         required: true
     }
 });
-const identifier = uuidv4();
+const identifier = uid();
 const uuid = ref(identifier);
 let isSliding = ref(false);
 
