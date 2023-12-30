@@ -17,13 +17,18 @@
     </div>
     <div class="mt-5 md:mt-0 p-3 pb-16">
         <div v-if="status === 'authenticated' && watchList?.ongoingSeries?.length">
-            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-2 md:pb-12" />
-            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-2 md:pb-12" />
+            <Scroller v-if="continueWatching?.length" :items="continueWatching" :pending="false" title="Continue Watching" class="mb-1 md:pb-5">
+                <template v-slot:default="{ item }">
+                    <WatchCard :item="item" class="mr-3" />
+                </template>
+            </Scroller>
+            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-1 md:pb-5" />
+            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-1 md:pb-5" />
         </div>
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
-        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-3 md:pt-12" />
-        <Scroller :items="trending?.streamingNow" :pending="pending" title="Sreaming Now" class="mt-3 md:pt-12" />
-        <Scroller v-if="status === 'authenticated'" :items="recents" :pending="pending" title="Recent visits" class="mt-3 md:pt-12" />
+        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-1 md:pt-5" />
+        <Scroller :items="trending?.streamingNow" :pending="pending" title="Sreaming Now" class="mt-1 md:pt-5" />
+        <Scroller v-if="status === 'authenticated'" :items="recents" :pending="pending" title="Recent visits" class="mt-1 md:pt-5" />
     </div>
 </template>
 <script setup lang="ts">
@@ -82,9 +87,17 @@ const { data: recents, execute: executeRecentsCall }: any = await useLazyAsyncDa
     }),
 );
 
+const { data: continueWatching, execute: executeContinueWatching }: any = await useLazyAsyncData('continueWatching',
+    () => $fetch('/api/user/continueWatching').catch((err) => {
+        console.log(err);
+        return {};
+    }),
+);
+
 setTimeout(() => {
     executeWatchList();
     executeRecentsCall();
+    executeContinueWatching();
 });
 
 useHead({

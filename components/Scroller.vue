@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="title text-base md:text-lg font-light -mb-2 md:mb-0 md:ml-14">
+        <div class="title text-base md:text-lg font-light -mb-1 md:mb-0 md:ml-14">
             {{ title }}
         </div>
         <div class="flex w-full h-full">
@@ -10,10 +10,9 @@
                 </div>
             </div>
             <div class="flex gap-2 md:gap-4 overflow-y-auto w-full" :id="`scroll-bar-${uuid}`">
-                <div v-for="item in (items || Array(10))">
+                <div v-for="item in (items || Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
                     <slot :item="item">
-                        <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"
-                            :class="isSliding ? 'pointer-events-none' : ''"/>
+                        <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
                     </slot>
                 </div>
             </div>

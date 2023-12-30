@@ -1,5 +1,5 @@
 <template>
-    <NuxtLink :to="`/${(item.isMovie || item.title) ? 'movie': 'series'}/${item.id}`">
+    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative">
                 <v-img

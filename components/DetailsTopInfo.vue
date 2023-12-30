@@ -14,7 +14,7 @@
                     </div>
                 </div>
                 <div class="w-full h-1/2 flex mb-3 flex-col gap-5 justify-end">
-                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :item="item"/>
                     <div class="flex gap-3">
                         <div v-for="genre in item.genres">
                             <v-chip class="text-md" rounded @click="genreClicked(genre)">
@@ -22,7 +22,7 @@
                             </v-chip>
                         </div>
                     </div>
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id"/>
                     <div v-if="false" class="flex gap-5">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg
@@ -108,8 +108,8 @@
                 </div>
             </div>
             <div class="flex flex-col gap-4 justify-center items-center mt-5">
-                <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id" :small="true"/>
-                <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :movieId="item.id"/>
+                <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :small="true"/>
+                <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :item="item"/>
                 <div v-if="!minimal" class="flex gap-3 flex-wrap justify-center">
                     <div v-for="genre in item.genres">
                         <v-chip class="text-md" size="small" rounded @click="genreClicked(genre)">

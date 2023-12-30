@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps(['googleData', 'tmdbRating', 'movieId', 'small'])
+const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small'])
 type Rating = {
     name: string,
     link: string,
@@ -89,7 +89,7 @@ if (props.tmdbRating) {
         name: 'TMDB',
         rating: props.tmdbRating?.toFixed(1) || '',
         image: '/images/rating/tmdb.svg',
-        link: `https://www.themoviedb.org/movie/${props.movieId}`,
+        link: `https://www.themoviedb.org/movie/${props.itemId}`,
         ...getColorForRating({
             name: 'TMDB',
             rating: props.tmdbRating,

@@ -9,7 +9,7 @@
                 </div>
             </div>
             <div v-for="watchOption in watchOptions">
-                <NuxtLink :to="watchOption.link" target="blank" event="" noreferrer noopener>
+                <NuxtLink :to="watchOption.link" target="blank" event="" noreferrer noopener @click="watchLinkClicked(watchOption)">
                     <div class="w-18 flex flex-col items-center justify-between">
                         <v-img :src="watchOption.image" class="max-md:w-6 max-md:h-6 md:w-7 md:h-7" :alt="watchOption.name"></v-img>
                         <div v-if="watchOption?.displayName" class="text-2xs md:text-xs text-neutral-200 text-center mt-1">
@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps(['googleData', 'tmdbRating', 'movieId'])
+const props = defineProps(['googleData', 'tmdbRating', 'item'])
 let watchOptions = [] as any[]
 
 const watchOptionImageMapper = {
@@ -82,18 +82,38 @@ const watchOptionImageMapper = {
         image: '/images/ott/aha.svg',
         name: 'aha'
     },
-} as Record<string, any>;
+} as Record<string, {
+    image: string,
+    name: string
+}>;
 
 if (props.googleData?.allWatchOptions) {
     watchOptions = (props.googleData.allWatchOptions || []).map((watchOption: any) => {
-        const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) => watchOption.name.toLowerCase().includes(key))?.[1]
+        const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) => watchOption.name.toLowerCase().includes(key))
         return {
             name: watchOption.name,
-            displayName: mappedWatchOption?.name,
+            displayName: mappedWatchOption?.[1]?.name,
             link: watchOption.link,
             price: watchOption.price,
-            image: mappedWatchOption?.image
+            image: mappedWatchOption?.[1]?.image,
+            key: mappedWatchOption?.[0]
         }
+    })
+}
+
+const watchLinkClicked = (watchOption: any) => {
+    $fetch('/api/user/continueWatching', {
+        method: 'POST',
+        body: JSON.stringify({
+            itemId: props.item.id,
+            isMovie: props.item.title ? true : false,
+            poster_path: props.item.poster_path,
+            backdrop_path: props.item.backdrop_path,
+            title: props.item.title,
+            name: props.item.name,
+            watchLink: watchOption.link,
+            watchProviderName: watchOption.key,
+        })
     })
 }
 </script>
