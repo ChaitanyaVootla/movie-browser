@@ -22,7 +22,7 @@
                         density="comfortable"
                         item-title="text"
                         item-value="value"
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                     ></v-select>
                 </div>
                 <div class="flex-1">
@@ -36,7 +36,7 @@
                         density="comfortable"
                         item-title="name"
                         item-value="id"
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                     ></v-autocomplete>
                 </div>
                 <div class="flex-1">
@@ -51,7 +51,7 @@
                         item-title="provider_name"
                         item-value="provider_id"
                         auto-select-first
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                     ></v-autocomplete>
                 </div>
                 <div class="flex-1 flex items-center">
@@ -64,7 +64,7 @@
                         item-title="text"
                         item-value="value"
                         clearable
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                     ></v-select>
                 </div>
             </div>
@@ -79,7 +79,7 @@
                         density="comfortable"
                         item-title="english_name"
                         item-value="iso_639_1"
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                     ></v-autocomplete>
                 </div>
                 <div class="flex-1">
@@ -93,7 +93,7 @@
                         density="comfortable"
                         item-title="name"
                         item-value="id"
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                     ></v-autocomplete>
                 </div>
                 <div class="flex-1">
@@ -109,14 +109,14 @@
                         item-title="name"
                         item-value="id"
                         auto-select-first
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                     ></v-autocomplete>
                 </div>
                 <div class="flex-1">
                     <v-text-field
                         v-model="queryParams['vote_count.gte']"
                         type="number"
-                        @update:model-value="refresh()"
+                        @update:model-value="freshLoad()"
                         placeholder="Minimum votes"
                         variant="solo"
                         density="comfortable"
@@ -137,8 +137,9 @@
 
 <script setup lang="ts">
 const selectedType = ref(0);
+const pending = ref(true);
 const canShowLoadMore = ref(true);
-const discoverResults = ref([]);
+const discoverResults = ref([] as any[]);
 
 const genres = computed(() => {
     return selectedType.value === 0 ? Object.values(movieGenres) : Object.values(seriesGenres);
@@ -161,7 +162,14 @@ const ratingOptions = new Array(10).fill({}).map((item, index) => ({
     text: `${index}+`,
 })).reverse();
 
-let page = 0;
+let pageTrack = 1;
+
+const freshLoad = () => {
+    pageTrack = 1;
+    canShowLoadMore.value = true;
+    discoverResults.value = [];
+    loadData();
+}
 
 const queryParams = ref<any>({
     media_type: 'movie',
@@ -192,54 +200,55 @@ const mediaTypeUpdated = () => {
     queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
     queryParams.value.with_genres = [];
     queryParams.value.without_genres = [];
-    refresh();
+    loadData();
 }
 
-const { data, pending, refresh } = await useLazyAsyncData('discover', async () => {
-        const [page1, page2]: any = await Promise.all([
-            $fetch('/api/discover', {
-                method: 'POST',
-                body: JSON.stringify({
-                    ...queryParams.value,
-                    page: ++page
-                })
-            }),
-            $fetch('/api/discover', {
-                method: 'POST',
-                body: JSON.stringify({
-                    ...queryParams.value,
-                    page: ++page
-                })
+const loadData = async () => {
+    pending.value = true;
+    const [page1, page2]: any = await Promise.all([
+        $fetch('/api/discover', {
+            method: 'POST',
+            body: JSON.stringify({
+                ...queryParams.value,
+                page: pageTrack,
             })
-        ]);
-        return {
-            total_results: page1?.total_results,
-            results: [...(page1?.results || []), ...(page2?.results || [])]
-        };
-    },
-    {
-        transform: (data: any) => {
-            const query = Object.keys(queryParams.value).reduce((acc: any, key: any) => {
-                if ((queryParams.value[key] !== '') && queryParams.value) {
-                    acc[key] = queryParams.value[key];
-                }
-                return acc;
-            }, {});
-            setTimeout(
-                () => useRouter().replace({ query })
-            );
-            if (data.results.length < 40) {
-                canShowLoadMore.value = false;
-            };
-            discoverResults.value = discoverResults.value.concat(data.results);
-            return data;
-        },
-        immediate: true
-    }
-);
+        }),
+        $fetch('/api/discover', {
+            method: 'POST',
+            body: JSON.stringify({
+                ...queryParams.value,
+                page: ++pageTrack
+            })
+        })
+    ]);
+    const data = {
+        total_results: page1?.total_results,
+        results: [...(page1?.results || []), ...(page2?.results || [])]
+    } as {
+        total_results: number;
+        results: any[];
+    };
+    const query = Object.keys(queryParams.value).reduce((acc: any, key: any) => {
+        if ((queryParams.value[key] !== '') && queryParams.value) {
+            acc[key] = queryParams.value[key];
+        }
+        return acc;
+    }, {});
+    setTimeout(
+        () => useRouter().replace({ query })
+    );
+    if (data.results.length < 40) {
+        canShowLoadMore.value = false;
+    };
+    discoverResults.value = discoverResults.value.concat(data.results);
+    pending.value = false;
+    return data;
+}
+
+const data = await loadData();
 
 const loadMore = async () => {
-    refresh();
+    loadData();
 }
 </script>
 
