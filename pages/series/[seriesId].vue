@@ -100,8 +100,8 @@
                         </div>
 
                         <div class="flex flex-wrap gap-3 mt-2 md:mt-5">
-                            <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill" :color="'#ddd'"
-                                :size="$vuetify.display.mobile?'x-small':'default'">
+                            <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill cursor-pointer" :color="'#ddd'"
+                                :size="$vuetify.display.mobile?'x-small':'default'" @click="keywordClicked(keyword)">
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
@@ -222,6 +222,16 @@ const updateSeries = async () => {
     await $fetch(`/api/series/${series.value.id}?force=true`);
     updatingSeries.value = false;
     window.location.reload();
+}
+
+const keywordClicked = (keyword: any) => {
+    useRouter().push({
+        name: 'browse',
+        query: {
+            media_type: 'tv',
+            with_keywords: keyword.id
+        }
+    });
 }
 
 useHead(() => {

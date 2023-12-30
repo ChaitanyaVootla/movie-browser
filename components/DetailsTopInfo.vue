@@ -151,6 +151,7 @@ const genreClicked = (genre: any) => {
     useRouter().push({
         name: 'browse',
         query: {
+            media_type: item.title?'movie':'tv',
             with_genres: genre.id
         }
     })

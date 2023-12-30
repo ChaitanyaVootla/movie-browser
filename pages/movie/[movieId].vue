@@ -12,13 +12,13 @@
             <div class="pt-5">
                 <div class="px-3 md:mx-12 overview">
                     <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-5">
-                        <v-btn @click="watchClicked()" prepend-icon="mdi-check" :color="(watched === true)?'primary':''"
+                        <v-btn @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-circle-outline'" :color="(watched === true)?'primary':''"
                             :elevation="5" class="px-5" >
-                            Watched
+                            {{ watched?'Watched':'Watched This ?' }}
                         </v-btn>
                         <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
                             :elevation="5" class="px-5" >
-                            Watch list
+                            {{ watchlist?'In Watch List':'Add to list' }}
                         </v-btn>
                     </div>
                     <v-card class="px-5 py-2" color="#151515">
@@ -31,8 +31,8 @@
                             {{ movie.overview }}
                         </div>
                         <div class="flex flex-wrap gap-1 md:gap-3 mt-2 md:mt-5">
-                            <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'"
-                                :size="$vuetify.display.mobile?'x-small':'default'">
+                            <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill cursor-pointer" :color="'#ddd'"
+                                :size="$vuetify.display.mobile?'x-small':'default'" @click="keywordClicked(keyword)">
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
@@ -200,6 +200,16 @@ const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails
     }
 );
 aiRecommendations = aiRecommendationsAPI;
+
+const keywordClicked = (keyword: any) => {
+    useRouter().push({
+        name: 'browse',
+        query: {
+            media_type: 'movie',
+            with_keywords: keyword.id
+        }
+    });
+}
 useHead(() => {
     return {
         title: movie.value?.title,

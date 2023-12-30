@@ -71,8 +71,16 @@ const watchOptionImageMapper = {
         name: 'Zee5'
     },
     'jio': {
-        image: '/images/ott/jiocinema.png',
+        image: '/images/ott/jio.png',
         name: 'JioCinema'
+    },
+    'mx': {
+        image: '/images/ott/mx.png',
+        name: 'MX Player'
+    },
+    'aha': {
+        image: '/images/ott/aha.svg',
+        name: 'aha'
     },
 } as Record<string, any>;
 
