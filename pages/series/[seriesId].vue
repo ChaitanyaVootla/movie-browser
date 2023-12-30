@@ -10,7 +10,13 @@
         <div v-else>
             <DetailsTopInfo :item="series" :watched="false"/>
             <div>
-                <div class="px-3 md:mx-12 md:mt-3">
+                <div class="px-3 md:mx-12 mt-3">
+                    <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-0 md:mb-5">
+                        <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
+                            :elevation="5" class="px-5" >
+                            {{ watchlist?'In Watch List':'Add to list' }}
+                        </v-btn>
+                    </div>
                     <div class="flex w-full items-center gap-4 flex-wrap">
                         <div v-if="series.status">
                             <v-chip rounded :color="seriesStatusColor" density="comfortable"
@@ -187,6 +193,41 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
     }
 );
 
+const headers = useRequestHeaders(['cookie']) as HeadersInit
+let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}-watchList`,
+    () => $fetch(`/api/user/series/${useRoute().params.seriesId}/watchList`, { headers }).catch((err) => {
+        console.log(err);
+        return {};
+    })
+);
+
+const addToRecents = () => {
+    $fetch(`/api/user/recents`,
+        {
+            headers,
+            method: 'POST',
+            body: JSON.stringify({
+                itemId: useRoute().params.seriesId,
+                isMovie: false,
+                poster_path: series.value?.poster_path,
+                backdrop_path: series.value?.backdrop_path,
+                name: series.value?.name,
+            })
+        }
+    );
+}
+
+// add to recents when movie is loaded
+if (series.value?.id) {
+    addToRecents();
+}
+
+watch(series, () => {
+    if (series.value?.id) {
+        addToRecents();
+    }
+});
+
 const seasonSelected = async (season: any) => {
     series.value.selectedSeason = await $fetch(`/api/series/${series.value.id}/season/${season?.season_number}`).catch((err) => {
         console.log(err);
@@ -232,6 +273,19 @@ const keywordClicked = (keyword: any) => {
             with_keywords: keyword.id
         }
     });
+}
+
+const watchListClicked = () => {
+    watchlist.value = !watchlist.value;
+    if (watchlist.value === true) {
+        $fetch(`/api/user/series/${series.value.id}/watchList`, {
+            method: 'POST',
+        })
+    } else {
+        $fetch(`/api/user/series/${series.value.id}/watchList`, {
+            method: 'DELETE',
+        })
+    }
 }
 
 useHead(() => {

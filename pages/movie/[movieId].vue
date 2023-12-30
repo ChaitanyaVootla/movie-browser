@@ -155,6 +155,33 @@ let { data: watchlist }: any = await useLazyAsyncData(`movieDetails-${useRoute()
     })
 );
 
+const addToRecents = () => {
+    $fetch(`/api/user/recents`,
+        {
+            headers,
+            method: 'POST',
+            body: JSON.stringify({
+                itemId: useRoute().params.movieId,
+                isMovie: true,
+                poster_path: movie.value?.poster_path,
+                backdrop_path: movie.value?.backdrop_path,
+                title: movie.value?.title,
+            })
+        }
+    );
+}
+
+// add to recents when movie is loaded
+if (movie.value?.id) {
+    addToRecents();
+}
+
+watch(movie, () => {
+    if (movie.value?.id) {
+        addToRecents();
+    }
+});
+
 const watchClicked = () => {
     watched.value = !watched.value;
     if (watched.value === true) {

@@ -23,6 +23,7 @@
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
         <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-3 md:pt-12" />
         <Scroller :items="trending?.streamingNow" :pending="pending" title="Sreaming Now" class="mt-3 md:pt-12" />
+        <Scroller v-if="status === 'authenticated'" :items="recents" :pending="pending" title="Recent visits" class="mt-3 md:pt-12" />
     </div>
 </template>
 <script setup lang="ts">
@@ -59,7 +60,7 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
     }
 );
 
-const { data: watchList, execute } = await useLazyAsyncData('ongoingSeries',
+const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('ongoingSeries',
     () => $fetch('/api/user/watchList').catch((err) => {
         console.log(err);
         return {};
@@ -74,8 +75,16 @@ const { data: watchList, execute } = await useLazyAsyncData('ongoingSeries',
     }
 );
 
+const { data: recents, execute: executeRecentsCall }: any = await useLazyAsyncData('recents',
+    () => $fetch('/api/user/recents').catch((err) => {
+        console.log(err);
+        return {};
+    }),
+);
+
 setTimeout(() => {
-    execute();
+    executeWatchList();
+    executeRecentsCall();
 });
 
 useHead({
