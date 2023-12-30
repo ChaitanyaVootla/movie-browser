@@ -100,7 +100,8 @@
                     <v-autocomplete
                         v-model="queryParams.with_keywords"
                         clearable
-                        :items="KEYWORDS"
+                        disabled
+                        :items="[]"
                         multiple
                         label="Keywords"
                         variant="solo"
