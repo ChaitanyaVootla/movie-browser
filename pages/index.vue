@@ -22,6 +22,7 @@
         </div>
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
         <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-3 md:pt-12" />
+        <Scroller :items="trending?.streamingNow" :pending="pending" title="Sreaming Now" class="mt-3 md:pt-12" />
     </div>
 </template>
 <script setup lang="ts">

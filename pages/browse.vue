@@ -1,7 +1,7 @@
 <template>
     <div>
         <div class="top-action flex justify-center mt-5">
-            <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="mediaTypeUpdated">
+            <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad">
                 <v-btn>
                     Movies
                 </v-btn>
@@ -17,6 +17,7 @@
                     <v-select
                         v-model="queryParams.sort_by"
                         :items="sortByValues"
+                        single-line
                         label="Sort By"
                         variant="solo"
                         density="compact"
@@ -29,6 +30,7 @@
                     <v-autocomplete
                         v-model="queryParams.with_genres"
                         clearable
+                        single-line
                         :items="genres"
                         label="Genres"
                         multiple
@@ -43,8 +45,12 @@
                     <v-autocomplete
                         v-model="queryParams.with_watch_providers"
                         clearable
+                        single-line
                         :items="WATCH_PROVIDERS"
                         multiple
+                        :chips="true"
+                        closable-chips
+                        class="watchProviders"
                         label="Watch Providers"
                         variant="solo"
                         density="compact"
@@ -58,6 +64,7 @@
                     <v-select
                         v-model="queryParams['vote_average.gte']"
                         :items="ratingOptions"
+                        single-line
                         label="Rating"
                         variant="solo"
                         density="compact"
@@ -73,6 +80,7 @@
                     <v-autocomplete
                         v-model="queryParams.with_original_language"
                         clearable
+                        single-line
                         :items="LANGAUAGES"
                         label="Language"
                         variant="solo"
@@ -86,6 +94,7 @@
                     <v-autocomplete
                         v-model="queryParams.without_genres"
                         clearable
+                        single-line
                         :items="genres"
                         label="Exclude Genres"
                         multiple
@@ -100,6 +109,7 @@
                     <v-autocomplete
                         v-model="queryParams.with_keywords"
                         clearable
+                        single-line
                         disabled
                         :items="[]"
                         multiple
@@ -116,6 +126,7 @@
                     <v-text-field
                         v-model="queryParams['vote_count.gte']"
                         type="number"
+                        single-line
                         @update:model-value="freshLoad()"
                         placeholder="Minimum votes"
                         variant="solo"
@@ -125,7 +136,7 @@
                 </div>
             </div>
         </div>
-        <div v-if="!pending" class="md:ml-16 mt-2 text-neutral-200 text-sm md:text-lg">
+        <div v-if="!pending" class="max-md:ml-3 md:ml-16 mt-2 text-neutral-200 text-sm md:text-lg">
             {{ totalResults }} Results
         </div>
         <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:px-3 md:px-14"/>
@@ -169,6 +180,9 @@ const freshLoad = async () => {
     pageTrack = 1;
     canShowLoadMore.value = true;
     discoverResults.value = [];
+    queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
+    queryParams.value.with_genres = [];
+    queryParams.value.without_genres = [];
     totalResults.value = (await loadData()).total_results as number;
 }
 
@@ -197,13 +211,6 @@ const queryParams = ref<any>({
     }
 });
 
-const mediaTypeUpdated = async () => {
-    queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
-    queryParams.value.with_genres = [];
-    queryParams.value.without_genres = [];
-    totalResults.value = (await loadData()).total_results as number;
-}
-
 const loadData = async () => {
     pending.value = true;
     const [page1, page2]: any = await Promise.all([
@@ -229,7 +236,6 @@ const loadData = async () => {
         total_results: number;
         results: any[];
     };
-    console.log(queryParams.value)
     const query = Object.keys(queryParams.value).reduce((acc: any, key: any) => {
         if (queryParams.value[key]) {
             acc[key] = `${queryParams.value[key]}`;
@@ -305,4 +311,12 @@ useHead({
 </script>
 
 <style scoped lang="less">
+.watchProviders {
+    :deep(.v-field__input) {
+        display: -webkit-box;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+}
 </style>

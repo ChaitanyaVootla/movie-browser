@@ -14,7 +14,7 @@
                     <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-5">
                         <v-btn @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-circle-outline'" :color="(watched === true)?'primary':''"
                             :elevation="5" class="px-5" >
-                            {{ watched?'Watched':'Watched This ?' }}
+                            {{ watched?'Watched':'Watched ?' }}
                         </v-btn>
                         <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
                             :elevation="5" class="px-5" >
