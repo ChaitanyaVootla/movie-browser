@@ -1,5 +1,7 @@
 export const LANGAUAGES = [
-  { iso_639_1: "xx", english_name: "No Language", name: "No Language" },
+  { iso_639_1: "te", english_name: "Telugu", name: "తెలుగు" },
+  { iso_639_1: "hi", english_name: "Hindi", name: "हिन्दी" },
+  { iso_639_1: "en", english_name: "English", name: "English" },
   { iso_639_1: "aa", english_name: "Afar", name: "" },
   { iso_639_1: "af", english_name: "Afrikaans", name: "Afrikaans" },
   { iso_639_1: "ak", english_name: "Akan", name: "" },
@@ -140,7 +142,6 @@ export const LANGAUAGES = [
   { iso_639_1: "ty", english_name: "Tahitian", name: "" },
   { iso_639_1: "ta", english_name: "Tamil", name: "தமிழ்" },
   { iso_639_1: "tt", english_name: "Tatar", name: "" },
-  { iso_639_1: "te", english_name: "Telugu", name: "తెలుగు" },
   { iso_639_1: "tg", english_name: "Tajik", name: "" },
   { iso_639_1: "tl", english_name: "Tagalog", name: "" },
   { iso_639_1: "th", english_name: "Thai", name: "ภาษาไทย" },
@@ -175,9 +176,7 @@ export const LANGAUAGES = [
   { iso_639_1: "el", english_name: "Greek", name: "ελληνικά" },
   { iso_639_1: "fa", english_name: "Persian", name: "فارسی" },
   { iso_639_1: "he", english_name: "Hebrew", name: "עִבְרִית" },
-  { iso_639_1: "hi", english_name: "Hindi", name: "हिन्दी" },
   { iso_639_1: "hy", english_name: "Armenian", name: "" },
-  { iso_639_1: "en", english_name: "English", name: "English" },
   { iso_639_1: "ee", english_name: "Ewe", name: "Èʋegbe" },
   { iso_639_1: "ka", english_name: "Georgian", name: "ქართული" },
   { iso_639_1: "pa", english_name: "Punjabi", name: "ਪੰਜਾਬੀ" },
@@ -186,4 +185,5 @@ export const LANGAUAGES = [
   { iso_639_1: "ch", english_name: "Chamorro", name: "Finu' Chamorro" },
   { iso_639_1: "be", english_name: "Belarusian", name: "беларуская мова" },
   { iso_639_1: "yo", english_name: "Yoruba", name: "Èdè Yorùbá" },
+  { iso_639_1: "xx", english_name: "No Language", name: "No Language" },
 ];

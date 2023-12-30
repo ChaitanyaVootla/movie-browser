@@ -1,8 +1,43 @@
 export const WATCH_PROVIDERS = [
   {
+    logo_path: "/t2yyOv40HZeVlLjYsCsPHnWLk4W.jpg",
+    provider_name: "Netflix",
+    provider_id: 8,
+  },
+  {
+    logo_path: "/5NyLm42TmCqCMOZFvH4fcoSNKEW.jpg",
+    provider_name: "Amazon Video",
+    provider_id: 10,
+  },
+  {
     logo_path: "/peURlLlr8jggOwK53fJ5wdQl05y.jpg",
     provider_name: "Apple TV",
     provider_id: 2,
+  },
+  {
+    logo_path: "/m3NWxxR23l1w1e156fyTuw931gx.jpg",
+    provider_name: "aha",
+    provider_id: 532,
+  },
+  {
+    logo_path: "/7Fl8ylPDclt3ZYgNbW2t7rbZE9I.jpg",
+    provider_name: "Hotstar",
+    provider_id: 122,
+  },
+  {
+    logo_path: "/oIkQkEkwfmcG7IGpRR1NB8frZZM.jpg",
+    provider_name: "YouTube",
+    provider_id: 192,
+  },
+  {
+    logo_path: "/ajbCmwvZ8HiePHZaOVEgm9MzyuA.jpg",
+    provider_name: "Zee5",
+    provider_id: 232,
+  },
+  {
+    logo_path: "/odTur9CmVtzsRUAZ9910tPM4XwL.jpg",
+    provider_name: "Sony Liv",
+    provider_id: 237,
   },
   {
     logo_path: "/tbEdFQDwx5LEVr8WpSeXQSIirVq.jpg",
@@ -15,19 +50,9 @@ export const WATCH_PROVIDERS = [
     provider_id: 7,
   },
   {
-    logo_path: "/t2yyOv40HZeVlLjYsCsPHnWLk4W.jpg",
-    provider_name: "Netflix",
-    provider_id: 8,
-  },
-  {
     logo_path: "/emthp39XA2YScoYL1p0sdbAH2WA.jpg",
     provider_name: "Amazon Prime Video",
     provider_id: 9,
-  },
-  {
-    logo_path: "/5NyLm42TmCqCMOZFvH4fcoSNKEW.jpg",
-    provider_name: "Amazon Video",
-    provider_id: 10,
   },
   {
     logo_path: "/bVR4Z1LCHY7gidXAJF5pMa4QrDS.jpg",
@@ -335,11 +360,6 @@ export const WATCH_PROVIDERS = [
     provider_id: 121,
   },
   {
-    logo_path: "/7Fl8ylPDclt3ZYgNbW2t7rbZE9I.jpg",
-    provider_name: "Hotstar",
-    provider_id: 122,
-  },
-  {
     logo_path: "/twV9iQPYeaoBzwsfRFGMGoMIUg8.jpg",
     provider_name: "FXNow",
     provider_id: 123,
@@ -510,11 +530,6 @@ export const WATCH_PROVIDERS = [
     provider_id: 191,
   },
   {
-    logo_path: "/oIkQkEkwfmcG7IGpRR1NB8frZZM.jpg",
-    provider_name: "YouTube",
-    provider_id: 192,
-  },
-  {
     logo_path: "/x36C6aseF5l4uX99Kpse9dbPwBo.jpg",
     provider_name: "Starz Play Amazon Channel",
     provider_id: 194,
@@ -625,11 +640,6 @@ export const WATCH_PROVIDERS = [
     provider_id: 230,
   },
   {
-    logo_path: "/ajbCmwvZ8HiePHZaOVEgm9MzyuA.jpg",
-    provider_name: "Zee5",
-    provider_id: 232,
-  },
-  {
     logo_path: "/8T2jS3TdKCAsCrH0Kvl2NCwQ0ym.jpg",
     provider_name: "Arte",
     provider_id: 234,
@@ -643,11 +653,6 @@ export const WATCH_PROVIDERS = [
     logo_path: "/tSayx1KHEaZG9iyFLMnDpXAFBzh.jpg",
     provider_name: "France TV",
     provider_id: 236,
-  },
-  {
-    logo_path: "/odTur9CmVtzsRUAZ9910tPM4XwL.jpg",
-    provider_name: "Sony Liv",
-    provider_id: 237,
   },
   {
     logo_path: "/lwefE4yPpCQGhH2LotPuhGA8gCV.jpg",
@@ -1603,11 +1608,6 @@ export const WATCH_PROVIDERS = [
     logo_path: "/xbhHHa1YgtpwhC8lb1NQ3ACVcLd.jpg",
     provider_name: "Paramount Plus",
     provider_id: 531,
-  },
-  {
-    logo_path: "/m3NWxxR23l1w1e156fyTuw931gx.jpg",
-    provider_name: "aha",
-    provider_id: 532,
   },
   {
     logo_path: "/1h8etYGesCuldkQGoUDyDJr92EB.jpg",

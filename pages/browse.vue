@@ -19,7 +19,7 @@
                         :items="sortByValues"
                         label="Sort By"
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         item-title="text"
                         item-value="value"
                         @update:model-value="freshLoad()"
@@ -33,7 +33,7 @@
                         label="Genres"
                         multiple
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         item-title="name"
                         item-value="id"
                         @update:model-value="freshLoad()"
@@ -47,7 +47,7 @@
                         multiple
                         label="Watch Providers"
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         item-title="provider_name"
                         item-value="provider_id"
                         auto-select-first
@@ -60,7 +60,7 @@
                         :items="ratingOptions"
                         label="Rating"
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         item-title="text"
                         item-value="value"
                         clearable
@@ -76,7 +76,7 @@
                         :items="LANGAUAGES"
                         label="Language"
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         item-title="english_name"
                         item-value="iso_639_1"
                         @update:model-value="freshLoad()"
@@ -90,7 +90,7 @@
                         label="Exclude Genres"
                         multiple
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         item-title="name"
                         item-value="id"
                         @update:model-value="freshLoad()"
@@ -105,7 +105,7 @@
                         multiple
                         label="Keywords"
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         item-title="name"
                         item-value="id"
                         auto-select-first
@@ -119,14 +119,14 @@
                         @update:model-value="freshLoad()"
                         placeholder="Minimum votes"
                         variant="solo"
-                        density="comfortable"
+                        density="compact"
                         label="Minimum Votes"
                     ></v-text-field>
                 </div>
             </div>
         </div>
-        <div v-if="!isNaN(data?.total_results)" class="md:ml-16 mt-2 text-neutral-200 text-sm md:text-lg">
-            {{ data?.total_results }} Results
+        <div v-if="!pending" class="md:ml-16 mt-2 text-neutral-200 text-sm md:text-lg">
+            {{ totalResults }} Results
         </div>
         <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:px-3 md:px-14"/>
         <div v-if="discoverResults.length && canShowLoadMore" class="w-full flex justify-center">
@@ -136,10 +136,11 @@
 </template>
 
 <script setup lang="ts">
-const selectedType = ref(0);
-const pending = ref(true);
-const canShowLoadMore = ref(true);
-const discoverResults = ref([] as any[]);
+let selectedType = ref(0);
+let pending = ref(true);
+let canShowLoadMore = ref(true);
+let discoverResults = ref([] as any[]);
+let totalResults = ref(0);
 
 const genres = computed(() => {
     return selectedType.value === 0 ? Object.values(movieGenres) : Object.values(seriesGenres);
@@ -164,11 +165,11 @@ const ratingOptions = new Array(10).fill({}).map((item, index) => ({
 
 let pageTrack = 1;
 
-const freshLoad = () => {
+const freshLoad = async () => {
     pageTrack = 1;
     canShowLoadMore.value = true;
     discoverResults.value = [];
-    loadData();
+    totalResults.value = (await loadData()).total_results as number;
 }
 
 const queryParams = ref<any>({
@@ -196,11 +197,11 @@ const queryParams = ref<any>({
     }
 });
 
-const mediaTypeUpdated = () => {
+const mediaTypeUpdated = async () => {
     queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
     queryParams.value.with_genres = [];
     queryParams.value.without_genres = [];
-    loadData();
+    totalResults.value = (await loadData()).total_results as number;
 }
 
 const loadData = async () => {
@@ -228,9 +229,10 @@ const loadData = async () => {
         total_results: number;
         results: any[];
     };
+    console.log(queryParams.value)
     const query = Object.keys(queryParams.value).reduce((acc: any, key: any) => {
-        if ((queryParams.value[key] !== '') && queryParams.value) {
-            acc[key] = queryParams.value[key];
+        if (queryParams.value[key]) {
+            acc[key] = `${queryParams.value[key]}`;
         }
         return acc;
     }, {});
@@ -245,11 +247,61 @@ const loadData = async () => {
     return data;
 }
 
-const data = await loadData();
+totalResults.value = (await loadData()).total_results as number;
 
 const loadMore = async () => {
     loadData();
 }
+
+useHead({
+    title: 'Discover - The Movie Browser',
+    meta: [
+        {
+            name: 'description',
+            content: 'Discover movies and series with the most advanced filters.'
+        },
+        {
+            hid: 'og:title',
+            property: 'og:title',
+            content: 'The Movie Browser',
+        },
+        {
+            hid: 'og:description',
+            property: 'og:description',
+            content: 'Discover movies and series with the most advanced filters.'
+        },
+        {
+            hid: 'og:image',
+            property: 'og:image',
+            content: '/backdrop.webp',
+        },
+        {
+            hid: 'og:url',
+            property: 'og:url',
+            content: 'https://themoviebrowser.vercel.app',
+        },
+        {
+            hid: 'twitter:title',
+            name: 'twitter:title',
+            content: 'The Movie Browser',
+        },
+        {
+            hid: 'twitter:description',
+            name: 'twitter:description',
+            content: 'Discover movies and series with the most advanced filters.'
+        },
+        {
+            hid: 'twitter:image',
+            name: 'twitter:image',
+            content: '/backdrop.webp',
+        },
+        {
+            hid: 'twitter:card',
+            name: 'twitter:card',
+            content: 'summary_large_image',
+        },
+    ]
+});
 </script>
 
 <style scoped lang="less">
