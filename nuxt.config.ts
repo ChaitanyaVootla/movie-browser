@@ -25,11 +25,6 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'en',
       },
-      script: [
-        {
-          src: 'https://accounts.google.com/gsi/client',
-        }
-      ],
       titleTemplate: (titleChunk) => {
         return titleChunk ? `${titleChunk} - Movie Browser` : 'Movie Browser'
       },
@@ -43,6 +38,7 @@ export default defineNuxtConfig({
   },
   modules: [
     "@nuxtjs/google-fonts",
+    "nuxt-gtag",
     "@nuxt/image",
     "nuxt-lodash",
     "@sidebase/nuxt-auth",
@@ -70,6 +66,9 @@ export default defineNuxtConfig({
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
+  },
+  gtag: {
+    id: 'G-KDSZYVPEVZ'
   },
   vite: {
     vue: {

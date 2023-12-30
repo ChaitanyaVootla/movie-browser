@@ -17,6 +17,7 @@
     "autoprefixer": "^10.4.16",
     "less": "^4.2.0",
     "nuxt": "^3.8.2",
+    "nuxt-gtag": "^1.1.2",
     "nuxt-lodash": "^2.5.3",
     "nuxt-time": "^0.1.1",
     "postcss": "^8.4.32",
