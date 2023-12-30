@@ -105,9 +105,9 @@
             </v-btn>
         </v-bottom-navigation>
     </div>
-    <v-overlay v-model="showSearchOverlay" absolute width="100%" height="100%" contained>
+    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" contained>
         <div class="flex justify-center relative min-h-full">
-        <div class="absolute w-full px-10 top-36 flex justify-center md:w-1/2">
+        <div class="absolute w-full px-10 top-3 md:top-36 flex justify-center lg:w-1/4">
             <v-autocomplete
                 auto-select-first
                 label="Search"
@@ -123,24 +123,30 @@
                 <template v-slot:item="{ props, item }">
                     <v-list-item v-bind="props" title="" variant="flat">
                         <div class="flex justify-between p-3">
-                            <div>
+                            <div class="w-2/4 md:w-3/4">
                                 <div class="title">
                                     {{ item.raw.title || item.raw.name }}
                                 </div>
-                                <div class="text-neutral-400">
-                                    {{ (item.raw.release_date || item.raw.first_air_date || '').slice(0, 4)
-                                        }} - {{ item.raw.media_type }}
+                                <div class="text-neutral-400 capitalize flex gap-2">
+                                    <div v-if="item.raw.release_date || item.raw.first_air_date">
+                                        {{ (item.raw.release_date || item.raw.first_air_date).slice(0, 4) }} -
+                                    </div>
+                                    <div>
+                                        {{ item.raw.media_type }}
+                                    </div>
                                 </div>
-                                <div class="overview text-neutral-400 text-sm text-ellipsis mt-3">
+                                <!-- <div class="overview text-neutral-400 text-sm text-ellipsis mt-3">
                                     {{ item.raw.overview?.slice(0, 200) }}
-                                </div>
+                                </div> -->
                             </div>
-                            <div>
+                            <div class="w-2/4 md:w-1/4">
                                 <v-img
-                                    :src="`https://image.tmdb.org/t/p/w185${item.raw.poster_path || item.raw.profile_path}`"
-                                    width="120"
-                                    height="180"
+                                    :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w342
+                                        }${item.raw.backdrop_path || item.raw.profile_path}`"
+                                    height="100"
+                                    width="100%"
                                     class="rounded-md"
+                                    cover
                                     :alt="item.raw.title"
                                 >
                                     <template v-slot:placeholder>
@@ -215,20 +221,20 @@ const bottomNavItemClicked = (item: any) => {
 </script>
 
 <style lang="less">
-:deep(.search) {
-    .v-list-item__content {
-        width: 100% !important;
-    }
-}
+// :deep(.search) {
+//     .v-list-item__content {
+//         width: 100% !important;
+//     }
+// }
 
-@media (min-width: 768px) {
-    .v-list-item__content {
-        max-width: calc(50vw - 3rem);
-    }
-    .search {
-        width: 50% !important;
-    }
-}
+// @media (min-width: 768px) {
+//     .v-list-item__content {
+//         max-width: calc(50vw - 3rem);
+//     }
+//     .search {
+//         width: 50% !important;
+//     }
+// }
 .v-autocomplete__content {
     max-height: calc(100vh - 20rem) !important;
 }
