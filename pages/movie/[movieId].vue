@@ -27,10 +27,10 @@
                             <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block text-xs md:text-base"
                                 :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
                         </div>
-                        <div class="text-neutral-300 mt-1 md:mt-3 text text-sm md:text-base">
+                        <div class="text-neutral-300 mt-1 md:mt-3 text text-xs md:text-base">
                             {{ movie.overview }}
                         </div>
-                        <div class="flex flex-wrap gap-3 mt-5">
+                        <div class="flex flex-wrap gap-1 md:gap-3 mt-2 md:mt-5">
                             <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill" :color="'#ddd'"
                                 :size="$vuetify.display.mobile?'x-small':'default'">
                                 {{ keyword.name }}

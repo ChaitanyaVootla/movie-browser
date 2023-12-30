@@ -1,10 +1,12 @@
 <template>
-    <div class="flex">
-        <div v-if="watchOptions.length" class="flex justify-center flex-wrap max-md:gap-3 md:gap-8 bg-neutral-800
+    <div v-if="watchOptions.length" class="flex">
+        <div class="flex justify-center flex-wrap max-md:gap-3 md:gap-8 bg-neutral-800
             max-md:px-2 md:px-4 max-md:pt-4 max-md:pb-2 md:pt-5 md:pb-2 rounded-2xl relative min-w-28">
-            <div class="absolute -top-2 left-2 bg-neutral-600 px-2 py-0 rounded-full text-xs
-                md:text-sm text-neutral-200 font-light">
-                Watch Now
+            <div class="absolute w-full -top-2 flex max-md:justify-center md:justify-start md:ml-5">
+                <div class="left-2 bg-neutral-600 px-2 py-0 rounded-full text-xs
+                    md:text-sm text-neutral-200 font-light">
+                    Watch Now
+                </div>
             </div>
             <div v-for="watchOption in watchOptions">
                 <NuxtLink :to="watchOption.link" target="blank" event="" noreferrer noopener>
