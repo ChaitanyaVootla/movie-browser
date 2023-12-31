@@ -2,9 +2,10 @@
     <div>
         <div v-if="pending" class="pending w-full h-full">
             <v-skeleton-loader
-                class="min-w-full h-full"
-                max-width="300"
-                type="image"
+                class="hidden md:block m-5"
+                type="card, article"
+                color="transparent"
+                :elevation="20"
             ></v-skeleton-loader>
         </div>
         <div v-else>
@@ -17,11 +18,11 @@
                             {{ watchlist?'In Watch List':'Add to list' }}
                         </v-btn>
                     </div>
-                    <div class="flex w-full items-center gap-4 flex-wrap">
+                    <div class="flex w-full items-center gap-4 flex-wrap max-md:justify-center md:justify-start">
                         <div v-if="series.status">
-                            <v-chip rounded :color="seriesStatusColor" density="comfortable"
-                                :size="$vuetify.display.mobile?'default':'x-large'" variant="elevated">
-                                Status <b class="ml-2">{{ statusText }}</b>
+                            <v-chip rounded :color="seriesStatusColor" density="default"
+                                :size="$vuetify.display.mobile?'small':'large'" variant="elevated" >
+                                Status <b class="ml-2 font-medium">{{ statusText }}</b>
                             </v-chip>
                         </div>
                         <div class="mt-5">
@@ -49,7 +50,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="px-3 md:px-0 max-md:-mt-5">
+                <div class="px-3 md:px-0 max-md:-mt-2">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <div class="flex flex-col gap-3 mt-2 w-56 md:w-96">
@@ -70,7 +71,7 @@
                                     </div>
                                 </div>
                                 <v-img :src="`https://image.tmdb.org/t/p/w500${item.still_path}`"
-                                    class="rounded-lg mr-5"
+                                    class="rounded-lg mr-2"
                                     :alt="item.name">
                                     <template v-slot:placeholder>
                                         <v-skeleton-loader
@@ -238,7 +239,7 @@ const seasonSelected = async (season: any) => {
 const seriesStatusColor = computed(() => {
     switch (series.value?.status) {
         case 'Returning Series':
-            return '#ddd';
+            return '#333';
         case 'Ended':
             return '#3a983a';
         case 'Canceled':

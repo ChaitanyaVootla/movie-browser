@@ -2,9 +2,10 @@
     <div>
         <div v-if="pending" class="pending w-full h-full">
             <v-skeleton-loader
-                class="min-w-full h-full"
-                max-width="300"
-                type="image"
+                class="hidden md:block m-5"
+                type="card, article"
+                color="transparent"
+                :elevation="20"
             ></v-skeleton-loader>
         </div>
         <div v-else>
