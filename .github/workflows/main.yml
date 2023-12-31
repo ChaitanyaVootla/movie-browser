@@ -14,11 +14,12 @@ jobs:
               username: root
               password: ${{ secrets.DIGITAL_OCEAN_PASS }}
               script: |
-                  source ~/.bashrc
-                  cd /beta/movie-browser
-                  git checkout -f nuxt
-                  git pull origin nuxt
-                  npm install
-                  npm run build
-                  pm2 delete all
-                  pm2 start "npm run preview" --name Nuxt
+                bash -lc '
+                cd /beta/movie-browser
+                git checkout -f nuxt
+                git pull origin nuxt
+                npm install
+                npm run build
+                pm2 delete all
+                pm2 start "npm run preview" --name Nuxt
+                '
