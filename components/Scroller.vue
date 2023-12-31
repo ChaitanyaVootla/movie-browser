@@ -1,7 +1,7 @@
 <template>
     <div>
-        <div class="title text-base md:text-lg font-light -mb-1 md:mb-0 md:ml-14">
-            {{ title }}
+        <div class="title text-sm md:text-lg font-semibold -mb-1 md:mb-0 md:ml-14 flex justify-start items-center gap-1">
+            <v-icon v-if="titleIcon" :icon="titleIcon"></v-icon> <div class="mt-1">{{ title }}</div>
         </div>
         <div class="flex w-full h-full">
             <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden" v-on:click="slideLeft">
@@ -34,6 +34,10 @@ defineProps({
     title: {
         type: String,
         required: true
+    },
+    titleIcon: {
+        type: String,
+        required: false
     },
     pending: {
         type: Boolean,

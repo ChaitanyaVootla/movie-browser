@@ -1,14 +1,18 @@
 <template>
-    <div class="-mb-5 md:mb-0">
-        <v-carousel :height="$vuetify.display.mobile?'calc((100vw * 0.5625) + 9rem)':'55vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
-            delimiterIcon="mdi-circle" class="carousel" :key="trending?.allItems?.length">
+    <div v-if="trending?.allItems?.length" class="-mb-5 md:-mb-5">
+        <v-carousel :height="$vuetify.display.mobile?'calc((100vw * 0.5625) + 9rem)':'59vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
+            delimiterIcon="mdi-circle-medium" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
-                <v-icon icon="mdi-chevron-left" @click="props.onClick"></v-icon>
+                <div class="w-12 h-full cursor-pointer flex justify-center items-center group" @click="props.onClick">
+                    <v-icon icon="mdi-chevron-left" class="group-hover:scale-150"></v-icon>
+                </div>
             </template>
             <template v-slot:next="{ props }">
-                <v-icon icon="mdi-chevron-right" @click="props.onClick"></v-icon>
+                <div class="w-12 h-full cursor-pointer flex justify-center items-center group" @click="props.onClick">
+                    <v-icon icon="mdi-chevron-right" class="group-hover:scale-150"></v-icon>
+                </div>
             </template>
-            <v-carousel-item v-for="item in (trending?.allItems || [])">
+            <v-carousel-item v-for="item in trending?.allItems">
                 <NuxtLink :to="`/${item.release_date ? 'movie': 'series'}/${item.id}`">
                     <DetailsTopInfo :item="item" :watched="false" :minimal="true" />
                 </NuxtLink>
@@ -17,18 +21,25 @@
     </div>
     <div class="mt-5 md:mt-0 p-3 pb-16">
         <div v-if="status === 'authenticated' && watchList?.ongoingSeries?.length">
-            <Scroller v-if="continueWatching?.length" :items="continueWatching" :pending="false" title="Continue Watching" class="mb-1 md:pb-5">
+            <Scroller v-if="continueWatching?.length" :items="continueWatching" :pending="false" title="Continue Watching" class="mb-1 md:pb-5"
+                titleIcon="mdi-play-circle-outline">
                 <template v-slot:default="{ item }">
                     <WatchCard :item="item" class="mr-3" />
                 </template>
             </Scroller>
-            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-1 md:pb-5" />
-            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-1 md:pb-5" />
+            <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-1 md:pb-5"
+                title-icon="mdi-television-classic"/>
+            <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-1 md:pb-5"
+                title-icon="mdi-movie-open-play-outline"/>
         </div>
-        <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class="" />
-        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-1 md:pt-5" />
-        <Scroller :items="trending?.streamingNow" :pending="pending" title="Sreaming Now" class="mt-1 md:pt-5" />
-        <Scroller v-if="status === 'authenticated'" :items="recents" :pending="pending" title="Recent visits" class="mt-1 md:pt-5" />
+        <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class=""
+            title-icon="mdi-movie-open-outline"/>
+        <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-1 md:pt-5"
+            title-icon="mdi-television-classic"/>
+        <Scroller :items="trending?.streamingNow" :pending="pending" title="Streaming Now" class="mt-1 md:pt-5"
+            title-icon="mdi-movie-open-play-outline"/>
+        <Scroller v-if="status === 'authenticated'" :items="recents" :pending="pending" title="Recent visits" class="mt-1 md:pt-5"
+            title-icon="mdi-history"/>
     </div>
 </template>
 <script setup lang="ts">
@@ -59,7 +70,7 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
                             }
                         }
                     }
-                )
+                ).slice(0, 10)
             }
         },
     }
@@ -153,6 +164,9 @@ useHead({
 </script>
 
 <style scoped lang="less">
+:deep(.v-window__controls) {
+    padding: 0;
+}
 
 @media (max-width: 768px) {
     :deep(.carousel) {
@@ -161,18 +175,18 @@ useHead({
         }
     }
 }
-@media (min-width: 768px) {
-    :deep(.carousel) {
-        .v-carousel__controls {
-            display: none;
-        }
-        &:hover {
-            .v-carousel__controls {
-                display: flex;
-            }
-        }
-    }
-}
+// @media (min-width: 768px) {
+//     :deep(.carousel) {
+//         .v-carousel__controls {
+//             display: none;
+//         }
+//         &:hover {
+//             .v-carousel__controls {
+//                 display: flex;
+//             }
+//         }
+//     }
+// }
 :deep(.trending-image-container) {
     &::after {
         content: '';

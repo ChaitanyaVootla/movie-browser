@@ -19,15 +19,24 @@
                     </template>
                 </v-img>
             </div>
-            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-base">
-                {{ item.character || item.title || item.name }}
+            <div class="overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-base
+                flex justify-end items-center gap-2">
+                <div>
+                    <v-img :src="watchOptionImageMapper[item.watchProviderName]?.image"
+                        class="max-md:w-6 max-md:h-6 md:w-7 md:h-7" :alt="item.watchProviderName"></v-img>
+                </div>
+                <div class="flex-grow">
+                    {{ item.character || item.title || item.name }}
+                </div>
             </div>
         </div>
     </NuxtLink>
 </template>
 
 <script setup lang="ts">
-const props = defineProps({
+import { watchOptionImageMapper } from '~/utils/watchOptions';
+
+defineProps({
     item: {
         type: Object,
         required: true,

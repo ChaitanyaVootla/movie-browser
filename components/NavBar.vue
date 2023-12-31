@@ -10,7 +10,7 @@
             </NuxtLink>
             <NuxtLink to="/browse">
                 <div class="flex items-center gap-2" aria-label="Go To AI search">
-                    <v-icon icon="mdi-movie-search" class="text-3xl" />
+                    <v-icon icon="mdi-movie-search-outline" class="text-3xl" />
                     Browse
                 </div>
             </NuxtLink>
@@ -68,7 +68,7 @@
         </div>
     </div>
     <div class="md:hidden">
-        <v-bottom-navigation :grow="true" @update:modelValue="bottomNavItemClicked" bg-color="#111" color="#aaa"
+        <v-bottom-navigation :grow="true" @update:modelValue="bottomNavItemClicked" bg-color="#050505" color="#aaa"
             density="comfortable" mandatory rounded v-model="defaultNavBarItem">
             <v-btn value="home" @click="bottomNavItemClicked('home')">
                 <v-icon>mdi-home</v-icon>
@@ -76,7 +76,7 @@
             </v-btn>
 
             <v-btn value="browse" @click="bottomNavItemClicked('browse')">
-                <v-icon>mdi-movie-search</v-icon>
+                <v-icon>mdi-movie-search-outline</v-icon>
                 <span>Browse</span>
             </v-btn>
 
