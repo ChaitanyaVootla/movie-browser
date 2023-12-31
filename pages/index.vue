@@ -1,6 +1,6 @@
 <template>
     <div v-if="trending?.allItems?.length" class="-mb-5 md:-mb-5">
-        <v-carousel :height="$vuetify.display.mobile?'calc((100vw * 0.5625) + 9rem)':'59vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
+        <v-carousel :height="$vuetify.display.mobile?'calc((100vw * 0.5625) + 12rem)':'59vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-circle-medium" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
                 <div class="w-12 h-full cursor-pointer flex justify-center items-center group" @click="props.onClick">
@@ -30,14 +30,14 @@
             <Scroller :items="watchList.ongoingSeries" :pending="false" title="Upcoming Episodes" class="mb-1 md:pb-5"
                 title-icon="mdi-television-classic"/>
             <Scroller :items="watchList.movies" :pending="false" title="Movies in your watch list" class="mb-1 md:pb-5"
-                title-icon="mdi-movie-open-play-outline"/>
+                title-icon="mdi-movie-open-outline"/>
         </div>
         <Scroller :items="trending?.movies" :pending="pending" title="Trending Movies" class=""
             title-icon="mdi-movie-open-outline"/>
         <Scroller :items="trending?.tv" :pending="pending" title="Trending Series" class="mt-1 md:pt-5"
             title-icon="mdi-television-classic"/>
         <Scroller :items="trending?.streamingNow" :pending="pending" title="Streaming Now" class="mt-1 md:pt-5"
-            title-icon="mdi-movie-open-play-outline"/>
+            title-icon="mdi-movie-open-outline"/>
         <Scroller v-if="status === 'authenticated'" :items="recents" :pending="pending" title="Recent visits" class="mt-1 md:pt-5"
             title-icon="mdi-history"/>
     </div>
@@ -167,26 +167,12 @@ useHead({
 :deep(.v-window__controls) {
     padding: 0;
 }
-
-@media (max-width: 768px) {
-    :deep(.carousel) {
-        .v-carousel__controls {
-            display: none;
-        }
+:deep(.carousel) {
+    .v-btn--icon.v-btn--density-default {
+        width: 1.2rem;
+        height: 1.2rem;
     }
 }
-// @media (min-width: 768px) {
-//     :deep(.carousel) {
-//         .v-carousel__controls {
-//             display: none;
-//         }
-//         &:hover {
-//             .v-carousel__controls {
-//                 display: flex;
-//             }
-//         }
-//     }
-// }
 :deep(.trending-image-container) {
     &::after {
         content: '';

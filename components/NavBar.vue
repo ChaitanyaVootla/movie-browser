@@ -105,7 +105,7 @@
             </v-btn>
         </v-bottom-navigation>
     </div>
-    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" contained>
+    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" absolute contained>
         <div class="flex justify-center relative min-h-full">
         <div class="absolute w-full px-10 top-3 md:top-36 flex justify-center lg:w-1/4">
             <v-autocomplete

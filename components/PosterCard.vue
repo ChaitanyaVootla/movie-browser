@@ -70,6 +70,8 @@ const addToParentFilter = () => {
 <style scoped lang="less">
 @image-width: 15rem;
 @image-height: calc(@image-width * (3/2));
+@image-mobile-width: 8rem;
+@image-mobile-height: calc(@image-mobile-width * (3/2));
 
 .card {
     flex: 0 0 auto;
@@ -81,13 +83,11 @@ const addToParentFilter = () => {
 }
 // reduce image-width for mobile
 @media (max-width: 640px) {
-    @image-width: 7rem;
-    @image-height: calc(@image-width * (3/2));
     .card {
-        width: @image-width;
+        width: @image-mobile-width;
         .image {
-            height: @image-height;
-            width: @image-width;
+            height: @image-mobile-height;
+            width: @image-mobile-width;
         }
     }
 }
