@@ -87,6 +87,7 @@
                 </div> -->
             </div>
         </div>
+        <Login ref="loginRef" />
     </div>
 </template>
 
@@ -98,6 +99,8 @@ let updatingMovie = ref(false);
 let aiRecommendations = ref([] as any);
 let isMounted = ref(false);
 let isKeywordsExpanded = ref(false);
+const { status } = useAuth();
+let loginRef = null as any;
 
 const keywords = computed(() => {
     if (movie.value?.keywords?.keywords?.length > 5 && !isKeywordsExpanded.value) {
@@ -108,6 +111,7 @@ const keywords = computed(() => {
 
 onMounted(() => {
     isMounted.value = true;
+    loginRef = ref(null);
 });
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit
@@ -199,6 +203,10 @@ watch(movie, () => {
 });
 
 const watchClicked = () => {
+    if (status.value !== 'authenticated') {
+        loginRef.value.openDialog();
+        return;
+    }
     watched.value = !watched.value;
     if (watched.value === true) {
         $fetch(`/api/user/movie/${movie.value.id}/watched`, {
@@ -212,6 +220,10 @@ const watchClicked = () => {
 }
 
 const watchListClicked = () => {
+    if (status.value !== 'authenticated') {
+        loginRef.value.openDialog();
+        return;
+    }
     watchlist.value = !watchlist.value;
     if (watchlist.value === true) {
         $fetch(`/api/user/movie/${movie.value.id}/watchList`, {
@@ -225,6 +237,10 @@ const watchListClicked = () => {
 }
 
 const updateMovie = async () => {
+    if (status.value !== 'authenticated') {
+        loginRef.value.openDialog();
+        return;
+    }
     updatingMovie.value = true;
     await $fetch(`/api/movie/${movie.value.id}?force=true`);
     updatingMovie.value = false;

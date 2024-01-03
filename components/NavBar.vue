@@ -45,9 +45,7 @@
                 </v-chip>
                 <div class="ml-5">
                     <div v-if="status === 'unauthenticated' || status === 'loading'">
-                        <v-btn @click="signIn('google')" color="#333" prepend-icon="mdi-google">
-                            Continue with Google
-                        </v-btn>
+                        <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="h-10 cursor-pointer" />
                     </div>
                     <div v-else>
                         <v-menu>
@@ -91,7 +89,7 @@
             </v-btn>
 
             <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile" @click="signIn('google')">
-                <v-icon>mdi-google</v-icon>
+                <NuxtImg src="/images/googleLogin/login_small.svg" class="h-6 -mt-1" />
                 <span>Login</span>
             </v-btn>
             <v-btn v-else>

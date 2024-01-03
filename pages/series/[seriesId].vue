@@ -46,10 +46,6 @@
                         <div class="text-sm md:text-base max-md:mt-1 md:mt-2">
                             {{ series.selectedSeason?.episodes?.length || 0 }} Episodes
                         </div>
-                        <div v-if="!$vuetify.display.mobile">
-                            <NuxtTime v-if="series.selectedSeason?.air_date" :datetime="new Date(series.selectedSeason?.air_date)"
-                                year="numeric" month="long" day="numeric" />
-                        </div>
                     </div>
                 </div>
                 <div class="px-3 md:px-0 max-md:-mt-2">
@@ -156,18 +152,23 @@
                 </div>
             </div>
         </div>
+        <Login ref="loginRef" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { humanizeDateFull } from '~/utils/dateFormatter';
 
+const { status } = useAuth();
+
 const updatingSeries = ref(false);
 const isMounted = ref(false);
 let isKeywordsExpanded = ref(false);
+let loginRef = null as any;
 
 onMounted(() => {
     isMounted.value = true;
+    loginRef = ref(null);
 });
 
 const keywords = computed(() => {
@@ -291,6 +292,10 @@ const statusText = computed(() => {
 });
 
 const updateSeries = async () => {
+    if (status.value !== 'authenticated') {
+        loginRef.value.openDialog();
+        return;
+    }
     updatingSeries.value = true;
     await $fetch(`/api/series/${series.value.id}?force=true`);
     updatingSeries.value = false;
@@ -308,6 +313,10 @@ const keywordClicked = (keyword: any) => {
 }
 
 const watchListClicked = () => {
+    if (status.value !== 'authenticated') {
+        loginRef.value.openDialog();
+        return;
+    }
     watchlist.value = !watchlist.value;
     if (watchlist.value === true) {
         $fetch(`/api/user/series/${series.value.id}/watchList`, {

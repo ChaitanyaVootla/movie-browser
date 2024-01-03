@@ -13,7 +13,6 @@
         <div>
             <div v-if="selectedType === 0" class="flex flex-col gap- mb-14">
                 <div v-if="pending">
-                    pending
                     <Scroller :items="Array(10)" title="" :pending="pending" />
                     <Scroller :items="Array(10)" title="" :pending="pending" />
                     <Scroller :items="Array(10)" title="" :pending="pending" />
@@ -26,15 +25,27 @@
                     <Scroller v-if="watchListData?.series?.completedSeries?.length" :items="watchListData?.series?.completedSeries"
                         title="Completed" :pending="pending" class="mt-4" />
                 </div>
-                <div v-else class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
+                <div v-else-if="status === 'authenticated'" class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
                     No Series in your watch list
+                </div>
+                <div v-else>
+                    <div class="flex flex-col gap-5 justify-center text-2xl text-neutral-400 items-center mt-20">
+                        Login to start adding series to your watch list
+                        <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="h-10 cursor-pointer" />
+                    </div>
                 </div>
             </div>
             <div v-else-if="selectedType === 1">
                 <Grid v-if="watchListData?.movies?.length" :items="watchListData?.movies" title="" />
-                <div v-else>
+                <div v-else-if="status === 'authenticated'">
                     <div class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
                         No Movies in your watch list
+                    </div>
+                </div>
+                <div v-else>
+                    <div class="flex flex-col gap-5 justify-center text-2xl text-neutral-400 items-center mt-20">
+                        Login to start adding movies to your watch list
+                        <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="h-10 cursor-pointer" />
                     </div>
                 </div>
             </div>
@@ -46,6 +57,7 @@
 import { mapWatchListSeries } from '~/utils/seriesMapper';
 
 const selectedType = ref(0);
+const { status, signIn } = useAuth();
 useHead({
     title: 'Watch List - The Movie Browser',
     meta: [
