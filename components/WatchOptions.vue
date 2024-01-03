@@ -1,6 +1,6 @@
 <template>
     <div v-if="watchOptions.length" class="flex">
-        <div class="flex justify-center flex-wrap max-md:gap-3 md:gap-8 bg-neutral-800
+        <div class="flex justify-center flex-wrap max-md:gap-3 md:gap-4 bg-neutral-800
             max-md:px-2 md:px-4 max-md:pt-4 max-md:pb-2 md:pt-5 md:pb-2 rounded-2xl relative min-w-28">
             <div class="absolute w-full -top-2 flex max-md:justify-center md:justify-start md:ml-5">
                 <div class="left-2 bg-neutral-600 px-2 py-0 rounded-full text-xs
@@ -11,11 +11,11 @@
             <div v-for="watchOption in watchOptions">
                 <NuxtLink :to="watchOption.link" target="blank" event="" noreferrer noopener @click="watchLinkClicked(watchOption)">
                     <div class="w-18 flex flex-col items-center justify-between">
-                        <v-img :src="watchOption.image" class="max-md:w-6 max-md:h-6 md:w-7 md:h-7" :alt="watchOption.name"></v-img>
+                        <v-img :src="watchOption.image" class="max-md:w-6 max-md:h-6 md:w-6 md:h-6" :alt="watchOption.name"></v-img>
                         <div v-if="watchOption?.displayName" class="text-2xs md:text-xs text-neutral-200 text-center mt-1">
                             {{ watchOption.displayName }}
                         </div>
-                        <div v-if="watchOption?.price?.length" class="text-2xs md:text-xs text-neutral-400 text-center">
+                        <div v-if="watchOption?.price?.length" class="text-2xs text-neutral-400 text-center">
                             {{ watchOption.price }}
                         </div>
                     </div>

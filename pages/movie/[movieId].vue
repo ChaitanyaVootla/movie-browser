@@ -31,11 +31,17 @@
                         <div class="text-neutral-300 mt-1 md:mt-3 text text-xs md:text-base">
                             {{ movie.overview }}
                         </div>
-                        <div class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
-                            <v-chip :key="`${isMounted}`" v-for="keyword in (movie?.keywords?.keywords || [])"
+                        <div :key="`${isMounted}`" class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
+                            <v-chip v-for="keyword in keywords"
                                 class="rounded-pill cursor-pointer" :color="'#ddd'"
                                 :size="$vuetify.display.mdAndUp?'small':'x-small'" @click="keywordClicked(keyword)">
                                 {{ keyword.name }}
+                            </v-chip>
+                            <v-chip v-if="movie?.keywords?.keywords?.length > 5" @click="isKeywordsExpanded = !isKeywordsExpanded"
+                                class="rounded-pill cursor-pointer" :color="'#ddd'" :size="$vuetify.display.mdAndUp?'small':'x-small'"
+                                variant="text">
+                                <span v-if="isKeywordsExpanded">Collpase</span>
+                                <span v-else>+{{ movie?.keywords?.keywords?.length - 5 }} more</span>
                             </v-chip>
                         </div>
                         <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
@@ -90,7 +96,15 @@ import { humanizeDateFull } from '~/utils/dateFormatter';
 let movie = ref({} as any);
 let updatingMovie = ref(false);
 let aiRecommendations = ref([] as any);
-const isMounted = ref(false);
+let isMounted = ref(false);
+let isKeywordsExpanded = ref(false);
+
+const keywords = computed(() => {
+    if (movie.value?.keywords?.keywords?.length > 5 && !isKeywordsExpanded.value) {
+        return movie.value?.keywords?.keywords?.slice(0, 5);
+    }
+    return movie.value?.keywords?.keywords || [];
+});
 
 onMounted(() => {
     isMounted.value = true;

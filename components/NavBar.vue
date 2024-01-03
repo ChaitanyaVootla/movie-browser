@@ -60,6 +60,11 @@
                                 <v-list-item @click="signOut">
                                     Sign Out
                                 </v-list-item>
+                                <v-list-item>
+                                    <NuxtLink to="/watchList">
+                                        Watch List
+                                    </NuxtLink>
+                                </v-list-item>
                             </v-list>
                         </v-menu>
                     </div>
@@ -99,6 +104,11 @@
                     <v-list>
                         <v-list-item @click="signOut">
                             Sign Out
+                        </v-list-item>
+                        <v-list-item>
+                            <NuxtLink to="/watchList">
+                                Watch List
+                            </NuxtLink>
                         </v-list-item>
                     </v-list>
                 </v-menu>

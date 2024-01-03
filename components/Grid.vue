@@ -31,12 +31,12 @@ export default {
 <style scoped lang="less">
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
     grid-gap: 2rem;
 }
 @media screen and (max-width: 768px) {
     .grid {
-        grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
         grid-gap: 2px;
     }
     

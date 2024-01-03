@@ -19,7 +19,7 @@
                     </template>
                 </v-img>
             </div>
-            <div class="overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-base
+            <div class="overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-sm
                 flex justify-end items-center gap-2">
                 <div>
                     <v-img :src="watchOptionImageMapper[item.watchProviderName]?.image"

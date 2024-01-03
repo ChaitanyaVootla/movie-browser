@@ -13,19 +13,21 @@
             <div>
                 <div class="px-3 md:mx-12 mt-3">
                     <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-0 md:mb-5">
-                        <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
-                            :elevation="5" class="px-5" >
-                            {{ watchlist?'In Watch List':'Add to list' }}
-                        </v-btn>
-                    </div>
-                    <div class="flex w-full items-center gap-4 flex-wrap max-md:justify-center md:justify-start">
                         <div v-if="series.status">
                             <v-chip :key="`${isMounted}`" rounded :color="seriesStatusColor" density="default"
                                 :size="$vuetify.display.mdAndUp?'large':'small'" variant="elevated" >
                                 Status <b class="ml-2 font-medium">{{ statusText }}</b>
                             </v-chip>
                         </div>
-                        <div class="mt-5">
+                        <v-chip :key="`${isMounted}`" rounded @click="watchListClicked()" prepend-icon="mdi-playlist-plus"
+                            :color="(watchlist === true)?'primary':'#333'" variant="flat" :size="$vuetify.display.mdAndUp?'large':'small'"
+                            class="px-5" >
+                            {{ watchlist?'In Watch List':'Add to list' }}
+                        </v-chip>
+                    </div>
+                    <div class="flex w-full items-start gap-4 flex-wrap max-md:justify-center md:justify-start
+                        max-md:mt-3 md:mt-5">
+                        <div>
                             <v-select
                                 v-model="series.selectedSeason"
                                 label="Select Season"
@@ -41,7 +43,7 @@
                                 @update:modelValue="seasonSelected"
                             ></v-select>
                         </div>
-                        <div v-if="!$vuetify.display.mobile">
+                        <div class="text-sm md:text-base max-md:mt-1 md:mt-2">
                             {{ series.selectedSeason?.episodes?.length || 0 }} Episodes
                         </div>
                         <div v-if="!$vuetify.display.mobile">
@@ -106,11 +108,17 @@
                             {{ series.overview }}
                         </div>
 
-                        <div class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
-                            <v-chip :key="`${isMounted}`" v-for="keyword in (series?.keywords?.results || [])"
+                        <div :key="`${isMounted}`" class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
+                            <v-chip v-for="keyword in keywords"
                                 class="rounded-pill cursor-pointer" :color="'#ddd'"
-                                :size="$vuetify.display.mobile?'x-small':'small'" @click="keywordClicked(keyword)">
+                                :size="$vuetify.display.mdAndUp?'small':'x-small'" @click="keywordClicked(keyword)">
                                 {{ keyword.name }}
+                            </v-chip>
+                            <v-chip v-if="series?.keywords?.results?.length > 5" @click="isKeywordsExpanded = !isKeywordsExpanded"
+                                class="rounded-pill cursor-pointer" :color="'#ddd'" :size="$vuetify.display.mdAndUp?'small':'x-small'"
+                                variant="text">
+                                <span v-if="isKeywordsExpanded">Collpase</span>
+                                <span v-else>+{{ series?.keywords?.results?.length - 5 }} more</span>
                             </v-chip>
                         </div>
                         <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
@@ -156,10 +164,19 @@ import { humanizeDateFull } from '~/utils/dateFormatter';
 
 const updatingSeries = ref(false);
 const isMounted = ref(false);
+let isKeywordsExpanded = ref(false);
 
 onMounted(() => {
     isMounted.value = true;
 });
+
+const keywords = computed(() => {
+    if (series.value?.keywords?.results?.length > 5 && !isKeywordsExpanded.value) {
+        return series.value?.keywords?.results?.slice(0, 5);
+    }
+    return series.value?.keywords?.results || [];
+});
+
 
 const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
     () => $fetch(`/api/series/${useRoute().params.seriesId}`).catch((err) => {
@@ -402,6 +419,10 @@ useHead(() => {
         .v-field__field {
             height: 1.7rem;
             margin-top: -5px;
+            .v-select__selection-text {
+                margin-top: -5px;
+                font-size: 14px;
+            }
         }
         .v-label {
             font-size: 12px;

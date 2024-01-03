@@ -11,7 +11,7 @@
                         hover:border-neutral-700 border-neutral-800 w-full h-full"
                     :src="`https://image.tmdb.org/t/p/w185${item.profile_path}`">
                     <template v-slot:placeholder>
-                        <v-skeleton-loader type="image" class="iamge w-full h-full"></v-skeleton-loader>
+                        <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
                     <template v-slot:error>
                         <v-skeleton-loader type="image" class="image w-full h-full">
@@ -20,7 +20,7 @@
                     </template>
                 </v-img>
             </div>
-            <div class="title mt-1 text-xs md:text-base">
+            <div class="title mt-1 text-xs md:text-sm">
                 {{ item.name }}
             </div>
             <div v-if="item.job || item.character" class="text-neutral-400 text-xs md:text-sm">
@@ -50,6 +50,8 @@
 <style scoped lang="less">
 @image-width: 7.5rem;
 @image-height: calc(@image-width * (3/2));
+@image-mobile-width: 5.5rem;
+@image-mobile-height: calc(@image-mobile-width * (3/2));
 
 .card {
     flex: 0 0 auto;
@@ -61,13 +63,11 @@
 }
 // reduce image-width for mobile
 @media (max-width: 640px) {
-    @image-width: 5rem;
-    @image-height: calc(@image-width * (3/2));
     .card {
-        width: @image-width;
+        width: @image-mobile-width;
         .image {
-            height: @image-height;
-            width: @image-width;
+            height: @image-mobile-height;
+            width: @image-mobile-width;
         }
     }
 }

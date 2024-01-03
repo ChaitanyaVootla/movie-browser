@@ -181,8 +181,8 @@ const freshLoad = async () => {
     canShowLoadMore.value = true;
     discoverResults.value = [];
     queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
-    queryParams.value.with_genres = [];
-    queryParams.value.without_genres = [];
+    // queryParams.value.with_genres = [];
+    // queryParams.value.without_genres = [];
     totalResults.value = (await loadData()).total_results as number;
 }
 

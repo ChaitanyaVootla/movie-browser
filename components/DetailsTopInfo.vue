@@ -107,10 +107,10 @@
                     {{ item.title || item.name }}
                 </div>
             </div>
-            <div class="flex flex-col gap-4 justify-center items-center mt-5">
+            <div class="flex flex-col gap-3 justify-center items-center mt-5">
                 <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :small="true"/>
                 <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :item="item"/>
-                <div v-if="!minimal" class="flex gap-3 flex-wrap justify-center">
+                <div v-if="!minimal" class="flex gap-2 flex-wrap justify-center">
                     <div v-for="genre in item.genres">
                         <v-chip class="text-md" size="small" rounded @click="genreClicked(genre)">
                             {{ genre.name }}
