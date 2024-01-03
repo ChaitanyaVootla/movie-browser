@@ -10,30 +10,31 @@
         </div>
         <div v-else>
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
-            <div class="pt-5">
+            <div class="max-md:pt-3 md:pt-5">
                 <div class="px-3 md:mx-12 overview">
-                    <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-5">
-                        <v-btn @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-circle-outline'" :color="(watched === true)?'primary':''"
-                            :elevation="5" class="px-5" >
+                    <div class="identify flex max-md:justify-center lg:justify-start gap-6 max-md:mb-3 md:mb-5">
+                        <v-btn :key="`${isMounted}`" @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-circle-outline'" :color="(watched === true)?'primary':''"
+                            :elevation="5" class="px-5" :size="$vuetify.display.mdAndUp?'default':'small'" >
                             {{ watched?'Watched':'Watched ?' }}
                         </v-btn>
-                        <v-btn @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
-                            :elevation="5" class="px-5" >
+                        <v-btn :key="`${isMounted}`" @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
+                            :elevation="5" class="px-5" :size="$vuetify.display.mdAndUp?'default':'small'" >
                             {{ watchlist?'In Watch List':'Add to list' }}
                         </v-btn>
                     </div>
                     <v-card class="px-5 py-2" color="#151515">
                         <div class="flex items-baseline justify-start gap-2">
-                            <div class="text-sm md:text-xl">Released</div>
+                            <div v-if="movie.release_date" class="text-sm md:text-lg">Released</div>
                             <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block text-xs md:text-base"
                                 :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
                         </div>
                         <div class="text-neutral-300 mt-1 md:mt-3 text text-xs md:text-base">
                             {{ movie.overview }}
                         </div>
-                        <div class="flex flex-wrap gap-1 md:gap-3 mt-2 md:mt-5">
-                            <v-chip v-for="keyword in (movie?.keywords?.keywords || [])" class="rounded-pill cursor-pointer" :color="'#ddd'"
-                                :size="$vuetify.display.mobile?'x-small':'default'" @click="keywordClicked(keyword)">
+                        <div class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
+                            <v-chip :key="`${isMounted}`" v-for="keyword in (movie?.keywords?.keywords || [])"
+                                class="rounded-pill cursor-pointer" :color="'#ddd'"
+                                :size="$vuetify.display.mdAndUp?'small':'x-small'" @click="keywordClicked(keyword)">
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
@@ -84,17 +85,17 @@
 </template>
 
 <script setup lang="ts">
-import { useAuth } from '#imports'
 import { humanizeDateFull } from '~/utils/dateFormatter';
-import { useDisplay } from 'vuetify'
-
-const { mobile } = useDisplay()
-
-const { status } = useAuth();
 
 let movie = ref({} as any);
 let updatingMovie = ref(false);
 let aiRecommendations = ref([] as any);
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
+
 const headers = useRequestHeaders(['cookie']) as HeadersInit
 const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}`,
     () => $fetch(`/api/movie/${useRoute().params.movieId}`, {

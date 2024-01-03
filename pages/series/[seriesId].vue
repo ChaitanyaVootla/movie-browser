@@ -20,8 +20,8 @@
                     </div>
                     <div class="flex w-full items-center gap-4 flex-wrap max-md:justify-center md:justify-start">
                         <div v-if="series.status">
-                            <v-chip rounded :color="seriesStatusColor" density="default"
-                                :size="$vuetify.display.mobile?'small':'large'" variant="elevated" >
+                            <v-chip :key="`${isMounted}`" rounded :color="seriesStatusColor" density="default"
+                                :size="$vuetify.display.mdAndUp?'large':'small'" variant="elevated" >
                                 Status <b class="ml-2 font-medium">{{ statusText }}</b>
                             </v-chip>
                         </div>
@@ -100,20 +100,21 @@
                 </div>
 
                 <div class="px-3 md:mx-12 overview max-md:mt-5 md:mt-10">
-                    <v-card class="px-5 py-5" color="#151515">
-                        <div class="text-md md:text-2xl">Overview</div>
-                        <div class="text-sm md:text-base text-neutral-300 mt-3 text">
+                    <v-card class="px-4 py-4" color="#151515">
+                        <div class="text-md md:text-lg">Overview</div>
+                        <div class="text-sm md:text-base text-neutral-300 mt-2 text">
                             {{ series.overview }}
                         </div>
 
-                        <div class="flex flex-wrap gap-3 mt-2 md:mt-5">
-                            <v-chip v-for="keyword in (series?.keywords?.results || [])" class="rounded-pill cursor-pointer" :color="'#ddd'"
-                                :size="$vuetify.display.mobile?'x-small':'default'" @click="keywordClicked(keyword)">
+                        <div class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
+                            <v-chip :key="`${isMounted}`" v-for="keyword in (series?.keywords?.results || [])"
+                                class="rounded-pill cursor-pointer" :color="'#ddd'"
+                                :size="$vuetify.display.mobile?'x-small':'small'" @click="keywordClicked(keyword)">
                                 {{ keyword.name }}
                             </v-chip>
                         </div>
                         <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
-                            Last Updated: {{ humanizeDateFull(series.updatedAt) }}
+                            Last Updated: {{ humanizeDateFull(series.updatedAt || 0) }}
                             <v-btn @click="updateSeries" :loading="updatingSeries" variant="text" size="x-small"
                                 class="ml-3" color="#bbb">
                                 Request Update
@@ -154,6 +155,11 @@
 import { humanizeDateFull } from '~/utils/dateFormatter';
 
 const updatingSeries = ref(false);
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
 
 const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
     () => $fetch(`/api/series/${useRoute().params.seriesId}`).catch((err) => {
@@ -170,6 +176,14 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
                 if (person.department === 'Camera') return 4;
                 return 100;
             });
+            if (series.credits?.crew && series.created_by) {
+                series.credits.crew.unshift(...(series.created_by).map(
+                    (created_by: any) => ({
+                        ...created_by,
+                        job: 'Created by'
+                    })
+                ));
+            }
             return {
                 ...series,
                 youtubeVideos: ( series.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(

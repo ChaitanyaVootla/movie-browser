@@ -1,4 +1,4 @@
-import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
+import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
 
 export default defineNuxtConfig({
   build: {
@@ -38,6 +38,7 @@ export default defineNuxtConfig({
   },
   modules: [
     "@nuxtjs/google-fonts",
+    "@vite-pwa/nuxt",
     "nuxt-gtag",
     "@nuxt/image",
     "nuxt-lodash",
@@ -50,6 +51,24 @@ export default defineNuxtConfig({
     },
     'nuxt-time',
   ],
+  pwa: {
+    registerType: 'prompt',
+    injectRegister: 'auto',
+    workbox: {
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+    },
+    client: {
+      installPrompt: true,
+    },
+    strategies: 'generateSW',
+    devOptions: {
+      enabled: true,
+      suppressWarnings: true,
+      navigateFallbackAllowlist: [/^\/$/],
+      type: 'module',
+    },
+    includeManifestIcons: true,
+  },
   auth: {
     provider: {
       type: 'authjs'

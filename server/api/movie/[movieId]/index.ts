@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
         }
 
         if (movie?.title) {
-            Movie.updateOne(
+            await Movie.updateOne(
                 { id: movieId },
                 {
                     $set: {

@@ -38,9 +38,17 @@ if (props.googleData?.allWatchOptions) {
             name: watchOption.name,
             displayName: mappedWatchOption?.[1]?.name,
             link: watchOption.link,
-            price: watchOption.price,
+            price: watchOption.price?.replace('Premium', ''),
             image: mappedWatchOption?.[1]?.image,
             key: mappedWatchOption?.[0]
+        }
+    }).sort((a: any, b: any) => {
+        if (a.price?.toLowerCase().includes('subscription')) {
+            return -1
+        } else if (b.price?.toLowerCase().includes('subscription')) {
+            return 1
+        } else {
+            return 0
         }
     })
 }

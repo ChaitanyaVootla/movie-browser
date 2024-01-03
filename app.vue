@@ -1,4 +1,5 @@
 <template>
+  <VitePwaManifest />
   <NuxtLayout>
     <v-app>
       <NavBar/>

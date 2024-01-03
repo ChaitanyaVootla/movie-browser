@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
             console.error(`Error getting series details for id: ${seriesId}`);
         }
         if (series?.name) {
-            Series.updateOne(
+            await Series.updateOne(
                 { id: seriesId },
                 {
                     $set: {
