@@ -1,19 +1,16 @@
 <template>
     <div class="px-3 md:px-0">
         <div class="top-action flex justify-center mt-4">
-            <v-btn-toggle v-model="selectedType" mandatory>
-                <v-btn size="small">
+            <v-btn-toggle v-model="selectedType" mandatory density="compact">
+                <v-btn size="default">
                     Series
                 </v-btn>
-                <v-btn size="small">
+                <v-btn size="default">
                     Movies
                 </v-btn>
             </v-btn-toggle>
         </div>
-        <div v-if="pending">
-
-        </div>
-        <div v-else>
+        <div>
             <div v-if="selectedType === 0" class="flex flex-col gap- mb-14">
                 <div v-if="pending">
                     pending

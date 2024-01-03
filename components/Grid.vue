@@ -35,9 +35,17 @@ export default {
     grid-gap: 2rem;
 }
 @media screen and (max-width: 768px) {
+    @image-mobile-width: 7rem;
     .grid {
-        grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(@image-mobile-width, 1fr));
         grid-gap: 2px;
+    }
+    :deep(.card) {
+        width: 100%;
+        .image {
+            height: auto;
+            width: 100%;
+        }
     }
     
 }
