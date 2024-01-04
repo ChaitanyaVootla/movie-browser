@@ -11,7 +11,7 @@
                     :alt="item.title || item.name"
                     :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
                     <template v-slot:placeholder>
-                        <v-skeleton-loader type="image" class="iamge w-full h-full"></v-skeleton-loader>
+                        <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
                     <template v-slot:error>
                         <v-skeleton-loader type="image" class="image w-full h-full">

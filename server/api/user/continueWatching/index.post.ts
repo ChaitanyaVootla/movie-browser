@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
     };
     const existing = await ContinueWatching.findOne({itemId, isMovie, userId: userData.sub})
     if (existing) {
-        await existing.delete();
+        await ContinueWatching.deleteOne({_id: existing._id});
     }
     await ContinueWatching.create(continueWatchingObj);
     // clean up

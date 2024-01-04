@@ -10,7 +10,7 @@
                     :alt="item.title || item.name"
                     :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`">
                     <template v-slot:placeholder>
-                        <v-skeleton-loader type="image" class="iamge w-full h-full"></v-skeleton-loader>
+                        <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
                     <template v-slot:error>
                         <v-skeleton-loader type="image" class="image w-full h-full">

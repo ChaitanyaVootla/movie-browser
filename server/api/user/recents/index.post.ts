@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     };
     const existing = await Recent.findOne({itemId, isMovie, userId: userData.sub})
     if (existing) {
-        await existing.delete();
+        await Recent.deleteOne({_id: existing._id});
     }
     await Recent.create(recentObj);
     // clean up

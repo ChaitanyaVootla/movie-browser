@@ -51,7 +51,7 @@
                 <div class="px-3 md:px-0 max-md:-mt-2">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
-                            <div class="flex flex-col gap-3 mt-2 w-56 md:w-96">
+                            <div class="flex flex-col gap-3 mt-2 w-56 md:w-96 h-full">
                                 <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
                                     text-xs md:text-sm -mb-1 flex items-center justify-between mr-1">
                                     <div class="flex gap-2">
@@ -69,21 +69,13 @@
                                     </div>
                                 </div>
                                 <v-img :src="`https://image.tmdb.org/t/p/w500${item.still_path}`"
-                                    class="rounded-lg mr-2"
+                                    class="rounded-lg mr-2 w-full h-auto"
                                     :alt="item.name">
                                     <template v-slot:placeholder>
-                                        <v-skeleton-loader
-                                            class="min-w-full h-full"
-                                            max-width="300"
-                                            type="image"
-                                        ></v-skeleton-loader>
+                                        <v-skeleton-loader class="w-full h-full" type="image" />
                                     </template>
                                     <template v-slot:error>
-                                        <v-skeleton-loader
-                                            class="min-w-full h-full"
-                                            max-width="300"
-                                            type="image"
-                                        >
+                                        <v-skeleton-loader class="w-full h-full" type="image" >
                                             <div></div>
                                         </v-skeleton-loader>
                                     </template>

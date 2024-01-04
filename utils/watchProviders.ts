@@ -15,6 +15,11 @@ export const WATCH_PROVIDERS = [
     provider_id: 2,
   },
   {
+    logo_path: "/6uhKBfmtzFqOcLousHwZuzcrScK.jpg",
+    provider_name: "Apple TV Plus",
+    provider_id: 350,
+  },
+  {
     logo_path: "/m3NWxxR23l1w1e156fyTuw931gx.jpg",
     provider_name: "aha",
     provider_id: 532,
@@ -1013,11 +1018,6 @@ export const WATCH_PROVIDERS = [
     logo_path: "/sXixZNwjBjMoBR97alHOKVerKf4.jpg",
     provider_name: "Kino on Demand",
     provider_id: 349,
-  },
-  {
-    logo_path: "/6uhKBfmtzFqOcLousHwZuzcrScK.jpg",
-    provider_name: "Apple TV Plus",
-    provider_id: 350,
   },
   {
     logo_path: "/kJlVJLgbNPvKDYC0YMp3yA2OKq2.jpg",

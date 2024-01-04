@@ -88,9 +88,9 @@
                     <Scroller :items="movie.recommendations.results || []" title="Recommended" :pending="pending" />
                 </div>
 
-                <!-- <div v-if="movie.similar?.results?.length" class="mt-10">
+                <div v-if="movie.similar?.results?.length" class="mt-10">
                     <Scroller :items="movie.similar.results || []" title="Similar" :pending="pending" />
-                </div> -->
+                </div>
             </div>
         </div>
         <Login ref="loginRef" />
