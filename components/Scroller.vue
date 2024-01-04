@@ -9,7 +9,10 @@
                     <v-icon icon="mdi-chevron-left" color="#aaa"></v-icon>
                 </div>
             </div>
-            <div class="flex gap-2 md:gap-4 overflow-y-auto w-full" :id="`scroll-bar-${uuid}`">
+            <ClientOnly>
+                <div :id="`scroll-bar-${uuid}`"></div>
+            </ClientOnly>
+            <div class="flex gap-2 md:gap-4 overflow-y-auto w-full slider">
                 <div v-for="item in (items || Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
                     <slot :item="item">
                         <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
@@ -44,13 +47,13 @@ defineProps({
         required: true
     }
 });
-const identifier = uid();
-const uuid = ref(identifier);
+const uuid = ref<any>(null);
 let isSliding = ref(false);
 
 onMounted(() => {
+    uuid.value = uid();
     setTimeout(() => {
-        const slider: any = document.querySelector(`#scroll-bar-${uuid.value}`);
+        const slider: any = document.querySelector(`#scroll-bar-${uuid.value}+.slider`);
 
         if (slider) {
             let isDown = false;

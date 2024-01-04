@@ -51,7 +51,7 @@
                 <div class="px-3 md:px-0 max-md:-mt-2">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
-                            <div class="flex flex-col gap-3 mt-2 w-56 md:w-96 h-full">
+                            <div class="flex flex-col gap-3 mt-2 cursor-pointer" @click="showEpisode(item)">
                                 <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
                                     text-xs md:text-sm -mb-1 flex items-center justify-between mr-1">
                                     <div class="flex gap-2">
@@ -69,13 +69,13 @@
                                     </div>
                                 </div>
                                 <v-img :src="`https://image.tmdb.org/t/p/w500${item.still_path}`"
-                                    class="rounded-lg mr-2 w-full h-auto"
+                                    class="rounded-lg mr-2 wide-image"
                                     :alt="item.name">
                                     <template v-slot:placeholder>
-                                        <v-skeleton-loader class="w-full h-full" type="image" />
+                                        <v-skeleton-loader class="wide-image" type="image" />
                                     </template>
                                     <template v-slot:error>
-                                        <v-skeleton-loader class="w-full h-full" type="image" >
+                                        <v-skeleton-loader class="wide-image" type="image" >
                                             <div></div>
                                         </v-skeleton-loader>
                                     </template>
@@ -151,6 +151,9 @@
             </div>
         </div>
         <Login ref="loginRef" />
+        <v-dialog v-model="showEpisodeDialog">
+            <Episode :episode="selectedEpisode" />
+        </v-dialog>
     </div>
 </template>
 
@@ -162,6 +165,8 @@ const { status } = useAuth();
 const updatingSeries = ref(false);
 const isMounted = ref(false);
 let isKeywordsExpanded = ref(false);
+let showEpisodeDialog = ref(false);
+let selectedEpisode = ref<any>({});
 let seriesUpdateKey = ref(0);
 let loginRef = null as any;
 
@@ -169,6 +174,11 @@ onMounted(() => {
     isMounted.value = true;
     loginRef = ref(null);
 });
+
+const showEpisode = (episode: any) => {
+    selectedEpisode.value = episode;
+    showEpisodeDialog.value = true;
+}
 
 const keywords = computed(() => {
     if (series.value?.keywords?.results?.length > 5 && !isKeywordsExpanded.value) {
@@ -405,6 +415,19 @@ useHead(() => {
 </script>
 
 <style scoped lang="less">
+@wide-image-height: 12rem;
+:deep(.wide-image) {
+    height: @wide-image-height;
+    width: calc(@wide-image-height * 16/9);
+}
+@media (max-width: 768px) {
+    @wide-image-height: 7rem;
+    :deep(.wide-image) {
+        height: @wide-image-height;
+        width: calc(@wide-image-height * 16/9);
+    }
+}
+
 :deep(.v-skeleton-loader) {
     .v-skeleton-loader__bone {
         &.v-skeleton-loader__image {
