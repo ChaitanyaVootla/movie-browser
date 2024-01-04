@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div :key="`${seriesUpdateKey}`">
         <div v-if="pending" class="pending w-full h-full">
             <v-skeleton-loader
                 class="hidden md:block m-5"
@@ -104,6 +104,12 @@
                             {{ series.overview }}
                         </div>
 
+                        <NuxtLink :key="`${isMounted}`" v-if="series.external_ids.imdb_id" :to="`https://www.imdb.com/title/${series.external_ids.imdb_id}/parentalguide`" target="blank"
+                            noreferrer noopener class="mt-3 block">
+                            <v-btn prepend-icon="mdi-eye-outline" variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa">
+                                Parental Guide
+                            </v-btn>
+                        </NuxtLink>
                         <div :key="`${isMounted}`" class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
                             <v-chip v-for="keyword in keywords"
                                 class="rounded-pill cursor-pointer" :color="'#ddd'"
@@ -164,6 +170,7 @@ const { status } = useAuth();
 const updatingSeries = ref(false);
 const isMounted = ref(false);
 let isKeywordsExpanded = ref(false);
+let seriesUpdateKey = ref(0);
 let loginRef = null as any;
 
 onMounted(() => {
@@ -179,49 +186,50 @@ const keywords = computed(() => {
 });
 
 
+const mapSeries = (series: any) => {
+    series.credits.crew = useSortBy(series.credits.crew, (person) => {
+        if (person.job === 'Director') return 0;
+        if (person.department === 'Directing') return 1;
+        if (person.department === 'Writing') return 2;
+        if (person.department === 'Production') return 3;
+        if (person.department === 'Camera') return 4;
+        return 100;
+    });
+    if (series.credits?.crew && series.created_by) {
+        series.credits.crew.unshift(...(series.created_by).map(
+            (created_by: any) => ({
+                ...created_by,
+                job: 'Created by'
+            })
+        ));
+    }
+    return {
+        ...series,
+        youtubeVideos: ( series.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
+            (a: any, b: any) => {
+            if (a.type === 'Trailer' && b.type !== 'Trailer') {
+                return -1;
+            }
+            if (a.type !== 'Trailer' && b.type === 'Trailer') {
+                return 1;
+            }
+            if (a.type === 'Teaser' && b.type !== 'Teaser') {
+                return -1;
+            }
+            if (a.type !== 'Teaser' && b.type === 'Teaser') {
+                return 1;
+            }
+            return 0;
+        }) || [],
+    };
+}
 const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
     () => $fetch(`/api/series/${useRoute().params.seriesId}`).catch((err) => {
         console.log(err);
         return {};
     }),
     {
-        transform: ((series: any) => {
-            series.credits.crew = useSortBy(series.credits.crew, (person) => {
-                if (person.job === 'Director') return 0;
-                if (person.department === 'Directing') return 1;
-                if (person.department === 'Writing') return 2;
-                if (person.department === 'Production') return 3;
-                if (person.department === 'Camera') return 4;
-                return 100;
-            });
-            if (series.credits?.crew && series.created_by) {
-                series.credits.crew.unshift(...(series.created_by).map(
-                    (created_by: any) => ({
-                        ...created_by,
-                        job: 'Created by'
-                    })
-                ));
-            }
-            return {
-                ...series,
-                youtubeVideos: ( series.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
-                    (a: any, b: any) => {
-                    if (a.type === 'Trailer' && b.type !== 'Trailer') {
-                        return -1;
-                    }
-                    if (a.type !== 'Trailer' && b.type === 'Trailer') {
-                        return 1;
-                    }
-                    if (a.type === 'Teaser' && b.type !== 'Teaser') {
-                        return -1;
-                    }
-                    if (a.type !== 'Teaser' && b.type === 'Teaser') {
-                        return 1;
-                    }
-                    return 0;
-                }) || [],
-            };
-        }),
+        transform: (series: any) => mapSeries(series),
         default: () => ({})
     }
 );
@@ -297,9 +305,10 @@ const updateSeries = async () => {
         return;
     }
     updatingSeries.value = true;
-    await $fetch(`/api/series/${series.value.id}?force=true`);
+    const updatedSeries = await $fetch(`/api/series/${series.value.id}?force=true`);
+    series.value = mapSeries(updatedSeries);
     updatingSeries.value = false;
-    window.location.reload();
+    seriesUpdateKey.value += 1;
 }
 
 const keywordClicked = (keyword: any) => {
