@@ -6,9 +6,12 @@ import { JWT } from "next-auth/jwt";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
+const DAY_MILLIS = 1000 * 60 * 60 * 24;
+
 export default defineEventHandler(async (event) => {
     const movieId = getRouterParam(event, 'movieId');
-    const isForce = getQuery(event).force? true: false;
+    let isForce = getQuery(event).force? true: false;
+    const checkUpdate = getQuery(event).checkUpdate? true: false;
     const userData = event.context.userData as JWT;
 
     if (isForce && (!userData || !userData?.sub)) {
@@ -28,6 +31,15 @@ export default defineEventHandler(async (event) => {
         .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates -similar');
     if (dbMovie?.title) {
         movie = dbMovie;
+    }
+
+    if (checkUpdate && movie?.updatedAt) {
+        const sinceUpdate = Date.now() - movie.updatedAt;
+        const sinceMovieRelase = Date.now() - new Date(movie.release_date).getTime();
+        const updateInterval = movieUpdateInterval(sinceMovieRelase);
+        if (sinceUpdate > updateInterval) {
+            isForce = true;
+        }
     }
 
     if (isForce || !movie.title) {
@@ -87,3 +99,17 @@ export default defineEventHandler(async (event) => {
     }
     return movie as IMovie;
 });
+
+
+const movieUpdateInterval = (sinceMovieRelase: number) => {
+    if (sinceMovieRelase < DAY_MILLIS * 14) {
+        return DAY_MILLIS;
+    }
+    if (sinceMovieRelase < DAY_MILLIS * 30) {
+        return DAY_MILLIS * 4;
+    }
+    if (sinceMovieRelase < DAY_MILLIS * 90) {
+        return DAY_MILLIS * 7;
+    }
+    return DAY_MILLIS * 30;
+}

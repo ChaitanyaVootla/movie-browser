@@ -13,12 +13,13 @@
   background: #222;
   box-shadow: inset 0 0 5px #363636;
   border-radius: 2px;
+  width: 12px;
 }
 ::-webkit-scrollbar-track {
   background: #0000008f;
 }
 ::-webkit-scrollbar-thumb {
-  background: #202020;
+  background: #333;
   border-radius: 10px;
 }
 body {

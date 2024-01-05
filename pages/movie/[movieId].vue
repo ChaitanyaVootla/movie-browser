@@ -121,6 +121,14 @@ onMounted(() => {
     loginRef = ref(null);
 });
 
+const checkMovieUpdate = async () => {
+    updatingMovie.value = true;
+    const updatedMovie = await $fetch(`/api/movie/${useRoute().params.movieId}?checkUpdate=true`)
+    movie.value = mapMovie(updatedMovie);
+    updatingMovie.value = false;
+    movieUpdateKey.value += 1;
+}
+
 const mapMovie = (movie: any) => {
     if (!movie) return {};
     if (movie?.release_date) {
@@ -165,7 +173,10 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
         return {};
     }),
     {
-        transform: (movie: any) => mapMovie(movie)
+        transform: (movie: any) => {
+            checkMovieUpdate();
+            return mapMovie(movie)
+        }
     }
 );
 movie = movieAPI;

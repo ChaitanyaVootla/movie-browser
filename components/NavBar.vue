@@ -1,44 +1,39 @@
 <template>
-    <div class="navbar hidden md:flex justify-between font-semibold text-xl items-center
-        shadow-md shadow-neutral-900 pl-14 pr-14 overflow-visible bg-neutral-950 h-16 z-50">
-        <div class="left-actions flex-1 flex gap-20">
+    <div class="navbar fixed w-full hidden md:flex justify-center text-xl items-center pl-14 pr-14 overflow-visible
+        bg-neutral-950 py-2 z-50 h-14 shadow-md shadow-neutral-900">
+        <div class="left-actions items-center flex-1 flex gap-16">
             <NuxtLink to="/" aria-label="Go Home">
-                <div class="flex items-center gap-2">
-                    <v-icon icon="mdi-home" class="text-3xl" />
-                    Home
+                <div class="flex items-center gap-2 tracking-widest text-2xl text-white font-extrabold">
+                    <v-icon icon="mdi-blur" size="small" />
+                    TMB
                 </div>
             </NuxtLink>
             <NuxtLink to="/browse">
                 <div class="flex items-center gap-2" aria-label="Go To AI search">
-                    <v-icon icon="mdi-movie-search-outline" class="text-3xl" />
+                    <v-icon icon="mdi-infinity" size="small" />
                     Browse
                 </div>
             </NuxtLink>
             <NuxtLink to="/watchList" aria-label="Go To Watch List">
                 <div class="flex items-center gap-2">
-                    <v-icon icon="mdi-playlist-play" class="text-3xl" />
+                    <v-icon icon="mdi-menu" size="small" />
                     Watch List
                 </div>
             </NuxtLink>
             <!-- <NuxtLink to="/ai">
                 <div class="flex items-center gap-2" aria-label="Go To AI search">
-                    <v-icon icon="mdi-panorama-sphere-outline" class="text-3xl" />
+                    <v-icon icon="mdi-panorama-sphere-outline" size="small" />
                     AI <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>
             </NuxtLink> -->
         </div>
-        <NuxtLink to="/" class="h-full flex items-center justify-center" aria-label="Go Home">
-            <div class="center border-1 border-gray-700 bg-red-900 p-2 pl-3 pr-3 text-black h-full
-                flex items-center justify-center">
-                <v-icon icon="mdi-filmstrip" size="large" />
-            </div>
-        </NuxtLink>
         <div class="right flex-1 flex justify-end">
             <div class="flex items-center">
-                <v-chip class="rounded-xl px-6 py-5 cursor-pointer" @click="showSearchOverlay = true">
-                    <v-icon icon="mdi-magnify" />
-                    <div class="ml-2">Search
-                        <v-chip class="rounded-pill ml-1 -mt-1" size="small">
+                <v-chip class="rounded-xl px-6 py-5 cursor-pointer flex" @click="showSearchOverlay = true"
+                    prepend-icon="mdi-magnify" color="#555" variant="outlined" size="default">
+                    <div class="ml-2 flex justify-center items-center gap-1 text-neutral-100">
+                        <div>Search</div>
+                        <v-chip class="rounded-pill ml-1" size="small">
                             Ctrl + K
                         </v-chip>
                     </div>
@@ -50,7 +45,7 @@
                     <div v-else>
                         <v-menu>
                             <template v-slot:activator="{ props }">
-                                <v-avatar :image="(data?.user?.image as string)" :size="35" class="relative cursor-pointer"
+                                <v-avatar :image="(data?.user?.image as string)" :size="38" class="relative cursor-pointer"
                                     v-bind="props">
                                 </v-avatar>
                             </template>
@@ -70,16 +65,17 @@
             </div>
         </div>
     </div>
+    <div class="hidden md:flex navbar-pseudo h-14"></div>
     <div class="md:hidden">
         <v-bottom-navigation :grow="true" @update:modelValue="bottomNavItemClicked" bg-color="#050505" color="#aaa"
             density="comfortable" mandatory rounded v-model="defaultNavBarItem">
             <v-btn value="home" @click="bottomNavItemClicked('home')">
-                <v-icon>mdi-home</v-icon>
+                <v-icon>mdi-home-outline</v-icon>
                 <span>Home</span>
             </v-btn>
 
             <v-btn value="browse" @click="bottomNavItemClicked('browse')">
-                <v-icon>mdi-movie-search-outline</v-icon>
+                <v-icon>mdi-infinity</v-icon>
                 <span>Browse</span>
             </v-btn>
 
@@ -228,22 +224,11 @@ const bottomNavItemClicked = (item: any) => {
 }
 </script>
 
-<style lang="less">
-// :deep(.search) {
-//     .v-list-item__content {
-//         width: 100% !important;
-//     }
-// }
-
-// @media (min-width: 768px) {
-//     .v-list-item__content {
-//         max-width: calc(50vw - 3rem);
-//     }
-//     .search {
-//         width: 50% !important;
-//     }
-// }
+<style scoped lang="less">
 .v-autocomplete__content {
     max-height: calc(100vh - 20rem) !important;
+}
+:deep(.v-chip) {
+    border-width: 2px !important;
 }
 </style>
