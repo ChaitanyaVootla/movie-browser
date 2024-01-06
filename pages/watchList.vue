@@ -11,7 +11,7 @@
             </v-btn-toggle>
         </div>
         <div>
-            <div v-if="selectedType === 0" class="flex flex-col gap- mb-14">
+            <div v-if="selectedType === 0" class="flex flex-col mb-14">
                 <div v-if="pending">
                     <Scroller :items="Array(10)" title="" :pending="pending" />
                     <Scroller :items="Array(10)" title="" :pending="pending" />
@@ -35,7 +35,7 @@
                     </div>
                 </div>
             </div>
-            <div v-else-if="selectedType === 1">
+            <div v-else-if="selectedType === 1" class="max-md:px-3 md:px-14">
                 <Grid v-if="watchListData?.movies?.length" :items="watchListData?.movies" title="" />
                 <div v-else-if="status === 'authenticated'">
                     <div class="flex justify-center text-2xl text-neutral-400 items-center mt-20">

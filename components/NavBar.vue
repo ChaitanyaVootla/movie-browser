@@ -30,9 +30,10 @@
         <div class="right flex-1 flex justify-end">
             <div class="flex items-center">
                 <v-chip class="rounded-xl px-6 py-5 cursor-pointer flex" @click="showSearchOverlay = true"
-                    prepend-icon="mdi-magnify" color="#555" variant="outlined" size="default">
+                    color="#333" variant="outlined" size="default">
                     <div class="ml-2 flex justify-center items-center gap-1 text-neutral-100">
-                        <div>Search</div>
+                        <v-icon color="#eee">mdi-magnify</v-icon>
+                        <div class="ml-2">Search</div>
                         <v-chip class="rounded-pill ml-1" size="small">
                             Ctrl + K
                         </v-chip>
@@ -71,22 +72,22 @@
             density="comfortable" mandatory rounded v-model="defaultNavBarItem">
             <v-btn value="home" @click="bottomNavItemClicked('home')">
                 <v-icon>mdi-home-outline</v-icon>
-                <span>Home</span>
+                <span class="text-2xs">Home</span>
             </v-btn>
 
             <v-btn value="browse" @click="bottomNavItemClicked('browse')">
                 <v-icon>mdi-infinity</v-icon>
-                <span>Browse</span>
+                <span class="text-2xs">Browse</span>
             </v-btn>
 
             <v-btn value="search" @click="bottomNavItemClicked('search')">
                 <v-icon>mdi-magnify</v-icon>
-                <span>Search</span>
+                <span class="text-2xs">Search</span>
             </v-btn>
 
             <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile" @click="signIn('google')">
                 <NuxtImg src="/images/googleLogin/login_small.svg" class="h-6 -mt-1" />
-                <span>Login</span>
+                <span class="text-2xs">Login</span>
             </v-btn>
             <v-btn v-else>
                 <v-menu>

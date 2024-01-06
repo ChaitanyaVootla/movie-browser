@@ -1,23 +1,24 @@
 import { LambdaClient, InvokeCommand, InvokeCommandInput } from '@aws-sdk/client-lambda';
+import { LANGAUAGES } from '~/utils/languages';
 
 const decoder = new TextDecoder('utf-8');
 
-const getGoogleData = async (str: string) => {
-    console.time(`Calling aws lambda ${str}`);
+const getGoogleData = async (string: string) => {
+    console.time(`Calling aws lambda ${string}`);
     const client = new LambdaClient();
     const params = {
         FunctionName: 'puppeteer-node14',
         InvocationType: 'RequestResponse',
         Payload: JSON.stringify({
             queryStringParameters: {
-                searchString: str.split('search?q=')[1],
+                searchString: string,
             }
         }),
     } as InvokeCommandInput;
     const command = new InvokeCommand(params);
     const res = await client.send(command)
     const jsonRes = JSON.parse(decoder.decode(res.Payload));
-    console.timeEnd(`Calling aws lambda ${str}`);
+    console.timeEnd(`Calling aws lambda ${string}`);
     return jsonRes;
 };
 
@@ -26,7 +27,13 @@ const getYear = (movieDate: any) => {
 };
 
 export const getGoogleLambdaData = async (item: any) => {
-    const mainStr = `https://google.com/search?q=${item.name || item.title}`;
+    let mainStr = sanitizeString(`${item.name || item.title}`);
+    if (item.original_language !== 'en') {
+        const language = LANGAUAGES.find(({iso_639_1}) => iso_639_1 === item.original_language);
+        if (language) {
+            mainStr += ` ${language.english_name}`;
+        }
+    }
     const dateInfo = `${item.first_air_date ? 'tv series' : getYear(item.release_date) + ' movie'}`;
     const fullStringAttempt = await getGoogleData(`${mainStr} ${dateInfo}`);
     if (fullStringAttempt.ratings?.length > 0) {
@@ -34,4 +41,8 @@ export const getGoogleLambdaData = async (item: any) => {
     } else {
         return await getGoogleData(mainStr);
     }
+};
+
+const sanitizeString = (str: string) => {
+    return str.replaceAll('&', "and").replaceAll('?','');
 };

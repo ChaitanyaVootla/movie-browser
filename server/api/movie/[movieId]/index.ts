@@ -26,34 +26,45 @@ export default defineEventHandler(async (event) => {
     }
 
     let movie = {} as any;
+    let canUpdate = false;
 
     const dbMovie = await Movie.findOne({ id: movieId })
         .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates -similar');
     if (dbMovie?.title) {
-        movie = dbMovie;
+        movie = dbMovie.toJSON();
     }
 
-    if (checkUpdate && movie?.updatedAt) {
+    if (movie?.updatedAt) {
         const sinceUpdate = Date.now() - movie.updatedAt;
         const sinceMovieRelase = Date.now() - new Date(movie.release_date).getTime();
         const updateInterval = movieUpdateInterval(sinceMovieRelase);
         if (sinceUpdate > updateInterval) {
-            isForce = true;
+            canUpdate = true;
         }
+    }
+    if (checkUpdate && canUpdate) {
+        isForce = true;
     }
 
     if (isForce || !movie.title) {
         console.log("Fetching from TMDB")
         try {
             const [details, releaseDates]: [any, any] = await Promise.all([
-                $fetch(`${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`),
+                $fetch(`${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`, {
+                    retry: 5,
+                }),
                 $fetch(`${TMDB.BASE_URL}/movie/${movieId}/release_dates?api_key=${process.env.TMDB_API_KEY
-                    }${QUERY_PARAMS}`),
+                    }${QUERY_PARAMS}`, {
+                        retry: 5,
+                    }),
             ]);
             details.releaseDates = releaseDates.results;
             if (details.belongs_to_collection?.id) {
                 const collectionDetails: any = await $fetch(
                     `${TMDB.BASE_URL}/collection/${details.belongs_to_collection.id}?api_key=${process.env.TMDB_API_KEY}`,
+                    {
+                        retry: 5,
+                    }
                 )
                 collectionDetails.parts = _.sortBy(collectionDetails.parts, ({ release_date }: any) => {
                     return release_date ? release_date : 'zzzz';
@@ -97,6 +108,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
+    movie.canUpdate = canUpdate;
     return movie as IMovie;
 });
 

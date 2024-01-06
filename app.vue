@@ -34,4 +34,7 @@ body {
   text-rendering: optimizeLegibility;
   word-spacing: 1px;
 }
+.v-snackbar__wrapper {
+    bottom: 52px !important;
+}
 </style>

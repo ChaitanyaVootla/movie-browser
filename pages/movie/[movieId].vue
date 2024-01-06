@@ -94,6 +94,19 @@
             </div>
         </div>
         <Login ref="loginRef" />
+        <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
+            Fetching latest Movie data...
+            <template v-slot:actions>
+                <v-btn
+                    color="white"
+                    size="small"
+                    variant="text"
+                    @click="snackbar = false"
+                >
+                    Close
+                </v-btn>
+            </template>
+        </v-snackbar>
     </div>
 </template>
 
@@ -105,9 +118,11 @@ let updatingMovie = ref(false);
 let aiRecommendations = ref([] as any);
 let isMounted = ref(false);
 let isKeywordsExpanded = ref(false);
+let snackbar = ref(false);
 const { status } = useAuth();
 let loginRef = null as any;
 let movieUpdateKey = ref(0);
+let isUpdated = false;
 
 const keywords = computed(() => {
     if (movie.value?.keywords?.keywords?.length > 5 && !isKeywordsExpanded.value) {
@@ -116,17 +131,46 @@ const keywords = computed(() => {
     return movie.value?.keywords?.keywords || [];
 });
 
+const checkMovieUpdate = async (APImovie: any) => {
+    if (isUpdated) return;
+    isUpdated = true;
+    console.log('checking movie update')
+    updatingMovie.value = true;
+    snackbar.value = true;
+    const updatedMovie = await $fetch(`/api/movie/${APImovie.id}?checkUpdate=true`)
+    movie.value = mapMovie(updatedMovie);
+    updatingMovie.value = false;
+    snackbar.value = false;
+    movieUpdateKey.value += 1;
+}
+
 onMounted(() => {
     isMounted.value = true;
     loginRef = ref(null);
+    if (movie.value?.canUpdate) {
+        checkMovieUpdate(movie.value);
+    }
+    watch(movie, () => {
+        if (movie.value?.canUpdate) {
+            checkMovieUpdate(movie.value);
+        }
+    });
 });
 
-const checkMovieUpdate = async () => {
-    updatingMovie.value = true;
-    const updatedMovie = await $fetch(`/api/movie/${useRoute().params.movieId}?checkUpdate=true`)
-    movie.value = mapMovie(updatedMovie);
-    updatingMovie.value = false;
-    movieUpdateKey.value += 1;
+const addToRecents = () => {
+    $fetch(`/api/user/recents`,
+        {
+            headers,
+            method: 'POST',
+            body: JSON.stringify({
+                itemId: useRoute().params.movieId,
+                isMovie: true,
+                poster_path: movie.value?.poster_path,
+                backdrop_path: movie.value?.backdrop_path,
+                title: movie.value?.title,
+            })
+        }
+    );
 }
 
 const mapMovie = (movie: any) => {
@@ -173,10 +217,7 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
         return {};
     }),
     {
-        transform: (movie: any) => {
-            checkMovieUpdate();
-            return mapMovie(movie)
-        }
+        transform: (movie: any) => mapMovie(movie)
     }
 );
 movie = movieAPI;
@@ -195,31 +236,21 @@ let { data: watchlist }: any = await useLazyAsyncData(`movieDetails-${useRoute()
     })
 );
 
-const addToRecents = () => {
-    $fetch(`/api/user/recents`,
-        {
-            headers,
-            method: 'POST',
-            body: JSON.stringify({
-                itemId: useRoute().params.movieId,
-                isMovie: true,
-                poster_path: movie.value?.poster_path,
-                backdrop_path: movie.value?.backdrop_path,
-                title: movie.value?.title,
-            })
-        }
-    );
-}
-
 // add to recents when movie is loaded
 if (movie.value?.id) {
     addToRecents();
+    // if (movie?.value?.canUpdate) {
+    //     checkMovieUpdate();
+    // }
 }
 
 watch(movie, () => {
     if (movie.value?.id) {
         addToRecents();
     }
+    // if (movie?.value?.canUpdate) {
+    //     checkMovieUpdate();
+    // }
 });
 
 const watchClicked = () => {
