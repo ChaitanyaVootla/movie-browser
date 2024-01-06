@@ -95,7 +95,7 @@
         </div>
         <Login ref="loginRef" />
         <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
-            Fetching latest Movie data...
+            Updating latest ratings and watch links
             <template v-slot:actions>
                 <v-btn
                     color="white"
@@ -123,6 +123,7 @@ const { status } = useAuth();
 let loginRef = null as any;
 let movieUpdateKey = ref(0);
 let isUpdated = false;
+let isRecentsUpdated = false;
 
 const keywords = computed(() => {
     if (movie.value?.keywords?.keywords?.length > 5 && !isKeywordsExpanded.value) {
@@ -150,14 +151,22 @@ onMounted(() => {
     if (movie.value?.canUpdate) {
         checkMovieUpdate(movie.value);
     }
+    if (movie.value?.id) {
+        addToRecents();
+    }
     watch(movie, () => {
         if (movie.value?.canUpdate) {
             checkMovieUpdate(movie.value);
+        }
+        if (movie.value?.id) {
+            addToRecents();
         }
     });
 });
 
 const addToRecents = () => {
+    if (isRecentsUpdated) return;
+    isRecentsUpdated = true;
     $fetch(`/api/user/recents`,
         {
             headers,
@@ -235,23 +244,6 @@ let { data: watchlist }: any = await useLazyAsyncData(`movieDetails-${useRoute()
         return {};
     })
 );
-
-// add to recents when movie is loaded
-if (movie.value?.id) {
-    addToRecents();
-    // if (movie?.value?.canUpdate) {
-    //     checkMovieUpdate();
-    // }
-}
-
-watch(movie, () => {
-    if (movie.value?.id) {
-        addToRecents();
-    }
-    // if (movie?.value?.canUpdate) {
-    //     checkMovieUpdate();
-    // }
-});
 
 const watchClicked = () => {
     if (status.value !== 'authenticated') {

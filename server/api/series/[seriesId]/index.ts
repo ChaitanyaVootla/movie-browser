@@ -29,7 +29,9 @@ export default defineEventHandler(async (event) => {
     if (isForce || !series.name) {
         console.log("Fetching from TMDB")
         try {
-            const details: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`).catch(() => {
+            const details: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`, {
+                retry: 5,
+            }).catch(() => {
                 return {};
             });
             let googleData = {} as any;
@@ -72,7 +74,9 @@ export default defineEventHandler(async (event) => {
     const latestSeasonNumber = series.seasons[series.seasons.length - 1]?.season_number;
     let selectedSeason = {};
     if (latestSeasonNumber) {
-        selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`);
+        selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`, {
+            retry: 5,
+        });
     }
     return {
         ...series,

@@ -3,9 +3,9 @@
         bg-neutral-950 py-2 z-50 h-14 shadow-md shadow-neutral-900">
         <div class="left-actions items-center flex-1 flex gap-16">
             <NuxtLink to="/" aria-label="Go Home">
-                <div class="flex items-center gap-2 tracking-widest text-2xl text-white font-extrabold">
-                    <v-icon icon="mdi-blur" size="small" />
-                    TMB
+                <div class="flex items-center gap-1 tracking-widest text-2xl text-white font-extrabold">
+                    <v-icon icon="mdi-dots-grid" size="small" class="anim-icon" />
+                    <div class="logo-text">TMB</div>
                 </div>
             </NuxtLink>
             <NuxtLink to="/browse">
@@ -110,9 +110,9 @@
             </v-btn>
         </v-bottom-navigation>
     </div>
-    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" absolute contained>
-        <div class="flex justify-center relative min-h-full">
-        <div class="absolute w-full px-10 top-3 md:top-36 flex justify-center lg:w-1/4">
+    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" absolute contained :close-on-content-click="true">
+        <div class="flex justify-center relative h-full">
+        <div class="absolute max-md:w-full px-10 max-md:top-3 md:top-36 flex justify-center md:w-1/3">
             <v-autocomplete
                 auto-select-first
                 label="Search"
@@ -124,15 +124,18 @@
                 @update:model-value="searchItemClicked"
                 :items="searchResults"
                 no-filter
+                item-color="black"
+                bg-color="black"
+                base-color="black"
             >
                 <template v-slot:item="{ props, item }">
                     <v-list-item v-bind="props" title="" variant="flat">
-                        <div class="flex justify-between p-3">
-                            <div class="w-2/4 md:w-3/4">
+                        <div v-if="item?.raw" class="flex justify-between p-3">
+                            <div class="max-md:w-2/3 md:w-3/4 max-md:text-sm">
                                 <div class="title">
                                     {{ item.raw.title || item.raw.name }}
                                 </div>
-                                <div class="text-neutral-400 capitalize flex gap-2">
+                                <div class="text-neutral-400 capitalize flex gap-2 max-md:text-xs">
                                     <div v-if="item.raw.release_date || item.raw.first_air_date">
                                         {{ (item.raw.release_date || item.raw.first_air_date).slice(0, 4) }} -
                                     </div>
@@ -140,13 +143,19 @@
                                         {{ item.raw.media_type }}
                                     </div>
                                 </div>
-                                <!-- <div class="overview text-neutral-400 text-sm text-ellipsis mt-3">
-                                    {{ item.raw.overview?.slice(0, 200) }}
-                                </div> -->
+                                <div :key="`${isMounted}`" class="flex gap-2 mt-2 flex-wrap">
+                                    <div v-for="genre in item.raw.genres">
+                                        <v-chip class="text-md" rounded :size="$vuetify.display.mdAndUp?'small':'x-small'">
+                                            {{ genre.name }}
+                                        </v-chip>
+                                    </div>
+                                </div>
+                                <!-- <Ratings :googleData="{}" :tmdbRating="item.raw.vote_average" :itemId="item.raw.id"
+                                    :small="true" class="mt-2"/> -->
                             </div>
-                            <div class="w-2/4 md:w-1/4">
+                            <div class="max-md:w-1/3 md:w-1/4">
                                 <v-img
-                                    :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w342
+                                    :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w185
                                         }${item.raw.backdrop_path || item.raw.profile_path}`"
                                     height="100"
                                     width="100%"
@@ -181,33 +190,53 @@ const { data, status, signIn, signOut } = useAuth();
 const defaultNavBarItem = ref(0);
 
 const showSearchOverlay = ref(false);
+const isMounted = ref(false);
 let searchResults = ref([] as any[]);
 
 onMounted(() => {
-  window.addEventListener('keydown', (event: KeyboardEvent) => {
-    if (event.ctrlKey && event.key === 'k') {
-      event.preventDefault();
-      showSearchOverlay.value = !showSearchOverlay.value;
-    }
-  });
+    isMounted.value = true;
+    window.addEventListener('keydown', (event: KeyboardEvent) => {
+        if (event.ctrlKey && event.key === 'k') {
+            event.preventDefault();
+            showSearchOverlay.value = !showSearchOverlay.value;
+        }
+    });
 });
 
 const searchUpdated = useDebounce(async (query: string) => {
-  const searchResponse = await $fetch(`/api/search?query=${query}`);
-  searchResults.value = searchResponse;
+    let searchResponse = await $fetch(`/api/search?query=${query}`);
+    searchResponse = searchResponse.map((item: any) => {
+        if (item.media_type === 'movie') {
+            return {
+                ...item,
+                genres: item.genre_ids.map((genreId: number) => movieGenres[genreId]),
+            }
+        } else if (item.media_type === 'tv') {
+            return {
+                ...item,
+                genres: item.genre_ids.map((genreId: number) => seriesGenres[genreId]),
+            }
+        } else if (item.media_type === 'person') {
+            return {
+                ...item,
+                genres: [],
+            }
+        }
+    });
+    searchResults.value = searchResponse;
 }, 300, { leading: false });
 
 const searchItemClicked = (item: any) => {
-  showSearchOverlay.value = false;
-  setTimeout(() => {
-    if (item.media_type === 'person') {
-      return useRouter().push(`/person/${item.id}`);
-    } else if (item.media_type === 'tv') {
-      return useRouter().push(`/series/${item.id}`);
-    } else if (item.media_type === 'movie') {
-        useRouter().push(`/movie/${item.id}`);
-    }
-  }, 100);
+    showSearchOverlay.value = false;
+    setTimeout(() => {
+        if (item.media_type === 'person') {
+            return useRouter().push(`/person/${item.id}`);
+        } else if (item.media_type === 'tv') {
+            return useRouter().push(`/series/${item.id}`);
+        } else if (item.media_type === 'movie') {
+            useRouter().push(`/movie/${item.id}`);
+        }
+    }, 100);
 };
 
 const bottomNavItemClicked = (item: any) => {
@@ -226,10 +255,26 @@ const bottomNavItemClicked = (item: any) => {
 </script>
 
 <style scoped lang="less">
-.v-autocomplete__content {
-    max-height: calc(100vh - 20rem) !important;
-}
+// .anim-icon {
+//     animation: stroke 6s infinite alternate;
+// }
+// @keyframes stroke {
+// 	0%   { color: #E50914}
+// 	50%  { color: white}
+// 	100%  { color: #00A8E1 }
+// }
 :deep(.v-chip) {
     border-width: 2px !important;
+}
+</style>
+
+<style lang="less">
+.v-autocomplete__content {
+    max-height: calc(100vh - 20rem) !important;
+    height: calc(100vh - 20rem) !important;
+    .v-list-item {
+        background-color: #111;
+        border-bottom: 1px solid #333;
+    }
 }
 </style>

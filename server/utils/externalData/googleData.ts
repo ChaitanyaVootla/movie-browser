@@ -28,13 +28,16 @@ const getYear = (movieDate: any) => {
 
 export const getGoogleLambdaData = async (item: any) => {
     let mainStr = sanitizeString(`${item.name || item.title}`);
+    const dateInfo = `${item.first_air_date ? 'tv series' : getYear(item.release_date) + ' movie'}`;
     if (item.original_language !== 'en') {
         const language = LANGAUAGES.find(({iso_639_1}) => iso_639_1 === item.original_language);
         if (language) {
-            mainStr += ` ${language.english_name}`;
+            const languageStringAttempt = await getGoogleData(`${mainStr} ${language.english_name} ${dateInfo}`);
+            if (languageStringAttempt.ratings?.length > 0) {
+                return languageStringAttempt;
+            }
         }
     }
-    const dateInfo = `${item.first_air_date ? 'tv series' : getYear(item.release_date) + ' movie'}`;
     const fullStringAttempt = await getGoogleData(`${mainStr} ${dateInfo}`);
     if (fullStringAttempt.ratings?.length > 0) {
         return fullStringAttempt;

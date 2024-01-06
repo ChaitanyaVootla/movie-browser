@@ -4,6 +4,8 @@ export default defineEventHandler(async (event) => {
         return [];
     }
     const res: any = await $fetch(`https://api.themoviedb.org/3/search/multi?api_key=${process.env.TMDB_API_KEY
-        }&query=${query}`);
+        }&query=${query}`, {
+            retry: 3,
+        });
     return res.results || [];
 });
