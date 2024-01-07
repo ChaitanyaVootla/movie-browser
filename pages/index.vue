@@ -13,7 +13,7 @@
                 </div>
             </template>
             <v-carousel-item v-for="item in trending?.allItems">
-                <NuxtLink :to="`/${item.release_date ? 'movie': 'series'}/${item.id}`">
+                <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
                     <DetailsTopInfo :item="item" :watched="false" :minimal="true" />
                 </NuxtLink>
             </v-carousel-item>

@@ -27,7 +27,20 @@ export default defineEventHandler(async (event) => {
             ...item,
           }
         }
-      }),
+      })
+      .map(({id, media_type, title, name, backdrop_path, vote_average, googleData, genres, images, genre_ids }: any) => ({
+        id,
+        media_type,
+        title,
+        name,
+        backdrop_path,
+        vote_average,
+        genres,
+        genre_ids,
+        googleData,
+        images,
+      }))
+      ,
       movies,
       tv,
       streamingNow,
