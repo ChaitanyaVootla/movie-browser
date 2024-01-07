@@ -30,8 +30,7 @@
             <div v-if="item.infoText" class="mt-1 text-neutral-300 text-2xs md:text-sm capitalize">
                 {{ item.infoText }}
             </div>
-            <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200
-                hidden md:block text-sm">
+            <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-sm">
                 {{ item.character || item.title || item.name }}
             </div>
         </div>

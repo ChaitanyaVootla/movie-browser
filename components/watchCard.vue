@@ -49,6 +49,9 @@ defineProps({
 @lg-height: 14rem;
 @mobile-height: 6.5rem;
 
+:deep(.card) {
+    width: calc(@lg-height * 1.7777);
+}
 :deep(.image) {
     height: @lg-height;
     width: calc(@lg-height * 1.7777);
@@ -56,6 +59,9 @@ defineProps({
 @media (max-width: 768px) {
     :deep(.image) {
         height: @mobile-height;
+        width: calc(@mobile-height * 1.7777);
+    }
+    :deep(.card) {
         width: calc(@mobile-height * 1.7777);
     }
 }
