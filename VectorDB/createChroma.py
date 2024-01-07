@@ -5,9 +5,9 @@ from sentence_transformers import SentenceTransformer
 import time
 import numpy as np
 
-MODEL_NAME = "msmarco-distilbert-base-v4"
+# MODEL_NAME = "msmarco-distilbert-base-v4"
 # MODEL_NAME = "msmarco-MiniLM-L-6-v3"
-# MODEL_NAME = "all-mpnet-base-v2"
+MODEL_NAME = "all-mpnet-base-v2"
 # MODEL_NAME = "all-MiniLM-L6-v2"
 flatModelName = MODEL_NAME.replace('-', '')
 VOTE_COUNT_THREASHOLD = 100

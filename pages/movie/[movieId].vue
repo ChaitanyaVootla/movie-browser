@@ -38,6 +38,10 @@
                             </v-btn>
                         </NuxtLink>
                         <div :key="`${isMounted}`" class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
+                            <v-chip v-if="language" class="rounded-pill cursor-pointer" color="#ddd"
+                                :size="$vuetify.display.mdAndUp?'small':'x-small'" @click="languageClicked()">
+                                {{ language }}
+                            </v-chip>
                             <v-chip v-for="keyword in keywords"
                                 class="rounded-pill cursor-pointer" :color="'#ddd'"
                                 :size="$vuetify.display.mdAndUp?'small':'x-small'" @click="keywordClicked(keyword)">
@@ -80,11 +84,27 @@
                     </Scroller>
                 </div>
 
-                <div v-if="aiRecommendations?.length" class="px-3 md:px-0 mt-3 md:mt-10">
+                <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
+                    <Scroller :items="movie?.youtubeVideos" title="Trailers and Clips" :pending="pending" title-icon="mdi-youtube">
+                        <template v-slot:default="{ item }">
+                            <VideoCard :item="item" />
+                        </template>
+                    </Scroller>
+                </div>
+
+                <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
+                    <Scroller :items="movie?.images?.backdrops" title="Image Gallery" :pending="pending">
+                        <template v-slot:default="{ item }">
+                            <GalleryImageCard :item="item" />
+                        </template>
+                    </Scroller>
+                </div>
+
+                <div v-if="aiRecommendations?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
                     <Scroller :items="aiRecommendations || []" title="AI Recommendations" :pending="pending" />
                 </div>
 
-                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="px-3 md:px-0 mt-3 md:mt-10">
+                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
                     <Scroller :items="movie.recommendations.results || []" title="Recommended" :pending="pending" />
                 </div>
 
@@ -124,6 +144,12 @@ let loginRef = null as any;
 let movieUpdateKey = ref(0);
 let isUpdated = false;
 let isRecentsUpdated = false;
+let language = computed(() => {
+    if (movie.value?.original_language !== 'en') {
+        return LANGAUAGES.find(({iso_639_1}) => iso_639_1 === movie.value?.original_language)?.english_name;
+    }
+    return null;
+});
 
 const keywords = computed(() => {
     if (movie.value?.keywords?.keywords?.length > 5 && !isKeywordsExpanded.value) {
@@ -135,7 +161,6 @@ const keywords = computed(() => {
 const checkMovieUpdate = async (APImovie: any) => {
     if (isUpdated) return;
     isUpdated = true;
-    console.log('checking movie update')
     updatingMovie.value = true;
     snackbar.value = true;
     const updatedMovie = await $fetch(`/api/movie/${APImovie.id}?checkUpdate=true`)
@@ -166,6 +191,7 @@ onMounted(() => {
 
 const addToRecents = () => {
     if (isRecentsUpdated) return;
+    const englishBackdrop = movie?.value?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
     isRecentsUpdated = true;
     $fetch(`/api/user/recents`,
         {
@@ -175,7 +201,7 @@ const addToRecents = () => {
                 itemId: useRoute().params.movieId,
                 isMovie: true,
                 poster_path: movie.value?.poster_path,
-                backdrop_path: movie.value?.backdrop_path,
+                backdrop_path: englishBackdrop || movie.value?.backdrop_path,
                 title: movie.value?.title,
             })
         }
@@ -200,19 +226,14 @@ const mapMovie = (movie: any) => {
         ...movie,
         youtubeVideos: ( movie.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
             (a: any, b: any) => {
-            if (a.type === 'Trailer' && b.type !== 'Trailer') {
-                return -1;
-            }
-            if (a.type !== 'Trailer' && b.type === 'Trailer') {
-                return 1;
-            }
-            if (a.type === 'Teaser' && b.type !== 'Teaser') {
-                return -1;
-            }
-            if (a.type !== 'Teaser' && b.type === 'Teaser') {
-                return 1;
-            }
-            return 0;
+                const customOrder = ['Trailer', 'Teaser', 'Clip'];
+                let indexA = customOrder.indexOf(a.type);
+                let indexB = customOrder.indexOf(b.type);
+
+                indexA = indexA === -1 ? customOrder.length : indexA;
+                indexB = indexB === -1 ? customOrder.length : indexB;
+
+                return indexA - indexB;
         }) || [],
     };
 }
@@ -313,6 +334,17 @@ const keywordClicked = (keyword: any) => {
         }
     });
 }
+
+const languageClicked = () => {
+    useRouter().push({
+        name: 'browse',
+        query: {
+            media_type: 'movie',
+            with_original_language: movie.value.original_language
+        }
+    });
+}
+
 useHead(() => {
     return {
         title: movie.value?.title,
@@ -388,7 +420,6 @@ useHead(() => {
 </script>
 
 <style scoped lang="less">
-
 :deep(.v-skeleton-loader) {
     .v-skeleton-loader__bone {
         &.v-skeleton-loader__image {

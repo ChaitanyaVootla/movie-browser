@@ -39,7 +39,11 @@
         <Scroller :items="trending?.streamingNow" :pending="pending" title="Streaming Now" class="mt-1 md:pt-5"
             title-icon="mdi-movie-open-outline"/>
         <Scroller v-if="status === 'authenticated'" :items="recents" :pending="pending" title="Recent visits" class="mt-1 md:pt-5"
-            title-icon="mdi-history"/>
+            title-icon="mdi-history">
+            <template v-slot:default="{ item }">
+                <WideCard :item="item" class="mr-3" />
+            </template>
+        </Scroller>
     </div>
 </template>
 <script setup lang="ts">

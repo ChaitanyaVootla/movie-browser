@@ -54,6 +54,7 @@ if (props.googleData?.allWatchOptions) {
 }
 
 const watchLinkClicked = (watchOption: any) => {
+    const englishBackdrop = props.item?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
     window.open(watchOption.link, '_blank')
     $fetch('/api/user/continueWatching', {
         method: 'POST',
@@ -61,7 +62,7 @@ const watchLinkClicked = (watchOption: any) => {
             itemId: props.item.id,
             isMovie: props.item.title ? true : false,
             poster_path: props.item.poster_path,
-            backdrop_path: props.item.backdrop_path,
+            backdrop_path: englishBackdrop || props.item.backdrop_path,
             title: props.item.title,
             name: props.item.name,
             watchLink: watchOption.link,

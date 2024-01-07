@@ -4,9 +4,10 @@
             <v-icon v-if="titleIcon" :icon="titleIcon"></v-icon> <div class="leading-4">{{ title }}</div>
         </div>
         <div class="flex w-full h-full">
-            <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden" v-on:click="slideLeft">
+            <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideLeft">
                 <div>
-                    <v-icon icon="mdi-chevron-left" color="#aaa"></v-icon>
+                    <v-icon icon="mdi-chevron-left" color="#aaa"
+                        class="group-hover:scale-125 group-hover:!text-white transition-all duration-200"></v-icon>
                 </div>
             </div>
             <ClientOnly>
@@ -19,8 +20,9 @@
                     </slot>
                 </div>
             </div>
-            <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden" v-on:click="slideRight">
-                <v-icon icon="mdi-chevron-right" color="#aaa"></v-icon>
+            <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideRight">
+                <v-icon icon="mdi-chevron-right" color="#aaa"
+                    class="group-hover:scale-125 group-hover:!text-white transition-all duration-200"></v-icon>
             </div>
         </div>
     </div>
@@ -49,6 +51,8 @@ defineProps({
 });
 const uuid = ref<any>(null);
 let isSliding = ref(false);
+const slideLeft = ref<any>(null);
+const slideRight = ref<any>(null);
 
 onMounted(() => {
     uuid.value = uid();
@@ -89,23 +93,21 @@ onMounted(() => {
             slider.addEventListener('mouseleave', stopDragging);
             slider.addEventListener('mouseup', stopDragging);
             slider.addEventListener('mousemove', whileDragging);
+
+             slideLeft.value = () => {
+                slider.classList.add('scroll-smooth');
+                slider.scrollLeft -= slider.clientWidth;
+                slider.classList.remove('scroll-smooth');
+            };
+
+            slideRight.value = () => {
+                slider.classList.add('scroll-smooth');
+                slider.scrollLeft += slider.clientWidth;
+                slider.classList.remove('scroll-smooth');
+            };
         }
     })
 });
-
-const slideLeft = () => {
-    const slider = document.querySelector(`#scroll-bar-${uuid.value}`) as HTMLElement;
-    slider.classList.add('scroll-smooth');
-    slider.scrollLeft -= slider.clientWidth;
-    slider.classList.remove('scroll-smooth');
-};
-
-const slideRight = () => {
-    const slider: any = document.querySelector(`#scroll-bar-${uuid.value}`);
-    slider.classList.add('scroll-smooth');
-    slider.scrollLeft += slider.clientWidth;
-    slider.classList.remove('scroll-smooth');
-};
 </script>
 
 <style scoped lang="less">

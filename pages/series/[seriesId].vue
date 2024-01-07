@@ -51,7 +51,7 @@
                 <div class="px-3 md:px-0 max-md:-mt-2">
                     <Scroller :items="series.selectedSeason?.episodes || []" title="" :pending="pending" >
                         <template v-slot:default="{ item }">
-                            <div class="flex flex-col gap-3 mt-2 cursor-pointer" @click="showEpisode(item)">
+                            <div class="flex flex-col gap-3 mt-2 cursor-pointer wide-card" @click="showEpisode(item)">
                                 <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
                                     text-xs md:text-sm -mb-1 flex items-center justify-between mr-1">
                                     <div class="flex gap-2">
@@ -141,7 +141,15 @@
                     </Scroller>
                 </div>
 
-                <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0 mt-3 md:mt-10">
+                <div v-if="series?.youtubeVideos?.length" class="px-3 md:px-20 mt-3 md:mt-10">
+                    <Scroller :items="series?.youtubeVideos" title="Trailers and Clips" :pending="pending" title-icon="mdi-youtube">
+                        <template v-slot:default="{ item }">
+                            <VideoCard :item="item" />
+                        </template>
+                    </Scroller>
+                </div>
+
+                <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0 mt-10">
                     <Scroller :items="series.recommendations?.results || []" title="Recommended" :pending="pending" />
                 </div>
 
@@ -209,19 +217,14 @@ const mapSeries = (series: any) => {
         ...series,
         youtubeVideos: ( series.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
             (a: any, b: any) => {
-            if (a.type === 'Trailer' && b.type !== 'Trailer') {
-                return -1;
-            }
-            if (a.type !== 'Trailer' && b.type === 'Trailer') {
-                return 1;
-            }
-            if (a.type === 'Teaser' && b.type !== 'Teaser') {
-                return -1;
-            }
-            if (a.type !== 'Teaser' && b.type === 'Teaser') {
-                return 1;
-            }
-            return 0;
+                const customOrder = ['Trailer', 'Teaser', 'Clip'];
+                let indexA = customOrder.indexOf(a.type);
+                let indexB = customOrder.indexOf(b.type);
+
+                indexA = indexA === -1 ? customOrder.length : indexA;
+                indexB = indexB === -1 ? customOrder.length : indexB;
+
+                return indexA - indexB;
         }) || [],
     };
 }
@@ -245,6 +248,7 @@ let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute(
 );
 
 const addToRecents = () => {
+    const englishBackdrop = series?.value?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
     $fetch(`/api/user/recents`,
         {
             headers,
@@ -253,7 +257,7 @@ const addToRecents = () => {
                 itemId: useRoute().params.seriesId,
                 isMovie: false,
                 poster_path: series.value?.poster_path,
-                backdrop_path: series.value?.backdrop_path,
+                backdrop_path: englishBackdrop || series.value?.backdrop_path,
                 name: series.value?.name,
             })
         }
@@ -415,9 +419,12 @@ useHead(() => {
 </script>
 
 <style scoped lang="less">
-@wide-image-height: 12rem;
+@wide-image-height: 15rem;
 :deep(.wide-image) {
     height: @wide-image-height;
+    width: calc(@wide-image-height * 16/9);
+}
+:deep(.wide-card) {
     width: calc(@wide-image-height * 16/9);
 }
 @media (max-width: 768px) {
@@ -426,8 +433,10 @@ useHead(() => {
         height: @wide-image-height;
         width: calc(@wide-image-height * 16/9);
     }
+    :deep(.wide-card) {
+        width: calc(@wide-image-height * 16/9);
+    }
 }
-
 :deep(.v-skeleton-loader) {
     .v-skeleton-loader__bone {
         &.v-skeleton-loader__image {
