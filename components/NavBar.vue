@@ -120,6 +120,7 @@
                 autofocus
                 variant="solo-filled"
                 return-object
+                :loading="isSearching"
                 @update:search="searchUpdated"
                 @update:model-value="searchItemClicked"
                 :items="searchResults"
@@ -190,6 +191,7 @@ const { data, status, signIn, signOut } = useAuth();
 const defaultNavBarItem = ref(0);
 
 const showSearchOverlay = ref(false);
+const isSearching = ref(false);
 const isMounted = ref(false);
 let searchResults = ref([] as any[]);
 
@@ -204,6 +206,7 @@ onMounted(() => {
 });
 
 const searchUpdated = useDebounce(async (query: string) => {
+    isSearching.value = true;
     let searchResponse = await $fetch(`/api/search?query=${query}`);
     searchResponse = searchResponse.map((item: any) => {
         if (item.media_type === 'movie') {
@@ -224,6 +227,7 @@ const searchUpdated = useDebounce(async (query: string) => {
         }
     });
     searchResults.value = searchResponse;
+    isSearching.value = false;
 }, 300, { leading: false });
 
 const searchItemClicked = (item: any) => {
@@ -271,7 +275,7 @@ const bottomNavItemClicked = (item: any) => {
 <style lang="less">
 .v-autocomplete__content {
     max-height: calc(100vh - 20rem) !important;
-    height: calc(100vh - 20rem) !important;
+    height: auto !important;
     .v-list-item {
         background-color: #111;
         border-bottom: 1px solid #333;

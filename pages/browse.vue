@@ -110,8 +110,9 @@
                         v-model="queryParams.with_keywords"
                         clearable
                         single-line
-                        disabled
-                        :items="[]"
+                        :items="filteredKeywords"
+                        @update:search="searchKeywords"
+                        no-filter
                         multiple
                         label="Keywords"
                         variant="solo"
@@ -151,6 +152,7 @@ let selectedType = ref(0);
 let pending = ref(true);
 let canShowLoadMore = ref(true);
 let discoverResults = ref([] as any[]);
+let filteredKeywords = ref([] as any[]);
 let totalResults = ref(0);
 
 const genres = computed(() => {
@@ -257,6 +259,15 @@ totalResults.value = (await loadData()).total_results as number;
 
 const loadMore = async () => {
     loadData();
+}
+
+const searchKeywords = async (search: string) => {
+    if (!search || search.length < 3) {
+        filteredKeywords.value = [];
+        return;
+    }
+    const results = await $fetch(`/api/keywords?query=${search}`);
+    filteredKeywords.value = results;
 }
 
 useHead({
