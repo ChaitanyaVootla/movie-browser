@@ -76,7 +76,7 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
     }
 );
 
-const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('ongoingSeries',
+const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('watchList',
     () => $fetch('/api/user/watchList').catch((err) => {
         console.log(err);
         return {};

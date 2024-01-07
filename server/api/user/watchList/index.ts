@@ -16,8 +16,8 @@ export default defineEventHandler(async (event) => {
     const movieListIds = moviesList.map((movie) => movie.movieId);
     const seriesListIds = seriesList.map((series) => series.seriesId);
     const [movies, series] = await Promise.all([
-        Movie.find({id: {$in: movieListIds}}).select(MovieLightFileds),
-        Series.find({id: {$in: seriesListIds}}).select(SeriesLightFileds),
+        Movie.find({id: {$in: movieListIds}}).select('-_id id title poster_path'),
+        Series.find({id: {$in: seriesListIds}}).select('-_id id name poster_path next_episode_to_air last_episode_to_air status'),
     ]);
     const moviesById = _.keyBy(movies, 'id');
     return {

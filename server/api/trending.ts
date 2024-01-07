@@ -27,8 +27,7 @@ export default defineEventHandler(async (event) => {
             ...item,
           }
         }
-      })
-      .map(({id, media_type, title, name, backdrop_path, vote_average, googleData, genres, images, genre_ids }: any) => ({
+      }).map(({id, media_type, title, name, backdrop_path, vote_average, googleData, genres, images, genre_ids }: any) => ({
         id,
         media_type,
         title,
@@ -39,11 +38,22 @@ export default defineEventHandler(async (event) => {
         genre_ids,
         googleData,
         images,
-      }))
-      ,
-      movies,
-      tv,
-      streamingNow,
+      })),
+      movies: movies.map(({id, title, poster_path }: any) => ({
+        id,
+        title,
+        poster_path,
+      })),
+      tv: tv.map(({id, name, poster_path }: any) => ({
+        id,
+        name,
+        poster_path,
+      })),
+      streamingNow: movies.map(({id, title, poster_path }: any) => ({
+        id,
+        title,
+        poster_path,
+      })),
     }
   } catch (event: any) {
     console.error(event);
