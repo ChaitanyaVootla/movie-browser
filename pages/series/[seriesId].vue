@@ -141,7 +141,7 @@
                     </Scroller>
                 </div>
 
-                <div v-if="series?.youtubeVideos?.length" class="px-3 md:px-20 mt-3 md:mt-10">
+                <div v-if="series?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
                     <Scroller :items="series?.youtubeVideos" title="Trailers and Clips" :pending="pending" title-icon="mdi-youtube">
                         <template v-slot:default="{ item }">
                             <VideoCard :item="item" />
@@ -149,11 +149,19 @@
                     </Scroller>
                 </div>
 
-                <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0 mt-10">
+                <div v-if="series?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
+                    <Scroller :items="series?.images?.backdrops" title="Image Gallery" :pending="pending">
+                        <template v-slot:default="{ item }">
+                            <GalleryImageCard :item="item" />
+                        </template>
+                    </Scroller>
+                </div>
+
+                <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
                     <Scroller :items="series.recommendations?.results || []" title="Recommended" :pending="pending" />
                 </div>
 
-                <div v-if="series.similar?.results?.length" class="px-3 md:px-0 mt-3 md:mt-10">
+                <div v-if="series.similar?.results?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
                     <Scroller :items="series.similar?.results || []" title="Similar" :pending="pending" />
                 </div>
             </div>
