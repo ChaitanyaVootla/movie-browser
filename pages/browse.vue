@@ -140,27 +140,76 @@
                 </div>
             </div>
         </div>
+        <div v-if="status === 'authenticated'" class="max-md:px-3 md:px-14">
+            <v-btn size="small" rounded @click="isFilterDialogActive = true" color="#aaa" class="text-black">
+                Create Filter
+            </v-btn>
+            <div class="flex gap-2 w-full mt-3">
+                <v-chip v-if="userFilters.length" v-for="filter in userFilters" rounded @click="selectFilter(filter)"
+                    closable @click:close="deleteFilter(filter)">
+                    {{ filter.name }}
+                </v-chip>
+            </div>
+        </div>
         <div v-if="!pending" class="max-md:ml-3 md:ml-16 mt-2 text-neutral-200 text-sm md:text-lg">
-            {{ totalResults }} Results
+            {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(
+                totalResults,
+            )}} Results
         </div>
         <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:px-3 md:px-14"/>
         <div v-if="discoverResults.length && canShowLoadMore" class="w-full flex justify-center">
             <v-btn @click="loadMore()" :loading="pending">Load More</v-btn>
         </div>
+        <v-dialog width="500" v-model="isFilterDialogActive">
+            <v-card title="Create Filter" class="px-4">
+                <div class="mt-5">
+                    <v-text-field
+                        label="Filter name"
+                        v-model="filterName"
+                    />
+                </div>
+                <v-card-actions class="h-20">
+                    <v-btn
+                        variant="text"
+                        text="Cancel"
+                        color="red"
+                        @click="isFilterDialogActive = false"
+                    ></v-btn>
+                    <v-spacer></v-spacer>
+                    <v-btn @click="saveFilter" :disabled="!filterName?.length">
+                        Save
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '#imports';
+
 let selectedType = ref(0);
 let pending = ref(true);
 let canShowLoadMore = ref(true);
+let isFilterDialogActive = ref(false);
 let discoverResults = ref([] as any[]);
 let selectedKeywords = ref([] as any[]);
 let keywordSearchResults = ref([] as any[]);
+let userFilters = ref([] as any[]);
+let filterName = ref('');
 let filteredKeywords = computed(() => {
     return [...keywordSearchResults.value, ...selectedKeywords.value];
 });
 let totalResults = ref(0);
+const { status } = useAuth();
+
+const fetchFilters = async () => {
+    userFilters.value = await $fetch('/api/user/filters');
+}
+
+onMounted(() => {
+    fetchFilters();
+});
 
 const genres = computed(() => {
     return selectedType.value === 0 ? Object.values(movieGenres) : Object.values(seriesGenres);
@@ -275,6 +324,33 @@ const searchKeywords = async (search: string) => {
     }
     const results = await $fetch(`/api/keywords?query=${search}`);
     keywordSearchResults.value = results;
+}
+
+const selectFilter = (filter: any) => {
+    queryParams.value = filter.filterParams;
+    freshLoad();
+}
+
+const deleteFilter = async (filter: any) => {
+    await $fetch('/api/user/filters', {
+        method: 'DELETE',
+        body: {
+            id: filter._id,
+        }
+    });
+    fetchFilters();
+}
+
+const saveFilter = async () => {
+    await $fetch('/api/user/filters', {
+        method: 'POST',
+        body: JSON.stringify({
+            name: filterName.value,
+            filterParams: queryParams.value,
+            isGlobal: false,
+        })
+    });
+    isFilterDialogActive.value = false;
 }
 
 useHead({
