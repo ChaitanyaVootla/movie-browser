@@ -50,7 +50,7 @@
                         multiple
                         :chips="true"
                         closable-chips
-                        class="watchProviders"
+                        class="singleLineAutocomplete"
                         label="Watch Providers"
                         variant="solo"
                         density="compact"
@@ -111,15 +111,18 @@
                         clearable
                         single-line
                         :items="filteredKeywords"
+                        class="singleLineAutocomplete"
                         @update:search="searchKeywords"
+                        chips
+                        closable-chips
                         no-filter
                         multiple
+                        return-object
                         label="Keywords"
                         variant="solo"
                         density="compact"
                         item-title="name"
                         item-value="id"
-                        auto-select-first
                         @update:model-value="freshLoad()"
                     ></v-autocomplete>
                 </div>
@@ -152,7 +155,11 @@ let selectedType = ref(0);
 let pending = ref(true);
 let canShowLoadMore = ref(true);
 let discoverResults = ref([] as any[]);
-let filteredKeywords = ref([] as any[]);
+let selectedKeywords = ref([] as any[]);
+let keywordSearchResults = ref([] as any[]);
+let filteredKeywords = computed(() => {
+    return [...keywordSearchResults.value, ...selectedKeywords.value];
+});
 let totalResults = ref(0);
 
 const genres = computed(() => {
@@ -166,7 +173,13 @@ const sortByValues = [
     { text: 'Revenue', value: 'revenue.desc' },
 ];
 
-const query = useRouter().currentRoute.value.query as any;
+let query = {} as any;
+if (useRouter().currentRoute.value?.query?.discover?.length) {
+    query = JSON.parse(decodeURIComponent(atob(useRouter().currentRoute.value?.query?.discover as string))) as any;
+    if (query.with_keywords?.length) {
+        selectedKeywords.value = query.with_keywords;
+    }
+}
 if (query.media_type === 'tv') {
     selectedType.value = 1;
 }
@@ -183,8 +196,6 @@ const freshLoad = async () => {
     canShowLoadMore.value = true;
     discoverResults.value = [];
     queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
-    // queryParams.value.with_genres = [];
-    // queryParams.value.without_genres = [];
     totalResults.value = (await loadData()).total_results as number;
 }
 
@@ -204,29 +215,27 @@ const queryParams = ref<any>({
     with_release_type: '',
     "vote_average.gte": null,
     "vote_count.gte": null,
-    ...{
-        ...query,
-        with_genres: query.with_genres?.split(',').map(Number),
-        without_genres: query.without_genres?.split(',').map(Number),
-        with_watch_providers: query.with_watch_providers?.split(',').map(Number),
-        with_keywords: query.with_keywords?.split(',').map(Number),
-    }
+    ...query,
 });
 
 const loadData = async () => {
     pending.value = true;
+    const query = {
+        ...queryParams.value,
+        with_keywords: queryParams.value.with_keywords.map((item: any) => item.id),
+    }
     const [page1, page2]: any = await Promise.all([
         $fetch('/api/discover', {
             method: 'POST',
             body: JSON.stringify({
-                ...queryParams.value,
+                ...query,
                 page: pageTrack,
             })
         }),
         $fetch('/api/discover', {
             method: 'POST',
             body: JSON.stringify({
-                ...queryParams.value,
+                ...query,
                 page: ++pageTrack
             })
         })
@@ -238,14 +247,12 @@ const loadData = async () => {
         total_results: number;
         results: any[];
     };
-    const query = Object.keys(queryParams.value).reduce((acc: any, key: any) => {
-        if (queryParams.value[key]) {
-            acc[key] = `${queryParams.value[key]}`;
-        }
-        return acc;
-    }, {});
     setTimeout(
-        () => useRouter().replace({ query })
+        () => useRouter().replace({
+            query: {
+                discover: btoa(encodeURIComponent(JSON.stringify(queryParams.value)))
+            }
+        })
     );
     if (data.results.length < 40) {
         canShowLoadMore.value = false;
@@ -263,11 +270,11 @@ const loadMore = async () => {
 
 const searchKeywords = async (search: string) => {
     if (!search || search.length < 3) {
-        filteredKeywords.value = [];
+        keywordSearchResults.value = [];
         return;
     }
     const results = await $fetch(`/api/keywords?query=${search}`);
-    filteredKeywords.value = results;
+    keywordSearchResults.value = results;
 }
 
 useHead({
@@ -322,7 +329,7 @@ useHead({
 </script>
 
 <style scoped lang="less">
-.watchProviders {
+.singleLineAutocomplete {
     :deep(.v-field__input) {
         display: -webkit-box;
         text-overflow: ellipsis;

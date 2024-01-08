@@ -12,6 +12,9 @@ export default defineEventHandler(async (event) => {
             if (key === 'with_watch_providers') {
                 return `${key}=${value.join('|')}`
             }
+            if (key === 'with_keywords') {
+                return `${key}=${value.join('|')}`
+            }
             return value?`${key}=${value}`:null
         })
         .filter(Boolean)
