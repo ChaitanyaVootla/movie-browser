@@ -142,9 +142,6 @@
                 </div>
             </div>
             <div v-if="status === 'authenticated'" class="max-md:px-3 md:px-14">
-                <!-- <v-btn size="small" rounded @click="isFilterDialogActive = true" color="#aaa" class="text-black">
-                    Create Filter
-                </v-btn> -->
                 <div v-if="userFilters.length" class="flex flex-wrap gap-2 w-full">
                     <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
                         :disabled="selectedFilter._id" >
@@ -176,11 +173,10 @@
                 </div>
             </div>
         </div>
-        <!-- <div class="border-t-2 border-neutral-700 max-md:mx-3 md:mx-14 my-3"></div> -->
         <div v-if="globalFilters.length" class="flex flex-wrap gap-2 w-full max-md:mx-3 md:mx-14">
             <div v-for="filter in globalFilters">
-                <v-chip @click="selectFilter(filter)" rounded class="!text-white"
-                    variant="flat" color="#333">
+                <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white"
+                    variant="flat" :color="selectedGlobalFilter._id === filter._id?'#666':'#333'">
                     {{ filter.name }}
                 </v-chip>
             </div>
@@ -235,6 +231,7 @@ let selectedKeywords = ref([] as any[]);
 let keywordSearchResults = ref([] as any[]);
 let userFilters = ref([] as any[]);
 let selectedFilter = ref({} as any);
+let selectedGlobalFilter = ref({} as any);
 let filterName = ref('');
 let isGlobal = ref(false);
 let filteredKeywords = computed(() => {
@@ -366,6 +363,7 @@ const openCreateFilter = () => {
 
 const clearFilter = () => {
     selectedFilter.value = {};
+    selectedGlobalFilter.value = {};
     queryParams.value = baseDiscoverQuery;
     freshLoad();
 }
@@ -377,10 +375,23 @@ const editFilter = (filter: any) => {
 }
 
 const selectFilter = (filter: any) => {
+    selectedGlobalFilter.value = {};
     if (selectedFilter.value._id === filter._id) {
         clearFilter();
     } else {
         selectedFilter.value = filter;
+        queryParams.value = filter.filterParams;
+        selectedType.value = queryParams.value.media_type === 'movie' ? 0 : 1;
+    }
+    freshLoad();
+}
+
+const selectGlobalFilter = (filter: any) => {
+    selectedFilter.value = {};
+    if (selectedGlobalFilter.value._id === filter._id) {
+        clearFilter();
+    } else {
+        selectedGlobalFilter.value = filter;
         queryParams.value = filter.filterParams;
         selectedType.value = queryParams.value.media_type === 'movie' ? 0 : 1;
     }
