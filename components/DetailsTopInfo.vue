@@ -123,6 +123,8 @@
 </template>
 
 <script setup lang="ts">
+import { baseDiscoverQuery } from '~/utils/constants';
+
 let showTrailer = ref(false);
 let showMobileTrailer = ref(false);
 
@@ -148,11 +150,15 @@ const logo = computed(() => {
 })
 
 const genreClicked = (genre: any) => {
+    const discoverQuery = {
+        ...baseDiscoverQuery,
+        media_type: item.title?'movie':'tv',
+        with_genres: [genre.id]
+    }
     useRouter().push({
         name: 'browse',
         query: {
-            media_type: item.title?'movie':'tv',
-            with_genres: genre.id
+            discover: btoa(encodeURIComponent(JSON.stringify(discoverQuery)))
         }
     })
 }

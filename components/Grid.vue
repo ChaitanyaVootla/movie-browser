@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="title text-2xl mb-5">
+        <div v-if="title" class="title text-2xl mb-5">
             {{ title }}
         </div>
         <div class="grid pb-3">

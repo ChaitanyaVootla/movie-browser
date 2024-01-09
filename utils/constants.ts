@@ -188,3 +188,21 @@ const seriesGenres = {
 } as Record<string, any>;
 
 export { configuration, movieGenres, seriesGenres };
+
+export const baseDiscoverQuery = {
+    media_type: 'movie',
+    sort_by: 'popularity.desc',
+    with_genres: [],
+    with_keywords: [],
+    with_original_language: null,
+    without_genres: [],
+    with_watch_providers: [],
+    with_watch_monetization_types: '',
+    // TODO udpate with user region
+    watch_region: 'IN',
+    "with_runtime.gte": '',
+    "with_runtime.lte": '',
+    with_release_type: '',
+    "vote_average.gte": null,
+    "vote_count.gte": null,
+};

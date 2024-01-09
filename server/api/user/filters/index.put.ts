@@ -8,17 +8,21 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Unauthorized`);
     }
     const body = await readBody(event);
-    const filterObj = {
-        userId: userData.sub,
-        name: body.name,
-        filterParams: body.filterParams,
-        isGobal: body.isGlobal || false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    };
-    const newFilter = await Filters.create(filterObj);
+    if (!body._id) {
+        event.node.res.statusCode = 400;
+        event.node.res.end(`_id is required`);
+    }
+    await Filters.updateOne({_id: body._id}, 
+        {
+            $set: {
+                filterParams: body.filterParams,
+                isGlobal: body.isGlobal || false,
+                updatedAt: new Date(),
+            },
+        },
+        { upsert: true }
+    ).exec();
     return {
         status: 200,
-        filter: newFilter.toJSON(),
     };
 });

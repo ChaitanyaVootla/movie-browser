@@ -7,5 +7,5 @@ export default defineEventHandler(async (event) => {
         }&query=${query}`, {
             retry: 3,
         });
-    return res.results || [];
+    return res.results?.filter(({ media_type }: any) => media_type !== 'collection') || [];
 });

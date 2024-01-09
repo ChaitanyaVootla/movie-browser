@@ -11,7 +11,7 @@
             </v-btn-toggle>
         </div>
 
-        <div class="mt-5 px-3 md:mx-12">
+        <div class="mt-5 max-md:mx-3 md:mx-14">
             <div class="flex justify-between gap-3 md:gap-5 flex-wrap">
                 <div class="flex-1">
                     <v-select
@@ -141,32 +141,55 @@
             </div>
         </div>
         <div v-if="status === 'authenticated'" class="max-md:px-3 md:px-14">
-            <v-btn size="small" rounded @click="isFilterDialogActive = true" color="#aaa" class="text-black">
+            <!-- <v-btn size="small" rounded @click="isFilterDialogActive = true" color="#aaa" class="text-black">
                 Create Filter
-            </v-btn>
-            <div class="flex gap-2 w-full mt-3">
-                <v-chip v-if="userFilters.length" v-for="filter in userFilters" rounded @click="selectFilter(filter)"
-                    closable @click:close="deleteFilter(filter)">
-                    {{ filter.name }}
+            </v-btn> -->
+            <div v-if="userFilters.length" class="flex flex-wrap gap-2 w-full">
+                <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
+                    :disabled="selectedFilter._id" >
+                    Create Filter
                 </v-chip>
+                <div v-for="filter in userFilters">
+                    <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
+                        variant="flat" color="#333">
+                        <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
+                        {{ filter.name }}
+                    </v-chip>
+                    <div v-else>
+                        <v-chip :rounded="false" class="rounded !cursor-pointer group" color="#555" variant="flat">
+                            <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
+                            <div @click="selectFilter(filter)">
+                                {{ filter.name }}
+                            </div>
+                            <v-divider :vertical="true" thickness="2" class="mx-2"></v-divider>
+                            <div class="hover:scale-105" @click="editFilter(filter)">
+                                Update
+                            </div>
+                            <v-divider :vertical="true" thickness="2" class="mx-2"></v-divider>
+                            <div class="text-red-400 hover:scale-105" @click="deleteFilter(filter)">
+                                Delete
+                            </div>
+                        </v-chip>
+                    </div>
+                </div>
             </div>
         </div>
-        <div v-if="!pending" class="max-md:ml-3 md:ml-16 mt-2 text-neutral-200 text-sm md:text-lg">
-            {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(
-                totalResults,
-            )}} Results
+        <div v-if="!pending" class="max-md:ml-3 md:ml-14 max-md:mt-3 md:mt-6 text-neutral-200 max-md:text-sm md:text-base">
+            {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(totalResults) }} Results
         </div>
         <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:px-3 md:px-14"/>
         <div v-if="discoverResults.length && canShowLoadMore" class="w-full flex justify-center">
             <v-btn @click="loadMore()" :loading="pending">Load More</v-btn>
         </div>
         <v-dialog width="500" v-model="isFilterDialogActive">
-            <v-card title="Create Filter" class="px-4">
-                <div class="mt-5">
+            <v-card :title="selectedFilter._id?'Update Filter':'Create Filter'">
+                <div class="mt-5 px-4">
                     <v-text-field
                         label="Filter name"
                         v-model="filterName"
+                        :disabled="selectedFilter._id"
                     />
+                    <v-checkbox label="Make Public" v-model="isGlobal"></v-checkbox>
                 </div>
                 <v-card-actions class="h-20">
                     <v-btn
@@ -176,8 +199,11 @@
                         @click="isFilterDialogActive = false"
                     ></v-btn>
                     <v-spacer></v-spacer>
-                    <v-btn @click="saveFilter" :disabled="!filterName?.length">
-                        Save
+                    <v-btn v-if="selectedFilter._id" @click="updateFilter" :disabled="!filterName?.length">
+                        Update
+                    </v-btn>
+                    <v-btn v-else @click="saveFilter" :disabled="!filterName?.length">
+                        Create
                     </v-btn>
                 </v-card-actions>
             </v-card>
@@ -187,6 +213,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '#imports';
+import { baseDiscoverQuery } from '~/utils/constants';
 
 let selectedType = ref(0);
 let pending = ref(true);
@@ -196,7 +223,9 @@ let discoverResults = ref([] as any[]);
 let selectedKeywords = ref([] as any[]);
 let keywordSearchResults = ref([] as any[]);
 let userFilters = ref([] as any[]);
+let selectedFilter = ref({} as any);
 let filterName = ref('');
+let isGlobal = ref(false);
 let filteredKeywords = computed(() => {
     return [...keywordSearchResults.value, ...selectedKeywords.value];
 });
@@ -204,7 +233,7 @@ let totalResults = ref(0);
 const { status } = useAuth();
 
 const fetchFilters = async () => {
-    userFilters.value = await $fetch('/api/user/filters');
+    userFilters.value = (await $fetch('/api/user/filters') as any[]);
 }
 
 onMounted(() => {
@@ -249,21 +278,7 @@ const freshLoad = async () => {
 }
 
 const queryParams = ref<any>({
-    media_type: 'movie',
-    sort_by: 'popularity.desc',
-    with_genres: [],
-    with_keywords: [],
-    with_original_language: null,
-    without_genres: [],
-    with_watch_providers: [],
-    with_watch_monetization_types: '',
-    // TODO udpate with user region
-    watch_region: 'IN',
-    "with_runtime.gte": '',
-    "with_runtime.lte": '',
-    with_release_type: '',
-    "vote_average.gte": null,
-    "vote_count.gte": null,
+    ...baseDiscoverQuery,
     ...query,
 });
 
@@ -326,8 +341,32 @@ const searchKeywords = async (search: string) => {
     keywordSearchResults.value = results;
 }
 
+const openCreateFilter = () => {
+    filterName.value = '';
+    isGlobal.value = false;
+    isFilterDialogActive.value = true
+}
+
+const clearFilter = () => {
+    selectedFilter.value = {};
+    queryParams.value = baseDiscoverQuery;
+    freshLoad();
+}
+
+const editFilter = (filter: any) => {
+    filterName.value = filter.name;
+    isGlobal.value = filter.isGlobal;
+    isFilterDialogActive.value = true;
+}
+
 const selectFilter = (filter: any) => {
-    queryParams.value = filter.filterParams;
+    if (selectedFilter.value._id === filter._id) {
+        clearFilter();
+    } else {
+        selectedFilter.value = filter;
+        queryParams.value = filter.filterParams;
+        selectedType.value = queryParams.value.media_type === 'movie' ? 0 : 1;
+    }
     freshLoad();
 }
 
@@ -338,6 +377,20 @@ const deleteFilter = async (filter: any) => {
             id: filter._id,
         }
     });
+    clearFilter();
+    fetchFilters();
+}
+
+const updateFilter = async () => {
+    await $fetch('/api/user/filters', {
+        method: 'PUT',
+        body: JSON.stringify({
+            _id: selectedFilter.value._id,
+            filterParams: queryParams.value,
+            isGlobal: isGlobal.value,
+        })
+    });
+    isFilterDialogActive.value = false;
     fetchFilters();
 }
 
@@ -347,10 +400,11 @@ const saveFilter = async () => {
         body: JSON.stringify({
             name: filterName.value,
             filterParams: queryParams.value,
-            isGlobal: false,
+            isGlobal: isGlobal.value,
         })
     });
     isFilterDialogActive.value = false;
+    fetchFilters();
 }
 
 useHead({
