@@ -197,6 +197,8 @@ export const baseDiscoverQuery = {
     with_original_language: null,
     without_genres: [],
     with_watch_providers: [],
+    with_cast: [],
+    with_crew: [],
     with_watch_monetization_types: '',
     // TODO udpate with user region
     watch_region: 'IN',

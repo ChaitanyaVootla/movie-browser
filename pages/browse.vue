@@ -61,6 +61,38 @@
                             @update:model-value="freshLoad()"
                         ></v-autocomplete>
                     </div>
+                    <div class="flex-1">
+                        <v-autocomplete
+                            v-model="queryParams.with_cast"
+                            clearable
+                            single-line
+                            :items="filteredCast"
+                            class="singleLineAutocomplete"
+                            :disabled="selectedType === 1"
+                            @update:search="searchPersons"
+                            chips
+                            closable-chips
+                            no-filter
+                            multiple
+                            return-object
+                            label="Cast"
+                            variant="solo"
+                            density="compact"
+                            item-title="name"
+                            item-value="id"
+                            @update:model-value="freshLoad()"
+                        >
+                            <template v-slot:item="{ props, item }">
+                                <v-list-item
+                                    v-bind="props"
+                                    :prepend-avatar="`https://image.tmdb.org/t/p/${configuration.images.profile_sizes.w185}${item.raw.profile_path}`"
+                                    :title="item.raw.name"
+                                    :subtitle="item.raw.known_for_department"
+                                    density="default"
+                                ></v-list-item>
+                            </template>
+                        </v-autocomplete>
+                    </div>
                     <div class="flex-1 flex items-center">
                         <v-select
                             v-model="queryParams['vote_average.gte']"
@@ -128,6 +160,38 @@
                         ></v-autocomplete>
                     </div>
                     <div class="flex-1">
+                        <v-autocomplete
+                            v-model="queryParams.with_crew"
+                            clearable
+                            single-line
+                            :items="filteredCrew"
+                            class="singleLineAutocomplete"
+                            :disabled="selectedType === 1"
+                            @update:search="searchPersons"
+                            chips
+                            closable-chips
+                            no-filter
+                            multiple
+                            return-object
+                            label="Crew"
+                            variant="solo"
+                            density="compact"
+                            item-title="name"
+                            item-value="id"
+                            @update:model-value="freshLoad()"
+                        >
+                            <template v-slot:item="{ props, item }">
+                                <v-list-item
+                                    v-bind="props"
+                                    :prepend-avatar="`https://image.tmdb.org/t/p/${configuration.images.profile_sizes.w185}${item.raw.profile_path}`"
+                                    :title="item.raw.name"
+                                    :subtitle="item.raw.known_for_department"
+                                    density="default"
+                                ></v-list-item>
+                            </template>
+                        </v-autocomplete>
+                    </div>
+                    <div class="flex-1">
                         <v-text-field
                             v-model="queryParams['vote_count.gte']"
                             type="number"
@@ -177,6 +241,8 @@
             <div v-for="filter in globalFilters">
                 <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white"
                     variant="flat" :color="selectedGlobalFilter._id === filter._id?'#666':'#333'">
+                    <v-icon :icon="filter?.filterParams?.media_type === 'movie'?'mdi-movie-open-outline':'mdi-television-classic'"
+                        class="mr-2" size="small"/>
                     {{ filter.name }}
                 </v-chip>
             </div>
@@ -228,7 +294,11 @@ let canShowLoadMore = ref(true);
 let isFilterDialogActive = ref(false);
 let discoverResults = ref([] as any[]);
 let selectedKeywords = ref([] as any[]);
+let selectedCast = ref([] as any[]);
+let selectedCrew = ref([] as any[]);
 let keywordSearchResults = ref([] as any[]);
+let castSearchResults = ref([] as any[]);
+let crewSearchResults = ref([] as any[]);
 let userFilters = ref([] as any[]);
 let selectedFilter = ref({} as any);
 let selectedGlobalFilter = ref({} as any);
@@ -236,6 +306,12 @@ let filterName = ref('');
 let isGlobal = ref(false);
 let filteredKeywords = computed(() => {
     return [...keywordSearchResults.value, ...selectedKeywords.value];
+});
+let filteredCast = computed(() => {
+    return [...castSearchResults.value, ...selectedCast.value];
+});
+let filteredCrew = computed(() => {
+    return [...crewSearchResults.value, ...selectedCrew.value];
 });
 let totalResults = ref(0);
 const { status } = useAuth();
@@ -271,6 +347,12 @@ if (useRouter().currentRoute.value?.query?.discover?.length) {
     if (query.with_keywords?.length) {
         selectedKeywords.value = query.with_keywords;
     }
+    if (query.with_cast?.length) {
+        selectedCast.value = query.with_cast;
+    }
+    if (query.with_crew?.length) {
+        selectedCrew.value = query.with_crew;
+    }
 }
 if (query.media_type === 'tv') {
     selectedType.value = 1;
@@ -300,7 +382,9 @@ const loadData = async () => {
     pending.value = true;
     const query = {
         ...queryParams.value,
-        with_keywords: queryParams.value.with_keywords.map((item: any) => item.id),
+        with_keywords: queryParams.value.with_keywords?.map((item: any) => item.id) || [],
+        with_cast: queryParams.value.with_cast?.map((item: any) => item.id) || [],
+        with_crew: queryParams.value.with_crew?.map((item: any) => item.id) || [],
     }
     const [page1, page2]: any = await Promise.all([
         $fetch('/api/discover', {
@@ -353,6 +437,17 @@ const searchKeywords = async (search: string) => {
     }
     const results = await $fetch(`/api/keywords?query=${search}`);
     keywordSearchResults.value = results;
+}
+
+const searchPersons = async (search: string) => {
+    if (!search || search.length < 3) {
+        castSearchResults.value = [];
+        crewSearchResults.value = [];
+        return;
+    }
+    const results: any[] = await $fetch(`/api/person?query=${search}`);
+    castSearchResults.value = results;
+    crewSearchResults.value = results;
 }
 
 const openCreateFilter = () => {
