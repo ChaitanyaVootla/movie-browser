@@ -1,180 +1,191 @@
 <template>
     <div>
-        <div class="top-action flex justify-center mt-5">
-            <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad">
-                <v-btn>
-                    Movies
-                </v-btn>
-                <v-btn>
-                    Series
-                </v-btn>
-            </v-btn-toggle>
-        </div>
+        <div class="bg-neutral-900 pt-5 mb-3 pb-5">
+            <div class="top-action flex justify-center">
+                <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad">
+                    <v-btn>
+                        Movies
+                    </v-btn>
+                    <v-btn>
+                        Series
+                    </v-btn>
+                </v-btn-toggle>
+            </div>
 
-        <div class="mt-5 max-md:mx-3 md:mx-14">
-            <div class="flex justify-between gap-3 md:gap-5 flex-wrap">
-                <div class="flex-1">
-                    <v-select
-                        v-model="queryParams.sort_by"
-                        :items="sortByValues"
-                        single-line
-                        label="Sort By"
-                        variant="solo"
-                        density="compact"
-                        item-title="text"
-                        item-value="value"
-                        @update:model-value="freshLoad()"
-                    ></v-select>
+            <div class="mt-5 max-md:mx-3 md:mx-14">
+                <div class="flex justify-between gap-3 md:gap-5 flex-wrap">
+                    <div class="flex-1">
+                        <v-select
+                            v-model="queryParams.sort_by"
+                            :items="sortByValues"
+                            single-line
+                            label="Sort By"
+                            variant="solo"
+                            density="compact"
+                            item-title="text"
+                            item-value="value"
+                            @update:model-value="freshLoad()"
+                        ></v-select>
+                    </div>
+                    <div class="flex-1">
+                        <v-autocomplete
+                            v-model="queryParams.with_genres"
+                            clearable
+                            single-line
+                            :items="genres"
+                            label="Genres"
+                            multiple
+                            variant="solo"
+                            density="compact"
+                            item-title="name"
+                            item-value="id"
+                            @update:model-value="freshLoad()"
+                        ></v-autocomplete>
+                    </div>
+                    <div class="flex-1">
+                        <v-autocomplete
+                            v-model="queryParams.with_watch_providers"
+                            clearable
+                            single-line
+                            :items="WATCH_PROVIDERS"
+                            multiple
+                            :chips="true"
+                            closable-chips
+                            class="singleLineAutocomplete"
+                            label="Watch Providers"
+                            variant="solo"
+                            density="compact"
+                            item-title="provider_name"
+                            item-value="provider_id"
+                            auto-select-first
+                            @update:model-value="freshLoad()"
+                        ></v-autocomplete>
+                    </div>
+                    <div class="flex-1 flex items-center">
+                        <v-select
+                            v-model="queryParams['vote_average.gte']"
+                            :items="ratingOptions"
+                            single-line
+                            label="Rating"
+                            variant="solo"
+                            density="compact"
+                            item-title="text"
+                            item-value="value"
+                            clearable
+                            @update:model-value="freshLoad()"
+                        ></v-select>
+                    </div>
                 </div>
-                <div class="flex-1">
-                    <v-autocomplete
-                        v-model="queryParams.with_genres"
-                        clearable
-                        single-line
-                        :items="genres"
-                        label="Genres"
-                        multiple
-                        variant="solo"
-                        density="compact"
-                        item-title="name"
-                        item-value="id"
-                        @update:model-value="freshLoad()"
-                    ></v-autocomplete>
-                </div>
-                <div class="flex-1">
-                    <v-autocomplete
-                        v-model="queryParams.with_watch_providers"
-                        clearable
-                        single-line
-                        :items="WATCH_PROVIDERS"
-                        multiple
-                        :chips="true"
-                        closable-chips
-                        class="singleLineAutocomplete"
-                        label="Watch Providers"
-                        variant="solo"
-                        density="compact"
-                        item-title="provider_name"
-                        item-value="provider_id"
-                        auto-select-first
-                        @update:model-value="freshLoad()"
-                    ></v-autocomplete>
-                </div>
-                <div class="flex-1 flex items-center">
-                    <v-select
-                        v-model="queryParams['vote_average.gte']"
-                        :items="ratingOptions"
-                        single-line
-                        label="Rating"
-                        variant="solo"
-                        density="compact"
-                        item-title="text"
-                        item-value="value"
-                        clearable
-                        @update:model-value="freshLoad()"
-                    ></v-select>
+                <div class="flex justify-between gap-3 md:gap-5 flex-wrap">
+                    <div class="flex-1">
+                        <v-autocomplete
+                            v-model="queryParams.with_original_language"
+                            clearable
+                            single-line
+                            :items="LANGAUAGES"
+                            label="Language"
+                            variant="solo"
+                            density="compact"
+                            item-title="english_name"
+                            item-value="iso_639_1"
+                            @update:model-value="freshLoad()"
+                        ></v-autocomplete>
+                    </div>
+                    <div class="flex-1">
+                        <v-autocomplete
+                            v-model="queryParams.without_genres"
+                            clearable
+                            single-line
+                            :items="genres"
+                            label="Exclude Genres"
+                            multiple
+                            variant="solo"
+                            density="compact"
+                            item-title="name"
+                            item-value="id"
+                            @update:model-value="freshLoad()"
+                        ></v-autocomplete>
+                    </div>
+                    <div class="flex-1">
+                        <v-autocomplete
+                            v-model="queryParams.with_keywords"
+                            clearable
+                            single-line
+                            :items="filteredKeywords"
+                            class="singleLineAutocomplete"
+                            @update:search="searchKeywords"
+                            chips
+                            closable-chips
+                            no-filter
+                            multiple
+                            return-object
+                            label="Keywords"
+                            variant="solo"
+                            density="compact"
+                            item-title="name"
+                            item-value="id"
+                            @update:model-value="freshLoad()"
+                        ></v-autocomplete>
+                    </div>
+                    <div class="flex-1">
+                        <v-text-field
+                            v-model="queryParams['vote_count.gte']"
+                            type="number"
+                            single-line
+                            @update:model-value="freshLoad()"
+                            placeholder="Minimum votes"
+                            variant="solo"
+                            density="compact"
+                            label="Minimum Votes"
+                        ></v-text-field>
+                    </div>
                 </div>
             </div>
-            <div class="flex justify-between gap-3 md:gap-5 flex-wrap">
-                <div class="flex-1">
-                    <v-autocomplete
-                        v-model="queryParams.with_original_language"
-                        clearable
-                        single-line
-                        :items="LANGAUAGES"
-                        label="Language"
-                        variant="solo"
-                        density="compact"
-                        item-title="english_name"
-                        item-value="iso_639_1"
-                        @update:model-value="freshLoad()"
-                    ></v-autocomplete>
-                </div>
-                <div class="flex-1">
-                    <v-autocomplete
-                        v-model="queryParams.without_genres"
-                        clearable
-                        single-line
-                        :items="genres"
-                        label="Exclude Genres"
-                        multiple
-                        variant="solo"
-                        density="compact"
-                        item-title="name"
-                        item-value="id"
-                        @update:model-value="freshLoad()"
-                    ></v-autocomplete>
-                </div>
-                <div class="flex-1">
-                    <v-autocomplete
-                        v-model="queryParams.with_keywords"
-                        clearable
-                        single-line
-                        :items="filteredKeywords"
-                        class="singleLineAutocomplete"
-                        @update:search="searchKeywords"
-                        chips
-                        closable-chips
-                        no-filter
-                        multiple
-                        return-object
-                        label="Keywords"
-                        variant="solo"
-                        density="compact"
-                        item-title="name"
-                        item-value="id"
-                        @update:model-value="freshLoad()"
-                    ></v-autocomplete>
-                </div>
-                <div class="flex-1">
-                    <v-text-field
-                        v-model="queryParams['vote_count.gte']"
-                        type="number"
-                        single-line
-                        @update:model-value="freshLoad()"
-                        placeholder="Minimum votes"
-                        variant="solo"
-                        density="compact"
-                        label="Minimum Votes"
-                    ></v-text-field>
-                </div>
-            </div>
-        </div>
-        <div v-if="status === 'authenticated'" class="max-md:px-3 md:px-14">
-            <!-- <v-btn size="small" rounded @click="isFilterDialogActive = true" color="#aaa" class="text-black">
-                Create Filter
-            </v-btn> -->
-            <div v-if="userFilters.length" class="flex flex-wrap gap-2 w-full">
-                <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
-                    :disabled="selectedFilter._id" >
+            <div v-if="status === 'authenticated'" class="max-md:px-3 md:px-14">
+                <!-- <v-btn size="small" rounded @click="isFilterDialogActive = true" color="#aaa" class="text-black">
                     Create Filter
-                </v-chip>
-                <div v-for="filter in userFilters">
-                    <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
-                        variant="flat" color="#333">
-                        <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
-                        {{ filter.name }}
+                </v-btn> -->
+                <div v-if="userFilters.length" class="flex flex-wrap gap-2 w-full">
+                    <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
+                        :disabled="selectedFilter._id" >
+                        Create Filter
                     </v-chip>
-                    <div v-else>
-                        <v-chip :rounded="false" class="rounded !cursor-pointer group" color="#555" variant="flat">
+                    <div v-for="filter in userFilters">
+                        <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
+                            variant="flat" color="#333">
                             <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
-                            <div @click="selectFilter(filter)">
-                                {{ filter.name }}
-                            </div>
-                            <v-divider :vertical="true" thickness="2" class="mx-2"></v-divider>
-                            <div class="hover:scale-105" @click="editFilter(filter)">
-                                Update
-                            </div>
-                            <v-divider :vertical="true" thickness="2" class="mx-2"></v-divider>
-                            <div class="text-red-400 hover:scale-105" @click="deleteFilter(filter)">
-                                Delete
-                            </div>
+                            {{ filter.name }}
                         </v-chip>
+                        <div v-else>
+                            <v-chip :rounded="false" class="rounded !cursor-pointer group" color="#555" variant="flat">
+                                <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
+                                <div @click="selectFilter(filter)">
+                                    {{ filter.name }}
+                                </div>
+                                <v-divider :vertical="true" thickness="2" class="mx-2"></v-divider>
+                                <div class="hover:scale-105" @click="editFilter(filter)">
+                                    Update
+                                </div>
+                                <v-divider :vertical="true" thickness="2" class="mx-2"></v-divider>
+                                <div class="text-red-400 hover:scale-105" @click="deleteFilter(filter)">
+                                    Delete
+                                </div>
+                            </v-chip>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div v-if="!pending" class="max-md:ml-3 md:ml-14 max-md:mt-3 md:mt-6 text-neutral-200 max-md:text-sm md:text-base">
+        <!-- <div class="border-t-2 border-neutral-700 max-md:mx-3 md:mx-14 my-3"></div> -->
+        <div v-if="globalFilters.length" class="flex flex-wrap gap-2 w-full max-md:mx-3 md:mx-14">
+            <div v-for="filter in globalFilters">
+                <v-chip @click="selectFilter(filter)" rounded class="!text-white"
+                    variant="flat" color="#333">
+                    {{ filter.name }}
+                </v-chip>
+            </div>
+        </div>
+        <div v-if="!pending" class="max-md:ml-3 md:ml-14 text-neutral-200 max-md:text-sm md:text-base mt-3">
             {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(totalResults) }} Results
         </div>
         <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:px-3 md:px-14"/>
@@ -233,11 +244,17 @@ let totalResults = ref(0);
 const { status } = useAuth();
 
 const fetchFilters = async () => {
-    userFilters.value = (await $fetch('/api/user/filters') as any[]);
+    userFilters.value = await $fetch('/api/user/filters');
 }
 
 onMounted(() => {
     fetchFilters();
+});
+
+const { data: globalFilters, refresh: refreshGlobalFilters }: any = useLazyAsyncData('globalFilters', async () => {
+    return await $fetch('/api/filters');
+}, {
+    default: () => ([] as any[])
 });
 
 const genres = computed(() => {
@@ -379,6 +396,7 @@ const deleteFilter = async (filter: any) => {
     });
     clearFilter();
     fetchFilters();
+    refreshGlobalFilters();
 }
 
 const updateFilter = async () => {
@@ -392,6 +410,7 @@ const updateFilter = async () => {
     });
     isFilterDialogActive.value = false;
     fetchFilters();
+    refreshGlobalFilters();
 }
 
 const saveFilter = async () => {
@@ -405,6 +424,7 @@ const saveFilter = async () => {
     });
     isFilterDialogActive.value = false;
     fetchFilters();
+    refreshGlobalFilters();
 }
 
 useHead({
