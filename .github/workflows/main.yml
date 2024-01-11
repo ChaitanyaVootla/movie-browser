@@ -22,7 +22,7 @@ jobs:
       run: npm run build
 
     - name: Archive build files
-      run: tar -czvf build.tar.gz .output
+      run: tar -czvf build.tar.gz .output .nuxt
 
     - name: Copy build to remote
       uses: appleboy/scp-action@master
@@ -42,9 +42,11 @@ jobs:
         script: |
           source /root/.nvm/nvm.sh
           cd /beta/movie-browser
+          git checkout -f nuxt
+          git pull origin nuxt
           tar -xzvf build.tar.gz
           pm2 delete all
-          source .env && pm2 start "npm run preview" --name Nuxt
+          source .env && pm2 start "node .output/server/index.mjs" --name Nuxt
 
 # name: Nuxt Test
 
