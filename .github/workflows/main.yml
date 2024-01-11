@@ -40,10 +40,12 @@ jobs:
         username: root
         password: ${{ secrets.DIGITAL_OCEAN_PASS }}
         script: |
+          set -e
+          set -x
           cd /beta/movie-browser
           tar -xzvf build.tar.gz
-          # Add any additional deployment commands here
-          pm2 restart Nuxt
+          pm2 delete all
+          pm2 start "npm run preview" --name Nuxt
 
 # name: Nuxt Test
 
