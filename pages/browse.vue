@@ -59,7 +59,16 @@
                             item-value="provider_id"
                             auto-select-first
                             @update:model-value="freshLoad()"
-                        ></v-autocomplete>
+                        >
+                            <template v-slot:item="{ props, item }">
+                                <v-list-item
+                                    v-bind="props"
+                                    :prepend-avatar="`https://image.tmdb.org/t/p/${configuration.images.logo_sizes.w45}${item.raw.logo_path}`"
+                                    :title="item.raw.provider_name"
+                                    density="compact"
+                                ></v-list-item>
+                            </template>
+                        </v-autocomplete>
                     </div>
                     <div class="flex-1">
                         <v-autocomplete

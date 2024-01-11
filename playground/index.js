@@ -17,6 +17,7 @@ nlp.extend({
         animated: 'Genre',
         // Add other genres...
         arnold: 'PersonName', // Again, for simplicity
+        not: 'Negation'
     },
     compute: {
         postProcess: (doc) => {
@@ -38,7 +39,7 @@ let genre = doc.match('#Genre').out('normal');
 let actor = doc.match('#PersonName').out('normal');
 
 // Check for negated genres
-let negatedGenres = doc.match('#Negation').out('array');
+let negatedGenres = doc.match('#Negation * #Genre').out('array');
 
 console.log(`Genre: ${genre}`);
 console.log(`Actor: ${actor}`);

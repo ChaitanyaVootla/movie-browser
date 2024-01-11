@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
         .join('&');
 
     return $fetch(`https://api.themoviedb.org/3/discover/${query.media_type}?api_key=${process.env.TMDB_API_KEY
-        }&query=${queryStr}`, {
+        }&${queryStr}`, {
             retry: 5,
         });
 });

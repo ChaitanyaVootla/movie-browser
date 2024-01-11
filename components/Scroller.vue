@@ -1,7 +1,11 @@
 <template>
     <div>
-        <div class="title text-sm md:text-lg font-semibold -mb-1 md:mb-0 md:ml-14 flex justify-start items-center gap-1">
-            <v-icon v-if="titleIcon" :icon="titleIcon"></v-icon> <div class="leading-4">{{ title }}</div>
+        <div class="title -mb-1 md:mb-0 md:ml-14">
+            <slot name="title">
+                <div class="text-sm md:text-lg font-semibold flex justify-start items-center gap-1">
+                    <v-icon v-if="titleIcon" :icon="titleIcon"></v-icon> <div class="leading-4">{{ title }}</div>
+                </div>
+            </slot>
         </div>
         <div class="flex w-full h-full">
             <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideLeft">

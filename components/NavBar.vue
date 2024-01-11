@@ -3,8 +3,8 @@
         bg-neutral-950 py-2 z-50 h-14 shadow-md shadow-neutral-900">
         <div class="left-actions items-center flex-1 flex gap-16">
             <NuxtLink to="/" aria-label="Go Home">
-                <div class="flex items-center gap-1 tracking-widest text-2xl text-white font-extrabold">
-                    <v-icon icon="mdi-dots-grid" size="small" class="anim-icon" />
+                <div class="flex items-start gap-1 tracking-widest text-2xl text-white font-extrabold group">
+                    <NuxtImg src="/popcorn.png" class="h-8 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"/>
                     <div class="logo-text">TMB</div>
                 </div>
             </NuxtLink>

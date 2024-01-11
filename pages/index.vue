@@ -42,6 +42,7 @@
                 <WideCard :item="item" class="mr-3" />
             </template>
         </Scroller>
+        <ScrollProvider v-for="scrollItem in watchProviderItems" :scroll-item="scrollItem" />
     </div>
 </template>
 <script setup lang="ts">
