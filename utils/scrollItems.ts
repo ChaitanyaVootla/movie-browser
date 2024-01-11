@@ -29,24 +29,24 @@ export const watchProviderItems = [
             watch_region: 'IN'
         }
     },
-    // {
-    //     logo: '/images/ott/large/apple.svg',
-    //     name: 'apple',
-    //     url: 'https://www.apple.tv/',
-    //     filterParams: {
-    //         with_watch_providers: [2, 350],
-    //         media_type: 'movie',
-    //         watch_region: 'IN'
-    //     }
-    // },
-    // {
-    //     logo: '/images/ott/aha.svg',
-    //     name: 'aha',
-    //     url: 'https://www.aha.video/',
-    //     filterParams: {
-    //         with_watch_providers: [532],
-    //         media_type: 'movie',
-    //         watch_region: 'IN'
-    //     }
-    // },
+    {
+        logo: '/images/ott/large/apple.svg',
+        name: 'apple',
+        url: 'https://www.apple.tv/',
+        filterParams: {
+            with_watch_providers: [2, 350],
+            media_type: 'movie',
+            watch_region: 'IN'
+        }
+    },
+    {
+        logo: '/images/ott/aha.svg',
+        name: 'aha',
+        url: 'https://www.aha.video/',
+        filterParams: {
+            with_watch_providers: [532],
+            media_type: 'movie',
+            watch_region: 'IN'
+        }
+    },
 ]

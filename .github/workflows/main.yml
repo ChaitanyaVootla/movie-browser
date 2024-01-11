@@ -46,8 +46,7 @@ jobs:
           git pull origin nuxt
           tar -xzvf build.tar.gz
           pm2 delete all
-          source .env && pm2 start "node .output/server/index.mjs" --name Nuxt
-
+          export $(cat .env | xargs) && pm2 start "node .output/server/index.mjs" --name Nuxt
 # name: Nuxt Test
 
 # on:
