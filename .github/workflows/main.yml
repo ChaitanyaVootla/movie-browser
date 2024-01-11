@@ -40,8 +40,7 @@ jobs:
         username: root
         password: ${{ secrets.DIGITAL_OCEAN_PASS }}
         script: |
-          set -e
-          set -x
+          source /root/.nvm/nvm.sh
           cd /beta/movie-browser
           tar -xzvf build.tar.gz
           pm2 delete all
