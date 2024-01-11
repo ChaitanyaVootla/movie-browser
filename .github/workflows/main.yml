@@ -15,6 +15,7 @@ jobs:
               password: ${{ secrets.DIGITAL_OCEAN_PASS }}
               script: |
                 bash -lc '
+                source /root/.nvm/nvm.sh
                 cd /beta/movie-browser
                 git checkout -f nuxt
                 git pull origin nuxt
