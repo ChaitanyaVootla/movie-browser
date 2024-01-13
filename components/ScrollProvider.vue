@@ -1,12 +1,12 @@
 <template>
     <Scroller :items="scrollItems" :title="scrollItem.name" :pending="pending">
         <template v-slot:title>
-            <div class="flex items-center">
+            <div class="flex items-center max-md:justify-between">
                 <NuxtImg :src="scrollItem.logo" :alt="scrollItem.name" class="h-10 object-cover -m-0" :class="scrollItem.name" />
                 <v-btn-toggle v-model="sortOrder" density="compact" @update:model-value="changeSort" mandatory
-                    style="height: 30px" class="ml-5" variant="outlined">
-                    <v-btn>Popular</v-btn>
-                    <v-btn>New</v-btn>
+                    :style="$vuetify.display.mobile?'height: 15px':'height: 20px'" class="ml-5" variant="outlined">
+                    <v-btn v-bind:size="$vuetify.display.mobile?'x-small':'small'">Popular</v-btn>
+                    <v-btn size="x-small">New</v-btn>
                 </v-btn-toggle>
             </div>
         </template>

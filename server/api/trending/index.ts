@@ -1,12 +1,13 @@
 export default defineEventHandler(async (event) => {
   try {
-    const [{ results: allItems }, { results: movies }, { results: tv }, { results: streamingNow}] = (await Promise.all([
-      $fetch(`https://api.themoviedb.org/3/trending/all/day?api_key=${process.env.TMDB_API_KEY}`),
-      $fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${process.env.TMDB_API_KEY}`),
-      $fetch(`https://api.themoviedb.org/3/trending/tv/day?api_key=${process.env.TMDB_API_KEY}`),
-      $fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY
-        }&watch_region=IN&with_watch_monetization_types=free|flatrate|buy|rent|ads`),
-    ])) as any[];
+    // const [{ results: allItems }, { results: movies }, { results: tv }, { results: streamingNow}] = (await Promise.all([
+    //   $fetch(`https://api.themoviedb.org/3/trending/all/day?api_key=${process.env.TMDB_API_KEY}`),
+    //   $fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${process.env.TMDB_API_KEY}`),
+    //   $fetch(`https://api.themoviedb.org/3/trending/tv/day?api_key=${process.env.TMDB_API_KEY}`),
+    //   $fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY
+    //     }&watch_region=IN&with_watch_monetization_types=free|flatrate|buy|rent|ads`),
+    // ])) as any[];
+    const { allItems, movies, tv, streamingNow }: any = await $fetch(`/api/trending/trendingTmdb`);
     const allItemsMovies = allItems.filter((item: any) => item.media_type === 'movie');
     const allItemsTv = allItems.filter((item: any) => item.media_type === 'tv');
     const allItemMoviefullInfo = await $fetch(`/api/movie/getMultiple?movieIds=${
@@ -49,7 +50,7 @@ export default defineEventHandler(async (event) => {
         name,
         poster_path,
       })),
-      streamingNow: movies.map(({id, title, poster_path }: any) => ({
+      streamingNow: streamingNow.map(({id, title, poster_path }: any) => ({
         id,
         title,
         poster_path,
