@@ -1,8 +1,6 @@
-import { ISeries, Series } from "~/server/models";
+import { ISeries, Series, SERIES_QUERY_PARAMS } from "~/server/models";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { JWT } from "next-auth/jwt";
-
-const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
 export default defineEventHandler(async (event) => {
     const seriesId = getRouterParam(event, 'seriesId');
@@ -29,7 +27,7 @@ export default defineEventHandler(async (event) => {
     if (isForce || !series.name) {
         console.log("Fetching from TMDB")
         try {
-            const details: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`, {
+            const details: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${SERIES_QUERY_PARAMS}`, {
                 retry: 5,
             }).catch(() => {
                 return {};

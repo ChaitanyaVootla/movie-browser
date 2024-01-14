@@ -4,9 +4,9 @@
             <div class="flex items-center max-md:justify-between">
                 <NuxtImg :src="scrollItem.logo" :alt="scrollItem.name" class="h-10 object-cover -m-0" :class="scrollItem.name" />
                 <v-btn-toggle v-model="sortOrder" density="compact" @update:model-value="changeSort" mandatory
-                    :style="$vuetify.display.mobile?'height: 15px':'height: 20px'" class="ml-5" variant="outlined">
-                    <v-btn v-bind:size="$vuetify.display.mobile?'x-small':'small'">Popular</v-btn>
-                    <v-btn size="x-small">New</v-btn>
+                    :style="$vuetify.display.mobile?'height: 20px':'height: 25px'" class="ml-5" variant="outlined">
+                    <v-btn size="small">Popular</v-btn>
+                    <v-btn size="small">New</v-btn>
                 </v-btn-toggle>
             </div>
         </template>
