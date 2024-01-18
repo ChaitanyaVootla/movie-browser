@@ -6,6 +6,9 @@ from flask_cors import CORS
 import os
 import json
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -16,7 +19,7 @@ MODEL_NAME = "all-mpnet-base-v2"
 flatModelName = MODEL_NAME.replace('-', '')
 
 # MongoDB setup
-client = MongoClient(port=27017, host='localhost', username='root', password='rootpassword')
+client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
 db = client['test']
 mongo_collection = db['movies']
 

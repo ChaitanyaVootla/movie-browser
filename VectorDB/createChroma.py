@@ -4,6 +4,9 @@ import os
 from sentence_transformers import SentenceTransformer
 import time
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # MODEL_NAME = "msmarco-distilbert-base-v4"
 # MODEL_NAME = "msmarco-MiniLM-L-6-v3"
@@ -11,10 +14,10 @@ MODEL_NAME = "all-mpnet-base-v2"
 # MODEL_NAME = "all-MiniLM-L6-v2"
 flatModelName = MODEL_NAME.replace('-', '')
 VOTE_COUNT_THREASHOLD = 100
-CHUNK_SIZE = 3000
+CHUNK_SIZE = 500
 
 # MongoDB setup
-client = MongoClient(port=27017, host='localhost', username='root', password='rootpassword')
+client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
 db = client['test']
 mongo_collection = db['movies']
 
@@ -24,7 +27,7 @@ chroma_client = chromadb.PersistentClient(path=path)
 chroma_collection = chroma_client.get_or_create_collection(name="movies", metadata={"hnsw:space": "cosine"})
 
 # Embedding model
-model = SentenceTransformer(MODEL_NAME, device="cuda")
+model = SentenceTransformer(MODEL_NAME, device="mps")
 
 def encode_in_chunks(model, text, chunk_size):
     # Tokenize the text and divide into chunks
@@ -119,7 +122,9 @@ def process_chunk(chunk):
 
 def fetchMoviesChunk(skip):
     movies = []
-    for movie in mongo_collection.find({}, {
+    for movie in mongo_collection.find({
+        'vote_count': {'$gt': VOTE_COUNT_THREASHOLD}
+    }, {
         'title': 1,
         'overview': 1,
         'genres': 1,
@@ -138,11 +143,11 @@ def fetchMoviesChunk(skip):
         'original_language': 1,
     }).skip(skip).limit(CHUNK_SIZE):
         movies.append(movie)
-    movies = [movie for movie in movies if movie['vote_count'] >= VOTE_COUNT_THREASHOLD]
+    # movies = [movie for movie in movies if movie['vote_count'] >= VOTE_COUNT_THREASHOLD]
     return movies
 
 def indexDB():
-    allMoviesCount = mongo_collection.count_documents({})
+    allMoviesCount = mongo_collection.count_documents({'vote_count': {'$gt': VOTE_COUNT_THREASHOLD}})
     start_time = time.time()
 
     chunks = (allMoviesCount // CHUNK_SIZE) + 1
