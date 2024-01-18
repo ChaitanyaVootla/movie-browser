@@ -86,7 +86,7 @@ export default {
         async recommend() {
             this.isLoading = true;
             const { data: movies } = await useAsyncData('results', () =>
-                $fetch(`http://localhost:5000/recommend`, {
+                $fetch(`/api/movie/recommend`, {
                     method: 'POST',
                     body: {
                         watched: this.watchedQuery,
