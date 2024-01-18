@@ -26,7 +26,7 @@ mongo_collection = db['movies']
 # ChromaDB setup
 path = os.path.join(os.path.dirname(__file__), f'./db/{flatModelName}')
 chroma_client = chromadb.PersistentClient(path=path)
-model = SentenceTransformer(MODEL_NAME, device='cuda')
+model = SentenceTransformer(MODEL_NAME)
 chroma_collection = chroma_client.get_or_create_collection(name="movies",
     metadata={"hnsw:space": "cosine"})
 
