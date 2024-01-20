@@ -6,8 +6,7 @@
                     aspect-ratio="16/9"
                     cover
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800
-                        hover:transition-all duration-300 md:hover:mb-1 md:hover:-mt-1 border-2 hover:border-2
-                        hover:border-neutral-700 border-transparent w-full h-full"
+                        hover:transition-all duration-300 md:hover:mb-1 md:hover:-mt-1 w-full h-full"
                     :alt="item.title || item.name"
                     :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
                     <template v-slot:placeholder>
@@ -20,19 +19,17 @@
                     </template>
                 </v-img>
                 <div v-if="isAiRoute" class="overlay invisible group-hover:visible absolute bottom-0 flex justify-center
-                    w-full z-10 pl-5 pr-5 bg-black opacity-90 pt-3 pb-3 items-center">
+                    w-full z-10 px-3 pt-4 items-center">
                     <div class="flex items-center justify-between w-full">
-                        <div class="font-bold text-xl text-white">
-                            {{ (item.vote_average || 0).toFixed(1) }}
-                        </div>
-                        <v-btn color="#ccc" text="Filter" @click.prevent="addToParentFilter()"/>
+                        <Ratings class="hidden group-hover:block" :tmdbRating="item.vote_average" :itemId="item.id" :small="true"/>
+                        <v-btn v-if="isAiRoute" color="#ccc" text="Filter" @click.prevent="addToParentFilter()"/>
                     </div>
                 </div>
             </div>
             <div v-if="item.infoText" class="mt-1 text-neutral-300 text-2xs md:text-sm capitalize">
                 {{ item.infoText }}
             </div>
-            <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200
+            <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
                 hidden md:block text-sm">
                 {{ item.character || item.title || item.name }}
             </div>
@@ -79,6 +76,9 @@ const addToParentFilter = () => {
     .image {
         height: @image-height;
         width: @image-width;
+    }
+    .overlay {
+        background-image: linear-gradient(0deg, black 0%, rgba(0, 0, 0, 0.95) 80%, rgba(0, 0, 0, 0) 100%);
     }
 }
 // reduce image-width for mobile

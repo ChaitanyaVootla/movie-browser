@@ -5,7 +5,7 @@
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
                         <div v-if="logo" class="title-logo w-full h-full">
-                            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${logo}`"
+                            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo}`"
                                 :alt="item.title || item.name" class="object-contain" />
                         </div>
                         <div v-else>
@@ -22,7 +22,7 @@
                             </v-chip>
                         </div>
                     </div>
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id"/>
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :title="item.title"/>
                     <div v-if="false" class="flex gap-5">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg
@@ -108,7 +108,7 @@
                 </div>
             </div>
             <div class="flex flex-col gap-3 justify-center items-center mt-5">
-                <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :small="true"/>
+                <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :small="true" :title="item.title"/>
                 <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :item="item"/>
                 <div v-if="!minimal" class="flex gap-2 flex-wrap justify-center">
                     <div v-for="genre in item.genres">
@@ -175,7 +175,7 @@ const genreClicked = (genre: any) => {
             img {
                 min-height: 50%;
                 max-height: 70%;
-                min-width: 50%;
+                // min-width: 50%;
                 max-width: 80%;
             }
         }

@@ -4,8 +4,7 @@
             <div class="relative">
                 <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`"
                     class="rounded-lg mr-2 wide-image hover:rounded-md hover:shadow-md hover:shadow-neutral-800
-                        hover:transition-all duration-300 hover:mb-2 md:hover:-mt-2 border-2 hover:border-2
-                        hover:border-neutral-700 border-transparent"
+                        hover:transition-all duration-300 hover:mb-1 md:hover:-mt-1"
                     cover
                     :alt="item.name">
                     <template v-slot:placeholder>

@@ -1,16 +1,5 @@
 <template>
     <div class="flex -mt-2">
-        <!-- <div v-if="ratings.length" class="flex gap-8">
-            <div v-for="rating in ratings">
-                <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
-                    <div class="w-16 flex flex-col items-center justify-between gap-2">
-                        <v-img :src="rating.image" class="w-8 h-8" :alt="rating.name">
-                        </v-img>
-                        <div class="text-lg text-neutral-200 font-normal">{{ rating.rating }}</div>
-                    </div>
-                </NuxtLink>
-            </div>
-        </div> -->
         <div v-if="ratings.length" v-for="rating in ratings">
             <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                 <div class="progress-wrapper relative w-full h-full">
@@ -21,7 +10,7 @@
                             :stroke-dasharray="`${rating.percentage*164/100} 1000`" stroke-dashoffset="-39.25" transform="rotate(72 50 50)" stroke-linecap="round" />
                         <image :href="rating.image" x="35" y="35" height="30" width="30" />
                         <text x="50" y="85" font-family="Arial" font-size="14" fill="#ddd" text-anchor="middle"
-                            class="font-normal text-base" letter-spacing="1">
+                            class="font-normal text-base" :class="small?'!text-xl':''" letter-spacing="1">
                             {{ rating.percentage }}
                         </text>
                     </svg>
@@ -32,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small'])
+const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small', 'title'])
 type Rating = {
     name: string,
     link: string,
@@ -89,7 +78,7 @@ if (props.tmdbRating) {
         name: 'TMDB',
         rating: props.tmdbRating?.toFixed(1) || '',
         image: '/images/rating/tmdb.svg',
-        link: `https://www.themoviedb.org/movie/${props.itemId}`,
+        link: `https://www.themoviedb.org/${props.title?'movie':'tv'}/${props.itemId}`,
         ...getColorForRating({
             name: 'TMDB',
             rating: props.tmdbRating,

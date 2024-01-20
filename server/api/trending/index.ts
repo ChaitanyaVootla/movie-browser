@@ -40,10 +40,11 @@ export default defineEventHandler(async (event) => {
         googleData,
         images,
       })),
-      movies: movies.map(({id, title, poster_path }: any) => ({
+      movies: movies.map(({id, title, poster_path, vote_average }: any) => ({
         id,
         title,
         poster_path,
+        vote_average,
       })),
       tv: tv.map(({id, name, poster_path }: any) => ({
         id,

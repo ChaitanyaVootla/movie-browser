@@ -5,8 +5,7 @@
                 <v-img
                     cover
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800
-                        hover:transition-all duration-300 hover:mb-2 md:hover:-mt-2 border-2 hover:border-2
-                        hover:border-neutral-700 border-transparent w-full h-full"
+                        hover:transition-all duration-300 hover:mb-2 md:hover:-mt-2 w-full h-full"
                     :alt="item.title || item.name"
                     :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`">
                     <template v-slot:placeholder>

@@ -13,8 +13,8 @@ load_dotenv()
 MODEL_NAME = "all-mpnet-base-v2"
 # MODEL_NAME = "all-MiniLM-L6-v2"
 flatModelName = MODEL_NAME.replace('-', '')
-VOTE_COUNT_THREASHOLD = 100
-CHUNK_SIZE = 500
+VOTE_COUNT_THREASHOLD = 50
+CHUNK_SIZE = 2000
 
 # MongoDB setup
 client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
@@ -27,7 +27,7 @@ chroma_client = chromadb.PersistentClient(path=path)
 chroma_collection = chroma_client.get_or_create_collection(name="movies", metadata={"hnsw:space": "cosine"})
 
 # Embedding model
-model = SentenceTransformer(MODEL_NAME, device="mps")
+model = SentenceTransformer(MODEL_NAME, device="cuda")
 
 def encode_in_chunks(model, text, chunk_size):
     # Tokenize the text and divide into chunks
@@ -148,6 +148,7 @@ def fetchMoviesChunk(skip):
 
 def indexDB():
     allMoviesCount = mongo_collection.count_documents({'vote_count': {'$gt': VOTE_COUNT_THREASHOLD}})
+    print(f"Total movies to process: {allMoviesCount}")
     start_time = time.time()
 
     chunks = (allMoviesCount // CHUNK_SIZE) + 1
