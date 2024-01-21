@@ -256,10 +256,13 @@
                 </v-chip>
             </div>
         </div>
-        <div v-if="!pending" class="max-md:ml-3 md:ml-14 text-neutral-200 max-md:text-sm md:text-base mt-3">
-            {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(totalResults) }} Results
-        </div>
-        <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:px-3 md:px-14"/>
+        <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:px-3 md:px-14">
+            <template v-slot:default="{}">
+                <div v-if="!pending" class="text-neutral-200 max-md:text-sm md:text-base mt-3">
+                    {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(totalResults) }} Results
+                </div>
+            </template>
+        </Grid>
         <div v-if="discoverResults.length && canShowLoadMore" class="w-full flex justify-center">
             <v-btn @click="loadMore()" :loading="pending">Load More</v-btn>
         </div>
@@ -421,6 +424,7 @@ const loadData = async () => {
     setTimeout(
         () => useRouter().replace({
             query: {
+                ...useRoute().query,
                 discover: btoa(encodeURIComponent(JSON.stringify(queryParams.value)))
             }
         })

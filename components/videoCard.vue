@@ -8,7 +8,7 @@
                 </div>
             </div>
             <v-img :src="`https://img.youtube.com/vi/${item.key}/hqdefault.jpg`"
-                class="rounded-lg mr-2 wide-image border-2 border-neutral-800"
+                class="rounded-lg mr-2 wide-image"
                 cover
                 :alt="item.name">
                 <template v-slot:placeholder>

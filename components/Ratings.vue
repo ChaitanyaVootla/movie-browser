@@ -9,7 +9,7 @@
                         <circle cx="50" cy="50" r="35" :stroke="rating.color" stroke-width="7" fill="transparent"
                             :stroke-dasharray="`${rating.percentage*164/100} 1000`" stroke-dashoffset="-39.25" transform="rotate(72 50 50)" stroke-linecap="round" />
                         <image :href="rating.image" x="35" y="35" height="30" width="30" />
-                        <text x="50" y="85" font-family="Arial" font-size="14" fill="#ddd" text-anchor="middle"
+                        <text v-if="!minimal" x="50" y="85" font-family="Arial" font-size="14" fill="#ddd" text-anchor="middle"
                             class="font-normal text-base" :class="small?'!text-xl':''" letter-spacing="1">
                             {{ rating.percentage }}
                         </text>
@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small', 'title'])
+const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small', 'title', 'minimal'])
 type Rating = {
     name: string,
     link: string,

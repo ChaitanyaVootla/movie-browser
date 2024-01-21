@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { JWT } from "next-auth/jwt";
-import { IMovie, ISeries, Movie, MovieLightFileds, MoviesWatchList } from "~/server/models";
-import { Series, SeriesLightFileds, SeriesList } from "~/server/models";
+import { IMovie, ISeries, Movie, MoviesWatchList } from "~/server/models";
+import { Series, SeriesList } from "~/server/models";
 
 export default defineEventHandler(async (event) => {
     const userData = event.context.userData as JWT | null;
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     const movieListIds = moviesList.map((movie) => movie.movieId);
     const seriesListIds = seriesList.map((series) => series.seriesId);
     const [movies, series] = await Promise.all([
-        Movie.find({id: {$in: movieListIds}}).select('-_id id title poster_path'),
+        Movie.find({id: {$in: movieListIds}}).select('-_id id title poster_path backdrop_path genres vote_average googleData overview'),
         Series.find({id: {$in: seriesListIds}}).select('-_id id name poster_path next_episode_to_air last_episode_to_air status'),
     ]);
     const moviesById = _.keyBy(movies, 'id');

@@ -1,7 +1,7 @@
 <template>
     <div class="px-3 md:px-0">
         <div class="top-action flex justify-center mt-4">
-            <v-btn-toggle v-model="selectedType" mandatory density="compact">
+            <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="viewUpdated">
                 <v-btn size="default">
                     Series
                 </v-btn>
@@ -36,7 +36,8 @@
                 </div>
             </div>
             <div v-else-if="selectedType === 1" class="max-md:px-3 md:px-14">
-                <Grid v-if="watchListData?.movies?.length" :items="watchListData?.movies" title="" />
+                <Grid v-if="watchListData?.movies?.length" :items="watchListData?.movies"
+                    :title="`${watchListData?.movies?.length} Movies`" />
                 <div v-else-if="status === 'authenticated'">
                     <div class="flex justify-center text-2xl text-neutral-400 items-center mt-20">
                         No Movies in your watch list
@@ -56,8 +57,43 @@
 <script setup lang="ts">
 import { mapWatchListSeries } from '~/utils/seriesMapper';
 
-const selectedType = ref(0);
+const movie = useRoute().query.movie as string;
+const selectedType = ref(movie?parseInt(movie):0);
 const { status, signIn } = useAuth();
+
+const headers = useRequestHeaders(['cookie']) as HeadersInit
+const { pending, data: watchListData } = await useLazyAsyncData('watchList',
+    () => $fetch('/api/user/watchList', { headers }).catch((err) => {
+        console.log(err);
+        return {
+            movies: [],
+            series: {
+                currentRunningSeries: [],
+                returingSeries: [],
+                completedSeries: [],
+                totalCount: 0
+            }
+        };
+    }),
+    {
+        transform: ({movies, series}: any) => {
+            return {
+                movies,
+                series: {
+                    ...mapWatchListSeries(series),
+                }
+            };
+        }
+    }
+);
+
+const viewUpdated = (val: number) => {
+    useRouter().replace({ query: {
+        ...useRoute().query,
+        movie: val
+    }});
+};
+
 useHead({
     title: 'Watch List - The Movie Browser',
     meta: [
@@ -106,30 +142,5 @@ useHead({
             content: 'summary_large_image',
         },
     ]
-})
-const headers = useRequestHeaders(['cookie']) as HeadersInit
-const { pending, data: watchListData } = await useLazyAsyncData('watchList',
-    () => $fetch('/api/user/watchList', { headers }).catch((err) => {
-        console.log(err);
-        return {
-            movies: [],
-            series: {
-                currentRunningSeries: [],
-                returingSeries: [],
-                completedSeries: [],
-                totalCount: 0
-            }
-        };
-    }),
-    {
-        transform: ({movies, series}: any) => {
-            return {
-                movies,
-                series: {
-                    ...mapWatchListSeries(series),
-                }
-            };
-        }
-    }
-);
+});
 </script>
