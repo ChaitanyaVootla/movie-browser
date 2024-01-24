@@ -18,13 +18,17 @@ export const mapWatchListSeries = (series: any[]) => {
     const completedSeries = [] as any[];
     series.forEach((item: any) => {
         if ((item.status === 'Canceled') || (item.status === 'Ended')) {
-            completedSeries.push(item);
+            completedSeries.push({
+                ...item,
+                infoText: `${item.number_of_seasons} Season${item.number_of_seasons > 1 ? 's' : ''}`
+            });
+        } else if (item.next_episode_to_air) {
+            currentRunningSeries.push(item);
         } else {
-            if (item.next_episode_to_air) {
-                currentRunningSeries.push(item);
-            } else {
-                returingSeries.push(item);
-            }
+            returingSeries.push({
+                ...item,
+                infoText: `${item.number_of_seasons} Season${item.number_of_seasons > 1 ? 's' : ''}`
+            });
         }
     });
     return {

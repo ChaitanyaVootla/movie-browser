@@ -15,12 +15,12 @@
         </div>
         <div class="grid pb-3" :class="{list: viewType}">
             <div v-for="item in items">
-                <div v-if="viewType">
-                    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
-                        <div class="relative">
+                <div v-if="viewType" class="h-[25rem]">
+                    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" class="flex flex-col h-full">
+                        <div class="relative wide-card flex-grow">
                             <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`"
                                 class="rounded-lg mr-2 wide-image hover:rounded-md hover:shadow-md hover:shadow-neutral-800
-                                    hover:transition-all duration-300"
+                                    hover:transition-all duration-300 flex-grow"
                                 cover
                                 :alt="item.name">
                                 <template v-slot:placeholder>
@@ -41,7 +41,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-1">
+                        <div class="mt-1 wide-card h-28">
                             <div class="text-default font-semibold">{{ item.title || item.name }}</div>
                             <div class="flex gap-3 mt-1 -ml-1">
                                 <div v-for="genre in getGenres(item)">
@@ -103,9 +103,9 @@ const viewTypeUpdated = (val: number) => {
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-    grid-gap: 2rem;
+    grid-gap: 1rem;
     &.list {
-        grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(25rem, 1fr));
     }
 }
 @media screen and (max-width: 768px) {
@@ -122,25 +122,54 @@ const viewTypeUpdated = (val: number) => {
         }
     }
 }
-
-@wide-image-height: 15rem;
 :deep(.wide-image) {
-    height: @wide-image-height;
-    width: calc(@wide-image-height * 16/9);
-}
-:deep(.wide-card) {
-    width: calc(@wide-image-height * 16/9);
-}
-@media (max-width: 768px) {
-    @wide-image-height: 7rem;
-    :deep(.wide-image) {
-        height: @wide-image-height;
-        width: calc(@wide-image-height * 16/9);
-    }
-    :deep(.wide-card) {
-        width: calc(@wide-image-height * 16/9);
+    min-height: 100%;
+    height: auto;
+    img {
+        min-height: 100%;
     }
 }
+
+// @wide-image-height: 15rem;
+// :deep(.wide-image) {
+//     height: @wide-image-height;
+//     width: calc(@wide-image-height * 16/9);
+// }
+// :deep(.wide-card) {
+//     width: calc(@wide-image-height * 16/9);
+// }
+// @media (max-width: 768px) {
+//     @wide-image-height: 7rem;
+//     :deep(.wide-image) {
+//         height: @wide-image-height;
+//         width: calc(@wide-image-height * 16/9);
+//     }
+//     :deep(.wide-card) {
+//         width: calc(@wide-image-height * 16/9);
+//     }
+// }
+// :deep(.v-skeleton-loader__image) {
+//     height: 100%;
+// }
+
+// @wide-image-width: 25rem;
+// :deep(.wide-image) {
+//     height: calc(@wide-image-width * 9/16);
+//     width: @wide-image-width;
+// }
+// :deep(.wide-card) {
+//     width: @wide-image-width
+// }
+// @media (max-width: 768px) {
+//     @wide-image-width: 25rem;
+//     :deep(.wide-image) {
+//         height: calc(@wide-image-width * 9/16);
+//         width: @wide-image-width;
+//     }
+//     :deep(.wide-card) {
+//         width: @wide-image-width
+//     }
+// }
 :deep(.v-skeleton-loader__image) {
     height: 100%;
 }

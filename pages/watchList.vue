@@ -11,7 +11,7 @@
             </v-btn-toggle>
         </div>
         <div>
-            <div v-if="selectedType === 0" class="flex flex-col mb-14">
+            <div v-if="selectedType === 0" class="flex flex-col">
                 <div v-if="pending">
                     <Scroller :items="Array(10)" title="" :pending="pending" />
                     <Scroller :items="Array(10)" title="" :pending="pending" />
