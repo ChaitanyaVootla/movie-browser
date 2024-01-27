@@ -1,7 +1,7 @@
 <template>
     <div class="details-container bg-black">
         <div class="hidden md:flex w-full h-full">
-            <div class="w-full md:w-2/5 pl-14 flex flex-col justify-between h-full pt-10 left-info">
+            <div class="w-full md:w-2/5 pl-16 flex flex-col justify-between h-full pt-10 left-info">
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
                         <div v-if="logo" class="title-logo logo-shadow w-full h-full flex items-center">
@@ -22,7 +22,8 @@
                             </v-chip>
                         </div>
                     </div>
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :title="item.title"/>
+                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :title="item.title"
+                        :voteCount="item.vote_count"/>
                     <div v-if="false" class="flex gap-5">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg

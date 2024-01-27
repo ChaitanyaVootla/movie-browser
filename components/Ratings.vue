@@ -1,7 +1,7 @@
 <template>
     <div class="flex -mt-2">
         <div v-if="ratings.length" v-for="rating in ratings">
-            <NuxtLink v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
+            <NuxtLink v-bind="props" v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                 <div class="progress-wrapper relative w-full h-full">
                     <svg :width="small?55:70" :height="small?55:70" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="35" stroke="#333" stroke-width="10" fill="transparent"
@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small', 'title', 'minimal'])
+const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small', 'title', 'minimal', 'voteCount'])
 type Rating = {
     name: string,
     link: string,
