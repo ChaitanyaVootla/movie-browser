@@ -4,12 +4,12 @@
             <div class="w-full md:w-2/5 pl-14 flex flex-col justify-between h-full pt-10 left-info">
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
-                        <div v-if="logo" class="title-logo logo-shadow w-full h-full">
+                        <div v-if="logo" class="title-logo logo-shadow w-full h-full flex items-center">
                             <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo}`"
                                 :alt="item.title || item.name" class="object-contain" />
                         </div>
-                        <div v-else>
-                            {{ item.title || item.name }}
+                        <div v-else class="flex items-center h-full w-full">
+                            <div>{{ item.title || item.name }}</div>
                         </div>
                     </div>
                 </div>
@@ -38,15 +38,17 @@
                 </div>
             </div>
             <div class="hidden md:block w-3/5 h-full">
-                <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer"
+                <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer
+                    md:after:mr-16"
                     @click="minimal?'':showTrailer = !showTrailer">
                     <div>
                         <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
-                            :alt="item.title || item.name" class="bg-main object-cover object-top image-width h-full w-full absolute">
+                            :alt="item.title || item.name" class="bg-main object-cover object-top image-width h-full w-full absolute
+                            md:pr-16">
                         </NuxtImg>
                     </div>
                     <v-btn v-if="item.youtubeVideos?.length" color="primary"
-                        class="rounded-pill !absolute bottom-10 right-16 group-hover:scale-110" prepend-icon="mdi-play"
+                        class="rounded-pill !absolute bottom-5 right-20 z-10 group-hover:scale-110" prepend-icon="mdi-play"
                         :elevation="10">
                         Play Trailer
                     </v-btn>
@@ -187,8 +189,9 @@ const genreClicked = (genre: any) => {
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
-                // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%);
+            background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.2) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
+                // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%),
+                linear-gradient(270deg,rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 1%, rgba(0,0,0,0) 100%),
         }
     }
     :deep(.bg-mobile) {
