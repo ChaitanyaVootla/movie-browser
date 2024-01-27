@@ -84,8 +84,12 @@
                     </Scroller>
                 </div>
 
-                <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
-                    <Scroller :items="movie?.youtubeVideos" title="Trailers and Clips" :pending="pending" title-icon="mdi-youtube">
+                <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5">
+                    <Scroller :items="movie?.youtubeVideos" title="Trailers and Clips" :pending="pending"
+                        title-icon="mdi-youtube">
+                        <template v-slot:title="{}">
+                            <NuxtImg src="images/youtube.svg" class="h-6 mb-2"></NuxtImg>
+                        </template>
                         <template v-slot:default="{ item }">
                             <VideoCard :item="item" />
                         </template>
@@ -93,7 +97,8 @@
                 </div>
 
                 <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
-                    <Scroller :items="movie?.images?.backdrops" title="Image Gallery" :pending="pending">
+                    <Scroller :items="movie?.images?.backdrops" title="Image Gallery" :pending="pending"
+                        title-icon="mdi-image-multiple-outline">
                         <template v-slot:default="{ item }">
                             <GalleryImageCard :item="item" />
                         </template>

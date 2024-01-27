@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     let canUpdate = false;
 
     const dbMovie = await Movie.findOne({ id: movieId })
-        .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates -similar');
+        .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates');
     if (dbMovie?.title) {
         movie = dbMovie.toJSON();
     }
