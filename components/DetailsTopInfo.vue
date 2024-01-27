@@ -4,7 +4,7 @@
             <div class="w-full md:w-2/5 pl-14 flex flex-col justify-between h-full pt-10 left-info">
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
-                        <div v-if="logo" class="title-logo w-full h-full">
+                        <div v-if="logo" class="title-logo logo-shadow w-full h-full">
                             <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo}`"
                                 :alt="item.title || item.name" class="object-contain" />
                         </div>
@@ -59,7 +59,6 @@
                         height="100%"
                         :src="`https://www.youtube.com/embed/${(item?.youtubeVideos || [])[0]?.key
                             }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${(item?.youtubeVideos || [])[0]?.key}`"
-                        frameborder="0"
                         controls="1"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen
@@ -92,7 +91,6 @@
                         height="100%"
                         :src="`https://www.youtube.com/embed/${(item?.youtubeVideos || [])[0]?.key
                             }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${(item?.youtubeVideos || [])[0]?.key}`"
-                        frameborder="0"
                         controls="1"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen
@@ -102,7 +100,7 @@
             </div>
             <div class="text-white font-bold text-2xl flex justify-center items-center">
                 <NuxtImg v-if="logo" :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${logo}`"
-                    :alt="item.title || item.name" class="object-contain h-20 w-4/5" />
+                    :alt="item.title || item.name" class="object-contain h-20 w-4/5 logo-shadow" />
                 <div v-else>
                     {{ item.title || item.name }}
                 </div>
@@ -170,15 +168,16 @@ const genreClicked = (genre: any) => {
 .details-container {
     height: @info-height;
     .left-info {
-        background-image: linear-gradient(145deg, #252525 0%, #151515 40%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0) 100%);
         .title-logo {
             img {
                 min-height: 50%;
                 max-height: 70%;
-                // min-width: 50%;
                 max-width: 80%;
             }
         }
+    }
+    .logo-shadow {
+        filter: drop-shadow(0 0 1px #ffffff);
     }
     :deep(.image-container) {
         &::after {

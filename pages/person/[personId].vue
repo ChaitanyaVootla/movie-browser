@@ -34,18 +34,18 @@
 
             <div class="max-md:px-3 md:px-14 max-md:mt-3 md:mt-10">
                 <v-btn-toggle v-model="selectedMediaType" mandatory density="compact">
-                    <v-btn>
+                    <v-btn value="movies">
                         Movies
                     </v-btn>
-                    <v-btn>
+                    <v-btn value="series">
                         Series
                     </v-btn>
                 </v-btn-toggle>
                 <v-btn-toggle v-model="selectedCreditType" mandatory density="compact" class="max-md:ml-0 md:ml-10">
-                    <v-btn>
+                    <v-btn value="cast">
                         Cast
                     </v-btn>
-                    <v-btn>
+                    <v-btn value="crew">
                         Crew
                     </v-btn>
                 </v-btn-toggle>
@@ -57,8 +57,8 @@
 </template>
 
 <script setup lang="ts">
-const selectedMediaType = ref(0);
-const selectedCreditType = ref(0);
+const selectedMediaType = ref("movies");
+const selectedCreditType = ref("cast");
 
 const { data: person, pending }: any = await useLazyAsyncData(`person-${useRoute().params.personId}`,
     () => $fetch(`/api/person/${useRoute().params.personId}`).catch((err) => {
@@ -90,10 +90,23 @@ const { data: person, pending }: any = await useLazyAsyncData(`person-${useRoute
             }
             for (const item of (person.combined_credits?.crew || [])) {
                 if (item.media_type === 'movie') {
+                    const existng = movie_credits.crew.find((i: any) => i.id === item.id);
+                    if (existng) {
+                        existng.job += `, ${item.job}`;
+                        continue;
+                    }
                     movie_credits.crew.push(item);
                 } else if (item.media_type === 'tv') {
+                    const existng = series_credits.crew.find((i: any) => i.id === item.id);
+                    if (existng) {
+                        existng.job += `, ${item.job}`;
+                        continue;
+                    }
                     series_credits.crew.push(item);
                 }
+            }
+            if (person.known_for_department !== 'Acting') {
+                selectedCreditType.value = 'crew';
             }
             return {
                 ...person,
@@ -105,14 +118,14 @@ const { data: person, pending }: any = await useLazyAsyncData(`person-${useRoute
 );
 
 const filteredItems = computed(() => {
-    if (selectedMediaType.value === 0) {
-        if (selectedCreditType.value === 0) {
+    if (selectedMediaType.value === 'movies') {
+        if (selectedCreditType.value === 'cast') {
             return person.value.movie_credits?.cast || [];
         } else {
             return person.value.movie_credits?.crew || [];
         }
     } else {
-        if (selectedCreditType.value === 0) {
+        if (selectedCreditType.value === 'cast') {
             return person.value.series_credits?.cast || [];
         } else {
             return person.value.series_credits?.crew || [];

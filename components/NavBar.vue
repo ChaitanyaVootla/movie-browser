@@ -51,13 +51,13 @@
                                 </v-avatar>
                             </template>
                             <v-list>
-                                <v-list-item @click="signOut">
-                                    Sign Out
-                                </v-list-item>
                                 <v-list-item>
                                     <NuxtLink to="/watchList">
                                         Watch List
                                     </NuxtLink>
+                                </v-list-item>
+                                <v-list-item @click="signOut" class="text-red">
+                                    Sign Out
                                 </v-list-item>
                             </v-list>
                         </v-menu>
@@ -97,7 +97,7 @@
                         </v-avatar>
                     </template>
                     <v-list>
-                        <v-list-item @click="signOut">
+                        <v-list-item @click="signOut" class="text-red">
                             Sign Out
                         </v-list-item>
                         <v-list-item>

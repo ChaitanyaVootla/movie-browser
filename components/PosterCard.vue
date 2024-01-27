@@ -31,7 +31,7 @@
             </div>
             <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
                 hidden md:block text-sm">
-                {{ item.character || item.title || item.name }}
+                {{ item.character || item.job || item.title || item.name }}
             </div>
             <!-- <div v-if="item.distance" class="text-neutral-400">
                 {{  item.distance }} (distance)
