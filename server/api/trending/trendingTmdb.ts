@@ -27,5 +27,4 @@ export default defineEventHandler(async (event) => {
         error: event.message,
       }
     }
-  });
-  
+});
