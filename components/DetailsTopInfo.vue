@@ -39,12 +39,12 @@
             </div>
             <div class="hidden md:block w-3/5 h-full">
                 <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer
-                    md:after:mr-16"
+                    md:after:mr-14"
                     @click="minimal?'':showTrailer = !showTrailer">
                     <div>
                         <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
                             :alt="item.title || item.name" class="bg-main object-cover object-top image-width h-full w-full absolute
-                            md:pr-16">
+                            md:pr-14">
                         </NuxtImg>
                     </div>
                     <v-btn v-if="item.youtubeVideos?.length" color="primary"
@@ -191,7 +191,7 @@ const genreClicked = (genre: any) => {
             bottom: 0;
             background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.2) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
                 // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%),
-                linear-gradient(270deg,rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 1%, rgba(0,0,0,0) 100%),
+                linear-gradient(270deg,rgba(0,0,0,1) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%),
         }
     }
     :deep(.bg-mobile) {
