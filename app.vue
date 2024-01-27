@@ -17,7 +17,7 @@
           <div class="flex items-baseline">
             Github Repo
             <v-btn prepend-icon="mdi-github" href="https://github.com/ChaitanyaVootla/movie-browser/tree/nuxt"
-              noreferrer noopener target="_blank" size="x-small" class="ml-2" color="#333">
+              noreferrer noopener target="_blank" size="x-small" class="ml-2" color="#222" :elevation="10">
               ChaitanyaVootla/movie-browser
             </v-btn>
           </div>

@@ -375,10 +375,10 @@ const ratingOptions = new Array(10).fill({}).map((item, index) => ({
     text: `${index}+`,
 })).reverse();
 
-let pageTrack = 1;
+let pageTrack = 0;
 
 const freshLoad = async () => {
-    pageTrack = 1;
+    pageTrack = 0;
     canShowLoadMore.value = true;
     discoverResults.value = [];
     queryParams.value.media_type = selectedType.value === 0 ? 'movie' : 'tv';
@@ -403,7 +403,7 @@ const loadData = async () => {
             method: 'POST',
             body: JSON.stringify({
                 ...query,
-                page: pageTrack,
+                page: ++pageTrack,
             })
         }),
         $fetch('/api/discover', {

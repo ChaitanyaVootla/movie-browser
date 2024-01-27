@@ -179,7 +179,12 @@ const genreClicked = (genre: any) => {
         }
     }
     .logo-shadow {
-        filter: drop-shadow(0 0 1px #ffffff);
+        filter: drop-shadow(0 0 1px #eee);
+    }
+    @media (max-width: 768px) {
+        .logo-shadow {
+            filter: drop-shadow(0 0 0.4px #eee);
+        }
     }
     :deep(.image-container) {
         &::after {
@@ -191,7 +196,7 @@ const genreClicked = (genre: any) => {
             bottom: 0;
             background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.2) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
                 // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%),
-                linear-gradient(270deg,rgba(0,0,0,1) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%),
+                linear-gradient(270deg,rgba(0,0,0,1) 0%, rgba(0,0,0,0) 1rem, rgba(0,0,0,0) 100%),
         }
     }
     :deep(.bg-mobile) {
