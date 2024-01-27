@@ -7,7 +7,7 @@
                     {{ item.type }}
                 </div>
             </div>
-            <v-img :src="`https://img.youtube.com/vi/${item.key}/hqdefault.jpg`"
+            <v-img :src="`https://img.youtube.com/vi/${item.key}/maxresdefault.jpg`"
                 class="rounded-lg mr-2 wide-image"
                 cover
                 :alt="item.name">

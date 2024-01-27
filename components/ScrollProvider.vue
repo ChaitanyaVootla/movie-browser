@@ -21,7 +21,8 @@ const { scrollItem } = defineProps<{
 const { data: scrollItems, pending, refresh }: any = useLazyAsyncData(`scrollDiscover-${scrollItem.name}`, async () => {
     return await $fetch('/api/discover', {
         method: 'POST',
-        body: scrollItem.filterParams
+        body: scrollItem.filterParams,
+        retry: 5,
     })
 }, {
     transform: (discoverData: any) => {

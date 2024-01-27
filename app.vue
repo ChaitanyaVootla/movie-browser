@@ -5,7 +5,8 @@
       <NavBar/>
       <NuxtPage :page-key="route => route.path" class="mb-10" :class="$vuetify.display.mobile?'pb-10':''" />
       <div class="h-4 absolute bottom-0 w-full">
-        <div class="flex gap-10 text-sm justify-center py-3 w-full bg-neutral-900 text-neutral-400">
+        <div class="flex flex-wrap max-md:gap-2 md:gap-10 text-sm justify-center md:py-3 w-full bg-neutral-900
+          text-neutral-400 max-md:pt-2 max-md:pb-14">
           <div class="flex items-baseline">
             Created by
             <NuxtLink href="https://vootlachaitanya.com" noreferrer noopener target="_blank"
