@@ -47,5 +47,5 @@ jobs:
           tar -xzvf build.tar.gz
           pm2 delete all
           export $(cat .env | xargs) && pm2 start "node .output/server/index.mjs" --name nuxt
-          cd VectorDB
-          pm2 start "source vector/bin/activate && python3 servermini.py" --name vector
+          # cd VectorDB
+          # pm2 start "source vector/bin/activate && python3 servermini.py" --name vector
