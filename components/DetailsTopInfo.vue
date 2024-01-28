@@ -1,7 +1,7 @@
 <template>
     <div class="details-container bg-black">
         <div class="hidden md:flex w-full h-full">
-            <div class="w-full md:w-[35%] pl-16 flex flex-col justify-between h-full pt-10 left-info">
+            <div class="w-full md:w-[45%] pl-16 flex flex-col justify-between h-full pt-10 left-info">
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
                         <div v-if="logo" class="title-logo logo-shadow w-full h-full">
@@ -38,7 +38,7 @@
                     </div>
                 </div>
             </div>
-            <div class="hidden md:block w-[65%] h-full">
+            <div class="hidden md:block w-[55%] h-full">
                 <div v-if="!showTrailer" class="group image-width h-full w-full relative image-container cursor-pointer
                     md:after:mr-14"
                     @click="minimal?'':showTrailer = !showTrailer">
@@ -143,11 +143,7 @@ const props = defineProps({
 const item = props.item;
 
 const logo = computed(() => {
-    let logo = item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path;
-    if (!logo) {
-        logo = item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === null)?.file_path;
-    }
-    return logo;
+    return item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path;
 })
 
 const genreClicked = (genre: any) => {
@@ -180,7 +176,7 @@ const genreClicked = (genre: any) => {
         }
     }
     .logo-shadow {
-        filter: drop-shadow(0 0 1px #eee);
+        filter: drop-shadow(0 0 1px #aaa);
     }
     @media (max-width: 768px) {
         .logo-shadow {
@@ -195,9 +191,9 @@ const genreClicked = (genre: any) => {
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.2) 11%, rgba(0,0,0,0.1) 20%, rgba(0,0,0,0) 100%),
+            background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 5%, rgba(0,0,0,0.1) 10%, rgba(0,0,0,0) 100%);
                 // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%),
-                linear-gradient(270deg,rgba(0,0,0,1) 0%, rgba(0,0,0,0) 1rem, rgba(0,0,0,0) 100%),
+                // linear-gradient(270deg,rgba(0,0,0,1) 0%, rgba(0,0,0,0) 1rem, rgba(0,0,0,0) 100%),
         }
     }
     :deep(.bg-mobile) {

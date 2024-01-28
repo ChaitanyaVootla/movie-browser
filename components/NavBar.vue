@@ -1,6 +1,6 @@
 <template>
     <div class="navbar fixed w-full hidden md:flex justify-center text-xl items-center px-16 overflow-visible
-        bg-neutral-950 py-2 z-50 h-14 shadow-md shadow-neutral-900">
+        bg-neutral-950 py-2 z-50 h-14">
         <div class="left-actions items-center flex-1 flex gap-16">
             <NuxtLink to="/" aria-label="Go Home">
                 <div class="flex items-start gap-1 tracking-widest text-2xl text-white font-extrabold group">
