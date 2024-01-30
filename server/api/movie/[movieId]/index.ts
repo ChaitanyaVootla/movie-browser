@@ -71,15 +71,12 @@ export default defineEventHandler(async (event) => {
                 });
                 details.collectionDetails = collectionDetails;
             }
-            let googleData = {} as any;
+            let googleData = movie.googleData || {} as any;
             if (details.imdb_id) {
                 const lambdaResponse = await getGoogleLambdaData(details);
                 if (lambdaResponse?.imdbId === details.imdb_id) {
                     googleData = lambdaResponse;
                 }
-            }
-            if (!googleData?.imdbId && details.googleData) {
-                googleData = details.googleData;
             }
             movie = {
                 ...details,
