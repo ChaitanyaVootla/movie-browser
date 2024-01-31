@@ -40,7 +40,7 @@ def averageByIds(movie_ids):
     )
     # average the embeddings
     embeddings = similarity_docs['embeddings']
-    return np.mean(embeddings, axis=0)
+    return np.mean(embeddings, axis=0).tolist()
 
 
 def perform_query(embedding, excludeIds, ratingCutoff, n_results):
@@ -76,7 +76,8 @@ def recommend():
     allEmbeddings = []
 
     if queryString:
-        allEmbeddings.append(openai.embeddings.create(input=queryString, model=MODEL_NAME).data[0].embedding)
+        allEmbeddings.append(openai.embeddings.create(input=queryString, model=MODEL_NAME).data[0].embedding
+                             .toArray())
 
     if watchedQuery is not None and len(watchedMovieIds) > 0:
         watchedEmbedding = averageByIds(watchedMovieIds)
@@ -94,7 +95,7 @@ def recommend():
 
     if len(allEmbeddings) > 1:
         print(f"avegaring {len(allEmbeddings)} embeddings")
-        average_embedding = np.mean(allEmbeddings, axis=0).tolist()
+        average_embedding = np.mean(allEmbeddings, axis=0)
     else:
         average_embedding = allEmbeddings[0]
 
