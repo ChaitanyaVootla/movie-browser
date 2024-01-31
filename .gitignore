@@ -11,6 +11,7 @@ postgres
 server/src/cron/data
 server/src/db/data
 VectorDB/db
+VectorDB/vector
 dump.tar.gz
 __pycache__
 
