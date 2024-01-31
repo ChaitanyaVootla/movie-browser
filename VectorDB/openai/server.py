@@ -94,7 +94,8 @@ def recommend():
 
     if len(allEmbeddings) > 1:
         print(f"avegaring {len(allEmbeddings)} embeddings")
-        average_embedding = np.mean(allEmbeddings, axis=0)
+        embeddings_array = np.array(allEmbeddings)
+        average_embedding = np.mean(embeddings_array, axis=0)
     else:
         average_embedding = allEmbeddings[0]
 
