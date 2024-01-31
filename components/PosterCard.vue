@@ -26,12 +26,12 @@
                     </div>
                 </div>
             </div>
-            <div v-if="item.infoText" class="mt-1 text-neutral-300 text-2xs md:text-sm capitalize">
-                {{ item.infoText }}
-            </div>
-            <div v-else class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
+            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
                 hidden md:block text-sm">
                 {{ item.character || item.job || item.title || item.name }}
+            </div>
+            <div v-if="item.infoText" class=" text-neutral-400 text-2xs md:text-sm capitalize">
+                {{ item.infoText }}
             </div>
             <!-- <div v-if="item.distance" class="text-neutral-400">
                 {{  item.distance }} (distance)

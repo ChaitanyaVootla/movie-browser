@@ -110,7 +110,7 @@
             </v-btn>
         </v-bottom-navigation>
     </div>
-    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" absolute contained :close-on-content-click="true"
+    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" contained :close-on-content-click="true"
         scrim="black">
         <div class="flex justify-center relative h-full">
         <div class="absolute max-md:w-full px-10 max-md:top-3 md:top-36 flex justify-center md:w-1/3">

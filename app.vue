@@ -65,4 +65,7 @@ body {
 .v-snackbar__wrapper {
     bottom: 52px !important;
 }
+.v-overlay {
+  position: fixed;
+}
 </style>
