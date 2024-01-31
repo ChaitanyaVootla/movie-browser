@@ -72,7 +72,7 @@ def recommend():
     hideWatched = bool(body.get('hideWatched'))
     ratingCutoff = int(body.get('ratingCutoff', 0))
 
-    watchedMovieIds = json.load(open('./../watched.json', 'r'))
+    watchedMovieIds = json.load(open('watched.json', 'r'))
     allEmbeddings = []
 
     if queryString:
