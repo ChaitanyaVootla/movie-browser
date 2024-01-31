@@ -76,8 +76,7 @@ def recommend():
     allEmbeddings = []
 
     if queryString:
-        allEmbeddings.append(openai.embeddings.create(input=queryString, model=MODEL_NAME).data[0].embedding
-                             .toArray())
+        allEmbeddings.append(openai.embeddings.create(input=queryString, model=MODEL_NAME).data[0].embedding)
 
     if watchedQuery is not None and len(watchedMovieIds) > 0:
         watchedEmbedding = averageByIds(watchedMovieIds)
