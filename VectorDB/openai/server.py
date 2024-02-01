@@ -151,6 +151,9 @@ def getMovieArray(dbMovies, ids, distances, watchedMovieIds):
             'vote_average': movie['vote_average'],
             'vote_count': movie['vote_count'],
             'release_date': movie['release_date'],
+            'backdrop_path': movie['backdrop_path'],
+            'popularity': movie['popularity'],
+            'genres': movie['genres'],
         })
 
     # sort by ids
