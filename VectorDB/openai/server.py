@@ -134,7 +134,10 @@ def recommend():
         'release_date': 1,
         'backdrop_path': 1,
         'popularity': 1,
-        'genres': 1,
+        'genres': {
+            "id": 1,
+            "name": 1,
+        },
     }).sort([('popularity', -1)])
     documents = list(mongo_results)
     return jsonify(getMovieArray(documents, ids, distances, watchedMovieIds))
@@ -153,7 +156,7 @@ def getMovieArray(dbMovies, ids, distances, watchedMovieIds):
             'release_date': movie['release_date'],
             'backdrop_path': movie['backdrop_path'],
             'popularity': movie['popularity'],
-            'genres': movie['genres'],
+            'genres': movie['genres']
         })
 
     # sort by ids
