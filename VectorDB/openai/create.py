@@ -65,10 +65,10 @@ def process_chunk(chunk):
         text_strings_to_encode = [
             # f"Movie Name: {movie.get('title', '')}",
             # f"Released in Year {movie.get('release_date', 'unknown')[:4]}",
-            f"{movie.get('overview', 'unknown')}",
-            f"Genres: {', '.join([genre.get('name', '') for genre in movie.get('genres', [])])}",
-            f"Rated: {str(movie.get('vote_average', 'unknown')) + ' out of 10'}",
-            f"Movie keywords{', '.join([keyword.get('name', '') for keyword in movie.get('keywords', {}).get('keywords', [])])}",
+            f"Movie overview: {movie.get('overview', 'unknown')}",
+            f"Movie Genres: {', '.join([genre.get('name', '') for genre in movie.get('genres', [])])}",
+            # f"Rated: {str(movie.get('vote_average', 'unknown')) + ' out of 10'}",
+            f"Movie keywords: {', '.join([keyword.get('name', '') for keyword in movie.get('keywords', {}).get('keywords', [])])}",
             # f"Movie Tagline: {movie.get('tagline', 'unknown')}",
             # f"Starring: {', '.join([(cast.get('name', '') + ' as ' + cast.get('character', '')) for cast in movie.get('credits', {}).get('cast', [])[:5] if cast.get('name') is not None and cast.get('character') is not None])}",
             # f"Director: {director}",
@@ -86,13 +86,13 @@ def process_chunk(chunk):
         #     text_strings_to_encode.append(f"Collection: {movie.get('belongs_to_collection').get('name')}")
 
         text_to_encode = ', '.join(text_strings_to_encode)
-        doc_text_len = len(text_to_encode)
 
         chroma_compatible_docs.append({
             'id': str(movie.get('id')),
             # 'embedding': encode_text(text_to_encode),
             'document': text_to_encode,
             'text_strings_to_encode': text_strings_to_encode,
+            'text_strings_len': len(text_strings_to_encode),
             'metadata': {
                 # 'release_decade': release_decade,
                 'revenue': int(movie.get('revenue', 0)),
@@ -105,10 +105,12 @@ def process_chunk(chunk):
             },
         })
     texts_to_embed = [doc['text_strings_to_encode'] for doc in chroma_compatible_docs]
+    texts_to_embed = [item for sublist in texts_to_embed for item in sublist]
     embeddings = encode_text(texts_to_embed)
+    length_track = 0
     for i, doc in enumerate(chroma_compatible_docs):
-        print(f"Texts embeddings for movie {doc['metadata']['title']} are: {embeddings[i*doc_text_len:(i+1)*doc_text_len]}")
-        doc['embedding'] = np.mean(embeddings[i*doc_text_len:(i+1)*doc_text_len], axis=0).tolist()
+        doc['embedding'] = np.mean(embeddings[length_track:length_track+doc['text_strings_len']], axis=0).tolist()
+        length_track += doc['text_strings_len']
     return chroma_compatible_docs
 
 def fetchMoviesChunk(skip):
