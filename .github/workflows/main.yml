@@ -35,15 +35,22 @@ jobs:
 
     - name: Deploy on remote
       uses: appleboy/ssh-action@master
+      env:
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       with:
         host: ${{ secrets.HOST }}
         username: root
         password: ${{ secrets.DIGITAL_OCEAN_PASS }}
+        envs: DB_USER,DB_PASSWORD
         script: |
           source /root/.nvm/nvm.sh
           cd /beta/movie-browser
           git checkout -f nuxt
           git pull origin nuxt
           tar -xzvf build.tar.gz
+          export DB_USER=${DB_USER}
+          export DB_PASSWORD=${DB_PASSWORD}
+          docker-compose up -d
           pm2 delete all
           pm2 start ecosystem.config.cjs

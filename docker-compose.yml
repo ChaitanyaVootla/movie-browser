@@ -1,0 +1,15 @@
+version: '3.7'
+services:
+  mongodb_container:
+    image: mongo:5.0.12
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "${VARIABLE:-$DB_USER}"
+      MONGO_INITDB_ROOT_PASSWORD: "${VARIABLE:-$DB_PASSWORD}"
+    ports:
+      - 27017:27017
+    volumes:
+      - movie-browser_mongodb:/data/db
+
+volumes:
+  movie-browser_mongodb:
+    external: true
