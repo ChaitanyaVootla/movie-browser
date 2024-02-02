@@ -2,8 +2,7 @@
 Link to the website: [themoviebrowser.com](https://themoviebrowser.com)
 Created by: [Chaitanya Vootla](https://vootlachaitanya.com) visit my site for more projects info and contact details.
 
-Below is a live window into the website
-<iframe src="https://themoviebrowser.com" width="600" height="900"></iframe>
+![image](./public/images/site.png)
 
 TMB is a movie and TV show discovery platform that helps you find the right content to watch. With features like ratings, watch links, watchlist, discovery and AI recommendations TMB is the only platform you need to find your next watch.
  
