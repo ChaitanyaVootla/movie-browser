@@ -1,0 +1,25 @@
+import { JWT } from "next-auth/jwt";
+import { WatchedMovies } from "~/server/models";
+
+export default defineEventHandler(async (event) => {
+    const userData = event.context.userData as JWT;
+    const movieId = getRouterParam(event, 'movieId');
+    if (!movieId) {
+        event.node.res.statusCode = 404;
+        event.node.res.end(`Movie not found for id: ${movieId}`);
+    }
+    if (!userData || !userData?.sub) {
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
+    }
+    const objectToDelete =
+        {
+            movieId: parseInt(movieId as string),
+            userId: parseInt(userData.sub as string),
+        };
+    await WatchedMovies.deleteOne(objectToDelete)
+    return {
+        movieId,
+        userId: userData.sub,
+    };
+});

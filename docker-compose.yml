@@ -3,19 +3,13 @@ services:
   mongodb_container:
     image: mongo:5.0.12
     environment:
-      MONGO_INITDB_ROOT_USERNAME: "${VARIABLE:-root}"
-      MONGO_INITDB_ROOT_PASSWORD: "${VARIABLE:-rootpassword}"
+      MONGO_INITDB_ROOT_USERNAME: "${VARIABLE:-$DB_USER}"
+      MONGO_INITDB_ROOT_PASSWORD: "${VARIABLE:-$DB_PASSWORD}"
     ports:
       - 27017:27017
     volumes:
-      - mongodb:/data/db
-  server:
-    image: chaitanyavootla/tmb:latest
-    mem_limit: 6g
-    profiles:
-      - prod
-    ports:
-      - 3000:3000
+      - movie-browser_mongodb:/data/db
 
 volumes:
-  mongodb:
+  movie-browser_mongodb:
+    external: true
