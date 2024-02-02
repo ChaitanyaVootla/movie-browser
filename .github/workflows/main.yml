@@ -2,7 +2,7 @@ name: Build and Deploy Nuxt Project
 
 on:
   push:
-    branches: [nuxt]
+    branches: [master]
 
 jobs:
   build-and-deploy:

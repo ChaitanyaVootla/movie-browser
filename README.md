@@ -1,5 +1,6 @@
 # The Movie Browser
 Link to the website: [themoviebrowser.com](https://themoviebrowser.com)
+
 Created by: [Chaitanya Vootla](https://vootlachaitanya.com) visit my site for more projects info and contact details.
 
 ![image](./public/images/site.png)
