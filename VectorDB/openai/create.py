@@ -10,8 +10,8 @@ load_dotenv()
 
 MODEL_NAME = "text-embedding-3-small"
 flatModelName = MODEL_NAME.replace('-', '')
-VOTE_COUNT_THREASHOLD = 50
-CHUNK_SIZE=100
+VOTE_COUNT_THREASHOLD = 150
+CHUNK_SIZE=200
 
 # MongoDB setup
 client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
@@ -29,13 +29,14 @@ def encode_text(texts):
 
 def process_chunk(chunk):
     chroma_compatible_docs = []
+    doc_text_len = 0
     for movie in chunk:
-        # Extract release year and convert to release decade
-        if movie.get('release_date', '') and len(movie.get('release_date', '')) >= 4 and movie.get('release_date', '')[:4].isdigit():
-            release_decade = int(movie.get('release_date', '')[:3])
-        else:
-            # Handle invalid or missing release date
-            release_decade = 0  # or some other default value
+        # # Extract release year and convert to release decade
+        # if movie.get('release_date', '') and len(movie.get('release_date', '')) >= 4 and movie.get('release_date', '')[:4].isdigit():
+        #     release_decade = int(movie.get('release_date', '')[:3])
+        # else:
+        #     # Handle invalid or missing release date
+        #     release_decade = 0  # or some other default value
 
         # # extract certification
         # certification = 'unknown'
@@ -46,52 +47,54 @@ def process_chunk(chunk):
         #             break
 
         # extract director
-        director = 'unknown'
-        if movie.get('credits') is not None:
-            for crew in movie.get('credits', {}).get('crew', []):
-                if crew.get('job') == 'Director':
-                    director = crew.get('name')
-                    break
+        # director = 'unknown'
+        # if movie.get('credits') is not None:
+        #     for crew in movie.get('credits', {}).get('crew', []):
+        #         if crew.get('job') == 'Director':
+        #             director = crew.get('name')
+        #             break
 
-        # extract music composer
-        music_composer = 'unknown'
-        if movie.get('credits') is not None:
-            for crew in movie.get('credits', {}).get('crew', []):
-                if crew.get('job') == 'Original Music Composer':
-                    music_composer = crew.get('name')
-                    break
+        # # extract music composer
+        # music_composer = 'unknown'
+        # if movie.get('credits') is not None:
+        #     for crew in movie.get('credits', {}).get('crew', []):
+        #         if crew.get('job') == 'Original Music Composer':
+        #             music_composer = crew.get('name')
+        #             break
 
         text_strings_to_encode = [
-            f"Movie Name: {movie.get('title', '')}",
-            f"Released in Year {movie.get('release_date', 'unknown')[:4]}",
-            f"Movie Genres: {', '.join([genre.get('name', '') for genre in movie.get('genres', [])])}",
-            f"Plot Overview: {movie.get('overview', 'unknown')}",
+            # f"Movie Name: {movie.get('title', '')}",
+            # f"Released in Year {movie.get('release_date', 'unknown')[:4]}",
+            f"{movie.get('overview', 'unknown')}",
+            f"Genres: {', '.join([genre.get('name', '') for genre in movie.get('genres', [])])}",
             f"Rated: {str(movie.get('vote_average', 'unknown')) + ' out of 10'}",
             f"Movie keywords{', '.join([keyword.get('name', '') for keyword in movie.get('keywords', {}).get('keywords', [])])}",
-            f"Movie Tagline: {movie.get('tagline', 'unknown')}",
-            f"Starring: {', '.join([(cast.get('name', '') + ' as ' + cast.get('character', '')) for cast in movie.get('credits', {}).get('cast', [])[:5] if cast.get('name') is not None and cast.get('character') is not None])}",
-            f"Director: {director}",
-            f"Music Composer: {music_composer}",
+            # f"Movie Tagline: {movie.get('tagline', 'unknown')}",
+            # f"Starring: {', '.join([(cast.get('name', '') + ' as ' + cast.get('character', '')) for cast in movie.get('credits', {}).get('cast', [])[:5] if cast.get('name') is not None and cast.get('character') is not None])}",
+            # f"Director: {director}",
+            # f"Music Composer: {music_composer}",
             # f"Certification: {certification}",
             f"Original Language: {movie.get('original_language', 'unknown')}",
-            f"Production Companies: {', '.join([company.get('name', '') for company in movie.get('production_companies', [])])}",
+            # f"Production Companies: {', '.join([company.get('name', '') for company in movie.get('production_companies', [])])}",
         ]
-        if movie.get('budget') is not None:
-            text_strings_to_encode.append(f"Budget: {str(round(movie.get('budget', '')/1000000, 2)) + ' million dollars'}")
-        if movie.get('revenue') is not None:
-            text_strings_to_encode.append(f"Revenue: {str(round(movie.get('revenue', '')/1000000, 2)) + ' million dollars'}")
+        # if movie.get('budget') is not None:
+        #     text_strings_to_encode.append(f"Budget: {str(round(movie.get('budget', '')/1000000, 2)) + ' million dollars'}")
+        # if movie.get('revenue') is not None:
+        #     text_strings_to_encode.append(f"Revenue: {str(round(movie.get('revenue', '')/1000000, 2)) + ' million dollars'}")
 
-        if (movie.get('belongs_to_collection') is not None) and (movie.get('belongs_to_collection').get('name') is not None):
-            text_strings_to_encode.append(f"Collection: {movie.get('belongs_to_collection').get('name')}")
+        # if (movie.get('belongs_to_collection') is not None) and (movie.get('belongs_to_collection').get('name') is not None):
+        #     text_strings_to_encode.append(f"Collection: {movie.get('belongs_to_collection').get('name')}")
 
         text_to_encode = ', '.join(text_strings_to_encode)
+        doc_text_len = len(text_to_encode)
 
         chroma_compatible_docs.append({
             'id': str(movie.get('id')),
             # 'embedding': encode_text(text_to_encode),
             'document': text_to_encode,
+            'text_strings_to_encode': text_strings_to_encode,
             'metadata': {
-                'release_decade': release_decade,
+                # 'release_decade': release_decade,
                 'revenue': int(movie.get('revenue', 0)),
                 'budget': int(movie.get('budget', 0)),
                 'vote_count': int(movie.get('vote_count', 0)),
@@ -101,10 +104,11 @@ def process_chunk(chunk):
                 'id': str(movie.get('id', '')),
             },
         })
-    texts_to_embed = [doc['document'] for doc in chroma_compatible_docs]
+    texts_to_embed = [doc['text_strings_to_encode'] for doc in chroma_compatible_docs]
     embeddings = encode_text(texts_to_embed)
     for i, doc in enumerate(chroma_compatible_docs):
-        doc['embedding'] = embeddings[i]
+        print(f"Texts embeddings for movie {doc['metadata']['title']} are: {embeddings[i*doc_text_len:(i+1)*doc_text_len]}")
+        doc['embedding'] = np.mean(embeddings[i*doc_text_len:(i+1)*doc_text_len], axis=0).tolist()
     return chroma_compatible_docs
 
 def fetchMoviesChunk(skip):
