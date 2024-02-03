@@ -65,25 +65,26 @@ def process_chunk(chunk):
         #             music_composer = crew.get('name')
         #             break
 
-        plot_tokens = tiktoken.get_encoding("cl100k_base").encode(movie.get('storyline') or movie.get('overview', 'unknown'))
-        TOKEN_TRACK += len(plot_tokens)
-        if (len(plot_tokens) > TOKEN_LIMIT):
-            print(f"Truncating plot for movie {movie.get('title', '')} to {TOKEN_LIMIT} tokens, full size: {len(plot_tokens)} tokens.")
-            plot_tokens = plot_tokens[:TOKEN_LIMIT]
-        plot = tiktoken.get_encoding("cl100k_base").decode(plot_tokens)
+        # plot_tokens = tiktoken.get_encoding("cl100k_base").encode(movie.get('storyline') or movie.get('overview', 'unknown'))
+        # TOKEN_TRACK += len(plot_tokens)
+        # if (len(plot_tokens) > TOKEN_LIMIT):
+        #     print(f"Truncating plot for movie {movie.get('title', '')} to {TOKEN_LIMIT} tokens, full size: {len(plot_tokens)} tokens.")
+        #     plot_tokens = plot_tokens[:TOKEN_LIMIT]
+        # plot = tiktoken.get_encoding("cl100k_base").decode(plot_tokens)
         text_strings_to_encode = [
             # f"Movie Name: {movie.get('title', '')}",
             # f"Released in Year {movie.get('release_date', 'unknown')[:4]}",
-            f"Movie overview: {plot}",
+            # f"Movie overview: {plot}",
+            f"Movie overview: {movie.get('overview', 'unknown')}",
             f"Movie Genres: {', '.join([genre.get('name', '') for genre in movie.get('genres', [])])}",
             # f"Rated: {str(movie.get('vote_average', 'unknown')) + ' out of 10'}",
             f"Movie keywords: {', '.join([keyword.get('name', '') for keyword in movie.get('keywords', {}).get('keywords', [])])}",
             # f"Movie Tagline: {movie.get('tagline', 'unknown')}",
-            # f"Starring: {', '.join([(cast.get('name', '') + ' as ' + cast.get('character', '')) for cast in movie.get('credits', {}).get('cast', [])[:5] if cast.get('name') is not None and cast.get('character') is not None])}",
+            f"Starring: {', '.join([(cast.get('name', '') + ' as ' + cast.get('character', '')) for cast in movie.get('credits', {}).get('cast', [])[:5] if cast.get('name') is not None and cast.get('character') is not None])}",
             # f"Director: {director}",
             # f"Music Composer: {music_composer}",
             # f"Certification: {certification}",
-            f"Original Language: {movie.get('original_language', 'unknown')}",
+            f"Movie Language: {movie.get('original_language', 'unknown')}",
             # f"Production Companies: {', '.join([company.get('name', '') for company in movie.get('production_companies', [])])}",
         ]
         # if movie.get('budget') is not None:
@@ -126,20 +127,20 @@ def fetchMoviesChunk(skip):
     movies = []
     for movie in mongo_collection.find({
         'vote_count': {'$gt': VOTE_COUNT_THREASHOLD},
-        'storyline': {'$exists': True}
+        # 'storyline': {'$exists': True}
     }, {
         'title': 1,
         'overview': 1,
-        'storyline': 1,
+        # 'storyline': 1,
         'genres': 1,
         'keywords.keywords': 1,
-        'belongs_to_collection': 1,
-        'production_companies': 1,
-        'tagline': 1,
+        # 'belongs_to_collection': 1,
+        # 'production_companies': 1,
+        # 'tagline': 1,
         'id': 1,
         'credits.cast': 1,
-        'credits.crew': 1,
-        'revenue': 1,
+        # 'credits.crew': 1,
+        # 'revenue': 1,
         'vote_count': 1,
         'vote_average': 1,
         'budget': 1,
