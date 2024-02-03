@@ -14,7 +14,7 @@
             </div>
         </div>
         <div class="grid pb-3" :class="{list: viewType}">
-            <div v-for="item in items">
+            <div v-for="item in pending?new Array(30).fill({}):items" :key="item?.id">
                 <div v-if="viewType" class="h-[25rem]">
                     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" class="flex flex-col h-full">
                         <div class="relative wide-card flex-grow">
@@ -71,6 +71,9 @@ defineProps({
     title: {
         type: String,
         required: true
+    },
+    pending: {
+        type: Boolean,
     },
     addToFilter: {
         type: Function,

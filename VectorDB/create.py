@@ -5,6 +5,7 @@ import os
 import time
 import numpy as np
 import tiktoken
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,6 +16,11 @@ VOTE_COUNT_THREASHOLD = 150
 CHUNK_SIZE=200
 TOKEN_LIMIT = 8180
 TOKEN_TRACK = 0
+
+lang = {}
+
+with open('lang.json', 'r') as file:
+    lang = json.load(file)
 
 # MongoDB setup
 client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
@@ -109,7 +115,7 @@ def process_chunk(chunk):
                 'budget': int(movie.get('budget', 0)),
                 'vote_count': int(movie.get('vote_count', 0)),
                 'vote_average': int(movie.get('vote_average', 0)),
-                'original_language': movie.get('original_language', ''),
+                'original_language': lang[movie.get('original_language', '')],
                 'title': movie.get('title', ''),
                 'id': str(movie.get('id', '')),
             },
@@ -184,6 +190,6 @@ def indexDB():
         remaining_chunks = chunks - (i + 1)
         eta = avg_time_per_chunk * remaining_chunks
         print(f"Estimated time remaining: {int(eta // 60)} minutes, {int(eta % 60)} seconds")
-        print(f"Token track: {TOKEN_TRACK}")
+        # print(f"Token track: {TOKEN_TRACK}")
 
 indexDB()

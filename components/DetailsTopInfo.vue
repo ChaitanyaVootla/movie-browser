@@ -192,8 +192,6 @@ const genreClicked = (genre: any) => {
             right: 0;
             bottom: 0;
             background-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.4) 5%, rgba(0,0,0,0.1) 10%, rgba(0,0,0,0) 100%);
-                // linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0,0,0,0) 3%, rgba(0,0,0,0) 100%),
-                // linear-gradient(270deg,rgba(0,0,0,1) 0%, rgba(0,0,0,0) 1rem, rgba(0,0,0,0) 100%),
         }
     }
     :deep(.bg-mobile) {
