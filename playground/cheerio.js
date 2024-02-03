@@ -19,7 +19,7 @@ const scrapeIMDbStoryline = async (imdbId) => {
 
     // Extract the storyline text. This selector is based on the current structure of the page.
     // Note: The selector might need an update if IMDb changes its HTML structure.
-    const storyline = $('.ipc-html-content.ipc-html-content--base').first().text().trim();
+    const storyline = $('[data-testid=sub-section-synopsis] .ipc-html-content-inner-div').first().text().trim();
 
     console.log('Storyline:', storyline);
   } catch (error) {
@@ -28,4 +28,4 @@ const scrapeIMDbStoryline = async (imdbId) => {
 };
 
 // Example IMDb ID from your sample page
-scrapeIMDbStoryline('tt1298649');
+scrapeIMDbStoryline('tt1092026');

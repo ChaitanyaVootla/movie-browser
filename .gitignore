@@ -13,7 +13,7 @@ server/src/db/data
 VectorDB/db
 VectorDB/openai/db
 VectorDB/vector
-VectorDB/.venv
+.venv
 dump.tar.gz
 __pycache__
 

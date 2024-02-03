@@ -1,22 +1,20 @@
 from flask import Flask, request, jsonify
 import chromadb
-from sentence_transformers import SentenceTransformer
+import openai
 from pymongo import MongoClient
 from flask_cors import CORS
 import os
 import json
 import numpy as np
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Constants
-# MODEL_NAME = "msmarco-MiniLM-L-6-v3"
-MODEL_NAME = "all-mpnet-base-v2"
-flatModelName = MODEL_NAME.replace('-', '')
+MODEL_NAME = "text-embedding-3-small"
 
 # MongoDB setup
 client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
@@ -24,9 +22,8 @@ db = client['test']
 mongo_collection = db['movies']
 
 # ChromaDB setup
-path = os.path.join(os.path.dirname(__file__), f'./db/{flatModelName}')
+path = os.path.join(os.path.dirname(__file__), f'./db')
 chroma_client = chromadb.PersistentClient(path=path)
-model = SentenceTransformer(MODEL_NAME)
 chroma_collection = chroma_client.get_or_create_collection(name="movies",
     metadata={"hnsw:space": "cosine"})
 
@@ -44,7 +41,7 @@ def averageByIds(movie_ids):
     )
     # average the embeddings
     embeddings = similarity_docs['embeddings']
-    return np.mean(embeddings, axis=0)
+    return np.mean(embeddings, axis=0).tolist()
 
 
 def perform_query(embedding, excludeIds, ratingCutoff, n_results):
@@ -67,7 +64,18 @@ def perform_query(embedding, excludeIds, ratingCutoff, n_results):
         query_embeddings=embedding,
     )
 
+def log_time(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        duration = round(end_time - start_time, 2)
+        print(f"Endpoint: {request.path} took {duration} seconds to execute")
+        return result
+    return wrapper
+
 @app.route('/recommend', methods=['POST'])
+@log_time
 def recommend():
     body = request.json
     similarityMovieId = body.get('similarityMovieId')
@@ -76,11 +84,14 @@ def recommend():
     hideWatched = bool(body.get('hideWatched'))
     ratingCutoff = int(body.get('ratingCutoff', 0))
 
-    watchedMovieIds = json.load(open('watched.json', 'r'))
+    # watchedMovieIds = json.load(open('watched.json', 'r'))
+    watchedMovieIds = body.get('watchedIds') or []
     allEmbeddings = []
 
     if queryString:
-        allEmbeddings.append(model.encode([queryString]))
+        start_time = time.time()
+        allEmbeddings.append(openai.embeddings.create(input=queryString, model=MODEL_NAME).data[0].embedding)
+        print(f"openai.embeddings.create took {round(time.time() - start_time, 2)} seconds")
 
     if watchedQuery is not None and len(watchedMovieIds) > 0:
         watchedEmbedding = averageByIds(watchedMovieIds)
@@ -97,18 +108,38 @@ def recommend():
         return jsonify([])
 
     if len(allEmbeddings) > 1:
-        print(f"avegaring {len(allEmbeddings)} embeddings")
-        average_embedding = np.mean(allEmbeddings, axis=0).tolist()
+        embeddings_array = np.array(allEmbeddings)
+        average_embedding = np.mean(embeddings_array, axis=0)
     else:
-        average_embedding = allEmbeddings[0].tolist()
+        average_embedding = allEmbeddings[0]
 
+    # Convert average_embedding to a list if it's a numpy array
+    if isinstance(average_embedding, np.ndarray):
+        average_embedding = average_embedding.tolist()
+
+    start_time = time.time()
     results = perform_query(average_embedding, hideWatched and watchedMovieIds or [0], ratingCutoff, 30)
+    print(f"chroma query took {round(time.time() - start_time, 2)} seconds")
 
     ids = [int(id) for id in results['ids'][0]]
     distances = results['distances'][0]
 
-    mongo_results = mongo_collection.find({'id': {'$in': ids}})
-    return jsonify(getMovieArray(mongo_results, ids, distances, watchedMovieIds))
+    mongo_results = mongo_collection.find({'id': {'$in': ids}}, {
+        'id': 1,
+        'title': 1,
+        'overview': 1,
+        'poster_path': 1,
+        'vote_average': 1,
+        'vote_count': 1,
+        'release_date': 1,
+        'backdrop_path': 1,
+        'popularity': 1,
+        'genres': {
+            "id": 1,
+            "name": 1,
+        },
+    }).sort([('popularity', -1)])
+    return jsonify(getMovieArray(list(mongo_results), ids, distances, watchedMovieIds))
 
 
 def getMovieArray(dbMovies, ids, distances, watchedMovieIds):
@@ -122,6 +153,9 @@ def getMovieArray(dbMovies, ids, distances, watchedMovieIds):
             'vote_average': movie['vote_average'],
             'vote_count': movie['vote_count'],
             'release_date': movie['release_date'],
+            'backdrop_path': movie['backdrop_path'],
+            'popularity': movie['popularity'],
+            'genres': movie['genres']
         })
 
     # sort by ids

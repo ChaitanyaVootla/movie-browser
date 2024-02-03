@@ -4,6 +4,7 @@ from pymongo import MongoClient
 import os
 import time
 import numpy as np
+import tiktoken
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,6 +13,8 @@ MODEL_NAME = "text-embedding-3-small"
 flatModelName = MODEL_NAME.replace('-', '')
 VOTE_COUNT_THREASHOLD = 150
 CHUNK_SIZE=200
+TOKEN_LIMIT = 8180
+TOKEN_TRACK = 0
 
 # MongoDB setup
 client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
@@ -29,7 +32,7 @@ def encode_text(texts):
 
 def process_chunk(chunk):
     chroma_compatible_docs = []
-    doc_text_len = 0
+    global TOKEN_TRACK
     for movie in chunk:
         # # Extract release year and convert to release decade
         # if movie.get('release_date', '') and len(movie.get('release_date', '')) >= 4 and movie.get('release_date', '')[:4].isdigit():
@@ -62,10 +65,16 @@ def process_chunk(chunk):
         #             music_composer = crew.get('name')
         #             break
 
+        plot_tokens = tiktoken.get_encoding("cl100k_base").encode(movie.get('storyline') or movie.get('overview', 'unknown'))
+        TOKEN_TRACK += len(plot_tokens)
+        if (len(plot_tokens) > TOKEN_LIMIT):
+            print(f"Truncating plot for movie {movie.get('title', '')} to {TOKEN_LIMIT} tokens, full size: {len(plot_tokens)} tokens.")
+            plot_tokens = plot_tokens[:TOKEN_LIMIT]
+        plot = tiktoken.get_encoding("cl100k_base").decode(plot_tokens)
         text_strings_to_encode = [
             # f"Movie Name: {movie.get('title', '')}",
             # f"Released in Year {movie.get('release_date', 'unknown')[:4]}",
-            f"Movie overview: {movie.get('overview', 'unknown')}",
+            f"Movie overview: {plot}",
             f"Movie Genres: {', '.join([genre.get('name', '') for genre in movie.get('genres', [])])}",
             # f"Rated: {str(movie.get('vote_average', 'unknown')) + ' out of 10'}",
             f"Movie keywords: {', '.join([keyword.get('name', '') for keyword in movie.get('keywords', {}).get('keywords', [])])}",
@@ -116,10 +125,12 @@ def process_chunk(chunk):
 def fetchMoviesChunk(skip):
     movies = []
     for movie in mongo_collection.find({
-        'vote_count': {'$gt': VOTE_COUNT_THREASHOLD}
+        'vote_count': {'$gt': VOTE_COUNT_THREASHOLD},
+        'storyline': {'$exists': True}
     }, {
         'title': 1,
         'overview': 1,
+        'storyline': 1,
         'genres': 1,
         'keywords.keywords': 1,
         'belongs_to_collection': 1,
@@ -172,5 +183,6 @@ def indexDB():
         remaining_chunks = chunks - (i + 1)
         eta = avg_time_per_chunk * remaining_chunks
         print(f"Estimated time remaining: {int(eta // 60)} minutes, {int(eta % 60)} seconds")
+        print(f"Token track: {TOKEN_TRACK}")
 
 indexDB()
