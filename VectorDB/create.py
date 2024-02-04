@@ -40,35 +40,12 @@ def process_chunk(chunk):
     chroma_compatible_docs = []
     global TOKEN_TRACK
     for movie in chunk:
-        # # Extract release year and convert to release decade
-        # if movie.get('release_date', '') and len(movie.get('release_date', '')) >= 4 and movie.get('release_date', '')[:4].isdigit():
-        #     release_decade = int(movie.get('release_date', '')[:3])
-        # else:
-        #     # Handle invalid or missing release date
-        #     release_decade = 0  # or some other default value
-
-        # # extract certification
-        # certification = 'unknown'
-        # for release in movie.get('releaseDates', []):
-        #     if release.get('iso_3166_1') == 'US':
-        #         for usRelease in release.get('releaseDates', []):
-        #             certification = usRelease.get('certification')
-        #             break
-
         # extract director
         # director = 'unknown'
         # if movie.get('credits') is not None:
         #     for crew in movie.get('credits', {}).get('crew', []):
         #         if crew.get('job') == 'Director':
         #             director = crew.get('name')
-        #             break
-
-        # # extract music composer
-        # music_composer = 'unknown'
-        # if movie.get('credits') is not None:
-        #     for crew in movie.get('credits', {}).get('crew', []):
-        #         if crew.get('job') == 'Original Music Composer':
-        #             music_composer = crew.get('name')
         #             break
 
         # plot_tokens = tiktoken.get_encoding("cl100k_base").encode(movie.get('storyline') or movie.get('overview', 'unknown'))
@@ -88,18 +65,8 @@ def process_chunk(chunk):
             # f"Movie Tagline: {movie.get('tagline', 'unknown')}",
             f"Starring: {', '.join([(cast.get('name', '') + ' as ' + cast.get('character', '')) for cast in movie.get('credits', {}).get('cast', [])[:5] if cast.get('name') is not None and cast.get('character') is not None])}",
             # f"Director: {director}",
-            # f"Music Composer: {music_composer}",
-            # f"Certification: {certification}",
             f"Movie Language: {movie.get('original_language', 'unknown')}",
-            # f"Production Companies: {', '.join([company.get('name', '') for company in movie.get('production_companies', [])])}",
         ]
-        # if movie.get('budget') is not None:
-        #     text_strings_to_encode.append(f"Budget: {str(round(movie.get('budget', '')/1000000, 2)) + ' million dollars'}")
-        # if movie.get('revenue') is not None:
-        #     text_strings_to_encode.append(f"Revenue: {str(round(movie.get('revenue', '')/1000000, 2)) + ' million dollars'}")
-
-        # if (movie.get('belongs_to_collection') is not None) and (movie.get('belongs_to_collection').get('name') is not None):
-        #     text_strings_to_encode.append(f"Collection: {movie.get('belongs_to_collection').get('name')}")
 
         text_to_encode = ', '.join(text_strings_to_encode)
 
@@ -110,7 +77,7 @@ def process_chunk(chunk):
             'text_strings_to_encode': text_strings_to_encode,
             'text_strings_len': len(text_strings_to_encode),
             'metadata': {
-                # 'release_decade': release_decade,
+                'release_year': int(movie.get('release_date', '')[:4]),
                 'revenue': int(movie.get('revenue', 0)),
                 'budget': int(movie.get('budget', 0)),
                 'vote_count': int(movie.get('vote_count', 0)),
@@ -140,13 +107,11 @@ def fetchMoviesChunk(skip):
         # 'storyline': 1,
         'genres': 1,
         'keywords.keywords': 1,
-        # 'belongs_to_collection': 1,
-        # 'production_companies': 1,
         # 'tagline': 1,
         'id': 1,
         'credits.cast': 1,
         # 'credits.crew': 1,
-        # 'revenue': 1,
+        'revenue': 1,
         'vote_count': 1,
         'vote_average': 1,
         'budget': 1,

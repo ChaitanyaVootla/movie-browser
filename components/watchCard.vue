@@ -48,6 +48,9 @@ defineProps({
 @lg-height: 14rem;
 @mobile-height: 6.5rem;
 
+:deep(.v-skeleton-loader__image) {
+    height: 100%;
+}
 :deep(.card) {
     width: calc(@lg-height * 1.7777);
 }

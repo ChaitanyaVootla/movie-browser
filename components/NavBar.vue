@@ -23,7 +23,7 @@
             <NuxtLink to="/ai">
                 <div class="flex items-center gap-2" aria-label="Go To AI search">
                     <v-icon icon="mdi-panorama-sphere-outline" size="small" />
-                    AI <span class="text-neutral-400 text-sm italic">BETA</span>
+                    AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>
             </NuxtLink>
         </div>
@@ -88,7 +88,7 @@
             <v-btn value="ai" @click="bottomNavItemClicked('ai')">
                 <v-icon>mdi-panorama-sphere-outline</v-icon>
                 <span class="text-2xs">
-                    AI <span class="text-neutral-400 italic">BETA</span>
+                    AI Search
                 </span>
             </v-btn>
 

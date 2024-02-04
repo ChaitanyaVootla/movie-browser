@@ -51,6 +51,10 @@ export const watchOptionImageMapper = {
         image: '/images/ott/aha.svg',
         name: 'aha'
     },
+    'plex': {
+        image: '/images/ott/plex.png',
+        name: 'plex'
+    },
 } as Record<string, {
     image: string,
     name: string
