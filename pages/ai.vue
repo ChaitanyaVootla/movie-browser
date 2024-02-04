@@ -1,5 +1,5 @@
 <template>
-    <div class="mt-5 mx-16">
+    <div class="mt-5 md:mx-16 max-md:mx-3">
         <div>
             <div class="flex gap-5 w-full">
                 <v-text-field
@@ -16,13 +16,13 @@
             </div>
         </div>
 
-        <div class="flex justify-between">
-            <div class="flex gap-16 w-full">
+        <div class="flex justify-between flex-wrap">
+            <div class="flex max-md:gap-3 md:gap-16 w-full">
                 <div class="">
                     <div class="text-neutral-300 ml-2">Watched Similarity</div>
                     <div>
                         <v-btn-toggle class="mt-1" v-model="watchedQuery" @update:modelValue="recommend()" mandatory
-                            density="comfortable">
+                            v-bind:density="$vuetify.display.mobile?'compact':'comfortable'">
                             <v-btn value="similar" text="Similar" />
                             <v-btn value="neutral" text="Neutral" />
                             <v-btn value="contrast" text="Contrast" />
@@ -39,10 +39,9 @@
                             single-line
                             label="Rating"
                             variant="solo"
-                            density="compact"
+                            v-bind:density="$vuetify.display.mobile?'compact':'comfortable'"
                             item-title="text"
                             item-value="value"
-                            clearable
                             @update:model-value="recommend()"
                         ></v-select>
                     </div>

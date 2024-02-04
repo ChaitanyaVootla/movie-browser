@@ -85,6 +85,13 @@
                 <span class="text-2xs">Search</span>
             </v-btn>
 
+            <v-btn value="ai" @click="bottomNavItemClicked('ai')">
+                <v-icon>mdi-panorama-sphere-outline</v-icon>
+                <span class="text-2xs">
+                    AI <span class="text-neutral-400 italic">BETA</span>
+                </span>
+            </v-btn>
+
             <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile" @click="signIn('google')">
                 <NuxtImg src="/images/googleLogin/login_small.svg" class="h-6 -mt-1" />
                 <span class="text-2xs">Login</span>
@@ -253,6 +260,8 @@ const bottomNavItemClicked = (item: any) => {
         return useRouter().push('/browse');
     } else if (item === 'watchList') {
         return useRouter().push('/watchList');
+    } else if (item === 'ai') {
+        return useRouter().push('/ai');
     } else if (item === 'profile') {
         return;
     }
