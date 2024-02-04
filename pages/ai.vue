@@ -8,24 +8,24 @@
                     v-model="queryString"
                     @keyup.enter="recommend"
                     class="flex-1"
-                    density="comfortable"
+                    v-bind:density="$vuetify.display.mobile?'compact':'comfortable'"
                     variant="solo-filled"
                     rounded
                 />
-                <v-btn prependIcon="mdi-magnify" size="large" @click="recommend" color="#ccc">Search</v-btn>
+                <v-btn prependIcon="mdi-magnify" v-bind:size="$vuetify.display.mobile?'default':'large'" @click="recommend" color="#ccc">Search</v-btn>
             </div>
         </div>
 
-        <div class="flex justify-between flex-wrap">
-            <div class="flex max-md:gap-3 md:gap-16 w-full">
+        <div class="flex flex-wrap md:justify-between">
+            <div class="flex flex-wrap max-md:gap-2 md:gap-16 w-full">
                 <div class="">
                     <div class="text-neutral-300 ml-2">Watched Similarity</div>
                     <div>
                         <v-btn-toggle class="mt-1" v-model="watchedQuery" @update:modelValue="recommend()" mandatory
                             v-bind:density="$vuetify.display.mobile?'compact':'comfortable'">
-                            <v-btn value="similar" text="Similar" />
-                            <v-btn value="neutral" text="Neutral" />
-                            <v-btn value="contrast" text="Contrast" />
+                            <v-btn value="similar" text="Similar" v-bind:size="$vuetify.display.mobile?'x-small':'default'" />
+                            <v-btn value="neutral" text="Neutral" v-bind:size="$vuetify.display.mobile?'x-small':'default'" />
+                            <v-btn value="contrast" text="Contrast" v-bind:size="$vuetify.display.mobile?'x-small':'default'" />
                         </v-btn-toggle>
                     </div>
                 </div>
@@ -39,7 +39,7 @@
                             single-line
                             label="Rating"
                             variant="solo"
-                            v-bind:density="$vuetify.display.mobile?'compact':'comfortable'"
+                            density="compact"
                             item-title="text"
                             item-value="value"
                             @update:model-value="recommend()"
