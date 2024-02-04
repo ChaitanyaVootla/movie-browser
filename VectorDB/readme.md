@@ -1,3 +1,8 @@
+## AI Search Roadmap
+- Embed common features individually (Genres, Actors, Keywords) to improve search accuracy
+- Find optimal weights for each feature to improve search accuracy
+- Add a negative search feature to exclude certain genres, actors, or keywords
+
 ## Test cases
 
 ### Search by Actor name
