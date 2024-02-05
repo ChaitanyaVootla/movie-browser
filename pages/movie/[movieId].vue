@@ -377,7 +377,7 @@ useHead(() => {
             {
                 hid: 'og:url',
                 property: 'og:url',
-                content: `https://movie-browser.vercel.app/movie/${movie.value?.id}`
+                content: `https://themoviebrowser.com/movie/${movie.value?.id}`
             },
             {
                 hid: 'og:type',
@@ -417,7 +417,7 @@ useHead(() => {
             {
                 hid: 'twitter:url',
                 name: 'twitter:url',
-                content: `https://movie-browser.vercel.app/movie/${movie.value?.id}`
+                content: `https://themoviebrowser.com/movie/${movie.value?.id}`
             }
         ]
     };

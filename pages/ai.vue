@@ -100,4 +100,30 @@ const ratingOptions = new Array(10).fill({}).map((item, index) => ({
     value: index,
     text: `${index}+`,
 })).reverse();
+
+useHead({
+    title: 'AI Search - The Movie Browser',
+    meta: [
+        {
+            hid: 'description',
+            name: 'description',
+            content: 'AI powered movie search engine. Find movies with ease.',
+        },
+        {
+            hid: 'og:image',
+            property: 'og:image',
+            content: '/backdrop.webp',
+        },
+        {
+            hid: 'twitter:image',
+            name: 'twitter:image',
+            content: '/backdrop.webp',
+        },
+        {
+            hid: 'twitter:url',
+            name: 'twitter:url',
+            content: `https://themoviebrowser.com/ai`,
+        },
+    ],
+});
 </script>
