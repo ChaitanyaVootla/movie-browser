@@ -97,12 +97,7 @@
                 </div>
 
                 <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
-                    <Scroller :items="movie?.images?.backdrops" title="Image Gallery" :pending="pending"
-                        title-icon="mdi-image-multiple-outline">
-                        <template v-slot:default="{ item }">
-                            <GalleryImageCard :item="item" />
-                        </template>
-                    </Scroller>
+                    <GalleryScroller :images="movie?.images?.backdrops" :pending="pending" />
                 </div>
 
                 <div v-if="aiRecommendations?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">

@@ -14,14 +14,26 @@
                     Browse
                 </div>
             </NuxtLink>
+            <!-- <NuxtLink to="/movies">
+                <div class="flex items-center gap-2" aria-label="Go To AI search">
+                    <v-icon icon="mdi-movie-outline" size="small" />
+                    Movies
+                </div>
+            </NuxtLink> -->
+            <!-- <NuxtLink to="/tv">
+                <div class="flex items-center gap-2" aria-label="Go To AI search">
+                    <v-icon icon="mdi-television" size="small" />
+                    TV
+                </div>
+            </NuxtLink> -->
             <NuxtLink to="/watchList" aria-label="Go To Watch List">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 whitespace-nowrap">
                     <v-icon icon="mdi-menu" size="small" />
                     Watch List
                 </div>
             </NuxtLink>
             <NuxtLink to="/ai">
-                <div class="flex items-center gap-2" aria-label="Go To AI search">
+                <div class="flex items-center gap-2 whitespace-nowrap" aria-label="Go To AI search">
                     <v-icon icon="mdi-panorama-sphere-outline" size="small" />
                     AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>

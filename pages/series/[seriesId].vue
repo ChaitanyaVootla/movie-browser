@@ -150,12 +150,9 @@
                 </div>
 
                 <div v-if="series?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
-                    <Scroller :items="series?.images?.backdrops" title="Image Gallery" :pending="pending">
-                        <template v-slot:default="{ item }">
-                            <GalleryImageCard :item="item" />
-                        </template>
-                    </Scroller>
+                    <GalleryScroller :images="series?.images?.backdrops" :pending="pending" />
                 </div>
+
 
                 <div v-if="series.recommendations?.results?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
                     <Scroller :items="series.recommendations?.results || []" title="Recommended" :pending="pending" />

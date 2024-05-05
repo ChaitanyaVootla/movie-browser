@@ -1,7 +1,7 @@
 <template>
     <div class="wide-image mt-3">
         <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.file_path}`"
-            class="rounded-lg mr-2 wide-image border-2 border-neutral-800"
+            class="rounded-lg mr-2 wide-image border-2 border-neutral-800 cursor-pointer"
             cover
             :alt="item.name">
             <template v-slot:placeholder>
