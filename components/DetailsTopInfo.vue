@@ -63,7 +63,7 @@
                         :src="`https://www.youtube.com/embed/${(item?.youtubeVideos || [])[0]?.key
                             }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${(item?.youtubeVideos || [])[0]?.key}`"
                         controls="1"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowfullscreen
                     >
                     </iframe>
@@ -95,7 +95,7 @@
                         :src="`https://www.youtube.com/embed/${(item?.youtubeVideos || [])[0]?.key
                             }?&rel=0&autoplay=1&iv_load_policy=3&loop=1&playlist=${(item?.youtubeVideos || [])[0]?.key}`"
                         controls="1"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowfullscreen
                     >
                     </iframe>

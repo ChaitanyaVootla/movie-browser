@@ -84,7 +84,7 @@
                     </Scroller>
                 </div>
 
-                <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5">
+                <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 md:hidden">
                     <Scroller :items="movie?.youtubeVideos" title="Trailers and Clips" :pending="pending"
                         title-icon="mdi-youtube">
                         <template v-slot:title="{}">
@@ -94,6 +94,10 @@
                             <VideoCard :item="item" />
                         </template>
                     </Scroller>
+                </div>
+
+                <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 max-md:hidden">
+                    <VideoGallery :videos="movie.youtubeVideos" />
                 </div>
 
                 <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">

@@ -11,7 +11,12 @@
       transition="dialog-bottom-transition"
       fullscreen
     >
-        <v-carousel v-model="imageIndex">
+        <div>
+            <v-btn icon @click="dialog = false" class="float-end">
+                <v-icon>mdi-close</v-icon>
+            </v-btn>
+        </div>
+        <v-carousel v-model="imageIndex" hide-delimiters>
             <v-carousel-item v-for="image in images">
                 <div class="flex justify-center h-full w-full align-middle p-5">
                     <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.original}${image.file_path}`"

@@ -141,12 +141,16 @@
                     </Scroller>
                 </div>
 
-                <div v-if="series?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
+                <div v-if="series?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10 md:hidden">
                     <Scroller :items="series?.youtubeVideos" title="Trailers and Clips" :pending="pending" title-icon="mdi-youtube">
                         <template v-slot:default="{ item }">
                             <VideoCard :item="item" />
                         </template>
                     </Scroller>
+                </div>
+
+                <div v-if="series?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 max-md:hidden">
+                    <VideoGallery :videos="series.youtubeVideos" />
                 </div>
 
                 <div v-if="series?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
