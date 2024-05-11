@@ -100,6 +100,10 @@
                     <VideoGallery :videos="movie.youtubeVideos" />
                 </div>
 
+                <!-- <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
+                    <PhotoGallery :images="movie?.images?.backdrops" :pending="pending" />
+                </div> -->
+
                 <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
                     <GalleryScroller :images="movie?.images?.backdrops" :pending="pending" />
                 </div>

@@ -27,7 +27,7 @@ defineProps({
 </script>
 
 <style scoped lang="less">
-@wide-image-height: 18rem;
+@wide-image-height: 15rem;
 :deep(.wide-image) {
     height: @wide-image-height;
     width: calc(@wide-image-height * 16/9);

@@ -22,10 +22,12 @@
                     <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.original}${image.file_path}`"
                             contain>
                             <template v-slot:placeholder>
-                                <v-skeleton-loader class="wide-image" type="image" />
+                                <v-skeleton-loader class="w-full h-full" type="image">
+                                    <div></div>
+                                </v-skeleton-loader>
                             </template>
                             <template v-slot:error>
-                                <v-skeleton-loader class="wide-image" type="image" >
+                                <v-skeleton-loader class="w-full h-full" type="image" >
                                     <div></div>
                                 </v-skeleton-loader>
                         </template>
