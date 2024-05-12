@@ -2,9 +2,12 @@ import { ISeries, Series, SERIES_QUERY_PARAMS } from "~/server/models";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { JWT } from "next-auth/jwt";
 
+const DAY_MILLIS = 1000 * 60 * 60 * 24;
+
 export default defineEventHandler(async (event) => {
     const seriesId = getRouterParam(event, 'seriesId');
-    const isForce = getQuery(event).force? true: false;
+    let isForce = getQuery(event).force? true: false;
+    const checkUpdate = getQuery(event).checkUpdate? true: false;
     const userData = event.context.userData as JWT;
 
     if (isForce && (!userData || !userData?.sub)) {
@@ -18,11 +21,27 @@ export default defineEventHandler(async (event) => {
     }
 
     let series = {} as any;
+    let canUpdate = false;
 
     const dbSeries = await Series.findOne({ id: seriesId }).select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar');
     // @ts-ignore
     if (dbSeries?.name) {
         series = dbSeries.toJSON();
+    }
+    if (series?.updatedAt) {
+        const sinceUpdate = Date.now() - series.updatedAt;
+        const sinceMovieRelase = Date.now() - new Date(series?.next_episode_to_air?.air_date ||
+            series?.last_episode_to_air?.air_date ||
+            series?.last_air_date ||
+            series?.first_air_date
+        ).getTime();
+        const updateInterval = seriesUpdateInterval(sinceMovieRelase);
+        if (sinceUpdate > updateInterval) {
+            canUpdate = true;
+        }
+    }
+    if (checkUpdate && canUpdate) {
+        isForce = true;
     }
     if (isForce || !series.name) {
         console.log("Fetching from TMDB")
@@ -78,6 +97,20 @@ export default defineEventHandler(async (event) => {
     }
     return {
         ...series,
+        canUpdate,
         selectedSeason,
     } as ISeries;
 });
+
+const seriesUpdateInterval = (sinceMovieRelase: number) => {
+    if (sinceMovieRelase < DAY_MILLIS * 14) {
+        return DAY_MILLIS;
+    }
+    if (sinceMovieRelase < DAY_MILLIS * 30) {
+        return DAY_MILLIS * 4;
+    }
+    if (sinceMovieRelase < DAY_MILLIS * 90) {
+        return DAY_MILLIS * 7;
+    }
+    return DAY_MILLIS * 30;
+}

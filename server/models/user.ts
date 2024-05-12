@@ -5,4 +5,16 @@ const UserSchema = new Schema({
     name: String,
 }, {strict: false});
 
-export default model<any>("users", UserSchema);
+interface IUser {
+    id: String,
+    createdAt: Date,
+    updatedAt: Date,
+    any: Schema.Types.Mixed,
+}
+
+const User =  model<IUser>("users", UserSchema);
+
+export {
+    User,
+    IUser,
+};

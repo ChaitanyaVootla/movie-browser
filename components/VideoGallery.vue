@@ -7,6 +7,7 @@
                 :src="`https://www.youtube.com/embed/${currentVideo.key}?playlist=${currentVideo.key}&loop=1`"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 title="YouTube video player"
+                allowfullscreen controls="1"
                 frameborder="0"></iframe>
                 <div class="flex gap-5 mt-4 justify-between px-2">
                     <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4">
@@ -40,22 +41,17 @@
                         <div>Comments</div>
                     </div>
                     <div class="flex gap-3 items-center">
-                        <v-avatar class="border-2 border-neutral-400">
+                        <v-avatar class="border-2 border-neutral-400" size="small">
                             <v-img alt="Avatar" :src="comments[0].snippet.topLevelComment.snippet.authorProfileImageUrl" />
                         </v-avatar>
                         <div class="flex flex-col">
-                            <div class="text-neutral-200 font-semibold">{{ comments[0].snippet.topLevelComment.snippet.authorDisplayName }}</div>
                             <div class="text-neutral-300 line-clamp-1" v-html="comments[0].snippet.topLevelComment.snippet.textDisplay"></div>
                         </div>
-                    </div>
-                    <div class="text-xs ml-13 font-thin flex items-center mt-1 text-neutral-300">
-                        <v-icon icon="mdi-thumb-up-outline" class="mr-2"></v-icon>
-                        <b class="mt-1">{{ formatNumber(comments[0].snippet.topLevelComment.snippet.likeCount || 0) }}</b>
                     </div>
                 </div>
             </div>
             <div class="px-10 flex w-1/3 flex-col overflow-auto">
-                <div class="flex gap-3 pb-5 overflow-x-hidden grow h-8 max-w-full overflow-y-clip">
+                <div class="flex gap-3 pb-5 overflow-x-hidden grow h-9 max-w-full overflow-y-clip">
                     <v-btn rounded="lg" size="small" v-for="type in videoTypes" @click="videoFilter = type" :key="type"
                         :class="videoFilter === type?'!bg-neutral-100':'!bg-neutral-800 !text-neutral-100'"
                         class="!font-bold">

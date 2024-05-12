@@ -7,8 +7,8 @@
                     cover
                     :alt="item.name"
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800
-                        hover:transition-all duration-300 hover:mb-2 md:hover:-mt-2 border-2 border-transparent
-                        hover:border-neutral-700 border-neutral-800 w-full h-full"
+                        hover:transition-all duration-300 hover:mb-1 md:hover:-mt-1 border-2 border-transparent
+                        hover:border-neutral-800 border-neutral-800 w-full h-full"
                     :src="`https://image.tmdb.org/t/p/w185${item.profile_path}`">
                     <template v-slot:placeholder>
                         <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>

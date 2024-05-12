@@ -171,6 +171,19 @@
         <v-dialog v-model="showEpisodeDialog">
             <Episode :episode="selectedEpisode" />
         </v-dialog>
+        <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
+            Updating latest ratings and watch links
+            <template v-slot:actions>
+                <v-btn
+                    color="white"
+                    size="small"
+                    variant="text"
+                    @click="snackbar = false"
+                >
+                    Close
+                </v-btn>
+            </template>
+        </v-snackbar>
     </div>
 </template>
 
@@ -179,9 +192,12 @@ import { humanizeDateFull } from '~/utils/dateFormatter';
 
 const { status } = useAuth();
 
+// let series = ref({} as any);
 const updatingSeries = ref(false);
 const isMounted = ref(false);
 let isKeywordsExpanded = ref(false);
+let isUpdated = false;
+let snackbar = ref(false);
 let showEpisodeDialog = ref(false);
 let selectedEpisode = ref<any>({});
 let seriesUpdateKey = ref(0);
@@ -190,7 +206,31 @@ let loginRef = null as any;
 onMounted(() => {
     isMounted.value = true;
     loginRef = ref(null);
+    if (series.value?.canUpdate) {
+        checkSeriesUpdate(series.value);
+    }
+    if (series.value?.id) {
+        addToRecents();
+    }
+    watch(series, () => {
+        if (series.value?.canUpdate) {
+            checkSeriesUpdate(series.value);
+        }
+        if (series.value?.id) {
+            addToRecents();
+        }
+    });
 });
+
+const checkSeriesUpdate = async (seriesAPI: any) => {
+    if (isUpdated) return;
+    isUpdated = true;
+    snackbar.value = true;
+    const updatedSeries = await $fetch(`/api/series/${seriesAPI.id}?checkUpdate=true`)
+    series.value = mapSeries(updatedSeries);
+    snackbar.value = false;
+    seriesUpdateKey.value += 1;
+}
 
 const showEpisode = (episode: any) => {
     selectedEpisode.value = episode;
@@ -247,6 +287,7 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
         default: () => ({})
     }
 );
+// series.value = seriesAPI;
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit
 let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}-watchList`,
@@ -272,17 +313,6 @@ const addToRecents = () => {
         }
     );
 }
-
-// add to recents when movie is loaded
-if (series.value?.id) {
-    addToRecents();
-}
-
-watch(series, () => {
-    if (series.value?.id) {
-        addToRecents();
-    }
-});
 
 const seasonSelected = async (season: any) => {
     series.value.selectedSeason = await $fetch(`/api/series/${series.value.id}/season/${season?.season_number}`).catch((err) => {

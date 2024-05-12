@@ -78,6 +78,7 @@ export default defineNuxtConfig({
   routeRules: {
     // '/api/movie/**': { cors: true, swr:  60 * 60 * 12 },
     // '/api/series/**': { cors: true, swr:  60 * 60 * 12 },
+    '/api/youtube/**': { cors: true, swr:  60 * 60 * 12 },
     '/api/series/**/season/**': { cors: true, swr:  60 * 60 * 12 },
     '/api/search/**': { cors: true, swr:  60 * 60 * 12 },
     '/api/person/**': { cors: true, swr:  60 * 60 * 12 },

@@ -109,7 +109,6 @@ export default defineEventHandler(async (event) => {
     return movie as IMovie;
 });
 
-
 const movieUpdateInterval = (sinceMovieRelase: number) => {
     if (sinceMovieRelase < DAY_MILLIS * 14) {
         return DAY_MILLIS;
