@@ -2,10 +2,15 @@ import { getToken } from '#auth'
 import { JWT } from 'next-auth/jwt';
 import { User } from "~/server/models";
 
+const ADMIN_EMAILS = ['speedblaze@gmail.com'];
+
 export default eventHandler(async (event) => {
   const userData = await getToken({ event });
   event.context.userData = userData;
   if (userData?.sub) {
+    if (ADMIN_EMAILS.includes(userData.email as string)) {
+      event.context.isAdmin = true;
+    }
     handleUserVist(userData as JWT);
   }
 })

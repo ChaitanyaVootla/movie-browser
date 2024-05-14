@@ -55,6 +55,10 @@ export const watchOptionImageMapper = {
         image: '/images/ott/plex.png',
         name: 'plex'
     },
+    'crunchyroll': {
+        image: '/images/ott/crunchyroll.png',
+        name: 'crunchyroll'
+    },
 } as Record<string, {
     image: string,
     name: string

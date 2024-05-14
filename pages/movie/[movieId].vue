@@ -260,19 +260,31 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
 );
 movie = movieAPI;
 
-let { data: watched }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-watched`,
-    () => $fetch(`/api/user/movie/${useRoute().params.movieId}/watched`, { headers }).catch((err) => {
-        console.log(err);
-        return {};
-    })
-);
+const watchedMovies: any = useState('watchedMovies');
+const watchListMovies: any = useState('watchListMovies');
 
-let { data: watchlist }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-watchList`,
-    () => $fetch(`/api/user/movie/${useRoute().params.movieId}/watchList`, { headers }).catch((err) => {
-        console.log(err);
-        return {};
-    })
-);
+let watched = ref(false);
+
+let computedWatched = computed(() => {
+    if (status.value !== 'authenticated') return false;
+    return watchedMovies.value?.includes(movie?.value?.id) ? true : false;
+});
+
+watched.value = computedWatched.value;
+watch(computedWatched, (newValue) => {
+  watched.value = newValue;
+});
+
+let watchlist = ref(false);
+let computedWatchlist = computed(() => {
+    if (status.value !== 'authenticated') return false;
+    return watchListMovies.value?.includes(movie?.value?.id) ? true : false;
+});
+
+watchlist.value = computedWatchlist.value;
+watch(computedWatchlist, (newValue) => {
+    watchlist.value = newValue;
+});
 
 const watchClicked = () => {
     if (status.value !== 'authenticated') {

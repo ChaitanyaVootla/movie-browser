@@ -1,52 +1,58 @@
 <template>
     <div class="navbar fixed w-full hidden md:flex justify-center text-xl items-center px-16 overflow-visible
         bg-neutral-950 py-2 z-50 h-14">
-        <div class="left-actions items-center flex-1 flex gap-16">
+        <div class="left-actions items-center flex-1 flex gap-10 text-[1rem] font-medium">
             <NuxtLink to="/" aria-label="Go Home">
-                <div class="flex items-start gap-1 tracking-widest text-2xl text-white font-extrabold group">
-                    <NuxtImg src="/popcorn.png" class="h-8 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"/>
+                <div class="flex items-start gap-1 tracking-widest text-xl text-white font-extrabold group">
+                    <NuxtImg src="/popcorn.png" class="h-7 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"/>
                     <div class="logo-text">TMB</div>
                 </div>
             </NuxtLink>
             <NuxtLink to="/browse">
-                <div class="flex items-center gap-2" aria-label="Go To AI search">
+                <div class="flex items-center gap-1" aria-label="Go To AI search">
                     <v-icon icon="mdi-infinity" size="small" />
                     Browse
                 </div>
             </NuxtLink>
             <!-- <NuxtLink to="/movies">
-                <div class="flex items-center gap-2" aria-label="Go To AI search">
+                <div class="flex items-center gap-1" aria-label="Go To AI search">
                     <v-icon icon="mdi-movie-outline" size="small" />
                     Movies
                 </div>
             </NuxtLink> -->
             <!-- <NuxtLink to="/tv">
-                <div class="flex items-center gap-2" aria-label="Go To AI search">
+                <div class="flex items-center gap-1" aria-label="Go To AI search">
                     <v-icon icon="mdi-television" size="small" />
                     TV
                 </div>
             </NuxtLink> -->
             <NuxtLink to="/watchList" aria-label="Go To Watch List">
-                <div class="flex items-center gap-2 whitespace-nowrap">
+                <div class="flex items-center gap-1 whitespace-nowrap">
                     <v-icon icon="mdi-menu" size="small" />
                     Watch List
                 </div>
             </NuxtLink>
             <NuxtLink to="/ai">
-                <div class="flex items-center gap-2 whitespace-nowrap" aria-label="Go To AI search">
+                <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To AI search">
                     <v-icon icon="mdi-panorama-sphere-outline" size="small" />
                     AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
+                </div>
+            </NuxtLink>
+            <NuxtLink to="/admin" v-if="isAdmin">
+                <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To AI search">
+                    <v-icon icon="mdi-account-supervisor" size="small" />
+                    Admin
                 </div>
             </NuxtLink>
         </div>
         <div class="right flex-1 flex justify-end">
             <div class="flex items-center">
-                <v-chip class="rounded-xl px-6 py-5 cursor-pointer flex" @click="showSearchOverlay = true"
-                    color="#333" variant="outlined" size="default">
-                    <div class="ml-2 flex justify-center items-center gap-1 text-neutral-100">
+                <v-chip class="rounded-xl px-5 py-4 cursor-pointer flex" @click="showSearchOverlay = true"
+                    color="#333" variant="outlined" size="default" :border="1">
+                    <div class="flex justify-center items-center gap-1 text-neutral-100">
                         <v-icon color="#eee">mdi-magnify</v-icon>
-                        <div class="ml-2">Search</div>
-                        <v-chip class="rounded-pill ml-1" size="small">
+                        <div>Search</div>
+                        <v-chip class="rounded-pill ml-1 !h-5 !cursor-pointer" size="small">
                             Ctrl + K
                         </v-chip>
                     </div>
@@ -224,6 +230,10 @@ onMounted(() => {
         }
     });
 });
+
+const isAdmin = computed(() => {
+    return data?.value?.user?.email === 'speedblaze@gmail.com';
+})
 
 const searchUpdated = useDebounce(async (query: string) => {
     isSearching.value = true;

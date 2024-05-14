@@ -42,6 +42,8 @@ const getColorForRating = (ratingObj: Rating) => {
         ratingNumber *= 10;
     } else if (ratingObj.name === 'TMDB') {
         ratingNumber *= 10;
+    } else if (ratingObj.name === 'Crunchyroll') {
+        ratingNumber *= 20;
     }
     const cutoff = 30;
     const safeValue = Math.max(cutoff, Math.min(100, ratingNumber));
@@ -57,6 +59,7 @@ const ratingImageMapper = {
     'imdb': '/images/rating/imdb.svg',
     'rotten': '/images/rating/rottenTomatoes.svg',
     'google': '/images/rating/google.svg',
+    // 'crunchyroll': '/images/rating/crunchyroll.png',
 } as Record<string, string>;
 
 if (props.googleData?.ratings) {
