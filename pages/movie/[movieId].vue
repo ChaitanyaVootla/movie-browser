@@ -139,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import { userStore } from '~/plugins/state';
 import { humanizeDateFull } from '~/utils/dateFormatter';
 
 let movie = ref({} as any);
@@ -152,6 +153,7 @@ let loginRef = null as any;
 let movieUpdateKey = ref(0);
 let isUpdated = false;
 let isRecentsUpdated = false;
+const userData = userStore();
 let language = computed(() => {
     if (movie.value?.original_language !== 'en') {
         return LANGAUAGES.find(({iso_639_1}) => iso_639_1 === movie.value?.original_language)?.english_name;
@@ -260,25 +262,15 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
 );
 movie = movieAPI;
 
-const watchedMovies: any = useState('watchedMovies');
-const watchListMovies: any = useState('watchListMovies');
-
-let watched = ref(false);
-
-let computedWatched = computed(() => {
-    if (status.value !== 'authenticated') return false;
-    return watchedMovies.value?.includes(movie?.value?.id) ? true : false;
-});
-
-watched.value = computedWatched.value;
-watch(computedWatched, (newValue) => {
-  watched.value = newValue;
+let watched = computed(() => {
+    if (status.value !== 'authenticated' || !movie?.value?.id) return false;
+    return userData.isMovieWatched(movie.value.id) ? true : false;
 });
 
 let watchlist = ref(false);
 let computedWatchlist = computed(() => {
-    if (status.value !== 'authenticated') return false;
-    return watchListMovies.value?.includes(movie?.value?.id) ? true : false;
+    if (status.value !== 'authenticated' || !movie?.value?.id) return false;
+    return userData.isMovieInWatchList(movie.value.id) ? true : false;
 });
 
 watchlist.value = computedWatchlist.value;
@@ -291,16 +283,17 @@ const watchClicked = () => {
         loginRef.value.openDialog();
         return;
     }
-    watched.value = !watched.value;
-    if (watched.value === true) {
-        $fetch(`/api/user/movie/${movie.value.id}/watched`, {
-            method: 'POST',
-        })
-    } else {
-        $fetch(`/api/user/movie/${movie.value.id}/watched`, {
-            method: 'DELETE',
-        })
-    }
+    // watched.value = !watched.value;
+    // if (watched.value === true) {
+    //     $fetch(`/api/user/movie/${movie.value.id}/watched`, {
+    //         method: 'POST',
+    //     })
+    // } else {
+    //     $fetch(`/api/user/movie/${movie.value.id}/watched`, {
+    //         method: 'DELETE',
+    //     })
+    // }
+    userData.toggleWatchMovie(movie.value.id);
 }
 
 const watchListClicked = () => {

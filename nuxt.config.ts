@@ -37,6 +37,7 @@ export default defineNuxtConfig({
     }
   },
   modules: [
+    '@pinia/nuxt',
     "@nuxtjs/google-fonts",
     "@vite-pwa/nuxt",
     "nuxt-gtag",
