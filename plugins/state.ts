@@ -27,6 +27,19 @@ export const userStore = defineStore('user', {
             this.WatchedMovies.add(movieId);
         }
     },
+    toggleMovieWatchList(movieId: string) {
+        if (this.isMovieInWatchList(movieId)) {
+            $fetch(`/api/user/movie/${movieId}/watchList`, {
+                method: 'DELETE',
+            })
+            this.WatchListMovies.delete(movieId);
+        } else {
+            $fetch(`/api/user/movie/${movieId}/watchList`, {
+                method: 'POST',
+            })
+            this.WatchListMovies.add(movieId);
+        }
+    },
   },
 });
 
