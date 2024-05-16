@@ -11,6 +11,7 @@ const isClient = ref(false);
 
 onMounted(() => {
     if (process.client === false) return;
+    if (typeof window === 'undefined') return;
     isClient.value = true;
     const observer = new IntersectionObserver(
         ([entry]) => {
