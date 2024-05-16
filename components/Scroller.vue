@@ -62,7 +62,6 @@ const slideRight = ref<any>(null);
 
 onMounted(() => {
     uuid.value = uid();
-    console.log(`Loaded scroller ${props.title}`)
     setTimeout(() => {
         const slider: any = document.querySelector(`#scroll-bar-${uuid.value}+.slider`);
 

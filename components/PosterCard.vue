@@ -1,4 +1,5 @@
 <template>
+    <ClientOnly>
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative md:hover:mb-1 md:hover:-mt-1 hover:transition-all duration-300" :class="{'scale-95': watched}">
@@ -68,6 +69,7 @@
             </div> -->
         </div>
     </NuxtLink>
+</ClientOnly>
 </template>
 
 <script setup lang="ts">
@@ -78,6 +80,7 @@ const isClient = ref(false);
 const { status } = useAuth();
 
 onMounted(() => {
+    console.log(`Loaded movie ${props.item.title || props.item.name}`)
     isClient.value = true;
 });
 
