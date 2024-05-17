@@ -1,37 +1,35 @@
 <template>
-    <IntLoader>
-        <div>
-            <div class="title -mb-1 md:mb-0 md:ml-14">
-                <slot name="title">
-                    <div class="text-sm md:text-lg font-semibold flex justify-start items-center gap-1">
-                        <v-icon v-if="titleIcon" :icon="titleIcon"></v-icon> <div class="leading-4">{{ title }}</div>
-                    </div>
-                </slot>
-            </div>
-            <div class="flex w-full h-full">
-                <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideLeft">
-                    <div>
-                        <v-icon icon="mdi-chevron-left" color="#aaa"
-                            class="group-hover:scale-125 group-hover:!text-white transition-all duration-200"></v-icon>
-                    </div>
+    <div>
+        <div class="title -mb-1 md:mb-0 md:ml-14">
+            <slot name="title">
+                <div class="text-sm md:text-lg font-semibold flex justify-start items-center gap-1">
+                    <v-icon v-if="titleIcon" :icon="titleIcon"></v-icon> <div class="leading-4">{{ title }}</div>
                 </div>
-                <ClientOnly>
-                    <div :id="`scroll-bar-${uuid}`"></div>
-                </ClientOnly>
-                <div class="flex gap-2 md:gap-4 overflow-y-auto w-full slider">
-                    <div v-for="item in (items || Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
-                        <slot :item="item">
-                            <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
-                        </slot>
-                    </div>
-                </div>
-                <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideRight">
-                    <v-icon icon="mdi-chevron-right" color="#aaa"
+            </slot>
+        </div>
+        <div class="flex w-full h-full">
+            <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideLeft">
+                <div>
+                    <v-icon icon="mdi-chevron-left" color="#aaa"
                         class="group-hover:scale-125 group-hover:!text-white transition-all duration-200"></v-icon>
                 </div>
             </div>
+            <ClientOnly>
+                <div :id="`scroll-bar-${uuid}`"></div>
+            </ClientOnly>
+            <div class="flex gap-2 md:gap-4 overflow-y-auto w-full slider">
+                <div v-for="item in (items || Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
+                    <slot :item="item">
+                        <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
+                    </slot>
+                </div>
+            </div>
+            <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideRight">
+                <v-icon icon="mdi-chevron-right" color="#aaa"
+                    class="group-hover:scale-125 group-hover:!text-white transition-all duration-200"></v-icon>
+            </div>
         </div>
-    </IntLoader>
+    </div>
 </template>
 
 <script setup lang="ts">

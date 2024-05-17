@@ -1,5 +1,4 @@
 <template>
-    <ClientOnly>
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative md:hover:mb-1 md:hover:-mt-1 hover:transition-all duration-300" :class="{'scale-95': watched}">
@@ -19,35 +18,37 @@
                         </v-skeleton-loader>
                     </template>
                 </v-img>
-                <div v-if="isClient && isMovie(props.item)" class="absolute bottom-0 w-full p-2"
-                    >
-                    <v-tooltip :text="watched?'In watch list':'Add to watch list?'" location="bottom" :open-delay="300">
-                        <template v-slot:activator="{ props }">
-                            <v-btn
-                                @click.prevent="toggleWatchList"
-                                v-bind="props"
-                                color="black"
-                                class="!border-2 !border-neutral-900 opacity-60 float-start"
-                                :class="{'!hidden group-hover:!block': !inWatchList, '!border-neutral-500': inWatchList}"
-                                icon="mdi-plus"
-                                size="x-small">
-                            </v-btn>
-                        </template>
-                    </v-tooltip>
-                    <v-tooltip :text="watched?'Watched':'Watched?'" location="bottom" :open-delay="300">
-                        <template v-slot:activator="{ props }">
-                            <v-btn
-                                @click.prevent="toggleWatch"
-                                v-bind="props"
-                                color="black"
-                                class="!border-2 !border-neutral-900 opacity-60 float-end"
-                                :class="{'!hidden group-hover:!block': !watched, '!border-neutral-500': watched}"
-                                icon="mdi-check"
-                                size="x-small">
-                            </v-btn>
-                        </template>
-                    </v-tooltip>
-                </div>
+                <ClientOnly>
+                    <div v-if="isMovie(props.item)" class="absolute bottom-0 w-full p-2"
+                        >
+                        <v-tooltip :text="watched?'In watch list':'Add to watch list?'" location="bottom" :open-delay="300">
+                            <template v-slot:activator="{ props }">
+                                <v-btn
+                                    @click.prevent="toggleWatchList"
+                                    v-bind="props"
+                                    color="black"
+                                    class="!border-2 !border-neutral-900 opacity-60 float-start"
+                                    :class="{'!hidden group-hover:!block': !inWatchList, '!border-neutral-500': inWatchList}"
+                                    icon="mdi-plus"
+                                    size="x-small">
+                                </v-btn>
+                            </template>
+                        </v-tooltip>
+                        <v-tooltip :text="watched?'Watched':'Watched?'" location="bottom" :open-delay="300">
+                            <template v-slot:activator="{ props }">
+                                <v-btn
+                                    @click.prevent="toggleWatch"
+                                    v-bind="props"
+                                    color="black"
+                                    class="!border-2 !border-neutral-900 opacity-60 float-end"
+                                    :class="{'!hidden group-hover:!block': !watched, '!border-neutral-500': watched}"
+                                    icon="mdi-check"
+                                    size="x-small">
+                                </v-btn>
+                            </template>
+                        </v-tooltip>
+                    </div>
+                </ClientOnly>
                 <div v-if="isAiRoute" class="overlay invisible group-hover:visible absolute bottom-0 flex justify-center
                     w-full z-10 px-3 pt-4 items-center">
                     <div class="flex items-center justify-between w-full">
@@ -69,20 +70,13 @@
             </div> -->
         </div>
     </NuxtLink>
-</ClientOnly>
 </template>
 
 <script setup lang="ts">
 import { userStore } from '~/plugins/state';
 import { isMovie } from '~/utils/movieIdentifier';
 
-const isClient = ref(false);
 const { status } = useAuth();
-
-onMounted(() => {
-    console.log(`Loaded movie ${props.item.title || props.item.name}`)
-    isClient.value = true;
-});
 
 const props = defineProps({
     item: {
