@@ -4,6 +4,7 @@ export const userStore = defineStore('user', {
   state: () => ({
     WatchedMovies: new Set(),
     WatchListMovies: new Set(),
+    Recents: [] as any[],
   }),
   getters: {
     isMovieWatched: (state: any) => (movieId: string) => {
@@ -11,7 +12,10 @@ export const userStore = defineStore('user', {
     },
     isMovieInWatchList: (state: any) => (movieId: string) => {
         return state.WatchListMovies.has(movieId);
-    }
+    },
+    recents: (state: any) => {
+        return state.recents;
+    },
   },
   actions: {
     toggleWatchMovie(movieId: string) {
@@ -44,7 +48,7 @@ export const userStore = defineStore('user', {
 });
 
 export default defineNuxtPlugin(async (app) => {
-    const [watchedMoviesAPI, watchListMoviesAPI] = await Promise.all([
+    const [watchedMoviesAPI, watchListMoviesAPI, recentsApi] = await Promise.all([
         $fetch('/api/user/movie/watched').catch((err) => {
             console.log(err);
             return [];
@@ -53,8 +57,13 @@ export default defineNuxtPlugin(async (app) => {
             console.log(err);
             return [];
         }),
+        $fetch('/api/user/recents').catch((err) => {
+            console.log(err);
+            return [];
+        }),
     ]);
     const userData = userStore();
     userData.WatchedMovies = new Set(watchedMoviesAPI);
     userData.WatchListMovies = new Set(watchListMoviesAPI);
+    userData.Recents = recentsApi;
 });

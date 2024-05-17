@@ -176,7 +176,7 @@ const genreClicked = (genre: any) => {
         }
     }
     .logo-shadow {
-        filter: drop-shadow(0 0 1px #aaa);
+        filter: drop-shadow(0 0 1px #777);
     }
     @media (max-width: 768px) {
         .logo-shadow {

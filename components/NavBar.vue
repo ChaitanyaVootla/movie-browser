@@ -15,10 +15,18 @@
                 </div>
             </NuxtLink>
             <!-- <NuxtLink to="/movies">
-                <div class="flex items-center gap-1" aria-label="Go To AI search">
-                    <v-icon icon="mdi-movie-outline" size="small" />
-                    Movies
-                </div>
+                <v-menu open-on-hover :open-delay="0">
+                    <template v-slot:activator="{ props }">
+                        <div class="flex items-center gap-1" aria-label="Go To Movies" v-bind="props">
+                                <v-icon icon="mdi-movie-outline" size="small" />
+                                Movies
+                        </div>
+                    </template>
+                    <div class="flex bg-black shadow-md shadow-neutral-900">
+                        <div>
+                        </div>
+                    </div>
+                </v-menu>
             </NuxtLink> -->
             <!-- <NuxtLink to="/tv">
                 <div class="flex items-center gap-1" aria-label="Go To AI search">
@@ -53,7 +61,7 @@
                         <v-icon color="#eee">mdi-magnify</v-icon>
                         <div>Search</div>
                         <v-chip class="rounded-pill ml-1 !h-5 !cursor-pointer" size="small">
-                            Ctrl + K
+                            <span v-if="isMac">⌘</span><span v-else>Ctrl</span> <span class="ml-1">K</span>
                         </v-chip>
                     </div>
                 </v-chip>
@@ -219,12 +227,18 @@ const defaultNavBarItem = ref(0);
 const showSearchOverlay = ref(false);
 const isSearching = ref(false);
 const isMounted = ref(false);
+const isMac = ref(false);
 let searchResults = ref([] as any[]);
 
 onMounted(() => {
     isMounted.value = true;
+    isMac.value = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
     window.addEventListener('keydown', (event: KeyboardEvent) => {
         if (event.ctrlKey && event.key === 'k') {
+            event.preventDefault();
+            showSearchOverlay.value = !showSearchOverlay.value;
+        }
+        if (event.metaKey && event.key === 'k') {
             event.preventDefault();
             showSearchOverlay.value = !showSearchOverlay.value;
         }

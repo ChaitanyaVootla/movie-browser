@@ -19,17 +19,18 @@
                     </template>
                 </v-img>
                 <ClientOnly>
-                    <div v-if="isMovie(props.item)" class="absolute bottom-0 w-full p-2"
+                    <div v-if="isMovie(props.item)" class="absolute bottom-0 w-full p-0"
                         >
-                        <v-tooltip :text="watched?'In watch list':'Add to watch list?'" location="bottom" :open-delay="300">
+                        <v-tooltip :text="inWatchList?'In watch list':'Add to watch list?'" location="bottom" :open-delay="300">
                             <template v-slot:activator="{ props }">
                                 <v-btn
                                     @click.prevent="toggleWatchList"
                                     v-bind="props"
                                     color="black"
-                                    class="!border-2 !border-neutral-900 opacity-60 float-start"
+                                    class="!border-2 !border-neutral-700 opacity-60 float-start !text-base"
                                     :class="{'!hidden group-hover:!block': !inWatchList, '!border-neutral-500': inWatchList}"
                                     icon="mdi-plus"
+                                    rounded
                                     size="x-small">
                                 </v-btn>
                             </template>
@@ -40,9 +41,10 @@
                                     @click.prevent="toggleWatch"
                                     v-bind="props"
                                     color="black"
-                                    class="!border-2 !border-neutral-900 opacity-60 float-end"
+                                    class="!border-2 !border-neutral-700 opacity-60 float-end !text-base"
                                     :class="{'!hidden group-hover:!block': !watched, '!border-neutral-500': watched}"
                                     icon="mdi-check"
+                                    rounded
                                     size="x-small">
                                 </v-btn>
                             </template>

@@ -47,8 +47,10 @@
 </template>
 <script setup lang="ts">
 import { useAuth } from '#imports'
+import { userStore } from '~/plugins/state';
 
 const { status } = useAuth();
+const userData = userStore();
 
 const { pending, data: trending }: any = await useLazyAsyncData('trending',
     () => $fetch('/api/trending').catch((err) => {
@@ -94,12 +96,7 @@ const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('w
     }
 );
 
-const { data: recents, execute: executeRecentsCall }: any = await useLazyAsyncData('recents',
-    () => $fetch('/api/user/recents').catch((err) => {
-        console.log(err);
-        return {};
-    }),
-);
+const recents = computed(() => userData.recents);
 
 const { data: continueWatching, execute: executeContinueWatching }: any = await useLazyAsyncData('continueWatching',
     () => $fetch('/api/user/continueWatching').catch((err) => {
@@ -110,7 +107,6 @@ const { data: continueWatching, execute: executeContinueWatching }: any = await 
 
 setTimeout(() => {
     executeWatchList();
-    executeRecentsCall();
     executeContinueWatching();
 });
 

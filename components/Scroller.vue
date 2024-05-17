@@ -20,7 +20,9 @@
             <div class="flex gap-2 md:gap-4 overflow-y-auto w-full slider">
                 <div v-for="item in (items || Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
                     <slot :item="item">
-                        <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
+                        <IntLoader>
+                            <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
+                        </IntLoader>
                     </slot>
                 </div>
             </div>
