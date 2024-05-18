@@ -11,6 +11,9 @@
                 </v-btn-toggle>
             </div>
         </template>
+        <template v-slot:default="{ item }">
+            <slot :item="item"></slot>
+        </template>
     </Scroller>
 </template>
 
@@ -24,6 +27,9 @@ const { data: scrollItems, pending, refresh }: any = useLazyAsyncData(`scrollDis
     return await $fetch('/api/discover', {
         method: 'POST',
         body: scrollItem.filterParams,
+        params: {
+            getFullData: scrollItem.isPromo
+        },
         retry: 5,
     })
 }, {

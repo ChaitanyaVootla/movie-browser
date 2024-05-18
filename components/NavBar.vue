@@ -28,10 +28,10 @@
                     </div>
                 </v-menu>
             </NuxtLink>
-            <NuxtLink to="/tv">
+            <NuxtLink to="/series">
                 <div class="flex items-center gap-1" aria-label="Go To AI search">
                     <v-icon icon="mdi-television" size="small" />
-                    TV
+                    Series
                 </div>
             </NuxtLink>
             <NuxtLink to="/watchList" aria-label="Go To Watch List">

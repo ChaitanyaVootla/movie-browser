@@ -1,6 +1,7 @@
 export const TV_CATEGORIES = [
     {
-        name: 'Popular',
+        name: '',
+        isPromo: true,
         filterParams: {
             media_type: 'tv',
             'vote_count.gte': 100,

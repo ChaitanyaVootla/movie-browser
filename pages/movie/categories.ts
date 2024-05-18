@@ -1,6 +1,7 @@
 export const MOVIE_CATEGORIES = [
     {
-        name: 'Popular',
+        name: '',
+        isPromo: true,
         filterParams: {
             media_type: 'movie',
             'vote_count.gte': 100,
@@ -24,6 +25,15 @@ export const MOVIE_CATEGORIES = [
             without_genres : [16],
             'vote_count.gte': 100,
             'vote_average.gte': 5
+        }
+    },
+    {
+        name: 'Streaming Now',
+        isPromo: true,
+        filterParams: {
+            media_type: 'movie',
+            watch_region: 'IN',
+            with_watch_monetization_types: 'free|flatrate|buy|rent|ads',
         }
     },
     {

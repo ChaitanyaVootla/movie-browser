@@ -1,8 +1,11 @@
 <template>
     <div v-for="(category, index) in MOVIE_CATEGORIES" class="mt-10">
         <IntLoader>
-            <!-- <LazyScroller :category="category" :title="category.title" /> -->
-            <ScrollProvider :scrollItem="category" :hideQuickFilter="true" />
+            <ScrollProvider :scrollItem="category" :hideQuickFilter="true">
+                <template v-slot:default="{ item }">
+                    <PromoCard v-if="category.isPromo" :item="item" class="mr-3" />
+                </template>
+            </ScrollProvider>
         </IntLoader>
     </div>
 </template>
