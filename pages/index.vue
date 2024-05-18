@@ -35,7 +35,11 @@
         <Scroller v-if="status === 'authenticated' && watchList?.movies?.length" :items="watchList.movies" :pending="false"
             title="Movies in your watch list" class="mb-1 md:pb-5" title-icon="mdi-movie-open-outline"/>
         <Scroller :items="trending?.streamingNow" :pending="pending" title="Streaming Now" class="mb-1 md:pb-5"
-            title-icon="mdi-movie-open-outline"/>
+            title-icon="mdi-movie-open-outline">
+            <template v-slot:default="{ item }">
+                <PromoCard  :item="item" class="mr-3" />
+            </template>
+        </Scroller>
         <Scroller v-if="status === 'authenticated' && recents?.length" :items="recents" :pending="pending" title="Recent visits" class="mb-1 md:pb-5"
             title-icon="mdi-history">
             <template v-slot:default="{ item }">
