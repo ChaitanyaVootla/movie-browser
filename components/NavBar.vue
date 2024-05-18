@@ -14,7 +14,7 @@
                     Browse
                 </div>
             </NuxtLink>
-            <!-- <NuxtLink to="/movies">
+            <NuxtLink to="/movie">
                 <v-menu open-on-hover :open-delay="0">
                     <template v-slot:activator="{ props }">
                         <div class="flex items-center gap-1" aria-label="Go To Movies" v-bind="props">
@@ -27,13 +27,13 @@
                         </div>
                     </div>
                 </v-menu>
-            </NuxtLink> -->
-            <!-- <NuxtLink to="/tv">
+            </NuxtLink>
+            <NuxtLink to="/tv">
                 <div class="flex items-center gap-1" aria-label="Go To AI search">
                     <v-icon icon="mdi-television" size="small" />
                     TV
                 </div>
-            </NuxtLink> -->
+            </NuxtLink>
             <NuxtLink to="/watchList" aria-label="Go To Watch List">
                 <div class="flex items-center gap-1 whitespace-nowrap">
                     <v-icon icon="mdi-menu" size="small" />

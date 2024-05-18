@@ -1,8 +1,8 @@
 <template>
     <div>
-        <div class="title -mb-1 md:mb-0 md:ml-14">
+        <div class="title -mb-1 md:mb-1 md:ml-14">
             <slot name="title">
-                <div class="text-sm md:text-lg font-semibold flex justify-start items-center gap-1">
+                <div class="text-sm md:text-xl font-medium flex justify-start items-center gap-1">
                     <v-icon v-if="titleIcon" :icon="titleIcon"></v-icon> <div class="leading-4">{{ title }}</div>
                 </div>
             </slot>

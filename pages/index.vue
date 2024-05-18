@@ -96,7 +96,7 @@ const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('w
     }
 );
 
-const recents = computed(() => userData.recents);
+const recents = computed(() => userData.Recents);
 
 const { data: continueWatching, execute: executeContinueWatching }: any = await useLazyAsyncData('continueWatching',
     () => $fetch('/api/user/continueWatching').catch((err) => {
