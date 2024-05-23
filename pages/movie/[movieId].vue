@@ -339,21 +339,32 @@ const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails
 aiRecommendations = aiRecommendationsAPI;
 
 const keywordClicked = (keyword: any) => {
+    const discoverQuery = {
+        ...baseDiscoverQuery,
+        media_type: 'movie',
+        with_keywords: [{
+            name: keyword.name,
+            id: keyword.id
+        }]
+    };
     useRouter().push({
         name: 'browse',
         query: {
-            media_type: 'movie',
-            with_keywords: keyword.id
+            discover: btoa(encodeURIComponent(JSON.stringify(discoverQuery)))
         }
     });
 }
 
 const languageClicked = () => {
+    const discoverQuery = {
+        ...baseDiscoverQuery,
+        media_type: 'movie',
+        with_original_language: movie.value.original_language
+    }
     useRouter().push({
         name: 'browse',
         query: {
-            media_type: 'movie',
-            with_original_language: movie.value.original_language
+            discover: btoa(encodeURIComponent(JSON.stringify(discoverQuery)))
         }
     });
 }

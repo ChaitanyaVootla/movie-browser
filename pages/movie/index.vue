@@ -14,11 +14,11 @@
 import { MOVIE_CATEGORIES } from './categories';
 
 useHead({
-    title: 'TV Shows',
+    title: 'Movies - The Movie Browser',
     meta: [
         {
             name: 'description',
-            content: 'TV Shows',
+            content: 'Find the best movies on The Movie Browser. Browse through the latest movies, popular movies, and more.',
         },
     ],
 });

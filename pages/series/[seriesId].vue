@@ -357,11 +357,18 @@ const updateSeries = async () => {
 }
 
 const keywordClicked = (keyword: any) => {
+    const discoverQuery = {
+        ...baseDiscoverQuery,
+        media_type: 'tv',
+        with_keywords: [{
+            name: keyword.name,
+            id: keyword.id
+        }]
+    };
     useRouter().push({
         name: 'browse',
         query: {
-            media_type: 'tv',
-            with_keywords: keyword.id
+            discover: btoa(encodeURIComponent(JSON.stringify(discoverQuery)))
         }
     });
 }
