@@ -193,7 +193,6 @@ import { humanizeDateFull } from '~/utils/dateFormatter';
 
 const { status } = useAuth();
 
-// let series = ref({} as any);
 const updatingSeries = ref(false);
 const isMounted = ref(false);
 let isKeywordsExpanded = ref(false);
@@ -288,7 +287,6 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
         default: () => ({})
     }
 );
-// series.value = seriesAPI;
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit
 let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}-watchList`,
@@ -494,7 +492,7 @@ useHead(() => {
                     })),
                     aggregateRating: {
                         '@type': 'AggregateRating',
-                        ratingValue: series.value?.vote_average,
+                        ratingValue: Math.floor(series.value?.vote_average * 10),
                         ratingCount: series.value?.vote_count,
                     }
                 })

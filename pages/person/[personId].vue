@@ -16,7 +16,7 @@
                     </div>
                     <div class="w-11/12">
                         <div class="max-md:text-xl md:text-4xl font-bold flex items-baseline gap-5">
-                            {{ person.name }}
+                            <h1>{{ person.name }}</h1>
                             <div class="text-neutral-400 text-lg">
                                 {{ person.known_for_department }}
                             </div>
