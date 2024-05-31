@@ -492,7 +492,9 @@ useHead(() => {
                     })),
                     aggregateRating: {
                         '@type': 'AggregateRating',
-                        ratingValue: Math.floor(series.value?.vote_average * 10),
+                        ratingValue: series.value?.vote_average,
+                        bestRating: 10,
+                        worstRating: 1,
                         ratingCount: series.value?.vote_count,
                     }
                 })
