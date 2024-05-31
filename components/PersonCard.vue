@@ -5,7 +5,7 @@
                 <v-img
                     aspect-ratio="16/9"
                     cover
-                    :alt="item.name"
+                    :alt="`${item.name} as ${item.job || item.character}`"
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800
                         hover:transition-all duration-300 hover:mb-1 md:hover:-mt-1 border-2 border-transparent
                         hover:border-neutral-800 border-neutral-800 w-full h-full"
@@ -20,12 +20,12 @@
                     </template>
                 </v-img>
             </div>
-            <div class="title mt-1 text-xs md:text-sm">
+            <h3 class="title mt-1 text-xs md:text-sm">
                 {{ item.name }}
-            </div>
-            <div v-if="item.job || item.character" class="text-neutral-400 text-xs md:text-sm">
+            </h3>
+            <h3 v-if="item.job || item.character" class="text-neutral-400 text-xs md:text-sm">
                 {{  item.job || item.character }}
-            </div>
+            </h3>
         </div>
     </NuxtLink>
 </template>

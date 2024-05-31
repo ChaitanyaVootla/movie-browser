@@ -52,6 +52,7 @@
 <script setup lang="ts">
 import { useAuth } from '#imports'
 import { userStore } from '~/plugins/state';
+import { SITE_TITLE_TEXT } from '~/utils/constants';
 
 const { status } = useAuth();
 const userData = userStore();
@@ -115,7 +116,7 @@ setTimeout(() => {
 });
 
 useHead({
-    title: 'The Movie Browser',
+    title: SITE_TITLE_TEXT,
     meta: [
         {
             hid: 'description',

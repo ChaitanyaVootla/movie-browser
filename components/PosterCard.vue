@@ -7,7 +7,7 @@
                     cover
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
                     :class="{'opacity-70 saturate-0 group-hover:saturate-100 group-hover:opacity-100 border-neutral-700 border-2': watched}"
-                    :alt="item.title || item.name"
+                    :alt="`${item.title || item.name} poster`"
                     :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
                     <template v-slot:placeholder>
                         <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
@@ -60,10 +60,10 @@
                     </div>
                 </div>
             </div>
-            <div class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
+            <h3 class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
                 hidden md:block text-sm">
                 {{ item.character || item.job || item.title || item.name }}
-            </div>
+            </h3>
             <div v-if="item.infoText" class=" text-neutral-400 text-2xs md:text-sm capitalize">
                 {{ item.infoText }}
             </div>

@@ -3,7 +3,7 @@
         <template v-slot:title>
             <div class="flex items-center max-md:justify-between">
                 <NuxtImg v-if="scrollItem.logo" :src="scrollItem.logo" :alt="scrollItem.name" class="h-10 object-cover -m-0" :class="scrollItem.name" />
-                <div v-else class="text-sm md:text-xl font-medium">{{scrollItem.name}}</div>
+                <h2 v-else class="text-sm md:text-xl font-medium">{{scrollItem.name}}</h2>
                 <v-btn-toggle v-if="!hideQuickFilter" v-model="sortOrder" density="compact" @update:model-value="changeSort" mandatory
                     :style="$vuetify.display.mobile?'height: 20px':'height: 25px'" class="ml-5" variant="outlined">
                     <v-btn size="small">Popular</v-btn>

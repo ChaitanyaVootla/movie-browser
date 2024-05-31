@@ -91,8 +91,9 @@
 
                 <div class="px-3 md:mx-12 overview max-md:mt-5 md:mt-10">
                     <v-card class="px-4 py-4" color="#151515">
-                        <div class="text-md md:text-lg">Overview</div>
-                        <div class="text-sm md:text-base text-neutral-300 mt-2 text">
+                        <h1 class="text-lg font-semibold">{{ series.name }}</h1>
+                        <h2 class="mt-1">Overview</h2>
+                        <div class="text-sm md:text-base text-neutral-300 mt-1 text">
                             {{ series.overview }}
                         </div>
 
@@ -458,6 +459,45 @@ useHead(() => {
                 hid: 'twitter:url',
                 name: 'twitter:url',
                 content: `https://themoviebrowser.com/series/${series.value?.id}`
+            }
+        ],
+        htmlAttrs: {
+            lang: 'en'
+        },
+        link: [
+            {
+                rel: 'icon',
+                type: 'image/x-icon',
+                href: '/favicon.ico'
+            }
+        ],
+        script: [
+            {
+                hid: 'ld-json',
+                type: 'application/ld+json',
+                innerHTML: JSON.stringify({
+                    '@context': 'https://schema.org',
+                    '@type': 'Movie',
+                    name: series.value?.name,
+                    description: series.value?.overview,
+                    image: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${series.value?.poster_path}`,
+                    genre: series.value?.genres?.map((genre: any) => genre.name),
+                    datePublished: series.value?.first_air_date,
+                    dateCreated: series.value?.first_air_date,
+                    director: {
+                        '@type': 'Person',
+                        name: series.value?.credits?.crew?.find((person: any) => person.job === 'Created by')?.name,
+                    },
+                    actor: series.value?.credits?.cast?.slice(0, 5).map((person: any) => ({
+                        '@type': 'Person',
+                        name: person.name
+                    })),
+                    aggregateRating: {
+                        '@type': 'AggregateRating',
+                        ratingValue: series.value?.vote_average,
+                        ratingCount: series.value?.vote_count,
+                    }
+                })
             }
         ]
     };

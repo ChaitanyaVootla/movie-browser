@@ -23,13 +23,19 @@
                         </v-btn>
                     </div>
                     <v-card class="px-5 py-2" color="#151515">
-                        <div class="flex items-baseline justify-start gap-2">
-                            <div v-if="movie.release_date" class="text-sm md:text-lg">Released</div>
-                            <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-2 block text-xs md:text-base"
-                                :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
-                        </div>
-                        <div class="text-neutral-300 mt-1 md:mt-3 text text-xs md:text-base">
-                            {{ movie.overview }}
+                        <h1 class="text-lg font-semibold">{{ movie.title }}</h1>
+                        <h2 class="mt-1">
+                            <div class="flex items-baseline justify-start gap-2">
+                                <div class="font-semibold">Overview</div>
+                                <div v-if="movie.release_date" class="text-sm md:text-tiny">Released</div>
+                                <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-1 block text-xs md:text-tiny"
+                                    :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
+                            </div>
+                        </h2>
+                        <div>
+                            <div class="text-neutral-300 mt-1 md:mt-3 text text-xs md:text-sm">
+                                {{ movie.overview }}
+                            </div>
                         </div>
                         <NuxtLink :key="`${isMounted}`" v-if="movie.imdb_id" :to="`https://www.imdb.com/title/${movie.imdb_id}/parentalguide`" target="blank"
                             noreferrer noopener class="mt-3 block">
@@ -140,6 +146,7 @@
 
 <script setup lang="ts">
 import { userStore } from '~/plugins/state';
+import { SITE_TITLE_TEXT } from '~/utils/constants';
 import { humanizeDateFull } from '~/utils/dateFormatter';
 
 let movie = ref({} as any);
@@ -371,7 +378,7 @@ const languageClicked = () => {
 
 useHead(() => {
     return {
-        title: movie.value?.title,
+        title: movie.value?.title + ' | ' + SITE_TITLE_TEXT,
         meta: [
             {
                 hid: 'description',
@@ -437,6 +444,46 @@ useHead(() => {
                 hid: 'twitter:url',
                 name: 'twitter:url',
                 content: `https://themoviebrowser.com/movie/${movie.value?.id}`
+            }
+        ],
+        htmlAttrs: {
+            lang: 'en'
+        },
+        link: [
+            {
+                rel: 'icon',
+                type: 'image/x-icon',
+                href: '/favicon.ico'
+            }
+        ],
+        script: [
+            {
+                hid: 'ld-json',
+                type: 'application/ld+json',
+                innerHTML: JSON.stringify({
+                    '@context': 'https://schema.org',
+                    '@type': 'Movie',
+                    url: `https://themoviebrowser.com/movie/${movie.value?.id}`,
+                    name: movie.value?.title,
+                    description: movie.value?.overview,
+                    image: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${movie.value?.poster_path}`,
+                    genre: movie.value?.genres?.map((genre: any) => genre.name),
+                    datePublished: movie.value?.release_date,
+                    dateCreated: movie.value?.release_date,
+                    director: {
+                        '@type': 'Person',
+                        name: movie.value?.credits?.crew?.find((person: any) => person.job === 'Director')?.name,
+                    },
+                    actor: movie.value?.credits?.cast?.slice(0, 5).map((person: any) => ({
+                        '@type': 'Person',
+                        name: person.name
+                    })),
+                    aggregateRating: {
+                        '@type': 'AggregateRating',
+                        ratingValue: movie.value?.vote_average,
+                        ratingCount: movie.value?.vote_count,
+                    }
+                })
             }
         ]
     };
