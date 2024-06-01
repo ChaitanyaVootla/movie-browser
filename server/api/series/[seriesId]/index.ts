@@ -46,11 +46,15 @@ export default defineEventHandler(async (event) => {
     if (isForce || !series.name) {
         console.log("Fetching from TMDB")
         try {
-            const details: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${SERIES_QUERY_PARAMS}`, {
-                retry: 5,
-            }).catch(() => {
-                return {};
-            });
+            const [details, watchProviders]: [any, any] = await Promise.all([
+                $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${SERIES_QUERY_PARAMS}`, {
+                    retry: 5,
+                }),
+                $fetch(`${TMDB.BASE_URL}/tv/${seriesId}/watch/providers?api_key=${process.env.TMDB_API_KEY}`, {
+                    retry: 5,
+                }),
+            ]);
+            details.watchProviders = watchProviders.results;
             let googleData = {} as any;
             if (details?.external_ids?.imdb_id) {
                 const lambdaResponse = await getGoogleLambdaData(details);

@@ -49,16 +49,19 @@ export default defineEventHandler(async (event) => {
     if (isForce || !movie.title) {
         console.log("Fetching from TMDB")
         try {
-            const [details, releaseDates]: [any, any] = await Promise.all([
+            const [details, releaseDates, watchProviders]: [any, any, any] = await Promise.all([
                 $fetch(`${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`, {
                     retry: 5,
                 }),
-                $fetch(`${TMDB.BASE_URL}/movie/${movieId}/release_dates?api_key=${process.env.TMDB_API_KEY
-                    }${QUERY_PARAMS}`, {
-                        retry: 5,
-                    }),
+                $fetch(`${TMDB.BASE_URL}/movie/${movieId}/release_dates?api_key=${process.env.TMDB_API_KEY}`, {
+                    retry: 5,
+                }),
+                $fetch(`${TMDB.BASE_URL}/movie/${movieId}/watch/providers?api_key=${process.env.TMDB_API_KEY}`, {
+                    retry: 5,
+                }),
             ]);
             details.releaseDates = releaseDates.results;
+            details.watchProviders = watchProviders.results;
             if (details.belongs_to_collection?.id) {
                 const collectionDetails: any = await $fetch(
                     `${TMDB.BASE_URL}/collection/${details.belongs_to_collection.id}?api_key=${process.env.TMDB_API_KEY}`,
