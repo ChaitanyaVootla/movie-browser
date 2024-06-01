@@ -41,3 +41,7 @@ logs
 .env
 .env.*
 !.env.example
+
+# sitemaps
+sitemap.xml
+sitemap_*.xml

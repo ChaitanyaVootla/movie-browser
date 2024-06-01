@@ -391,7 +391,7 @@ const watchListClicked = () => {
 
 useHead(() => {
     return {
-        title: series.value?.name,
+        title: series.value?.name + ' | ' + SITE_TITLE_TEXT,
         meta: [
             {
                 hid: 'description',

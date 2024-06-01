@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     const chunks = _.chunk(allSeriesIds, 5);
     console.log("Series total chunks: ", chunks.length);
     for (const chunk of chunks) {
-        const getDetailsCalls = chunk.map(id => updateSeriesById(id));
+        const getDetailsCalls = chunk.map(id => updateSeriesById(id as number));
         await Promise.all(getDetailsCalls)
         console.log(`Series chunk ${chunks.indexOf(chunk) + 1} of ${chunks.length} done`)
     }

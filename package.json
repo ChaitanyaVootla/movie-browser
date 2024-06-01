@@ -28,7 +28,8 @@
     "vite-plugin-vuetify": "^1.0.2",
     "vue": "^3.3.8",
     "vue-router": "^4.2.5",
-    "vuetify": "^3.4.5"
+    "vuetify": "^3.4.5",
+    "axios": "1.7.2"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.481.0",

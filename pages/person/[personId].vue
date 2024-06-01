@@ -134,7 +134,7 @@ const filteredItems = computed(() => {
 });
 
 useHead({
-    title: `${person.value?.name}`,
+    title: `${person.value?.name} | ${SITE_TITLE_TEXT}`,
     meta: [
         {
             hid: 'description',
