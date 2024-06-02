@@ -277,8 +277,9 @@ const mapSeries = (series: any) => {
         }) || [],
     };
 }
+const headers = useRequestHeaders(['cookie']) as HeadersInit
 const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
-    () => $fetch(`/api/series/${useRoute().params.seriesId}`).catch((err) => {
+    () => $fetch(`/api/series/${useRoute().params.seriesId}`, { headers }).catch((err) => {
         console.log(err);
         return {};
     }),
@@ -288,7 +289,6 @@ const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRou
     }
 );
 
-const headers = useRequestHeaders(['cookie']) as HeadersInit
 let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}-watchList`,
     () => $fetch(`/api/user/series/${useRoute().params.seriesId}/watchList`, { headers }).catch((err) => {
         console.log(err);
