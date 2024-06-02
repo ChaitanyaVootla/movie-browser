@@ -13,7 +13,6 @@ export default defineEventHandler(async (event) => {
     let isForce = getQuery(event).force? true: false;
     const checkUpdate = getQuery(event).checkUpdate? true: false;
     const userData = event.context.userData as JWT;
-
     if (isForce && (!userData || !userData?.sub)) {
         event.node.res.statusCode = 401;
         event.node.res.end(`Unauthorized`);
@@ -24,7 +23,20 @@ export default defineEventHandler(async (event) => {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
+    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false);
+    if (!movie) {
+        event.node.res.statusCode = 404;
+        event.node.res.end(`Movie not found for id: ${movieId}`);
+    }
+    if (movie.adult && (!userData || !userData?.sub)) {
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
+        return;
+    }
+    return movie;
+});
 
+export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean, forceFrequent: boolean): Promise<IMovie> => {
     let movie = {} as any;
     let canUpdate = false;
 
@@ -37,7 +49,10 @@ export default defineEventHandler(async (event) => {
     if (movie?.updatedAt) {
         const sinceUpdate = Date.now() - movie.updatedAt;
         const sinceMovieRelase = Date.now() - new Date(movie.release_date).getTime();
-        const updateInterval = movieUpdateInterval(sinceMovieRelase);
+        let updateInterval = movieUpdateInterval(sinceMovieRelase);
+        if (forceFrequent) {
+            updateInterval = DAY_MILLIS / 2;
+        }
         if (sinceUpdate > updateInterval) {
             canUpdate = true;
         }
@@ -104,18 +119,9 @@ export default defineEventHandler(async (event) => {
             ).exec();
         }
     }
-    if (!movie) {
-        event.node.res.statusCode = 404;
-        event.node.res.end(`Movie not found for id: ${movieId}`);
-    }
     movie.canUpdate = canUpdate;
-    if (movie.adult && (!userData || !userData?.sub)) {
-        event.node.res.statusCode = 401;
-        event.node.res.end(`Unauthorized`);
-        return;
-    }
     return movie as IMovie;
-});
+}
 
 const movieUpdateInterval = (sinceMovieRelase: number) => {
     if (sinceMovieRelase < DAY_MILLIS * 14) {

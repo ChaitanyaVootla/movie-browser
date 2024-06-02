@@ -1,3 +1,5 @@
+import { stripLogos } from "~/server/utils/logos";
+
 export default defineEventHandler(async () => {
   try {
     const { allItems, movies, tv, streamingNow }: any = await $fetch(`/api/trending/trendingTmdb`);
@@ -35,7 +37,7 @@ export default defineEventHandler(async () => {
         genre_ids,
         googleData,
         images,
-      })),
+      })).map((item: any) => stripLogos(item)),
       movies: movies.map(({id, title, poster_path, vote_average }: any) => ({
         id,
         title,
@@ -50,7 +52,7 @@ export default defineEventHandler(async () => {
       streamingNow: streamingNow.map((movie: any) => ({
           ...(allItemMoviefullInfo.find((fullMovie: any) => fullMovie.id === movie.id) || {}) as any,
           ...movie,
-      })),
+      })).map((item: any) => stripLogos(item)),
     }
   } catch (event: any) {
     console.error(event);

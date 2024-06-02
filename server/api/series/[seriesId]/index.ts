@@ -20,6 +20,33 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Series not found for id: ${seriesId}`);
     }
 
+    const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false);
+
+    if (!series) {
+        event.node.res.statusCode = 404;
+        event.node.res.end(`Series not found for id: ${series}`);
+    }
+    if (series.adult && (!userData || !userData?.sub)) {
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
+        return;
+    }
+
+    const latestSeasonNumber = series.seasons[series.seasons.length - 1]?.season_number;
+    let selectedSeason = {};
+    if (latestSeasonNumber) {
+        selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`, {
+            retry: 5,
+        });
+    }
+    return {
+        ...series,
+        selectedSeason,
+    } as ISeries;
+});
+
+export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, isForce: boolean,
+    forceFrequent: boolean): Promise<any> => {
     let series = {} as any;
     let canUpdate = false;
 
@@ -87,29 +114,11 @@ export default defineEventHandler(async (event) => {
             ).exec();
         }
     }
-    if (!series) {
-        event.node.res.statusCode = 404;
-        event.node.res.end(`Series not found for id: ${series}`);
-    }
-    if (series.adult && (!userData || !userData?.sub)) {
-        event.node.res.statusCode = 401;
-        event.node.res.end(`Unauthorized`);
-        return;
-    }
-
-    const latestSeasonNumber = series.seasons[series.seasons.length - 1]?.season_number;
-    let selectedSeason = {};
-    if (latestSeasonNumber) {
-        selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`, {
-            retry: 5,
-        });
-    }
     return {
         ...series,
         canUpdate,
-        selectedSeason,
-    } as ISeries;
-});
+    }
+}
 
 const seriesUpdateInterval = (sinceMovieRelase: number) => {
     if (sinceMovieRelase < DAY_MILLIS * 14) {
