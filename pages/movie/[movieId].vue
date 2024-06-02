@@ -207,7 +207,7 @@ onMounted(() => {
 });
 
 const addToRecents = () => {
-    if (isRecentsUpdated) return;
+    if (isRecentsUpdated || movie?.value?.adult) return;
     const englishBackdrop = movie?.value?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
     isRecentsUpdated = true;
     $fetch(`/api/user/recents`,
