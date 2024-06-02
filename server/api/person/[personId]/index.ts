@@ -1,5 +1,4 @@
 import { JWT } from "next-auth/jwt";
-import { navigateTo } from "nuxt/app";
 
 export default defineEventHandler(async (event) => {
     const userData = event.context.userData as JWT;
@@ -15,7 +14,8 @@ export default defineEventHandler(async (event) => {
     console.log(person.adult, (!userData || !userData?.sub));
     person.debug = { adult: person.adult, anonymous: (!userData || !userData?.sub) };
     if (person.adult && (!userData || !userData?.sub)) {
-        return navigateTo('/401');
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
     }
     return person;
 });

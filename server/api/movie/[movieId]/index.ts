@@ -3,7 +3,6 @@ import { TMDB } from "~/server/utils/api";
 import _ from "lodash";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { JWT } from "next-auth/jwt";
-import { navigateTo } from "nuxt/app";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
@@ -112,7 +111,8 @@ export default defineEventHandler(async (event) => {
     movie.canUpdate = canUpdate;
     console.error(movie.adult, (!userData || !userData?.sub));
     if (movie.adult && (!userData || !userData?.sub)) {
-        return navigateTo('/401');
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
     }
     return movie as IMovie;
 });
