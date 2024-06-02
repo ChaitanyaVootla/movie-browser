@@ -109,10 +109,10 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
     movie.canUpdate = canUpdate;
-    console.error(movie.adult, (!userData || !userData?.sub));
     if (movie.adult && (!userData || !userData?.sub)) {
         event.node.res.statusCode = 401;
         event.node.res.end(`Unauthorized`);
+        return;
     }
     return movie as IMovie;
 });

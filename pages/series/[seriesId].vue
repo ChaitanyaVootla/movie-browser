@@ -297,6 +297,7 @@ let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute(
 );
 
 const addToRecents = () => {
+    if (series.value.adult) return;
     const englishBackdrop = series?.value?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
     $fetch(`/api/user/recents`,
         {

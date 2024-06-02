@@ -11,11 +11,10 @@ export default defineEventHandler(async (event) => {
     const person: any = await $fetch(`${TMDB.BASE_URL}/person/${personId}?api_key=${process.env.TMDB_API_KEY
         }&append_to_response=images,combined_credits,external_ids`);
 
-    console.log(person.adult, (!userData || !userData?.sub));
-    person.debug = { adult: person.adult, anonymous: (!userData || !userData?.sub) };
     if (person.adult && (!userData || !userData?.sub)) {
         event.node.res.statusCode = 401;
         event.node.res.end(`Unauthorized`);
+        return;
     }
     return person;
 });

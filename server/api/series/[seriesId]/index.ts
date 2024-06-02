@@ -91,6 +91,11 @@ export default defineEventHandler(async (event) => {
         event.node.res.statusCode = 404;
         event.node.res.end(`Series not found for id: ${series}`);
     }
+    if (series.adult && (!userData || !userData?.sub)) {
+        event.node.res.statusCode = 401;
+        event.node.res.end(`Unauthorized`);
+        return;
+    }
 
     const latestSeasonNumber = series.seasons[series.seasons.length - 1]?.season_number;
     let selectedSeason = {};
