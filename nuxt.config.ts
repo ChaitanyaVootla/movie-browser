@@ -28,6 +28,9 @@ export default defineNuxtConfig({
       titleTemplate: (titleChunk) => {
         return titleChunk ? `${titleChunk} - Movie Browser` : 'Movie Browser'
       },
+      meta: [
+        { name: 'yandex-verification', content: '0fae8749627beb1f' },
+      ],
     },
   },
   css: ['~/assets/css/main.css'],
