@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
         return;
     }
 
-    const latestSeasonNumber = series.seasons[series.seasons.length - 1]?.season_number;
+    const latestSeasonNumber = series.next_episode_to_air?.season_number || series.last_episode_to_air?.season_number;
     let selectedSeason = {};
     if (latestSeasonNumber) {
         selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`, {
