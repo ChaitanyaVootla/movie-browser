@@ -46,11 +46,11 @@ export default defineEventHandler(async (event) => {
     const recent = recentObjects.map(wm => wm.toJSON());
 
     users.forEach((user: any) => {
-        user.ContinueWatching = continueWatching.filter((cw: any) => cw.userId.toString() === user.sub.toString()).length;
-        user.MoviesWatchList = moviesWatchList.filter((mwl: any) => mwl.userId.toString() === user.sub.toString()).length;
-        user.WatchedMovies = watchedMovies.filter((wm: any) => wm.userId.toString() === user.sub.toString()).length;
-        user.SeriesList = seriesList.filter((wm: any) => wm.userId.toString() === user.sub.toString()).length;
-        user.recent = recent.filter((wm: any) => wm.userId.toString() === user.sub.toString()).length;
+        user.ContinueWatching = continueWatching.filter((cw: any) => cw.userId?.toString() === user.sub?.toString()).length;
+        user.MoviesWatchList = moviesWatchList.filter((mwl: any) => mwl.userId?.toString() === user.sub?.toString()).length;
+        user.WatchedMovies = watchedMovies.filter((wm: any) => wm.userId?.toString() === user.sub?.toString()).length;
+        user.SeriesList = seriesList.filter((wm: any) => wm.userId?.toString() === user.sub?.toString()).length;
+        user.recent = recent.filter((wm: any) => wm.userId?.toString() === user.sub?.toString()).length;
     });
 
     return users;

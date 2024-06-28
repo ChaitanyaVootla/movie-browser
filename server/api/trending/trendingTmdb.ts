@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
 const updateMovies = async (movieIds: string[]) => {
   console.log("Updating trending movies")
   for (const movieId of movieIds) {
-    await movieGetHandler(movieId, false, false, true);
+    await movieGetHandler(movieId, true, false, true);
   }
   console.log("Updated trending movies")
 }
@@ -47,7 +47,7 @@ const updateMovies = async (movieIds: string[]) => {
 const updateSeries = async (seriesIds: string[]) => {
   console.log("Updating trending series")
   for (const seriesId of seriesIds) {
-    await seriesGetHandler(seriesId, false, false, true);
+    await seriesGetHandler(seriesId, true, false, true);
   }
   console.log("Updated trending series")
 }

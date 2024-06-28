@@ -1,5 +1,5 @@
 <template>
-    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
+    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" v-memo="[watched, inWatchList]">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative md:hover:mb-1 md:hover:-mt-1 hover:transition-all duration-300" :class="{'scale-95': watched}">
                 <v-img
@@ -51,7 +51,7 @@
                         </v-tooltip>
                     </div>
                 </ClientOnly>
-                <div v-if="isAiRoute" class="overlay invisible group-hover:visible absolute bottom-0 flex justify-center
+                <div v-if="isAiRoute" v-once class="overlay invisible group-hover:visible absolute bottom-0 flex justify-center
                     w-full z-10 px-3 pt-4 items-center">
                     <div class="flex items-center justify-between w-full">
                         <Ratings class="hidden group-hover:block" :tmdbRating="item.vote_average" :itemId="item.id" :small="true"/>
@@ -60,11 +60,11 @@
                     </div>
                 </div>
             </div>
-            <h3 class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
+            <h3 v-once class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
                 hidden md:block text-sm">
                 {{ item.character || item.job || item.title || item.name }}
             </h3>
-            <div v-if="item.infoText" class=" text-neutral-400 text-2xs md:text-sm capitalize">
+            <div v-if="item.infoText" v-once class=" text-neutral-400 text-2xs md:text-sm capitalize">
                 {{ item.infoText }}
             </div>
             <!-- <div v-if="item.distance" class="text-neutral-400">
