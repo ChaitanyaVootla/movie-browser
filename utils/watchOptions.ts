@@ -59,6 +59,10 @@ export const watchOptionImageMapper = {
         image: '/images/ott/crunchyroll.png',
         name: 'crunchyroll'
     },
+    'viki': {
+        image: '/images/ott/viki.png',
+        name: 'Viki'
+    },
 } as Record<string, {
     image: string,
     name: string
