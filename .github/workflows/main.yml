@@ -51,6 +51,6 @@ jobs:
           tar -xzvf build.tar.gz
           export DB_USER=${DB_USER}
           export DB_PASSWORD=${DB_PASSWORD}
-          docker-compose up -d
+          # docker-compose up -d
           pm2 delete all
           pm2 start ecosystem.config.cjs
