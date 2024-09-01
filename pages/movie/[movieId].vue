@@ -23,7 +23,12 @@
                         </v-btn>
                     </div>
                     <v-card class="px-5 py-2" color="#151515">
-                        <h1 class="text-lg font-semibold">{{ movie.title }}</h1>
+                        <h1 class="text-lg font-semibold flex items-center gap-4">
+                            {{ movie.title }}
+                            <div class="text-neutral-400 text-base cursor-pointer" @click="share">
+                                <v-icon class="!text-sm">mdi-share-variant</v-icon> share
+                            </div>
+                        </h1>
                         <h2 class="mt-1">
                             <div class="flex items-baseline justify-start gap-2">
                                 <div class="font-semibold">Overview</div>
@@ -174,6 +179,20 @@ const keywords = computed(() => {
     }
     return movie.value?.keywords?.keywords || [];
 });
+
+const share = () => {
+    if (navigator.share) {
+        navigator.share({
+            title: movie.value.title,
+            text: movie.value.description,
+            url: 'https://themoviebrowser.com/movie/' + movie.value.id
+        })
+        .catch((error) => console.log('Error sharing:', error));
+    } else {
+        console.log('Web Share API not supported');
+        navigator.clipboard.writeText('https://themoviebrowser.com/movie/' + movie.value.id);
+    }
+}
 
 const checkMovieUpdate = async (APImovie: any) => {
     if (isUpdated) return;

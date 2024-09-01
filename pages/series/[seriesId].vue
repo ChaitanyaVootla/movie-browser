@@ -91,7 +91,12 @@
 
                 <div class="px-3 md:mx-12 overview max-md:mt-5 md:mt-10">
                     <v-card class="px-4 py-4" color="#151515">
-                        <h1 class="text-lg font-semibold">{{ series.name }}</h1>
+                        <h1 class="text-lg font-semibold flex items-center gap-4">
+                            {{ series.name }}
+                            <div class="text-neutral-400 text-base cursor-pointer" @click="share">
+                                <v-icon class="!text-sm">mdi-share-variant</v-icon> share
+                            </div>
+                        </h1>
                         <h2 class="mt-1">Overview</h2>
                         <div class="text-sm md:text-base text-neutral-300 mt-1 text">
                             {{ series.overview }}
@@ -221,6 +226,20 @@ onMounted(() => {
         }
     });
 });
+
+const share = () => {
+    if (navigator.share) {
+        navigator.share({
+            title: series.value.name,
+            text: series.value.description,
+            url: 'https://themoviebrowser.com/series/' + series.value.id
+        })
+        .catch((error) => console.log('Error sharing:', error));
+    } else {
+        console.log('Web Share API not supported');
+        navigator.clipboard.writeText('https://themoviebrowser.com/series/' + series.value.id);
+    }
+}
 
 const checkSeriesUpdate = async (seriesAPI: any) => {
     if (isUpdated) return;
