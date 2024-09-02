@@ -1,12 +1,14 @@
 <template>
     <div>
-        <div class="flex justify-between items-center py-2">
+        <div class="flex justify-between items-center py-2 mr-6">
             <slot :item="title">
                 <div class="title text-lg mb-5">
                     {{ title }}
                 </div>
             </slot>
-            <div>
+            <div class="flex items-center gap-6">
+                <slot name="sortaction" :item="title">
+                </slot>
                 <v-btn-toggle v-model="viewType" mandatory density="compact" @update:model-value="viewTypeUpdated">
                     <v-btn icon="mdi-view-comfy" class="px-5" />
                     <v-btn icon="mdi-view-headline" class="px-5" />

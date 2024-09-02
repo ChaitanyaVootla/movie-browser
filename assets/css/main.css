@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.v-input--horizontal .v-input__append {
+    margin-inline-start: -10px !important;
+}
+
+.v-text-field .v-input__details {
+    padding-inline: 4px !important;
+}
