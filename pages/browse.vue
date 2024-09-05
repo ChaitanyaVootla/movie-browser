@@ -1,6 +1,6 @@
 <template>
     <div class="flex h-full w-full">
-        <div class="min-w-60 max-w-[calc(15%)] h-full bg-neutral-900 px-4">
+        <div class="w-[calc(15%)] h-full bg-neutral-900 px-4">
             <div class="top-action flex justify-center mb-6 mt-6">
                 <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad">
                     <v-btn>
@@ -18,7 +18,7 @@
                     clearable
                     single-line
                     :items="genres"
-                    label="All Genres"
+                    label="Genres"
                     hint="Action, Comedy etc."
                     persistent-hint
                     multiple
@@ -36,7 +36,7 @@
                     multiple
                     :chips="true"
                     closable-chips
-                    label="All Watch Providers"
+                    label="Watch Providers"
                     hint="Netflix, Amazon Prime etc."
                     persistent-hint
                     variant="solo"
@@ -116,6 +116,8 @@
                     multiple
                     return-object
                     label="Cast"
+                    hint="Filter by Actors ex: Tom Cruise"
+                    persistent-hint
                     variant="solo"
                     density="compact"
                     item-title="name"
@@ -145,6 +147,8 @@
                     multiple
                     return-object
                     label="Crew"
+                    hint="Filter by crew members ex: Director"
+                    persistent-hint
                     variant="solo"
                     density="compact"
                     item-title="name"
@@ -167,6 +171,8 @@
                     single-line
                     :items="genres"
                     label="Exclude Genres"
+                    hint="Exclude Action, Comedy etc."
+                    persistent-hint
                     multiple
                     variant="solo"
                     density="compact"
@@ -180,6 +186,8 @@
                     single-line
                     @update:model-value="freshLoad()"
                     placeholder="Minimum votes"
+                    hint="Minimum votes casted, could be used to filter out less popular movies"
+                    persistent-hint
                     variant="solo"
                     density="compact"
                     label="Minimum Votes"

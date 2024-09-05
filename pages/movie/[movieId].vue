@@ -76,7 +76,7 @@
                 </div>
 
                 <div v-if="movie?.collectionDetails?.parts?.length" class="px-3 md:px-0 cast mt-10">
-                    <Scroller :items="movie.collectionDetails.parts || []" :title="movie.collectionDetails.name" :pending="pending" />
+                    <Scroller :items="collectionParts || []" :title="movie.collectionDetails.name" :pending="pending" />
                 </div>
 
                 <div class="px-3 md:px-20 mt-3 md:mt-10">
@@ -291,6 +291,14 @@ movie = movieAPI;
 let watched = computed(() => {
     if (status.value !== 'authenticated' || !movie?.value?.id) return false;
     return userData.isMovieWatched(movie.value.id) ? true : false;
+});
+
+let collectionParts = computed(() => {
+    if (!movie?.value?.collectionDetails?.parts) return [];
+    return movie.value.collectionDetails.parts.map((part: any) => ({
+        ...part,
+        infoText: part.release_date ? new Date(part.release_date).getFullYear() : ''
+    }));
 });
 
 let watchlist = ref(false);
