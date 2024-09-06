@@ -12,7 +12,8 @@
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="max-md:pt-3 md:pt-5">
                 <div class="px-3 md:mx-12 overview">
-                    <div class="identify flex max-md:justify-center lg:justify-start gap-6 max-md:mb-3 md:mb-5">
+                    <div class="flex max-md:justify-center lg:justify-start gap-6 max-md:mb-3 md:mb-5">
+                        <UserRating :liked="true" :disliked="false" :likes="10" :dislikes="5" itemType="movie" :itemId="movie.id" />
                         <v-btn :key="`${isMounted}`" @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-circle-outline'" :color="(watched === true)?'primary':''"
                             :elevation="5" class="px-5" :size="$vuetify.display.mdAndUp?'default':'small'" >
                             {{ watched?'Watched':'Watched ?' }}
@@ -35,6 +36,14 @@
                                 <div v-if="movie.release_date" class="text-sm md:text-tiny">Released</div>
                                 <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-1 block text-xs md:text-tiny"
                                     :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
+                                <div v-if="director" class="flex items-center gap-3 ml-5">
+                                    <div class="text-neutral-300">Directed by</div>
+                                    <NuxtLink :to="`/person/${director?.id}`">
+                                        <div class="flex items-center gap-1 underline underline-offset-2">
+                                            <div>{{director?.name}}</div>
+                                        </div>
+                                    </NuxtLink>
+                                </div>
                             </div>
                         </h2>
                         <div>
@@ -44,8 +53,9 @@
                         </div>
                         <NuxtLink :key="`${isMounted}`" v-if="movie.imdb_id" :to="`https://www.imdb.com/title/${movie.imdb_id}/parentalguide`" target="blank"
                             noreferrer noopener class="mt-3 block">
-                            <v-btn prepend-icon="mdi-eye-outline" variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa">
-                                Parental Guide
+                            <v-btn variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa">
+                                <Icon :name="'material-symbols-light:warning-rounded'" class="mr-2 text-xl" />
+                                content warning
                             </v-btn>
                         </NuxtLink>
                         <div :key="`${isMounted}`" class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
@@ -79,20 +89,17 @@
                     <Scroller :items="collectionParts || []" :title="movie.collectionDetails.name" :pending="pending" />
                 </div>
 
-                <div class="px-3 md:px-20 mt-3 md:mt-10">
+                <div class="px-3 md:px-20 mt-5 md:mt-10">
                     <Scroller :items="movie.credits?.cast || []" title="Cast" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
                         </template>
                     </Scroller>
-                </div>
-
-                <div class="px-3 md:px-20 mt-3 md:mt-10">
-                    <Scroller :items="movie.credits?.crew || []" title="Crew" :pending="pending" >
+                    <!-- <Scroller :items="movie.credits?.crew || []" title="Crew" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
                         </template>
-                    </Scroller>
+                    </Scroller> -->
                 </div>
 
                 <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 md:hidden">
@@ -293,6 +300,9 @@ let watched = computed(() => {
     return userData.isMovieWatched(movie.value.id) ? true : false;
 });
 
+let director = computed(() => {
+    return movie.value?.credits?.crew?.find((person: any) => person.job === 'Director');
+});
 let collectionParts = computed(() => {
     if (!movie?.value?.collectionDetails?.parts) return [];
     return movie.value.collectionDetails.parts.map((part: any) => ({

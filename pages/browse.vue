@@ -22,7 +22,7 @@
                     hint="Action, Comedy etc."
                     persistent-hint
                     multiple
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="name"
                     item-value="id"
@@ -39,7 +39,7 @@
                     label="Watch Providers"
                     hint="Netflix, Amazon Prime etc."
                     persistent-hint
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="provider_name"
                     item-value="provider_id"
@@ -69,7 +69,7 @@
                     label="Keywords"
                     hint="Zombie, Serial killer etc."
                     persistent-hint
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="name"
                     item-value="id"
@@ -82,7 +82,7 @@
                     label="Rating"
                     hint="Minimum Rating"
                     persistent-hint
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="text"
                     item-value="value"
@@ -95,9 +95,9 @@
                     single-line
                     :items="LANGAUAGES"
                     label="Language"
-                    hint="Original Language"
+                    hint="Original Language, English, Hindi etc."
                     persistent-hint
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="english_name"
                     item-value="iso_639_1"
@@ -118,7 +118,7 @@
                     label="Cast"
                     hint="Filter by Actors ex: Tom Cruise"
                     persistent-hint
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="name"
                     item-value="id"
@@ -149,7 +149,7 @@
                     label="Crew"
                     hint="Filter by crew members ex: Director"
                     persistent-hint
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="name"
                     item-value="id"
@@ -174,7 +174,7 @@
                     hint="Exclude Action, Comedy etc."
                     persistent-hint
                     multiple
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     item-title="name"
                     item-value="id"
@@ -188,7 +188,7 @@
                     placeholder="Minimum votes"
                     hint="Minimum votes casted, could be used to filter out less popular movies"
                     persistent-hint
-                    variant="solo"
+                    variant="outlined"
                     density="compact"
                     label="Minimum Votes"
                 ></v-text-field>
@@ -406,6 +406,7 @@ const loadData = async () => {
             method: 'POST',
             body: JSON.stringify({
                 ...query,
+                include_adult: true,
                 page: ++pageTrack,
             })
         }),
@@ -413,6 +414,7 @@ const loadData = async () => {
             method: 'POST',
             body: JSON.stringify({
                 ...query,
+                include_adult: true,
                 page: ++pageTrack
             })
         })

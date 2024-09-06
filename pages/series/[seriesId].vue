@@ -13,6 +13,7 @@
             <div>
                 <div class="px-3 md:mx-12 mt-3">
                     <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-0 md:mb-5">
+                        <UserRating itemType="series" :itemId="series.id" />
                         <div v-if="series.status">
                             <v-chip :key="`${isMounted}`" rounded :color="seriesStatusColor" density="default"
                                 :size="$vuetify.display.mdAndUp?'large':'small'" variant="elevated" >
@@ -97,7 +98,17 @@
                                 <v-icon class="!text-sm">mdi-share-variant</v-icon> share
                             </div>
                         </h1>
-                        <h2 class="mt-1">Overview</h2>
+                        <div class="flex items-center gap-2">
+                            <h2 class="mt-1">Overview</h2>
+                            <div v-if="series.created_by?.length" class="flex items-center gap-3 ml-5">
+                                <div class="text-neutral-300">Created by</div>
+                                <NuxtLink :to="`/person/${person?.id}`" v-for="person in series.created_by">
+                                    <div class="flex items-center gap-1 underline underline-offset-2">
+                                        <div>{{person?.name}}</div>
+                                    </div>
+                                </NuxtLink>
+                            </div>
+                        </div>
                         <div class="text-sm md:text-base text-neutral-300 mt-1 text">
                             {{ series.overview }}
                         </div>
@@ -133,14 +144,6 @@
 
                 <div v-if="series.credits?.cast?.length" class="px-3 md:px-0 mt-3 md:mt-10">
                     <Scroller :items="series.credits?.cast || []" title="Cast" :pending="pending" >
-                        <template v-slot:default="{ item }">
-                            <PersonCard :item="item" :pending="pending" class="mr-3" />
-                        </template>
-                    </Scroller>
-                </div>
-
-                <div v-if="series.credits?.crew?.length" class="px-3 md:px-0 mt-3 md:mt-10">
-                    <Scroller :items="series.credits?.crew" title="Crew" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
                         </template>
