@@ -52,6 +52,7 @@ if (props.googleData?.allWatchOptions) {
         }
     })
     watchOptions = useUniqBy(watchOptions, 'name')
+    watchOptions = useUniqBy(watchOptions, 'link')
 }
 
 const watchLinkClicked = (watchOption: any) => {

@@ -36,6 +36,17 @@
   </NuxtLayout>
 </template>
 
+<script setup lang="ts">
+useHead({
+  link: [
+    {
+      rel: 'stylesheet',
+      href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100,0..1'
+    }
+  ]
+})
+</script>
+
 <style lang="less">
 ::-webkit-scrollbar {
   background: #222;

@@ -2,12 +2,12 @@
     <div>
         <div class="flex items-center bg-neutral-800 rounded-full px-4 max-md:py-[3px] md:py-[6.5px] cursor-pointer">
             <div @click="likeClicked" class="flex items-center gap-2">
-                <Icon :name="liked?'material-symbols-light:thumb-up-rounded':'material-symbols-light:thumb-up-outline-rounded'" class="text-2xl"/>
+                <span class="material-symbols-outlined" :style="`font-variation-settings: 'FILL' ${liked?1:0};`">thumb_up</span>
                 <!-- {{  itemLikes }} -->
             </div>
             <div class="border-r-2 border-neutral-600 h-5 mx-5"></div>
             <div @click="dislikeClicked" class="flex items-center gap-2">
-                <Icon :name="disliked?'material-symbols-light:thumb-down-rounded':'material-symbols-light:thumb-down-outline-rounded'" class="text-2xl"/>
+                <span class="material-symbols-outlined" :style="`font-variation-settings: 'FILL' ${disliked?1:0};`">thumb_down</span>
                 <!-- {{  itemDislikes }} -->
             </div>
         </div>

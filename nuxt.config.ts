@@ -45,7 +45,6 @@ export default defineNuxtConfig({
     "@vite-pwa/nuxt",
     "nuxt-gtag",
     "@nuxt/image",
-    "@nuxt/icon",
     "nuxt-lodash",
     "@sidebase/nuxt-auth",
     (_options, nuxt) => {
