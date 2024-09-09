@@ -1,9 +1,10 @@
 <template>
     <div v-if="$vuetify.display.mdAndDown" @click="showFilter"
         class="h-10 w-10 bg-neutral-700 flex items-center justify-center
-            rounded-xl fixed bottom-14 left-3 z-[100]
-            shadow-lg border-2 border-neutral-600">
-        <v-icon>mdi-filter-variant</v-icon>
+            rounded-xl fixed z-[100]
+            shadow-lg border-2 border-neutral-600"
+        :class="{'top-4 right-3': filtersVisible, ' bottom-14 left-3': !filtersVisible}">
+        <v-icon :icon="filtersVisible?'mdi-close':'mdi-filter-variant'"></v-icon>
     </div>
     <div class="flex h-full w-full">
         <div v-if="$vuetify.display.mdAndUp || filtersVisible" id="filters"
