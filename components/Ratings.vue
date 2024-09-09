@@ -3,7 +3,7 @@
         <div v-if="ratings.length" v-for="rating in ratings">
             <NuxtLink v-bind="props" v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
                 <div class="progress-wrapper relative w-full h-full">
-                    <svg :width="small?55:70" :height="small?55:70" viewBox="0 0 100 100">
+                    <svg :width="small?45:70" :height="small?45:70" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="35" stroke="#333" stroke-width="10" fill="transparent"
                             :stroke-dasharray="`${164} 1000`" stroke-dashoffset="-39.25" transform="rotate(72 50 50)" stroke-linecap="round" />
                         <circle cx="50" cy="50" r="35" :stroke="rating.color" stroke-width="7" fill="transparent"

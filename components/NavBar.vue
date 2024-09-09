@@ -3,13 +3,13 @@
         bg-neutral-950 py-2 z-50 h-14">
         <div class="left-actions items-center flex-1 flex gap-10 text-[1rem] font-medium">
             <NuxtLink to="/" aria-label="Go Home">
-                <div class="flex items-start gap-1 tracking-widest text-xl text-white font-extrabold group">
+                <div class="flex items-start gap-1 tracking-widest text-xl text-white font-extrabold group mr-7">
                     <NuxtImg src="/popcorn.png" class="h-7 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"/>
                     <div class="logo-text">TMB</div>
                 </div>
             </NuxtLink>
             <NuxtLink to="/browse">
-                <div class="flex items-center gap-1" aria-label="Go To AI search">
+                <div class="flex items-center gap-1" aria-label="Go To Browser">
                     <v-icon icon="mdi-infinity" size="small" />
                     Browse
                 </div>
@@ -29,7 +29,7 @@
                 </v-menu>
             </NuxtLink>
             <NuxtLink to="/series">
-                <div class="flex items-center gap-1" aria-label="Go To AI search">
+                <div class="flex items-center gap-1" aria-label="Go To Series">
                     <v-icon icon="mdi-television" size="small" />
                     Series
                 </div>
@@ -44,6 +44,12 @@
                 <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To AI search">
                     <v-icon icon="mdi-panorama-sphere-outline" size="small" />
                     AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
+                </div>
+            </NuxtLink>
+            <NuxtLink to="/profile">
+                <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To Profile">
+                    <v-icon icon="mdi-account" class="!text-2xl" />
+                    Profile
                 </div>
             </NuxtLink>
             <NuxtLink to="/admin" v-if="isAdmin">

@@ -2,13 +2,13 @@
     <div>
         <div class="flex items-center bg-neutral-800 rounded-full px-4 max-md:py-[3px] md:py-[4px] cursor-pointer">
             <div @click="likeClicked" class="flex items-center gap-2">
-                <span class="material-symbols-outlined !text-2xl md:!text-3xl"
+                <span class="material-symbols-outlined !text-[22px] md:!text-3xl"
                     :style="`font-variation-settings: 'FILL' ${liked?1:0};`">thumb_up</span>
                 <!-- {{  itemLikes }} -->
             </div>
             <div class="border-r-2 border-neutral-600 h-5 mx-5"></div>
             <div @click="dislikeClicked" class="flex items-center gap-2">
-                <span class="material-symbols-outlined !text-2xl md:!text-3xl"
+                <span class="material-symbols-outlined !text-[22px] md:!text-3xl"
                     :style="`font-variation-settings: 'FILL' ${disliked?1:0};`">thumb_down</span>
                 <!-- {{  itemDislikes }} -->
             </div>

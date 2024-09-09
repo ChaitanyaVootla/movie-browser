@@ -26,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import { getBaseUrl } from '~/utils/url';
 import { watchOptionImageMapper } from '~/utils/watchOptions';
 
 const props = defineProps(['googleData', 'tmdbRating', 'item'])
@@ -33,7 +34,7 @@ let watchOptions = [] as any[]
 
 if (props.googleData?.allWatchOptions) {
     watchOptions = (props.googleData.allWatchOptions || []).map((watchOption: any) => {
-        const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) => watchOption.name.toLowerCase().includes(key))
+        const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) => (watchOption.name || getBaseUrl(watchOption.link)).toLowerCase().includes(key))
         return {
             name: watchOption.name,
             displayName: mappedWatchOption?.[1]?.name,
@@ -51,6 +52,7 @@ if (props.googleData?.allWatchOptions) {
             return 0
         }
     })
+    watchOptions = watchOptions.filter((watchOption: any) => watchOption.name)
     watchOptions = useUniqBy(watchOptions, 'name')
     watchOptions = useUniqBy(watchOptions, 'link')
 }

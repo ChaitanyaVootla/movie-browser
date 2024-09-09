@@ -19,11 +19,13 @@
             <div v-for="item in pending?new Array(30).fill({}):items" :key="item?.id">
                 <div v-if="viewType" class="h-[25rem]">
                     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" class="flex flex-col h-full">
-                        <div class="relative wide-card flex-grow">
-                            <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`"
+                        <div class="relative">
+                            <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780
+                            }${getEnglishBackdrop(item) || item.backdrop_path}`"
                                 class="rounded-lg mr-2 wide-image hover:rounded-md hover:shadow-md hover:shadow-neutral-800
                                     hover:transition-all duration-300 flex-grow"
                                 cover
+                                :aspect-ratio="1.78"
                                 :alt="item.name">
                                 <template v-slot:placeholder>
                                     <v-skeleton-loader class="wide-image" type="image" />
@@ -34,18 +36,20 @@
                                     </v-skeleton-loader>
                                 </template>
                             </v-img>
-                            <div class="absolute -bottom-1 -right-3 bg-black px-2 pt-3 rounded-tl-3xl">
-                                <!-- <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id"
-                                    :small="true" :minimal="true"/> -->
-                                <div class="text-lg font-semibold">
-                                    <v-icon size="x-small" class="text-yellow-400">mdi-star</v-icon>
-                                    {{ item.vote_average?.toFixed(1) }}
+                        </div>
+                        <div class="mt-1">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="text-sm font-semibold">
+                                        <div>{{ item.title || item.name }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id"
+                                        :small="true" :minimal="true"/>
                                 </div>
                             </div>
-                        </div>
-                        <div class="mt-1 wide-card h-28">
-                            <div class="text-default font-semibold">{{ item.title || item.name }}</div>
-                            <div class="flex gap-3 mt-1 -ml-1">
+                            <div class="flex gap-3 mt-1 -ml-1 overflow-x-auto">
                                 <div v-for="genre in getGenres(item)">
                                     <v-chip class="text-md" rounded size="small">
                                         {{ genre }}
@@ -65,6 +69,8 @@
 </template>
 
 <script setup lang="ts">
+import { getEnglishBackdrop } from '~/utils/backdrop';
+
 defineProps({
     items: {
         type: Object,
@@ -135,46 +141,6 @@ const viewTypeUpdated = (val: number) => {
     }
 }
 
-// @wide-image-height: 15rem;
-// :deep(.wide-image) {
-//     height: @wide-image-height;
-//     width: calc(@wide-image-height * 16/9);
-// }
-// :deep(.wide-card) {
-//     width: calc(@wide-image-height * 16/9);
-// }
-// @media (max-width: 768px) {
-//     @wide-image-height: 7rem;
-//     :deep(.wide-image) {
-//         height: @wide-image-height;
-//         width: calc(@wide-image-height * 16/9);
-//     }
-//     :deep(.wide-card) {
-//         width: calc(@wide-image-height * 16/9);
-//     }
-// }
-// :deep(.v-skeleton-loader__image) {
-//     height: 100%;
-// }
-
-// @wide-image-width: 25rem;
-// :deep(.wide-image) {
-//     height: calc(@wide-image-width * 9/16);
-//     width: @wide-image-width;
-// }
-// :deep(.wide-card) {
-//     width: @wide-image-width
-// }
-// @media (max-width: 768px) {
-//     @wide-image-width: 25rem;
-//     :deep(.wide-image) {
-//         height: calc(@wide-image-width * 9/16);
-//         width: @wide-image-width;
-//     }
-//     :deep(.wide-card) {
-//         width: @wide-image-width
-//     }
-// }
 :deep(.v-skeleton-loader__image) {
     height: 100%;
 }

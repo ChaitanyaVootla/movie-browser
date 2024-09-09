@@ -38,7 +38,7 @@
                                     <NuxtTime v-if="movie.release_date" class="text-neutral-200 block text-xs md:text-tiny"
                                         :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
                                 </div>
-                                <div v-if="director" class="flex items-center gap-3">
+                                <div v-if="director" class="flex items-center gap-3 text-sm">
                                     <div class="text-neutral-300">Directed by</div>
                                     <NuxtLink :to="`/person/${director?.id}`">
                                         <div class="flex items-center gap-1 underline underline-offset-2">
