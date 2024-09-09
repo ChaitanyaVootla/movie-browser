@@ -12,9 +12,9 @@
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="max-md:pt-3 md:pt-5">
                 <div class="px-3 md:mx-12 overview">
-                    <div class="flex max-md:justify-center lg:justify-start gap-6 max-md:mb-3 md:mb-5">
+                    <div class="flex gap-2 md:gap-6 max-md:mb-3 md:mb-5 overflow-x-auto">
                         <UserRating :liked="true" :disliked="false" :likes="10" :dislikes="5" itemType="movie" :itemId="movie.id" />
-                        <v-btn :key="`${isMounted}`" @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-circle-outline'" :color="(watched === true)?'primary':''"
+                        <v-btn :key="`${isMounted}`" @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-eye-outline'" :color="(watched === true)?'primary':''"
                             :elevation="5" class="px-5" :size="$vuetify.display.mdAndUp?'default':'small'" >
                             {{ watched?'Watched':'Watched ?' }}
                         </v-btn>
@@ -31,12 +31,14 @@
                             </div>
                         </h1>
                         <h2 class="mt-1">
-                            <div class="flex items-baseline justify-start gap-2">
+                            <div class="flex items-baseline justify-start gap-5 flex-wrap">
                                 <div class="font-semibold">Overview</div>
-                                <div v-if="movie.release_date" class="text-sm md:text-tiny">Released</div>
-                                <NuxtTime v-if="movie.release_date" class="text-neutral-200 mt-1 block text-xs md:text-tiny"
-                                    :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
-                                <div v-if="director" class="flex items-center gap-3 ml-5">
+                                <div class="flex items-center gap-2">
+                                    <div v-if="movie.release_date" class="text-sm md:text-tiny">Released</div>
+                                    <NuxtTime v-if="movie.release_date" class="text-neutral-200 block text-xs md:text-tiny"
+                                        :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
+                                </div>
+                                <div v-if="director" class="flex items-center gap-3">
                                     <div class="text-neutral-300">Directed by</div>
                                     <NuxtLink :to="`/person/${director?.id}`">
                                         <div class="flex items-center gap-1 underline underline-offset-2">
@@ -545,6 +547,11 @@ useHead(() => {
                 height: 50vh;
             }
         }
+    }
+}
+.overview {
+    ::-webkit-scrollbar {
+        display: none;
     }
 }
 </style>

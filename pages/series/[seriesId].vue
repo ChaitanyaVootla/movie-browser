@@ -12,7 +12,7 @@
             <DetailsTopInfo :item="series" :watched="false"/>
             <div>
                 <div class="px-3 md:mx-12 mt-3">
-                    <div class="identify flex max-md:justify-center lg:justify-start gap-6 mb-0 md:mb-5">
+                    <div class="identify flex gap-2 md:gap-6 mb-0 md:mb-5 overflow-x-auto">
                         <UserRating itemType="series" :itemId="series.id" />
                         <div v-if="series.status">
                             <v-chip :key="`${isMounted}`" rounded :color="seriesStatusColor" density="default"
@@ -98,9 +98,9 @@
                                 <v-icon class="!text-sm">mdi-share-variant</v-icon> share
                             </div>
                         </h1>
-                        <div class="flex items-center gap-2">
-                            <h2 class="mt-1">Overview</h2>
-                            <div v-if="series.created_by?.length" class="flex items-center gap-3 ml-5">
+                        <div class="flex items-center gap-5 flex-wrap mt-1">
+                            <h2>Overview</h2>
+                            <div v-if="series.created_by?.length" class="flex items-center gap-3 text-sm md:text-base">
                                 <div class="text-neutral-300">Created by</div>
                                 <NuxtLink :to="`/person/${person?.id}`" v-for="person in series.created_by">
                                     <div class="flex items-center gap-1 underline underline-offset-2">

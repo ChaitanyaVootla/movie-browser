@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="flex justify-between items-center py-2 mr-6">
+        <div class="flex justify-between items-center py-2 md:mr-4">
             <slot :item="title">
                 <div class="title text-lg mb-5">
                     {{ title }}

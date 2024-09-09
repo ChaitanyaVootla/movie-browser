@@ -1,6 +1,14 @@
 <template>
+    <div v-if="$vuetify.display.mdAndDown" @click="showFilter"
+        class="h-10 w-10 bg-neutral-700 flex items-center justify-center
+            rounded-xl fixed bottom-14 left-3 z-[100]
+            shadow-lg border-2 border-neutral-600">
+        <v-icon>mdi-filter-variant</v-icon>
+    </div>
     <div class="flex h-full w-full">
-        <div class="w-[calc(15%)] h-full bg-neutral-900 px-4">
+        <div v-if="$vuetify.display.mdAndUp || filtersVisible" id="filters"
+            class="w-[calc(15%)] min-w-60 h-full bg-neutral-900 px-4"
+            :class="{'!w-screen': filtersVisible}">
             <div class="top-action flex justify-center mb-6 mt-6">
                 <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad">
                     <v-btn>
@@ -194,14 +202,14 @@
                 ></v-text-field>
             </div>
         </div>
-        <div class="w-full pt-4">
+        <div v-if="!filtersVisible" class="w-full pt-4 filters">
             <div v-if="status === 'authenticated'" class="max-md:px-3 md:px-10 mb-4">
-                <div v-if="userFilters.length" class="flex flex-wrap gap-2 w-full">
+                <div class="flex gap-2 w-full overflow-x-auto">
                     <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
                         :disabled="selectedFilter._id" >
                         Create Filter
                     </v-chip>
-                    <div v-for="filter in userFilters">
+                    <div v-if="userFilters.length" v-for="filter in userFilters">
                         <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
                             variant="flat" color="#333">
                             <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
@@ -226,9 +234,9 @@
                     </div>
                 </div>
             </div>
-            <div v-if="globalFilters.length" class=" w-full max-md:mx-3 md:mx-10">
+            <div v-if="globalFilters.length" class="max-md:px-3 md:px-10 mb-4">
                 <!-- <div class="text-sm text-neutral-300 mb-1">Popular Filters</div> -->
-                <div class="flex flex-wrap gap-2">
+                <div class="flex gap-2 overflow-x-auto">
                     <div v-for="filter in globalFilters">
                         <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white"
                             variant="flat" :color="selectedGlobalFilter._id === filter._id?'#666':'#333'">
@@ -255,7 +263,7 @@
                         @update:model-value="freshLoad()"
                     >
                         <template v-slot:selection="{ item, index }">
-                            <span class="text-xs text-neutral-300 mr-2">Sort By</span> {{ item.title }}
+                            <span v-if="$vuetify.display.mdAndUp" class="text-xs text-neutral-300 mr-2">Sort By</span> {{ item.title }}
                         </template>
                     </v-select>
                 </template>
@@ -306,6 +314,7 @@ import { baseDiscoverQuery } from '~/utils/constants';
 let selectedType = ref(0);
 let pending = ref(true);
 let canShowLoadMore = ref(true);
+let filtersVisible = ref(false);
 let isFilterDialogActive = ref(false);
 let discoverResults = ref([] as any[]);
 let selectedKeywords = ref([] as any[]);
@@ -338,6 +347,10 @@ const fetchFilters = async () => {
 onMounted(() => {
     fetchFilters();
 });
+
+const showFilter = () => {
+    filtersVisible.value = !filtersVisible.value;
+}
 
 const { data: globalFilters, refresh: refreshGlobalFilters }: any = useLazyAsyncData('globalFilters', async () => {
     return await $fetch('/api/filters');
@@ -609,6 +622,11 @@ useHead({
         text-overflow: ellipsis;
         white-space: nowrap;
         overflow: hidden;
+    }
+}
+.filters {
+    ::-webkit-scrollbar {
+        display: none;
     }
 }
 </style>
