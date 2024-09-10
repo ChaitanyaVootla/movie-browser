@@ -52,6 +52,10 @@ const logo = computed(() => {
     filter: drop-shadow(0 0 1px #777);
 }
 @media (max-width: 768px) {
+    .promo-img {
+        height: auto;
+        width: 80vw;
+    }
     .logo-shadow {
         filter: drop-shadow(0 0 0.4px #eee);
     }

@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="flex items-center bg-neutral-800 rounded-full px-4 max-md:py-[3px] md:py-[4px] cursor-pointer">
+        <div class="flex items-center bg-neutral-800 rounded-full px-4 py-[6px] cursor-pointer">
             <div @click="likeClicked" class="flex items-center gap-2">
                 <span class="material-symbols-outlined !text-[22px] md:!text-3xl"
                     :style="`font-variation-settings: 'FILL' ${liked?1:0};`">thumb_up</span>

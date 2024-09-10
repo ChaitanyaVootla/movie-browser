@@ -12,19 +12,16 @@
             <DetailsTopInfo :item="series" :watched="false"/>
             <div>
                 <div class="px-3 md:mx-12 mt-3">
-                    <div class="identify flex gap-2 md:gap-6 mb-0 md:mb-5 overflow-x-auto">
+                    <div class="identify max-md:justify-center flex gap-2 md:gap-6 mb-0 md:mb-5 overflow-x-auto">
                         <UserRating itemType="series" :itemId="series.id" />
-                        <div v-if="series.status">
-                            <v-chip :key="`${isMounted}`" rounded :color="seriesStatusColor" density="default"
-                                :size="$vuetify.display.mdAndUp?'large':'small'" variant="elevated" >
-                                Status <b class="ml-2 font-medium">{{ statusText }}</b>
-                            </v-chip>
-                        </div>
-                        <v-chip :key="`${isMounted}`" rounded @click="watchListClicked()" prepend-icon="mdi-playlist-plus"
-                            :color="(watchlist === true)?'primary':'#333'" variant="flat" :size="$vuetify.display.mdAndUp?'large':'small'"
-                            class="px-5" >
-                            {{ watchlist?'In Watch List':'Add to list' }}
-                        </v-chip>
+                        <v-btn v-if="series.status" :key="`${isMounted}`" :color="seriesStatusColor"
+                            :elevation="5" size="small" class="px-3 !normal-case"
+                            :class="$vuetify.display.mdAndUp?'!h-10 !text-[13px]':'!h-[33px] !text-[10px]'">
+                            Status <b class="ml-2 font-medium">{{ statusText }}</b>
+                        </v-btn>
+                        <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
+                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
+                        </v-btn>
                     </div>
                     <div class="flex w-full items-start gap-4 flex-wrap max-md:justify-center md:justify-start
                         max-md:mt-3 md:mt-5">

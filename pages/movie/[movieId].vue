@@ -12,34 +12,32 @@
             <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             <div class="max-md:pt-3 md:pt-5">
                 <div class="px-3 md:mx-12 overview">
-                    <div class="flex gap-2 md:gap-6 max-md:mb-3 md:mb-5 overflow-x-auto">
+                    <div class="flex max-md:justify-center gap-2 md:gap-4 max-md:mb-3 md:mb-5 overflow-x-auto">
                         <UserRating :liked="true" :disliked="false" :likes="10" :dislikes="5" itemType="movie" :itemId="movie.id" />
-                        <v-btn :key="`${isMounted}`" @click="watchClicked()" :prepend-icon="watched?'mdi-check':'mdi-eye-outline'" :color="(watched === true)?'primary':''"
-                            :elevation="5" class="px-5" :size="$vuetify.display.mdAndUp?'default':'small'" >
-                            {{ watched?'Watched':'Watched ?' }}
+                        <v-btn :key="`${isMounted}`" @click="watchClicked()" :icon="watched?'mdi-check':'mdi-eye-outline'" :color="(watched === true)?'primary':''"
+                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
                         </v-btn>
-                        <v-btn :key="`${isMounted}`" @click="watchListClicked()" prepend-icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
-                            :elevation="5" class="px-5" :size="$vuetify.display.mdAndUp?'default':'small'" >
-                            {{ watchlist?'In Watch List':'Add to list' }}
+                        <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
+                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
+                        </v-btn>
+                        <v-btn @click="share" icon="mdi-share-variant" :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'"
+                            :color="''">
                         </v-btn>
                     </div>
                     <v-card class="px-5 py-2" color="#151515">
-                        <h1 class="text-lg font-semibold flex items-center gap-4">
+                        <h1 class="md:text-lg font-semibold flex items-center gap-4">
                             {{ movie.title }}
-                            <div class="text-neutral-400 text-base cursor-pointer" @click="share">
-                                <v-icon class="!text-sm">mdi-share-variant</v-icon> share
-                            </div>
                         </h1>
                         <h2 class="mt-1">
-                            <div class="flex items-baseline justify-start gap-5 flex-wrap">
-                                <div class="font-semibold">Overview</div>
+                            <div class="flex items-baseline justify-start gap-2 md:gap-4 flex-wrap">
+                                <div v-if="$vuetify.display.mdAndUp" class="font-semibold text-sm md:text-base">Overview</div>
                                 <div class="flex items-center gap-2">
-                                    <div v-if="movie.release_date" class="text-sm md:text-tiny">Released</div>
+                                    <div v-if="movie.release_date && $vuetify.display.mdAndUp" class="text-sm md:text-tiny">Released</div>
                                     <NuxtTime v-if="movie.release_date" class="text-neutral-200 block text-xs md:text-tiny"
                                         :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
                                 </div>
-                                <div v-if="director" class="flex items-center gap-3 text-sm">
-                                    <div class="text-neutral-300">Directed by</div>
+                                <div v-if="director" class="flex items-center gap-2 text-sm">
+                                    <div class="text-neutral-300 text-xs md:text-sm">Directed by</div>
                                     <NuxtLink :to="`/person/${director?.id}`">
                                         <div class="flex items-center gap-1 underline underline-offset-2">
                                             <div>{{director?.name}}</div>
@@ -55,8 +53,7 @@
                         </div>
                         <NuxtLink :key="`${isMounted}`" v-if="movie.imdb_id" :to="`https://www.imdb.com/title/${movie.imdb_id}/parentalguide`" target="blank"
                             noreferrer noopener class="mt-3 block">
-                            <v-btn variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa">
-                                <Icon :name="'material-symbols-light:warning-rounded'" class="mr-2 text-xl" />
+                            <v-btn variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa" prepend-icon="mdi-exclamation-thick">
                                 content warning
                             </v-btn>
                         </NuxtLink>
@@ -80,7 +77,7 @@
                         <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
                             Last Updated: {{ humanizeDateFull(movie.updatedAt) }}
                             <v-btn @click="updateMovie" :loading="updatingMovie" variant="text" size="x-small"
-                                class="ml-3" color="#bbb">
+                                class="ml-3" color="#bbb" prepend-icon="mdi-refresh">
                                 Request Update
                             </v-btn>
                         </div>
