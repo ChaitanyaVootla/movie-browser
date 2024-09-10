@@ -48,7 +48,7 @@
             </NuxtLink>
             <NuxtLink to="/profile">
                 <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To Profile">
-                    <v-icon icon="mdi-account" class="!text-2xl" />
+                    <v-icon icon="mdi-face-man" size="small" />
                     Profile
                 </div>
             </NuxtLink>
@@ -86,6 +86,11 @@
                                 <v-list-item>
                                     <NuxtLink to="/watchList">
                                         Watch List
+                                    </NuxtLink>
+                                </v-list-item>
+                                <v-list-item>
+                                    <NuxtLink to="/profile">
+                                        Profile
                                     </NuxtLink>
                                 </v-list-item>
                                 <v-list-item @click="signOut" class="text-red">
@@ -138,6 +143,11 @@
                     <v-list>
                         <v-list-item @click="signOut" class="text-red">
                             Sign Out
+                        </v-list-item>
+                        <v-list-item>
+                            <NuxtLink to="/profile">
+                                Profile
+                            </NuxtLink>
                         </v-list-item>
                         <v-list-item>
                             <NuxtLink to="/watchList">
@@ -225,6 +235,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '#imports'
+import { userStore } from '~/plugins/state';
 
 const { data, status, signIn, signOut } = useAuth();
 
@@ -249,6 +260,10 @@ onMounted(() => {
             showSearchOverlay.value = !showSearchOverlay.value;
         }
     });
+
+    if (status.value === 'authenticated') {
+        userStore().setupStore();
+    }
 });
 
 const isAdmin = computed(() => {

@@ -6,7 +6,7 @@
                     aspect-ratio="16/9"
                     cover
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
-                    :class="{'opacity-70 saturate-0 group-hover:saturate-100 group-hover:opacity-100 border-neutral-700 border-2': watched}"
+                    :class="{'border-neutral-500 border-2 shadow-lg shadow-neutral-700': watched}"
                     :alt="`${item.title || item.name} poster`"
                     :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
                     <template v-slot:placeholder>
@@ -43,7 +43,7 @@
                                     color="black"
                                     class="!border-2 !border-neutral-700 opacity-60 float-end !text-base"
                                     :class="{'!hidden group-hover:!block': !watched, '!border-neutral-500': watched}"
-                                    icon="mdi-check"
+                                    :icon="watched?'mdi-check':'mdi-eye-outline'"
                                     rounded
                                     size="x-small">
                                 </v-btn>

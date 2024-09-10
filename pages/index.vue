@@ -46,7 +46,7 @@
                 <WideCard :item="item" class="mr-3" />
             </template>
         </Scroller>
-        <ScrollProvider v-for="scrollItem in watchProviderItems" :scroll-item="scrollItem" />
+        <!-- <ScrollProvider v-for="scrollItem in watchProviderItems" :scroll-item="scrollItem" /> -->
     </div>
 </template>
 <script setup lang="ts">
@@ -98,6 +98,7 @@ const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('w
                 ongoingSeries: mapWatchListSeries(series)?.currentRunningSeries
             };
         },
+        server: false,
     }
 );
 
@@ -108,6 +109,9 @@ const { data: continueWatching, execute: executeContinueWatching }: any = await 
         console.log(err);
         return {};
     }),
+    {
+        server: false,
+    }
 );
 
 setTimeout(() => {

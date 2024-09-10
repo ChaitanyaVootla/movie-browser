@@ -1,5 +1,4 @@
 import { model, Schema } from "mongoose";
-// import { dbConstants } from "../constants";
 
 const MovieSchema = new Schema({
     id: Number,
@@ -23,7 +22,7 @@ interface IMovie {
     any: Schema.Types.Mixed,
 }
 
-const MovieLightFileds = 'id title adult release_date vote_average genres poster_path backdrop_path googleData images.logos images.backdrops';
+const MovieLightFileds = 'id title adult release_date vote_average genres poster_path backdrop_path googleData images.logos';
 
 const Movie = model<IMovie>("Movie", MovieSchema, "movies");
 

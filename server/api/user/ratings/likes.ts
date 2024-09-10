@@ -9,16 +9,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const likes = await UserRating.find({userId: userData.sub, rating: 1})
-    const movieIds = [];
-    const seriesIds = [];
+    const movieIds: number[] = [];
+    const seriesIds: number[] = [];
     let movies: any[] = [];
     let series: any[] = [];
-    likes.forEach((like) => like.itemType === 'movie'?movieIds.push(like.itemId):seriesIds.push(like.itemId));
+    likes.forEach((like) => like.itemType === 'movie' ? movieIds.push(like.itemId) : seriesIds.push(like.itemId));
     if (movieIds.length) {
-        movies = await $fetch(`/api/movie/getMultiple?movieIds=${likes.map((like) => like.itemId).join(',')}`);
+        movies = await $fetch(`/api/movie/getMultiple?movieIds=${movieIds.join(',')}`);
     }
     if (seriesIds.length) {
-        series = await $fetch(`/api/series/getMultiple?seriesIds=${likes.map((like) => like.itemId).join(',')}`);
+        series = await $fetch(`/api/series/getMultiple?seriesIds=${seriesIds.join(',')}`);
     }
     return {
         movies,

@@ -62,7 +62,9 @@
                         </div>
                     </NuxtLink>
                 </div>
-                <PosterCard v-else :item="item" :addToFilter="addToFilter" />
+                <IntersectionLoader v-else>
+                    <PosterCard :item="item" :addToFilter="addToFilter" />
+                </IntersectionLoader>
             </div>
         </div>
     </div>

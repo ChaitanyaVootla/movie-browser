@@ -44,26 +44,27 @@ export const userStore = defineStore('user', {
             this.WatchListMovies.add(movieId);
         }
     },
+    async setupStore() {
+        const [watchedMoviesAPI, watchListMoviesAPI, recentsApi] = await Promise.all([
+            $fetch('/api/user/movie/watched').catch((err) => {
+                console.log(err);
+                return [];
+            }),
+            $fetch('/api/user/movie/watchList').catch((err) => {
+                console.log(err);
+                return [];
+            }),
+            $fetch('/api/user/recents').catch((err) => {
+                console.log(err);
+                return [];
+            }),
+        ]);
+        this.WatchedMovies = new Set(watchedMoviesAPI);
+        this.WatchListMovies = new Set(watchListMoviesAPI);
+        this.Recents = recentsApi;
+    }
   },
 });
 
 export default defineNuxtPlugin(async (app) => {
-    const [watchedMoviesAPI, watchListMoviesAPI, recentsApi] = await Promise.all([
-        $fetch('/api/user/movie/watched').catch((err) => {
-            console.log(err);
-            return [];
-        }),
-        $fetch('/api/user/movie/watchList').catch((err) => {
-            console.log(err);
-            return [];
-        }),
-        $fetch('/api/user/recents').catch((err) => {
-            console.log(err);
-            return [];
-        }),
-    ]);
-    const userData = userStore();
-    userData.WatchedMovies = new Set(watchedMoviesAPI);
-    userData.WatchListMovies = new Set(watchListMoviesAPI);
-    userData.Recents = recentsApi;
 });

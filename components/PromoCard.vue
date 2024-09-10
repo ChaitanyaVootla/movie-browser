@@ -22,9 +22,13 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
-    item: any;
-}>();
+const props = defineProps({
+    item: {
+        type: Object,
+        required: true,
+        default: {}
+    },
+});
 
 const logo = computed(() => {
     return props.item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path;
