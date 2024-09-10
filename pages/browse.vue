@@ -202,15 +202,18 @@
                     label="Minimum Votes"
                 ></v-text-field>
             </div>
+            
+            <div class="flex justify-center mt-10">
+                <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
+                    :disabled="selectedFilter._id">
+                    Create Filter
+                </v-chip>
+            </div>
         </div>
         <div v-if="!filtersVisible" class="w-full pt-4 filters">
-            <div v-if="status === 'authenticated'" class="max-md:px-3 md:px-10 mb-4">
-                <div class="flex gap-2 w-full overflow-x-auto">
-                    <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
-                        :disabled="selectedFilter._id" >
-                        Create Filter
-                    </v-chip>
-                    <div v-if="userFilters.length" v-for="filter in userFilters">
+            <div class="max-md:px-3 md:px-10 mb-4">
+                <div class="flex gap-2 w-full md:w-[calc(100vw-23rem)] overflow-x-auto">
+                    <div v-if="status === 'authenticated' && userFilters.length" v-for="filter in userFilters">
                         <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
                             variant="flat" color="#333">
                             <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
@@ -233,11 +236,6 @@
                             </v-chip>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div v-if="globalFilters.length" class="max-md:px-3 md:px-10 mb-4">
-                <!-- <div class="text-sm text-neutral-300 mb-1">Popular Filters</div> -->
-                <div class="flex gap-2 overflow-x-auto">
                     <div v-for="filter in globalFilters">
                         <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white"
                             variant="flat" :color="selectedGlobalFilter._id === filter._id?'#666':'#333'">
@@ -256,7 +254,7 @@
                         :items="sortByValues"
                         single-line
                         label="Sort By"
-                        variant="outlined"
+                        variant="plain"
                         rounded
                         density="compact"
                         item-title="text"
@@ -269,7 +267,7 @@
                     </v-select>
                 </template>
                 <template v-slot:default="{}">
-                    <div v-if="!pending" class="text-neutral-200 max-md:text-sm md:text-base mt-3">
+                    <div v-if="!pending && $vuetify.display.mdAndUp" class="text-neutral-200 max-md:text-sm md:text-base mr-5">
                         {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(totalResults) }} Results
                     </div>
                 </template>
