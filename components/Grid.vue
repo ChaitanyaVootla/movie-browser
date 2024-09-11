@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="flex justify-between items-center py-2 md:mr-4">
+        <div class="flex justify-between items-center max-md:pt-1 md:py-2 md:mr-4">
             <div class="flex items-center">
                 <slot :item="title">
                     <div v-if="title?.length" class="title text-lg mr-5">
@@ -8,9 +8,9 @@
                     </div>
                 </slot>
                 <v-btn-toggle v-model="viewType" mandatory density="compact" @update:model-value="viewTypeUpdated"
-                    class="!h-6">
-                    <v-btn icon="mdi-view-comfy" class="px-5" size="small" />
-                    <v-btn icon="mdi-view-headline" class="px-5" size="small" />
+                    class="!h-5 md:!h-6">
+                    <v-btn icon="mdi-view-comfy" class="px-5" :size="$vuetify.display.mdAndDown?'x-small':'small'" />
+                    <v-btn icon="mdi-view-headline" class="px-5" :size="$vuetify.display.mdAndDown?'x-small':'small'" />
                 </v-btn-toggle>
             </div>
             <div>

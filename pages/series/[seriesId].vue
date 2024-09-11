@@ -14,11 +14,6 @@
                 <div class="px-3 md:mx-12 mt-3">
                     <div class="identify max-md:justify-center flex gap-2 md:gap-6 mb-0 md:mb-5 overflow-x-auto">
                         <UserRating itemType="series" :itemId="series.id" />
-                        <v-btn v-if="series.status" :key="`${isMounted}`" :color="seriesStatusColor"
-                            :elevation="5" size="small" class="px-3 !normal-case"
-                            :class="$vuetify.display.mdAndUp?'!h-10 !text-[13px]':'!h-[33px] !text-[10px]'">
-                            Status <b class="ml-2 font-medium">{{ statusText }}</b>
-                        </v-btn>
                         <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
                             :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
                         </v-btn>
@@ -110,12 +105,20 @@
                             {{ series.overview }}
                         </div>
 
-                        <NuxtLink :key="`${isMounted}`" v-if="series.external_ids.imdb_id" :to="`https://www.imdb.com/title/${series.external_ids.imdb_id}/parentalguide`" target="blank"
-                            noreferrer noopener class="mt-3 block">
-                            <v-btn prepend-icon="mdi-eye-outline" variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa">
-                                Parental Guide
+                        <div class="flex items-center mt-3 gap-2">
+                            <NuxtLink :key="`${isMounted}`" v-if="series.external_ids.imdb_id" :to="`https://www.imdb.com/title/${series.external_ids.imdb_id}/parentalguide`" target="blank"
+                                noreferrer noopener class="block">
+                                <v-btn prepend-icon="mdi-exclamation-thick" variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa">
+                                    Content warning
+                                </v-btn>
+                            </NuxtLink>
+                            
+                            <v-btn v-if="series.status" :key="`${isMounted}`" :color="seriesStatusColor"
+                                :elevation="5" class="px-3 !normal-case"
+                                :size="$vuetify.display.mdAndUp?'small':'x-small'">
+                                Status <b class="ml-2 font-light">{{ statusText }}</b>
                             </v-btn>
-                        </NuxtLink>
+                        </div>
                         <div :key="`${isMounted}`" class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
                             <v-chip v-for="keyword in keywords"
                                 class="rounded-pill cursor-pointer" :color="'#ddd'"

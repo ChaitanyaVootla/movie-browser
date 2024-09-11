@@ -1,5 +1,5 @@
 <template>
-    <div ref="lazyLoader" class="lazy-loader">
+    <div ref="lazyLoader" class="miun-h-[100px] md:min-h-[200px]">
         <slot v-if="isIntersecting && isClient"></slot>
     </div>
 </template>
@@ -31,9 +31,3 @@ onMounted(() => {
     }
 });
 </script>
-
-<style scoped>
-.lazy-loader {
-    min-height: 200px; /* Adjust as needed to prevent layout shift */
-}
-</style>

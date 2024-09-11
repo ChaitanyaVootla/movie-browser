@@ -21,7 +21,7 @@
     </div>
     <div class="mt-5 md:mt-0 p-3 pb-16">
         <Scroller v-if="status === 'authenticated' && continueWatching?.length" :items="continueWatching" :pending="pending"
-            title="Continue Watching" class="mb-1 md:pb-5" titleIcon="mdi-play-circle-outline">
+            title="Continue Watching" class="mb-4 md:pb-5" titleIcon="mdi-play-circle-outline">
             <template v-slot:default="{ item }">
                 <WatchCard :item="item" class="mr-3" />
             </template>

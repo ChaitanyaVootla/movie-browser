@@ -11,11 +11,12 @@
             class="w-[calc(15%)] min-w-60 h-full bg-neutral-900 px-4"
             :class="{'!w-screen': filtersVisible}">
             <div class="top-action flex justify-center mb-6 mt-6">
-                <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad">
-                    <v-btn>
+                <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad"
+                    class="!h-8">
+                    <v-btn density="compact" size="small">
                         Movies
                     </v-btn>
-                    <v-btn>
+                    <v-btn density="compact" size="small">
                         Series
                     </v-btn>
                 </v-btn-toggle>
@@ -210,13 +211,13 @@
                 </v-chip>
             </div>
         </div>
-        <div v-if="!filtersVisible" class="w-full pt-4 filters">
-            <div class="max-md:px-3 md:px-10 mb-4">
+        <div v-if="!filtersVisible" class="w-full pt-2 md:pt-4 filters">
+            <div class="max-md:px-3 md:px-10 md:mb-2">
                 <div class="flex gap-2 w-full md:w-[calc(100vw-23rem)] overflow-x-auto">
                     <div v-if="status === 'authenticated' && userFilters.length" v-for="filter in userFilters">
                         <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
-                            variant="flat" color="#333">
-                            <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
+                            variant="flat" color="#333" :size="$vuetify.display.mdAndDown?'x-small':'small'">
+                            <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-1 md:mr-2 max-md:mt-[1px]" color="#aaa"></v-icon>
                             {{ filter.name }}
                         </v-chip>
                         <div v-else>
@@ -237,7 +238,7 @@
                         </div>
                     </div>
                     <div v-for="filter in globalFilters">
-                        <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white"
+                        <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white" :size="$vuetify.display.mdAndDown?'x-small':'small'"
                             variant="flat" :color="selectedGlobalFilter._id === filter._id?'#666':'#333'">
                             <v-icon :icon="filter?.filterParams?.media_type === 'movie'?'mdi-movie-open-outline':'mdi-television-classic'"
                                 class="mr-2" size="small"/>
@@ -262,13 +263,14 @@
                         @update:model-value="freshLoad()"
                     >
                         <template v-slot:selection="{ item, index }">
-                            <span v-if="$vuetify.display.mdAndUp" class="text-xs text-neutral-300 mr-2">Sort By</span> {{ item.title }}
+                            <span v-if="$vuetify.display.mdAndUp" class="text-xs text-neutral-300 mr-2">Sort By</span>
+                            <span class="text-xs md:text-sm">{{ item.title }}</span>
                         </template>
                     </v-select>
                 </template>
                 <template v-slot:default="{}">
-                    <div v-if="!pending && $vuetify.display.mdAndUp" class="text-neutral-200 max-md:text-sm md:text-base mr-5">
-                        {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(totalResults) }} Results
+                    <div v-if="!pending && $vuetify.display.mdAndUp" class="text-neutral-200 text-sm mr-5">
+                        {{ Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format(totalResults) }} results
                     </div>
                 </template>
             </Grid>
@@ -627,5 +629,11 @@ useHead({
     ::-webkit-scrollbar {
         display: none;
     }
+}
+:deep(.v-field__input) {
+    padding-top: 0 !important;
+}
+:deep(.v-field__append-inner) {
+    padding-top: 5px !important;
 }
 </style>
