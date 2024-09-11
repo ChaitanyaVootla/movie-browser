@@ -51,6 +51,7 @@ export const userStore = defineStore('user', {
             isMovie: item.title?.length > 0,
             poster_path: item?.poster_path,
             backdrop_path: englishBackdrop || item?.backdrop_path,
+            id: item.id,
         }
         if (item.title) {
             newEntry.title = item.title;
