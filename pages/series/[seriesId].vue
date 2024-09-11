@@ -197,6 +197,7 @@
 </template>
 
 <script setup lang="ts">
+import { userStore } from '~/plugins/state';
 import { humanizeDateFull } from '~/utils/dateFormatter';
 
 const { status } = useAuth();
@@ -209,6 +210,7 @@ let snackbar = ref(false);
 let showEpisodeDialog = ref(false);
 let selectedEpisode = ref<any>({});
 let seriesUpdateKey = ref(0);
+const userData = userStore();
 let loginRef = null as any;
 
 onMounted(() => {
@@ -320,20 +322,7 @@ let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute(
 
 const addToRecents = () => {
     if (series.value.adult) return;
-    const englishBackdrop = series?.value?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
-    $fetch(`/api/user/recents`,
-        {
-            headers,
-            method: 'POST',
-            body: JSON.stringify({
-                itemId: useRoute().params.seriesId,
-                isMovie: false,
-                poster_path: series.value?.poster_path,
-                backdrop_path: englishBackdrop || series.value?.backdrop_path,
-                name: series.value?.name,
-            })
-        }
-    );
+    userData.addToRecents(series.value);
 }
 
 const seasonSelected = async (season: any) => {

@@ -233,21 +233,8 @@ onMounted(() => {
 
 const addToRecents = () => {
     if (isRecentsUpdated || movie?.value?.adult) return;
-    const englishBackdrop = movie?.value?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
+    userData.addToRecents(movie.value);
     isRecentsUpdated = true;
-    $fetch(`/api/user/recents`,
-        {
-            headers,
-            method: 'POST',
-            body: JSON.stringify({
-                itemId: useRoute().params.movieId,
-                isMovie: true,
-                poster_path: movie.value?.poster_path,
-                backdrop_path: englishBackdrop || movie.value?.backdrop_path,
-                title: movie.value?.title,
-            })
-        }
-    );
 }
 
 const mapMovie = (movie: any) => {

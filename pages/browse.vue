@@ -1,12 +1,5 @@
 <template>
-    <div v-if="$vuetify.display.mdAndDown" @click="showFilter"
-        class="h-10 w-10 bg-neutral-700 flex items-center justify-center
-            rounded-xl fixed z-[100]
-            shadow-lg border-2 border-neutral-600"
-        :class="{'top-4 right-3': filtersVisible, ' bottom-14 left-3': !filtersVisible}">
-        <v-icon :icon="filtersVisible?'mdi-close':'mdi-filter-variant'"></v-icon>
-    </div>
-    <div class="flex h-full w-full">
+    <div class="flex max-h-scren w-full overflow-y-auto">
         <div v-if="$vuetify.display.mdAndUp || filtersVisible" id="filters"
             class="w-[calc(15%)] min-w-60 h-full bg-neutral-900 px-4"
             :class="{'!w-screen': filtersVisible}">
@@ -211,7 +204,7 @@
                 </v-chip>
             </div>
         </div>
-        <div v-if="!filtersVisible" class="w-full pt-2 md:pt-4 filters">
+        <div v-if="!filtersVisible" class="w-full pt-2 md:pt-4 mainContent pb-10">
             <div class="max-md:px-3 md:px-10 md:mb-2">
                 <div class="flex gap-2 w-full md:w-[calc(100vw-23rem)] overflow-x-auto">
                     <div v-if="status === 'authenticated' && userFilters.length" v-for="filter in userFilters">
@@ -279,6 +272,13 @@
             </div>
         </div>
     </div>
+    <div v-if="$vuetify.display.mdAndDown" @click="showFilter"
+        class="h-10 w-10 bg-neutral-700 flex items-center justify-center
+            rounded-xl fixed z-[100]
+            shadow-lg border-2 border-neutral-600"
+        :class="{'top-4 right-3': filtersVisible, ' bottom-14 left-3': !filtersVisible}">
+        <v-icon :icon="filtersVisible?'mdi-close':'mdi-filter-variant'"></v-icon>
+    </div>
     <v-dialog width="500" v-model="isFilterDialogActive">
         <v-card :title="selectedFilter._id?'Update Filter':'Create Filter'">
             <div class="mt-5 px-4">
@@ -329,6 +329,8 @@ let selectedFilter = ref({} as any);
 let selectedGlobalFilter = ref({} as any);
 let filterName = ref('');
 let isGlobal = ref(false);
+const isAtEnd = ref(false)
+
 let filteredKeywords = computed(() => {
     return [...keywordSearchResults.value, ...selectedKeywords.value];
 });
@@ -408,7 +410,6 @@ const queryParams = ref<any>({
 });
 
 const loadData = async () => {
-    pending.value = true;
     const query = {
         ...queryParams.value,
         with_keywords: queryParams.value.with_keywords?.map((item: any) => item.id) || [],
@@ -565,6 +566,29 @@ const saveFilter = async () => {
     refreshGlobalFilters();
 }
 
+const handleScroll = () => {
+  const windowHeight = window.innerHeight
+  const documentHeight = document.documentElement.scrollHeight
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+
+  isAtEnd.value = windowHeight + scrollTop >= documentHeight - 200 // 200px threshold
+}
+
+function onScroll() {
+  handleScroll()
+  if (isAtEnd.value && !pending.value) {
+    loadMore()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', onScroll)
+  handleScroll() // Check initial scroll position
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+})
 useHead({
     title: 'Discover - The Movie Browser',
     meta: [
@@ -625,7 +649,7 @@ useHead({
         overflow: hidden;
     }
 }
-.filters {
+.mainContent {
     ::-webkit-scrollbar {
         display: none;
     }

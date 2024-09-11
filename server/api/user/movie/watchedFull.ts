@@ -17,5 +17,8 @@ export default defineEventHandler(async (event) => {
             }
         }
     );
+    movies.sort((a: any, b: any) => {
+        return watchedMovieIds.indexOf(a.id) - watchedMovieIds.indexOf(b.id);
+    });
     return movies;
 });

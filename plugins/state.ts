@@ -44,6 +44,29 @@ export const userStore = defineStore('user', {
             this.WatchListMovies.add(movieId);
         }
     },
+    async addToRecents(item: any) {
+        const englishBackdrop = item?.images?.backdrops?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path
+        const newEntry: any = {
+            itemId: item.id,
+            isMovie: item.title?.length > 0,
+            poster_path: item?.poster_path,
+            backdrop_path: englishBackdrop || item?.backdrop_path,
+        }
+        if (item.title) {
+            newEntry.title = item.title;
+        }
+        if (item.name) {
+            newEntry.name = item.name;
+        }
+        await $fetch(`/api/user/recents`,
+            {
+                method: 'POST',
+                body: newEntry
+            }
+        );
+        this.Recents = this.Recents.filter((entry) => entry.itemId !== newEntry.itemId);
+        this.Recents.unshift(newEntry);
+    },
     async setupStore() {
         const [watchedMoviesAPI, watchListMoviesAPI, recentsApi] = await Promise.all([
             $fetch('/api/user/movie/watched').catch((err) => {

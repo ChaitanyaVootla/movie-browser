@@ -76,7 +76,6 @@ const getUserRating = async () => {
     const userRating: any = await $fetch(`/api/user/ratings/userItemRating?itemType=${props.itemType}&itemId=${props.itemId}`, { headers });
     liked.value = userRating?.rating === 1;
     disliked.value = userRating?.rating === -1;
-    console.log(userRating, liked, disliked);
 }
 const dislikeClicked = () => {
     if (disliked.value) {
