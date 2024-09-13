@@ -209,12 +209,13 @@
                 <div class="flex gap-2 w-full md:w-[calc(100vw-23rem)] overflow-x-auto">
                     <div v-if="status === 'authenticated' && userFilters.length" v-for="filter in userFilters">
                         <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
-                            variant="flat" color="#333" :size="$vuetify.display.mdAndDown?'x-small':'small'">
+                            variant="flat" color="#333" :size="$vuetify.display.mdAndDown?'small':'default'">
                             <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-1 md:mr-2 max-md:mt-[1px]" color="#aaa"></v-icon>
                             {{ filter.name }}
                         </v-chip>
                         <div v-else>
-                            <v-chip :rounded="false" class="rounded !cursor-pointer group" color="#555" variant="flat">
+                            <v-chip :rounded="false" class="rounded !cursor-pointer group" color="#555" variant="flat"
+                                :size="$vuetify.display.mdAndDown?'small':'default'">
                                 <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
                                 <div @click="selectFilter(filter)">
                                     {{ filter.name }}
@@ -231,10 +232,10 @@
                         </div>
                     </div>
                     <div v-for="filter in globalFilters">
-                        <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white" :size="$vuetify.display.mdAndDown?'x-small':'small'"
+                        <v-chip @click="selectGlobalFilter(filter)" rounded class="!text-white" :size="$vuetify.display.mdAndDown?'small':'default'"
                             variant="flat" :color="selectedGlobalFilter._id === filter._id?'#666':'#333'">
                             <v-icon :icon="filter?.filterParams?.media_type === 'movie'?'mdi-movie-open-outline':'mdi-television-classic'"
-                                class="mr-2" size="small"/>
+                                class="mr-2" />
                             {{ filter.name }}
                         </v-chip>
                     </div>
@@ -253,6 +254,7 @@
                         density="compact"
                         item-title="text"
                         item-value="value"
+                        class="sort-by-dropdown"
                         @update:model-value="freshLoad()"
                     >
                         <template v-slot:selection="{ item, index }">
@@ -654,10 +656,12 @@ useHead({
         display: none;
     }
 }
-:deep(.v-field__input) {
-    padding-top: 0 !important;
-}
-:deep(.v-field__append-inner) {
-    padding-top: 5px !important;
+:deep(.sort-by-dropdown) {
+    :deep(.v-field__input) {
+        padding-top: 0 !important;
+    }
+    :deep(.v-field__append-inner) {
+        padding-top: 5px !important;
+    }
 }
 </style>

@@ -6,7 +6,7 @@
                     aspect-ratio="16/9"
                     cover
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
-                    :class="{'border-neutral-500 border-2 shadow-lg shadow-neutral-700': watched}"
+                    :class="{'saturate-0 opacity-80 border-neutral-500 border-2 shadow-lg shadow-neutral-700': watched}"
                     :alt="`${item.title || item.name} poster`"
                     :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
                     <template v-slot:placeholder>

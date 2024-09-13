@@ -18,16 +18,18 @@
                 </template>
             </v-img>
         </NuxtLink>
-        <div class="overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-sm
-            flex items-center gap-2">
-            <div>
-                <v-img :src="watchOptionImageMapper[item.watchProviderName]?.image"
-                    class="max-md:w-6 max-md:h-6 md:w-7 md:h-7" :alt="item.watchProviderName"></v-img>
+        <NuxtLink :to="`/${item.title?'movie':'series'}/${item.id}`" class="hover:underline underline-offset-2">
+            <div class="overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-sm
+                flex items-center gap-2">
+                <div>
+                    <v-img :src="watchOptionImageMapper[item.watchProviderName]?.image"
+                        class="max-md:w-6 max-md:h-6 md:w-7 md:h-7" :alt="item.watchProviderName"></v-img>
+                </div>
+                <div class="flex-grow">
+                    {{ item.character || item.title || item.name }}
+                </div>
             </div>
-            <div class="flex-grow">
-                {{ item.character || item.title || item.name }}
-            </div>
-        </div>
+        </NuxtLink>
     </div>
 </template>
 
