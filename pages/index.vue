@@ -94,7 +94,7 @@ const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('w
     {
         transform: ({movies, series}: any) => {
             return {
-                movies,
+                movies: movies.slice(0, 15),
                 ongoingSeries: mapWatchListSeries(series)?.currentRunningSeries
             };
         },

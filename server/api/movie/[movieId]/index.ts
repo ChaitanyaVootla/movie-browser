@@ -90,9 +90,10 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
                 details.collectionDetails = collectionDetails;
             }
             let googleData = movie.googleData || {} as any;
-            if (details.imdb_id) {
+            if (details.imdb_id || details.directorName) {
+                const movieDirectorName = details.credits.crew.find(({ job }: any) => job === 'Director')?.name;
                 const lambdaResponse = await getGoogleLambdaData(details);
-                if (lambdaResponse?.imdbId === details.imdb_id) {
+                if ((lambdaResponse?.imdbId === details.imdb_id) || (lambdaResponse?.directorName === movieDirectorName)) {
                     googleData = lambdaResponse;
                 }
             }

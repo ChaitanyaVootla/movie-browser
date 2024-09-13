@@ -1,33 +1,30 @@
 <template>
-    <div ref="lazyLoader" class="miun-h-[100px] md:min-h-[200px]">
-        <slot v-if="isIntersecting && isClient"></slot>
-    </div>
+  <div ref="lazyLoader" class="min-h-[200px]">
+    <slot v-if="isViewIntersecting"></slot>
+  </div>
 </template>
 
 <script setup lang="ts">
-const isIntersecting = ref(false);
+import { useIntersectionObserver } from '@vueuse/core';
+
+const isViewIntersecting = ref(false);
 const lazyLoader = ref<HTMLElement | null>(null);
-const isClient = ref(false);
 
-onMounted(() => {
-    if (process.client === false) return;
-    if (typeof window === 'undefined') return;
-    isClient.value = true;
-    const observer = new IntersectionObserver(
-        ([entry]) => {
-            if (entry.isIntersecting) {
-                isIntersecting.value = true;
-                observer.disconnect();
-            }
-        },
-        {
-            rootMargin: '0px',
-            threshold: 0.1
+const { stop } = useIntersectionObserver(
+    lazyLoader,
+    ([{ isIntersecting }]) => {
+        if (isIntersecting) {
+            isViewIntersecting.value = true;
+            stop();
         }
-    );
-
-    if (lazyLoader.value) {
-        observer.observe(lazyLoader.value);
+    },
+    {
+        rootMargin: '500px',
+        threshold: 0,
     }
+);
+
+onUnmounted(() => {
+    stop();
 });
 </script>

@@ -161,74 +161,71 @@
     </div>
     <v-overlay v-model="showSearchOverlay" width="100%" height="100%" contained :close-on-content-click="true"
         scrim="black">
-        <div class="flex justify-center relative h-full">
-        <div class="absolute max-md:w-full px-10 max-md:top-3 md:top-36 flex justify-center md:w-1/3">
-            <v-autocomplete
-                auto-select-first
-                label="Search"
-                class="search relative"
-                autofocus
-                variant="solo-filled"
-                return-object
-                :loading="isSearching"
-                @update:search="searchUpdated"
-                @update:model-value="searchItemClicked"
-                :items="searchResults"
-                no-filter
-                item-color="black"
-                bg-color="black"
-                base-color="black"
-            >
-                <template v-slot:item="{ props, item }">
-                    <v-list-item v-bind="props" title="" variant="flat">
-                        <div v-if="item?.raw" class="flex justify-between p-3">
-                            <div class="max-md:w-2/3 md:w-3/4 max-md:text-sm">
-                                <div class="title">
-                                    {{ item.raw.title || item.raw.name }}
-                                </div>
-                                <div class="text-neutral-400 capitalize flex gap-2 max-md:text-xs">
-                                    <div v-if="item.raw.release_date || item.raw.first_air_date">
-                                        {{ (item.raw.release_date || item.raw.first_air_date).slice(0, 4) }} -
+        <div class="md:flex md:justify-center relative h-full">
+            <div class="absolute max-md:w-full md:px-10 md:top-36 md:flex md:justify-center md:w-1/3">
+                <v-autocomplete
+                    auto-select-first
+                    label="Search"
+                    class="search relative"
+                    autofocus
+                    variant="solo-filled"
+                    return-object
+                    :loading="isSearching"
+                    @update:search="searchUpdated"
+                    @update:model-value="searchItemClicked"
+                    :items="searchResults"
+                    no-filter
+                    item-color="black"
+                    bg-color="black"
+                    base-color="black"
+                >
+                    <template v-slot:item="{ props, item }">
+                        <v-list-item v-bind="props" title="" variant="flat">
+                            <div v-if="item?.raw" class="flex justify-between p-3 h-48">
+                                <div class="max-md:w-2/3 md:w-3/4 max-md:text-sm h-full">
+                                    <div class="title">
+                                        {{ item.raw.title || item.raw.name }}
                                     </div>
-                                    <div>
-                                        {{ item.raw.media_type }}
+                                    <div class="text-neutral-400 capitalize flex gap-2 max-md:text-xs">
+                                        <div v-if="item.raw.release_date || item.raw.first_air_date">
+                                            {{ (item.raw.release_date || item.raw.first_air_date).slice(0, 4) }} -
+                                        </div>
+                                        <div>
+                                            {{ item.raw.media_type }}
+                                        </div>
                                     </div>
-                                </div>
-                                <div :key="`${isMounted}`" class="flex gap-2 mt-2 flex-wrap">
-                                    <div v-for="genre in item.raw.genres">
-                                        <v-chip class="text-md" rounded :size="$vuetify.display.mdAndUp?'small':'x-small'">
-                                            {{ genre.name }}
-                                        </v-chip>
+                                    <div :key="`${isMounted}`" class="flex gap-2 mt-2 flex-wrap">
+                                        <div v-for="genre in item.raw.genres">
+                                            <v-chip class="text-md" rounded :size="$vuetify.display.mdAndUp?'small':'x-small'">
+                                                {{ genre.name }}
+                                            </v-chip>
+                                        </div>
                                     </div>
+                                    <!-- <Ratings :googleData="{}" :tmdbRating="item.raw.vote_average" :itemId="item.raw.id"
+                                        :small="true" class="mt-2"/> -->
                                 </div>
-                                <!-- <Ratings :googleData="{}" :tmdbRating="item.raw.vote_average" :itemId="item.raw.id"
-                                    :small="true" class="mt-2"/> -->
+                                <div class="max-md:w-1/3 md:w-1/4 h-full">
+                                    <v-img
+                                        :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w185
+                                            }${$vuetify.display.mdAndDown?item.raw.poster_path:item.raw.poster_path || item.raw.profile_path}`"
+                                        class="rounded-md"
+                                        :alt="item.raw.title"
+                                    >
+                                        <template v-slot:placeholder>
+                                            <v-skeleton-loader type="image" class="w-full h-full"></v-skeleton-loader>
+                                        </template>
+                                        <template v-slot:error>
+                                            <v-skeleton-loader type="image" class="w-full h-full">
+                                                <div class="bg-neutral-700 w-full h-full"></div>
+                                            </v-skeleton-loader>
+                                        </template>
+                                    </v-img>
+                                </div>
                             </div>
-                            <div class="max-md:w-1/3 md:w-1/4">
-                                <v-img
-                                    :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w185
-                                        }${item.raw.backdrop_path || item.raw.profile_path}`"
-                                    height="100"
-                                    width="100%"
-                                    class="rounded-md"
-                                    cover
-                                    :alt="item.raw.title"
-                                >
-                                    <template v-slot:placeholder>
-                                        <v-skeleton-loader type="image" class="w-full h-full"></v-skeleton-loader>
-                                    </template>
-                                    <template v-slot:error>
-                                        <v-skeleton-loader type="image" class="w-full h-full">
-                                            <div class="bg-neutral-700 w-full h-full"></div>
-                                        </v-skeleton-loader>
-                                    </template>
-                                </v-img>
-                            </div>
-                        </div>
-                    </v-list-item>
-                </template>
-            </v-autocomplete>
-        </div>
+                        </v-list-item>
+                    </template>
+                </v-autocomplete>
+            </div>
         </div>
     </v-overlay>
 </template>
@@ -325,20 +322,6 @@ const bottomNavItemClicked = (item: any) => {
 }
 </script>
 
-<style scoped lang="less">
-// .anim-icon {
-//     animation: stroke 6s infinite alternate;
-// }
-// @keyframes stroke {
-// 	0%   { color: #E50914}
-// 	50%  { color: white}
-// 	100%  { color: #00A8E1 }
-// }
-:deep(.v-chip) {
-    border-width: 2px !important;
-}
-</style>
-
 <style lang="less">
 .v-autocomplete__content {
     max-height: calc(100vh - 20rem) !important;
@@ -346,6 +329,12 @@ const bottomNavItemClicked = (item: any) => {
     .v-list-item {
         background-color: #111;
         border-bottom: 1px solid #333;
+    }
+}
+@media (max-width: 768px) {
+    .v-autocomplete__content {
+        left: 0 !important;
+        max-height: calc(100vh - 10rem) !important;
     }
 }
 </style>

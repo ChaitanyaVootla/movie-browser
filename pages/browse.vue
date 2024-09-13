@@ -312,6 +312,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '#imports';
+import _ from 'lodash';
 import { baseDiscoverQuery } from '~/utils/constants';
 
 let selectedType = ref(0);
@@ -465,6 +466,8 @@ const loadMore = async () => {
     loadData();
 }
 
+const trottledLoadMore = _.throttle(loadMore, 1000);
+
 const searchKeywords = async (search: string) => {
     if (!search || search.length < 3) {
         keywordSearchResults.value = [];
@@ -579,7 +582,7 @@ const handleScroll = () => {
 function onScroll() {
   handleScroll()
   if (isAtEnd.value && !pending.value) {
-    loadMore()
+    trottledLoadMore()
   }
 }
 

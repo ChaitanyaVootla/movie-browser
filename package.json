@@ -36,6 +36,7 @@
     "@iconify/json": "^2.2.145",
     "@mdi/font": "^7.3.67",
     "@pinia/nuxt": "^0.5.1",
+    "@vueuse/core": "^11.0.3",
     "lodash": "^4.17.21",
     "mongoose": "8.0.2",
     "next-auth": "4.21.1",
