@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="mb-5">
         <div class="title -mb-1 md:mb-1 md:ml-14">
             <slot name="title">
                 <div class="text-sm md:text-xl font-medium flex justify-start items-center gap-1">
@@ -19,11 +19,9 @@
             </ClientOnly>
             <div class="flex gap-2 md:gap-4 overflow-y-auto w-full slider">
                 <div v-for="item in (items || Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
-                    <IntersectionLoader>
-                        <slot :item="item">
-                            <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
-                        </slot>
-                    </IntersectionLoader>
+                    <slot :item="item">
+                        <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
+                    </slot>
                 </div>
             </div>
             <div class="h-auto w-14 flex items-center justify-center cursor-pointer max-md:hidden group" v-on:click="slideRight">

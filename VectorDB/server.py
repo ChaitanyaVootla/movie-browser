@@ -118,7 +118,7 @@ def recommend():
         average_embedding = average_embedding.tolist()
 
     start_time = time.time()
-    results = perform_query(average_embedding, hideWatched and watchedMovieIds or [0], ratingCutoff, 50)
+    results = perform_query(average_embedding, hideWatched and watchedMovieIds or [0], ratingCutoff, 20)
     print(f"chroma query took {round(time.time() - start_time, 2)} seconds")
 
     ids = [int(id) for id in results['ids'][0]]

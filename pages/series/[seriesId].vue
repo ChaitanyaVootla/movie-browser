@@ -17,6 +17,9 @@
                         <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
                             :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
                         </v-btn>
+                        <v-btn @click="share" icon="mdi-share-variant" :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'"
+                            :color="''">
+                        </v-btn>
                     </div>
                     <div class="flex w-full items-start gap-4 flex-wrap max-md:justify-center md:justify-start
                         max-md:mt-3 md:mt-5">
@@ -86,9 +89,6 @@
                     <v-card class="px-4 py-4" color="#151515">
                         <h1 class="text-lg font-semibold flex items-center gap-4">
                             {{ series.name }}
-                            <div class="text-neutral-400 text-base cursor-pointer" @click="share">
-                                <v-icon class="!text-sm">mdi-share-variant</v-icon> share
-                            </div>
                         </h1>
                         <div class="flex items-center gap-5 flex-wrap mt-1">
                             <h2>Overview</h2>

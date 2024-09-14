@@ -275,11 +275,11 @@
         </div>
     </div>
     <div v-if="$vuetify.display.mdAndDown" @click="showFilter"
-        class="h-10 w-10 bg-neutral-700 flex items-center justify-center
-            rounded-xl fixed z-[100]
-            shadow-lg border-2 border-neutral-600"
-        :class="{'top-4 right-3': filtersVisible, ' bottom-14 left-3': !filtersVisible}">
-        <v-icon :icon="filtersVisible?'mdi-close':'mdi-filter-variant'"></v-icon>
+        class="h-10 flex items-center justify-center fixed bottom-14 w-full">
+        <div class="rounded-xl z-[100] shadow-lg shadow-black px-5 py-1 bg-neutral-700">
+            <v-icon :icon="filtersVisible?'mdi-close':'mdi-filter-variant'"></v-icon>
+            {{filtersVisible?'Apply':'Filters'}}
+        </div>
     </div>
     <v-dialog width="500" v-model="isFilterDialogActive">
         <v-card :title="selectedFilter._id?'Update Filter':'Create Filter'">
@@ -424,7 +424,7 @@ const loadData = async () => {
             method: 'POST',
             body: JSON.stringify({
                 ...query,
-                include_adult: true,
+                // include_adult: true,
                 page: ++pageTrack,
             })
         }),
@@ -432,7 +432,7 @@ const loadData = async () => {
             method: 'POST',
             body: JSON.stringify({
                 ...query,
-                include_adult: true,
+                // include_adult: true,
                 page: ++pageTrack
             })
         })

@@ -9,6 +9,7 @@ services:
       - 27017:27017
     volumes:
       - movie-browser_mongodb:/data/db
+    restart: always
 
 volumes:
   movie-browser_mongodb:
