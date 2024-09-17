@@ -1,5 +1,8 @@
 export const stripLogos = (item: any) => {
     const englishLogo = item.images?.logos?.find((logo: any) => logo.iso_639_1 === 'en');
+    if (!item.images) {
+        item.images = [];
+    }
     if (!englishLogo) {
         item.images.logos = [];
     } else {
