@@ -241,27 +241,38 @@
                     </div>
                 </div>
             </div>
-            <Grid :items="discoverResults || []" :pending="pending" title="" class="max-md:mx-3 md:mx-10">
+            <Grid :items="filteredDiscoveryResults || []" :pending="pending" title="" class="max-md:mx-3 md:mx-10">
                 <template v-slot:sortaction>
-                    <v-select
-                        v-model="queryParams.sort_by"
-                        hide-details
-                        :items="sortByValues"
-                        single-line
-                        label="Sort By"
-                        variant="plain"
-                        rounded
-                        density="compact"
-                        item-title="text"
-                        item-value="value"
-                        class="sort-by-dropdown"
-                        @update:model-value="freshLoad()"
-                    >
-                        <template v-slot:selection="{ item, index }">
-                            <span v-if="$vuetify.display.mdAndUp" class="text-xs text-neutral-300 mr-2">Sort By</span>
-                            <span class="text-xs md:text-sm">{{ item.title }}</span>
-                        </template>
-                    </v-select>
+                    <div class="flex items-center gap-6">
+                        <v-checkbox
+                            v-model="queryParams.hide_watched"
+                            @update:model-value="freshLoad()"
+                            color="white"
+                            label="Hide Watched"
+                            density="compact"
+                            hide-details
+                            class="!h-8 !text-sm"
+                        ></v-checkbox>
+                        <v-select
+                            v-model="queryParams.sort_by"
+                            hide-details
+                            :items="sortByValues"
+                            single-line
+                            label="Sort By"
+                            variant="plain"
+                            rounded
+                            density="compact"
+                            item-title="text"
+                            item-value="value"
+                            class="sort-by-dropdown"
+                            @update:model-value="freshLoad()"
+                        >
+                            <template v-slot:selection="{ item, index }">
+                                <span v-if="$vuetify.display.mdAndUp" class="text-xs text-neutral-300 mr-2">Sort By</span>
+                                <span class="text-xs md:text-sm">{{ item.title }}</span>
+                            </template>
+                        </v-select>
+                    </div>
                 </template>
                 <template v-slot:default="{}">
                     <div v-if="!pending && $vuetify.display.mdAndUp" class="text-neutral-200 text-sm mr-5">
@@ -313,6 +324,7 @@
 <script setup lang="ts">
 import { useAuth } from '#imports';
 import _ from 'lodash';
+import { userStore } from '~/plugins/state';
 import { baseDiscoverQuery } from '~/utils/constants';
 
 let selectedType = ref(0);
@@ -333,6 +345,7 @@ let selectedGlobalFilter = ref({} as any);
 let filterName = ref('');
 let isGlobal = ref(false);
 const isAtEnd = ref(false)
+const userData = userStore();
 
 let filteredKeywords = computed(() => {
     return [...keywordSearchResults.value, ...selectedKeywords.value];
@@ -371,8 +384,10 @@ const genres = computed(() => {
 const sortByValues = [
     { text: 'Popularity', value: 'popularity.desc' },
     { text: 'Rating', value: 'vote_average.desc' },
-    { text: 'Release Date', value: 'release_date.desc' },
+    { text: 'Newest', value: 'release_date.desc' },
+    { text: 'Oldest', value: 'release_date.asc' },
     { text: 'Revenue', value: 'revenue.desc' },
+    { text: 'Vote count', value: 'vote_count.desc' },
 ];
 
 let query = {} as any;
@@ -407,6 +422,14 @@ const freshLoad = async () => {
     totalResults.value = (await loadData()).total_results as number;
 }
 
+const filteredDiscoveryResults = computed(() => {
+    if (queryParams.value.hide_watched) {
+        return discoverResults.value.filter(({ id }) => !userData.WatchedMovies.has(id));
+    } else {
+        return discoverResults.value;
+    }
+});
+
 const queryParams = ref<any>({
     ...baseDiscoverQuery,
     ...query,
@@ -437,9 +460,13 @@ const loadData = async () => {
             })
         })
     ]);
+    let results = [...(page1?.results || []), ...(page2?.results || [])]
+    if (queryParams.value.hide_watched) {
+        results = results.filter(({ id }) => !userData.WatchedMovies.has(id));
+    }
     const data = {
         total_results: page1?.total_results,
-        results: [...(page1?.results || []), ...(page2?.results || [])]
+        results
     } as {
         total_results: number;
         results: any[];
@@ -665,6 +692,11 @@ useHead({
     }
     :deep(.v-field__append-inner) {
         padding-top: 5px !important;
+    }
+}
+.v-checkbox {
+    :deep(.v-label) {
+        font-size: 13px;
     }
 }
 </style>

@@ -6,8 +6,6 @@ export default defineEventHandler(async () => {
     const allItemsMovies = allItems.filter((item: any) => item.media_type === 'movie');
     const allItemsTv = allItems.filter((item: any) => item.media_type === 'tv');
 
-    console.log(allItems);
-
     const movieIdsToFetchFullData = allItemsMovies.map((item: any) => item.id).filter(Boolean);
     movieIdsToFetchFullData.push(...streamingNow.map((item: any) => item.id).filter(Boolean));
     const allItemMoviefullInfo = await $fetch(`/api/movie/getMultiple?movieIds=${

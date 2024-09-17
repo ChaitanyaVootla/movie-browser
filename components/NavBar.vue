@@ -14,7 +14,7 @@
                     Browse
                 </div>
             </NuxtLink>
-            <NuxtLink to="/movie">
+            <!-- <NuxtLink to="/movie">
                 <v-menu open-on-hover :open-delay="0">
                     <template v-slot:activator="{ props }">
                         <div class="flex items-center gap-1" aria-label="Go To Movies" v-bind="props">
@@ -32,6 +32,13 @@
                 <div class="flex items-center gap-1" aria-label="Go To Series">
                     <v-icon icon="mdi-television" size="small" />
                     Series
+                </div>
+            </NuxtLink> -->
+            <NuxtLink to="/dynamicLists">
+                <div class="flex items-center gap-1" aria-label="Go To Dynamic Lists">
+                    <span class="material-symbols-outlined !text-[22px] md:!text-3xl text">dynamic_feed</span>
+                    Lists
+                    <span class="text-neutral-400 text-xs italic ml-1">DYNAMIC</span>
                 </div>
             </NuxtLink>
             <NuxtLink to="/watchList" aria-label="Go To Watch List">

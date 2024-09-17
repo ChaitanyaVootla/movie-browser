@@ -1,10 +1,17 @@
 import { Movie, MovieLightFileds, Series, SeriesLightFileds } from "../models";
+import { getObjectSha } from "../utils/crypto";
 
 export default defineEventHandler(async (event) => {
     const params = getQuery(event);
     const query = await readBody(event);
     if (!query || !query?.media_type) {
         return [];
+    }
+
+    // Check if the request is cached
+    const cachedData = await useStorage('discovery').getItem(getObjectSha(query));
+    if (cachedData) {
+        return cachedData;
     }
 
     const queryStr = Object.keys(query)
@@ -41,5 +48,6 @@ export default defineEventHandler(async (event) => {
             })
         }
     }
+    useStorage('discovery').setItem(getObjectSha(query), tmdbRes);
     return tmdbRes;
 });

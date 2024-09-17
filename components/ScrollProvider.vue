@@ -1,5 +1,5 @@
 <template>
-    <Scroller :items="scrollItems" :title="scrollItem.name" :pending="pending">
+    <Scroller ref="lazyLoader" :items="scrollItems" :title="scrollItem.name" :pending="pending">
         <template v-slot:title>
             <div class="flex items-center max-md:justify-between">
                 <NuxtImg v-if="scrollItem.logo" :src="scrollItem.logo" :alt="scrollItem.name" class="h-10 object-cover -m-0" :class="scrollItem.name" />
@@ -18,7 +18,10 @@
 </template>
 
 <script setup lang="ts">
+import { useIntersectionObserver } from '@vueuse/core';
+
 const sortOrder = ref(0);
+const lazyLoader = ref<HTMLElement | null>(null);
 const { scrollItem } = defineProps<{
     scrollItem: any,
     hideQuickFilter?: boolean
@@ -40,6 +43,7 @@ const { data: scrollItems, pending, refresh }: any = useLazyAsyncData(`scrollDis
         }
         return results;
     },
+    immediate: false,
     server: false
 });
 
@@ -47,6 +51,24 @@ const changeSort = () => {
     scrollItem.filterParams.sort_by = sortOrder.value === 0 ? 'popularity.desc' : 'release_date.desc';
     refresh();
 }
+
+const { stop } = useIntersectionObserver(
+    lazyLoader,
+    ([{ isIntersecting }]) => {
+        if (isIntersecting) {
+            refresh();
+            stop();
+        }
+    },
+    {
+        rootMargin: '500px',
+        threshold: 0,
+    }
+);
+
+onUnmounted(() => {
+    stop();
+});
 </script>
 
 <style scoped lang="less">

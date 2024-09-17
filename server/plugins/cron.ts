@@ -8,4 +8,12 @@ export default defineNitroPlugin(async (nitroApp) => {
     cron.schedule('0 3 * * *', async () => {
         $fetch(`/api/trending/trendingTmdb`);
     });
+    // New cron job to clear storage every hour
+    cron.schedule('0 * * * *', async () => {
+        try {
+            useStorage('discovery').clear();
+        } catch (error) {
+            console.error('Error clearing storage:', error);
+        }
+    });
 });
