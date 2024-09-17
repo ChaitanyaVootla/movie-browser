@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
       updateMovies(allItemsMovies.map((item: any) => item.id).filter(Boolean));
       updateSeries(allItemsTv.map((item: any) => item.id).filter(Boolean));
       return {
-        allItems,
+        allItems: allItems.filter((item: any) => ['movie', 'tv'].includes(item.media_type)),
         movies,
         tv,
         streamingNow,

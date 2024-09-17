@@ -356,7 +356,7 @@ const updateMovie = async () => {
 }
 
 const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-recommend`,
-    () => $fetch(`/api/movie/${useRoute().params.movieId}/recommend`, { headers }).catch((err) => {
+    () => $fetch(`/api/movie/${useRoute().params.movieId}/recommend?ratingGte=6`, { headers }).catch((err) => {
         console.log(err);
         return {};
     }),
