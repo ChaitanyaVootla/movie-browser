@@ -34,11 +34,10 @@
                     Series
                 </div>
             </NuxtLink> -->
-            <NuxtLink to="/dynamicLists">
+            <NuxtLink to="/topics">
                 <div class="flex items-center gap-1" aria-label="Go To Dynamic Lists">
                     <span class="material-symbols-outlined !text-[22px] md:!text-3xl text">dynamic_feed</span>
-                    Lists
-                    <span class="text-neutral-400 text-xs italic ml-1">DYNAMIC</span>
+                    Topics
                 </div>
             </NuxtLink>
             <NuxtLink to="/watchList" aria-label="Go To Watch List">
@@ -154,6 +153,11 @@
                         <v-list-item>
                             <NuxtLink to="/profile">
                                 Profile
+                            </NuxtLink>
+                        </v-list-item>
+                        <v-list-item>
+                            <NuxtLink to="/topics">
+                                Topics
                             </NuxtLink>
                         </v-list-item>
                         <v-list-item>

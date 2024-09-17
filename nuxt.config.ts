@@ -85,7 +85,7 @@ export default defineNuxtConfig({
     '/api/youtube/**': { cors: true, cache: { maxAge:  60 * 60 * 24 * 4 } },
     '/api/series/**/season/**': { cors: true, swr:  60 * 60 * 12 },
     '/api/search/**': { cors: true, swr:  60 * 60 * 12 },
-    // '/api/person/**': { cors: true, swr:  60 * 60 * 12 },
+    '/api/person/**': { cors: true, cache: { maxAge:  60 * 60 * 12 } },
     '/api/trending/trendingTmdb': { cors: true, cache: { maxAge:  60 * 60 * 6 } },
     '/images/**': {
       headers: {

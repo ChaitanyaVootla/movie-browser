@@ -1,11 +1,12 @@
 <template>
-    <div class="md:mt-5"></div>
-    <ScrollProvider v-for="filter in globalFilters" :scrollItem="filter">
-    </ScrollProvider>
+    <div class="mt-2 md:mt-5 max-md:px-4">
+        <ScrollProvider v-for="filter in globalFilters" :scrollItem="filter">
+        </ScrollProvider>
+    </div>
 </template>
 
 <script setup lang="ts">
-const { data: globalFilters, refresh: refreshGlobalFilters }: any = useLazyAsyncData('globalFilters', async () => {
+const { data: globalFilters }: any = useLazyAsyncData('globalFiltersTopics', async () => {
     return await $fetch('/api/filters');
 }, {
     default: () => ([] as any[]),
