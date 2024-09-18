@@ -2,7 +2,7 @@
   <div ref="lazyLoader">
     <slot v-if="isViewIntersecting"></slot>
     <v-skeleton-loader v-else type="image" :class="`max-md:w-[${mobileWidth}] max-md:h-[${mobileHeight}]
-        md:w-[${width}] md:h-[${height}]`"></v-skeleton-loader>
+        md:w-[${width}] md:h-[${height}]`" color="black"></v-skeleton-loader>
   </div>
 </template>
 

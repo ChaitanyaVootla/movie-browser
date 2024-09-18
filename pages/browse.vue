@@ -200,7 +200,7 @@
             <div class="flex justify-center mt-10">
                 <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
                     :disabled="selectedFilter._id">
-                    Create Filter
+                    Create Topic
                 </v-chip>
             </div>
         </div>

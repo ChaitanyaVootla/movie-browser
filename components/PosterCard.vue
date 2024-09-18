@@ -2,7 +2,7 @@
 <span class="md:w-[15rem] md:h-[25rem] hidden"></span>
 <span class="max-md:h-[12rem] max-md:w-[8rem] hidden"></span>
 <IntersectionLoader height="25rem" width="15rem" mobileHeight="12rem" mobileWidth="8rem">
-    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" v-memo="[watched, inWatchList]">
+    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" v-memo="[item.id, watched, inWatchList]">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative md:hover:mb-1 md:hover:-mt-1 hover:transition-all duration-300" :class="{'scale-95': watched}">
                 <v-img
@@ -13,10 +13,10 @@
                     :alt="`${item.title || item.name} poster`"
                     :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
                     <template v-slot:placeholder>
-                        <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
+                        <v-skeleton-loader color="black" type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
                     <template v-slot:error>
-                        <v-skeleton-loader type="image" class="image w-full h-full">
+                        <v-skeleton-loader color="black" type="image" class="image w-full h-full">
                             <div></div>
                         </v-skeleton-loader>
                     </template>
@@ -146,6 +146,7 @@ const toggleWatchList = () => {
 // reduce image-width for mobile
 @media (max-width: 640px) {
     .card {
+        flex: 0 0 auto;
         width: @image-mobile-width;
         .image {
             height: @image-mobile-height;
