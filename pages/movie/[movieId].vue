@@ -13,14 +13,14 @@
             <div class="max-md:pt-3 md:pt-5">
                 <div class="px-3 md:mx-12 overview">
                     <div class="flex max-md:justify-center gap-2 md:gap-4 max-md:mb-3 md:mb-5 overflow-x-auto">
-                        <UserRating :liked="true" :disliked="false" :likes="10" :dislikes="5" itemType="movie" :itemId="movie.id" />
+                        <UserRating itemType="movie" :itemId="movie.id" @show-login="showLogin"/>
                         <v-btn :key="`${isMounted}`" @click="watchClicked()" :icon="watched?'mdi-check':'mdi-eye-outline'" :color="(watched === true)?'primary':''"
                             :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
                         </v-btn>
                         <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
                             :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
                         </v-btn>
-                        <v-btn @click="share" icon="mdi-share-variant" :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'"
+                        <v-btn :key="`${isMounted}`" @click="share" icon="mdi-share" :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'"
                             :color="''">
                         </v-btn>
                     </div>
@@ -140,11 +140,11 @@
         </div>
         <Login ref="loginRef" />
         <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
-            Updating latest ratings and watch links
+            <span class="text-xs">Updating latest ratings and watch links</span>
             <template v-slot:actions>
                 <v-btn
                     color="white"
-                    size="small"
+                    size="x-small"
                     variant="text"
                     @click="snackbar = false"
                 >
@@ -310,25 +310,15 @@ watch(computedWatchlist, (newValue) => {
 
 const watchClicked = () => {
     if (status.value !== 'authenticated') {
-        loginRef.value.openDialog();
+        showLogin();
         return;
     }
-    // watched.value = !watched.value;
-    // if (watched.value === true) {
-    //     $fetch(`/api/user/movie/${movie.value.id}/watched`, {
-    //         method: 'POST',
-    //     })
-    // } else {
-    //     $fetch(`/api/user/movie/${movie.value.id}/watched`, {
-    //         method: 'DELETE',
-    //     })
-    // }
     userData.toggleWatchMovie(movie.value.id);
 }
 
 const watchListClicked = () => {
     if (status.value !== 'authenticated') {
-        loginRef.value.openDialog();
+        showLogin();
         return;
     }
     watchlist.value = !watchlist.value;
@@ -343,9 +333,13 @@ const watchListClicked = () => {
     }
 }
 
+const showLogin = () => {
+    loginRef.value.openDialog();
+}
+
 const updateMovie = async () => {
     if (status.value !== 'authenticated') {
-        loginRef.value.openDialog();
+        showLogin();
         return;
     }
     updatingMovie.value = true;

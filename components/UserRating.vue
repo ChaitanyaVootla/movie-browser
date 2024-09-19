@@ -28,6 +28,8 @@ const itemLikes = ref(0)
 const itemDislikes = ref(0)
 const liked = ref(false)
 const disliked = ref(false)
+const { status } = useAuth();
+const emits = defineEmits(['show-login'])
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit
 const likeRatio = computed(() => {
@@ -39,6 +41,10 @@ onMounted(() => {
 });
 
 const addUserRating = (rating: number) => {
+    if (status.value !== 'authenticated') {
+        emits('show-login');
+        return;
+    }
     $fetch(`/api/user/ratings`,
         {
             headers,
@@ -59,6 +65,10 @@ const addUserRating = (rating: number) => {
     }
 }
 const removeUserRating = () => {
+    if (status.value !== 'authenticated') {
+        emits('show-login');
+        return;
+    }
     $fetch(`/api/user/ratings`,
         {
             headers,

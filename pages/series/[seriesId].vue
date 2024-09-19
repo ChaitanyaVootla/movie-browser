@@ -13,12 +13,12 @@
             <div>
                 <div class="px-3 md:mx-12 mt-3">
                     <div class="identify max-md:justify-center flex gap-2 md:gap-6 mb-0 md:mb-5 overflow-x-auto">
-                        <UserRating itemType="series" :itemId="series.id" />
+                        <UserRating itemType="series" :itemId="series.id" @show-login="showLogin" />
                         <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
                             :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
                         </v-btn>
-                        <v-btn @click="share" icon="mdi-share-variant" :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'"
-                            :color="''">
+                        <v-btn :key="`${isMounted}`" @click="share" icon="mdi-share" :elevation="5"
+                            :size="$vuetify.display.mdAndUp?'small':'x-small'" :color="''">
                         </v-btn>
                     </div>
                     <div class="flex w-full items-start gap-4 flex-wrap max-md:justify-center md:justify-start
@@ -181,7 +181,7 @@
             <Episode :episode="selectedEpisode" />
         </v-dialog>
         <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
-            Updating latest ratings and watch links
+            <span class="text-sm">Updating latest ratings and watch links</span>
             <template v-slot:actions>
                 <v-btn
                     color="white"
@@ -357,7 +357,7 @@ const statusText = computed(() => {
 
 const updateSeries = async () => {
     if (status.value !== 'authenticated') {
-        loginRef.value.openDialog();
+        showLogin();
         return;
     }
     updatingSeries.value = true;
@@ -365,6 +365,10 @@ const updateSeries = async () => {
     series.value = mapSeries(updatedSeries);
     updatingSeries.value = false;
     seriesUpdateKey.value += 1;
+}
+
+const showLogin = () => {
+    loginRef.value.openDialog();
 }
 
 const keywordClicked = (keyword: any) => {
@@ -386,7 +390,7 @@ const keywordClicked = (keyword: any) => {
 
 const watchListClicked = () => {
     if (status.value !== 'authenticated') {
-        loginRef.value.openDialog();
+        showLogin();
         return;
     }
     watchlist.value = !watchlist.value;
