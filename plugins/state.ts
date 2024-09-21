@@ -5,6 +5,7 @@ export const userStore = defineStore('user', {
     WatchedMovies: new Set(),
     WatchListMovies: new Set(),
     Recents: [] as any[],
+    loadInfo: {} as any,
   }),
   getters: {
     isMovieWatched: (state: any) => (movieId: string) => {
@@ -86,6 +87,9 @@ export const userStore = defineStore('user', {
         this.WatchedMovies = new Set(watchedMoviesAPI);
         this.WatchListMovies = new Set(watchListMoviesAPI);
         this.Recents = recentsApi;
+    },
+    async loadInfo() {
+        this.loadInfo = await $fetch('/api/onLoad');
     }
   },
 });

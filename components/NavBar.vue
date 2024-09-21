@@ -66,7 +66,7 @@
             </NuxtLink>
         </div>
         <div class="right flex-1 flex justify-end">
-            <div class="flex items-center">
+            <div class="flex items-center gap-5">
                 <v-chip class="rounded-xl px-5 py-4 cursor-pointer flex" @click="showSearchOverlay = true"
                     color="#333" variant="outlined" size="default" :border="1">
                     <div class="flex justify-center items-center gap-1 text-neutral-100">
@@ -77,14 +77,15 @@
                         </v-chip>
                     </div>
                 </v-chip>
-                <div class="ml-5">
+                <CountrySelector :key="userData.loadInfo.countryCode" v-model="userData.loadInfo.countryCode" />
+                <div>
                     <div v-if="status === 'unauthenticated' || status === 'loading'">
                         <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="h-10 cursor-pointer" />
                     </div>
-                    <div v-else>
+                    <div class="flex items-center gap-6" v-else>
                         <v-menu>
                             <template v-slot:activator="{ props }">
-                                <v-avatar :image="(data?.user?.image as string)" :size="38" class="relative cursor-pointer"
+                                <v-avatar :image="(data?.user?.image as string)" :size="32" class="relative cursor-pointer"
                                     v-bind="props">
                                 </v-avatar>
                             </template>
@@ -254,8 +255,9 @@ const isSearching = ref(false);
 const isMounted = ref(false);
 const isMac = ref(false);
 let searchResults = ref([] as any[]);
+const userData = userStore();
 
-onMounted(() => {
+onMounted(async () => {
     isMounted.value = true;
     isMac.value = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
     window.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -270,8 +272,9 @@ onMounted(() => {
     });
 
     if (status.value === 'authenticated') {
-        userStore().setupStore();
+        userData.setupStore();
     }
+    userData.loadInfo();
 });
 
 const isAdmin = computed(() => {

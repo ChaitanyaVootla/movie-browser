@@ -63,11 +63,11 @@
                     </div>
                 </div>
             </div>
-            <h3 v-once class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
+            <h3 class="title overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 group-hover:mt-4 text-neutral-200
                 hidden md:block text-sm">
                 {{ item.character || item.job || item.title || item.name }}
             </h3>
-            <div v-if="item.infoText" v-once class=" text-neutral-400 text-2xs md:text-sm capitalize">
+            <div v-if="item.infoText" class=" text-neutral-400 text-2xs md:text-sm capitalize">
                 {{ item.infoText }}
             </div>
             <!-- <div v-if="item.distance" class="text-neutral-400">
