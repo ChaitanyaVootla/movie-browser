@@ -1,9 +1,9 @@
 <template>
     <div v-if="watchOptions.length" class="flex">
         <div class="flex justify-center flex-wrap max-md:gap-3 md:gap-4 bg-neutral-800
-            max-md:px-2 md:px-4 max-md:pt-4 max-md:pb-2 md:pt-6 md:pb-2 rounded-2xl relative min-w-52">
+            max-md:px-2 md:px-4 max-md:pt-4 max-md:pb-2 md:pt-6 md:pb-2 rounded-2xl relative min-w-28">
             <div class="absolute w-full -top-2 flex max-md:justify-center md:justify-start md:ml-5">
-                <div class="left-2 bg-neutral-600 px-3 py-0 rounded-full text-xs
+                <div class="left-2 bg-neutral-600 px-2 py-0 rounded-full text-xs
                     md:text-sm text-neutral-200 font-light flex items-center gap-5">
                     Watch Now
                     <v-menu v-if="false" v-model="isOpen" :close-on-content-click="false">

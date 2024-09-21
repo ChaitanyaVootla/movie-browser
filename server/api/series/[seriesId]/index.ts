@@ -50,7 +50,7 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
     let series = {} as any;
     let canUpdate = false;
 
-    const dbSeries = await Series.findOne({ id: seriesId }).select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar');
+    const dbSeries = await Series.findOne({ id: seriesId }).select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar -watchProviders');
     // @ts-ignore
     if (dbSeries?.name) {
         series = dbSeries.toJSON();
