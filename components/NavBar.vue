@@ -36,7 +36,8 @@
             </NuxtLink> -->
             <NuxtLink to="/topics">
                 <div class="flex items-center gap-1" aria-label="Go To Dynamic Lists">
-                    <span class="material-symbols-outlined !text-[22px] md:!text-3xl text">dynamic_feed</span>
+                    <span class="material-symbols-outlined !text-[22px] md:!text-2xl text"
+                    style="font-variation-settings: 'FILL' 1;">view_object_track</span>
                     Topics
                 </div>
             </NuxtLink>

@@ -1,14 +1,14 @@
 <template>
   <v-menu v-model="isOpen" :close-on-content-click="false">
     <template v-slot:activator="{ props }">
-      <v-btn v-bind="props" class="text-none" color="#222">
-        {{ selectedCountry.code }}
-        <v-img 
+      <div v-bind="props" class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2">
+        <v-img
           :src="`https://flagcdn.com/${selectedCountry.code.toLowerCase()}.svg`"
           :alt="`Flag of ${selectedCountry.name}`"
-          class="w-6 rounded-sm ml-2"
+          class="w-6 h-4 rounded-md"
         ></v-img>
-      </v-btn>
+        <div class="text-xs text-neutral-300">{{ selectedCountry.code }}</div>
+      </div>
     </template>
     <v-card min-width="300">
       <v-card-text>
@@ -28,13 +28,7 @@
           @click="selectCountry(country)"
         >
           <v-list-item-title>
-            {{ country }}
-            <v-img 
-              :src="`https://flagcdn.com/${getCode(country)?.toLowerCase()}.svg`"
-              :alt="`Flag of ${country}`"
-              width="24"
-              class="ml-2 d-inline-block"
-            ></v-img>
+              {{ country }}
           </v-list-item-title>
         </v-list-item>
       </v-list>
@@ -54,12 +48,10 @@ interface Country {
 const props = withDefaults(defineProps<{
   modelValue?: string;
 }>(), {
-  modelValue: 'US'
+  modelValue: 'IN'
 })
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: string): void
-}>()
+const emit = defineEmits<(e: 'update:modelValue', value: string) => void>()
 
 const isOpen = ref(false)
 const search = ref('')

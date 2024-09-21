@@ -200,8 +200,6 @@ export const baseDiscoverQuery = {
     with_cast: [],
     with_crew: [],
     with_watch_monetization_types: '',
-    // TODO udpate with user region
-    watch_region: 'IN',
     "with_runtime.gte": '',
     "with_runtime.lte": '',
     with_release_type: '',

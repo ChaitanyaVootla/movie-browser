@@ -41,7 +41,7 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
     let canUpdate = false;
 
     const dbMovie = await Movie.findOne({ id: movieId })
-        .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates');
+        .select('-_id -__v -external_ids -images.posters -production_countries -spoken_languages -releaseDates');
     if (dbMovie?.title) {
         movie = dbMovie.toJSON();
     }

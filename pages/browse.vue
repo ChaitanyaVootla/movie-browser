@@ -1,7 +1,7 @@
 <template>
     <div class="flex max-h-scren w-full overflow-y-auto">
         <div v-if="$vuetify.display.mdAndUp || filtersVisible" id="filters"
-            class="w-[calc(15%)] min-w-60 h-full bg-neutral-900 px-4"
+            class="w-[calc(15%)] min-w-64 h-full bg-neutral-900 px-4"
             :class="{'!w-screen': filtersVisible}">
             <div class="top-action flex justify-center mb-6 mt-6">
                 <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad"
@@ -16,6 +16,8 @@
             </div>
 
             <div class="flex flex-col gap-6">
+                <v-divider></v-divider>
+                <div class="text-neutral-200">Genres and Keywords</div>
                 <v-autocomplete
                     v-model="queryParams.with_genres"
                     clearable
@@ -31,33 +33,6 @@
                     item-value="id"
                     @update:model-value="freshLoad()"
                 ></v-autocomplete>
-                <v-autocomplete
-                    v-model="queryParams.with_watch_providers"
-                    clearable
-                    single-line
-                    :items="WATCH_PROVIDERS"
-                    multiple
-                    :chips="true"
-                    closable-chips
-                    label="Watch Providers"
-                    hint="Netflix, Amazon Prime etc."
-                    persistent-hint
-                    variant="outlined"
-                    density="compact"
-                    item-title="provider_name"
-                    item-value="provider_id"
-                    auto-select-first
-                    @update:model-value="freshLoad()"
-                >
-                    <template v-slot:item="{ props, item }">
-                        <v-list-item
-                            v-bind="props"
-                            :prepend-avatar="`https://image.tmdb.org/t/p/${configuration.images.logo_sizes.w45}${item.raw.logo_path}`"
-                            :title="item.raw.provider_name"
-                            density="compact"
-                        ></v-list-item>
-                    </template>
-                </v-autocomplete>
                 <v-autocomplete
                     v-model="queryParams.with_keywords"
                     clearable
@@ -78,6 +53,42 @@
                     item-value="id"
                     @update:model-value="freshLoad()"
                 ></v-autocomplete>
+                <v-divider></v-divider>
+                <div class="flex flex-col gap-2">
+                    <div class="text-neutral-200 flex items-center justify-between">
+                        <div>Watch Providers</div> 
+                        <CountrySelector :key="userData.loadInfo.countryCode" v-model="userData.loadInfo.countryCode" @update:model-value="freshLoad()" />
+                    </div>
+                    <v-autocomplete
+                        :key="userData.loadInfo.countryCode"
+                        v-model="queryParams.with_watch_providers"
+                        clearable
+                        single-line
+                        :items="WATCH_PROVIDERS"
+                        multiple
+                        :chips="true"
+                        closable-chips
+                        label="Select Providers"
+                        hint="Netflix, Amazon Prime etc."
+                        persistent-hint
+                        variant="outlined"
+                        density="compact"
+                        item-title="provider_name"
+                        item-value="provider_id"
+                        auto-select-first
+                        @update:model-value="freshLoad()"
+                    >
+                        <template v-slot:item="{ props, item }">
+                            <v-list-item
+                                v-bind="props"
+                                :prepend-avatar="`https://image.tmdb.org/t/p/${configuration.images.logo_sizes.w45}${item.raw.logo_path}`"
+                                :title="item.raw.provider_name"
+                                density="compact"
+                            ></v-list-item>
+                        </template>
+                    </v-autocomplete>
+                </div>
+                <v-divider></v-divider>
                 <v-select
                     v-model="queryParams['vote_average.gte']"
                     :items="ratingOptions"
@@ -198,8 +209,8 @@
             </div>
             
             <div class="flex justify-center mt-10">
-                <v-chip variant="flat" color="#444" prepend-icon="mdi-plus" @click="openCreateFilter"
-                    :disabled="selectedFilter._id">
+                <v-chip variant="flat" color="#555" prepend-icon="mdi-plus" @click="openCreateFilter"
+                    :disabled="selectedFilter._id" rounded>
                     Create Topic
                 </v-chip>
             </div>
@@ -412,6 +423,23 @@ const ratingOptions = new Array(10).fill({}).map((item, index) => ({
     text: `${index}+`,
 })).reverse();
 
+const watchProviders = ref<any[]>([]);
+
+watch(() => [userData.loadInfo.countryCode, selectedType], () => {
+    getWatchProviders();
+});
+
+const getWatchProviders = async () => {
+    watchProviders.value = await $fetch('/api/watchProviders', { query: { region: userData.loadInfo.countryCode,
+        type: selectedType.value === 0 ? 'movie' : 'tv' } });
+    if (!watchProviders.value?.length ) {
+        watchProviders.value = await $fetch('/api/watchProviders', { query: { region: 'IN',
+        type: selectedType.value === 0 ? 'movie' : 'tv' } });
+    }
+}
+
+getWatchProviders();
+
 let pageTrack = 0;
 
 const freshLoad = async () => {
@@ -447,6 +475,7 @@ const loadData = async () => {
             method: 'POST',
             body: JSON.stringify({
                 ...query,
+                watch_region: userData.loadInfo.countryCode,
                 // include_adult: true,
                 page: ++pageTrack,
             })
@@ -455,6 +484,7 @@ const loadData = async () => {
             method: 'POST',
             body: JSON.stringify({
                 ...query,
+                watch_region: userData.loadInfo.countryCode,
                 // include_adult: true,
                 page: ++pageTrack
             })
