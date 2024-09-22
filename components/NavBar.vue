@@ -53,12 +53,12 @@
                     AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>
             </NuxtLink>
-            <NuxtLink to="/profile">
+            <!-- <NuxtLink to="/profile">
                 <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To Profile">
                     <v-icon icon="mdi-face-man" size="small" />
                     Profile
                 </div>
-            </NuxtLink>
+            </NuxtLink> -->
             <NuxtLink to="/admin" v-if="isAdmin">
                 <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To AI search">
                     <v-icon icon="mdi-account-supervisor" size="small" />
@@ -90,21 +90,34 @@
                                     v-bind="props">
                                 </v-avatar>
                             </template>
-                            <v-list>
-                                <v-list-item>
-                                    <NuxtLink to="/watchList">
-                                        Watch List
-                                    </NuxtLink>
-                                </v-list-item>
-                                <v-list-item>
-                                    <NuxtLink to="/profile">
-                                        Profile
-                                    </NuxtLink>
-                                </v-list-item>
-                                <v-list-item @click="signOut" class="text-red">
-                                    Sign Out
-                                </v-list-item>
-                            </v-list>
+                            <div class="mt-1 !rounded-lg !bg-neutral-800 min-w-60">
+                                <div class="px-3 py-1 text-xs text-neutral-300 flex items-center">
+                                    <span class="material-symbols-outlined !text-[22px]">location_on</span>
+                                    <span>{{ userData.loadInfo.cityName }}</span>
+                                    <span>{{ userData.loadInfo.stateName }}</span>
+                                    <span>{{ getName(userData.loadInfo.countryCode) }}</span>
+                                </div>
+                                <v-list>
+                                    <v-list-item>
+                                        <NuxtLink to="/watchList">
+                                            Watch List
+                                        </NuxtLink>
+                                    </v-list-item>
+                                    <v-list-item>
+                                        <NuxtLink to="/ratings">
+                                            My Ratings
+                                        </NuxtLink>
+                                    </v-list-item>
+                                    <v-list-item>
+                                        <NuxtLink to="/watched">
+                                            Watch History
+                                        </NuxtLink>
+                                    </v-list-item>
+                                    <v-list-item @click="signOut" class="text-red">
+                                        Sign Out
+                                    </v-list-item>
+                                </v-list>
+                            </div>
                         </v-menu>
                     </div>
                 </div>
@@ -153,11 +166,6 @@
                             Sign Out
                         </v-list-item>
                         <v-list-item>
-                            <NuxtLink to="/profile">
-                                Profile
-                            </NuxtLink>
-                        </v-list-item>
-                        <v-list-item>
                             <NuxtLink to="/topics">
                                 Topics
                             </NuxtLink>
@@ -165,6 +173,16 @@
                         <v-list-item>
                             <NuxtLink to="/watchList">
                                 Watch List
+                            </NuxtLink>
+                        </v-list-item>
+                        <v-list-item>
+                            <NuxtLink to="/ratings">
+                                My Ratings
+                            </NuxtLink>
+                        </v-list-item>
+                        <v-list-item>
+                            <NuxtLink to="/watched">
+                                Watch History
                             </NuxtLink>
                         </v-list-item>
                     </v-list>
@@ -245,6 +263,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '#imports'
+import { getName } from 'country-list';
 import { userStore } from '~/plugins/state';
 
 const { data, status, signIn, signOut } = useAuth();
