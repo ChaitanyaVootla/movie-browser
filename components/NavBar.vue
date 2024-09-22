@@ -91,11 +91,11 @@
                                 </v-avatar>
                             </template>
                             <div class="mt-1 !rounded-lg !bg-neutral-800 min-w-60">
-                                <div class="px-3 py-1 text-xs text-neutral-300 flex items-center gap-2">
-                                    <span class="material-symbols-outlined">location_on</span>
-                                    <span v-if="userData.loadInfo.cityName">{{ userData.loadInfo.cityName}},</span>
-                                    <span v-if="userData.loadInfo.stateName">{{ userData.loadInfo.stateName}},</span>
-                                    <span>{{ getName(userData.loadInfo.countryCode) }}</span>
+                                <div class="px-2 py-1 text-xs text-neutral-300 flex items-center gap-2">
+                                    <span class="material-symbols-outlined w-4">location_on</span>
+                                    <div v-if="userData.loadInfo.cityName">{{ userData.loadInfo.cityName}},</div>
+                                    <div v-if="userData.loadInfo.stateName">{{ userData.loadInfo.stateName}},</div>
+                                    <div>{{ getName(userData.loadInfo.countryCode) }}</div>
                                 </div>
                                 <v-list>
                                     <v-list-item>
