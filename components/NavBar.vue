@@ -265,6 +265,7 @@
 import { useAuth } from '#imports'
 import { getName } from 'country-list';
 import { userStore } from '~/plugins/state';
+import Clarity from '@microsoft/clarity';
 
 const { data, status, signIn, signOut } = useAuth();
 
@@ -293,6 +294,7 @@ onMounted(async () => {
 
     if (status.value === 'authenticated') {
         userData.setupStore();
+        Clarity.identify(data.value?.user?.email || 'anonymous');
     }
     userData.loadInfo();
 });
