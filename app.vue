@@ -37,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import Clarity from '@microsoft/clarity';
 useHead({
   link: [
     {
@@ -45,6 +46,7 @@ useHead({
     }
   ]
 })
+Clarity.init('oxwvg2abnk');
 </script>
 
 <style lang="less">

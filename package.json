@@ -36,6 +36,7 @@
     "@aws-sdk/client-lambda": "^3.481.0",
     "@iconify/json": "^2.2.145",
     "@mdi/font": "^7.3.67",
+    "@microsoft/clarity": "^1.0.0",
     "@pinia/nuxt": "^0.5.1",
     "@vueuse/core": "^11.0.3",
     "country-list": "^2.3.0",
