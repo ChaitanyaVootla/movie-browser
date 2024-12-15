@@ -26,7 +26,8 @@ export default defineEventHandler(async () => {
             ...item,
           }
         }
-      }).map(({id, media_type, title, name, backdrop_path, vote_average, googleData, genres, images, genre_ids, popularity }: any) => ({
+      }).map(({id, media_type, title, name, backdrop_path, vote_average, googleData, genres, images, genre_ids,
+        popularity, homepage }: any) => ({
         id,
         media_type,
         popularity,
@@ -38,6 +39,7 @@ export default defineEventHandler(async () => {
         genre_ids,
         googleData,
         images,
+        homepage,
       })).map((item: any) => stripLogos(item)),
       movies: movies.map(({id, title, poster_path, vote_average }: any) => ({
         id,

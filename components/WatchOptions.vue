@@ -138,6 +138,19 @@ if (props.googleData?.allWatchOptions?.length > 0) {
     watchOptions = useUniqBy(watchOptions, 'name')
     watchOptions = useUniqBy(watchOptions, 'link')
     watchOptionsByCountry['IN'] = watchOptions
+} else {
+    if (props.item.homepage) {
+        console.log(props.item.homepage)
+        const homepageOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
+                (getBaseUrl(props.item.homepage)).toLowerCase().includes(key))
+        const watchOption = {
+            displayName: homepageOption?.[1]?.name,
+            link: props.item.homepage,
+            image: homepageOption?.[1]?.image,
+            key: homepageOption?.[0]
+        }
+        watchOptions.push(watchOption)
+    }
 }
 
 const countries = Object.keys(watchOptionsByCountry).map((country) => getName(country) || 'Unknown')
