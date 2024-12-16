@@ -5,7 +5,10 @@ export const watchOptionImageMapper = {
     },
     'netflix': {
         image: '/images/ott/netflix.svg',
-        name: 'Netflix'
+        name: 'Netflix',
+        linkMorph: (link: string) => {
+            return link.replace('https://www.netflix.com/title/', 'https://www.netflix.com/watch/')
+        }
     },
     'apple': {
         image: '/images/ott/apple.png',

@@ -140,16 +140,18 @@ if (props.googleData?.allWatchOptions?.length > 0) {
     watchOptionsByCountry['IN'] = watchOptions
 } else {
     if (props.item.homepage) {
-        console.log(props.item.homepage)
         const homepageOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
                 (getBaseUrl(props.item.homepage)).toLowerCase().includes(key))
-        const watchOption = {
-            displayName: homepageOption?.[1]?.name,
-            link: props.item.homepage,
-            image: homepageOption?.[1]?.image,
-            key: homepageOption?.[0]
+        if (homepageOption) {
+            console.log(homepageOption)
+            const watchOption = {
+                displayName: homepageOption?.[1]?.name,
+                link: homepageOption?.[1]?.linkMorph? homepageOption?.[1]?.linkMorph(props.item.homepage): props.item.homepage,
+                image: homepageOption?.[1]?.image,
+                key: homepageOption?.[0]
+            }
+            watchOptions.push(watchOption)
         }
-        watchOptions.push(watchOption)
     }
 }
 
