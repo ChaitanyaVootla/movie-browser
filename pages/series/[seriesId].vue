@@ -407,7 +407,7 @@ const watchListClicked = () => {
 
 useHead(() => {
     return {
-        title: series.value?.name + ' | ' + SITE_TITLE_TEXT,
+        title: `${series.value?.name} | TV Show | The Movie Browser`,
         meta: [
             {
                 hid: 'description',

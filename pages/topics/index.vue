@@ -1,8 +1,15 @@
 <template>
     <div class="mt-2 md:mt-5 max-md:px-4">
         <div class="flex justify-between items-center w-full max-md:px-3 md:px-14">
-            <div>
-                {{ globalFilters.length }} Topics
+            <div class="flex items-center gap-4 w-fit rounded-xl border-2 border-neutral-600
+                my-6 pl-3 overflow-hidden">
+                <div class="font-medium">
+                    {{ filteredFilters.length }}
+                </div>
+                <div class="text-sm font-medium rounded-r-xl bg-neutral-800 w-fit h-full px-3
+                    flex items-center py-1 text-neutral-3">
+                    TOPICS
+                </div>
             </div>
             <div class="w-52">
                 <v-text-field v-model="searchString" label="Search" density="compact" variant="outlined"
@@ -10,14 +17,18 @@
             </div>
         </div>
         <div :key="searchString">
-            <ScrollProvider v-for="filter in filteredFilters" :scrollItem="filter">
+            <ScrollProvider v-for="filter in filteredFilters" :scrollItem="filter" class="mb-16">
                 <template v-slot:title>
                     <div class="text-sm md:text-xl font-medium flex justify-start items-center gap-3">
                         <h2 >{{ filter.name }}</h2>
-                        <NuxtLink :to="{ name: 'browse', query: getFilterQuery(filter) }"
+                        <NuxtLink :to="`/topics/${filter.key}`"
                             class="text-xs md:text-sm text-primary underline underline-offset-2">
                             View All
                         </NuxtLink>
+                        <!-- <NuxtLink :to="{ name: 'browse', query: getFilterQuery(filter) }"
+                            class="text-xs md:text-sm text-primary underline underline-offset-2">
+                            View All
+                        </NuxtLink> -->
                     </div>
                 </template>
             </ScrollProvider>
@@ -26,31 +37,36 @@
 </template>
 
 <script setup lang="ts">
+import { topics } from '~/utils/topics';
+
 const searchString = ref('');
-const { data: globalFilters }: any = useLazyAsyncData('globalFiltersTopics', async () => {
-    return await $fetch('/api/filters');
-}, {
-    default: () => ([] as any[]),
-    transform: (filters: any) => {
-        return filters.map((filter: any) => {
-            const filterParams = {
-                ...filter.filterParams,
-                with_keywords: filter.filterParams.with_keywords?.map((item: any) => item.id) || [],
-                with_cast: filter.filterParams.with_cast?.map((item: any) => item.id) || [],
-                with_crew: filter.filterParams.with_crew?.map((item: any) => item.id) || [],
-            };
-            return {
-                name: filter.name,
-                filterParams,
-                rawFilters: filter.filterParams
-            }
-        }).reverse();
-    }
-});
+// const { data: globalFilters }: any = useLazyAsyncData('globalFiltersTopics', async () => {
+//     // @ts-ignore
+//     return await $fetch('/api/filters');
+// }, {
+//     default: () => ([] as any[]),
+//     transform: (filters: any) => {
+//         return filters.map((filter: any) => {
+//             const filterParams = {
+//                 ...filter.filterParams,
+//                 with_keywords: filter.filterParams.with_keywords?.map((item: any) => item.id) || [],
+//                 with_cast: filter.filterParams.with_cast?.map((item: any) => item.id) || [],
+//                 with_crew: filter.filterParams.with_crew?.map((item: any) => item.id) || [],
+//             };
+//             return {
+//                 name: filter.name,
+//                 filterParams,
+//                 rawFilters: filter.filterParams
+//             }
+//         }).reverse();
+//     }
+// });
+
+const allTopics = Object.values(topics);
 
 const filteredFilters = computed(() => {
-    if (!searchString.value?.length) return globalFilters.value;
-    return globalFilters.value.filter((filter: any) => {
+    if (!searchString.value?.length) return allTopics;
+    return allTopics.filter((filter: any) => {
         return filter.name.toLowerCase().includes(searchString.value.toLowerCase());
     });
 });

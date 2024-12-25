@@ -30,7 +30,6 @@ type Rating = {
     color: string,
     percentage: number
 };
-let ratings = [] as Rating[];
 
 const getColorForRating = (ratingObj: Rating) => {
     let ratingString = `${ratingObj.rating}`;
@@ -62,30 +61,34 @@ const ratingImageMapper = {
     // 'crunchyroll': '/images/rating/crunchyroll.png',
 } as Record<string, string>;
 
-if (props.googleData?.ratings) {
-    ratings = (props.googleData.ratings || []).map((rating: any) => {
-        const image = ratingImageMapper[rating.name.split(' ')[0].toLowerCase()]
-        if (image) {
-            return {
-                name: rating.name,
-                link: rating.link,
-                rating: rating.rating,
-                image,
-                ...getColorForRating(rating)
+const ratings = computed(() => {
+    let ratings = [] as Rating[];
+    if (props.googleData?.ratings) {
+        ratings = (props.googleData.ratings || []).map((rating: any) => {
+            const image = ratingImageMapper[rating.name.split(' ')[0].toLowerCase()]
+            if (image) {
+                return {
+                    name: rating.name,
+                    link: rating.link,
+                    rating: rating.rating,
+                    image,
+                    ...getColorForRating(rating)
+                }
             }
-        }
-    }).filter(Boolean)
-}
-if (props.tmdbRating) {
-    ratings.unshift({
-        name: 'TMDB',
-        rating: props.tmdbRating?.toFixed(1) || '',
-        image: '/images/rating/tmdb.svg',
-        link: `https://www.themoviedb.org/${props.title?'movie':'tv'}/${props.itemId}`,
-        ...getColorForRating({
+        }).filter(Boolean)
+    }
+    if (props.tmdbRating) {
+        ratings.unshift({
             name: 'TMDB',
-            rating: props.tmdbRating,
-        } as Rating)
-    })
-}
+            rating: props.tmdbRating?.toFixed(1) || '',
+            image: '/images/rating/tmdb.svg',
+            link: `https://www.themoviedb.org/${props.title?'movie':'tv'}/${props.itemId}`,
+            ...getColorForRating({
+                name: 'TMDB',
+                rating: props.tmdbRating,
+            } as Rating)
+        })
+    }
+    return ratings;
+})
 </script>

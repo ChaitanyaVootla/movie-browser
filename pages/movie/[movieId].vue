@@ -395,7 +395,7 @@ const languageClicked = () => {
 
 useHead(() => {
     return {
-        title: movie.value?.title + ' | ' + SITE_TITLE_TEXT,
+        title: `${movie.value?.title} | ${movie.value?.releaseYear} Movie | The Movie Browser`,
         meta: [
             {
                 hid: 'description',

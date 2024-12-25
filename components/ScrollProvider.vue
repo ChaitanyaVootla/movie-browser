@@ -3,7 +3,7 @@
         <template v-slot:title>
             <div class="flex items-center justify-between md:pr-14">
                 <slot name="title">
-                    <div>
+                    <div v-if="!scrollItem.isPromo">
                         <NuxtImg v-if="localScrollItem.logo" :src="localScrollItem.logo" :alt="localScrollItem.name"
                             class="h-10 object-cover -m-0" :class="localScrollItem.name" />
                         <h2 v-else class="text-sm md:text-xl font-medium">{{ localScrollItem.name }}</h2>
@@ -15,6 +15,7 @@
                     <v-btn size="small">New</v-btn>
                 </v-btn-toggle> -->
                 <v-checkbox
+                    v-if="!scrollItem.isPromo"
                     v-model="hide_watched"
                     color="white"
                     label="Hide Watched"
@@ -80,7 +81,6 @@ const { pending, refresh }: any = useLazyAsyncData(`scrollDiscover-${localScroll
         scrollItems.value.push(...results);
     },
     immediate: false,
-    server: false
 });
 
 const filteredScrollItems = computed(() => {

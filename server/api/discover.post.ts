@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Check if the request is cached
-    const cachedData = await useStorage('discovery').getItem(getObjectSha(query));
+    const cachedData = await useStorage('discovery').getItem(getObjectSha({...query, ...params}));
     if (cachedData) {
         return cachedData;
     }
