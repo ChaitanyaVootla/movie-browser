@@ -11,31 +11,36 @@ export default eventHandler(async (event) => {
     if (ADMIN_EMAILS.includes(userData.email as string)) {
       event.context.isAdmin = true;
     }
-    handleUserVist(userData as JWT);
+    handleUserVisit(userData as JWT);
   }
 })
 
-const handleUserVist = async (userData: JWT) => {
-  const dbUser = await User.findOne({ id: userData.sub });
-  if (!dbUser) {
-    const newUser = new User({
-      id: userData.sub,
-      name: userData.name,
-      email: userData.email,
-      picture: userData.picture,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastVisited: new Date(),
-    });
-    newUser.save().then(() => {
-      console.log(`New user created ${userData.name}, ${userData.email}`);
-    }).catch(() => {
-      console.error(`New user creation error ${userData.name}`);
-    });
-  } else {
-    dbUser?.updateOne({ lastVisited: new Date() }).then(() => {
-    }).catch(() => {
-      console.error(`User last vist update error ${userData.name}`);
-    });
+const handleUserVisit = async (userData: JWT) => {
+  if (!userData.sub) {
+    console.error("Invalid user data:", userData);
+    return;
   }
-}
+
+  try {
+    await User.updateOne(
+      { id: userData.sub },
+      {
+        $set: {
+          ...userData,
+          id: userData.sub,
+          name: userData.name,
+          email: userData.email,
+          picture: userData.picture,
+          lastVisited: new Date(),
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    console.error(`Error processing user ${userData.name}:`, err);
+  }
+};
