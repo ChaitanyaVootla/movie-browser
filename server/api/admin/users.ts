@@ -21,12 +21,14 @@ export default defineEventHandler(async (event) => {
     ];
 
     const userData = await Promise.all(
-        models.map(({ model }) => model.find({ userId: { $in: userIds } }).select('-_id userId id').lean())
+        models.map(({ model }) => model.find({ userId: { $in: userIds } }).select('-_id userId itemId title name id')
+            .sort({ updatedAt: -1 }).lean())
     );
 
     users.forEach((user: any) => {
         models.forEach(({ key }, index) => {
-            user[key] = userData[index].filter((item: any) => item.userId?.toString() === user.sub?.toString()).length;
+            user[key] = userData[index].filter((item: any) => item.userId?.toString() === user.sub?.toString())?.length;
+            user[`${key}-items`] = userData[index].filter((item: any) => item.userId?.toString() === user.sub?.toString());
         });
     });
 

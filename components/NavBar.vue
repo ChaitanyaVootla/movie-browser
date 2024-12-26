@@ -1,6 +1,6 @@
 <template>
     <div class="navbar fixed w-full hidden md:flex justify-center text-xl items-center px-16 overflow-visible
-        bg-neutral-950 py-2 z-50 h-14">
+        bg-black py-2 z-50 h-14">
         <div class="left-actions items-center flex-1 flex gap-10 text-[1rem] font-medium">
             <NuxtLink to="/" aria-label="Go Home">
                 <div class="flex items-start gap-1 tracking-widest text-xl text-white font-extrabold group mr-7">
@@ -8,49 +8,45 @@
                     <div class="logo-text">TMB</div>
                 </div>
             </NuxtLink>
-            <NuxtLink to="/browse">
-                <div class="flex items-center gap-1" aria-label="Go To Browser">
-                    <v-icon icon="mdi-infinity" size="small" />
-                    Browse
-                </div>
-            </NuxtLink>
             <!-- <NuxtLink to="/movie">
                 <v-menu open-on-hover :open-delay="0">
                     <template v-slot:activator="{ props }">
-                        <div class="flex items-center gap-1" aria-label="Go To Movies" v-bind="props">
-                                <v-icon icon="mdi-movie-outline" size="small" />
+                        <div class="flex items-center gap-1 text-[14px]" aria-label="Go To Movies" v-bind="props">
+                                <v-icon icon="mdi-movie-outline" size="small" class="mt-[1px]" />
                                 Movies
                         </div>
                     </template>
-                    <div class="flex bg-black shadow-md shadow-neutral-900">
-                        <div>
-                        </div>
-                    </div>
                 </v-menu>
             </NuxtLink>
             <NuxtLink to="/series">
-                <div class="flex items-center gap-1" aria-label="Go To Series">
-                    <v-icon icon="mdi-television" size="small" />
+                <div class="flex items-center gap-1 text-[14px]" aria-label="Go To Series">
+                    <v-icon icon="mdi-television" size="small" class="mt-[1px]" />
                     Series
                 </div>
             </NuxtLink> -->
             <NuxtLink to="/topics">
-                <div class="flex items-center gap-1" aria-label="Go To Dynamic Lists">
-                    <span class="material-symbols-outlined !text-[22px] md:!text-2xl text"
+                <div class="flex items-center gap-1 text-[14px]" aria-label="Go To Dynamic Lists">
+                    <span class="material-symbols-outlined !text-[22px] md:!text-xl text"
                     style="font-variation-settings: 'FILL' 1;">view_object_track</span>
                     Topics
                 </div>
             </NuxtLink>
             <NuxtLink to="/watchList" aria-label="Go To Watch List">
-                <div class="flex items-center gap-1 whitespace-nowrap">
-                    <v-icon icon="mdi-menu" size="small" />
+                <div class="flex items-center gap-1 whitespace-nowrap text-[14px]">
+                    <v-icon icon="mdi-menu" size="small" class="mt-[1px]" />
                     Watch List
                 </div>
             </NuxtLink>
             <NuxtLink to="/ai">
-                <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To AI search">
-                    <v-icon icon="mdi-panorama-sphere-outline" size="small" />
+                <div class="flex items-center gap-1 whitespace-nowrap text-[14px]" aria-label="Go To AI search">
+                    <v-icon icon="mdi-panorama-sphere-outline" size="small" class="mt-[1px]" />
                     AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
+                </div>
+            </NuxtLink>
+            <NuxtLink to="/browse">
+                <div class="flex items-center gap-1 text-[14px]" aria-label="Go To Browser">
+                    <v-icon icon="mdi-infinity" size="small" class="mt-[1px]" />
+                    Browse
                 </div>
             </NuxtLink>
             <!-- <NuxtLink to="/profile">
@@ -60,7 +56,7 @@
                 </div>
             </NuxtLink> -->
             <NuxtLink to="/admin" v-if="isAdmin">
-                <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To AI search">
+                <div class="flex items-center gap-1 whitespace-nowrap text-[14px]" aria-label="Go To AI search">
                     <v-icon icon="mdi-account-supervisor" size="small" />
                     Admin
                 </div>

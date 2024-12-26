@@ -3,6 +3,7 @@ const formatter = new Intl.DateTimeFormat('en-IN', { year: 'numeric', month: '2-
 export const upcomingMovies: Record<string, any> = {
     name: 'Upcoming Movies',
     key: 'upcoming-movies',
+    ignorePromo: true,
     filterParams: {
         media_type: 'movie',
         "primary_release_date.gte": formatter.format(new Date()).split('/').reverse().join('-'),

@@ -1,10 +1,12 @@
 <template>
     <div v-if="watchOptions.length" class="flex">
-        <div class="flex justify-center flex-wrap max-md:gap-3 md:gap-4 bg-neutral-800
-            max-md:px-2 md:px-4 max-md:pt-4 max-md:pb-2 md:pt-6 md:pb-2 rounded-2xl relative min-w-28">
-            <div class="absolute w-full -top-2 flex max-md:justify-center md:justify-start md:ml-5">
-                <div class="left-2 bg-neutral-600 px-2 py-0 rounded-full text-xs
-                    md:text-sm text-neutral-200 font-light flex items-center gap-5">
+        <div class="flex justify-center flex-wrap max-md:gap-3 md:gap-4 bg-neutral-900 border-[1px] border-neutral-700
+            max-md:px-2 md:px-4 max-md:pt-4 max-md:pb-2 md:pt-6 md:pb-2 rounded-2xl relative min-w-32">
+            <div class="absolute w-full max-md:-top-2 -top-4 flex max-md:justify-center md:justify-start md:ml-5">
+                <div class="bg-neutral-700 pl-1 pr-2 py-0 rounded-full text-xs 
+                    font-light flex items-center text-nowrap">
+                    <span class="material-symbols-outlined !text-[22px] md:!text-4xl text -m-1"
+                        style="font-variation-settings: 'FILL' 1;">play_arrow</span>
                     Watch Now
                     <v-menu v-if="false" v-model="isOpen" :close-on-content-click="false">
                         <template v-slot:activator="{ props }">

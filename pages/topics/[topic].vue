@@ -9,7 +9,7 @@
             TOPIC
         </div>
     </div>
-    <ScrollProvider :scroll-item="{...topicMeta, isPromo:true}" class="mt-5">
+    <ScrollProvider v-if="!topicMeta.ignorePromo" :scroll-item="promoMetaItem" class="mt-5">
         <template v-slot:default="{ item }">
             <PromoCard  :item="item" class="mr-3" />
         </template>
@@ -22,6 +22,14 @@ import { topics } from '~/utils/topics';
 
 const topic = useRoute().params.topic as string;
 const topicMeta = topics[topic];
+const promoMetaItem = {
+    ...topicMeta,
+    filterParams: {
+        ...topicMeta.filterParams,
+        sort_by: 'popularity.desc',
+    },
+    isPromo: true,
+};
 
 const topicScrollVariations = topicMeta.scrollVariations.map((variation: any) => {
     return {

@@ -178,7 +178,7 @@
         </div>
         <Login ref="loginRef" />
         <v-dialog v-model="showEpisodeDialog">
-            <Episode :episode="selectedEpisode" />
+            <Episode :episode="selectedEpisode" :series="series" />
         </v-dialog>
         <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
             <span class="text-sm">Updating latest ratings and watch links</span>
