@@ -44,7 +44,10 @@ export default defineEventHandler(async (event) => {
         return {
             ...tmdbRes,
             results: tmdbRes.results.map((originalItem: any) => {
-                return fullDataItems.find((item: any) => item.id === originalItem.id);
+                return {
+                    ...fullDataItems.find((item: any) => item.id === originalItem.id),
+                    ...originalItem
+                };
             })
         }
     }

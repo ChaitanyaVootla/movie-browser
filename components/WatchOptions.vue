@@ -145,7 +145,6 @@ if (props.googleData?.allWatchOptions?.length > 0) {
         const homepageOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
                 (getBaseUrl(props.item.homepage)).toLowerCase().includes(key))
         if (homepageOption) {
-            console.log(homepageOption)
             const watchOption = {
                 displayName: homepageOption?.[1]?.name,
                 link: homepageOption?.[1]?.linkMorph? homepageOption?.[1]?.linkMorph(props.item.homepage): props.item.homepage,

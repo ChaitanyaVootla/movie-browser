@@ -4,7 +4,7 @@
             <div class="flex items-center gap-4 w-fit rounded-xl border-2 border-neutral-600
                 my-6 pl-3 overflow-hidden">
                 <div class="font-medium">
-                    {{ filteredFilters.length }}
+                    {{ filteredCount }}
                 </div>
                 <div class="text-sm font-medium rounded-r-xl bg-neutral-800 w-fit h-full px-3
                     flex items-center py-1 text-neutral-3">
@@ -37,8 +37,8 @@
 </template>
 
 <script setup lang="ts">
-import { topics } from '~/utils/topics';
-
+import { topics, allTopics } from '~/utils/topics';
+const TOPIC_LIMIT = 10;
 const searchString = ref('');
 // const { data: globalFilters }: any = useLazyAsyncData('globalFiltersTopics', async () => {
 //     // @ts-ignore
@@ -62,13 +62,17 @@ const searchString = ref('');
 //     }
 // });
 
-const allTopics = Object.values(topics);
-
-const filteredFilters = computed(() => {
-    if (!searchString.value?.length) return allTopics;
+// const allTopics = Object.values(topics);
+const filteredCount = computed(() => {
     return allTopics.filter((filter: any) => {
         return filter.name.toLowerCase().includes(searchString.value.toLowerCase());
-    });
+    }).length;
+});
+const filteredFilters = computed(() => {
+    if (!searchString.value?.length) return allTopics.slice(0, TOPIC_LIMIT);
+    return allTopics.filter((filter: any) => {
+        return filter.name.toLowerCase().includes(searchString.value.toLowerCase());
+    }).slice(0, TOPIC_LIMIT);
 });
 
 const getFilterQuery = (filter: any) => {

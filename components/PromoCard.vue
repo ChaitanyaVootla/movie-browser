@@ -13,7 +13,7 @@
                 <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo}`"
                     :alt="item.title || item.name" class="object-contain" />
             </div>
-            <div v-else class="h-full w-full">
+            <div v-else class="h-full w-full text-center mt-4 text-xl font-medium">
                 {{ item.title || item.name }}
             </div>
         </div>

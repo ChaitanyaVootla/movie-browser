@@ -62,7 +62,7 @@ const selectedCreditType = ref("cast");
 
 const { data: person, pending }: any = await useLazyAsyncData(`person-${useRoute().params.personId}`,
     () => $fetch(`/api/person/${useRoute().params.personId}`).catch((err) => {
-        console.log(err);
+        console.error(err);
         return {};
     }),
     {

@@ -18,10 +18,18 @@
 </template>
 
 <script setup lang="ts">
-import { topics } from '~/utils/topics';
+import { getTopicMetaFromKey } from '~/utils/topics/utils';
 
-const topic = useRoute().params.topic as string;
-const topicMeta = topics[topic];
+const topicKey = useRoute().params.topic as string;
+let topicMeta = getTopicMetaFromKey(topicKey) || {
+    name: 'Unknown',
+    filterParams: {},
+    scrollVariations: [],
+};
+
+if (topicMeta.name === 'Unknown') {
+    useRouter().replace('/');
+}
 const promoMetaItem = {
     ...topicMeta,
     filterParams: {
@@ -31,7 +39,7 @@ const promoMetaItem = {
     isPromo: true,
 };
 
-const topicScrollVariations = topicMeta.scrollVariations.map((variation: any) => {
+const topicScrollVariations = (topicMeta.scrollVariations || []).map((variation: any) => {
     return {
         ...topicMeta,
         ...variation,

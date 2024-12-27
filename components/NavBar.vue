@@ -37,16 +37,16 @@
                     Watch List
                 </div>
             </NuxtLink>
-            <NuxtLink to="/ai">
-                <div class="flex items-center gap-1 whitespace-nowrap text-[14px]" aria-label="Go To AI search">
-                    <v-icon icon="mdi-panorama-sphere-outline" size="small" class="mt-[1px]" />
-                    AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
-                </div>
-            </NuxtLink>
             <NuxtLink to="/browse">
                 <div class="flex items-center gap-1 text-[14px]" aria-label="Go To Browser">
                     <v-icon icon="mdi-infinity" size="small" class="mt-[1px]" />
                     Browse
+                </div>
+            </NuxtLink>
+            <NuxtLink to="/ai">
+                <div class="flex items-center gap-1 whitespace-nowrap text-[14px]" aria-label="Go To AI search">
+                    <v-icon icon="mdi-panorama-sphere-outline" size="small" class="mt-[1px]" />
+                    AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
                 </div>
             </NuxtLink>
             <!-- <NuxtLink to="/profile">
@@ -65,7 +65,7 @@
         <div class="right flex-1 flex justify-end">
             <div class="flex items-center gap-5">
                 <v-chip class="rounded-xl px-5 py-4 cursor-pointer flex" @click="showSearchOverlay = true"
-                    color="#333" variant="outlined" size="default" :border="1">
+                    color="#666" variant="outlined" size="default" :border="1">
                     <div class="flex justify-center items-center gap-1 text-neutral-100">
                         <v-icon color="#eee">mdi-magnify</v-icon>
                         <div>Search</div>

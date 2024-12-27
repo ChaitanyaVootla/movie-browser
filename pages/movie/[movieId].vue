@@ -193,9 +193,8 @@ const share = () => {
             text: movie.value.description,
             url: 'https://themoviebrowser.com/movie/' + movie.value.id
         })
-        .catch((error) => console.log('Error sharing:', error));
+        .catch(console.error);
     } else {
-        console.log('Web Share API not supported');
         navigator.clipboard.writeText('https://themoviebrowser.com/movie/' + movie.value.id);
     }
 }
@@ -272,7 +271,7 @@ const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRo
     () => $fetch(`/api/movie/${useRoute().params.movieId}`, {
         headers
     }).catch((err) => {
-        console.log(err);
+        console.error(err);
         return {};
     }),
     {
@@ -351,7 +350,7 @@ const updateMovie = async () => {
 
 const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-recommend`,
     () => $fetch(`/api/movie/${useRoute().params.movieId}/recommend?ratingGte=6`, { headers }).catch((err) => {
-        console.log(err);
+        console.error(err);
         return {};
     }),
     {

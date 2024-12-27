@@ -239,9 +239,9 @@ const share = () => {
             text: series.value.description,
             url: 'https://themoviebrowser.com/series/' + series.value.id
         })
-        .catch((error) => console.log('Error sharing:', error));
+        .catch((error) => console.error('Error sharing:', error));
     } else {
-        console.log('Web Share API not supported');
+        console.error('Web Share API not supported');
         navigator.clipboard.writeText('https://themoviebrowser.com/series/' + series.value.id);
     }
 }
