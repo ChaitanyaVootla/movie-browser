@@ -208,45 +208,52 @@
                 >
                     <template v-slot:item="{ props, item }">
                         <v-list-item v-bind="props" title="" variant="flat">
-                            <div v-if="item?.raw" class="flex justify-between p-3 h-48">
-                                <div class="max-md:w-2/3 md:w-3/4 max-md:text-sm h-full">
-                                    <div class="title">
-                                        {{ item.raw.title || item.raw.name }}
-                                    </div>
-                                    <div class="text-neutral-400 capitalize flex gap-2 max-md:text-xs">
-                                        <div v-if="item.raw.release_date || item.raw.first_air_date">
-                                            {{ (item.raw.release_date || item.raw.first_air_date).slice(0, 4) }} -
-                                        </div>
-                                        <div>
-                                            {{ item.raw.media_type }}
-                                        </div>
-                                    </div>
-                                    <div :key="`${isMounted}`" class="flex gap-2 mt-2 flex-wrap">
-                                        <div v-for="genre in item.raw.genres">
-                                            <v-chip class="text-md" rounded :size="$vuetify.display.mdAndUp?'small':'x-small'">
-                                                {{ genre.name }}
-                                            </v-chip>
-                                        </div>
-                                    </div>
-                                    <!-- <Ratings :googleData="{}" :tmdbRating="item.raw.vote_average" :itemId="item.raw.id"
-                                        :small="true" class="mt-2"/> -->
+                            <div v-if="item?.raw">
+                                <div v-if="item.raw.key" class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined !text-[22px] md:!text-xl text"
+                                        style="font-variation-settings: 'FILL' 1;">search</span>
+                                    {{ item.raw.name }}
                                 </div>
-                                <div class="max-md:w-1/3 md:w-1/4 h-full">
-                                    <v-img
-                                        :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w185
-                                            }${$vuetify.display.mdAndDown?item.raw.poster_path:item.raw.poster_path || item.raw.profile_path}`"
-                                        class="rounded-md"
-                                        :alt="item.raw.title"
-                                    >
-                                        <template v-slot:placeholder>
-                                            <v-skeleton-loader type="image" class="w-full h-full"></v-skeleton-loader>
-                                        </template>
-                                        <template v-slot:error>
-                                            <v-skeleton-loader type="image" class="w-full h-full">
-                                                <div class="bg-neutral-700 w-full h-full"></div>
-                                            </v-skeleton-loader>
-                                        </template>
-                                    </v-img>
+                                <div v-else class="flex justify-between p-3 h-48">
+                                    <div class="max-md:w-2/3 md:w-3/4 max-md:text-sm h-full">
+                                        <div class="title">
+                                            {{ item.raw.title || item.raw.name }}
+                                        </div>
+                                        <div class="text-neutral-400 capitalize flex gap-2 max-md:text-xs">
+                                            <div v-if="item.raw.release_date || item.raw.first_air_date">
+                                                {{ (item.raw.release_date || item.raw.first_air_date).slice(0, 4) }} -
+                                            </div>
+                                            <div>
+                                                {{ item.raw.media_type }}
+                                            </div>
+                                        </div>
+                                        <div :key="`${isMounted}`" class="flex gap-2 mt-2 flex-wrap">
+                                            <div v-for="genre in item.raw.genres">
+                                                <v-chip class="text-md" rounded :size="$vuetify.display.mdAndUp?'small':'x-small'">
+                                                    {{ genre.name }}
+                                                </v-chip>
+                                            </div>
+                                        </div>
+                                        <!-- <Ratings :googleData="{}" :tmdbRating="item.raw.vote_average" :itemId="item.raw.id"
+                                            :small="true" class="mt-2"/> -->
+                                    </div>
+                                    <div class="max-md:w-1/3 md:w-1/4 h-full">
+                                        <v-img
+                                            :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w185
+                                                }${$vuetify.display.mdAndDown?item.raw.poster_path:item.raw.poster_path || item.raw.profile_path}`"
+                                            class="rounded-md"
+                                            :alt="item.raw.title"
+                                        >
+                                            <template v-slot:placeholder>
+                                                <v-skeleton-loader type="image" class="w-full h-full"></v-skeleton-loader>
+                                            </template>
+                                            <template v-slot:error>
+                                                <v-skeleton-loader type="image" class="w-full h-full">
+                                                    <div class="bg-neutral-700 w-full h-full"></div>
+                                                </v-skeleton-loader>
+                                            </template>
+                                        </v-img>
+                                    </div>
                                 </div>
                             </div>
                         </v-list-item>
@@ -262,6 +269,7 @@ import { useAuth } from '#imports'
 import { getName } from 'country-list';
 import { userStore } from '~/plugins/state';
 import Clarity from '@microsoft/clarity';
+import { searchTopics } from '~/utils/topics/utils';
 
 const { data, status, signIn, signOut } = useAuth();
 
@@ -320,12 +328,18 @@ const searchUpdated = useDebounce(async (query: string) => {
             }
         }
     });
-    searchResults.value = searchResponse;
+
+    const topics = searchTopics(query);
+    searchResults.value = [...(topics.slice(0, 5)), ...searchResponse];
     isSearching.value = false;
 }, 300, { leading: false });
 
 const searchItemClicked = (item: any) => {
     showSearchOverlay.value = false;
+    if (item.key) {
+        useRouter().push(`/topics/${item.key}`);
+        return;
+    }
     setTimeout(() => {
         if (item.media_type === 'person') {
             return useRouter().push(`/person/${item.id}`);

@@ -1,4 +1,8 @@
 export default defineEventHandler(async (event) => {
+    return getLocationFromEvent(event);
+});
+
+export const getLocationFromEvent = (event: any) => {
     return {
         countryCode: getHeader(event, 'X-Country-Code') || 'IN',
         countryName: getHeader(event, 'X-Country-Name'),
@@ -6,4 +10,4 @@ export default defineEventHandler(async (event) => {
         stateName: getHeader(event, 'X-State-Name'),
         timezone: getHeader(event, 'X-Timezone'),
     }
-});
+}

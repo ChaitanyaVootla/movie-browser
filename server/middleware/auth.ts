@@ -1,6 +1,7 @@
 import { getToken } from '#auth'
 import { JWT } from 'next-auth/jwt';
 import { User } from "~/server/models";
+import { getLocationFromEvent } from '../api/onLoad';
 
 const ADMIN_EMAILS = ['speedblaze@gmail.com'];
 
@@ -11,11 +12,11 @@ export default eventHandler(async (event) => {
     if (ADMIN_EMAILS.includes(userData.email as string)) {
       event.context.isAdmin = true;
     }
-    handleUserVisit(userData as JWT);
+    handleUserVisit(userData as JWT, getLocationFromEvent(event));
   }
 })
 
-const handleUserVisit = async (userData: JWT) => {
+const handleUserVisit = async (userData: JWT, location: any) => {
   if (!userData.sub) {
     console.error("Invalid user data:", userData);
     return;
@@ -33,6 +34,7 @@ const handleUserVisit = async (userData: JWT) => {
           picture: userData.picture,
           lastVisited: new Date(),
           updatedAt: new Date(),
+          location,
         },
         $setOnInsert: {
           createdAt: new Date(),
