@@ -46,7 +46,9 @@ useHead({
     }
   ]
 })
-Clarity.init('oxwvg2abnk');
+if (location.hostname !== 'localhost') {
+  Clarity.init('oxwvg2abnk');
+}
 </script>
 
 <style lang="less">

@@ -40,8 +40,8 @@ const THEME_SETTINGS = [
         "match": "space"
     },
     {
-        "name": "Apocalypse",
-        "match": "apocalypse"
+        "name": "Apocalyptic",
+        "match": ["apocalypse", 'apocalyptic']
     },
     {
         "name": "Nuclear",
@@ -80,8 +80,8 @@ const THEME_SETTINGS = [
         "match": "assassin"
     },
     {
-        "name": "Vigialante",
-        "match": "vigialante"
+        "name": "Vigilante",
+        "match": "vigilante"
     },
     {
         "name": "Organized crime",
@@ -96,12 +96,14 @@ const THEME_SETTINGS = [
         "match": "conspiracy"
     },
     {
-        "name": "World war 1",
-        "match": "world war 1"
+        "name": "World War 1",
+        "match": "world war i",
+        "negative": "world war ii"
     },
     {
-        "name": "World war 2",
-        "match": "world war 2"
+        "name": "World War 2",
+        "match": "world war ii",
+        "negative": "world war i"
     },
     {
         "name": "Military",
@@ -116,8 +118,8 @@ const THEME_SETTINGS = [
         "match": "pirate"
     },
     {
-        "name": "Treaure hunt",
-        "match": "treaure hunt"
+        "name": "Treasure hunt",
+        "match": "treasure hunt"
     },
     {
         "name": "Lost civilization",
