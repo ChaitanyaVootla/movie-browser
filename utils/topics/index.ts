@@ -7,7 +7,7 @@ const countryTopics = getCodes().map((countryCode) => [getCountryMeta(countryCod
 
 const languageTopics = LANGAUAGES.map(({ iso_639_1 }) =>  [getLanguageMeta(iso_639_1), getLanguageMeta(iso_639_1, 'tv')]).flat();
 
-const genreTopics = popularGenres.map(({ name }) => getGenreMeta(name));
+const genreTopics = Object.values(movieGenres).map(({ name }) => getGenreMeta(name));
 
 const allTopics = [
     // ...Object.values(topics),

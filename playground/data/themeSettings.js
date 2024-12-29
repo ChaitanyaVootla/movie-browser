@@ -241,10 +241,6 @@ const THEME_SETTINGS = [
         "name": "Samurai",
         "match": "samurai"
     },
-    {
-        "name": "Western",
-        "match": "western"
-    }
 ]
 
 module.exports = THEME_SETTINGS;

@@ -1,20 +1,32 @@
 import { getCode, getName, getNames } from "country-list";
 import { getThemeMeta, themeTopicSearchItems } from "./themes";
-import { getTopicKey } from "./commonUtils";
+import { getTopicKey, sanitiseTopic } from "./commonUtils";
 
 export const popularGenres = [
     { id: 28, name: 'Action' },
     { id: 35, name: 'Comedy' },
-    { id: 12, name: 'Adventure' },
     { id: 80, name: 'Crime' },
+    { id: 27, name: 'Horror' },
     { id: 878, name: 'Science Fiction' },
+    { id: 12, name: 'Adventure' },
     { id: 18, name: 'Drama' },
     { id: 14, name: 'Fantasy' },
-    { id: 27, name: 'Horror' },
     { id: 9648, name: 'Mystery' },
     { id: 10749, name: 'Romance' },
     { id: 53, name: 'Thriller' },
     { id: 10752, name: 'War' },
+];
+
+export const popularSeriesGenres = [
+    { id: 10759, name: 'Action & Adventure' },
+    { id: 35, name: 'Comedy' },
+    { id: 10765, name: 'Sci-Fi & Fantasy' },
+    { id: 18, name: 'Drama' },
+    { id: 80, name: 'Crime' },
+    { id: 16, name: 'Animation' },
+    { id: 99, name: 'Documentary' },
+    { id: 10751, name: 'Family' },
+    { id: 9648, name: 'Mystery' },
 ];
 const basePromoTransform = (items: any[]) => {
     return items.filter(({backdrop_path}: any) => backdrop_path).filter(Boolean);
@@ -37,7 +49,7 @@ export const getCountryMeta = (countryString: string, media="movie") => {
             media_type: media,
             with_origin_country: countryCode.toUpperCase(),
         },
-        scrollVariations: popularGenres.map((genre) => ({
+        scrollVariations: (media === 'movie' ?popularGenres: popularSeriesGenres).map((genre) => ({
             name: `${countryName} - ${genre.name} ${media === 'movie' ? 'Movies' : 'Shows'}`,
             key: `popular-in-${countryCode}-genre-${genre.id}`,
             filterParams: {
@@ -62,7 +74,7 @@ export const getLanguageMeta = (languageString: string, media="movie") => {
             media_type: media,
             with_original_language: language?.iso_639_1,
         },
-        scrollVariations: popularGenres.map((genre) => ({
+        scrollVariations: (media === 'movie' ?popularGenres: popularSeriesGenres).map((genre) => ({
             name: `${language?.english_name} - ${genre.name} ${media === 'movie' ? 'Movies' : 'Shows'}`,
             key: `popular-in-${language}-genre-${genre.id}`,
             filterParams: {
@@ -73,22 +85,26 @@ export const getLanguageMeta = (languageString: string, media="movie") => {
     };
 }
 
-export const getGenreMeta = (genre: string, media="movie") => {
-    const genreId = popularGenres.find(({ name }) => name.toLocaleLowerCase() === genre.toLocaleLowerCase())?.id;
+export const getGenreMeta = (genreString: string, media="movie") => {
+    const genre = media === 'movie' ?
+        Object.values(movieGenres).find(({ name }) => sanitiseTopic(name) === sanitiseTopic(genreString)):
+        Object.values(seriesGenres).find(({ name }) => sanitiseTopic(name) === sanitiseTopic(genreString))
     return {
-        name: `${genre} ${media === 'movie' ? 'Movies' : 'Shows'}`,
-        key: getTopicKey('genre', genre, 'movie'),
+        name: `${genre.name} ${media === 'movie' ? 'Movies' : 'Shows'}`,
+        key: getTopicKey('genre', genre.name, 'movie'),
         ignorePromo: false,
         filterParams: {
             media_type: media,
-            with_genres: genreId,
+            with_genres: genre.id,
+            'vote_count.gte': 70,
         },
-        scrollVariations: popularGenres.filter(({ name }) => name !== genre).map((subGenre) => ({
-            name: `${genre} - ${subGenre.name} ${media === 'movie' ? 'Movies' : 'Shows'}`,
-            key: `popular-genre-${subGenre.id}`,
-            filterParams: {
-                with_genres: [subGenre.id, genreId],
-            },
+        scrollVariations: (media === 'movie' ?popularGenres: popularSeriesGenres)
+            .filter(({ name, id }) => id !== genre.id).map((subGenre) => ({
+                name: `${genre.name} - ${subGenre.name} ${media === 'movie' ? 'Movies' : 'Shows'}`,
+                key: `popular-genre-${subGenre.id}`,
+                filterParams: {
+                    with_genres: [subGenre.id, genre.id],
+                },
         })),
         transform: basePromoTransform,
     };
@@ -120,7 +136,9 @@ export const getTopicObject = (topicUrlString: string) => {
 }
 
 export const getTopicMetaFromKey = (key: string) => {
-    const [type, topic, media] = key.split('-');
+    const [type, ...rest] = key.split('-');
+    const media = rest.pop();
+    const topic = rest.join('-');
     switch (type) {
         case 'genre':
             return getGenreMeta(topic, media);
@@ -136,12 +154,12 @@ export const getTopicMetaFromKey = (key: string) => {
 }
 
 const countryTopicSearchItems = getNames().map((countryName) => ({
-        name: `${countryName} Movies`,
+        name: `Movies from ${countryName}`,
         key: getTopicKey('country', countryName, 'movie'),
     })
 ) as Array<{ name: string, key: string }>;
 
-const genreTopicSearchItems = popularGenres.map(({ name }) => ({
+const genreTopicSearchItems = Object.values(movieGenres).map(({ name }) => ({
     name: `${name} Movies`,
     key: getTopicKey('genre', name, 'movie'),
 })) as Array<{ name: string, key: string }>;

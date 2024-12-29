@@ -106,6 +106,28 @@
                         </div>
 
                         <div class="flex items-center mt-3 gap-2">
+                            <NuxtLink v-if="series.origin_country?.length"
+                                :to="`/topics/${getTopicKey('country', series.origin_country[0], 'tv')}`"    
+                                class="flex items-center gap-2">
+                                <div class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2">
+                                    <v-img
+                                    :src="`https://flagcdn.com/${series.origin_country[0].toLowerCase()}.svg`"
+                                    :alt="`Flag of ${series.origin_country[0]}`"
+                                    class="w-6 h-4 rounded-md"
+                                    ></v-img>
+                                    <div class="text-xs text-neutral-300">{{ series.origin_country[0] }}</div>
+                                </div>
+                            </NuxtLink>
+
+                            <NuxtLink v-if="language" :to="languageTopicLink || '/'">
+                                <v-chip class="rounded-pill cursor-pointer" color="#ddd"
+                                    :size="$vuetify.display.mdAndUp?'small':'x-small'">
+                                    <span class="material-symbols-outlined !text-[22px] md:!text-xl text mr-1"
+                                        style="font-variation-settings: 'FILL' 1;">language</span>
+                                    {{ language }}
+                                </v-chip>
+                            </NuxtLink>
+
                             <NuxtLink :key="`${isMounted}`" v-if="series.external_ids.imdb_id" :to="`https://www.imdb.com/title/${series.external_ids.imdb_id}/parentalguide`" target="blank"
                                 noreferrer noopener class="block">
                                 <v-btn prepend-icon="mdi-exclamation-thick" variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa">
@@ -199,6 +221,7 @@
 <script setup lang="ts">
 import { userStore } from '~/plugins/state';
 import { humanizeDateFull } from '~/utils/dateFormatter';
+import { getTopicKey } from '~/utils/topics/commonUtils';
 
 const { status } = useAuth();
 
@@ -230,6 +253,18 @@ onMounted(() => {
             addToRecents();
         }
     });
+});
+
+let language = computed(() => {
+    if (series.value?.original_language !== 'en') {
+        return LANGAUAGES.find(({iso_639_1}) => iso_639_1 === series.value?.original_language)?.english_name;
+    }
+    return null;
+});
+
+const languageTopicLink = computed(() => {
+    if (!language.value) return null;
+    return `/topics/${getTopicKey('language', language.value, 'tv')}`;
 });
 
 const share = () => {

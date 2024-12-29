@@ -17,9 +17,11 @@
                     <WatchOptions :googleData="item.googleData" :tmdbRating="item.vote_average" :item="item"/>
                     <div class="flex gap-3">
                         <div v-for="genre in item.genres">
-                            <v-chip class="text-md" rounded @click="genreClicked(genre)">
-                                {{ genre.name }}
-                            </v-chip>
+                            <NuxtLink :to="getGenreLink(genre)">
+                                <v-chip class="text-md" rounded>
+                                    {{ genre.name }}
+                                </v-chip>
+                            </NuxtLink>
                         </div>
                     </div>
                     <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :title="item.title"
@@ -113,9 +115,11 @@
                 <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :item="item"/>
                 <div v-if="!minimal" class="flex gap-2 flex-wrap justify-center">
                     <div v-for="genre in item.genres">
-                        <v-chip class="text-md" size="small" rounded @click="genreClicked(genre)">
-                            {{ genre.name }}
-                        </v-chip>
+                        <NuxtLink :to="getGenreLink(genre)">
+                            <v-chip class="text-md" size="small" rounded>
+                                {{ genre.name }}
+                            </v-chip>
+                        </NuxtLink>
                     </div>
                 </div>
             </div>
@@ -125,6 +129,7 @@
 
 <script setup lang="ts">
 import { baseDiscoverQuery } from '~/utils/constants';
+import { getTopicKey } from '~/utils/topics/commonUtils';
 
 let showTrailer = ref(false);
 let showMobileTrailer = ref(false);
@@ -146,18 +151,9 @@ const logo = computed(() => {
     return item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path;
 })
 
-const genreClicked = (genre: any) => {
-    const discoverQuery = {
-        ...baseDiscoverQuery,
-        media_type: item.title?'movie':'tv',
-        with_genres: [genre.id]
-    }
-    useRouter().push({
-        name: 'browse',
-        query: {
-            discover: btoa(encodeURIComponent(JSON.stringify(discoverQuery)))
-        }
-    })
+const getGenreLink = (genre: any) => {
+    const topicKey = getTopicKey('genre', genre.name, item.title?'movie':'tv');
+    return `/topics/${topicKey}`;
 }
 </script>
 

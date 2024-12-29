@@ -51,17 +51,37 @@
                                 {{ movie.overview }}
                             </div>
                         </div>
-                        <NuxtLink :key="`${isMounted}`" v-if="movie.imdb_id" :to="`https://www.imdb.com/title/${movie.imdb_id}/parentalguide`" target="blank"
-                            noreferrer noopener class="mt-3 block">
-                            <v-btn variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa" prepend-icon="mdi-exclamation-thick">
-                                content warning
-                            </v-btn>
-                        </NuxtLink>
+                        <div class="flex flex-wrap items-center gap-2 mt-3 md:mt-5">
+                            <NuxtLink v-if="movie.origin_country?.length"
+                                :to="`/topics/${getTopicKey('country', movie.origin_country[0], 'movie')}`"    
+                                class="flex items-center gap-2">
+                                <div class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2">
+                                    <v-img
+                                    :src="`https://flagcdn.com/${movie.origin_country[0].toLowerCase()}.svg`"
+                                    :alt="`Flag of ${movie.origin_country[0]}`"
+                                    class="w-6 h-4 rounded-md"
+                                    ></v-img>
+                                    <div class="text-xs text-neutral-300">{{ movie.origin_country[0] }}</div>
+                                </div>
+                            </NuxtLink>
+
+                            <NuxtLink v-if="language" :to="languageTopicLink || '/'">
+                                <v-chip class="rounded-pill cursor-pointer" color="#ddd"
+                                    :size="$vuetify.display.mdAndUp?'small':'x-small'">
+                                    <span class="material-symbols-outlined !text-[22px] md:!text-xl text mr-1"
+                                        style="font-variation-settings: 'FILL' 1;">language</span>
+                                    {{ language }}
+                                </v-chip>
+                            </NuxtLink>
+
+                            <NuxtLink :key="`${isMounted}`" v-if="movie.imdb_id" :to="`https://www.imdb.com/title/${movie.imdb_id}/parentalguide`" target="blank"
+                                noreferrer noopener>
+                                <v-btn variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa" prepend-icon="mdi-exclamation-thick">
+                                    content warning
+                                </v-btn>
+                            </NuxtLink>
+                        </div>
                         <div :key="`${isMounted}`" class="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-5">
-                            <v-chip v-if="language" class="rounded-pill cursor-pointer" color="#ddd"
-                                :size="$vuetify.display.mdAndUp?'small':'x-small'" @click="languageClicked()">
-                                {{ language }}
-                            </v-chip>
                             <v-chip v-for="keyword in keywords"
                                 class="rounded-pill cursor-pointer" :color="'#ddd'"
                                 :size="$vuetify.display.mdAndUp?'small':'x-small'" @click="keywordClicked(keyword)">
@@ -157,8 +177,8 @@
 
 <script setup lang="ts">
 import { userStore } from '~/plugins/state';
-import { SITE_TITLE_TEXT } from '~/utils/constants';
 import { humanizeDateFull } from '~/utils/dateFormatter';
+import { getTopicKey } from '~/utils/topics/commonUtils';
 
 let movie = ref({} as any);
 let updatingMovie = ref(false);
@@ -177,6 +197,11 @@ let language = computed(() => {
         return LANGAUAGES.find(({iso_639_1}) => iso_639_1 === movie.value?.original_language)?.english_name;
     }
     return null;
+});
+
+const languageTopicLink = computed(() => {
+    if (!language.value) return null;
+    return `/topics/${getTopicKey('language', language.value, 'movie')}`;
 });
 
 const keywords = computed(() => {

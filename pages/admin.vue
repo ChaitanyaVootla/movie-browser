@@ -25,6 +25,14 @@
             <template v-slot:item.lastVisited="{ item }">
                 {{ item.lastVisited?new Date(item.lastVisited):'' }}
             </template>
+            <template v-slot:item.country="{ item }">
+                <div v-if="item.location" class="w-16 h-10 flex gap-3 items-center justify-center">
+                    <div class="w-16 h-10 rounded-xl flex items-center justify-center" v-tooltip="JSON.stringify(item.location)">
+                        <img :src="`https://flagcdn.com/${item.location.countryCode.toLowerCase()}.svg`"/>
+                    </div>
+                    <div class="text-xs text-neutral-300">{{ item.location.countryCode }}</div>
+                </div>
+            </template>
             <template v-slot:expanded-row="{ columns, item }">
                 <tr>
                     <td :colspan="columns.length">
@@ -54,6 +62,7 @@ const users: any[] = await $fetch('/api/admin/users', { headers });
 
 const tableHeaders = [
     { title: 'User', key: 'user' },
+    { title: 'Country', key: 'country' },
     { title: 'Email', key: 'email' },
     { title: 'Created At', key: 'createdAt' },
     { title: 'Last Visit', key: 'lastVisited', sortable: true },

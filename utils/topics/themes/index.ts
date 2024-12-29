@@ -1,5 +1,5 @@
 import { getTopicKey } from '../commonUtils';
-import { popularGenres } from '../utils';
+import { popularGenres, popularSeriesGenres } from '../utils';
 import themes from './themes.json';
 
 export const getThemeMeta = (themeString: string, media="movie") => {
@@ -14,7 +14,7 @@ export const getThemeMeta = (themeString: string, media="movie") => {
             media_type: media,
             with_keywords: theme.keywords.map(({id}) => id),
         },
-        scrollVariations: popularGenres.map((genre) => ({
+        scrollVariations: (media === 'movie' ? popularGenres: popularSeriesGenres).map((genre) => ({
             name: `${theme.name} - ${genre.name} ${media === 'movie' ? 'Movies' : 'Shows'}`,
             key: `popular-in-${theme.name.toLowerCase().replace(/ /g, '')}-genre-${genre.id}`,
             filterParams: {

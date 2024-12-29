@@ -1,18 +1,25 @@
 <template>
     <div class="mt-2 md:mt-5 max-md:px-4">
         <div class="flex justify-between items-center w-full max-md:px-3 md:px-14">
-            <div class="flex items-center gap-4 w-fit rounded-xl border-2 border-neutral-600
-                my-6 pl-3 overflow-hidden">
-                <div class="font-medium">
-                    {{ filteredCount }}
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 w-fit rounded-xl border-2 border-neutral-600
+                    my-6 pl-3 overflow-hidden">
+                    <div class="font-medium">
+                        {{ filteredCount }}
+                    </div>
+                    <div class="text-sm font-medium rounded-r-xl bg-neutral-800 w-fit h-full px-3
+                        flex items-center py-1 text-neutral-3">
+                        TOPICS
+                    </div>
                 </div>
-                <div class="text-sm font-medium rounded-r-xl bg-neutral-800 w-fit h-full px-3
-                    flex items-center py-1 text-neutral-3">
-                    TOPICS
+                <div>
+                    <NuxtLink to="/topics/all" class="underline underline-offset-2">
+                        View All Topics
+                    </NuxtLink>
                 </div>
             </div>
-            <div class="w-52">
-                <v-text-field v-model="searchString" label="Search" density="compact" variant="outlined"
+            <div class="max:md:w-1/3 md:w-1/4">
+                <v-text-field v-model="searchString" label="Search Topics" density="compact" variant="outlined" rounded
                     prependInnerIcon="mdi-magnify" clearable></v-text-field>
             </div>
         </div>
