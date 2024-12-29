@@ -21,7 +21,7 @@
                     label="Hide Watched"
                     density="compact"
                     hide-details
-                    class="!h-8 !text-sm"
+                    class="watched-checkbox !h-8 !text-2xs"
                     @update:model-value="updateHideWatched"
                 ></v-checkbox>
             </div>
@@ -139,5 +139,16 @@ onUnmounted(() => {
 .apple, .aha {
     margin: -8px;
     padding: 10px;
+}
+:deep(.watched-checkbox) {
+    .v-label {
+        font-size: 12px;
+    }
+    
+    @media (min-width: 768px) {
+        .v-label {
+            font-size: 14px;
+        }
+    }
 }
 </style>
