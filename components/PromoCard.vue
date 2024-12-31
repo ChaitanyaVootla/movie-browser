@@ -2,7 +2,7 @@
 <span class="md:h-[30rem] md:w-[36rem] hidden"></span>
 <span class="max-md:h-[20rem] max-md:w-[30rem] hidden"></span>
 <IntersectionLoader height="30rem" width="36rem" mobileHeight="20rem" mobileWidth="30rem">
-    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
+    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
         <div class="promo-img">
             <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
                 :alt="item.title || item.name" class="h-full object-cover rounded-lg">

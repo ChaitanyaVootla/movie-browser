@@ -2,7 +2,7 @@
 <span class="md:h-[23rem] md:w-[29rem] hidden"></span>
 <span class="max-md:h-[15rem] max-md:w-[20rem] hidden"></span>
 <IntersectionLoader height="23rem" width="29rem" mobileHeight="15rem" mobileWidth="20rem">
-    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" class="flex flex-col h-full">
+    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`" class="flex flex-col h-full">
         <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780
         }${getEnglishBackdrop(item) || item.backdrop_path}`"
             class="rounded-lg mr-2 hover:rounded-md hover:shadow-md hover:shadow-neutral-800

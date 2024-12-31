@@ -207,4 +207,4 @@ export const baseDiscoverQuery = {
     "vote_count.gte": null,
 };
 
-export const SITE_TITLE_TEXT = 'TheMovieBrowser.com - Track, discover and find where to watch TV shows and movies, Popular Movies, Trending Series, Streaming Now, Upcoming Episodes, Movies in your watch list';
+export const SITE_TITLE_TEXT = 'The Movie Browser - Find your next movie or TV show to watch';

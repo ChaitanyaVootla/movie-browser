@@ -1,5 +1,5 @@
 <template>
-    <NuxtLink :to="`/person/${item.id}`">
+    <NuxtLink :to="`/person/${item.id}/${getUrlSlug(item.name)}`">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative">
                 <v-img

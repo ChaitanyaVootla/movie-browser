@@ -1,0 +1,10 @@
+# robots.txt file for TheMovieBrowser
+# Created in the distant future (the year 2000) after
+# the robotic uprising of the mid 90's which wiped out all humans.
+
+User-agent: *
+Disallow: /ratings
+Disallow: /watchlist
+Disallow: /watched
+
+Sitemap: https://www.themoviebrowser.com/sitemap.xml

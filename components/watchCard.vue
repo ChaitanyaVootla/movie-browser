@@ -18,7 +18,7 @@
                 </template>
             </v-img>
         </NuxtLink>
-        <NuxtLink :to="`/${item.title?'movie':'series'}/${item.id}`" class="hover:underline underline-offset-2">
+        <NuxtLink :to="`/${item.title?'movie':'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`" class="hover:underline underline-offset-2">
             <div class="overflow-ellipsis whitespace-nowrap overflow-hidden mt-1 text-neutral-200 text-2xs md:text-sm
                 flex items-center gap-2">
                 <div>

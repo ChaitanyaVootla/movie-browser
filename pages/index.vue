@@ -13,7 +13,7 @@
                 </div>
             </template>
             <v-carousel-item v-for="item in trending?.allItems">
-                <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`">
+                <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
                     <DetailsTopInfo :item="item" :watched="false" :minimal="true" />
                 </NuxtLink>
             </v-carousel-item>
@@ -121,6 +121,16 @@ setTimeout(() => {
 
 useHead({
     title: SITE_TITLE_TEXT,
+    htmlAttrs: {
+        lang: 'en'
+    },
+    link: [
+        {
+            rel: 'icon',
+            type: 'image/x-icon',
+            href: '/favicon.ico'
+        }
+    ],
     meta: [
         {
             hid: 'description',

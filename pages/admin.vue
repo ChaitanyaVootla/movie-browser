@@ -40,7 +40,7 @@
                             <div class="text-lg font-medium">Recents</div>
                             <div class="flex flex-wrap gap-2 mt-4">
                                 <NuxtLink v-for="recent in (item['recent-items'] || [])" :key="recent.itemId"
-                                    :to="`/${recent.title?'movie':'series'}/${recent.itemId}`">
+                                    :to="`/${recent.title?'movie':'series'}/${recent.itemId}/${getUrlSlug(recent.title || recent.name)}`">
                                     <v-chip rounded>
                                         {{ recent.title?'Movie':'Series' }} -
                                         {{ recent.title || recent.name }}

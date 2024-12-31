@@ -2,7 +2,8 @@
 <span class="md:w-[15rem] md:h-[25rem] hidden"></span>
 <span class="max-md:h-[12rem] max-md:w-[8rem] hidden"></span>
 <IntersectionLoader height="25rem" width="15rem" mobileHeight="12rem" mobileWidth="8rem">
-    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}`" v-memo="[item.id, watched, inWatchList]">
+    <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`"
+        v-memo="[item.id, watched, inWatchList]">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative md:hover:mb-1 md:hover:-mt-1 hover:transition-all duration-300" :class="{'scale-95': watched}">
                 <v-img

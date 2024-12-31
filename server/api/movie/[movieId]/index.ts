@@ -36,7 +36,8 @@ export default defineEventHandler(async (event) => {
     return movie;
 });
 
-export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean, forceFrequent: boolean): Promise<IMovie> => {
+export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean,
+    forceFrequent: boolean, shallowUpdate=false): Promise<IMovie> => {
     let movie = {} as any;
     let canUpdate = false;
 
@@ -62,7 +63,6 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
     }
 
     if (isForce || !movie.title) {
-        console.log("Fetching from TMDB")
         try {
             const [details, releaseDates, watchProviders]: [any, any, any] = await Promise.all([
                 $fetch(`${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`, {
@@ -90,19 +90,23 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
                 details.collectionDetails = collectionDetails;
             }
             let googleData = movie.googleData || {} as any;
-            if (details.imdb_id || details.directorName) {
-                const movieDirectorName = details.credits.crew.find(({ job }: any) => job === 'Director')?.name;
-                const lambdaResponse = await getGoogleLambdaData(details);
-                if ((lambdaResponse?.imdbId === details.imdb_id) || (lambdaResponse?.directorName === movieDirectorName)) {
-                    googleData = lambdaResponse;
+            if (!shallowUpdate) {
+                if (details.imdb_id || details.directorName) {
+                    const movieDirectorName = details.credits.crew.find(({ job }: any) => job === 'Director')?.name;
+                    const lambdaResponse = await getGoogleLambdaData(details);
+                    if ((lambdaResponse?.imdbId === details.imdb_id) || (lambdaResponse?.directorName === movieDirectorName)) {
+                        googleData = lambdaResponse;
+                    }
                 }
             }
             movie = {
                 ...details,
                 googleData,
                 rottenTomatoes: {},
-                updatedAt: Date.now(),
             };
+            if (!shallowUpdate) {
+                movie.updatedAt = new Date();
+            }
         } catch (e) {
             console.error(`TMDB get movie failed for id: ${movieId}`, e);
         }
@@ -113,7 +117,7 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
                 {
                     $set: {
                         ...movie,
-                        updatedAt: new Date(),
+                        shallowUpdatedAt: new Date(),
                     },
                 },
                 { upsert: true },
