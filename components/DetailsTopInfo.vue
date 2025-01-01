@@ -5,7 +5,7 @@
                 <div class="h-1/2">
                     <div class="text-white font-bold text-3xl h-full">
                         <div v-if="logo" class="title-logo logo-shadow w-full h-full">
-                            <NuxtImg :src="logoPath" @error="onLogoError"
+                            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo}`"
                                 :alt="item.title || item.name" class="object-contain" />
                         </div>
                         <div v-else class="h-full w-full">
@@ -45,8 +45,7 @@
                     md:after:mr-14"
                     @click="minimal?'':showTrailer = !showTrailer">
                     <div>
-                        <NuxtImg :src="imagePath"
-                            @error="onError" 
+                        <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
                             :alt="item.title || item.name" class="bg-main object-cover object-top image-width h-full w-full absolute
                             md:pr-14">
                         </NuxtImg>
@@ -77,7 +76,7 @@
             <div class="">
                 <div class="bg-mobile-container relative w-full h-full" v-if="!showMobileTrailer" @click="minimal?'':showMobileTrailer = !showMobileTrailer">
                     <div>
-                        <NuxtImg :src="imagePath" @error="onError"
+                        <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
                             :alt="item.title || item.name" class="bg-mobile object-top image-width object-cover w-full">
                         </NuxtImg>
                     </div>
@@ -105,7 +104,7 @@
                 </div>
             </div>
             <div class="text-white font-bold text-2xl flex justify-center items-center">
-                <NuxtImg v-if="logo" :src="logoPath" @error="onLogoError"
+                <NuxtImg v-if="logo" :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${logo}`"
                     :alt="item.title || item.name" class="object-contain h-20 w-4/5 logo-shadow" />
                 <div v-else>
                     {{ item.title || item.name }}
@@ -129,10 +128,12 @@
 </template>
 
 <script setup lang="ts">
+import { baseDiscoverQuery } from '~/utils/constants';
 import { getTopicKey } from '~/utils/topics/commonUtils';
 
 let showTrailer = ref(false);
 let showMobileTrailer = ref(false);
+
 const props = defineProps({
     item: {
         type: Object,
@@ -153,21 +154,6 @@ const logo = computed(() => {
 const getGenreLink = (genre: any) => {
     const topicKey = getTopicKey('genre', genre.name, item.title?'movie':'tv');
     return `/topics/${topicKey}`;
-}
-
-const getWebpPath = (path: string) => {
-    if (!path) return '';
-    return `/data/images${path.replace(/.jpg|.png/, '.webp')}`;
-}
-
-const imagePath = ref(getWebpPath(item.backdrop_path));
-const logoPath = ref(getWebpPath(logo.value));
-
-const onLogoError = () => {
-    logoPath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo.value}`;
-}
-const onError = () => {
-    imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`;
 }
 </script>
 

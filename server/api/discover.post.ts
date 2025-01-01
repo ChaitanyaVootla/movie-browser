@@ -1,4 +1,3 @@
-import { generateItemWebp } from "~/utils/webp";
 import { Movie, MovieLightFileds, Series, SeriesLightFileds } from "../models";
 import { getObjectSha } from "../utils/crypto";
 
@@ -42,18 +41,14 @@ export default defineEventHandler(async (event) => {
             fullDataRes = await Movie.find({id: {$in: itemIds}}).select(MovieLightFileds);
         }
         const fullDataItems = fullDataRes.map(movie => movie.toJSON());
-        const mappedResults = tmdbRes.results.map((originalItem: any) => {
-            return {
-                ...fullDataItems.find((item: any) => item.id === originalItem.id),
-                ...originalItem
-            };
-        })
-        mappedResults.forEach((item: any) => {
-            generateItemWebp(item);
-        });
         return {
             ...tmdbRes,
-            results: mappedResults
+            results: tmdbRes.results.map((originalItem: any) => {
+                return {
+                    ...fullDataItems.find((item: any) => item.id === originalItem.id),
+                    ...originalItem
+                };
+            })
         }
     }
     useStorage('discovery').setItem(getObjectSha(query), tmdbRes);
