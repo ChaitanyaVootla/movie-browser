@@ -1,7 +1,8 @@
 <template>
-  <v-menu v-model="isOpen" :close-on-content-click="false">
+  <v-menu v-model="isOpen" :close-on-content-click="false" :aria-expanded="isOpen" aria-haspopup="menu">
     <template v-slot:activator="{ props }">
-      <div v-bind="props" class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2">
+      <div v-bind="props" class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2"
+        role="button" aria-label="Select a country">
         <v-img
           :src="`https://flagcdn.com/${selectedCountry.code.toLowerCase()}.svg`"
           :alt="`Flag of ${selectedCountry.name}`"
@@ -19,6 +20,7 @@
           variant="outlined"
           focused
           hide-details
+          aria-label="Search for countries by name"
         ></v-text-field>
       </v-card-text>
       <v-list height="300" class="overflow-y-auto">

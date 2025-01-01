@@ -1,7 +1,8 @@
 <template>
     <div class="flex -mt-2">
         <div v-if="ratings.length" v-for="rating in ratings">
-            <NuxtLink v-bind="props" v-if="rating.image" :to="rating.link" target="blank" noreferrer noopener>
+            <NuxtLink v-bind="props" v-if="rating.image" :to="rating.link" target="blank" rel="noreferrer noopener"
+                :aria-label="`Rating link for ${rating.name}`">
                 <div class="progress-wrapper relative w-full h-full">
                     <svg :width="small?45:70" :height="small?45:70" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="35" stroke="#333" stroke-width="10" fill="transparent"

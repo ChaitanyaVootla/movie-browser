@@ -24,11 +24,11 @@
           <div class="flex items-baseline">
             Powered by
             <NuxtLink href="https://developer.themoviedb.org/reference/intro/getting-started" noreferrer noopener target="_blank">
-              <NuxtImg src="images/tmdb.svg" class="h-3 ml-2"></NuxtImg>
+              <NuxtImg src="images/tmdb.svg" class="h-3 ml-2" alt="Powered by TMDB"></NuxtImg>
             </NuxtLink>
           </div>
           <div class="flex items-baseline">
-            Built with <NuxtImg src="images/nuxt.svg" class="h-4 ml-2"></NuxtImg>
+            Built with <NuxtImg src="images/nuxt.svg" class="h-4 ml-2" alt="Build with Nuxt"></NuxtImg>
           </div>
           <div class="flex items-baseline cursor-pointer" @click="installPwa">
             Install App
@@ -44,6 +44,15 @@ import Clarity from '@microsoft/clarity';
 useHead({
   link: [
     {
+      rel: 'preconnect',
+      href: 'https://fonts.googleapis.com'
+    },
+    {
+      rel: 'preconnect',
+      href: 'https://fonts.gstatic.com',
+      crossorigin: 'anonymous'
+    },
+    {
       rel: 'stylesheet',
       href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100,0..1'
     }
@@ -53,7 +62,6 @@ Clarity.init('oxwvg2abnk');
 const { $pwa } = useNuxtApp();
 
 const installPwa = () => {
-  console.log("install")
   $pwa.install();
 };
 </script>

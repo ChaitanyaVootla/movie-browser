@@ -4,7 +4,8 @@
         <div class="left-actions items-center flex-1 flex gap-10 text-[1rem] font-medium">
             <NuxtLink to="/" aria-label="Go Home">
                 <div class="flex items-start gap-1 tracking-widest text-xl text-white font-extrabold group mr-7">
-                    <NuxtImg src="/popcorn.png" class="h-7 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"/>
+                    <NuxtImg src="/popcorn.png" class="h-7 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"
+                        alt="The Movie Browser - Home"/>
                     <div class="logo-text">TMB</div>
                 </div>
             </NuxtLink>
@@ -77,7 +78,8 @@
                 <CountrySelector :key="userData.loadInfo.countryCode" v-model="userData.loadInfo.countryCode" />
                 <div>
                     <div v-if="status === 'unauthenticated' || status === 'loading'">
-                        <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="h-10 cursor-pointer" />
+                        <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="h-10 cursor-pointer"
+                            alt="Sign in with Google"/>
                     </div>
                     <div class="flex items-center gap-6" v-else>
                         <v-menu>
@@ -187,7 +189,7 @@
         </v-bottom-navigation>
     </div>
     <v-overlay v-model="showSearchOverlay" width="100%" height="100%" contained :close-on-content-click="true"
-        scrim="black">
+        scrim="black" aria-label="Search Overlay">
         <div class="md:flex md:justify-center relative h-full">
             <div class="absolute max-md:w-full md:px-10 md:top-36 md:flex md:justify-center md:w-1/3">
                 <v-autocomplete
