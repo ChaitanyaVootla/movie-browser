@@ -1,6 +1,7 @@
 import { ISeries, Series, SERIES_QUERY_PARAMS } from "~/server/models";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { JWT } from "next-auth/jwt";
+import { generateItemWebp } from "~/utils/webp";
 
 const DAY_MILLIS = 1000 * 60 * 60 * 24;
 
@@ -21,6 +22,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false);
+    generateItemWebp(series);
 
     if (!series) {
         event.node.res.statusCode = 404;
