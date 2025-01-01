@@ -136,15 +136,12 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
-    // '/api/movie/**': { cors: true, swr:  60 * 60 * 12 },
-    // '/api/series/**': { cors: true, swr:  60 * 60 * 12 },
-    '/api/youtube/**': { cors: true, cache: { maxAge:  60 * 60 * 24 * 4 } },
-    '/api/series/**/season/**': { cors: true, swr:  60 * 60 * 12 },
-    '/api/search/**': { cors: true, swr:  60 * 60 * 12 },
-    '/api/watchProviders/**': { cors: true, cache: { maxAge:  60 * 60 * 24 * 4 } },
-    '/api/person/**': { cors: true, cache: { maxAge:  60 * 60 * 12 } },
-    '/api/trending/trendingTmdb': { cors: true, cache: { maxAge:  60 * 60 * 6 } },
-    '/images/**': {
+    '/api/youtube/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 24 * 4 } },
+    '/api/search/(.*)': { cors: true, swr: 60 * 60 * 12 },
+    '/api/watchProviders/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 24 * 4 } },
+    '/api/person/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 12 } },
+    '/api/trending/trendingTmdb': { cors: true, cache: { maxAge: 60 * 60 * 6 } },
+    '/images/(.*)': {
       headers: {
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
