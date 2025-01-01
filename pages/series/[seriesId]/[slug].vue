@@ -155,7 +155,7 @@
                             </v-chip>
                         </div>
                         <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
-                            Last Updated: {{ humanizeDateFull(series.updatedAt || 0) }}
+                            Last Updated: {{ humanizeDateFull(series.updatedAt || movie.shallowUpdatedAt) }}
                             <v-btn @click="updateSeries" :loading="updatingSeries" variant="text" size="x-small"
                                 class="ml-3" color="#bbb">
                                 Request Update
