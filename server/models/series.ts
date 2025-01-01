@@ -2,7 +2,7 @@ import { model, Schema } from "mongoose";
 
 const SeriesSchema = new Schema({
     id: Number,
-    title: String,
+    name: String,
     adult: Boolean,
     poster_path: String,
     backdrop_path: String,
@@ -13,7 +13,7 @@ const SeriesSchema = new Schema({
 
 interface ISeries {
     id: Number,
-    title: String,
+    name: String,
     adult: Boolean,
     poster_path: String,
     backdrop_path: String,

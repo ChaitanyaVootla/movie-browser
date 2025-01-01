@@ -7,6 +7,7 @@ import * as readline from 'readline';
 export enum TMDBMediaType {
     MOVIE = 'movie',
     SERIES = 'series',
+    PERSON = 'person',
 }
 
 const getMediaDumpUrl = (mediaType: TMDBMediaType) => {
@@ -15,6 +16,8 @@ const getMediaDumpUrl = (mediaType: TMDBMediaType) => {
             return `http://files.tmdb.org/p/exports/movie_ids_${getSafeDate()}.json.gz`;
         case TMDBMediaType.SERIES:
             return `http://files.tmdb.org/p/exports/tv_series_ids_${getSafeDate()}.json.gz`;
+        case TMDBMediaType.PERSON:
+            return `http://files.tmdb.org/p/exports/person_ids_${getSafeDate()}.json.gz`;
     }
 };
 
@@ -63,16 +66,44 @@ const readFileLineByLine = async (filePath: string): Promise<any[]> => {
     return items;
 };
 
-export const getLatestMovieDataFile = async (mediaType: TMDBMediaType): Promise<string> => {
+export const getLatestMovieDataFile = async (): Promise<string> => {
     const formattedDate = getSafeDate();
     const dataDir = path.resolve('./data');
     const unzippedFilePath = path.join(dataDir, `movie_ids_${formattedDate}.json`);
 
-    downloadAndUnzipFileIfNotExists(getMediaDumpUrl(mediaType), unzippedFilePath);
+    await downloadAndUnzipFileIfNotExists(getMediaDumpUrl(TMDBMediaType.MOVIE), unzippedFilePath);
     return unzippedFilePath;
 };
 
-export const getLatestMovieData = async (mediaType: TMDBMediaType): Promise<any[]> => {
-    const filePath = await getLatestMovieDataFile(mediaType);
+export const getLatestSeriesDataFile = async (): Promise<string> => {
+    const formattedDate = getSafeDate();
+    const dataDir = path.resolve('./data');
+    const unzippedFilePath = path.join(dataDir, `tv_series_ids_${formattedDate}.json`);
+
+    await downloadAndUnzipFileIfNotExists(getMediaDumpUrl(TMDBMediaType.SERIES), unzippedFilePath);
+    return unzippedFilePath;
+}
+
+export const getLatestPersonDataFile = async (): Promise<string> => {
+    const formattedDate = getSafeDate();
+    const dataDir = path.resolve('./data');
+    const unzippedFilePath = path.join(dataDir, `person_ids_${formattedDate}.json`);
+
+    await downloadAndUnzipFileIfNotExists(getMediaDumpUrl(TMDBMediaType.PERSON), unzippedFilePath);
+    return unzippedFilePath;
+}
+
+export const getLatestMovieData = async (): Promise<any[]> => {
+    const filePath = await getLatestMovieDataFile();
+    return readFileLineByLine(filePath);
+};
+
+export const getLatestSeriesData = async (): Promise<any[]> => {
+    const filePath = await getLatestSeriesDataFile();
+    return readFileLineByLine(filePath);
+};
+
+export const getLatestPersonData = async (): Promise<any[]> => {
+    const filePath = await getLatestPersonDataFile();
     return readFileLineByLine(filePath);
 };

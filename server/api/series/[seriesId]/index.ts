@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
 });
 
 export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean): Promise<any> => {
+    forceFrequent: boolean, shallowUpdate=false): Promise<any> => {
     let series = {} as any;
     let canUpdate = false;
 
@@ -71,7 +71,6 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
         isForce = true;
     }
     if (isForce || !series.name) {
-        console.log("Fetching from TMDB")
         try {
             const [details, watchProviders]: [any, any] = await Promise.all([
                 $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${SERIES_QUERY_PARAMS}`, {
@@ -82,22 +81,26 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
                 }),
             ]);
             details.watchProviders = watchProviders.results;
-            let googleData = {} as any;
-            if (details?.external_ids?.imdb_id) {
-                const lambdaResponse = await getGoogleLambdaData(details);
-                if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
-                    googleData = lambdaResponse;
+            let googleData = series.googleData || {} as any;
+            if (!shallowUpdate) {
+                if (details?.external_ids?.imdb_id) {
+                    const lambdaResponse = await getGoogleLambdaData(details);
+                    if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
+                        googleData = lambdaResponse;
+                    }
                 }
-            }
-            if (!googleData?.imdbId && details.googleData) {
-                googleData = series.googleData;
+                if (!googleData?.imdbId && details.googleData) {
+                    googleData = series.googleData;
+                }
             }
             series = {
                 ...details,
                 googleData,
                 rottenTomatoes: {},
-                updatedAt: Date.now(),
             };
+            if (!shallowUpdate) {
+                series.updatedAt = new Date();
+            }
         } catch(e) {
             console.error(`Error getting series details for id: ${seriesId}`);
         }
@@ -107,7 +110,7 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
                 {
                     $set: {
                         ...series,
-                        updatedAt: new Date(),
+                        shallowUpdatedAt: new Date(),
                     },
                 },
                 { upsert: true },
