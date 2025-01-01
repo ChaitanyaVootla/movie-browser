@@ -10,6 +10,7 @@ services:
     volumes:
       - movie-browser_mongodb:/data/db
     restart: always
+    command: ["mongod", "--replSet", "rs0"]
 
 volumes:
   movie-browser_mongodb:
