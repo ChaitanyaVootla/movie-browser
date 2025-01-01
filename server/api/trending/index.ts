@@ -26,7 +26,7 @@ export default defineEventHandler(async () => {
             ...item,
           }
         }
-      }).map(({id, media_type, title, name, backdrop_path, vote_average, googleData, genres, images, genre_ids,
+      }).map(({id, media_type, title, name, backdrop_path, vote_count, vote_average, googleData, genres, images, genre_ids,
         popularity, homepage }: any) => ({
         id,
         media_type,
@@ -35,12 +35,13 @@ export default defineEventHandler(async () => {
         name,
         backdrop_path,
         vote_average,
+        vote_count,
         genres,
         genre_ids,
         googleData,
         images,
         homepage,
-      })).map((item: any) => stripLogos(item)),
+      })).map((item: any) => stripLogos(item)).filter((item: any) => item.backdrop_path && item.vote_count > 10),
       movies: movies.map(({id, title, poster_path, vote_average }: any) => ({
         id,
         title,
