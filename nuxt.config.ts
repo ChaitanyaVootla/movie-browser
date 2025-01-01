@@ -56,24 +56,80 @@ export default defineNuxtConfig({
     'nuxt-time',
   ],
   // TODO add proper invalidation and offline support
-  // pwa: {
-  //   registerType: 'prompt',
-  //   injectRegister: 'auto',
-  //   workbox: {
-  //     globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-  //   },
-  //   client: {
-  //     installPrompt: true,
-  //   },
-  //   strategies: 'generateSW',
-  //   devOptions: {
-  //     enabled: true,
-  //     suppressWarnings: true,
-  //     navigateFallbackAllowlist: [/^\/$/],
-  //     type: 'module',
-  //   },
-  //   includeManifestIcons: true,
-  // },
+  pwa: {
+    strategies: 'injectManifest',
+    srcDir: 'service-worker',
+    filename: 'sw.ts',
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'Movie Browser',
+      short_name: 'Movie Browser',
+      description: 'Browse movies and series, watch trailers, get recommendations, and more!',
+      display: 'standalone',
+      theme_color: '#000',
+      background_color: '#000',
+      categories: ['entertainment'],
+      icons: [
+        {
+          "src": "/images/android-chrome-192x192.png",
+          "sizes":"192x192",
+          "type":"image/png",
+        },
+        {
+          "src": "/images/android-chrome-512x512.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ],
+      screenshots: [
+        {
+          "src": "/images/site-wide.png",
+          "sizes": "2477x1078",
+          "type": "image/png",
+          "form_factor": "wide",
+          "label": "Movie content featuring Furiosa from Mad Max Franchise"
+        },
+        {
+          "src": "/images/site-narrow.png",
+          "sizes": "479x885",
+          "type": "image/png",
+          "form_factor": "narrow",
+          "label": "Movie content featuring Furiosa from Mad Max Franchise"
+        },
+      ],
+      shortcuts: [
+        {
+          "name": "Topics",
+          "short_name": "Topics",
+          "description": "Browse movies and series by topics",
+          "url": "/topics",
+          "icons": [
+            {
+              "src": "/images/android-chrome-192x192.png",
+              "sizes": "192x192"
+            }
+          ]
+        }
+      ]
+    },
+    workbox: {
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+    },
+    injectManifest: {
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+    },
+    client: {
+      installPrompt: true,
+      periodicSyncForUpdates: 3600,
+    },
+    devOptions: {
+      enabled: true,
+      suppressWarnings: true,
+      navigateFallback: '/',
+      navigateFallbackAllowlist: [/^\/$/],
+      type: 'module',
+    },
+  },
   auth: {
     provider: {
       type: 'authjs'

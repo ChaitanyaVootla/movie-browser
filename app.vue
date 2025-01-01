@@ -30,6 +30,9 @@
           <div class="flex items-baseline">
             Built with <NuxtImg src="images/nuxt.svg" class="h-4 ml-2"></NuxtImg>
           </div>
+          <div class="flex items-baseline cursor-pointer" @click="installPwa">
+            Install App
+          </div>
         </div>
       </div>
     </v-app>
@@ -47,6 +50,12 @@ useHead({
   ]
 })
 Clarity.init('oxwvg2abnk');
+const { $pwa } = useNuxtApp();
+
+const installPwa = () => {
+  console.log("install")
+  $pwa.install();
+};
 </script>
 
 <style lang="less">
