@@ -4,13 +4,11 @@ import { createSitemap, getSiteMapDir, updateSiteMapIndex } from "~/server/utils
 import { getLatestMovieData, getLatestPersonData } from "~/server/utils/tmdb_dump";
 import { syncMoviesAndSeries } from "./syncTMDBData";
 
-const CHUNK_SIZE = 48_000;
+const CHUNK_SIZE = 20_000;
 const BASE_URL = 'https://themoviebrowser.com';
 
 export default defineEventHandler(async (event) => {
-    updateSiteMapIndex();
-    // updateMovieSitemaps().then(() => updateSeriesSitemaps()).then(() => updatePersonSitemaps())
-    //     .then(() => updateSiteMapIndex());
+    updateSiteMaps();
     return { status: 200 };
 });
 
@@ -147,7 +145,7 @@ export const updatePersonSitemaps = async () => {
     allPersonsData.forEach((person) => {
         if (person.popularity >= PRIOTITY_CUTOFF) {
             priorityPersons.push(person);
-        } else {
+        } else if (person.popularity > 1) {
             nonPriorityPersons.push(person);
         }
     });
