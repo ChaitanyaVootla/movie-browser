@@ -15,10 +15,10 @@
                     <div class="identify max-md:justify-center flex gap-2 md:gap-6 mb-0 md:mb-5 overflow-x-auto">
                         <UserRating itemType="series" :itemId="series.id" @show-login="showLogin" />
                         <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
-                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
+                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" aria-label="add to watchlist"  >
                         </v-btn>
                         <v-btn :key="`${isMounted}`" @click="share" icon="mdi-share" :elevation="5"
-                            :size="$vuetify.display.mdAndUp?'small':'x-small'" :color="''">
+                            :size="$vuetify.display.mdAndUp?'small':'x-small'" :color="''" aria-label="share">
                         </v-btn>
                     </div>
                     <div class="flex w-full items-start gap-4 flex-wrap max-md:justify-center md:justify-start

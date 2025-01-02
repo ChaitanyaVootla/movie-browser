@@ -15,13 +15,13 @@
                     <div class="flex max-md:justify-center gap-2 md:gap-4 max-md:mb-3 md:mb-5 overflow-x-auto">
                         <UserRating itemType="movie" :itemId="movie.id" @show-login="showLogin"/>
                         <v-btn :key="`${isMounted}`" @click="watchClicked()" :icon="watched?'mdi-check':'mdi-eye-outline'" :color="(watched === true)?'primary':''"
-                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
+                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" aria-label="watched" >
                         </v-btn>
                         <v-btn :key="`${isMounted}`" @click="watchListClicked()" icon="mdi-playlist-plus" :color="(watchlist === true)?'primary':''"
-                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" >
+                            :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" aria-label="add to watchlist" >
                         </v-btn>
                         <v-btn :key="`${isMounted}`" @click="share" icon="mdi-share" :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'"
-                            :color="''">
+                            :color="''" aria-label="share">
                         </v-btn>
                     </div>
                     <v-card class="px-5 py-2" color="#151515">

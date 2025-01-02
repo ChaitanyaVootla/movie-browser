@@ -85,7 +85,7 @@
                         <v-menu>
                             <template v-slot:activator="{ props }">
                                 <v-avatar :image="(data?.user?.image as string)" :size="32" class="relative cursor-pointer"
-                                    v-bind="props">
+                                    v-bind="props" aria-label="user">
                                 </v-avatar>
                             </template>
                             <div class="mt-1 !rounded-lg !bg-neutral-800 min-w-60">
