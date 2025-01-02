@@ -334,7 +334,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '#imports';
-import _ from 'lodash';
+import throttle from 'lodash/throttle';
 import { userStore } from '~/plugins/state';
 import { baseDiscoverQuery } from '~/utils/constants';
 
@@ -523,7 +523,7 @@ const loadMore = async () => {
     loadData();
 }
 
-const trottledLoadMore = _.throttle(loadMore, 1000);
+const trottledLoadMore = throttle(loadMore, 1000);
 
 const searchKeywords = async (search: string) => {
     if (!search || search.length < 3) {

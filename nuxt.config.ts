@@ -37,7 +37,8 @@ export default defineNuxtConfig({
   googleFonts: {
     families: {
       Montserrat: [100, 200, 300, 400, 500, 600, 700, 800, 900],
-    }
+    },
+    preload: true,
   },
   modules: [
     '@pinia/nuxt',
@@ -147,7 +148,12 @@ export default defineNuxtConfig({
     },
   },
   gtag: {
-    id: 'G-KDSZYVPEVZ'
+    id: 'G-KDSZYVPEVZ',
+    config: {
+      anonymize_ip: true,
+      allow_google_signals: false,
+      send_page_view: true,
+    },
   },
   vite: {
     vue: {
