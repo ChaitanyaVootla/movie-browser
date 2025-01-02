@@ -5,7 +5,7 @@
                 <slot name="title">
                     <div v-if="!scrollItem.isPromo">
                         <NuxtImg v-if="localScrollItem.logo" :src="localScrollItem.logo" :alt="localScrollItem.name"
-                            class="h-10 object-cover -m-0" :class="localScrollItem.name" />
+                            class="object-cover -m-0" height="20" width="100" :class="localScrollItem.name" />
                         <h2 v-else class="text-sm md:text-xl font-medium">{{ localScrollItem.name }}</h2>
                     </div>
                 </slot>

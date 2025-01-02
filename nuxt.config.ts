@@ -55,7 +55,6 @@ export default defineNuxtConfig({
     },
     'nuxt-time',
   ],
-  // TODO add proper invalidation and offline support
   pwa: {
     strategies: 'injectManifest',
     srcDir: 'service-worker',

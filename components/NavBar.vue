@@ -4,8 +4,8 @@
         <div class="left-actions items-center flex-1 flex gap-10 text-[1rem] font-medium">
             <NuxtLink to="/" aria-label="Go Home">
                 <div class="flex items-start gap-1 tracking-widest text-xl text-white font-extrabold group mr-7">
-                    <NuxtImg src="/popcorn.png" class="h-7 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"
-                        alt="The Movie Browser - Home"/>
+                    <NuxtImg src="/popcorn-lite.png" class="group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"
+                        alt="The Movie Browser - Home" height="28" width="28"/>
                     <div class="logo-text">TMB</div>
                 </div>
             </NuxtLink>
@@ -78,8 +78,8 @@
                 <CountrySelector :key="userData.loadInfo.countryCode" v-model="userData.loadInfo.countryCode" />
                 <div>
                     <div v-if="status === 'unauthenticated' || status === 'loading'">
-                        <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="h-10 cursor-pointer"
-                            alt="Sign in with Google"/>
+                        <NuxtImg @click="signIn('google')" src="/images/googleLogin/login.svg" class="cursor-pointer"
+                            alt="Sign in with Google" height="30" width="150"/>
                     </div>
                     <div class="flex items-center gap-6" v-else>
                         <v-menu>
@@ -149,7 +149,7 @@
             </v-btn>
 
             <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile" @click="signIn('google')">
-                <NuxtImg src="/images/googleLogin/login_small.svg" class="h-6 -mt-1" />
+                <NuxtImg src="/images/googleLogin/login_small.svg" height="10" width="23" />
                 <span class="text-2xs">Login</span>
             </v-btn>
             <v-btn v-else>

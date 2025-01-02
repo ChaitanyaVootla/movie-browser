@@ -9,9 +9,7 @@ services:
       - 27017:27017
     volumes:
       - movie-browser_mongodb:/data/db
-      - ./mongo-keyfile:/etc/mongo-keyfile
     restart: always
-    command: ["mongod", "--replSet", "rs0"]
 
 volumes:
   movie-browser_mongodb:

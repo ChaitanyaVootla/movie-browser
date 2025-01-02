@@ -20,7 +20,7 @@ export const watchProviderItems = [
         }
     },
     {
-        logo: '/images/ott/large/netflix.png',
+        logo: '/images/ott/large/netflix.svg',
         name: 'netflix',
         url: 'https://www.netflix.com/browse',
         filterParams: {
@@ -39,16 +39,16 @@ export const watchProviderItems = [
             watch_region: 'IN'
         }
     },
-    {
-        logo: '/images/ott/large/hotstar.svg',
-        name: 'hotstar',
-        url: 'https://www.hotstar.com/',
-        filterParams: {
-            with_watch_providers: [377, 122],
-            media_type: 'movie',
-            watch_region: 'IN'
-        }
-    },
+    // {
+    //     logo: '/images/ott/large/hotstar.svg',
+    //     name: 'hotstar',
+    //     url: 'https://www.hotstar.com/',
+    //     filterParams: {
+    //         with_watch_providers: [377, 122],
+    //         media_type: 'movie',
+    //         watch_region: 'IN'
+    //     }
+    // },
     {
         logo: '/images/ott/large/apple.svg',
         name: 'apple',
