@@ -1,6 +1,6 @@
 <template>
     <div v-if="trending?.allItems?.length" class="-mb-5 md:-mb-5">
-        <v-carousel :height="$vuetify.display.mobile?'calc((100vw * 0.5625) + 12rem)':'59vh'" color="white" :cycle="true" :interval="10000" hideDelimiterBackground
+        <v-carousel color="white" :cycle="true" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-circle-medium" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
                 <div class="w-12 h-full cursor-pointer flex justify-center items-center group" @click="props.onClick">
@@ -189,6 +189,14 @@ useHead({
     .v-btn--icon.v-btn--density-default {
         width: 1.2rem;
         height: 1.2rem;
+    }
+}
+.carousel {
+    height: 59vh !important;
+}
+@media (max-width: 768px) {
+    :deep(.carousel) {
+        height: calc((100vw * 0.5625) + 12rem) !important;
     }
 }
 :deep(.trending-image-container) {
