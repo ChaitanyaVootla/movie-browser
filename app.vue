@@ -24,11 +24,11 @@
           <div class="flex items-baseline">
             Powered by
             <NuxtLink href="https://developer.themoviedb.org/reference/intro/getting-started" noreferrer noopener target="_blank">
-              <NuxtImg src="images/tmdb.svg" class="h-3 ml-2" alt="Powered by TMDB"></NuxtImg>
+              <NuxtImg src="images/tmdb.svg" class="ml-2" height="100" width="80" alt="Powered by TMDB"></NuxtImg>
             </NuxtLink>
           </div>
           <div class="flex items-baseline">
-            Built with <NuxtImg src="images/nuxt.svg" class="h-4 ml-2" alt="Build with Nuxt"></NuxtImg>
+            Built with <NuxtImg src="images/nuxt.svg" class="ml-2" height="100" width="60" alt="Build with Nuxt"></NuxtImg>
           </div>
           <div class="flex items-baseline cursor-pointer" @click="installPwa">
             Install App
