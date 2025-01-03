@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   build: {
     transpile: ['vuetify'],
   },
+
   devtools: {
     enabled: true,
 
@@ -11,15 +12,18 @@ export default defineNuxtConfig({
       enabled: true
     }
   },
+
   experimental: {
     writeEarlyHints: false,
   },
+
   postcss: {
     plugins: {
       tailwindcss: {},
       autoprefixer: {},
     },
   },
+
   app: {
     head: {
       htmlAttrs: {
@@ -33,13 +37,16 @@ export default defineNuxtConfig({
       ],
     },
   },
+
   css: ['~/assets/css/main.css'],
+
   googleFonts: {
     families: {
       Montserrat: [100, 200, 300, 400, 500, 600, 700, 800, 900],
     },
     preload: true,
   },
+
   modules: [
     '@pinia/nuxt',
     "@nuxtjs/google-fonts",
@@ -56,6 +63,7 @@ export default defineNuxtConfig({
     },
     'nuxt-time',
   ],
+
   pwa: {
     strategies: 'injectManifest',
     srcDir: 'service-worker',
@@ -130,11 +138,13 @@ export default defineNuxtConfig({
       type: 'module',
     },
   },
+
   auth: {
     provider: {
       type: 'authjs'
     }
   },
+
   routeRules: {
     '/api/youtube/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 24 * 4 } },
     '/api/search/(.*)': { cors: true, swr: 60 * 60 * 12 },
@@ -147,6 +157,7 @@ export default defineNuxtConfig({
       },
     },
   },
+
   gtag: {
     id: 'G-KDSZYVPEVZ',
     config: {
@@ -155,6 +166,7 @@ export default defineNuxtConfig({
       send_page_view: true,
     },
   },
+
   vite: {
     vue: {
       template: {
@@ -162,4 +174,6 @@ export default defineNuxtConfig({
       },
     },
   },
+
+  compatibilityDate: "2025-01-03",
 })
