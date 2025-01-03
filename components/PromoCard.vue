@@ -4,13 +4,13 @@
 <IntersectionLoader height="30rem" width="36rem" mobileHeight="20rem" mobileWidth="30rem">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
         <div class="promo-img">
-            <NuxtImg :src="imagePath" @error="onError"
+            <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.backdrop_path}`"
                 :alt="item.title || item.name" class="h-full object-cover rounded-lg">
             </NuxtImg>
         </div>
         <div class="h-32 p-4">
             <div v-if="logo" class="title-logo logo-shadow w-full h-full flex justify-center items-center">
-                <NuxtImg :src="logoPath" @error="onLogoError"
+                <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo}`"
                     :alt="item.title || item.name" class="object-contain" />
             </div>
             <div v-else class="h-full w-full text-center mt-4 text-xl font-medium">
@@ -30,36 +30,13 @@ const props = defineProps({
     item: {
         type: Object,
         required: true,
-        default: () => ({})
+        default: {}
     },
 });
 
 const logo = computed(() => {
     return props.item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path;
 });
-const imagePath = ref('');
-const logoPath = ref('');
-
-const getWebpPath = (path: string) => {
-    if (!path) return 'err_path';
-    return `/data/images${path.replace(/.jpg|.png/, '.webp')}`;
-};
-
-watch(
-    () => props.item, // Watch the `item` prop for changes
-    (newItem) => {
-        imagePath.value = getWebpPath(newItem.backdrop_path);
-        logoPath.value = getWebpPath(newItem.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path);
-    },
-    { immediate: true, deep: true } // Immediate to run the watcher on mount, deep for nested changes
-);
-
-const onLogoError = () => {
-    logoPath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${props.item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path}`;
-};
-const onError = () => {
-    imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${props.item.backdrop_path}`;
-};
 </script>
 
 <style scoped lang="less">
