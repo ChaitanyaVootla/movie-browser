@@ -124,10 +124,10 @@
 </template>
 
 <script setup lang="ts">
-let { videos } = defineProps<{
+let { videos: videosOriginal } = defineProps<{
     videos: any[]
 }>()
-videos = videos.slice(0, 50)
+const videos = videosOriginal.slice(0, 50)
 const filteredVideos = ref(videos);
 let currentVideo = ref(videos[0])
 let videoStats = ref(null) as any;
