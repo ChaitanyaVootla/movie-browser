@@ -12,7 +12,8 @@
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
                     :class="{'saturate-0 opacity-80 border-neutral-500 border-2 shadow-lg shadow-neutral-700': watched}"
                     :alt="`${item.title || item.name} poster`"
-                    :src="`https://image.tmdb.org/t/p/w300${item.poster_path}`">
+                    :src="posterUrl"
+                    @error="posterUrlError">
                     <template v-slot:placeholder>
                         <v-skeleton-loader color="black" type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
@@ -95,6 +96,8 @@ const props = defineProps({
 });
 const isAiRoute = useRoute().name === 'ai'
 
+const posterUrl = ref(`https://d2qifmj8erqnak.cloudfront.net/${props.item.title?'movie':'tv'}-${props.item.id}_poster.avif`)
+
 const userData = userStore();
 let watched = computed(() => {
     if (status.value !== 'authenticated' || !props?.item?.id) return false;
@@ -119,6 +122,9 @@ const toggleWatchList = () => {
         userData.toggleMovieWatchList(props.item.id);
     }
 };
+const posterUrlError = () => {
+    posterUrl.value = `https://image.tmdb.org/t/p/w300${props.item.poster_path}`;
+}
 </script>
 
 <style scoped lang="less">
