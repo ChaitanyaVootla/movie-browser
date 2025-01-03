@@ -16,7 +16,9 @@ jobs:
         node-version: '20' # specify your Node.js version
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        rm -f package-lock.json
+        npm install
 
     - name: Build
       run: npm run build
