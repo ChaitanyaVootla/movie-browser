@@ -109,7 +109,7 @@
                 </div>
 
                 <div class="px-3 md:px-20 mt-5 md:mt-10">
-                    <Scroller :items="movie.credits?.cast || []" title="Cast" :pending="pending" >
+                    <Scroller :items="movie.credits?.cast.slice(0, 15) || []" title="Cast" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
                         </template>
@@ -133,29 +133,31 @@
                     </Scroller>
                 </div>
 
-                <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 max-md:hidden">
-                    <VideoGallery :videos="movie.youtubeVideos" />
-                </div>
+                <ClientOnly>
+                    <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 max-md:hidden">
+                        <VideoGallery :videos="movie.youtubeVideos" />
+                    </div>
+                </ClientOnly>
 
                 <!-- <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
                     <PhotoGallery :images="movie?.images?.backdrops" :pending="pending" />
                 </div> -->
 
                 <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
-                    <GalleryScroller :images="movie?.images?.backdrops" :pending="pending" />
+                    <GalleryScroller :images="movie?.images?.backdrops?.slice(0, 15) || []" :pending="pending" />
                 </div>
 
                 <div v-if="aiRecommendations?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
-                    <Scroller :items="aiRecommendations || []" title="AI Recommendations" :pending="pending" />
+                    <Scroller :items="aiRecommendations?.slice(0, 15) || []" title="AI Recommendations" :pending="pending" />
                 </div>
 
                 <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
-                    <Scroller :items="movie.recommendations.results || []" title="Recommended" :pending="pending" />
+                    <Scroller :items="movie.recommendations.results?.slice(0, 15) || []" title="Recommended" :pending="pending" />
                 </div>
 
-                <div v-if="movie.similar?.results?.length" class="mt-10">
+                <!-- <div v-if="movie.similar?.results?.length" class="mt-10">
                     <Scroller :items="movie.similar.results || []" title="Similar" :pending="pending" />
-                </div>
+                </div> -->
             </div>
         </div>
         <Login ref="loginRef" />

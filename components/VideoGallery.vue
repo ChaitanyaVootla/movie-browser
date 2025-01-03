@@ -1,6 +1,6 @@
 <template>
     <div class="px-14 pb-8">
-        <NuxtImg src="images/youtube.svg" class="h-6 mb-4" alt="YouTube"></NuxtImg>
+        <NuxtImg src="images/youtube.svg" class="mb-4" height="30" width="100" alt="YouTube"></NuxtImg>
         <div class="flex justify-between grow">
             <div class="video w-2/3 video" :key="currentVideo.key">
                 <iframe id="ytplayer" type="text/html" width="100%" height="100%"

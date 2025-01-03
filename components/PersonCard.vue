@@ -9,7 +9,7 @@
                     class="image rounded-full hover:shadow-md hover:shadow-neutral-800
                         hover:transition-all duration-300 hover:mb-1 md:hover:-mt-1 border-2 border-transparent
                         hover:border-neutral-800 border-neutral-800 w-full h-full"
-                    :src="`https://image.tmdb.org/t/p/w185${item.profile_path}`">
+                    :src="`https://image.tmdb.org/t/p/w92${item.profile_path}`">
                     <template v-slot:placeholder>
                         <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
@@ -20,7 +20,7 @@
                     </template>
                 </v-img>
             </div>
-            <h3 class="title mt-1 text-xs md:text-sm line-clamp-2">
+            <h3 class="title mt-1 text-xs line-clamp-2">
                 {{ item.name }}
             </h3>
             <h3 v-if="item.job || item.character" class="text-neutral-400 text-xs line-clamp-2">
@@ -48,7 +48,7 @@
 </script>
 
 <style scoped lang="less">
-@image-width: 7rem;
+@image-width: 6rem;
 @image-height: calc(@image-width + 1rem);
 @image-mobile-width: 5rem;
 @image-mobile-height: calc(@image-mobile-width + 5px);
