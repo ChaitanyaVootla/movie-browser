@@ -35,7 +35,7 @@ jobs:
 
     - name: Upload .output/public to S3 bucket
       run: |
-        aws s3 sync .output/public s3://${{ secrets.S3_BUCKET_NAME }} --acl public-read
+        aws s3 sync .output/public s3://${{ secrets.S3_BUCKET_NAME }}
 
     - name: Invalidate CloudFront Cache
       run: |
