@@ -40,16 +40,11 @@ const logo = computed(() => {
 const imagePath = ref('');
 const logoPath = ref('');
 
-const getWebpPath = (path: string) => {
-    if (!path) return 'err_path';
-    return `/data/images${path.replace(/.jpg|.png/, '.webp')}`;
-};
-
 watch(
     () => props.item, // Watch the `item` prop for changes
     (newItem) => {
-        imagePath.value = getWebpPath(newItem.backdrop_path);
-        logoPath.value = getWebpPath(newItem.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path);
+        imagePath.value = `https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_backdrop.avif`
+        logoPath.value = `https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_logo.avif`
     },
     { immediate: true, deep: true } // Immediate to run the watcher on mount, deep for nested changes
 );

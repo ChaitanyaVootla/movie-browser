@@ -155,13 +155,8 @@ const getGenreLink = (genre: any) => {
     return `/topics/${topicKey}`;
 }
 
-const getWebpPath = (path: string) => {
-    if (!path) return '';
-    return `/data/images${path.replace(/.jpg|.png/, '.webp')}`;
-}
-
-const imagePath = ref(getWebpPath(item.backdrop_path));
-const logoPath = ref(getWebpPath(logo.value));
+const imagePath = ref(`https://d2qifmj8erqnak.cloudfront.net/${item.title?'movie':'tv'}-${item.id}_backdrop.avif`);
+const logoPath = ref(`https://d2qifmj8erqnak.cloudfront.net/${item.title?'movie':'tv'}-${item.id}_logo.avif`);
 
 const onLogoError = () => {
     logoPath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo.value}`;
