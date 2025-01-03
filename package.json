@@ -46,6 +46,7 @@
     "next-auth": "4.21.1",
     "node-cron": "^3.0.3",
     "pinia": "^2.1.7",
-    "xmlbuilder": "^15.1.1"
+    "xmlbuilder": "^15.1.1",
+    "sharp": "^0.33.5"
   }
 }
