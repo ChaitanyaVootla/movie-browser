@@ -66,7 +66,7 @@ const addToParentFilter = () => {
 };
 
 const imageError = () => {
-    // imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${props.item.backdrop_path}`;
+    imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w500}${props.item.backdrop_path}`;
 };
 </script>
 

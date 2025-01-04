@@ -47,6 +47,6 @@ const props = defineProps({
 const imagePath = ref(`https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_wide_card.avif`);
 
 const imageError = () => {
-    imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${props.item.backdrop_path}`;
+    imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w500}${props.item.backdrop_path}`;
 };
 </script>
