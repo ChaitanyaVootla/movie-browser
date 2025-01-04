@@ -35,7 +35,7 @@ jobs:
 
     - name: Upload .output/public to S3 bucket
       run: |
-        aws s3 sync .output/public s3://${{ secrets.S3_BUCKET_NAME }}
+        aws s3 sync .output/public/_nuxt s3://${{ secrets.S3_BUCKET_NAME }}/_nuxt --cache-control 'public, max-age=31536000' --delete --exact-timestamps
 
     - name: Invalidate CloudFront Cache
       run: |
