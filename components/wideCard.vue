@@ -5,11 +5,12 @@
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
         <div class="wide-card group cursor-pointer pt-2 flex flex-col">
             <div class="relative">
-                <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`"
+                <v-img :src="imagePath"
                     class="rounded-lg mr-2 wide-image hover:rounded-md hover:shadow-md hover:shadow-neutral-800
                         hover:transition-all duration-300 hover:mb-1 md:hover:-mt-1"
                     cover
-                    :alt="item.name">
+                    :alt="item.name"
+                    @error="imageError">
                     <template v-slot:placeholder>
                         <v-skeleton-loader class="wide-image" type="image" />
                     </template>
@@ -56,11 +57,16 @@ const props = defineProps({
     },
 });
 const isAiRoute = useRoute().name === 'ai'
+const imagePath = ref(`https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_wide_card.avif`);
 
 const addToParentFilter = () => {
     if (props.addToFilter) {
         props.addToFilter(props.item);
     }
+};
+
+const imageError = () => {
+    // imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${props.item.backdrop_path}`;
 };
 </script>
 

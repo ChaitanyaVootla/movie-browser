@@ -7,7 +7,8 @@
                     hover:transition-all duration-300 hover:mb-1 md:hover:-mt-1 w-full h-auto"
                 :aspect-ratio="1.77"
                 :alt="item.title || item.name"
-                :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${item.backdrop_path}`">
+                :src="imagePath"
+                @error="imageError">
                 <template v-slot:placeholder>
                     <v-skeleton-loader type="image" class="image w-full h-full"></v-skeleton-loader>
                 </template>
@@ -36,11 +37,16 @@
 <script setup lang="ts">
 import { watchOptionImageMapper } from '~/utils/watchOptions';
 
-defineProps({
+const props = defineProps({
     item: {
         type: Object,
         required: true,
         default: {}
     },
 });
+const imagePath = ref(`https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_wide_card.avif`);
+
+const imageError = () => {
+    imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${props.item.backdrop_path}`;
+};
 </script>
