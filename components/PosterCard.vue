@@ -96,7 +96,7 @@ const props = defineProps({
 });
 const isAiRoute = useRoute().name === 'ai'
 
-const posterUrl = ref(`https://d2qifmj8erqnak.cloudfront.net/${props.item.title?'movie':'tv'}-${props.item.id}_poster.avif`)
+const posterUrl = ref('')
 
 const userData = userStore();
 let watched = computed(() => {
@@ -122,6 +122,13 @@ const toggleWatchList = () => {
         userData.toggleMovieWatchList(props.item.id);
     }
 };
+watch(
+    () => props.item,
+    (newItem) => {
+        posterUrl.value = `https://d2qifmj8erqnak.cloudfront.net/${props.item.title?'movie':'tv'}-${props.item.id}_poster.avif`
+    },
+    { immediate: true, deep: true }
+);
 const posterUrlError = () => {
     posterUrl.value = `https://image.tmdb.org/t/p/w300${props.item.poster_path}`;
 }
