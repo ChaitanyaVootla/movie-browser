@@ -44,7 +44,7 @@ const props = defineProps({
         default: {}
     },
 });
-const imagePath = ref(`https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_wide_card.avif`);
+const imagePath = ref(getCdnImage(props.item, IMAGE_TYPE.WIDE_CARD));
 
 const imageError = () => {
     imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w500}${props.item.backdrop_path}`;

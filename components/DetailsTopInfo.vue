@@ -155,8 +155,8 @@ const getGenreLink = (genre: any) => {
     return `/topics/${topicKey}`;
 }
 
-const imagePath = ref(`https://d2qifmj8erqnak.cloudfront.net/${item.title?'movie':'tv'}-${item.id}_backdrop.avif`);
-const logoPath = ref(`https://d2qifmj8erqnak.cloudfront.net/${item.title?'movie':'tv'}-${item.id}_logo.avif`);
+const imagePath = ref(getCdnImage(item, IMAGE_TYPE.BACKDROP));
+const logoPath = ref(getCdnImage(item, IMAGE_TYPE.LOGO));
 
 const onLogoError = () => {
     logoPath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo.value}`;

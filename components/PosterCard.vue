@@ -125,7 +125,7 @@ const toggleWatchList = () => {
 watch(
     () => props.item,
     (newItem) => {
-        posterUrl.value = `https://d2qifmj8erqnak.cloudfront.net/${props.item.title?'movie':'tv'}-${props.item.id}_poster.avif`
+        posterUrl.value = getCdnImage(props.item, IMAGE_TYPE.POSTER)
     },
     { immediate: true, deep: true }
 );

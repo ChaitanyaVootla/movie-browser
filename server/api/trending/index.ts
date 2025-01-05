@@ -1,5 +1,4 @@
 import { stripLogos } from "~/server/utils/logos";
-import { generateItemWebp } from "~/utils/webp";
 
 export default defineEventHandler(async () => {
   try {
@@ -43,8 +42,6 @@ export default defineEventHandler(async () => {
       homepage,
     })).map((item: any) => stripLogos(item)).filter((item: any) => item.backdrop_path && item.vote_count > 10)
 
-    // generate webp
-    mappedAllItems.forEach((item: any) => generateItemWebp(item));
     return {
       allItems: mappedAllItems,
       movies: movies.map(({id, title, poster_path, vote_average }: any) => ({

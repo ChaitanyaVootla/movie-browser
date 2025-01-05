@@ -57,7 +57,7 @@ const props = defineProps({
     },
 });
 const isAiRoute = useRoute().name === 'ai'
-const imagePath = ref(`https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_wide_card.avif`);
+const imagePath = ref(getCdnImage(props.item, IMAGE_TYPE.WIDE_CARD));
 
 const addToParentFilter = () => {
     if (props.addToFilter) {

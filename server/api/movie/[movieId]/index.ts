@@ -3,7 +3,6 @@ import { TMDB } from "~/server/utils/api";
 import _ from "lodash";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { JWT } from "next-auth/jwt";
-import { generateItemWebp } from "~/utils/webp";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
@@ -25,7 +24,6 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
     const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false);
-    generateItemWebp(movie);
     if (!movie) {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);

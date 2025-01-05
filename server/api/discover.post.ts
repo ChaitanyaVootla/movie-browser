@@ -1,4 +1,3 @@
-import { generateItemWebp } from "~/utils/webp";
 import { Movie, MovieLightFileds, Series, SeriesLightFileds } from "../models";
 import { getObjectSha } from "../utils/crypto";
 
@@ -48,9 +47,6 @@ export default defineEventHandler(async (event) => {
                 ...originalItem
             };
         })
-        mappedResults.forEach((item: any) => {
-            generateItemWebp(item);
-        });
         return {
             ...tmdbRes,
             results: mappedResults

@@ -43,8 +43,8 @@ const logoPath = ref('');
 watch(
     () => props.item, // Watch the `item` prop for changes
     (newItem) => {
-        imagePath.value = `https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_backdrop.avif`
-        logoPath.value = `https://d2qifmj8erqnak.cloudfront.net/${props.item?.title?'movie':'tv'}-${props.item?.id}_logo.avif`
+        imagePath.value = getCdnImage(props.item, IMAGE_TYPE.BACKDROP)
+        logoPath.value = getCdnImage(props.item, IMAGE_TYPE.LOGO)
     },
     { immediate: true, deep: true } // Immediate to run the watcher on mount, deep for nested changes
 );
