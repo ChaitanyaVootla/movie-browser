@@ -159,12 +159,7 @@ export default defineNuxtConfig({
   },
 
   gtag: {
-    id: 'G-KDSZYVPEVZ',
-    config: {
-      anonymize_ip: true,
-      allow_google_signals: false,
-      send_page_view: true,
-    },
+    id: 'G-KDSZYVPEVZ'
   },
 
   vite: {
