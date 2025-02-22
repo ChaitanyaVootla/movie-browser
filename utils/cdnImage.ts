@@ -6,5 +6,5 @@ export enum IMAGE_TYPE {
 }
 
 export const getCdnImage = (item: any, imageType: IMAGE_TYPE) => {
-    return `https://d2qifmj8erqnak.cloudfront.net/${item.title?'movie':'series'}/${item.id}/${imageType}.webp`;
+    return `https://image.themoviebrowser.com/${item.title?'movie':'series'}/${item.id}/${imageType}.webp`;
 }
