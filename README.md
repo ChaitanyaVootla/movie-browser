@@ -38,7 +38,7 @@ Create a python venv and install the requirements.txt file, then run this to cre
 python3 openai/create.py
 ```
 
-Then run this for starting the server
+Then run this to start the server
 ```
 python3 openai/server.py
 ```
