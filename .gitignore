@@ -45,3 +45,6 @@ logs
 # data
 data
 ./public/data
+
+# Generated sitemaps
+public/sitemap*.xml

@@ -17,7 +17,7 @@
             <!-- Scroll indicator - hidden during SSR to avoid hydration mismatch -->
             <div v-if="isMounted" :id="`scroll-bar-${uuid}`"></div>
             <div class="flex gap-2 md:gap-4 overflow-y-auto w-full slider">
-                <div v-for="item in (items?.length > 0? items: Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
+                <div v-for="item in (items?.length > 0 ? items : (pending ? skeletonItems : []))" :class="isSliding ? 'pointer-events-none' : ''">
                     <slot :item="item">
                         <PosterCard :item="item" :pending="pending" class="mr-2 md:pr-6"/>
                     </slot>
@@ -52,6 +52,19 @@ const props = defineProps({
         required: true
     }
 });
+
+// Create proper skeleton items instead of undefined array
+const skeletonItems = computed(() => 
+    Array(10).fill(null).map((_, index) => ({
+        id: `skeleton-${index}`,
+        title: '',
+        name: '',
+        poster_path: null,
+        media_type: 'movie',
+        vote_average: 0,
+        isSkeleton: true
+    }))
+);
 const uuid = ref<any>(null);
 let isSliding = ref(false);
 const slideLeft = ref<any>(null);
