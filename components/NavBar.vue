@@ -188,19 +188,20 @@
             </v-btn>
         </v-bottom-navigation>
     </div>
-    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" contained :close-on-content-click="true"
+    <v-overlay v-model="showSearchOverlay" width="100%" height="100%" contained :close-on-content-click="false"
         scrim="black" aria-label="Search Overlay">
         <div class="md:flex md:justify-center relative h-full">
-            <div class="absolute max-md:w-full md:px-10 md:top-36 md:flex md:justify-center md:w-1/3">
+            <div class="absolute max-md:w-full md:px-10 md:top-36 md:flex md:flex-col md:items-stretch md:w-1/3">
                 <v-autocomplete
                     auto-select-first
                     label="Search"
-                    class="search relative"
+                    class="search relative w-full"
                     autofocus
                     variant="solo-filled"
                     return-object
                     :loading="isSearching"
-                    @update:search="searchUpdated"
+                    v-model:search="searchText"
+                    @update:search="onSearch"
                     @update:model-value="searchItemClicked"
                     :items="searchResults"
                     no-filter
@@ -208,6 +209,41 @@
                     bg-color="black"
                     base-color="black"
                 >
+                    <template #prepend-item>
+                        <div class="px-2 pt-2 pb-1" @click.stop>
+                            <div class="w-full flex justify-center gap-2">
+                                <v-chip
+                                    :color="selectedType === 'all' ? 'primary' : '#333'"
+                                    variant="elevated"
+                                    size="small"
+                                    class="cursor-pointer"
+                                    @click.stop="setType('all')"
+                                >All</v-chip>
+                                <v-chip
+                                    :color="selectedType === 'movie' ? 'primary' : '#333'"
+                                    variant="elevated"
+                                    size="small"
+                                    class="cursor-pointer"
+                                    @click.stop="setType('movie')"
+                                >Movies</v-chip>
+                                <v-chip
+                                    :color="selectedType === 'tv' ? 'primary' : '#333'"
+                                    variant="elevated"
+                                    size="small"
+                                    class="cursor-pointer"
+                                    @click.stop="setType('tv')"
+                                >Series</v-chip>
+                                <v-chip
+                                    :color="selectedType === 'person' ? 'primary' : '#333'"
+                                    variant="elevated"
+                                    size="small"
+                                    class="cursor-pointer"
+                                    @click.stop="setType('person')"
+                                >People</v-chip>
+                            </div>
+                            <v-divider class="mt-2"></v-divider>
+                        </div>
+                    </template>
                     <template v-slot:item="{ props, item }">
                         <v-list-item v-bind="props" title="" variant="flat">
                             <div v-if="item?.raw">
@@ -261,6 +297,7 @@
                         </v-list-item>
                     </template>
                 </v-autocomplete>
+                
             </div>
         </div>
     </v-overlay>
@@ -279,6 +316,9 @@ const defaultNavBarItem = ref(0);
 
 const showSearchOverlay = ref(false);
 const isSearching = ref(false);
+const selectedType = ref<'all' | 'movie' | 'tv' | 'person'>('all');
+const latestQuery = ref('');
+const searchText = ref('');
 const isMounted = ref(false);
 const isMac = ref(false);
 let searchResults = ref([] as any[]);
@@ -309,9 +349,13 @@ const isAdmin = computed(() => {
     return data?.value?.user?.email === 'speedblaze@gmail.com';
 })
 
-const searchUpdated = useDebounce(async (query: string) => {
+const doSearch = async (query: string) => {
+    if (!query || !query.trim()) {
+        searchResults.value = [];
+        return;
+    }
     isSearching.value = true;
-    let searchResponse = await $fetch(`/api/search?query=${query}`);
+    let searchResponse = await $fetch(`/api/search?query=${encodeURIComponent(query)}&type=${selectedType.value}`);
     searchResponse = searchResponse.map((item: any) => {
         if (item.media_type === 'movie') {
             return {
@@ -331,10 +375,27 @@ const searchUpdated = useDebounce(async (query: string) => {
         }
     });
 
-    const topics = searchTopics(query);
+    const topics = selectedType.value === 'all' ? searchTopics(query) : [];
     searchResults.value = [...(topics.slice(0, 5)), ...searchResponse];
     isSearching.value = false;
+};
+
+const searchUpdated = useDebounce(async (query: string) => {
+    latestQuery.value = query;
+    await doSearch(query);
 }, 300, { leading: false });
+
+const onSearch = async (query: string) => {
+    latestQuery.value = query;
+    await searchUpdated(query);
+};
+
+const setType = async (type: 'all' | 'movie' | 'tv' | 'person') => {
+    selectedType.value = type;
+    if (latestQuery.value) {
+        await doSearch(latestQuery.value);
+    }
+};
 
 const searchItemClicked = (item: any) => {
     showSearchOverlay.value = false;

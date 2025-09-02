@@ -8,11 +8,13 @@
                 :elevation="20"
             ></v-skeleton-loader>
         </div>
-        <div v-else>
-            <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
-            <div class="max-md:pt-3 md:pt-5">
-                <div class="px-3 md:mx-12 overview">
-                    <div class="flex max-md:justify-center gap-2 md:gap-4 max-md:mb-3 md:mb-5 overflow-x-auto">
+        <article v-else itemscope itemtype="https://schema.org/Movie">
+            <header>
+                <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
+            </header>
+            <main class="max-md:pt-3 md:pt-5">
+                <section class="px-3 md:mx-12 overview" aria-label="Movie details and actions">
+                    <nav class="flex max-md:justify-center gap-2 md:gap-4 max-md:mb-3 md:mb-5 overflow-x-auto" aria-label="Movie actions">
                         <UserRating itemType="movie" :itemId="movie.id" @show-login="showLogin"/>
                         <v-btn :key="`${isMounted}`" @click="watchClicked()" :icon="watched?'mdi-check':'mdi-eye-outline'" :color="(watched === true)?'primary':''"
                             :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" aria-label="watched" >
@@ -23,9 +25,9 @@
                         <v-btn :key="`${isMounted}`" @click="share" icon="mdi-share" :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'"
                             :color="''" aria-label="share">
                         </v-btn>
-                    </div>
+                    </nav>
                     <v-card class="px-5 py-2" color="#151515">
-                        <h1 class="md:text-lg font-semibold flex items-center gap-4">
+                        <h1 class="md:text-lg font-semibold flex items-center gap-4" itemprop="name">
                             {{ movie.title }}
                         </h1>
                         <h2 class="mt-1">
@@ -102,7 +104,7 @@
                             </v-btn>
                         </div>
                     </v-card>
-                </div>
+                </section>
 
                 <div v-if="movie?.collectionDetails?.parts?.length" class="px-3 md:px-0 cast mt-10">
                     <Scroller :items="collectionParts || []" :title="movie.collectionDetails.name" :pending="pending" />
@@ -133,11 +135,10 @@
                     </Scroller>
                 </div>
 
-                <ClientOnly>
-                    <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 max-md:hidden">
-                        <VideoGallery :videos="movie.youtubeVideos" />
-                    </div>
-                </ClientOnly>
+                <!-- Video gallery - load after hydration to avoid layout shift -->
+                <div v-if="movie?.youtubeVideos?.length && isMounted" class="px-3 md:px-20 max-md:mt-3 md:mt-5 max-md:hidden">
+                    <VideoGallery :videos="movie.youtubeVideos" />
+                </div>
 
                 <!-- <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
                     <PhotoGallery :images="movie?.images?.backdrops" :pending="pending" />
@@ -158,8 +159,8 @@
                 <!-- <div v-if="movie.similar?.results?.length" class="mt-10">
                     <Scroller :items="movie.similar.results || []" title="Similar" :pending="pending" />
                 </div> -->
-            </div>
-        </div>
+            </main>
+        </article>
         <Login ref="loginRef" />
         <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
             <span class="text-xs">Updating latest ratings and watch links</span>
@@ -498,6 +499,10 @@ useHead(() => {
                 rel: 'icon',
                 type: 'image/x-icon',
                 href: '/favicon.ico'
+            },
+            {
+                rel: 'canonical',
+                href: `https://themoviebrowser.com/movie/${movie.value?.id}/${getUrlSlug(movie.value?.title || '')}`
             }
         ],
         script: [

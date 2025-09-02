@@ -11,7 +11,7 @@
                     cover
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
                     :class="{'saturate-0 opacity-80 border-neutral-500 border-2 shadow-lg shadow-neutral-700': watched}"
-                    :alt="`${item.title || item.name} poster`"
+                    :alt="`${item.title || item.name} ${item.media_type === 'movie' ? 'movie' : 'TV series'} poster - ${item.vote_average ? `Rated ${item.vote_average}/10` : 'Entertainment content'}`"
                     :src="posterUrl"
                     @error="posterUrlError">
                     <template v-slot:placeholder>
@@ -23,33 +23,31 @@
                         </v-skeleton-loader>
                     </template>
                 </v-img>
-                <ClientOnly>
-                    <div v-if="isMovie(props.item)" class="absolute bottom-0 w-full p-0"
-                        >
-                        <v-btn
-                            @click.prevent="toggleWatchList"
-                            v-bind="props"
-                            color="black"
-                            :aria-label="inWatchList ? 'Remove from watch list' : 'Add to watch list'"
-                            class="!border-2 !border-neutral-700 opacity-60 float-start !text-base"
-                            :class="{'!hidden group-hover:!block': !inWatchList, '!border-neutral-500': inWatchList}"
-                            icon="mdi-plus"
-                            rounded
-                            size="x-small">
-                        </v-btn>
-                        <v-btn
-                            @click.prevent="toggleWatch"
-                            v-bind="props"
-                            color="black"
-                            :aria-label="watched?'Watched':'Watched?'"
-                            class="!border-2 !border-neutral-700 opacity-60 float-end !text-base"
-                            :class="{'!hidden group-hover:!block': !watched, '!border-neutral-500': watched}"
-                            :icon="watched?'mdi-check':'mdi-eye-outline'"
-                            rounded
-                            size="x-small">
-                        </v-btn>
-                    </div>
-                </ClientOnly>
+                <!-- User interaction buttons - only show after hydration -->
+                <div v-if="isMovie(props.item) && isMounted" class="absolute bottom-0 w-full p-0">
+                    <v-btn
+                        @click.prevent="toggleWatchList"
+                        v-bind="props"
+                        color="black"
+                        :aria-label="inWatchList ? 'Remove from watch list' : 'Add to watch list'"
+                        class="!border-2 !border-neutral-700 opacity-60 float-start !text-base"
+                        :class="{'!hidden group-hover:!block': !inWatchList, '!border-neutral-500': inWatchList}"
+                        icon="mdi-plus"
+                        rounded
+                        size="x-small">
+                    </v-btn>
+                    <v-btn
+                        @click.prevent="toggleWatch"
+                        v-bind="props"
+                        color="black"
+                        :aria-label="watched?'Watched':'Watched?'"
+                        class="!border-2 !border-neutral-700 opacity-60 float-end !text-base"
+                        :class="{'!hidden group-hover:!block': !watched, '!border-neutral-500': watched}"
+                        :icon="watched?'mdi-check':'mdi-eye-outline'"
+                        rounded
+                        size="x-small">
+                    </v-btn>
+                </div>
                 <div v-if="isAiRoute" v-once class="overlay invisible group-hover:visible absolute bottom-0 flex justify-center
                     w-full z-10 px-3 pt-4 items-center">
                     <div class="flex items-center justify-between w-full">
@@ -79,6 +77,11 @@ import { userStore } from '~/plugins/state';
 import { isMovie } from '~/utils/movieIdentifier';
 
 const { status } = useAuth();
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
 
 const props = defineProps({
     item: {

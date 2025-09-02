@@ -1,5 +1,6 @@
 <template>
-    <div v-if="trending?.allItems?.length" class="-mb-5 md:-mb-5">
+    <!-- SEO-optimized hero section with fallback content -->
+    <div v-if="trending?.allItems?.length || pending" class="-mb-5 md:-mb-5">
         <v-carousel color="white" :cycle="true" :interval="10000" hideDelimiterBackground
             delimiterIcon="mdi-circle-medium" class="carousel" :key="trending?.allItems?.length">
             <template v-slot:prev="{ props }">
@@ -21,7 +22,7 @@
     </div>
     <div class="mt-5 md:mt-0 p-3 pb-16">
         <Scroller v-if="status === 'authenticated' && continueWatching?.length" :items="continueWatching" :pending="pending"
-            title="Continue Watching" class="mb-4 md:pb-5" titleIcon="mdi-play-circle-outline">
+            title="Continue Watching" class="mb-4 md:pb-5" title-icon="mdi-play-circle-outline">
             <template v-slot:default="{ item }">
                 <WatchCard :item="item" class="mr-3" />
             </template>
@@ -53,17 +54,33 @@
 import { useAuth } from '#imports'
 import { userStore } from '~/plugins/state';
 import { SITE_TITLE_TEXT } from '~/utils/constants';
+import { movieGenres, seriesGenres } from '~/utils/constants';
+import { mapWatchListSeries } from '~/utils/seriesMapper';
+import { MOVIE_CATEGORIES } from '~/pages/movie/categories';
+import { TV_CATEGORIES } from '~/pages/series/categories';
 
 const { status } = useAuth();
 const userData = userStore();
 
+// Create combined watch provider items for scrollers
+const watchProviderItems = computed(() => [
+    ...MOVIE_CATEGORIES.slice(0, 3), // First few movie categories
+    ...TV_CATEGORIES.slice(0, 2)     // First few TV categories
+]);
+
+// Optimized for SEO - ensure content loads during SSR
 const { pending, data: trending }: any = await useLazyAsyncData('trending',
     () => $fetch('/api/trending').catch((err) => {
         console.log(err);
-        return {};
+        return { allItems: [], movies: [], tv: [], streamingNow: [] };
     }),
     {
         transform: (trending: any) => {
+            // Ensure we always return a valid structure for SSR
+            if (!trending || !trending.allItems) {
+                return { allItems: [], movies: [], tv: [], streamingNow: [] };
+            }
+            
             return {
                 ...trending,
                 allItems: trending.allItems.map(
@@ -71,53 +88,66 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
                         if (item.media_type === 'movie') {
                             return {
                                 ...item,
-                                genres: item.genre_ids.map((genreId: number) => movieGenres[genreId]),
+                                genres: item.genre_ids?.map((genreId: number) => movieGenres[genreId]) || [],
                             }
                         } else if (item.media_type === 'tv') {
                             return {
                                 ...item,
-                                genres: item.genre_ids.map((genreId: number) => seriesGenres[genreId]),
+                                genres: item.genre_ids?.map((genreId: number) => seriesGenres[genreId]) || [],
                             }
                         }
+                        return item;
                     }
                 ).slice(0, 10)
             }
         },
+        server: true, // Ensure SSR
+        default: () => ({ allItems: [], movies: [], tv: [], streamingNow: [] })
     }
 );
 
-const { data: watchList, execute: executeWatchList } = await useLazyAsyncData('watchList',
-    () => $fetch('/api/user/watchList').catch((err) => {
-        console.log(err);
-        return {};
-    }),
+// User-specific data with proper SSR handling
+const { data: watchList } = await useLazyAsyncData('watchList',
+    () => {
+        // Only fetch if authenticated
+        if (status.value === 'authenticated') {
+            return $fetch('/api/user/watchList').catch((err) => {
+                console.log(err);
+                return {};
+            });
+        }
+        return Promise.resolve({});
+    },
     {
         transform: ({movies, series}: any) => {
+            if (!movies && !series) return {};
             return {
-                movies: movies.slice(0, 15),
-                ongoingSeries: mapWatchListSeries(series)?.currentRunningSeries
+                movies: movies?.slice(0, 15) || [],
+                ongoingSeries: mapWatchListSeries(series)?.currentRunningSeries || []
             };
         },
-        server: false,
+        default: () => ({ movies: [], ongoingSeries: [] }),
+        server: false, // Keep client-side for user-specific content
     }
 );
 
 const recents = computed(() => userData.Recents);
 
-const { data: continueWatching, execute: executeContinueWatching }: any = await useLazyAsyncData('continueWatching',
-    () => $fetch('/api/user/continueWatching').catch((err) => {
-        console.log(err);
-        return {};
-    }),
+const { data: continueWatching }: any = await useLazyAsyncData('continueWatching',
+    () => {
+        if (status.value === 'authenticated') {
+            return $fetch('/api/user/continueWatching').catch((err) => {
+                console.log(err);
+                return [];
+            });
+        }
+        return Promise.resolve([]);
+    },
     {
-        server: false,
+        default: () => [],
+        server: false, // Keep client-side for user-specific content
     }
 );
-
-setTimeout(() => {
-    executeWatchList();
-    executeContinueWatching();
-});
 
 useHead({
     title: SITE_TITLE_TEXT,
@@ -129,6 +159,10 @@ useHead({
             rel: 'icon',
             type: 'image/x-icon',
             href: '/favicon.ico'
+        },
+        {
+            rel: 'canonical',
+            href: 'https://themoviebrowser.com/'
         }
     ],
     meta: [

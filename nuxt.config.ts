@@ -29,11 +29,21 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'en',
       },
-      titleTemplate: (titleChunk) => {
-        return titleChunk ? `${titleChunk} - Movie Browser` : 'Movie Browser'
-      },
+      titleTemplate: '%s - Movie Browser',
       meta: [
         { name: 'yandex-verification', content: '0fae8749627beb1f' },
+        { name: 'robots', content: 'index, follow' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { property: 'og:site_name', content: 'The Movie Browser' },
+        { property: 'og:type', content: 'website' },
+        { name: 'twitter:site', content: '@movie-browser' },
+        { name: 'twitter:creator', content: '@ChaitanyaVootla' },
+        { name: 'theme-color', content: '#000000' },
+      ],
+      link: [
+        { rel: 'preconnect', href: 'https://image.tmdb.org' },
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'dns-prefetch', href: 'https://api.themoviedb.org' },
       ],
     },
   },
@@ -145,17 +155,48 @@ export default defineNuxtConfig({
     }
   },
 
+  // Enhanced SSR configuration
+  ssr: true,
+  
+  // Disable prerendering for Windows compatibility
+  nitro: {
+    compressPublicAssets: true,
+    minify: true,
+    prerender: {
+      routes: [],
+    },
+  },
+  
+  // Image optimization for better LCP
+  image: {
+    format: ['webp', 'avif'],
+    quality: 80,
+    densities: [1, 2],
+  },
+  
   routeRules: {
+    // API routes with caching
     '/api/youtube/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 24 * 4 } },
     '/api/search/(.*)': { cors: true, swr: 60 * 60 * 12 },
     '/api/watchProviders/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 24 * 4 } },
     '/api/person/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 12 } },
-    '/api/trending/trendingTmdb': { cors: true, cache: { maxAge: 60 * 60 * 6 } },
+    '/api/trending/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 6 } },
+    
+    // Static asset caching
     '/images/(.*)': {
       headers: {
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
+    
+    // SEO-optimized pages with caching (ISR removed for Windows compatibility)
+    '/': { headers: { 'cache-control': 's-maxage=3600' } }, // Homepage caching
+    '/movie/**': { headers: { 'cache-control': 's-maxage=86400' } }, // Movie pages cache 24h
+    '/series/**': { headers: { 'cache-control': 's-maxage=86400' } }, // Series pages cache 24h
+    '/person/**': { headers: { 'cache-control': 's-maxage=604800' } }, // Person pages cache 7 days
+    
+    // Static pages that rarely change
+    '/topics/**': { headers: { 'cache-control': 's-maxage=43200' } }, // Topic pages cache 12h
   },
 
   gtag: {

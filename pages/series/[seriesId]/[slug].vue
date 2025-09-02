@@ -51,22 +51,22 @@
                                 <div class="text-neutral-400 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
                                     text-xs md:text-sm -mb-1 flex items-center justify-between mr-1">
                                     <div class="flex gap-2">
-                                        Episode {{ item.episode_number }}
-                                        <div v-if="item.air_date">
+                                        Episode {{ item?.episode_number }}
+                                        <div v-if="item?.air_date">
                                             -
-                                        <NuxtTime :datetime="new Date(item.air_date)"
+                                        <NuxtTime :datetime="new Date(item?.air_date)"
                                             year="numeric" month="long" day="numeric" class="ml-1" />
                                         </div>
                                     </div>
-                                    <div v-if="(new Date(item.air_date)).getTime() > Date.now()">
+                                    <div v-if="(new Date(item?.air_date)).getTime() > Date.now()">
                                         <v-chip rounded size="small">
                                             <span class="text-neutral-200">Upcoming</span>
                                         </v-chip>
                                     </div>
                                 </div>
-                                <v-img :src="`https://image.tmdb.org/t/p/w500${item.still_path}`"
+                                <v-img :src="`https://image.tmdb.org/t/p/w500${item?.still_path}`"
                                     class="rounded-lg mr-2 wide-image"
-                                    :alt="item.name">
+                                    :alt="item?.name">
                                     <template v-slot:placeholder>
                                         <v-skeleton-loader class="wide-image" type="image" />
                                     </template>
@@ -78,7 +78,7 @@
                                 </v-img>
                                 <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
                                     text-xs md:text-base">
-                                    {{ item.name }}
+                                    {{ item?.name }}
                                 </div>
                             </div>
                         </template>
@@ -155,7 +155,7 @@
                             </v-chip>
                         </div>
                         <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
-                            Last Updated: {{ humanizeDateFull(series.updatedAt || movie.shallowUpdatedAt) }}
+                            Last Updated: {{ humanizeDateFull(series.updatedAt || series.shallowUpdatedAt) }}
                             <v-btn @click="updateSeries" :loading="updatingSeries" variant="text" size="x-small"
                                 class="ml-3" color="#bbb">
                                 Request Update
@@ -519,6 +519,10 @@ useHead(() => {
                 rel: 'icon',
                 type: 'image/x-icon',
                 href: '/favicon.ico'
+            },
+            {
+                rel: 'canonical',
+                href: `https://themoviebrowser.com/series/${series.value?.id}/${getUrlSlug(series.value?.name || '')}`
             }
         ],
         script: [

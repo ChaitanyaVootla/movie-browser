@@ -44,17 +44,44 @@ export default defineEventHandler(async () => {
 
     return {
       allItems: mappedAllItems,
-      movies: movies.map(({id, title, poster_path, vote_average }: any) => ({
-        id,
-        title,
-        poster_path,
-        vote_average,
-      })),
-      tv: tv.map(({id, name, poster_path }: any) => ({
-        id,
-        name,
-        poster_path,
-      })),
+      movies: movies.map((movie: any) => {
+        const fullInfo: any = allItemMoviefullInfo.find((fullMovie: any) => fullMovie.id === movie.id) || {};
+        return {
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path,
+          vote_average: movie.vote_average,
+          // Add essential properties for PosterCard compatibility
+          media_type: 'movie',
+          popularity: movie.popularity || 0,
+          backdrop_path: movie.backdrop_path || fullInfo.backdrop_path,
+          vote_count: movie.vote_count || fullInfo.vote_count || 0,
+          genres: fullInfo.genres || [],
+          genre_ids: movie.genre_ids || [],
+          googleData: fullInfo.googleData,
+          images: fullInfo.images,
+          homepage: fullInfo.homepage,
+        };
+      }),
+      tv: tv.map((series: any) => {
+        const fullInfo: any = allItemTvfullInfo.find((fullSeries: any) => fullSeries.id === series.id) || {};
+        return {
+          id: series.id,
+          name: series.name,
+          poster_path: series.poster_path,
+          vote_average: series.vote_average || fullInfo.vote_average || 0,
+          // Add essential properties for PosterCard compatibility
+          media_type: 'tv',
+          popularity: series.popularity || 0,
+          backdrop_path: series.backdrop_path || fullInfo.backdrop_path,
+          vote_count: series.vote_count || fullInfo.vote_count || 0,
+          genres: fullInfo.genres || [],
+          genre_ids: series.genre_ids || [],
+          googleData: fullInfo.googleData,
+          images: fullInfo.images,
+          homepage: fullInfo.homepage,
+        };
+      }),
       streamingNow: streamingNow.map((movie: any) => ({
           ...(allItemMoviefullInfo.find((fullMovie: any) => fullMovie.id === movie.id) || {}) as any,
           ...movie,

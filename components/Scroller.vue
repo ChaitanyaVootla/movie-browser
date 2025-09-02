@@ -14,9 +14,8 @@
                         class="group-hover:scale-125 group-hover:!text-white transition-all duration-200"></v-icon>
                 </div>
             </div>
-            <ClientOnly>
-                <div :id="`scroll-bar-${uuid}`"></div>
-            </ClientOnly>
+            <!-- Scroll indicator - hidden during SSR to avoid hydration mismatch -->
+            <div v-if="isMounted" :id="`scroll-bar-${uuid}`"></div>
             <div class="flex gap-2 md:gap-4 overflow-y-auto w-full slider">
                 <div v-for="item in (items?.length > 0? items: Array(10))" :class="isSliding ? 'pointer-events-none' : ''">
                     <slot :item="item">
@@ -57,8 +56,10 @@ const uuid = ref<any>(null);
 let isSliding = ref(false);
 const slideLeft = ref<any>(null);
 const slideRight = ref<any>(null);
+const isMounted = ref(false);
 
 onMounted(() => {
+    isMounted.value = true;
     uuid.value = uid();
     setTimeout(() => {
         const slider: any = document.querySelector(`#scroll-bar-${uuid.value}+.slider`);
