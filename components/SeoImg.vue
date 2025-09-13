@@ -87,25 +87,17 @@ const getValidSources = () => {
 // Initialize image source
 const initializeImage = () => {
   const sources = getValidSources()
-  console.log('[SeoImg] initializeImage called:', {
-    sources,
-    isServer: import.meta.server,
-    isClient: import.meta.client,
-    mounted: process.client
-  })
   
   if (sources.length > 0) {
     sourceIndex.value = 0
     loaded.value = false
     allSourcesFailed.value = false
     imgSrc.value = sources[0] || ''
-    console.log('[SeoImg] Initialized with:', imgSrc.value)
   }
 }
 
 // Simple error handling - try next source
 const handleError = (event: Event) => {
-  console.log('[SeoImg] ERROR event fired for:', imgSrc.value, event)
   const sources = getValidSources()
   
   // Try next source
@@ -113,13 +105,11 @@ const handleError = (event: Event) => {
     sourceIndex.value++
     loaded.value = false
     imgSrc.value = sources[sourceIndex.value] || ''
-    console.log('[SeoImg] Trying next source:', imgSrc.value)
     return
   }
   
   // All sources failed
   allSourcesFailed.value = true
-  console.log('[SeoImg] All sources failed')
   emit('error', event, imgSrc.value)
   emit('allFailed')
 }
@@ -127,7 +117,6 @@ const handleError = (event: Event) => {
 // Simple load handling
 const handleLoad = (event: Event) => {
   loaded.value = true
-  console.log('[SeoImg] LOAD event fired successfully for:', imgSrc.value)
   emit('load', event, imgSrc.value)
 }
 
@@ -137,7 +126,6 @@ watch(() => props.src, initializeImage, { immediate: true })
 
 // Re-initialize after hydration to ensure client-side works
 onMounted(() => {
-  console.log('[SeoImg] onMounted - forcing re-initialization after hydration')
   initializeImage()
 })
 
