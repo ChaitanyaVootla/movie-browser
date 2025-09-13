@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview --host",
     "postinstall": "nuxt prepare",
-    "generate-sitemap": "node scripts/generate-sitemap.js",
+    "generate-sitemap": "node --max-old-space-size=2048 --expose-gc --optimize-for-size scripts/generate-sitemap.js",
     "test": "vitest",
     "test:unit": "vitest run",
     "test:watch": "vitest --watch",

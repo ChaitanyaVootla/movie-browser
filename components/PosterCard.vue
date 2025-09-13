@@ -13,8 +13,7 @@
                     eager
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
                     :class="{'saturate-0 opacity-80 border-neutral-500 border-2 shadow-lg shadow-neutral-700': watched}"
-                    :alt="`${item.title || item.name} ${item.media_type === 'movie' ? 'movie' : 'TV series'} poster - ${item.vote_average ? `Rated ${item.vote_average}/10` : 'Entertainment content'}`"
-                    :timeout="5000">
+                    :alt="`${item.title || item.name} ${item.media_type === 'movie' ? 'movie' : 'TV series'} poster - ${item.vote_average ? `Rated ${item.vote_average}/10` : 'Entertainment content'}`">
                     <template #placeholder>
                         <v-skeleton-loader color="black" type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>

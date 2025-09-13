@@ -12,6 +12,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import https from 'https';
 import zlib from 'zlib';
+import { createReadStream, createWriteStream } from 'fs';
+import { createInterface } from 'readline';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,14 +48,14 @@ const BASE_URL = 'https://themoviebrowser.com';
 const DATA_DIR = path.resolve(__dirname, '../data');
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
 
-// Configuration - Optimized for SEO quality over quantity
+// Configuration - Simplified: Just pick top entries by popularity
 const CONFIG = {
-    MOVIES_LIMIT: 10000,  // Reduced for better focus on quality content
-    SERIES_LIMIT: 10000,  // Reduced for better focus on quality content
-    PERSONS_LIMIT: 3000,  // Reduced for better focus on quality content
-    MIN_MOVIE_POPULARITY: 2,   // Slightly higher threshold for quality
-    MIN_SERIES_POPULARITY: 2,  // Slightly higher threshold for quality
-    MIN_PERSON_POPULARITY: 3,  // Slightly higher threshold for quality
+    MOVIES_LIMIT: 5000,   // Top 5K movies by popularity
+    SERIES_LIMIT: 5000,   // Top 5K series by popularity
+    PERSONS_LIMIT: 5000,  // Top 5K persons by popularity (increased from 2K)
+    CHUNK_SIZE: 1000,     // Process items in chunks to manage memory
+    MAX_RETRIES: 3,       // Maximum retry attempts for downloads
+    RETRY_DELAY: 5000,    // Delay between retries in milliseconds
 };
 
 /**
@@ -151,16 +153,23 @@ function getSafeDate() {
 }
 
 /**
- * Download and extract TMDB data file
+ * Sleep function for retry delays
  */
-async function downloadTMDBFile(type) {
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Download and extract TMDB data file with retry logic
+ */
+async function downloadTMDBFile(type, retryCount = 0) {
     const date = getSafeDate();
     const fileName = `${type}_ids_${date}.json.gz`;
     const url = `https://files.tmdb.org/p/exports/${fileName}`;
     const outputPath = path.join(DATA_DIR, fileName);
     const extractedPath = path.join(DATA_DIR, `${type}_ids_${date}.json`);
     
-    console.log(`📥 Downloading ${type} data: ${fileName}`);
+    console.log(`📥 Downloading ${type} data: ${fileName} (attempt ${retryCount + 1}/${CONFIG.MAX_RETRIES + 1})`);
     
     // Create data directory if it doesn't exist
     if (!fs.existsSync(DATA_DIR)) {
@@ -174,11 +183,28 @@ async function downloadTMDBFile(type) {
     }
     
     return new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(outputPath);
+        const file = createWriteStream(outputPath);
         
-        https.get(url, (response) => {
+        const request = https.get(url, (response) => {
             if (response.statusCode !== 200) {
-                reject(new Error(`Failed to download ${fileName}: ${response.statusCode}`));
+                file.destroy();
+                
+                // Cleanup partial file
+                if (fs.existsSync(outputPath)) {
+                    fs.unlinkSync(outputPath);
+                }
+                
+                const error = new Error(`Failed to download ${fileName}: ${response.statusCode}`);
+                
+                // Retry logic
+                if (retryCount < CONFIG.MAX_RETRIES) {
+                    console.log(`⚠️ Download failed, retrying in ${CONFIG.RETRY_DELAY/1000}s...`);
+                    sleep(CONFIG.RETRY_DELAY).then(() => {
+                        downloadTMDBFile(type, retryCount + 1).then(resolve).catch(reject);
+                    });
+                } else {
+                    reject(error);
+                }
                 return;
             }
             
@@ -188,64 +214,146 @@ async function downloadTMDBFile(type) {
                 file.close();
                 console.log(`📦 Extracting ${fileName}`);
                 
-                // Extract the gzipped file
-                const readStream = fs.createReadStream(outputPath);
-                const writeStream = fs.createWriteStream(extractedPath);
-                const gunzip = zlib.createGunzip();
-                
-                readStream.pipe(gunzip).pipe(writeStream);
-                
-                writeStream.on('finish', () => {
-                    fs.unlinkSync(outputPath); // Remove compressed file
-                    console.log(`✅ Extracted ${type} data`);
-                    resolve(extractedPath);
-                });
-                
-                writeStream.on('error', reject);
+                try {
+                    // Extract the gzipped file with streaming
+                    const readStream = createReadStream(outputPath);
+                    const writeStream = createWriteStream(extractedPath);
+                    const gunzip = zlib.createGunzip();
+                    
+                    readStream.pipe(gunzip).pipe(writeStream);
+                    
+                    writeStream.on('finish', () => {
+                        try {
+                            fs.unlinkSync(outputPath); // Remove compressed file
+                            console.log(`✅ Extracted ${type} data`);
+                            resolve(extractedPath);
+                        } catch (cleanupError) {
+                            console.warn(`⚠️ Failed to cleanup compressed file: ${cleanupError.message}`);
+                            resolve(extractedPath); // Still resolve as extraction succeeded
+                        }
+                    });
+                    
+                    writeStream.on('error', (error) => {
+                        // Cleanup on extraction error
+                        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+                        if (fs.existsSync(extractedPath)) fs.unlinkSync(extractedPath);
+                        
+                        if (retryCount < CONFIG.MAX_RETRIES) {
+                            console.log(`⚠️ Extraction failed, retrying in ${CONFIG.RETRY_DELAY/1000}s...`);
+                            sleep(CONFIG.RETRY_DELAY).then(() => {
+                                downloadTMDBFile(type, retryCount + 1).then(resolve).catch(reject);
+                            });
+                        } else {
+                            reject(error);
+                        }
+                    });
+                } catch (error) {
+                    reject(error);
+                }
             });
-        }).on('error', reject);
+            
+            file.on('error', (error) => {
+                // Cleanup on download error
+                if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+                
+                if (retryCount < CONFIG.MAX_RETRIES) {
+                    console.log(`⚠️ Download error, retrying in ${CONFIG.RETRY_DELAY/1000}s...`);
+                    sleep(CONFIG.RETRY_DELAY).then(() => {
+                        downloadTMDBFile(type, retryCount + 1).then(resolve).catch(reject);
+                    });
+                } else {
+                    reject(error);
+                }
+            });
+        });
+        
+        request.on('error', (error) => {
+            // Cleanup on request error
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+            
+            if (retryCount < CONFIG.MAX_RETRIES) {
+                console.log(`⚠️ Request error, retrying in ${CONFIG.RETRY_DELAY/1000}s...`);
+                sleep(CONFIG.RETRY_DELAY).then(() => {
+                    downloadTMDBFile(type, retryCount + 1).then(resolve).catch(reject);
+                });
+            } else {
+                reject(error);
+            }
+        });
+        
+        // Set timeout for the request
+        request.setTimeout(300000, () => { // 5 minutes timeout
+            request.destroy();
+            
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+            
+            if (retryCount < CONFIG.MAX_RETRIES) {
+                console.log(`⚠️ Download timeout, retrying in ${CONFIG.RETRY_DELAY/1000}s...`);
+                sleep(CONFIG.RETRY_DELAY).then(() => {
+                    downloadTMDBFile(type, retryCount + 1).then(resolve).catch(reject);
+                });
+            } else {
+                reject(new Error(`Download timeout after ${CONFIG.MAX_RETRIES + 1} attempts`));
+            }
+        });
     });
 }
 
 /**
- * Read and parse TMDB data file with memory optimization
+ * Stream and parse TMDB data file with memory optimization
  */
-function readTMDBData(filePath) {
-    console.log(`📖 Reading data from ${filePath}`);
+async function streamTMDBData(filePath, filterFn, limit) {
+    console.log(`📖 Streaming data from ${filePath}`);
     
-    try {
-        const data = fs.readFileSync(filePath, 'utf-8');
-        const lines = data.trim().split('\n');
+    return new Promise((resolve, reject) => {
+        const results = [];
+        let lineCount = 0;
         
-        console.log(`📊 Processing ${lines.length} entries from TMDB dataset`);
+        const fileStream = createReadStream(filePath);
+        const rl = createInterface({
+            input: fileStream,
+            crlfDelay: Infinity // Handle Windows line endings
+        });
         
-        const result = [];
-        let processed = 0;
-        
-        for (const line of lines) {
+        rl.on('line', (line) => {
+            lineCount++;
+            
             try {
-                const item = JSON.parse(line);
-                if (item) {
-                    result.push(item);
+                const item = JSON.parse(line.trim());
+                
+                // Apply filter and collect all valid entries
+                if (item && filterFn(item)) {
+                    results.push(item);
+                    // Process entire file since TMDB files are sorted by ID, not popularity
                 }
-                processed++;
                 
                 // Log progress for large datasets
-                if (processed % 10000 === 0) {
-                    console.log(`   Progress: ${processed}/${lines.length} entries processed`);
+                if (lineCount % 50000 === 0) {
+                    console.log(`   Progress: ${lineCount} lines read, ${results.length} valid entries`);
                 }
+                
             } catch (e) {
                 // Skip invalid lines silently for performance
             }
-        }
+        });
         
-        console.log(`✅ Successfully parsed ${result.length} valid entries`);
-        return result;
+        rl.on('close', () => {
+            console.log(`✅ Stream completed: ${lineCount} lines processed, ${results.length} valid entries`);
+            
+            // Sort by popularity and take top entries
+            const sortedResults = results
+                .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+                .slice(0, limit);
+            
+            console.log(`📊 Returning top ${sortedResults.length} entries by popularity`);
+            resolve(sortedResults);
+        });
         
-    } catch (error) {
-        console.error(`❌ Error reading TMDB data from ${filePath}:`, error.message);
-        throw error;
-    }
+        rl.on('error', (error) => {
+            console.error(`❌ Error streaming TMDB data from ${filePath}:`, error.message);
+            reject(error);
+        });
+    });
 }
 
 /**
@@ -262,31 +370,50 @@ function getUrlSlug(title) {
 }
 
 /**
- * Create XML sitemap
+ * Create XML sitemap with streaming/chunked generation
  */
 function createSitemap(urls, filename) {
     console.log(`📝 Creating sitemap: ${filename} with ${urls.length} URLs`);
     
     const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
-    
-    urls.forEach(({ url, priority = '0.5', changefreq = 'daily', lastmod }) => {
-        xml += '  <url>\n';
-        xml += `    <loc>${BASE_URL}${url}</loc>\n`;
-        xml += `    <lastmod>${lastmod || currentDate}</lastmod>\n`;
-        xml += `    <changefreq>${changefreq}</changefreq>\n`;
-        xml += `    <priority>${priority}</priority>\n`;
-        xml += '  </url>\n';
-    });
-    
-    xml += '</urlset>';
-    
     const filePath = path.join(PUBLIC_DIR, filename);
-    fs.writeFileSync(filePath, xml);
-    console.log(`✅ Created ${filename}`);
+    const writeStream = createWriteStream(filePath);
     
+    // Write XML header
+    writeStream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
+    writeStream.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
+    
+    // Process URLs in chunks to manage memory
+    const chunkSize = CONFIG.CHUNK_SIZE;
+    for (let i = 0; i < urls.length; i += chunkSize) {
+        const chunk = urls.slice(i, i + chunkSize);
+        
+        let chunkXml = '';
+        chunk.forEach(({ url, priority = '0.5', changefreq = 'daily', lastmod }) => {
+            chunkXml += '  <url>\n';
+            chunkXml += `    <loc>${BASE_URL}${url}</loc>\n`;
+            chunkXml += `    <lastmod>${lastmod || currentDate}</lastmod>\n`;
+            chunkXml += `    <changefreq>${changefreq}</changefreq>\n`;
+            chunkXml += `    <priority>${priority}</priority>\n`;
+            chunkXml += '  </url>\n';
+        });
+        
+        writeStream.write(chunkXml);
+        
+        // Clear chunk from memory
+        chunkXml = null;
+        
+        // Log progress for large sitemaps
+        if ((i + chunkSize) % (chunkSize * 10) === 0) {
+            console.log(`   Progress: ${Math.min(i + chunkSize, urls.length)}/${urls.length} URLs written`);
+        }
+    }
+    
+    // Write closing tag
+    writeStream.write('</urlset>');
+    writeStream.end();
+    
+    console.log(`✅ Created ${filename}`);
     return filePath;
 }
 
@@ -314,34 +441,57 @@ function createSitemapIndex(sitemapFiles) {
 }
 
 /**
- * Generate movie sitemap
+ * Generate movie sitemap with memory optimization
  */
 async function generateMovieSitemap() {
     console.log('🎬 Generating movie sitemap...');
     
     try {
         const filePath = await downloadTMDBFile('movie');
-        const movies = readTMDBData(filePath);
         
-        // Filter and sort by popularity
-        const topMovies = movies
-            .filter(movie => movie.popularity >= CONFIG.MIN_MOVIE_POPULARITY && movie.adult === false)
-            .sort((a, b) => b.popularity - a.popularity)
-            .slice(0, CONFIG.MOVIES_LIMIT);
+        // Simplified filter: just basic validation + no adult content
+        const filterFn = (movie) => 
+            movie.popularity > 0 &&  // Has popularity score
+            movie.adult === false && // No adult content
+            (movie.title || movie.original_title) && // Has title
+            movie.id; // Has valid ID
+            
+        const topMovies = await streamTMDBData(filePath, filterFn, CONFIG.MOVIES_LIMIT);
         
         console.log(`📊 Processing ${topMovies.length} top movies`);
         
-        const movieUrls = topMovies.map(movie => ({
-            url: `/movie/${movie.id}/${getUrlSlug(movie.title)}`,
-            priority: movie.popularity > 100 ? '1.0' :    // Top tier blockbusters
-                     movie.popularity > 50 ? '0.9' :     // Very popular movies 
-                     movie.popularity > 20 ? '0.8' :     // Popular movies
-                     movie.popularity > 10 ? '0.7' :     // Well-known movies
-                     '0.6',                              // Standard movies
-            changefreq: 'daily'
-        }));
+        // Process movies in chunks to manage memory
+        const movieUrls = [];
+        const chunkSize = CONFIG.CHUNK_SIZE;
         
-        return createSitemap(movieUrls, 'sitemap_movies.xml');
+        for (let i = 0; i < topMovies.length; i += chunkSize) {
+            const chunk = topMovies.slice(i, i + chunkSize);
+            
+            const chunkUrls = chunk.map(movie => ({
+                url: `/movie/${movie.id}/${getUrlSlug(movie.title || movie.original_title)}`,
+                priority: movie.popularity > 100 ? '1.0' :    // Top tier blockbusters
+                         movie.popularity > 50 ? '0.9' :     // Very popular movies 
+                         movie.popularity > 20 ? '0.8' :     // Popular movies
+                         movie.popularity > 10 ? '0.7' :     // Well-known movies
+                         '0.6',                              // Standard movies
+                changefreq: 'daily'
+            }));
+            
+            movieUrls.push(...chunkUrls);
+            
+            // Clear chunk references
+            chunk.length = 0;
+        }
+        
+        // Clear movie data from memory
+        topMovies.length = 0;
+        
+        const result = createSitemap(movieUrls, 'sitemap_movies.xml');
+        
+        // Clear URL data from memory
+        movieUrls.length = 0;
+        
+        return result;
         
     } catch (error) {
         console.error('❌ Error generating movie sitemap:', error.message);
@@ -350,34 +500,56 @@ async function generateMovieSitemap() {
 }
 
 /**
- * Generate series sitemap  
+ * Generate series sitemap with memory optimization
  */
 async function generateSeriesSitemap() {
     console.log('📺 Generating series sitemap...');
     
     try {
         const filePath = await downloadTMDBFile('tv_series');
-        const series = readTMDBData(filePath);
         
-        // Filter and sort by popularity (TV series don't have adult field)
-        const topSeries = series
-            .filter(show => show.popularity >= CONFIG.MIN_SERIES_POPULARITY)
-            .sort((a, b) => b.popularity - a.popularity)
-            .slice(0, CONFIG.SERIES_LIMIT);
+        // Simplified filter: just basic validation (TV series don't have adult field)
+        const filterFn = (show) => 
+            show.popularity > 0 && // Has popularity score
+            (show.original_name || show.name) && // Has name
+            show.id; // Has valid ID
+            
+        const topSeries = await streamTMDBData(filePath, filterFn, CONFIG.SERIES_LIMIT);
         
         console.log(`📊 Processing ${topSeries.length} top series`);
         
-        const seriesUrls = topSeries.map(show => ({
-            url: `/series/${show.id}/${getUrlSlug(show.original_name)}`,
-            priority: show.popularity > 80 ? '1.0' :     // Top tier shows (Netflix/HBO hits)
-                     show.popularity > 40 ? '0.9' :     // Very popular shows
-                     show.popularity > 20 ? '0.8' :     // Popular shows
-                     show.popularity > 10 ? '0.7' :     // Well-known shows
-                     '0.6',                             // Standard shows
-            changefreq: 'daily'
-        }));
+        // Process series in chunks to manage memory
+        const seriesUrls = [];
+        const chunkSize = CONFIG.CHUNK_SIZE;
         
-        return createSitemap(seriesUrls, 'sitemap_series.xml');
+        for (let i = 0; i < topSeries.length; i += chunkSize) {
+            const chunk = topSeries.slice(i, i + chunkSize);
+            
+            const chunkUrls = chunk.map(show => ({
+                url: `/series/${show.id}/${getUrlSlug(show.original_name || show.name)}`,
+                priority: show.popularity > 80 ? '1.0' :     // Top tier shows (Netflix/HBO hits)
+                         show.popularity > 40 ? '0.9' :     // Very popular shows
+                         show.popularity > 20 ? '0.8' :     // Popular shows
+                         show.popularity > 10 ? '0.7' :     // Well-known shows
+                         '0.6',                             // Standard shows
+                changefreq: 'daily'
+            }));
+            
+            seriesUrls.push(...chunkUrls);
+            
+            // Clear chunk references
+            chunk.length = 0;
+        }
+        
+        // Clear series data from memory
+        topSeries.length = 0;
+        
+        const result = createSitemap(seriesUrls, 'sitemap_series.xml');
+        
+        // Clear URL data from memory
+        seriesUrls.length = 0;
+        
+        return result;
         
     } catch (error) {
         console.error('❌ Error generating series sitemap:', error.message);
@@ -386,34 +558,57 @@ async function generateSeriesSitemap() {
 }
 
 /**
- * Generate person sitemap
+ * Generate person sitemap with memory optimization
  */
 async function generatePersonSitemap() {
     console.log('👤 Generating person sitemap...');
     
     try {
         const filePath = await downloadTMDBFile('person');
-        const persons = readTMDBData(filePath);
         
-        // Filter and sort by popularity
-        const topPersons = persons
-            .filter(person => person.popularity >= CONFIG.MIN_PERSON_POPULARITY && person.adult === false)
-            .sort((a, b) => b.popularity - a.popularity)
-            .slice(0, CONFIG.PERSONS_LIMIT);
+        // Simplified filter: just basic validation + no adult performers
+        const filterFn = (person) => 
+            person.popularity > 0 && // Has popularity score
+            person.adult === false && // No adult performers
+            person.name && // Has name
+            person.id; // Has valid ID
+            
+        const topPersons = await streamTMDBData(filePath, filterFn, CONFIG.PERSONS_LIMIT);
         
         console.log(`📊 Processing ${topPersons.length} top persons`);
         
-        const personUrls = topPersons.map(person => ({
-            url: `/person/${person.id}/${getUrlSlug(person.name)}`,
-            priority: person.popularity > 50 ? '0.9' :     // A-list celebrities
-                     person.popularity > 25 ? '0.8' :     // Very famous people
-                     person.popularity > 15 ? '0.7' :     // Well-known people
-                     person.popularity > 10 ? '0.6' :     // Recognized people
-                     '0.5',                               // Standard people
-            changefreq: 'daily'
-        }));
+        // Process persons in chunks to manage memory
+        const personUrls = [];
+        const chunkSize = CONFIG.CHUNK_SIZE;
         
-        return createSitemap(personUrls, 'sitemap_persons.xml');
+        for (let i = 0; i < topPersons.length; i += chunkSize) {
+            const chunk = topPersons.slice(i, i + chunkSize);
+            
+            const chunkUrls = chunk.map(person => ({
+                url: `/person/${person.id}/${getUrlSlug(person.name)}`,
+                priority: person.popularity > 50 ? '0.9' :     // A-list celebrities
+                         person.popularity > 25 ? '0.8' :     // Very famous people
+                         person.popularity > 15 ? '0.7' :     // Well-known people
+                         person.popularity > 10 ? '0.6' :     // Recognized people
+                         '0.5',                               // Standard people
+                changefreq: 'daily'
+            }));
+            
+            personUrls.push(...chunkUrls);
+            
+            // Clear chunk references
+            chunk.length = 0;
+        }
+        
+        // Clear person data from memory
+        topPersons.length = 0;
+        
+        const result = createSitemap(personUrls, 'sitemap_persons.xml');
+        
+        // Clear URL data from memory
+        personUrls.length = 0;
+        
+        return result;
         
     } catch (error) {
         console.error('❌ Error generating person sitemap:', error.message);
@@ -440,11 +635,19 @@ function generateStaticSitemap() {
 }
 
 /**
- * Main execution function
+ * Main execution function with enhanced memory management
  */
 async function main() {
-    console.log('🚀 Starting optimized sitemap generation...');
+    console.log('🚀 Starting memory-optimized sitemap generation...');
     console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('🔧 Configuration (Simplified - Top by Popularity):');
+    console.log(`   - Movies: Top ${CONFIG.MOVIES_LIMIT} by popularity`);
+    console.log(`   - Series: Top ${CONFIG.SERIES_LIMIT} by popularity`);
+    console.log(`   - Persons: Top ${CONFIG.PERSONS_LIMIT} by popularity`);
+    console.log(`   - Chunk size: ${CONFIG.CHUNK_SIZE}`);
+    console.log(`   - Max retries: ${CONFIG.MAX_RETRIES}`);
+    
+    const startTime = Date.now();
     
     try {
         // Ensure public directory exists
@@ -452,32 +655,43 @@ async function main() {
             fs.mkdirSync(PUBLIC_DIR, { recursive: true });
         }
         
-        // Generate sitemaps sequentially to avoid memory overflow
-        console.log('🔄 Running sitemap generation sequentially to optimize memory usage...');
+        // Generate sitemaps sequentially to optimize memory usage
+        console.log('\n🔄 Running sitemap generation sequentially for memory efficiency...');
         
-        const staticSitemap = generateStaticSitemap();  // This one is lightweight, no async needed
+        // 1. Static sitemap (lightweight)
+        console.log('\n📄 Step 1/4: Generating static sitemap...');
+        const staticSitemap = generateStaticSitemap();
         console.log('✅ Static sitemap completed');
         
+        // 2. Movie sitemap
+        console.log('\n🎬 Step 2/4: Generating movie sitemap...');
         const movieSitemap = await generateMovieSitemap();
-        console.log('✅ Movie sitemap completed, freeing memory...');
+        console.log('✅ Movie sitemap completed');
         
-        // Force garbage collection if available
+        // Force memory cleanup
         if (global.gc) {
+            console.log('🧹 Running garbage collection...');
             global.gc();
         }
         
+        // 3. Series sitemap
+        console.log('\n📺 Step 3/4: Generating series sitemap...');
         const seriesSitemap = await generateSeriesSitemap();
-        console.log('✅ Series sitemap completed, freeing memory...');
+        console.log('✅ Series sitemap completed');
         
-        // Force garbage collection if available
+        // Force memory cleanup
         if (global.gc) {
+            console.log('🧹 Running garbage collection...');
             global.gc();
         }
         
+        // 4. Person sitemap
+        console.log('\n👤 Step 4/4: Generating person sitemap...');
         const personSitemap = await generatePersonSitemap();
         console.log('✅ Person sitemap completed');
         
-        // Create sitemap index
+        // 5. Create sitemap index
+        console.log('\n📋 Creating sitemap index...');
         const sitemapFiles = [
             'sitemap_static.xml',
             'sitemap_movies.xml', 
@@ -487,27 +701,41 @@ async function main() {
         
         createSitemapIndex(sitemapFiles);
         
-        console.log('\n🎯 PREMIUM SEO SITEMAP GENERATION COMPLETED! 🎯');
-        console.log('📊 Final Optimized Structure:');
+        const endTime = Date.now();
+        const duration = Math.round((endTime - startTime) / 1000);
+        
+        console.log('\n🎯 MEMORY-OPTIMIZED SEO SITEMAP GENERATION COMPLETED! 🎯');
+        console.log(`⏱️ Total duration: ${duration}s`);
+        console.log('📊 Final Structure:');
         console.log(`   - Static pages: ${STATIC_ROUTES.length} base pages (3 at priority 1.0, 3 at 0.9)`);
         console.log(`   - Topic pages: Generated from app logic (8 at priority 1.0, rest 0.7-0.9)`);
-        console.log(`   - Movies: ${CONFIG.MOVIES_LIMIT} quality URLs (priorities 0.6-1.0)`);
-        console.log(`   - Series: ${CONFIG.SERIES_LIMIT} quality URLs (priorities 0.6-1.0)`);
-        console.log(`   - Persons: ${CONFIG.PERSONS_LIMIT} quality URLs (priorities 0.5-0.9)`);
+        console.log(`   - Movies: Up to ${CONFIG.MOVIES_LIMIT} quality URLs (priorities 0.6-1.0)`);
+        console.log(`   - Series: Up to ${CONFIG.SERIES_LIMIT} quality URLs (priorities 0.6-1.0)`);
+        console.log(`   - Persons: Up to ${CONFIG.PERSONS_LIMIT} quality URLs (priorities 0.5-0.9)`);
         console.log(`   - Total sitemaps: ${sitemapFiles.length + 1} files`);
+        console.log('🚀 PERFORMANCE OPTIMIZATIONS:');
+        console.log(`   - ✅ Streaming file processing (no full file loading)`);
+        console.log(`   - ✅ Chunked XML generation (${CONFIG.CHUNK_SIZE} URLs per chunk)`);
+        console.log(`   - ✅ Automatic memory cleanup and GC calls`);
+        console.log(`   - ✅ Retry logic with ${CONFIG.MAX_RETRIES} attempts`);
+        console.log(`   - ✅ Simplified selection: pure top-by-popularity approach`);
         console.log('🏆 PRIORITY 1.0 DISTRIBUTION:');
         console.log(`   - ✅ 3 Essential hubs (/, /browse, /topics)`);
         console.log(`   - ✅ 4 Top genre categories (Action, Comedy, Drama, Horror)`);
         console.log(`   - ✅ 8 Top theme categories (4 themes × 2 media types)`);
-        console.log(`   - ✅ ~40-50 blockbuster movies (popularity > 100)`);
-        console.log(`   - ✅ ~30-40 trending series (popularity > 80)`);
-        console.log('🚀 SEO OPTIMIZATIONS:');
-        console.log(`   - ✅ Priority 1.0 reserved for top ~5% of content (SEO best practice)`);
-        console.log(`   - ✅ All URLs have lastmod=${new Date().toISOString().split('T')[0]}`);
-        console.log(`   - ✅ All changefreq="daily" for maximum crawl frequency`);
+        console.log(`   - ✅ ~20-30 blockbuster movies (popularity > 100)`);
+        console.log(`   - ✅ ~15-25 trending series (popularity > 80)`);
         
     } catch (error) {
-        console.error('💥 Fatal error during sitemap generation:', error);
+        console.error('\n💥 Fatal error during sitemap generation:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Cleanup on error
+        console.log('🧹 Performing cleanup...');
+        if (global.gc) {
+            global.gc();
+        }
+        
         process.exit(1);
     }
 }

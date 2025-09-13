@@ -1,43 +1,26 @@
 <template>
   <div 
-    ref="containerRef"
-    class="seo-img-container"
+    class="seo-img-container relative"
     :class="containerClass"
     :style="containerStyle"
   >
-    <!-- Main image with native lazy loading (2024 standard) -->
-            <img
-              v-if="shouldShowImage"
-              v-show="loaded && !errored"
-              :src="currentSrc"
-              :alt="alt"
-              :class="imgClass"
-              :style="imgStyle"
-              :loading="props.eager ? 'eager' : 'lazy'"
-              :decoding="props.eager ? 'sync' : 'async'"
-              @load="handleLoad"
-              @error="handleError"
-              ref="imgRef"
-            />
+    <!-- Simple, modern image with native lazy loading -->
+    <img
+      v-if="imgSrc"
+      :src="imgSrc"
+      :alt="alt"
+      :class="imgClass"
+      :style="imgStyle"
+      :loading="eager ? 'eager' : 'lazy'"
+      :decoding="eager ? 'sync' : 'async'"
+      @load="handleLoad"
+      @error="handleError"
+    />
     
-    <!-- Loading state -->
+    <!-- Loading placeholder - only show if no image source -->
     <div 
-      v-if="shouldShowImage && !loaded && !errored"
-      class="seo-img-placeholder"
-      :class="containerClass"
-      :style="containerStyle"
-    >
-      <slot name="placeholder">
-        <v-skeleton-loader type="image" class="w-full h-full" />
-      </slot>
-    </div>
-    
-    <!-- Lazy loading placeholder -->
-    <div 
-      v-if="!shouldShowImage && !errored"
-      class="seo-img-lazy-placeholder"
-      :class="containerClass"
-      :style="containerStyle"
+      v-if="!imgSrc && !allSourcesFailed"
+      class="absolute inset-0"
     >
       <slot name="placeholder">
         <v-skeleton-loader type="image" class="w-full h-full" />
@@ -46,10 +29,8 @@
     
     <!-- Error state -->
     <div 
-      v-if="errored"
-      class="seo-img-error"
-      :class="containerClass"  
-      :style="containerStyle"
+      v-if="allSourcesFailed"
+      class="absolute inset-0"
     >
       <slot name="error">
         <v-skeleton-loader type="image" class="w-full h-full">
@@ -63,16 +44,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, readonly } from 'vue'
 
 interface Props {
-  // Simple array of URLs to try progressively
   sources?: string[]
-  // Legacy support - single URL
   src?: string
   alt: string
-  
-  // Display options
   aspectRatio?: string | number
   cover?: boolean
   eager?: boolean
@@ -81,18 +58,12 @@ interface Props {
   maxWidth?: string | number
   maxHeight?: string | number
   class?: string | string[] | object
-  
-  // Loading behavior  
-  lazy?: boolean
-  timeout?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   sources: () => [],
   cover: false,
-  eager: false,
-  lazy: false,
-  timeout: 8000
+  eager: false
 })
 
 const emit = defineEmits<{
@@ -101,190 +72,85 @@ const emit = defineEmits<{
   allFailed: []
 }>()
 
-// Component state
+// Simple state management
 const loaded = ref(false)
-const errored = ref(false)
-const currentSrc = ref('')
-const currentIndex = ref(0)
-const imgRef = ref<HTMLImageElement>()
-const containerRef = ref<HTMLElement>()
-const loadingTimeoutId = ref<number | null>(null)
+const sourceIndex = ref(0)
+const allSourcesFailed = ref(false)
+const imgSrc = ref('')
 
-// Filter valid URLs - support both sources array and legacy src
-const validSources = computed(() => {
-  let urls: string[] = []
+// Get all valid sources
+const getValidSources = () => {
+  const urls = props.sources?.length ? props.sources : (props.src ? [props.src] : [])
+  return urls.filter(Boolean)
+}
+
+// Initialize image source
+const initializeImage = () => {
+  const sources = getValidSources()
+  console.log('[SeoImg] initializeImage called:', {
+    sources,
+    isServer: import.meta.server,
+    isClient: import.meta.client,
+    mounted: process.client
+  })
   
-  // New sources array approach
-  if (props.sources && props.sources.length > 0) {
-    urls = props.sources
-  }
-  // Legacy single src approach
-  else if (props.src) {
-    urls = [props.src]
-  }
-  
-  return urls.filter(url => url && url.trim())
-})
-
-// Modern 2024 approach: Always show images, use native lazy loading
-const shouldShowImage = computed(() => {
-  return validSources.value.length > 0
-})
-
-// Improved timeout management - fixes memory leak
-const clearLoadingTimeout = () => {
-  if (loadingTimeoutId.value !== null) {
-    clearTimeout(loadingTimeoutId.value)
-    loadingTimeoutId.value = null
+  if (sources.length > 0) {
+    sourceIndex.value = 0
+    loaded.value = false
+    allSourcesFailed.value = false
+    imgSrc.value = sources[0] || ''
+    console.log('[SeoImg] Initialized with:', imgSrc.value)
   }
 }
 
-const setLoadingTimeout = () => {
-  // Always clear existing timeout first
-  clearLoadingTimeout()
-  
-  if (props.timeout > 0) {
-    // Use much longer timeout - network might be slower than expected
-    const timeoutDuration = props.eager ? Math.min(props.timeout, 15000) : props.timeout
-    
-    loadingTimeoutId.value = setTimeout(() => {
-      // Double-check state before timing out to prevent race conditions
-      if (!loaded.value && !errored.value && currentSrc.value) {
-        handleError(new Event('timeout') as any)
-      }
-    }, timeoutDuration) as unknown as number
-  }
-}
-
-// Enhanced error handling with progressive fallback
+// Simple error handling - try next source
 const handleError = (event: Event) => {
-  clearLoadingTimeout()
+  console.log('[SeoImg] ERROR event fired for:', imgSrc.value, event)
+  const sources = getValidSources()
   
   // Try next source
-  if (currentIndex.value < validSources.value.length - 1) {
-    currentIndex.value++
-    const nextSrc = validSources.value[currentIndex.value]
-    
-    // Reset state for next attempt  
+  if (sourceIndex.value < sources.length - 1) {
+    sourceIndex.value++
     loaded.value = false
-    errored.value = false // Keep trying, don't mark as errored yet
-    
-    if (nextSrc) {
-      currentSrc.value = nextSrc
-      // Start timeout for next attempt
-      setLoadingTimeout()
-    }
+    imgSrc.value = sources[sourceIndex.value] || ''
+    console.log('[SeoImg] Trying next source:', imgSrc.value)
     return
   }
   
   // All sources failed
-  loaded.value = false
-  errored.value = true
-  emit('error', event, currentSrc.value)
+  allSourcesFailed.value = true
+  console.log('[SeoImg] All sources failed')
+  emit('error', event, imgSrc.value)
   emit('allFailed')
 }
 
-
-// Load handling
+// Simple load handling
 const handleLoad = (event: Event) => {
-  // CRITICAL: Clear timeout immediately to prevent race condition
-  clearLoadingTimeout()
-  
-  // Mark as successfully loaded
   loaded.value = true
-  errored.value = false
-  
-  emit('load', event, currentSrc.value)
+  console.log('[SeoImg] LOAD event fired successfully for:', imgSrc.value)
+  emit('load', event, imgSrc.value)
 }
 
-// Start loading process
-const startLoading = () => {
-  if (validSources.value.length === 0) {
-    errored.value = true
-    emit('allFailed')
-    return
-  }
-  
-  // Reset state
-  loaded.value = false
-  errored.value = false
-  currentIndex.value = 0
-  currentSrc.value = validSources.value[0] || ''
-  
-  // Start timeout
-  setLoadingTimeout()
-}
+// Initialize immediately for SSR, and when sources change
+watch(() => props.sources, initializeImage, { immediate: true })
+watch(() => props.src, initializeImage, { immediate: true })
 
-// CDN precheck disabled for performance
-const checkCdnAvailability = async (url: string): Promise<boolean> => {
-  return true
-}
-
-// SINGLE WATCHER - Initialize image source with CDN precheck
-watch([() => props.sources, () => props.src], async () => {
-  // Reset state
-  loaded.value = false
-  errored.value = false
-  currentIndex.value = 0
-  clearLoadingTimeout()
-  
-  // Set initial source
-  if (validSources.value.length > 0) {
-    let initialSource = validSources.value[0] || ''
-    
-    // CDN precheck disabled for performance
-    
-    currentSrc.value = initialSource
-    setLoadingTimeout()
-  }
-}, { immediate: true })
-
-// Lifecycle management
-onMounted(async () => {
-  // For eager images, ensure immediate loading with CDN check
-  if (props.eager && validSources.value.length > 0) {
-    if (!currentSrc.value) {
-      let initialSource = validSources.value[0]
-      
-      // CDN precheck disabled for performance
-      
-      if (initialSource) {
-        currentSrc.value = initialSource
-        setLoadingTimeout()
-      }
-    }
-  }
-  // For lazy images, native loading handles everything
-  else if (validSources.value.length > 0 && !currentSrc.value) {
-    const firstSource = validSources.value[0]
-    if (firstSource) {
-      currentSrc.value = firstSource
-      setLoadingTimeout()
-    }
-  }
-})
-
-onUnmounted(() => {
-  clearLoadingTimeout()
+// Re-initialize after hydration to ensure client-side works
+onMounted(() => {
+  console.log('[SeoImg] onMounted - forcing re-initialization after hydration')
+  initializeImage()
 })
 
 // Styling
 const computedAspectRatio = computed(() => {
   if (!props.aspectRatio) return undefined
   
-  if (typeof props.aspectRatio === 'string') {
-    if (props.aspectRatio.includes('/')) {
-      const parts = props.aspectRatio.split('/').map(Number)
-      const w = parts[0]
-      const h = parts[1]
-      if (w && h) {
-        return w / h
-      }
-    }
-    return parseFloat(props.aspectRatio)
+  if (typeof props.aspectRatio === 'string' && props.aspectRatio.includes('/')) {
+    const [w, h] = props.aspectRatio.split('/').map(Number)
+    return w && h ? w / h : undefined
   }
   
-  return props.aspectRatio
+  return typeof props.aspectRatio === 'number' ? props.aspectRatio : parseFloat(props.aspectRatio)
 })
 
 const containerStyle = computed(() => {
@@ -324,7 +190,7 @@ const imgStyle = computed(() => {
 })
 
 const containerClass = computed(() => {
-  const classes = ['relative']
+  const classes = ['overflow-hidden']
   
   if (props.class) {
     if (Array.isArray(props.class)) {
@@ -332,10 +198,8 @@ const containerClass = computed(() => {
     } else if (typeof props.class === 'string') {
       classes.push(props.class)
     } else if (typeof props.class === 'object') {
-      Object.keys(props.class).forEach(key => {
-        if ((props.class as Record<string, boolean>)[key]) {
-          classes.push(key)
-        }
+      Object.entries(props.class).forEach(([key, value]) => {
+        if (value) classes.push(key)
       })
     }
   }
@@ -344,31 +208,19 @@ const containerClass = computed(() => {
 })
 
 const imgClass = computed(() => {
-  const classes = [...containerClass.value]
-  const removeClasses = ['relative', 'absolute', 'fixed', 'sticky']
-  return classes.filter(cls => !removeClasses.includes(cls))
+  return containerClass.value.filter(cls => !['relative', 'absolute', 'fixed', 'sticky'].includes(cls))
 })
 
 // Expose for parent access
 defineExpose({
-  reload: startLoading,
-  currentSource: computed(() => currentSrc.value),
-  sourceIndex: computed(() => currentIndex.value)
+  reload: initializeImage,
+  currentSource: computed(() => imgSrc.value),
+  sourceIndex: readonly(sourceIndex)
 })
 </script>
 
 <style scoped>
 .seo-img-container {
-  overflow: hidden;
-}
-
-.seo-img-placeholder,
-.seo-img-lazy-placeholder,
-.seo-img-error {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  box-sizing: border-box;
 }
 </style>
