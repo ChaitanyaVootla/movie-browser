@@ -1,28 +1,29 @@
 <template>
 <span class="md:w-[15rem] md:h-[25rem] hidden"></span>
 <span class="max-md:h-[12rem] max-md:w-[8rem] hidden"></span>
-<IntersectionLoader height="25rem" width="15rem" mobileHeight="12rem" mobileWidth="8rem">
+<IntersectionLoader height="25rem" width="15rem" mobileHeight="12rem" mobileWidth="8rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`"
         v-memo="[item.id, watched, inWatchList]">
         <div class="card group cursor-pointer pt-2 flex flex-col">
             <div class="relative md:hover:mb-1 md:hover:-mt-1 hover:transition-all duration-300" :class="{'scale-95': watched}">
-                <v-img
+                <SeoImg
+                    :sources="posterSources"
                     aspect-ratio="16/9"
                     cover
+                    eager
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
                     :class="{'saturate-0 opacity-80 border-neutral-500 border-2 shadow-lg shadow-neutral-700': watched}"
                     :alt="`${item.title || item.name} ${item.media_type === 'movie' ? 'movie' : 'TV series'} poster - ${item.vote_average ? `Rated ${item.vote_average}/10` : 'Entertainment content'}`"
-                    :src="posterUrl"
-                    @error="posterUrlError">
-                    <template v-slot:placeholder>
+                    :timeout="5000">
+                    <template #placeholder>
                         <v-skeleton-loader color="black" type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
-                    <template v-slot:error>
+                    <template #error>
                         <v-skeleton-loader color="black" type="image" class="image w-full h-full">
                             <div></div>
                         </v-skeleton-loader>
                     </template>
-                </v-img>
+                </SeoImg>
                 <!-- User interaction buttons - only show after hydration -->
                 <div v-if="isMovie(props.item) && isMounted" class="absolute bottom-0 w-full p-0">
                     <v-btn
@@ -99,8 +100,6 @@ const props = defineProps({
 });
 const isAiRoute = useRoute().name === 'ai'
 
-const posterUrl = ref('')
-
 const userData = userStore();
 let watched = computed(() => {
     if (status.value !== 'authenticated' || !props?.item?.id) return false;
@@ -125,16 +124,28 @@ const toggleWatchList = () => {
         userData.toggleMovieWatchList(props.item.id);
     }
 };
-watch(
-    () => props.item,
-    (newItem) => {
-        posterUrl.value = getCdnImage(props.item, IMAGE_TYPE.POSTER)
-    },
-    { immediate: true, deep: true }
-);
-const posterUrlError = () => {
-    posterUrl.value = `https://image.tmdb.org/t/p/w300${props.item.poster_path}`;
-}
+// Build progressive fallback sources array
+const posterSources = computed(() => {
+    const sources: string[] = []
+    
+    if (!props.item?.id || typeof props.item.id !== 'number') {
+        return sources
+    }
+    
+    const mediaType = props.item.title ? 'movie' : 'series'
+    const id = props.item.id
+    
+    // 1. CDN WebP (best quality, fastest)
+    sources.push(`https://image.themoviebrowser.com/${mediaType}/${id}/poster.webp`)
+    
+    // 2. TMDB fallbacks (if poster_path exists)
+    if (props.item.poster_path) {
+        sources.push(`https://image.tmdb.org/t/p/w500${props.item.poster_path}`)
+        sources.push(`https://image.tmdb.org/t/p/w300${props.item.poster_path}`)
+    }
+    
+    return sources.filter(Boolean)
+})
 </script>
 
 <style scoped lang="less">

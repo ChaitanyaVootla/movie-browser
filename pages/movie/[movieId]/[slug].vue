@@ -1,5 +1,6 @@
 <template>
     <div :key="`${movieUpdateKey}`">
+
         <div v-if="pending" class="pending w-full h-full">
             <v-skeleton-loader
                 class="hidden md:block m-5"
@@ -8,14 +9,14 @@
                 :elevation="20"
             ></v-skeleton-loader>
         </div>
-        <article v-else itemscope itemtype="https://schema.org/Movie">
+        <article v-else-if="movie?.id" itemscope itemtype="https://schema.org/Movie">
             <header>
                 <DetailsTopInfo :item="movie" :watched="watched" @watch-clicked="watchClicked"/>
             </header>
             <main class="max-md:pt-3 md:pt-5">
                 <section class="px-3 md:mx-12 overview" aria-label="Movie details and actions">
                     <nav class="flex max-md:justify-center gap-2 md:gap-4 max-md:mb-3 md:mb-5 overflow-x-auto" aria-label="Movie actions">
-                        <UserRating itemType="movie" :itemId="movie.id" @show-login="showLogin"/>
+                        <UserRating itemType="movie" :itemId="movie?.id" @show-login="showLogin"/>
                         <v-btn :key="`${isMounted}`" @click="watchClicked()" :icon="watched?'mdi-check':'mdi-eye-outline'" :color="(watched === true)?'primary':''"
                             :elevation="5" :size="$vuetify.display.mdAndUp?'small':'x-small'" aria-label="watched" >
                         </v-btn>
@@ -28,14 +29,14 @@
                     </nav>
                     <v-card class="px-5 py-2" color="#151515">
                         <h1 class="md:text-lg font-semibold flex items-center gap-4" itemprop="name">
-                            {{ movie.title }}
+                            {{ movie?.title }}
                         </h1>
                         <h2 class="mt-1">
                             <div class="flex items-baseline justify-start gap-2 md:gap-4 flex-wrap">
                                 <div v-if="$vuetify.display.mdAndUp" class="font-semibold text-sm md:text-base">Overview</div>
                                 <div class="flex items-center gap-2">
-                                    <div v-if="movie.release_date && $vuetify.display.mdAndUp" class="text-sm md:text-tiny">Released</div>
-                                    <NuxtTime v-if="movie.release_date" class="text-neutral-200 block text-xs md:text-tiny"
+                                    <div v-if="movie?.release_date && $vuetify.display.mdAndUp" class="text-sm md:text-tiny">Released</div>
+                                    <NuxtTime v-if="movie?.release_date" class="text-neutral-200 block text-xs md:text-tiny"
                                         :datetime="new Date(movie.release_date)" year="numeric" month="long" day="numeric" />
                                 </div>
                                 <div v-if="director" class="flex items-center gap-2 text-sm">
@@ -50,19 +51,19 @@
                         </h2>
                         <div>
                             <div class="text-neutral-300 mt-1 md:mt-3 text text-xs md:text-sm">
-                                {{ movie.overview }}
+                                {{ movie?.overview }}
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 mt-3 md:mt-5">
-                            <NuxtLink v-if="movie.origin_country?.length"
+                            <NuxtLink v-if="movie?.origin_country?.length"
                                 :to="`/topics/${getTopicKey('country', movie.origin_country[0], 'movie')}`"    
                                 class="flex items-center gap-2">
                                 <div class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2">
-                                    <v-img
+                                    <SeoImg
                                     :src="`https://flagcdn.com/${movie.origin_country[0].toLowerCase()}.svg`"
                                     :alt="`Flag of ${movie.origin_country[0]}`"
                                     class="w-6 h-4 rounded-md"
-                                    ></v-img>
+                                    ></SeoImg>
                                     <div class="text-xs text-neutral-300">{{ movie.origin_country[0] }}</div>
                                 </div>
                             </NuxtLink>
@@ -76,7 +77,7 @@
                                 </v-chip>
                             </NuxtLink>
 
-                            <NuxtLink :key="`${isMounted}`" v-if="movie.imdb_id" :to="`https://www.imdb.com/title/${movie.imdb_id}/parentalguide`" target="blank"
+                            <NuxtLink :key="`${isMounted}`" v-if="movie?.imdb_id" :to="`https://www.imdb.com/title/${movie.imdb_id}/parentalguide`" target="blank"
                                 noreferrer noopener>
                                 <v-btn variant="tonal" :size="$vuetify.display.mdAndUp?'small':'x-small'" color="#aaa" prepend-icon="mdi-exclamation-thick">
                                     content warning
@@ -97,7 +98,7 @@
                             </v-chip>
                         </div>
                         <div class="mt-4 text-2xs md:text-sm text-neutral-400 flex items-baseline">
-                            Last Updated: {{ humanizeDateFull(movie.updatedAt || movie.shallowUpdatedAt) }}
+                            Last Updated: {{ humanizeDateFull(movie?.updatedAt || movie?.shallowUpdatedAt) }}
                             <v-btn @click="updateMovie" :loading="updatingMovie" variant="text" size="x-small"
                                 class="ml-3" color="#bbb" prepend-icon="mdi-refresh">
                                 Request Update
@@ -107,20 +108,15 @@
                 </section>
 
                 <div v-if="movie?.collectionDetails?.parts?.length" class="px-3 md:px-0 cast mt-10">
-                    <Scroller :items="collectionParts || []" :title="movie.collectionDetails.name" :pending="pending" />
+                    <Scroller :items="collectionParts || []" :title="movie?.collectionDetails?.name" :pending="pending" />
                 </div>
 
                 <div class="px-3 md:px-20 mt-5 md:mt-10">
-                    <Scroller :items="movie.credits?.cast.slice(0, 15) || []" title="Cast" :pending="pending" >
+                    <Scroller :items="movie?.credits?.cast.slice(0, 15) || []" title="Cast" :pending="pending" >
                         <template v-slot:default="{ item }">
                             <PersonCard :item="item" :pending="pending" class="mr-3" />
                         </template>
                     </Scroller>
-                    <!-- <Scroller :items="movie.credits?.crew || []" title="Crew" :pending="pending" >
-                        <template v-slot:default="{ item }">
-                            <PersonCard :item="item" :pending="pending" class="mr-3" />
-                        </template>
-                    </Scroller> -->
                 </div>
 
                 <div v-if="movie?.youtubeVideos?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-5 md:hidden">
@@ -140,10 +136,6 @@
                     <VideoGallery :videos="movie.youtubeVideos" />
                 </div>
 
-                <!-- <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
-                    <PhotoGallery :images="movie?.images?.backdrops" :pending="pending" />
-                </div> -->
-
                 <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
                     <GalleryScroller :images="movie?.images?.backdrops?.slice(0, 15) || []" :pending="pending" />
                 </div>
@@ -152,15 +144,28 @@
                     <Scroller :items="aiRecommendations?.slice(0, 15) || []" title="AI Recommendations" :pending="pending" />
                 </div>
 
-                <div v-if="!aiRecommendations?.length && movie.recommendations?.results?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
+                <div v-if="!aiRecommendations?.length && movie?.recommendations?.results?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
                     <Scroller :items="movie.recommendations.results?.slice(0, 15) || []" title="Recommended" :pending="pending" />
                 </div>
-
-                <!-- <div v-if="movie.similar?.results?.length" class="mt-10">
-                    <Scroller :items="movie.similar.results || []" title="Similar" :pending="pending" />
-                </div> -->
             </main>
         </article>
+        <div v-else-if="error" class="flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <v-icon icon="mdi-alert-circle" size="64" class="text-red-500 mb-4"></v-icon>
+            <h2 class="text-xl font-semibold mb-2">Error Loading Movie</h2>
+            <p class="text-neutral-400 mb-2">{{ error.message || 'An error occurred while loading the movie.' }}</p>
+            <v-btn @click="refresh()" class="mt-4" variant="outlined" color="primary">
+                Try Again
+            </v-btn>
+        </div>
+        <div v-else class="flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <v-icon icon="mdi-movie-off" size="64" class="text-neutral-500 mb-4"></v-icon>
+            <h2 class="text-xl font-semibold mb-2">Movie Not Found</h2>
+            <p class="text-neutral-400 mb-2">The movie you're looking for doesn't exist.</p>
+            <p class="text-xs text-neutral-500 mb-4">Movie ID: {{ $route.params.movieId }}</p>
+            <v-btn @click="$router.push('/')" class="mt-4" variant="outlined">
+                Go Home
+            </v-btn>
+        </div>
         <Login ref="loginRef" />
         <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
             <span class="text-xs">Updating latest ratings and watch links</span>
@@ -183,8 +188,8 @@ import { userStore } from '~/plugins/state';
 import { humanizeDateFull } from '~/utils/dateFormatter';
 import { createMovieLdSchema } from '~/utils/schema';
 import { getTopicKey } from '~/utils/topics/commonUtils';
+import { sortBy } from 'lodash';
 
-let movie = ref({} as any);
 let updatingMovie = ref(false);
 let aiRecommendations = ref([] as any);
 let isMounted = ref(false);
@@ -260,7 +265,7 @@ onMounted(() => {
 });
 
 const addToRecents = () => {
-    if (isRecentsUpdated || movie?.value?.adult) return;
+    if (isRecentsUpdated || movie.value?.adult) return;
     userData.addToRecents(movie.value);
     isRecentsUpdated = true;
 }
@@ -271,14 +276,18 @@ const mapMovie = (movie: any) => {
         movie.releaseYear = movie?.release_date?.split('-')[0];
         movie.fullReleaseString = movie?.release_date;
     }
-    movie.credits.crew = useSortBy(movie.credits.crew, (person) => {
-        if (person.job === 'Director') return 0;
-        if (person.department === 'Directing') return 1;
-        if (person.department === 'Writing') return 2;
-        if (person.department === 'Production') return 3;
-        if (person.department === 'Camera') return 4;
-        return 100;
-    });
+    
+    // Safely handle credits.crew sorting
+    if (movie.credits?.crew) {
+        movie.credits.crew = sortBy(movie.credits.crew, (person) => {
+            if (person.job === 'Director') return 0;
+            if (person.department === 'Directing') return 1;
+            if (person.department === 'Writing') return 2;
+            if (person.department === 'Production') return 3;
+            if (person.department === 'Camera') return 4;
+            return 100;
+        });
+    }
     return {
         ...movie,
         youtubeVideos: ( movie.videos?.results?.filter((result: any) => result.site === 'YouTube') || [])?.sort(
@@ -295,22 +304,30 @@ const mapMovie = (movie: any) => {
     };
 }
 
+const route = useRoute()
 const headers = useRequestHeaders(['cookie']) as HeadersInit
-const { data: movieAPI, pending } = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}`,
-    () => $fetch(`/api/movie/${useRoute().params.movieId}`, {
-        headers
-    }).catch((err) => {
-        console.error(err);
-        return {};
-    }),
-    {
-        transform: (movie: any) => mapMovie(movie)
-    }
-);
-movie = movieAPI;
+
+const { data: movie, pending, error, refresh: refreshData } = await useFetch(`/api/movie/${route.params.movieId}`, {
+    key: `movie-${route.params.movieId}`,
+    headers,
+    transform: (movie: any) => {
+        if (!movie || typeof movie !== 'object') {
+            return null;
+        }
+        return mapMovie(movie);
+    },
+    default: () => null,
+    server: true
+});
+
+// Add refresh function to retry loading
+const refresh = async () => {
+    await refreshData();
+};
+
 
 let watched = computed(() => {
-    if (status.value !== 'authenticated' || !movie?.value?.id) return false;
+    if (status.value !== 'authenticated' || !movie.value?.id) return false;
     return userData.isMovieWatched(movie.value.id) ? true : false;
 });
 
@@ -318,7 +335,7 @@ let director = computed(() => {
     return movie.value?.credits?.crew?.find((person: any) => person.job === 'Director');
 });
 let collectionParts = computed(() => {
-    if (!movie?.value?.collectionDetails?.parts) return [];
+    if (!movie.value?.collectionDetails?.parts) return [];
     return movie.value.collectionDetails.parts.map((part: any) => ({
         ...part,
         infoText: part.release_date ? new Date(part.release_date).getFullYear() : ''
@@ -327,7 +344,7 @@ let collectionParts = computed(() => {
 
 let watchlist = ref(false);
 let computedWatchlist = computed(() => {
-    if (status.value !== 'authenticated' || !movie?.value?.id) return false;
+    if (status.value !== 'authenticated' || !movie.value?.id) return false;
     return userData.isMovieInWatchList(movie.value.id) ? true : false;
 });
 
@@ -377,17 +394,12 @@ const updateMovie = async () => {
     movieUpdateKey.value += 1;
 }
 
-const { data: aiRecommendationsAPI }: any = await useLazyAsyncData(`movieDetails-${useRoute().params.movieId}-recommend`,
-    () => $fetch(`/api/movie/${useRoute().params.movieId}/recommend?ratingGte=6`, { headers }).catch((err) => {
-        console.error(err);
-        return {};
-    }),
-    {
-        transform: (movies: any) => {
-            return movies;
-        }
-    }
-);
+const { data: aiRecommendationsAPI }: any = await useFetch(`/api/movie/${route.params.movieId}/recommend?ratingGte=6`, {
+    key: `movie-${route.params.movieId}-recommendations`,
+    headers,
+    default: () => [],
+    server: true
+});
 aiRecommendations = aiRecommendationsAPI;
 
 const keywordClicked = (keyword: any) => {

@@ -8,7 +8,7 @@
                 :elevation="20"
             ></v-skeleton-loader>
         </div>
-        <div v-else>
+        <div v-else-if="series?.id">
             <DetailsTopInfo :item="series" :watched="false"/>
             <div>
                 <div class="px-3 md:mx-12 mt-3">
@@ -64,18 +64,18 @@
                                         </v-chip>
                                     </div>
                                 </div>
-                                <v-img :src="`https://image.tmdb.org/t/p/w500${item?.still_path}`"
+                                <SeoImg :src="`https://image.tmdb.org/t/p/w500${item?.still_path}`"
                                     class="rounded-lg mr-2 wide-image"
                                     :alt="item?.name">
-                                    <template v-slot:placeholder>
+                                    <template #placeholder>
                                         <v-skeleton-loader class="wide-image" type="image" />
                                     </template>
-                                    <template v-slot:error>
+                                    <template #error>
                                         <v-skeleton-loader class="wide-image" type="image" >
                                             <div></div>
                                         </v-skeleton-loader>
                                     </template>
-                                </v-img>
+                                </SeoImg>
                                 <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
                                     text-xs md:text-base">
                                     {{ item?.name }}
@@ -110,11 +110,11 @@
                                 :to="`/topics/${getTopicKey('country', series.origin_country[0], 'tv')}`"    
                                 class="flex items-center gap-2">
                                 <div class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2">
-                                    <v-img
+                                    <SeoImg
                                     :src="`https://flagcdn.com/${series.origin_country[0].toLowerCase()}.svg`"
                                     :alt="`Flag of ${series.origin_country[0]}`"
                                     class="w-6 h-4 rounded-md"
-                                    ></v-img>
+                                    ></SeoImg>
                                     <div class="text-xs text-neutral-300">{{ series.origin_country[0] }}</div>
                                 </div>
                             </NuxtLink>
@@ -198,6 +198,23 @@
                 </div>
             </div>
         </div>
+        <div v-else-if="error" class="flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <v-icon icon="mdi-alert-circle" size="64" class="text-red-500 mb-4"></v-icon>
+            <h2 class="text-xl font-semibold mb-2">Error Loading Series</h2>
+            <p class="text-neutral-400 mb-2">{{ error.message || 'An error occurred while loading the series.' }}</p>
+            <v-btn @click="refresh()" class="mt-4" variant="outlined" color="primary">
+                Try Again
+            </v-btn>
+        </div>
+        <div v-else class="flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <v-icon icon="mdi-television-off" size="64" class="text-neutral-500 mb-4"></v-icon>
+            <h2 class="text-xl font-semibold mb-2">Series Not Found</h2>
+            <p class="text-neutral-400 mb-2">The series you're looking for doesn't exist.</p>
+            <p class="text-xs text-neutral-500 mb-4">Series ID: {{ $route.params.seriesId }}</p>
+            <v-btn @click="$router.push('/')" class="mt-4" variant="outlined">
+                Go Home
+            </v-btn>
+        </div>
         <Login ref="loginRef" />
         <v-dialog v-model="showEpisodeDialog">
             <Episode :episode="selectedEpisode" :series="series" />
@@ -223,6 +240,7 @@ import { userStore } from '~/plugins/state';
 import { humanizeDateFull } from '~/utils/dateFormatter';
 import { createTVSeriesLdSchema } from '~/utils/schema';
 import { getTopicKey } from '~/utils/topics/commonUtils';
+import { sortBy } from 'lodash';
 
 const { status } = useAuth();
 
@@ -275,9 +293,8 @@ const share = () => {
             text: series.value.description,
             url: 'https://themoviebrowser.com/series/' + series.value.id
         })
-        .catch((error) => console.error('Error sharing:', error));
+        .catch(console.error);
     } else {
-        console.error('Web Share API not supported');
         navigator.clipboard.writeText('https://themoviebrowser.com/series/' + series.value.id);
     }
 }
@@ -306,7 +323,7 @@ const keywords = computed(() => {
 
 
 const mapSeries = (series: any) => {
-    series.credits.crew = useSortBy(series.credits.crew, (person) => {
+    series.credits.crew = sortBy(series.credits.crew, (person) => {
         if (person.job === 'Director') return 0;
         if (person.department === 'Directing') return 1;
         if (person.department === 'Writing') return 2;
@@ -337,24 +354,33 @@ const mapSeries = (series: any) => {
         }) || [],
     };
 }
+const route = useRoute()
 const headers = useRequestHeaders(['cookie']) as HeadersInit
-const { data: series, pending } = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}`,
-    () => $fetch(`/api/series/${useRoute().params.seriesId}`, { headers }).catch((err) => {
-        console.log(err);
-        return {};
-    }),
-    {
-        transform: (series: any) => mapSeries(series),
-        default: () => ({})
-    }
-);
 
-let { data: watchlist }: any = await useLazyAsyncData(`seriesDetails-${useRoute().params.seriesId}-watchList`,
-    () => $fetch(`/api/user/series/${useRoute().params.seriesId}/watchList`, { headers }).catch((err) => {
-        console.log(err);
-        return {};
-    })
-);
+const { data: series, pending, error, refresh: refreshData } = await useFetch(`/api/series/${route.params.seriesId}`, {
+    key: `series-${route.params.seriesId}`,
+    headers,
+    transform: (series: any) => {
+        if (!series || typeof series !== 'object') {
+            return null;
+        }
+        return mapSeries(series);
+    },
+    default: () => null,
+    server: true
+});
+
+let { data: watchlist }: any = await useFetch(`/api/user/series/${route.params.seriesId}/watchList`, {
+    key: `series-${route.params.seriesId}-watchlist`,
+    headers,
+    default: () => null,
+    server: true
+});
+
+// Add refresh function to retry loading
+const refresh = async () => {
+    await refreshData();
+};
 
 const addToRecents = () => {
     if (series.value.adult) return;

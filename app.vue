@@ -58,7 +58,8 @@ useHead({
     }
   ]
 })
-Clarity.init('oxwvg2abnk');
+// Disable for now, add better analytics or enable this later
+// Clarity.init('oxwvg2abnk');
 const { $pwa } = useNuxtApp();
 
 const installPwa = () => {

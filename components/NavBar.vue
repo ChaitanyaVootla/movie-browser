@@ -276,21 +276,21 @@
                                             :small="true" class="mt-2"/> -->
                                     </div>
                                     <div class="max-md:w-1/3 md:w-1/4 h-full">
-                                        <v-img
+                                        <SeoImg
                                             :src="`https://image.tmdb.org/t/p/${configuration.images.poster_sizes.w185
                                                 }${$vuetify.display.mdAndDown?item.raw.poster_path:item.raw.poster_path || item.raw.profile_path}`"
                                             class="rounded-md"
                                             :alt="item.raw.title"
                                         >
-                                            <template v-slot:placeholder>
+                                            <template #placeholder>
                                                 <v-skeleton-loader type="image" class="w-full h-full"></v-skeleton-loader>
                                             </template>
-                                            <template v-slot:error>
+                                            <template #error>
                                                 <v-skeleton-loader type="image" class="w-full h-full">
                                                     <div class="bg-neutral-700 w-full h-full"></div>
                                                 </v-skeleton-loader>
                                             </template>
-                                        </v-img>
+                                        </SeoImg>
                                     </div>
                                 </div>
                             </div>
@@ -309,6 +309,7 @@ import { getName } from 'country-list';
 import { userStore } from '~/plugins/state';
 import Clarity from '@microsoft/clarity';
 import { searchTopics } from '~/utils/topics/utils';
+import { useDebounce } from '@vueuse/core';
 
 const { data, status, signIn, signOut } = useAuth();
 
@@ -340,7 +341,7 @@ onMounted(async () => {
 
     if (status.value === 'authenticated') {
         userData.setupStore();
-        Clarity.identify(data.value?.user?.email || 'anonymous');
+        // Clarity.identify(data.value?.user?.email || 'anonymous');
     }
     userData.loadInfo();
 });

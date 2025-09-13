@@ -11,11 +11,11 @@
                     <v-menu v-if="false" v-model="isOpen" :close-on-content-click="false">
                         <template v-slot:activator="{ props }">
                             <div v-bind="props" class="px-2 py-1 flex items-center rounded-full cursor-pointer gap-2">
-                                <v-img
+                                <SeoImg
                                     :src="`https://flagcdn.com/${selectedCountry.code.toLowerCase()}.svg`"
                                     :alt="`Flag of ${selectedCountry.name}`"
                                     class="w-6 h-4 rounded-md"
-                                ></v-img>
+                                ></SeoImg>
                                 <div class="text-xs text-neutral-100">{{ selectedCountry.code }}</div>
                             </div>
                         </template>
@@ -49,8 +49,8 @@
                 <NuxtLink :to="watchOption.link" target="blank" noreferrer noopener
                     @click.prevent="watchLinkClicked(watchOption)">
                     <div class="w-18 flex flex-col items-center justify-between">
-                        <v-img :src="watchOption.image" class="max-md:w-6 max-md:h-6 md:w-6 md:h-6 rounded-sm"
-                            :alt="watchOption.name"></v-img>
+                        <SeoImg :src="watchOption.image" class="max-md:w-6 max-md:h-6 md:w-6 md:h-6 rounded-sm"
+                            :alt="watchOption.name"></SeoImg>
                         <div v-if="watchOption?.displayName"
                             class="text-2xs md:text-xs text-neutral-200 text-center mt-1">
                             {{ watchOption.displayName }}
@@ -70,6 +70,7 @@ import { getCode, getName } from 'country-list';
 import { userStore } from '~/plugins/state';
 import { getBaseUrl } from '~/utils/url';
 import { watchOptionImageMapper } from '~/utils/watchOptions';
+import { uniqBy } from 'lodash';
 
 interface Country {
   code: string;
@@ -137,8 +138,8 @@ if (props.googleData?.allWatchOptions?.length > 0) {
         }
     })
     watchOptions = watchOptions.filter((watchOption: any) => watchOption.name)
-    watchOptions = useUniqBy(watchOptions, 'name')
-    watchOptions = useUniqBy(watchOptions, 'link')
+    watchOptions = uniqBy(watchOptions, 'name')
+    watchOptions = uniqBy(watchOptions, 'link')
     watchOptionsByCountry['IN'] = watchOptions
 } else {
     if (props.item.homepage) {

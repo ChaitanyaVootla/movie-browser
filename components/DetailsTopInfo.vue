@@ -130,6 +130,7 @@
 
 <script setup lang="ts">
 import { getTopicKey } from '~/utils/topics/commonUtils';
+import { configuration } from '~/utils/constants';
 
 let showTrailer = ref(false);
 let showMobileTrailer = ref(false);

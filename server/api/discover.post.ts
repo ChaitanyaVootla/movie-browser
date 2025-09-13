@@ -9,10 +9,13 @@ export default defineEventHandler(async (event) => {
     }
 
     // Check if the request is cached
-    const cachedData = await useStorage('discovery').getItem(getObjectSha({...query, ...params}));
+    const cacheKey = getObjectSha({...query, ...params});
+    const cachedData = await useStorage('discovery').getItem(cacheKey);
     if (cachedData) {
+        console.log(`✅ Cache hit for discovery query: ${cacheKey.substring(0, 8)}...`);
         return cachedData;
     }
+    console.log(`🔄 Cache miss for discovery query: ${cacheKey.substring(0, 8)}...`);
 
     const queryStr = Object.keys(query)
         .map((key) => {
@@ -52,6 +55,10 @@ export default defineEventHandler(async (event) => {
             results: mappedResults
         }
     }
-    useStorage('discovery').setItem(getObjectSha(query), tmdbRes);
+    
+    // Cache the result with TTL (1 hour)
+    await useStorage('discovery').setItem(cacheKey, tmdbRes, { ttl: 60 * 60 });
+    console.log(`💾 Cached discovery result: ${cacheKey.substring(0, 8)}... for 1 hour`);
+    
     return tmdbRes;
 });

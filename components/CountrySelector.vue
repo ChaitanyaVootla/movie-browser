@@ -3,11 +3,11 @@
     <template v-slot:activator="{ props }">
       <div v-bind="props" class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2"
         role="button" aria-label="Select a country">
-        <v-img
-          :src="`https://flagcdn.com/${selectedCountry.code.toLowerCase()}.svg`"
+        <SeoImg
+          :sources="flagSources"
           :alt="`Flag of ${selectedCountry.name}`"
           class="w-6 h-4 rounded-md"
-        ></v-img>
+        ></SeoImg>
         <div class="text-xs text-neutral-300">{{ selectedCountry.code }}</div>
       </div>
     </template>
@@ -59,6 +59,14 @@ const isOpen = ref(false)
 const search = ref('')
 const selectedCountry = ref<Country>({ code: props.modelValue, name: getName(props.modelValue) || 'Unknown' })
 const countries = getNames()
+
+const flagSources = computed(() => {
+  const code = selectedCountry.value.code.toLowerCase()
+  return [
+    `https://flagcdn.com/${code}.svg`,
+    `https://flagcdn.com/w40/${code}.png`, // Fallback to PNG
+  ].filter(Boolean)
+})
 
 const filteredCountries = computed(() => {
   if (!search.value) return countries;

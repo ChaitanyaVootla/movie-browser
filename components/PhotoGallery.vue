@@ -14,17 +14,19 @@
             </div>
         </template>
         <v-carousel-item v-for="image in images" class="full-image">
-            <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.original}${image.file_path}`"
-                    class="full-image" contain>
-                    <template v-slot:placeholder>
+            <SeoImg 
+                :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.original}${image.file_path}`"
+                :alt="`Photo gallery image ${image.file_path ? image.file_path.split('/').pop() : ''}`"
+                class="full-image">
+                    <template #placeholder>
                         <v-skeleton-loader class="full-image" type="image" />
                     </template>
-                    <template v-slot:error>
+                    <template #error>
                         <v-skeleton-loader class="full-image" type="image" >
                             <div></div>
                         </v-skeleton-loader>
                 </template>
-            </v-img>
+            </SeoImg>
         </v-carousel-item>
     </v-carousel>
     <Scroller :items="images" title="" :pending="pending">

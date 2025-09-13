@@ -1,70 +1,158 @@
 <template>
-  <div ref="lazyLoader">
-    <!-- Show content during SSR for SEO, then lazy load on client -->
+  <div 
+    ref="containerRef" 
+    data-intersection-loader
+    :style="containerStyle"
+    :class="containerClass"
+  >
+    <!-- Always show content during SSR for SEO -->
     <slot v-if="shouldShowContent"></slot>
-    <v-skeleton-loader v-else type="image" :class="`max-md:w-[${mobileWidth}] max-md:h-[${mobileHeight}]
-        md:w-[${width}] md:h-[${height}]`" color="black"></v-skeleton-loader>
+    
+    <!-- Loading placeholder with proper dimensions -->
+    <div 
+      v-else
+      class="intersection-placeholder"
+      :style="containerStyle"
+      :class="containerClass"
+    >
+      <v-skeleton-loader 
+        type="image" 
+        color="black"
+        class="w-full h-full"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useIntersectionObserver } from '@vueuse/core';
+interface Props {
+  height: string
+  width: string
+  mobileHeight: string
+  mobileWidth: string
+  eager?: boolean // Force immediate loading
+}
 
-defineProps({
-  height: {
-    type: String,
-    required: true,
-  },
-  width: {
-    type: String,
-    required: true,
-  },
-  mobileHeight: {
-    type: String,
-    required: true,
-  },
-  mobileWidth: {
-    type: String,
-    required: true,
-  },
-});
+const props = withDefaults(defineProps<Props>(), {
+  eager: false
+})
 
-const isViewIntersecting = ref(false);
-const lazyLoader = ref<HTMLElement | null>(null);
-const isMounted = ref(false);
+const isLoaded = ref(false)
+const containerRef = ref<HTMLElement | null>(null)
 
-// Show content immediately during SSR, then use intersection observer on client
+// Container styles to maintain dimensions
+const containerStyle = computed(() => ({
+  width: `min(${props.width}, 100%)`,
+  height: props.height,
+  '@media (max-width: 768px)': {
+    width: `min(${props.mobileWidth}, 100%)`,
+    height: props.mobileHeight,
+  }
+}))
+
+const containerClass = computed(() => [
+  'intersection-loader-container',
+  'relative',
+  'overflow-hidden'
+])
+
+// Modern approach: Load immediately if visible or if eager
 const shouldShowContent = computed(() => {
-    // During SSR, always show content for SEO
-    if (!process.client) return true;
-    
-    // On client, show content after mounting for first visible items
-    // or when intersection observer triggers
-    return isMounted.value || isViewIntersecting.value;
-});
+  // Always show during SSR for SEO
+  if (import.meta.server) return true
+  
+  // Show immediately if eager mode
+  if (props.eager) return true
+  
+  // Show when loaded via intersection
+  return isLoaded.value
+})
+
+// Use modern native intersection observer
+let observer: IntersectionObserver | null = null
+
+const setupObserver = () => {
+  if (!containerRef.value || props.eager) return
+  
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry?.isIntersecting) {
+        isLoaded.value = true
+        observer?.disconnect()
+        observer = null
+      }
+    },
+    {
+      rootMargin: '100px 0px', // Load 100px before entering viewport
+      threshold: 0.01 // Trigger when 1% visible
+    }
+  )
+  
+  observer.observe(containerRef.value)
+}
+
+// Check if initially visible and load immediately
+const checkInitialVisibility = () => {
+  if (!containerRef.value || props.eager) return
+  
+  const rect = containerRef.value.getBoundingClientRect()
+  const isVisible = (
+    rect.top < window.innerHeight + 100 && // 100px buffer
+    rect.bottom > -100 &&
+    rect.left < window.innerWidth + 100 &&
+    rect.right > -100
+  )
+  
+  if (isVisible) {
+    isLoaded.value = true
+  } else {
+    setupObserver()
+  }
+}
 
 onMounted(() => {
-    isMounted.value = true;
-    
-    // Start intersection observer for lazy loading of off-screen content
-    setTimeout(() => {
-        const { stop } = useIntersectionObserver(
-            lazyLoader,
-            ([{ isIntersecting }]) => {
-                if (isIntersecting) {
-                    isViewIntersecting.value = true;
-                    stop();
-                }
-            },
-            {
-                rootMargin: '300px', // Reduced from 500px for better performance
-                threshold: 0,
-            }
-        );
-        
-        onUnmounted(() => {
-            stop();
-        });
-    }, 100); // Small delay to prevent flash during hydration
-});
+  if (props.eager) {
+    isLoaded.value = true
+  } else {
+    // Check visibility immediately after mount
+    requestAnimationFrame(() => {
+      checkInitialVisibility()
+    })
+  }
+})
+
+onUnmounted(() => {
+  observer?.disconnect()
+})
 </script>
+
+<style scoped>
+.intersection-loader-container {
+  /* Ensure consistent sizing across states */
+  box-sizing: border-box;
+}
+
+.intersection-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Responsive sizing */
+@media (max-width: 768px) {
+  .intersection-loader-container {
+    width: v-bind('props.mobileWidth') !important;
+    height: v-bind('props.mobileHeight') !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .intersection-loader-container {
+    width: v-bind('props.width') !important;
+    height: v-bind('props.height') !important;
+  }
+}
+</style>

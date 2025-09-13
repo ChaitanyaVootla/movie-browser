@@ -1,0 +1,46 @@
+---
+description: Movie Browser - A Nuxt.js web app for discovering movies, TV series, and people using TMDB API. Fully SEO-optimized with automated sitemap generation.
+globs:
+alwaysApply: true
+---
+
+# Movie Browser Project
+
+## Overview
+- **Tech Stack**: Nuxt.js 3, Vue.js, TMDB API, MongoDB, Vuetify
+- **Purpose**: Movie and TV series discovery platform with user authentication and ratings
+- **Live Site**: themoviebrowser.com
+
+## SEO Optimizations Completed
+
+### Core SSR & Hydration Fixes
+- ✅ Enabled SSR (`ssr: true`) in nuxt.config.ts
+- ✅ Fixed `ClientOnly` components causing hydration mismatches
+- ✅ Modified `IntersectionLoader` to render content during SSR
+- ✅ Enhanced data fetching with proper `useLazyAsyncData` configurations
+- ✅ Added canonical tags to all key pages
+
+### Content & Structure
+- ✅ Implemented HTML5 semantic tags (`<article>`, `<section>`, `<nav>`, `<header>`, `<main>`)
+- ✅ Enhanced image alt attributes for better accessibility and image SEO
+- ✅ Added Schema.org microdata for Movie/TVSeries structured data
+- ✅ Optimized global meta tags and Open Graph data
+
+### Performance & Core Web Vitals
+- ✅ Configured image optimization (WebP/AVIF, quality: 80, densities: [1,2])
+- ✅ Added preconnect/dns-prefetch for external resources
+- ✅ Enabled asset compression and minification
+- ✅ Implemented header-based caching (`s-maxage`) for better performance
+
+### Automated Sitemap Generation
+- ✅ **Standalone Script**: `scripts/generate-sitemap.js` - generates SEO-optimized sitemaps
+- ✅ **PM2 Automation**: Daily cron job (`0 4 * * *`) with fault tolerance
+- ✅ **Quality Filtering**: Top 10K movies, 10K series, 3K persons by popularity
+- ✅ **Tiered Priorities**: 1.0 for key hubs/blockbusters, 0.5-0.9 for regular content
+- ✅ **SEO Metadata**: `lastmod`, `changefreq: daily`, proper priority distribution
+- ✅ **Git Integration**: Sitemaps excluded from version control
+
+### Commands
+- `npm run generate-sitemap` - Generate sitemaps manually
+- `pm2 start ecosystem.config.cjs` - Start PM2 processes including sitemap cron
+- `curl https://themoviebrowser.com/` - Test no-JS rendering

@@ -32,8 +32,9 @@ registerRoute(
     cacheName: 'trending-cache',
     plugins: [
       new ExpirationPlugin({
-        maxAgeSeconds: ONE_HOUR_SECS * 2,
+        maxAgeSeconds: ONE_HOUR_SECS / 2, // Reduced to 30 minutes to match backend cache
         purgeOnQuotaError: true,
+        maxEntries: 50, // Limit cache entries
       }),
     ],
   }),
@@ -79,6 +80,21 @@ registerRoute(
       new ExpirationPlugin({
         maxAgeSeconds: ONE_DAY_SECS,
         purgeOnQuotaError: true,
+      }),
+    ],
+  }),
+);
+
+// Cache discovery API calls
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/discover'),
+  new CacheFirst({
+    cacheName: 'discovery-cache',
+    plugins: [
+      new ExpirationPlugin({
+        maxAgeSeconds: ONE_HOUR_SECS, // 1 hour to match backend
+        purgeOnQuotaError: true,
+        maxEntries: 200, // Allow more discovery cache entries
       }),
     ],
   }),

@@ -1,24 +1,25 @@
 <template>
 <span class="md:h-[23rem] md:w-[29rem] hidden"></span>
 <span class="max-md:h-[15rem] max-md:w-[20rem] hidden"></span>
-<IntersectionLoader height="23rem" width="29rem" mobileHeight="15rem" mobileWidth="20rem">
+<IntersectionLoader height="23rem" width="29rem" mobileHeight="15rem" mobileWidth="20rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`" class="flex flex-col h-full">
-        <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780
-        }${getEnglishBackdrop(item) || item.backdrop_path}`"
+        <SeoImg 
+            :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${getEnglishBackdrop(item) || item.backdrop_path}`"
+            :alt="`${item.name || item.title} backdrop image`"
             class="rounded-lg mr-2 hover:rounded-md hover:shadow-md hover:shadow-neutral-800
                 hover:transition-all duration-300 flex-grow max-md:w-full"
             cover
-            :aspect-ratio="1.78"
-            :alt="item.name">
-            <template v-slot:placeholder>
+            eager
+            :aspect-ratio="1.78">
+            <template #placeholder>
                 <v-skeleton-loader type="image" />
             </template>
-            <template v-slot:error>
+            <template #error>
                 <v-skeleton-loader type="image" >
                     <div></div>
                 </v-skeleton-loader>
             </template>
-        </v-img>
+        </SeoImg>
         <div class="mt-1">
             <div class="flex justify-between items-center">
                 <div>
@@ -47,6 +48,9 @@
 </template>
 
 <script setup lang="ts">
+import { configuration, movieGenres, seriesGenres } from '~/utils/constants'
+import { getUrlSlug } from '~/utils/slug'
+
 defineProps({
     item: {
         type: Object,

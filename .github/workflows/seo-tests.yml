@@ -1,0 +1,173 @@
+name: SEO & Performance Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run SEO tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests
+        run: npm run test:unit
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: success()
+
+  seo-tests:
+    runs-on: ubuntu-latest
+    name: SEO Validation Tests
+    
+    env:
+      # Add test environment variables
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      MONGODB_URL: ${{ secrets.MONGODB_URL_TEST }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Run SEO tests
+        run: npm run test:seo
+      
+      - name: Upload SEO test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: seo-test-results
+          path: test-results/
+
+  mobile-seo-tests:
+    runs-on: ubuntu-latest
+    name: Mobile SEO Tests
+    
+    env:
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      MONGODB_URL: ${{ secrets.MONGODB_URL_TEST }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Run mobile SEO tests
+        run: npm run test:mobile
+      
+      - name: Upload mobile test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mobile-seo-test-results
+          path: test-results/
+
+  performance-audit:
+    runs-on: ubuntu-latest
+    name: Performance Audit
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Start server
+        run: npm run preview &
+        
+      - name: Wait for server
+        run: sleep 10
+      
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: '.lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  seo-monitoring:
+    runs-on: ubuntu-latest
+    name: SEO Monitoring
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run production SEO check
+        env:
+          PRODUCTION_URL: 'https://themoviebrowser.com'
+        run: |
+          # Custom script to check production SEO
+          node scripts/check-production-seo.js
+      
+      - name: Notify on SEO issues
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#seo-alerts'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

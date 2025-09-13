@@ -208,21 +208,44 @@ async function downloadTMDBFile(type) {
 }
 
 /**
- * Read and parse TMDB data file
+ * Read and parse TMDB data file with memory optimization
  */
 function readTMDBData(filePath) {
     console.log(`📖 Reading data from ${filePath}`);
-    const data = fs.readFileSync(filePath, 'utf-8');
-    const lines = data.trim().split('\n');
     
-    return lines.map(line => {
-        try {
-            return JSON.parse(line);
-        } catch (e) {
-            console.warn(`Warning: Failed to parse line: ${line}`);
-            return null;
+    try {
+        const data = fs.readFileSync(filePath, 'utf-8');
+        const lines = data.trim().split('\n');
+        
+        console.log(`📊 Processing ${lines.length} entries from TMDB dataset`);
+        
+        const result = [];
+        let processed = 0;
+        
+        for (const line of lines) {
+            try {
+                const item = JSON.parse(line);
+                if (item) {
+                    result.push(item);
+                }
+                processed++;
+                
+                // Log progress for large datasets
+                if (processed % 10000 === 0) {
+                    console.log(`   Progress: ${processed}/${lines.length} entries processed`);
+                }
+            } catch (e) {
+                // Skip invalid lines silently for performance
+            }
         }
-    }).filter(Boolean);
+        
+        console.log(`✅ Successfully parsed ${result.length} valid entries`);
+        return result;
+        
+    } catch (error) {
+        console.error(`❌ Error reading TMDB data from ${filePath}:`, error.message);
+        throw error;
+    }
 }
 
 /**
@@ -429,13 +452,30 @@ async function main() {
             fs.mkdirSync(PUBLIC_DIR, { recursive: true });
         }
         
-        // Generate all sitemaps in parallel for speed
-        const [movieSitemap, seriesSitemap, personSitemap, staticSitemap] = await Promise.all([
-            generateMovieSitemap(),
-            generateSeriesSitemap(), 
-            generatePersonSitemap(),
-            generateStaticSitemap()
-        ]);
+        // Generate sitemaps sequentially to avoid memory overflow
+        console.log('🔄 Running sitemap generation sequentially to optimize memory usage...');
+        
+        const staticSitemap = generateStaticSitemap();  // This one is lightweight, no async needed
+        console.log('✅ Static sitemap completed');
+        
+        const movieSitemap = await generateMovieSitemap();
+        console.log('✅ Movie sitemap completed, freeing memory...');
+        
+        // Force garbage collection if available
+        if (global.gc) {
+            global.gc();
+        }
+        
+        const seriesSitemap = await generateSeriesSitemap();
+        console.log('✅ Series sitemap completed, freeing memory...');
+        
+        // Force garbage collection if available
+        if (global.gc) {
+            global.gc();
+        }
+        
+        const personSitemap = await generatePersonSitemap();
+        console.log('✅ Person sitemap completed');
         
         // Create sitemap index
         const sitemapFiles = [

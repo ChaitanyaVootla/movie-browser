@@ -19,19 +19,20 @@
         <v-carousel v-model="imageIndex" hide-delimiters>
             <v-carousel-item v-for="image in images">
                 <div class="flex justify-center h-full w-full align-middle p-5">
-                    <v-img :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.original}${image.file_path}`"
-                            contain>
-                            <template v-slot:placeholder>
+                    <SeoImg 
+                        :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.original}${image.file_path}`"
+                        :alt="`Gallery image ${image.file_path ? image.file_path.split('/').pop() : 'from collection'}`">
+                            <template #placeholder>
                                 <v-skeleton-loader class="w-full h-full" type="image">
                                     <div></div>
                                 </v-skeleton-loader>
                             </template>
-                            <template v-slot:error>
+                            <template #error>
                                 <v-skeleton-loader class="w-full h-full" type="image" >
                                     <div></div>
                                 </v-skeleton-loader>
                         </template>
-                    </v-img>
+                    </SeoImg>
                 </div>
             </v-carousel-item>
         </v-carousel>

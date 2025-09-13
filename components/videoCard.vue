@@ -7,19 +7,19 @@
                     {{ item.type }}
                 </div>
             </div>
-            <v-img :src="`https://img.youtube.com/vi/${item.key}/maxresdefault.jpg`"
+            <SeoImg :src="`https://img.youtube.com/vi/${item.key}/maxresdefault.jpg`"
                 class="rounded-lg mr-2 wide-image"
                 cover
                 :alt="item.name">
-                <template v-slot:placeholder>
+                <template #placeholder>
                     <v-skeleton-loader class="wide-image" type="image" />
                 </template>
-                <template v-slot:error>
+                <template #error>
                     <v-skeleton-loader class="wide-image" type="image" >
                         <div></div>
                     </v-skeleton-loader>
                 </template>
-            </v-img>
+            </SeoImg>
             <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4
                 text-xs md:text-base">
                 {{ item.name }}

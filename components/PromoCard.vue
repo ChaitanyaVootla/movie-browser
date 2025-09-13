@@ -1,7 +1,7 @@
 <template>
 <span class="md:h-[30rem] md:w-[36rem] hidden"></span>
 <span class="max-md:h-[20rem] max-md:w-[30rem] hidden"></span>
-<IntersectionLoader height="30rem" width="36rem" mobileHeight="20rem" mobileWidth="30rem">
+<IntersectionLoader height="30rem" width="36rem" mobileHeight="20rem" mobileWidth="30rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
         <div class="promo-img">
             <NuxtImg :src="imagePath" @error="onError"
@@ -26,6 +26,8 @@
 </template>
 
 <script setup lang="ts">
+import { configuration } from '~/utils/constants'
+
 const props = defineProps({
     item: {
         type: Object,

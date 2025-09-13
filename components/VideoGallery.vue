@@ -44,7 +44,7 @@
                     </div>
                     <div class="flex gap-3 items-center">
                         <v-avatar class="border-2 border-neutral-400" size="small">
-                            <v-img alt="Avatar" :src="comments[0].snippet.topLevelComment.snippet.authorProfileImageUrl" />
+                            <SeoImg alt="Avatar" :src="comments[0].snippet.topLevelComment.snippet.authorProfileImageUrl" />
                         </v-avatar>
                         <div class="flex flex-col">
                             <div class="text-neutral-300 line-clamp-1" v-html="comments[0].snippet.topLevelComment.snippet.textDisplay"></div>
@@ -65,19 +65,19 @@
                         <div class="flex py-2 pl-2 cursor-pointer hover:bg-neutral-900" :class="{currentVideo: video.key === currentVideo.key}" :key="video.key"
                             @click="updateCurrentVideo(video)">
                             <div class="w-1/3 mr-2 rounded-lg border-2 border-neutral-900">
-                                <v-img :src="`https://img.youtube.com/vi/${video.key}/sddefault.jpg`"
+                                <SeoImg :src="`https://img.youtube.com/vi/${video.key}/sddefault.jpg`"
                                     aspect-ratio="19/6"
                                     cover
                                     :alt="video.name">
-                                    <template v-slot:placeholder>
+                                    <template #placeholder>
                                         <v-skeleton-loader class="video-image" type="image" />
                                     </template>
-                                    <template v-slot:error>
+                                    <template #error>
                                         <v-skeleton-loader class="video-image" type="image" >
                                             <div></div>
                                         </v-skeleton-loader>
                                     </template>
-                                </v-img>
+                                </SeoImg>
                             </div>
                             <div class="w-2/3 pt-4">
                                 <div class="text-neutral-200 overflow-ellipsis overflow-hidden pr-4 text-tiny">
@@ -106,7 +106,7 @@
                 <div v-for="comment in comments" :key="comment.id" class="mb-5">
                     <div class="flex gap-3">
                         <v-avatar class="border-2 border-neutral-400">
-                            <v-img alt="Avatar" :src="comment.snippet.topLevelComment.snippet.authorProfileImageUrl" />
+                            <SeoImg alt="Avatar" :src="comment.snippet.topLevelComment.snippet.authorProfileImageUrl" />
                         </v-avatar>
                         <div class="flex flex-col">
                             <div class="text-neutral-200 font-semibold">{{ comment.snippet.topLevelComment.snippet.authorDisplayName }}</div>
@@ -124,6 +124,8 @@
 </template>
 
 <script setup lang="ts">
+import { uniq } from 'lodash';
+
 let { videos: videosOriginal } = defineProps<{
     videos: any[]
 }>()
@@ -133,7 +135,7 @@ let currentVideo = ref(videos[0])
 let videoStats = ref(null) as any;
 let commentsDialog = ref(false);
 let comments = ref([]) as any;
-let videoTypes = ['All'].concat(useUniq(videos.map(video => video.type)));
+let videoTypes = ['All'].concat(uniq(videos.map(video => video.type)));
 let videoFilter = ref('All');
 
 watch(videoFilter, () => {

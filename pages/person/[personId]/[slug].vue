@@ -7,7 +7,7 @@
                 type="image"
             ></v-skeleton-loader>
         </div>
-        <div v-else>
+        <div v-else-if="person?.id">
             <div class="top-info max-md:px-3 md:px-14 pt-10">
                 <div class="flex gap-10">
                     <div class="w-1/12 min-w-32">
@@ -53,71 +53,106 @@
                 <Grid :items="filteredItems" title="" :pending="pending" />
             </div>
         </div>
+        <div v-else-if="error" class="flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <v-icon icon="mdi-alert-circle" size="64" class="text-red-500 mb-4"></v-icon>
+            <h2 class="text-xl font-semibold mb-2">Error Loading Person</h2>
+            <p class="text-neutral-400 mb-2">{{ error.message || 'An error occurred while loading the person.' }}</p>
+            <v-btn @click="refresh()" class="mt-4" variant="outlined" color="primary">
+                Try Again
+            </v-btn>
+        </div>
+        <div v-else class="flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <v-icon icon="mdi-account-off" size="64" class="text-neutral-500 mb-4"></v-icon>
+            <h2 class="text-xl font-semibold mb-2">Person Not Found</h2>
+            <p class="text-neutral-400 mb-2">The person you're looking for doesn't exist.</p>
+            <p class="text-xs text-neutral-500 mb-4">Person ID: {{ $route.params.personId }}</p>
+            <v-btn @click="$router.push('/')" class="mt-4" variant="outlined">
+                Go Home
+            </v-btn>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { createPersonLdSchema } from '~/utils/schema';
+import { getUrlSlug } from '~/utils/slug';
 
 const selectedMediaType = ref("movies");
 const selectedCreditType = ref("cast");
 
-const { data: person, pending }: any = await useLazyAsyncData(`person-${useRoute().params.personId}`,
-    () => $fetch(`/api/person/${useRoute().params.personId}`).catch((err) => {
-        console.error(err);
-        return {};
-    }),
-    {
-        transform: (person: any) => {
-            person.combined_credits?.cast.sort((a: any, b: any) => {
-                return b.popularity - a.popularity;
-            });
-            person.combined_credits?.crew.sort((a: any, b: any) => {
-                return b.popularity - a.popularity;
-            });
-            const movie_credits = {
-                cast: [],
-                crew: [],
-            } as any;
-            const series_credits = {
-                cast: [],
-                crew: [],
-            } as any;
-            for (const item of (person.combined_credits?.cast || [])) {
-                if (item.media_type === 'movie') {
-                    movie_credits.cast.push(item);
-                } else if (item.media_type === 'tv') {
-                    series_credits.cast.push(item);
-                }
-            }
-            for (const item of (person.combined_credits?.crew || [])) {
-                if (item.media_type === 'movie') {
-                    const existng = movie_credits.crew.find((i: any) => i.id === item.id);
-                    if (existng) {
-                        existng.job += `, ${item.job}`;
-                        continue;
-                    }
-                    movie_credits.crew.push(item);
-                } else if (item.media_type === 'tv') {
-                    const existng = series_credits.crew.find((i: any) => i.id === item.id);
-                    if (existng) {
-                        existng.job += `, ${item.job}`;
-                        continue;
-                    }
-                    series_credits.crew.push(item);
-                }
-            }
-            if (person.known_for_department !== 'Acting') {
-                selectedCreditType.value = 'crew';
-            }
-            return {
-                ...person,
-                movie_credits,
-                series_credits,
-            }
+const mapPerson = (person: any) => {
+    if (!person || typeof person !== 'object') {
+        return null;
+    }
+    
+    person.combined_credits?.cast.sort((a: any, b: any) => {
+        return b.popularity - a.popularity;
+    });
+    person.combined_credits?.crew.sort((a: any, b: any) => {
+        return b.popularity - a.popularity;
+    });
+    
+    const movie_credits = {
+        cast: [],
+        crew: [],
+    } as any;
+    const series_credits = {
+        cast: [],
+        crew: [],
+    } as any;
+    
+    for (const item of (person.combined_credits?.cast || [])) {
+        if (item.media_type === 'movie') {
+            movie_credits.cast.push(item);
+        } else if (item.media_type === 'tv') {
+            series_credits.cast.push(item);
         }
     }
-);
+    
+    for (const item of (person.combined_credits?.crew || [])) {
+        if (item.media_type === 'movie') {
+            const existng = movie_credits.crew.find((i: any) => i.id === item.id);
+            if (existng) {
+                existng.job += `, ${item.job}`;
+                continue;
+            }
+            movie_credits.crew.push(item);
+        } else if (item.media_type === 'tv') {
+            const existng = series_credits.crew.find((i: any) => i.id === item.id);
+            if (existng) {
+                existng.job += `, ${item.job}`;
+                continue;
+            }
+            series_credits.crew.push(item);
+        }
+    }
+    
+    if (person.known_for_department !== 'Acting') {
+        selectedCreditType.value = 'crew';
+    }
+    
+    return {
+        ...person,
+        movie_credits,
+        series_credits,
+    }
+}
+
+const route = useRoute()
+const headers = useRequestHeaders(['cookie']) as HeadersInit
+
+const { data: person, pending, error, refresh: refreshData }: any = await useFetch(`/api/person/${route.params.personId}`, {
+    key: `person-${route.params.personId}`,
+    headers,
+    transform: mapPerson,
+    default: () => null,
+    server: true
+});
+
+// Add refresh function to retry loading
+const refresh = async () => {
+    await refreshData();
+};
 
 const filteredItems = computed(() => {
     if (selectedMediaType.value === 'movies') {
@@ -135,62 +170,76 @@ const filteredItems = computed(() => {
     }
 });
 
-useHead({
-    title: `${person.value?.name} | The Movie Browser`,
-    meta: [
-        {
-            hid: 'description',
-            name: 'description',
-            content: person.value?.biography,
+useHead(() => {
+    return {
+        title: `${person.value?.name} | The Movie Browser`,
+        meta: [
+            {
+                name: 'description',
+                content: person.value?.biography,
+            },
+            {
+                property: 'og:title',
+                content: `${person.value?.name}`,
+            },
+            {
+                property: 'og:description',
+                content: person.value?.biography,
+            },
+            {
+                property: 'og:image',
+                content: `https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.value?.profile_path}`,
+            },
+            {
+                property: 'og:url',
+                content: `https://themoviebrowser.com/person/${person.value?.id}/${getUrlSlug(person.value?.name || '')}`,
+            },
+            {
+                property: 'og:type',
+                content: 'profile'
+            },
+            {
+                property: 'og:site_name',
+                content: 'The Movie Browser'
+            },
+            {
+                name: 'twitter:title',
+                content: `${person.value?.name}`,
+            },
+            {
+                name: 'twitter:description',
+                content: person.value?.biography,
+            },
+            {
+                name: 'twitter:image',
+                content: `https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.value?.profile_path}`,
+            },
+            {
+                name: 'twitter:card',
+                content: 'summary_large_image',
+            },
+        ],
+        htmlAttrs: {
+            lang: 'en'
         },
-        {
-            hid: 'og:title',
-            property: 'og:title',
-            content: `${person.value?.name}`,
-        },
-        {
-            hid: 'og:description',
-            property: 'og:description',
-            content: person.value?.biography,
-        },
-        {
-            hid: 'og:image',
-            property: 'og:image',
-            content: `https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.value?.profile_path}`,
-        },
-        {
-            hid: 'og:url',
-            property: 'og:url',
-            content: `https://www.themoviedb.org/person/${person.value?.id}`,
-        },
-        {
-            hid: 'twitter:title',
-            name: 'twitter:title',
-            content: `${person.value?.name}`,
-        },
-        {
-            hid: 'twitter:description',
-            name: 'twitter:description',
-            content: person.value?.biography,
-        },
-        {
-            hid: 'twitter:image',
-            name: 'twitter:image',
-            content: `https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.value?.profile_path}`,
-        },
-        {
-            hid: 'twitter:card',
-            name: 'twitter:card',
-            content: 'summary_large_image',
-        },
-    ],
-    script: [
-        {
-            hid: 'ld-json',
-            type: 'application/ld+json',
-            innerHTML: JSON.stringify(createPersonLdSchema(person.value))
-        }
-    ]
+        link: [
+            {
+                rel: 'icon',
+                type: 'image/x-icon',
+                href: '/favicon.ico'
+            },
+            {
+                rel: 'canonical',
+                href: `https://themoviebrowser.com/person/${person.value?.id}/${getUrlSlug(person.value?.name || '')}`
+            }
+        ],
+        script: [
+            {
+                type: 'application/ld+json',
+                innerHTML: JSON.stringify(createPersonLdSchema(person.value))
+            }
+        ]
+    };
 });
 </script>
 

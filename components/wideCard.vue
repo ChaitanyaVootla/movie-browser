@@ -1,25 +1,27 @@
 <template>
 <span class="md:h-[17rem] md:w-[27rem] hidden"></span>
 <span class="max-md:h-[10rem] max-md:w-[20rem] hidden"></span>
-<IntersectionLoader height="17rem" width="27rem" mobileHeight="10rem" mobileWidth="20rem">
+<IntersectionLoader height="17rem" width="27rem" mobileHeight="10rem" mobileWidth="20rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
         <div class="wide-card group cursor-pointer pt-2 flex flex-col">
             <div class="relative">
-                <v-img :src="imagePath"
+                <SeoImg 
+                    :src="imagePath"
+                    :alt="`${item.name || item.title} backdrop image`"
                     class="rounded-lg mr-2 wide-image hover:rounded-md hover:shadow-md hover:shadow-neutral-800
                         hover:transition-all duration-300 hover:mb-1 md:hover:-mt-1"
                     cover
-                    :alt="item.name"
+                    eager
                     @error="imageError">
-                    <template v-slot:placeholder>
+                    <template #placeholder>
                         <v-skeleton-loader class="wide-image" type="image" />
                     </template>
-                    <template v-slot:error>
+                    <template #error>
                         <v-skeleton-loader class="wide-image" type="image" >
                             <div></div>
                         </v-skeleton-loader>
                     </template>
-                </v-img>
+                </SeoImg>
                 <div v-if="isAiRoute" class="overlay invisible group-hover:visible absolute bottom-0 flex justify-center
                     w-full z-10 pl-5 pr-5 bg-black opacity-90 pt-3 pb-3 items-center">
                     <div class="flex items-center justify-between w-full">
@@ -42,6 +44,8 @@
 </template>
 
 <script setup lang="ts">
+import { configuration } from '~/utils/constants'
+
 const props = defineProps({
     item: {
         type: Object,

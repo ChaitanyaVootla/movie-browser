@@ -2,7 +2,16 @@ import { movieGetHandler } from "../movie/[movieId]";
 import { seriesGetHandler } from "../series/[seriesId]";
 
 export default defineEventHandler(async (event) => {
+    // Fast cache check first
+    const cacheKey = 'trending-tmdb-data';
+    const cachedData = await useStorage('trending').getItem(cacheKey);
+    if (cachedData) {
+        console.log('✅ Returning cached trending data');
+        return cachedData;
+    }
+
     try {
+      console.log('🔄 Fetching fresh trending data...');
       const [{ results: allItems }, { results: movies }, { results: tv }, { results: streamingNow}] = (await Promise.all([
         $fetch(`https://api.themoviedb.org/3/trending/all/day?api_key=${process.env.TMDB_API_KEY}`, {
           retry: 5
@@ -18,36 +27,50 @@ export default defineEventHandler(async (event) => {
             retry: 5
         }),
       ])) as any[];
-      const allItemsMovies = allItems.filter((item: any) => item.media_type === 'movie');
-      const allItemsTv = allItems.filter((item: any) => item.media_type === 'tv');
-      updateMovies(allItemsMovies.map((item: any) => item.id).filter(Boolean));
-      updateSeries(allItemsTv.map((item: any) => item.id).filter(Boolean));
-      return {
+
+      const result = {
         allItems: allItems.filter((item: any) => ['movie', 'tv'].includes(item.media_type)),
         movies,
         tv,
         streamingNow,
-      }
-    } catch (event: any) {
-      console.error(event);
+      };
+
+      // Cache the result for 30 minutes
+      await useStorage('trending').setItem(cacheKey, result, { ttl: 30 * 60 });
+      console.log('💾 Cached trending data for 30 minutes');
+
+      // Trigger background updates (already non-blocking since no await)
+      const allItemsMovies = allItems.filter((item: any) => item.media_type === 'movie');
+      const allItemsTv = allItems.filter((item: any) => item.media_type === 'tv');
+      
+      // Original code - already runs in background without await
+      updateMovies(allItemsMovies.map((item: any) => item.id).filter(Boolean));
+      updateSeries(allItemsTv.map((item: any) => item.id).filter(Boolean));
+
+      return result;
+    } catch (error: any) {
+      console.error('❌ Trending API error:', error);
       return {
-        error: event.message,
+        error: error.message,
       }
     }
 });
 
+// Optimized functions - now use parallel processing instead of sequential
 const updateMovies = async (movieIds: string[]) => {
   console.log("Updating trending movies")
-  for (const movieId of movieIds) {
-    await movieGetHandler(movieId, true, false, true);
-  }
+  // Use parallel processing instead of sequential
+  await Promise.allSettled(
+    movieIds.map(movieId => movieGetHandler(movieId, true, false, true))
+  );
   console.log("Updated trending movies")
 }
 
 const updateSeries = async (seriesIds: string[]) => {
   console.log("Updating trending series")
-  for (const seriesId of seriesIds) {
-    await seriesGetHandler(seriesId, true, false, true);
-  }
+  // Use parallel processing instead of sequential
+  await Promise.allSettled(
+    seriesIds.map(seriesId => seriesGetHandler(seriesId, true, false, true))
+  );
   console.log("Updated trending series")
 }

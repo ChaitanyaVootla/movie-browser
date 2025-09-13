@@ -20,7 +20,7 @@ module.exports = {
         max_restarts: 2,           // Max 2 restart attempts per hour
         min_uptime: "1s",          // Just needs to start properly (exit code determines success)
         watch: false,              // Don't watch for file changes
-        max_memory_restart: "500M", // Increased for TMDB data processing
+        max_memory_restart: "1G",   // Increased for large TMDB dataset processing
         error_file: "./logs/sitemap-error.log",
         out_file: "./logs/sitemap-out.log",
         log_file: "./logs/sitemap-combined.log",
@@ -29,7 +29,7 @@ module.exports = {
             NODE_ENV: "production"
         },
         // Kill timeout for stuck processes
-        kill_timeout: 300000,      // 5 minutes max execution time
+        kill_timeout: 600000,      // 10 minutes max execution time (large datasets)
         // PM2 will track success/failure based on exit codes:
         // Exit code 0 = success, non-zero = failure
     },

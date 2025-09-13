@@ -48,3 +48,8 @@ data
 
 # Generated sitemaps
 public/sitemap*.xml
+
+# Testing artifacts
+playwright-report/
+test-results/
+tests/html-snapshots/
