@@ -124,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { uniq } from 'lodash';
+import _ from 'lodash';
 
 let { videos: videosOriginal } = defineProps<{
     videos: any[]
@@ -135,7 +135,7 @@ let currentVideo = ref(videos[0])
 let videoStats = ref(null) as any;
 let commentsDialog = ref(false);
 let comments = ref([]) as any;
-let videoTypes = ['All'].concat(uniq(videos.map(video => video.type)));
+let videoTypes = ['All'].concat(_.uniq(videos.map(video => video.type)));
 let videoFilter = ref('All');
 
 watch(videoFilter, () => {

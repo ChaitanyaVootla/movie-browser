@@ -188,7 +188,7 @@ import { userStore } from '~/plugins/state';
 import { humanizeDateFull } from '~/utils/dateFormatter';
 import { createMovieLdSchema } from '~/utils/schema';
 import { getTopicKey } from '~/utils/topics/commonUtils';
-import { sortBy } from 'lodash';
+import _ from 'lodash';
 
 let updatingMovie = ref(false);
 let aiRecommendations = ref([] as any);
@@ -279,7 +279,7 @@ const mapMovie = (movie: any) => {
     
     // Safely handle credits.crew sorting
     if (movie.credits?.crew) {
-        movie.credits.crew = sortBy(movie.credits.crew, (person) => {
+        movie.credits.crew = _.sortBy(movie.credits.crew, (person) => {
             if (person.job === 'Director') return 0;
             if (person.department === 'Directing') return 1;
             if (person.department === 'Writing') return 2;

@@ -70,7 +70,7 @@ import { getCode, getName } from 'country-list';
 import { userStore } from '~/plugins/state';
 import { getBaseUrl } from '~/utils/url';
 import { watchOptionImageMapper } from '~/utils/watchOptions';
-import { uniqBy } from 'lodash';
+import _ from 'lodash';
 
 interface Country {
   code: string;
@@ -138,8 +138,8 @@ if (props.googleData?.allWatchOptions?.length > 0) {
         }
     })
     watchOptions = watchOptions.filter((watchOption: any) => watchOption.name)
-    watchOptions = uniqBy(watchOptions, 'name')
-    watchOptions = uniqBy(watchOptions, 'link')
+    watchOptions = _.uniqBy(watchOptions, 'name')
+    watchOptions = _.uniqBy(watchOptions, 'link')
     watchOptionsByCountry['IN'] = watchOptions
 } else {
     if (props.item.homepage) {

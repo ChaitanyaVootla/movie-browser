@@ -240,7 +240,7 @@ import { userStore } from '~/plugins/state';
 import { humanizeDateFull } from '~/utils/dateFormatter';
 import { createTVSeriesLdSchema } from '~/utils/schema';
 import { getTopicKey } from '~/utils/topics/commonUtils';
-import { sortBy } from 'lodash';
+import _ from 'lodash';
 
 const { status } = useAuth();
 
@@ -323,7 +323,7 @@ const keywords = computed(() => {
 
 
 const mapSeries = (series: any) => {
-    series.credits.crew = sortBy(series.credits.crew, (person) => {
+    series.credits.crew = _.sortBy(series.credits.crew, (person) => {
         if (person.job === 'Director') return 0;
         if (person.department === 'Directing') return 1;
         if (person.department === 'Writing') return 2;
