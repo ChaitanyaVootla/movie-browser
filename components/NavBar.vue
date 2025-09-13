@@ -309,7 +309,8 @@ import { getName } from 'country-list';
 import { userStore } from '~/plugins/state';
 import Clarity from '@microsoft/clarity';
 import { searchTopics } from '~/utils/topics/utils';
-import { useDebounce } from '@vueuse/core';
+import { useDebounceFn } from '@vueuse/core';
+import { movieGenres, seriesGenres, configuration } from '~/utils/constants';
 
 const { data, status, signIn, signOut } = useAuth();
 
@@ -381,10 +382,10 @@ const doSearch = async (query: string) => {
     isSearching.value = false;
 };
 
-const searchUpdated = useDebounce(async (query: string) => {
+const searchUpdated = useDebounceFn(async (query: string) => {
     latestQuery.value = query;
     await doSearch(query);
-}, 300, { leading: false });
+}, 300);
 
 const onSearch = async (query: string) => {
     latestQuery.value = query;

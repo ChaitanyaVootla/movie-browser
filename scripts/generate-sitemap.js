@@ -428,7 +428,7 @@ function createSitemapIndex(sitemapFiles) {
     
     sitemapFiles.forEach(filename => {
         xml += '  <sitemap>\n';
-        xml += `    <loc>${BASE_URL}/sitemaps/${filename}</loc>\n`;
+        xml += `    <loc>${BASE_URL}/${filename}</loc>\n`;
         xml += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
         xml += '  </sitemap>\n';
     });
