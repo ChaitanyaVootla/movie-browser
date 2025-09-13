@@ -47,7 +47,7 @@ data
 ./public/data
 
 # Generated sitemaps
-public/sitemap*.xml
+sitemap*.xml
 
 # Testing artifacts
 playwright-report/

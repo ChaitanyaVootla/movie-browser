@@ -46,7 +46,7 @@ const themes = JSON.parse(fs.readFileSync(themesPath, 'utf-8'));
 
 const BASE_URL = 'https://themoviebrowser.com';
 const DATA_DIR = path.resolve(__dirname, '../data');
-const PUBLIC_DIR = path.resolve(__dirname, '../public');
+const SITEMAPS_DIR = path.resolve(__dirname, '../sitemaps');
 
 // Configuration - Simplified: Just pick top entries by popularity
 const CONFIG = {
@@ -376,7 +376,7 @@ function createSitemap(urls, filename) {
     console.log(`📝 Creating sitemap: ${filename} with ${urls.length} URLs`);
     
     const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    const filePath = path.join(PUBLIC_DIR, filename);
+    const filePath = path.join(SITEMAPS_DIR, filename);
     const writeStream = createWriteStream(filePath);
     
     // Write XML header
@@ -428,14 +428,14 @@ function createSitemapIndex(sitemapFiles) {
     
     sitemapFiles.forEach(filename => {
         xml += '  <sitemap>\n';
-        xml += `    <loc>${BASE_URL}/${filename}</loc>\n`;
+        xml += `    <loc>${BASE_URL}/sitemaps/${filename}</loc>\n`;
         xml += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
         xml += '  </sitemap>\n';
     });
     
     xml += '</sitemapindex>';
     
-    const indexPath = path.join(PUBLIC_DIR, 'sitemap.xml');
+    const indexPath = path.join(SITEMAPS_DIR, 'sitemap.xml');
     fs.writeFileSync(indexPath, xml);
     console.log(`✅ Created sitemap index: sitemap.xml`);
 }
@@ -650,9 +650,9 @@ async function main() {
     const startTime = Date.now();
     
     try {
-        // Ensure public directory exists
-        if (!fs.existsSync(PUBLIC_DIR)) {
-            fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+        // Ensure sitemaps directory exists
+        if (!fs.existsSync(SITEMAPS_DIR)) {
+            fs.mkdirSync(SITEMAPS_DIR, { recursive: true });
         }
         
         // Generate sitemaps sequentially to optimize memory usage
