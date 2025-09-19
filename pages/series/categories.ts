@@ -1,13 +1,13 @@
 export const TV_CATEGORIES = [
-    {
-        name: '',
-        isPromo: true,
-        filterParams: {
-            media_type: 'tv',
-            'vote_count.gte': 100,
-            'vote_average.gte': 5
-        }
-    },
+    // {
+    //     name: '',
+    //     isPromo: true,
+    //     filterParams: {
+    //         media_type: 'tv',
+    //         'vote_count.gte': 100,
+    //         'vote_average.gte': 5
+    //     }
+    // },
     {
         name: 'Sci-Fi Action',
         filterParams: {
@@ -17,15 +17,15 @@ export const TV_CATEGORIES = [
             'vote_average.gte': 5
         }
     },
-    {
-        name: 'Post Apocalyptic',
-        filterParams: {
-            media_type: 'tv',
-            with_keywords: [4458],
-            'vote_count.gte': 100,
-            'vote_average.gte': 5
-        }
-    },
+    // {
+    //     name: 'Post Apocalyptic',
+    //     filterParams: {
+    //         media_type: 'tv',
+    //         with_keywords: [4458],
+    //         'vote_count.gte': 100,
+    //         'vote_average.gte': 5
+    //     }
+    // },
     {
         name: 'Mini Series',
         filterParams: {

@@ -11,8 +11,17 @@
             <div class="top-info max-md:px-3 md:px-14 pt-10">
                 <div class="flex gap-10">
                     <div class="w-1/12 min-w-32">
-                        <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.profile_path}`"
-                            :alt="person.name" class="rounded-lg" />
+                        <SeoImg :src="`https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.profile_path}`"
+                            :alt="person.name" 
+                            class="rounded-lg"
+                            cover>
+                            <template #placeholder>
+                                <v-skeleton-loader type="image" class="w-full h-full" />
+                            </template>
+                            <template #error>
+                                <div class="w-full h-full bg-neutral-700 rounded-lg"></div>
+                            </template>
+                        </SeoImg>
                     </div>
                     <div class="w-11/12">
                         <div class="max-md:text-xl md:text-4xl font-bold flex items-baseline gap-5">

@@ -64,7 +64,7 @@ const userData = userStore();
 
 // Create combined watch provider items for scrollers
 const watchProviderItems = computed(() => [
-    ...MOVIE_CATEGORIES.slice(0, 3), // First few movie categories
+    ...MOVIE_CATEGORIES.slice(0, 2), // First few movie categories
     ...TV_CATEGORIES.slice(0, 2)     // First few TV categories
 ]);
 

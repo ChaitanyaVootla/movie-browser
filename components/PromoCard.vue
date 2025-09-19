@@ -4,16 +4,34 @@
 <IntersectionLoader height="30rem" width="36rem" mobileHeight="20rem" mobileWidth="30rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
         <div class="promo-img">
-            <NuxtImg :src="imagePath" @error="onError"
-                :alt="item.title || item.name" class="h-full object-cover rounded-lg">
-            </NuxtImg>
+            <SeoImg :sources="[imagePath, `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${props.item.backdrop_path}`].filter(Boolean)"
+                :alt="item.title || item.name" 
+                class="h-full object-cover rounded-lg"
+                cover>
+                <template #placeholder>
+                    <v-skeleton-loader type="image" class="h-full w-full" />
+                </template>
+                <template #error>
+                    <div class="promo-img bg-neutral-800 rounded-lg"></div>
+                </template>
+            </SeoImg>
         </div>
         <div class="h-32 p-4">
             <div v-if="logo" class="title-logo logo-shadow w-full h-full flex justify-center items-center">
-                <NuxtImg :src="logoPath" @error="onLogoError"
-                    :alt="item.title || item.name" class="object-contain" />
+                <SeoImg :sources="[logoPath, `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${logo}`].filter(Boolean)"
+                    :alt="item.title || item.name" 
+                    class="logo-img object-contain">
+                    <template #placeholder>
+                        <v-skeleton-loader type="image" class="w-24 h-16" />
+                    </template>
+                    <template #error>
+                        <div class="w-full h-full flex items-center justify-center text-xl font-medium">
+                            {{ item.title || item.name }}
+                        </div>
+                    </template>
+                </SeoImg>
             </div>
-            <div v-else class="h-full w-full text-center mt-4 text-xl font-medium">
+            <div v-else class="w-full h-full flex items-center justify-center text-xl font-medium">
                 {{ item.title || item.name }}
             </div>
         </div>
@@ -51,12 +69,7 @@ watch(
     { immediate: true, deep: true } // Immediate to run the watcher on mount, deep for nested changes
 );
 
-const onLogoError = () => {
-    logoPath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${props.item.images?.logos?.find(({ iso_639_1 }: any) => iso_639_1 === 'en')?.file_path}`;
-};
-const onError = () => {
-    imagePath.value = `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${props.item.backdrop_path}`;
-};
+// Error handling is now managed by SeoImg component
 </script>
 
 <style scoped lang="less">
@@ -66,7 +79,7 @@ const onError = () => {
     width: calc(@image-height * 16 / 9);
 }
 .title-logo {
-    img {
+    :deep(.logo-img) {
         min-height: 50%;
         max-height: 100%;
         max-width: 60%;

@@ -66,16 +66,14 @@
                             @click="updateCurrentVideo(video)">
                             <div class="w-1/3 mr-2 rounded-lg border-2 border-neutral-900">
                                 <SeoImg :src="`https://img.youtube.com/vi/${video.key}/sddefault.jpg`"
-                                    aspect-ratio="19/6"
+                                    aspect-ratio="16/9"
                                     cover
                                     :alt="video.name">
                                     <template #placeholder>
-                                        <v-skeleton-loader class="video-image" type="image" />
+                                        <v-skeleton-loader class="video-thumbnail" type="image" />
                                     </template>
                                     <template #error>
-                                        <v-skeleton-loader class="video-image" type="image" >
-                                            <div></div>
-                                        </v-skeleton-loader>
+                                        <div class="video-thumbnail bg-neutral-700 rounded-lg"></div>
                                     </template>
                                 </SeoImg>
                             </div>
@@ -198,9 +196,9 @@ const updateCurrentVideo = (video: any) => {
     }
 }
 
-@video-image-height: 18rem;
-:deep(.video-image) {
-    height: @video-image-height;
-    width: calc(@video-image-height * 4/3);
+@video-thumbnail-height: 4rem;
+:deep(.video-thumbnail) {
+    height: @video-thumbnail-height;
+    width: calc(@video-thumbnail-height * 16/9);
 }
 </style>

@@ -1,46 +1,34 @@
 <template>
-  <div 
-    class="seo-img-container relative"
-    :class="containerClass"
-    :style="containerStyle"
+  <!-- Simple img replacement with fallback handling -->
+  <img
+    v-if="!allSourcesFailed && imgSrc"
+    :src="imgSrc"
+    :alt="alt"
+    :class="imageClasses"
+    :style="imageStyle"
+    :loading="eager ? 'eager' : 'lazy'"
+    :decoding="eager ? 'sync' : 'async'"
+    @load="handleLoad"
+    @error="handleError"
+  />
+  
+  <!-- Loading placeholder when no source available -->
+  <slot 
+    v-else-if="!allSourcesFailed" 
+    name="placeholder"
+    :style="imageStyle"
   >
-    <!-- Simple, modern image with native lazy loading -->
-    <img
-      v-if="imgSrc"
-      :src="imgSrc"
-      :alt="alt"
-      :class="imgClass"
-      :style="imgStyle"
-      :loading="eager ? 'eager' : 'lazy'"
-      :decoding="eager ? 'sync' : 'async'"
-      @load="handleLoad"
-      @error="handleError"
-    />
-    
-    <!-- Loading placeholder - only show if no image source -->
-    <div 
-      v-if="!imgSrc && !allSourcesFailed"
-      class="absolute inset-0"
-    >
-      <slot name="placeholder">
-        <v-skeleton-loader type="image" class="w-full h-full" />
-      </slot>
-    </div>
-    
-    <!-- Error state -->
-    <div 
-      v-if="allSourcesFailed"
-      class="absolute inset-0"
-    >
-      <slot name="error">
-        <v-skeleton-loader type="image" class="w-full h-full">
-          <div class="flex items-center justify-center h-full text-neutral-500">
-            <i class="mdi-image-broken mdi v-icon text-4xl"></i>
-          </div>
-        </v-skeleton-loader>
-      </slot>
-    </div>
-  </div>
+    <div :style="imageStyle" class="bg-neutral-200 animate-pulse"></div>
+  </slot>
+  
+  <!-- Error state when all sources failed -->
+  <slot 
+    v-else 
+    name="error"
+    :style="imageStyle"
+  >
+    <div :style="imageStyle" class="asd bg-neutral-700"></div>
+  </slot>
 </template>
 
 <script setup lang="ts">
@@ -93,12 +81,19 @@ const initializeImage = () => {
     loaded.value = false
     allSourcesFailed.value = false
     imgSrc.value = sources[0] || ''
+  } else {
+    // No valid sources available - show error state immediately
+    sourceIndex.value = 0
+    loaded.value = false
+    allSourcesFailed.value = true
+    imgSrc.value = ''
   }
 }
 
 // Simple error handling - try next source
 const handleError = (event: Event) => {
   const sources = getValidSources()
+  console.log('image load error', sourceIndex.value, getValidSources(), sourceIndex.value < sources.length - 1)
   
   // Try next source
   if (sourceIndex.value < sources.length - 1) {
@@ -141,7 +136,7 @@ const computedAspectRatio = computed(() => {
   return typeof props.aspectRatio === 'number' ? props.aspectRatio : parseFloat(props.aspectRatio)
 })
 
-const containerStyle = computed(() => {
+const imageStyle = computed(() => {
   const styles: Record<string, string> = {}
   
   if (computedAspectRatio.value) {
@@ -161,15 +156,6 @@ const containerStyle = computed(() => {
     styles.maxHeight = typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
   }
   
-  return styles
-})
-
-const imgStyle = computed(() => {
-  const styles: Record<string, string> = {
-    width: '100%',
-    height: '100%'
-  }
-  
   if (props.cover) {
     styles.objectFit = 'cover'
   }
@@ -177,26 +163,22 @@ const imgStyle = computed(() => {
   return styles
 })
 
-const containerClass = computed(() => {
-  const classes = ['overflow-hidden']
+const imageClasses = computed(() => {
+  if (!props.class) return undefined
   
-  if (props.class) {
-    if (Array.isArray(props.class)) {
-      classes.push(...props.class)
-    } else if (typeof props.class === 'string') {
-      classes.push(props.class)
-    } else if (typeof props.class === 'object') {
-      Object.entries(props.class).forEach(([key, value]) => {
-        if (value) classes.push(key)
-      })
-    }
+  if (Array.isArray(props.class)) {
+    return props.class
+  } else if (typeof props.class === 'string') {
+    return props.class
+  } else if (typeof props.class === 'object') {
+    const classes: string[] = []
+    Object.entries(props.class).forEach(([key, value]) => {
+      if (value) classes.push(key)
+    })
+    return classes
   }
   
-  return classes
-})
-
-const imgClass = computed(() => {
-  return containerClass.value.filter(cls => !['relative', 'absolute', 'fixed', 'sticky'].includes(cls))
+  return undefined
 })
 
 // Expose for parent access
@@ -206,9 +188,3 @@ defineExpose({
   sourceIndex: readonly(sourceIndex)
 })
 </script>
-
-<style scoped>
-.seo-img-container {
-  box-sizing: border-box;
-}
-</style>

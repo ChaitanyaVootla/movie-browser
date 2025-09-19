@@ -1,7 +1,7 @@
 <template>
-<span class="md:h-[23rem] md:w-[29rem] hidden"></span>
-<span class="max-md:h-[15rem] max-md:w-[20rem] hidden"></span>
-<IntersectionLoader height="23rem" width="29rem" mobileHeight="15rem" mobileWidth="20rem" :eager="true">
+<span class="md:h-[25rem] md:w-[29rem] hidden"></span>
+<span class="max-md:h-[17rem] max-md:w-[20rem] hidden"></span>
+<IntersectionLoader height="25rem" width="29rem" mobileHeight="17rem" mobileWidth="20rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`" class="flex flex-col h-full">
         <SeoImg 
             :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${getEnglishBackdrop(item) || item.backdrop_path}`"
@@ -15,9 +15,7 @@
                 <v-skeleton-loader type="image" />
             </template>
             <template #error>
-                <v-skeleton-loader type="image" >
-                    <div></div>
-                </v-skeleton-loader>
+                <div class="w-full h-full bg-neutral-700 rounded-lg"></div>
             </template>
         </SeoImg>
         <div class="mt-1">

@@ -22,9 +22,7 @@
                         <v-skeleton-loader class="full-image" type="image" />
                     </template>
                     <template #error>
-                        <v-skeleton-loader class="full-image" type="image" >
-                            <div></div>
-                        </v-skeleton-loader>
+                        <div class="full-imagel bg-neutral-800 rounded-lg"></div>
                 </template>
             </SeoImg>
         </v-carousel-item>

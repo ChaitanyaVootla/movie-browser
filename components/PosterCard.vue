@@ -1,7 +1,7 @@
 <template>
-<span class="md:w-[15rem] md:h-[25rem] hidden"></span>
-<span class="max-md:h-[12rem] max-md:w-[8rem] hidden"></span>
-<IntersectionLoader height="25rem" width="15rem" mobileHeight="12rem" mobileWidth="8rem" :eager="true">
+<span class="md:w-[15rem] md:h-[28rem] hidden"></span>
+<span class="max-md:h-[15rem] max-md:w-[8rem] hidden"></span>
+<IntersectionLoader height="28rem" width="15rem" mobileHeight="15rem" mobileWidth="8rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`"
         v-memo="[item.id, watched, inWatchList]">
         <div class="card group cursor-pointer pt-2 flex flex-col">
@@ -18,9 +18,7 @@
                         <v-skeleton-loader color="black" type="image" class="image w-full h-full"></v-skeleton-loader>
                     </template>
                     <template #error>
-                        <v-skeleton-loader color="black" type="image" class="image w-full h-full">
-                            <div></div>
-                        </v-skeleton-loader>
+                        <div class="image bg-neutral-800 rounded-lg"></div>
                     </template>
                 </SeoImg>
                 <!-- User interaction buttons - only show after hydration -->

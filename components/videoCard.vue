@@ -15,9 +15,8 @@
                     <v-skeleton-loader class="wide-image" type="image" />
                 </template>
                 <template #error>
-                    <v-skeleton-loader class="wide-image" type="image" >
-                        <div></div>
-                    </v-skeleton-loader>
+                    <div class="wide-image rounded-lg bg-neutral-800" >
+                    </div>
                 </template>
             </SeoImg>
             <div class="text-neutral-200 overflow-ellipsis whitespace-nowrap overflow-hidden pr-4

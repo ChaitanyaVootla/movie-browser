@@ -20,8 +20,17 @@
                     </div>
                 </template>
                 <v-carousel-item height="calc(100vw + 20rem)" v-for="item in (fullEpisode?.images?.stills || [episode])">
-                    <NuxtImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.still_path || item.file_path}`"
-                        class="w-full h-auto rounded-lg" />
+                    <SeoImg :src="`https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${item.still_path || item.file_path}`"
+                        :alt="`${episode.name} still image`" 
+                        class="w-full h-auto rounded-lg"
+                        cover>
+                        <template #placeholder>
+                            <v-skeleton-loader type="image" class="w-full h-full" />
+                        </template>
+                        <template #error>
+                            <div class="w-full h-auto bg-neutral-800 rounded-lg"></div>
+                        </template>
+                    </SeoImg>
                 </v-carousel-item>
             </v-carousel>
             <div class="mt-4 p-4 rounded-md">

@@ -8,9 +8,7 @@
                 <v-skeleton-loader class="wide-image" type="image" />
             </template>
             <template #error>
-                <v-skeleton-loader class="wide-image" type="image" >
-                    <div></div>
-                </v-skeleton-loader>
+                <div class="wide-image bg-neutral-800 rounded-lg"></div>
             </template>
         </SeoImg>
     </div>

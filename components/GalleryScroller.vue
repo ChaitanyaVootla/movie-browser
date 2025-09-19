@@ -28,9 +28,7 @@
                                 </v-skeleton-loader>
                             </template>
                             <template #error>
-                                <v-skeleton-loader class="w-full h-full" type="image" >
-                                    <div></div>
-                                </v-skeleton-loader>
+                                <div class="w-full h-full bg-neutral-700 rounded-lg"></div>
                         </template>
                     </SeoImg>
                 </div>

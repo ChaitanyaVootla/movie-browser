@@ -1,13 +1,13 @@
 export const MOVIE_CATEGORIES = [
-    {
-        name: '',
-        isPromo: true,
-        filterParams: {
-            media_type: 'movie',
-            'vote_count.gte': 100,
-            'vote_average.gte': 5
-        }
-    },
+    // {
+    //     name: '',
+    //     isPromo: true,
+    //     filterParams: {
+    //         media_type: 'movie',
+    //         'vote_count.gte': 100,
+    //         'vote_average.gte': 5
+    //     }
+    // },
     {
         name: 'Post Apocalyptic',
         filterParams: {
@@ -29,7 +29,7 @@ export const MOVIE_CATEGORIES = [
     },
     {
         name: 'Streaming Now',
-        isPromo: true,
+        // isPromo: true,
         filterParams: {
             media_type: 'movie',
             watch_region: 'IN',
