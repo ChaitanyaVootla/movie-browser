@@ -27,4 +27,14 @@ export default defineNitroPlugin(async (nitroApp) => {
             console.error('Error clearing trending storage:', error);
         }
     });
+    
+    // Clear seasons cache every 12 hours (cache TTL is 6 hours)
+    cron.schedule('0 */12 * * *', async () => {
+        try {
+            console.log('🧹 Clearing seasons cache...');
+            useStorage('seasons').clear();
+        } catch (error) {
+            console.error('Error clearing seasons storage:', error);
+        }
+    });
 });

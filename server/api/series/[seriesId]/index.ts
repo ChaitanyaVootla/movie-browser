@@ -1,8 +1,10 @@
 import { ISeries, Series, SERIES_QUERY_PARAMS } from "~/server/models";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { JWT } from "next-auth/jwt";
+import { TMDB } from "~/server/utils/api";
 
 const DAY_MILLIS = 1000 * 60 * 60 * 24;
+const SEASON_CACHE_TTL = 6 * 60 * 60; // 6 hours in seconds
 
 export default defineEventHandler(async (event) => {
     const seriesId = getRouterParam(event, 'seriesId');
@@ -35,9 +37,7 @@ export default defineEventHandler(async (event) => {
     const latestSeasonNumber = series.next_episode_to_air?.season_number || series.last_episode_to_air?.season_number;
     let selectedSeason = {};
     if (latestSeasonNumber) {
-        selectedSeason = await $fetch(`/api/series/${seriesId}/season/${latestSeasonNumber}`, {
-            retry: 5,
-        });
+        selectedSeason = await getCachedSeasonData(seriesId as string, latestSeasonNumber);
     }
     return {
         ...series,
@@ -122,6 +122,38 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
         canUpdate,
     }
 }
+
+/**
+ * Get season data with caching (6-hour TTL)
+ */
+const getCachedSeasonData = async (seriesId: string, seasonNumber: number): Promise<any> => {
+    const cacheKey = `season-${seriesId}-${seasonNumber}`;
+    
+    try {
+        // Check cache first
+        const cachedSeason = await useStorage('seasons').getItem(cacheKey);
+        if (cachedSeason) {
+            console.log(`✅ Cache hit for season ${seasonNumber} of series ${seriesId}`);
+            return cachedSeason;
+        }
+        
+        console.log(`🔄 Cache miss for season ${seasonNumber} of series ${seriesId}, fetching from TMDB...`);
+        
+        // Fetch from TMDB API
+        const seasonData: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}`, {
+            retry: 5,
+        });
+        
+        // Cache the result for 6 hours
+        await useStorage('seasons').setItem(cacheKey, seasonData, { ttl: SEASON_CACHE_TTL });
+        console.log(`💾 Cached season ${seasonNumber} of series ${seriesId} for 6 hours`);
+        
+        return seasonData;
+    } catch (error) {
+        console.error(`❌ Error fetching season ${seasonNumber} for series ${seriesId}:`, error);
+        return {};
+    }
+};
 
 const seriesUpdateInterval = (sinceMovieRelase: number) => {
     if (sinceMovieRelase < DAY_MILLIS * 14) {
