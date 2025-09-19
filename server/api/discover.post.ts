@@ -31,34 +31,58 @@ export default defineEventHandler(async (event) => {
         .filter(Boolean)
         .join('&');
 
-    const tmdbRes: any = await $fetch(`https://api.themoviedb.org/3/discover/${query.media_type}?api_key=${process.env.TMDB_API_KEY
-        }&${queryStr}`, {
-            retry: 5,
-        });
-    if (params.getFullData) {
-        const itemIds = tmdbRes.results.map((movie: any) => movie.id);
-        let fullDataRes = [] as any[];
-        if (query.media_type === 'tv') {
-            fullDataRes = await Series.find({id: {$in: itemIds}}).select(SeriesLightFileds);
-        } else {
-            fullDataRes = await Movie.find({id: {$in: itemIds}}).select(MovieLightFileds);
+    try {
+        const tmdbRes: any = await $fetch(`https://api.themoviedb.org/3/discover/${query.media_type}?api_key=${process.env.TMDB_API_KEY
+            }&${queryStr}`, {
+                retry: 5,
+                timeout: 15000  // 15 second timeout
+            });
+            
+        if (!tmdbRes || !tmdbRes.results) {
+            console.error('❌ Invalid TMDB discover response structure');
+            return { results: [], total_pages: 0, total_results: 0 };
         }
-        const fullDataItems = fullDataRes.map(movie => movie.toJSON());
-        const mappedResults = tmdbRes.results.map((originalItem: any) => {
+        
+        if (params.getFullData) {
+            const itemIds = tmdbRes.results.map((movie: any) => movie.id);
+            let fullDataRes = [] as any[];
+            if (query.media_type === 'tv') {
+                fullDataRes = await Series.find({id: {$in: itemIds}}).select(SeriesLightFileds);
+            } else {
+                fullDataRes = await Movie.find({id: {$in: itemIds}}).select(MovieLightFileds);
+            }
+            const fullDataItems = fullDataRes.map(movie => movie.toJSON());
+            const mappedResults = tmdbRes.results.map((originalItem: any) => {
+                return {
+                    ...fullDataItems.find((item: any) => item.id === originalItem.id),
+                    ...originalItem
+                };
+            })
             return {
-                ...fullDataItems.find((item: any) => item.id === originalItem.id),
-                ...originalItem
-            };
-        })
-        return {
-            ...tmdbRes,
-            results: mappedResults
+                ...tmdbRes,
+                results: mappedResults
+            }
         }
+        
+        // Cache the result with TTL (1 hour)
+        await useStorage('discovery').setItem(cacheKey, tmdbRes, { ttl: 60 * 60 });
+        console.log(`💾 Cached discovery result: ${cacheKey.substring(0, 8)}... for 1 hour`);
+        
+        return tmdbRes;
+        
+    } catch (error: any) {
+        console.error('❌ TMDB discover API error:', {
+            error: error.message,
+            query: query.media_type,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Return empty results structure to prevent frontend crashes
+        return { 
+            results: [], 
+            total_pages: 0, 
+            total_results: 0,
+            error: error.message 
+        };
     }
-    
-    // Cache the result with TTL (1 hour)
-    await useStorage('discovery').setItem(cacheKey, tmdbRes, { ttl: 60 * 60 });
-    console.log(`💾 Cached discovery result: ${cacheKey.substring(0, 8)}... for 1 hour`);
-    
-    return tmdbRes;
 });

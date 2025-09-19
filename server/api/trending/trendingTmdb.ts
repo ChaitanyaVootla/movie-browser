@@ -14,17 +14,21 @@ export default defineEventHandler(async (event) => {
       console.log('🔄 Fetching fresh trending data...');
       const [{ results: allItems }, { results: movies }, { results: tv }, { results: streamingNow}] = (await Promise.all([
         $fetch(`https://api.themoviedb.org/3/trending/all/day?api_key=${process.env.TMDB_API_KEY}`, {
-          retry: 5
+          retry: 3,
+          timeout: 15000
         }),
         $fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${process.env.TMDB_API_KEY}`, {
-          retry: 5
+          retry: 3,
+          timeout: 15000
         }),
         $fetch(`https://api.themoviedb.org/3/trending/tv/day?api_key=${process.env.TMDB_API_KEY}`, {
-          retry: 5
+          retry: 3,
+          timeout: 15000
         }),
         $fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY
           }&watch_region=IN&with_watch_monetization_types=free|flatrate|buy|rent|ads`, {
-            retry: 5
+            retry: 3,
+            timeout: 15000
         }),
       ])) as any[];
 
@@ -49,10 +53,19 @@ export default defineEventHandler(async (event) => {
 
       return result;
     } catch (error: any) {
-      console.error('❌ Trending API error:', error);
-      return {
+      console.error('❌ Trending TMDB API error:', {
         error: error.message,
-      }
+        timestamp: new Date().toISOString()
+      });
+      
+      // Return proper structure with empty arrays to prevent consumer crashes
+      return {
+        allItems: [],
+        movies: [],
+        tv: [],
+        streamingNow: [],
+        error: error.message
+      };
     }
 });
 
