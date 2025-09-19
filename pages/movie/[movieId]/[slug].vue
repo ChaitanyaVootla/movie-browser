@@ -265,7 +265,7 @@ onMounted(() => {
 });
 
 const addToRecents = () => {
-    if (isRecentsUpdated || movie.value?.adult) return;
+    if (status.value !== 'authenticated' || isRecentsUpdated || movie.value?.adult) return;
     userData.addToRecents(movie.value);
     isRecentsUpdated = true;
 }

@@ -107,7 +107,7 @@ const { pending, data: trending }: any = await useLazyAsyncData('trending',
 );
 
 // User-specific data with proper SSR handling
-const { data: watchList } = await useLazyAsyncData('watchList',
+const { data: watchList, refresh: refreshWatchList } = await useLazyAsyncData('homeWatchList',
     () => {
         // Only fetch if authenticated
         if (status.value === 'authenticated') {
@@ -128,12 +128,13 @@ const { data: watchList } = await useLazyAsyncData('watchList',
         },
         default: () => ({ movies: [], ongoingSeries: [] }),
         server: false, // Keep client-side for user-specific content
+        watch: [status], // Re-fetch when authentication status changes
     }
 );
 
 const recents = computed(() => userData.Recents);
 
-const { data: continueWatching }: any = await useLazyAsyncData('continueWatching',
+const { data: continueWatching, refresh: refreshContinueWatching }: any = await useLazyAsyncData('continueWatching',
     () => {
         if (status.value === 'authenticated') {
             return $fetch('/api/user/continueWatching').catch((err) => {
@@ -146,8 +147,17 @@ const { data: continueWatching }: any = await useLazyAsyncData('continueWatching
     {
         default: () => [],
         server: false, // Keep client-side for user-specific content
+        watch: [status], // Re-fetch when authentication status changes
     }
 );
+
+// Watch for authentication status changes and refresh user data
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === 'authenticated' && oldStatus !== 'authenticated') {
+        refreshWatchList();
+        refreshContinueWatching();
+    }
+});
 
 useHead({
     title: SITE_TITLE_TEXT,

@@ -61,11 +61,24 @@ const movie = useRoute().query.movie as string;
 const selectedType = ref(movie?parseInt(movie):0);
 const { status, signIn } = useAuth();
 
-const headers = useRequestHeaders(['cookie']) as HeadersInit
-const { pending, data: watchListData } = await useLazyAsyncData('watchList',
-    () => $fetch('/api/user/watchList', { headers }).catch((err) => {
-        console.log(err);
-        return {
+const { pending, data: watchListData, refresh: refreshWatchList } = await useLazyAsyncData('watchList',
+    () => {
+        // Only fetch if authenticated
+        if (status.value === 'authenticated') {
+            return $fetch('/api/user/watchList').catch((err) => {
+                console.log(err);
+                return {
+                    movies: [],
+                    series: {
+                        currentRunningSeries: [],
+                        returingSeries: [],
+                        completedSeries: [],
+                        totalCount: 0
+                    }
+                };
+            });
+        }
+        return Promise.resolve({
             movies: [],
             series: {
                 currentRunningSeries: [],
@@ -73,19 +86,48 @@ const { pending, data: watchListData } = await useLazyAsyncData('watchList',
                 completedSeries: [],
                 totalCount: 0
             }
-        };
-    }),
+        });
+    },
     {
         transform: ({movies, series}: any) => {
+            if (!movies && !series) {
+                return {
+                    movies: [],
+                    series: {
+                        currentRunningSeries: [],
+                        returingSeries: [],
+                        completedSeries: [],
+                        totalCount: 0
+                    }
+                };
+            }
             return {
                 movies,
                 series: {
                     ...mapWatchListSeries(series),
                 }
             };
-        }
+        },
+        default: () => ({
+            movies: [],
+            series: {
+                currentRunningSeries: [],
+                returingSeries: [],
+                completedSeries: [],
+                totalCount: 0
+            }
+        }),
+        server: false, // Keep client-side for user-specific content
+        watch: [status], // Re-fetch when authentication status changes
     }
 );
+
+// Watch for authentication status changes and refresh data
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === 'authenticated' && oldStatus !== 'authenticated') {
+        refreshWatchList();
+    }
+});
 
 const viewUpdated = (val: number) => {
     useRouter().replace({ query: {

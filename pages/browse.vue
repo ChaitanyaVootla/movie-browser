@@ -371,11 +371,15 @@ let totalResults = ref(0);
 const { status } = useAuth();
 
 const fetchFilters = async () => {
-    userFilters.value = await $fetch('/api/user/filters');
+    if (status.value === 'authenticated') {
+        userFilters.value = await $fetch('/api/user/filters');
+    }
 }
 
 onMounted(() => {
-    fetchFilters();
+    if (status.value === 'authenticated') {
+        fetchFilters();
+    }
 });
 
 const showFilter = () => {
@@ -596,7 +600,9 @@ const deleteFilter = async (filter: any) => {
         }
     });
     clearFilter();
-    fetchFilters();
+    if (status.value === 'authenticated') {
+        fetchFilters();
+    }
     refreshGlobalFilters();
 }
 
@@ -610,7 +616,9 @@ const updateFilter = async () => {
         })
     });
     isFilterDialogActive.value = false;
-    fetchFilters();
+    if (status.value === 'authenticated') {
+        fetchFilters();
+    }
     refreshGlobalFilters();
 }
 
@@ -624,7 +632,9 @@ const saveFilter = async () => {
         })
     });
     isFilterDialogActive.value = false;
-    fetchFilters();
+    if (status.value === 'authenticated') {
+        fetchFilters();
+    }
     refreshGlobalFilters();
 }
 

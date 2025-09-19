@@ -37,7 +37,9 @@ const likeRatio = computed(() => {
 })
 
 onMounted(() => {
-    getUserRating();
+    if (status.value === 'authenticated') {
+        getUserRating();
+    }
 });
 
 const addUserRating = (rating: number) => {
@@ -83,6 +85,9 @@ const removeUserRating = () => {
     disliked.value = false;
 }
 const getUserRating = async () => {
+    if (status.value !== 'authenticated') {
+        return;
+    }
     const userRating: any = await $fetch(`/api/user/ratings/userItemRating?itemType=${props.itemType}&itemId=${props.itemId}`, { headers });
     liked.value = userRating?.rating === 1;
     disliked.value = userRating?.rating === -1;

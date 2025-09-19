@@ -28,8 +28,34 @@ const isLikes = ref(parseInt((useRoute().query.isLikes || 1) as string));
 const selectedType = ref(isMovies?isMovies.value:1);
 const selectedRatingType = ref(isLikes?isLikes.value:1);
 
-const headers = useRequestHeaders(['cookie']) as HeadersInit
-const { likes, dislikes } = await $fetch('/api/user/ratings/all', { headers });
+const { status } = useAuth();
+
+const { data: ratingsData, refresh: refreshRatings } = await useLazyAsyncData('userRatings', 
+    () => {
+        if (status.value === 'authenticated') {
+            return $fetch('/api/user/ratings/all').catch((err) => {
+                console.log(err);
+                return { likes: { movies: [], series: [] }, dislikes: { movies: [], series: [] } };
+            });
+        }
+        return Promise.resolve({ likes: { movies: [], series: [] }, dislikes: { movies: [], series: [] } });
+    },
+    {
+        default: () => ({ likes: { movies: [], series: [] }, dislikes: { movies: [], series: [] } }),
+        server: false, // Keep client-side for user-specific content
+        watch: [status], // Re-fetch when authentication status changes
+    }
+);
+
+// Watch for authentication status changes and refresh data
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === 'authenticated' && oldStatus !== 'authenticated') {
+        refreshRatings();
+    }
+});
+
+const likes = computed(() => ratingsData.value?.likes || { movies: [], series: [] });
+const dislikes = computed(() => ratingsData.value?.dislikes || { movies: [], series: [] });
 
 const viewUpdated = (val: number) => {
     isMovies.value = val;
@@ -50,9 +76,9 @@ const ratingTypeUpdated = (val: number) => {
 const filteredItems = computed(() => {
     let filteredItems: any = [];
     if (selectedRatingType.value) {
-        filteredItems = likes;
+        filteredItems = likes.value;
     } else {
-        filteredItems = dislikes;
+        filteredItems = dislikes.value;
     }
 
     if (selectedType.value) {

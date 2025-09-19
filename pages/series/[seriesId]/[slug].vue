@@ -381,7 +381,7 @@ const refresh = async () => {
 };
 
 const addToRecents = () => {
-    if (series.value.adult) return;
+    if (status.value !== 'authenticated' || series.value.adult) return;
     userData.addToRecents(series.value);
 }
 

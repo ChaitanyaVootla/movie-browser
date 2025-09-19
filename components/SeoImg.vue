@@ -93,7 +93,6 @@ const initializeImage = () => {
 // Simple error handling - try next source
 const handleError = (event: Event) => {
   const sources = getValidSources()
-  console.log('image load error', sourceIndex.value, getValidSources(), sourceIndex.value < sources.length - 1)
   
   // Try next source
   if (sourceIndex.value < sources.length - 1) {

@@ -90,8 +90,31 @@ const sidebarItemClicked = (item: any) => {
     currentSidebarItem.value = item.name
 }
 
-const headers = useRequestHeaders(['cookie']) as HeadersInit
-const likes = await $fetch('/api/user/ratings/likes', { headers });
+const { status } = useAuth();
+
+const { data: likes, refresh: refreshLikes } = await useLazyAsyncData('userLikes', 
+    () => {
+        if (status.value === 'authenticated') {
+            return $fetch('/api/user/ratings/likes').catch((err) => {
+                console.log(err);
+                return [];
+            });
+        }
+        return Promise.resolve([]);
+    },
+    {
+        default: () => [],
+        server: false, // Keep client-side for user-specific content
+        watch: [status], // Re-fetch when authentication status changes
+    }
+);
+
+// Watch for authentication status changes and refresh data
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === 'authenticated' && oldStatus !== 'authenticated') {
+        refreshLikes();
+    }
+});
 
 const viewUpdated = (val: number) => {
     isMovies.value = val;
@@ -102,8 +125,11 @@ const viewUpdated = (val: number) => {
 };
 
 const fetchWatchedMovies = async () => {
+    if (status.value !== 'authenticated') {
+        return;
+    }
     watchedFetchPending.value = true;
-    watchedMovies.value = await $fetch('/api/user/movie/watchedFull', { headers });
+    watchedMovies.value = await $fetch('/api/user/movie/watchedFull');
     watchedFetchPending.value = false;
 }
 </script>
