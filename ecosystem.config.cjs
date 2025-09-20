@@ -4,6 +4,9 @@ module.exports = {
         name: "nuxt",
         script: "export $(cat .env | xargs) && cd .output && node ./server/index.mjs",
         max_memory_restart: "500M",
+        env: {
+            NODE_ENV: "production"
+        },
     },
     {
         name: "vector",

@@ -1,4 +1,5 @@
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
+import { buildRouteRules } from './server/config/cache';
 
 export default defineNuxtConfig({
   build: {
@@ -175,12 +176,8 @@ export default defineNuxtConfig({
   },
   
   routeRules: {
-    // API routes with caching
-    '/api/youtube/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 24 * 4 } },
-    '/api/search/(.*)': { cors: true, swr: 60 * 60 * 12 },
-    '/api/watchProviders/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 24 * 4 } },
-    '/api/person/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 12 } },
-    '/api/trending/(.*)': { cors: true, cache: { maxAge: 60 * 60 * 6 } },
+    // API routes with configurable caching (generated from server/config/cache.ts)
+    ...buildRouteRules(),
     
     // Static asset caching
     '/images/(.*)': {
@@ -201,6 +198,15 @@ export default defineNuxtConfig({
 
   gtag: {
     id: 'G-KDSZYVPEVZ'
+  },
+
+  runtimeConfig: {
+    // Private keys (only available on server-side)
+    // Public keys (exposed to client-side)
+    public: {
+      cdnApiUrl: process.env.CDN_API_URL || 'https://api.themoviebrowser.com',
+      environment: process.env.NODE_ENV || 'development',
+    }
   },
 
   vite: {
