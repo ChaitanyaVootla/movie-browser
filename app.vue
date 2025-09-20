@@ -1,5 +1,10 @@
 <template>
   <VitePwaManifest />
+  <NuxtLoadingIndicator 
+    throttle="0" 
+    :height="2" 
+    color="#ccc"
+  />
   <NuxtLayout>
     <v-app>
       <NavBar/>

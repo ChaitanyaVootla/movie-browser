@@ -137,7 +137,7 @@
                 </div>
 
                 <div v-if="movie?.images?.backdrops?.length" class="px-3 md:px-20 max-md:mt-3 md:mt-10">
-                    <GalleryScroller :images="movie?.images?.backdrops?.slice(0, 15) || []" :pending="pending" />
+                    <GalleryScroller :images="movie?.images?.backdrops?.slice(0, 15)" :pending="pending" />
                 </div>
 
                 <div v-if="aiRecommendations?.length" class="px-3 md:px-0 max-md:mt-3 md:mt-10">
@@ -549,6 +549,25 @@ useHead(() => {
 .overview {
     ::-webkit-scrollbar {
         display: none;
+    }
+}
+
+@wide-image-height: 15rem;
+:deep(.wide-image) {
+    height: @wide-image-height;
+    width: calc(@wide-image-height * 16/9);
+}
+:deep(.wide-card) {
+    width: calc(@wide-image-height * 16/9);
+}
+@media (max-width: 768px) {
+    @wide-image-height: 7rem;
+    :deep(.wide-image) {
+        height: @wide-image-height;
+        width: calc(@wide-image-height * 16/9);
+    }
+    :deep(.wide-card) {
+        width: calc(@wide-image-height * 16/9);
     }
 }
 </style>
