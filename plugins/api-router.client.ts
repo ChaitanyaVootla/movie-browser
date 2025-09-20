@@ -60,7 +60,9 @@ export default defineNuxtPlugin(() => {
    */
   const transformToCdnUrl = (url: string): string => {
     if (url.startsWith('/api/')) {
-      return `${apiConfig.cdnUrl}${url}`;
+      // Remove /api prefix for CDN: /api/movie/123 → https://api.themoviebrowser.com/movie/123
+      const pathWithoutApi = url.substring(4); // Remove '/api'
+      return `${apiConfig.cdnUrl}${pathWithoutApi}`;
     }
     return url;
   };
