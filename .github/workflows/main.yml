@@ -22,6 +22,8 @@ jobs:
         npm install --legacy-peer-deps
 
     - name: Build
+      env:
+        GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
       run: npm run build
 
     - name: Configure AWS CLI
