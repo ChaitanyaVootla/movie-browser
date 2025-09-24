@@ -214,8 +214,29 @@
             </v-btn>
         </div>
         <Login ref="loginRef" />
-        <v-dialog v-model="showEpisodeDialog">
-            <Episode :episode="selectedEpisode" :series="series" />
+        <v-dialog 
+            v-model="showEpisodeDialog"
+            max-width="800"
+            :persistent="false"
+            @click:outside="closeEpisodeDialog"
+            @keydown.esc="closeEpisodeDialog"
+            class="episode-modal"
+        >
+            <v-card class="episode-modal-card">
+                <v-card-text class="pa-0">
+                    <Episode :episode="selectedEpisode" :series="series" />
+                </v-card-text>
+                <v-card-actions class="justify-end pa-2">
+                    <v-btn 
+                        icon
+                        variant="text"
+                        @click="closeEpisodeDialog"
+                        class="episode-close-btn"
+                    >
+                        <v-icon>mdi-close</v-icon>
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
         </v-dialog>
         <v-snackbar v-model="snackbar" :timeout="10000" color="black" timer="white">
             <span class="text-sm">Updating latest ratings and watch links</span>
@@ -312,6 +333,10 @@ const showEpisode = (episode: any) => {
     showEpisodeDialog.value = true;
 }
 
+const closeEpisodeDialog = () => {
+    showEpisodeDialog.value = false;
+}
+
 const keywords = computed(() => {
     if (series.value?.keywords?.results?.length > 5 && !isKeywordsExpanded.value) {
         return series.value?.keywords?.results?.slice(0, 5);
@@ -386,10 +411,16 @@ const addToRecents = () => {
 }
 
 const seasonSelected = async (season: any) => {
-    series.value.selectedSeason = await $fetch(`/api/series/${series.value.id}/season/${season?.season_number}`).catch((err) => {
+    const seasonData = await $fetch(`/api/series/${series.value.id}/season/${season?.season_number}`).catch((err) => {
         console.log(err);
         return {};
     });
+    
+    // Trigger reactivity by reassigning the entire series object
+    series.value = {
+        ...series.value,
+        selectedSeason: seasonData
+    };
 }
 
 const seriesStatusColor = computed(() => {
@@ -614,6 +645,38 @@ useHead(() => {
         .v-field__input {
             padding-top: 0 !important;
             padding-bottom: 0 !important;
+        }
+    }
+}
+
+// Episode Modal Styles
+.episode-modal {
+    :deep(.v-overlay__content) {
+        max-width: 90vw !important;
+        max-height: 90vh !important;
+    }
+    
+    .episode-modal-card {
+        background: linear-gradient(135deg, rgba(38, 38, 38, 0.95), rgba(18, 18, 18, 0.95)) !important;
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6) !important;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        position: relative;
+    }
+    
+    .episode-close-btn {
+        position: absolute !important;
+        top: 0.5rem;
+        right: 0.5rem;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.6) !important;
+        color: white !important;
+        
+        &:hover {
+            background: rgba(0, 0, 0, 0.8) !important;
+            transform: scale(1.05);
         }
     }
 }

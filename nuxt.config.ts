@@ -206,6 +206,7 @@ export default defineNuxtConfig({
     public: {
       cdnApiUrl: process.env.CDN_API_URL || 'https://api.themoviebrowser.com',
       environment: process.env.NODE_ENV || 'development',
+      googleClientId: process.env.GOOGLE_AUTH_CLIENT_ID,
     }
   },
 

@@ -8,6 +8,7 @@
   <NuxtLayout>
     <v-app>
       <NavBar/>
+      <GoogleOneTap/>
       <NuxtPage :page-key="route => route.path" class="mb-10" :class="$vuetify.display.mobile?'pb-10':''" />
       <div class="h-4 absolute bottom-0 w-full">
         <div class="flex flex-wrap max-md:gap-2 md:gap-10 text-sm justify-center md:py-3 w-full bg-neutral-900

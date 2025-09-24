@@ -303,28 +303,61 @@
             {{filtersVisible?'Apply':'Filters'}}
         </div>
     </div>
-    <v-dialog width="500" v-model="isFilterDialogActive">
-        <v-card :title="selectedFilter._id?'Update Filter':'Create Filter'">
-            <div class="mt-5 px-4">
+    <v-dialog 
+        width="500" 
+        v-model="isFilterDialogActive"
+        :persistent="false"
+        @click:outside="closeFilterDialog"
+        @keydown.esc="closeFilterDialog"
+        class="filter-modal"
+    >
+        <v-card 
+            :title="selectedFilter._id?'Update Filter':'Create Filter'"
+            class="filter-modal-card"
+            rounded="lg"
+            elevation="8"
+        >
+            <v-card-text class="px-6 py-4">
                 <v-text-field
                     label="Filter name"
                     v-model="filterName"
                     :disabled="selectedFilter._id"
+                    variant="outlined"
+                    rounded
+                    class="mb-3"
                 />
-                <v-checkbox label="Make Public" v-model="isGlobal"></v-checkbox>
-            </div>
-            <v-card-actions class="h-20">
+                <v-checkbox 
+                    label="Make Public" 
+                    v-model="isGlobal"
+                    color="primary"
+                    class="mb-0"
+                />
+            </v-card-text>
+            <v-card-actions class="px-6 pb-6 justify-end">
                 <v-btn
                     variant="text"
-                    text="Cancel"
-                    color="red"
-                    @click="isFilterDialogActive = false"
-                ></v-btn>
-                <v-spacer></v-spacer>
-                <v-btn v-if="selectedFilter._id" @click="updateFilter" :disabled="!filterName?.length">
+                    color="grey"
+                    @click="closeFilterDialog"
+                    class="mr-2"
+                >
+                    Cancel
+                </v-btn>
+                <v-btn 
+                    v-if="selectedFilter._id" 
+                    @click="updateFilter" 
+                    :disabled="!filterName?.length"
+                    variant="elevated"
+                    color="primary"
+                >
                     Update
                 </v-btn>
-                <v-btn v-else @click="saveFilter" :disabled="!filterName?.length">
+                <v-btn 
+                    v-else 
+                    @click="saveFilter" 
+                    :disabled="!filterName?.length"
+                    variant="elevated"
+                    color="primary"
+                >
                     Create
                 </v-btn>
             </v-card-actions>
@@ -636,6 +669,10 @@ const saveFilter = async () => {
         fetchFilters();
     }
     refreshGlobalFilters();
+}
+
+const closeFilterDialog = () => {
+    isFilterDialogActive.value = false;
 }
 
 const handleScroll = () => {
