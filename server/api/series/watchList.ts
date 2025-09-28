@@ -1,5 +1,6 @@
 import { JWT } from "next-auth/jwt";
 import { Series, SeriesLightFileds, SeriesList } from "~/server/models";
+import { combineRatings } from "~/server/utils/ratings/combineRatings";
 
 export default defineEventHandler(async (event) => {
     const userData = event.context.userData as JWT | null;
@@ -13,5 +14,23 @@ export default defineEventHandler(async (event) => {
     }
     const seriesListIds = seriesList.map((series) => series.seriesId);
     const series = await Series.find({id: {$in: seriesListIds}}).select(SeriesLightFileds);
-    return series;
+    
+    // Add combined ratings to each series
+    const seriesWithRatings = series.map(serie => {
+        const combinedRatings = combineRatings(
+            serie.googleData, 
+            serie.external_data, 
+            serie.vote_average ? Number(serie.vote_average) : undefined, 
+            serie.vote_count ? Number(serie.vote_count) : undefined,
+            serie.id ? Number(serie.id) : undefined, 
+            'tv'
+        );
+        
+        return {
+            ...serie.toJSON(),
+            ratings: combinedRatings
+        };
+    });
+    
+    return seriesWithRatings;
 });

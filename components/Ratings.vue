@@ -1,6 +1,6 @@
 <template>
     <div class="flex -mt-2">
-        <div v-if="ratings.length" v-for="rating in ratings">
+        <div v-if="processedRatings.length" v-for="rating in processedRatings">
             <NuxtLink v-bind="props" v-if="rating.image" :to="rating.link" target="blank" rel="noreferrer noopener"
                 :aria-label="`Rating link for ${rating.name}`">
                 <div class="progress-wrapper relative w-full h-full">
@@ -22,8 +22,9 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps(['googleData', 'tmdbRating', 'itemId', 'small', 'title', 'minimal', 'voteCount'])
-type Rating = {
+const props = defineProps(['ratings', 'small', 'minimal'])
+
+type ProcessedRating = {
     name: string,
     link: string,
     rating: string,
@@ -32,64 +33,91 @@ type Rating = {
     percentage: number
 };
 
-const getColorForRating = (ratingObj: Rating) => {
-    let ratingString = `${ratingObj.rating}`;
-    if (ratingString.includes('%')) {
-        ratingString = ratingString.split('%')[0];
-    }
-    let ratingNumber = parseFloat(ratingString);
-    if (ratingObj.name === 'IMDb') {
-        ratingNumber *= 10;
-    } else if (ratingObj.name === 'TMDB') {
-        ratingNumber *= 10;
-    } else if (ratingObj.name === 'Crunchyroll') {
-        ratingNumber *= 20;
-    }
-    const cutoff = 30;
-    const safeValue = Math.max(cutoff, Math.min(100, ratingNumber));
-    const scaledValue = safeValue - cutoff;
-    const hue = (120 * scaledValue) / 70;
-    return {
-        color: `hsl(${hue}, 100%, 35%)`,
-        percentage: parseInt(ratingNumber.toFixed())
-    };
-}
-
+// Image mapping for different rating sources (only show specific sources)
 const ratingImageMapper = {
+    'tmdb': '/images/rating/tmdb.svg',
     'imdb': '/images/rating/imdb.svg',
-    'rotten': '/images/rating/rottenTomatoes.svg',
     'google': '/images/rating/google.svg',
-    // 'crunchyroll': '/images/rating/crunchyroll.png',
 } as Record<string, string>;
 
-const ratings = computed(() => {
-    let ratings = [] as Rating[];
-    if (props.googleData?.ratings) {
-        ratings = (props.googleData.ratings || []).map((rating: any) => {
-            const image = ratingImageMapper[rating.name.split(' ')[0].toLowerCase()]
-            if (image) {
-                return {
-                    name: rating.name,
-                    link: rating.link,
-                    rating: rating.rating,
-                    image,
-                    ...getColorForRating(rating)
+
+// Rotten Tomatoes specific image mapping based on certification and sentiment
+const getRottenTomatoesImage = (rating: any) => {
+    const isAudience = rating.name.toLowerCase().includes('audience');
+    const isCertified = rating.certified;
+    const isNegative = rating.sentiment === 'NEGATIVE';
+    
+    if (isAudience) {
+        if (isCertified) return '/images/rating/rt_audience_certified.svg';
+        if (isNegative) return '/images/rating/rt_audience_negative.svg';
+        return '/images/rating/rt_audience.svg';
+    } else {
+        if (isCertified) return '/images/rating/rt_critic_certified.svg';
+        if (isNegative) return '/images/rating/rt_critic_negative.svg';
+        return '/images/rating/rt_critic.svg';
+    }
+};
+
+// Get color based on rating value (0-100 scale)
+const getColorForRating = (rating: number) => {
+    const cutoff = 30;
+    const safeValue = Math.max(cutoff, Math.min(100, rating));
+    const scaledValue = safeValue - cutoff;
+    const hue = (120 * scaledValue) / 70;
+    return `hsl(${hue}, 100%, 35%)`;
+};
+
+// Process the ratings from the backend (only show specific sources)
+const processedRatings = computed(() => {
+    if (!props.ratings || !Array.isArray(props.ratings)) {
+        return [];
+    }
+
+    // Only show these specific sources (case-insensitive matching)
+    const allowedSources = ['TMDB', 'IMDb', 'Rotten Tomatoes', 'Rotten Tomatoes (Audience)', 'Google'];
+    
+    const filtered = props.ratings.filter((rating: any) => {
+        const ratingName = rating.name.toLowerCase();
+        return allowedSources.some(allowed => 
+            ratingName.includes(allowed.toLowerCase()) || 
+            (allowed.toLowerCase() === 'google' && ratingName.includes('google'))
+        );
+    });
+    
+    const processed = filtered.map((rating: any) => {
+        const ratingNumber = parseInt(rating.rating);
+        const sourceName = rating.name.toLowerCase();
+        
+        // Get appropriate image based on source
+        let image = '';
+        if (sourceName.includes('rotten')) {
+            image = getRottenTomatoesImage(rating);
+        } else if (sourceName.includes('google')) {
+            image = '/images/rating/google.svg';
+        } else if (sourceName.includes('imdb')) {
+            image = '/images/rating/imdb.svg';
+        } else if (sourceName.includes('tmdb')) {
+            image = '/images/rating/tmdb.svg';
+        } else {
+            // Fallback: try the mapping
+            for (const [key, value] of Object.entries(ratingImageMapper)) {
+                if (sourceName.includes(key)) {
+                    image = value;
+                    break;
                 }
             }
-        }).filter(Boolean)
-    }
-    if (props.tmdbRating) {
-        ratings.unshift({
-            name: 'TMDB',
-            rating: props.tmdbRating?.toFixed(1) || '',
-            image: '/images/rating/tmdb.svg',
-            link: `https://www.themoviedb.org/${props.title?'movie':'tv'}/${props.itemId}`,
-            ...getColorForRating({
-                name: 'TMDB',
-                rating: props.tmdbRating,
-            } as Rating)
-        })
-    }
-    return ratings;
-})
+        }
+
+        return {
+            name: rating.name,
+            link: rating.link,
+            rating: rating.rating,
+            image,
+            color: getColorForRating(ratingNumber),
+            percentage: ratingNumber
+        };
+    });
+    
+    return processed.filter(rating => rating.image);
+});
 </script>

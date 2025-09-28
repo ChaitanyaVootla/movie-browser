@@ -25,7 +25,7 @@ export default defineEventHandler(async () => {
           ...item,
         }
       }
-    }).map(({id, media_type, title, name, backdrop_path, vote_count, vote_average, googleData, genres, images, genre_ids,
+    }).map(({id, media_type, title, name, backdrop_path, vote_count, vote_average, googleData, ratings, genres, images, genre_ids,
       popularity, homepage }: any) => ({
       id,
       media_type,
@@ -38,6 +38,7 @@ export default defineEventHandler(async () => {
       genres,
       genre_ids,
       googleData,
+      ratings,
       images,
       homepage,
     })).map((item: any) => stripLogos(item)).filter((item: any) => item.backdrop_path && item.vote_count > 10)
@@ -59,6 +60,7 @@ export default defineEventHandler(async () => {
           genres: fullInfo.genres || [],
           genre_ids: movie.genre_ids || [],
           googleData: fullInfo.googleData,
+          ratings: fullInfo.ratings,
           images: fullInfo.images,
           homepage: fullInfo.homepage,
         };
@@ -78,6 +80,7 @@ export default defineEventHandler(async () => {
           genres: fullInfo.genres || [],
           genre_ids: series.genre_ids || [],
           googleData: fullInfo.googleData,
+          ratings: fullInfo.ratings,
           images: fullInfo.images,
           homepage: fullInfo.homepage,
         };

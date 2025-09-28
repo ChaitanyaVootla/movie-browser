@@ -36,8 +36,7 @@
             </div>
         </div>
         <div class="flex justify-center">
-            <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :title="item.title"
-                :voteCount="item.vote_count" :small="true" :minimal="true" />
+            <Ratings :ratings="item.ratings" :small="true" :minimal="true" />
         </div>
     </NuxtLink>
 </IntersectionLoader>

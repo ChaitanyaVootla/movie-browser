@@ -24,8 +24,7 @@
                             </NuxtLink>
                         </div>
                     </div>
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :title="item.title"
-                        :voteCount="item.vote_count"/>
+                    <Ratings :ratings="item.ratings" />
                     <div v-if="false" class="flex gap-5">
                         <div v-for="cast in (item.credits?.cast?.slice(0, 5) || [])" class="flex flex-col justify-start w-24 items-center">
                             <NuxtImg
@@ -112,7 +111,7 @@
                 </div>
             </div>
             <div class="flex flex-col gap-3 justify-center items-center mt-5">
-                <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id" :small="true" :title="item.title"/>
+                <Ratings :ratings="item.ratings" :small="true" />
                 <WatchOptions v-if="!minimal" :googleData="item.googleData" :tmdbRating="item.vote_average" :item="item"/>
                 <div v-if="!minimal" class="flex gap-2 flex-wrap justify-center">
                     <div v-for="genre in item.genres">

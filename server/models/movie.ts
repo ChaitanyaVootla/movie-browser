@@ -19,10 +19,14 @@ interface IMovie {
     backdrop_path: String,
     genres: [{id: Number, name: String}],
     updatedAt: Date,
+    vote_average?: Number,
+    vote_count?: Number,
+    googleData?: any,
+    external_data?: any,
     any: Schema.Types.Mixed,
 }
 
-const MovieLightFileds = 'id title vote_average genres poster_path backdrop_path googleData external_data images.logos homepage';
+const MovieLightFileds = 'id title vote_average vote_count genres poster_path backdrop_path googleData external_data images.logos homepage';
 
 const Movie = model<IMovie>("Movie", MovieSchema, "movies");
 

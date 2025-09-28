@@ -19,11 +19,15 @@ interface ISeries {
     backdrop_path: String,
     genres: [{id: Number, name: String}],
     updatedAt: Date,
+    vote_average?: Number,
+    vote_count?: Number,
+    googleData?: any,
+    external_data?: any,
     any: Schema.Types.Mixed,
 }
 
-const SeriesLightFileds = `-_id id name adult overview popularity release_date imdb_id poster_path backdrop_path vote_average
-    genres updatedAt status next_episode_to_air first_air_date last_episode_to_air googleData images.logos`;
+const SeriesLightFileds = `-_id id name adult overview popularity release_date imdb_id poster_path backdrop_path vote_average vote_count
+    genres updatedAt status next_episode_to_air first_air_date last_episode_to_air googleData external_data images.logos`;
 
 const SERIES_QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 

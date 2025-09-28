@@ -26,8 +26,7 @@
                     </div>
                 </div>
                 <div class="mt-2">
-                    <Ratings :googleData="item.googleData" :tmdbRating="item.vote_average" :itemId="item.id"
-                        :small="true" :minimal="true"/>
+                    <Ratings :ratings="item.ratings" :small="true" :minimal="true"/>
                 </div>
             </div>
             <div class="flex gap-1 md:gap-3 mt-1 overflow-x-auto flex-wrap">

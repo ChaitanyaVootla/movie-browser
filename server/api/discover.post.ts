@@ -1,4 +1,5 @@
 import { Movie, MovieLightFileds, Series, SeriesLightFileds } from "../models";
+import { combineRatings } from "~/server/utils/ratings/combineRatings";
 import { getObjectSha } from "../utils/crypto";
 
 export default defineEventHandler(async (event) => {
@@ -51,7 +52,21 @@ export default defineEventHandler(async (event) => {
             } else {
                 fullDataRes = await Movie.find({id: {$in: itemIds}}).select(MovieLightFileds);
             }
-            const fullDataItems = fullDataRes.map(movie => movie.toJSON());
+            const fullDataItems = fullDataRes.map(movie => {
+                const combinedRatings = combineRatings(
+                    movie.googleData, 
+                    movie.external_data, 
+                    movie.vote_average ? Number(movie.vote_average) : undefined, 
+                    movie.vote_count ? Number(movie.vote_count) : undefined,
+                    movie.id ? Number(movie.id) : undefined, 
+                    query.media_type === 'tv' ? 'tv' : 'movie'
+                );
+                
+                return {
+                    ...movie.toJSON(),
+                    ratings: combinedRatings
+                };
+            });
             const mappedResults = tmdbRes.results.map((originalItem: any) => {
                 return {
                     ...fullDataItems.find((item: any) => item.id === originalItem.id),

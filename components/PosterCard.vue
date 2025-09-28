@@ -49,7 +49,7 @@
                 <div v-if="isAiRoute" v-once class="overlay invisible group-hover:visible absolute bottom-0 flex justify-center
                     w-full z-10 px-3 pt-4 items-center">
                     <div class="flex items-center justify-between w-full">
-                        <Ratings class="hidden group-hover:block" :tmdbRating="item.vote_average" :itemId="item.id" :small="true"/>
+                        <Ratings class="hidden group-hover:block" :ratings="item.ratings" :small="true"/>
                         <v-btn v-if="isAiRoute" color="#333" text="filter" prepend-icon="mdi-plus"
                             @click.prevent="addToParentFilter()" size="small"/>
                     </div>

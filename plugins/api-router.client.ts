@@ -23,6 +23,8 @@ export default defineNuxtPlugin(() => {
    * Determines if an API endpoint should use CDN
    */
   const shouldUseCdn = (url: string): boolean => {
+    // force local fetch for now will revert later
+    return false;
     if (!apiConfig.isProduction) return false;
     
     // User-specific endpoints that should NOT use CDN
