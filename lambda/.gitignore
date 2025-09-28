@@ -1,0 +1,31 @@
+# Compiled JavaScript
+dist/
+
+# Dependencies
+node_modules/
+
+# Deployment package
+lambda-deployment.zip
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup

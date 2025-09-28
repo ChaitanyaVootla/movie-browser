@@ -2,6 +2,8 @@ import { IMovie, Movie } from "~/server/models";
 import { TMDB } from "~/server/utils/api";
 import _ from "lodash";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
+import { getNewLambdaData } from "~/server/utils/externalData/newLambdaData";
+import { combineRatings } from "~/server/utils/ratings/combineRatings";
 import { JWT } from "next-auth/jwt";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
@@ -90,18 +92,40 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
                 details.collectionDetails = collectionDetails;
             }
             let googleData = movie.googleData || {} as any;
+            let externalData = movie.external_data || {} as any;
+            
             if (!shallowUpdate) {
                 if (details.imdb_id || details.directorName) {
                     const movieDirectorName = details.credits.crew.find(({ job }: any) => job === 'Director')?.name;
-                    const lambdaResponse = await getGoogleLambdaData(details);
-                    if ((lambdaResponse?.imdbId === details.imdb_id) || (lambdaResponse?.directorName === movieDirectorName)) {
-                        googleData = lambdaResponse;
+                    
+                    // Call both lambdas in parallel
+                    const [oldLambdaResponse, newLambdaResponse] = await Promise.allSettled([
+                        getGoogleLambdaData(details),
+                        getNewLambdaData(details)
+                    ]);
+                    
+                    // Process old lambda response
+                    if (oldLambdaResponse.status === 'fulfilled' && oldLambdaResponse.value) {
+                        const lambdaResponse = oldLambdaResponse.value;
+                        if ((lambdaResponse?.imdbId === details.imdb_id) || (lambdaResponse?.directorName === movieDirectorName)) {
+                            googleData = lambdaResponse;
+                        }
+                    }
+                    
+                    // Process new lambda response
+                    if (newLambdaResponse.status === 'fulfilled' && newLambdaResponse.value) {
+                        const newLambdaData = newLambdaResponse.value;
+                        externalData = {
+                            ratings: newLambdaData.detailedRatings || {},
+                            externalIds: newLambdaData.externalIds || {}
+                        };
                     }
                 }
             }
             movie = {
                 ...details,
                 googleData,
+                external_data: externalData,
                 rottenTomatoes: {},
             };
             if (!shallowUpdate) {
@@ -124,8 +148,22 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
             ).exec();
         }
     }
+    
+    // Create combined ratings object for response only (not saved to DB)
+    const combinedRatings = combineRatings(
+        movie.googleData, 
+        movie.external_data, 
+        movie.vote_average, 
+        movie.vote_count,
+        movie.id, 
+        'movie'
+    );
+    
     movie.canUpdate = canUpdate;
-    return movie as IMovie;
+    return {
+        ...movie,
+        ratings: combinedRatings // Add ratings only to the response
+    } as IMovie;
 }
 
 const movieUpdateInterval = (sinceMovieRelase: number) => {

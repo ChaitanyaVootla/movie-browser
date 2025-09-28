@@ -1,5 +1,7 @@
 import { ISeries, Series, SERIES_QUERY_PARAMS } from "~/server/models";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
+import { getNewLambdaData } from "~/server/utils/externalData/newLambdaData";
+import { combineRatings } from "~/server/utils/ratings/combineRatings";
 import { JWT } from "next-auth/jwt";
 import { TMDB } from "~/server/utils/api";
 
@@ -82,11 +84,31 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
             ]);
             details.watchProviders = watchProviders.results;
             let googleData = series.googleData || {} as any;
+            let externalData = series.external_data || {} as any;
+            
             if (!shallowUpdate) {
                 if (details?.external_ids?.imdb_id) {
-                    const lambdaResponse = await getGoogleLambdaData(details);
-                    if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
-                        googleData = lambdaResponse;
+                    // Call both lambdas in parallel
+                    const [oldLambdaResponse, newLambdaResponse] = await Promise.allSettled([
+                        getGoogleLambdaData(details),
+                        getNewLambdaData(details)
+                    ]);
+                    
+                    // Process old lambda response
+                    if (oldLambdaResponse.status === 'fulfilled' && oldLambdaResponse.value) {
+                        const lambdaResponse = oldLambdaResponse.value;
+                        if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
+                            googleData = lambdaResponse;
+                        }
+                    }
+                    
+                    // Process new lambda response
+                    if (newLambdaResponse.status === 'fulfilled' && newLambdaResponse.value) {
+                        const newLambdaData = newLambdaResponse.value;
+                        externalData = {
+                            ratings: newLambdaData.detailedRatings || {},
+                            externalIds: newLambdaData.externalIds || {}
+                        };
                     }
                 }
                 if (!googleData?.imdbId && details.googleData) {
@@ -96,6 +118,7 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
             series = {
                 ...details,
                 googleData,
+                external_data: externalData,
                 rottenTomatoes: {},
             };
             if (!shallowUpdate) {
@@ -117,9 +140,21 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
             ).exec();
         }
     }
+    
+    // Create combined ratings object for response only (not saved to DB)
+    const combinedRatings = combineRatings(
+        series.googleData, 
+        series.external_data, 
+        series.vote_average, 
+        series.vote_count,
+        series.id, 
+        'tv'
+    );
+    
     return {
         ...series,
         canUpdate,
+        ratings: combinedRatings // Add ratings only to the response
     }
 }
 

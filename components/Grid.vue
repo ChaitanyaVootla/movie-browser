@@ -59,22 +59,25 @@ const viewTypeUpdated = (val: number) => {
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-    grid-gap: 1rem;
+    gap: 1rem;
     &.list {
         grid-template-columns: repeat(auto-fit, minmax(25rem, 1fr));
     }
 }
 @media screen and (max-width: 768px) {
-    @image-mobile-width: 7rem;
+    @image-mobile-width: 8rem;
     .grid {
-        grid-template-columns: repeat(auto-fill, minmax(@image-mobile-width, 1fr));
-        grid-gap: 2px;
+        grid-template-columns: repeat(auto-fit, minmax(@image-mobile-width, @image-mobile-width));
+        gap: 0.5rem;
+        justify-content: space-evenly;
+        padding: 0.25rem;
     }
     :deep(.card) {
-        width: 100%;
+        width: @image-mobile-width;
+        height: calc(@image-mobile-width * (3/2));
         .image {
-            height: auto;
-            width: 100%;
+            height: calc(@image-mobile-width * (3/2));
+            width: @image-mobile-width;
         }
     }
 }

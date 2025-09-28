@@ -4,11 +4,11 @@
 <IntersectionLoader height="28rem" width="15rem" mobileHeight="15rem" mobileWidth="8rem" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`"
         v-memo="[item.id, watched, inWatchList]">
-        <div class="card group cursor-pointer pt-2 flex flex-col">
+        <div class="card group cursor-pointer flex flex-col">
             <div class="relative md:hover:mb-1 md:hover:-mt-1 hover:transition-all duration-300" :class="{'scale-95': watched}">
                 <SeoImg
                     :sources="posterSources"
-                    aspect-ratio="16/9"
+                    aspect-ratio="2/3"
                     cover
                     eager
                     class="image rounded-lg hover:rounded-md hover:shadow-md hover:shadow-neutral-800 w-full h-full hover:transition-all duration-300"
@@ -59,7 +59,7 @@
                 hidden md:block text-sm">
                 {{ item.character || item.job || item.title || item.name }}
             </h3>
-            <div v-if="item.infoText" class=" text-neutral-400 text-2xs md:text-sm capitalize">
+            <div v-if="item.infoText" class="text-neutral-400 text-2xs md:text-sm capitalize hidden md:block">
                 {{ item.infoText }}
             </div>
             <!-- <div v-if="item.distance" class="text-neutral-400">
@@ -154,6 +154,7 @@ const posterSources = computed(() => {
 .card {
     flex: 0 0 auto;
     width: @image-width;
+    height: auto;
     .image {
         height: @image-height;
         width: @image-width;
@@ -167,6 +168,7 @@ const posterSources = computed(() => {
     .card {
         flex: 0 0 auto;
         width: @image-mobile-width;
+        height: @image-mobile-height;
         .image {
             height: @image-mobile-height;
             width: @image-mobile-width;

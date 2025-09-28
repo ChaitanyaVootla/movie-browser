@@ -1,0 +1,48 @@
+{
+  "name": "movie-browser-ratings-lambda",
+  "version": "1.0.0",
+  "description": "Robust lambda function for scraping movie ratings and watch links from multiple sources",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "package": "node package-lambda.js",
+    "deploy": "npm run build && npm run package",
+    "test": "node test.js",
+    "test-lambda": "node test.js"
+  },
+  "keywords": [
+    "lambda",
+    "aws",
+    "movie",
+    "ratings",
+    "scraping",
+    "imdb",
+    "rotten-tomatoes",
+    "wikidata"
+  ],
+  "author": "Movie Browser Team",
+  "license": "MIT",
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.140",
+    "@sparticuz/chromium": "^133.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "node-fetch": "^2.7.0",
+    "puppeteer-core": "24.3.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^20.11.0",
+    "@types/node-fetch": "^2.6.11",
+    "archiver": "^7.0.1",
+    "aws-sdk": "^2.1691.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
