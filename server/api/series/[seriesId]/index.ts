@@ -2,6 +2,7 @@ import { ISeries, Series, SERIES_QUERY_PARAMS } from "~/server/models";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { getNewLambdaData } from "~/server/utils/externalData/newLambdaData";
 import { combineRatings } from "~/server/utils/ratings/combineRatings";
+import { getWatchOptions } from "~/server/utils/watchOptions";
 import { JWT } from "next-auth/jwt";
 import { TMDB } from "~/server/utils/api";
 
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Series not found for id: ${seriesId}`);
     }
 
-    const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false);
+    const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false, false, event);
 
     if (!series) {
         event.node.res.statusCode = 404;
@@ -48,7 +49,7 @@ export default defineEventHandler(async (event) => {
 });
 
 export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate=false): Promise<any> => {
+    forceFrequent: boolean, shallowUpdate=false, event?: any): Promise<any> => {
     let series = {} as any;
     let canUpdate = false;
 
@@ -151,10 +152,14 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
         'tv'
     );
     
+    // Create watch options based on country and available data
+    const watchOptions = event ? getWatchOptions(event, series.googleData, series.watchProviders) : [];
+    
     return {
         ...series,
         canUpdate,
-        ratings: combinedRatings // Add ratings only to the response
+        ratings: combinedRatings, // Add ratings only to the response
+        watch_options: watchOptions // Add watch options for current country
     }
 }
 

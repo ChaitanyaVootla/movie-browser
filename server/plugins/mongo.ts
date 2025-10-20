@@ -2,7 +2,8 @@ import { connect } from "mongoose";
 
 export default defineNitroPlugin(async (nitroApp) => {
     try {
-        await connect(`mongodb://root:${process.env.MONGO_PASS}@${process.env.MONGO_IP}:27017`, {
+        const mongoPort = process.env.MONGO_PORT || '27018';
+        await connect(`mongodb://root:${process.env.MONGO_PASS}@${process.env.MONGO_IP}:${mongoPort}`, {
             dbName: "test",
         });
         console.log("DB connection established.");

@@ -4,6 +4,7 @@ import _ from "lodash";
 import { getGoogleLambdaData } from "~/server/utils/externalData/googleData";
 import { getNewLambdaData } from "~/server/utils/externalData/newLambdaData";
 import { combineRatings } from "~/server/utils/ratings/combineRatings";
+import { getWatchOptions } from "~/server/utils/watchOptions";
 import { JWT } from "next-auth/jwt";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
-    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false);
+    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false, false, event);
     if (!movie) {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
@@ -39,7 +40,7 @@ export default defineEventHandler(async (event) => {
 });
 
 export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate=false): Promise<IMovie> => {
+    forceFrequent: boolean, shallowUpdate=false, event?: any): Promise<IMovie> => {
     let movie = {} as any;
     let canUpdate = false;
 
@@ -159,10 +160,14 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
         'movie'
     );
     
+    // Create watch options based on country and available data
+    const watchOptions = event ? getWatchOptions(event, movie.googleData, movie.watchProviders) : [];
+    
     movie.canUpdate = canUpdate;
     return {
         ...movie,
-        ratings: combinedRatings // Add ratings only to the response
+        ratings: combinedRatings, // Add ratings only to the response
+        watch_options: watchOptions // Add watch options for current country
     } as IMovie;
 }
 

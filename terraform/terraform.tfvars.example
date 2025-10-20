@@ -1,0 +1,25 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored for security
+
+# AWS Configuration
+aws_region = "ap-south-2"
+
+# EC2 Configuration
+instance_type     = "t4g.medium"
+root_volume_size  = 60
+
+# MongoDB Configuration
+mongodb_root_password = "your-strong-password-here"
+mongodb_port         = 27018
+
+# Project Configuration
+project_name = "movie-browser"
+environment  = "production"
+
+# SSH Key Configuration
+key_name = "movie-browser-ec2-key"
+
+# Lambda Configuration
+lambda_function_name = "movie-ratings-scraper"
+

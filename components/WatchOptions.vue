@@ -79,12 +79,18 @@ interface Country {
 
 const props = defineProps(['googleData', 'tmdbRating', 'item'])
 let watchOptions = [] as any[]
-const watchOptionsByCountry: any = {};
+let watchOptionsByCountry: any = {};
 let isOpen = ref(false);
 const userData = userStore();
 const selectedCountry = ref<Country>({ code: 'IN', name: getName('IN') as string })
 const search = ref('')
 
+// Use the new watch_options field from API response if available
+if (props.item.watch_options) {
+    watchOptions = props.item.watch_options;
+}
+
+// Fallback to old logic for backward compatibility (country selector is disabled)
 if (props.item.watchProviders) {
     Object.entries(props.item.watchProviders).forEach(([country, value]: [string, any]) => {
         const mappedProviders: any[] = [];
@@ -116,46 +122,47 @@ if (props.item.watchProviders) {
     })
 }
 
-if (props.googleData?.allWatchOptions?.length > 0) {
-    watchOptions = (props.googleData.allWatchOptions || []).map((watchOption: any) => {
-        const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
-            (watchOption.name || getBaseUrl(watchOption.link)).toLowerCase().includes(key))
-        return {
-            name: watchOption.name,
-            displayName: mappedWatchOption?.[1]?.name,
-            link: watchOption.link,
-            price: watchOption.price?.replace('Premium', ''),
-            image: mappedWatchOption?.[1]?.image,
-            key: mappedWatchOption?.[0]
-        }
-    }).sort((a: any, b: any) => {
-        if (a.price?.toLowerCase().includes('subscription')) {
-            return -1
-        } else if (b.price?.toLowerCase().includes('subscription')) {
-            return 1
-        } else {
-            return 0
-        }
-    })
-    watchOptions = watchOptions.filter((watchOption: any) => watchOption.name)
-    watchOptions = _.uniqBy(watchOptions, 'name')
-    watchOptions = _.uniqBy(watchOptions, 'link')
-    watchOptionsByCountry['IN'] = watchOptions
-} else {
-    if (props.item.homepage) {
-        const homepageOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
-                (getBaseUrl(props.item.homepage)).toLowerCase().includes(key))
-        if (homepageOption) {
-            const watchOption = {
-                displayName: homepageOption?.[1]?.name,
-                link: homepageOption?.[1]?.linkMorph? homepageOption?.[1]?.linkMorph(props.item.homepage): props.item.homepage,
-                image: homepageOption?.[1]?.image,
-                key: homepageOption?.[0]
+    // Fallback to Google data if no new watch options available
+    if (!props.item.watch_options && props.googleData?.allWatchOptions?.length > 0) {
+        watchOptions = (props.googleData.allWatchOptions || []).map((watchOption: any) => {
+            const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
+                (watchOption.name || getBaseUrl(watchOption.link)).toLowerCase().includes(key))
+            return {
+                name: watchOption.name,
+                displayName: mappedWatchOption?.[1]?.name,
+                link: watchOption.link,
+                price: watchOption.price?.replace('Premium', ''),
+                image: mappedWatchOption?.[1]?.image,
+                key: mappedWatchOption?.[0]
             }
-            watchOptions.push(watchOption)
+        }).sort((a: any, b: any) => {
+            if (a.price?.toLowerCase().includes('subscription')) {
+                return -1
+            } else if (b.price?.toLowerCase().includes('subscription')) {
+                return 1
+            } else {
+                return 0
+            }
+        })
+        watchOptions = watchOptions.filter((watchOption: any) => watchOption.name)
+        watchOptions = _.uniqBy(watchOptions, 'name')
+        watchOptions = _.uniqBy(watchOptions, 'link')
+        watchOptionsByCountry['IN'] = watchOptions
+    } else if (!props.item.watch_options) {
+        if (props.item.homepage) {
+            const homepageOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
+                    (getBaseUrl(props.item.homepage)).toLowerCase().includes(key))
+            if (homepageOption) {
+                const watchOption = {
+                    displayName: homepageOption?.[1]?.name,
+                    link: (homepageOption?.[1] as any)?.linkMorph ? (homepageOption?.[1] as any).linkMorph(props.item.homepage) : props.item.homepage,
+                    image: homepageOption?.[1]?.image,
+                    key: homepageOption?.[0]
+                }
+                watchOptions.push(watchOption)
+            }
         }
     }
-}
 
 const countries = Object.keys(watchOptionsByCountry).map((country) => getName(country) || 'Unknown')
 const filteredCountries = computed(() => {
@@ -178,9 +185,12 @@ if (!watchOptionsByCountry[selectedCountry.value.code]) {
         name: getName('US') as string
     }
     if (!watchOptionsByCountry[selectedCountry.value.code] && Object.keys(watchOptionsByCountry).length) {
-        selectedCountry.value = {
-            code: Object.keys(watchOptionsByCountry)[0],
-            name: getName(Object.keys(watchOptionsByCountry)[0]) as string
+        const firstCountry = Object.keys(watchOptionsByCountry)[0];
+        if (firstCountry) {
+            selectedCountry.value = {
+                code: firstCountry,
+                name: getName(firstCountry) as string
+            }
         }
     }
 }

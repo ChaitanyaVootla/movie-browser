@@ -17,7 +17,8 @@ CORS(app)
 MODEL_NAME = "text-embedding-3-small"
 
 # MongoDB setup
-client = MongoClient(port=27017, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
+mongo_port = int(os.getenv('MONGO_PORT', '27018'))
+client = MongoClient(port=mongo_port, host=os.getenv('MONGO_IP'), username='root', password=os.getenv('MONGO_PASS'))
 db = client['test']
 mongo_collection = db['movies']
 

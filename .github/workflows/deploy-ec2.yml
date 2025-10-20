@@ -1,0 +1,89 @@
+name: Build and Deploy to AWS EC2
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22'
+
+    - name: Install dependencies
+      run: |
+        rm -f package-lock.json
+        npm install --legacy-peer-deps
+
+    - name: Build
+      env:
+        GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
+      run: npm run build
+
+    - name: Configure AWS CLI
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Upload static assets to S3 CDN
+      run: |
+        aws s3 sync .output/public/_nuxt s3://${{ secrets.S3_BUCKET_NAME }}/_nuxt \
+          --cache-control 'public, max-age=31536000, immutable' \
+          --delete \
+          --exact-timestamps
+
+    - name: Invalidate CloudFront Cache
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+          --paths "/*"
+
+    - name: Archive build files
+      run: tar -czf build.tar.gz .output
+
+    - name: Setup SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2_key.pem
+        chmod 600 ~/.ssh/ec2_key.pem
+        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Copy build to EC2
+      run: |
+        scp -i ~/.ssh/ec2_key.pem build.tar.gz ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/movie-browser/
+
+    - name: Deploy on EC2
+      run: |
+        ssh -i ~/.ssh/ec2_key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          set -e
+          cd /home/ubuntu/movie-browser
+          
+          echo "Extracting build..."
+          tar -xzf build.tar.gz
+          rm build.tar.gz
+          
+          echo "Pulling latest code..."
+          git fetch origin master
+          git reset --hard origin/master
+          
+          echo "Restarting PM2 processes..."
+          pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
+          pm2 save
+          
+          echo "Deployment complete!"
+          pm2 status
+        EOF
+
+    - name: Verify deployment
+      run: |
+        sleep 10
+        curl -f https://themoviebrowser.com/ || echo "Warning: Site check failed"
+

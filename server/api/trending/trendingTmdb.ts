@@ -74,7 +74,7 @@ const updateMovies = async (movieIds: string[]) => {
   console.log("Updating trending movies")
   // Use parallel processing instead of sequential
   await Promise.allSettled(
-    movieIds.map(movieId => movieGetHandler(movieId, true, false, true))
+    movieIds.map(movieId => movieGetHandler(movieId, true, false, true, false, false))
   );
   console.log("Updated trending movies")
 }
@@ -83,7 +83,7 @@ const updateSeries = async (seriesIds: string[]) => {
   console.log("Updating trending series")
   // Use parallel processing instead of sequential
   await Promise.allSettled(
-    seriesIds.map(seriesId => seriesGetHandler(seriesId, true, false, true))
+    seriesIds.map(seriesId => seriesGetHandler(seriesId, true, false, true, false, false))
   );
   console.log("Updated trending series")
 }

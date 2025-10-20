@@ -1,0 +1,86 @@
+version: '3.8'
+
+# MongoDB Migration Setup with S3 Storage
+# 
+# Usage:
+# - Full migration: docker-compose up --abort-on-container-exit
+# - Dump only: docker-compose up dump-initiator
+# - MongoDB only: docker-compose up mongodb-latest
+# - Restore only: docker-compose up restore-runner (requires mongodb-latest running)
+#
+# Services are now independent - you can run them separately for iteration
+
+services:
+  dump-initiator:
+    image: alpine:latest
+    container_name: migration-dump-initiator
+    environment:
+      - DO_HOST=${DO_HOST}
+      - DO_USER=${DO_USER}
+      - DO_PASSWORD=${DO_PASSWORD}
+      - DO_CONTAINER=${DO_CONTAINER}
+      - DO_MONGO_USER=${DO_MONGO_USER}
+      - DO_MONGO_PASS=${DO_MONGO_PASS}
+      - DO_MONGO_DB=${DO_MONGO_DB}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    volumes:
+      - ./dumps:/dumps
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+        apk add --no-cache openssh-client sshpass mongodb-tools aws-cli &&
+        chmod +x /scripts/dump-mongo.sh &&
+        timeout 3600 /scripts/dump-mongo.sh
+      "
+    restart: "no"
+    mem_limit: 4g
+
+  mongodb-latest:
+    image: mongo:8.0
+    container_name: migration-mongodb-latest
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${LOCAL_MONGO_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${LOCAL_MONGO_PASS}
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./dumps:/dumps
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  restore-runner:
+    image: alpine:latest
+    container_name: migration-restore-runner
+    environment:
+      - LOCAL_MONGO_USER=${LOCAL_MONGO_USER}
+      - LOCAL_MONGO_PASS=${LOCAL_MONGO_PASS}
+      - LOCAL_MONGO_DB=${LOCAL_MONGO_DB}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    volumes:
+      - ./dumps:/dumps
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+        apk add --no-cache mongodb-tools aws-cli &&
+        chmod +x /scripts/restore-mongo.sh &&
+        /scripts/restore-mongo.sh
+      "
+    depends_on:
+      mongodb-latest:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  mongodb_data:

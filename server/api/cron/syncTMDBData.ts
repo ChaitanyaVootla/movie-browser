@@ -59,7 +59,7 @@ export const syncMovies = async () => {
         // for (let j = 0; j < moviesToUpdate.length; j += CHUNK_SIZE) {
         //     const chunk = moviesToUpdate.slice(j, j + CHUNK_SIZE);
         //     console.log(`------------- Updating chunk ${j / CHUNK_SIZE + 1}/${Math.ceil(moviesToUpdate.length / CHUNK_SIZE)}`);
-        //     await Promise.all(chunk.map((movie) => movieGetHandler(movie.id, true, true, true, true)));
+        //     await Promise.all(chunk.map((movie) => movieGetHandler(movie.id, true, true, true, true, false, null)));
         //     // await 5 secs
         //     await new Promise((resolve) => setTimeout(resolve, COOL_DOWN));
         // }
@@ -67,7 +67,7 @@ export const syncMovies = async () => {
         for (let j = 0; j < missingMovies.length; j += CHUNK_SIZE) {
             const chunk = missingMovies.slice(j, j + CHUNK_SIZE);
             console.log(`------------- Updating chunk ${j / CHUNK_SIZE + 1}/${Math.ceil(missingMovies.length / CHUNK_SIZE)}`);
-            await Promise.all(chunk.map((movie) => movieGetHandler(movie.id, true, true, true, true)));
+            await Promise.all(chunk.map((movie) => movieGetHandler(movie.id, true, true, true, true, false)));
             // await 5 secs
             await new Promise((resolve) => setTimeout(resolve, COOL_DOWN));
         }
@@ -122,7 +122,7 @@ export const syncSeries = async () => {
         // for (let j = 0; j < seriesToUpdate.length; j += CHUNK_SIZE) {
         //     const chunk = seriesToUpdate.slice(j, j + CHUNK_SIZE);
         //     console.log(`------------- Updating chunk ${j / CHUNK_SIZE + 1}/${Math.ceil(seriesToUpdate.length / CHUNK_SIZE)}`);
-        //     await Promise.all(chunk.map((series) => seriesGetHandler(series.id, true, true, true, true)));
+        //     await Promise.all(chunk.map((series) => seriesGetHandler(series.id, true, true, true, true, false, null)));
         //     // await 5 secs
         //     await new Promise((resolve) => setTimeout(resolve, COOL_DOWN));
         // }
@@ -130,7 +130,7 @@ export const syncSeries = async () => {
         for (let j = 0; j < missingSeries.length; j += CHUNK_SIZE) {
             const chunk = missingSeries.slice(j, j + CHUNK_SIZE);
             console.log(`------------- Updating chunk ${j / CHUNK_SIZE + 1}/${Math.ceil(missingSeries.length / CHUNK_SIZE)}`);
-            await Promise.all(chunk.map((series) => seriesGetHandler(series.id, true, true, true, true)));
+            await Promise.all(chunk.map((series) => seriesGetHandler(series.id, true, true, true, true, false)));
             // await 5 secs
             await new Promise((resolve) => setTimeout(resolve, COOL_DOWN));
         }

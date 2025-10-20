@@ -1,0 +1,12 @@
+# Environment variables with secrets
+.env
+
+# Dump files
+dumps/
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/

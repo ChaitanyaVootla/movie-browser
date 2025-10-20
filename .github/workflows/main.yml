@@ -1,8 +1,13 @@
-name: Build and Deploy Nuxt Project
+name: Build and Deploy Nuxt Project (Legacy - DO)
+
+# DISABLED: Migrating to AWS EC2
+# Use deploy-ec2.yml for new deployments
+# This workflow is kept for reference only
 
 on:
-  push:
-    branches: [master]
+  workflow_dispatch:  # Manual trigger only
+  # push:
+  #   branches: [master]
 
 jobs:
   build-and-deploy:
