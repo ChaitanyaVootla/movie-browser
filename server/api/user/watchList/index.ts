@@ -21,10 +21,12 @@ export default defineEventHandler(async (event) => {
     ]);
     const moviesById = _.keyBy(movies, 'id');
     return {
-        movies: moviesList.map((listMovie) => ({
-            ...listMovie.toObject(),
-            ...moviesById[listMovie.movieId].toObject(),
-        })),
+        movies: moviesList
+            .filter((listMovie) => moviesById[listMovie.movieId]) // Filter out movies that don't exist
+            .map((listMovie) => ({
+                ...listMovie.toObject(),
+                ...moviesById[listMovie.movieId].toObject(),
+            })),
         series,
     } as {
         movies: IMovie[],

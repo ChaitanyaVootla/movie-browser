@@ -9,34 +9,39 @@
         </div>
         <div v-else-if="person?.id">
             <div class="top-info max-md:px-3 md:px-14 pt-10">
-                <div class="flex gap-10">
-                    <div class="w-1/12 min-w-32">
-                        <SeoImg :src="`https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.profile_path}`"
-                            :alt="person.name" 
-                            class="rounded-lg"
-                            cover>
-                            <template #placeholder>
-                                <v-skeleton-loader type="image" class="w-full h-full" />
-                            </template>
-                            <template #error>
-                                <div class="w-full h-full bg-neutral-700 rounded-lg"></div>
-                            </template>
-                        </SeoImg>
+                <div class="flex flex-col md:flex-row gap-5 md:gap-10">
+                    <div class="w-full md:w-1/12 md:min-w-32 flex justify-center md:block">
+                        <div class="w-48 md:w-full">
+                            <SeoImg :src="`https://image.tmdb.org/t/p/${configuration.images.profile_sizes.h632}${person.profile_path}`"
+                                :alt="person.name" 
+                                class="rounded-lg"
+                                cover>
+                                <template #placeholder>
+                                    <v-skeleton-loader type="image" class="w-full h-full" />
+                                </template>
+                                <template #error>
+                                    <div class="w-full h-full bg-neutral-700 rounded-lg"></div>
+                                </template>
+                            </SeoImg>
+                        </div>
                     </div>
-                    <div class="w-11/12">
-                        <div class="max-md:text-xl md:text-4xl font-bold flex items-baseline gap-5">
+                    <div class="w-full md:w-11/12">
+                        <div class="max-md:text-xl md:text-4xl font-bold flex flex-col md:flex-row md:items-baseline gap-2 md:gap-5 text-center md:text-left">
                             <h1>{{ person.name }}</h1>
                             <div class="text-neutral-400 text-lg">
                                 {{ person.known_for_department }}
                             </div>
                         </div>
-                        <div class="max-md:text-sm md:text-2xl text-neutral-400 flex align-baseline gap-3">
-                            Born: 
-                            <NuxtTime v-if="person.birthday" class="text-neutral-200 mt-2 block" :datetime="new Date(person.birthday)"
-                                year="numeric" month="long" day="numeric" />
-                            {{ person.place_of_birth }}
+                        <div class="max-md:text-sm md:text-2xl text-neutral-400 flex flex-col md:flex-row md:align-baseline gap-1 md:gap-3 text-center md:text-left items-center md:items-baseline">
+                            <span class="hidden md:inline">Born:</span>
+                            <div class="flex gap-2">
+                                <span class="md:hidden">Born:</span>
+                                <NuxtTime v-if="person.birthday" class="text-neutral-200 block" :datetime="new Date(person.birthday)"
+                                    year="numeric" month="long" day="numeric" />
+                            </div>
+                            <div>{{ person.place_of_birth }}</div>
                         </div>
-                        <div class="max-md:text-sm md:text-base text-neutral-400 mt-5 line-clamp-6">{{ person.biography }}</div>
+                        <div class="max-md:text-sm md:text-base text-neutral-400 mt-5 line-clamp-6 text-center md:text-left">{{ person.biography }}</div>
                     </div>
                 </div>
             </div>

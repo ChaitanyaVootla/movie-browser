@@ -1,7 +1,7 @@
 <template>
 <span class="md:h-[30rem] md:w-[36rem] hidden"></span>
-<span class="max-md:h-[20rem] max-md:w-[30rem] hidden"></span>
-<IntersectionLoader height="30rem" width="36rem" mobileHeight="20rem" mobileWidth="30rem" :eager="true">
+<span class="max-md:h-[calc((80vw*0.5625)+12rem)] max-md:w-[80vw] hidden"></span>
+<IntersectionLoader height="30rem" width="36rem" mobileHeight="calc((80vw * 0.5625) + 12rem)" mobileWidth="80vw" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`">
         <div class="promo-img">
             <SeoImg :sources="[imagePath, `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w1280}${props.item.backdrop_path}`].filter(Boolean)"
@@ -90,7 +90,7 @@ watch(
 @media (max-width: 768px) {
     .promo-img {
         height: auto;
-        width: 80vw;
+        width: 100%;
     }
     .logo-shadow {
         filter: drop-shadow(0 0 0.4px #eee);
