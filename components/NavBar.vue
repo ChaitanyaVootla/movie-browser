@@ -4,7 +4,7 @@
         <div class="left-actions items-center flex-1 flex gap-10 text-[1rem] font-medium">
             <NuxtLink to="/" aria-label="Go Home">
                 <div class="flex items-start gap-1 tracking-widest text-xl text-white font-extrabold group mr-7">
-                    <NuxtImg src="/popcorn-lite.png" class="group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"
+                    <NuxtImg src="/popcorn-lite.png" class="w-7 h-7 shrink-0 group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"
                         alt="The Movie Browser - Home" height="28" width="28"/>
                     <div class="logo-text">TMB</div>
                 </div>

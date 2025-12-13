@@ -20,7 +20,7 @@
         <div class="pb-3" :class="{list: viewType, grid: !viewType || $vuetify.display.mdAndUp}">
             <div v-for="item in pending?new Array(30).fill({}):items" :key="item?.id">
                 <WideCardDetailed v-if="viewType" :item="item" />
-                <PosterCard v-else :item="item" :addToFilter="addToFilter" />
+                <PosterCard v-else :item="item" :addToFilter="addToFilter" :fluid="true" />
             </div>
         </div>
     </div>
@@ -65,20 +65,11 @@ const viewTypeUpdated = (val: number) => {
     }
 }
 @media screen and (max-width: 768px) {
-    @image-mobile-width: 8rem;
     .grid {
-        grid-template-columns: repeat(auto-fit, minmax(@image-mobile-width, @image-mobile-width));
+        grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
         gap: 0.5rem;
-        justify-content: space-evenly;
+        justify-content: start;
         padding: 0.25rem;
-    }
-    :deep(.card) {
-        width: @image-mobile-width;
-        height: calc(@image-mobile-width * (3/2));
-        .image {
-            height: calc(@image-mobile-width * (3/2));
-            width: @image-mobile-width;
-        }
     }
 }
 

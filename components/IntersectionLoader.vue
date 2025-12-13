@@ -42,12 +42,10 @@ const containerRef = ref<HTMLElement | null>(null)
 
 // Container styles to maintain dimensions
 const containerStyle = computed(() => ({
-  width: `min(${props.width}, 100%)`,
+  width: `min(${props.width}, 100%)`, // Default desktop width
   height: props.height,
-  '@media (max-width: 768px)': {
-    width: `min(${props.mobileWidth}, 100%)`,
-    height: props.mobileHeight,
-  }
+  // We cannot use media queries in inline styles properly for this setup
+  // relying on v-bind in CSS below
 }))
 
 const containerClass = computed(() => [
@@ -151,8 +149,8 @@ onUnmounted(() => {
 
 @media (min-width: 769px) {
   .intersection-loader-container {
-    width: v-bind('props.width') !important;
-    height: v-bind('props.height') !important;
+    width: v-bind('props.width');
+    height: v-bind('props.height');
   }
 }
 </style>

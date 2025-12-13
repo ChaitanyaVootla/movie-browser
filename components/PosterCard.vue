@@ -1,7 +1,7 @@
 <template>
 <span class="md:w-[15rem] md:h-[28rem] hidden"></span>
 <span class="max-md:h-[15rem] max-md:w-[8rem] hidden"></span>
-<IntersectionLoader height="28rem" width="15rem" mobileHeight="15rem" mobileWidth="8rem" :eager="true">
+<IntersectionLoader class="max-md:aspect-[2/3]" height="28rem" width="15rem" mobileHeight="auto" :mobileWidth="fluid ? '100%' : '9rem'" :eager="true">
     <NuxtLink :to="`/${item.title ? 'movie': 'series'}/${item.id}/${getUrlSlug(item.title || item.name)}`"
         v-memo="[item.id, watched, inWatchList]">
         <div class="card group cursor-pointer flex flex-col">
@@ -94,6 +94,10 @@ const props = defineProps({
         type: Boolean,
         default: true
     },
+    fluid: {
+        type: Boolean,
+        default: false
+    }
 });
 const isAiRoute = useRoute().name === 'ai'
 
@@ -148,8 +152,6 @@ const posterSources = computed(() => {
 <style scoped lang="less">
 @image-width: 15rem;
 @image-height: calc(@image-width * (3/2));
-@image-mobile-width: 8rem;
-@image-mobile-height: calc(@image-mobile-width * (3/2));
 
 .card {
     flex: 0 0 auto;
@@ -164,14 +166,15 @@ const posterSources = computed(() => {
     }
 }
 // reduce image-width for mobile
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .card {
         flex: 0 0 auto;
-        width: @image-mobile-width;
-        height: @image-mobile-height;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 2/3;
         .image {
-            height: @image-mobile-height;
-            width: @image-mobile-width;
+            height: 100%;
+            width: 100%;
         }
     }
 }
