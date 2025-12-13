@@ -49,15 +49,15 @@ interface CombinedRating {
  */
 const normalizeRating = (rating: number, source: string): number => {
     const sourceLower = source.toLowerCase();
-    
+
     // Handle sources that are 0-10 scale
     if (sourceLower.includes('imdb') || sourceLower.includes('tmdb')) {
         return rating * 10; // Convert 0-10 to 0-100
     }
-    
+
     // Handle sources that are already 0-100 scale
-    if (sourceLower.includes('rotten') || 
-        sourceLower.includes('metacritic') || 
+    if (sourceLower.includes('rotten') ||
+        sourceLower.includes('metacritic') ||
         sourceLower.includes('prime') ||
         sourceLower.includes('google') ||
         sourceLower.includes('netflix') ||
@@ -70,7 +70,7 @@ const normalizeRating = (rating: number, source: string): number => {
         sourceLower.includes('amazon')) {
         return rating; // Already 0-100
     }
-    
+
     // Default: assume it's already 0-100 scale
     return rating;
 };
@@ -93,7 +93,7 @@ export const combineRatings = (
     if (tmdbRating && itemId && mediaType) {
         const normalizedRating = Math.round(normalizeRating(tmdbRating, 'TMDB'));
         const tmdbUrl = `https://www.themoviedb.org/${mediaType}/${itemId}`;
-        
+
         combinedRatings.push({
             rating: normalizedRating.toString(),
             name: 'TMDB',
@@ -155,20 +155,21 @@ export const combineRatings = (
     if (googleData?.ratings) {
         for (const rating of googleData.ratings) {
             const sourceName = rating.name.toLowerCase();
-            
+
             // Skip if we already have this source from external_data
             if (sourceName.includes('imdb') && addedSources.has('imdb')) continue;
             if (sourceName.includes('rotten') && addedSources.has('rotten tomatoes')) continue;
-            
+            if ((sourceName.includes('tmdb') || sourceName.includes('the movie database')) && addedSources.has('tmdb')) continue;
+
             // Add ALL sources from googleData (IMDb, RT, Metacritic, Prime Video, Google, etc.)
             // Parse the rating string to get the numeric value
             const ratingString = rating.rating.replace('%', '');
             const ratingNumber = parseFloat(ratingString);
-            
+
             // Only add if we can parse a valid number
             if (!isNaN(ratingNumber)) {
                 const normalizedRating = Math.round(normalizeRating(ratingNumber, rating.name));
-                
+
                 combinedRatings.push({
                     rating: normalizedRating.toString(),
                     name: rating.name,

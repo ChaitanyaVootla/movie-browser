@@ -87,22 +87,32 @@ const processedRatings = computed(() => {
     const processed = filtered.map((rating: any) => {
         const ratingNumber = parseInt(rating.rating);
         const sourceName = rating.name.toLowerCase();
+        let type = '';
         
         // Get appropriate image based on source
         let image = '';
         if (sourceName.includes('rotten')) {
             image = getRottenTomatoesImage(rating);
+            if (sourceName.includes('audience')) {
+                type = 'rt_audience';
+            } else {
+                type = 'rt_critic';
+            }
         } else if (sourceName.includes('google')) {
             image = '/images/rating/google.svg';
+            type = 'google';
         } else if (sourceName.includes('imdb')) {
             image = '/images/rating/imdb.svg';
+            type = 'imdb';
         } else if (sourceName.includes('tmdb')) {
             image = '/images/rating/tmdb.svg';
+            type = 'tmdb';
         } else {
             // Fallback: try the mapping
             for (const [key, value] of Object.entries(ratingImageMapper)) {
                 if (sourceName.includes(key)) {
                     image = value;
+                    type = key;
                     break;
                 }
             }
@@ -114,10 +124,27 @@ const processedRatings = computed(() => {
             rating: rating.rating,
             image,
             color: getColorForRating(ratingNumber),
-            percentage: ratingNumber
+            percentage: ratingNumber,
+            type
         };
     });
     
-    return processed.filter(rating => rating.image);
+    // Unique the ratings by type
+    const uniqueRatings = [] as any[];
+    const seenTypes = new Set();
+    
+    for (const rating of processed) {
+        if (rating.image) {
+            if (rating.type && seenTypes.has(rating.type)) {
+                continue;
+            }
+            if (rating.type) {
+                seenTypes.add(rating.type);
+            }
+            uniqueRatings.push(rating);
+        }
+    }
+    
+    return uniqueRatings;
 });
 </script>

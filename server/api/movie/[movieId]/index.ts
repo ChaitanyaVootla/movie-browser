@@ -13,8 +13,8 @@ const DAY_MILLIS = 1000 * 60 * 60 * 24;
 
 export default defineEventHandler(async (event) => {
     const movieId = getRouterParam(event, 'movieId');
-    let isForce = getQuery(event).force? true: false;
-    const checkUpdate = getQuery(event).checkUpdate? true: false;
+    let isForce = getQuery(event).force ? true : false;
+    const checkUpdate = getQuery(event).checkUpdate ? true : false;
     const userData = event.context.userData as JWT;
     if (isForce && (!userData || !userData?.sub)) {
         event.node.res.statusCode = 401;
@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
 });
 
 export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate=false, event?: any): Promise<IMovie> => {
+    forceFrequent: boolean, shallowUpdate = false, event?: any): Promise<IMovie> => {
     let movie = {} as any;
     let canUpdate = false;
 
@@ -94,31 +94,71 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
             }
             let googleData = movie.googleData || {} as any;
             let externalData = movie.external_data || {} as any;
-            
+
             if (!shallowUpdate) {
                 if (details.imdb_id || details.directorName) {
                     const movieDirectorName = details.credits.crew.find(({ job }: any) => job === 'Director')?.name;
-                    
+
                     // Call both lambdas in parallel
                     const [oldLambdaResponse, newLambdaResponse] = await Promise.allSettled([
                         getGoogleLambdaData(details),
                         getNewLambdaData(details)
                     ]);
-                    
+
                     // Process old lambda response
                     if (oldLambdaResponse.status === 'fulfilled' && oldLambdaResponse.value) {
                         const lambdaResponse = oldLambdaResponse.value;
                         if ((lambdaResponse?.imdbId === details.imdb_id) || (lambdaResponse?.directorName === movieDirectorName)) {
+                            // Merge ratings logic: don't override existing if new is empty, and add on top
+                            const newRatings = lambdaResponse.ratings || [];
+                            const oldRatings = googleData.ratings || [];
+
+                            if (newRatings.length === 0 && oldRatings.length > 0) {
+                                lambdaResponse.ratings = oldRatings;
+                            } else if (newRatings.length > 0 && oldRatings.length > 0) {
+                                // Merge: keep new ones, add old ones that don't exist in new
+                                const mergedRatings = [...newRatings];
+                                for (const oldRating of oldRatings) {
+                                    if (!mergedRatings.find(r => r.name === oldRating.name)) {
+                                        mergedRatings.push(oldRating);
+                                    }
+                                }
+                                lambdaResponse.ratings = mergedRatings;
+                            }
+
                             googleData = lambdaResponse;
                         }
                     }
-                    
+
                     // Process new lambda response
                     if (newLambdaResponse.status === 'fulfilled' && newLambdaResponse.value) {
                         const newLambdaData = newLambdaResponse.value;
+                        const newDetailedRatings = newLambdaData.detailedRatings || {};
+                        const oldDetailedRatings = externalData.ratings || {};
+
+                        // Merge IMDb
+                        if (!newDetailedRatings.imdb && oldDetailedRatings.imdb) {
+                            newDetailedRatings.imdb = oldDetailedRatings.imdb;
+                        }
+
+                        // Merge Rotten Tomatoes
+                        if (oldDetailedRatings.rottenTomatoes) {
+                            if (!newDetailedRatings.rottenTomatoes) {
+                                newDetailedRatings.rottenTomatoes = oldDetailedRatings.rottenTomatoes;
+                            } else {
+                                // Deep merge RT (critic/audience)
+                                if (!newDetailedRatings.rottenTomatoes.critic && oldDetailedRatings.rottenTomatoes.critic) {
+                                    newDetailedRatings.rottenTomatoes.critic = oldDetailedRatings.rottenTomatoes.critic;
+                                }
+                                if (!newDetailedRatings.rottenTomatoes.audience && oldDetailedRatings.rottenTomatoes.audience) {
+                                    newDetailedRatings.rottenTomatoes.audience = oldDetailedRatings.rottenTomatoes.audience;
+                                }
+                            }
+                        }
+
                         externalData = {
-                            ratings: newLambdaData.detailedRatings || {},
-                            externalIds: newLambdaData.externalIds || {}
+                            ratings: newDetailedRatings,
+                            externalIds: { ...(externalData.externalIds || {}), ...(newLambdaData.externalIds || {}) }
                         };
                     }
                 }
@@ -149,20 +189,20 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
             ).exec();
         }
     }
-    
+
     // Create combined ratings object for response only (not saved to DB)
     const combinedRatings = combineRatings(
-        movie.googleData, 
-        movie.external_data, 
-        movie.vote_average, 
+        movie.googleData,
+        movie.external_data,
+        movie.vote_average,
         movie.vote_count,
-        movie.id, 
+        movie.id,
         'movie'
     );
-    
+
     // Create watch options based on country and available data
     const watchOptions = event ? getWatchOptions(event, movie.googleData, movie.watchProviders) : [];
-    
+
     movie.canUpdate = canUpdate;
     return {
         ...movie,

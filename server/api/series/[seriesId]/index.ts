@@ -11,8 +11,8 @@ const SEASON_CACHE_TTL = 6 * 60 * 60; // 6 hours in seconds
 
 export default defineEventHandler(async (event) => {
     const seriesId = getRouterParam(event, 'seriesId');
-    let isForce = getQuery(event).force? true: false;
-    const checkUpdate = getQuery(event).checkUpdate? true: false;
+    let isForce = getQuery(event).force ? true : false;
+    const checkUpdate = getQuery(event).checkUpdate ? true : false;
     const userData = event.context.userData as JWT;
 
     if (isForce && (!userData || !userData?.sub)) {
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
 });
 
 export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate=false, event?: any): Promise<any> => {
+    forceFrequent: boolean, shallowUpdate = false, event?: any): Promise<any> => {
     let series = {} as any;
     let canUpdate = false;
 
@@ -86,7 +86,7 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
             details.watchProviders = watchProviders.results;
             let googleData = series.googleData || {} as any;
             let externalData = series.external_data || {} as any;
-            
+
             if (!shallowUpdate) {
                 if (details?.external_ids?.imdb_id) {
                     // Call both lambdas in parallel
@@ -94,21 +94,61 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
                         getGoogleLambdaData(details),
                         getNewLambdaData(details)
                     ]);
-                    
+
                     // Process old lambda response
                     if (oldLambdaResponse.status === 'fulfilled' && oldLambdaResponse.value) {
                         const lambdaResponse = oldLambdaResponse.value;
                         if (lambdaResponse?.imdbId === details?.external_ids?.imdb_id) {
+                            // Merge ratings logic: don't override existing if new is empty, and add on top
+                            const newRatings = lambdaResponse.ratings || [];
+                            const oldRatings = googleData.ratings || [];
+
+                            if (newRatings.length === 0 && oldRatings.length > 0) {
+                                lambdaResponse.ratings = oldRatings;
+                            } else if (newRatings.length > 0 && oldRatings.length > 0) {
+                                // Merge: keep new ones, add old ones that don't exist in new
+                                const mergedRatings = [...newRatings];
+                                for (const oldRating of oldRatings) {
+                                    if (!mergedRatings.find(r => r.name === oldRating.name)) {
+                                        mergedRatings.push(oldRating);
+                                    }
+                                }
+                                lambdaResponse.ratings = mergedRatings;
+                            }
+
                             googleData = lambdaResponse;
                         }
                     }
-                    
+
                     // Process new lambda response
                     if (newLambdaResponse.status === 'fulfilled' && newLambdaResponse.value) {
                         const newLambdaData = newLambdaResponse.value;
+                        const newDetailedRatings = newLambdaData.detailedRatings || {};
+                        const oldDetailedRatings = externalData.ratings || {};
+
+                        // Merge IMDb
+                        if (!newDetailedRatings.imdb && oldDetailedRatings.imdb) {
+                            newDetailedRatings.imdb = oldDetailedRatings.imdb;
+                        }
+
+                        // Merge Rotten Tomatoes
+                        if (oldDetailedRatings.rottenTomatoes) {
+                            if (!newDetailedRatings.rottenTomatoes) {
+                                newDetailedRatings.rottenTomatoes = oldDetailedRatings.rottenTomatoes;
+                            } else {
+                                // Deep merge RT (critic/audience)
+                                if (!newDetailedRatings.rottenTomatoes.critic && oldDetailedRatings.rottenTomatoes.critic) {
+                                    newDetailedRatings.rottenTomatoes.critic = oldDetailedRatings.rottenTomatoes.critic;
+                                }
+                                if (!newDetailedRatings.rottenTomatoes.audience && oldDetailedRatings.rottenTomatoes.audience) {
+                                    newDetailedRatings.rottenTomatoes.audience = oldDetailedRatings.rottenTomatoes.audience;
+                                }
+                            }
+                        }
+
                         externalData = {
-                            ratings: newLambdaData.detailedRatings || {},
-                            externalIds: newLambdaData.externalIds || {}
+                            ratings: newDetailedRatings,
+                            externalIds: { ...(externalData.externalIds || {}), ...(newLambdaData.externalIds || {}) }
                         };
                     }
                 }
@@ -125,7 +165,7 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
             if (!shallowUpdate) {
                 series.updatedAt = new Date();
             }
-        } catch(e) {
+        } catch (e) {
             console.error(`Error getting series details for id: ${seriesId}`);
         }
         if (series?.name) {
@@ -141,20 +181,20 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
             ).exec();
         }
     }
-    
+
     // Create combined ratings object for response only (not saved to DB)
     const combinedRatings = combineRatings(
-        series.googleData, 
-        series.external_data, 
-        series.vote_average, 
+        series.googleData,
+        series.external_data,
+        series.vote_average,
         series.vote_count,
-        series.id, 
+        series.id,
         'tv'
     );
-    
+
     // Create watch options based on country and available data
     const watchOptions = event ? getWatchOptions(event, series.googleData, series.watchProviders) : [];
-    
+
     return {
         ...series,
         canUpdate,
@@ -168,7 +208,7 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
  */
 const getCachedSeasonData = async (seriesId: string, seasonNumber: number): Promise<any> => {
     const cacheKey = `season-${seriesId}-${seasonNumber}`;
-    
+
     try {
         // Check cache first
         const cachedSeason = await useStorage('seasons').getItem(cacheKey);
@@ -176,18 +216,18 @@ const getCachedSeasonData = async (seriesId: string, seasonNumber: number): Prom
             console.log(`✅ Cache hit for season ${seasonNumber} of series ${seriesId}`);
             return cachedSeason;
         }
-        
+
         console.log(`🔄 Cache miss for season ${seasonNumber} of series ${seriesId}, fetching from TMDB...`);
-        
+
         // Fetch from TMDB API
         const seasonData: any = await $fetch(`${TMDB.BASE_URL}/tv/${seriesId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}`, {
             retry: 5,
         });
-        
+
         // Cache the result for 6 hours
         await useStorage('seasons').setItem(cacheKey, seasonData, { ttl: SEASON_CACHE_TTL });
         console.log(`💾 Cached season ${seasonNumber} of series ${seriesId} for 6 hours`);
-        
+
         return seasonData;
     } catch (error) {
         console.error(`❌ Error fetching season ${seasonNumber} for series ${seriesId}:`, error);

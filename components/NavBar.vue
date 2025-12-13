@@ -44,12 +44,7 @@
                     Browse
                 </div>
             </NuxtLink>
-            <NuxtLink to="/ai">
-                <div class="flex items-center gap-1 whitespace-nowrap text-[14px]" aria-label="Go To AI search">
-                    <v-icon icon="mdi-panorama-sphere-outline" size="small" class="mt-[1px]" />
-                    AI Search <span class="text-neutral-400 text-sm italic">BETA</span>
-                </div>
-            </NuxtLink>
+
             <!-- <NuxtLink to="/profile">
                 <div class="flex items-center gap-1 whitespace-nowrap" aria-label="Go To Profile">
                     <v-icon icon="mdi-face-man" size="small" />
@@ -128,29 +123,27 @@
             density="comfortable" mandatory rounded v-model="defaultNavBarItem">
             <v-btn value="home" @click="bottomNavItemClicked('home')">
                 <v-icon>mdi-home-outline</v-icon>
-                <span class="text-2xs">Home</span>
+                <span class="text-2xs whitespace-nowrap">Home</span>
             </v-btn>
 
             <v-btn value="browse" @click="bottomNavItemClicked('browse')">
                 <v-icon>mdi-infinity</v-icon>
-                <span class="text-2xs">Browse</span>
+                <span class="text-2xs whitespace-nowrap">Browse</span>
             </v-btn>
 
             <v-btn value="search" @click="bottomNavItemClicked('search')">
                 <v-icon>mdi-magnify</v-icon>
-                <span class="text-2xs">Search</span>
+                <span class="text-2xs whitespace-nowrap">Search</span>
             </v-btn>
 
-            <v-btn value="ai" @click="bottomNavItemClicked('ai')">
-                <v-icon>mdi-panorama-sphere-outline</v-icon>
-                <span class="text-2xs">
-                    AI Search
-                </span>
+            <v-btn value="watchList" @click="bottomNavItemClicked('watchList')">
+                <v-icon>mdi-menu</v-icon>
+                <span class="text-2xs whitespace-nowrap">Watch List</span>
             </v-btn>
 
             <v-btn v-if="status === 'unauthenticated' || status === 'loading'" value="profile" @click="signIn('google')">
                 <NuxtImg src="/images/googleLogin/login_small.svg" height="10" width="23" />
-                <span class="text-2xs">Login</span>
+                <span class="text-2xs whitespace-nowrap">Login</span>
             </v-btn>
             <v-btn v-else>
                 <v-menu>
@@ -425,8 +418,7 @@ const bottomNavItemClicked = (item: any) => {
         return useRouter().push('/browse');
     } else if (item === 'watchList') {
         return useRouter().push('/watchList');
-    } else if (item === 'ai') {
-        return useRouter().push('/ai');
+
     } else if (item === 'profile') {
         return;
     }
