@@ -91,8 +91,8 @@ export default defineNuxtConfig({
       icons: [
         {
           "src": "/images/android-chrome-192x192.png",
-          "sizes":"192x192",
-          "type":"image/png",
+          "sizes": "192x192",
+          "type": "image/png",
         },
         {
           "src": "/images/android-chrome-512x512.png",
@@ -158,7 +158,7 @@ export default defineNuxtConfig({
 
   // Enhanced SSR configuration
   ssr: true,
-  
+
   // Disable prerendering for Windows compatibility
   nitro: {
     compressPublicAssets: true,
@@ -167,31 +167,31 @@ export default defineNuxtConfig({
       routes: [],
     },
   },
-  
+
   // Image optimization for better LCP
   image: {
     format: ['webp', 'avif'],
     quality: 80,
     densities: [1, 2],
   },
-  
+
   routeRules: {
     // API routes with configurable caching (generated from server/config/cache.ts)
     ...buildRouteRules(),
-    
+
     // Static asset caching
     '/images/(.*)': {
       headers: {
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
+
     // SEO-optimized pages with caching (ISR removed for Windows compatibility)
     '/': { headers: { 'cache-control': 's-maxage=3600' } }, // Homepage caching
     '/movie/**': { headers: { 'cache-control': 's-maxage=86400' } }, // Movie pages cache 24h
     '/series/**': { headers: { 'cache-control': 's-maxage=86400' } }, // Series pages cache 24h
     '/person/**': { headers: { 'cache-control': 's-maxage=604800' } }, // Person pages cache 7 days
-    
+
     // Static pages that rarely change
     '/topics/**': { headers: { 'cache-control': 's-maxage=43200' } }, // Topic pages cache 12h
   },

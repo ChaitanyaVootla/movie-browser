@@ -498,12 +498,16 @@ const watchListClicked = () => {
 
 useHead(() => {
     return {
-        title: `${series.value?.name} | The Movie Browser`,
+        title: `${series.value?.name} ${series.value?.first_air_date? `(${series.value?.first_air_date.split('-')[0]})`:''}`,
         meta: [
             {
                 hid: 'description',
                 name: 'description',
                 content: series.value?.overview
+            },
+            {
+                name: 'keywords',
+                content: series.value?.keywords?.results?.map((k: any) => k.name).join(', ')
             },
             {
                 hid: 'og:title',
@@ -518,7 +522,7 @@ useHead(() => {
             {
                 hid: 'og:image',
                 property: 'og:image',
-                content: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${series.value?.backdrop_path}`
+                content: `https://image.tmdb.org/t/p/w1280${series.value?.backdrop_path}`
             },
             {
                 hid: 'og:url',
@@ -528,12 +532,12 @@ useHead(() => {
             {
                 hid: 'og:type',
                 property: 'og:type',
-                content: 'movie'
+                content: 'video.tv_show'
             },
             {
                 hid: 'og:site_name',
                 property: 'og:site_name',
-                content: 'Movie Browser'
+                content: 'The Movie Browser'
             },
             {
                 hid: 'twitter:card',
@@ -558,7 +562,7 @@ useHead(() => {
             {
                 hid: 'twitter:image',
                 name: 'twitter:image',
-                content: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${series.value?.backdrop_path}`
+                content: `https://image.tmdb.org/t/p/w1280${series.value?.backdrop_path}`
             },
             {
                 hid: 'twitter:url',

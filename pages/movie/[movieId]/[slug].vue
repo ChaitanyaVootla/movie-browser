@@ -435,12 +435,16 @@ const languageClicked = () => {
 
 useHead(() => {
     return {
-        title: `${movie.value?.title} ${movie.value?.releaseYear? `(${movie.value?.releaseYear})`:''} | The Movie Browser`,
+        title: `${movie.value?.title} ${movie.value?.releaseYear? `(${movie.value?.releaseYear})`:''}`,
         meta: [
             {
                 hid: 'description',
                 name: 'description',
                 content: movie.value?.overview
+            },
+            {
+                name: 'keywords',
+                content: movie.value?.keywords?.keywords?.map((k: any) => k.name).join(', ')
             },
             {
                 hid: 'og:title',
@@ -455,7 +459,7 @@ useHead(() => {
             {
                 hid: 'og:image',
                 property: 'og:image',
-                content: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${movie.value?.backdrop_path}`
+                content: `https://image.tmdb.org/t/p/w1280${movie.value?.backdrop_path}`
             },
             {
                 hid: 'og:url',
@@ -465,12 +469,12 @@ useHead(() => {
             {
                 hid: 'og:type',
                 property: 'og:type',
-                content: 'movie'
+                content: 'video.movie'
             },
             {
                 hid: 'og:site_name',
                 property: 'og:site_name',
-                content: 'Movie Browser'
+                content: 'The Movie Browser'
             },
             {
                 hid: 'twitter:card',
@@ -495,7 +499,7 @@ useHead(() => {
             {
                 hid: 'twitter:image',
                 name: 'twitter:image',
-                content: `https://image.tmdb.org/t/p/${configuration.images.backdrop_sizes.w780}${movie.value?.backdrop_path}`
+                content: `https://image.tmdb.org/t/p/w1280${movie.value?.backdrop_path}`
             },
             {
                 hid: 'twitter:url',
