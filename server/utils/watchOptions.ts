@@ -1,5 +1,5 @@
 import { getLocationFromEvent } from "~/server/api/onLoad";
-import { watchOptionImageMapper } from "~/utils/watchOptions";
+import { mapWatchProvider } from "~/utils/watchOptions";
 import { getBaseUrl } from "~/utils/url";
 
 export interface WatchOption {
@@ -51,7 +51,7 @@ export function normalizeWatchProviders(watchProviderData: WatchProviderData, co
     }).forEach(([type, providers]) => {
         (providers || []).forEach((provider) => {
             const existingProvider = providerMap.get(provider.provider_id);
-            
+
             if (existingProvider) {
                 // Provider already exists, append the type to price
                 existingProvider.price = `${existingProvider.price}, ${type}`;
@@ -66,7 +66,7 @@ export function normalizeWatchProviders(watchProviderData: WatchProviderData, co
                     key: provider.provider_id.toString(),
                     isJustWatch: true
                 };
-                
+
                 providerMap.set(provider.provider_id, watchOption);
             }
         });
@@ -79,7 +79,7 @@ export function normalizeWatchProviders(watchProviderData: WatchProviderData, co
                 .find(p => p.provider_id.toString() === a.key);
             const bProvider = [...(watchProviderData.buy || []), ...(watchProviderData.rent || []), ...(watchProviderData.flatrate || [])]
                 .find(p => p.provider_id.toString() === b.key);
-            
+
             return (aProvider?.display_priority || 0) - (bProvider?.display_priority || 0);
         });
 }
@@ -89,18 +89,15 @@ export function normalizeWatchProviders(watchProviderData: WatchProviderData, co
  */
 function mapGoogleWatchOptions(googleWatchOptions: any[]): WatchOption[] {
     return googleWatchOptions.map((watchOption: any) => {
-        const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
-            (watchOption.name || getBaseUrl(watchOption.link)).toLowerCase().includes(key));
-        
+        const mappedWatchOption = mapWatchProvider(watchOption.name, watchOption.link);
+
         return {
             name: watchOption.name,
-            displayName: mappedWatchOption?.[1]?.name || watchOption.name,
-            link: (mappedWatchOption?.[1] as any)?.linkMorph ? 
-                (mappedWatchOption?.[1] as any).linkMorph(watchOption.link) : 
-                watchOption.link,
+            displayName: mappedWatchOption?.displayName || watchOption.name,
+            link: mappedWatchOption.link,
             price: watchOption.price?.replace('Premium', '') || '',
-            image: mappedWatchOption?.[1]?.image || watchOption.image || '',
-            key: mappedWatchOption?.[0] || '',
+            image: mappedWatchOption?.image || watchOption.image || '',
+            key: mappedWatchOption?.key || '',
             isJustWatch: false
         };
     }).sort((a: any, b: any) => {
@@ -124,24 +121,24 @@ export function getWatchOptions(
 ): WatchOption[] {
     const location = getLocationFromEvent(event);
     const countryCode = location.countryCode || 'IN';
-    
+
     // If request is from India and we have googleData with watch options, use those
     if (countryCode === 'IN' && googleData?.allWatchOptions?.length > 0) {
         return mapGoogleWatchOptions(googleData.allWatchOptions);
     }
-    
+
     // Otherwise, use TMDB watch providers for the specific country
     if (watchProviders && watchProviders[countryCode]) {
         return normalizeWatchProviders(watchProviders[countryCode], countryCode);
     }
 
     console.log("falling back to us", watchProviders?.['US'], countryCode)
-    
+
     // Fallback to US if country not found
     if (watchProviders && watchProviders['US']) {
         return normalizeWatchProviders(watchProviders['US'], 'US');
     }
-    
+
     return [];
 }
 

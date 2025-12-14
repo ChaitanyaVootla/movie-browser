@@ -79,7 +79,7 @@
 import { getCode, getName } from 'country-list';
 import { userStore } from '~/plugins/state';
 import { getBaseUrl } from '~/utils/url';
-import { watchOptionImageMapper } from '~/utils/watchOptions';
+import { watchOptionImageMapper, mapWatchProvider } from '~/utils/watchOptions';
 import _ from 'lodash';
 
 interface Country {
@@ -133,15 +133,14 @@ if (props.item.watch_options) {
     scrapedWatchOptions = props.item.watch_options;
 } else if (props.googleData?.allWatchOptions?.length > 0) {
     scrapedWatchOptions = (props.googleData.allWatchOptions || []).map((watchOption: any) => {
-        const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
-            (watchOption.name || getBaseUrl(watchOption.link)).toLowerCase().includes(key))
+        const mappedWatchOption = mapWatchProvider(watchOption.name, watchOption.link);
         return {
             name: watchOption.name,
-            displayName: mappedWatchOption?.[1]?.name,
-            link: watchOption.link,
+            displayName: mappedWatchOption?.displayName,
+            link: mappedWatchOption.link,
             price: watchOption.price?.replace('Premium', ''),
-            image: mappedWatchOption?.[1]?.image,
-            key: mappedWatchOption?.[0]
+            image: mappedWatchOption?.image,
+            key: mappedWatchOption?.key
         }
     }).sort((a: any, b: any) => {
         if (a.price?.toLowerCase().includes('subscription')) {
@@ -157,14 +156,13 @@ if (props.item.watch_options) {
     scrapedWatchOptions = _.uniqBy(scrapedWatchOptions, 'link')
 } else {
      if (props.item.homepage) {
-        const homepageOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
-                (getBaseUrl(props.item.homepage)).toLowerCase().includes(key))
-        if (homepageOption) {
+        const mappedWatchOption = mapWatchProvider('', props.item.homepage);
+        if (mappedWatchOption.key) {
             const watchOption = {
-                displayName: homepageOption?.[1]?.name,
-                link: (homepageOption?.[1] as any)?.linkMorph ? (homepageOption?.[1] as any).linkMorph(props.item.homepage) : props.item.homepage,
-                image: homepageOption?.[1]?.image,
-                key: homepageOption?.[0]
+                displayName: mappedWatchOption.displayName,
+                link: mappedWatchOption.link,
+                image: mappedWatchOption.image,
+                key: mappedWatchOption.key
             }
             scrapedWatchOptions.push(watchOption)
         }

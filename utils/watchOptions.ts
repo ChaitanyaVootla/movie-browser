@@ -1,3 +1,5 @@
+import { getBaseUrl } from "~/utils/url";
+
 export const watchOptionImageMapper = {
     'youtube': {
         image: '/images/ott/youtube.png',
@@ -46,6 +48,10 @@ export const watchOptionImageMapper = {
         image: '/images/ott/jio.png',
         name: 'JioCinema'
     },
+    'mubi': {
+        image: '/images/ott/mubi.webp',
+        name: 'MUBI'
+    },
     'mx': {
         image: '/images/ott/mx.png',
         name: 'MX Player'
@@ -70,3 +76,16 @@ export const watchOptionImageMapper = {
     image: string,
     name: string
 }>;
+
+export const mapWatchProvider = (name: string, link: string) => {
+    const mappedWatchOption = Object.entries(watchOptionImageMapper).find(([key, value]) =>
+        (name || getBaseUrl(link)).toLowerCase().includes(key));
+
+    return {
+        name: name,
+        displayName: mappedWatchOption?.[1]?.name,
+        link: (mappedWatchOption?.[1] as any)?.linkMorph ? (mappedWatchOption?.[1] as any).linkMorph(link) : link,
+        image: mappedWatchOption?.[1]?.image,
+        key: mappedWatchOption?.[0]
+    }
+}
