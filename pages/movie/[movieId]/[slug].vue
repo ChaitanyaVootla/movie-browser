@@ -310,6 +310,9 @@ const headers = useRequestHeaders(['cookie']) as HeadersInit
 const { data: movie, pending, error, refresh: refreshData } = await useFetch(`/api/movie/${route.params.movieId}`, {
     key: `movie-${route.params.movieId}`,
     headers,
+    query: {
+        country: computed(() => userData.loadInfo?.countryCode)
+    },
     transform: (movie: any) => {
         if (!movie || typeof movie !== 'object') {
             return null;

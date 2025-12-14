@@ -15,6 +15,10 @@ export default defineEventHandler(async (event) => {
     const movieId = getRouterParam(event, 'movieId');
     let isForce = getQuery(event).force ? true : false;
     const checkUpdate = getQuery(event).checkUpdate ? true : false;
+    let country = getQuery(event).country as string;
+    if (!country) {
+        country = getHeader(event, 'X-Country-Code') || 'IN';
+    }
     const userData = event.context.userData as JWT;
     if (isForce && (!userData || !userData?.sub)) {
         event.node.res.statusCode = 401;
@@ -26,7 +30,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
-    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false, false, event);
+    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false, false, event, country);
     if (!movie) {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
@@ -40,14 +44,43 @@ export default defineEventHandler(async (event) => {
 });
 
 export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate = false, event?: any): Promise<IMovie> => {
+    forceFrequent: boolean, shallowUpdate = false, event?: any, country?: string): Promise<IMovie> => {
     let movie = {} as any;
     let canUpdate = false;
+    let dbMovie;
+    if (country && /^[a-zA-Z]{2}$/.test(country)) {
+        const pCountry = country.toUpperCase();
+        // Use aggregation to selectively project nested watchProviders while excluding others
+        const pipeline = [
+            { $match: { id: parseInt(movieId) } },
+            {
+                $addFields: {
+                    _wp_tmp: {
+                        US: "$watchProviders.US",
+                        [pCountry]: `$watchProviders.${pCountry}`
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0, __v: 0, external_ids: 0, "images.posters": 0,
+                    production_companies: 0, production_countries: 0,
+                    spoken_languages: 0, releaseDates: 0, watchProviders: 0
+                }
+            },
+            { $addFields: { watchProviders: "$_wp_tmp" } },
+            { $project: { _wp_tmp: 0 } }
+        ];
+        // @ts-ignore
+        const results = await Movie.aggregate(pipeline);
+        dbMovie = results[0];
+    } else {
+        dbMovie = await Movie.findOne({ id: movieId })
+            .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates -watchProviders');
+    }
 
-    const dbMovie = await Movie.findOne({ id: movieId })
-        .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates -watchProviders');
-    if (dbMovie?.title) {
-        movie = dbMovie.toJSON();
+    if (dbMovie && (dbMovie.title || (dbMovie as any).id)) {
+        movie = (dbMovie as any).toJSON ? dbMovie.toJSON() : dbMovie;
     }
 
     if (movie?.updatedAt) {

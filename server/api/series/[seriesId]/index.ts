@@ -13,6 +13,10 @@ export default defineEventHandler(async (event) => {
     const seriesId = getRouterParam(event, 'seriesId');
     let isForce = getQuery(event).force ? true : false;
     const checkUpdate = getQuery(event).checkUpdate ? true : false;
+    let country = getQuery(event).country as string;
+    if (!country) {
+        country = getHeader(event, 'X-Country-Code') || 'IN';
+    }
     const userData = event.context.userData as JWT;
 
     if (isForce && (!userData || !userData?.sub)) {
@@ -25,7 +29,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Series not found for id: ${seriesId}`);
     }
 
-    const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false, false, event);
+    const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false, false, event, country);
 
     if (!series) {
         event.node.res.statusCode = 404;
@@ -49,14 +53,42 @@ export default defineEventHandler(async (event) => {
 });
 
 export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate = false, event?: any): Promise<any> => {
+    forceFrequent: boolean, shallowUpdate = false, event?: any, country?: string): Promise<any> => {
     let series = {} as any;
     let canUpdate = false;
+    let dbSeries;
+    if (country && /^[a-zA-Z]{2}$/.test(country)) {
+        const pCountry = country.toUpperCase();
+        const pipeline = [
+            { $match: { id: parseInt(seriesId) } },
+            {
+                $addFields: {
+                    _wp_tmp: {
+                        US: "$watchProviders.US",
+                        [pCountry]: `$watchProviders.${pCountry}`
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0, __v: 0, "images.posters": 0, production_companies: 0,
+                    production_countries: 0, spoken_languages: 0, similar: 0, watchProviders: 0
+                }
+            },
+            { $addFields: { watchProviders: "$_wp_tmp" } },
+            { $project: { _wp_tmp: 0 } }
+        ];
+        // @ts-ignore
+        const results = await Series.aggregate(pipeline);
+        dbSeries = results[0];
+    } else {
+        dbSeries = await Series.findOne({ id: seriesId })
+            .select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar -watchProviders');
+    }
 
-    const dbSeries = await Series.findOne({ id: seriesId }).select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar -watchProviders');
     // @ts-ignore
-    if (dbSeries?.name) {
-        series = dbSeries.toJSON();
+    if (dbSeries && (dbSeries.name || (dbSeries as any).id)) {
+        series = (dbSeries as any).toJSON ? dbSeries.toJSON() : dbSeries;
     }
     if (series?.updatedAt) {
         const sinceUpdate = Date.now() - series.updatedAt;

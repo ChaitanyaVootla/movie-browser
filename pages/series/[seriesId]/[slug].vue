@@ -383,6 +383,9 @@ const headers = useRequestHeaders(['cookie']) as HeadersInit
 const { data: series, pending, error, refresh: refreshData } = await useFetch(`/api/series/${route.params.seriesId}`, {
     key: `series-${route.params.seriesId}`,
     headers,
+    query: {
+        country: computed(() => userData.loadInfo?.countryCode)
+    },
     transform: (series: any) => {
         if (!series || typeof series !== 'object') {
             return null;

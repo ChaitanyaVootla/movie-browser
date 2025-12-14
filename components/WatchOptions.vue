@@ -1,7 +1,7 @@
 <template>
     <div v-if="currentWatchOptions.length" class="flex">
-        <div class="flex justify-center flex-wrap max-md:gap-3 md:gap-4 bg-neutral-900 border-[1px] border-neutral-700
-            max-md:px-2 md:px-4 max-md:pt-4 max-md:pb-2 md:pt-6 md:pb-2 rounded-2xl relative min-w-32">
+        <div class="flex items-center justify-center flex-wrap max-md:gap-3 md:gap-4 bg-neutral-900 border-[1px] border-neutral-700
+            max-md:pl-2 max-md:pr-7 md:pl-4 md:pr-8 max-md:pt-4 max-md:pb-2 md:pt-6 md:pb-2 rounded-2xl relative min-w-32">
             <div class="absolute w-full max-md:-top-2 -top-4 flex max-md:justify-center md:justify-start md:ml-5">
                 <div class="bg-neutral-700 pl-1 pr-2 py-0 rounded-full text-xs 
                     font-light flex items-center text-nowrap">
@@ -9,7 +9,7 @@
                         style="font-variation-settings: 'FILL' 1;">play_arrow</span>
                     <div>
                         Watch Now
-                        <div v-if="sourceCountry && sourceCountry !== selectedCountry.code" class="text-[10px] text-neutral-400 mb-[2px] leading-none">
+                        <div v-if="sourceCountry && sourceCountry !== selectedCountry.code" class="text-[10px] text-neutral-400 mt-1 leading-none">
                             Available in {{ getName(sourceCountry) }}
                         </div>
                     </div>
@@ -50,7 +50,7 @@
                     </v-menu>
                 </div>
             </div>
-            <div v-for="watchOption in currentWatchOptions">
+            <div v-for="watchOption in visibleWatchOptions">
                 <NuxtLink :to="watchOption.link" target="blank" noreferrer noopener
                     @click.prevent="watchLinkClicked(watchOption)" class="cursor-pointer">
                     <div class="w-18 flex flex-col items-center justify-between">
@@ -65,6 +65,11 @@
                         </div>
                     </div>
                 </NuxtLink>
+            </div>
+            <div v-if="currentWatchOptions.length > 5" 
+                class="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer text-neutral-500 hover:text-white transition-colors"
+                @click="expanded = !expanded">
+                <span class="material-symbols-outlined text-2xl">{{ expanded ? 'chevron_left' : 'chevron_right' }}</span>
             </div>
         </div>
     </div>
@@ -175,6 +180,7 @@ const getOptionsForCode = (code: string) => {
 }
 
 const sourceCountry = ref('');
+const expanded = ref(false);
 
 const currentWatchOptions = computed(() => {
     const targetCode = selectedCountry.value.code;
@@ -201,6 +207,13 @@ const currentWatchOptions = computed(() => {
     }
     
     return options;
+});
+
+const visibleWatchOptions = computed(() => {
+    if (expanded.value || currentWatchOptions.value.length <= 5) {
+        return currentWatchOptions.value;
+    }
+    return currentWatchOptions.value.slice(0, 5);
 });
 
 // Watch user store for country changes

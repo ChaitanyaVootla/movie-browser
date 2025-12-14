@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
 
 export const getLocationFromEvent = (event: any) => {
     return {
-        countryCode: getHeader(event, 'X-Country-Code') || 'IN',
+        countryCode: (getQuery(event).country as string) || getHeader(event, 'X-Country-Code') || 'IN',
         countryName: getHeader(event, 'X-Country-Name'),
         cityName: getHeader(event, 'X-City-Name'),
         stateName: getHeader(event, 'X-State-Name'),
