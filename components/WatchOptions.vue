@@ -54,13 +54,15 @@
                 <NuxtLink :to="watchOption.link" target="blank" noreferrer noopener
                     @click.prevent="watchLinkClicked(watchOption)" class="cursor-pointer">
                     <div class="w-18 flex flex-col items-center justify-between">
-                        <SeoImg :src="watchOption.image" class="max-md:w-6 max-md:h-6 md:w-6 md:h-6 rounded-sm"
+                        <SeoImg :src="watchOption.image" 
+                            :class="props.compact ? 'w-8 h-8' : 'max-md:w-6 max-md:h-6 md:w-6 md:h-6'"
+                            class="rounded-sm"
                             :alt="watchOption.name"></SeoImg>
-                        <div v-if="watchOption?.displayName"
+                        <div v-if="!props.compact && watchOption?.displayName"
                             class="text-2xs md:text-xs text-neutral-200 text-center mt-1">
                             {{ watchOption.displayName }}
                         </div>
-                        <div v-if="watchOption?.price?.length" class="text-2xs text-neutral-400 text-center">
+                        <div v-if="!props.compact && watchOption?.price?.length" class="text-2xs text-neutral-400 text-center">
                             {{ watchOption.price }}
                         </div>
                     </div>
@@ -87,7 +89,7 @@ interface Country {
   name: string;
 }
 
-const props = defineProps(['googleData', 'tmdbRating', 'item'])
+const props = defineProps(['googleData', 'tmdbRating', 'item', 'compact'])
 let watchOptions = [] as any[]
 let watchOptionsByCountry: any = {};
 let isOpen = ref(false);

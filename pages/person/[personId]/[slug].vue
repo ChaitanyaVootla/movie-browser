@@ -41,7 +41,7 @@
                             </div>
                             <div>{{ person.place_of_birth }}</div>
                         </div>
-                        <div class="max-md:text-sm md:text-base text-neutral-400 mt-5 line-clamp-6 text-center md:text-left">{{ person.biography }}</div>
+                        <div class="max-md:text-sm md:text-base text-neutral-400 mt-5 line-clamp-6 text-left max-md:text-center">{{ person.biography }}</div>
                     </div>
                 </div>
             </div>

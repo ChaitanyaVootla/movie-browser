@@ -1,3 +1,5 @@
+import { findPrimaryTrailer } from './video';
+
 export const createMovieLdSchema = (movie: any) => {
     if (!movie?.title) return {};
     return {
@@ -83,7 +85,7 @@ const getDuration = (time: number) => {
 
 const getTrailerSchema = (videos: any) => {
     if (!videos?.results?.length) return {};
-    const trailer = videos.results.find((video: any) => (video.type === 'Trailer') && (video.site === 'YouTube'));
+    const trailer = findPrimaryTrailer(videos);
     if (!trailer) return {};
     return {
         "@type": "VideoObject",

@@ -5,6 +5,7 @@ import { combineRatings } from "~/server/utils/ratings/combineRatings";
 import { getWatchOptions } from "~/server/utils/watchOptions";
 import { JWT } from "next-auth/jwt";
 import { TMDB } from "~/server/utils/api";
+import { getPrimaryVideoInfo } from "~/utils/video";
 
 const DAY_MILLIS = 1000 * 60 * 60 * 24;
 const SEASON_CACHE_TTL = 6 * 60 * 60; // 6 hours in seconds
@@ -13,6 +14,7 @@ export default defineEventHandler(async (event) => {
     const seriesId = getRouterParam(event, 'seriesId');
     let isForce = getQuery(event).force ? true : false;
     const checkUpdate = getQuery(event).checkUpdate ? true : false;
+    const minimal = getQuery(event).minimal ? true : false;
     let country = getQuery(event).country as string;
     if (!country) {
         country = getHeader(event, 'X-Country-Code') || 'IN';
@@ -29,7 +31,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Series not found for id: ${seriesId}`);
     }
 
-    const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false, false, event, country);
+    const series = await seriesGetHandler(seriesId as string, checkUpdate, isForce, false, false, event, country, minimal);
 
     if (!series) {
         event.node.res.statusCode = 404;
@@ -41,9 +43,31 @@ export default defineEventHandler(async (event) => {
         return;
     }
 
+    if (minimal && series.name && !isForce) {
+        const s = series as any;
+        return {
+            id: s.id,
+            name: s.name,
+            backdrop_path: s.backdrop_path,
+            poster_path: s.poster_path,
+            videos: getPrimaryVideoInfo(s.videos), // Only send primary trailer
+            genres: s.genres,
+            first_air_date: s.first_air_date,
+            last_air_date: s.last_air_date,
+            number_of_seasons: s.number_of_seasons,
+            status: s.status,
+            ratings: s.ratings, // Combined ratings (already processed)
+            watch_options: s.watch_options, // Processed watch options for user's region
+            vote_average: s.vote_average,
+            overview: s.overview,
+            next_episode_to_air: s.next_episode_to_air,
+            last_episode_to_air: s.last_episode_to_air
+        };
+    }
+
     const latestSeasonNumber = series.next_episode_to_air?.season_number || series.last_episode_to_air?.season_number;
     let selectedSeason = {};
-    if (latestSeasonNumber) {
+    if (latestSeasonNumber && !minimal) {
         selectedSeason = await getCachedSeasonData(seriesId as string, latestSeasonNumber);
     }
     return {
@@ -53,7 +77,7 @@ export default defineEventHandler(async (event) => {
 });
 
 export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate = false, event?: any, country?: string): Promise<any> => {
+    forceFrequent: boolean, shallowUpdate = false, event?: any, country?: string, minimal = false): Promise<any> => {
     let series = {} as any;
     let canUpdate = false;
     let dbSeries;
@@ -72,7 +96,8 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
             {
                 $project: {
                     _id: 0, __v: 0, "images.posters": 0, production_companies: 0,
-                    production_countries: 0, spoken_languages: 0, similar: 0, watchProviders: 0
+                    production_countries: 0, spoken_languages: 0, similar: 0, watchProviders: 0,
+                    ...(minimal ? { credits: 0, recommendations: 0, keywords: 0 } : {})
                 }
             },
             { $addFields: { watchProviders: "$_wp_tmp" } },
@@ -82,8 +107,16 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
         const results = await Series.aggregate(pipeline);
         dbSeries = results[0];
     } else {
-        dbSeries = await Series.findOne({ id: seriesId })
-            .select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar -watchProviders');
+        let query = Series.findOne({ id: seriesId })
+            .select('-_id -__v -images.posters -production_companies -production_countries -spoken_languages -similar');
+
+        if (minimal) {
+            query = query.select('-credits -recommendations -keywords');
+        } else {
+            query = query.select('-watchProviders');
+        }
+
+        dbSeries = await query;
     }
 
     // @ts-ignore
@@ -106,9 +139,13 @@ export const seriesGetHandler = async (seriesId: string, checkUpdate: boolean, i
         isForce = true;
     }
     if (isForce || !series.name) {
+        const queryParams = minimal
+            ? '&append_to_response=videos,images,external_ids,watch/providers'
+            : SERIES_QUERY_PARAMS;
+
         try {
             const [details, watchProviders]: [any, any] = await Promise.all([
-                $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${SERIES_QUERY_PARAMS}`, {
+                $fetch(`${TMDB.BASE_URL}/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}${queryParams}`, {
                     retry: 5,
                 }),
                 $fetch(`${TMDB.BASE_URL}/tv/${seriesId}/watch/providers?api_key=${process.env.TMDB_API_KEY}`, {

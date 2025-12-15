@@ -6,6 +6,7 @@ import { getNewLambdaData } from "~/server/utils/externalData/newLambdaData";
 import { combineRatings } from "~/server/utils/ratings/combineRatings";
 import { getWatchOptions } from "~/server/utils/watchOptions";
 import { JWT } from "next-auth/jwt";
+import { getPrimaryVideoInfo } from "~/utils/video";
 
 const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
 
@@ -15,6 +16,7 @@ export default defineEventHandler(async (event) => {
     const movieId = getRouterParam(event, 'movieId');
     let isForce = getQuery(event).force ? true : false;
     const checkUpdate = getQuery(event).checkUpdate ? true : false;
+    const minimal = getQuery(event).minimal ? true : false;
     let country = getQuery(event).country as string;
     if (!country) {
         country = getHeader(event, 'X-Country-Code') || 'IN';
@@ -30,7 +32,7 @@ export default defineEventHandler(async (event) => {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
     }
-    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false, false, event, country);
+    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false, false, event, country, minimal);
     if (!movie) {
         event.node.res.statusCode = 404;
         event.node.res.end(`Movie not found for id: ${movieId}`);
@@ -40,11 +42,30 @@ export default defineEventHandler(async (event) => {
         event.node.res.end(`Unauthorized`);
         return;
     }
+
+    if (minimal) {
+        const m = movie as any;
+        return {
+            id: m.id,
+            title: m.title,
+            backdrop_path: m.backdrop_path,
+            poster_path: m.poster_path,
+            videos: getPrimaryVideoInfo(m.videos), // Only send primary trailer
+            genres: m.genres,
+            release_date: m.release_date,
+            runtime: m.runtime,
+            ratings: m.ratings, // Combined ratings (already processed)
+            watch_options: m.watch_options, // Processed watch options for user's region
+            vote_average: m.vote_average,
+            overview: m.overview
+        };
+    }
+
     return movie;
 });
 
 export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate = false, event?: any, country?: string): Promise<IMovie> => {
+    forceFrequent: boolean, shallowUpdate = false, event?: any, country?: string, minimal = false): Promise<IMovie> => {
     let movie = {} as any;
     let canUpdate = false;
     let dbMovie;
@@ -65,7 +86,8 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
                 $project: {
                     _id: 0, __v: 0, external_ids: 0, "images.posters": 0,
                     production_companies: 0, production_countries: 0,
-                    spoken_languages: 0, releaseDates: 0, watchProviders: 0
+                    spoken_languages: 0, releaseDates: 0, watchProviders: 0,
+                    ...(minimal ? { credits: 0, similar: 0, recommendations: 0, keywords: 0 } : {})
                 }
             },
             { $addFields: { watchProviders: "$_wp_tmp" } },
@@ -75,8 +97,16 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
         const results = await Movie.aggregate(pipeline);
         dbMovie = results[0];
     } else {
-        dbMovie = await Movie.findOne({ id: movieId })
-            .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates -watchProviders');
+        let query = Movie.findOne({ id: movieId })
+            .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates');
+
+        if (minimal) {
+            query = query.select('-credits -similar -recommendations -keywords');
+        } else {
+            query = query.select('-watchProviders');
+        }
+
+        dbMovie = await query;
     }
 
     if (dbMovie && (dbMovie.title || (dbMovie as any).id)) {
@@ -99,9 +129,13 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
     }
 
     if (isForce || !movie.title) {
+        const queryParams = minimal
+            ? '&append_to_response=videos,images,external_ids,watch/providers'
+            : QUERY_PARAMS;
+
         try {
             const [details, releaseDates, watchProviders]: [any, any, any] = await Promise.all([
-                $fetch(`${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${QUERY_PARAMS}`, {
+                $fetch(`${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${queryParams}`, {
                     retry: 5,
                 }),
                 $fetch(`${TMDB.BASE_URL}/movie/${movieId}/release_dates?api_key=${process.env.TMDB_API_KEY}`, {
@@ -113,7 +147,8 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
             ]);
             details.releaseDates = releaseDates.results;
             details.watchProviders = watchProviders.results;
-            if (details.belongs_to_collection?.id) {
+
+            if (!minimal && details.belongs_to_collection?.id) {
                 const collectionDetails: any = await $fetch(
                     `${TMDB.BASE_URL}/collection/${details.belongs_to_collection.id}?api_key=${process.env.TMDB_API_KEY}`,
                     {
@@ -125,12 +160,17 @@ export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isF
                 });
                 details.collectionDetails = collectionDetails;
             }
+
             let googleData = movie.googleData || {} as any;
             let externalData = movie.external_data || {} as any;
 
             if (!shallowUpdate) {
+                // If minimal, we might skip some heavy lambda checks if we already have ratings
+                // But user wants ratings, so we should probably try to get them if missing.
+                // For now, keep logic same but rely on existing logic.
+
                 if (details.imdb_id || details.directorName) {
-                    const movieDirectorName = details.credits.crew.find(({ job }: any) => job === 'Director')?.name;
+                    const movieDirectorName = details?.credits?.crew?.find(({ job }: any) => job === 'Director')?.name;
 
                     // Call both lambdas in parallel
                     const [oldLambdaResponse, newLambdaResponse] = await Promise.allSettled([

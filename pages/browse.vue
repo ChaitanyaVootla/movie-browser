@@ -1,8 +1,8 @@
 <template>
-    <div class="flex max-h-scren w-full overflow-y-auto">
+    <div class="flex w-full">
         <div v-if="$vuetify.display.mdAndUp || filtersVisible" id="filters"
-            class="w-[calc(15%)] min-w-64 h-full bg-neutral-900 px-4"
-            :class="{'!w-screen': filtersVisible}">
+            class="bg-neutral-900 px-4 max-md:h-full md:fixed md:left-0 md:top-14 md:h-[calc(100vh-3.5rem)] md:w-64 md:overflow-y-auto"
+            :class="{'!w-screen fixed inset-0 z-50': filtersVisible}">
             <div class="top-action flex justify-center mb-6 mt-6">
                 <v-btn-toggle v-model="selectedType" mandatory density="compact" @update:model-value="freshLoad"
                     class="!h-8">
@@ -15,7 +15,7 @@
                 </v-btn-toggle>
             </div>
 
-            <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-6 pb-6">
                 <v-divider></v-divider>
                 <div class="text-neutral-200">Genres and Keywords</div>
                 <v-autocomplete
@@ -208,16 +208,16 @@
                 ></v-text-field>
             </div>
             
-            <div class="flex justify-center mt-10">
+            <div class="flex justify-center mt-10 pb-6">
                 <v-chip variant="flat" color="#555" prepend-icon="mdi-plus" @click="openCreateFilter"
                     :disabled="selectedFilter._id" rounded>
                     Create Topic
                 </v-chip>
             </div>
         </div>
-        <div v-if="!filtersVisible" class="w-full pt-2 md:pt-4 mainContent pb-10">
+        <div v-if="!filtersVisible" class="max-md:w-full md:w-[calc(100vw-16rem)] pt-2 md:pt-4 mainContent pb-10 md:ml-64">
             <div class="max-md:px-3 md:px-10 md:mb-2">
-                <div class="flex gap-2 w-full md:w-[calc(100vw-23rem)] overflow-x-auto">
+                <div class="flex gap-2 w-full overflow-x-auto">
                     <div v-if="status === 'authenticated' && userFilters.length" v-for="filter in userFilters">
                         <v-chip v-if="selectedFilter._id !== filter._id" @click="selectFilter(filter)" class="rounded !text-white"
                             variant="flat" color="#333" :size="$vuetify.display.mdAndDown?'small':'default'">
@@ -225,7 +225,7 @@
                             {{ filter.name }}
                         </v-chip>
                         <div v-else>
-                            <v-chip :rounded="false" class="rounded !cursor-pointer group" color="#555" variant="flat"
+                            <v-chip rounded class="!cursor-pointer group" color="#555" variant="flat"
                                 :size="$vuetify.display.mdAndDown?'small':'default'">
                                 <v-icon v-if="filter.isGlobal" icon="mdi-earth" class="mr-2" color="#aaa"></v-icon>
                                 <div @click="selectFilter(filter)">
