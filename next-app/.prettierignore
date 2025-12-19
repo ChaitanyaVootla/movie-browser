@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.yarn/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Test outputs
+playwright-report/
+test-results/
+coverage/
+
+# Generated files
+*.lock
+tsconfig.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.log
+

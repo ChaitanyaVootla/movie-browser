@@ -1,0 +1,21 @@
+{
+  "name": "Movie Browser",
+  "short_name": "MovieBrowser",
+  "description": "Track, discover and find where to watch TV shows and movies",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#171717",
+  "theme_color": "#171717",
+  "icons": [
+    {
+      "src": "/images/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
