@@ -1,55 +1,91 @@
+# =============================================================================
+# Dependencies
+# =============================================================================
 node_modules
+
+# =============================================================================
+# Build outputs
+# =============================================================================
 dist
-.vs
-bin
+.next
+.output
+
+# =============================================================================
+# Environment files
+# =============================================================================
 .env
-android
-.github/workflows/do.yaml
-dump
-postgres
+.env.*
+!.env.example
+!template.env
+
+# =============================================================================
+# IDE / Editor
+# =============================================================================
+.vs
+.fleet
+.idea
 .DS_Store
-server/src/cron/data
-server/src/db/data
+*.swp
+*.swo
+
+# =============================================================================
+# Testing artifacts
+# =============================================================================
+playwright-report/
+test-results/
+coverage/
+
+# =============================================================================
+# Next.js specific
+# =============================================================================
+.next
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# =============================================================================
+# Nuxt folder (legacy - kept for reference)
+# =============================================================================
+nuxt/.nuxt
+nuxt/.nitro
+nuxt/.cache
+nuxt/.output
+nuxt/.data
+nuxt/node_modules
+nuxt/.env
+nuxt/.env.*
+nuxt/tests/html-snapshots/
+
+# =============================================================================
+# Infrastructure / Data
+# =============================================================================
 VectorDB/db
 VectorDB/openai/db
 VectorDB/vector
 .venv
-dump.tar.gz
 __pycache__
-
-# Nuxt dev/build outputs
-.output
-.data
-.nuxt
-.nitro
-.cache
-dist
-
-# Node dependencies
-node_modules
-
-# Logs
-logs
-*.log
-
-# Misc
-.DS_Store
-.fleet
-.idea
-
-# Local env files
-.env
-.env.*
-!.env.example
-
-# data
+dump
+dump.tar.gz
+postgres
 data
 ./public/data
 
-# Generated sitemaps
+# =============================================================================
+# Logs
+# =============================================================================
+logs
+*.log
+nginx-logs/
+
+# =============================================================================
+# Generated files
+# =============================================================================
 sitemap*.xml
 
-# Testing artifacts
-playwright-report/
-test-results/
-tests/html-snapshots/
+# =============================================================================
+# Yarn
+# =============================================================================
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*

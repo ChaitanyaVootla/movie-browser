@@ -1,50 +1,52 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  use: {
-    baseURL: 'http://localhost:3000',
-    // Disable JavaScript to test pure SSR content
-    javaScriptEnabled: false,
-  },
-  timeout: 60000, // Increase timeout to 60 seconds
-  expect: {
-    timeout: 30000,
-  },
-  testDir: './tests/e2e',
+  testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [["html"], ["list"]],
+  timeout: 60000,
+  expect: {
+    timeout: 30000,
+  },
+  use: {
+    baseURL: "http://localhost:3000",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+  },
   projects: [
     {
-      name: 'SEO Tests (No JS)',
-      use: { 
-        ...devices['Desktop Chrome'],
+      name: "SEO Tests (No JS)",
+      use: {
+        ...devices["Desktop Chrome"],
         javaScriptEnabled: false, // Pure SSR testing
       },
-      testMatch: ['**/seo.spec.ts', '**/ssr-content.spec.ts']
+      testMatch: ["**/seo/**/*.spec.ts"],
     },
     {
-      name: 'E2E Tests (With JS)',
-      use: { 
-        ...devices['Desktop Chrome'],
+      name: "E2E Tests (With JS)",
+      use: {
+        ...devices["Desktop Chrome"],
         javaScriptEnabled: true,
       },
-      testMatch: '**/e2e.spec.ts'
+      testMatch: ["**/e2e/**/*.spec.ts"],
+      testIgnore: ["**/seo/**/*.spec.ts"],
     },
     {
-      name: 'Mobile SEO',
-      use: { 
-        ...devices['iPhone 13'],
-        javaScriptEnabled: false,
+      name: "Mobile Chrome",
+      use: {
+        ...devices["Pixel 5"],
+        javaScriptEnabled: true,
       },
-      testMatch: '**/mobile-seo.spec.ts'
-    }
+      testMatch: ["**/mobile/**/*.spec.ts"],
+    },
   ],
   webServer: {
-    command: 'npm run dev',
-    port: 3000,
+    command: "yarn dev",
+    url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
   },
-})
+});

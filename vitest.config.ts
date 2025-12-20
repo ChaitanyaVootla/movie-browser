@@ -1,16 +1,26 @@
-import { defineVitestConfig } from '@nuxt/test-utils/config'
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
-export default defineVitestConfig({
+export default defineConfig({
+  plugins: [react()],
   test: {
-    environment: 'nuxt',
-    include: ['tests/unit/**/*.test.ts'],
-    exclude: ['tests/e2e/**/*', 'tests/**/*.spec.ts'],
-    coverage: {
-      provider: 'v8',
-      include: ['pages/**', 'components/**', 'server/**', 'utils/**'],
-      exclude: ['**/node_modules/**', '**/dist/**', '**/.nuxt/**', 'tests/e2e/**']
-    },
+    environment: "happy-dom",
     globals: true,
-    setupFiles: ['./tests/setup.ts']
-  }
-})
+    setupFiles: ["./vitest.setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["node_modules", "e2e"],
+    coverage: {
+      reporter: ["text", "json", "html"],
+      exclude: [
+        "node_modules/",
+        "src/components/ui/", // shadcn components
+      ],
+    },
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+});
