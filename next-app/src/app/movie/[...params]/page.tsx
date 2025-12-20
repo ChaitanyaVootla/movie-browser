@@ -9,6 +9,7 @@ import {
   ImageGallery,
   RecommendationsSection,
   CollectionSection,
+  RecentTracker,
 } from "@/components/features/media";
 import { SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
 
@@ -171,6 +172,15 @@ export default async function MoviePage({ params }: MoviePageProps) {
   return (
     <>
       <MovieSchema movie={movie} />
+
+      {/* Track this page view for recents */}
+      <RecentTracker
+        itemId={movie.id}
+        isMovie={true}
+        title={movie.title}
+        poster_path={movie.poster_path}
+        backdrop_path={movie.backdrop_path}
+      />
 
       <article className="pb-12">
         {/* Hero section with backdrop, logo, genres, ratings, actions */}

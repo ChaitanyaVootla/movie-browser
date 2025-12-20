@@ -11,6 +11,9 @@ import { discoverBatch } from "@/server/actions/discover";
 import type { DiscoverParams } from "@/lib/discover";
 import { TopicDetailClient } from "./client";
 
+// ISR: Revalidate every 30 minutes (matches discover cache TTL)
+export const revalidate = 1800;
+
 interface TopicPageProps {
   params: Promise<{
     topic: string;

@@ -4,32 +4,50 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Search, Menu, Film, Tv, Users, Compass, Shield } from "lucide-react";
+import { Search, Menu, Users, Compass, Shield, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "./theme-toggle";
+import { CountrySelector } from "./country-selector";
 import { UserMenu, LoginDialog, useLoginDialog } from "@/components/features/auth";
+import { SearchCommand, useSearchCommand } from "@/components/features/search";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
 const navItems = [
-  { href: "/movie", label: "Movies", icon: Film },
-  { href: "/series", label: "TV Shows", icon: Tv },
   { href: "/browse", label: "Browse", icon: Compass },
   { href: "/topics", label: "Topics", icon: Users },
+];
+
+const authNavItems = [
+  { href: "/watchlist", label: "Watchlist", icon: Bookmark },
 ];
 
 export function NavBar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { isOpen, openLoginDialog, setIsOpen } = useLoginDialog();
+  const { open: isSearchOpen, setOpen: setSearchOpen } = useSearchCommand();
 
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
   const isAdmin = session?.user?.role === "admin";
+  
+  // Detect OS for keyboard shortcut display (client-side only)
+  const [isMac, setIsMac] = useState(() => {
+    // Default to true for SSR, will be corrected on client
+    if (typeof window === "undefined") return true;
+    return navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  });
+  useEffect(() => {
+    // Re-check on client mount in case SSR value differs
+    const isMacOS = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+    if (isMac !== isMacOS) {
+      setIsMac(isMacOS);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -86,6 +104,22 @@ export function NavBar() {
                   </Button>
                 </Link>
               ))}
+              {/* Auth-only nav items */}
+              {isAuthenticated &&
+                authNavItems.map(({ href, label, icon: Icon }) => (
+                  <Link key={href} href={href}>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "gap-2 text-muted-foreground hover:text-foreground hover:bg-white/10",
+                        pathname?.startsWith(href) && "text-foreground bg-white/10"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </Button>
+                  </Link>
+                ))}
               {/* Admin link - only visible to admins */}
               {isAdmin && (
                 <Link href="/admin">
@@ -106,29 +140,41 @@ export function NavBar() {
 
           {/* Right side: Search & Actions */}
           <div className="flex items-center gap-3">
-            {/* Desktop Search */}
-            <div className="hidden md:flex relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search movies, shows..."
-                className={cn(
-                  "w-64 pl-10 border-transparent focus:border-border transition-colors",
-                  isScrolled ? "bg-muted/50" : "bg-white/10 placeholder:text-white/60"
-                )}
-              />
-            </div>
+            {/* Desktop Search Trigger */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className={cn(
+                "hidden md:flex items-center gap-3 h-9 w-64 px-3 rounded-md text-sm transition-colors",
+                isScrolled
+                  ? "bg-muted/50 hover:bg-muted text-muted-foreground"
+                  : "bg-white/10 hover:bg-white/15 text-white/70"
+              )}
+            >
+              <Search className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1 text-left">Search...</span>
+              <kbd className={cn(
+                "hidden lg:inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px]",
+                isScrolled
+                  ? "border-border bg-background text-muted-foreground"
+                  : "border-white/20 bg-white/10 text-white/60"
+              )}>
+                {isMac ? "⌘" : "Ctrl"}K
+              </kbd>
+            </button>
 
             {/* Mobile Search Button */}
             <Button
               variant="ghost"
               size="icon"
               className="md:hidden h-9 w-9 hover:bg-white/10"
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              onClick={() => setSearchOpen(true)}
             >
               <Search className="h-4 w-4" />
               <span className="sr-only">Search</span>
             </Button>
+
+            {/* Country Selector */}
+            <CountrySelector compact className="hidden sm:flex" />
 
             {/* Theme Toggle */}
             <ThemeToggle />
@@ -173,6 +219,22 @@ export function NavBar() {
                       </Button>
                     </Link>
                   ))}
+                  {/* Auth-only nav items in mobile menu */}
+                  {isAuthenticated &&
+                    authNavItems.map(({ href, label, icon: Icon }) => (
+                      <Link key={href} href={href}>
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            "w-full justify-start gap-3 text-muted-foreground hover:text-foreground",
+                            pathname?.startsWith(href) && "text-foreground bg-accent"
+                          )}
+                        >
+                          <Icon className="h-5 w-5" />
+                          {label}
+                        </Button>
+                      </Link>
+                    ))}
                   {/* Admin link in mobile menu */}
                   {isAdmin && (
                     <Link href="/admin">
@@ -188,7 +250,12 @@ export function NavBar() {
                       </Button>
                     </Link>
                   )}
-                  <div className="pt-4 border-t border-border mt-4">
+                  <div className="pt-4 border-t border-border mt-4 space-y-3">
+                    {/* Country selector in mobile menu */}
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-sm text-muted-foreground">Region</span>
+                      <CountrySelector />
+                    </div>
                     {isAuthenticated ? (
                       <UserMenu className="w-full" />
                     ) : (
@@ -208,21 +275,10 @@ export function NavBar() {
           </div>
         </div>
 
-        {/* Mobile Search Expanded */}
-        {isSearchOpen && (
-          <div className="md:hidden border-t border-border/40 p-4 bg-background">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search movies, shows, people..."
-                className="w-full pl-10"
-                autoFocus
-              />
-            </div>
-          </div>
-        )}
       </header>
+
+      {/* Search Command Dialog */}
+      <SearchCommand open={isSearchOpen} onOpenChange={setSearchOpen} />
 
       {/* Login Dialog */}
       <LoginDialog open={isOpen} onOpenChange={setIsOpen} />

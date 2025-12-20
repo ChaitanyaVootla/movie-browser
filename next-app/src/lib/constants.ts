@@ -78,6 +78,8 @@ export const CACHE_DURATIONS = {
   series: 3600, // 1 hour
   person: 86400, // 24 hours
   search: 300, // 5 minutes
+  discover: 1800, // 30 minutes
+  images: 3600, // 1 hour
   watchProviders: 86400, // 24 hours
 } as const;
 

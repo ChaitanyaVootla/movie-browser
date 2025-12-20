@@ -40,3 +40,4 @@ export function getUserRole(email: string | null | undefined): UserRole {
   return isAdminEmail(email) ? "admin" : "user";
 }
 
+

@@ -157,6 +157,7 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
     name: user.name,
     email: user.email,
     image: user.image || tokenInfo.picture,
+    googleId: tokenInfo.sub,
   };
 }
 
@@ -171,7 +172,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: clientPromise ? MongoDBAdapter(clientPromise) : undefined,
 
   // Override providers to add the actual Google One Tap authorize function
-  providers: authConfig.providers.map((provider) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  providers: authConfig.providers.map((provider: any) => {
     if (provider.id === "google-one-tap") {
       return {
         ...provider,
@@ -232,8 +234,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         console.log(`New user signed up: ${user.email}`);
       }
     },
-    async signOut({ token }) {
-      console.log(`User signed out: ${token?.email}`);
+    async signOut(message) {
+      // Handle both JWT and session strategies
+      if ("token" in message) {
+        console.log(`User signed out: ${message.token?.email}`);
+      }
     },
   },
 });

@@ -1,14 +1,62 @@
 "use server";
 
+import { headers } from "next/headers";
 import {
   getTrendingMovies,
   getTrendingTV,
   getTrendingAll,
-  getMovieImages,
-  getSeriesImages,
+  getMovieWatchProviders,
+  getSeriesWatchProviders,
 } from "@/server/services/tmdb";
+import {
+  getCachedMovieRatingsBatch,
+  getCachedSeriesRatingsBatch,
+} from "@/server/db/cached-queries";
+import { combineRatings, type ProcessedRating } from "@/lib/ratings";
+import {
+  getWatchOptionsForCountry,
+  getOptimizedWatchProviders,
+  type ProcessedWatchOptions,
+} from "@/lib/watch-options";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
-import type { MediaItem, MovieListItem, SeriesListItem } from "@/types";
+import type {
+  MediaItem,
+  MovieListItem,
+  SeriesListItem,
+  ExternalRating,
+  WatchProviderData,
+} from "@/types";
+
+// Type for MongoDB document with ratings data
+interface DBRatingsDoc {
+  id: number;
+  googleData?: {
+    ratings?: Array<{ rating: string; name: string; link: string }>;
+    allWatchOptions?: Array<{ name: string; link: string; price?: string }>;
+  };
+  external_data?: {
+    ratings?: {
+      imdb?: { rating: number | null; ratingCount: number | null; sourceUrl?: string };
+      rottenTomatoes?: {
+        critic?: { score: number | null; ratingCount: number | null; certified: boolean | null; sentiment: string | null };
+        audience?: { score: number | null; ratingCount: number | null; certified: boolean | null; sentiment: string | null };
+        sourceUrl?: string;
+      };
+    };
+  };
+}
+
+/**
+ * Get country code from request headers
+ */
+async function getCountryCode(): Promise<string> {
+  try {
+    const headersList = await headers();
+    return headersList.get("x-country-code") || "IN";
+  } catch {
+    return "IN";
+  }
+}
 
 /**
  * Map genre IDs to genre names
@@ -61,55 +109,81 @@ function mapMediaItem(item: Record<string, unknown>): MediaItem {
 }
 
 /**
- * Fetch logo paths for hero items (best effort - failures don't block)
+ * Enhanced data for hero carousel items
  */
-async function fetchLogosForHeroItems(
-  items: MediaItem[]
-): Promise<Record<number, string | null>> {
-  const logoMap: Record<number, string | null> = {};
-
-  // Fetch logos in parallel with individual error handling
-  await Promise.all(
-    items.map(async (item) => {
-      try {
-        const isMovie = item.media_type === "movie";
-        const images = isMovie
-          ? await getMovieImages(item.id)
-          : await getSeriesImages(item.id);
-
-        // Get the first English logo, or first logo if no English available
-        const logo = images.logos?.[0];
-        logoMap[item.id] = logo?.file_path ?? null;
-      } catch (error) {
-        // Log but don't fail - logo is optional
-        console.warn(`Failed to fetch logo for ${item.media_type} ${item.id}:`, error);
-        logoMap[item.id] = null;
-      }
-    })
-  );
-
-  return logoMap;
+export interface HeroItemEnhancedData {
+  ratings: ExternalRating[];
+  watchOptions: ProcessedWatchOptions;
+  watchProviders?: Record<string, WatchProviderData>;
+  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
 }
 
 export interface TrendingData {
   allItems: MediaItem[];
   movies: MovieListItem[];
   tv: SeriesListItem[];
-  /** Map of item ID to TMDB logo path for hero carousel */
-  logoMap: Record<number, string | null>;
+  /** Enhanced data for hero items, keyed by "{mediaType}:{id}" e.g. "movie:123" or "tv:456" */
+  heroEnhancedData: Record<string, HeroItemEnhancedData>;
+}
+
+/**
+ * Fetch watch providers for a media item
+ */
+async function fetchWatchProviders(
+  id: number,
+  mediaType: "movie" | "tv"
+): Promise<Record<string, WatchProviderData> | undefined> {
+  try {
+    const data =
+      mediaType === "movie"
+        ? await getMovieWatchProviders(id)
+        : await getSeriesWatchProviders(id);
+    return data?.results as Record<string, WatchProviderData>;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Process ratings from MongoDB data
+ */
+function processRatings(
+  dbDoc: DBRatingsDoc | null | undefined,
+  tmdbRating: number,
+  tmdbVoteCount: number,
+  itemId: number,
+  mediaType: "movie" | "tv"
+): ExternalRating[] {
+  const processedRatings = combineRatings(
+    dbDoc?.googleData as Parameters<typeof combineRatings>[0],
+    dbDoc?.external_data as Parameters<typeof combineRatings>[1],
+    tmdbRating,
+    tmdbVoteCount,
+    itemId,
+    mediaType
+  );
+
+  return processedRatings.map((r: ProcessedRating) => ({
+    name: r.label,
+    rating: r.score.toString(),
+    link: r.link,
+    certified: r.certified,
+    sentiment: r.sentiment,
+  }));
 }
 
 /**
  * Get trending content for the homepage
- * Uses in-memory caching via the TMDB service
+ * Includes enhanced data (ratings, watch options) for hero carousel items
  */
 export async function getTrending(): Promise<TrendingData> {
   try {
-    // Fetch all trending data in parallel
-    const [allTrending, moviesTrending, tvTrending] = await Promise.all([
+    // Fetch all trending data and country code in parallel
+    const [allTrending, moviesTrending, tvTrending, countryCode] = await Promise.all([
       getTrendingAll("week"),
       getTrendingMovies("week"),
       getTrendingTV("week"),
+      getCountryCode(),
     ]);
 
     // Map hero items (top 10 from all trending)
@@ -127,14 +201,82 @@ export async function getTrending(): Promise<TrendingData> {
       .slice(0, 20)
       .map(mapTVGenres);
 
-    // Fetch logos for hero items (non-blocking)
-    const logoMap = await fetchLogosForHeroItems(allItems);
+    // Separate hero items by media type for batch fetching
+    const heroMovieIds = allItems
+      .filter((item) => item.media_type === "movie")
+      .map((item) => item.id);
+    const heroTVIds = allItems
+      .filter((item) => item.media_type === "tv")
+      .map((item) => item.id);
+
+    // Fetch MongoDB ratings and TMDB watch providers in parallel
+    const [movieRatings, seriesRatings, ...watchProvidersResults] = await Promise.all([
+      // Batch fetch MongoDB ratings
+      heroMovieIds.length > 0 ? getCachedMovieRatingsBatch(heroMovieIds) : Promise.resolve([]),
+      heroTVIds.length > 0 ? getCachedSeriesRatingsBatch(heroTVIds) : Promise.resolve([]),
+      // Fetch watch providers for each hero item (parallel)
+      ...allItems.map((item) =>
+        fetchWatchProviders(item.id, item.media_type === "movie" ? "movie" : "tv")
+      ),
+    ]);
+
+    // Create lookup maps for MongoDB data
+    const movieRatingsMap = new Map(
+      (movieRatings as DBRatingsDoc[]).map((doc) => [doc.id, doc])
+    );
+    const seriesRatingsMap = new Map(
+      (seriesRatings as DBRatingsDoc[]).map((doc) => [doc.id, doc])
+    );
+
+    // Build enhanced data for each hero item
+    const heroEnhancedData: Record<string, HeroItemEnhancedData> = {};
+
+    allItems.forEach((item, index) => {
+      const isMovie = item.media_type === "movie";
+      const mediaType = isMovie ? "movie" : "tv";
+      const key = `${mediaType}:${item.id}`;
+
+      // Get MongoDB data
+      const dbDoc = isMovie
+        ? movieRatingsMap.get(item.id)
+        : seriesRatingsMap.get(item.id);
+
+      // Get watch providers (from parallel fetch results)
+      const watchProviders = watchProvidersResults[index];
+
+      // Process ratings
+      const ratings = processRatings(
+        dbDoc,
+        item.vote_average,
+        item.vote_count || 0,
+        item.id,
+        mediaType
+      );
+
+      // Process watch options for user's country
+      const googleData = dbDoc?.googleData as { allWatchOptions?: Array<{ name: string; link: string; price?: string }> } | undefined;
+      const watchOptions = getWatchOptionsForCountry(
+        countryCode,
+        googleData,
+        watchProviders
+      );
+
+      // Get optimized watch providers for client-side country switching
+      const optimizedWatchProviders = getOptimizedWatchProviders(countryCode, watchProviders);
+
+      heroEnhancedData[key] = {
+        ratings,
+        watchOptions,
+        watchProviders: optimizedWatchProviders,
+        googleData,
+      };
+    });
 
     return {
       allItems,
       movies,
       tv,
-      logoMap,
+      heroEnhancedData,
     };
   } catch (error) {
     console.error("Failed to fetch trending:", error);
@@ -142,7 +284,7 @@ export async function getTrending(): Promise<TrendingData> {
       allItems: [],
       movies: [],
       tv: [],
-      logoMap: {},
+      heroEnhancedData: {},
     };
   }
 }

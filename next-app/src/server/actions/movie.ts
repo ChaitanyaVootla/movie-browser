@@ -1,15 +1,33 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { getMovieDetails, getMovieCollection } from "@/server/services/tmdb";
-import { connectDB } from "@/server/db";
-import { Movie as MovieModel } from "@/server/db/models/movie";
+import { getCachedMovieRatings } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
-import type { Movie, Collection, ExternalRating } from "@/types";
+import {
+  getWatchOptionsForCountry,
+  getOptimizedWatchProviders,
+} from "@/lib/watch-options";
+import type { Movie, Collection, ExternalRating, WatchProviderData } from "@/types";
 
 const GetMovieSchema = z.object({
   id: z.number().positive(),
 });
+
+/**
+ * Get country code from request headers
+ * Falls back to IN (India) if not available
+ */
+async function getCountryCode(): Promise<string> {
+  try {
+    const headersList = await headers();
+    // Check for nginx-injected header or query param
+    return headersList.get("x-country-code") || "IN";
+  } catch {
+    return "IN";
+  }
+}
 
 /**
  * Get full movie details including credits, videos, images, keywords, recommendations, watch providers, and ratings
@@ -19,14 +37,12 @@ export async function getMovie(id: number): Promise<Movie | null> {
   try {
     const validated = GetMovieSchema.parse({ id });
 
-    // Connect to MongoDB and fetch stored movie data (contains ratings from scrapers)
-    await connectDB();
-    const dbMovie = await MovieModel.findOne({ id: validated.id })
-      .select("-_id -__v -watchProviders")
-      .lean();
-
-    // Fetch fresh TMDB data
-    const tmdbData = await getMovieDetails(validated.id);
+    // Fetch TMDB data, cached MongoDB ratings, and country code in parallel
+    const [tmdbData, dbMovie, countryCode] = await Promise.all([
+      getMovieDetails(validated.id),
+      getCachedMovieRatings(validated.id), // Uses Next.js cache with 1hr TTL
+      getCountryCode(),
+    ]);
 
     if (!tmdbData || !tmdbData.id) {
       return null;
@@ -73,6 +89,19 @@ export async function getMovie(id: number): Promise<Movie | null> {
       sentiment: r.sentiment,
     }));
 
+    // Process watch options for the user's country
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)
+      ?.results as Record<string, WatchProviderData> | undefined;
+
+    const watchOptions = getWatchOptionsForCountry(
+      countryCode,
+      googleData as { allWatchOptions?: Array<{ name: string; link: string; price?: string }> },
+      tmdbWatchProviders
+    );
+
+    // Get optimized watch providers (only relevant countries, not all)
+    const optimizedWatchProviders = getOptimizedWatchProviders(countryCode, tmdbWatchProviders);
+
     // Transform TMDB response to our Movie type with ratings
     return {
       id: tmdbData.id as number,
@@ -104,11 +133,11 @@ export async function getMovie(id: number): Promise<Movie | null> {
       keywords: tmdbData.keywords as Movie["keywords"],
       recommendations: tmdbData.recommendations as Movie["recommendations"],
       similar: tmdbData.similar as Movie["similar"],
-      watch_providers: (tmdbData["watch/providers"] as Record<string, unknown>)
-        ?.results as Movie["watch_providers"],
+      watch_providers: optimizedWatchProviders,
       belongs_to_collection: tmdbData.belongs_to_collection as Movie["belongs_to_collection"],
       collectionDetails,
       ratings,
+      watch_options: watchOptions,
     };
   } catch (error) {
     console.error("Error fetching movie:", error);

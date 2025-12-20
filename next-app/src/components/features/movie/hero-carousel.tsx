@@ -3,17 +3,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MediaBackdrop } from "@/components/features/media/media-backdrop";
 import { HeroContent, heroContainerVariants } from "@/components/features/media/hero-content";
-import type { MediaItem } from "@/types";
+import type { MediaItem, ExternalRating, ProcessedWatchOptions, WatchProviderData } from "@/types";
+
+/** Enhanced data for hero items from getTrending */
+interface HeroItemEnhancedData {
+  ratings: ExternalRating[];
+  watchOptions: ProcessedWatchOptions;
+  watchProviders?: Record<string, WatchProviderData>;
+  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
+}
 
 interface HeroCarouselProps {
   items: MediaItem[];
-  /** Map of item ID to TMDB logo path (from images API) */
-  logoMap?: Record<number, string | null>;
+  /** Enhanced data for hero items, keyed by "{mediaType}:{id}" e.g. "movie:123" or "tv:456" */
+  heroEnhancedData?: Record<string, HeroItemEnhancedData>;
   className?: string;
   /** Duration for each slide in ms */
   slideDuration?: number;
@@ -28,7 +34,7 @@ function getSlug(title: string): string {
 
 export function HeroCarousel({
   items,
-  logoMap = {},
+  heroEnhancedData,
   className,
   slideDuration = 8000,
 }: HeroCarouselProps) {
@@ -43,9 +49,11 @@ export function HeroCarousel({
   const title = isMovie
     ? (currentItem as unknown as { title: string }).title
     : (currentItem as unknown as { name: string }).name;
-  const year = isMovie
-    ? (currentItem as unknown as { release_date: string }).release_date?.split("-")[0]
-    : (currentItem as unknown as { first_air_date: string }).first_air_date?.split("-")[0];
+
+  // Get enhanced data for current item
+  const mediaTypeKey = isMovie ? "movie" : "tv";
+  const enhancedDataKey = `${mediaTypeKey}:${currentItem?.id}`;
+  const enhancedData = heroEnhancedData?.[enhancedDataKey];
 
   const goToSlide = useCallback((index: number) => {
     setCurrentIndex(index);
@@ -77,9 +85,6 @@ export function HeroCarousel({
   const href = `/${isMovie ? "movie" : "series"}/${currentItem.id}/${getSlug(title)}`;
   const mediaType = isMovie ? "movie" : "series";
 
-  // Get logo path from the map (if available)
-  const tmdbLogoPath = logoMap[currentItem.id] ?? null;
-
   // Genre and rating from currentItem
   const genres = currentItem.genres || [];
   const rating = currentItem.vote_average || 0;
@@ -91,30 +96,6 @@ export function HeroCarousel({
     if (target.closest("button") || target.closest("a")) return;
     router.push(href);
   };
-
-  // Carousel action buttons (stop propagation to prevent navigation)
-  const carouselActions = (
-    <div className="flex items-center gap-3">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
-        aria-label="Add to Watchlist"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Plus className="h-5 w-5" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
-        aria-label="Add to Favorites"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Heart className="h-5 w-5" />
-      </Button>
-    </div>
-  );
 
   return (
     <section
@@ -171,11 +152,19 @@ export function HeroCarousel({
               itemId={currentItem.id}
               title={title}
               mediaType={mediaType}
-              year={year}
               genres={genres}
+              ratings={enhancedData?.ratings}
               voteAverage={rating}
-              tmdbLogoPath={tmdbLogoPath}
-              actions={carouselActions}
+              watchOptions={enhancedData?.watchOptions}
+              watchProviders={enhancedData?.watchProviders}
+              googleData={enhancedData?.googleData}
+              item={{
+                id: currentItem.id,
+                title: isMovie ? title : undefined,
+                name: !isMovie ? title : undefined,
+                poster_path: currentItem.poster_path,
+                backdrop_path: currentItem.backdrop_path,
+              }}
               animate={false} // Parent handles animation
               priority
             />

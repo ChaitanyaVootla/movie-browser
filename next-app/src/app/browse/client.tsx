@@ -25,6 +25,12 @@ import type { MediaItem } from "@/types";
 import { discover } from "@/server/actions/discover";
 import { getPersonBasic } from "@/server/actions/person";
 
+/** Normalize a value that can be number | number[] | undefined to number[] */
+function toArray(value: number | number[] | undefined): number[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 interface BrowseClientProps {
   initialResults: MediaItem[];
   totalPages: number;
@@ -39,7 +45,7 @@ export function BrowseClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [_isPending, startTransition] = useTransition();
 
   // Parse initial params from URL using the centralized parser
   const getInitialParams = useCallback((): Partial<DiscoverParams> & {
@@ -133,15 +139,15 @@ export function BrowseClient({
 
   // Check for active filters
   const hasActiveFilters =
-    (Array.isArray(params.with_genres) && params.with_genres.length > 0) ||
-    (Array.isArray(params.without_genres) && params.without_genres.length > 0) ||
+    toArray(params.with_genres).length > 0 ||
+    toArray(params.without_genres).length > 0 ||
     params.with_original_language ||
     params.with_origin_country ||
     params["vote_average.gte"] ||
     params["vote_count.gte"] ||
     (params.with_cast?.length ?? 0) > 0 ||
     (params.with_crew?.length ?? 0) > 0 ||
-    (params.with_keywords?.length ?? 0) > 0;
+    toArray(params.with_keywords).length > 0;
 
   // Format number with commas
   const formatNumber = (num: number) => {
@@ -170,31 +176,27 @@ export function BrowseClient({
   // Build active filter pills
   const activeFilterPills: { key: string; label: string; onRemove: () => void }[] = [];
 
-  if (Array.isArray(params.with_genres)) {
-    params.with_genres.forEach((id) => {
-      activeFilterPills.push({
-        key: `genre-${id}`,
-        label: getGenreName(id),
-        onRemove: () => {
-          const newGenres = params.with_genres?.filter((g) => g !== id) || [];
-          handleParamsChange({ ...params, with_genres: newGenres });
-        },
-      });
+  toArray(params.with_genres).forEach((id) => {
+    activeFilterPills.push({
+      key: `genre-${id}`,
+      label: getGenreName(id),
+      onRemove: () => {
+        const newGenres = toArray(params.with_genres).filter((g) => g !== id);
+        handleParamsChange({ ...params, with_genres: newGenres.length > 0 ? newGenres : undefined });
+      },
     });
-  }
+  });
 
-  if (Array.isArray(params.without_genres)) {
-    params.without_genres.forEach((id) => {
-      activeFilterPills.push({
-        key: `exclude-${id}`,
-        label: `Not ${getGenreName(id)}`,
-        onRemove: () => {
-          const newGenres = params.without_genres?.filter((g) => g !== id) || [];
-          handleParamsChange({ ...params, without_genres: newGenres });
-        },
-      });
+  toArray(params.without_genres).forEach((id) => {
+    activeFilterPills.push({
+      key: `exclude-${id}`,
+      label: `Not ${getGenreName(id)}`,
+      onRemove: () => {
+        const newGenres = toArray(params.without_genres).filter((g) => g !== id);
+        handleParamsChange({ ...params, without_genres: newGenres.length > 0 ? newGenres : undefined });
+      },
     });
-  }
+  });
 
   // Cast pills
   if (params.with_cast && personMeta.cast) {
@@ -235,18 +237,16 @@ export function BrowseClient({
   }
 
   // Keywords pills (show IDs for now, could fetch names)
-  if (params.with_keywords) {
-    params.with_keywords.forEach((id) => {
-      activeFilterPills.push({
-        key: `keyword-${id}`,
-        label: `Keyword: ${id}`,
-        onRemove: () => {
-          const newKeywords = params.with_keywords?.filter((k) => k !== id) || [];
-          handleParamsChange({ ...params, with_keywords: newKeywords.length > 0 ? newKeywords : undefined });
-        },
-      });
+  toArray(params.with_keywords).forEach((id) => {
+    activeFilterPills.push({
+      key: `keyword-${id}`,
+      label: `Keyword: ${id}`,
+      onRemove: () => {
+        const newKeywords = toArray(params.with_keywords).filter((k) => k !== id);
+        handleParamsChange({ ...params, with_keywords: newKeywords.length > 0 ? newKeywords : undefined });
+      },
     });
-  }
+  });
 
   if (params.with_original_language) {
     activeFilterPills.push({

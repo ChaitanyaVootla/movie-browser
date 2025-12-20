@@ -29,6 +29,13 @@ function getSlug(name: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+function formatRuntime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours === 0) return `${mins}m`;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
 // Cast member card
 function CastCard({ cast }: { cast: CastMember }) {
   if (!cast.profile_path) return null;
@@ -224,6 +231,19 @@ export function MediaOverview({ item, mediaType, className }: MediaOverviewProps
             <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-4 hidden lg:block">
               Details
             </h3>
+            
+            {/* Year */}
+            {isMovie(item) && item.release_date && (
+              <InfoItem label="Released" value={item.release_date.split("-")[0]} />
+            )}
+            {!isMovie(item) && item.first_air_date && (
+              <InfoItem label="First Aired" value={item.first_air_date.split("-")[0]} />
+            )}
+            
+            {/* Runtime (movies only) */}
+            {isMovie(item) && item.runtime && (
+              <InfoItem label="Runtime" value={formatRuntime(item.runtime)} />
+            )}
             
             {isMovie(item) && director && (
               <InfoItem

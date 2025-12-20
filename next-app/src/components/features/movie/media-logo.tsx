@@ -33,6 +33,10 @@ type LoadState = "cdn" | "tmdb" | "text";
 /**
  * Internal component that handles the actual logo rendering
  * Separated to allow key-based reset when item changes
+ * 
+ * Handles both wide and tall logos with flexible constraints:
+ * - Wide logos: constrained by maxWidth, height adjusts
+ * - Tall logos: constrained by maxHeight, width adjusts
  */
 function MediaLogoInner({
   cdnUrl,
@@ -73,7 +77,7 @@ function MediaLogoInner({
     return (
       <h1
         className={cn(
-          "text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white drop-shadow-lg",
+          "text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-lg",
           className
         )}
       >
@@ -82,15 +86,21 @@ function MediaLogoInner({
     );
   }
 
+  // Container with max constraints - image scales to fill while maintaining aspect ratio
   return (
-    <div className={cn("relative", className)} style={{ maxWidth, maxHeight }}>
+    <div className={cn("relative", className)}>
       <Image
         src={currentSrc}
         alt={`${fallbackText} logo`}
         width={maxWidth}
         height={maxHeight}
         className="object-contain object-left drop-shadow-lg"
-        style={{ maxWidth: "100%", height: "auto" }}
+        style={{ 
+          maxWidth,
+          maxHeight,
+          width: "auto",
+          height: "auto",
+        }}
         onError={handleError}
         priority={priority}
         unoptimized // CDN already serves optimized images
@@ -112,8 +122,8 @@ export function MediaLogo({
   fallbackText,
   className,
   priority = false,
-  maxWidth = 400,
-  maxHeight = 120,
+  maxWidth = 550,
+  maxHeight = 160,
 }: MediaLogoProps) {
   const cdnUrl = useMemo(() => getLogoUrl(item, mediaType), [item, mediaType]);
   const tmdbUrl = useMemo(

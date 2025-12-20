@@ -127,3 +127,4 @@ export function getTmdbLogoUrl(logoPath: string, size = "w500"): string {
   return `${TMDB_IMAGE_BASE}/${size}${logoPath}`;
 }
 
+

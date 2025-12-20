@@ -8,6 +8,7 @@ import {
   VideoGallery,
   ImageGallery,
   RecommendationsSection,
+  RecentTracker,
 } from "@/components/features/media";
 import { SeasonSelector, EpisodeInfoSection } from "@/components/features/series";
 import { SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
@@ -180,6 +181,15 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
   return (
     <>
       <SeriesSchema series={series} />
+
+      {/* Track this page view for recents */}
+      <RecentTracker
+        itemId={series.id}
+        isMovie={false}
+        name={series.name}
+        poster_path={series.poster_path}
+        backdrop_path={series.backdrop_path}
+      />
 
       <article className="pb-12">
         {/* Hero section with backdrop, logo, genres, ratings, actions */}

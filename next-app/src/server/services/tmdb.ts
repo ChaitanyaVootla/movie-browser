@@ -35,7 +35,7 @@ async function rawFetchFromTMDB<T>(
   endpoint: string,
   params: Record<string, string> = {},
   retries = 3,
-  timeout = 15000
+  timeout = 20000
 ): Promise<T> {
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
   url.searchParams.set("api_key", TMDB_API_KEY || "");
@@ -55,6 +55,10 @@ async function rawFetchFromTMDB<T>(
         signal: controller.signal,
         // Disable Next.js fetch cache - we use our own in-memory cache
         cache: "no-store",
+        // Prevent connection pooling issues that cause ECONNRESET
+        headers: {
+          "Connection": "close",
+        },
       });
 
       clearTimeout(timeoutId);
@@ -66,15 +70,21 @@ async function rawFetchFromTMDB<T>(
       return response.json();
     } catch (error) {
       lastError = error as Error;
-      console.warn(
-        `TMDB fetch attempt ${attempt + 1}/${retries} failed for ${endpoint}:`,
-        (error as Error).message
-      );
+      const isConnectionError = (error as NodeJS.ErrnoException).code === "ECONNRESET" ||
+        (error as Error).message?.includes("fetch failed");
+      
+      // Only log non-connection errors or last attempt
+      if (!isConnectionError || attempt === retries - 1) {
+        console.warn(
+          `TMDB fetch attempt ${attempt + 1}/${retries} failed for ${endpoint}:`,
+          (error as Error).message
+        );
+      }
 
       // Don't wait after the last attempt
       if (attempt < retries - 1) {
-        // Exponential backoff: 500ms, 1000ms, 2000ms...
-        await sleep(500 * Math.pow(2, attempt));
+        // Exponential backoff: 300ms, 600ms, 1200ms...
+        await sleep(300 * Math.pow(2, attempt));
       }
     }
   }
@@ -198,6 +208,25 @@ export async function getMovieImages(movieId: number): Promise<{
   });
 }
 
+/**
+ * Get watch providers for a movie (lightweight, no credits/images)
+ * Returns watch/providers data for all countries
+ */
+export async function getMovieWatchProviders(movieId: number): Promise<{
+  id: number;
+  results: Record<string, {
+    link?: string;
+    flatrate?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
+    rent?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
+    buy?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
+  }>;
+}> {
+  return fetchFromTMDB(`/movie/${movieId}/watch/providers`, {
+    cacheNamespace: "movie",
+    cacheTTL: CACHE_DURATIONS.movie,
+  });
+}
+
 // ============================================
 // Series Endpoints
 // ============================================
@@ -255,10 +284,33 @@ export async function getSeriesImages(seriesId: number): Promise<{
   });
 }
 
+/**
+ * Get watch providers for a series (lightweight, no credits/images)
+ * Returns watch/providers data for all countries
+ */
+export async function getSeriesWatchProviders(seriesId: number): Promise<{
+  id: number;
+  results: Record<string, {
+    link?: string;
+    flatrate?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
+    rent?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
+    buy?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
+  }>;
+}> {
+  return fetchFromTMDB(`/tv/${seriesId}/watch/providers`, {
+    cacheNamespace: "series",
+    cacheTTL: CACHE_DURATIONS.series,
+  });
+}
+
 // ============================================
 // Person Endpoints
 // ============================================
 
+/**
+ * Get full person details with all credits, images, and external IDs
+ * Use for person detail pages where full data is needed
+ */
 export async function getPersonDetails(personId: number): Promise<Record<string, unknown>> {
   return fetchFromTMDB<Record<string, unknown>>(`/person/${personId}`, {
     params: {
@@ -267,6 +319,31 @@ export async function getPersonDetails(personId: number): Promise<Record<string,
     cacheNamespace: "person",
     cacheTTL: CACHE_DURATIONS.person,
   });
+}
+
+/**
+ * Get minimal person info (id, name, profile_path only)
+ * Use for filter pills, autocomplete, etc. where full data is not needed
+ * Much faster than getPersonDetails as it doesn't fetch credits/images
+ */
+export async function getPersonBasicInfo(
+  personId: number
+): Promise<{ id: number; name: string; profile_path: string | null } | null> {
+  try {
+    const data = await fetchFromTMDB<Record<string, unknown>>(`/person/${personId}`, {
+      // No append_to_response = minimal data (~1KB vs ~100KB+)
+      cacheNamespace: "person",
+      cacheTTL: CACHE_DURATIONS.person,
+    });
+    if (!data || !data.id) return null;
+    return {
+      id: data.id as number,
+      name: data.name as string,
+      profile_path: data.profile_path as string | null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ============================================
@@ -324,7 +401,7 @@ export async function discoverMovies(
       ...params,
     },
     cacheNamespace: "discover",
-    cacheTTL: CACHE_DURATIONS.movie,
+    // Uses CACHE_DURATIONS.discover (30 min) via namespace default
   });
 }
 
@@ -336,6 +413,6 @@ export async function discoverTV(params: Record<string, string> = {}): Promise<T
       ...params,
     },
     cacheNamespace: "discover",
-    cacheTTL: CACHE_DURATIONS.series,
+    // Uses CACHE_DURATIONS.discover (30 min) via namespace default
   });
 }

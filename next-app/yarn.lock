@@ -2496,6 +2496,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/country-list@npm:^2":
+  version: 2.1.4
+  resolution: "@types/country-list@npm:2.1.4"
+  checksum: 10c0/9ac76a6f099fbebb9b9486fe5b8a26a73713804ed29ca8c1803ef23d9fcb735af5bfe540204fe153ece858656095ec5cc126a921b536c98ccee7d9e599f4783d
+  languageName: node
+  linkType: hard
+
 "@types/deep-eql@npm:*":
   version: 4.0.2
   resolution: "@types/deep-eql@npm:4.0.2"
@@ -3433,6 +3440,13 @@ __metadata:
   version: 2.0.0
   resolution: "convert-source-map@npm:2.0.0"
   checksum: 10c0/8f2f7a27a1a011cc6cc88cc4da2d7d0cfa5ee0369508baae3d98c260bb3ac520691464e5bbe4ae7cdf09860c1d69ecc6f70c63c6e7c7f7e3f18ec08484dc7d9b
+  languageName: node
+  linkType: hard
+
+"country-list@npm:^2.4.1":
+  version: 2.4.1
+  resolution: "country-list@npm:2.4.1"
+  checksum: 10c0/14a328de058b3c3dbb0f12386a2f9365ae7a1b739cbeeacc3989c05427afe3e7f31d008175e9a900a90d2aa166b2b86c42386f902d12889abaed86bc4768e26f
   languageName: node
   linkType: hard
 
@@ -5659,6 +5673,7 @@ __metadata:
     "@testing-library/dom": "npm:^10.4.1"
     "@testing-library/jest-dom": "npm:^6.9.1"
     "@testing-library/react": "npm:^16.3.1"
+    "@types/country-list": "npm:^2"
     "@types/node": "npm:^22"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
@@ -5666,6 +5681,7 @@ __metadata:
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
     cmdk: "npm:^1.1.1"
+    country-list: "npm:^2.4.1"
     embla-carousel-react: "npm:^8.6.0"
     eslint: "npm:^9"
     eslint-config-next: "npm:16.1.0"

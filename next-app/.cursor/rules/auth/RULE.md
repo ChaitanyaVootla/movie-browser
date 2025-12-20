@@ -260,7 +260,7 @@ Admin link only visible to admins:
 | Database | Purpose | Collections |
 |----------|---------|-------------|
 | `moviebrowser` | Auth.js adapter | `users`, `accounts`, `sessions` |
-| `test` | Nuxt app data (shared) | `users`, `watchedmovies`, `movieswatchlists`, etc. |
+| `test` | Nuxt app data (shared) | `users`, `watchedmovies`, `movieswatchlists`, `serieslists`, `userratings`, etc. |
 
 **Important**: The admin dashboard fetches user data from the `test` database to access Nuxt app user activity data.
 
@@ -288,6 +288,106 @@ interface NuxtUser {
   };
   createdAt: Date;
   lastVisited: Date;
+}
+```
+
+### User Library Collections (test database)
+
+The Nuxt app stores user library data with `userId` as a **number** (Google OAuth `sub` parsed as integer):
+
+```typescript
+// watchedmovies collection
+interface WatchedMovie {
+  _id: ObjectId;
+  userId: number;        // Google sub as number (e.g., 100739281047185839198)
+  movieId: number;       // TMDB movie ID
+  createdAt: Date;
+}
+
+// movieswatchlists collection
+interface MovieWatchlist {
+  _id: ObjectId;
+  userId: number;
+  movieId: number;
+  createdAt: Date;
+}
+
+// serieslists collection
+interface SeriesWatchlist {
+  _id: ObjectId;
+  userId: number;
+  seriesId: number;
+  createdAt: Date;
+}
+
+// userratings collection
+interface UserRating {
+  _id: ObjectId;
+  odooUserId: number;    // Google sub as number
+  itemId: number;        // TMDB movie/series ID
+  mediaType: "movie" | "series";
+  rating: 1 | -1;        // 1 = like, -1 = dislike
+  createdAt: Date;
+}
+```
+
+## User ID Utility
+
+### Getting userId for Database Queries
+
+The session's `id` field contains the Google OAuth `sub`. Use the utility function:
+
+```typescript
+// src/lib/user-id.ts
+import { auth } from "./auth";
+
+export async function getUserIdForDb(): Promise<number | null> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return null;
+  }
+  
+  // Try googleId first (explicitly captured), then fall back to id
+  // The id field often contains the Google sub when using Google OAuth
+  const googleId = session.user.googleId || session.user.id;
+  
+  if (googleId) {
+    const parsed = parseInt(googleId, 10);
+    if (!isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  
+  return null;
+}
+
+// Throws if not authenticated
+export async function requireUserIdForDb(): Promise<number> {
+  const userId = await getUserIdForDb();
+  if (!userId) {
+    throw new Error("Authentication required");
+  }
+  return userId;
+}
+```
+
+### Usage in API Routes
+
+```typescript
+// src/app/api/user/watchlist/route.ts
+import { getUserIdForDb } from "@/lib/user-id";
+
+export async function GET() {
+  const userId = await getUserIdForDb();
+  
+  if (!userId) {
+    return NextResponse.json({ movies: [], series: [] });
+  }
+  
+  // Query with numeric userId
+  const watchlist = await MoviesWatchlist.find({ userId });
+  // ...
 }
 ```
 

@@ -76,6 +76,24 @@ export interface WatchProviderData {
   buy?: WatchProvider[];
 }
 
+// Processed watch option for display
+export interface WatchOption {
+  name: string;
+  displayName: string;
+  link: string;
+  price: string;
+  image: string;
+  key: string;
+  isJustWatch?: boolean; // True if from TMDB (no direct deep links)
+}
+
+// Watch options with source country info
+export interface ProcessedWatchOptions {
+  options: WatchOption[];
+  sourceCountry: string; // Country code where these options are from
+  isFromFallback: boolean; // True if showing options from a different country
+}
+
 // External ratings from aggregation sources
 export interface ExternalRating {
   name: string;
@@ -84,6 +102,9 @@ export interface ExternalRating {
   certified?: boolean;
   sentiment?: "POSITIVE" | "NEGATIVE";
 }
+
+// Alias for component usage
+export type Rating = ExternalRating;
 
 export interface ExternalData {
   imdb_rating?: number;
@@ -143,6 +164,7 @@ export interface Movie {
   watch_providers?: Record<string, WatchProviderData>;
   external_data?: ExternalData;
   ratings?: ExternalRating[];
+  watch_options?: ProcessedWatchOptions; // Processed watch options for current region
   keywords?: { keywords: Keyword[] };
   recommendations?: { results: MovieListItem[] };
   similar?: { results: MovieListItem[] };
@@ -209,6 +231,7 @@ export interface Series {
   watch_providers?: Record<string, WatchProviderData>;
   external_data?: ExternalData;
   ratings?: ExternalRating[];
+  watch_options?: ProcessedWatchOptions; // Processed watch options for current region
   keywords?: { results: Keyword[] };
   recommendations?: { results: SeriesListItem[] };
   similar?: { results: SeriesListItem[] };

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface MediaScrollerProps {
-  title?: string;
+  title?: ReactNode;
   titleIcon?: ReactNode;
   /** Optional link to see all - displays "View All" link */
   seeAllHref?: string;

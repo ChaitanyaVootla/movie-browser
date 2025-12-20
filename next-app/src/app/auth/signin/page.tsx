@@ -27,3 +27,4 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   return <SignInClient callbackUrl={callbackUrl} error={error} />;
 }
 
+

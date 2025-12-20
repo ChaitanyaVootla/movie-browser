@@ -2,6 +2,7 @@ import { Film, Tv } from "lucide-react";
 import { getTrending } from "@/server/actions/trending";
 import { HeroCarousel } from "@/components/features/movie/hero-carousel";
 import { MovieCarousel } from "@/components/features/movie/movie-carousel";
+import { PersonalizedSections } from "@/components/features/home";
 import { buildBrowseUrl } from "@/lib/discover";
 
 export default async function HomePage() {
@@ -13,7 +14,7 @@ export default async function HomePage() {
       {trending.allItems.length > 0 && (
         <HeroCarousel
           items={trending.allItems}
-          logoMap={trending.logoMap}
+          heroEnhancedData={trending.heroEnhancedData}
           className="mb-8"
         />
       )}
@@ -37,6 +38,9 @@ export default async function HomePage() {
           seeAllHref={buildBrowseUrl({ media_type: "tv", sort_by: "popularity.desc" })}
           seeAllLabel="Browse All"
         />
+
+        {/* Personalized Sections (Continue Watching, Recents) - Client Component */}
+        <PersonalizedSections />
       </div>
     </div>
   );

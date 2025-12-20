@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { MediaLogo } from "@/components/features/movie/media-logo";
 import { GenreList } from "./genre-badge";
 import { RatingsBar } from "./ratings-bar";
-import type { Genre, Rating } from "@/types";
+import { WatchOptions } from "./watch-options";
+import type { Genre, Rating, ProcessedWatchOptions, WatchProviderData } from "@/types";
 
 // Animation variants - shared across all hero sections
 export const heroContainerVariants = {
@@ -44,12 +45,6 @@ interface HeroContentProps {
   title: string;
   /** Media type for routing and image URLs */
   mediaType: "movie" | "series";
-  /** Release year */
-  year?: string;
-  /** Runtime in minutes (movies) or episode runtime (series) */
-  runtime?: number;
-  /** Number of seasons (series only) */
-  numberOfSeasons?: number;
   /** Genre list */
   genres?: Genre[];
   /** Ratings from various sources */
@@ -66,23 +61,27 @@ interface HeroContentProps {
   animate?: boolean;
   /** Priority loading for logo image */
   priority?: boolean;
-}
-
-function formatRuntime(minutes?: number): string | null {
-  if (!minutes) return null;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours === 0) return `${mins}m`;
-  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  /** Processed watch options for display */
+  watchOptions?: ProcessedWatchOptions;
+  /** Raw watch providers (for client-side country override) */
+  watchProviders?: Record<string, WatchProviderData>;
+  /** Scraped google data (for India watch options) */
+  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
+  /** Item data for continue watching tracking */
+  item?: {
+    id: number;
+    title?: string;
+    name?: string;
+    poster_path?: string | null;
+    backdrop_path?: string | null;
+    images?: { backdrops?: Array<{ file_path: string; iso_639_1: string | null }> };
+  };
 }
 
 export function HeroContent({
   itemId,
   title,
   mediaType,
-  year,
-  runtime,
-  numberOfSeasons,
   genres = [],
   ratings,
   voteAverage,
@@ -91,6 +90,10 @@ export function HeroContent({
   className,
   animate = true,
   priority = false,
+  watchOptions,
+  watchProviders,
+  googleData,
+  item,
 }: HeroContentProps) {
   // Build ratings array - use provided ratings or fall back to TMDB vote
   const displayRatings =
@@ -103,7 +106,7 @@ export function HeroContent({
   const content = (
     <>
       {/* Logo */}
-      <motion.div variants={heroItemVariants} className="mb-4 md:mb-5">
+      <motion.div variants={heroItemVariants} className="mb-8 md:mb-20">
         <MediaLogo
           item={{
             id: itemId,
@@ -113,39 +116,11 @@ export function HeroContent({
           mediaType={mediaType}
           tmdbLogoPath={tmdbLogoPath}
           fallbackText={title}
-          maxWidth={450}
-          maxHeight={130}
-          className="max-w-[300px] md:max-w-[400px] lg:max-w-[450px]"
+          maxWidth={550}
+          maxHeight={160}
+          className="max-w-[320px] md:max-w-[450px] lg:max-w-[550px]"
           priority={priority}
         />
-      </motion.div>
-
-      {/* Meta info row */}
-      <motion.div
-        variants={heroItemVariants}
-        className="flex flex-wrap items-center gap-x-3 gap-y-1 text-white/80 text-sm mb-4"
-      >
-        {year && <span className="font-medium">{year}</span>}
-        {runtime && (
-          <>
-            <span className="w-1 h-1 rounded-full bg-white/50" />
-            <span>{formatRuntime(runtime)}</span>
-          </>
-        )}
-        {numberOfSeasons && (
-          <>
-            <span className="w-1 h-1 rounded-full bg-white/50" />
-            <span>
-              {numberOfSeasons} Season{numberOfSeasons > 1 ? "s" : ""}
-            </span>
-          </>
-        )}
-        {!runtime && !numberOfSeasons && (
-          <>
-            <span className="w-1 h-1 rounded-full bg-white/50" />
-            <span className="capitalize">{mediaType === "movie" ? "Movie" : "TV Series"}</span>
-          </>
-        )}
       </motion.div>
 
       {/* Genres */}
@@ -161,6 +136,19 @@ export function HeroContent({
           <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
         </motion.div>
       )}
+
+      {/* Watch Options */}
+      {watchOptions?.options?.length ? (
+        <motion.div variants={heroItemVariants} className="mb-5">
+          <WatchOptions
+            watchOptions={watchOptions}
+            watchProviders={watchProviders}
+            googleData={googleData}
+            item={item || { id: itemId, title: mediaType === "movie" ? title : undefined, name: mediaType === "series" ? title : undefined }}
+            isMovie={mediaType === "movie"}
+          />
+        </motion.div>
+      ) : null}
 
       {/* Actions */}
       {actions && <motion.div variants={heroItemVariants}>{actions}</motion.div>}

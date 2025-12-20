@@ -1,6 +1,7 @@
 // Media components - shared between movie and series details pages
 export { GenreBadge, GenreList } from "./genre-badge";
 export { RatingsBar } from "./ratings-bar";
+export { WatchOptions } from "./watch-options";
 export { MediaActions } from "./media-actions";
 export { MediaBackdrop, TrailerOverlay } from "./media-backdrop";
 export { HeroContent, heroContainerVariants, heroItemVariants } from "./hero-content";
@@ -21,3 +22,9 @@ export { ImageGallery } from "./image-gallery";
 export { RecommendationsSection } from "./recommendations-section";
 export { CollectionSection } from "./collection-section";
 
+// Wide card components (for recents, continue watching)
+export { WideCard, WideCardSkeleton } from "./wide-card";
+export { WideCarousel } from "./wide-carousel";
+
+// Tracking components
+export { RecentTracker } from "./recent-tracker";

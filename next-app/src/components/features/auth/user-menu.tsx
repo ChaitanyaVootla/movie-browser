@@ -1,7 +1,6 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
-import Image from "next/image";
 import Link from "next/link";
 import { User, LogOut, Heart, List, Star, Settings } from "lucide-react";
 import {
@@ -140,4 +139,5 @@ function getInitials(name: string): string {
   }
   return name.slice(0, 2).toUpperCase();
 }
+
 

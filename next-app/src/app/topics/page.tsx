@@ -6,6 +6,9 @@ import { discoverBatch } from "@/server/actions/discover";
 import type { DiscoverParams } from "@/lib/discover";
 import type { MediaItem } from "@/types";
 
+// ISR: Revalidate every 30 minutes (matches discover cache TTL)
+export const revalidate = 1800;
+
 export const metadata: Metadata = {
   title: `Topics | ${SITE_NAME}`,
   description:
@@ -30,8 +33,9 @@ export const metadata: Metadata = {
 };
 
 // Pre-fetch initial data for the first few topics
+// Reduced to 6 topics to minimize initial load time
 async function getTopicPreviews() {
-  const topicsToPreload = ALL_TOPICS.slice(0, 8);
+  const topicsToPreload = ALL_TOPICS.slice(0, 6);
 
   const previews = await Promise.all(
     topicsToPreload.map(async (topic) => {

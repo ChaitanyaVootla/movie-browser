@@ -56,7 +56,8 @@ src/components/features/
 │   ├── recommendations-section.tsx  # Recommended & Similar scrollers
 │   ├── keywords-list.tsx       # Clickable keyword badges
 │   ├── country-language-badges.tsx  # Country flags and language
-│   └── content-warning-link.tsx     # Parental guidance link
+│   ├── content-warning-link.tsx     # Parental guidance link
+│   └── watch-options.tsx            # Streaming providers pill (compact)
 ├── discover/                   # Browse/filter components
 │   ├── index.ts               # Export hub
 │   ├── filter-sidebar.tsx     # Main filter panel (genres, rating, language, etc.)
@@ -84,10 +85,14 @@ src/components/features/
 │   ├── google-one-tap.tsx     # Google One Tap prompt (non-invasive)
 │   ├── login-dialog.tsx       # Manual sign-in modal
 │   └── user-menu.tsx          # Avatar dropdown (profile, settings, logout)
-└── layout/
-    ├── nav-bar.tsx            # Includes admin link for admin users
-    ├── footer.tsx
-    └── theme-toggle.tsx
+├── layout/
+│   ├── nav-bar.tsx            # Includes admin + watchlist links, country selector
+│   ├── footer.tsx
+│   ├── theme-toggle.tsx
+│   └── country-selector.tsx   # Country selection for watch providers
+└── providers/
+    ├── index.tsx              # Main providers wrapper (auth, theme, query, etc.)
+    └── user-store-provider.tsx # Hydrates user store on auth changes
 ```
 
 ### Hero Section Architecture
@@ -130,20 +135,29 @@ import { HeroContent } from "@/components/features/media";
     title={title}
     mediaType={mediaType}
     ratings={item.ratings}
+    watchOptions={item.watch_options}
+    watchProviders={item.watch_providers}
     actions={<MediaActions ... />}
   />
 </MediaBackdrop>
 
-// In HeroCarousel (landing page)
-<MediaBackdrop item={currentItem} mediaType={mediaType} overlay="light">
-  <HeroContent
-    itemId={currentItem.id}
-    title={title}
-    mediaType={mediaType}
-    voteAverage={rating}
-    actions={<CarouselActions />}
-  />
-</MediaBackdrop>
+// In HeroCarousel (landing page) - uses heroEnhancedData from getTrending()
+<HeroCarousel
+  items={trending.allItems}
+  heroEnhancedData={trending.heroEnhancedData}  // Ratings + watch options per item
+/>
+
+// HeroCarousel internally passes enhanced data to HeroContent:
+<HeroContent
+  itemId={currentItem.id}
+  title={title}
+  mediaType={mediaType}
+  ratings={enhancedData?.ratings}              // Multi-source ratings
+  watchOptions={enhancedData?.watchOptions}    // Pre-processed for country
+  watchProviders={enhancedData?.watchProviders} // For country switching
+  googleData={enhancedData?.googleData}        // Scraped data (India)
+  item={currentItem}
+/>
 ```
 
 #### Design Specs
@@ -193,6 +207,72 @@ import { RatingsBar } from "@/components/features/media";
 3. Rotten Tomatoes (Critic) - With certified/rotten variants
 4. Rotten Tomatoes (Audience) - With certified/rotten variants
 5. Google - From MongoDB googleData
+
+### WatchOptions Component
+
+Compact pill showing streaming providers for a movie/series:
+
+```tsx
+import { WatchOptions } from "@/components/features/media";
+
+<WatchOptions
+  watchOptions={item.watch_options}           // Pre-processed for user's country
+  watchProviders={item.watch_providers}       // Raw TMDB data for country switching
+  googleData={googleData}                     // Scraped data (India only)
+  item={{ id, title, poster_path, backdrop_path, images }}
+  isMovie={true}
+/>
+```
+
+**Design specs:**
+- Compact pill design with glassmorphism (`bg-black/30 backdrop-blur-sm`)
+- Provider icons at 24x24px with tooltips for details
+- Shows "Watch (IN)" indicator when using fallback country
+- Max 5 providers visible, expand button for more
+
+**Data flow:**
+1. Server pre-processes watch options using `getWatchOptionsForCountry()`
+2. Server also sends optimized `watch_providers` (filtered to ~15 countries)
+3. Client re-processes on-the-fly when user changes country via `CountrySelector`
+4. For JustWatch links (TMDB), opens Google search instead of broken deep links
+
+**Integration in HeroContent:**
+```tsx
+// HeroContent receives watch props and renders WatchOptions after RatingsBar
+<HeroContent
+  watchOptions={watch_options}
+  watchProviders={optimized_watch_providers}
+  googleData={googleData}
+  item={item}
+  // ... other props
+/>
+```
+
+### CountrySelector Component
+
+Dropdown for selecting watch provider region:
+
+```tsx
+import { CountrySelector } from "@/components/features/layout";
+
+// In NavBar
+<CountrySelector />
+
+// Compact mode (flag only)
+<CountrySelector compact />
+```
+
+**Features:**
+- Uses `country-list` library for complete country list (250+ countries)
+- Priority countries (IN, US, UK, CA, AU, DE, FR, JP) shown at top
+- Searchable with flag icons from `flagcdn.com`
+- Stores selection in `countryOverride` (Zustand user store)
+- Client-side only (not persisted to server)
+
+**Design specs:**
+- Button: Flag icon + country code (e.g., 🇮🇳 IN)
+- Popover: 260px wide, 300px scroll area
+- Search input at top for filtering
 
 ### Media Detail Page Patterns
 
@@ -763,15 +843,28 @@ For movie/series logos with 3-tier fallback:
 import { MediaLogo } from "@/components/features/movie/media-logo";
 
 // Fallback chain: CDN logo → TMDB logo → Text
+// CDN URL: https://image.themoviebrowser.com/{movie|series}/{id}/logo.webp
 <MediaLogo
   item={{ id: 123, title: "Movie Title" }}
   mediaType="movie"
-  tmdbLogoPath={logoPath} // From TMDB images API
+  // tmdbLogoPath is OPTIONAL - only pass if you already have it
+  // The component tries CDN first, which covers most cases
+  tmdbLogoPath={logoPath}
   fallbackText="Movie Title"
   maxWidth={400}
   maxHeight={120}
 />
+
+// Typical usage (no tmdbLogoPath - relies on CDN → text fallback)
+<MediaLogo
+  item={{ id: movie.id, title: movie.title }}
+  mediaType="movie"
+  fallbackText={movie.title}
+/>
 ```
+
+**Performance note:** Don't fetch TMDB images just to get a logo path.
+The CDN should have logos for popular content. Let it fall back to text for rare cases.
 
 ### Image Types (src/lib/image.ts)
 
@@ -941,6 +1034,79 @@ import { motion } from "framer-motion";
 <Card className="transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
 ```
 
+## Watchlist Page Pattern
+
+The watchlist page uses a tabbed interface with different layouts for movies and series:
+
+```
+src/app/watchlist/
+├── page.tsx    # Server component with metadata
+└── client.tsx  # Client component with tabs, data fetching
+```
+
+### Layout Guidelines
+
+- **Full width**: No max-width container (matches browse page)
+- **No header**: Remove redundant page titles to save vertical space
+- **Default tab**: TV Shows first (more actionable with airing schedules)
+- **Tab alignment**: Left-aligned with `w-fit` (not centered)
+
+```tsx
+// page.tsx
+export default function WatchlistPage() {
+  return (
+    <main className="min-h-screen pt-16 pb-12 px-4 md:px-6 lg:px-8">
+      <Suspense fallback={<WatchlistSkeleton />}>
+        <WatchlistClient />
+      </Suspense>
+    </main>
+  );
+}
+```
+
+### Series Categorization
+
+Watchlisted series are categorized by status for better UX:
+
+```typescript
+interface CategorizedSeries {
+  currentlyAiring: Series[];  // Has next_episode_to_air
+  returning: Series[];        // Status: "Returning Series", "In Production", "Planned"
+  completed: Series[];        // Status: "Ended", "Canceled" or no upcoming
+  totalCount: number;
+}
+```
+
+Display each category in a `MediaScroller` with status badges:
+- **Currently Airing**: Green pulsing dot + "Airing" badge
+- **Returning**: Blue calendar icon + "Coming Back" badge
+- **Completed**: Gray clock icon + "Ended" badge
+
+### Movies Grid
+
+Movies display in a responsive grid (same as browse):
+
+```tsx
+<div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3">
+  {movies.map((movie) => (
+    <MovieCard key={movie.id} item={movie} />
+  ))}
+</div>
+```
+
+### Data Fetching
+
+Use TanStack Query for client-side data fetching with optimistic hydration:
+
+```tsx
+const { data: watchlist, isLoading } = useQuery({
+  queryKey: ["watchlist"],
+  queryFn: () => fetch("/api/user/watchlist").then(r => r.json()),
+  enabled: authStatus === "authenticated",
+  staleTime: 30000,
+});
+```
+
 ## Accessibility Requirements
 
 1. All interactive elements need proper ARIA labels
@@ -997,3 +1163,124 @@ const formatCurrency = (amount?: number): string | null => {
 - `Date.now()`, `Math.random()` - use stable values
 - `typeof window !== 'undefined'` branches - render same content on server
 - Locale-dependent formatting - use explicit locale or deterministic code
+
+## Personalized Homepage Sections
+
+### Component Structure
+
+```
+src/components/features/
+├── home/
+│   ├── index.ts
+│   └── personalized-sections.tsx  # Client component for auth-gated content
+└── media/
+    ├── wide-card.tsx              # Wide backdrop card for recents
+    ├── wide-carousel.tsx          # Horizontal scroller for wide cards
+    └── recent-tracker.tsx         # Invisible tracking component
+```
+
+### PersonalizedSections Component
+
+Client component that shows Continue Watching and Recent Visits for authenticated users:
+
+```tsx
+// src/components/features/home/personalized-sections.tsx
+"use client";
+
+export function PersonalizedSections() {
+  const { status } = useSession();
+  const isHydrated = useUserStore(selectIsHydrated);
+  const continueWatching = useUserStore(selectContinueWatching);
+  const recents = useUserStore(selectRecents);
+
+  // Don't render for unauthenticated users
+  if (status !== "authenticated") return null;
+  
+  // Show loading while hydrating
+  if (!isHydrated) return <WideCarousel loading ... />;
+  
+  // Don't render if no data
+  if (continueWatching.length === 0 && recents.length === 0) return null;
+
+  return (
+    <>
+      {continueWatching.length > 0 && (
+        <WideCarousel title="Continue Watching" items={continueWatching} showWatchLinks />
+      )}
+      {recents.length > 0 && (
+        <WideCarousel title="Recent Visits" items={recents} />
+      )}
+    </>
+  );
+}
+```
+
+### Homepage Order
+
+Trending content comes first, personalized sections follow:
+
+```tsx
+// src/app/page.tsx
+<div className="px-4 md:px-8 lg:px-12 pb-16 space-y-12">
+  {/* 1. Trending Movies */}
+  <MovieCarousel title="Trending Movies" items={trending.movies} />
+  
+  {/* 2. Trending TV Shows */}
+  <MovieCarousel title="Trending TV Shows" items={trending.tv} />
+  
+  {/* 3. Personalized Sections (Continue Watching, Recents) */}
+  <PersonalizedSections />
+</div>
+```
+
+### WideCard Component
+
+Wide backdrop card for recents and continue watching:
+
+```tsx
+// src/components/features/media/wide-card.tsx
+interface WideCardProps {
+  item: RecentItem | ContinueWatchingItem;
+  className?: string;
+  showWatchLink?: boolean;  // Show external link icon + provider logo
+}
+
+// Card dimensions: aspect-video (16:9)
+// Width: w-[280px] sm:w-[320px] md:w-[380px]
+// Image sources: CDN first (widePoster.webp), TMDB fallback
+```
+
+**Key behaviors:**
+- No play icon on hover for recents (clean hover with subtle scale)
+- External link icon only for continue watching items
+- Defensive `isMovie` handling with title/name fallback
+
+### RecentTracker Component
+
+Invisible component that tracks page views:
+
+```tsx
+// src/components/features/media/recent-tracker.tsx
+interface RecentTrackerProps {
+  itemId: number;
+  isMovie: boolean;
+  title?: string;       // For movies
+  name?: string;        // For series
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+}
+
+// Usage in movie/series detail pages:
+<RecentTracker
+  itemId={movie.id}
+  isMovie={true}
+  title={movie.title}
+  poster_path={movie.poster_path}
+  backdrop_path={movie.backdrop_path}
+/>
+```
+
+**Behavior:**
+- Only tracks for authenticated users
+- Fires once per page mount (with 500ms delay for hydration)
+- Syncs to server via `/api/user/recents` (fire and forget)

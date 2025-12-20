@@ -24,6 +24,7 @@ The codebase is designed to be maintained by AI agents with human oversight.
 - **Validation**: Zod
 - **Caching**: node-cache (in-memory for TMDB API)
 - **Images**: CDN (`image.themoviebrowser.com`) with TMDB fallback
+- **Country Data**: country-list (complete ISO 3166-1 country list)
 
 ## Directory Structure
 
@@ -39,22 +40,34 @@ src/
 │   │   ├── client.tsx        # Client-side topics list
 │   │   ├── all/page.tsx      # All topics grid
 │   │   └── [topic]/          # Topic detail (genre-action-movie, theme-christmas-movie)
+│   ├── watchlist/            # User watchlist (authenticated)
+│   │   ├── page.tsx          # Server component with metadata
+│   │   └── client.tsx        # Tabbed movies/series view
 │   ├── admin/                # Admin dashboard (protected)
 │   └── api/
 │       ├── auth/[...nextauth]/  # Auth.js handlers
-│       └── admin/               # Admin API routes (protected)
+│       ├── admin/               # Admin API routes (protected)
+│       └── user/                # User library API routes
+│           ├── library/         # GET all user data (hydration)
+│           ├── watchlist/       # GET detailed watchlist
+│           ├── recents/         # GET/POST recent page views
+│           ├── continueWatching/ # GET/POST/DELETE streaming history
+│           ├── movie/[movieId]/ # Movie-specific operations
+│           ├── series/[seriesId]/ # Series-specific operations
+│           └── rating/          # Like/dislike ratings
 ├── components/
 │   ├── ui/              # shadcn/ui components (DO NOT MODIFY)
 │   └── features/        # Domain-specific components
 │       ├── movie/       # Movie components (cards, carousel, logo)
 │       ├── series/      # Series components
 │       ├── person/      # Person components
-│       ├── media/       # Shared movie/series components
+│       ├── media/       # Shared movie/series components + WideCard, RecentTracker
+│       ├── home/        # Homepage components (PersonalizedSections)
 │       ├── discover/    # Browse/filter components (sidebar, grid, scroller)
 │       ├── auth/        # Auth components (GoogleOneTap, UserMenu, LoginDialog)
 │       └── layout/      # Layout components (nav, footer)
 ├── lib/                 # Utilities, constants, helpers
-│   ├── utils.ts         # General utilities (cn, formatNumber, etc.)
+│   ├── utils.ts         # General utilities (cn, formatNumber, getSlug)
 │   ├── constants.ts     # App constants, cache durations
 │   ├── discover.ts      # Discover params, sort options, genre lists
 │   ├── topics/          # Topic utilities and definitions
@@ -65,17 +78,27 @@ src/
 │   │   └── utils.ts     # getTopicByKey, sanitiseTopic, etc.
 │   ├── image.ts         # CDN image utilities
 │   ├── cache.ts         # In-memory cache layer (node-cache)
+│   ├── watch-options.ts # Watch provider processing utilities
 │   ├── auth.ts          # Auth.js config (Node.js - full)
 │   ├── auth.config.ts   # Auth.js config (Edge-safe - for proxy)
-│   └── admin.ts         # Admin email whitelist
+│   ├── admin.ts         # Admin email whitelist
+│   └── user-id.ts       # getUserIdForDb() utility for numeric userId
 ├── hooks/               # Custom React hooks
+│   └── use-user-library.ts  # Convenience hook for watchlist/watched/ratings
 ├── stores/              # Zustand stores
+│   └── user.ts          # User library state (watchlist, watched, ratings, recents, continueWatching)
 ├── server/              # Server-side code
 │   ├── actions/         # Server Actions
 │   │   ├── discover.ts  # discoverBatch for browse/topics
-│   │   └── trending.ts  # Trending content
+│   │   └── trending.ts  # getTrending() with ratings + watch options for hero
 │   ├── services/        # External API services (TMDB)
 │   └── db/              # Database layer (MongoDB)
+│       ├── index.ts     # Connection setup
+│       ├── models/      # Mongoose models
+│       │   ├── movie.ts
+│       │   ├── series.ts
+│       │   └── user-library.ts  # WatchedMovie, MoviesWatchlist, SeriesWatchlist, UserRating, RecentItem, ContinueWatching
+│       └── cached-queries.ts    # unstable_cache wrappers
 ├── types/               # TypeScript types/interfaces
 │   └── next-auth.d.ts   # Auth.js type augmentation
 ├── proxy.ts             # Route protection (Edge Runtime)
@@ -272,6 +295,44 @@ interface PersonCombinedCastCredit {
   popularity: number;
   // ... other fields
 }
+
+// Watch options types (from src/types/index.ts)
+interface WatchOption {
+  name: string;
+  displayName: string;
+  link: string;
+  price: string;
+  image: string;
+  key: string;
+  isJustWatch?: boolean;
+}
+
+interface ProcessedWatchOptions {
+  options: WatchOption[];
+  sourceCountry: string;
+  isFromFallback: boolean;
+}
+
+// TMDB watch provider data structure
+interface WatchProviderData {
+  link?: string;
+  flatrate?: WatchProvider[];
+  rent?: WatchProvider[];
+  buy?: WatchProvider[];
+}
+
+interface WatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority: number;
+}
+
+// Movie/Series types include watch_options
+interface Movie {
+  // ... base fields
+  watch_options?: ProcessedWatchOptions;
+}
 ```
 
 ### 7. Error Handling
@@ -355,12 +416,14 @@ export const getMovie = cache(
 
 ### Cache TTLs (from constants.ts)
 
-| Type | TTL |
-|------|-----|
-| trending | 15 min |
-| movie/series | 1 hour |
-| person | 24 hours |
-| search | 5 min |
+| Type | TTL | Use Case |
+|------|-----|----------|
+| trending | 15 min | Homepage trending content |
+| movie/series | 1 hour | Detail pages |
+| person | 24 hours | Person pages |
+| search | 5 min | Search results |
+| discover | 30 min | Browse/topics results |
+| images | 1 hour | Logo/image metadata |
 
 ## Routing Patterns
 
@@ -574,6 +637,37 @@ export function parseTopicKey(key: string): { type: string; topic: string; media
 }
 ```
 
+### ISR for Topics Pages
+
+Topics pages use Incremental Static Regeneration for optimal performance:
+
+```tsx
+// src/app/topics/page.tsx
+// Revalidate every 30 minutes (matches discover cache TTL)
+export const revalidate = 1800;
+
+// Preload only 6 topics to minimize initial API calls
+async function getTopicPreviews() {
+  const topicsToPreload = ALL_TOPICS.slice(0, 6);
+  // ...
+}
+
+// src/app/topics/[topic]/page.tsx
+export const revalidate = 1800;
+
+// Pre-render the first 50 topics at build time
+export async function generateStaticParams() {
+  return ALL_TOPICS.slice(0, 50).map((topic) => ({
+    topic: topic.key,
+  }));
+}
+```
+
+**Key points:**
+- ISR revalidation matches discover cache TTL (30 min)
+- Pre-render popular topics at build time
+- Limit preloaded topics to reduce initial server load
+
 ### Fixed Sidebar Pattern
 
 Browse page sidebar should be fixed position to avoid scroll glitches:
@@ -588,6 +682,254 @@ Browse page sidebar should be fixed position to avoid scroll glitches:
 <main className="flex-1 md:ml-60 lg:ml-64">
   {/* Grid content */}
 </main>
+```
+
+## Watch Options Architecture
+
+### Data Sources
+
+Watch options come from two sources with priority:
+
+1. **Scraped Data** (India only): From `googleData.allWatchOptions` in MongoDB - direct deep links to providers
+2. **TMDB Watch Providers**: For all countries - JustWatch attribution links (not direct deep links)
+
+### Processing Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Server: movie.ts / series.ts action                         │
+├─────────────────────────────────────────────────────────────┤
+│ 1. Detect country from X-Country-Code header               │
+│ 2. Fetch TMDB data + MongoDB googleData in parallel        │
+│ 3. Process: getWatchOptionsForCountry()                    │
+│    - India: scraped data > TMDB India                      │
+│    - Other: TMDB for country > fallback countries          │
+│ 4. Optimize: getOptimizedWatchProviders()                  │
+│    - Filter to ~15 common countries for payload size       │
+├─────────────────────────────────────────────────────────────┤
+│ Response includes:                                          │
+│ - watch_options: ProcessedWatchOptions (for current country)│
+│ - optimized_watch_providers: Record<string, WatchProviderData>│
+│ - googleData: { allWatchOptions } (for client re-processing)│
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Client: WatchOptions component                              │
+├─────────────────────────────────────────────────────────────┤
+│ If countryOverride in user store:                          │
+│   Re-process with getWatchOptionsForCountry()              │
+│ Else:                                                       │
+│   Use server-processed watch_options                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Types (`src/lib/watch-options.ts`)
+
+```typescript
+interface WatchOption {
+  name: string;           // Original provider name
+  displayName: string;    // Normalized display name
+  link: string;           // Watch URL
+  price: string;          // "flatrate", "rent", "buy"
+  image: string;          // Local or TMDB logo URL
+  key: string;            // Provider identifier
+  isJustWatch?: boolean;  // True if from TMDB (no direct links)
+}
+
+interface ProcessedWatchOptions {
+  options: WatchOption[];
+  sourceCountry: string;      // Country code for these options
+  isFromFallback: boolean;    // True if showing different country's options
+}
+```
+
+### Utility Functions
+
+```typescript
+import {
+  getWatchOptionsForCountry,
+  getOptimizedWatchProviders,
+  processScrapedWatchOptions,
+  normalizeTMDBWatchProviders,
+} from "@/lib/watch-options";
+
+// Main processing function
+const result = getWatchOptionsForCountry(
+  "US",                    // Target country
+  googleData,              // From MongoDB (India only)
+  watchProviders           // From TMDB API
+);
+// Returns: { options, sourceCountry, isFromFallback }
+
+// Server-side optimization (reduce payload)
+const optimized = getOptimizedWatchProviders("US", watchProviders);
+// Returns providers for US + 14 other common countries
+```
+
+### Fallback Priority
+
+When no watch options exist for the user's country:
+
+```typescript
+const FALLBACK_COUNTRIES = ["US", "GB", "FR", "DE", "IN", "JP", "KR"];
+```
+
+### OTT Provider Mapping
+
+Known providers mapped to local images (`/images/ott/`):
+
+```typescript
+// Netflix, YouTube, Amazon/Prime, Apple, Hotstar, SonyLIV,
+// Voot, Zee5, JioCinema, MUBI, MX Player, aha, Plex, Crunchyroll, Viki
+```
+
+For unmapped providers, TMDB logo is used: `https://image.tmdb.org/t/p/w92${logo_path}`
+
+## Zustand State Management
+
+### User Store Pattern
+
+User-specific state (watchlist, watched, ratings, recents, continue watching) is managed via Zustand with server sync:
+
+```typescript
+// src/stores/user.ts
+interface RecentItem {
+  id: number;
+  itemId: number;
+  isMovie: boolean;
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  viewedAt: Date | string;
+}
+
+interface ContinueWatchingItem {
+  id: number;
+  itemId: number;
+  isMovie: boolean;
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  watchLink: string;
+  watchProviderName?: string;
+  updatedAt: Date | string;
+}
+
+interface UserLibraryState {
+  // IDs only - for quick lookups
+  watchedMovies: Set<number>;
+  watchlistMovies: Set<number>;
+  watchlistSeries: Set<number>;
+  ratings: Map<string, number>; // "movie:123" -> rating
+
+  // Full items (synced with server)
+  recents: RecentItem[];
+  continueWatching: ContinueWatchingItem[];
+
+  // User preferences (client-side only)
+  countryOverride: string | null; // Watch provider country override
+
+  // State management
+  isHydrated: boolean;
+  isHydrating: boolean;
+  lastHydratedAt: number | null;
+}
+
+interface UserLibraryActions {
+  // Watchlist/Watched/Ratings
+  isInWatchlist: (id: number, mediaType: MediaType) => boolean;
+  toggleWatchlist: (id: number, mediaType: MediaType) => Promise<void>;
+  // ...
+
+  // Recents (synced with server)
+  addToRecents: (item: Omit<RecentItem, "id" | "viewedAt">) => Promise<void>;
+
+  // Continue Watching (synced with server)
+  addToContinueWatching: (item: Omit<ContinueWatchingItem, "id" | "updatedAt">) => Promise<void>;
+  removeFromContinueWatching: (itemId: number, isMovie: boolean) => Promise<void>;
+
+  // Country preference (client-only, triggers WatchOptions re-render)
+  setCountryOverride: (countryCode: string | null) => void;
+
+  // Hydration
+  hydrate: () => Promise<void>;
+  reset: () => void;
+}
+```
+
+**Key patterns:**
+- All data is server-synced (no local persistence)
+- Optimistic updates with rollback on error
+- Single hydration endpoint (`/api/user/library`) fetches all user data
+- Recents tracked automatically via `RecentTracker` component on detail pages
+- Continue watching added when user clicks streaming links
+
+### Store Hydration Provider
+
+Hydrate the store when user authenticates:
+
+```typescript
+// src/components/providers/user-store-provider.tsx
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useEffect, useRef } from "react";
+import { useUserStore } from "@/stores/user";
+
+export function UserStoreProvider() {
+  const { status } = useSession();
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && !hydrated.current) {
+      hydrated.current = true;
+      useUserStore.getState().hydrate();
+    }
+    if (status === "unauthenticated") {
+      hydrated.current = false;
+      useUserStore.getState().clear();
+    }
+  }, [status]);
+
+  return null;
+}
+
+// Add to providers
+<Providers>
+  <UserStoreProvider />
+  {children}
+</Providers>
+```
+
+### useUserLibrary Hook
+
+Convenience hook for user library actions with toast notifications:
+
+```typescript
+// src/hooks/use-user-library.ts
+export function useUserLibrary() {
+  const { toast } = useToast();
+  const store = useUserStore();
+
+  const toggleWatchlist = async (itemId: number, mediaType: "movie" | "series", title: string) => {
+    const wasInList = store.isInWatchlist(itemId, mediaType);
+    await store.toggleWatchlist(itemId, mediaType);
+    toast({
+      description: wasInList ? `Removed from watchlist` : `Added to watchlist`,
+    });
+  };
+
+  return {
+    isInWatchlist: store.isInWatchlist,
+    toggleWatchlist,
+    isWatched: store.isWatched,
+    toggleWatched: store.toggleWatched,
+    // ... more
+  };
+}
 ```
 
 ## Do NOT

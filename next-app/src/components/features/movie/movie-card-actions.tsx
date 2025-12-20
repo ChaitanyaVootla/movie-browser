@@ -2,7 +2,7 @@
 
 import { Plus, Check, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useUserStore } from "@/stores/user";
+import { useUserStore, type MediaType } from "@/stores/user";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 
@@ -21,13 +21,14 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
     return null;
   }
 
+  const mediaType: MediaType = "movie"; // Only movies for now
   const watched = isWatched(itemId);
-  const inWatchlist = isInWatchlist(itemId);
+  const inWatchlist = isInWatchlist(itemId, mediaType);
 
   const handleWatchlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleWatchlist(itemId);
+    toggleWatchlist(itemId, mediaType);
   };
 
   const handleWatchedClick = (e: React.MouseEvent) => {

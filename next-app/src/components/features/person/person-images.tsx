@@ -136,7 +136,8 @@ export function PersonImages({ images, personName, className }: PersonImagesProp
               </>
             )}
 
-            {/* Image */}
+            {/* Image - using native img for lightbox to allow dynamic sizing without Next.js Image constraints */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`${TMDB_IMAGE_BASE}/original${images[lightboxIndex].file_path}`}
               alt={`${personName} photo ${lightboxIndex + 1}`}
@@ -181,4 +182,5 @@ export function PersonImages({ images, personName, className }: PersonImagesProp
     </section>
   );
 }
+
 

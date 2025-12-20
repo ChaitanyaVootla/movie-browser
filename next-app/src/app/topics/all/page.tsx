@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { Film, Tv, ArrowLeft } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { ALL_TOPICS, GENRE_TOPICS, THEME_TOPICS } from "@/lib/topics";
 import { cn } from "@/lib/utils";

@@ -1,11 +1,15 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { getSeriesDetails, getSeasonDetails, getEpisodeDetails } from "@/server/services/tmdb";
-import { connectDB } from "@/server/db";
-import { Series as SeriesModel } from "@/server/db/models/series";
+import { getCachedSeriesRatings } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
-import type { Series, Season, Episode, ExternalRating } from "@/types";
+import {
+  getWatchOptionsForCountry,
+  getOptimizedWatchProviders,
+} from "@/lib/watch-options";
+import type { Series, Season, Episode, ExternalRating, WatchProviderData } from "@/types";
 
 const GetSeriesSchema = z.object({
   id: z.number().positive(),
@@ -23,6 +27,20 @@ const GetEpisodeSchema = z.object({
 });
 
 /**
+ * Get country code from request headers
+ * Falls back to IN (India) if not available
+ */
+async function getCountryCode(): Promise<string> {
+  try {
+    const headersList = await headers();
+    // Check for nginx-injected header or query param
+    return headersList.get("x-country-code") || "IN";
+  } catch {
+    return "IN";
+  }
+}
+
+/**
  * Get full series details including credits, videos, images, keywords, recommendations, watch providers, and ratings
  * Fetches from MongoDB first (for ratings data), then enriches with fresh TMDB data
  */
@@ -30,14 +48,12 @@ export async function getSeries(id: number): Promise<Series | null> {
   try {
     const validated = GetSeriesSchema.parse({ id });
 
-    // Connect to MongoDB and fetch stored series data (contains ratings from scrapers)
-    await connectDB();
-    const dbSeries = await SeriesModel.findOne({ id: validated.id })
-      .select("-_id -__v -watchProviders")
-      .lean();
-
-    // Fetch fresh TMDB data
-    const tmdbData = await getSeriesDetails(validated.id);
+    // Fetch TMDB data, cached MongoDB ratings, and country code in parallel
+    const [tmdbData, dbSeries, countryCode] = await Promise.all([
+      getSeriesDetails(validated.id),
+      getCachedSeriesRatings(validated.id), // Uses Next.js cache with 1hr TTL
+      getCountryCode(),
+    ]);
 
     if (!tmdbData || !tmdbData.id) {
       return null;
@@ -64,6 +80,19 @@ export async function getSeries(id: number): Promise<Series | null> {
       certified: r.certified,
       sentiment: r.sentiment,
     }));
+
+    // Process watch options for the user's country
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)
+      ?.results as Record<string, WatchProviderData> | undefined;
+
+    const watchOptions = getWatchOptionsForCountry(
+      countryCode,
+      googleData as { allWatchOptions?: Array<{ name: string; link: string; price?: string }> },
+      tmdbWatchProviders
+    );
+
+    // Get optimized watch providers (only relevant countries, not all)
+    const optimizedWatchProviders = getOptimizedWatchProviders(countryCode, tmdbWatchProviders);
 
     // Transform TMDB response to our Series type with ratings
     return {
@@ -101,12 +130,12 @@ export async function getSeries(id: number): Promise<Series | null> {
       keywords: tmdbData.keywords as Series["keywords"],
       recommendations: tmdbData.recommendations as Series["recommendations"],
       similar: tmdbData.similar as Series["similar"],
-      watch_providers: (tmdbData["watch/providers"] as Record<string, unknown>)
-        ?.results as Series["watch_providers"],
+      watch_providers: optimizedWatchProviders,
       seasons: tmdbData.seasons as Series["seasons"],
       next_episode_to_air: tmdbData.next_episode_to_air as Series["next_episode_to_air"],
       last_episode_to_air: tmdbData.last_episode_to_air as Series["last_episode_to_air"],
       ratings,
+      watch_options: watchOptions,
     };
   } catch (error) {
     console.error("Error fetching series:", error);

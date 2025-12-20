@@ -48,22 +48,7 @@ export function DiscoverGrid({
 
   const canLoadMore = page < totalPages;
 
-  // Reset when params change
-  useEffect(() => {
-    setResults(initialResults);
-    setPage(1);
-    setTotalPages(initialTotalPages);
-    setTotalResults(initialTotalResults);
-    setIsInitialLoad(initialResults.length === 0);
-  }, [JSON.stringify(params), initialResults, initialTotalPages, initialTotalResults]);
-
-  // Initial load if no results provided
-  useEffect(() => {
-    if (isInitialLoad && !isPending) {
-      loadMore(true);
-    }
-  }, [isInitialLoad]);
-
+  // Load more function - defined before effects that use it
   const loadMore = useCallback(
     (reset = false) => {
       startTransition(async () => {
@@ -83,6 +68,23 @@ export function DiscoverGrid({
     },
     [params, page]
   );
+
+  // Reset when params change
+  useEffect(() => {
+    setResults(initialResults);
+    setPage(1);
+    setTotalPages(initialTotalPages);
+    setTotalResults(initialTotalResults);
+    setIsInitialLoad(initialResults.length === 0);
+  }, [JSON.stringify(params), initialResults, initialTotalPages, initialTotalResults]);
+
+  // Initial load if no results provided
+  useEffect(() => {
+    if (isInitialLoad && !isPending) {
+      loadMore(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialLoad]);
 
   // Infinite scroll observer
   useEffect(() => {

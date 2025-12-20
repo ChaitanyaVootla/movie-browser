@@ -39,12 +39,6 @@ export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
   const [showTrailer, setShowTrailer] = useState(false);
 
   const title = isMovie(item) ? item.title : item.name;
-  const year = isMovie(item)
-    ? item.release_date?.split("-")[0]
-    : item.first_air_date?.split("-")[0];
-  const runtime = isMovie(item) ? item.runtime : item.episode_run_time?.[0];
-  const numberOfSeasons = !isMovie(item) ? item.number_of_seasons : undefined;
-
   const genres = item.genres || [];
   const trailer = getTrailer(item.videos);
   const tmdbLogoPath = item.images?.logos?.find((l) => l.iso_639_1 === "en")?.file_path;
@@ -63,13 +57,13 @@ export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
             itemId={item.id}
             title={title}
             mediaType={mediaType}
-            year={year}
-            runtime={runtime}
-            numberOfSeasons={numberOfSeasons}
             genres={genres}
             ratings={item.ratings}
             voteAverage={item.vote_average}
             tmdbLogoPath={tmdbLogoPath}
+            watchOptions={item.watch_options}
+            watchProviders={item.watch_providers}
+            item={item}
             priority
             className="pb-8 md:pb-10 lg:pb-12"
             actions={

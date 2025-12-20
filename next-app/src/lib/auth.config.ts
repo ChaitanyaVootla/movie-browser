@@ -97,10 +97,18 @@ export const authConfig: NextAuthConfig = {
     },
 
     // Add user ID and role to JWT token
-    jwt({ token, user, trigger }) {
+    jwt({ token, user, account, trigger }) {
       if (user) {
         token.id = user.id;
         token.role = getUserRole(user.email);
+        // Store Google sub for compatibility with Nuxt app data
+        if (user.googleId) {
+          token.googleId = user.googleId;
+        }
+      }
+      // Capture Google sub from OAuth account
+      if (account?.provider === "google" && account.providerAccountId) {
+        token.googleId = account.providerAccountId;
       }
       // Recalculate role on token refresh (in case admin list changes)
       if (trigger === "update" && token.email) {
@@ -116,6 +124,9 @@ export const authConfig: NextAuthConfig = {
           session.user.id = token.id as string;
         }
         session.user.role = token.role ?? "user";
+        if (token.googleId) {
+          session.user.googleId = token.googleId as string;
+        }
       }
       return session;
     },

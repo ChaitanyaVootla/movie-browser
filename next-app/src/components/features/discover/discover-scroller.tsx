@@ -48,20 +48,7 @@ export function DiscoverScroller({
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
 
-  // Initial fetch if no results provided
-  useEffect(() => {
-    if (initialResults.length === 0 && canLoadMore) {
-      loadMore();
-    }
-  }, []);
-
-  // Load more when items fall below minimum
-  useEffect(() => {
-    if (results.length < minItems && canLoadMore && !isPending) {
-      loadMore();
-    }
-  }, [results.length, minItems, canLoadMore, isPending]);
-
+  // Load more function - defined before effects that use it
   const loadMore = useCallback(() => {
     if (isPending || !canLoadMore) return;
 
@@ -77,6 +64,22 @@ export function DiscoverScroller({
       setPage(nextPage);
     });
   }, [params, page, isPending, canLoadMore]);
+
+  // Initial fetch if no results provided
+  useEffect(() => {
+    if (initialResults.length === 0 && canLoadMore) {
+      loadMore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load more when items fall below minimum
+  useEffect(() => {
+    if (results.length < minItems && canLoadMore && !isPending) {
+      loadMore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results.length, minItems, canLoadMore, isPending]);
 
   // Intersection observer for lazy loading at end
   useEffect(() => {

@@ -1,7 +1,12 @@
 "use server";
 
 import { z } from "zod";
-import { getPersonDetails, searchPerson as searchPersonTMDB, type PersonSearchResult } from "@/server/services/tmdb";
+import {
+  getPersonDetails,
+  getPersonBasicInfo,
+  searchPerson as searchPersonTMDB,
+  type PersonSearchResult,
+} from "@/server/services/tmdb";
 import type { Person } from "@/types";
 
 const GetPersonSchema = z.object({
@@ -68,14 +73,11 @@ export async function searchPerson(query: string): Promise<PersonSearchResult[]>
 
 /**
  * Get minimal person info by ID (for displaying filter pills)
+ * Uses lightweight TMDB endpoint without credits/images
  */
 export async function getPersonBasic(id: number): Promise<{ id: number; name: string } | null> {
-  try {
-    const data = await getPersonDetails(id);
-    if (!data || !data.id) return null;
-    return { id: data.id as number, name: data.name as string };
-  } catch {
-    return null;
-  }
+  const data = await getPersonBasicInfo(id);
+  if (!data) return null;
+  return { id: data.id, name: data.name };
 }
 

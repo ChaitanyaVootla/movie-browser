@@ -18,6 +18,9 @@ const globalCache = new NodeCache({
   deleteOnExpire: true,
 });
 
+// Track in-flight requests to prevent duplicate fetches
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
 export type CacheNamespace =
   | "trending"
   | "movie"
@@ -43,9 +46,9 @@ function getTTL(namespace: CacheNamespace): number {
     case "search":
       return CACHE_DURATIONS.search;
     case "discover":
-      return CACHE_DURATIONS.movie;
+      return CACHE_DURATIONS.discover;
     case "images":
-      return CACHE_DURATIONS.movie;
+      return CACHE_DURATIONS.images;
     default:
       return 3600; // 1 hour default
   }
@@ -109,6 +112,7 @@ export function cacheStats(): NodeCache.Stats {
 
 /**
  * Cached fetch wrapper - fetches from cache or executes fetcher
+ * Includes request deduplication to prevent duplicate in-flight requests
  */
 export async function cachedFetch<T>(
   namespace: CacheNamespace,
@@ -116,19 +120,35 @@ export async function cachedFetch<T>(
   fetcher: () => Promise<T>,
   ttl?: number
 ): Promise<T> {
+  const fullKey = buildKey(namespace, key);
+
   // Check cache first
   const cached = cacheGet<T>(namespace, key);
   if (cached !== undefined) {
     return cached;
   }
 
-  // Fetch fresh data
-  const data = await fetcher();
+  // Check if there's already an in-flight request for this key
+  const inFlight = inFlightRequests.get(fullKey);
+  if (inFlight) {
+    return inFlight as Promise<T>;
+  }
 
-  // Store in cache
-  cacheSet(namespace, key, data, ttl);
+  // Create new request and track it
+  const promise = fetcher()
+    .then((data) => {
+      // Store in cache
+      cacheSet(namespace, key, data, ttl);
+      return data;
+    })
+    .finally(() => {
+      // Clean up in-flight tracking
+      inFlightRequests.delete(fullKey);
+    });
 
-  return data;
+  inFlightRequests.set(fullKey, promise);
+
+  return promise;
 }
 
 /**
