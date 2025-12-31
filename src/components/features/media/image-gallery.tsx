@@ -97,28 +97,28 @@ export function ImageGallery({
 
       {/* Horizontal scroll gallery */}
       <ScrollArea className="w-full">
-        <div className="flex gap-2 px-4 md:px-8 lg:px-12 pb-4">
+        <div className="flex gap-3 px-4 md:px-8 lg:px-12 pb-4">
           {visibleImages.map((image, index) => {
             const aspectRatio = image.aspect_ratio || 1.78;
-            const height = 120;
-            const width = Math.min(aspectRatio * height, 220);
+            const height = 160;
+            const width = Math.min(aspectRatio * height, 300);
 
             return (
               <button
                 key={image.file_path}
                 onClick={() => setSelectedIndex(index)}
-                className="group relative flex-shrink-0 overflow-hidden rounded-lg transition-all hover:ring-2 hover:ring-brand/50"
+                className="group relative flex-shrink-0 rounded-lg cursor-pointer transition-all duration-200 hover:z-10"
               >
                 <div
-                  className="relative"
+                  className="relative overflow-hidden rounded-lg ring-1 ring-white/10 group-hover:ring-2 group-hover:ring-brand/60 transition-all duration-200"
                   style={{ height: `${height}px`, width: `${width}px` }}
                 >
                   <Image
-                    src={`${TMDB_IMAGE_BASE}/w500${image.file_path}`}
+                    src={`${TMDB_IMAGE_BASE}/w780${image.file_path}`}
                     alt={`Gallery image ${index + 1}`}
                     fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                    sizes="220px"
+                    className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                    sizes="300px"
                     unoptimized
                   />
                 </div>
@@ -128,8 +128,8 @@ export function ImageGallery({
           {images.length > maxVisible && (
             <button
               onClick={() => setSelectedIndex(maxVisible)}
-              className="flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-              style={{ height: "120px", width: "120px" }}
+              className="flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+              style={{ height: "160px", width: "160px" }}
             >
               <div className="text-center">
                 <span className="text-2xl font-bold text-muted-foreground">

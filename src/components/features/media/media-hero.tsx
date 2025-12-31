@@ -1,11 +1,7 @@
-"use client";
-
-import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { MediaBackdrop, TrailerOverlay } from "./media-backdrop";
+import { MediaBackdrop } from "./media-backdrop";
 import { HeroContent } from "./hero-content";
-import { MediaActions } from "./media-actions";
-import type { Movie, Series, Video } from "@/types";
+import type { Movie, Series } from "@/types";
 
 interface MediaHeroProps {
   item: Movie | Series;
@@ -17,42 +13,30 @@ function isMovie(item: Movie | Series): item is Movie {
   return "title" in item;
 }
 
-// Get trailer from videos
-function getTrailer(videos?: { results: Video[] }): Video | null {
-  if (!videos?.results?.length) return null;
-
-  const officialTrailer = videos.results.find(
-    (v) => v.type === "Trailer" && v.official && v.site === "YouTube"
-  );
-  if (officialTrailer) return officialTrailer;
-
-  const anyTrailer = videos.results.find((v) => v.type === "Trailer" && v.site === "YouTube");
-  if (anyTrailer) return anyTrailer;
-
-  const teaser = videos.results.find((v) => v.type === "Teaser" && v.site === "YouTube");
-  if (teaser) return teaser;
-
-  return videos.results.find((v) => v.site === "YouTube") || null;
-}
-
+/**
+ * Hero section with backdrop image and core info (logo, genres, ratings, watch options).
+ * Action buttons are now rendered separately via MediaActionBar.
+ */
 export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
-  const [showTrailer, setShowTrailer] = useState(false);
-
   const title = isMovie(item) ? item.title : item.name;
   const genres = item.genres || [];
-  const trailer = getTrailer(item.videos);
   const tmdbLogoPath = item.images?.logos?.find((l) => l.iso_639_1 === "en")?.file_path;
 
   return (
     <section className={cn("relative", className)}>
-      <MediaBackdrop
-        item={item}
-        mediaType={mediaType}
-        overlay="light"
-        className="min-h-[50vh] md:min-h-[55vh] lg:min-h-[60vh]"
-      >
-        {/* Full-width content container */}
-        <div className="px-4 md:px-8 lg:px-12 h-full min-h-[50vh] md:min-h-[55vh] lg:min-h-[60vh] flex items-end">
+      {/* Hero container with responsive height using CSS variables (defined in globals.css)
+          Mobile: clamp(min, target, max) 
+          Desktop (md+): clamp(min, target, max) with larger values */}
+      <div className="hero-container relative w-full overflow-hidden">
+        <MediaBackdrop
+          item={item}
+          mediaType={mediaType}
+          overlay="light"
+          className="absolute inset-0"
+        />
+        
+        {/* Content overlay - positioned at bottom */}
+        <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 md:px-8 lg:px-12">
           <HeroContent
             itemId={item.id}
             title={title}
@@ -65,28 +49,10 @@ export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
             watchProviders={item.watch_providers}
             item={item}
             priority
-            className="pb-8 md:pb-10 lg:pb-12"
-            actions={
-              <MediaActions
-                itemId={item.id}
-                mediaType={mediaType}
-                title={title}
-                hasTrailer={!!trailer}
-                onPlayTrailer={() => setShowTrailer(true)}
-              />
-            }
+            className="pb-5 md:pb-6 lg:pb-8"
           />
         </div>
-      </MediaBackdrop>
-
-      {/* Trailer Overlay */}
-      {trailer && (
-        <TrailerOverlay
-          videoKey={trailer.key}
-          isVisible={showTrailer}
-          onClose={() => setShowTrailer(false)}
-        />
-      )}
+      </div>
     </section>
   );
 }

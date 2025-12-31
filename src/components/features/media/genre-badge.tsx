@@ -40,8 +40,8 @@ export function GenreBadge({ genre, mediaType, size = "md", className, linkToBro
       <Badge
         variant="secondary"
         className={cn(
-          "rounded-full transition-all duration-200 hover:bg-white/20 hover:scale-105 cursor-pointer",
-          "bg-white/10 text-white/90 border-white/20 backdrop-blur-sm",
+          "rounded-full transition-colors duration-200 hover:bg-white/12",
+          "bg-white/5 text-white/70 border-white/10",
           sizeClasses[size],
           className
         )}
@@ -82,7 +82,7 @@ export function GenreList({
         <Badge
           variant="secondary"
           className={cn(
-            "rounded-full bg-white/5 text-white/60 border-white/10",
+            "rounded-full bg-white/5 text-white/50 border-white/8",
             size === "sm" && "text-xs px-2 py-0.5",
             size === "md" && "text-sm px-3 py-1",
             size === "lg" && "text-base px-4 py-1.5"

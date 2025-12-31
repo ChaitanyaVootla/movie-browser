@@ -2,7 +2,8 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { User, LogOut, Heart, List, Star, Settings } from "lucide-react";
+import { useTheme } from "next-themes";
+import { User, LogOut, Eye, List, Star, Settings, Moon, Sun, Monitor, Palette, LayoutGrid, LayoutList } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,11 +11,34 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useMounted } from "@/hooks/use-mounted";
+import { usePreferencesStore, selectCardDisplayMode, type CardDisplayMode } from "@/stores/preferences";
+
+const themes = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+] as const;
+
+const colorThemes = [
+  { value: "dark", label: "Default" },
+  { value: "midnight", label: "Midnight Blue" },
+  { value: "forest", label: "Forest Green" },
+] as const;
+
+const cardDisplayModes = [
+  { value: "poster" as CardDisplayMode, label: "Poster Cards", icon: LayoutGrid },
+  { value: "wide" as CardDisplayMode, label: "Wide Cards", icon: LayoutList },
+] as const;
 
 interface UserMenuProps {
   className?: string;
@@ -22,6 +46,10 @@ interface UserMenuProps {
 
 export function UserMenu({ className }: UserMenuProps) {
   const { data: session, status } = useSession();
+  const { theme, setTheme } = useTheme();
+  const cardDisplayMode = usePreferencesStore(selectCardDisplayMode);
+  const setCardDisplayMode = usePreferencesStore((state) => state.setCardDisplayMode);
+  const mounted = useMounted();
 
   // Loading state
   if (status === "loading") {
@@ -95,9 +123,9 @@ export function UserMenu({ className }: UserMenuProps) {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href="/favorites" className="cursor-pointer">
-            <Heart className="mr-2 h-4 w-4" />
-            <span>Favorites</span>
+          <Link href="/watched" className="cursor-pointer">
+            <Eye className="mr-2 h-4 w-4" />
+            <span>Watched</span>
           </Link>
         </DropdownMenuItem>
 
@@ -116,6 +144,74 @@ export function UserMenu({ className }: UserMenuProps) {
             <span>Settings</span>
           </Link>
         </DropdownMenuItem>
+
+        {/* Theme Toggle Submenu */}
+        {mounted && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="gap-2">
+              {theme === "light" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+              <span>Appearance</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="w-44">
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Card Display
+                </DropdownMenuLabel>
+                {cardDisplayModes.map(({ value, label, icon: Icon }) => (
+                  <DropdownMenuItem
+                    key={value}
+                    onClick={() => setCardDisplayMode(value)}
+                    className="gap-2"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                    {cardDisplayMode === value && (
+                      <span className="ml-auto text-brand">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Mode
+                </DropdownMenuLabel>
+                {themes.map(({ value, label, icon: Icon }) => (
+                  <DropdownMenuItem
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    className="gap-2"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                    {theme === value && (
+                      <span className="ml-auto text-brand">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Color Theme
+                </DropdownMenuLabel>
+                {colorThemes.map(({ value, label }) => (
+                  <DropdownMenuItem
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    className="gap-2"
+                  >
+                    <Palette className="h-4 w-4" />
+                    {label}
+                    {theme === value && (
+                      <span className="ml-auto text-brand">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+        )}
 
         <DropdownMenuSeparator />
 

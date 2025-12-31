@@ -19,11 +19,14 @@ export interface DiscoverParams {
   with_origin_country?: string;
   with_watch_providers?: number[];
   watch_region?: string;
+  with_watch_monetization_types?: "flatrate" | "free" | "ads" | "rent" | "buy";
   with_cast?: number[];
   with_crew?: number[];
   "vote_average.gte"?: number;
   "vote_average.lte"?: number;
   "vote_count.gte"?: number;
+  "with_runtime.gte"?: number;
+  "with_runtime.lte"?: number;
   "primary_release_date.gte"?: string;
   "primary_release_date.lte"?: string;
   "first_air_date.gte"?: string;
@@ -85,6 +88,42 @@ export const MIN_VOTES_OPTIONS = [
   { value: 500, label: "500+" },
   { value: 1000, label: "1000+" },
   { value: 5000, label: "5000+" },
+] as const;
+
+// Runtime filter options (in minutes)
+export const RUNTIME_OPTIONS = [
+  { value: "any", label: "Any length" },
+  { min: 0, max: 90, value: "0-90", label: "Under 90 min" },
+  { min: 90, max: 120, value: "90-120", label: "90-120 min" },
+  { min: 120, max: 150, value: "120-150", label: "2-2.5 hours" },
+  { min: 150, max: 999, value: "150-999", label: "Over 2.5 hours" },
+] as const;
+
+// Popular streaming providers (TMDB provider IDs)
+// These are globally popular - actual availability varies by region
+export const STREAMING_PROVIDERS = [
+  { id: 8, name: "Netflix", logo: "/t2yyOv40HZeVlLjYsCsPHnWLk4W.jpg" },
+  { id: 119, name: "Amazon Prime Video", logo: "/emthp39XA2YScoYL1p0sdbAH2WA.jpg" },
+  { id: 337, name: "Disney+", logo: "/7rwgEs15tFwyR9NPQ5vpzxTj19Q.jpg" },
+  { id: 350, name: "Apple TV+", logo: "/6uhKBfmtzFqOcLousHwZuzcrScK.jpg" },
+  { id: 1899, name: "Max", logo: "/fksCUZ9QDWZMUwL2LgMtLckROUN.jpg" },
+  { id: 531, name: "Paramount+", logo: "/xbhHHa1YgtpwhC8lb1NQ3ACVcLd.jpg" },
+  { id: 15, name: "Hulu", logo: "/zxrVdFjIjLqkfnwyghnfywTn3Lh.jpg" },
+  { id: 387, name: "Peacock", logo: "/8VCV78prwd9QzZnEm0ReO6bERDa.jpg" },
+  { id: 122, name: "Hotstar", logo: "/7Fl8ylPDclt3ZYgNbW2t7rbZE9I.jpg" },
+  { id: 237, name: "SonyLIV", logo: "/vBkRi1QSVS1F5l65CYJxNPFPltX.jpg" },
+  { id: 220, name: "JioCinema", logo: "/tUNoSHNEgPGRlWfJo98UjBoNKlN.jpg" },
+  { id: 232, name: "Zee5", logo: "/7p0GHrJP5xKsLmNZX8mLhZcmBvB.jpg" },
+] as const;
+
+// Watch monetization types
+export const MONETIZATION_OPTIONS = [
+  { value: "any", label: "Any availability" },
+  { value: "flatrate", label: "Streaming (subscription)" },
+  { value: "free", label: "Free" },
+  { value: "ads", label: "Free with ads" },
+  { value: "rent", label: "Rent" },
+  { value: "buy", label: "Buy" },
 ] as const;
 
 // ============================================
@@ -198,6 +237,40 @@ export function serializeDiscoverParams(params: Partial<DiscoverParams>): string
   if (params["vote_count.gte"]) {
     searchParams.set("min_votes", String(params["vote_count.gte"]));
   }
+
+  // Runtime filters
+  if (params["with_runtime.gte"] || params["with_runtime.lte"]) {
+    const min = params["with_runtime.gte"] || 0;
+    const max = params["with_runtime.lte"] || 999;
+    searchParams.set("runtime", `${min}-${max}`);
+  }
+
+  // Watch providers
+  const providers = serializeIds(params.with_watch_providers);
+  if (providers) {
+    searchParams.set("providers", providers);
+  }
+  if (params.watch_region) {
+    searchParams.set("region", params.watch_region);
+  }
+  if (params.with_watch_monetization_types) {
+    searchParams.set("availability", params.with_watch_monetization_types);
+  }
+
+  // Date range filters
+  if (params["primary_release_date.gte"]) {
+    searchParams.set("release_from", params["primary_release_date.gte"]);
+  }
+  if (params["primary_release_date.lte"]) {
+    searchParams.set("release_to", params["primary_release_date.lte"]);
+  }
+  if (params["first_air_date.gte"]) {
+    searchParams.set("air_from", params["first_air_date.gte"]);
+  }
+  if (params["first_air_date.lte"]) {
+    searchParams.set("air_to", params["first_air_date.lte"]);
+  }
+
   if (params.page && params.page > 1) {
     searchParams.set("page", String(params.page));
   }
@@ -259,6 +332,40 @@ export function parseDiscoverParams(searchParams: URLSearchParams): Partial<Disc
 
   const voteCountGte = searchParams.get("min_votes") || searchParams.get("vote_count.gte");
   if (voteCountGte) params["vote_count.gte"] = parseInt(voteCountGte, 10);
+
+  // Runtime filter
+  const runtime = searchParams.get("runtime");
+  if (runtime) {
+    const [min, max] = runtime.split("-").map(Number);
+    if (!isNaN(min) && min > 0) params["with_runtime.gte"] = min;
+    if (!isNaN(max) && max < 999) params["with_runtime.lte"] = max;
+  }
+
+  // Watch providers
+  const withProviders = searchParams.get("providers") || searchParams.get("with_watch_providers");
+  if (withProviders) {
+    params.with_watch_providers = withProviders.split(",").map(Number).filter(Boolean);
+  }
+  const watchRegion = searchParams.get("region") || searchParams.get("watch_region");
+  if (watchRegion) params.watch_region = watchRegion;
+
+  const monetization = searchParams.get("availability") || searchParams.get("with_watch_monetization_types");
+  if (monetization && ["flatrate", "free", "ads", "rent", "buy"].includes(monetization)) {
+    params.with_watch_monetization_types = monetization as DiscoverParams["with_watch_monetization_types"];
+  }
+
+  // Date range filters
+  const releaseFrom = searchParams.get("release_from") || searchParams.get("primary_release_date.gte");
+  if (releaseFrom) params["primary_release_date.gte"] = releaseFrom;
+
+  const releaseTo = searchParams.get("release_to") || searchParams.get("primary_release_date.lte");
+  if (releaseTo) params["primary_release_date.lte"] = releaseTo;
+
+  const airFrom = searchParams.get("air_from") || searchParams.get("first_air_date.gte");
+  if (airFrom) params["first_air_date.gte"] = airFrom;
+
+  const airTo = searchParams.get("air_to") || searchParams.get("first_air_date.lte");
+  if (airTo) params["first_air_date.lte"] = airTo;
 
   return params;
 }

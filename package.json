@@ -20,7 +20,9 @@
     "test:seo": "playwright test e2e/seo/",
     "test:ci": "yarn typecheck && yarn lint && yarn test:unit",
     "clean": "rm -rf .next node_modules",
-    "prepare": "playwright install --with-deps chromium"
+    "prepare": "playwright install --with-deps chromium",
+    "ssh": "ssh -i ./movie-browser-ec2-key.pem ubuntu@98.130.30.197",
+    "ssh:logs": "ssh -i ./movie-browser-ec2-key.pem ubuntu@98.130.30.197 'pm2 logs --lines 100'"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.1",

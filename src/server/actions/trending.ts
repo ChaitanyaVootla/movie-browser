@@ -5,6 +5,7 @@ import {
   getTrendingMovies,
   getTrendingTV,
   getTrendingAll,
+  discoverMovies,
   getMovieWatchProviders,
   getSeriesWatchProviders,
 } from "@/server/services/tmdb";
@@ -286,5 +287,90 @@ export async function getTrending(): Promise<TrendingData> {
       tv: [],
       heroEnhancedData: {},
     };
+  }
+}
+
+/**
+ * Movie with release date info for upcoming displays
+ */
+export interface MovieWithReleaseInfo extends MovieListItem {
+  releaseLabel: string; // "Dec 25" or "Jan 15, 2026"
+}
+
+/**
+ * Format a release date for display
+ */
+function formatReleaseDate(releaseDate: string): string {
+  if (!releaseDate) return "TBA";
+  
+  const release = new Date(releaseDate + "T00:00:00"); // Parse as local date
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const releaseYear = release.getFullYear();
+  
+  const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  
+  // Include year if different from current year
+  if (releaseYear !== currentYear) {
+    return release.toLocaleDateString("en-US", { ...options, year: "numeric" });
+  }
+  return release.toLocaleDateString("en-US", options);
+}
+
+/**
+ * Get upcoming movies using discover API with proper date filtering
+ * Returns movies releasing from today onwards, sorted by release date
+ */
+export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
+  try {
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    
+    // Get date 6 months from now for reasonable scope
+    const sixMonthsLater = new Date(today);
+    sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+    const endDateStr = sixMonthsLater.toISOString().split("T")[0];
+
+    // Use discover endpoint with proper date filtering
+    const [page1, page2] = await Promise.all([
+      discoverMovies({
+        "primary_release_date.gte": todayStr,
+        "primary_release_date.lte": endDateStr,
+        sort_by: "primary_release_date.asc",
+        "vote_count.gte": "0", // Include all, even unrated
+        page: "1",
+      }),
+      discoverMovies({
+        "primary_release_date.gte": todayStr,
+        "primary_release_date.lte": endDateStr,
+        sort_by: "primary_release_date.asc",
+        "vote_count.gte": "0",
+        page: "2",
+      }),
+    ]);
+
+    const allMovies = [
+      ...(page1.results as Record<string, unknown>[]),
+      ...(page2.results as Record<string, unknown>[]),
+    ];
+
+    // Map and format release dates
+    const moviesWithInfo: MovieWithReleaseInfo[] = allMovies
+      .filter((item) => item.poster_path) // Only movies with posters
+      .map((item) => {
+        const movie = mapMovieGenres(item);
+        const releaseDate = item.release_date as string;
+        
+        return {
+          ...movie,
+          releaseLabel: formatReleaseDate(releaseDate),
+        };
+      });
+
+    return moviesWithInfo.slice(0, 20);
+  } catch (error) {
+    console.error("Failed to fetch upcoming movies:", error);
+    return [];
   }
 }

@@ -416,3 +416,97 @@ export async function discoverTV(params: Record<string, string> = {}): Promise<T
     // Uses CACHE_DURATIONS.discover (30 min) via namespace default
   });
 }
+
+// ============================================
+// List Endpoints (Now Playing, Upcoming, etc.)
+// ============================================
+
+/**
+ * Get movies currently in theaters
+ */
+export async function getNowPlayingMovies(
+  page = 1,
+  region?: string
+): Promise<TMDBListResponse & { dates?: { maximum: string; minimum: string } }> {
+  return fetchFromTMDB("/movie/now_playing", {
+    params: {
+      page: String(page),
+      ...(region && { region }),
+    },
+    cacheNamespace: "trending",
+    cacheTTL: CACHE_DURATIONS.trending,
+  });
+}
+
+/**
+ * Get upcoming movies (not yet released)
+ */
+export async function getUpcomingMovies(
+  page = 1,
+  region?: string
+): Promise<TMDBListResponse & { dates?: { maximum: string; minimum: string } }> {
+  return fetchFromTMDB("/movie/upcoming", {
+    params: {
+      page: String(page),
+      ...(region && { region }),
+    },
+    cacheNamespace: "trending",
+    cacheTTL: CACHE_DURATIONS.trending,
+  });
+}
+
+/**
+ * Get top rated movies of all time
+ */
+export async function getTopRatedMovies(page = 1): Promise<TMDBListResponse> {
+  return fetchFromTMDB("/movie/top_rated", {
+    params: { page: String(page) },
+    cacheNamespace: "trending",
+    cacheTTL: CACHE_DURATIONS.trending,
+  });
+}
+
+/**
+ * Get TV shows currently on the air (within 7 days)
+ */
+export async function getOnTheAirTV(page = 1): Promise<TMDBListResponse> {
+  return fetchFromTMDB("/tv/on_the_air", {
+    params: { page: String(page) },
+    cacheNamespace: "trending",
+    cacheTTL: CACHE_DURATIONS.trending,
+  });
+}
+
+/**
+ * Get TV shows airing today
+ */
+export async function getAiringTodayTV(page = 1): Promise<TMDBListResponse> {
+  return fetchFromTMDB("/tv/airing_today", {
+    params: { page: String(page) },
+    cacheNamespace: "trending",
+    cacheTTL: CACHE_DURATIONS.trending,
+  });
+}
+
+/**
+ * Get top rated TV shows of all time
+ */
+export async function getTopRatedTV(page = 1): Promise<TMDBListResponse> {
+  return fetchFromTMDB("/tv/top_rated", {
+    params: { page: String(page) },
+    cacheNamespace: "trending",
+    cacheTTL: CACHE_DURATIONS.trending,
+  });
+}
+
+/**
+ * Get trending people
+ */
+export async function getTrendingPeople(
+  timeWindow: "day" | "week" = "week"
+): Promise<TMDBListResponse> {
+  return fetchFromTMDB(`/trending/person/${timeWindow}`, {
+    cacheNamespace: "trending",
+    cacheTTL: CACHE_DURATIONS.trending,
+  });
+}

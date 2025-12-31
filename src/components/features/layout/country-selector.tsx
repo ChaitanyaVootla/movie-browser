@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Image from "next/image";
 import { Check, Search } from "lucide-react";
 import { getNames, getCode, getName } from "country-list";
 import { Button } from "@/components/ui/button";
@@ -82,13 +81,12 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
             className
           )}
         >
-          <Image
+          <img
             src={`https://flagcdn.com/w40/${selectedCode.toLowerCase()}.png`}
             alt={selectedCountryName}
             width={20}
             height={14}
             className="rounded-[2px] object-cover"
-            unoptimized
           />
           {!compact && (
             <span className="text-xs text-muted-foreground hidden sm:inline">
@@ -128,13 +126,12 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
                     selectedCode === code && "bg-accent"
                   )}
                 >
-                  <Image
+                  <img
                     src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
                     alt={countryName}
                     width={20}
                     height={14}
                     className="rounded-[2px] object-cover flex-shrink-0"
-                    unoptimized
                   />
                   <span className="flex-1 text-left truncate">{countryName}</span>
                   {selectedCode === code && (

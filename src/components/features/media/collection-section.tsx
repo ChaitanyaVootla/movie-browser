@@ -6,20 +6,13 @@ import Link from "next/link";
 import { Clapperboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn, getMediaHref } from "@/lib/utils";
 import type { Collection, CollectionPart } from "@/types";
 
 interface CollectionSectionProps {
   collection: Collection;
   currentMovieId: number;
   className?: string;
-}
-
-function getSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 function CollectionCard({
@@ -31,7 +24,7 @@ function CollectionCard({
 }) {
   const [imageError, setImageError] = useState(false);
   const year = part.release_date?.split("-")[0];
-  const href = `/movie/${part.id}/${getSlug(part.title)}`;
+  const href = getMediaHref(part.id, true, part.title); // Collection parts are always movies
 
   const posterUrl = part.poster_path
     ? `https://image.tmdb.org/t/p/w342${part.poster_path}`

@@ -127,6 +127,19 @@ function toTMDBParams(params: Partial<DiscoverParams>): Record<string, string> {
     tmdbParams["vote_count.gte"] = String(params["vote_count.gte"]);
   }
 
+  // Runtime filters
+  if (params["with_runtime.gte"] !== undefined) {
+    tmdbParams["with_runtime.gte"] = String(params["with_runtime.gte"]);
+  }
+  if (params["with_runtime.lte"] !== undefined) {
+    tmdbParams["with_runtime.lte"] = String(params["with_runtime.lte"]);
+  }
+
+  // Watch monetization type
+  if (params.with_watch_monetization_types) {
+    tmdbParams.with_watch_monetization_types = params.with_watch_monetization_types;
+  }
+
   // Date ranges (for movies)
   if (params["primary_release_date.gte"]) {
     tmdbParams["primary_release_date.gte"] = params["primary_release_date.gte"];

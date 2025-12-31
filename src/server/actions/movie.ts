@@ -2,14 +2,14 @@
 
 import { z } from "zod";
 import { headers } from "next/headers";
-import { getMovieDetails, getMovieCollection } from "@/server/services/tmdb";
+import { getMovieDetails } from "@/server/services/tmdb";
 import { getCachedMovieRatings } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
 import {
   getWatchOptionsForCountry,
   getOptimizedWatchProviders,
 } from "@/lib/watch-options";
-import type { Movie, Collection, ExternalRating, WatchProviderData } from "@/types";
+import type { Movie, ExternalRating, WatchProviderData } from "@/types";
 
 const GetMovieSchema = z.object({
   id: z.number().positive(),
@@ -48,24 +48,8 @@ export async function getMovie(id: number): Promise<Movie | null> {
       return null;
     }
 
-    // Fetch collection details if movie belongs to a collection
-    let collectionDetails: Collection | undefined;
-    if (tmdbData.belongs_to_collection) {
-      const collection = tmdbData.belongs_to_collection as { id: number };
-      try {
-        const collectionData = await getMovieCollection(collection.id);
-        collectionDetails = {
-          id: collectionData.id as number,
-          name: collectionData.name as string,
-          overview: collectionData.overview as string | undefined,
-          poster_path: collectionData.poster_path as string | null,
-          backdrop_path: collectionData.backdrop_path as string | null,
-          parts: collectionData.parts as Collection["parts"],
-        };
-      } catch {
-        // Collection fetch failed, continue without it
-      }
-    }
+    // Note: Collection details are now fetched separately via Suspense boundary
+    // for progressive loading. See CollectionAsync in movie page.
 
     // Combine ratings from multiple sources
     const googleData = dbMovie?.googleData as Record<string, unknown> | undefined;
@@ -135,7 +119,6 @@ export async function getMovie(id: number): Promise<Movie | null> {
       similar: tmdbData.similar as Movie["similar"],
       watch_providers: optimizedWatchProviders,
       belongs_to_collection: tmdbData.belongs_to_collection as Movie["belongs_to_collection"],
-      collectionDetails,
       ratings,
       watch_options: watchOptions,
     };

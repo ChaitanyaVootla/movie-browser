@@ -21,42 +21,82 @@ Auth.js config is split for Edge Runtime compatibility:
 
 ```
 src/lib/
-├── auth.ts        # Full config (Node.js only) - includes MongoDB adapter
-├── auth.config.ts # Edge-compatible config - used by proxy.ts
+├── auth.ts        # Full config (Node.js only) - includes MongoDB adapter + Credentials provider
+├── auth.config.ts # Edge-compatible config - used by proxy.ts (NO Credentials provider)
 └── admin.ts       # Admin email whitelist
 ```
 
 **Why?** The `proxy.ts` (middleware) runs in Edge Runtime which doesn't support:
 - MongoDB driver (native `dns` module)
 - Node.js-specific APIs
+- Credentials provider with async authorize function
+
+**CRITICAL**: The Credentials provider for Google One Tap MUST be defined in `auth.ts` only, NOT in `auth.config.ts`. This is because:
+1. The `authorize` function requires Node.js APIs (fetch to Google, MongoDB lookup)
+2. NextAuth v5 doesn't support mapping/overriding provider authorize functions
 
 ```typescript
-// src/lib/auth.config.ts - Edge-safe
+// src/lib/auth.config.ts - Edge-safe (NO Credentials provider!)
 import Google from "next-auth/providers/google";
 
+// Export Google provider separately for reuse in auth.ts
+export const googleProvider = Google({
+  clientId: process.env.GOOGLE_AUTH_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET!,
+  allowDangerousEmailAccountLinking: true,
+});
+
 export const authConfig = {
-  providers: [Google, Credentials],
+  providers: [googleProvider], // Only Google OAuth here
   callbacks: {
     authorized: ({ auth, request }) => {
       // Route protection logic
     },
     jwt: ({ token, user }) => {
-      // Add user.id and role to token
+      // Add user.id, role, and image to token
+      if (user) {
+        token.id = user.id;
+        token.role = getUserRole(user.email ?? "");
+        if (user.image) token.picture = user.image;
+      }
+      return token;
     },
     session: ({ session, token }) => {
-      // Add id and role to session.user
+      // Add id, role, and image to session.user
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as "admin" | "user";
+        if (token.picture) session.user.image = token.picture as string;
+      }
+      return session;
     },
   },
 };
 
-// src/lib/auth.ts - Full Node.js config
+// src/lib/auth.ts - Full Node.js config with Credentials provider
+import Credentials from "next-auth/providers/credentials";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
-import { authConfig } from "./auth.config";
+import { authConfig, googleProvider } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: MongoDBAdapter(clientPromise),
-  // Additional Node.js-only config
+  
+  // IMPORTANT: Override providers to add Credentials for Google One Tap
+  providers: [
+    googleProvider,
+    Credentials({
+      id: "google-one-tap",
+      name: "Google One Tap",
+      credentials: {
+        credential: { type: "text" },
+      },
+      authorize: async (credentials) => {
+        // Verify Google ID token and return/create user
+        // This requires Node.js APIs - cannot be in auth.config.ts
+      },
+    }),
+  ],
 });
 ```
 
@@ -240,13 +280,22 @@ export async function GET() {
 
 ### Admin UI
 
-Admin link only visible to admins:
+Admin link only visible to admins (neutral styling to blend with other nav items):
 
 ```tsx
 // In NavBar
-{session?.user?.role === "admin" && (
+{isAdmin && (
   <Link href="/admin">
-    <Button variant="ghost" className="text-amber-500">
+    <Button
+      variant="ghost"
+      className={cn(
+        "gap-2",
+        isScrolled
+          ? "text-foreground/80 hover:text-foreground hover:bg-accent"
+          : "text-white/90 hover:text-white hover:bg-white/10"
+      )}
+    >
+      <Shield className="h-4 w-4" />
       Admin
     </Button>
   </Link>
@@ -419,9 +468,26 @@ AUTH_TRUST_HOST=true
 src/components/features/auth/
 ├── google-one-tap.tsx   # Google One Tap prompt
 ├── login-dialog.tsx     # Manual sign-in modal
-├── user-menu.tsx        # Avatar dropdown (profile, logout)
+├── user-menu.tsx        # Avatar dropdown (profile, watchlist, theme, logout)
+├── settings-menu.tsx    # Settings dropdown for non-authenticated users (theme toggle)
 └── index.ts             # Barrel exports
 ```
+
+### User Menu vs Settings Menu
+
+- **Authenticated users**: Use `UserMenu` - includes profile, watchlist, theme toggle submenu, logout
+- **Non-authenticated users**: Use `SettingsMenu` - cog icon with theme toggle only
+
+```tsx
+// In NavBar
+{isAuthenticated ? (
+  <UserMenu />
+) : (
+  <>
+    <SettingsMenu />
+    <Button onClick={openLoginDialog}>Sign In</Button>
+  </>
+)}
 
 ## Common Patterns
 
@@ -476,6 +542,8 @@ export async function addToWatchlist(movieId: number) {
 ## Do NOT
 
 - Import `auth.ts` in Edge Runtime files (use `auth.config.ts`)
+- Put Credentials provider in `auth.config.ts` (authorize function requires Node.js)
+- Try to map/override provider authorize functions (NextAuth v5 doesn't support this)
 - Store sensitive data in session (only id, role, basic profile)
 - Use `middleware.ts` filename (use `proxy.ts` for Next.js 16)
 - Hardcode admin emails (use environment variable)

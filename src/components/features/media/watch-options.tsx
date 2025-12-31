@@ -137,14 +137,15 @@ export function WatchOptions({
             <button
               key={option.key}
               onClick={() => handleWatchClick(option)}
-              className="group cursor-pointer transition-transform hover:scale-110"
+              className="group transition-transform hover:scale-110"
               title={`${option.displayName}${option.price ? ` (${option.price.replace("flatrate", "stream")})` : ""}`}
             >
-              <div className="relative w-6 h-6 rounded overflow-hidden bg-black/20">
+              <div className="relative w-7 h-7 rounded overflow-hidden bg-black/20">
                 <Image
                   src={option.image}
                   alt={option.displayName}
                   fill
+                  sizes="28px"
                   className="object-contain p-0.5"
                   unoptimized={option.image.startsWith("http")}
                 />

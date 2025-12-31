@@ -17,6 +17,9 @@ import {
   getGenreById,
   parseDiscoverParams,
   serializeDiscoverParams,
+  RUNTIME_OPTIONS,
+  STREAMING_PROVIDERS,
+  MONETIZATION_OPTIONS,
   type DiscoverParams,
 } from "@/lib/discover";
 import { POPULAR_LANGUAGES, POPULAR_COUNTRIES } from "@/lib/topics";
@@ -146,6 +149,10 @@ export function BrowseClient({
     params.with_origin_country ||
     params["vote_average.gte"] ||
     params["vote_count.gte"] ||
+    params["with_runtime.gte"] ||
+    params["with_runtime.lte"] ||
+    (params.with_watch_providers?.length ?? 0) > 0 ||
+    params.with_watch_monetization_types ||
     (params.with_cast?.length ?? 0) > 0 ||
     (params.with_crew?.length ?? 0) > 0 ||
     toArray(params.with_keywords).length > 0;
@@ -281,6 +288,58 @@ export function BrowseClient({
     });
   }
 
+  // Runtime pill
+  if (params["with_runtime.gte"] || params["with_runtime.lte"]) {
+    const min = params["with_runtime.gte"] || 0;
+    const max = params["with_runtime.lte"] || 999;
+    const runtimeValue = `${min}-${max}`;
+    const runtimeOption = RUNTIME_OPTIONS.find((o) => o.value === runtimeValue);
+    activeFilterPills.push({
+      key: "runtime",
+      label: runtimeOption?.label || `${min}-${max} min`,
+      onRemove: () => handleParamsChange({ 
+        ...params, 
+        "with_runtime.gte": undefined, 
+        "with_runtime.lte": undefined 
+      }),
+    });
+  }
+
+  // Streaming providers pills
+  if (params.with_watch_providers && params.with_watch_providers.length > 0) {
+    params.with_watch_providers.forEach((providerId) => {
+      const provider = STREAMING_PROVIDERS.find((p) => p.id === providerId);
+      activeFilterPills.push({
+        key: `provider-${providerId}`,
+        label: provider?.name || `Provider ${providerId}`,
+        onRemove: () => {
+          const newProviders = params.with_watch_providers?.filter((id) => id !== providerId) || [];
+          handleParamsChange({ 
+            ...params, 
+            with_watch_providers: newProviders.length > 0 ? newProviders : undefined,
+            watch_region: newProviders.length > 0 ? params.watch_region : undefined,
+          });
+        },
+      });
+    });
+  }
+
+  // Availability/monetization pill
+  if (params.with_watch_monetization_types) {
+    const monetizationOption = MONETIZATION_OPTIONS.find(
+      (o) => o.value === params.with_watch_monetization_types
+    );
+    activeFilterPills.push({
+      key: "availability",
+      label: monetizationOption?.label || params.with_watch_monetization_types,
+      onRemove: () => handleParamsChange({ 
+        ...params, 
+        with_watch_monetization_types: undefined,
+        watch_region: params.with_watch_providers?.length ? params.watch_region : undefined,
+      }),
+    });
+  }
+
   // Clear all filters
   const clearAllFilters = () => {
     setPersonMeta({});
@@ -336,7 +395,7 @@ export function BrowseClient({
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-60 lg:w-64 shrink-0 border-r bg-muted/20 fixed top-14 left-0 h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-r bg-muted/20 fixed top-14 left-0 h-[calc(100vh-3.5rem)] overflow-y-auto">
           <FilterSidebar
             params={params}
             onChange={handleParamsChange}
@@ -348,7 +407,7 @@ export function BrowseClient({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 md:ml-60 lg:ml-64">
+        <main className="flex-1 min-w-0 md:ml-72 lg:ml-80 pb-32">
           <div className="px-4 md:px-6 lg:px-8 py-4">
             {/* Header Row with Sort */}
             <div className="flex items-center justify-between gap-4 mb-3">

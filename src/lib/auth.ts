@@ -1,7 +1,8 @@
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import { MongoClient, ObjectId } from "mongodb";
-import { authConfig } from "./auth.config";
+import { authConfig, googleProvider } from "./auth.config";
 
 /**
  * Full Auth.js configuration with database adapter.
@@ -171,50 +172,58 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // Add database adapter (Node.js only)
   adapter: clientPromise ? MongoDBAdapter(clientPromise) : undefined,
 
-  // Override providers to add the actual Google One Tap authorize function
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  providers: authConfig.providers.map((provider: any) => {
-    if (provider.id === "google-one-tap") {
-      return {
-        ...provider,
-        authorize: async (credentials: Partial<Record<string, unknown>>) => {
-          try {
-            if (!credentials?.credential) {
-              return null;
-            }
-
-            const response = await fetch(
-              `https://oauth2.googleapis.com/tokeninfo?id_token=${credentials.credential}`
-            );
-            const tokenInfo = await response.json();
-
-            if (tokenInfo.error) {
-              console.error("Google token verification failed:", tokenInfo.error);
-              return null;
-            }
-
-            if (tokenInfo.aud !== process.env.GOOGLE_AUTH_CLIENT_ID) {
-              console.error("Invalid audience in token");
-              return null;
-            }
-
-            const user = await getOrCreateGoogleUser({
-              sub: tokenInfo.sub,
-              email: tokenInfo.email,
-              name: tokenInfo.name,
-              picture: tokenInfo.picture,
-            });
-
-            return user;
-          } catch (error) {
-            console.error("Error verifying Google One Tap token:", error);
+  // Define all providers here - Google OAuth + Google One Tap credentials
+  providers: [
+    googleProvider,
+    
+    // Google One Tap - uses credential token instead of OAuth flow
+    Credentials({
+      id: "google-one-tap",
+      name: "Google One Tap",
+      credentials: {
+        credential: { type: "text" },
+      },
+      authorize: async (credentials) => {
+        try {
+          if (!credentials?.credential) {
+            console.error("No credential provided to Google One Tap");
             return null;
           }
-        },
-      };
-    }
-    return provider;
-  }),
+
+          // Verify the token with Google
+          const response = await fetch(
+            `https://oauth2.googleapis.com/tokeninfo?id_token=${credentials.credential}`
+          );
+          const tokenInfo = await response.json();
+
+          if (tokenInfo.error) {
+            console.error("Google token verification failed:", tokenInfo.error);
+            return null;
+          }
+
+          // Verify the audience matches our client ID
+          if (tokenInfo.aud !== process.env.GOOGLE_AUTH_CLIENT_ID) {
+            console.error("Invalid audience in token:", tokenInfo.aud);
+            return null;
+          }
+
+          // Get or create user in database
+          const user = await getOrCreateGoogleUser({
+            sub: tokenInfo.sub,
+            email: tokenInfo.email,
+            name: tokenInfo.name,
+            picture: tokenInfo.picture,
+          });
+
+          console.log("Google One Tap user authenticated:", user.email);
+          return user;
+        } catch (error) {
+          console.error("Error verifying Google One Tap token:", error);
+          return null;
+        }
+      },
+    }),
+  ],
 
   // Additional callbacks for Node.js runtime
   callbacks: {

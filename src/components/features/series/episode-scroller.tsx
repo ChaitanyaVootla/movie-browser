@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { Episode } from "@/types";
-import { EpisodeSheet } from "./episode-sheet";
+import { EpisodeModal } from "./episode-modal";
 
 interface EpisodeScrollerProps {
   episodes: Episode[];
@@ -148,8 +148,8 @@ export function EpisodeScroller({
         <ScrollBar orientation="horizontal" className="invisible" />
       </ScrollArea>
 
-      {/* Episode detail sheet */}
-      <EpisodeSheet
+      {/* Episode detail modal */}
+      <EpisodeModal
         episode={selectedEpisode}
         seriesId={seriesId}
         seriesName={seriesName}

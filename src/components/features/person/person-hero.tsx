@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,6 +13,8 @@ import {
   Twitter,
   Facebook,
   Youtube,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +97,7 @@ function _getGenderLabel(gender: number): string {
 }
 
 export function PersonHero({ person, className }: PersonHeroProps) {
+  const [isBioExpanded, setIsBioExpanded] = useState(false);
   const age = calculateAge(person.birthday, person.deathday);
   const formattedBirthday = formatDate(person.birthday);
   const formattedDeathday = formatDate(person.deathday);
@@ -278,17 +282,25 @@ export function PersonHero({ person, className }: PersonHeroProps) {
               <motion.div variants={itemVariants} className="mt-6">
                 <h2 className="text-lg font-semibold mb-2">Biography</h2>
                 <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {bioText}
+                  {isBioExpanded ? person.biography : bioText}
                 </p>
                 {isBioTruncated && (
-                  <details className="mt-2">
-                    <summary className="text-sm text-primary cursor-pointer hover:underline">
-                      Read more
-                    </summary>
-                    <p className="mt-2 text-muted-foreground leading-relaxed whitespace-pre-line">
-                      {person.biography}
-                    </p>
-                  </details>
+                  <button
+                    onClick={() => setIsBioExpanded(!isBioExpanded)}
+                    className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline transition-colors"
+                  >
+                    {isBioExpanded ? (
+                      <>
+                        Show less
+                        <ChevronUp className="h-4 w-4" />
+                      </>
+                    ) : (
+                      <>
+                        Read more
+                        <ChevronDown className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
                 )}
               </motion.div>
             )}

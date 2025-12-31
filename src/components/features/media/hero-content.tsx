@@ -104,9 +104,11 @@ export function HeroContent({
         : [];
 
   const content = (
-    <>
-      {/* Logo */}
-      <motion.div variants={heroItemVariants} className="mb-8 md:mb-20">
+    <div className="flex flex-col">
+      {/* Logo - responsive constraints for tall/wide logos
+          Tall logos (like Godfather) need generous height,
+          Wide logos (like Spotlight) expand to fill available space */}
+      <motion.div variants={heroItemVariants} className="mb-4 md:mb-6 lg:mb-8">
         <MediaLogo
           item={{
             id: itemId,
@@ -116,49 +118,56 @@ export function HeroContent({
           mediaType={mediaType}
           tmdbLogoPath={tmdbLogoPath}
           fallbackText={title}
-          maxWidth={550}
-          maxHeight={160}
-          className="max-w-[320px] md:max-w-[450px] lg:max-w-[550px]"
+          maxWidth={600}
+          maxHeight={180}
+          className="max-w-[280px] sm:max-w-[380px] md:max-w-[500px] lg:max-w-[600px] max-h-[100px] sm:max-h-[130px] md:max-h-[160px] lg:max-h-[180px]"
           priority={priority}
         />
       </motion.div>
 
-      {/* Genres */}
-      {genres.length > 0 && (
-        <motion.div variants={heroItemVariants} className="mb-4">
-          <GenreList genres={genres} mediaType={mediaType} size="sm" maxVisible={4} />
-        </motion.div>
-      )}
+      {/* Info section - with consistent gaps */}
+      <div className="flex flex-col gap-2.5 md:gap-3">
+        {/* Genres */}
+        {genres.length > 0 && (
+          <motion.div variants={heroItemVariants}>
+            <GenreList genres={genres} mediaType={mediaType} size="sm" maxVisible={4} />
+          </motion.div>
+        )}
 
-      {/* Ratings */}
-      {displayRatings.length > 0 && (
-        <motion.div variants={heroItemVariants} className="mb-5">
-          <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
-        </motion.div>
-      )}
+        {/* Ratings */}
+        {displayRatings.length > 0 && (
+          <motion.div variants={heroItemVariants}>
+            <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
+          </motion.div>
+        )}
 
-      {/* Watch Options */}
-      {watchOptions?.options?.length ? (
-        <motion.div variants={heroItemVariants} className="mb-5">
-          <WatchOptions
-            watchOptions={watchOptions}
-            watchProviders={watchProviders}
-            googleData={googleData}
-            item={item || { id: itemId, title: mediaType === "movie" ? title : undefined, name: mediaType === "series" ? title : undefined }}
-            isMovie={mediaType === "movie"}
-          />
-        </motion.div>
-      ) : null}
+        {/* Watch Options */}
+        {watchOptions?.options?.length ? (
+          <motion.div variants={heroItemVariants}>
+            <WatchOptions
+              watchOptions={watchOptions}
+              watchProviders={watchProviders}
+              googleData={googleData}
+              item={item || { id: itemId, title: mediaType === "movie" ? title : undefined, name: mediaType === "series" ? title : undefined }}
+              isMovie={mediaType === "movie"}
+            />
+          </motion.div>
+        ) : null}
 
-      {/* Actions */}
-      {actions && <motion.div variants={heroItemVariants}>{actions}</motion.div>}
-    </>
+        {/* Actions - slight top margin to separate from info */}
+        {actions && (
+          <motion.div variants={heroItemVariants} className="mt-1 md:mt-2">
+            {actions}
+          </motion.div>
+        )}
+      </div>
+    </div>
   );
 
   if (animate) {
     return (
       <motion.div
-        className={cn("w-full", className)}
+        className={cn("hero-content-width", className)}
         variants={heroContainerVariants}
         initial="hidden"
         animate="visible"
@@ -169,6 +178,6 @@ export function HeroContent({
     );
   }
 
-  return <div className={cn("w-full", className)}>{content}</div>;
+  return <div className={cn("hero-content-width", className)}>{content}</div>;
 }
 

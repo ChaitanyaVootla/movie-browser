@@ -71,6 +71,16 @@ export const TV_GENRES: Record<number, string> = {
   37: "Western",
 };
 
+// TV genres to exclude from person filmography/known for
+// These typically pollute results with talk show appearances
+export const EXCLUDED_TV_GENRES = [
+  10763, // News
+  10767, // Talk
+] as const;
+
+// "Latest" date range - items from the last 2 years
+export const LATEST_MONTHS = 24;
+
 // Cache durations (in seconds)
 export const CACHE_DURATIONS = {
   trending: 900, // 15 minutes
@@ -81,6 +91,7 @@ export const CACHE_DURATIONS = {
   discover: 1800, // 30 minutes
   images: 3600, // 1 hour
   watchProviders: 86400, // 24 hours
+  youtube: 1800, // 30 minutes - YouTube video stats/comments
 } as const;
 
 // Pagination

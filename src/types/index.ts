@@ -458,9 +458,61 @@ export interface PaginatedResponse<T> {
   total_results: number;
 }
 
+// YouTube Video Statistics
+export interface YouTubeVideoStats {
+  videoId: string;
+  viewCount: number;
+  likeCount: number;
+  dislikeCount: number;
+  commentCount: number;
+  title: string;
+  description: string;
+  publishedAt: string;
+  channelId: string;
+  channelTitle: string;
+  channelThumbnail?: string;
+  duration: string; // ISO 8601 duration (PT4M13S)
+}
+
 export interface TrendingResponse {
   allItems: MediaItem[];
   movies: MovieListItem[];
   tv: SeriesListItem[];
   streamingNow?: MediaItem[];
+}
+
+// YouTube Comment types
+export interface YouTubeCommentAuthor {
+  displayName: string;
+  profileImageUrl: string;
+  channelUrl: string;
+}
+
+export interface YouTubeComment {
+  id: string;
+  author: YouTubeCommentAuthor;
+  textDisplay: string;
+  textOriginal: string;
+  likeCount: number;
+  publishedAt: string;
+  updatedAt: string;
+  replyCount: number;
+  isHearted: boolean;
+}
+
+export interface YouTubeCommentsResponse {
+  comments: YouTubeComment[];
+  totalCount: number;
+  nextPageToken?: string;
+}
+
+// Return YouTube Dislike API response
+export interface YouTubeDislikeData {
+  id: string;
+  dateCreated: string;
+  likes: number;
+  dislikes: number;
+  rating: number; // 1-5 scale
+  viewCount: number;
+  deleted: boolean;
 }

@@ -198,8 +198,8 @@ export function getRatingColor(score: number): string {
   const safeValue = Math.max(cutoff, Math.min(100, score));
   const scaledValue = safeValue - cutoff;
   const hue = (120 * scaledValue) / 70; // 0 = red, 120 = green
-  // Muted palette: lower saturation (50%) and moderate lightness (55%)
-  return `hsl(${hue}, 50%, 55%)`;
+  // Subtle palette: lower saturation (35%) and lighter tone (65%)
+  return `hsl(${hue}, 35%, 65%)`;
 }
 
 /**

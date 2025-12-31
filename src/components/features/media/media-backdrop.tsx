@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { getBackdropSources } from "@/lib/image";
 
@@ -22,7 +21,6 @@ interface MediaBackdropProps {
 export function MediaBackdrop({
   item,
   mediaType,
-  priority = true,
   className,
   children,
   overlay = "light",
@@ -39,59 +37,75 @@ export function MediaBackdrop({
   const hasBackdrop = backdropSrc && (item.backdrop_path || !useFallback);
 
   return (
-    <div className={cn("relative w-full overflow-hidden bg-black", className)}>
-      {/* Backdrop Image - positioned to the right, leaving left space for info */}
+    <div className={cn("relative w-full h-full overflow-hidden bg-black", className)}>
+      {/* Backdrop Image - maintains aspect ratio without cropping top/bottom
+          Height fills container (60vh on desktop), width scales proportionally
+          Image aligned to right edge, gradient overlay follows image edge */}
       {hasBackdrop && backdropSrc ? (
-        <div className="absolute inset-y-0 right-0 left-0 md:left-[20%] lg:left-[25%]">
-          <Image
-            src={backdropSrc}
-            alt={`${title} backdrop`}
-            fill
-            priority={priority}
-            className="object-cover object-top"
-            sizes="80vw"
-            onError={() => {
-              if (!useFallback && backdropSources.fallback) {
-                setUseFallback(true);
-              }
-            }}
-            unoptimized={!useFallback}
-          />
-          {/* Gradient fade from black on the left edge of the image */}
-          {overlay !== "none" && (
-            <div
-              className={cn(
-                "absolute inset-y-0 left-0 bg-gradient-to-r from-black to-transparent",
-                overlay === "light" && "w-[200px] md:w-[300px]",
-                overlay === "medium" && "w-[250px] md:w-[350px]",
-                overlay === "heavy" && "w-[300px] md:w-[400px]"
-              )}
+        <div className="absolute inset-0 flex justify-end">
+          {/* Image wrapper with gradient overlay that follows the image */}
+          <div className="relative h-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={backdropSrc}
+              alt={`${title} backdrop`}
+              className="h-full w-auto max-w-none"
+              onError={() => {
+                if (!useFallback && backdropSources.fallback) {
+                  setUseFallback(true);
+                }
+              }}
             />
-          )}
+            {/* Gradient overlay - positioned on the image, fades left edge quickly */}
+            {overlay !== "none" && (
+              <div 
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: overlay === "light" 
+                    ? `linear-gradient(to right, 
+                        rgba(0,0,0,0.95) 0%,
+                        rgba(0,0,0,0.7) 5%,
+                        rgba(0,0,0,0.3) 12%,
+                        transparent 22%)`
+                    : overlay === "medium"
+                    ? `linear-gradient(to right, 
+                        rgba(0,0,0,0.98) 0%,
+                        rgba(0,0,0,0.75) 8%,
+                        rgba(0,0,0,0.4) 18%,
+                        transparent 30%)`
+                    : `linear-gradient(to right, 
+                        black 0%,
+                        rgba(0,0,0,0.8) 10%,
+                        rgba(0,0,0,0.4) 22%,
+                        transparent 38%)`,
+                }}
+              />
+            )}
+          </div>
         </div>
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-b from-muted to-background" />
+        <div className="absolute inset-0 bg-linear-to-b from-muted to-background" />
       )}
 
-      {/* Overlay gradients */}
+      {/* Top/bottom gradients for nav and content readability - kept separate to not dull image */}
       {overlay !== "none" && (
         <>
-          {/* Bottom gradient for content transition */}
+          {/* Top gradient - for navbar readability */}
+          <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-black/25 to-transparent" />
+          {/* Bottom gradient - subtle fade to background */}
           <div
             className={cn(
-              "absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent",
-              overlay === "light" && "h-[40%] from-background via-background/60",
-              overlay === "medium" && "h-[50%] from-background via-background/70",
-              overlay === "heavy" && "h-[60%] from-background via-background/80"
+              "absolute inset-x-0 bottom-0 bg-linear-to-t to-transparent",
+              overlay === "light" && "h-[8%] from-background/70 via-background/5",
+              overlay === "medium" && "h-[12%] from-background/80 via-background/15",
+              overlay === "heavy" && "h-[20%] from-background via-background/30"
             )}
           />
-          {/* Top gradient for navbar */}
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent" />
         </>
       )}
 
-      {/* Content */}
-      {children && <div className="relative z-10">{children}</div>}
+      {/* Content - full height to allow flex positioning */}
+      {children && <div className="relative z-10 h-full">{children}</div>}
     </div>
   );
 }

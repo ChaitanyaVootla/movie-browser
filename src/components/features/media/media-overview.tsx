@@ -36,27 +36,36 @@ function formatRuntime(minutes: number): string {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
-// Cast member card
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// Cast member card - compact size
 function CastCard({ cast }: { cast: CastMember }) {
   if (!cast.profile_path) return null;
 
   const href = `/person/${cast.id}/${getSlug(cast.name)}`;
 
   return (
-    <Link href={href} className="group flex-shrink-0 w-[110px] sm:w-[125px] md:w-[140px]">
-      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-2 ring-1 ring-white/10 group-hover:ring-brand/50 transition-all">
+    <Link href={href} className="group flex-shrink-0 w-[90px] sm:w-[100px] md:w-[110px]">
+      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-1.5 ring-1 ring-white/10 group-hover:ring-brand/50 transition-all">
         <Image
           src={`https://image.tmdb.org/t/p/w185${cast.profile_path}`}
           alt={cast.name}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"
-          sizes="140px"
+          sizes="110px"
         />
       </div>
-      <p className="text-sm font-medium line-clamp-1 group-hover:text-brand transition-colors">
+      <p className="text-xs font-medium line-clamp-1 group-hover:text-brand transition-colors">
         {cast.name}
       </p>
-      <p className="text-xs text-muted-foreground line-clamp-1">{cast.character}</p>
+      <p className="text-[11px] text-muted-foreground line-clamp-1">{cast.character}</p>
     </Link>
   );
 }
@@ -69,13 +78,13 @@ function InfoItem({ label, value, href }: { label: string; value: React.ReactNod
 
   return (
     <div className="flex items-baseline gap-2">
-      <span className="text-muted-foreground text-sm shrink-0">{label}</span>
+      <span className="text-muted-foreground text-xs shrink-0">{label}</span>
       {href ? (
-        <Link href={href} className="text-sm hover:text-brand transition-colors truncate">
+        <Link href={href} className="text-xs hover:text-brand transition-colors truncate">
           {content}
         </Link>
       ) : (
-        <span className="text-sm truncate">{content}</span>
+        <span className="text-xs truncate">{content}</span>
       )}
     </div>
   );
@@ -143,8 +152,8 @@ function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: stri
   const config = getStatusConfig();
 
   return (
-    <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", config.color)}>
-      {config.icon && <span className="animate-pulse text-[8px]">{config.icon}</span>}
+    <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium", config.color)}>
+      {config.icon && <span className="animate-pulse text-[6px]">{config.icon}</span>}
       {config.label}
     </span>
   );
@@ -191,164 +200,225 @@ export function MediaOverview({ item, mediaType, className }: MediaOverviewProps
   };
 
   return (
-    <div className={cn("py-8 md:py-12 space-y-10 md:space-y-12", className)}>
-      {/* Overview & Details - Full width */}
+    <div className={cn("py-4 md:py-5 space-y-5 md:space-y-6", className)}>
+      {/* Overview & Details - Card container */}
       <section className="px-4 md:px-8 lg:px-12">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] xl:grid-cols-[1fr_320px] gap-8 lg:gap-12">
-          {/* Main content */}
-          <div className="space-y-5">
-            {item.overview && (
-              <div>
-                <h2 className="text-lg font-semibold mb-3">Overview</h2>
-                <p className="text-muted-foreground leading-relaxed">{item.overview}</p>
+        <div className="rounded-xl bg-card/40 border border-white/5 backdrop-blur-sm overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1px_280px] xl:grid-cols-[1fr_1px_320px]">
+            {/* Main content - Overview */}
+            <div className="p-4 md:p-5 space-y-3">
+              {item.overview && (
+                <div>
+                  <h2 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Overview</h2>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{item.overview}</p>
+                </div>
+              )}
+
+              {/* Country, Language, Content Warning */}
+              <div className="flex flex-wrap items-center gap-2">
+                <CountryLanguageBadges
+                  originCountry={item.origin_country}
+                  originalLanguage={item.original_language}
+                  mediaType={mediaType}
+                  size="xs"
+                />
+                <ContentWarningLink imdbId={imdbId} size="xs" />
               </div>
-            )}
 
-            {item.tagline && (
-              <blockquote className="border-l-2 border-brand pl-4 italic text-muted-foreground">
-                &ldquo;{item.tagline}&rdquo;
-              </blockquote>
-            )}
-
-            {/* Country, Language, Content Warning */}
-            <div className="flex flex-wrap items-center gap-3">
-              <CountryLanguageBadges
-                originCountry={item.origin_country}
-                originalLanguage={item.original_language}
-                mediaType={mediaType}
-              />
-              <ContentWarningLink imdbId={imdbId} size="sm" />
+              {/* Keywords */}
+              {keywords && keywords.length > 0 && (
+                <KeywordsList keywords={keywords} mediaType={mediaType} maxVisible={10} />
+              )}
             </div>
 
-            {/* Keywords */}
-            {keywords && keywords.length > 0 && (
-              <KeywordsList keywords={keywords} mediaType={mediaType} maxVisible={10} />
-            )}
-          </div>
+            {/* Vertical separator - hidden on mobile */}
+            <div className="hidden lg:block bg-white/10" />
 
-          {/* Sidebar - Details */}
-          <div className="space-y-3 lg:bg-card/30 lg:rounded-xl lg:p-5 lg:h-fit">
-            <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-4 hidden lg:block">
-              Details
-            </h3>
-            
-            {/* Year */}
-            {isMovie(item) && item.release_date && (
-              <InfoItem label="Released" value={item.release_date.split("-")[0]} />
-            )}
-            {!isMovie(item) && item.first_air_date && (
-              <InfoItem label="First Aired" value={item.first_air_date.split("-")[0]} />
-            )}
-            
-            {/* Runtime (movies only) */}
-            {isMovie(item) && item.runtime && (
-              <InfoItem label="Runtime" value={formatRuntime(item.runtime)} />
-            )}
-            
-            {isMovie(item) && director && (
-              <InfoItem
-                label="Director"
-                value={director.name}
-                href={`/person/${director.id}/${getSlug(director.name)}`}
-              />
-            )}
-            {!isMovie(item) && creators && creators.length > 0 && (
-              <div className="flex items-baseline gap-2">
-                <span className="text-muted-foreground text-sm shrink-0">
-                  {creators.length > 1 ? "Creators" : "Creator"}
-                </span>
-                <span className="text-sm flex flex-wrap gap-x-1">
-                  {creators.map((c, i) => (
-                    <span key={c.id}>
-                      <Link
+            {/* Sidebar - Details */}
+            <div className="p-4 md:p-5 space-y-2 border-t lg:border-t-0 border-white/10">
+              {/* Director/Creator at top with avatar */}
+              {isMovie(item) && director && (
+                <Link 
+                  href={`/person/${director.id}/${getSlug(director.name)}`}
+                  className="flex items-center gap-2.5 group mb-3"
+                >
+                  <div className="relative h-9 w-9 rounded-full overflow-hidden bg-muted ring-1 ring-white/10 group-hover:ring-brand/50 transition-all flex-shrink-0">
+                    {director.profile_path ? (
+                      <Image
+                        src={`https://image.tmdb.org/t/p/w45${director.profile_path}`}
+                        alt={director.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground font-medium">
+                        {director.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Director</p>
+                    <p className="text-xs font-medium truncate group-hover:text-brand transition-colors">{director.name}</p>
+                  </div>
+                </Link>
+              )}
+              {!isMovie(item) && creators && creators.length > 0 && (
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="flex -space-x-1.5">
+                    {creators.slice(0, 2).map((c) => (
+                      <Link 
+                        key={c.id}
                         href={`/person/${c.id}/${getSlug(c.name)}`}
-                        className="hover:text-brand transition-colors font-medium"
+                        className="relative h-9 w-9 rounded-full overflow-hidden bg-muted ring-2 ring-background hover:ring-brand/50 transition-all flex-shrink-0"
                       >
-                        {c.name}
+                        {c.profile_path ? (
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w45${c.profile_path}`}
+                            alt={c.name}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground font-medium">
+                            {c.name.charAt(0)}
+                          </div>
+                        )}
                       </Link>
-                      {i < creators.length - 1 && ", "}
-                    </span>
-                  ))}
-                </span>
-              </div>
-            )}
-            
-            {/* Series status with badge */}
-            {!isMovie(item) && item.status && (
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm">Status</span>
-                <SeriesStatusBadge 
-                  status={item.status} 
-                  inProduction={item.in_production} 
-                  nextAirDate={item.next_episode_to_air?.air_date}
-                />
-              </div>
-            )}
-            {isMovie(item) && <InfoItem label="Status" value={item.status} />}
-            
-            {isMovie(item) && (
-              <>
-                <InfoItem label="Budget" value={formatCurrency(item.budget)} />
-                <InfoItem label="Revenue" value={formatCurrency(item.revenue)} />
-              </>
-            )}
-            
-            {!isMovie(item) && (
-              <>
-                <InfoItem label="Seasons" value={item.number_of_seasons} />
-                <InfoItem label="Episodes" value={item.number_of_episodes} />
-                {item.networks && item.networks.length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-muted-foreground text-sm">
-                      {item.networks.length > 1 ? "Networks" : "Network"}
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {item.networks.slice(0, 3).map((network) => (
-                        <div
-                          key={network.id}
-                          className="flex items-center gap-2 bg-card/50 rounded-md px-2 py-1"
-                        >
-                          {network.logo_path ? (
-                            <Image
-                              src={`https://image.tmdb.org/t/p/w92${network.logo_path}`}
-                              alt={network.name}
-                              width={40}
-                              height={20}
-                              className="h-4 w-auto object-contain brightness-0 invert opacity-80"
-                            />
-                          ) : (
-                            <span className="text-xs font-medium">{network.name}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    ))}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {creators.length > 1 ? "Creators" : "Creator"}
+                    </p>
+                    <p className="text-xs font-medium truncate">
+                      {creators.map((c) => c.name).join(", ")}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                {/* Release Date - Full readable format */}
+                {isMovie(item) && item.release_date && (
+                  <InfoItem label="Released" value={formatDate(item.release_date)} />
+                )}
+                {!isMovie(item) && item.first_air_date && (
+                  <InfoItem label="First Aired" value={formatDate(item.first_air_date)} />
+                )}
+                
+                {/* Runtime (movies only) */}
+                {isMovie(item) && item.runtime && (
+                  <InfoItem label="Runtime" value={formatRuntime(item.runtime)} />
+                )}
+              
+                {/* Series status with badge */}
+                {!isMovie(item) && item.status && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-xs">Status</span>
+                    <SeriesStatusBadge 
+                      status={item.status} 
+                      inProduction={item.in_production} 
+                      nextAirDate={item.next_episode_to_air?.air_date}
+                    />
                   </div>
                 )}
-              </>
-            )}
-            
-            {item.production_companies && item.production_companies.length > 0 && (
-              <InfoItem label="Studio" value={item.production_companies[0].name} />
-            )}
-            
-            {imdbId && (
-              <a
-                href={`https://www.imdb.com/title/${imdbId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-brand hover:text-brand/80 transition-colors pt-2"
-              >
-                View on IMDb
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </a>
-            )}
+                {isMovie(item) && <InfoItem label="Status" value={item.status} />}
+              
+                {/* Budget & Revenue - Combined on one row */}
+                {isMovie(item) && (item.budget || item.revenue) && (
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    {item.budget ? (
+                      <>
+                        <span className="text-muted-foreground text-xs">Budget</span>
+                        <span className="text-xs text-foreground">{formatCurrency(item.budget)}</span>
+                      </>
+                    ) : null}
+                    {item.budget && item.revenue ? (
+                      <span className="text-muted-foreground text-xs">·</span>
+                    ) : null}
+                    {item.revenue ? (
+                      <>
+                        <span className="text-muted-foreground text-xs">Revenue</span>
+                        <span className="text-xs text-foreground">{formatCurrency(item.revenue)}</span>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+              
+                {/* Seasons & Episodes - Combined on one row */}
+                {!isMovie(item) && (item.number_of_seasons || item.number_of_episodes) && (
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    {item.number_of_seasons ? (
+                      <>
+                        <span className="text-muted-foreground text-xs">Seasons</span>
+                        <span className="text-xs text-foreground">{item.number_of_seasons}</span>
+                      </>
+                    ) : null}
+                    {item.number_of_seasons && item.number_of_episodes ? (
+                      <span className="text-muted-foreground text-xs">·</span>
+                    ) : null}
+                    {item.number_of_episodes ? (
+                      <>
+                        <span className="text-muted-foreground text-xs">Episodes</span>
+                        <span className="text-xs text-foreground">{item.number_of_episodes}</span>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Networks - for series */}
+                {!isMovie(item) && item.networks && item.networks.length > 0 && (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {item.networks.slice(0, 2).map((network) => (
+                      <div
+                        key={network.id}
+                        className="flex items-center justify-center bg-white/5 rounded px-2 py-0.5"
+                      >
+                        {network.logo_path ? (
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w154${network.logo_path}`}
+                            alt={network.name}
+                            width={40}
+                            height={16}
+                            className="h-3.5 object-contain brightness-0 invert opacity-80"
+                            style={{ width: "auto" }}
+                          />
+                        ) : (
+                          <span className="text-[9px] font-medium text-muted-foreground">{network.name}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              
+                {/* Studio with logo */}
+                {item.production_companies && item.production_companies.length > 0 && (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {item.production_companies.slice(0, 2).map((company) => (
+                      <div
+                        key={company.id}
+                        className="flex items-center justify-center bg-white/5 rounded px-2 py-0.5"
+                      >
+                        {company.logo_path ? (
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w154${company.logo_path}`}
+                            alt={company.name}
+                            width={40}
+                            height={16}
+                            className="h-3.5 object-contain brightness-0 invert opacity-80"
+                            style={{ width: "auto" }}
+                          />
+                        ) : (
+                          <span className="text-[9px] font-medium text-muted-foreground">{company.name}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>

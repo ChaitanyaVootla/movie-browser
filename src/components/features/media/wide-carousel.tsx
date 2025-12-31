@@ -34,7 +34,7 @@ export function WideCarousel({
 }: WideCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
+  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, pointerId: 0 });
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -44,13 +44,15 @@ export function WideCarousel({
     }
   };
 
+  // Drag handlers - capture on scroll container, not e.target (which may be a child element)
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!scrollRef.current) return;
     dragRef.current.isDown = true;
     dragRef.current.startX = e.clientX;
     dragRef.current.scrollLeft = scrollRef.current.scrollLeft;
+    dragRef.current.pointerId = e.pointerId;
     setIsDragging(true);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    scrollRef.current.setPointerCapture(e.pointerId);
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -60,10 +62,13 @@ export function WideCarousel({
     scrollRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
   }, []);
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+  const handlePointerUp = useCallback(() => {
+    if (!scrollRef.current || !dragRef.current.isDown) return;
     dragRef.current.isDown = false;
     setIsDragging(false);
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (dragRef.current.pointerId) {
+      scrollRef.current.releasePointerCapture(dragRef.current.pointerId);
+    }
   }, []);
 
   if (!loading && items.length === 0) {
@@ -120,6 +125,7 @@ export function WideCarousel({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDragStart={(e) => e.preventDefault()}
       >
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (

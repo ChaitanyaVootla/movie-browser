@@ -48,5 +48,7 @@ export {
   searchTopics,
   getTopicByKey,
   getTopicsByType,
+  getPopularTopics,
+  type PopularTopicItem,
 } from "./topics";
 

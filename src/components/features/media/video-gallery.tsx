@@ -1,17 +1,39 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Play } from "lucide-react";
+import { Play, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { Video } from "@/types";
+import { formatViewCount, formatDuration } from "@/lib/youtube-utils";
+import { VideoStats, VideoStatsSkeleton } from "./video-stats";
+import { VideoComments } from "./video-comments";
+import type { Video, YouTubeVideoStats, YouTubeComment } from "@/types";
 
 interface VideoGalleryProps {
   videos: Video[];
   className?: string;
+}
+
+// Video metadata from YouTube API
+interface VideoMetadata {
+  viewCount: number;
+  likeCount: number;
+  dislikeCount: number;
+  duration: string;
+  title: string;
+  channelThumbnail?: string;
+}
+
+interface FullVideoData {
+  stats: YouTubeVideoStats | null;
+  comments: {
+    comments: YouTubeComment[];
+    totalCount: number;
+    nextPageToken?: string;
+  };
 }
 
 // Sort videos by type priority
@@ -44,9 +66,10 @@ interface VideoThumbnailProps {
   video: Video;
   isActive: boolean;
   onClick: () => void;
+  metadata?: VideoMetadata;
 }
 
-function VideoThumbnail({ video, isActive, onClick }: VideoThumbnailProps) {
+function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailProps) {
   const thumbnailUrl = `https://img.youtube.com/vi/${video.key}/mqdefault.jpg`;
 
   return (
@@ -75,7 +98,16 @@ function VideoThumbnail({ video, isActive, onClick }: VideoThumbnailProps) {
             </div>
           </div>
         )}
-        {/* Type badge */}
+        {/* Duration badge - bottom right */}
+        {metadata?.duration && (
+          <Badge
+            variant="secondary"
+            className="absolute bottom-1 right-1 text-[9px] px-1 py-0 bg-black/80 text-white border-0 font-mono"
+          >
+            {formatDuration(metadata.duration)}
+          </Badge>
+        )}
+        {/* Type badge - bottom left */}
         <Badge
           variant="secondary"
           className="absolute bottom-1 left-1 text-[9px] px-1 py-0 bg-black/70 text-white border-0"
@@ -94,7 +126,16 @@ function VideoThumbnail({ video, isActive, onClick }: VideoThumbnailProps) {
         >
           {video.name}
         </p>
-        <p className="text-xs text-muted-foreground mt-1">{video.type}</p>
+        
+        {/* View count */}
+        {metadata?.viewCount ? (
+          <div className="flex items-center gap-1 text-muted-foreground mt-1">
+            <Eye className="h-3 w-3" />
+            <span className="text-xs">{formatViewCount(metadata.viewCount)}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground mt-1">{video.type}</span>
+        )}
       </div>
     </button>
   );
@@ -106,6 +147,11 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
   const [filter, setFilter] = useState("All");
   const mainPlayerRef = useRef<HTMLDivElement>(null);
   const [playerHeight, setPlayerHeight] = useState(0);
+
+  // YouTube metadata state
+  const [videoMetadata, setVideoMetadata] = useState<Map<string, VideoMetadata>>(new Map());
+  const [activeVideoData, setActiveVideoData] = useState<FullVideoData | null>(null);
+  const [isLoadingActive, setIsLoadingActive] = useState(false);
 
   // Filter only YouTube videos
   const youtubeVideos = useMemo(
@@ -122,6 +168,54 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
 
   // Initialize with first video
   const activeVideo = currentVideo || filteredVideos[0];
+
+  // Fetch batch metadata for all videos
+  const fetchBatchMetadata = useCallback(async (videoIds: string[]) => {
+    if (videoIds.length === 0) return;
+    
+    try {
+      const response = await fetch(`/api/youtube?videoIds=${videoIds.join(",")}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.videos) {
+          setVideoMetadata(new Map(Object.entries(data.videos)));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch video metadata:", error);
+    }
+  }, []);
+
+  // Fetch full data for active video (stats, dislikes, comments)
+  const fetchActiveVideoData = useCallback(async (videoId: string) => {
+    setIsLoadingActive(true);
+    try {
+      const response = await fetch(`/api/youtube?videoId=${videoId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setActiveVideoData(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch active video data:", error);
+    } finally {
+      setIsLoadingActive(false);
+    }
+  }, []);
+
+  // Fetch metadata for all videos on mount
+  useEffect(() => {
+    const videoIds = youtubeVideos.map((v) => v.key);
+    if (videoIds.length > 0) {
+      fetchBatchMetadata(videoIds);
+    }
+  }, [youtubeVideos, fetchBatchMetadata]);
+
+  // Fetch full data when active video changes
+  useEffect(() => {
+    if (activeVideo?.key) {
+      fetchActiveVideoData(activeVideo.key);
+    }
+  }, [activeVideo?.key, fetchActiveVideoData]);
 
   // Measure main player height for sidebar sync
   useEffect(() => {
@@ -140,14 +234,19 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
   const handleVideoSelect = (video: Video) => {
     setCurrentVideo(video);
     setIsPlaying(false);
+    setActiveVideoData(null);
   };
 
   const handlePlay = () => {
     setIsPlaying(true);
   };
 
-  // Total height = player + info below (approx 60px for title/type)
-  const sidebarHeight = playerHeight > 0 ? playerHeight + 60 : 400;
+  // Get stats for active video
+  const activeStats = activeVideoData?.stats;
+  const activeComments = activeVideoData?.comments?.comments || [];
+
+  // Total height = player + info below (approx 120px for title/stats)
+  const sidebarHeight = playerHeight > 0 ? playerHeight + 120 : 450;
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -158,7 +257,8 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
           alt="YouTube"
           width={90}
           height={20}
-          className="h-5 w-auto"
+          className="h-5"
+          style={{ width: "auto" }}
         />
         {videoTypes.length > 2 && (
           <ScrollArea className="max-w-[60%]">
@@ -217,18 +317,50 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
                     <Play className="h-8 w-8 text-white fill-white" />
                   </div>
                 </button>
+                {/* Duration overlay on main video */}
+                {activeStats?.duration && (
+                  <Badge
+                    variant="secondary"
+                    className="absolute bottom-3 right-3 text-xs px-2 py-0.5 bg-black/80 text-white border-0 font-mono"
+                  >
+                    {formatDuration(activeStats.duration)}
+                  </Badge>
+                )}
               </>
             )}
           </div>
-          {/* Video info */}
-          <div className="mt-3">
+          
+          {/* Video info with stats */}
+          <div className="mt-2 space-y-1.5">
             <h3 className="font-medium line-clamp-1">{activeVideo.name}</h3>
-            <p className="text-sm text-muted-foreground">{activeVideo.type}</p>
+
+            {/* Video stats - compact with channel image */}
+            {isLoadingActive ? (
+              <VideoStatsSkeleton />
+            ) : activeStats ? (
+              <VideoStats
+                viewCount={activeStats.viewCount}
+                likeCount={activeStats.likeCount}
+                dislikeCount={activeStats.dislikeCount}
+                commentCount={activeStats.commentCount}
+                publishedAt={activeStats.publishedAt}
+                channelTitle={activeStats.channelTitle}
+                channelThumbnail={activeStats.channelThumbnail}
+              />
+            ) : null}
+
+            {/* Comments in card */}
+            {activeComments.length > 0 && (
+              <VideoComments
+                comments={activeComments}
+                isLoading={isLoadingActive}
+              />
+            )}
           </div>
         </div>
 
-        {/* Thumbnails sidebar - exact same height as main player + info */}
-        <div className="w-[320px] lg:w-[360px] flex-shrink-0">
+        {/* Thumbnails sidebar - 25% width */}
+        <div className="w-[25%] min-w-[280px] max-w-[400px] flex-shrink-0">
           <ScrollArea style={{ height: `${sidebarHeight}px` }}>
             <div className="space-y-1 pr-3">
               {filteredVideos.map((video) => (
@@ -237,6 +369,7 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
                   video={video}
                   isActive={video.id === activeVideo.id}
                   onClick={() => handleVideoSelect(video)}
+                  metadata={videoMetadata.get(video.key)}
                 />
               ))}
             </div>
@@ -275,49 +408,99 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
                     <Play className="h-6 w-6 text-white fill-white" />
                   </div>
                 </button>
+                {/* Duration overlay on mobile */}
+                {activeStats?.duration && (
+                  <Badge
+                    variant="secondary"
+                    className="absolute bottom-2 right-2 text-[10px] px-1.5 py-0 bg-black/80 text-white border-0 font-mono"
+                  >
+                    {formatDuration(activeStats.duration)}
+                  </Badge>
+                )}
               </>
             )}
           </div>
-          <h3 className="font-medium line-clamp-1 mt-2 text-sm">{activeVideo.name}</h3>
+          
+          {/* Mobile video info */}
+          <div className="mt-2 space-y-2">
+            <h3 className="font-medium line-clamp-1 text-sm">{activeVideo.name}</h3>
+            
+            {/* Mobile stats */}
+            {isLoadingActive ? (
+              <VideoStatsSkeleton />
+            ) : activeStats ? (
+              <VideoStats
+                viewCount={activeStats.viewCount}
+                likeCount={activeStats.likeCount}
+                dislikeCount={activeStats.dislikeCount}
+                publishedAt={activeStats.publishedAt}
+                channelTitle={activeStats.channelTitle}
+                channelThumbnail={activeStats.channelThumbnail}
+              />
+            ) : null}
+          </div>
         </div>
 
         {/* Horizontal scroll of other videos */}
         <ScrollArea className="w-full">
           <div className="flex gap-3 px-4 pb-4">
-            {filteredVideos.map((video) => (
-              <button
-                key={video.id}
-                onClick={() => handleVideoSelect(video)}
-                className={cn(
-                  "relative flex-shrink-0 w-[140px] rounded-lg overflow-hidden transition-all",
-                  video.id === activeVideo.id && "ring-2 ring-brand"
-                )}
-              >
-                <div className="relative aspect-video">
-                  <Image
-                    src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`}
-                    alt={video.name}
-                    fill
-                    className="object-cover"
-                    sizes="140px"
-                    unoptimized
-                  />
-                  <Badge
-                    variant="secondary"
-                    className="absolute bottom-1 left-1 text-[9px] px-1 py-0 bg-black/70 text-white border-0"
-                  >
-                    {video.type}
-                  </Badge>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1 text-left px-0.5">
-                  {video.name}
-                </p>
-              </button>
-            ))}
+            {filteredVideos.map((video) => {
+              const meta = videoMetadata.get(video.key);
+              return (
+                <button
+                  key={video.id}
+                  onClick={() => handleVideoSelect(video)}
+                  className={cn(
+                    "relative flex-shrink-0 w-[140px] rounded-lg overflow-hidden transition-all text-left",
+                    video.id === activeVideo.id && "ring-2 ring-brand"
+                  )}
+                >
+                  <div className="relative aspect-video">
+                    <Image
+                      src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`}
+                      alt={video.name}
+                      fill
+                      className="object-cover"
+                      sizes="140px"
+                      unoptimized
+                    />
+                    {/* Duration badge */}
+                    {meta?.duration && (
+                      <Badge
+                        variant="secondary"
+                        className="absolute bottom-1 right-1 text-[8px] px-1 py-0 bg-black/80 text-white border-0 font-mono"
+                      >
+                        {formatDuration(meta.duration)}
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="secondary"
+                      className="absolute bottom-1 left-1 text-[9px] px-1 py-0 bg-black/70 text-white border-0"
+                    >
+                      {video.type}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 px-0.5">
+                    <p className="text-[11px] text-muted-foreground line-clamp-1">
+                      {video.name}
+                    </p>
+                    {meta?.viewCount ? (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Eye className="h-2.5 w-2.5 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatViewCount(meta.viewCount)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
           </div>
           <ScrollBar orientation="horizontal" className="invisible" />
         </ScrollArea>
       </div>
+
     </div>
   );
 }

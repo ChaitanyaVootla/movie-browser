@@ -1,6 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
 import { Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +52,7 @@ interface CountryLanguageBadgesProps {
   originalLanguage?: string;
   mediaType: "movie" | "series";
   className?: string;
+  size?: "sm" | "xs";
 }
 
 export function CountryLanguageBadges({
@@ -61,6 +60,7 @@ export function CountryLanguageBadges({
   originalLanguage,
   mediaType,
   className,
+  size = "sm",
 }: CountryLanguageBadgesProps) {
   // Don't show English as it's the default
   const showLanguage = originalLanguage && originalLanguage !== "en";
@@ -81,38 +81,43 @@ export function CountryLanguageBadges({
     return `/topics/language-${langName}-${type}`;
   };
 
+  const isXs = size === "xs";
+
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+    <div className={cn("flex flex-wrap items-center", isXs ? "gap-1.5" : "gap-2", className)}>
       {/* Country badges */}
       {originCountry?.slice(0, 2).map((country) => (
         <Link key={country} href={getCountryTopicUrl(country)}>
-          <Badge
-            variant="secondary"
-            className="cursor-pointer hover:bg-secondary/80 transition-colors gap-2 px-3 py-1.5"
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full bg-secondary text-secondary-foreground cursor-pointer hover:bg-secondary/80 transition-colors font-medium",
+              isXs ? "gap-1 px-1.5 h-5 text-[10px]" : "gap-2 px-3 py-1.5 text-xs"
+            )}
           >
-            <Image
-              src={`https://flagcdn.com/${country.toLowerCase()}.svg`}
+            <img
+              src={`https://flagcdn.com/w40/${country.toLowerCase()}.png`}
               alt={`Flag of ${country}`}
-              width={20}
-              height={14}
-              className="rounded-sm"
-              unoptimized
+              width={isXs ? 14 : 20}
+              height={isXs ? 10 : 14}
+              className="rounded-sm shrink-0 block"
             />
-            <span className="text-xs">{country}</span>
-          </Badge>
+            {country}
+          </span>
         </Link>
       ))}
 
       {/* Language badge */}
       {showLanguage && languageName && (
         <Link href={getLanguageTopicUrl(originalLanguage)}>
-          <Badge
-            variant="secondary"
-            className="cursor-pointer hover:bg-secondary/80 transition-colors gap-1.5 px-3 py-1.5"
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full bg-secondary text-secondary-foreground cursor-pointer hover:bg-secondary/80 transition-colors font-medium",
+              isXs ? "gap-1 px-1.5 h-5 text-[10px]" : "gap-1.5 px-3 py-1.5 text-xs"
+            )}
           >
-            <Globe className="h-3.5 w-3.5" />
-            <span className="text-xs">{languageName}</span>
-          </Badge>
+            <Globe className={cn("shrink-0", isXs ? "h-2.5 w-2.5" : "h-3.5 w-3.5")} />
+            {languageName}
+          </span>
         </Link>
       )}
     </div>

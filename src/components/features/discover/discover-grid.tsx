@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MovieCard, MovieCardSkeleton } from "@/components/features/movie/movie-card";
+import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { cn } from "@/lib/utils";
+import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import type { MediaItem } from "@/types";
 import type { DiscoverParams } from "@/lib/discover";
 import { discover } from "@/server/actions/discover";
@@ -45,8 +46,13 @@ export function DiscoverGrid({
   const [isPending, startTransition] = useTransition();
   const [isInitialLoad, setIsInitialLoad] = useState(initialResults.length === 0);
   const loaderRef = useRef<HTMLDivElement>(null);
+  const displayMode = usePreferencesStore(selectCardDisplayMode);
 
   const canLoadMore = page < totalPages;
+
+  // Grid classes based on display mode
+  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 md:gap-3";
+  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
   // Load more function - defined before effects that use it
   const loadMore = useCallback(
@@ -132,9 +138,9 @@ export function DiscoverGrid({
 
       {/* Grid */}
       {isInitialLoad && isPending ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 md:gap-3">
-          {Array.from({ length: 21 }).map((_, i) => (
-            <MovieCardSkeleton key={i} />
+        <div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
+          {Array.from({ length: displayMode === "wide" ? 15 : 21 }).map((_, i) => (
+            <MediaCardSkeleton key={i} />
           ))}
         </div>
       ) : results.length === 0 ? (
@@ -147,9 +153,9 @@ export function DiscoverGrid({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 md:gap-3">
+        <div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
           {results.map((item, index) => (
-            <MovieCard
+            <MediaCard
               key={`${item.id}-${index}`}
               item={item}
               priority={index < 7}
@@ -207,6 +213,12 @@ export function DiscoverGridServer({
   showCount = true,
   className,
 }: DiscoverGridServerProps) {
+  const displayMode = usePreferencesStore(selectCardDisplayMode);
+
+  // Grid classes based on display mode
+  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 md:gap-3";
+  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
@@ -235,9 +247,9 @@ export function DiscoverGridServer({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 md:gap-3">
+        <div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
           {results.map((item, index) => (
-            <MovieCard
+            <MediaCard
               key={item.id}
               item={item}
               priority={index < 7}

@@ -47,6 +47,12 @@ export interface SearchResponse {
   total_results: number;
 }
 
+// Quick search response with unified results
+export interface QuickSearchResponse {
+  /** Unified results in relevance order (movies + series + people interleaved) */
+  results: SearchResult[];
+}
+
 /**
  * Multi-search across movies, TV shows, and people
  * Used for both autocomplete and full search results
@@ -102,23 +108,20 @@ export async function searchPeople(query: string, page = 1) {
 
 /**
  * Quick search for autocomplete (limited results)
- * Returns top 3 from each category
+ * Returns unified results in TMDB's relevance order
  */
-export async function quickSearch(query: string): Promise<{
-  movies: SearchMovieResult[];
-  series: SearchSeriesResult[];
-  people: SearchPersonResult[];
-}> {
+export async function quickSearch(query: string): Promise<QuickSearchResponse> {
   if (!query.trim()) {
-    return { movies: [], series: [], people: [] };
+    return { results: [] };
   }
 
   const response = await search({ query, page: 1 });
 
+  // Return unified results (keep TMDB's relevance order)
+  // Limit to top 8 total results for quick search
   return {
-    movies: response.movies.slice(0, 3),
-    series: response.series.slice(0, 3),
-    people: response.people.slice(0, 3),
+    results: response.results.slice(0, 8),
   };
 }
+
 

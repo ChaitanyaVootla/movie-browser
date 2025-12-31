@@ -138,30 +138,30 @@ export function MediaActions({
   }
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-3", className)}>
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {/* Primary action - Play Trailer */}
       {hasTrailer && onPlayTrailer && (
         <Button
-          size="lg"
-          className="gap-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white font-semibold border border-white/20 transition-all hover:scale-105"
+          size="sm"
+          className="gap-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white font-medium border border-white/20 transition-all hover:scale-105"
           onClick={onPlayTrailer}
         >
-          <Play className="h-5 w-5 fill-current" />
-          Play Trailer
+          <Play className="h-3.5 w-3.5 fill-current" />
+          Trailer
         </Button>
       )}
 
-      {/* Secondary actions */}
+      {/* Secondary actions - grouped logically */}
       <TooltipProvider>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Watchlist */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="secondary"
                 className={cn(
-                  "h-11 w-11 rounded-full transition-all hover:scale-105",
+                  "rounded-full transition-all hover:scale-105",
                   "bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10",
                   isInWatchlist && "bg-white/20 border-white/30"
                 )}
@@ -170,11 +170,11 @@ export function MediaActions({
                 aria-label={isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
               >
                 {isUpdating === "watchlist" ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : isInWatchlist ? (
-                  <Check className="h-5 w-5" />
+                  <Check className="h-3.5 w-3.5" />
                 ) : (
-                  <ListPlus className="h-5 w-5" />
+                  <ListPlus className="h-3.5 w-3.5" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -188,10 +188,10 @@ export function MediaActions({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  size="icon"
+                  size="icon-sm"
                   variant="secondary"
                   className={cn(
-                    "h-11 w-11 rounded-full transition-all hover:scale-105",
+                    "rounded-full transition-all hover:scale-105",
                     "bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10",
                     isWatched && "bg-white/20 border-white/30"
                   )}
@@ -200,11 +200,11 @@ export function MediaActions({
                   aria-label={isWatched ? "Mark as Unwatched" : "Mark as Watched"}
                 >
                   {isUpdating === "watched" ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : isWatched ? (
-                    <Eye className="h-5 w-5" />
+                    <Eye className="h-3.5 w-3.5" />
                   ) : (
-                    <EyeOff className="h-5 w-5" />
+                    <EyeOff className="h-3.5 w-3.5" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -214,75 +214,76 @@ export function MediaActions({
             </Tooltip>
           )}
 
-          {/* Like */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="secondary"
-                className={cn(
-                  "h-11 w-11 rounded-full transition-all hover:scale-105",
-                  "bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10",
-                  isLiked && "bg-white/20 border-white/30"
-                )}
-                onClick={handleLike}
-                disabled={isUpdating === "like"}
-                aria-label={isLiked ? "Remove Like" : "Like"}
-              >
-                {isUpdating === "like" ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <ThumbsUp
-                    className={cn("h-5 w-5", isLiked && "fill-white")}
-                  />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {isLiked ? "Remove Like" : "Like"}
-            </TooltipContent>
-          </Tooltip>
+          {/* Like/Dislike grouped in a pill */}
+          <div className="flex items-center rounded-full bg-white/10 backdrop-blur-sm border border-white/10 overflow-hidden">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className={cn(
+                    "rounded-none hover:bg-white/15 transition-colors",
+                    isLiked && "bg-white/20"
+                  )}
+                  onClick={handleLike}
+                  disabled={isUpdating === "like"}
+                  aria-label={isLiked ? "Remove Like" : "Like"}
+                >
+                  {isUpdating === "like" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ThumbsUp
+                      className={cn("h-3.5 w-3.5", isLiked && "fill-white")}
+                    />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {isLiked ? "Remove Like" : "Like"}
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Dislike */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="secondary"
-                className={cn(
-                  "h-11 w-11 rounded-full transition-all hover:scale-105",
-                  "bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10",
-                  isDisliked && "bg-white/20 border-white/30"
-                )}
-                onClick={handleDislike}
-                disabled={isUpdating === "dislike"}
-                aria-label={isDisliked ? "Remove Dislike" : "Dislike"}
-              >
-                {isUpdating === "dislike" ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <ThumbsDown
-                    className={cn("h-5 w-5", isDisliked && "fill-white")}
-                  />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {isDisliked ? "Remove Dislike" : "Dislike"}
-            </TooltipContent>
-          </Tooltip>
+            <div className="w-px h-4 bg-white/20" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className={cn(
+                    "rounded-none hover:bg-white/15 transition-colors",
+                    isDisliked && "bg-white/20"
+                  )}
+                  onClick={handleDislike}
+                  disabled={isUpdating === "dislike"}
+                  aria-label={isDisliked ? "Remove Dislike" : "Dislike"}
+                >
+                  {isUpdating === "dislike" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ThumbsDown
+                      className={cn("h-3.5 w-3.5", isDisliked && "fill-white")}
+                    />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {isDisliked ? "Remove Dislike" : "Dislike"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
 
           {/* Share */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="secondary"
-                className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 transition-all hover:scale-105"
+                className="rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 transition-all hover:scale-105"
                 onClick={handleShare}
                 aria-label="Share"
               >
-                <Share2 className="h-5 w-5" />
+                <Share2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">Share</TooltipContent>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Image from "next/image";
 import Link from "next/link";
 import {
   Users,
@@ -18,6 +17,9 @@ import {
   Globe,
   Mail,
   Hash,
+  Activity,
+  Network,
+  Building,
 } from "lucide-react";
 import { useState, Fragment } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,6 +59,60 @@ function formatRelativeTime(date: Date): string {
   return date.toLocaleDateString();
 }
 
+/**
+ * Get color class for last visit based on activity period
+ * - Green: active today
+ * - Blue: active this week (1-7 days)
+ * - Purple: active this month (8-30 days)
+ * - Muted: inactive (>30 days or never)
+ */
+function getLastVisitColor(lastVisited?: string): string {
+  if (!lastVisited) return "text-muted-foreground";
+
+  const lastVisit = new Date(lastVisited);
+  const now = new Date();
+  const diffMs = now.getTime() - lastVisit.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  // Today (same date string)
+  if (lastVisit.toDateString() === now.toDateString()) {
+    return "text-green-500";
+  }
+  // Within 7 days
+  if (diffDays <= 7) {
+    return "text-blue-500";
+  }
+  // Within 30 days
+  if (diffDays <= 30) {
+    return "text-purple-500";
+  }
+  // Older than 30 days
+  return "text-muted-foreground";
+}
+
+interface UserLocation {
+  countryCode?: string;
+  countryName?: string;
+  cityName?: string;
+  stateName?: string;
+  timezone?: string;
+  // Legacy field names (fallback)
+  country?: string;
+  city?: string;
+  region?: string;
+  lat?: number;
+  lng?: number;
+  // Extended location data
+  ip?: string;
+  isp?: string;
+  org?: string;
+  as?: string;
+  asname?: string;
+  mobile?: boolean;
+  proxy?: boolean;
+  hosting?: boolean;
+}
+
 interface UserActivity {
   id: string;
   sub: number;
@@ -66,15 +122,7 @@ interface UserActivity {
   image?: string;
   createdAt?: string;
   lastVisited?: string;
-  location?: {
-    countryCode?: string;
-    country?: string;
-    city?: string;
-    region?: string;
-    timezone?: string;
-    lat?: number;
-    lng?: number;
-  };
+  location?: UserLocation;
   ContinueWatching: number;
   MoviesWatchList: number;
   WatchedMovies: number;
@@ -103,12 +151,15 @@ export function AdminDashboard() {
     isLoading,
     error,
     refetch,
-    isRefetching,
+    isFetching,
   } = useQuery({
     queryKey: ["admin", "users"],
     queryFn: fetchUsers,
     staleTime: 60 * 1000,
   });
+
+  // isRefreshing: true when refetching (not initial load)
+  const isRefreshing = isFetching && !isLoading;
 
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => {
@@ -131,13 +182,27 @@ export function AdminDashboard() {
           const today = new Date();
           return lastVisit.toDateString() === today.toDateString();
         }).length,
+        activeWeek: users.filter((u) => {
+          if (!u.lastVisited) return false;
+          const lastVisit = new Date(u.lastVisited);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return lastVisit >= weekAgo;
+        }).length,
+        activeMonth: users.filter((u) => {
+          if (!u.lastVisited) return false;
+          const lastVisit = new Date(u.lastVisited);
+          const monthAgo = new Date();
+          monthAgo.setDate(monthAgo.getDate() - 30);
+          return lastVisit >= monthAgo;
+        }).length,
         totalWatched: users.reduce((sum, u) => sum + (u.WatchedMovies || 0), 0),
         totalWatchlist: users.reduce(
           (sum, u) => sum + (u.MoviesWatchList || 0) + (u.SeriesList || 0),
           0
         ),
       }
-    : { total: 0, activeToday: 0, totalWatched: 0, totalWatchlist: 0 };
+    : { total: 0, activeToday: 0, activeWeek: 0, activeMonth: 0, totalWatched: 0, totalWatchlist: 0 };
 
   if (error) {
     return (
@@ -162,27 +227,27 @@ export function AdminDashboard() {
           variant="outline"
           size="sm"
           onClick={() => refetch()}
-          disabled={isRefetching}
+          disabled={isFetching}
         >
           <RefreshCw
-            className={cn("h-4 w-4 mr-2", isRefetching && "animate-spin")}
+            className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")}
           />
-          Refresh
+          {isRefreshing ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
 
       {/* Compact Stats */}
-      <div className="grid gap-3 grid-cols-4 mb-6">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 mb-6">
         <StatCard
           title="Users"
           value={stats.total}
           icon={Users}
           isLoading={isLoading}
         />
-        <StatCard
-          title="Active"
-          value={stats.activeToday}
-          icon={Eye}
+        <ActiveUsersCard
+          daily={stats.activeToday}
+          weekly={stats.activeWeek}
+          monthly={stats.activeMonth}
           isLoading={isLoading}
         />
         <StatCard
@@ -200,11 +265,11 @@ export function AdminDashboard() {
       </div>
 
       {/* Users Table */}
-      <Card>
+      <Card className="py-0 overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-muted/50 border-b-0">
                 <TableHead className="w-12"></TableHead>
                 <TableHead>User</TableHead>
                 <TableHead>Location</TableHead>
@@ -271,15 +336,15 @@ export function AdminDashboard() {
                       <TableCell>
                         {user.location?.countryCode ? (
                           <div className="flex items-center gap-2">
-                            <Image
-                              src={`https://flagcdn.com/${user.location.countryCode.toLowerCase()}.svg`}
+                            <img
+                              src={`https://flagcdn.com/w40/${user.location.countryCode.toLowerCase()}.png`}
                               alt={user.location.countryCode}
                               width={20}
                               height={15}
                               className="rounded-sm shrink-0"
                             />
                             <span className="text-sm truncate max-w-[100px]">
-                              {user.location.city || user.location.country || user.location.countryCode}
+                              {user.location.countryName || user.location.country || user.location.countryCode}
                             </span>
                           </div>
                         ) : (
@@ -318,11 +383,7 @@ export function AdminDashboard() {
                         <span
                           className={cn(
                             "text-sm font-medium",
-                            user.lastVisited &&
-                              new Date(user.lastVisited).toDateString() ===
-                                new Date().toDateString()
-                              ? "text-green-500"
-                              : "text-muted-foreground"
+                            getLastVisitColor(user.lastVisited)
                           )}
                         >
                           {user.lastVisited
@@ -374,7 +435,7 @@ function StatCard({
   isLoading: boolean;
 }) {
   return (
-    <Card className="p-4">
+    <Card className="p-4 py-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -387,6 +448,51 @@ function StatCard({
           )}
         </div>
         <Icon className="h-6 w-6 text-muted-foreground/40" />
+      </div>
+    </Card>
+  );
+}
+
+function ActiveUsersCard({
+  daily,
+  weekly,
+  monthly,
+  isLoading,
+}: {
+  daily: number;
+  weekly: number;
+  monthly: number;
+  isLoading: boolean;
+}) {
+  return (
+    <Card className="p-4 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">
+            Active Users
+          </p>
+          {isLoading ? (
+            <Skeleton className="h-5 w-28" />
+          ) : (
+            <div className="flex items-center gap-3 text-sm">
+              <span className="flex items-center gap-1">
+                <span className="text-lg font-bold text-green-500">{daily}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">day</span>
+              </span>
+              <span className="text-muted-foreground/30">|</span>
+              <span className="flex items-center gap-1">
+                <span className="text-lg font-bold text-blue-500">{weekly}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">week</span>
+              </span>
+              <span className="text-muted-foreground/30">|</span>
+              <span className="flex items-center gap-1">
+                <span className="text-lg font-bold text-purple-500">{monthly}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">month</span>
+              </span>
+            </div>
+          )}
+        </div>
+        <Activity className="h-6 w-6 text-muted-foreground/40" />
       </div>
     </Card>
   );
@@ -438,8 +544,8 @@ function ExpandedUserDetails({ user }: { user: UserActivity }) {
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
               {user.location.countryCode && (
-                <Image
-                  src={`https://flagcdn.com/${user.location.countryCode.toLowerCase()}.svg`}
+                <img
+                  src={`https://flagcdn.com/w40/${user.location.countryCode.toLowerCase()}.png`}
                   alt={user.location.countryCode}
                   width={20}
                   height={15}
@@ -448,9 +554,9 @@ function ExpandedUserDetails({ user }: { user: UserActivity }) {
               )}
               <span className="text-muted-foreground">
                 {[
-                  user.location.city,
-                  user.location.region,
-                  user.location.country,
+                  user.location.cityName || user.location.city,
+                  user.location.stateName || user.location.region,
+                  user.location.countryName || user.location.country,
                 ]
                   .filter(Boolean)
                   .join(", ") || user.location.countryCode}
@@ -470,6 +576,39 @@ function ExpandedUserDetails({ user }: { user: UserActivity }) {
                 </span>
               </div>
             )}
+            {/* Extended location data */}
+            {(user.location.isp || user.location.org) && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Building className="h-3.5 w-3.5" />
+                <span className="text-xs truncate">
+                  {user.location.isp || user.location.org}
+                </span>
+              </div>
+            )}
+            {user.location.asname && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Network className="h-3.5 w-3.5" />
+                <span className="text-xs truncate">{user.location.asname}</span>
+              </div>
+            )}
+            {/* Connection type badges */}
+            <div className="flex flex-wrap gap-1 pt-1">
+              {user.location.mobile && (
+                <Badge variant="outline" className="text-[10px] h-5">
+                  Mobile
+                </Badge>
+              )}
+              {user.location.proxy && (
+                <Badge variant="outline" className="text-[10px] h-5 border-amber-500/50 text-amber-500">
+                  VPN/Proxy
+                </Badge>
+              )}
+              {user.location.hosting && (
+                <Badge variant="outline" className="text-[10px] h-5 border-blue-500/50 text-blue-500">
+                  Hosting/DC
+                </Badge>
+              )}
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No location data</p>

@@ -4,19 +4,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Search, Menu, Users, Compass, Shield, Bookmark } from "lucide-react";
+import { Search, Menu, Sparkles, Compass, Shield, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { ThemeToggle } from "./theme-toggle";
 import { CountrySelector } from "./country-selector";
-import { UserMenu, LoginDialog, useLoginDialog } from "@/components/features/auth";
+import { UserMenu, LoginDialog, useLoginDialog, SettingsMenu } from "@/components/features/auth";
 import { SearchCommand, useSearchCommand } from "@/components/features/search";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
 const navItems = [
   { href: "/browse", label: "Browse", icon: Compass },
-  { href: "/topics", label: "Topics", icon: Users },
+  { href: "/topics", label: "Topics", icon: Sparkles },
 ];
 
 const authNavItems = [
@@ -71,9 +70,9 @@ export function NavBar() {
             : "bg-transparent"
         )}
       >
-        <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-12">
+        <div className="flex h-16 items-center justify-between px-3 md:px-4 lg:px-6">
           {/* Left side: Logo + Navigation */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2 md:gap-4">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 font-bold text-xl group">
               <Image
@@ -89,14 +88,17 @@ export function NavBar() {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-0.5">
               {navItems.map(({ href, label, icon: Icon }) => (
                 <Link key={href} href={href}>
                   <Button
                     variant="ghost"
                     className={cn(
-                      "gap-2 text-muted-foreground hover:text-foreground hover:bg-white/10",
-                      pathname?.startsWith(href) && "text-foreground bg-white/10"
+                      "gap-2 hover:bg-white/10 cursor-default",
+                      isScrolled
+                        ? "text-foreground/80 hover:text-foreground"
+                        : "text-white/90 hover:text-white",
+                      pathname?.startsWith(href) && (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -111,8 +113,11 @@ export function NavBar() {
                     <Button
                       variant="ghost"
                       className={cn(
-                        "gap-2 text-muted-foreground hover:text-foreground hover:bg-white/10",
-                        pathname?.startsWith(href) && "text-foreground bg-white/10"
+                        "gap-2 hover:bg-white/10 cursor-default",
+                        isScrolled
+                          ? "text-foreground/80 hover:text-foreground"
+                          : "text-white/90 hover:text-white",
+                        pathname?.startsWith(href) && (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
                       )}
                     >
                       <Icon className="h-4 w-4" />
@@ -126,8 +131,11 @@ export function NavBar() {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "gap-2 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10",
-                      pathname?.startsWith("/admin") && "text-amber-400 bg-amber-500/10"
+                      "gap-2 hover:bg-white/10 cursor-default",
+                      isScrolled
+                        ? "text-foreground/80 hover:text-foreground"
+                        : "text-white/90 hover:text-white",
+                      pathname?.startsWith("/admin") && (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
                     )}
                   >
                     <Shield className="h-4 w-4" />
@@ -140,20 +148,19 @@ export function NavBar() {
 
           {/* Right side: Search & Actions */}
           <div className="flex items-center gap-3">
-            {/* Desktop Search Trigger */}
+            {/* Desktop Search Trigger - Compact */}
             <button
               onClick={() => setSearchOpen(true)}
               className={cn(
-                "hidden md:flex items-center gap-3 h-9 w-64 px-3 rounded-md text-sm transition-colors",
+                "hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-sm transition-colors",
                 isScrolled
                   ? "bg-muted/50 hover:bg-muted text-muted-foreground"
                   : "bg-white/10 hover:bg-white/15 text-white/70"
               )}
             >
-              <Search className="h-4 w-4 flex-shrink-0" />
-              <span className="flex-1 text-left">Search...</span>
+              <Search className="h-3.5 w-3.5" />
               <kbd className={cn(
-                "hidden lg:inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px]",
+                "inline-flex h-5 items-center gap-0.5 rounded border px-1.5 font-mono text-[10px]",
                 isScrolled
                   ? "border-border bg-background text-muted-foreground"
                   : "border-white/20 bg-white/10 text-white/60"
@@ -176,22 +183,23 @@ export function NavBar() {
             {/* Country Selector */}
             <CountrySelector compact className="hidden sm:flex" />
 
-            {/* Theme Toggle */}
-            <ThemeToggle />
-
-            {/* Auth: User Menu or Sign In Button */}
+            {/* Auth: User Menu with theme toggle, or Settings + Sign In for non-auth */}
             {isAuthenticated ? (
               <UserMenu />
             ) : (
-              <Button
-                variant="default"
-                size="sm"
-                className="hidden sm:flex"
-                onClick={() => openLoginDialog()}
-                disabled={isLoading}
-              >
-                {isLoading ? "..." : "Sign In"}
-              </Button>
+              <>
+                {/* Settings dropdown for non-authenticated users */}
+                <SettingsMenu />
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="hidden sm:flex"
+                  onClick={() => openLoginDialog()}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "..." : "Sign In"}
+                </Button>
+              </>
             )}
 
             {/* Mobile Menu */}
@@ -241,8 +249,8 @@ export function NavBar() {
                       <Button
                         variant="ghost"
                         className={cn(
-                          "w-full justify-start gap-3 text-amber-500 hover:text-amber-400",
-                          pathname?.startsWith("/admin") && "text-amber-400 bg-amber-500/10"
+                          "w-full justify-start gap-3 text-muted-foreground hover:text-foreground",
+                          pathname?.startsWith("/admin") && "text-foreground bg-accent"
                         )}
                       >
                         <Shield className="h-5 w-5" />

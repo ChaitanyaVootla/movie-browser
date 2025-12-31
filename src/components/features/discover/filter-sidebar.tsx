@@ -27,6 +27,9 @@ import { PersonSearchCombobox, type PersonOption } from "./person-search-combobo
 import {
   RATING_OPTIONS,
   MIN_VOTES_OPTIONS,
+  RUNTIME_OPTIONS,
+  STREAMING_PROVIDERS,
+  MONETIZATION_OPTIONS,
   MOVIE_GENRE_LIST,
   TV_GENRE_LIST,
   type DiscoverParams,
@@ -59,6 +62,9 @@ export function FilterSidebar({
 }: FilterSidebarProps) {
   const [genresOpen, setGenresOpen] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [streamingOpen, setStreamingOpen] = useState(
+    (params.with_watch_providers?.length ?? 0) > 0 || !!params.with_watch_monetization_types
+  );
   const [peopleOpen, setPeopleOpen] = useState(
     (params.with_cast?.length ?? 0) > 0 || (params.with_crew?.length ?? 0) > 0
   );
@@ -86,6 +92,25 @@ export function FilterSidebar({
       })),
     []
   );
+
+  const streamingProviderOptions = useMemo(
+    () =>
+      STREAMING_PROVIDERS.map((p) => ({
+        value: String(p.id),
+        label: p.name,
+      })),
+    []
+  );
+
+  // Get current runtime filter value for select
+  const runtimeValue = useMemo(() => {
+    const min = params["with_runtime.gte"];
+    const max = params["with_runtime.lte"];
+    if (min !== undefined || max !== undefined) {
+      return `${min || 0}-${max || 999}`;
+    }
+    return "any";
+  }, [params]);
 
   const selectedGenres = Array.isArray(params.with_genres)
     ? params.with_genres
@@ -126,6 +151,10 @@ export function FilterSidebar({
     params.with_origin_country ||
     params["vote_average.gte"] ||
     params["vote_count.gte"] ||
+    params["with_runtime.gte"] ||
+    params["with_runtime.lte"] ||
+    (params.with_watch_providers?.length ?? 0) > 0 ||
+    params.with_watch_monetization_types ||
     (Array.isArray(params.with_cast) ? params.with_cast.length : params.with_cast ? 1 : 0) > 0 ||
     (Array.isArray(params.with_crew) ? params.with_crew.length : params.with_crew ? 1 : 0) > 0 ||
     (Array.isArray(params.with_keywords) ? params.with_keywords.length : params.with_keywords ? 1 : 0) > 0;
@@ -133,7 +162,7 @@ export function FilterSidebar({
   return (
     <div className={cn("flex flex-col h-full", className)}>
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-5">
+        <div className="p-5 space-y-5">
           {/* Media Type Toggle */}
           {!hideMediaToggle && (
             <>
@@ -248,6 +277,43 @@ export function FilterSidebar({
                 </Select>
               </div>
 
+              {/* Runtime - Movies only */}
+              {params.media_type === "movie" && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Runtime</Label>
+                  <Select
+                    value={runtimeValue}
+                    onValueChange={(v) => {
+                      if (v === "any") {
+                        const newParams = { ...params };
+                        delete newParams["with_runtime.gte"];
+                        delete newParams["with_runtime.lte"];
+                        onChange(newParams);
+                      } else {
+                        const [min, max] = v.split("-").map(Number);
+                        const newParams = { ...params };
+                        if (min > 0) newParams["with_runtime.gte"] = min;
+                        else delete newParams["with_runtime.gte"];
+                        if (max < 999) newParams["with_runtime.lte"] = max;
+                        else delete newParams["with_runtime.lte"];
+                        onChange(newParams);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Any length" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RUNTIME_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {/* Language - Searchable */}
               <div className="space-y-2">
                 <Label className="text-sm">Language</Label>
@@ -286,6 +352,96 @@ export function FilterSidebar({
                   emptyText="No genre found."
                 />
               </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Separator />
+
+          {/* Streaming Filters */}
+          <Collapsible open={streamingOpen} onOpenChange={setStreamingOpen}>
+            <CollapsibleTrigger className="flex items-center justify-between w-full py-1">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground cursor-pointer">
+                Streaming
+              </Label>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform",
+                  streamingOpen && "rotate-180"
+                )}
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3 space-y-4">
+              {/* Availability Type */}
+              <div className="space-y-2">
+                <Label className="text-sm">Availability</Label>
+                <Select
+                  value={params.with_watch_monetization_types || "any"}
+                  onValueChange={(v) => {
+                    const newParams = { ...params };
+                    if (v !== "any") {
+                      newParams.with_watch_monetization_types = v as DiscoverParams["with_watch_monetization_types"];
+                      // Availability filter requires watch_region
+                      if (!newParams.watch_region) {
+                        newParams.watch_region = "US";
+                      }
+                    } else {
+                      delete newParams.with_watch_monetization_types;
+                      // Only clear watch_region if no providers selected
+                      if (!newParams.with_watch_providers?.length) {
+                        delete newParams.watch_region;
+                      }
+                    }
+                    onChange(newParams);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Any availability" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONETIZATION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Streaming Providers */}
+              <div className="space-y-2">
+                <Label className="text-sm">Streaming On</Label>
+                <MultiSelectCombobox
+                  options={streamingProviderOptions}
+                  selected={(params.with_watch_providers || []).map(String)}
+                  onChange={(selected) => {
+                    const ids = selected.map(Number);
+                    const newParams = { ...params };
+                    if (ids.length > 0) {
+                      newParams.with_watch_providers = ids;
+                      if (!newParams.watch_region) {
+                        newParams.watch_region = "US";
+                      }
+                    } else {
+                      delete newParams.with_watch_providers;
+                      // Only clear watch_region if no monetization filter
+                      if (!newParams.with_watch_monetization_types) {
+                        delete newParams.watch_region;
+                      }
+                    }
+                    onChange(newParams);
+                  }}
+                  placeholder="Select streaming services..."
+                  searchPlaceholder="Search services..."
+                  emptyText="No service found."
+                />
+              </div>
+
+              {/* Region hint */}
+              {((params.with_watch_providers?.length ?? 0) > 0 || params.with_watch_monetization_types) && (
+                <p className="text-xs text-muted-foreground">
+                  Showing results for US region
+                </p>
+              )}
             </CollapsibleContent>
           </Collapsible>
 
@@ -340,7 +496,7 @@ export function FilterSidebar({
 
       {/* Reset Button */}
       {hasActiveFilters && (
-        <div className="p-4 border-t">
+        <div className="p-5 border-t">
           <Button
             variant="outline"
             className="w-full"

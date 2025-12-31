@@ -19,6 +19,7 @@ src/server/actions/
 ├── person.ts       # Person-related actions
 ├── trending.ts     # Trending content actions
 ├── discover.ts     # TMDB discover API (browse/topics)
+├── hover-card.ts   # Lean hover card data (ratings, cast, watch options)
 ├── user.ts         # User-related actions
 ├── watchlist.ts    # Watchlist actions
 └── search.ts       # Search actions
@@ -273,6 +274,56 @@ const christmas = getTopicByKey("theme-christmas-movie");
 const { results } = await discoverBatch(christmas.filterParams);
 ```
 
+### Hover Card Action
+
+Lean API endpoint optimized for fast loading (~2-3KB vs ~50KB+ for full movie details):
+
+```typescript
+// src/server/actions/hover-card.ts
+"use server";
+
+import { z } from "zod";
+
+const HoverCardSchema = z.object({
+  id: z.number().positive(),
+  mediaType: z.enum(["movie", "series"]),
+});
+
+export interface HoverCardData {
+  id: number;
+  title: string;
+  backdrop_path: string | null;
+  poster_path: string | null;
+  year: string | null;
+  runtime?: number;           // Movies only
+  number_of_seasons?: number; // Series only
+  genres: { id: number; name: string }[];
+  ratings: { name: string; rating: string; certified?: boolean; sentiment?: string }[];
+  cast: { id: number; name: string; character?: string; profile_path: string | null }[];
+  watch_options: ProcessedWatchOptions;
+}
+
+// Fetch minimal data for hover card preview
+export async function getHoverCardData(
+  id: number,
+  mediaType: "movie" | "series"
+): Promise<HoverCardData | null>;
+```
+
+**Data fetched:**
+- TMDB basic details (title, year, runtime/seasons, genres)
+- MongoDB ratings (googleData + external_data) - combined via `combineRatings()`
+- Top 4 cast members (name, character, photo)
+- Watch options for user's country (via `getWatchOptionsForCountry()`)
+
+**Caching:** Uses same namespace as movie/series (1 hour TTL)
+
+**Usage:**
+```tsx
+// Called by HoverCardOverlay when user hovers on a card
+const data = await getHoverCardData(movieId, "movie");
+```
+
 ### Mutations with Auth
 
 ```typescript
@@ -324,7 +375,9 @@ src/app/api/
 │   │   └── watched/route.ts     # POST/DELETE movie watched
 │   ├── series/[seriesId]/
 │   │   └── watchlist/route.ts   # POST/DELETE series watchlist
-│   └── rating/route.ts          # POST/DELETE user ratings (like/dislike)
+│   ├── rating/route.ts          # POST/DELETE user ratings (like/dislike)
+│   ├── ratings/route.ts         # GET all ratings with movie/series details
+│   └── watched/route.ts         # GET all watched movies with details
 ├── webhooks/
 │   └── tmdb/route.ts
 └── cron/
@@ -388,6 +441,70 @@ export async function DELETE(
   } catch (error) {
     return NextResponse.json({ error: "Failed to remove" }, { status: 500 });
   }
+}
+```
+
+### Watchlist Endpoint
+
+Full watchlist with movie/series details, categorized and sorted:
+
+```typescript
+// GET /api/user/watchlist
+interface WatchlistResponse {
+  movies: {
+    newAndUpcoming: MovieWithDetails[];  // Future + last 60 days, sorted chronologically
+    collection: MovieWithDetails[];       // Everything else, sorted by addedAt desc
+    allGenres: { id: number; name: string }[];  // Unique genres for filtering
+    totalCount: number;
+  };
+  series: {
+    currentlyAiring: SeriesWithDetails[];  // Has next_episode_to_air, sorted by next air date
+    returning: SeriesWithDetails[];        // Returning/In Production/Planned, sorted by last air date
+    completed: SeriesWithDetails[];        // Ended/Canceled, sorted by last air date
+    totalCount: number;
+  };
+}
+```
+
+**Series sorting logic:**
+- `currentlyAiring`: by `next_episode_to_air.air_date` ascending (soonest first)
+- `returning`: by `last_episode_to_air.air_date` descending (most recent first)
+- `completed`: by `last_episode_to_air.air_date` descending (most recent first)
+
+**Movies sorting logic:**
+- `newAndUpcoming`: upcoming first (by release date asc), then recent releases (by release date desc)
+- `collection`: by `addedAt` descending (most recently added first)
+
+```typescript
+// Categorize movies
+function categorizeMovies(movies: MovieWithDetails[]) {
+  const today = new Date();
+  const sixtyDaysAgo = new Date(today);
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+  for (const movie of movies) {
+    const releaseDate = new Date(movie.release_date || "");
+    if (releaseDate > today || releaseDate >= sixtyDaysAgo) {
+      newAndUpcoming.push(movie);
+    } else {
+      collection.push(movie);
+    }
+  }
+
+  // Sort newAndUpcoming: upcoming first (by date asc), then new releases (by date desc)
+  newAndUpcoming.sort((a, b) => {
+    const isUpcomingA = new Date(a.release_date) > today;
+    const isUpcomingB = new Date(b.release_date) > today;
+    if (isUpcomingA && !isUpcomingB) return -1;
+    if (!isUpcomingA && isUpcomingB) return 1;
+    if (isUpcomingA && isUpcomingB) return dateA - dateB;  // Soonest first
+    return dateB - dateA;  // Most recent first
+  });
+
+  // Collect unique genres for filtering
+  const allGenres = Array.from(genreMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+  return { newAndUpcoming, collection, allGenres, totalCount };
 }
 ```
 
@@ -495,6 +612,49 @@ Track items user started watching on streaming platforms:
   watchProviderName?: string; // e.g., "Netflix", "Amazon Prime Video"
 }
 ```
+
+### Ratings List API
+
+Fetch all user ratings with full movie/series details:
+
+```typescript
+// GET /api/user/ratings
+interface RatingsResponse {
+  likes: {
+    movies: MovieWithDetails[];
+    series: SeriesWithDetails[];
+  };
+  dislikes: {
+    movies: MovieWithDetails[];
+    series: SeriesWithDetails[];
+  };
+  totalCount: number;
+}
+```
+
+**Data structure:**
+- Groups by rating direction (likes=1, dislikes=-1)
+- Each group contains `movies[]` and `series[]`
+- Items include full details: poster, backdrop, vote_average, genres, release_date
+- Sorted by most recently rated
+
+### Watched Movies API
+
+Fetch all watched movies with full details:
+
+```typescript
+// GET /api/user/watched
+interface WatchedResponse {
+  movies: MovieWithDetails[];
+  totalCount: number;
+  allGenres: { id: number; name: string }[];  // For genre filtering
+}
+```
+
+**Data structure:**
+- All watched movies with full details
+- `allGenres` array for client-side filtering
+- Sorted by most recently marked as watched
 
 ### Protected Admin Routes
 
@@ -657,7 +817,8 @@ export type CacheNamespace =
   | "person"
   | "search"
   | "discover"
-  | "images";
+  | "images"
+  | "youtube";
 
 // Get from cache
 export function cacheGet<T>(namespace: CacheNamespace, key: string): T | undefined;
@@ -708,6 +869,7 @@ Defined in `src/lib/constants.ts`:
 | search | 5 min | Search results |
 | discover | 30 min | Browse/topic results |
 | images | 1 hour | Logo/image metadata |
+| youtube | 30 min | YouTube video metadata |
 
 ### When to Use Which Cache
 
@@ -920,6 +1082,99 @@ export class UnauthorizedError extends AppError {
   }
 }
 ```
+
+## YouTube API Integration
+
+### Service Location
+
+YouTube API calls are handled in `src/server/services/youtube.ts`:
+
+```typescript
+// src/server/services/youtube.ts
+import { cachedFetch } from "@/lib/cache";
+
+// Batch fetch video stats (up to 50 videos per call)
+export async function getVideosStats(videoIds: string[]): Promise<Record<string, YouTubeVideoStats>>;
+
+// Get full video data (stats + comments + dislikes)
+export async function getFullVideoData(videoId: string): Promise<FullVideoData>;
+
+// Fetch comments (max 100 per call)
+export async function getVideoComments(videoId: string, maxResults?: number): Promise<VideoCommentsResult>;
+
+// Fetch dislikes from Return YouTube Dislike API
+export async function getVideoDislike(videoId: string): Promise<YouTubeDislikeData | null>;
+```
+
+### API Route
+
+Client-side requests go through `/api/youtube/route.ts`:
+
+```typescript
+// GET /api/youtube?ids=abc,def  → Batch video stats
+// GET /api/youtube?id=abc&full=true  → Full video data with comments
+```
+
+### Data Types
+
+```typescript
+interface YouTubeVideoStats {
+  viewCount: number;
+  likeCount: number;
+  dislikeCount: number;
+  commentCount: number;
+  publishedAt: string;
+  channelTitle: string;
+  channelThumbnail: string;
+  duration: string;  // ISO 8601 format (PT2M27S)
+}
+
+interface YouTubeComment {
+  id: string;
+  textDisplay: string;
+  textOriginal: string;
+  author: {
+    displayName: string;
+    profileImageUrl: string;
+    channelUrl: string;
+  };
+  likeCount: number;
+  replyCount: number;
+  publishedAt: string;
+  isHearted: boolean;
+}
+
+interface FullVideoData {
+  stats: YouTubeVideoStats | null;
+  comments: { comments: YouTubeComment[]; totalCount: number };
+}
+```
+
+### Environment Variable
+
+```env
+YOUTUBE_API_KEY=your_api_key_here
+```
+
+### Return YouTube Dislike API
+
+For dislike counts (removed from official API), uses public API:
+
+```typescript
+// https://returnyoutubedislikeapi.com/votes?videoId={id}
+interface YouTubeDislikeData {
+  dislikes: number;
+  likes: number;
+  viewCount: number;
+}
+```
+
+### Caching Strategy
+
+- Video stats cached for 30 minutes (youtube namespace)
+- Batch requests combine up to 50 video IDs in one API call
+- Comments fetched with video stats in parallel
+- Dislike API responses cached separately
 
 ## Rate Limiting
 

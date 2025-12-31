@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useSafeSession } from "@/hooks/use-safe-session";
 import { useUserStore } from "@/stores/user";
 
 interface RecentTrackerProps {
@@ -25,7 +25,7 @@ export function RecentTracker({
   poster_path,
   backdrop_path,
 }: RecentTrackerProps) {
-  const { status } = useSession();
+  const { status } = useSafeSession();
   const addToRecents = useUserStore((state) => state.addToRecents);
   const trackedRef = useRef(false);
 

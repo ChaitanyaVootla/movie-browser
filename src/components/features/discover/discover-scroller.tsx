@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MovieCard, MovieCardSkeleton } from "@/components/features/movie/movie-card";
+import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { cn } from "@/lib/utils";
+import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import type { MediaItem } from "@/types";
 import type { DiscoverParams } from "@/lib/discover";
 import { discover } from "@/server/actions/discover";
@@ -46,7 +47,12 @@ export function DiscoverScroller({
   const [canLoadMore, setCanLoadMore] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
+  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, pointerId: 0 });
+  const displayMode = usePreferencesStore(selectCardDisplayMode);
+
+  // Card sizing based on display mode
+  const posterCardClass = "w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px] flex-shrink-0";
+  const wideCardClass = "w-[220px] sm:w-[260px] md:w-[300px] lg:w-[340px] flex-shrink-0";
 
   // Load more function - defined before effects that use it
   const loadMore = useCallback(() => {
@@ -109,14 +115,15 @@ export function DiscoverScroller({
     }
   };
 
-  // Drag handlers
+  // Drag handlers - capture on scroll container, not e.target (which may be a child element)
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!scrollRef.current) return;
     dragRef.current.isDown = true;
     dragRef.current.startX = e.clientX;
     dragRef.current.scrollLeft = scrollRef.current.scrollLeft;
+    dragRef.current.pointerId = e.pointerId;
     setIsDragging(true);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    scrollRef.current.setPointerCapture(e.pointerId);
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -126,10 +133,13 @@ export function DiscoverScroller({
     scrollRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
   }, []);
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+  const handlePointerUp = useCallback(() => {
+    if (!scrollRef.current || !dragRef.current.isDown) return;
     dragRef.current.isDown = false;
     setIsDragging(false);
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (dragRef.current.pointerId) {
+      scrollRef.current.releasePointerCapture(dragRef.current.pointerId);
+    }
   }, []);
 
   return (
@@ -182,22 +192,25 @@ export function DiscoverScroller({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDragStart={(e) => e.preventDefault()}
       >
         {results.length === 0 && isPending ? (
           // Initial loading skeletons
-          Array.from({ length: 10 }).map((_, i) => (
-            <MovieCardSkeleton
+          Array.from({ length: displayMode === "wide" ? 6 : 10 }).map((_, i) => (
+            <MediaCardSkeleton
               key={i}
-              className="w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px] flex-shrink-0"
+              className={posterCardClass}
+              wideClassName={wideCardClass}
             />
           ))
         ) : (
           <>
             {results.map((item, index) => (
-              <MovieCard
+              <MediaCard
                 key={`${item.id}-${index}`}
                 item={item}
-                className="w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px] flex-shrink-0"
+                className={posterCardClass}
+                wideClassName={wideCardClass}
                 priority={index < 8}
               />
             ))}
@@ -218,6 +231,7 @@ export function DiscoverScroller({
 }
 
 // Server-rendered version (no interactivity, just displays items)
+// Note: This is a client component wrapper that reads from preference store
 interface DiscoverScrollerServerProps {
   title: string;
   seeAllHref?: string;
@@ -235,6 +249,10 @@ export function DiscoverScrollerServer({
   className,
   contentPadding = "px-4 md:px-8 lg:px-12",
 }: DiscoverScrollerServerProps) {
+  // Card sizing based on display mode
+  const posterCardClass = "w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px] flex-shrink-0";
+  const wideCardClass = "w-[220px] sm:w-[260px] md:w-[300px] lg:w-[340px] flex-shrink-0";
+
   return (
     <section className={cn("space-y-4", className)}>
       <div className={cn("flex items-center justify-between", contentPadding)}>
@@ -259,10 +277,11 @@ export function DiscoverScrollerServer({
         )}
       >
         {results.map((item, index) => (
-          <MovieCard
+          <MediaCard
             key={item.id}
             item={item}
-            className="w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px] flex-shrink-0"
+            className={posterCardClass}
+            wideClassName={wideCardClass}
             priority={index < 8}
           />
         ))}

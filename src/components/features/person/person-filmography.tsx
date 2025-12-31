@@ -2,20 +2,16 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Film, Tv, ChevronDown, ExternalLink } from "lucide-react";
+import { Film, Tv, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MovieCard } from "@/components/features/movie/movie-card";
+import { MediaCard } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { cn } from "@/lib/utils";
 import { buildBrowseUrl } from "@/lib/discover";
+import { filterOutTalkShows } from "@/lib/person-credits";
+import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import type { Person, PersonCombinedCastCredit, PersonCombinedCrewCredit, MovieListItem, SeriesListItem } from "@/types";
 
 interface PersonFilmographyProps {
@@ -24,6 +20,13 @@ interface PersonFilmographyProps {
 }
 
 type FilterOption = "all" | "cast" | "crew";
+
+// Credit with subtitle info
+interface CreditWithSubtitle {
+  credit: PersonCombinedCastCredit | PersonCombinedCrewCredit;
+  subtitle: string;
+  isCast: boolean;
+}
 
 // Helper to get year from credit
 function getYear(credit: PersonCombinedCastCredit | PersonCombinedCrewCredit): number | null {
@@ -75,34 +78,45 @@ function creditToListItem(
   }
 }
 
-// Group credits by decade
-function groupByDecade<T extends PersonCombinedCastCredit | PersonCombinedCrewCredit>(
-  credits: T[]
-): Map<string, T[]> {
-  const groups = new Map<string, T[]>();
+// Get subtitle for a credit (character or job)
+function getSubtitle(credit: PersonCombinedCastCredit | PersonCombinedCrewCredit, isCast: boolean): string {
+  if (isCast) {
+    const castCredit = credit as PersonCombinedCastCredit;
+    return castCredit.character || "";
+  } else {
+    const crewCredit = credit as PersonCombinedCrewCredit;
+    return crewCredit.job || crewCredit.department || "";
+  }
+}
 
-  credits.forEach((credit) => {
-    const year = getYear(credit);
+// Group credits by decade
+function groupByDecade(
+  credits: CreditWithSubtitle[]
+): Map<string, CreditWithSubtitle[]> {
+  const groups = new Map<string, CreditWithSubtitle[]>();
+
+  credits.forEach((item) => {
+    const year = getYear(item.credit);
     const decade = getDecade(year);
 
     if (!groups.has(decade)) {
       groups.set(decade, []);
     }
-    groups.get(decade)!.push(credit);
+    groups.get(decade)!.push(item);
   });
 
   // Sort each group by year (newest first) then by popularity
   groups.forEach((items) => {
     items.sort((a, b) => {
-      const yearA = getYear(a) || 0;
-      const yearB = getYear(b) || 0;
+      const yearA = getYear(a.credit) || 0;
+      const yearB = getYear(b.credit) || 0;
       if (yearB !== yearA) return yearB - yearA;
-      return (b.popularity || 0) - (a.popularity || 0);
+      return (b.credit.popularity || 0) - (a.credit.popularity || 0);
     });
   });
 
   // Sort decades (newest first), but TBA last
-  const sortedGroups = new Map<string, T[]>(
+  const sortedGroups = new Map<string, CreditWithSubtitle[]>(
     [...groups.entries()].sort(([a], [b]) => {
       if (a === "TBA") return 1;
       if (b === "TBA") return -1;
@@ -114,14 +128,14 @@ function groupByDecade<T extends PersonCombinedCastCredit | PersonCombinedCrewCr
 }
 
 // Deduplicate credits by ID (keep the one with most info)
-function deduplicateCredits<T extends PersonCombinedCastCredit | PersonCombinedCrewCredit>(
-  credits: T[]
-): T[] {
-  const seen = new Map<number, T>();
-  credits.forEach((credit) => {
-    const existing = seen.get(credit.id);
-    if (!existing || (credit.poster_path && !existing.poster_path)) {
-      seen.set(credit.id, credit);
+function deduplicateCredits(
+  credits: CreditWithSubtitle[]
+): CreditWithSubtitle[] {
+  const seen = new Map<number, CreditWithSubtitle>();
+  credits.forEach((item) => {
+    const existing = seen.get(item.credit.id);
+    if (!existing || (item.credit.poster_path && !existing.credit.poster_path)) {
+      seen.set(item.credit.id, item);
     }
   });
   return Array.from(seen.values());
@@ -129,7 +143,7 @@ function deduplicateCredits<T extends PersonCombinedCastCredit | PersonCombinedC
 
 export function PersonFilmography({ person, className }: PersonFilmographyProps) {
   const [activeTab, setActiveTab] = useState<"movies" | "tv">("movies");
-  const [filterBy, setFilterBy] = useState<FilterOption>("cast");
+  const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
   // Build browse URL for this person
   const getBrowseUrl = (mediaType: "movie" | "tv", role: "cast" | "crew" = "cast") => {
@@ -139,31 +153,39 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
     });
   };
 
-  // Get combined credits - memoize to prevent re-creation on each render
+  // Get combined credits with subtitle info, filtering out talk shows
   const combinedCast = useMemo(
-    () => person.combined_credits?.cast || [],
+    () => filterOutTalkShows(person.combined_credits?.cast || []).map((credit) => ({
+      credit,
+      subtitle: getSubtitle(credit, true),
+      isCast: true,
+    })),
     [person.combined_credits?.cast]
   );
   const combinedCrew = useMemo(
-    () => person.combined_credits?.crew || [],
+    () => filterOutTalkShows(person.combined_credits?.crew || []).map((credit) => ({
+      credit,
+      subtitle: getSubtitle(credit, false),
+      isCast: false,
+    })),
     [person.combined_credits?.crew]
   );
 
   // Separate by media type
   const movieCast = useMemo(
-    () => deduplicateCredits(combinedCast.filter((c) => c.media_type === "movie")),
+    () => deduplicateCredits(combinedCast.filter((c) => c.credit.media_type === "movie")),
     [combinedCast]
   );
   const movieCrew = useMemo(
-    () => deduplicateCredits(combinedCrew.filter((c) => c.media_type === "movie")),
+    () => deduplicateCredits(combinedCrew.filter((c) => c.credit.media_type === "movie")),
     [combinedCrew]
   );
   const tvCast = useMemo(
-    () => deduplicateCredits(combinedCast.filter((c) => c.media_type === "tv")),
+    () => deduplicateCredits(combinedCast.filter((c) => c.credit.media_type === "tv")),
     [combinedCast]
   );
   const tvCrew = useMemo(
-    () => deduplicateCredits(combinedCrew.filter((c) => c.media_type === "tv")),
+    () => deduplicateCredits(combinedCrew.filter((c) => c.credit.media_type === "tv")),
     [combinedCrew]
   );
 
@@ -186,16 +208,13 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
     [filteredCredits]
   );
 
-  // Filter options
-  const filterOptions: { value: FilterOption; label: string }[] = [
-    { value: "cast", label: "Acting" },
-    { value: "crew", label: "Crew" },
-    { value: "all", label: "All Credits" },
-  ];
-
   // Counts
-  const movieCount = new Set([...movieCast, ...movieCrew].map((c) => c.id)).size;
-  const tvCount = new Set([...tvCast, ...tvCrew].map((c) => c.id)).size;
+  const movieCount = new Set([...movieCast, ...movieCrew].map((c) => c.credit.id)).size;
+  const tvCount = new Set([...tvCast, ...tvCrew].map((c) => c.credit.id)).size;
+
+  // Cast/Crew counts for current tab
+  const currentCastCount = currentCast.length;
+  const currentCrewCount = currentCrew.length;
 
   if (movieCount === 0 && tvCount === 0) {
     return null;
@@ -228,26 +247,52 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
           </TabsList>
 
           <div className="flex items-center gap-2">
-            {/* Filter dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9">
-                  {filterOptions.find((f) => f.value === filterBy)?.label}
-                  <ChevronDown className="ml-1.5 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {filterOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onClick={() => setFilterBy(option.value)}
-                    className={cn(filterBy === option.value && "bg-accent")}
-                  >
-                    {option.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Filter tabs - inline toggle instead of dropdown */}
+            <div className="inline-flex items-center rounded-lg bg-muted p-1 text-muted-foreground">
+              <button
+                onClick={() => setFilterBy("all")}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  filterBy === "all"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "hover:text-foreground"
+                )}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterBy("cast")}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  filterBy === "cast"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "hover:text-foreground"
+                )}
+              >
+                Cast
+                {currentCastCount > 0 && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    {currentCastCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setFilterBy("crew")}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  filterBy === "crew"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "hover:text-foreground"
+                )}
+              >
+                Crew
+                {currentCrewCount > 0 && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    {currentCrewCount}
+                  </span>
+                )}
+              </button>
+            </div>
 
             {/* Browse all link */}
             <Link
@@ -280,8 +325,14 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
 function DecadeScrollers({
   groupedCredits,
 }: {
-  groupedCredits: Map<string, (PersonCombinedCastCredit | PersonCombinedCrewCredit)[]>;
+  groupedCredits: Map<string, CreditWithSubtitle[]>;
 }) {
+  const displayMode = usePreferencesStore(selectCardDisplayMode);
+
+  // Card sizing based on display mode
+  const posterCardClass = "w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0";
+  const wideCardClass = "w-[220px] sm:w-[260px] md:w-[300px] flex-shrink-0";
+
   if (groupedCredits.size === 0) {
     return (
       <div className="px-4 md:px-8 lg:px-12 text-center py-12 text-muted-foreground">
@@ -293,22 +344,26 @@ function DecadeScrollers({
   return (
     <>
       {Array.from(groupedCredits.entries()).map(([decade, credits]) => {
-        // Only show credits with posters
-        const creditsWithPosters = credits.filter((c) => c.poster_path);
-        if (creditsWithPosters.length === 0) return null;
+        // Filter based on display mode - poster or backdrop
+        const filteredCredits = credits.filter((c) =>
+          displayMode === "wide" ? c.credit.backdrop_path : c.credit.poster_path
+        );
+        if (filteredCredits.length === 0) return null;
 
         return (
           <MediaScroller
             key={decade}
             title={decade}
-            showControls={creditsWithPosters.length > 5}
+            showControls={filteredCredits.length > 5}
           >
-            {creditsWithPosters.map((credit) => (
-              <MovieCard
-                key={credit.credit_id}
-                item={creditToListItem(credit)}
-                className="w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0"
+            {filteredCredits.map((item) => (
+              <MediaCard
+                key={item.credit.credit_id}
+                item={creditToListItem(item.credit)}
+                className={posterCardClass}
+                wideClassName={wideCardClass}
                 showRating
+                subtitle={item.subtitle}
               />
             ))}
           </MediaScroller>

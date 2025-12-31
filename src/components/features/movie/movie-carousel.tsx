@@ -4,8 +4,9 @@ import { useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MovieCard, MovieCardSkeleton } from "./movie-card";
+import { MediaCard, MediaCardSkeleton } from "./media-card";
 import { cn } from "@/lib/utils";
+import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import type { MovieListItem, SeriesListItem } from "@/types";
 
 interface MovieCarouselProps {
@@ -31,7 +32,12 @@ export function MovieCarousel({
 }: MovieCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
+  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, pointerId: 0 });
+  const displayMode = usePreferencesStore(selectCardDisplayMode);
+
+  // Card sizing based on display mode
+  const posterCardClass = "w-[150px] sm:w-[180px] md:w-[200px] flex-shrink-0";
+  const wideCardClass = "w-[260px] sm:w-[300px] md:w-[340px] flex-shrink-0";
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -42,14 +48,15 @@ export function MovieCarousel({
     }
   };
 
-  // Drag handlers using refs to avoid stale closure issues
+  // Drag handlers - capture on scroll container, not e.target (which may be a child element)
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!scrollRef.current) return;
     dragRef.current.isDown = true;
     dragRef.current.startX = e.clientX;
     dragRef.current.scrollLeft = scrollRef.current.scrollLeft;
+    dragRef.current.pointerId = e.pointerId;
     setIsDragging(true);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    scrollRef.current.setPointerCapture(e.pointerId);
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -59,10 +66,13 @@ export function MovieCarousel({
     scrollRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
   }, []);
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+  const handlePointerUp = useCallback(() => {
+    if (!scrollRef.current || !dragRef.current.isDown) return;
     dragRef.current.isDown = false;
     setIsDragging(false);
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (dragRef.current.pointerId) {
+      scrollRef.current.releasePointerCapture(dragRef.current.pointerId);
+    }
   }, []);
 
   if (!loading && items.length === 0) {
@@ -119,19 +129,22 @@ export function MovieCarousel({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDragStart={(e) => e.preventDefault()}
       >
         {loading
-          ? Array.from({ length: 8 }).map((_, i) => (
-              <MovieCardSkeleton
+          ? Array.from({ length: displayMode === "wide" ? 5 : 8 }).map((_, i) => (
+              <MediaCardSkeleton
                 key={i}
-                className="w-[150px] sm:w-[180px] md:w-[200px] flex-shrink-0"
+                className={posterCardClass}
+                wideClassName={wideCardClass}
               />
             ))
           : items.map((item, index) => (
-              <MovieCard
+              <MediaCard
                 key={item.id}
                 item={item}
-                className="w-[150px] sm:w-[180px] md:w-[200px] flex-shrink-0"
+                className={posterCardClass}
+                wideClassName={wideCardClass}
                 priority={index < 4}
               />
             ))}

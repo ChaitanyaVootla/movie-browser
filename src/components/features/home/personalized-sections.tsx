@@ -1,7 +1,7 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { PlayCircle, History } from "lucide-react";
+import { useSafeSession } from "@/hooks/use-safe-session";
 import { useUserStore, selectContinueWatching, selectRecents, selectIsHydrated } from "@/stores/user";
 import { WideCarousel } from "@/components/features/media/wide-carousel";
 
@@ -10,7 +10,7 @@ import { WideCarousel } from "@/components/features/media/wide-carousel";
  * Shows Continue Watching and Recent Visits for logged-in users.
  */
 export function PersonalizedSections() {
-  const { status } = useSession();
+  const { status } = useSafeSession();
   const isHydrated = useUserStore(selectIsHydrated);
   const continueWatching = useUserStore(selectContinueWatching);
   const recents = useUserStore(selectRecents);

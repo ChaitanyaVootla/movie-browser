@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { NavBar } from "@/components/features/layout/nav-bar";
 import { Footer } from "@/components/features/layout/footer";
+import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -110,6 +111,7 @@ export default function RootLayout({
         className={`${montserrat.variable} ${geistMono.variable} font-sans antialiased min-h-screen flex flex-col`}
       >
         <Providers>
+          <ScrollToTop />
           <NavBar />
           <main className="flex-1">{children}</main>
           <Footer />

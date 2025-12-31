@@ -1,13 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Star } from "lucide-react";
 import { getPerson } from "@/server/actions/person";
-import { PersonHero, PersonFilmography, PersonImages } from "@/components/features/person";
-import { MovieCard } from "@/components/features/movie/movie-card";
-import { MediaScroller } from "@/components/features/media/media-scroller";
+import { PersonHero, PersonFilmography, PersonImages, KnownForSection, UpcomingLatestSection } from "@/components/features/person";
 import { SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
-import type { MovieListItem, SeriesListItem } from "@/types";
 
 interface PersonPageProps {
   params: Promise<{
@@ -152,73 +148,6 @@ function PersonSchema({
   );
 }
 
-// Known For Section - Top credits scroller using MovieCard
-function KnownForSection({
-  person,
-}: {
-  person: NonNullable<Awaited<ReturnType<typeof getPerson>>>;
-}) {
-  // Get top credits sorted by popularity
-  const topCredits = person.combined_credits?.cast
-    ?.filter((c) => c.poster_path) // Only show ones with posters
-    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-    .slice(0, 12);
-
-  if (!topCredits || topCredits.length === 0) return null;
-
-  // Convert to MovieListItem/SeriesListItem
-  const items = topCredits.map((credit): MovieListItem | SeriesListItem => {
-    if (credit.media_type === "movie") {
-      return {
-        id: credit.id,
-        title: credit.title || "",
-        poster_path: credit.poster_path,
-        backdrop_path: credit.backdrop_path,
-        vote_average: credit.vote_average,
-        vote_count: credit.vote_count,
-        release_date: credit.release_date || "",
-        genre_ids: credit.genre_ids,
-        overview: credit.overview,
-        popularity: credit.popularity,
-        adult: credit.adult,
-        media_type: "movie",
-      };
-    } else {
-      return {
-        id: credit.id,
-        name: credit.name || "",
-        poster_path: credit.poster_path,
-        backdrop_path: credit.backdrop_path,
-        vote_average: credit.vote_average,
-        vote_count: credit.vote_count,
-        first_air_date: credit.first_air_date || "",
-        genre_ids: credit.genre_ids,
-        overview: credit.overview,
-        popularity: credit.popularity,
-        adult: credit.adult,
-        media_type: "tv",
-      };
-    }
-  });
-
-  return (
-    <MediaScroller
-      title="Known For"
-      titleIcon={<Star className="h-5 w-5 text-yellow-500" />}
-      className="mt-8"
-    >
-      {items.map((item, idx) => (
-        <MovieCard
-          key={`${item.id}-${idx}`}
-          item={item}
-          className="w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0"
-          showRating
-        />
-      ))}
-    </MediaScroller>
-  );
-}
-
 export default async function PersonPage({ params }: PersonPageProps) {
   const { params: routeParams } = await params;
   const personId = routeParams[0];
@@ -245,8 +174,22 @@ export default async function PersonPage({ params }: PersonPageProps) {
         {/* Hero section with profile image, bio, and external links */}
         <PersonHero person={person} />
 
+        {/* Upcoming & Latest - recent and upcoming projects */}
+        {person.combined_credits && (
+          <UpcomingLatestSection
+            castCredits={person.combined_credits.cast || []}
+            crewCredits={person.combined_credits.crew || []}
+            className="mt-8"
+          />
+        )}
+
         {/* Known For - Top credits */}
-        <KnownForSection person={person} />
+        {person.combined_credits?.cast && person.combined_credits.cast.length > 0 && (
+          <KnownForSection
+            credits={person.combined_credits.cast}
+            className="mt-8"
+          />
+        )}
 
         {/* Photo Gallery */}
         {profileImages.length > 1 && (

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, getMediaHref } from "@/lib/utils";
 import { MediaBackdrop } from "@/components/features/media/media-backdrop";
 import { HeroContent, heroContainerVariants } from "@/components/features/media/hero-content";
 import type { MediaItem, ExternalRating, ProcessedWatchOptions, WatchProviderData } from "@/types";
@@ -23,13 +23,6 @@ interface HeroCarouselProps {
   className?: string;
   /** Duration for each slide in ms */
   slideDuration?: number;
-}
-
-function getSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 export function HeroCarousel({
@@ -82,7 +75,7 @@ export function HeroCarousel({
     return null;
   }
 
-  const href = `/${isMovie ? "movie" : "series"}/${currentItem.id}/${getSlug(title)}`;
+  const href = getMediaHref(currentItem.id, isMovie, title);
   const mediaType = isMovie ? "movie" : "series";
 
   // Genre and rating from currentItem
@@ -99,7 +92,7 @@ export function HeroCarousel({
 
   return (
     <section
-      className={cn("relative overflow-hidden cursor-pointer", className)}
+      className={cn("relative cursor-pointer", className)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
@@ -113,102 +106,106 @@ export function HeroCarousel({
         }
       }}
     >
-      {/* Background with crossfade */}
-      <AnimatePresence mode="popLayout">
-        <motion.div
-          key={currentIndex}
-          initial={{ opacity: 0, scale: 1.02 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-          className="absolute inset-0"
-        >
-          <MediaBackdrop
-            item={{
-              id: currentItem.id,
-              title: isMovie ? title : undefined,
-              name: !isMovie ? title : undefined,
-              backdrop_path: currentItem.backdrop_path,
-            }}
-            mediaType={mediaType}
-            overlay="light"
-            className="h-full"
-          />
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Content */}
-      <div className="relative z-10 px-4 md:px-8 lg:px-12 min-h-[50vh] md:min-h-[55vh] lg:min-h-[60vh] flex items-end">
-        <AnimatePresence mode="wait">
+      {/* Hero container with responsive height - same as MediaHero 
+          Uses .hero-container class for CSS variable-based sizing */}
+      <div className="hero-container relative w-full overflow-hidden">
+        {/* Background with crossfade */}
+        <AnimatePresence mode="popLayout">
           <motion.div
             key={currentIndex}
-            variants={heroContainerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="w-full pb-12 md:pb-16 lg:pb-20"
+            initial={{ opacity: 0, scale: 1.02 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="absolute inset-0"
           >
-            <HeroContent
-              itemId={currentItem.id}
-              title={title}
-              mediaType={mediaType}
-              genres={genres}
-              ratings={enhancedData?.ratings}
-              voteAverage={rating}
-              watchOptions={enhancedData?.watchOptions}
-              watchProviders={enhancedData?.watchProviders}
-              googleData={enhancedData?.googleData}
+            <MediaBackdrop
               item={{
                 id: currentItem.id,
                 title: isMovie ? title : undefined,
                 name: !isMovie ? title : undefined,
-                poster_path: currentItem.poster_path,
                 backdrop_path: currentItem.backdrop_path,
               }}
-              animate={false} // Parent handles animation
-              priority
+              mediaType={mediaType}
+              overlay="light"
+              className="absolute inset-0"
             />
           </motion.div>
         </AnimatePresence>
-      </div>
 
-      {/* Progress dots - minimal, non-distracting */}
-      <div className="absolute bottom-8 right-4 md:right-8 lg:right-12 z-20">
-        <div className="flex gap-1.5 items-center">
-          {items.map((_, index) => (
-            <button
-              key={index}
-              onClick={(e) => {
-                e.stopPropagation();
-                goToSlide(index);
-              }}
-              className={cn(
-                "h-1 rounded-full transition-all duration-300 relative overflow-hidden",
-                index === currentIndex
-                  ? "w-6 bg-white/30"
-                  : "w-1.5 bg-white/20 hover:bg-white/40"
-              )}
-              aria-label={`Go to slide ${index + 1}`}
+        {/* Content overlay - positioned at bottom (same as MediaHero) */}
+        <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 md:px-8 lg:px-12">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex}
+              variants={heroContainerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="pb-5 md:pb-6 lg:pb-8"
             >
-              {/* Progress fill - neutral white */}
-              {index === currentIndex && isAutoPlaying && (
-                <motion.span
-                  key={animationKey}
-                  className="absolute inset-y-0 left-0 bg-white/70 rounded-full"
-                  initial={{ width: "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{
-                    duration: slideDuration / 1000,
-                    ease: "linear",
-                  }}
-                />
-              )}
-              {/* Static fill when paused */}
-              {index === currentIndex && !isAutoPlaying && (
-                <span className="absolute inset-y-0 left-0 bg-white/70 rounded-full w-1/2" />
-              )}
-            </button>
-          ))}
+              <HeroContent
+                itemId={currentItem.id}
+                title={title}
+                mediaType={mediaType}
+                genres={genres}
+                ratings={enhancedData?.ratings}
+                voteAverage={rating}
+                watchOptions={enhancedData?.watchOptions}
+                watchProviders={enhancedData?.watchProviders}
+                googleData={enhancedData?.googleData}
+                item={{
+                  id: currentItem.id,
+                  title: isMovie ? title : undefined,
+                  name: !isMovie ? title : undefined,
+                  poster_path: currentItem.poster_path,
+                  backdrop_path: currentItem.backdrop_path,
+                }}
+                animate={false} // Parent handles animation
+                priority
+              />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Progress dots - larger for better touch targets */}
+        <div className="absolute bottom-6 right-4 md:right-8 lg:right-12 z-20">
+          <div className="flex gap-2 items-center">
+            {items.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToSlide(index);
+                }}
+                className={cn(
+                  "h-2.5 rounded-full transition-all duration-300 relative overflow-hidden cursor-default",
+                  index === currentIndex
+                    ? "w-10 bg-white/30"
+                    : "w-2.5 bg-white/25 hover:bg-white/50"
+                )}
+                aria-label={`Go to slide ${index + 1}`}
+              >
+                {/* Progress fill - neutral white */}
+                {index === currentIndex && isAutoPlaying && (
+                  <motion.span
+                    key={animationKey}
+                    className="absolute inset-y-0 left-0 bg-white/70 rounded-full"
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{
+                      duration: slideDuration / 1000,
+                      ease: "linear",
+                    }}
+                  />
+                )}
+                {/* Static fill when paused */}
+                {index === currentIndex && !isAutoPlaying && (
+                  <span className="absolute inset-y-0 left-0 bg-white/70 rounded-full w-1/2" />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>

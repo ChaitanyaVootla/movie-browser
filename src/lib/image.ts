@@ -127,4 +127,12 @@ export function getTmdbLogoUrl(logoPath: string, size = "w500"): string {
   return `${TMDB_IMAGE_BASE}/${size}${logoPath}`;
 }
 
+/**
+ * Get wide poster image sources (CDN widePoster with backdrop fallback)
+ * Used for OTT-style card display mode
+ */
+export function getWidePosterSources(item: ImageItem, mediaType?: MediaType): ImageSources {
+  return getImageSources(item, ImageType.WIDE_CARD, mediaType, "w780");
+}
+
 

@@ -6,6 +6,7 @@ import { AuthProvider } from "./auth-provider";
 import { UserStoreProvider } from "./user-store-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { GoogleOneTap } from "@/components/features/auth";
+import { HoverCardProvider, HoverCardOverlay } from "@/components/features/hover-card";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -17,10 +18,13 @@ export function Providers({ children }: ProvidersProps) {
       <UserStoreProvider>
         <ThemeProvider>
           <QueryProvider>
-            {children}
-            <Toaster position="bottom-right" />
-            {/* Google One Tap - shows login prompt for unauthenticated users */}
-            <GoogleOneTap delay={2000} />
+            <HoverCardProvider>
+              {children}
+              <HoverCardOverlay />
+              <Toaster position="bottom-right" />
+              {/* Google One Tap - shows login prompt for unauthenticated users */}
+              <GoogleOneTap delay={2000} />
+            </HoverCardProvider>
           </QueryProvider>
         </ThemeProvider>
       </UserStoreProvider>

@@ -1,6 +1,9 @@
+"use client";
+
 import { Sparkles, Film } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MovieCard } from "@/components/features/movie/movie-card";
+import { MediaCard } from "@/components/features/movie/media-card";
+import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { MediaScroller } from "./media-scroller";
 import type { MovieListItem, SeriesListItem } from "@/types";
 
@@ -19,12 +22,20 @@ export function RecommendationsSection({
   className,
   maxItems = 15,
 }: RecommendationsSectionProps) {
-  // Filter out items without poster
+  const displayMode = usePreferencesStore(selectCardDisplayMode);
+
+  // Card sizing based on display mode
+  const posterCardClass = "w-[140px] sm:w-[160px] md:w-[180px] flex-shrink-0";
+  const wideCardClass = "w-[240px] sm:w-[280px] md:w-[320px] flex-shrink-0";
+
+  // Filter out items without poster (for poster mode) or without backdrop (for wide mode)
   const filteredRecommendations = recommendations
-    ?.filter((item) => item.poster_path)
+    ?.filter((item) => displayMode === "wide" ? item.backdrop_path : item.poster_path)
     .slice(0, maxItems);
 
-  const filteredSimilar = similar?.filter((item) => item.poster_path).slice(0, maxItems);
+  const filteredSimilar = similar
+    ?.filter((item) => displayMode === "wide" ? item.backdrop_path : item.poster_path)
+    .slice(0, maxItems);
 
   const hasRecommendations = filteredRecommendations && filteredRecommendations.length > 0;
   const hasSimilar = filteredSimilar && filteredSimilar.length > 0;
@@ -40,13 +51,14 @@ export function RecommendationsSection({
           titleIcon={<Sparkles className="h-5 w-5 text-brand" />}
         >
           {filteredRecommendations.map((item) => (
-            <MovieCard
+            <MediaCard
               key={item.id}
               item={{
                 ...item,
                 media_type: mediaType === "movie" ? "movie" : "tv",
               } as MovieListItem | SeriesListItem}
-              className="w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0"
+              className={posterCardClass}
+              wideClassName={wideCardClass}
             />
           ))}
         </MediaScroller>
@@ -59,13 +71,14 @@ export function RecommendationsSection({
           titleIcon={<Film className="h-5 w-5 text-brand" />}
         >
           {filteredSimilar.map((item) => (
-            <MovieCard
+            <MediaCard
               key={item.id}
               item={{
                 ...item,
                 media_type: mediaType === "movie" ? "movie" : "tv",
               } as MovieListItem | SeriesListItem}
-              className="w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0"
+              className={posterCardClass}
+              wideClassName={wideCardClass}
             />
           ))}
         </MediaScroller>

@@ -28,7 +28,8 @@ export type CacheNamespace =
   | "person"
   | "search"
   | "discover"
-  | "images";
+  | "images"
+  | "youtube";
 
 /**
  * Get TTL for a cache namespace
@@ -49,6 +50,8 @@ function getTTL(namespace: CacheNamespace): number {
       return CACHE_DURATIONS.discover;
     case "images":
       return CACHE_DURATIONS.images;
+    case "youtube":
+      return CACHE_DURATIONS.youtube;
     default:
       return 3600; // 1 hour default
   }

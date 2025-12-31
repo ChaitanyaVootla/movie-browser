@@ -57,9 +57,9 @@ function RatingItem({
   const color = getRatingColor(rating.score);
 
   const sizeConfig = {
-    sm: { icon: 14, text: "text-[11px]", height: "h-3.5" },
-    md: { icon: 16, text: "text-xs", height: "h-4" },
-    lg: { icon: 18, text: "text-sm", height: "h-[18px]" },
+    sm: { icon: 16, text: "text-[11px]", height: "h-4" },
+    md: { icon: 18, text: "text-xs", height: "h-[18px]" },
+    lg: { icon: 20, text: "text-sm", height: "h-5" },
   };
 
   const { icon: iconSize, text: textClass, height: heightClass } = sizeConfig[size];
