@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useCallback, type ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ScrollContainer, useScrollDrag } from "./scroll-container";
 
 interface MediaScrollerProps {
   title?: ReactNode;
@@ -15,11 +16,30 @@ interface MediaScrollerProps {
   seeAllLabel?: string;
   children: ReactNode;
   className?: string;
+  /** Show left/right arrow controls (default: true) */
   showControls?: boolean;
-  /** Padding applied to scroll container - use Tailwind padding class e.g. "px-4" */
+  /** Padding applied to header and scroll container - use Tailwind padding class e.g. "px-4" */
   contentPadding?: string;
+  /** Gap between items - use Tailwind gap class e.g. "gap-4" (default: "gap-4") */
+  gap?: string;
 }
 
+/**
+ * MediaScroller - Universal horizontal scroller with drag-to-scroll and arrow controls.
+ * 
+ * Use this component for full sections with headers:
+ * - Movie/series carousels
+ * - Person scrollers  
+ * - Episode scrollers
+ * - Any other horizontal lists with titles
+ * 
+ * For simple horizontal scrolls without headers, use ScrollContainer directly.
+ * 
+ * Features:
+ * - Drag to scroll with click detection (won't block clicks on items)
+ * - Left/right arrow controls on desktop
+ * - Consistent styling and behavior
+ */
 export function MediaScroller({
   title,
   titleIcon,
@@ -29,109 +49,77 @@ export function MediaScroller({
   className,
   showControls = true,
   contentPadding = "px-4 md:px-8 lg:px-12",
+  gap = "gap-4",
 }: MediaScrollerProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, pointerId: 0 });
-
-  const scroll = (direction: "left" | "right") => {
-    if (scrollRef.current) {
-      // Scroll by ~80% of visible width for substantial movement
-      const visibleWidth = scrollRef.current.clientWidth;
-      const amount = direction === "left" ? -visibleWidth * 0.8 : visibleWidth * 0.8;
-      scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
-    }
-  };
-
-  // Drag handlers - capture on scroll container, not e.target (which may be a child element)
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!scrollRef.current) return;
-    dragRef.current.isDown = true;
-    dragRef.current.startX = e.clientX;
-    dragRef.current.scrollLeft = scrollRef.current.scrollLeft;
-    dragRef.current.pointerId = e.pointerId;
-    setIsDragging(true);
-    scrollRef.current.setPointerCapture(e.pointerId);
-  }, []);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current.isDown || !scrollRef.current) return;
-    e.preventDefault();
-    const dx = e.clientX - dragRef.current.startX;
-    scrollRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
-  }, []);
-
-  const handlePointerUp = useCallback(() => {
-    if (!scrollRef.current || !dragRef.current.isDown) return;
-    dragRef.current.isDown = false;
-    setIsDragging(false);
-    if (dragRef.current.pointerId) {
-      scrollRef.current.releasePointerCapture(dragRef.current.pointerId);
-    }
-  }, []);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { scroll } = useScrollDrag({ externalRef: scrollContainerRef });
 
   return (
     <section className={cn("space-y-4", className)}>
       {/* Header */}
       {(title || showControls || seeAllHref) && (
         <div className={cn("flex items-center justify-between", contentPadding)}>
-          <div className="flex items-center gap-3">
+          {/* Title */}
+          <div className="flex items-center gap-2">
             {titleIcon}
             {title && (
-              <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+              typeof title === "string" ? (
+                <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+              ) : (
+                title
+              )
             )}
+          </div>
+
+          {/* Controls + See All */}
+          <div className="flex items-center gap-2">
+            {/* Arrow controls - desktop only */}
+            {showControls && (
+              <div className="hidden md:flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => scroll("left")}
+                  aria-label="Scroll left"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => scroll("right")}
+                  aria-label="Scroll right"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* See all link */}
             {seeAllHref && (
               <Link
                 href={seeAllHref}
-                className="inline-flex items-center gap-1 text-sm text-brand hover:text-brand/80"
+                className="flex items-center gap-1 text-sm text-brand hover:text-brand/80 transition-colors"
               >
                 {seeAllLabel}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             )}
           </div>
-          {showControls && (
-            <div className="hidden md:flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => scroll("left")}
-                aria-label="Scroll left"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => scroll("right")}
-                aria-label="Scroll right"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Scroll area with pointer events for drag */}
-      <div
-        ref={scrollRef}
-        className={cn(
-          "flex gap-4 pb-4 overflow-x-auto scrollbar-hide touch-pan-x",
-          contentPadding,
-          isDragging ? "cursor-grabbing select-none" : "cursor-grab"
-        )}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onDragStart={(e) => e.preventDefault()}
+      {/* Scroll area - use ScrollContainer but share the ref for header controls */}
+      <ScrollContainer
+        ref={scrollContainerRef}
+        gap={gap}
+        padding={contentPadding}
+        showControls={false}
       >
         {children}
-      </div>
+      </ScrollContainer>
     </section>
   );
 }
-

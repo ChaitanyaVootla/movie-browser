@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { formatViewCount, formatDuration } from "@/lib/youtube-utils";
 import { VideoStats, VideoStatsSkeleton } from "./video-stats";
 import { VideoComments } from "./video-comments";
+import { ScrollContainer } from "./scroll-container";
 import type { Video, YouTubeVideoStats, YouTubeComment } from "@/types";
 
 interface VideoGalleryProps {
@@ -442,63 +443,64 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
         </div>
 
         {/* Horizontal scroll of other videos */}
-        <ScrollArea className="w-full">
-          <div className="flex gap-3 px-4 pb-4">
-            {filteredVideos.map((video) => {
-              const meta = videoMetadata.get(video.key);
-              return (
-                <button
-                  key={video.id}
-                  onClick={() => handleVideoSelect(video)}
-                  className={cn(
-                    "relative flex-shrink-0 w-[140px] rounded-lg overflow-hidden transition-all text-left",
-                    video.id === activeVideo.id && "ring-2 ring-brand"
-                  )}
-                >
-                  <div className="relative aspect-video">
-                    <Image
-                      src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`}
-                      alt={video.name}
-                      fill
-                      className="object-cover"
-                      sizes="140px"
-                      unoptimized
-                    />
-                    {/* Duration badge */}
-                    {meta?.duration && (
-                      <Badge
-                        variant="secondary"
-                        className="absolute bottom-1 right-1 text-[8px] px-1 py-0 bg-black/80 text-white border-0 font-mono"
-                      >
-                        {formatDuration(meta.duration)}
-                      </Badge>
-                    )}
+        <ScrollContainer
+          gap="gap-3"
+          padding="px-4"
+          showControls={false}
+        >
+          {filteredVideos.map((video) => {
+            const meta = videoMetadata.get(video.key);
+            return (
+              <button
+                key={video.id}
+                onClick={() => handleVideoSelect(video)}
+                className={cn(
+                  "relative flex-shrink-0 w-[140px] rounded-lg overflow-hidden transition-all text-left",
+                  video.id === activeVideo.id && "ring-2 ring-brand"
+                )}
+              >
+                <div className="relative aspect-video">
+                  <Image
+                    src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`}
+                    alt={video.name}
+                    fill
+                    className="object-cover"
+                    sizes="140px"
+                    unoptimized
+                  />
+                  {/* Duration badge */}
+                  {meta?.duration && (
                     <Badge
                       variant="secondary"
-                      className="absolute bottom-1 left-1 text-[9px] px-1 py-0 bg-black/70 text-white border-0"
+                      className="absolute bottom-1 right-1 text-[8px] px-1 py-0 bg-black/80 text-white border-0 font-mono"
                     >
-                      {video.type}
+                      {formatDuration(meta.duration)}
                     </Badge>
-                  </div>
-                  <div className="mt-1 px-0.5">
-                    <p className="text-[11px] text-muted-foreground line-clamp-1">
-                      {video.name}
-                    </p>
-                    {meta?.viewCount ? (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Eye className="h-2.5 w-2.5 text-muted-foreground" />
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatViewCount(meta.viewCount)}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <ScrollBar orientation="horizontal" className="invisible" />
-        </ScrollArea>
+                  )}
+                  <Badge
+                    variant="secondary"
+                    className="absolute bottom-1 left-1 text-[9px] px-1 py-0 bg-black/70 text-white border-0"
+                  >
+                    {video.type}
+                  </Badge>
+                </div>
+                <div className="mt-1 px-0.5">
+                  <p className="text-[11px] text-muted-foreground line-clamp-1">
+                    {video.name}
+                  </p>
+                  {meta?.viewCount ? (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Eye className="h-2.5 w-2.5 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">
+                        {formatViewCount(meta.viewCount)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })}
+        </ScrollContainer>
       </div>
 
     </div>

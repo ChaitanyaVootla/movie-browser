@@ -32,6 +32,9 @@ export interface DiscoverParams {
   "first_air_date.gte"?: string;
   "first_air_date.lte"?: string;
   include_adult?: boolean;
+  // Certification (age rating) - pipe-separated for multiple (e.g., "G|PG|PG-13")
+  certification?: string;
+  certification_country?: string;
 }
 
 export interface DiscoverResponse<T> {

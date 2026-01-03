@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { MediaScroller } from "@/components/features/media/media-scroller";
 import { cn } from "@/lib/utils";
 import type { Episode } from "@/types";
 import { EpisodeModal } from "./episode-modal";
@@ -135,18 +135,18 @@ export function EpisodeScroller({
 
   return (
     <>
-      <ScrollArea className={cn("w-full", className)}>
-        <div className="flex gap-4 pb-4 px-4 md:px-8 lg:px-12">
-          {episodes.map((episode) => (
-            <EpisodeCard
-              key={episode.id}
-              episode={episode}
-              onClick={() => setSelectedEpisode(episode)}
-            />
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" className="invisible" />
-      </ScrollArea>
+      <MediaScroller
+        className={className}
+        showControls={episodes.length > 4}
+      >
+        {episodes.map((episode) => (
+          <EpisodeCard
+            key={episode.id}
+            episode={episode}
+            onClick={() => setSelectedEpisode(episode)}
+          />
+        ))}
+      </MediaScroller>
 
       {/* Episode detail modal */}
       <EpisodeModal
@@ -159,4 +159,3 @@ export function EpisodeScroller({
     </>
   );
 }
-

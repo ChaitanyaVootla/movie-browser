@@ -1,11 +1,11 @@
 "use server";
 
 import { z } from "zod";
-import { headers } from "next/headers";
 import { fetchFromTMDB } from "@/server/services/tmdb";
 import { getCachedMovieRatings, getCachedSeriesRatings } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
 import { getWatchOptionsForCountry } from "@/lib/watch-options";
+import { getCountryCode } from "@/server/utils";
 import { CACHE_DURATIONS } from "@/lib/constants";
 import type { ExternalRating, WatchProviderData, Genre, CastMember } from "@/types";
 
@@ -50,18 +50,6 @@ export interface HoverCardData {
     isFromFallback: boolean;
   };
   tagline?: string;
-}
-
-/**
- * Get country code from request headers
- */
-async function getCountryCode(): Promise<string> {
-  try {
-    const headersList = await headers();
-    return headersList.get("x-country-code") || "IN";
-  } catch {
-    return "IN";
-  }
 }
 
 /**

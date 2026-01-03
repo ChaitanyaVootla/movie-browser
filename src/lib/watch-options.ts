@@ -121,24 +121,24 @@ export function processScrapedWatchOptions(
   }
 
   const options: WatchOption[] = [];
-  const seenNames = new Set<string>();
   const seenLinks = new Set<string>();
 
   for (const opt of googleData.allWatchOptions) {
-    if (!opt.name || seenNames.has(opt.name) || seenLinks.has(opt.link)) {
+    // Skip duplicates by link (primary deduplication key)
+    if (!opt.link || seenLinks.has(opt.link)) {
       continue;
     }
 
-    const mapped = mapWatchProvider(opt.name, opt.link);
+    // mapWatchProvider handles empty names by using the link's base URL
+    const mapped = mapWatchProvider(opt.name || "", opt.link);
     if (!mapped) {
       continue;
     }
 
-    seenNames.add(opt.name);
     seenLinks.add(opt.link);
 
     options.push({
-      name: opt.name,
+      name: opt.name || mapped.displayName, // Use mapped name if original is empty
       displayName: mapped.displayName,
       link: mapped.link,
       price: opt.price?.replace("Premium", "") || "",

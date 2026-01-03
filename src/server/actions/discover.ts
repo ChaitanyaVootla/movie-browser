@@ -108,12 +108,17 @@ function toTMDBParams(params: Partial<DiscoverParams>): Record<string, string> {
     }
   }
 
-  // Cast and Crew (pipe-separated)
+  // Cast and Crew (pipe-separated for OR, comma for AND)
+  // Handle both array and pre-joined string formats
   if (params.with_cast && params.with_cast.length > 0) {
-    tmdbParams.with_cast = params.with_cast.join("|");
+    tmdbParams.with_cast = Array.isArray(params.with_cast)
+      ? params.with_cast.join("|")
+      : params.with_cast;
   }
   if (params.with_crew && params.with_crew.length > 0) {
-    tmdbParams.with_crew = params.with_crew.join("|");
+    tmdbParams.with_crew = Array.isArray(params.with_crew)
+      ? params.with_crew.join("|")
+      : params.with_crew;
   }
 
   // Ratings
@@ -154,6 +159,14 @@ function toTMDBParams(params: Partial<DiscoverParams>): Record<string, string> {
   }
   if (params["first_air_date.lte"]) {
     tmdbParams["first_air_date.lte"] = params["first_air_date.lte"];
+  }
+
+  // Certification (age rating)
+  if (params.certification) {
+    tmdbParams.certification = params.certification;
+  }
+  if (params.certification_country) {
+    tmdbParams.certification_country = params.certification_country;
   }
 
   return tmdbParams;

@@ -1,0 +1,763 @@
+---
+alwaysApply: true
+---
+# AI Agent Patterns and Guidelines
+
+## Status: Phase 8 Complete ✅
+
+The AI movie recommendation agent uses LangGraph.js for orchestration, AWS Bedrock as the LLM, and integrates with existing TMDB APIs and user data from MongoDB.
+
+### Supported Models
+
+The agent supports multiple Bedrock models via the `BEDROCK_MODEL_ID` env variable:
+
+| Model | ID | Notes |
+|-------|-----|-------|
+| Amazon Nova Pro | `apac.amazon.nova-pro-v1:0` | **Default, recommended** - proper tool calling |
+| Claude 3 Haiku | `us.anthropic.claude-3-haiku-20240307-v1:0` | Fast, cost-effective |
+
+**⚠️ Kimi K2 NOT Recommended:** `moonshot.kimi-k2-thinking` has non-standard tool calling behavior - it outputs tool calls as text tokens instead of structured API calls, which breaks LangChain's tool execution. Use Nova Pro or Claude instead.
+
+**Streaming Support:** Uses SSE format for responses. Tool calls use non-streaming invoke for reliability (ensures tools actually execute).
+
+### Implemented Features
+
+#### Phase 1-4: Core Infrastructure
+- Agent state and types (`src/server/ai/state.ts`)
+- Bedrock client setup (`src/server/ai/bedrock.ts`)
+- Tools: search, discover, trending, navigation, user data, context
+- LangGraph StateGraph agent (`src/server/ai/agent.ts`)
+- API route (`src/app/api/ai/chat/route.ts`)
+
+#### Phase 5: UI Overhaul
+- Minimal UI Design: Three states (Idle, Minimal, Expanded)
+- Media Tag System with poster card rendering (NO backticks!)
+- Tag Parser: `src/lib/ai/parse-media-tags.ts`
+- **Visual Design**: Two separate containers with solid black bg + white borders
+  - Cards container: `bg-black border-white/20 shadow-lg shadow-black/60`
+  - Input/text container: Shadow pushed down to avoid overlap
+  - Poster cards show 3-line descriptions (`line-clamp-3`)
+
+#### Phase 6: Smart Discover & Tag Resolution ✨
+- **Unified discover tool** with name-based filters
+- **Auto-resolution**: castNames, crewNames, keywordNames → TMDB IDs
+- **User filtering**: hideWatched, hideDisliked, hideInWatchlist flags
+- **Smart pagination**: backfills when filtering reduces results
+- **Quality presets**: decent (6+), good (7+), great (7.5+), masterpiece (8+)
+- **Date shortcuts**: "recent", "new", "classic"
+- **Streaming anywhere**: single flag for all streaming providers
+- **Media tag resolution**: agent can skip IDs, server auto-resolves titles AND persons
+- **User context injection**: name, region, current time (WITH YEAR) in system prompt
+
+#### Phase 7: Detail Tools ✅
+- `get_details(id, mediaType, includeVideos?, includeRelated?)` - Unified tool for movie/series info
+  - Replaces: get_movie_details, get_series_details, get_videos, get_related_content
+  - Use includeVideos: true for trailers/clips
+  - Use includeRelated: true for similar/recommended content
+- `get_person(idOrName)` - Search by name (preferred) or ID, returns filmography
+- `get_upcoming(mediaType)` - Now playing & upcoming for movies, on-the-air & airing today for TV
+- `get_user_data(include?)` - Unified user data (replaces watchlist/ratings/watched tools)
+
+#### Phase 8: Enhanced Discover ✅
+- **Exclusion filters**: `withoutCastNames`, `withoutCrewNames`, `withoutKeywordNames`
+- **AND/OR logic**: `genreMode`, `castMode`, `keywordMode` for flexible filtering
+- **Certification filters**: `certification`, `certificationLte` for family-friendly content
+- Supports both movie ratings (G, PG, PG-13, R, NC-17) and TV ratings (TV-Y, TV-MA, etc.)
+
+### Pending Phases
+
+#### Phase 9: Mutation Tools
+- `add_to_watchlist`, `remove_from_watchlist`
+- `rate_item(id, type, "like" | "dislike")`
+- `mark_as_watched`
+
+#### Phase 10: Enriched User Data
+- Watchlist/ratings/watched tools return titles, not just IDs
+- Taste profile generation from ratings
+- `get_continue_watching` tool
+
+#### Phase 11+: Conversation Intelligence
+- Session-level recommendation tracking (no re-recommending)
+- Reference resolution ("the second one", "that last movie")
+- Mood → genre mapping
+- Vector DB semantic search
+
+## Directory Structure
+
+```
+src/
+├── server/ai/
+│   ├── index.ts              # Agent exports
+│   ├── agent.ts              # LangGraph StateGraph
+│   ├── bedrock.ts            # AWS Bedrock client
+│   ├── state.ts              # Agent state types (incl. UserContext)
+│   ├── resolve-media-tags.ts # Server-side ID resolution for tags
+│   ├── tools/                # All tools (9 consolidated tools)
+│   │   ├── index.ts          # Tool exports + allTools array
+│   │   ├── discover.ts       # Unified discover with name resolution + Phase 8 filters
+│   │   ├── search.ts         # TMDB multi-search (renamed from search_movies)
+│   │   ├── details.ts        # Unified get_details (merged movie/series/videos/related)
+│   │   ├── person.ts         # get_person by name or ID
+│   │   ├── upcoming.ts       # get_upcoming for movies & TV
+│   │   ├── user-data.ts      # Unified get_user_data (merged watchlist/ratings/watched)
+│   │   ├── context.ts        # get_page_context
+│   │   └── navigation.ts     # navigate_to
+│   └── prompts/system.ts     # System prompts with dynamic user context
+├── server/utils/
+│   ├── index.ts              # Exports
+│   └── media-data.ts         # Shared MongoDB+TMDB data fetching
+│       ├── getCountryCode()         # Extract country from request headers
+│       ├── getLightMovieDetails()   # Movie details with ratings/streaming/watchLinks
+│       ├── getLightSeriesDetails()  # Series details with ratings/streaming/watchLinks
+│       ├── getLightPersonDetails()  # Person filmography
+│       └── searchPersonAndGetDetails()  # Search + fetch combined
+├── server/services/
+│   └── tmdb.ts           # TMDB API with retry logic (3x exponential backoff)
+├── lib/ai/
+│   ├── index.ts              # Exports
+│   └── parse-media-tags.ts   # Extended tag parser (MOVIE, SERIES, RATINGS, WATCH, PERSON)
+├── lib/ratings.ts            # combineRatings() - merges TMDB+MongoDB ratings
+├── lib/watch-options.ts      # getWatchOptionsForCountry() - deep links
+├── app/api/ai/
+│   ├── chat/route.ts         # Chat endpoint (resolves tags before response)
+│   └── tag-data/route.ts     # Fetch ratings/watch data for tags
+├── hooks/use-chat-stream.ts  # SSE chat hook
+└── components/features/ai/
+    ├── assistant-floaty.tsx  # Main floating UI
+    ├── rich-message-content.tsx  # Renders all tag types
+    ├── chat-tags.tsx         # ChatRatings, ChatWatchOptions, PersonChip
+    └── media-chip.tsx        # Handles null IDs gracefully
+```
+
+## Media Tag System
+
+### Tag Types Overview
+
+The agent uses structured tags that get rendered as interactive UI components:
+
+| Tag Type | Format | Renders As |
+|----------|--------|------------|
+| MOVIE/SERIES | `[MOVIE:id:title\|desc]` | Poster card with link |
+| RATINGS | `[RATINGS:movie:id]` | IMDb/RT ratings bar |
+| WATCH | `[WATCH:movie:id]` | Streaming provider buttons |
+| TRAILER | `[TRAILER:movie:id]` | Play button thumbnail + modal |
+| PERSON | `[PERSON:id:name]` | Person chip with avatar + link |
+
+### Tag Format (ID optional for MOVIE/SERIES/PERSON!)
+
+**CRITICAL: NO markdown formatting around tags!** Tags must be plain text:
+
+```
+# Media tags
+[MOVIE:id:title|description]     ← With ID (from tool results)
+[MOVIE::title|description]       ← Without ID (auto-resolved)
+[SERIES:1396:Breaking Bad]       ← With ID, no description
+[SERIES::The Office|Hilarious]   ← Without ID, with description
+
+# Interactive tags (ID REQUIRED - needs data to render)
+[RATINGS:movie:550]              ← Shows ratings bar for movie
+[RATINGS:series:1396]            ← Shows ratings bar for series
+[WATCH:movie:550]                ← Shows streaming options for movie
+[WATCH:series:1396]              ← Shows streaming options for series
+[TRAILER:movie:550]              ← Shows play button, opens trailer
+[TRAILER:series:1396]            ← Shows play button for series trailer
+[PERSON:287:Brad Pitt]           ← Person chip with link
+[PERSON::Tom Hanks]              ← Person chip (ID resolved)
+```
+
+### When to Use Interactive Tags
+
+| User Question | Use This |
+|---------------|----------|
+| "Is X good?" | `[RATINGS:movie:id]` + media tag |
+| "Where can I watch X?" | `[WATCH:movie:id]` + media tag |
+| "Show me the trailer" | `[TRAILER:movie:id]` + media tag |
+| "Who's in X?" | `[PERSON:id:name]` for notable cast |
+
+**IMPORTANT:** RATINGS, WATCH, and TRAILER tags require valid IDs from tool results. These tags fetch live data and won't render without an ID.
+
+### ID Rules - ⚠️ CRITICAL (The #1 Rule)
+
+**Made-up IDs = broken links = angry users.** The server auto-resolves titles, so skipping is ALWAYS safe.
+
+1. **Tool gave you an ID?** → Use it exactly as provided
+2. **Suggesting from general knowledge?** → Leave ID empty: `[MOVIE::Title]`
+3. **Not 100% certain the ID is correct?** → Skip it
+4. **NEVER guess/invent IDs** - Wrong IDs break the app
+5. **NEVER wrap tags in backticks**
+
+The `resolveMediaTags()` function searches TMDB and injects correct IDs automatically. Trust the system.
+
+### Null ID Handling in Components
+
+All UI components properly handle tags without IDs:
+
+```typescript
+// PosterCardLarge, MediaChip - fallback link to search
+const href = tag.id !== null
+  ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
+  : `/browse?q=${encodeURIComponent(tag.title)}`;
+
+// Poster URL - null if no ID (shows placeholder icon)
+const posterUrl = tag.id !== null
+  ? `${CDN_IMAGE_BASE}/${tag.type}/${tag.id}/poster.webp`
+  : null;
+
+// React keys - use title as fallback for uniqueness
+key={`${tag.type}-${tag.id ?? tag.title}-${index}`}
+```
+
+### Text Cleanup (Client-Side)
+
+The `MinimalView` and `RichMessageContent` components strip markdown from AI responses:
+- Backticks (` `` `) - Removed
+- Asterisks (`*`, `**`) - Removed (bold/italic)
+- Bullet prefixes (`- `, `• `) - Removed
+- Heading prefixes (`# `, `## `) - Removed
+- Blockquote prefixes (`> `) - Removed
+- **Newlines PRESERVED** - Uses `whitespace-pre-line` for proper line breaks
+
+### Server-Side Resolution
+
+```typescript
+import { resolveMediaTags } from "@/server/ai";
+
+// In chat API route - runs automatically for BOTH media AND person tags
+responseText = await resolveMediaTags(responseText);
+// [MOVIE::Fight Club] → [MOVIE:550:Fight Club]
+// [PERSON::Cillian Murphy] → [PERSON:28782:Cillian Murphy]
+```
+
+The `resolveMediaTags()` function:
+1. Finds all unresolved media tags (movies/series without IDs)
+2. Finds all unresolved person tags (persons without IDs)
+3. Searches TMDB for each title/name in parallel
+4. Injects the correct IDs into the tags
+
+### Tag Parsing
+
+```typescript
+import { 
+  parseContent, 
+  parseAllTags,
+  getDataFetchIds,
+  hasUnresolvedTags 
+} from "@/lib/ai/parse-media-tags";
+
+// Parse all tag types
+const { segments, mediaTags, allTags, hasUnresolvedTags } = parseContent(content);
+
+// Get IDs needed for data fetching (for RATINGS/WATCH tags)
+const { movieIds, seriesIds, personIds } = getDataFetchIds(content);
+
+// Tag types:
+// - ParsedMediaTag: kind: "media", type: "movie"|"series"
+// - ParsedRatingsTag: kind: "ratings", mediaType: "movie"|"series", id: number
+// - ParsedWatchTag: kind: "watch", mediaType: "movie"|"series", id: number
+// - ParsedPersonTag: kind: "person", id: number|null, name: string
+```
+
+### Tag Data API
+
+The chat UI fetches data for interactive tags via:
+
+```typescript
+// POST /api/ai/tag-data
+// Body: { movieIds?: number[], seriesIds?: number[], personIds?: number[] }
+// Response: { movies: Record<id, data>, series: Record<id, data>, persons: Record<id, data> }
+
+// Returns for movies/series:
+// - ratings: { tmdb, imdb, rottenTomatoes, audience }
+// - watchLinks: Array<{ provider, type, link, logo }>
+
+// Returns for persons:
+// - id, name, knownFor
+// - profilePath: TMDB profile image path (for avatar)
+```
+
+The `useTagData` hook in `chat-tags.tsx` handles caching and batch fetching.
+
+### Person Chip Rendering
+
+Person chips display:
+- **Avatar**: From TMDB profile image (`https://image.tmdb.org/t/p/w185{profilePath}`)
+- **Name**: Display name
+- **Link**: To `/person/{id}/{slug}` page (or search if no ID)
+
+## Discover Tool
+
+### Name-Based Filters (Preferred!)
+
+The agent should use names, not IDs. The tool resolves them automatically:
+
+```typescript
+// Agent calls:
+discover({
+  crewNames: ["Christopher Nolan"],  // → resolves to ID 525
+  castNames: ["Tom Hanks"],          // → resolves to ID 31
+  keywordNames: ["time travel"],     // → fuzzy matches TMDB keywords
+  genres: ["Action"],                // → maps to genre ID 28
+  watchProviders: ["Netflix"],       // → maps to provider ID 8
+})
+```
+
+### User Content Filtering
+
+```typescript
+discover({
+  hideWatched: true,      // Exclude movies user has seen
+  hideDisliked: true,     // Exclude disliked content (DEFAULT: on)
+  hideInWatchlist: true,  // Exclude items in watchlist
+  limit: 8,               // Smart pagination fills this even after filtering
+})
+```
+
+### Quality Presets
+
+```typescript
+discover({ quality: "good" })      // minRating: 7, minVotes: 200
+discover({ quality: "great" })     // minRating: 7.5, minVotes: 500
+discover({ quality: "masterpiece" }) // minRating: 8, minVotes: 1000
+```
+
+### Date Shortcuts
+
+```typescript
+discover({ releasedAfter: "recent" })   // Last 2 years
+discover({ releasedAfter: "new" })      // Last 6 months
+discover({ releasedBefore: "classic" }) // Pre-1980
+```
+
+### Streaming
+
+```typescript
+discover({ streamingAnywhere: true })                    // Any service
+discover({ watchProviders: ["Netflix", "Prime Video"] }) // Specific
+```
+
+### Exclusion Filters (Phase 8) ✅
+
+```typescript
+// Exclude genres
+discover({ genres: ["Thriller"], excludeGenres: ["Horror"] })
+
+// Exclude actors/directors
+discover({ genres: ["Comedy"], withoutCastNames: ["Adam Sandler"] })
+discover({ withoutCrewNames: ["Michael Bay"] })
+
+// Exclude themes
+discover({ genres: ["Thriller"], withoutKeywordNames: ["gore", "graphic violence"] })
+```
+
+### AND/OR Logic (Phase 8) ✅
+
+TMDB uses comma (AND) and pipe (OR) separators:
+
+```typescript
+// Must match ALL genres (AND - default)
+discover({ genres: ["Action", "Comedy"], genreMode: "and" })
+
+// Match ANY genre (OR)
+discover({ genres: ["Sci-Fi", "Fantasy"], genreMode: "or" })
+
+// Must have ALL actors (rare, but supported)
+discover({ castNames: ["Tom Hanks", "Meg Ryan"], castMode: "and" })
+
+// Keyword logic
+discover({ keywordNames: ["heist", "twist ending"], keywordMode: "and" })
+```
+
+### Certification/Age Rating (Phase 8) ✅
+
+```typescript
+// Family-friendly movies (G, PG, PG-13 only)
+discover({ genres: ["Action"], certificationLte: "PG-13" })
+
+// Exact rating
+discover({ certification: "R" })
+
+// TV ratings
+discover({ mediaType: "tv", certificationLte: "TV-PG" })
+```
+
+| Movies (MPAA) | TV (US) |
+|---------------|---------|
+| G | TV-Y |
+| PG | TV-Y7 |
+| PG-13 | TV-G, TV-PG |
+| R | TV-14 |
+| NC-17 | TV-MA |
+
+## User Context
+
+The agent receives dynamic user context in the system prompt:
+
+```
+## Current Context
+User: John Smith | Region: US | Today: Thursday, January 2, 2026, 12:45 PM
+```
+
+**IMPORTANT:** The time includes the YEAR so the agent knows the current date. This enables:
+- "Best movies of 2025" → Agent searches for 2025 movies
+- "What's new this year?" → Agent understands current year
+- "Recent releases" → Agent knows what "recent" means
+
+Injected via `src/server/ai/agent.ts`:
+```typescript
+const systemPrompt = getSystemPrompt(isAuthenticated, state.userContext);
+```
+
+## Available Tools (9 Consolidated)
+
+| Tool | Description | When to Use |
+|------|-------------|-------------|
+| `search` | Multi-search by name | Specific title/actor lookup |
+| `discover` | **Main tool** - find movies/series with filters | Any criteria-based discovery |
+| `get_trending` | Current trending content | "What's popular?" |
+| `get_details` | Movie/series info + optional videos + related | "Is X good?", "Show trailer", "Similar to X" |
+| `get_person` | Filmography by name or ID | "What else has X been in?" |
+| `get_upcoming` | Now playing + upcoming releases | "What's coming out soon?" |
+| `get_user_data` | User's watchlist, ratings, watched history | "Based on my taste", "Pick from my watchlist" |
+| `get_page_context` | Current page | Contextual recommendations |
+| `navigate_to` | Client navigation | Take user to detail page |
+
+### get_details Parameters
+
+```typescript
+get_details({
+  id: number,              // TMDB ID
+  mediaType: "movie" | "series",
+  includeVideos?: boolean, // Set true for trailers/clips
+  includeRelated?: boolean // Set true for similar/recommended content
+})
+```
+
+### get_user_data Parameters
+
+```typescript
+get_user_data({
+  include?: ["watchlist", "ratings", "watched"] // Defaults to all
+})
+```
+
+**NOTE:** The `discover` tool can auto-filter with hideWatched, hideDisliked, hideInWatchlist.
+Only call get_user_data when you need to actually see the data, not just filter results.
+
+### Remaining Tool Gaps
+
+| User Query | Missing Tool | Status |
+|------------|--------------|--------|
+| "Add this to my watchlist" | `add_to_watchlist` | Phase 9 (Pending) |
+| "I liked this" / Rate it | `rate_item` | Phase 9 (Pending) |
+| "Mark as watched" | `mark_as_watched` | Phase 9 (Pending) |
+
+## Tool Response Guidelines
+
+### Design Principles
+1. **Lean responses** - Only data the agent needs for conversation
+2. **No UI data** - No poster_path, backdrop_path, logo URLs (UI renders from ID)
+3. **Truncate text** - Overviews ≤300 chars, bios ≤300 chars
+4. **Names over IDs** - Return "David Fincher" not crew ID 7467
+5. **User context** - Include watchlist/watched/rating status when relevant
+6. **Region-aware** - Streaming availability should reflect user's region
+
+### What to Include in Responses
+| Field | Include | Notes |
+|-------|---------|-------|
+| id | ✅ | Needed for tags/navigation |
+| title/name | ✅ | Display name |
+| year | ✅ | Release year only |
+| rating | ✅ | Formatted as "8.4" |
+| runtime | ✅ | For "how long" questions |
+| genres | ✅ | Array of names |
+| overview | ✅ | Truncated to 300 chars |
+| director | ✅ | Name(s) only |
+| topCast | ✅ | Top 3-5 names |
+| streaming | ✅ | Service names only (flatrate/rent/buy) |
+| watchLinks | ✅ | Deep links with `hasDeepLink` flag (India) |
+| certification | ✅ | G, PG, PG-13, R, etc. |
+
+### What to Exclude
+| Field | Reason |
+|-------|--------|
+| poster_path | UI renders from ID via CDN |
+| backdrop_path | UI renders from ID |
+| logo_path | UI renders from ID |
+| production_companies | Rarely useful |
+| budget/revenue | Rarely asked |
+| homepage | Not conversational |
+| tagline | Adds noise |
+| full cast/crew | Top 5 is enough |
+| provider logos | UI handles this |
+
+### Response Size Targets
+| Tool | Target Size | Max Items |
+|------|-------------|-----------|
+| discover | ~2KB | 8-10 results |
+| get_details | ~1-2KB | 1 result (more with optional includes) |
+| get_person | ~1.5KB | 5 notable works |
+| get_user_data | ~2KB | 20 watchlist + 100 ratings + 50 watched |
+| get_trending | ~2KB | 10 items |
+
+## Internal Context
+
+The agent knows it's backed by TMDB (The Movie Database) for tool context, but should **never reveal this to users**. Don't mention:
+- "TMDB", "API", "database", "IDs", or technical terms
+- How the system works internally
+- Where data comes from
+
+Just talk naturally about movies as a knowledgeable friend would.
+
+## Data Sources
+
+The app has enriched data beyond TMDB:
+
+### MongoDB Enriched Data
+- **Multi-source ratings**: IMDb, Rotten Tomatoes (critic + audience), Google
+- **Deep watch links**: Direct streaming URLs (India only) vs TMDB JustWatch links
+- **Certification/age ratings**: MPAA (G, PG, PG-13, R) and TV ratings (TV-MA, etc.)
+
+### Data Flow
+```
+MongoDB (enriched) ─┬─> combineRatings() ─────> Multi-source ratings
+                    │
+TMDB (fresh)  ──────┴─> getWatchOptionsForCountry() ─> Streaming links
+```
+
+### Shared Utilities
+Use `src/server/utils/media-data.ts` for AI tools:
+
+```typescript
+import { 
+  getCountryCode,
+  getLightMovieDetails, 
+  getLightSeriesDetails 
+} from "@/server/utils";
+
+// Returns lightweight data optimized for AI:
+// - Multi-source ratings (tmdb, imdb, rottenTomatoes, audience)
+// - Streaming breakdown (flatrate, rent, buy) with provider names
+// - Deep watch links with hasDeepLink flag (India gets direct player URLs)
+// - Certification, director, top cast names
+// - NO poster paths, NO full cast arrays
+
+// Watch links structure:
+type WatchLink = {
+  provider: string;    // "Netflix", "Prime Video"
+  type: string;        // "flatrate" | "rent" | "buy"
+  link: string;        // Direct URL (deep link for India, JustWatch for others)
+  hasDeepLink: boolean; // true if scraped deep link (India only)
+};
+```
+
+### Watch Links Priority
+1. **India**: Scraped deep links (direct to player) if available
+2. **Other countries**: TMDB watch providers (JustWatch attribution links)
+3. **Fallback**: US, GB, or other major countries
+
+## Best Practices
+
+### Personality & Tone - BE FUN & SASSY
+The agent should be **playfully chaotic, opinionated, and concise** - like that friend who's seen everything:
+- **Sassy & playful** - hot takes welcome, be a little spicy
+- **Brief AF** - 1-2 sentences MAX. Cards are the star, not your text
+- **Opinionated** - "trust me on this one" energy
+- **Zero fluff** - never say "I'd be happy to help" or "Great question!" - just dive in
+- **Chaotic good** - surprise them, be unpredictable, have personality
+
+Vibe check examples:
+- "Oh you want chaos? Say less."
+- "This slaps. Trust."
+- "Absolutely unhinged pick but hear me out..."
+- "If you haven't seen this, we can't be friends."
+- "A certified banger."
+- "Not me recommending this again..."
+- "Okay but THIS one though 👀"
+- "Main character energy."
+- "The taste jumped out."
+
+### ⚠️ CRITICAL: UI Structure - Text and Cards Are SEPARATE
+
+**The UI displays text and media tags in separate areas:**
+- Text appears in one container (all tags stripped out)
+- Media tags become poster cards shown below in a card row
+- Interactive tags (ratings, watch, person) appear as chips between text and cards
+
+**This means text must make sense ON ITS OWN without the tags!**
+
+❌ **BAD** - Text is empty without tags:
+```
+"Here are my picks: [MOVIE:550:Fight Club] [MOVIE:807:Se7en]"
+→ User sees: "Here are my picks:" (what picks?!)
+```
+
+✅ **GOOD** - Text mentions titles:
+```
+"Fight Club and Se7en for tension. Zodiac if you want slow-burn obsession.
+[MOVIE:550:Fight Club] [MOVIE:807:Se7en] [MOVIE::Zodiac]"
+→ User sees: "Fight Club and Se7en for tension..." + cards below
+```
+
+### Tool Usage
+- **Use discover with name-based filters** - Don't make agent search for IDs first
+- **hideDisliked is ON by default** - No need to check ratings to avoid dislikes
+- **Set limit: 5-8** for conversational responses, up to 20 for lists
+- **Use current date context** - Check "Today:" in system prompt for actual year
+
+### Response Quality - CARDS FIRST, TEXT SECOND
+- **1-2 sentences ONLY** - Cards do the heavy lifting, not paragraphs
+- **ALWAYS mention titles in text** - Cards shown separately from text!
+- **NO markdown formatting** - Tags must be plain text
+- **Use interactive tags** - don't type out ratings/watch info:
+  - ✅ `[RATINGS:movie:550]` renders a beautiful ratings bar
+  - ❌ "It has 8.8 on IMDb and 87% on RT" - don't type this out!
+- **Have personality** - boring = bad. Be fun!
+- **No fluff** - skip the "I'd be happy to help" BS
+
+### Response Examples
+
+**✅ GOOD - Short, fun, cards do the work:**
+```
+User: "Is Fight Club any good?"
+Agent: "Fight Club? Absolute banger. [RATINGS:movie:550] [MOVIE:550:Fight Club|Mind-bending chaos]"
+
+User: "Where can I watch Breaking Bad?"
+Agent: "Breaking Bad? Say less. [WATCH:series:1396] [SERIES:1396:Breaking Bad|Chemistry class gone wrong]"
+
+User: "Give me thrillers"
+Agent: "Unhinged thriller energy incoming. The Sixth Sense, Se7en, and Zodiac will mess you up (in the best way).
+[MOVIE:745:The Sixth Sense|That twist hits different]
+[MOVIE:807:Se7en|Dark and twisted]
+[MOVIE::Zodiac|Obsession: the movie]"
+
+User: "Horror movies"
+Agent: "Time to suffer (affectionately).
+[MOVIE::Hereditary|Emotionally destroyed me]
+[MOVIE::The Thing|Practical effects supremacy]
+[MOVIE::It Follows|Simple concept, maximum dread]"
+```
+
+**❌ BAD - Too long, boring, or broken:**
+```
+User: "Give me comedies"
+Agent: "I'd be happy to help you find some comedies! Here are some great options..."
+← Fluff city. Just give the picks!
+
+User: "Is Fight Club good?"
+Agent: "Fight Club has an 8.8 on IMDb and 87% on Rotten Tomatoes..."
+← Should use [RATINGS] tag!
+
+User: "Give me thrillers"
+Agent: "Here are some picks: [MOVIE:550:Fight Club] [MOVIE:807:Se7en]"
+← Text says nothing about the movies - user sees "Here are some picks:" with no context!
+```
+
+### ID Handling - CRITICAL ⚠️
+This is the #1 technical rule. Made-up IDs = broken links = bad UX.
+
+- ✅ **Tool gave ID?** Use it: `[MOVIE:550:Fight Club]`
+- ✅ **From general knowledge?** Skip ID: `[MOVIE::The Godfather]`
+- ✅ **Not sure?** Skip ID - server auto-resolves titles
+- ❌ **NEVER invent/guess IDs** - this breaks the app
+- ❌ **NEVER wrap tags in backticks**
+
+Why skipping is safe: `resolveMediaTags()` in the API route auto-searches TMDB and injects correct IDs before returning to the client.
+
+### UI Containers (MinimalView)
+
+The AI chat uses two visually distinct containers for clean separation:
+
+```tsx
+// Cards container (top)
+<motion.div className="bg-black border border-white/20 shadow-lg shadow-black/60 rounded-xl">
+  {/* Horizontal scroll of PosterCardLarge */}
+</motion.div>
+
+// Input/text container (bottom) - shadow pushed down
+<motion.div className="bg-black border border-white/20 shadow-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] rounded-xl">
+  {/* Clean text + input field */}
+</motion.div>
+```
+
+Key styling:
+- Solid black backgrounds (`bg-black`)
+- Pronounced white border (`border-white/20`)
+- Box shadows with controlled falloff
+- Input container shadow pushed down to avoid overlap with cards
+
+### UI Test IDs
+
+All interactive elements have `data-testid` attributes for testing:
+
+| Element | Test ID | Description |
+|---------|---------|-------------|
+| Floating trigger | `ai-assistant-trigger` | Main button to open chat |
+| Featured prompt | `ai-featured-prompt` | Highlighted prompt button |
+| Quick prompts | `ai-prompt-{idx}` | Other prompt buttons (0-indexed) |
+| Input field | `ai-chat-input` | Text input for messages |
+| Send button | `ai-send-btn` | Submit button |
+| Expand button | `ai-expand-btn` | Expand to full chat |
+| Close button | `ai-close-btn` | Close the chat |
+| Cards container | `ai-poster-cards` | Container for poster cards |
+| Response container | `ai-response-container` | Text + tags area |
+| Response text | `ai-response-text` | The actual response text |
+
+The trigger button also has:
+- `role="button"` for accessibility
+- `aria-label` describing current state
+- Keyboard support (Enter/Space to activate)
+
+## API Route Implementation
+
+The chat endpoint (`src/app/api/ai/chat/route.ts`) uses a hybrid approach:
+
+```typescript
+// Non-streaming invoke for reliable tool execution
+const result = await invokeAgent(message, userId, history, pageContext, userContext);
+const responseText = await resolveMediaTags(getAgentResponse(result));
+
+// Wrapped in SSE format for consistent client handling
+const stream = new ReadableStream({
+  async start(controller) {
+    controller.enqueue(`data: ${JSON.stringify({ type: "thinking", content: "Processing..." })}\n\n`);
+    controller.enqueue(`data: ${JSON.stringify({ type: "text", content: responseText })}\n\n`);
+    controller.enqueue(`data: ${JSON.stringify({ type: "done", message: responseText, navigation })}\n\n`);
+    controller.enqueue("data: [DONE]\n\n");
+    controller.close();
+  }
+});
+```
+
+**Why non-streaming invoke?**
+- Tool calls execute reliably (LangChain handles the full ReAct loop)
+- No issues with reasoning models outputting tool calls as text
+- Simpler error handling
+- Client still gets SSE format for consistent UI updates
+
+## TMDB API Resilience
+
+The TMDB service (`src/server/services/tmdb.ts`) has built-in retry logic:
+
+```typescript
+// rawFetchFromTMDB has:
+// - 3 retries with exponential backoff (300ms, 600ms, 1200ms)
+// - 20s timeout with AbortController
+// - ECONNRESET error handling
+// - Connection: close header to prevent pooling issues
+// - In-memory caching via node-cache to reduce API calls
+
+async function rawFetchFromTMDB<T>(
+  endpoint: string,
+  params: Record<string, string> = {},
+  retries = 3,
+  timeout = 20000
+): Promise<T>
+```
+
+No manual retry needed when calling TMDB functions - it's built in.
+
+## Reference Documents
+
+- Full implementation plan: `docs/AI_AGENT_IMPLEMENTATION_PLAN.md`
+- LangGraph docs: https://langchain-ai.github.io/langgraphjs/
+- AWS Bedrock docs: https://docs.aws.amazon.com/bedrock/

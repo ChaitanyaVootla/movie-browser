@@ -287,4 +287,20 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
   }
+
+  /* AI Assistant container shadow - creates floating effect with depth */
+  .ai-container-shadow {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 8px 30px rgba(0, 0, 0, 0.6),
+      0 20px 50px rgba(0, 0, 0, 0.4);
+  }
+
+  /* AI Assistant idle button */
+  .ai-idle-btn {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .ai-idle-btn:hover {
+    transform: scale(1.05);
+  }
 }

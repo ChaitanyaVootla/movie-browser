@@ -7,6 +7,7 @@ import { UserStoreProvider } from "./user-store-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { GoogleOneTap } from "@/components/features/auth";
 import { HoverCardProvider, HoverCardOverlay } from "@/components/features/hover-card";
+import { AssistantFloaty } from "@/components/features/ai";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -24,6 +25,8 @@ export function Providers({ children }: ProvidersProps) {
               <Toaster position="bottom-right" />
               {/* Google One Tap - shows login prompt for unauthenticated users */}
               <GoogleOneTap delay={2000} />
+              {/* AI Assistant floating chat */}
+              <AssistantFloaty />
             </HoverCardProvider>
           </QueryProvider>
         </ThemeProvider>

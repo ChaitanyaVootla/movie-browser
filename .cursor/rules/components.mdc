@@ -57,7 +57,8 @@ src/components/features/
 │   ├── media-action-bar.tsx    # Action bar below hero (trailer, watchlist, like/dislike, share)
 │   ├── media-overview.tsx      # Overview, cast carousel, details sidebar
 │   ├── media-actions.tsx       # Individual action buttons (Play, watchlist, favorite)
-│   ├── media-scroller.tsx      # Reusable horizontal scroll section
+│   ├── scroll-container.tsx    # Low-level scrollable container primitive (drag + arrows)
+│   ├── media-scroller.tsx      # High-level scroller with header, title, see-all link
 │   ├── genre-badge.tsx         # Genre list component
 │   ├── ratings-bar.tsx         # Multi-source ratings (TMDB, IMDb, RT, Google)
 │   ├── image-gallery.tsx       # Gallery with full-screen lightbox modal
@@ -1131,6 +1132,175 @@ import { buildBrowseUrl } from "@/lib/discover";
 **Card sizing in scrollers:**
 ```tsx
 className="w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px]"
+```
+
+### Scroller Architecture
+
+The app uses a unified, modular scroller system with two levels of abstraction:
+
+#### Component Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ useScrollDrag (Hook) - src/hooks/use-scroll-drag.ts         │
+│  - Drag-to-scroll with 5px threshold (fixes click vs drag)  │
+│  - Arrow scroll function (80% of visible width)             │
+│  - External ref support for forwardRef components           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ ScrollContainer (Primitive) - media/scroll-container.tsx    │
+│  - Low-level scrollable container                           │
+│  - Drag-to-scroll + optional arrow controls                 │
+│  - ForwardRef support for external scroll control           │
+│  - Use for custom scroll UIs (image galleries, video lists) │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ MediaScroller (Composite) - media/media-scroller.tsx        │
+│  - High-level scroller section with header                  │
+│  - Title, icon, "See All" link, arrow controls in header    │
+│  - Uses ScrollContainer internally                          │
+│  - Use for standard content sections (cast, recs, etc.)     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### useScrollDrag Hook
+
+The foundation hook that handles drag-to-scroll with click detection:
+
+```typescript
+import { useScrollDrag } from "@/hooks/use-scroll-drag";
+
+function MyScroller() {
+  const {
+    scrollRef,           // Ref to attach to scroll container
+    setScrollRef,        // Callback ref (for forwardRef)
+    isDragging,          // Whether actively dragging
+    handlePointerDown,   // Pointer event handlers
+    handlePointerMove,
+    handlePointerUp,
+    handleDragStart,     // Prevents native drag
+    scroll,              // (direction: "left" | "right") => void
+  } = useScrollDrag({ scrollAmount: 0.8 });
+}
+```
+
+**Key feature:** 5px drag threshold - movement below this is treated as a click, allowing normal navigation. Pointer capture only activates AFTER threshold is exceeded.
+
+#### ScrollContainer Component
+
+Low-level scrollable container for custom UIs:
+
+```tsx
+import { ScrollContainer } from "@/components/features/media";
+
+// Basic usage
+<ScrollContainer gap="gap-3" padding="px-4">
+  {items.map(item => <Card key={item.id} />)}
+</ScrollContainer>
+
+// With arrow controls at edge (default)
+<ScrollContainer showControls gap="gap-4" padding="px-4 md:px-8">
+  {items}
+</ScrollContainer>
+
+// Without controls (for custom UIs like image galleries)
+<ScrollContainer showControls={false}>
+  {images}
+</ScrollContainer>
+```
+
+**Props:**
+- `showControls` - Show arrow buttons (default: true)
+- `controlsPosition` - "edge" (default) or "inline"
+- `gap` - Tailwind gap class (default: "gap-4")
+- `padding` - Tailwind padding class (default: none)
+- `bottomPadding` - Bottom padding (default: "pb-4")
+
+#### MediaScroller Component
+
+High-level scroller for content sections:
+
+```tsx
+import { MediaScroller } from "@/components/features/media";
+import { Users } from "lucide-react";
+
+<MediaScroller
+  title="Top Cast"
+  titleIcon={<Users className="h-5 w-5 text-brand" />}
+  seeAllHref="/browse?cast=500"
+  seeAllLabel="Browse All"
+  contentPadding="px-4 md:px-8 lg:px-12"
+  gap="gap-4"
+>
+  {cast.map(member => <PersonCard key={member.id} person={member} />)}
+</MediaScroller>
+```
+
+**Props:**
+- `title` - Section title (ReactNode)
+- `titleIcon` - Icon before title
+- `seeAllHref` - URL for "View All" link
+- `seeAllLabel` - Custom link text (default: "View All")
+- `contentPadding` - Padding for header and scroll area (default: "px-4 md:px-8 lg:px-12")
+- `gap` - Gap between items (default: "gap-4")
+- `showControls` - Show arrow controls (default: true)
+
+#### Which Scroller to Use
+
+| Use Case | Component |
+|----------|-----------|
+| **Content sections** (cast, recommendations, collection) | `MediaScroller` |
+| **Custom layouts** (image gallery, video sidebar) | `ScrollContainer` |
+| **Infinite scroll** (discover scroller) | `useScrollDrag` hook directly |
+
+#### Integration Examples
+
+**Cast Section (MediaOverview):**
+```tsx
+<MediaScroller
+  title="Top Cast"
+  titleIcon={<Users className="h-5 w-5 text-brand" />}
+  contentPadding="px-4 md:px-8 lg:px-12"
+>
+  {cast.map(member => <PersonCard key={member.id} person={member} />)}
+</MediaScroller>
+```
+
+**Collection Section:**
+```tsx
+<MediaScroller
+  title={collection.name}
+  titleIcon={<Clapperboard className="h-5 w-5 text-brand" />}
+  contentPadding="px-4 md:px-8 lg:px-12"
+>
+  {sortedParts.map(movie => <CollectionMovieCard key={movie.id} movie={movie} />)}
+</MediaScroller>
+```
+
+**Image Gallery (custom controls):**
+```tsx
+<ScrollContainer showControls={false} gap="gap-3" padding="px-4 md:px-8 lg:px-12">
+  {images.map((image, index) => (
+    <button key={index} onClick={() => openLightbox(index)}>
+      <Image src={image.url} />
+    </button>
+  ))}
+</ScrollContainer>
+```
+
+**Video Gallery (no controls, inline player):**
+```tsx
+<ScrollContainer showControls={false} gap="gap-3" padding="px-4">
+  {videos.map(video => (
+    <button onClick={() => selectVideo(video)}>
+      <VideoThumbnail video={video} />
+    </button>
+  ))}
+</ScrollContainer>
 ```
 
 #### Scroller "See All" Link Pattern

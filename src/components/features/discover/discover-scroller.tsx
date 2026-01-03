@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
+import { useScrollDrag } from "@/hooks/use-scroll-drag";
 import type { MediaItem } from "@/types";
 import type { DiscoverParams } from "@/lib/discover";
 import { discover } from "@/server/actions/discover";
@@ -40,15 +41,22 @@ export function DiscoverScroller({
   className,
   contentPadding = "px-4 md:px-8 lg:px-12",
 }: DiscoverScrollerProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const [results, setResults] = useState<MediaItem[]>(initialResults);
   const [page, setPage] = useState(1);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const [isPending, startTransition] = useTransition();
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, pointerId: 0 });
   const displayMode = usePreferencesStore(selectCardDisplayMode);
+
+  const {
+    scrollRef,
+    isDragging,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleDragStart,
+    scroll,
+  } = useScrollDrag();
 
   // Card sizing based on display mode
   const posterCardClass = "w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px] flex-shrink-0";
@@ -105,42 +113,7 @@ export function DiscoverScroller({
     }
 
     return () => observer.disconnect();
-  }, [canLoadMore, isPending, loadMore]);
-
-  const scroll = (direction: "left" | "right") => {
-    if (scrollRef.current) {
-      const visibleWidth = scrollRef.current.clientWidth;
-      const amount = direction === "left" ? -visibleWidth * 0.8 : visibleWidth * 0.8;
-      scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
-    }
-  };
-
-  // Drag handlers - capture on scroll container, not e.target (which may be a child element)
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!scrollRef.current) return;
-    dragRef.current.isDown = true;
-    dragRef.current.startX = e.clientX;
-    dragRef.current.scrollLeft = scrollRef.current.scrollLeft;
-    dragRef.current.pointerId = e.pointerId;
-    setIsDragging(true);
-    scrollRef.current.setPointerCapture(e.pointerId);
-  }, []);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current.isDown || !scrollRef.current) return;
-    e.preventDefault();
-    const dx = e.clientX - dragRef.current.startX;
-    scrollRef.current.scrollLeft = dragRef.current.scrollLeft - dx;
-  }, []);
-
-  const handlePointerUp = useCallback(() => {
-    if (!scrollRef.current || !dragRef.current.isDown) return;
-    dragRef.current.isDown = false;
-    setIsDragging(false);
-    if (dragRef.current.pointerId) {
-      scrollRef.current.releasePointerCapture(dragRef.current.pointerId);
-    }
-  }, []);
+  }, [canLoadMore, isPending, loadMore, scrollRef]);
 
   return (
     <section className={cn("space-y-4", className)}>
@@ -186,13 +159,13 @@ export function DiscoverScroller({
         className={cn(
           "flex gap-3 pb-4 overflow-x-auto scrollbar-hide touch-pan-x",
           contentPadding,
-          isDragging ? "cursor-grabbing select-none" : "cursor-grab"
+          isDragging && "cursor-grabbing select-none"
         )}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onDragStart={(e) => e.preventDefault()}
+        onDragStart={handleDragStart}
       >
         {results.length === 0 && isPending ? (
           // Initial loading skeletons
@@ -231,7 +204,7 @@ export function DiscoverScroller({
 }
 
 // Server-rendered version (no interactivity, just displays items)
-// Note: This is a client component wrapper that reads from preference store
+// Uses the hook for consistent drag behavior
 interface DiscoverScrollerServerProps {
   title: string;
   seeAllHref?: string;
@@ -249,6 +222,16 @@ export function DiscoverScrollerServer({
   className,
   contentPadding = "px-4 md:px-8 lg:px-12",
 }: DiscoverScrollerServerProps) {
+  const {
+    scrollRef,
+    isDragging,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleDragStart,
+    scroll,
+  } = useScrollDrag();
+
   // Card sizing based on display mode
   const posterCardClass = "w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px] flex-shrink-0";
   const wideCardClass = "w-[220px] sm:w-[260px] md:w-[300px] lg:w-[340px] flex-shrink-0";
@@ -268,13 +251,40 @@ export function DiscoverScrollerServer({
             </Link>
           )}
         </div>
+        <div className="hidden md:flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => scroll("left")}
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => scroll("right")}
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div
+        ref={scrollRef}
         className={cn(
-          "flex gap-3 pb-4 overflow-x-auto scrollbar-hide touch-pan-x cursor-grab",
-          contentPadding
+          "flex gap-3 pb-4 overflow-x-auto scrollbar-hide touch-pan-x",
+          contentPadding,
+          isDragging && "cursor-grabbing select-none"
         )}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onDragStart={handleDragStart}
       >
         {results.map((item, index) => (
           <MediaCard
@@ -289,4 +299,3 @@ export function DiscoverScrollerServer({
     </section>
   );
 }
-

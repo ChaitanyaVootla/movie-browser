@@ -136,15 +136,15 @@ export function RatingsClient() {
         break;
       case "date_desc":
         filtered.sort((a, b) => {
-          const dateA = "release_date" in a ? a.release_date : a.first_air_date;
-          const dateB = "release_date" in b ? b.release_date : b.first_air_date;
+          const dateA = "release_date" in a ? a.release_date : (a as RatedSeries).first_air_date;
+          const dateB = "release_date" in b ? b.release_date : (b as RatedSeries).first_air_date;
           return (dateB || "").localeCompare(dateA || "");
         });
         break;
       case "date_asc":
         filtered.sort((a, b) => {
-          const dateA = "release_date" in a ? a.release_date : a.first_air_date;
-          const dateB = "release_date" in b ? b.release_date : b.first_air_date;
+          const dateA = "release_date" in a ? a.release_date : (a as RatedSeries).first_air_date;
+          const dateB = "release_date" in b ? b.release_date : (b as RatedSeries).first_air_date;
           return (dateA || "").localeCompare(dateB || "");
         });
         break;

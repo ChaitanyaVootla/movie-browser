@@ -1,16 +1,14 @@
 "use client";
 
-import { useRef } from "react";
-import { ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Movie, Series, CastMember } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { KeywordsList } from "./keywords-list";
 import { CountryLanguageBadges } from "./country-language-badges";
 import { ContentWarningLink } from "./content-warning-link";
+import { MediaScroller } from "./media-scroller";
 
 interface MediaOverviewProps {
   item: Movie | Series;
@@ -160,8 +158,6 @@ function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: stri
 }
 
 export function MediaOverview({ item, mediaType, className }: MediaOverviewProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  
   const director = item.credits?.crew?.find((c) => c.job === "Director");
   const creators = !isMovie(item)
     ? item.created_by || item.credits?.crew?.filter((c) => c.job === "Creator")
@@ -173,13 +169,6 @@ export function MediaOverview({ item, mediaType, className }: MediaOverviewProps
 
   // Get IMDB ID
   const imdbId = isMovie(item) ? item.imdb_id : item.external_ids?.imdb_id;
-
-  const scroll = (direction: "left" | "right") => {
-    if (scrollRef.current) {
-      const scrollAmount = direction === "left" ? -400 : 400;
-      scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
-  };
 
   // Format currency - deterministic to avoid SSR hydration mismatch
   const formatCurrency = (amount?: number): string | null => {
@@ -423,47 +412,16 @@ export function MediaOverview({ item, mediaType, className }: MediaOverviewProps
         </div>
       </section>
 
-      {/* Cast Carousel - Full width, matching MovieCarousel pattern */}
+      {/* Cast Carousel - Full width, using unified MediaScroller */}
       {topCast.length > 0 && (
-        <section className="space-y-4">
-          {/* Header */}
-          <div className="px-4 md:px-8 lg:px-12 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-brand" />
-              <h2 className="text-xl font-semibold tracking-tight">Top Cast</h2>
-            </div>
-            <div className="hidden md:flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => scroll("left")}
-                aria-label="Scroll left"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => scroll("right")}
-                aria-label="Scroll right"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Cast scroll area */}
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div ref={scrollRef} className="flex gap-4 pb-4 px-4 md:px-8 lg:px-12">
-              {topCast.map((cast) => (
-                <CastCard key={cast.id} cast={cast} />
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" className="invisible" />
-          </ScrollArea>
-        </section>
+        <MediaScroller
+          title="Top Cast"
+          titleIcon={<Users className="h-5 w-5 text-brand" />}
+        >
+          {topCast.map((cast) => (
+            <CastCard key={cast.id} cast={cast} />
+          ))}
+        </MediaScroller>
       )}
     </div>
   );

@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import {
   getTrendingMovies,
   getTrendingTV,
@@ -19,6 +18,7 @@ import {
   getOptimizedWatchProviders,
   type ProcessedWatchOptions,
 } from "@/lib/watch-options";
+import { getCountryCode } from "@/server/utils";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
 import type {
   MediaItem,
@@ -45,18 +45,6 @@ interface DBRatingsDoc {
       };
     };
   };
-}
-
-/**
- * Get country code from request headers
- */
-async function getCountryCode(): Promise<string> {
-  try {
-    const headersList = await headers();
-    return headersList.get("x-country-code") || "IN";
-  } catch {
-    return "IN";
-  }
 }
 
 /**

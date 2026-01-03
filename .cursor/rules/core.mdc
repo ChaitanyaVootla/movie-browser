@@ -100,7 +100,9 @@ src/
 │   ├── admin.ts         # Admin email whitelist
 │   └── user-id.ts       # getUserIdForDb() utility for numeric userId
 ├── hooks/               # Custom React hooks
-│   └── use-user-library.ts  # Convenience hook for watchlist/watched/ratings
+│   ├── use-scroll-drag.ts   # Drag-to-scroll hook with click detection threshold
+│   ├── use-user-library.ts  # Convenience hook for watchlist/watched/ratings
+│   └── use-chat-stream.ts   # SSE chat hook for AI assistant
 ├── stores/              # Zustand stores
 │   ├── user.ts          # User library state (watchlist, watched, ratings, recents, continueWatching)
 │   └── preferences.ts   # User preferences with localStorage persistence (cardDisplayMode)

@@ -387,6 +387,27 @@ export async function searchPerson(query: string, page = 1): Promise<{
   });
 }
 
+export interface KeywordSearchResult {
+  id: number;
+  name: string;
+}
+
+export async function searchKeyword(query: string, page = 1): Promise<{
+  page: number;
+  results: KeywordSearchResult[];
+  total_pages: number;
+  total_results: number;
+}> {
+  return fetchFromTMDB("/search/keyword", {
+    params: {
+      query,
+      page: String(page),
+    },
+    cacheNamespace: "search",
+    cacheTTL: CACHE_DURATIONS.search,
+  });
+}
+
 // ============================================
 // Discover Endpoints
 // ============================================

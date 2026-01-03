@@ -12,6 +12,8 @@ import {
   RecentTracker,
   HeroBackdropShell,
   HeroLogoShell,
+  HeroMediaProvider,
+  HeroMediaUpdater,
   GenreList,
   RatingsBar,
   WatchOptions,
@@ -259,8 +261,21 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
   // Get badges for detail page (show more than cards)
   const badges = getMediaBadges(series, { maxBadges: 3, context: "detail" });
 
+  // Get English logo for fallback (prefer English, then first available)
+  const englishLogo = series.images?.logos?.find(
+    (logo) => logo.iso_639_1 === "en"
+  );
+  const logoPath = englishLogo?.file_path ?? series.images?.logos?.[0]?.file_path;
+
   return (
     <div className="hero-content-width pb-5 md:pb-6 lg:pb-8 flex flex-col items-start gap-2.5 md:gap-3">
+      {/* Provide TMDB fallback data to hero shells via context */}
+      <HeroMediaUpdater
+        tmdbBackdropPath={series.backdrop_path}
+        tmdbLogoPath={logoPath}
+        title={series.name}
+      />
+
       {/* Status badges (trending, new season, currently airing, etc.) */}
       {badges.length > 0 && <DetailBadges badges={badges} />}
 
@@ -433,42 +448,45 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
   // Hero images render IMMEDIATELY - just needs the ID
   // CDN URLs are deterministic: /series/{id}/backdrop.webp, /series/{id}/logo.webp
   // Content loads via Suspense while images are already loading/visible
+  // HeroMediaProvider enables shells to receive TMDB fallback data from async content
   return (
     <>
       <ImagePreloader seriesId={id} />
 
-      <article className="pb-12">
-        {/* Hero section - backdrop & logo render IMMEDIATELY with just ID */}
-        <section className="relative">
-          <div className="hero-container relative w-full overflow-hidden">
-            <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
-              {/* Content overlay - positioned at bottom */}
-              <div className="absolute inset-0 flex flex-col justify-end px-4 md:px-8 lg:px-12">
-                {/* Logo renders immediately with just ID
-                    Constraints: tall logos need generous height,
-                    wide logos expand to fill available space */}
-                <div className="mb-4 md:mb-6 lg:mb-8">
-                  <HeroLogoShell
-                    mediaId={id}
-                    mediaType="series"
-                    className="max-w-[280px] sm:max-w-[380px] md:max-w-[500px] lg:max-w-[600px] max-h-[100px] sm:max-h-[130px] md:max-h-[160px] lg:max-h-[180px]"
-                  />
+      <HeroMediaProvider>
+        <article className="pb-12">
+          {/* Hero section - backdrop & logo render IMMEDIATELY with just ID */}
+          <section className="relative">
+            <div className="hero-container relative w-full overflow-hidden">
+              <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
+                {/* Content overlay - positioned at bottom */}
+                <div className="absolute inset-0 flex flex-col justify-end px-4 md:px-8 lg:px-12">
+                  {/* Logo renders immediately with just ID
+                      Constraints: tall logos need generous height,
+                      wide logos expand to fill available space */}
+                  <div className="mb-4 md:mb-6 lg:mb-8">
+                    <HeroLogoShell
+                      mediaId={id}
+                      mediaType="series"
+                      className="max-w-[280px] sm:max-w-[380px] md:max-w-[500px] lg:max-w-[600px] max-h-[100px] sm:max-h-[130px] md:max-h-[160px] lg:max-h-[180px]"
+                    />
+                  </div>
+                  
+                  {/* Genres, ratings, watch options load via Suspense */}
+                  <Suspense fallback={<HeroContentSkeleton />}>
+                    <HeroContentAsync seriesId={id} />
+                  </Suspense>
                 </div>
-                
-                {/* Genres, ratings, watch options load via Suspense */}
-                <Suspense fallback={<HeroContentSkeleton />}>
-                  <HeroContentAsync seriesId={id} />
-                </Suspense>
-              </div>
-            </HeroBackdropShell>
-          </div>
-        </section>
+              </HeroBackdropShell>
+            </div>
+          </section>
 
-        {/* Rest of page content loads via Suspense */}
-        <Suspense fallback={<PageContentSkeleton />}>
-          <SeriesContentAsync seriesId={id} />
-        </Suspense>
-      </article>
+          {/* Rest of page content loads via Suspense */}
+          <Suspense fallback={<PageContentSkeleton />}>
+            <SeriesContentAsync seriesId={id} />
+          </Suspense>
+        </article>
+      </HeroMediaProvider>
     </>
   );
 }

@@ -11,6 +11,12 @@ export { HeroContent, heroContainerVariants, heroItemVariants } from "./hero-con
 export { MediaHero } from "./media-hero";
 export { HeroBackdropShell } from "./hero-backdrop-shell";
 export { HeroLogoShell } from "./hero-logo-shell";
+export {
+  HeroMediaProvider,
+  HeroMediaUpdater,
+  useHeroMedia,
+  type HeroMediaData,
+} from "./hero-media-context";
 export { MediaOverview } from "./media-overview";
 
 // Detail section components
@@ -18,7 +24,8 @@ export { KeywordsList } from "./keywords-list";
 export { CountryLanguageBadges } from "./country-language-badges";
 export { ContentWarningLink } from "./content-warning-link";
 
-// Gallery components
+// Gallery/Scroller components
+export { ScrollContainer, useScrollDrag } from "./scroll-container";
 export { MediaScroller } from "./media-scroller";
 export { VideoGallery, VideoCard } from "./video-gallery";
 export { VideoStats, VideoStatsSkeleton, VideoStatsCompact, VideoLikeBar } from "./video-stats";

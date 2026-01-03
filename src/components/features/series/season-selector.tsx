@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import {
   Select,
   SelectContent,
@@ -22,44 +22,57 @@ interface SeasonSelectorProps {
   className?: string;
 }
 
+// Get the default season number from the seasons list (prefer latest regular season)
+function getDefaultSeasonNumber(seasons: Season[]): number {
+  const regularSeasons = seasons.filter((s) => s.season_number > 0);
+  const defaultSeason = regularSeasons[regularSeasons.length - 1] || seasons[0];
+  return defaultSeason?.season_number ?? 1;
+}
+
 export function SeasonSelector({
   seriesId,
   seriesName,
   seasons,
   className,
 }: SeasonSelectorProps) {
-  const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
+  // Compute default season number once - stable across renders
+  const defaultSeasonNumber = useRef(getDefaultSeasonNumber(seasons)).current;
+  
+  // State for the selected season number - always controlled
+  const [selectedSeasonNumber, setSelectedSeasonNumber] = useState(defaultSeasonNumber);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  // Filter out specials (season 0) for initial selection, but keep them available
-  const regularSeasons = seasons.filter((s) => s.season_number > 0);
-  const defaultSeason = regularSeasons[regularSeasons.length - 1] || seasons[0];
+  // Get the currently selected season object for display
+  const selectedSeason = seasons.find((s) => s.season_number === selectedSeasonNumber) 
+    || seasons[0];
 
-  // Load initial season
+  // Load initial season episodes on mount only
   useEffect(() => {
-    if (defaultSeason && !selectedSeason) {
-      loadSeason(defaultSeason);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    
+    startTransition(async () => {
+      const seasonData = await getSeason(seriesId, defaultSeasonNumber);
+      if (!cancelled && seasonData?.episodes) {
+        setEpisodes(seasonData.episodes);
+      }
+    });
+    
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Run only once on mount
   }, []);
 
-  const loadSeason = (season: Season) => {
-    setSelectedSeason(season);
+  const handleSeasonChange = (value: string) => {
+    const seasonNumber = parseInt(value, 10);
+    if (isNaN(seasonNumber)) return;
+    
+    setSelectedSeasonNumber(seasonNumber);
     startTransition(async () => {
-      const seasonData = await getSeason(seriesId, season.season_number);
+      const seasonData = await getSeason(seriesId, seasonNumber);
       if (seasonData?.episodes) {
         setEpisodes(seasonData.episodes);
       }
     });
-  };
-
-  const handleSeasonChange = (value: string) => {
-    const seasonNumber = parseInt(value, 10);
-    const season = seasons.find((s) => s.season_number === seasonNumber);
-    if (season) {
-      loadSeason(season);
-    }
   };
 
   if (!seasons.length) return null;

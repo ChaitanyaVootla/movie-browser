@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { headers } from "next/headers";
 import { getMovieDetails } from "@/server/services/tmdb";
 import { getCachedMovieRatings } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
@@ -9,25 +8,12 @@ import {
   getWatchOptionsForCountry,
   getOptimizedWatchProviders,
 } from "@/lib/watch-options";
+import { getCountryCode } from "@/server/utils";
 import type { Movie, ExternalRating, WatchProviderData } from "@/types";
 
 const GetMovieSchema = z.object({
   id: z.number().positive(),
 });
-
-/**
- * Get country code from request headers
- * Falls back to IN (India) if not available
- */
-async function getCountryCode(): Promise<string> {
-  try {
-    const headersList = await headers();
-    // Check for nginx-injected header or query param
-    return headersList.get("x-country-code") || "IN";
-  } catch {
-    return "IN";
-  }
-}
 
 /**
  * Get full movie details including credits, videos, images, keywords, recommendations, watch providers, and ratings

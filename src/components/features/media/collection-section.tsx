@@ -5,9 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clapperboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn, getMediaHref } from "@/lib/utils";
 import type { Collection, CollectionPart } from "@/types";
+import { MediaScroller } from "./media-scroller";
 
 interface CollectionSectionProps {
   collection: Collection;
@@ -131,29 +131,27 @@ export function CollectionSection({
   });
 
   return (
-    <section className={cn("space-y-4", className)}>
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 md:px-8 lg:px-12">
-        <Clapperboard className="h-5 w-5 text-brand" />
-        <h2 className="text-xl font-semibold tracking-tight">{collection.name}</h2>
-        <span className="text-sm text-muted-foreground">
-          ({sortedParts.length} films)
-        </span>
-      </div>
-
-      {/* Scroll area with extra padding to prevent ring cutoff */}
-      <ScrollArea className="w-full">
-        <div className="flex gap-2 px-3 md:px-7 lg:px-11 pb-4">
-          {sortedParts.map((part) => (
-            <CollectionCard
-              key={part.id}
-              part={part}
-              isCurrent={part.id === currentMovieId}
-            />
-          ))}
+    <MediaScroller
+      className={className}
+      title={
+        <div className="flex items-center gap-2">
+          <span>{collection.name}</span>
+          <span className="text-sm text-muted-foreground font-normal">
+            ({sortedParts.length} films)
+          </span>
         </div>
-        <ScrollBar orientation="horizontal" className="invisible" />
-      </ScrollArea>
-    </section>
+      }
+      titleIcon={<Clapperboard className="h-5 w-5 text-brand" />}
+      gap="gap-2"
+      contentPadding="px-3 md:px-7 lg:px-11"
+    >
+      {sortedParts.map((part) => (
+        <CollectionCard
+          key={part.id}
+          part={part}
+          isCurrent={part.id === currentMovieId}
+        />
+      ))}
+    </MediaScroller>
   );
 }
