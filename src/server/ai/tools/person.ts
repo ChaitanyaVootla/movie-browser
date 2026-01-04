@@ -51,6 +51,16 @@ export const getPersonTool = tool(
         bio: person.bio,
       };
 
+      // Upcoming work (IMPORTANT: future releases, what they're "cooking")
+      if (person.upcomingWork.length > 0) {
+        response.upcomingWork = person.upcomingWork;
+      }
+
+      // Recent work (last 3 years)
+      if (person.recentWork.length > 0) {
+        response.recentWork = person.recentWork;
+      }
+
       // Notable movies (most popular)
       if (person.notableMovies.length > 0) {
         response.notableMovies = person.notableMovies;
@@ -59,11 +69,6 @@ export const getPersonTool = tool(
       // Notable series (most popular)
       if (person.notableSeries.length > 0) {
         response.notableSeries = person.notableSeries;
-      }
-
-      // Recent work (last 3 years)
-      if (person.recentWork.length > 0) {
-        response.recentWork = person.recentWork;
       }
 
       return JSON.stringify(response);
@@ -90,9 +95,10 @@ Use this when:
 
 Returns:
 - Basic info: name, known for (Acting/Directing), age, bio
+- Upcoming work: future releases with dates
+- Recent work: projects from the last 3 years
 - Notable movies: top 5 most popular films with roles
 - Notable series: top 5 most popular TV shows with roles
-- Recent work: projects from the last 3 years
 
 PREFER using name over ID - we'll search for you!`,
     schema: z.object({

@@ -20,6 +20,49 @@ The agent supports multiple Bedrock models via the `BEDROCK_MODEL_ID` env variab
 
 **Streaming Support:** Uses SSE format for responses. Tool calls use non-streaming invoke for reliability (ensures tools actually execute).
 
+### ⚠️ Testing & Validation - REQUIRED
+
+**ALWAYS test AI agent changes with the test script before considering them complete:**
+
+```bash
+# Test a specific query
+yarn test:ai "what is christopher nolan cooking"
+
+# Debug mode - shows full context, tool I/O, token estimates
+yarn test:ai "your query" --debug
+
+# Verbose mode - no truncation
+yarn test:ai "your query" --verbose
+
+# Run all test queries
+yarn test:ai
+
+# Test authenticated user flows
+yarn test:ai --user
+```
+
+**What the test script shows:**
+- System prompt size (~tokens)
+- Query and history size
+- Each tool call with args (size in chars)
+- Each tool result (size in chars, duration in ms)
+- LLM response time per turn
+- Total context size (~tokens sent to LLM)
+- Response quality checks (empty results, excessive calls)
+
+**When to test:**
+1. After modifying any tool in `src/server/ai/tools/`
+2. After modifying `getLightMovieDetails`, `getLightSeriesDetails`, `getLightPersonDetails`
+3. After modifying the system prompt
+4. After adding new tool response fields
+
+**Example test queries for common scenarios:**
+- Person filmography: `"what is christopher nolan cooking"`
+- Discover: `"horror movies from korea"`
+- Ratings: `"is inception any good"`
+- Streaming: `"where can I watch breaking bad"`
+- Trending: `"what's popular right now"`
+
 ### Implemented Features
 
 #### Phase 1-4: Core Infrastructure
@@ -54,7 +97,9 @@ The agent supports multiple Bedrock models via the `BEDROCK_MODEL_ID` env variab
   - Replaces: get_movie_details, get_series_details, get_videos, get_related_content
   - Use includeVideos: true for trailers/clips
   - Use includeRelated: true for similar/recommended content
-- `get_person(idOrName)` - Search by name (preferred) or ID, returns filmography
+- `get_person(idOrName)` - Search by name (preferred) or ID
+  - Returns: notableMovies, notableSeries, recentWork, **upcomingWork** (future releases)
+  - For directors/writers, returns crew credits (not just acting)
 - `get_upcoming(mediaType)` - Now playing & upcoming for movies, on-the-air & airing today for TV
 - `get_user_data(include?)` - Unified user data (replaces watchlist/ratings/watched tools)
 
@@ -415,8 +460,8 @@ const systemPrompt = getSystemPrompt(isAuthenticated, state.userContext);
 | `discover` | **Main tool** - find movies/series with filters | Any criteria-based discovery |
 | `get_trending` | Current trending content | "What's popular?" |
 | `get_details` | Movie/series info + optional videos + related | "Is X good?", "Show trailer", "Similar to X" |
-| `get_person` | Filmography by name or ID | "What else has X been in?" |
-| `get_upcoming` | Now playing + upcoming releases | "What's coming out soon?" |
+| `get_person` | Filmography + upcoming work by name or ID | "What else has X been in?", "What is X working on?" |
+| `get_upcoming` | Now playing + upcoming releases (general) | "What's coming out soon?" |
 | `get_user_data` | User's watchlist, ratings, watched history | "Based on my taste", "Pick from my watchlist" |
 | `get_page_context` | Current page | Contextual recommendations |
 | `navigate_to` | Client navigation | Take user to detail page |
@@ -442,6 +487,36 @@ get_user_data({
 
 **NOTE:** The `discover` tool can auto-filter with hideWatched, hideDisliked, hideInWatchlist.
 Only call get_user_data when you need to actually see the data, not just filter results.
+
+### get_person Response
+
+```typescript
+// Response includes:
+{
+  id: number,
+  name: string,
+  knownFor: string,  // "Acting", "Directing", "Writing", etc.
+  age: number | null,
+  bio: string,       // Truncated to 300 chars
+  
+  // For actors: top acting credits
+  // For directors/writers: top crew credits
+  notableMovies: Array<{ id, title, year, role }>,
+  notableSeries: Array<{ id, name, year, role }>,
+  
+  // Recent releases (last 3 years)
+  recentWork: Array<{ id, title, year, type, role }>,
+  
+  // UPCOMING: Future releases (unreleased)
+  // "What is X cooking?" / "What's next for X?"
+  upcomingWork: Array<{ id, title, releaseDate, type, role }>
+}
+```
+
+**Key behavior:**
+- For directors/writers, checks **crew credits** (not cast credits)
+- `upcomingWork` has full release date, not just year
+- Sorted: upcoming by soonest first, recent by most recent first
 
 ### Remaining Tool Gaps
 

@@ -77,53 +77,64 @@ export function SeasonSelector({
 
   if (!seasons.length) return null;
 
-  return (
-    <div className={cn("space-y-4", className)}>
-      {/* Season selector header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 md:px-8 lg:px-12">
-        <Select
-          value={selectedSeason?.season_number.toString()}
-          onValueChange={handleSeasonChange}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select Season" />
-          </SelectTrigger>
-          <SelectContent>
-            {seasons.map((season) => (
-              <SelectItem key={season.id} value={season.season_number.toString()}>
-                {season.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {selectedSeason && (
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Badge variant="secondary" className="font-normal">
-              {episodes.length || selectedSeason.episode_count} Episodes
-            </Badge>
-            {selectedSeason.air_date && (
-              <span>
-                {new Date(selectedSeason.air_date).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                })}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Episodes */}
-      {isPending ? (
-        <div className="flex gap-4 px-4 md:px-8 lg:px-12 overflow-hidden">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-[260px] space-y-2">
-              <Skeleton className="aspect-video rounded-lg" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
-            </div>
+  // Season selector header content - passed to EpisodeScroller as title
+  const seasonHeader = (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <Select
+        value={selectedSeason?.season_number.toString()}
+        onValueChange={handleSeasonChange}
+      >
+        <SelectTrigger className="w-[200px]">
+          <SelectValue placeholder="Select Season" />
+        </SelectTrigger>
+        <SelectContent>
+          {seasons.map((season) => (
+            <SelectItem key={season.id} value={season.season_number.toString()}>
+              {season.name}
+            </SelectItem>
           ))}
+        </SelectContent>
+      </Select>
+
+      {selectedSeason && (
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <Badge variant="secondary" className="font-normal">
+            {episodes.length || selectedSeason.episode_count} Episodes
+          </Badge>
+          {selectedSeason.air_date && (
+            <span>
+              {new Date(selectedSeason.air_date).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+              })}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={className}>
+      {/* Episodes with integrated season selector */}
+      {isPending ? (
+        <div className="space-y-4">
+          {/* Header skeleton */}
+          <div className="flex items-center gap-3 px-4 md:px-8 lg:px-12">
+            <Skeleton className="h-10 w-[200px]" />
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          {/* Episode skeletons */}
+          <div className="flex gap-4 px-4 md:px-8 lg:px-12 overflow-hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex-shrink-0 w-[260px] space-y-2">
+                <Skeleton className="aspect-video rounded-lg" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : episodes.length > 0 ? (
         <EpisodeScroller
@@ -131,10 +142,15 @@ export function SeasonSelector({
           seriesId={seriesId}
           seriesName={seriesName}
           seasonNumber={selectedSeason?.season_number || 1}
+          title={seasonHeader}
         />
       ) : selectedSeason ? (
-        <div className="px-4 md:px-8 lg:px-12 py-8 text-center text-muted-foreground">
-          No episodes available for this season yet.
+        <div className="space-y-4">
+          {/* Show header even when no episodes */}
+          <div className="px-4 md:px-8 lg:px-12">{seasonHeader}</div>
+          <div className="px-4 md:px-8 lg:px-12 py-8 text-center text-muted-foreground">
+            No episodes available for this season yet.
+          </div>
         </div>
       ) : null}
     </div>

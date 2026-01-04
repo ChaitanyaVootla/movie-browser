@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Tv,
-  TrendingUp,
 } from "lucide-react";
 import {
   Dialog,
@@ -24,9 +24,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollContainer } from "@/components/features/media/scroll-container";
 import { cn } from "@/lib/utils";
 import { getEpisode } from "@/server/actions/series";
 import type { Episode, CastMember, CrewMember, EpisodeStill } from "@/types";
@@ -46,7 +46,7 @@ function getSlug(name: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-// Person card for horizontal scroller
+// Person card with squircle avatar (like CastCard in media-overview)
 function PersonCard({
   person,
   role,
@@ -61,37 +61,68 @@ function PersonCard({
       : (person as CrewMember).job;
 
   return (
-    <Link href={href} className="flex-shrink-0 group">
-      <div className="w-[100px] text-center">
-        <div className="relative w-[72px] h-[72px] mx-auto rounded-full overflow-hidden bg-muted mb-2 ring-1 ring-white/10 group-hover:ring-brand/50 transition-all">
-          {person.profile_path ? (
-            <Image
-              src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
-              alt={person.name}
-              fill
-              className="object-cover"
-              sizes="72px"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-muted">
-              <Users className="h-5 w-5 text-muted-foreground" />
-            </div>
-          )}
-        </div>
-        <p className="text-sm font-medium line-clamp-1 group-hover:text-brand transition-colors">
+    <Link href={href} className="group flex-shrink-0 w-[85px]">
+      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-1.5 ring-1 ring-white/10 group-hover:ring-brand/50 transition-all">
+        {person.profile_path ? (
+          <Image
+            src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
+            alt={person.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="85px"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+            <span className="text-lg font-light text-muted-foreground/50">
+              {person.name.charAt(0)}
+            </span>
+          </div>
+        )}
+      </div>
+      <p className="text-xs font-medium line-clamp-1 group-hover:text-brand transition-colors">
+        {person.name}
+      </p>
+      {displayRole && (
+        <p className="text-[11px] text-muted-foreground line-clamp-1">
+          {displayRole}
+        </p>
+      )}
+    </Link>
+  );
+}
+
+// Small circular avatar for crew inline display
+function CrewAvatar({ person, label }: { person: CrewMember; label: string }) {
+  const href = `/person/${person.id}/${getSlug(person.name)}`;
+
+  return (
+    <Link href={href} className="flex items-center gap-2 group">
+      <div className="relative h-7 w-7 rounded-full overflow-hidden bg-muted ring-1 ring-white/10 group-hover:ring-brand/50 transition-all flex-shrink-0">
+        {person.profile_path ? (
+          <Image
+            src={`https://image.tmdb.org/t/p/w45${person.profile_path}`}
+            alt={person.name}
+            fill
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground font-medium">
+            {person.name.charAt(0)}
+          </div>
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted-foreground">{label}</p>
+        <p className="text-xs font-medium truncate group-hover:text-brand transition-colors">
           {person.name}
         </p>
-        {displayRole && (
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {displayRole}
-          </p>
-        )}
       </div>
     </Link>
   );
 }
 
-// Image carousel with 16:9 aspect ratio
+// Image carousel with 16:9 aspect ratio - renders lightbox via portal
 function EpisodeImageCarousel({
   stills,
   episodeName,
@@ -146,10 +177,71 @@ function EpisodeImageCarousel({
 
   const currentStill = stills[currentIndex];
 
+  // Lightbox rendered via portal to escape modal z-index
+  const lightbox = isLightboxOpen
+    ? createPortal(
+        <div
+          className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 z-50 bg-white/10 hover:bg-white/20 text-white h-10 w-10 rounded-full"
+            onClick={() => setIsLightboxOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+
+          {stills.length > 1 && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToPrevious();
+                }}
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNext();
+                }}
+              >
+                <ChevronRight className="h-6 w-6" />
+              </Button>
+            </>
+          )}
+
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`https://image.tmdb.org/t/p/original${currentStill.file_path}`}
+            alt={`${episodeName} still ${currentIndex + 1}`}
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {stills.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full">
+              {currentIndex + 1} / {stills.length}
+            </div>
+          )}
+        </div>,
+        document.body
+      )
+    : null;
+
   return (
     <>
       <div
-        className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted group cursor-pointer"
+        className="relative aspect-video w-full max-w-full overflow-hidden rounded-lg bg-muted group cursor-pointer"
         onMouseEnter={() => setIsAutoPlaying(false)}
         onMouseLeave={() => setIsAutoPlaying(true)}
         onClick={() => setIsLightboxOpen(true)}
@@ -168,7 +260,7 @@ function EpisodeImageCarousel({
               alt={`${episodeName} still ${currentIndex + 1}`}
               fill
               className="object-cover"
-              sizes="(max-width: 768px) 100vw, 60vw"
+              sizes="(max-width: 768px) 100vw, 500px"
               priority={currentIndex === 0}
             />
           </motion.div>
@@ -231,63 +323,7 @@ function EpisodeImageCarousel({
         )}
       </div>
 
-      {/* Fullscreen lightbox */}
-      {isLightboxOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
-          onClick={() => setIsLightboxOpen(false)}
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 z-50 bg-white/10 hover:bg-white/20 text-white h-10 w-10 rounded-full"
-            onClick={() => setIsLightboxOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-
-          {stills.length > 1 && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  goToPrevious();
-                }}
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  goToNext();
-                }}
-              >
-                <ChevronRight className="h-6 w-6" />
-              </Button>
-            </>
-          )}
-
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`https://image.tmdb.org/t/p/original${currentStill.file_path}`}
-            alt={`${episodeName} still ${currentIndex + 1}`}
-            className="max-w-[90vw] max-h-[90vh] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          {stills.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full">
-              {currentIndex + 1} / {stills.length}
-            </div>
-          )}
-        </div>
-      )}
+      {lightbox}
     </>
   );
 }
@@ -319,14 +355,15 @@ function InfoCard({
 function EpisodeDetailsSkeleton() {
   return (
     <div className="p-5 space-y-5">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3">
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+        <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
           <Skeleton className="aspect-video w-full rounded-lg" />
         </div>
-        <div className="lg:col-span-2 space-y-3">
-          <Skeleton className="h-6 w-1/3" />
-          <Skeleton className="h-8 w-2/3" />
-          <div className="grid grid-cols-2 gap-2">
+        <div className="flex-1 min-w-0 space-y-3">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-7 w-3/4" />
+          <Skeleton className="h-4 w-1/3" />
+          <div className="grid grid-cols-2 gap-2 mt-4">
             <Skeleton className="h-14 rounded-lg" />
             <Skeleton className="h-14 rounded-lg" />
             <Skeleton className="h-14 rounded-lg" />
@@ -420,28 +457,28 @@ export function EpisodeModal({
   return (
     <Dialog open={!!episode} onOpenChange={() => onClose()}>
       <DialogContent
-        className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-5xl w-full p-0 overflow-hidden max-h-[90vh] gap-0"
+        className="sm:max-w-[95vw] md:max-w-[85vw] lg:max-w-4xl w-full p-0 overflow-hidden max-h-[85vh] gap-0 flex flex-col"
         showCloseButton={false}
       >
-        <ScrollArea className="max-h-[90vh]">
-          {/* Close button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-3 right-3 z-30 rounded-full h-8 w-8 bg-background/80 hover:bg-background text-foreground"
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        {/* Close button - fixed position */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-3 right-3 z-30 rounded-full h-8 w-8 bg-background/80 hover:bg-background text-foreground"
+          onClick={onClose}
+        >
+          <X className="h-4 w-4" />
+        </Button>
 
-          {isPending && !fullEpisode ? (
-            <EpisodeDetailsSkeleton />
-          ) : (
+        {isPending && !fullEpisode ? (
+          <EpisodeDetailsSkeleton />
+        ) : (
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             <div className="p-5 space-y-5">
-              {/* Top section: Image + Info cards */}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                {/* Left: Image carousel */}
-                <div className="lg:col-span-3">
+              {/* Top section: Image + Info - flex layout with top alignment */}
+              <div className="flex flex-col lg:flex-row gap-5 items-start">
+                {/* Left: Image carousel - constrained width on desktop */}
+                <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
                   {stills.length > 0 ? (
                     <EpisodeImageCarousel
                       stills={stills}
@@ -454,10 +491,10 @@ export function EpisodeModal({
                   )}
                 </div>
 
-                {/* Right: Title + Info cards */}
-                <div className="lg:col-span-2 flex flex-col">
+                {/* Right: Title + Info cards - fills remaining space */}
+                <div className="flex-1 min-w-0">
                   {/* Header */}
-                  <DialogHeader className="text-left space-y-1 mb-4">
+                  <DialogHeader className="text-left space-y-1.5 mb-4">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
                         S{seasonNumber} E{displayEpisode.episode_number}
@@ -478,7 +515,7 @@ export function EpisodeModal({
                   </DialogHeader>
 
                   {/* Info cards grid */}
-                  <div className="grid grid-cols-2 gap-2 flex-1">
+                  <div className="grid grid-cols-2 gap-2">
                     {displayEpisode.vote_average > 0 && !isUpcoming && (
                       <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/40">
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 flex-shrink-0" />
@@ -486,9 +523,16 @@ export function EpisodeModal({
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                             Rating
                           </p>
-                          <p className="text-sm font-bold">
-                            {displayEpisode.vote_average.toFixed(1)}
-                          </p>
+                          <div className="flex items-baseline gap-1.5">
+                            <p className="text-sm font-bold">
+                              {displayEpisode.vote_average.toFixed(1)}
+                            </p>
+                            {displayEpisode.vote_count && displayEpisode.vote_count > 0 && (
+                              <p className="text-[10px] text-muted-foreground">
+                                ({displayEpisode.vote_count.toLocaleString()})
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -507,14 +551,17 @@ export function EpisodeModal({
                       label="Episode"
                       value={`${seasonNumber}×${displayEpisode.episode_number}`}
                     />
-                    {displayEpisode.vote_count && displayEpisode.vote_count > 0 && (
-                      <InfoCard
-                        icon={TrendingUp}
-                        label="Votes"
-                        value={displayEpisode.vote_count.toLocaleString()}
-                      />
-                    )}
                   </div>
+
+                  {/* Director & Writer with avatars */}
+                  {(director || writers.length > 0) && (
+                    <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-border/50">
+                      {director && <CrewAvatar person={director} label="Director" />}
+                      {writers.slice(0, 2).map((writer) => (
+                        <CrewAvatar key={writer.id} person={writer} label="Writer" />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -523,35 +570,6 @@ export function EpisodeModal({
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
                   {displayEpisode.overview}
                 </DialogDescription>
-              )}
-
-              {/* Crew inline */}
-              {(director || writers.length > 0) && (
-                <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                  {director && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground">Directed by</span>
-                      <Link
-                        href={`/person/${director.id}/${getSlug(director.name)}`}
-                        className="font-medium hover:text-brand transition-colors"
-                      >
-                        {director.name}
-                      </Link>
-                    </div>
-                  )}
-                  {writers.length > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground">Written by</span>
-                      <span className="font-medium">
-                        {writers
-                          .slice(0, 2)
-                          .map((w) => w.name)
-                          .join(", ")}
-                        {writers.length > 2 && ` +${writers.length - 2}`}
-                      </span>
-                    </div>
-                  )}
-                </div>
               )}
 
               {/* Guest Stars scroller */}
@@ -564,14 +582,11 @@ export function EpisodeModal({
                       ({guestStars.length})
                     </span>
                   </div>
-                  <ScrollArea className="w-full whitespace-nowrap">
-                    <div className="flex gap-3 pb-2">
-                      {guestStars.map((guest) => (
-                        <PersonCard key={guest.id} person={guest} role="cast" />
-                      ))}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                  <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
+                    {guestStars.map((guest) => (
+                      <PersonCard key={guest.id} person={guest} role="cast" />
+                    ))}
+                  </ScrollContainer>
                 </div>
               )}
 
@@ -585,23 +600,20 @@ export function EpisodeModal({
                       ({additionalCrew.length})
                     </span>
                   </div>
-                  <ScrollArea className="w-full whitespace-nowrap">
-                    <div className="flex gap-3 pb-2">
-                      {additionalCrew.slice(0, 12).map((crew) => (
-                        <PersonCard
-                          key={`${crew.id}-${crew.job}`}
-                          person={crew}
-                          role="crew"
-                        />
-                      ))}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                  <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
+                    {additionalCrew.slice(0, 12).map((crew) => (
+                      <PersonCard
+                        key={`${crew.id}-${crew.job}`}
+                        person={crew}
+                        role="crew"
+                      />
+                    ))}
+                  </ScrollContainer>
                 </div>
               )}
             </div>
-          )}
-        </ScrollArea>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

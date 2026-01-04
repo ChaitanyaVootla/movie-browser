@@ -23,6 +23,9 @@
     "prepare": "playwright install --with-deps chromium",
     "ssh": "ssh -i ./movie-browser-ec2-key.pem ubuntu@98.130.30.197",
     "ssh:logs": "ssh -i ./movie-browser-ec2-key.pem ubuntu@98.130.30.197 'pm2 logs --lines 100'",
+    "deploy": "./scripts/deploy-next.sh",
+    "deploy:quick": "./scripts/deploy-next.sh --skip-build",
+    "deploy:restart": "./scripts/deploy-next.sh --restart-only",
     "test:ai": "npx tsx scripts/test-ai-agent.ts",
     "test:ai:query": "npx tsx scripts/test-ai-agent.ts"
   },

@@ -62,12 +62,14 @@ export async function getSeries(id: number): Promise<Series | null>;
 // Get season with all episodes
 export async function getSeason(seriesId: number, seasonNumber: number): Promise<Season | null>;
 
-// Get episode details with images and full credits (for EpisodeSheet)
+// Get episode details with images, credits, videos, and external IDs (for EpisodeModal)
 export async function getEpisode(
   seriesId: number,
   seasonNumber: number,
   episodeNumber: number
 ): Promise<Episode | null>;
+// Returns: id, name, overview, still_path, air_date, runtime, vote_average, vote_count,
+//          crew[], guest_stars[], images.stills[], videos.results[], external_ids
 
 // Usage in components
 const series = await getSeries(1396);           // Breaking Bad
@@ -778,10 +780,12 @@ export async function getSeasonDetails(seriesId: number, seasonNumber: number) {
 
 export async function getEpisodeDetails(seriesId: number, seasonNumber: number, episodeNumber: number) {
   return fetchFromTMDB(`/tv/${seriesId}/season/${seasonNumber}/episode/${episodeNumber}`, {
-    params: { append_to_response: "credits,images" },
+    params: { append_to_response: "credits,images,videos,external_ids" },
     cacheNamespace: "series",
   });
 }
+// Returns: id, name, overview, still_path, air_date, runtime, vote_average, vote_count,
+//          crew[], guest_stars[], images.stills[], videos.results[], external_ids
 
 // Person endpoints
 export async function getPersonDetails(personId: number) {

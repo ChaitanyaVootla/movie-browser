@@ -229,6 +229,52 @@ export default async function AdminPage() {
 
 See `.cursor/rules/auth.mdc` for detailed patterns.
 
+### Deploying to EC2
+
+The app deploys to AWS EC2 alongside the legacy Nuxt app.
+
+| Environment | Domain | Port | PM2 Name |
+|-------------|--------|------|----------|
+| Production (Nuxt) | themoviebrowser.com | 3001 | `nuxt` |
+| Beta (Next.js) | beta.themoviebrowser.com | 3002 | `next` |
+
+**Deploy commands:**
+```bash
+yarn deploy           # Full build + upload + start
+yarn deploy:quick     # Skip build, use existing .next
+yarn deploy:restart   # Just restart PM2
+```
+
+**What `yarn deploy` does:**
+1. Runs `yarn build` locally
+2. Creates tarball: `.next`, `public`, `package.json`, `next.config.mjs`, `.env.local`
+3. SCPs to EC2 at `/home/ubuntu/movie-browser-next/`
+4. Runs `npm install --omit=dev --legacy-peer-deps --ignore-scripts`
+5. Starts/restarts PM2 process on port 3002
+
+**SSH access:**
+```bash
+yarn ssh              # SSH into EC2
+yarn ssh:logs         # View PM2 logs (pm2 logs --lines 100)
+```
+
+**EC2 instance:** `98.130.30.197` (Elastic IP)
+**SSH key:** `./movie-browser-ec2-key.pem`
+
+**After deploying, verify:**
+```bash
+curl -s https://beta.themoviebrowser.com/health
+pm2 logs next --lines 20
+```
+
+### Adding a New Subdomain
+
+1. **Route 53**: Add A record → EC2 Elastic IP
+2. **SSL**: `sudo certbot certonly --standalone -d subdomain.themoviebrowser.com`
+3. **Nginx**: Add server block in `/etc/nginx/sites-enabled/default`
+4. **Reload**: `sudo nginx -t && sudo systemctl reload nginx`
+5. **Google OAuth**: Add to authorized origins/redirects in Google Cloud Console
+
 ## Red Flags
 
 Watch for these anti-patterns:

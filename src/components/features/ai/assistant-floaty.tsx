@@ -77,71 +77,119 @@ function hasPartialTag(content: string): boolean {
 // Contextual Prompts
 // =============================================================================
 
-function getContextualPrompts(pageContext: PageContext | null): PromptConfig[] {
-  const basePrompts: PromptConfig[] = [
-    { text: "What's trending?", message: "What's trending right now?" },
-    { text: "Recommend a thriller", message: "Recommend me a good thriller movie" },
-    { text: "Best of 2024", message: "What are the best movies from 2024?" },
-    { text: "Hidden gems", message: "Show me some hidden gem movies" },
-  ];
+/**
+ * Shuffle array and return first n items
+ */
+function pickRandom<T>(arr: T[], count: number): T[] {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
 
-  if (!pageContext) return basePrompts;
+/**
+ * Movie-specific prompts when on a movie detail page
+ */
+function getMovieDetailPrompts(title?: string): PromptConfig[] {
+  const itemRef = title || "this movie";
+  const allPrompts: PromptConfig[] = [
+    { text: "Talk smack about it", message: `Talk smack about ${itemRef}` },
+    { text: "Hype this up", message: `Hype up ${itemRef} - convince me to watch` },
+    { text: "Hot take?", message: `What's your hot take on ${itemRef}?` },
+    { text: "Is it overrated?", message: `Is ${itemRef} overrated?` },
+    { text: "Be brutally honest", message: `Be brutally honest about ${itemRef}` },
+    { text: "Sell me on it", message: `Sell me on ${itemRef}` },
+    { text: "What's the vibe?", message: `What's the vibe of ${itemRef}?` },
+    { text: "Roast it", message: `Roast ${itemRef}` },
+    { text: "Worth my time?", message: `Is ${itemRef} worth watching?` },
+    { text: "Similar movies", message: `Find movies similar to ${itemRef}` },
+  ];
+  return pickRandom(allPrompts, 3);
+}
+
+/**
+ * Series-specific prompts when on a series detail page
+ */
+function getSeriesDetailPrompts(title?: string): PromptConfig[] {
+  const itemRef = title || "this series";
+  const allPrompts: PromptConfig[] = [
+    { text: "Talk smack about it", message: `Talk smack about ${itemRef}` },
+    { text: "Hype this up", message: `Hype up ${itemRef}` },
+    { text: "Hot take?", message: `What's your hot take on ${itemRef}?` },
+    { text: "Is it bingeworthy?", message: `Is ${itemRef} bingeworthy?` },
+    { text: "Be brutally honest", message: `Be brutally honest about ${itemRef}` },
+    { text: "Worth the commitment?", message: `Is ${itemRef} worth the time investment?` },
+    { text: "Peak or overrated?", message: `Is ${itemRef} peak TV or overrated?` },
+    { text: "Similar shows", message: `Find series similar to ${itemRef}` },
+    { text: "What's the vibe?", message: `What's the vibe of ${itemRef}?` },
+    { text: "Convince me", message: `Convince me to start ${itemRef}` },
+  ];
+  return pickRandom(allPrompts, 3);
+}
+
+/**
+ * Person-specific prompts when on a person detail page
+ */
+function getPersonDetailPrompts(name?: string): PromptConfig[] {
+  const personRef = name || "them";
+  const allPrompts: PromptConfig[] = [
+    { text: "What're they cooking?", message: `What is ${personRef} working on these days?` },
+    { text: "Their best work", message: `What's ${personRef}'s best work?` },
+    { text: "Underrated picks", message: `What's an underrated ${personRef} movie?` },
+    { text: "Hot take", message: `What's your hot take on ${personRef}?` },
+    { text: "Career peak?", message: `What was ${personRef}'s career peak?` },
+    { text: "Must-watch", message: `Give me a must-watch ${personRef} movie` },
+  ];
+  return pickRandom(allPrompts, 3);
+}
+
+/**
+ * Landing page / browse prompts
+ */
+function getLandingPrompts(): PromptConfig[] {
+  const allPrompts: PromptConfig[] = [
+    { text: "Surprise me", message: "Surprise me with something good" },
+    { text: "What should I binge?", message: "What should I binge this weekend?" },
+    { text: "Peak cinema", message: "Show me some peak cinema" },
+    { text: "Underrated gems", message: "Show me some underrated gems" },
+    { text: "Chaotic picks", message: "Give me something chaotic to watch" },
+    { text: "Comfort watch", message: "I need a comfort watch" },
+    { text: "Make me cry", message: "Recommend something that'll make me cry" },
+    { text: "Mind-benders", message: "Show me some mind-bending movies" },
+    { text: "90s nostalgia", message: "Give me some 90s nostalgia" },
+    { text: "Foreign films", message: "Recommend some great foreign films" },
+  ];
+  // Always include "What's trending?" as the first one
+  const trending: PromptConfig = { text: "What's trending?", message: "What's trending right now?" };
+  const randomPicks = pickRandom(allPrompts, 3);
+  return [trending, ...randomPicks];
+}
+
+function getContextualPrompts(pageContext: PageContext | null): PromptConfig[] {
+  if (!pageContext) return getLandingPrompts();
 
   if (pageContext.mediaType === "movie" && pageContext.itemId) {
-    return [
-      {
-        text: "Similar movies",
-        message: pageContext.itemTitle
-          ? `Find movies similar to ${pageContext.itemTitle}`
-          : "Find movies similar to this one",
-      },
-      { text: "Same director", message: "Show me other movies by the same director" },
-      ...basePrompts.slice(0, 2),
-    ];
+    return getMovieDetailPrompts(pageContext.itemTitle);
   }
 
   if (pageContext.mediaType === "series" && pageContext.itemId) {
-    return [
-      {
-        text: "Similar series",
-        message: pageContext.itemTitle
-          ? `Find series similar to ${pageContext.itemTitle}`
-          : "Find series similar to this one",
-      },
-      { text: "Same genre", message: "Show me series in the same genre" },
-      ...basePrompts.slice(0, 2),
-    ];
+    return getSeriesDetailPrompts(pageContext.itemTitle);
   }
 
   if (pageContext.mediaType === "person" && pageContext.itemId) {
-    return [
-      {
-        text: "Best works",
-        message: pageContext.itemTitle
-          ? `What are ${pageContext.itemTitle}'s best movies?`
-          : "What are their best movies?",
-      },
-      { text: "Recent projects", message: "Show me their recent projects" },
-      ...basePrompts.slice(0, 2),
-    ];
+    return getPersonDetailPrompts(pageContext.itemTitle);
   }
 
   if (pageContext.path?.includes("/browse") || pageContext.path?.includes("/topics")) {
-    return [
-      { text: "Surprise me", message: "Surprise me with a random great movie" },
-      { text: "Top rated", message: "Show me the highest rated movies" },
-      ...basePrompts.slice(0, 2),
-    ];
+    return getLandingPrompts();
   }
 
-  return basePrompts;
+  return getLandingPrompts();
 }
 
 const IDLE_PROMPTS: PromptConfig[] = [
-  { text: "Need help finding something?", message: "Help me find something to watch" },
   { text: "What's trending?", message: "What's trending right now?" },
-  { text: "Looking for recommendations?", message: "Recommend me a movie" },
-  { text: "Discover hidden gems", message: "Show me some hidden gem movies" },
+  { text: "Surprise me", message: "Surprise me with something good" },
+  { text: "Got recommendations?", message: "Got any recommendations?" },
+  { text: "What should I watch?", message: "What should I watch tonight?" },
 ];
 
 // =============================================================================

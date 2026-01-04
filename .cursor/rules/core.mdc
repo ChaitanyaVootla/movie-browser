@@ -255,9 +255,12 @@ interface Episode {
   air_date: string;
   runtime?: number;
   vote_average: number;
+  vote_count: number;
   crew?: CrewMember[];
   guest_stars?: CastMember[];
   images?: { stills: EpisodeStill[] };
+  videos?: { results: EpisodeVideo[] };      // YouTube clips, recaps, teasers
+  external_ids?: EpisodeExternalIds;         // IMDb, TVDB, Wikidata IDs
 }
 
 interface EpisodeStill {
@@ -265,6 +268,22 @@ interface EpisodeStill {
   aspect_ratio: number;
   width: number;
   height: number;
+}
+
+interface EpisodeVideo {
+  id: string;
+  key: string;           // YouTube video ID
+  name: string;
+  site: string;          // "YouTube"
+  type: string;          // "Clip", "Recap", "Teaser", etc.
+  official: boolean;
+  published_at: string;
+}
+
+interface EpisodeExternalIds {
+  imdb_id: string | null;
+  tvdb_id: number | null;
+  wikidata_id: string | null;
 }
 
 // Person-specific types

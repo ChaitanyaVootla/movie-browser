@@ -261,7 +261,7 @@ export async function getEpisodeDetails(
     `/tv/${seriesId}/season/${seasonNumber}/episode/${episodeNumber}`,
     {
       params: {
-        append_to_response: "credits,images",
+        append_to_response: "credits,images,videos,external_ids",
       },
       cacheNamespace: "series",
       cacheTTL: CACHE_DURATIONS.series,

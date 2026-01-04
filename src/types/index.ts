@@ -267,6 +267,30 @@ export interface Episode {
   images?: {
     stills: EpisodeStill[];
   };
+  videos?: {
+    results: EpisodeVideo[];
+  };
+  external_ids?: EpisodeExternalIds;
+}
+
+export interface EpisodeVideo {
+  id: string;
+  key: string;
+  name: string;
+  site: string;
+  size: number;
+  type: string; // "Clip", "Teaser", "Recap", etc.
+  official: boolean;
+  published_at: string;
+}
+
+export interface EpisodeExternalIds {
+  imdb_id: string | null;
+  tvdb_id: number | null;
+  freebase_mid: string | null;
+  freebase_id: string | null;
+  tvrage_id: number | null;
+  wikidata_id: string | null;
 }
 
 export interface EpisodeStill {

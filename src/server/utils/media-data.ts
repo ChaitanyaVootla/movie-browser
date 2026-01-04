@@ -132,6 +132,14 @@ export interface LightPersonDetails {
     title: string;
     year: string;
     type: "movie" | "series";
+    role: string;
+  }>;
+  upcomingWork: Array<{
+    id: number;
+    title: string;
+    releaseDate: string; // Full date for upcoming
+    type: "movie" | "series";
+    role: string;
   }>;
 }
 
@@ -599,6 +607,7 @@ export async function getLightPersonDetails(
 
     if (!tmdbData?.id) return null;
 
+    const knownFor = (tmdbData.known_for_department as string) || "Acting";
     const combinedCredits = tmdbData.combined_credits as {
       cast?: Array<{
         id: number;
@@ -610,63 +619,150 @@ export async function getLightPersonDetails(
         character?: string;
         popularity: number;
       }>;
+      crew?: Array<{
+        id: number;
+        media_type: string;
+        title?: string;
+        name?: string;
+        release_date?: string;
+        first_air_date?: string;
+        job?: string;
+        department?: string;
+        popularity: number;
+      }>;
     } | undefined;
 
-    // Sort by popularity and filter
-    const castCredits = (combinedCredits?.cast || [])
+    // Helper to get date from credit
+    const getDateStr = (c: { release_date?: string; first_air_date?: string }) =>
+      c.release_date || c.first_air_date || "";
+
+    // Check if person is primarily behind-the-camera (director, writer, producer, etc.)
+    const isBehindCamera = ["Directing", "Writing", "Production", "Camera", "Editing", "Art", "Sound", "Crew"].includes(knownFor);
+
+    // For behind-camera people, use crew credits; for actors, use cast credits
+    // Also merge both for people who do multiple roles
+    type CreditWithRole = {
+      id: number;
+      media_type: string;
+      title?: string;
+      name?: string;
+      release_date?: string;
+      first_air_date?: string;
+      role: string;
+      popularity: number;
+    };
+
+    const allCredits: CreditWithRole[] = [];
+
+    // Add cast credits (actors)
+    (combinedCredits?.cast || []).forEach((c) => {
+      allCredits.push({
+        ...c,
+        role: c.character || "Unknown",
+      });
+    });
+
+    // Add crew credits (directors, writers, etc.)
+    (combinedCredits?.crew || []).forEach((c) => {
+      allCredits.push({
+        ...c,
+        role: c.job || c.department || "Unknown",
+      });
+    });
+
+    // Deduplicate by ID, keeping the most relevant role based on knownFor
+    const creditMap = new Map<number, CreditWithRole>();
+    for (const c of allCredits) {
+      const existing = creditMap.get(c.id);
+      if (!existing) {
+        creditMap.set(c.id, c);
+      } else {
+        // Prefer crew credit for behind-camera people, cast credit for actors
+        const preferCrew = isBehindCamera && c.role !== "Unknown" && c.role !== existing.role;
+        const preferCast = !isBehindCamera && existing.role === "Unknown" && c.role !== "Unknown";
+        if (preferCrew || preferCast || c.popularity > existing.popularity) {
+          creditMap.set(c.id, c);
+        }
+      }
+    }
+
+    const dedupedCredits = Array.from(creditMap.values())
       .filter((c) => c.popularity > 5) // Filter out obscure works
       .sort((a, b) => b.popularity - a.popularity);
 
     // Notable movies (top 5 by popularity)
-    const notableMovies = castCredits
+    const notableMovies = dedupedCredits
       .filter((c) => c.media_type === "movie" && c.title)
       .slice(0, 5)
       .map((c) => ({
         id: c.id,
         title: c.title!,
-        year: (c.release_date || "").slice(0, 4),
-        role: c.character || "Unknown",
+        year: getDateStr(c).slice(0, 4),
+        role: c.role,
       }));
 
     // Notable series (top 5 by popularity)
-    const notableSeries = castCredits
+    const notableSeries = dedupedCredits
       .filter((c) => c.media_type === "tv" && c.name)
       .slice(0, 5)
       .map((c) => ({
         id: c.id,
         name: c.name!,
-        year: (c.first_air_date || "").slice(0, 4),
-        role: c.character || "Unknown",
+        year: getDateStr(c).slice(0, 4),
+        role: c.role,
       }));
 
-    // Recent work (last 3 years)
+    // Current date for filtering
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    // Recent work (last 3 years, already released)
     const threeYearsAgo = new Date();
     threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
     const threeYearsAgoStr = threeYearsAgo.toISOString().slice(0, 10);
 
-    const recentWork = castCredits
+    const recentWork = dedupedCredits
       .filter((c) => {
-        const date = c.release_date || c.first_air_date || "";
-        return date >= threeYearsAgoStr;
+        const date = getDateStr(c);
+        return date && date >= threeYearsAgoStr && date <= todayStr;
       })
+      .sort((a, b) => getDateStr(b).localeCompare(getDateStr(a))) // Most recent first
       .slice(0, 5)
       .map((c) => ({
         id: c.id,
         title: c.title || c.name || "Unknown",
-        year: (c.release_date || c.first_air_date || "").slice(0, 4),
-        type: c.media_type as "movie" | "series",
+        year: getDateStr(c).slice(0, 4),
+        type: (c.media_type === "tv" ? "series" : "movie") as "movie" | "series",
+        role: c.role,
+      }));
+
+    // Upcoming work (future release dates)
+    const upcomingWork = dedupedCredits
+      .filter((c) => {
+        const date = getDateStr(c);
+        return date && date > todayStr;
+      })
+      .sort((a, b) => getDateStr(a).localeCompare(getDateStr(b))) // Soonest first
+      .slice(0, 5)
+      .map((c) => ({
+        id: c.id,
+        title: c.title || c.name || "Unknown",
+        releaseDate: getDateStr(c),
+        type: (c.media_type === "tv" ? "series" : "movie") as "movie" | "series",
+        role: c.role,
       }));
 
     return {
       id: tmdbData.id as number,
       name: tmdbData.name as string,
-      knownFor: (tmdbData.known_for_department as string) || "Acting",
+      knownFor,
       profilePath: (tmdbData.profile_path as string | null) || null,
       age: calculateAge(tmdbData.birthday as string | null),
       bio: truncate(tmdbData.biography as string, 300),
       notableMovies,
       notableSeries,
       recentWork,
+      upcomingWork,
     };
   } catch (error) {
     console.error("Error fetching light person details:", error);

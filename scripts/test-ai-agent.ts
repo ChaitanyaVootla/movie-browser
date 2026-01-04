@@ -103,6 +103,16 @@ interface ToolResultInfo {
   duration?: number;
 }
 
+interface InvocationStats {
+  systemPromptSize: number;
+  querySize: number;
+  historySize: number;
+  totalInputChars: number;
+  totalOutputChars: number;
+  totalToolArgsChars: number;
+  totalToolResultsChars: number;
+}
+
 interface TestResult {
   success: boolean;
   elapsed: number;
@@ -110,6 +120,7 @@ interface TestResult {
   toolResults: ToolResultInfo[];
   responseLength: number;
   turns: number;
+  stats?: InvocationStats | null;
   error?: string;
 }
 
@@ -158,22 +169,40 @@ async function runTest(
     const response = getAgentResponse(result);
     const navigation = extractNavigation(result);
 
+    // Get debug logs with stats
+    const debugLogs = result._debugLogs;
+    const turns = debugLogs?.totalTurns || 0;
+    
     // Extract detailed tool information
     const { toolCalls, toolResults } = extractDetailedToolInfo(result, options);
-    
-    // Get turn count from debug logs
-    const debugLogs = (result as { _debugLogs?: { totalTurns: number } })._debugLogs;
-    const turns = debugLogs?.totalTurns || 0;
+
+    // Get stats from debug logs
+    const stats = debugLogs?.stats;
 
     // Print results
     console.log(`\n⏱️  Time: ${elapsed}ms | Turns: ${turns}`);
     
     if (options.debug || options.verbose) {
-      console.log(`\n📊 Token Estimation:`);
-      console.log(`   Input (approx): ${estimateTokens(query)} tokens`);
-      console.log(`   Tool args total: ${toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0)} chars`);
-      console.log(`   Tool results total: ${toolResults.reduce((sum, tr) => sum + tr.resultSize, 0)} chars`);
-      console.log(`   Response: ${response.length} chars (~${estimateTokens(response)} tokens)`);
+      if (stats) {
+        console.log(`\n📊 Context & Token Estimation:`);
+        console.log(`   System prompt: ${stats.systemPromptSize} chars (~${estimateTokens(stats.systemPromptSize)} tokens)`);
+        console.log(`   Query: ${stats.querySize} chars`);
+        console.log(`   History: ${stats.historySize} chars`);
+        console.log(`   ─────────────────────────`);
+        console.log(`   Total input: ${stats.totalInputChars} chars (~${estimateTokens(stats.totalInputChars)} tokens)`);
+        console.log(`   Tool args: ${stats.totalToolArgsChars} chars`);
+        console.log(`   Tool results: ${stats.totalToolResultsChars} chars`);
+        console.log(`   Response: ${response.length} chars (~${estimateTokens(response.length)} tokens)`);
+        console.log(`   ─────────────────────────`);
+        const totalContext = stats.totalInputChars + stats.totalToolResultsChars;
+        console.log(`   Total context: ~${estimateTokens(totalContext)} tokens (sent to LLM)`);
+      } else {
+        console.log(`\n📊 Token Estimation:`);
+        console.log(`   Input (approx): ${estimateTokens(query.length)} tokens`);
+        console.log(`   Tool args total: ${toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0)} chars`);
+        console.log(`   Tool results total: ${toolResults.reduce((sum, tr) => sum + tr.resultSize, 0)} chars`);
+        console.log(`   Response: ${response.length} chars (~${estimateTokens(response.length)} tokens)`);
+      }
     }
 
     // Show tool calls with args
@@ -227,6 +256,7 @@ async function runTest(
       toolResults,
       responseLength: response.length,
       turns,
+      stats: debugLogs?.stats,
     };
   } catch (error) {
     const elapsed = Date.now() - startTime;
@@ -282,9 +312,10 @@ function extractDetailedToolInfo(
   return { toolCalls, toolResults };
 }
 
-function estimateTokens(text: string): number {
+function estimateTokens(textOrLength: string | number): number {
   // Rough estimation: ~4 chars per token for English
-  return Math.ceil(text.length / 4);
+  const length = typeof textOrLength === "string" ? textOrLength.length : textOrLength;
+  return Math.ceil(length / 4);
 }
 
 function checkForIssues(

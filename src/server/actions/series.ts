@@ -191,6 +191,8 @@ export async function getEpisode(
       crew: (data.credits as Record<string, unknown>)?.crew as Episode["crew"],
       guest_stars: (data.credits as Record<string, unknown>)?.guest_stars as Episode["guest_stars"],
       images: data.images as Episode["images"],
+      videos: data.videos as Episode["videos"],
+      external_ids: data.external_ids as Episode["external_ids"],
     };
   } catch (error) {
     console.error("Error fetching episode:", error);

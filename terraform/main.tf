@@ -139,6 +139,21 @@ resource "aws_vpc_security_group_ingress_rule" "nuxt" {
   }
 }
 
+# Next.js Application (port 3002) - Public for testing
+resource "aws_vpc_security_group_ingress_rule" "nextjs" {
+  security_group_id = aws_security_group.main.id
+  description       = "Next.js application access"
+  
+  from_port   = 3002
+  to_port     = 3002
+  ip_protocol = "tcp"
+  cidr_ipv4   = "0.0.0.0/0"
+
+  tags = {
+    Name = "nextjs-ingress"
+  }
+}
+
 # MongoDB Access (port 27018) - Public for remote debugging
 resource "aws_vpc_security_group_ingress_rule" "mongodb" {
   security_group_id = aws_security_group.main.id

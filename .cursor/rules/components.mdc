@@ -708,39 +708,46 @@ The `EpisodeModal` uses a Dialog (not Sheet) for consistency with other detail v
 />
 ```
 
-**Layout:** Two-column design (image 60%, info cards 40%):
+**Layout:** Flex layout with fixed image width and natural heights (no height stretching):
 
 ```tsx
-<DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-5xl">
-  <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-    {/* Left: Image carousel (3/5 width) */}
-    <div className="lg:col-span-3">
+<DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-5xl max-h-[90vh] overflow-y-auto">
+  {/* Flex layout with items-start for natural heights */}
+  <div className="flex flex-col lg:flex-row lg:items-start gap-5">
+    {/* Left: Image carousel - fixed width, natural height */}
+    <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
       <EpisodeImageCarousel stills={stills} />
     </div>
     
-    {/* Right: Title + Info cards (2/5 width) */}
-    <div className="lg:col-span-2">
+    {/* Right: Title + Info cards - fills remaining space */}
+    <div className="flex-1 min-w-0 space-y-4">
       <DialogTitle>{episode.name}</DialogTitle>
       <div className="grid grid-cols-2 gap-2">
-        <InfoCard icon={Star} label="Rating" value="8.6" />
+        {/* Rating now includes vote count inline */}
+        <InfoCard icon={Star} label="Rating" value="8.6 (186)" />
         <InfoCard icon={Calendar} label="Air Date" value="Jul 15, 2012" />
         <InfoCard icon={Clock} label="Runtime" value="43 min" />
         <InfoCard icon={Tv} label="Episode" value="5×1" />
       </div>
+      
+      {/* Director/Writers with circular avatars */}
+      <DirectorWritersSection crew={crew} />
     </div>
   </div>
 </DialogContent>
 ```
+
+**Key layout principle:** Use `flex items-start` instead of grid to prevent height matching. Each column takes its natural height.
 
 **Image Carousel Features:**
 - 16:9 aspect ratio (`aspect-video`)
 - Auto-advance with 5-second intervals
 - Progress dots at bottom center
 - Pause on hover
-- Click to open fullscreen lightbox
+- Click to open fullscreen lightbox (via portal with `z-[200]` to escape modal stacking)
 - Counter badge (e.g., "2/5")
 
-**Info Cards Pattern:**
+**Info Cards Pattern (with inline vote count):**
 ```tsx
 function InfoCard({ icon: Icon, label, value }) {
   return (
@@ -748,25 +755,82 @@ function InfoCard({ icon: Icon, label, value }) {
       <Icon className="h-4 w-4 text-muted-foreground" />
       <div>
         <p className="text-[10px] text-muted-foreground uppercase">{label}</p>
-        <p className="text-sm font-medium">{value}</p>
+        <p className="text-sm font-medium">{value}</p> {/* e.g., "8.6 (186)" */}
       </div>
     </div>
   );
 }
 ```
 
-**Person Scrollers:**
-Guest Stars and Crew sections use horizontal scrollers:
+**Director/Writers with Circular Avatars:**
+```tsx
+function DirectorWritersSection({ crew }) {
+  const directors = crew.filter(c => c.job === "Director");
+  const writers = crew.filter(c => ["Writer", "Teleplay", "Story"].includes(c.job));
+  
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-3">
+      {directors.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Director</span>
+          {directors.map(d => (
+            <Link href={`/person/${d.id}`} className="flex items-center gap-1.5">
+              <div className="relative w-6 h-6 rounded-full overflow-hidden bg-muted">
+                <Image src={d.profile_path} fill className="object-cover" />
+              </div>
+              <span className="text-sm font-medium">{d.name}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+      {/* Similar for writers */}
+    </div>
+  );
+}
+```
+
+**Person Cards (Squircle Style) for Guest Stars & Crew:**
+Guest Stars and Crew use squircle poster cards (`aspect-[2/3] rounded-lg`) matching the main cast scroller:
 
 ```tsx
-<ScrollArea className="w-full whitespace-nowrap">
-  <div className="flex gap-3 pb-2">
-    {guestStars.map((guest) => (
-      <PersonCard key={guest.id} person={guest} role="cast" />
-    ))}
-  </div>
-  <ScrollBar orientation="horizontal" />
-</ScrollArea>
+function PersonCard({ person, role }) {
+  return (
+    <Link href={`/person/${person.id}`} className="flex-shrink-0 group">
+      <div className="w-[85px] text-center">
+        {/* Squircle poster aspect ratio */}
+        <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-1.5 ring-1 ring-white/10">
+          {person.profile_path ? (
+            <Image src={`https://image.tmdb.org/t/p/w185${person.profile_path}`} fill className="object-cover" />
+          ) : (
+            <User className="h-6 w-6 text-muted-foreground/30 absolute inset-0 m-auto" />
+          )}
+        </div>
+        <p className="text-xs font-medium line-clamp-1">{person.name}</p>
+        <p className="text-[10px] text-muted-foreground line-clamp-1">{person.character || person.job}</p>
+      </div>
+    </Link>
+  );
+}
+```
+
+**Person Scrollers use ScrollContainer:**
+```tsx
+<ScrollContainer showControls gap="gap-3" padding="px-0">
+  {guestStars.map((guest) => (
+    <PersonCard key={guest.id} person={guest} role="cast" />
+  ))}
+</ScrollContainer>
+```
+
+**Lightbox via Portal:**
+The lightbox uses a portal with high z-index to escape the dialog's stacking context:
+```tsx
+{isLightboxOpen && createPortal(
+  <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center">
+    {/* Lightbox content */}
+  </div>,
+  document.body
+)}
 ```
 
 **Why Dialog over Sheet:**

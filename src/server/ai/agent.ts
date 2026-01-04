@@ -23,12 +23,14 @@ const DEBUG = process.env.AI_DEBUG !== "false";
 interface ToolCallLog {
   name: string;
   args: unknown;
+  argsSize: number;
   timestamp: number;
 }
 
 interface ToolResultLog {
   name: string;
   result: string;
+  resultSize: number;
   duration: number;
   timestamp: number;
 }
@@ -39,11 +41,26 @@ interface TurnLog {
   toolCalls?: ToolCallLog[];
   toolResults?: ToolResultLog[];
   response?: string;
+  responseSize?: number;
+  llmDuration?: number;
   timestamp: number;
+}
+
+interface InvocationStats {
+  startTime: number;
+  systemPromptSize: number;
+  querySize: number;
+  historySize: number;
+  totalInputChars: number;
+  totalOutputChars: number;
+  totalToolArgsChars: number;
+  totalToolResultsChars: number;
 }
 
 let currentTurn = 0;
 const turnLogs: TurnLog[] = [];
+let invocationStats: InvocationStats | null = null;
+let lastLlmStartTime = 0;
 
 function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
   currentTurn++;
@@ -62,8 +79,13 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
     if (log.toolCalls?.length) {
       console.log("\n📤 Tool Calls:");
       for (const tc of log.toolCalls) {
-        console.log(`   └─ ${tc.name}`);
+        console.log(`   └─ ${tc.name} (args: ${tc.argsSize} chars)`);
         console.log(`      Args: ${JSON.stringify(tc.args, null, 2).split("\n").join("\n      ")}`);
+      }
+      
+      // Update stats
+      if (invocationStats) {
+        invocationStats.totalToolArgsChars += log.toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0);
       }
     }
 
@@ -73,24 +95,42 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
         const resultPreview = tr.result.length > 500 
           ? tr.result.slice(0, 500) + "... [truncated]" 
           : tr.result;
-        console.log(`   └─ ${tr.name} (${tr.duration}ms)`);
+        console.log(`   └─ ${tr.name} (${tr.duration}ms, ${tr.resultSize} chars)`);
         console.log(`      Result: ${resultPreview.split("\n").join("\n      ")}`);
+      }
+      
+      // Update stats
+      if (invocationStats) {
+        invocationStats.totalToolResultsChars += log.toolResults.reduce((sum, tr) => sum + tr.resultSize, 0);
       }
     }
 
     if (log.response) {
-      console.log("\n💬 Response:", log.response.slice(0, 300) + (log.response.length > 300 ? "..." : ""));
+      const llmTime = log.llmDuration ? ` (LLM: ${log.llmDuration}ms)` : "";
+      console.log(`\n💬 Response${llmTime}:`, log.response.slice(0, 300) + (log.response.length > 300 ? "..." : ""));
+      
+      // Update stats
+      if (invocationStats && log.responseSize) {
+        invocationStats.totalOutputChars += log.responseSize;
+      }
     }
   }
 }
 
-export function getAgentLogs() {
-  return { turns: turnLogs, totalTurns: currentTurn };
+export interface AgentLogs {
+  turns: TurnLog[];
+  totalTurns: number;
+  stats: InvocationStats | null;
+}
+
+export function getAgentLogs(): AgentLogs {
+  return { turns: turnLogs, totalTurns: currentTurn, stats: invocationStats };
 }
 
 export function resetAgentLogs() {
   currentTurn = 0;
   turnLogs.length = 0;
+  invocationStats = null;
 }
 
 // =============================================================================
@@ -114,16 +154,23 @@ async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>
     ? state.messages
     : [new SystemMessage(systemPrompt), ...state.messages];
 
+  // Track LLM timing
+  lastLlmStartTime = Date.now();
+  
   // Invoke the model
   const response = await model.invoke(messages);
+  
+  const llmDuration = Date.now() - lastLlmStartTime;
 
   // Log the turn
   const toolCalls: ToolCallLog[] = [];
   if (response instanceof AIMessage && response.tool_calls?.length) {
     for (const tc of response.tool_calls) {
+      const argsStr = JSON.stringify(tc.args);
       toolCalls.push({
         name: tc.name,
         args: tc.args,
+        argsSize: argsStr.length,
         timestamp: Date.now(),
       });
     }
@@ -153,6 +200,8 @@ async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>
     node: "agent",
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     response: responseText,
+    responseSize: responseText?.length,
+    llmDuration,
   });
 
   return { messages: [response] };
@@ -191,9 +240,11 @@ async function toolNodeWithContext(
   if (result.messages) {
     for (const msg of result.messages) {
       if (msg instanceof ToolMessage) {
+        const resultStr = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
         toolResults.push({
           name: msg.name || "unknown",
-          result: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+          result: resultStr,
+          resultSize: resultStr.length,
           duration: endTime - startTime,
           timestamp: Date.now(),
         });
@@ -284,12 +335,13 @@ export async function invokeAgent(
   conversationHistory?: BaseMessage[],
   pageContext?: PageContextInput | null,
   userContext?: UserContextInput | null
-): Promise<AgentStateType & { _debugLogs?: ReturnType<typeof getAgentLogs> }> {
+): Promise<AgentStateType & { _debugLogs?: AgentLogs }> {
   // Reset logs for this invocation
   resetAgentLogs();
   
   const agent = createMovieAgent();
 
+  // Build initial state
   const initialState = {
     messages: [...(conversationHistory || []), new HumanMessage(message)],
     userId: userId ?? null,
@@ -297,16 +349,56 @@ export async function invokeAgent(
     userContext: userContext ?? null,
   };
 
+  // Calculate system prompt size for stats
+  const isAuthenticated = !!userId;
+  const systemPrompt = getSystemPrompt(isAuthenticated, userContext);
+  
+  // Calculate history size
+  const historySize = (conversationHistory || []).reduce((sum, msg) => {
+    const content = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+    return sum + content.length;
+  }, 0);
+
+  // Initialize invocation stats
+  invocationStats = {
+    startTime: Date.now(),
+    systemPromptSize: systemPrompt.length,
+    querySize: message.length,
+    historySize,
+    totalInputChars: systemPrompt.length + message.length + historySize,
+    totalOutputChars: 0,
+    totalToolArgsChars: 0,
+    totalToolResultsChars: 0,
+  };
+
   if (DEBUG) {
     console.log("\n" + "🎬".repeat(35));
     console.log("[AI AGENT] New invocation");
-    console.log(`   Query: "${message}"`);
+    console.log(`   Query: "${message}" (${message.length} chars)`);
     console.log(`   User: ${userContext?.name || userId || "guest"} (${userContext?.region || "unknown"})`);
-    console.log(`   History: ${conversationHistory?.length || 0} messages`);
+    console.log(`   History: ${conversationHistory?.length || 0} messages (${historySize} chars)`);
+    console.log(`   System prompt: ${systemPrompt.length} chars (~${Math.ceil(systemPrompt.length / 4)} tokens)`);
     console.log("🎬".repeat(35) + "\n");
   }
 
   const result = await agent.invoke(initialState);
+
+  // Update stats with final timing
+  if (invocationStats) {
+    const totalTime = Date.now() - invocationStats.startTime;
+    
+    if (DEBUG) {
+      console.log("\n" + "📊".repeat(35));
+      console.log("[AI AGENT] Invocation Complete");
+      console.log(`   Total time: ${totalTime}ms`);
+      console.log(`   Turns: ${currentTurn}`);
+      console.log(`   Input chars: ${invocationStats.totalInputChars} (~${Math.ceil(invocationStats.totalInputChars / 4)} tokens)`);
+      console.log(`   Tool args: ${invocationStats.totalToolArgsChars} chars`);
+      console.log(`   Tool results: ${invocationStats.totalToolResultsChars} chars`);
+      console.log(`   Output: ${invocationStats.totalOutputChars} chars`);
+      console.log("📊".repeat(35) + "\n");
+    }
+  }
 
   // Attach debug logs to result
   return {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { MediaScroller } from "@/components/features/media/media-scroller";
@@ -14,6 +14,8 @@ interface EpisodeScrollerProps {
   seriesName: string;
   seasonNumber: number;
   className?: string;
+  /** Custom title/header content (e.g., season selector dropdown) */
+  title?: ReactNode;
 }
 
 interface EpisodeCardProps {
@@ -128,6 +130,7 @@ export function EpisodeScroller({
   seriesName,
   seasonNumber,
   className,
+  title,
 }: EpisodeScrollerProps) {
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
 
@@ -138,6 +141,7 @@ export function EpisodeScroller({
       <MediaScroller
         className={className}
         showControls={episodes.length > 4}
+        title={title}
       >
         {episodes.map((episode) => (
           <EpisodeCard

@@ -1,41 +1,38 @@
+// PM2 Configuration for Next.js App
+// This config is for the NEW Next.js app only
+// The legacy Nuxt app has its own deployment on a separate branch
+
 module.exports = {
   apps: [
     {
-        name: "nuxt",
-        script: "export $(cat .env | xargs) && cd .output && node ./server/index.mjs",
-        max_memory_restart: "500M",
-        env: {
-            NODE_ENV: "production",
-            NITRO_PORT: "3001"
-        },
+      name: "next",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "npm",
+      args: "start",
+      max_memory_restart: "600M",
+      env: {
+        NODE_ENV: "production",
+        PORT: "3002",
+      },
     },
-    {
-        name: "vector",
-        script: "cd VectorDB && source vector/bin/activate && python3 server.py",
-        max_memory_restart: "450M",
-    },
-    {
-        name: "sitemap-generator",
-        script: "node",
-        args: "--max-old-space-size=2048 --expose-gc --optimize-for-size scripts/generate-sitemap.js",
-        cron_restart: "0 4 * * *",  // Run daily at 4 AM
-        autorestart: false,         // Don't restart automatically (cron handles scheduling)
-        restart_delay: 5000,        // Wait 5s before restart on failure
-        max_restarts: 2,           // Max 2 restart attempts per hour
-        min_uptime: "1s",          // Just needs to start properly (exit code determines success)
-        watch: false,              // Don't watch for file changes
-        max_memory_restart: "800M", // Reduced from 1G due to optimizations
-        error_file: "./logs/sitemap-error.log",
-        out_file: "./logs/sitemap-out.log",
-        log_file: "./logs/sitemap-combined.log",
-        time: true,                // Prefix logs with timestamp
-        env: {
-            NODE_ENV: "production"
-        },
-        // Kill timeout for stuck processes
-        kill_timeout: 300000,      // 5 minutes max execution time (optimized processing)
-        // PM2 will track success/failure based on exit codes:
-        // Exit code 0 = success, non-zero = failure
-    },
+    // TODO: Enable sitemap generator after beta
+    // {
+    //   name: "sitemap-generator",
+    //   script: "node",
+    //   args: "--max-old-space-size=2048 --expose-gc --optimize-for-size scripts/generate-sitemap.js",
+    //   cron_restart: "0 4 * * *",
+    //   autorestart: false,
+    //   restart_delay: 5000,
+    //   max_restarts: 2,
+    //   min_uptime: "1s",
+    //   watch: false,
+    //   max_memory_restart: "800M",
+    //   error_file: "./logs/sitemap-error.log",
+    //   out_file: "./logs/sitemap-out.log",
+    //   log_file: "./logs/sitemap-combined.log",
+    //   time: true,
+    //   env: { NODE_ENV: "production" },
+    //   kill_timeout: 300000,
+    // },
   ],
 };
