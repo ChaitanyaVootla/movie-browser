@@ -8,7 +8,7 @@ import { Search, Sparkles, Compass, Shield, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountrySelector } from "./country-selector";
 import { UserMenu, LoginDialog, useLoginDialog, SettingsMenu } from "@/components/features/auth";
-import { SearchCommand, useSearchCommand } from "@/components/features/search";
+import { useSearch } from "@/components/features/search";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
@@ -26,7 +26,7 @@ export function NavBar() {
   const { data: session, status } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const { isOpen, openLoginDialog, setIsOpen } = useLoginDialog();
-  const { open: isSearchOpen, setOpen: setSearchOpen } = useSearchCommand();
+  const { open: isSearchOpen, setOpen: setSearchOpen } = useSearch();
 
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
@@ -196,9 +196,6 @@ export function NavBar() {
         </div>
 
       </header>
-
-      {/* Search Command Dialog */}
-      <SearchCommand open={isSearchOpen} onOpenChange={setSearchOpen} />
 
       {/* Login Dialog */}
       <LoginDialog open={isOpen} onOpenChange={setIsOpen} />

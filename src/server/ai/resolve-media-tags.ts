@@ -25,21 +25,65 @@ interface SearchResult {
   title?: string;
   name?: string;
   popularity: number;
+  release_date?: string; // Movie release date
+  first_air_date?: string; // TV first air date
+}
+
+/**
+ * Extract year from a title if present
+ * Supports formats: "Title (2024)", "Title [2024]", "Title - 2024"
+ */
+function extractYearFromTitle(title: string): { cleanTitle: string; year: number | null } {
+  // Match (YYYY), [YYYY], or - YYYY at the end
+  const yearMatch = title.match(/[\s]*[(\[]\s*(\d{4})\s*[)\]][\s]*$|[\s]*-\s*(\d{4})[\s]*$/);
+  
+  if (yearMatch) {
+    const year = parseInt(yearMatch[1] || yearMatch[2], 10);
+    // Validate year is reasonable (1800-2100)
+    if (year >= 1800 && year <= 2100) {
+      const cleanTitle = title.slice(0, title.lastIndexOf(yearMatch[0])).trim();
+      return { cleanTitle, year };
+    }
+  }
+  
+  return { cleanTitle: title, year: null };
+}
+
+/**
+ * Get release year from a search result
+ */
+function getResultYear(result: SearchResult): number | null {
+  const dateStr = result.release_date || result.first_air_date;
+  if (!dateStr) return null;
+  const year = parseInt(dateStr.slice(0, 4), 10);
+  return isNaN(year) ? null : year;
 }
 
 /**
  * Search TMDB for a title and return the best matching ID
+ * 
+ * Supports optional year hints in the title for more deterministic matching:
+ * - "Fight Club (1999)" → searches "Fight Club" and prefers 1999 result
+ * - "The Batman (2022)" → distinguishes from older Batman films
  */
 async function searchForTitle(
   title: string,
   expectedType: MediaType
 ): Promise<{ id: number; matchedTitle: string } | null> {
   try {
-    const response = await searchMulti(title);
+    // Extract year hint if present
+    const { cleanTitle, year: hintYear } = extractYearFromTitle(title);
+    const searchTitle = cleanTitle || title;
+    
+    if (DEBUG && hintYear) {
+      console.log(`[resolve-tags] Extracted year ${hintYear} from "${title}" → searching "${searchTitle}"`);
+    }
+    
+    const response = await searchMulti(searchTitle);
     const results = response.results as SearchResult[];
 
     if (results.length === 0) {
-      if (DEBUG) console.log(`[resolve-tags] No results for "${title}"`);
+      if (DEBUG) console.log(`[resolve-tags] No results for "${searchTitle}"`);
       return null;
     }
 
@@ -55,43 +99,96 @@ async function searchForTitle(
       if (otherType) {
         if (DEBUG) {
           console.log(
-            `[resolve-tags] "${title}" found as ${otherType.media_type} instead of ${expectedType}`
+            `[resolve-tags] "${searchTitle}" found as ${otherType.media_type} instead of ${expectedType}`
           );
         }
         // Use it anyway but note the type mismatch
         return {
           id: otherType.id,
-          matchedTitle: otherType.title || otherType.name || title,
+          matchedTitle: otherType.title || otherType.name || searchTitle,
         };
       }
       return null;
     }
 
-    // Find best match - prefer exact title match, then most popular
-    const lowerTitle = title.toLowerCase();
-    const exactMatch = typeMatches.find(
-      (r) =>
-        (r.title || r.name || "").toLowerCase() === lowerTitle
+    // Matching priority:
+    // 1. Exact title + exact year match
+    // 2. Exact title match (any year)
+    // 3. Year match (if year hint provided) + highest popularity
+    // 4. Highest popularity
+    
+    const lowerSearchTitle = searchTitle.toLowerCase();
+    
+    // 1. Exact title + exact year match
+    if (hintYear) {
+      const exactTitleYearMatch = typeMatches.find((r) => {
+        const resultTitle = (r.title || r.name || "").toLowerCase();
+        const resultYear = getResultYear(r);
+        return resultTitle === lowerSearchTitle && resultYear === hintYear;
+      });
+      
+      if (exactTitleYearMatch) {
+        if (DEBUG) {
+          console.log(
+            `[resolve-tags] "${title}" → exact title+year match: "${exactTitleYearMatch.title || exactTitleYearMatch.name}" (${exactTitleYearMatch.id}) [${hintYear}]`
+          );
+        }
+        return {
+          id: exactTitleYearMatch.id,
+          matchedTitle: exactTitleYearMatch.title || exactTitleYearMatch.name || searchTitle,
+        };
+      }
+    }
+    
+    // 2. Exact title match (any year)
+    const exactTitleMatch = typeMatches.find(
+      (r) => (r.title || r.name || "").toLowerCase() === lowerSearchTitle
     );
 
-    if (exactMatch) {
+    if (exactTitleMatch) {
+      // If we have a year hint and this doesn't match, log a warning but still use it
+      const resultYear = getResultYear(exactTitleMatch);
+      if (hintYear && resultYear && resultYear !== hintYear) {
+        if (DEBUG) {
+          console.log(
+            `[resolve-tags] ⚠️ "${title}" → found "${exactTitleMatch.title || exactTitleMatch.name}" (${exactTitleMatch.id}) but year ${resultYear} ≠ hint ${hintYear}`
+          );
+        }
+      }
       return {
-        id: exactMatch.id,
-        matchedTitle: exactMatch.title || exactMatch.name || title,
+        id: exactTitleMatch.id,
+        matchedTitle: exactTitleMatch.title || exactTitleMatch.name || searchTitle,
       };
     }
+    
+    // 3. Year match (if year hint provided) among top results
+    if (hintYear) {
+      const yearMatches = typeMatches.filter((r) => getResultYear(r) === hintYear);
+      if (yearMatches.length > 0) {
+        const bestYearMatch = yearMatches.sort((a, b) => b.popularity - a.popularity)[0];
+        if (DEBUG) {
+          console.log(
+            `[resolve-tags] "${title}" → year-matched: "${bestYearMatch.title || bestYearMatch.name}" (${bestYearMatch.id}) [${hintYear}, popularity: ${bestYearMatch.popularity.toFixed(1)}]`
+          );
+        }
+        return {
+          id: bestYearMatch.id,
+          matchedTitle: bestYearMatch.title || bestYearMatch.name || searchTitle,
+        };
+      }
+    }
 
-    // Fall back to most popular result
+    // 4. Fall back to most popular result
     const topResult = typeMatches.sort((a, b) => b.popularity - a.popularity)[0];
     if (DEBUG) {
       console.log(
-        `[resolve-tags] "${title}" → "${topResult.title || topResult.name}" (${topResult.id}) [popularity: ${topResult.popularity.toFixed(1)}]`
+        `[resolve-tags] "${title}" → popularity fallback: "${topResult.title || topResult.name}" (${topResult.id}) [popularity: ${topResult.popularity.toFixed(1)}]`
       );
     }
 
     return {
       id: topResult.id,
-      matchedTitle: topResult.title || topResult.name || title,
+      matchedTitle: topResult.title || topResult.name || searchTitle,
     };
   } catch (error) {
     console.error(`[resolve-tags] Error searching for "${title}":`, error);

@@ -18,7 +18,7 @@ import {
   type ProcessedWatchOptions,
 } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
-import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
+import { MOVIE_GENRES, TV_GENRES, CACHE_DURATIONS } from "@/lib/constants";
 import { dataLogger } from "@/lib/logger";
 import type {
   MediaItem,
@@ -309,20 +309,32 @@ function formatReleaseDate(releaseDate: string): string {
 }
 
 /**
- * Get upcoming movies using TMDB's dedicated upcoming endpoint
- * Returns well-curated upcoming releases (not random obscure films)
+ * Get upcoming movies using TMDB's discover API
+ * Uses discover endpoint with primary_release_date.gte for consistent global results
+ * (TMDB's /movie/upcoming endpoint is region-specific and returns limited results)
  */
 export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
   try {
-    const countryCode = await getCountryCode();
+    const { discoverMovies } = await import("@/server/services/tmdb");
     
-    // Use TMDB's dedicated upcoming endpoint - returns curated upcoming movies
-    // Much better quality than discover API which returns ANY movie with a future date
-    const { getUpcomingMovies } = await import("@/server/services/tmdb");
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
     
+    // Use discover API - more reliable than /movie/upcoming which is region-specific
+    // Fetch multiple pages sorted by popularity to get quality upcoming content
     const [page1, page2] = await Promise.all([
-      getUpcomingMovies(1, countryCode),
-      getUpcomingMovies(2, countryCode),
+      discoverMovies({
+        "primary_release_date.gte": todayStr,
+        sort_by: "popularity.desc",
+        "vote_count.gte": "0", // Include movies without votes yet
+        page: "1",
+      }),
+      discoverMovies({
+        "primary_release_date.gte": todayStr,
+        sort_by: "popularity.desc",
+        "vote_count.gte": "0",
+        page: "2",
+      }),
     ]);
 
     const allMovies = [
@@ -330,22 +342,19 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
       ...(page2.results as Record<string, unknown>[]),
     ];
 
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
-
     // Map and format release dates
     const moviesWithInfo: MovieWithReleaseInfo[] = allMovies
       .filter((item) => {
         // Must have poster
         if (!item.poster_path) return false;
         
-        // Only include movies releasing today or in the future
+        // Verify release date is in the future (discover should handle this but double-check)
         const releaseDate = item.release_date as string;
         if (!releaseDate || releaseDate < todayStr) return false;
         
-        // Filter out obscure movies - require some popularity
+        // Filter out very obscure movies - require some popularity
         const popularity = item.popularity as number;
-        if (popularity < 5) return false;
+        if (popularity < 3) return false;
         
         return true;
       })
@@ -369,6 +378,284 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
   } catch (error) {
     dataLogger.error({
       event: "fetch_upcoming_movies_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+}
+
+/**
+ * Get movies currently playing in theaters
+ */
+export async function getNowPlaying(): Promise<MovieListItem[]> {
+  try {
+    const countryCode = await getCountryCode();
+    
+    const { getNowPlayingMovies } = await import("@/server/services/tmdb");
+    
+    const [page1, page2] = await Promise.all([
+      getNowPlayingMovies(1, countryCode),
+      getNowPlayingMovies(2, countryCode),
+    ]);
+
+    const allMovies = [
+      ...(page1.results as Record<string, unknown>[]),
+      ...(page2.results as Record<string, unknown>[]),
+    ];
+
+    // Map and filter for quality
+    const movies: MovieListItem[] = allMovies
+      .filter((item) => {
+        // Must have poster
+        if (!item.poster_path) return false;
+        // Filter out very obscure movies
+        const popularity = item.popularity as number;
+        if (popularity < 5) return false;
+        return true;
+      })
+      .map((item) => mapMovieGenres(item))
+      // Sort by popularity (most popular first for theaters)
+      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+    return movies.slice(0, 20);
+  } catch (error) {
+    dataLogger.error({
+      event: "fetch_now_playing_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+}
+
+// =============================================================================
+// YouTube Channel-Based Trailers
+// =============================================================================
+
+import { getYouTubeChannelTrailers } from "@/server/services/youtube-channels";
+
+/**
+ * YouTube trailer item for display
+ * Separate from TMDB-based TrendingTrailer since it doesn't have TMDB IDs
+ */
+export interface YouTubeTrendingTrailer {
+  youtubeId: string;
+  title: string;           // Extracted movie/show title
+  trailerTitle: string;    // Full YouTube video title
+  channelTitle: string;
+  channelCategory: string;
+  publishedAt: string;
+  viewCount: number;
+  likeCount: number;
+  thumbnail: string;
+}
+
+/**
+ * Get trending trailers from YouTube channels
+ *
+ * This discovers viral trailers by monitoring official studio channels directly.
+ * Unlike TMDB-based trailers, these don't have TMDB IDs but show real engagement.
+ */
+export async function getYouTubeTrendingTrailers(
+  limit: number = 12
+): Promise<YouTubeTrendingTrailer[]> {
+  try {
+    const trailers = await getYouTubeChannelTrailers({
+      limit,
+      includeRegional: true,
+      minViews: 50000, // Higher threshold for home page
+    });
+
+    return trailers.map(t => ({
+      youtubeId: t.id,
+      title: t.extractedTitle,
+      trailerTitle: t.title,
+      channelTitle: t.channelTitle,
+      channelCategory: t.channelCategory,
+      publishedAt: t.publishedAt,
+      viewCount: t.viewCount,
+      likeCount: t.likeCount,
+      thumbnail: t.thumbnail,
+    }));
+  } catch (error) {
+    dataLogger.error({
+      event: "fetch_youtube_trending_trailers_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+}
+
+// =============================================================================
+// TMDB-Based Trending Trailers
+// =============================================================================
+
+/**
+ * Trailer item for carousel display (TMDB-based)
+ */
+export interface TrendingTrailer {
+  // Movie/TV info
+  tmdbId: number;
+  title: string;
+  mediaType: "movie" | "tv";
+  posterPath: string | null;
+  backdropPath: string | null;
+  releaseDate: string;
+  rating: number;
+  popularity: number;
+  
+  // Trailer info
+  youtubeKey: string;
+  trailerTitle: string;
+  trailerType: string; // "Trailer", "Teaser"
+  official: boolean;
+  publishedAt: string;
+}
+
+interface TMDBVideo {
+  id: string;
+  key: string;
+  name: string;
+  site: string;
+  type: string;
+  official: boolean;
+  published_at: string;
+  iso_639_1: string;
+}
+
+interface TMDBTrendingItem {
+  id: number;
+  title?: string;
+  name?: string;
+  media_type?: "movie" | "tv";
+  poster_path: string | null;
+  backdrop_path: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average: number;
+  popularity: number;
+}
+
+/**
+ * Get trending movie trailers
+ *
+ * Combines multiple sources for a realistic "trending trailers" mix:
+ * - Trending movies (currently popular)
+ * - Upcoming movies (trailers being actively promoted)
+ * - Now playing movies (recent releases with fresh trailers)
+ *
+ * TODO: Add TV series trailers once we find a reliable source for fresh content.
+ * TMDB often only has Season 1 trailers even for currently airing shows.
+ * KinoCheck had fresher content but is geo-blocked in countries like India.
+ */
+export async function getTrendingTrailers(
+  limit: number = 12
+): Promise<TrendingTrailer[]> {
+  try {
+    const { fetchFromTMDB, getUpcomingMovies, getNowPlayingMovies } = await import("@/server/services/tmdb");
+
+    // Fetch multiple sources in parallel
+    const [trendingData, upcomingData, nowPlayingData] = await Promise.all([
+      // Trending movies
+      fetchFromTMDB<{ results: TMDBTrendingItem[] }>(
+        "/trending/movie/week",
+        { cacheNamespace: "trending", cacheTTL: CACHE_DURATIONS.trending }
+      ),
+      // Upcoming movies (trailers being actively promoted)
+      getUpcomingMovies(1),
+      // Now playing (recent releases)
+      getNowPlayingMovies(1),
+    ]);
+
+    // Combine and dedupe by ID, prioritizing trending
+    const seenIds = new Set<number>();
+    const allMovies: TMDBTrendingItem[] = [];
+
+    // Add trending first (highest priority)
+    for (const item of trendingData.results || []) {
+      if (!seenIds.has(item.id) && item.poster_path) {
+        seenIds.add(item.id);
+        allMovies.push({ ...item, media_type: "movie" });
+      }
+    }
+
+    // Add upcoming (trailers people are looking for)
+    for (const item of (upcomingData.results || []) as TMDBTrendingItem[]) {
+      if (!seenIds.has(item.id) && item.poster_path && item.popularity > 20) {
+        seenIds.add(item.id);
+        allMovies.push({ ...item, media_type: "movie" });
+      }
+    }
+
+    // Add now playing (fresh trailers)
+    for (const item of (nowPlayingData.results || []) as TMDBTrendingItem[]) {
+      if (!seenIds.has(item.id) && item.poster_path && item.popularity > 30) {
+        seenIds.add(item.id);
+        allMovies.push({ ...item, media_type: "movie" });
+      }
+    }
+
+    // Take more than needed in case some don't have trailers
+    const candidates = allMovies.slice(0, limit + 8);
+    const trailers: TrendingTrailer[] = [];
+
+    // Fetch videos for each movie
+    for (const item of candidates) {
+      if (trailers.length >= limit) break;
+
+      try {
+        const videosData = await fetchFromTMDB<{ results: TMDBVideo[] }>(
+          `/movie/${item.id}/videos`,
+          { cacheNamespace: "movie", cacheTTL: CACHE_DURATIONS.movie }
+        );
+
+        const videos = videosData.results || [];
+
+        // Find best official trailer (prefer Trailer over Teaser, English, recent)
+        const officialTrailers = videos
+          .filter(
+            (v) =>
+              v.site === "YouTube" &&
+              (v.type === "Trailer" || v.type === "Teaser") &&
+              v.official &&
+              (v.iso_639_1 === "en" || !v.iso_639_1) // English or unspecified
+          )
+          .sort((a, b) => {
+            // Prefer "Trailer" over "Teaser"
+            if (a.type === "Trailer" && b.type !== "Trailer") return -1;
+            if (b.type === "Trailer" && a.type !== "Trailer") return 1;
+            // Then by publish date (most recent first)
+            return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+          });
+
+        const bestTrailer = officialTrailers[0];
+        if (bestTrailer) {
+          trailers.push({
+            tmdbId: item.id,
+            title: item.title || item.name || "Unknown",
+            mediaType: "movie",
+            posterPath: item.poster_path,
+            backdropPath: item.backdrop_path,
+            releaseDate: item.release_date || "",
+            rating: item.vote_average,
+            popularity: item.popularity,
+
+            youtubeKey: bestTrailer.key,
+            trailerTitle: bestTrailer.name,
+            trailerType: bestTrailer.type,
+            official: bestTrailer.official,
+            publishedAt: bestTrailer.published_at,
+          });
+        }
+      } catch {
+        // Skip items that fail to fetch videos
+        continue;
+      }
+    }
+
+    return trailers;
+  } catch (error) {
+    dataLogger.error({
+      event: "fetch_trending_trailers_error",
       error: error instanceof Error ? error.message : String(error),
     });
     return [];

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { formatViewCount, formatDuration } from "@/lib/youtube-utils";
+import { formatViewCount, formatDuration, formatRelativeTime } from "@/lib/youtube-utils";
 import { VideoStats, VideoStatsSkeleton } from "./video-stats";
 import { VideoComments } from "./video-comments";
 import { ScrollContainer } from "./scroll-container";
@@ -128,15 +128,19 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
           {video.name}
         </p>
         
-        {/* View count */}
-        {metadata?.viewCount ? (
-          <div className="flex items-center gap-1 text-muted-foreground mt-1">
-            <Eye className="h-3 w-3" />
-            <span className="text-xs">{formatViewCount(metadata.viewCount)}</span>
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground mt-1">{video.type}</span>
-        )}
+        {/* View count and publish date */}
+        <div className="flex items-center gap-1.5 text-muted-foreground mt-1 text-xs">
+          {metadata?.viewCount ? (
+            <>
+              <Eye className="h-3 w-3" />
+              <span>{formatViewCount(metadata.viewCount)}</span>
+            </>
+          ) : null}
+          {metadata?.viewCount && video.published_at && <span>•</span>}
+          {video.published_at && (
+            <span>{formatRelativeTime(video.published_at)}</span>
+          )}
+        </div>
       </div>
     </button>
   );
@@ -234,12 +238,8 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
 
   const handleVideoSelect = (video: Video) => {
     setCurrentVideo(video);
-    setIsPlaying(false);
+    setIsPlaying(true); // Autoplay when user explicitly selects a video
     setActiveVideoData(null);
-  };
-
-  const handlePlay = () => {
-    setIsPlaying(true);
   };
 
   // Get stats for active video
@@ -286,49 +286,20 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
 
       {/* Desktop: Main video + thumbnails sidebar - synced heights */}
       <div className="hidden md:flex gap-4 px-4 md:px-8 lg:px-12">
-        {/* Main video player */}
+        {/* Main video player - takes remaining space after sidebar */}
         <div className="flex-1 min-w-0">
           <div
             ref={mainPlayerRef}
             className="relative aspect-video rounded-xl overflow-hidden bg-black"
           >
-            {isPlaying ? (
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?autoplay=1&rel=0`}
-                title={activeVideo.name}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
-            ) : (
-              <>
-                <Image
-                  src={`https://img.youtube.com/vi/${activeVideo.key}/maxresdefault.jpg`}
-                  alt={activeVideo.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 65vw, 55vw"
-                  unoptimized
-                />
-                <button
-                  onClick={handlePlay}
-                  className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors group"
-                >
-                  <div className="rounded-full bg-red-600 p-4 group-hover:scale-110 transition-transform shadow-xl">
-                    <Play className="h-8 w-8 text-white fill-white" />
-                  </div>
-                </button>
-                {/* Duration overlay on main video */}
-                {activeStats?.duration && (
-                  <Badge
-                    variant="secondary"
-                    className="absolute bottom-3 right-3 text-xs px-2 py-0.5 bg-black/80 text-white border-0 font-mono"
-                  >
-                    {formatDuration(activeStats.duration)}
-                  </Badge>
-                )}
-              </>
-            )}
+            {/* Always show iframe - non-autoplay shows YouTube's rich UI with channel, title, link */}
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
+              title={activeVideo.name}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
           </div>
           
           {/* Video info with stats */}
@@ -360,8 +331,8 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
           </div>
         </div>
 
-        {/* Thumbnails sidebar - 25% width */}
-        <div className="w-[25%] min-w-[280px] max-w-[400px] flex-shrink-0">
+        {/* Thumbnails sidebar - 35-40% width on larger screens */}
+        <div className="w-[35%] lg:w-[40%] min-w-[320px] flex-shrink-0">
           <ScrollArea style={{ height: `${sidebarHeight}px` }}>
             <div className="space-y-1 pr-3">
               {filteredVideos.map((video) => (
@@ -383,43 +354,14 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
         {/* Current video player */}
         <div className="px-4 mb-4">
           <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
-            {isPlaying ? (
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?autoplay=1&rel=0`}
-                title={activeVideo.name}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
-            ) : (
-              <>
-                <Image
-                  src={`https://img.youtube.com/vi/${activeVideo.key}/hqdefault.jpg`}
-                  alt={activeVideo.name}
-                  fill
-                  className="object-cover"
-                  sizes="100vw"
-                  unoptimized
-                />
-                <button
-                  onClick={handlePlay}
-                  className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors"
-                >
-                  <div className="rounded-full bg-red-600 p-3 shadow-xl">
-                    <Play className="h-6 w-6 text-white fill-white" />
-                  </div>
-                </button>
-                {/* Duration overlay on mobile */}
-                {activeStats?.duration && (
-                  <Badge
-                    variant="secondary"
-                    className="absolute bottom-2 right-2 text-[10px] px-1.5 py-0 bg-black/80 text-white border-0 font-mono"
-                  >
-                    {formatDuration(activeStats.duration)}
-                  </Badge>
-                )}
-              </>
-            )}
+            {/* Always show iframe - YouTube's native UI shows title, channel, link */}
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
+              title={activeVideo.name}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
           </div>
           
           {/* Mobile video info */}

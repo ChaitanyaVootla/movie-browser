@@ -2754,7 +2754,7 @@ const formatCurrency = (amount?: number): string | null => {
 - `typeof window !== 'undefined'` branches - render same content on server
 - Locale-dependent formatting - use explicit locale or deterministic code
 
-## Personalized Homepage Sections
+## Homepage Sections
 
 ### Component Structure
 
@@ -2762,64 +2762,162 @@ const formatCurrency = (amount?: number): string | null => {
 src/components/features/
 ├── home/
 │   ├── index.ts
-│   └── personalized-sections.tsx  # Client component for auth-gated content
+│   ├── personalized-sections.tsx  # ContinueWatchingSection + RecentVisitsSection
+│   ├── trailer-carousel.tsx       # TMDB trending trailers with YouTube stats
+│   ├── youtube-trailer-carousel.tsx  # YouTube channel viral trailers
+│   ├── trailer-modal.tsx          # Full-featured trailer modal (Dialog-based)
+│   ├── topic-pills.tsx            # Horizontal topic navigation
+│   └── mood-cards.tsx             # Prime-style mood discovery cards
 └── media/
     ├── wide-card.tsx              # Wide backdrop card for recents
     ├── wide-carousel.tsx          # Horizontal scroller for wide cards
     └── recent-tracker.tsx         # Invisible tracking component
 ```
 
-### PersonalizedSections Component
+### Personalized Sections (Split Components)
 
-Client component that shows Continue Watching and Recent Visits for authenticated users:
+`ContinueWatchingSection` and `RecentVisitsSection` are separate components for flexible positioning:
 
 ```tsx
 // src/components/features/home/personalized-sections.tsx
 "use client";
 
-export function PersonalizedSections() {
-  const { status } = useSession();
+export function ContinueWatchingSection() {
+  const { status } = useSafeSession();
   const isHydrated = useUserStore(selectIsHydrated);
   const continueWatching = useUserStore(selectContinueWatching);
+
+  if (status !== "authenticated") return null;
+  if (!isHydrated) return <WideCarousel loading ... />;
+  if (continueWatching.length === 0) return null;
+
+  return <WideCarousel title="Continue Watching" items={continueWatching} showWatchLinks />;
+}
+
+export function RecentVisitsSection() {
+  const { status } = useSafeSession();
+  const isHydrated = useUserStore(selectIsHydrated);
   const recents = useUserStore(selectRecents);
 
-  // Don't render for unauthenticated users
   if (status !== "authenticated") return null;
-  
-  // Show loading while hydrating
-  if (!isHydrated) return <WideCarousel loading ... />;
-  
-  // Don't render if no data
-  if (continueWatching.length === 0 && recents.length === 0) return null;
+  if (!isHydrated || recents.length === 0) return null;
 
-  return (
-    <>
-      {continueWatching.length > 0 && (
-        <WideCarousel title="Continue Watching" items={continueWatching} showWatchLinks />
-      )}
-      {recents.length > 0 && (
-        <WideCarousel title="Recent Visits" items={recents} />
-      )}
-    </>
-  );
+  return <WideCarousel title="Recent Visits" items={recents} />;
 }
 ```
 
-### Homepage Order
+### TrailerCarousel Component
 
-Trending content comes first, personalized sections follow:
+Displays trending movie trailers with YouTube metadata:
+
+```tsx
+// src/components/features/home/trailer-carousel.tsx
+interface TrendingTrailer {
+  tmdbId: number;
+  title: string;
+  mediaType: "movie";  // TV series skipped (TMDB has stale Season 1 trailers)
+  youtubeKey: string;
+  trailerType: string; // "Trailer" | "Teaser"
+  // ... other fields
+}
+
+// Features:
+// - YouTube thumbnail with hover play button
+// - Trailer/Teaser type badge
+// - Movie title linked to detail page
+// - YouTube stats (views + like/dislike ratio bar)
+// - Click to play in TrailerModal
+
+// YouTube metadata fetched client-side:
+useEffect(() => {
+  fetch(`/api/youtube?videoIds=${videoIds}`)
+    .then(/* set videoMetadata state */);
+}, [trailers]);
+```
+
+**Data source:** `getTrendingTrailers()` combines:
+- Trending movies (currently popular)
+- Upcoming movies (trailers being promoted)
+- Now playing movies (fresh releases)
+
+### TrailerModal Component
+
+Full-featured trailer modal using shadcn Dialog. Used by both `TrailerCarousel` (TMDB) and `YouTubeTrailerCarousel` (YouTube channels), as well as the detail page play button.
+
+```tsx
+// src/components/features/home/trailer-modal.tsx
+interface TrailerModalData {
+  youtubeKey: string;
+  title: string;           // Movie/show title
+  trailerTitle: string;    // Full trailer title from YouTube
+  tmdbId?: number;         // Optional - links to detail page
+  mediaType?: "movie" | "tv";
+  publishedAt?: string;
+  channelTitle?: string;
+  // Stats (loaded client-side)
+  viewCount?: number;
+  likeCount?: number;
+  dislikeCount?: number;
+}
+
+interface TrailerModalProps {
+  trailers: TrailerModalData[];
+  currentIndex: number;
+  isOpen: boolean;
+  onClose: () => void;
+  onNavigate: (index: number) => void;  // For prev/next
+}
+```
+
+**Features:**
+- **Proper Dialog** - Uses shadcn Dialog (ESC to close, backdrop, animations)
+- **Large size** - Nearly full screen (`95vh`, `max-w-[1600px]`)
+- **Two-column layout** (desktop) - Video + metadata on left, comments on right
+- **Video metadata** - Title, views, date, like/dislike ratio bar
+- **Video description** - Collapsible, auto-links URLs
+- **Prev/Next navigation** - Shows trailer titles, keyboard arrows work
+- **Comments section** - Scrollable list, shows total count from YouTube
+- **Watch on YouTube button** - Red branded button
+
+**Data fetched on open:**
+```tsx
+// Fetches stats + comments for current video
+fetch(`/api/youtube?videoId=${youtubeKey}`)
+  // Returns: { stats: {..., commentCount, description}, comments: {...} }
+```
+
+**Used by:**
+- `TrailerCarousel` - Homepage TMDB trailers
+- `YouTubeTrailerCarousel` - Homepage viral trailers from YouTube channels
+- `MediaActionBar` - Detail page "Play Trailer" button (single trailer)
+
+### Homepage Order
 
 ```tsx
 // src/app/page.tsx
-<div className="px-4 md:px-8 lg:px-12 pb-16 space-y-12">
-  {/* 1. Trending Movies */}
+<div className="px-4 md:px-8 lg:px-12 pb-16 space-y-10">
+  {/* 1. Continue Watching (logged-in only, top priority) */}
+  <ContinueWatchingSection />
+  
+  {/* 2. Topic Pills */}
+  <TopicPills topics={popularTopics} />
+  
+  {/* 3. Trending Trailers */}
+  <TrailerCarousel title="Trending Trailers" trailers={trendingTrailers} />
+  
+  {/* 4. Trending Movies */}
   <MovieCarousel title="Trending Movies" items={trending.movies} />
   
-  {/* 2. Trending TV Shows */}
+  {/* 5. Trending TV Shows */}
   <MovieCarousel title="Trending TV Shows" items={trending.tv} />
   
-  {/* 3. Personalized Sections (Continue Watching, Recents) */}
-  <PersonalizedSections />
+  {/* 6. Recent Visits (logged-in only, after trending) */}
+  <RecentVisitsSection />
+  
+  {/* 7. Mood Cards */}
+  <MoodCards />
+  
+  {/* ... more sections */}
 </div>
 ```
 

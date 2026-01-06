@@ -30,7 +30,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { cn, getSlug, getMediaHref } from "@/lib/utils";
+import { cn, getSlug, getMediaHref, isMovieItem, getDisplayTitle } from "@/lib/utils";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZES, TMDB_PROFILE_SIZES } from "@/lib/constants";
 import { quickSearch } from "@/server/actions/search";
 import { getPopularTopics, searchTopics } from "@/lib/topics";
@@ -83,7 +83,6 @@ function parseTopicKey(key: string): { type: "genre" | "theme"; mediaType: "movi
 }
 
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
-  console.log("[Search] Render - open:", open);
   const router = useRouter();
   const [query, setQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
@@ -113,29 +112,23 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     });
   }, [query]);
 
-  // Reset state when dialog closes
+  // Clear state when dialog closes
   React.useEffect(() => {
     if (!open) {
+      // Delay to allow animation to complete
       const timer = setTimeout(() => {
         setQuery("");
         setResults({ results: [] });
-      }, 150);
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [open]);
 
   // Handle mobile back button - push history state when open, close on popstate
-  const closedViaBackRef = React.useRef(false);
-  
   React.useEffect(() => {
-    if (!open) {
-      closedViaBackRef.current = false;
-      return;
-    }
+    if (!open) return;
 
-    // Push a history state so back button closes dialog instead of navigating
     const handlePopState = () => {
-      closedViaBackRef.current = true;
       onOpenChange(false);
     };
 
@@ -144,9 +137,6 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
-      // Only go back if we closed via non-back-button means and we're still on the search state
-      // Don't call history.back() - it interferes with navigation
-      // The extra history entry is harmless and will be cleaned up naturally
     };
   }, [open, onOpenChange]);
 
@@ -193,26 +183,22 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const recentItems = recents.slice(0, 5);
   const showPopularTopics = recentItems.length < 3;
 
-  const handleSelectMedia = (
+  const handleSelectMedia = React.useCallback((
     type: "movie" | "series" | "person",
     id: number,
     name: string
   ) => {
-    console.log("[Search] handleSelectMedia called", { type, id, name });
-    // Close dialog first
-    onOpenChange(false);
-    // Then navigate
     const path = type === "person" 
       ? `/person/${id}/${getSlug(name)}`
       : getMediaHref(id, type === "movie", name);
-    console.log("[Search] Navigating to:", path);
+    onOpenChange(false);
     router.push(path);
-  };
+  }, [onOpenChange, router]);
 
-  const handleSelectTopic = (topicKey: string) => {
+  const handleSelectTopic = React.useCallback((topicKey: string) => {
     onOpenChange(false);
     router.push(`/topics/${topicKey}`);
-  };
+  }, [onOpenChange, router]);
 
   const handleViewAll = React.useCallback(() => {
     if (!query.trim()) return;
@@ -375,7 +361,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
       <DialogContent
         className={cn(
           "overflow-hidden p-0",
@@ -430,45 +416,50 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 {/* Recent visits */}
                 {recentItems.length > 0 && (
                   <CommandGroup heading="Recent">
-                    {recentItems.map((recent) => (
-                      <CommandItem
-                        key={`recent-${recent.isMovie ? "movie" : "tv"}-${recent.itemId}`}
-                        value={`recent-${recent.itemId}`}
-                        onSelect={() =>
-                          handleSelectMedia(
-                            recent.isMovie ? "movie" : "series",
-                            recent.itemId,
-                            recent.title || recent.name || ""
-                          )
-                        }
-                        className="gap-3 py-2"
-                      >
-                        <History className="h-4 w-4 text-muted-foreground/50" />
-                        <div className="relative h-8 w-6 flex-shrink-0 overflow-hidden rounded bg-muted">
-                          {recent.poster_path ? (
-                            <Image
-                              src={`${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZES.small}${recent.poster_path}`}
-                              alt={recent.title || recent.name || ""}
-                              fill
-                              className="object-cover"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center">
-                              {recent.isMovie ? (
-                                <Film className="h-3 w-3 text-muted-foreground" />
-                              ) : (
-                                <Tv className="h-3 w-3 text-muted-foreground" />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <span className="flex-1 truncate text-sm">
-                          {recent.title || recent.name}
-                        </span>
-                        {getMediaIcon(recent.isMovie ? "movie" : "tv")}
-                      </CommandItem>
-                    ))}
+                    {recentItems.map((recent) => {
+                      // Derive movie/series from item properties (title = movie, name = series)
+                      const recentIsMovie = isMovieItem(recent);
+                      const recentTitle = getDisplayTitle(recent);
+                      return (
+                        <CommandItem
+                          key={`recent-${recentIsMovie ? "movie" : "tv"}-${recent.itemId}`}
+                          value={`recent-${recent.itemId}`}
+                          onSelect={() =>
+                            handleSelectMedia(
+                              recentIsMovie ? "movie" : "series",
+                              recent.itemId,
+                              recentTitle
+                            )
+                          }
+                          className="gap-3 py-2"
+                        >
+                          <History className="h-4 w-4 text-muted-foreground/50" />
+                          <div className="relative h-8 w-6 flex-shrink-0 overflow-hidden rounded bg-muted">
+                            {recent.poster_path ? (
+                              <Image
+                                src={`${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZES.small}${recent.poster_path}`}
+                                alt={recentTitle}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center">
+                                {recentIsMovie ? (
+                                  <Film className="h-3 w-3 text-muted-foreground" />
+                                ) : (
+                                  <Tv className="h-3 w-3 text-muted-foreground" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <span className="flex-1 truncate text-sm">
+                            {recentTitle}
+                          </span>
+                          {getMediaIcon(recentIsMovie ? "movie" : "tv")}
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 )}
 
@@ -580,21 +571,3 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   );
 }
 
-// Hook to manage search command state and keyboard shortcut
-export function useSearchCommand() {
-  const [open, setOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    };
-
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
-
-  return { open, setOpen };
-}

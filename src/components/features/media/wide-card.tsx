@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { cn, getMediaHref } from "@/lib/utils";
+import { cn, isMovieItem, getDisplayTitle, getMediaHrefFromItem } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RecentItem, ContinueWatchingItem } from "@/stores/user";
 
@@ -34,11 +34,12 @@ interface WideCardProps {
 export function WideCard({ item, className, showWatchLink = false }: WideCardProps) {
   const [useFallback, setUseFallback] = useState(false);
 
-  // Use isMovie field directly - it's always set correctly by the server
-  const isMovie = item.isMovie;
-  const title = item.title || item.name || "Untitled";
+  // Derive movie/series from item properties (title = movie, name = series)
+  // This is more reliable than the isMovie field which may be stale in DB
+  const isMovie = isMovieItem(item);
+  const title = getDisplayTitle(item);
   const mediaType = isMovie ? "movie" : "series";
-  const detailHref = getMediaHref(item.itemId, isMovie, title);
+  const detailHref = getMediaHrefFromItem(item.itemId, item);
 
   // Continue watching specific fields
   const watchLink = "watchLink" in item ? item.watchLink : undefined;

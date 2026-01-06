@@ -28,6 +28,7 @@
     "deploy:restart": "./scripts/deploy-next.sh --restart-only",
     "test:ai": "npx tsx scripts/test-ai-agent.ts",
     "test:ai:query": "npx tsx scripts/test-ai-agent.ts",
+    "test:youtube": "npx tsx scripts/test-youtube-trending.ts",
     "enrich": "npx tsx scripts/enrich-content.ts",
     "enrich:batch": "npx tsx scripts/enrich-batch.ts",
     "enrich:analyze": "npx tsx scripts/analyze-wikidata-sources.ts",

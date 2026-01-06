@@ -10,7 +10,7 @@ import { useTheme } from "next-themes";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SearchCommand, useSearchCommand } from "@/components/features/search";
+import { useSearch } from "@/components/features/search";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
@@ -250,7 +250,7 @@ function NavItemButton({ item, isActive }: NavItemButtonProps) {
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const { open: isSearchOpen, setOpen: setSearchOpen } = useSearchCommand();
+  const { setOpen: setSearchOpen } = useSearch();
   const [isUserSheetOpen, setIsUserSheetOpen] = useState(false);
 
   const isAuthenticated = status === "authenticated";
@@ -333,9 +333,6 @@ export function MobileBottomNav() {
 
       {/* User menu sheet */}
       <MobileUserSheet open={isUserSheetOpen} onOpenChange={setIsUserSheetOpen} />
-
-      {/* Search dialog (mobile only, but renders via Portal) */}
-      <SearchCommand open={isSearchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }

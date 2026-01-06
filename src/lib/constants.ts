@@ -91,7 +91,7 @@ export const CACHE_DURATIONS = {
   discover: 1800, // 30 minutes
   images: 3600, // 1 hour
   watchProviders: 86400, // 24 hours
-  youtube: 1800, // 30 minutes - YouTube video stats/comments
+  youtube: 86400, // 24 hours - YouTube video stats/comments
 } as const;
 
 // Pagination

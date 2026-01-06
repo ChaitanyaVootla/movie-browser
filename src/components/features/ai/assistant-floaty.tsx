@@ -21,6 +21,7 @@ import {
   Minimize2,
   RotateCcw,
   Film,
+  ChevronDown,
 } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
 import { cn, getSlug } from "@/lib/utils";
@@ -33,6 +34,7 @@ import {
   type ParsedMediaTag,
 } from "@/lib/ai/parse-media-tags";
 import { useChatStream, type PageContext } from "@/hooks/use-chat-stream";
+import { useMobile } from "@/hooks/use-mobile";
 import { RichMessageContent, collectMediaTags } from "./rich-message-content";
 import {
   ChatRatings,
@@ -41,6 +43,7 @@ import {
   useTagData,
 } from "./chat-tags";
 import { GlowContainer, ThinkingIndicator, BottomGlow } from "./ai-animations";
+import { MobileChatDrawer } from "./mobile-chat-drawer";
 
 // =============================================================================
 // Types & Config
@@ -234,20 +237,22 @@ const IDLE_PROMPTS: PromptConfig[] = [
 ];
 
 // =============================================================================
-// Idle Circle Component - Clean CSS-based transitions
+// Idle Circle Component - Smooth morphing animation
 // =============================================================================
 
 interface IdleCircleProps {
   onExpand: (clickedPrompt?: PromptConfig) => void;
   showPrompt: boolean;
   prompt: PromptConfig | null;
+  hasActiveConversation?: boolean;
 }
 
-function IdleCircle({ onExpand, showPrompt, prompt }: IdleCircleProps) {
-  const isAwake = showPrompt && prompt;
+function IdleCircle({ onExpand, showPrompt, prompt, hasActiveConversation }: IdleCircleProps) {
+  // If there's an active conversation, clicking should restore it (no prompt)
+  const isAwake = showPrompt && prompt && !hasActiveConversation;
 
   return (
-    <button
+    <motion.button
       onClick={() => onExpand(isAwake ? prompt : undefined)}
       data-testid="ai-assistant-trigger"
       role="button"
@@ -255,70 +260,114 @@ function IdleCircle({ onExpand, showPrompt, prompt }: IdleCircleProps) {
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onExpand(isAwake ? prompt : undefined);
       }}
+      layout
+      initial={false}
+      animate={{
+        width: isAwake ? "auto" : 40,
+        height: 40,
+        paddingLeft: isAwake ? 14 : 0,
+        paddingRight: isAwake ? 14 : 0,
+      }}
+      transition={{
+        layout: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+        width: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+        height: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+        paddingLeft: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+        paddingRight: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+      }}
       className={cn(
-        "ai-idle-btn relative flex items-center justify-center cursor-pointer",
+        "relative flex items-center justify-center cursor-pointer rounded-full",
         "bg-background/90 backdrop-blur-md",
         "border border-border/50",
         "shadow-lg shadow-black/10",
         "hover:shadow-xl hover:shadow-black/15",
-        "hover:border-brand/30",
-        // Size and shape transitions via CSS
-        isAwake
-          ? "h-11 px-4 gap-2 rounded-full"
-          : "h-12 w-12 rounded-full"
+        "hover:border-brand/30"
       )}
     >
       {/* Awake state glow ring */}
-      {isAwake && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute -inset-px rounded-full ring-1 ring-brand/40 shadow-[0_0_10px_2px] shadow-brand/30 pointer-events-none"
-        />
-      )}
-
-      <AnimatePresence mode="wait">
-        {isAwake ? (
+      <AnimatePresence>
+        {isAwake && (
           <motion.div
-            key="prompt"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: TRANSITION_EASE }}
-            className="flex items-center gap-2"
-          >
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute -inset-px rounded-full ring-1 ring-brand/40 shadow-[0_0_10px_2px] shadow-brand/30 pointer-events-none"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Icon - always present, animates size and position */}
+      <motion.div
+        layout
+        className="relative shrink-0"
+        animate={{
+          scale: isAwake ? 0.75 : 1,
+        }}
+        transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+      >
+        <motion.div
+          animate={isAwake ? { rotate: [0, 15, -15, 0] } : { rotate: 0 }}
+          transition={isAwake ? { duration: 0.5, repeat: Infinity, repeatDelay: 2 } : { duration: 0.2 }}
+        >
+          <AISparkIcon size={22} className="text-brand" />
+        </motion.div>
+        
+        {/* Idle pulse ring - only when dormant and no active conversation */}
+        <AnimatePresence>
+          {!isAwake && !hasActiveConversation && (
             <motion.div
-              animate={{ rotate: [0, 15, -15, 0] }}
-              transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
-            >
-              <AISparkIcon size={16} className="text-brand shrink-0" />
-            </motion.div>
-            <span className="text-sm font-medium text-foreground whitespace-nowrap">
+              initial={{ scale: 1, opacity: 0.5 }}
+              animate={{ scale: [1, 1.8, 1.8], opacity: [0.5, 0, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 3, ease: "easeOut" }}
+              className="absolute inset-0 rounded-full border-2 border-brand/20"
+            />
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Active conversation indicator dot */}
+      <AnimatePresence>
+        {hasActiveConversation && !isAwake && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-brand border-2 border-background shadow-sm"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Text content - animates width and opacity */}
+      <AnimatePresence>
+        {isAwake && prompt && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: "auto", opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ 
+              width: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+              opacity: { duration: 0.2, delay: 0.1 }
+            }}
+            className="flex items-center gap-2 overflow-hidden"
+          >
+            <span className="text-sm font-medium text-foreground whitespace-nowrap pl-2">
               {prompt.text}
             </span>
-            <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="icon"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: TRANSITION_EASE }}
-            className="relative"
-          >
-            <AISparkIcon size={24} className="text-brand" />
-            {/* Idle pulse ring */}
             <motion.div
-              className="absolute inset-0 rounded-full border-2 border-brand/20"
-              animate={{ scale: [1, 1.8, 1.8], opacity: [0.5, 0, 0] }}
-              transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 3, ease: "easeOut" }}
-            />
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.2, delay: 0.15 }}
+            >
+              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </button>
+    </motion.button>
   );
 }
 
@@ -326,7 +375,13 @@ function IdleCircle({ onExpand, showPrompt, prompt }: IdleCircleProps) {
 // Poster Card Component
 // =============================================================================
 
-const PosterCardLarge = memo(function PosterCardLarge({ tag }: { tag: ParsedMediaTag }) {
+const PosterCardLarge = memo(function PosterCardLarge({ 
+  tag, 
+  onNavigate 
+}: { 
+  tag: ParsedMediaTag;
+  onNavigate?: () => void;
+}) {
   const [imgError, setImgError] = useState(false);
 
   const href =
@@ -339,6 +394,7 @@ const PosterCardLarge = memo(function PosterCardLarge({ tag }: { tag: ParsedMedi
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={cn(
         "group/card shrink-0 flex flex-col",
         "transition-transform duration-300",
@@ -398,6 +454,7 @@ interface MinimalViewProps {
   onInputChange: (value: string) => void;
   onSend: () => void;
   onExpand: () => void;
+  onMinimize: () => void;
   onClose: () => void;
   prompts: PromptConfig[];
   featuredPrompt: PromptConfig | null;
@@ -413,6 +470,7 @@ function MinimalView({
   onInputChange,
   onSend,
   onExpand,
+  onMinimize,
   onClose,
   prompts,
   featuredPrompt,
@@ -647,12 +705,12 @@ function MinimalView({
                   <Maximize2 className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={onClose}
-                  data-testid="ai-close-btn"
+                  onClick={onMinimize}
+                  data-testid="ai-minimize-btn"
                   className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                  title="Close"
+                  title="Minimize"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -861,10 +919,18 @@ function MinimalView({
                       <Maximize2 className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      onClick={onMinimize}
+                      data-testid="ai-minimize-btn"
+                      className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                      title="Minimize"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={onClose}
                       data-testid="ai-close-btn"
                       className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                      title="Close"
+                      title="Close & reset"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -977,7 +1043,7 @@ function ExpandedChat({
         className={cn(
           "fixed left-1/2 -translate-x-1/2 z-50",
           keyboardHeight === 0 && "bottom-20 md:bottom-6", // Above bottom nav on mobile (when no keyboard)
-          keyboardHeight === 0 && "h-[60vh] md:h-[70vh] max-h-[600px]", // Normal height when no keyboard
+          keyboardHeight === 0 && "h-[70vh] md:h-[80vh] max-h-[800px]", // Normal height when no keyboard
           "w-[calc(100vw-32px)] max-w-[600px]",
           "bg-background/95 backdrop-blur-xl",
           "border border-border/50 rounded-2xl",
@@ -1196,7 +1262,9 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
   const [showIdlePrompt, setShowIdlePrompt] = useState(false);
   const [idlePromptIndex, setIdlePromptIndex] = useState(0);
   const [featuredPrompt, setFeaturedPrompt] = useState<PromptConfig | null>(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
+  const isMobile = useMobile();
   const pageContext = usePageContext(itemContext);
   const contextualPrompts = useMemo(() => getContextualPrompts(pageContext), [pageContext]);
 
@@ -1259,6 +1327,11 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
     [sendMessage]
   );
 
+  const handleMinimize = useCallback(() => {
+    setState("idle");
+    // Don't clear messages - preserve the conversation
+  }, []);
+
   const handleClose = useCallback(() => {
     setState("idle");
     clearMessages();
@@ -1267,17 +1340,87 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
 
   const handleNavigate = useCallback(() => {
     executeNavigation();
-    handleClose();
-  }, [executeNavigation, handleClose]);
+    handleMinimize(); // Minimize instead of close to preserve context
+  }, [executeNavigation, handleMinimize]);
 
   const handleReset = useCallback(() => {
     clearMessages();
     setInput("");
   }, [clearMessages]);
 
+  // Handle mobile drawer open/close
+  const handleMobileExpand = useCallback((clickedPrompt?: PromptConfig) => {
+    setShowIdlePrompt(false);
+    if (messages.length === 0) {
+      setFeaturedPrompt(clickedPrompt || null);
+    }
+    setMobileDrawerOpen(true);
+  }, [messages.length]);
+
+  const handleMobileDrawerChange = useCallback((open: boolean) => {
+    setMobileDrawerOpen(open);
+    // Don't clear messages when closing - preserve conversation
+  }, []);
+
+  const handleMobileNavigate = useCallback(() => {
+    executeNavigation();
+    setMobileDrawerOpen(false);
+  }, [executeNavigation]);
+
+  // Mobile: Use drawer
+  if (isMobile) {
+    return (
+      <>
+        {/* Idle bubble - always visible when drawer is closed */}
+        <AnimatePresence>
+          {!mobileDrawerOpen && (
+            <motion.div
+              key="idle-mobile"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2, ease: TRANSITION_EASE }}
+              className={cn(
+                "fixed left-1/2 -translate-x-1/2 z-50",
+                "bottom-[4.25rem]", // Above the h-14 (56px) bottom nav + some margin
+                className
+              )}
+            >
+              <IdleCircle
+                onExpand={handleMobileExpand}
+                showPrompt={showIdlePrompt}
+                prompt={IDLE_PROMPTS[idlePromptIndex]}
+                hasActiveConversation={messages.length > 0}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile drawer */}
+        <MobileChatDrawer
+          isOpen={mobileDrawerOpen}
+          onOpenChange={handleMobileDrawerChange}
+          onClose={() => setMobileDrawerOpen(false)}
+          messages={messages}
+          isLoading={isLoading}
+          input={input}
+          onInputChange={setInput}
+          onSend={handleSend}
+          onReset={handleReset}
+          prompts={contextualPrompts}
+          featuredPrompt={featuredPrompt}
+          onPromptClick={handlePromptClick}
+          pendingNavigation={pendingNavigation}
+          onNavigate={handleMobileNavigate}
+        />
+      </>
+    );
+  }
+
+  // Desktop: Use floating UI
   return (
     <AnimatePresence mode="wait">
-      {/* Idle state - positioned above bottom nav on mobile */}
+      {/* Idle state */}
       {state === "idle" && (
         <motion.div
           key="idle"
@@ -1286,20 +1429,22 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.2, ease: TRANSITION_EASE }}
           className={cn(
-            "fixed left-1/2 -translate-x-1/2 z-50",
-            "bottom-6 md:bottom-6", // Desktop: normal position
-            "max-md:bottom-[4.25rem]", // Mobile: above the h-14 (56px) bottom nav + some margin
+            "fixed left-1/2 -translate-x-1/2 z-50 bottom-6",
             className
           )}
         >
           <IdleCircle
             onExpand={(clickedPrompt) => {
               setShowIdlePrompt(false);
-              setFeaturedPrompt(clickedPrompt || null);
+              // Only set featured prompt if no active conversation
+              if (messages.length === 0) {
+                setFeaturedPrompt(clickedPrompt || null);
+              }
               setState("active");
             }}
             showPrompt={showIdlePrompt}
             prompt={IDLE_PROMPTS[idlePromptIndex]}
+            hasActiveConversation={messages.length > 0}
           />
         </motion.div>
       )}
@@ -1313,6 +1458,7 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
           onInputChange={setInput}
           onSend={handleSend}
           onExpand={() => setState("expanded")}
+          onMinimize={handleMinimize}
           onClose={handleClose}
           prompts={contextualPrompts}
           featuredPrompt={featuredPrompt}

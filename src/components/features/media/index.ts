@@ -7,7 +7,7 @@ export { WatchOptions } from "./watch-options";
 export { MediaActions } from "./media-actions";
 export { MediaActionBar } from "./media-action-bar";
 export { QuickTake } from "./quick-take";
-export { MediaBackdrop, TrailerOverlay } from "./media-backdrop";
+export { MediaBackdrop } from "./media-backdrop";
 export { HeroContent, heroContainerVariants, heroItemVariants } from "./hero-content";
 export { MediaHero } from "./media-hero";
 export { HeroBackdropShell } from "./hero-backdrop-shell";

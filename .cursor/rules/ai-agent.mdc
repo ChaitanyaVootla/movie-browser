@@ -24,11 +24,18 @@ Model pricing is defined in `src/lib/model-pricing.ts` - add new models there.
 
 **Streaming Support:** Uses SSE format for responses. Tool calls use non-streaming invoke for reliability (ensures tools actually execute).
 
-### Nova Pro Tool Call Quirk (Important!)
+### Model Output Quirks (Kimi K2 & Nova Pro)
 
-Nova Pro sometimes outputs tool calls as **text tokens** (`<|tool_call_begin|>`) instead of structured `tool_calls` in the API response. This would normally cause the agent to end prematurely.
+Both Kimi K2 and Nova Pro have quirks where internal markers can leak into output text:
 
-**We handle this automatically** in `src/server/ai/agent.ts`:
+**Types of leaked markers:**
+- Tool call markers: `<|tool_call_begin|>`, `<|tool_call_end|>`, `functions.tool_name:0`
+- Thinking tags: `<thinking>`, `</thinking>`, `<reasoning>`
+- IM markers: `<|im_start|>`, `<|im_end|>`
+
+**Recovery: Tool calls as text**
+
+When models output tool calls as text tokens instead of structured API calls, we recover them:
 
 ```typescript
 // In shouldContinue() - detects and recovers tool calls from text
@@ -42,7 +49,25 @@ if (content.includes("<|tool_call_begin|>") || content.includes("functions.")) {
 }
 ```
 
-When this happens, you'll see in logs:
+**Cleanup: Output sanitization**
+
+The `cleanModelOutput()` function in `agent.ts` strips all internal markers before returning to the user:
+
+```typescript
+// Handles both pipe-delimited (Kimi K2) and XML-style (Nova Pro) markers
+cleanModelOutput(content)
+  // Kimi K2 pipe-delimited markers
+  .replace(/<\|tool_call_begin\|>/gi, "")
+  .replace(/<\|im_start\|>/gi, "")
+  // Thinking tags (often leak as standalone close tags)
+  .replace(/<\/?thinking>/gi, "")
+  .replace(/<\/?reasoning>/gi, "")
+  // Function call markers in text
+  .replace(/functions\.[\w]+:\d+/gi, "")
+  // ... more patterns
+```
+
+When tool call recovery happens, you'll see in logs:
 ```
 [AI AGENT] Parsed tool call from text: get_details
 [AI AGENT] Recovered 1 tool calls from text output
@@ -113,6 +138,15 @@ yarn test:ai --user
   - Cards container: `bg-black border-white/20 shadow-lg shadow-black/60`
   - Input/text container: Shadow pushed down to avoid overlap
   - Poster cards show 3-line descriptions (`line-clamp-3`)
+- **Mobile Drawer**: On mobile (<768px), chat opens as a bottom sheet drawer (Vaul)
+  - Uses `useMobile` hook for responsive detection
+  - Drawer auto-closes when clicking poster cards (since it covers most of screen)
+  - Conversation preserved when drawer closes (minimize behavior)
+- **Minimize vs Close**: Separate behaviors for preserve vs reset
+  - Minimize (ChevronDown): Collapses to bubble, keeps conversation
+  - Close (X): Resets conversation completely
+  - Active conversation indicator dot on minimized bubble
+- **Smooth Animations**: Idle bubble morphs into pill with Framer Motion layout animations
 
 #### Phase 6: Smart Discover & Tag Resolution ✨
 - **Unified discover tool** with name-based filters
@@ -202,9 +236,13 @@ src/
 ├── app/api/ai/
 │   ├── chat/route.ts         # Chat endpoint (resolves tags before response)
 │   └── tag-data/route.ts     # Fetch ratings/watch data for tags
-├── hooks/use-chat-stream.ts  # SSE chat hook
+├── hooks/
+│   ├── use-chat-stream.ts    # SSE chat hook
+│   └── use-mobile.ts         # Mobile detection hook (<768px)
 └── components/features/ai/
-    ├── assistant-floaty.tsx  # Main floating UI
+    ├── assistant-floaty.tsx  # Main floating UI (desktop) + IdleCircle
+    ├── mobile-chat-drawer.tsx # Mobile bottom sheet drawer (Vaul)
+    ├── ai-animations.tsx     # ThinkingIndicator, GlowContainer, BottomGlow
     ├── rich-message-content.tsx  # Renders all tag types
     ├── chat-tags.tsx         # ChatRatings, ChatWatchOptions, PersonChip
     └── media-chip.tsx        # Handles null IDs gracefully
@@ -262,12 +300,32 @@ The agent uses structured tags that get rendered as interactive UI components:
 **Made-up IDs = broken links = angry users.** The server auto-resolves titles, so skipping is ALWAYS safe.
 
 1. **Tool gave you an ID?** → Use it exactly as provided
-2. **Suggesting from general knowledge?** → Leave ID empty: `[MOVIE::Title]`
+2. **Suggesting from general knowledge?** → Leave ID empty with year hint: `[MOVIE::Title (YYYY)]`
 3. **Not 100% certain the ID is correct?** → Skip it
 4. **NEVER guess/invent IDs** - Wrong IDs break the app
 5. **NEVER wrap tags in backticks**
 
-The `resolveMediaTags()` function searches TMDB and injects correct IDs automatically. Trust the system.
+### Year Hints for Better Resolution
+
+When the agent skips IDs, it should include the release year for disambiguation:
+
+```
+# Good - year hint helps resolver pick correct version
+[MOVIE::The Batman (2022)|Dark and gritty]
+[MOVIE::Fight Club (1999)|Mind-bending]
+[SERIES::The Office (2005)|US version cringe comedy]
+
+# Supported year formats
+"Title (YYYY)"  → most common
+"Title [YYYY]"  → also works
+"Title - YYYY"  → also works
+```
+
+The `resolveMediaTags()` function:
+1. Extracts year hints from titles (e.g., "Fight Club (1999)" → year: 1999)
+2. Searches TMDB for the clean title
+3. Prioritizes results matching the year hint
+4. Falls back to most popular if no year match
 
 ### Null ID Handling in Components
 
@@ -305,15 +363,21 @@ import { resolveMediaTags } from "@/server/ai";
 
 // In chat API route - runs automatically for BOTH media AND person tags
 responseText = await resolveMediaTags(responseText);
-// [MOVIE::Fight Club] → [MOVIE:550:Fight Club]
+// [MOVIE::Fight Club (1999)] → [MOVIE:550:Fight Club (1999)]
+// [MOVIE::The Batman (2022)] → [MOVIE:414906:The Batman (2022)]
 // [PERSON::Cillian Murphy] → [PERSON:28782:Cillian Murphy]
 ```
 
 The `resolveMediaTags()` function:
 1. Finds all unresolved media tags (movies/series without IDs)
-2. Finds all unresolved person tags (persons without IDs)
+2. Extracts year hints from titles (e.g., "Fight Club (1999)" → year: 1999)
 3. Searches TMDB for each title/name in parallel
-4. Injects the correct IDs into the tags
+4. Uses year-aware matching priority:
+   - Exact title + exact year match (best)
+   - Exact title match (any year)
+   - Year match + highest popularity
+   - Highest popularity fallback
+5. Injects the correct IDs into the tags
 
 ### Tag Parsing
 
@@ -759,16 +823,18 @@ Agent: "Breaking Bad? Say less. [WATCH:series:1396] [SERIES:1396:Breaking Bad|Ch
 
 User: "Give me thrillers"
 Agent: "Unhinged thriller energy incoming. The Sixth Sense, Se7en, and Zodiac will mess you up (in the best way).
-[MOVIE:745:The Sixth Sense|That twist hits different]
-[MOVIE:807:Se7en|Dark and twisted]
-[MOVIE::Zodiac|Obsession: the movie]"
+[MOVIE::The Sixth Sense (1999)|That twist hits different]
+[MOVIE::Se7en (1995)|Dark and twisted]
+[MOVIE::Zodiac (2007)|Obsession: the movie]"
 
 User: "Horror movies"
 Agent: "Time to suffer (affectionately).
-[MOVIE::Hereditary|Emotionally destroyed me]
-[MOVIE::The Thing|Practical effects supremacy]
-[MOVIE::It Follows|Simple concept, maximum dread]"
+[MOVIE::Hereditary (2018)|Emotionally destroyed me]
+[MOVIE::The Thing (1982)|Practical effects supremacy]
+[MOVIE::It Follows (2014)|Simple concept, maximum dread]"
 ```
+
+**Note:** When using general knowledge (no tool call), include the year in parentheses for disambiguation. The resolver uses this to pick the correct version.
 
 **❌ BAD - Too long, boring, or broken:**
 ```
@@ -789,12 +855,14 @@ Agent: "Here are some picks: [MOVIE:550:Fight Club] [MOVIE:807:Se7en]"
 This is the #1 technical rule. Made-up IDs = broken links = bad UX.
 
 - ✅ **Tool gave ID?** Use it: `[MOVIE:550:Fight Club]`
-- ✅ **From general knowledge?** Skip ID: `[MOVIE::The Godfather]`
+- ✅ **From general knowledge?** Skip ID + add year: `[MOVIE::The Godfather (1972)]`
 - ✅ **Not sure?** Skip ID - server auto-resolves titles
 - ❌ **NEVER invent/guess IDs** - this breaks the app
 - ❌ **NEVER wrap tags in backticks**
 
-Why skipping is safe: `resolveMediaTags()` in the API route auto-searches TMDB and injects correct IDs before returning to the client.
+**Why year hints matter:** For titles like "The Batman", "Dune", or "The Office", multiple versions exist. Adding the year ensures the resolver picks the correct one.
+
+Why skipping is safe: `resolveMediaTags()` in the API route auto-searches TMDB, uses year hints for disambiguation, and injects correct IDs before returning to the client.
 
 ### UI Containers (MinimalView)
 
@@ -818,9 +886,39 @@ Key styling:
 - Box shadows with controlled falloff
 - Input container shadow pushed down to avoid overlap with cards
 
+### Mobile vs Desktop UI
+
+The AI assistant uses different UIs based on viewport:
+
+**Desktop (≥768px):** Floating overlay UI
+- IdleCircle → MinimalView → ExpandedChat
+- Floating containers with poster cards above, input below
+- ExpandedChat: `h-[70vh] md:h-[80vh] max-h-[800px]`
+
+**Mobile (<768px):** Bottom sheet drawer (Vaul)
+- IdleCircle triggers `MobileChatDrawer` (not MinimalView)
+- Drawer slides up from bottom with drag handle
+- Auto-closes when clicking poster cards (user navigates away)
+- Max height: `92vh` for more content space
+
+```tsx
+// Detection via useMobile hook
+const isMobile = useMobile(); // true if window.innerWidth < 768
+
+// Mobile renders drawer, desktop renders floating UI
+if (isMobile) {
+  return (
+    <>
+      <IdleCircle ... />
+      <MobileChatDrawer isOpen={mobileDrawerOpen} ... />
+    </>
+  );
+}
+```
+
 ### Mobile Positioning
 
-The AI assistant floats above the mobile bottom navigation bar:
+The idle bubble floats above the mobile bottom navigation bar:
 
 ```tsx
 // Idle state positioning
@@ -828,18 +926,11 @@ className={cn(
   "fixed left-1/2 -translate-x-1/2 z-50",
   "bottom-[4.25rem] md:bottom-6"  // Above bottom nav on mobile
 )}
-
-// Active state (MinimalView) positioning
-className={cn(
-  "fixed inset-x-0 flex flex-col items-center z-50",
-  keyboardHeight === 0 && "bottom-20 md:bottom-6" // Above bottom nav (when no keyboard)
-)}
-style={keyboardHeight > 0 ? { bottom: keyboardHeight + 8 } : undefined}
 ```
 
 **Key values:**
 - Mobile bottom nav height: `h-14` (56px)
-- AI bubble offset on mobile: `bottom-[4.25rem]` (68px) or `bottom-20` (80px)
+- AI bubble offset on mobile: `bottom-[4.25rem]` (68px)
 - Desktop positioning: `bottom-6` (24px)
 
 ### Mobile Keyboard Handling
@@ -892,7 +983,8 @@ All interactive elements have `data-testid` attributes for testing:
 | Input field | `ai-chat-input` | Text input for messages |
 | Send button | `ai-send-btn` | Submit button |
 | Expand button | `ai-expand-btn` | Expand to full chat |
-| Close button | `ai-close-btn` | Close the chat |
+| Minimize button | `ai-minimize-btn` | Collapse to bubble (preserves conversation) |
+| Close button | `ai-close-btn` | Close and reset the chat |
 | Cards container | `ai-poster-cards` | Container for poster cards |
 | Response container | `ai-response-container` | Text + tags area |
 | Response text | `ai-response-text` | The actual response text |
@@ -901,6 +993,19 @@ The trigger button also has:
 - `role="button"` for accessibility
 - `aria-label` describing current state
 - Keyboard support (Enter/Space to activate)
+- Active conversation indicator dot (brand color, top-right) when minimized with messages
+
+### Minimize vs Close Behavior
+
+Two distinct actions for closing the chat:
+
+| Action | Button | Behavior |
+|--------|--------|----------|
+| Minimize | ChevronDown | Collapses to idle bubble, **preserves conversation** |
+| Close | X | Collapses to idle bubble, **clears all messages** |
+
+On mobile, the drawer preserves conversation when dismissed (equivalent to minimize).
+Clicking poster cards on mobile auto-closes drawer to let user see navigation.
 
 ## API Route Implementation
 

@@ -1180,6 +1180,95 @@ interface YouTubeDislikeData {
 - Comments fetched with video stats in parallel
 - Dislike API responses cached separately
 
+## YouTube Channel Monitoring Service
+
+**Location:** `src/server/services/youtube-channels.ts`
+
+Discovers viral trailers by monitoring official studio and aggregator YouTube channels.
+
+### Monitored Channels (33 total)
+
+| Category | Channels |
+|----------|----------|
+| Aggregators | Movieclips Trailers, ONE Media, KinoCheck, Rotten Tomatoes, FilmSelect, JoBlo |
+| Studios | Warner Bros, Universal, Sony, Paramount, Disney, Lionsgate, A24, Focus, Searchlight, NEON, Blumhouse |
+| Streamers | Netflix, Prime Video, Apple TV, HBO, Disney+, Peacock |
+| Animation | Pixar, DreamWorks, Illumination |
+| Anime | Crunchyroll |
+| India | Warner Bros India, T-Series, YRF, Dharma, Sony India |
+| Comics | Marvel Entertainment |
+
+### Usage
+
+```typescript
+import { getYouTubeChannelTrailers } from "@/server/services/youtube-channels";
+
+const trailers = await getYouTubeChannelTrailers({
+  limit: 12,           // Max trailers to return
+  includeRegional: true, // Include Indian channels
+  minViews: 50000,     // Minimum view count threshold
+});
+
+// Returns: YouTubeTrailer[]
+// { id, title, channelTitle, viewCount, likeCount, thumbnail, isLikelyTrailer, extractedTitle }
+```
+
+### Trailer Detection
+
+Positive keywords: "trailer", "teaser", "official", "first look", "sneak peek", "coming soon"
+Negative keywords: "clip", "scene", "behind the scenes", "interview", "review", "reaction"
+
+### File-Based Caching
+
+```
+.cache/youtube-channels/{channelId}.json
+TTL: 12 hours
+Structure: { timestamp: number, videos: YouTubeTrailer[] }
+```
+
+### Quota Usage
+
+- ~3 units per channel (`channels.list` + `playlistItems.list` + `videos.list`)
+- ~100 units for all 33 channels
+- With 12h cache, daily usage is ~200 units (2% of 10,000 daily quota)
+
+### Trending Trailers Server Action
+
+```typescript
+// src/server/actions/trending.ts
+export async function getTrendingTrailers(limit: number = 12): Promise<TrendingTrailer[]>
+
+// Combines multiple TMDB sources:
+// - Trending movies (currently popular)
+// - Upcoming movies (trailers being actively promoted)
+// - Now playing movies (recent releases with fresh trailers)
+// 
+// NOTE: TV series trailers are skipped - TMDB often only has Season 1 trailers
+// even for currently airing shows. KinoCheck had fresher content but is
+// geo-blocked in countries like India.
+```
+
+### Home Page Usage
+
+```typescript
+// src/app/page.tsx
+const trendingTrailers = await getTrendingTrailers(12);
+
+// Renders with YouTube stats (views, likes/dislikes) fetched client-side
+<TrailerCarousel title="Trending Trailers" trailers={trendingTrailers} />
+```
+
+### YouTube Metadata (Client-Side)
+
+The `TrailerCarousel` fetches YouTube stats after mount:
+
+```typescript
+// Batch fetch for all trailers
+fetch(`/api/youtube?videoIds=${videoIds}`)
+// Returns: { videos: { [id]: { viewCount, likeCount, dislikeCount } } }
+// Cached for 24 hours (CACHE_DURATIONS.youtube)
+```
+
 ## Rate Limiting
 
 For public-facing APIs:

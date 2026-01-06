@@ -709,16 +709,39 @@ export async function* streamAgent(
 
 /**
  * Clean model output of internal markers
- * Some models (Nova Pro, etc.) output tool call markers as text
+ * 
+ * Kimi K2 and Nova Pro have quirks where internal markers can leak into output:
+ * - Tool call markers in various formats (XML-style and pipe-delimited)
+ * - Thinking/reasoning tags from chain-of-thought
+ * - Function call markers when tool calling fails
+ * 
+ * This function aggressively strips all such markers to ensure clean output.
  */
 function cleanModelOutput(content: string): string {
   return content
-    // Remove tool call markers (Nova Pro quirk)
+    // ===== Kimi K2 Pipe-Delimited Markers =====
+    // These use <|marker|> format and are the most common leak
+    .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, "")
+    .replace(/<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/gi, "")
+    .replace(/<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_argument_end\|>/gi, "")
+    // Standalone pipe-delimited markers
+    .replace(/<\|tool_call_begin\|>/gi, "")
+    .replace(/<\|tool_call_end\|>/gi, "")
+    .replace(/<\|tool_calls_section_begin\|>/gi, "")
+    .replace(/<\|tool_calls_section_end\|>/gi, "")
+    .replace(/<\|tool_call_argument_begin\|>/gi, "")
+    .replace(/<\|tool_call_argument_end\|>/gi, "")
+    .replace(/<\|im_start\|>/gi, "")
+    .replace(/<\|im_end\|>/gi, "")
+    // Function call markers in text (e.g., "functions.get_trending:0")
+    .replace(/functions\.[\w]+:\d+/gi, "")
+    
+    // ===== XML-Style Markers (Nova Pro) =====
     .replace(/<tool_call_begin>[\s\S]*?<tool_call_end>/gi, "")
     .replace(/<tool_calls_section_begin>[\s\S]*?<tool_calls_section_end>/gi, "")
     .replace(/<tool_call_argument_begin>[\s\S]*?<tool_call_argument_end>/gi, "")
     .replace(/<functions\.[\w]+>[\s\S]*?<\/functions\.[\w]+>/gi, "")
-    // Remove standalone/unclosed markers
+    // Standalone XML markers
     .replace(/<tool_call_begin>/gi, "")
     .replace(/<tool_call_end>/gi, "")
     .replace(/<tool_calls_section_begin>/gi, "")
@@ -726,11 +749,28 @@ function cleanModelOutput(content: string): string {
     .replace(/<tool_call_argument_begin>/gi, "")
     .replace(/<tool_call_argument_end>/gi, "")
     .replace(/<\/functions\.[\w]+>/gi, "")
-    // Remove thinking tags
+    
+    // ===== Thinking/Reasoning Tags =====
+    // Full blocks
     .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
     .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    // Clean up extra whitespace
-    .replace(/\s+/g, " ")
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
+    // Standalone open/close tags (often leak separately)
+    .replace(/<\/?thinking>/gi, "")
+    .replace(/<\/?think>/gi, "")
+    .replace(/<\/?reasoning>/gi, "")
+    
+    // ===== Other Common Model Artifacts =====
+    // Sometimes models output raw JSON tool calls
+    .replace(/\{"name":\s*"[\w]+",\s*"arguments":\s*\{[^}]*\}\}/g, "")
+    
+    // ===== Cleanup =====
+    // Collapse multiple newlines to max 2
+    .replace(/\n{3,}/g, "\n\n")
+    // Collapse multiple spaces to single space
+    .replace(/ {2,}/g, " ")
+    // Clean up whitespace around newlines
+    .replace(/ *\n */g, "\n")
     .trim();
 }
 

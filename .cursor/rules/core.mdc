@@ -71,7 +71,14 @@ src/
 │       ├── series/      # Series components
 │       ├── person/      # Person components (hero, filmography, known-for, upcoming-latest)
 │       ├── media/       # Shared movie/series components + WideCard, RecentTracker
-│       ├── home/        # Homepage components (PersonalizedSections)
+│       ├── home/        # Homepage components
+│       │   ├── personalized-sections.tsx  # ContinueWatchingSection, RecentVisitsSection
+│       │   ├── topic-pills.tsx            # Topic navigation pills
+│       │   ├── mood-cards.tsx             # Mood-based browsing cards
+│       │   ├── topic-scroller.tsx         # Topic content scroller
+│       │   ├── trailer-carousel.tsx       # TMDB trending trailers
+│       │   ├── youtube-trailer-carousel.tsx  # YouTube channel viral trailers
+│       │   └── trailer-modal.tsx          # Full-featured trailer modal (Dialog)
 │       ├── discover/    # Browse/filter components (sidebar, grid, scroller)
 │       ├── auth/        # Auth components (GoogleOneTap, UserMenu, LoginDialog)
 │       └── layout/      # Layout components
@@ -108,15 +115,19 @@ src/
 ├── hooks/               # Custom React hooks
 │   ├── use-scroll-drag.ts   # Drag-to-scroll hook with click detection threshold
 │   ├── use-user-library.ts  # Convenience hook for watchlist/watched/ratings
-│   └── use-chat-stream.ts   # SSE chat hook for AI assistant
+│   ├── use-chat-stream.ts   # SSE chat hook for AI assistant
+│   └── use-mobile.ts        # Mobile detection hook (<768px breakpoint)
 ├── stores/              # Zustand stores
 │   ├── user.ts          # User library state (watchlist, watched, ratings, recents, continueWatching)
 │   └── preferences.ts   # User preferences with localStorage persistence (cardDisplayMode)
 ├── server/              # Server-side code
 │   ├── actions/         # Server Actions
 │   │   ├── discover.ts  # discoverBatch for browse/topics
-│   │   └── trending.ts  # getTrending() with ratings + watch options for hero
-│   ├── services/        # External API services (TMDB)
+│   │   └── trending.ts  # getTrending(), getYouTubeTrendingTrailers()
+│   ├── services/        # External API services
+│   │   ├── tmdb.ts      # TMDB API with retry logic
+│   │   ├── youtube.ts   # YouTube Data API + Return YouTube Dislike API
+│   │   └── youtube-channels.ts  # YouTube channel monitoring for viral trailers
 │   └── db/              # Database layer (MongoDB)
 │       ├── index.ts     # Connection setup
 │       ├── models/      # Mongoose models
@@ -495,6 +506,24 @@ export const getMovie = cache(
 | movie/series | 1 hour | Detail pages |
 | person | 24 hours | Person pages |
 | search | 5 min | Search results |
+| discover | 30 min | Browse/topics results |
+| images | 1 hour | Logo/image metadata |
+| youtube | 24 hours | YouTube video stats/comments |
+
+### YouTube Channels → File-Based Cache
+
+The YouTube channel monitoring service uses file-based caching to persist across server restarts and minimize API quota usage:
+
+```typescript
+// Cache location: .cache/youtube-channels/{channelId}.json
+// TTL: 12 hours
+// Structure: { timestamp: number, videos: YouTubeTrailer[] }
+```
+
+**Quota Usage:**
+- ~3 units per channel (channels.list + playlistItems.list + videos.list)
+- ~100 units for all 33 channels
+- With 12h cache, daily usage is ~200 units (2% of 10,000 daily quota)
 | discover | 30 min | Browse/topics results |
 | images | 1 hour | Logo/image metadata |
 
@@ -1390,8 +1419,9 @@ The app uses different navigation patterns for mobile and desktop:
 |------|--------|--------|-----------|----------|
 
 **AI Assistant positioning:**
-- Desktop: FloatsLoating at `bottom-6` centered
-- Mobile: Floats at `bottom-[4.25rem]` to sit above the bottom nav
+- Desktop: Floating UI at `bottom-6` centered (MinimalView/ExpandedChat)
+- Mobile: Idle bubble at `bottom-[4.25rem]` above bottom nav, opens as bottom sheet drawer (Vaul)
+- Mobile drawer auto-closes when clicking poster cards for seamless navigation
 
 ### Touch Scrolling on Horizontal Scrollers
 
