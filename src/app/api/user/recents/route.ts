@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/server/db";
 import { RecentItem } from "@/server/db/models/user-library";
 import { getUserIdForDb } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
 
 const MAX_RECENTS = 20;
 
@@ -35,7 +36,11 @@ export async function GET() {
 
     return NextResponse.json({ items });
   } catch (error) {
-    console.error("Error fetching recents:", error);
+    userApiLogger.error({
+      route: "/api/user/recents",
+      method: "GET",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to fetch recents" }, { status: 500 });
   }
 }
@@ -87,7 +92,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error adding to recents:", error);
+    userApiLogger.error({
+      route: "/api/user/recents",
+      method: "POST",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to add to recents" }, { status: 500 });
   }
 }

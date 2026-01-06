@@ -2,10 +2,16 @@
 
 import { useState, useCallback, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Filter, X } from "lucide-react";
+import { Filter, X, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   FilterSidebar,
   DiscoverGrid,
@@ -361,8 +367,8 @@ export function BrowseClient({
               handleParamsChange({ ...params, media_type: value, with_genres: [], with_cast: undefined, with_crew: undefined });
             }}
           />
-          <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-            <SheetTrigger asChild>
+          <Drawer open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+            <DrawerTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
@@ -370,15 +376,21 @@ export function BrowseClient({
                   hasActiveFilters && "border-brand text-brand"
                 )}
               >
-                <Filter className="h-4 w-4 mr-2" />
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
                 Filters
                 {hasActiveFilters && (
                   <span className="ml-2 h-2 w-2 rounded-full bg-brand" />
                 )}
               </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0">
-              <div className="pt-14">
+            </DrawerTrigger>
+            <DrawerContent className="max-h-[85vh]">
+              <DrawerHeader className="border-b pb-3">
+                <DrawerTitle className="flex items-center gap-2">
+                  <SlidersHorizontal className="h-5 w-5" />
+                  Filters
+                </DrawerTitle>
+              </DrawerHeader>
+              <div className="overflow-y-auto flex-1">
                 <FilterSidebar
                   params={params}
                   onChange={handleParamsChange}
@@ -388,8 +400,8 @@ export function BrowseClient({
                   onPersonMetaChange={setPersonMeta}
                 />
               </div>
-            </SheetContent>
-          </Sheet>
+            </DrawerContent>
+          </Drawer>
         </div>
       </div>
 

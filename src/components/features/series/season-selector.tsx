@@ -79,12 +79,12 @@ export function SeasonSelector({
 
   // Season selector header content - passed to EpisodeScroller as title
   const seasonHeader = (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+    <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
       <Select
         value={selectedSeason?.season_number.toString()}
         onValueChange={handleSeasonChange}
       >
-        <SelectTrigger className="w-[200px]">
+        <SelectTrigger className="w-[140px] sm:w-[180px]">
           <SelectValue placeholder="Select Season" />
         </SelectTrigger>
         <SelectContent>
@@ -97,15 +97,15 @@ export function SeasonSelector({
       </Select>
 
       {selectedSeason && (
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <Badge variant="secondary" className="font-normal">
+        <div className="flex items-center gap-2 sm:gap-3 text-sm text-muted-foreground">
+          <Badge variant="secondary" className="font-normal text-xs sm:text-sm">
             {episodes.length || selectedSeason.episode_count} Episodes
           </Badge>
           {selectedSeason.air_date && (
-            <span>
+            <span className="text-xs sm:text-sm whitespace-nowrap">
               {new Date(selectedSeason.air_date).toLocaleDateString("en-US", {
                 year: "numeric",
-                month: "long",
+                month: "short",
               })}
             </span>
           )}

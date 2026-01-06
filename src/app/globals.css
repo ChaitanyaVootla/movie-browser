@@ -204,23 +204,18 @@
 }
 
 /* Hero section responsive sizing
-   - Uses height as primary constraint (max 60vh)
-   - Aspect ratio ensures proper image proportions within those bounds
-   - Width adjusts dynamically to respect height limit */
+   Mobile: Auto height - image (16:9) + content flow naturally
+   Desktop: Fixed height constraint (max 60vh) with overlay content */
 @layer components {
   .hero-container {
-    /* Mobile: height-constrained with aspect ratio */
+    /* Mobile: auto height, let image + content stack naturally */
     width: 100%;
-    height: clamp(
-      var(--hero-height-mobile-min),
-      var(--hero-height-mobile-target),
-      var(--hero-height-mobile-max)
-    );
+    height: auto;
   }
 
   @media (min-width: 768px) {
     .hero-container {
-      /* Desktop: Max 60vh, min 400px */
+      /* Desktop: Max 60vh, min 400px - content overlays image */
       height: clamp(
         var(--hero-height-min),
         var(--hero-height-target),

@@ -3,6 +3,7 @@ import { Montserrat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { NavBar } from "@/components/features/layout/nav-bar";
+import { MobileBottomNav } from "@/components/features/layout/mobile-bottom-nav";
 import { Footer } from "@/components/features/layout/footer";
 import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
 
@@ -113,8 +114,9 @@ export default function RootLayout({
         <Providers>
           <ScrollToTop />
           <NavBar />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <Footer className="hidden md:block" />
+          <MobileBottomNav />
         </Providers>
       </body>
     </html>

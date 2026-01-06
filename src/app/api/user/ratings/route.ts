@@ -4,6 +4,7 @@ import { UserRating } from "@/server/db/models/user-library";
 import { Movie } from "@/server/db/models/movie";
 import { Series } from "@/server/db/models/series";
 import { getUserIdForDb } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
 
 /**
  * GET /api/user/ratings
@@ -119,7 +120,11 @@ export async function GET() {
       totalCount: ratings.length,
     });
   } catch (error) {
-    console.error("Error fetching ratings:", error);
+    userApiLogger.error({
+      route: "/api/user/ratings",
+      event: "fetch_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to fetch ratings" }, { status: 500 });
   }
 }

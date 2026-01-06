@@ -15,6 +15,7 @@ import {
   SeriesWatchlist,
   UserRating,
 } from "@/server/db/models/user-library";
+import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
 // Helper Functions
@@ -167,7 +168,12 @@ export const getUserDataTool = tool(
 
       return JSON.stringify(response);
     } catch (error) {
-      console.error("Error fetching user data:", error);
+      aiToolLogger.error({
+        event: "tool_error",
+        tool: "get_user_data",
+        userId: numericUserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return JSON.stringify({
         error: "Failed to fetch user data",
       });
@@ -175,37 +181,18 @@ export const getUserDataTool = tool(
   },
   {
     name: "get_user_data",
-    description: `Get the user's library data - watchlist, ratings, and watched history.
+    description: `Get user's watchlist, ratings (likes/dislikes), and watched history.
 
-Use this to understand user preferences and provide personalized recommendations.
-Returns all data by default, or specify what you need with the include parameter.
+Use when: "My watchlist", "Based on my taste", "Pick from my list", "What have I liked?"
+NOT needed for: Just filtering results (use discover's hideWatched/hideDisliked instead)
 
-Data types:
-- watchlist: Movies and series the user wants to watch (IDs + timestamps)
-- ratings: Liked and disliked content (use to understand taste)
-- watched: Movies the user has seen (series watching not tracked)
-
-When to use:
-- "Based on my taste" → get ratings to understand preferences
-- "What's in my watchlist?" → get watchlist
-- "Help me pick from my watchlist" → get watchlist
-- "Similar to movies I liked" → get ratings, then discover/get_related
-
-IMPORTANT:
-- Don't recommend items already on their watchlist
-- NEVER recommend items the user has disliked
-- Use liked items to find patterns in their taste
-
-NOTE: The discover tool can auto-filter with hideWatched, hideDisliked, hideInWatchlist.
-Only call get_user_data when you need to actually see the data (e.g., to pick from watchlist
-or analyze taste), not just to filter results.`,
+Returns: watchlist (movies + series), ratings (liked + disliked), watched movies.
+Use liked items to understand taste patterns.`,
     schema: z.object({
       include: z
         .array(z.enum(["watchlist", "ratings", "watched"]))
         .optional()
-        .describe(
-          "What data to fetch. Defaults to all. Use specific values to reduce response size."
-        ),
+        .describe("What to fetch (defaults to all). Use specific values to reduce response."),
     }),
   }
 );

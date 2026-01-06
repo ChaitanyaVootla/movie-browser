@@ -38,7 +38,7 @@ export const getPageContextTool = tool(
       return JSON.stringify({
         page: "unknown",
         context: null,
-        message: "User's current page is not available. Ask them what they're looking at.",
+        hint: "Page context not available. Ask user what they're looking at or use search.",
       });
     }
 
@@ -56,38 +56,40 @@ export const getPageContextTool = tool(
       response.currentItem = {
         type: pageContext.mediaType,
         id: pageContext.itemId,
-        title: pageContext.itemTitle || "Unknown",
+        title: pageContext.itemTitle || null,
       };
-      response.context = `User is viewing a ${pageContext.mediaType} detail page: "${pageContext.itemTitle || "Unknown"}"`;
+      // If title is available, include it. Otherwise, tell agent they have the ID and can proceed.
+      if (pageContext.itemTitle) {
+        response.hint = `User is viewing "${pageContext.itemTitle}" (${pageContext.mediaType}). ID: ${pageContext.itemId}.`;
+      } else {
+        response.hint = `User is on a ${pageContext.mediaType} page. ID: ${pageContext.itemId}. You can use this ID directly with get_details or in tags like [MOVIE:${pageContext.itemId}:Title].`;
+      }
     } else if (pageType === "browse") {
-      response.context = "User is browsing movies/series with filters";
-    } else if (pageType === "topics") {
-      response.context = "User is exploring curated topic collections";
+      response.hint = "User is browsing with filters. Ask what they're looking for.";
     } else if (pageType === "watchlist") {
-      response.context = "User is viewing their watchlist";
+      response.hint = "On their watchlist. Use get_user_data(include: ['watchlist']) to see it.";
     } else if (pageType === "ratings") {
-      response.context = "User is viewing their ratings (likes/dislikes)";
+      response.hint = "Viewing their ratings. Use get_user_data(include: ['ratings']) to see them.";
     } else if (pageType === "watched") {
-      response.context = "User is viewing their watched movies";
-    } else if (pageType === "" || pageType === "home") {
-      response.context = "User is on the homepage";
+      response.hint = "Viewing watched history. Use get_user_data(include: ['watched']) to see it.";
     } else {
-      response.context = `User is on the ${pageType} page`;
+      response.hint = `On the ${pageType || "home"} page.`;
     }
 
     return JSON.stringify(response);
   },
   {
     name: "get_page_context",
-    description: `Get information about the current page the user is viewing.
-Use this to provide contextually relevant recommendations.
+    description: `Understand what page the user is currently viewing.
 
-Examples:
-- If they're on a movie page, you can suggest similar movies
-- If they're browsing, you can ask about their current filters
-- If they're on their watchlist, you can help them choose what to watch
+CALL THIS when user says:
+- "this movie", "this show", "the one I'm looking at"
+- "more like this", "similar to this"
+- "what about this one"
+- Any implicit reference to current context
 
-Returns the page type, current item (if on a detail page), and helpful context.`,
+Returns: page type, current item (id, title, type) if on a detail page.
+If they're on a movie/series page, you'll get the ID to use with get_details.`,
     schema: pageContextSchema,
   }
 );

@@ -4,6 +4,7 @@ import { MoviesWatchlist, SeriesWatchlist } from "@/server/db/models/user-librar
 import { Movie } from "@/server/db/models/movie";
 import { Series } from "@/server/db/models/series";
 import { getUserIdForDb } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
 
 /**
  * GET /api/user/watchlist
@@ -92,7 +93,11 @@ export async function GET() {
       series: categorizedSeries,
     });
   } catch (error) {
-    console.error("Error fetching watchlist:", error);
+    userApiLogger.error({
+      route: "/api/user/watchlist",
+      event: "fetch_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to fetch watchlist" }, { status: 500 });
   }
 }

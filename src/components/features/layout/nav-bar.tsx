@@ -4,9 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Search, Menu, Sparkles, Compass, Shield, Bookmark } from "lucide-react";
+import { Search, Sparkles, Compass, Shield, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { CountrySelector } from "./country-selector";
 import { UserMenu, LoginDialog, useLoginDialog, SettingsMenu } from "@/components/features/auth";
 import { SearchCommand, useSearchCommand } from "@/components/features/search";
@@ -65,6 +64,7 @@ export function NavBar() {
       <header
         className={cn(
           "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300",
+          "hidden md:block", // Hide on mobile - using MobileBottomNav instead
           isScrolled
             ? "bg-background/95 backdrop-blur-xl border-b border-border/40 shadow-sm"
             : "bg-transparent"
@@ -94,7 +94,7 @@ export function NavBar() {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "gap-2 hover:bg-white/10 cursor-default",
+                      "gap-2 hover:bg-white/10 cursor-pointer",
                       isScrolled
                         ? "text-foreground/80 hover:text-foreground"
                         : "text-white/90 hover:text-white",
@@ -113,7 +113,7 @@ export function NavBar() {
                     <Button
                       variant="ghost"
                       className={cn(
-                        "gap-2 hover:bg-white/10 cursor-default",
+                        "gap-2 hover:bg-white/10 cursor-pointer",
                         isScrolled
                           ? "text-foreground/80 hover:text-foreground"
                           : "text-white/90 hover:text-white",
@@ -131,7 +131,7 @@ export function NavBar() {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "gap-2 hover:bg-white/10 cursor-default",
+                      "gap-2 hover:bg-white/10 cursor-pointer",
                       isScrolled
                         ? "text-foreground/80 hover:text-foreground"
                         : "text-white/90 hover:text-white",
@@ -169,18 +169,7 @@ export function NavBar() {
               </kbd>
             </button>
 
-            {/* Mobile Search Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden h-9 w-9 hover:bg-white/10"
-              onClick={() => setSearchOpen(true)}
-            >
-              <Search className="h-4 w-4" />
-              <span className="sr-only">Search</span>
-            </Button>
-
-            {/* Country Selector */}
+{/* Country Selector */}
             <CountrySelector compact className="hidden sm:flex" />
 
             {/* Auth: User Menu with theme toggle, or Settings + Sign In for non-auth */}
@@ -202,84 +191,7 @@ export function NavBar() {
               </>
             )}
 
-            {/* Mobile Menu */}
-            <Sheet>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/10">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-72">
-                <SheetTitle className="text-left mb-6">Menu</SheetTitle>
-                <nav className="flex flex-col gap-2">
-                  {navItems.map(({ href, label, icon: Icon }) => (
-                    <Link key={href} href={href}>
-                      <Button
-                        variant="ghost"
-                        className={cn(
-                          "w-full justify-start gap-3 text-muted-foreground hover:text-foreground",
-                          pathname?.startsWith(href) && "text-foreground bg-accent"
-                        )}
-                      >
-                        <Icon className="h-5 w-5" />
-                        {label}
-                      </Button>
-                    </Link>
-                  ))}
-                  {/* Auth-only nav items in mobile menu */}
-                  {isAuthenticated &&
-                    authNavItems.map(({ href, label, icon: Icon }) => (
-                      <Link key={href} href={href}>
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            "w-full justify-start gap-3 text-muted-foreground hover:text-foreground",
-                            pathname?.startsWith(href) && "text-foreground bg-accent"
-                          )}
-                        >
-                          <Icon className="h-5 w-5" />
-                          {label}
-                        </Button>
-                      </Link>
-                    ))}
-                  {/* Admin link in mobile menu */}
-                  {isAdmin && (
-                    <Link href="/admin">
-                      <Button
-                        variant="ghost"
-                        className={cn(
-                          "w-full justify-start gap-3 text-muted-foreground hover:text-foreground",
-                          pathname?.startsWith("/admin") && "text-foreground bg-accent"
-                        )}
-                      >
-                        <Shield className="h-5 w-5" />
-                        Admin
-                      </Button>
-                    </Link>
-                  )}
-                  <div className="pt-4 border-t border-border mt-4 space-y-3">
-                    {/* Country selector in mobile menu */}
-                    <div className="flex items-center justify-between px-2">
-                      <span className="text-sm text-muted-foreground">Region</span>
-                      <CountrySelector />
-                    </div>
-                    {isAuthenticated ? (
-                      <UserMenu className="w-full" />
-                    ) : (
-                      <Button
-                        variant="default"
-                        className="w-full"
-                        onClick={() => openLoginDialog()}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? "Loading..." : "Sign In"}
-                      </Button>
-                    )}
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
+{/* Mobile hamburger menu removed - using MobileBottomNav instead */}
           </div>
         </div>
 

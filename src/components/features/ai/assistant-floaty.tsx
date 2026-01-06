@@ -86,11 +86,28 @@ function pickRandom<T>(arr: T[], count: number): T[] {
 }
 
 /**
- * Movie-specific prompts when on a movie detail page
+ * Truncate text for button labels
  */
-function getMovieDetailPrompts(title?: string): PromptConfig[] {
+function truncateForButton(text: string, maxLength: number = 25): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength - 1).trim() + "…";
+}
+
+/**
+ * Movie-specific prompts when on a movie detail page
+ * If aiQuestions are available, blend them with hardcoded prompts
+ */
+function getMovieDetailPrompts(title?: string, aiQuestions?: string[]): PromptConfig[] {
   const itemRef = title || "this movie";
-  const allPrompts: PromptConfig[] = [
+  
+  // Convert AI questions to prompt configs
+  const aiPrompts: PromptConfig[] = (aiQuestions || []).slice(0, 3).map((q) => ({
+    text: truncateForButton(q),
+    message: q,
+  }));
+
+  // Hardcoded fallback prompts
+  const fallbackPrompts: PromptConfig[] = [
     { text: "Talk smack about it", message: `Talk smack about ${itemRef}` },
     { text: "Hype this up", message: `Hype up ${itemRef} - convince me to watch` },
     { text: "Hot take?", message: `What's your hot take on ${itemRef}?` },
@@ -102,15 +119,31 @@ function getMovieDetailPrompts(title?: string): PromptConfig[] {
     { text: "Worth my time?", message: `Is ${itemRef} worth watching?` },
     { text: "Similar movies", message: `Find movies similar to ${itemRef}` },
   ];
-  return pickRandom(allPrompts, 3);
+
+  // If we have AI questions, prioritize them and fill remaining slots with fallbacks
+  if (aiPrompts.length > 0) {
+    const remaining = 4 - aiPrompts.length;
+    const fillers = pickRandom(fallbackPrompts, remaining);
+    return [...aiPrompts, ...fillers];
+  }
+
+  return pickRandom(fallbackPrompts, 3);
 }
 
 /**
  * Series-specific prompts when on a series detail page
+ * If aiQuestions are available, blend them with hardcoded prompts
  */
-function getSeriesDetailPrompts(title?: string): PromptConfig[] {
+function getSeriesDetailPrompts(title?: string, aiQuestions?: string[]): PromptConfig[] {
   const itemRef = title || "this series";
-  const allPrompts: PromptConfig[] = [
+  
+  // Convert AI questions to prompt configs
+  const aiPrompts: PromptConfig[] = (aiQuestions || []).slice(0, 3).map((q) => ({
+    text: truncateForButton(q),
+    message: q,
+  }));
+
+  const fallbackPrompts: PromptConfig[] = [
     { text: "Talk smack about it", message: `Talk smack about ${itemRef}` },
     { text: "Hype this up", message: `Hype up ${itemRef}` },
     { text: "Hot take?", message: `What's your hot take on ${itemRef}?` },
@@ -122,7 +155,15 @@ function getSeriesDetailPrompts(title?: string): PromptConfig[] {
     { text: "What's the vibe?", message: `What's the vibe of ${itemRef}?` },
     { text: "Convince me", message: `Convince me to start ${itemRef}` },
   ];
-  return pickRandom(allPrompts, 3);
+
+  // If we have AI questions, prioritize them and fill remaining slots with fallbacks
+  if (aiPrompts.length > 0) {
+    const remaining = 4 - aiPrompts.length;
+    const fillers = pickRandom(fallbackPrompts, remaining);
+    return [...aiPrompts, ...fillers];
+  }
+
+  return pickRandom(fallbackPrompts, 3);
 }
 
 /**
@@ -163,15 +204,15 @@ function getLandingPrompts(): PromptConfig[] {
   return [trending, ...randomPicks];
 }
 
-function getContextualPrompts(pageContext: PageContext | null): PromptConfig[] {
+function getContextualPrompts(pageContext: ExtendedPageContext | null): PromptConfig[] {
   if (!pageContext) return getLandingPrompts();
 
   if (pageContext.mediaType === "movie" && pageContext.itemId) {
-    return getMovieDetailPrompts(pageContext.itemTitle);
+    return getMovieDetailPrompts(pageContext.itemTitle, pageContext.aiQuestions);
   }
 
   if (pageContext.mediaType === "series" && pageContext.itemId) {
-    return getSeriesDetailPrompts(pageContext.itemTitle);
+    return getSeriesDetailPrompts(pageContext.itemTitle, pageContext.aiQuestions);
   }
 
   if (pageContext.mediaType === "person" && pageContext.itemId) {
@@ -215,7 +256,7 @@ function IdleCircle({ onExpand, showPrompt, prompt }: IdleCircleProps) {
         if (e.key === "Enter" || e.key === " ") onExpand(isAwake ? prompt : undefined);
       }}
       className={cn(
-        "ai-idle-btn relative flex items-center justify-center",
+        "ai-idle-btn relative flex items-center justify-center cursor-pointer",
         "bg-background/90 backdrop-blur-md",
         "border border-border/50",
         "shadow-lg shadow-black/10",
@@ -456,10 +497,39 @@ function MinimalView({
   };
 
   const hasConversation = messages.length > 0;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Handle mobile virtual keyboard - adjust position when keyboard opens
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const handleResize = () => {
+      // On mobile, when keyboard opens, visualViewport.height shrinks
+      // Calculate the keyboard height as the difference
+      const viewportHeight = viewport.height;
+      const windowHeight = window.innerHeight;
+      const keyboardH = windowHeight - viewportHeight - viewport.offsetTop;
+      setKeyboardHeight(Math.max(0, keyboardH));
+    };
+
+    viewport.addEventListener("resize", handleResize);
+    viewport.addEventListener("scroll", handleResize);
+    
+    return () => {
+      viewport.removeEventListener("resize", handleResize);
+      viewport.removeEventListener("scroll", handleResize);
+    };
+  }, []);
+
+  // Calculate bottom position accounting for keyboard
+  const bottomPosition = keyboardHeight > 0 
+    ? keyboardHeight + 8 // 8px above keyboard
+    : undefined; // Use CSS default
 
   return (
     <motion.div
@@ -467,7 +537,11 @@ function MinimalView({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 10, scale: 0.98 }}
       transition={{ duration: 0.25, ease: TRANSITION_EASE }}
-      className="fixed bottom-6 inset-x-0 flex flex-col items-center z-50 pointer-events-none"
+      className={cn(
+        "fixed inset-x-0 flex flex-col items-center z-50 pointer-events-none",
+        keyboardHeight === 0 && "bottom-20 md:bottom-6" // Above bottom nav on mobile (when no keyboard)
+      )}
+      style={bottomPosition ? { bottom: bottomPosition } : undefined}
     >
       {/* Bottom glow when loading */}
       <BottomGlow isActive={isLoading} />
@@ -585,29 +659,25 @@ function MinimalView({
           </div>
         </GlowContainer>
       ) : (
-        // Response content
-        <GlowContainer isActive={isLoading} borderRadius={16}>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className={cn(
-              "rounded-2xl pointer-events-auto",
-              "bg-black backdrop-blur-md",
-              "border border-white/20",
-              "ai-container-shadow",
-              "w-[90vw] sm:w-[80vw] md:w-auto md:min-w-[550px] md:max-w-[85vw]"
-            )}
-          >
-            {/* Poster cards section */}
-            {(mediaTags.length > 0 || isReceivingTag) && (
-              <div
-                className={cn(
-                  "flex gap-4 py-5 px-6 overflow-x-auto",
-                  "scrollbar-hide border-b border-white/10"
-                )}
-                data-testid="ai-poster-cards"
-              >
+        // Response content - two separate containers
+        <div className="flex flex-col items-center gap-3 pointer-events-none">
+          {/* Poster cards container - sizes to fit cards */}
+          {(mediaTags.length > 0 || isReceivingTag) && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className={cn(
+                "rounded-2xl pointer-events-auto",
+                "bg-black backdrop-blur-md",
+                "border border-white/20",
+                "shadow-lg shadow-black/60",
+                "overflow-x-auto scrollbar-hide",
+                "max-w-[90vw]"
+              )}
+              data-testid="ai-poster-cards"
+            >
+              <div className="flex gap-4 py-5 px-6">
                 {mediaTags.map((tag, index) => (
                   <motion.div
                     key={`${tag.type}-${tag.id ?? tag.title}-${index}`}
@@ -618,7 +688,6 @@ function MinimalView({
                       delay: index * 0.08,
                       ease: [0.16, 1, 0.3, 1],
                     }}
-                    className="shrink-0"
                   >
                     <PosterCardLarge tag={tag} />
                   </motion.div>
@@ -629,7 +698,6 @@ function MinimalView({
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className="shrink-0"
                   >
                     <div
                       className="rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"
@@ -640,157 +708,172 @@ function MinimalView({
                   </motion.div>
                 )}
               </div>
-            )}
+            </motion.div>
+          )}
 
-            {/* Text + input section */}
-            <div className="px-6 py-4 flex flex-col items-center" data-testid="ai-response-container">
-              <div className="w-full flex flex-col gap-3 items-center">
-                {/* Response text with inline tags */}
-                {lastAssistantMessage ? (
-                  isWaitingForResponse ? (
+          {/* Text + input container - independent width */}
+          <GlowContainer isActive={isLoading} borderRadius={16}>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: mediaTags.length > 0 ? 0.1 : 0 }}
+              className={cn(
+                "rounded-2xl pointer-events-auto",
+                "bg-black backdrop-blur-md",
+                "border border-white/20",
+                "ai-container-shadow",
+                "w-[90vw] sm:w-auto sm:min-w-[400px]"
+              )}
+            >
+              <div className="px-6 py-4 flex flex-col items-center" data-testid="ai-response-container">
+                <div className="w-full flex flex-col gap-3 items-center">
+                  {/* Response text with inline tags */}
+                  {lastAssistantMessage ? (
+                    isWaitingForResponse ? (
+                      <div className="flex items-center justify-center py-2">
+                        <ThinkingIndicator />
+                      </div>
+                    ) : (
+                      <>
+                        {cleanText && (
+                          <motion.p
+                            className="text-sm text-white leading-relaxed text-center font-medium whitespace-pre-line"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                            data-testid="ai-response-text"
+                          >
+                            {cleanText}
+                          </motion.p>
+                        )}
+                        {hasInlineTags && parsedContent && (
+                          <div className="flex flex-wrap items-center justify-center gap-2">
+                            {parsedContent.allTags.map((tag, idx) => {
+                              if (tag.kind === "ratings") {
+                                const data =
+                                  tag.mediaType === "movie"
+                                    ? tagData.movies[tag.id]
+                                    : tagData.series[tag.id];
+                                return (
+                                  <ChatRatings
+                                    key={`ratings-${tag.id}-${idx}`}
+                                    tag={tag}
+                                    data={data}
+                                    isLoading={isTagDataLoading}
+                                  />
+                                );
+                              }
+                              if (tag.kind === "watch") {
+                                const data =
+                                  tag.mediaType === "movie"
+                                    ? tagData.movies[tag.id]
+                                    : tagData.series[tag.id];
+                                return (
+                                  <ChatWatchOptions
+                                    key={`watch-${tag.id}-${idx}`}
+                                    tag={tag}
+                                    data={data}
+                                    isLoading={isTagDataLoading}
+                                  />
+                                );
+                              }
+                              if (tag.kind === "person") {
+                                const data = tag.id ? tagData.persons[tag.id] : null;
+                                return (
+                                  <PersonChip
+                                    key={`person-${tag.id ?? tag.name}-${idx}`}
+                                    tag={tag}
+                                    data={data}
+                                    isLoading={isTagDataLoading && !!tag.id}
+                                  />
+                                );
+                              }
+                              return null;
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )
+                  ) : isLoading ? (
                     <div className="flex items-center justify-center py-2">
                       <ThinkingIndicator />
                     </div>
-                  ) : (
-                    <>
-                      {cleanText && (
-                        <motion.p
-                          className="text-sm text-white leading-relaxed text-center font-medium whitespace-pre-line"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.2 }}
-                          data-testid="ai-response-text"
-                        >
-                          {cleanText}
-                        </motion.p>
-                      )}
-                      {hasInlineTags && parsedContent && (
-                        <div className="flex flex-wrap items-center justify-center gap-2">
-                          {parsedContent.allTags.map((tag, idx) => {
-                            if (tag.kind === "ratings") {
-                              const data =
-                                tag.mediaType === "movie"
-                                  ? tagData.movies[tag.id]
-                                  : tagData.series[tag.id];
-                              return (
-                                <ChatRatings
-                                  key={`ratings-${tag.id}-${idx}`}
-                                  tag={tag}
-                                  data={data}
-                                  isLoading={isTagDataLoading}
-                                />
-                              );
-                            }
-                            if (tag.kind === "watch") {
-                              const data =
-                                tag.mediaType === "movie"
-                                  ? tagData.movies[tag.id]
-                                  : tagData.series[tag.id];
-                              return (
-                                <ChatWatchOptions
-                                  key={`watch-${tag.id}-${idx}`}
-                                  tag={tag}
-                                  data={data}
-                                  isLoading={isTagDataLoading}
-                                />
-                              );
-                            }
-                            if (tag.kind === "person") {
-                              const data = tag.id ? tagData.persons[tag.id] : null;
-                              return (
-                                <PersonChip
-                                  key={`person-${tag.id ?? tag.name}-${idx}`}
-                                  tag={tag}
-                                  data={data}
-                                  isLoading={isTagDataLoading && !!tag.id}
-                                />
-                              );
-                            }
-                            return null;
-                          })}
-                        </div>
-                      )}
-                    </>
-                  )
-                ) : isLoading ? (
-                  <div className="flex items-center justify-center py-2">
-                    <ThinkingIndicator />
-                  </div>
-                ) : null}
+                  ) : null}
 
-                {/* Navigation prompt */}
-                {pendingNavigation && (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={onNavigate}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-full",
-                        "bg-brand/20 hover:bg-brand/30",
-                        "text-sm font-medium text-brand",
-                        "border border-brand/30 transition-colors duration-200"
-                      )}
-                    >
-                      Go to page
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Input row */}
-                <div className="flex items-center gap-1.5 w-full max-w-[400px]">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => onInputChange(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask something else..."
-                    disabled={isLoading}
-                    data-testid="ai-chat-input"
-                    className={cn(
-                      "flex-1 px-4 py-2.5 text-sm rounded-full",
-                      "bg-white/5 text-white placeholder:text-white/40",
-                      "border border-white/15 hover:border-white/25",
-                      "focus:outline-none focus:border-brand/50 focus:bg-white/10",
-                      "disabled:opacity-50 transition-all duration-200"
-                    )}
-                  />
-                  {!isLoading && (
-                    <button
-                      onClick={onSend}
-                      disabled={!input.trim()}
-                      data-testid="ai-send-btn"
-                      className={cn(
-                        "p-2.5 rounded-full",
-                        "bg-brand text-brand-foreground",
-                        "disabled:opacity-30 hover:bg-brand/90",
-                        "transition-colors duration-200"
-                      )}
-                    >
-                      <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-                    </button>
+                  {/* Navigation prompt */}
+                  {pendingNavigation && (
+                    <div className="flex justify-center">
+                      <button
+                        onClick={onNavigate}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-1.5 rounded-full",
+                          "bg-brand/20 hover:bg-brand/30",
+                          "text-sm font-medium text-brand",
+                          "border border-brand/30 transition-colors duration-200"
+                        )}
+                      >
+                        Go to page
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
-                  <button
-                    onClick={onExpand}
-                    data-testid="ai-expand-btn"
-                    className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                    title="Expand"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={onClose}
-                    data-testid="ai-close-btn"
-                    className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                    title="Close"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+
+                  {/* Input row */}
+                  <div className="flex items-center gap-1.5 w-full">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={input}
+                      onChange={(e) => onInputChange(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Ask something else..."
+                      disabled={isLoading}
+                      data-testid="ai-chat-input"
+                      className={cn(
+                        "flex-1 px-4 py-2.5 text-sm rounded-full",
+                        "bg-white/5 text-white placeholder:text-white/40",
+                        "border border-white/15 hover:border-white/25",
+                        "focus:outline-none focus:border-brand/50 focus:bg-white/10",
+                        "disabled:opacity-50 transition-all duration-200"
+                      )}
+                    />
+                    {!isLoading && (
+                      <button
+                        onClick={onSend}
+                        disabled={!input.trim()}
+                        data-testid="ai-send-btn"
+                        className={cn(
+                          "p-2.5 rounded-full",
+                          "bg-brand text-brand-foreground",
+                          "disabled:opacity-30 hover:bg-brand/90",
+                          "transition-colors duration-200"
+                        )}
+                      >
+                        <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                      </button>
+                    )}
+                    <button
+                      onClick={onExpand}
+                      data-testid="ai-expand-btn"
+                      className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                      title="Expand"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={onClose}
+                      data-testid="ai-close-btn"
+                      className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                      title="Close"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        </GlowContainer>
+            </motion.div>
+          </GlowContainer>
+        </div>
       )}
     </motion.div>
   );
@@ -827,6 +910,7 @@ function ExpandedChat({
 }: ExpandedChatProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -844,9 +928,33 @@ function ExpandedChat({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Handle mobile virtual keyboard
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const handleResize = () => {
+      const viewportHeight = viewport.height;
+      const windowHeight = window.innerHeight;
+      const keyboardH = windowHeight - viewportHeight - viewport.offsetTop;
+      setKeyboardHeight(Math.max(0, keyboardH));
+    };
+
+    viewport.addEventListener("resize", handleResize);
+    viewport.addEventListener("scroll", handleResize);
+    
+    return () => {
+      viewport.removeEventListener("resize", handleResize);
+      viewport.removeEventListener("scroll", handleResize);
+    };
+  }, []);
+
   const _allMediaTags = useMemo(() => {
     return collectMediaTags(messages.filter((m) => m.role === "assistant").map((m) => m.content));
   }, [messages]);
+
+  // Calculate bottom position and height accounting for keyboard
+  const bottomPosition = keyboardHeight > 0 ? keyboardHeight + 8 : undefined;
 
   return (
     <>
@@ -867,14 +975,20 @@ function ExpandedChat({
         exit={{ opacity: 0, y: 20, scale: 0.98 }}
         transition={{ duration: 0.25, ease: TRANSITION_EASE }}
         className={cn(
-          "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
+          "fixed left-1/2 -translate-x-1/2 z-50",
+          keyboardHeight === 0 && "bottom-20 md:bottom-6", // Above bottom nav on mobile (when no keyboard)
+          keyboardHeight === 0 && "h-[60vh] md:h-[70vh] max-h-[600px]", // Normal height when no keyboard
           "w-[calc(100vw-32px)] max-w-[600px]",
-          "h-[70vh] max-h-[600px]",
           "bg-background/95 backdrop-blur-xl",
           "border border-border/50 rounded-2xl",
           "shadow-2xl shadow-black/20",
           "flex flex-col overflow-hidden"
         )}
+        style={keyboardHeight > 0 ? {
+          bottom: bottomPosition,
+          // Adjust height when keyboard is open - take available space minus some padding
+          height: `calc(100vh - ${keyboardHeight + 16}px - 60px)`, // 60px for top padding
+        } : undefined}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
@@ -1033,10 +1147,16 @@ interface AssistantFloatyProps {
     mediaType: "movie" | "series" | "person";
     itemId: number;
     itemTitle?: string;
+    aiQuestions?: string[]; // AI-generated questions for this item
   };
 }
 
-function usePageContext(itemContext?: AssistantFloatyProps["itemContext"]): PageContext | null {
+// Extended page context with AI questions
+interface ExtendedPageContext extends PageContext {
+  aiQuestions?: string[];
+}
+
+function usePageContext(itemContext?: AssistantFloatyProps["itemContext"]): ExtendedPageContext | null {
   const pathname = usePathname();
 
   return useMemo(() => {
@@ -1051,6 +1171,7 @@ function usePageContext(itemContext?: AssistantFloatyProps["itemContext"]): Page
         mediaType: itemContext.mediaType,
         itemId: itemContext.itemId,
         itemTitle: itemContext.itemTitle,
+        aiQuestions: itemContext.aiQuestions,
       };
     }
 
@@ -1081,6 +1202,23 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
 
   const { messages, isLoading, pendingNavigation, sendMessage, executeNavigation, clearMessages } =
     useChatStream({ pageContext });
+
+  // Listen for external chat trigger events (from AIQuestionsSection)
+  useEffect(() => {
+    const handleChatTrigger = (event: CustomEvent<{ message: string }>) => {
+      const { message } = event.detail;
+      if (message) {
+        sendMessage(message);
+        setState("active");
+      }
+    };
+
+    window.addEventListener("ai-chat-trigger", handleChatTrigger as EventListener);
+    return () => {
+      window.removeEventListener("ai-chat-trigger", handleChatTrigger as EventListener);
+    };
+  }, [sendMessage]);
+
 
   // Idle prompt cycling
   useEffect(() => {
@@ -1139,6 +1277,7 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
 
   return (
     <AnimatePresence mode="wait">
+      {/* Idle state - positioned above bottom nav on mobile */}
       {state === "idle" && (
         <motion.div
           key="idle"
@@ -1146,7 +1285,12 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.2, ease: TRANSITION_EASE }}
-          className={cn("fixed bottom-6 left-1/2 -translate-x-1/2 z-50", className)}
+          className={cn(
+            "fixed left-1/2 -translate-x-1/2 z-50",
+            "bottom-6 md:bottom-6", // Desktop: normal position
+            "max-md:bottom-[4.25rem]", // Mobile: above the h-14 (56px) bottom nav + some margin
+            className
+          )}
         >
           <IdleCircle
             onExpand={(clickedPrompt) => {

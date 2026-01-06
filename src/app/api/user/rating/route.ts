@@ -3,6 +3,7 @@ import { connectDB } from "@/server/db";
 import { UserRating } from "@/server/db/models/user-library";
 import { requireUserIdForDb } from "@/lib/user-id";
 import { z } from "zod";
+import { userApiLogger } from "@/lib/logger";
 
 const RatingSchema = z.object({
   itemId: z.number(),
@@ -43,7 +44,11 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === "Authentication required") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("Error setting rating:", error);
+    userApiLogger.error({
+      route: "/api/user/rating",
+      method: "POST",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to set rating" }, { status: 500 });
   }
 }
@@ -76,7 +81,11 @@ export async function DELETE(request: NextRequest) {
     if (error instanceof Error && error.message === "Authentication required") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("Error removing rating:", error);
+    userApiLogger.error({
+      route: "/api/user/rating",
+      method: "DELETE",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to remove rating" }, { status: 500 });
   }
 }

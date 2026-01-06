@@ -13,9 +13,8 @@ interface HeroLogoShellProps {
   fallbackText?: string;
   /** TMDB logo path for fallback (optional, can come from context) */
   tmdbLogoPath?: string | null;
+  /** Responsive constraints via Tailwind classes (e.g., max-w-[280px] sm:max-w-[380px]) */
   className?: string;
-  maxWidth?: number;
-  maxHeight?: number;
 }
 
 type LoadState = "cdn" | "tmdb" | "text" | "pending";
@@ -36,8 +35,6 @@ export function HeroLogoShell({
   fallbackText: propText,
   tmdbLogoPath: propLogoPath,
   className,
-  maxWidth = 600,
-  maxHeight = 180,
 }: HeroLogoShellProps) {
   const heroContext = useHeroMedia();
   const [loadState, setLoadState] = useState<LoadState>("cdn");
@@ -96,12 +93,9 @@ export function HeroLogoShell({
       <div
         className={cn(
           "animate-pulse bg-gradient-to-r from-muted/50 via-muted/30 to-transparent rounded-lg",
+          "w-[200px] h-[60px] sm:w-[280px] sm:h-[80px] md:w-[400px] md:h-[100px]",
           className
         )}
-        style={{
-          width: Math.min(maxWidth, 400),
-          height: Math.min(maxHeight, 80),
-        }}
       />
     );
   }
@@ -110,11 +104,10 @@ export function HeroLogoShell({
   if (loadState === "text") {
     if (!fallbackText) {
       // No title available yet - show a minimal placeholder
-      // This shouldn't happen if context is properly set up
       return (
         <div
           className={cn(
-            "h-16 sm:h-20 md:h-24 bg-transparent",
+            "h-12 sm:h-16 md:h-20 bg-transparent",
             className
           )}
         />
@@ -123,12 +116,9 @@ export function HeroLogoShell({
     return (
       <h1
         className={cn(
-          "text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight text-white drop-shadow-lg line-clamp-2",
+          "text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white drop-shadow-lg line-clamp-2",
           className
         )}
-        style={{
-          maxWidth: maxWidth,
-        }}
       >
         {fallbackText}
       </h1>
@@ -136,17 +126,18 @@ export function HeroLogoShell({
   }
 
   // Image state (cdn or tmdb)
+  // className contains responsive max-w/max-h constraints, applied directly to img
   return (
-    <div className={cn("relative", className)}>
+    <div className="relative">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={currentSrc!}
         alt={fallbackText || "logo"}
-        className="object-contain object-left drop-shadow-lg max-w-full max-h-full"
-        style={{
-          maxWidth: maxWidth,
-          maxHeight: maxHeight,
-        }}
+        className={cn(
+          "object-contain object-left drop-shadow-lg",
+          // Responsive constraints passed via className (e.g., max-w-[280px] sm:max-w-[380px])
+          className
+        )}
         onError={handleError}
       />
     </div>

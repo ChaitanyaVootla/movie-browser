@@ -54,8 +54,10 @@ src/components/features/
 │   ├── hero-content.tsx        # Shared hero content layout (logo, genres, ratings, watch options)
 │   ├── media-hero.tsx          # Details page hero (uses MediaBackdrop + HeroContent)
 │   ├── media-backdrop.tsx      # Prime Video-style backdrop (image right, black left)
-│   ├── media-action-bar.tsx    # Action bar below hero (trailer, watchlist, like/dislike, share)
-│   ├── media-overview.tsx      # Overview, cast carousel, details sidebar
+│   ├── media-action-bar.tsx    # Action bar below hero (trailer, watchlist, like/dislike, share, + quickTake)
+│   ├── media-overview.tsx      # Overview, cast carousel, details sidebar (+ AI hook, themes, mood)
+│   ├── quick-take.tsx          # AI-generated quick take pills (displayed next to action buttons)
+│   ├── ai-questions-section.tsx # AI-generated questions section (triggers AI chat)
 │   ├── media-actions.tsx       # Individual action buttons (Play, watchlist, favorite)
 │   ├── scroll-container.tsx    # Low-level scrollable container primitive (drag + arrows)
 │   ├── media-scroller.tsx      # High-level scroller with header, title, see-all link
@@ -255,6 +257,8 @@ The hero uses CSS variables (defined in `globals.css`) for easily tweakable resp
 #### Shared Components
 
 **`MediaBackdrop`** / **`HeroBackdropShell`** - Prime Video-style backdrop:
+
+**Desktop (md+):**
 - Image positioned to the right: `left-0 md:left-[18%] lg:left-[25%]`
 - `object-cover` with `objectPosition: "85% 20%"` - 85% from left (right bias), 20% from top (shows more top of image)
 - Black background base for clean left gradient fade
@@ -263,6 +267,12 @@ The hero uses CSS variables (defined in `globals.css`) for easily tweakable resp
 - Three overlay presets: `light`, `medium`, `heavy`
 - MUST have `h-full` on children wrapper for flexbox to work
 
+**Mobile (<md):**
+- Full-bleed `object-cover` fills entire container
+- `object-[center_20%]` - centered horizontally, 20% from top (shows faces/important content)
+- Enhanced bottom gradient for content readability (95% opacity at bottom → transparent at 60%)
+- No left gradient needed (content overlays the image)
+
 **`HeroContent`** - Content layout (bottom-aligned):
 - Uses `.hero-content-width` class for responsive width (30vw desktop, 85vw mobile with min/max)
 - Logo (with responsive constraints: `max-w-[220px] md:max-w-[420px] lg:max-w-[520px]`)
@@ -270,6 +280,8 @@ The hero uses CSS variables (defined in `globals.css`) for easily tweakable resp
 - Genres → Ratings → Watch Options (compact vertical stack)
 - Shared animation variants (`heroContainerVariants`, `heroItemVariants`)
 - **No actions prop** - actions moved to separate `MediaActionBar`
+- **Text shadows for mobile**: `[text-shadow:0_1px_3px_rgba(0,0,0,0.8)]` on content containers for readability over backdrop
+- **Drop shadow on logo**: `drop-shadow-lg` applied to logo container
 
 **`MediaActionBar`** - Action buttons (separate from hero):
 - Play Trailer, Watchlist toggle, Like/Dislike, Share
@@ -414,7 +426,12 @@ import { CountrySelector } from "@/components/features/layout";
 
 ### NavBar Patterns
 
-The navbar uses scroll-aware styling with compact, left-aligned elements:
+The navbar uses scroll-aware styling with compact, left-aligned elements. **Hidden on mobile** - `MobileBottomNav` handles navigation instead.
+
+**Desktop NavBar:**
+- Hidden on mobile: `hidden md:block`
+- Scroll-aware background (transparent → solid on scroll)
+- Compact search button with keyboard shortcut (⌘K / Ctrl+K)
 
 **Search Button (Compact):**
 ```tsx
@@ -458,6 +475,73 @@ The navbar uses scroll-aware styling with compact, left-aligned elements:
 | Card Display | UserMenu → Appearance | SettingsMenu |
 | Theme Mode | UserMenu → Appearance | SettingsMenu |
 | Color Theme | UserMenu → Appearance | SettingsMenu |
+
+### MobileBottomNav Component
+
+Native-app-style bottom navigation bar for mobile devices. Shows on screens < md (768px).
+
+```
+src/components/features/layout/mobile-bottom-nav.tsx
+```
+
+**Layout:**
+```
+┌───────────────────────────────────────────────────────────────┐
+│ Home    Browse    Search    Watchlist    You/Menu            │
+└───────────────────────────────────────────────────────────────┘
+         │                                      │
+         └──────────────────────────────────────┘
+                    h-14, fixed bottom-0
+```
+
+**Nav Items:**
+| Position | Item | Icon | Behavior |
+|------|----|------|---------|
+| 1 | Home | `Home` | Links to `/` |
+| 2 | Browse | `Compass` | Links to `/browse` |
+| 3 | Search | `Search` | Opens SearchCommand dialog |
+| 4 | Watchlist | `Bookmark` | Links to `/watchlist` |
+| 5 | You/Menu | `User` or Avatar | Opens MobileUserSheet |
+
+**User Avatar Display:**
+- **Authenticated**: Shows user's avatar image or initials fallback
+- **Unauthenticated**: Shows generic User icon with "Menu" label
+
+```tsx
+// User avatar with initials fallback (matches desktop navbar pattern)
+{isAuthenticated ? (
+  <Avatar className="h-5 w-5 ring-1 ring-border/40">
+    {user?.image && <AvatarImage src={user.image} ... />}
+    <AvatarFallback>{getInitials(user?.name || "U")}</AvatarFallback>
+  </Avatar>
+) : (
+  <User className="h-5 w-5 text-muted-foreground/70" />
+)}
+```
+
+**Mobile User Sheet:**
+- Bottom sheet (slides up from bottom)
+- Shows user profile when authenticated
+- Links: Watchlist, Watched, My Ratings, Settings
+- Theme toggle with visual switch
+- Sign In / Sign Out action
+
+**Key implementation details:**
+- Nav height: `h-14` (56px)
+- Background: `bg-background/95 backdrop-blur-xl border-t border-border/30`
+- Search uses `useSearchCommand` hook to control SearchCommand dialog
+- AssistantFloaty (AI bubble) floats above the nav at `bottom-[4.25rem]`
+
+**Usage in layout.tsx:**
+```tsx
+<Providers>
+  <ScrollToTop />
+  <NavBar />
+  <main className="flex-1 pb-16 md:pb-0">{children}</main>  {/* pb-16 for mobile nav */}
+  <Footer className="hidden md:block" />
+  <MobileBottomNav />
+</Providers>
+```
 
 ### Media Detail Page Patterns
 
@@ -643,6 +727,97 @@ const [isPlaying, setIsPlaying] = useState(false);
 )}
 ```
 
+### AI Summary Integration (Detail Pages)
+
+AI-generated content is integrated into movie detail pages when available. Data is read from `data/enriched/<tmdb_id>/ai-summary.json`.
+
+#### Component Overview
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `QuickTake` | Next to action buttons | AI-generated quick take pills |
+| `AIQuestionsSection` | Below overview | Clickable questions that trigger AI chat |
+| `MoodIndicators` | Details sidebar (bottom) | Pacing, intensity, tone, emotional indicators |
+
+#### QuickTake Pills
+
+Displayed next to action buttons (Trailer, Watchlist, etc.):
+
+```tsx
+// In MediaActionBar - flows right after buttons
+<div className="flex items-center gap-6">
+  <MediaActions ... />
+  {quickTake && quickTake.length > 0 && (
+    <QuickTake items={quickTake} maxVisible={3} className="hidden sm:flex" />
+  )}
+</div>
+```
+
+**Styling:** Subtle bordered pills (`border-white/10`) - no brand/red colors.
+
+#### AI Questions Section
+
+Uses the same animated icon and glow effect as the AI chat bubble:
+
+```tsx
+import { AISparkIcon } from "@/components/features/ai/ai-icon";
+import { GlowContainer } from "@/components/features/ai/ai-animations";
+
+<GlowContainer isActive={true} borderRadius={12}>
+  <div className="rounded-xl bg-black/80 backdrop-blur-sm p-4">
+    <div className="flex items-center gap-2 mb-3">
+      <AISparkIcon size={16} className="text-brand" />
+      <h3>Ask about {title}</h3>
+    </div>
+    {/* Question pills trigger AI chat via custom event */}
+  </div>
+</GlowContainer>
+```
+
+**Event trigger:** Clicking a question dispatches `ai-chat-trigger` custom event:
+
+```tsx
+window.dispatchEvent(new CustomEvent("ai-chat-trigger", {
+  detail: { message: question }
+}));
+```
+
+#### Mood Indicators
+
+2x2 grid with value-based semantic colors and tooltips explaining each value:
+
+| Type | Values & Colors |
+|------|----------------|
+| Pacing | fast → yellow, slow → blue, steady → gray |
+| Intensity | high → orange, low → cyan, medium → gray |
+| Tone | dark → purple, light → amber, mixed → gray |
+| Emotional | heavy → rose, light → emerald, medium → gray |
+
+**Tooltips** explain each value (e.g., "Fast: Quick cuts, lots of action, keeps you on edge").
+
+```tsx
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Each mood card is wrapped in a Tooltip
+<Tooltip>
+  <TooltipTrigger asChild>
+    <div className={cn("flex flex-col items-center cursor-help", colorClasses)}>
+      {/* Icon + label + value */}
+    </div>
+  </TooltipTrigger>
+  <TooltipContent side="top" className="max-w-[200px] text-center">
+    <p className="text-xs">{tooltip}</p>
+  </TooltipContent>
+</Tooltip>
+```
+
+#### AI Styling Guidelines
+
+- **No red/brand text** - Use subtle borders to indicate AI content
+- **Reuse AI components** - Use `AISparkIcon` and `GlowContainer` from `@/components/features/ai/`
+- **Single glow border** - Don't combine with additional container borders
+- **Value-based colors** - Mood indicators use semantic colors based on values
+
 ### Series-Specific Components
 
 #### Season Selector Pattern
@@ -665,6 +840,14 @@ Features:
 - Displays episode count and air date
 - Lazy loads episodes via `getSeason()` server action
 - Shows loading skeleton while fetching
+
+**Mobile-optimized header layout:**
+- Single line: Season dropdown + episode count + air date
+- Responsive dropdown width: `w-[140px] sm:w-[180px]`
+- Shorter date format on mobile: "Jul 2012" instead of "July 2012"
+- Smaller text on mobile: `text-xs sm:text-sm`
+- Uses `flex-wrap sm:flex-nowrap` for graceful wrapping only if necessary
+- Divider: `|` character between elements with `mx-1.5 text-muted-foreground/50`
 
 #### Episode Cards
 
@@ -1253,6 +1436,11 @@ function MyScroller() {
 ```
 
 **Key feature:** 5px drag threshold - movement below this is treated as a click, allowing normal navigation. Pointer capture only activates AFTER threshold is exceeded.
+
+**Mobile touch behavior:**
+- Use `touch-manipulation` CSS (NOT `touch-pan-x`) on scroll containers
+- `touch-pan-x` blocks vertical page scrolling when touch starts on a scroller
+- `touch-manipulation` allows both horizontal scroll on the scroller AND vertical page scroll
 
 #### ScrollContainer Component
 
@@ -2715,7 +2903,78 @@ function NavBar() {
     </>
   );
 }
+
+// In MobileBottomNav - separate instance for mobile
+function MobileBottomNav() {
+  const { open, setOpen } = useSearchCommand();
+  
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>Search</button>
+      <SearchCommand open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
 ```
+
+### Mobile Fullscreen Behavior
+
+On mobile (< sm breakpoint), the search dialog expands to fullscreen:
+
+```tsx
+<DialogContent
+  className={cn(
+    "overflow-hidden p-0",
+    // Mobile: full screen, no padding, top-aligned
+    "max-sm:top-0 max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0",
+    "max-sm:max-w-none max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:border-0",
+    // Desktop: centered, constrained width
+    "sm:max-w-[600px]"
+  )}
+>
+```
+
+**Mobile-specific:**
+- Fullscreen with no padding (keyboard takes bottom portion anyway)
+- No rounded corners or border
+- Keyboard shortcuts footer hidden (`hidden sm:flex`)
+
+### Back Button Handling (Mobile)
+
+The search dialog intercepts the mobile back button so pressing back closes the dialog instead of navigating away:
+
+```tsx
+// Handle mobile back button - push history state when open, close on popstate
+const closedViaBack = React.useRef(false);
+
+React.useEffect(() => {
+  if (!open) return;
+
+  const handlePopState = () => {
+    closedViaBack.current = true;
+    onOpenChange(false);
+  };
+
+  // Push a history state so back button closes dialog instead of navigating
+  window.history.pushState({ searchOpen: true }, "");
+  window.addEventListener("popstate", handlePopState);
+
+  return () => {
+    window.removeEventListener("popstate", handlePopState);
+    // Clean up the history state if dialog closes normally (not via back)
+    if (!closedViaBack.current && window.history.state?.searchOpen) {
+      window.history.back();
+    }
+    closedViaBack.current = false;
+  };
+}, [open, onOpenChange]);
+```
+
+**Behavior:**
+1. When dialog opens, pushes a history state `{ searchOpen: true }`
+2. If user presses back button, `popstate` event fires → dialog closes
+3. If dialog closes via other means (clicking result, X, Escape), the pushed history state is cleaned up
+4. This prevents the back button from navigating away from the app
 
 ### Search Architecture
 

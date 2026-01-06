@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/server/db";
 import { ContinueWatching } from "@/server/db/models/user-library";
 import { getUserIdForDb } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
 
 const MAX_CONTINUE_WATCHING = 10;
 
@@ -37,7 +38,11 @@ export async function GET() {
 
     return NextResponse.json({ items: formattedItems });
   } catch (error) {
-    console.error("Error fetching continue watching:", error);
+    userApiLogger.error({
+      route: "/api/user/continueWatching",
+      method: "GET",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to fetch continue watching" }, { status: 500 });
   }
 }
@@ -99,7 +104,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error adding to continue watching:", error);
+    userApiLogger.error({
+      route: "/api/user/continueWatching",
+      method: "POST",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to add to continue watching" }, { status: 500 });
   }
 }
@@ -126,7 +135,11 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error removing from continue watching:", error);
+    userApiLogger.error({
+      route: "/api/user/continueWatching",
+      method: "DELETE",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to remove from continue watching" }, { status: 500 });
   }
 }

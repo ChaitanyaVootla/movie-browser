@@ -97,8 +97,8 @@ BEDROCK_REGION=ap-south-1
 
 # Model ID - use inference profile ID for cross-region inference
 # Recommended:
-#   apac.amazon.nova-pro-v1:0                    (Amazon Nova Pro - DEFAULT, proper tool calling)
-#   us.anthropic.claude-3-haiku-20240307-v1:0    (Claude 3 Haiku - fast, cost-effective)
+#   apac.amazon.nova-pro-v1:0                    (Amazon Nova Pro - DEFAULT, tool quirks handled automatically)
+#   us.anthropic.claude-3-haiku-20240307-v1:0    (Claude 3 Haiku - fast, cost-effective, proper tool calls)
 #
 # NOT Recommended:
 #   moonshot.kimi-k2-thinking                    (Kimi K2 - outputs tool calls as text, breaks LangChain)
@@ -109,15 +109,32 @@ BEDROCK_MODEL_ID=apac.amazon.nova-pro-v1:0
 
 **⚠️ Kimi K2 Not Recommended:**
 
-Kimi K2 (`moonshot.kimi-k2-thinking`) has non-standard behavior where it outputs tool calls as text tokens (e.g., `<|tool_call_begin|>get_trending<|tool_call_end|>`) instead of using Bedrock's structured tool calling API. This means:
+Kimi K2 (`moonshot.kimi-k2-thinking`) has non-standard behavior where it outputs tool calls as text tokens (e.g., `<|tool_call_begin|>get_trending<|tool_call_end|>`) instead of using Bedrock's structured tool calling API. This breaks LangChain's tool execution.
 
-- LangChain cannot detect or execute tool calls
-- The agent appears to "stop" after saying it will check something
-- Tools never actually run
+**Amazon Nova Pro (Default):**
+Nova Pro occasionally exhibits a similar quirk - outputting tool calls as text instead of structured calls. We handle this automatically in `src/server/ai/agent.ts`:
+
+```typescript
+// shouldContinue() parses tool calls from text output
+if (content.includes("<|tool_call_begin|>")) {
+  const parsedCalls = parseToolCallsFromText(content);
+  if (parsedCalls.length > 0) {
+    // Inject parsed tool calls and continue to tool execution
+    (lastMessage as AIMessage).tool_calls = parsedCalls.map(...);
+    return "tools";
+  }
+}
+```
+
+When this recovery happens, you'll see in logs:
+```
+[AI AGENT] Parsed tool call from text: get_details
+[AI AGENT] Recovered 1 tool calls from text output
+```
 
 **Recommended Models:**
-- **Amazon Nova Pro** - Proper tool calling, good balance of speed/quality
-- **Claude 3 Haiku** - Fast, cost-effective, proper tool calling
+- **Amazon Nova Pro** - Good balance of speed/quality, tool call quirks handled automatically
+- **Claude 3 Haiku** - Fast, cost-effective, proper structured tool calls
 
 The agent code includes legacy support for reasoning models (extracting from `reasoning_content` blocks), but this is kept for future compatibility only.
 
@@ -1397,7 +1414,7 @@ or "dark psychological thrillers with plot twists".`,
 - [x] Test UI interactions
 - [x] Add animations and polish
 
-**Note:** Streaming temporarily disabled due to Amazon Nova Pro tool call compatibility issues with LangChain. Using non-streaming mode with SSE wrapper for now. TODO: Re-enable streaming when LangChain AWS fixes Nova Pro support.
+**Note:** Using non-streaming mode with SSE wrapper for reliability. This ensures tool calls execute properly (especially with Nova Pro's occasional text-as-tool-call quirk, which we handle automatically).
 
 ### Phase 4: Advanced Features ✅ COMPLETE
 - [x] Add page context tool (`src/server/ai/tools/context.ts`)

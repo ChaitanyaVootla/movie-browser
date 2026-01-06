@@ -84,18 +84,43 @@ export async function getMovie(id: unknown) {
 }
 ```
 
-### 4. Handle Errors Gracefully
+### 4. Handle Errors with Structured Logging
+
+Use the Pino-based structured loggers for all error handling:
 
 ```typescript
-// ✅ GOOD
+import { dataLogger, apiLogger, aiToolLogger } from "@/lib/logger";
+
+// ✅ GOOD - Structured logging with context
 try {
   const movie = await getMovie(id);
   return movie;
 } catch (error) {
-  console.error("Failed to fetch movie:", error);
+  dataLogger.error({
+    event: "fetch_movie_error",
+    movieId: id,
+    error: error instanceof Error ? error.message : String(error),
+  });
   throw new AppError("Movie not found", { cause: error });
 }
+
+// ❌ BAD - Unstructured console.error
+catch (error) {
+  console.error("Failed to fetch movie:", error);
+}
 ```
+
+**Available Loggers:**
+- `aiLogger` - AI agent operations
+- `aiToolLogger` - AI tool calls/results
+- `usageLogger` - Cost/token tracking
+- `apiLogger` - API routes
+- `userApiLogger` - User library APIs
+- `adminApiLogger` - Admin APIs
+- `dataLogger` - Data fetching
+- `tmdbLogger` - TMDB service
+
+See `src/lib/logger.ts` for the full list and `.cursor/rules/ai-agent.mdc` for log event formats.
 
 ## After Making Changes
 

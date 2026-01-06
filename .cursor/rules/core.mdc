@@ -23,6 +23,7 @@ The codebase is designed to be maintained by AI agents with human oversight.
 - **Animation**: Framer Motion
 - **Validation**: Zod
 - **Caching**: node-cache (in-memory for TMDB API)
+- **Logging**: Pino (structured JSON logging)
 - **Images**: CDN (`image.themoviebrowser.com`) with TMDB fallback
 - **Country Data**: country-list (complete ISO 3166-1 country list)
 
@@ -73,7 +74,12 @@ src/
 │       ├── home/        # Homepage components (PersonalizedSections)
 │       ├── discover/    # Browse/filter components (sidebar, grid, scroller)
 │       ├── auth/        # Auth components (GoogleOneTap, UserMenu, LoginDialog)
-│       └── layout/      # Layout components (nav, footer)
+│       └── layout/      # Layout components
+│           ├── nav-bar.tsx           # Desktop navbar (hidden on mobile)
+│           ├── mobile-bottom-nav.tsx # Mobile bottom navigation bar
+│           ├── footer.tsx            # Site footer (hidden on mobile)
+│           ├── country-selector.tsx  # Watch provider country selector
+│           └── scroll-to-top.tsx     # Scroll restoration on route changes
 ├── lib/                 # Utilities, constants, helpers
 │   ├── utils.ts         # General utilities (cn, formatNumber, getSlug)
 │   ├── constants.ts     # App constants, cache durations, excluded genres
@@ -373,12 +379,41 @@ interface Movie {
 }
 ```
 
-### 7. Error Handling
+### 7. Error Handling & Logging
 
 - Use error boundaries for client components
 - Use try/catch in Server Actions
 - Always provide user-friendly error messages
-- Log errors for debugging
+- **Use structured logging** via Pino (`src/lib/logger.ts`)
+
+**Structured Logging:**
+```typescript
+import { dataLogger, apiLogger, aiToolLogger } from "@/lib/logger";
+
+// ✅ GOOD - Structured logging
+dataLogger.error({
+  event: "fetch_movie_error",
+  movieId: id,
+  error: error instanceof Error ? error.message : String(error),
+});
+
+// ❌ BAD - Unstructured console.error
+console.error("Failed to fetch movie:", error);
+```
+
+**Available Loggers:**
+| Logger | Module | Use For |
+|--------|--------|---------|
+| `aiLogger` | `ai` | AI agent operations |
+| `aiToolLogger` | `ai:tool` | AI tool calls/results |
+| `usageLogger` | `usage` | Token/cost tracking |
+| `apiLogger` | `api` | General API routes |
+| `userApiLogger` | `api:user` | User library APIs |
+| `adminApiLogger` | `api:admin` | Admin APIs |
+| `dataLogger` | `data` | Data fetching |
+| `tmdbLogger` | `tmdb` | TMDB service |
+
+Logs are JSON in production, pretty-printed in dev. See `.cursor/rules/ai-agent.mdc` for AI-specific log events.
 
 ### 8. Performance Requirements
 
@@ -1315,6 +1350,177 @@ export function useUserLibrary() {
 }
 ```
 
+## Mobile Patterns
+
+### Responsive Layout Architecture
+
+The app uses different navigation patterns for mobile and desktop:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Desktop (md+)                     │ Mobile (<md)                        │
+├───────────────────────────────────┼─────────────────────────────────────┤
+│ NavBar (top, fixed)               │ NavBar: hidden                      │
+│ Footer (bottom of page)           │ Footer: hidden                      │
+│                                   │ MobileBottomNav (bottom, fixed)     │
+│                                   │ AssistantFloaty above bottom nav    │
+└───────────────────────────────────┴─────────────────────────────────────┘
+```
+
+**Root layout structure (`src/app/layout.tsx`):**
+
+```tsx
+<Providers>
+  <ScrollToTop />
+  <NavBar />                          {/* hidden md:block */}
+  <main className="flex-1 pb-16 md:pb-0">{children}</main>  {/* pb-16 for mobile nav */}
+  <Footer className="hidden md:block" />
+  <MobileBottomNav />                 {/* md:hidden */}
+</Providers>
+```
+
+**Key patterns:**
+- `pb-16` on main content provides clearance for mobile bottom nav (h-14 + 8px buffer)
+- Desktop navbar uses `hidden md:block` to hide on mobile
+- Footer uses `hidden md:block` to hide on mobile
+- MobileBottomNav uses `md:hidden` to hide on desktop
+
+**MobileBottomNav items:**
+| Home | Browse | Search | Watchlist | You/Menu |
+|------|--------|--------|-----------|----------|
+
+**AI Assistant positioning:**
+- Desktop: FloatsLoating at `bottom-6` centered
+- Mobile: Floats at `bottom-[4.25rem]` to sit above the bottom nav
+
+### Touch Scrolling on Horizontal Scrollers
+
+**CRITICAL:** Use `touch-manipulation` not `touch-pan-x` on scroll containers:
+
+```tsx
+// ✅ GOOD: Allows both horizontal scroll AND vertical page scroll
+<div className="flex overflow-x-auto touch-manipulation">
+
+// ❌ BAD: Blocks vertical page scrolling when touch starts on scroller
+<div className="flex overflow-x-auto touch-pan-x">
+```
+
+### Hero Section Mobile Layout
+
+Hero uses different layout strategies per viewport:
+
+| Viewport | Image | Content | Height |
+|----------|-------|---------|--------|
+| Mobile (<md) | `aspect-video object-cover object-[center_20%]` | Stacked below image, centered | Auto (flexible) |
+| Desktop (md+) | Aspect-ratio preserving, right-aligned | Overlays image at bottom-left | Fixed (60vh max) |
+
+**Key CSS:** `.hero-container` has `height: auto` on mobile to let content flow naturally.
+
+Hero content is pulled up into the image gradient with `-mt-8` for tight spacing:
+
+```tsx
+// HeroBackdropShell children container
+<div className={cn(
+  "relative z-10 bg-black px-4 -mt-8 pb-6",  // Mobile: pull up into gradient
+  "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"  // Desktop: overlay
+)}>
+  {children}
+</div>
+```
+
+### Responsive Component Patterns
+
+Keep UI elements on single lines using responsive sizing:
+
+```tsx
+// Season selector: dropdown + metadata on one line
+<div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+  <Select className="w-[140px] sm:w-[180px]">...</Select>
+  <span className="text-xs sm:text-sm">{episodeCount} Episodes</span>
+  <span className="text-xs sm:text-sm">{formatDate(date, "short")}</span>
+</div>
+```
+
+Date formatting shortcuts for space-constrained mobile:
+- Use short month: "Jul" instead of "July"
+- Use relative dates when possible: "Tomorrow", "in 3 days"
+
+### Mobile Virtual Keyboard Handling
+
+For fixed-position UI elements (like the AI chat), use the `visualViewport` API to detect when the mobile keyboard opens and adjust positioning:
+
+```tsx
+const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+useEffect(() => {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+
+  const handleResize = () => {
+    // When keyboard opens, visualViewport.height shrinks
+    const viewportHeight = viewport.height;
+    const windowHeight = window.innerHeight;
+    const keyboardH = windowHeight - viewportHeight - viewport.offsetTop;
+    setKeyboardHeight(Math.max(0, keyboardH));
+  };
+
+  viewport.addEventListener("resize", handleResize);
+  viewport.addEventListener("scroll", handleResize);
+  
+  return () => {
+    viewport.removeEventListener("resize", handleResize);
+    viewport.removeEventListener("scroll", handleResize);
+  };
+}, []);
+
+// Apply dynamic positioning when keyboard is open
+<div
+  className={cn(
+    "fixed bottom-20", // Default position
+    keyboardHeight === 0 && "bottom-20" // Only apply CSS when no keyboard
+  )}
+  style={keyboardHeight > 0 ? { bottom: keyboardHeight + 8 } : undefined}
+>
+```
+
+**Key points:**
+- `visualViewport.height` shrinks when keyboard opens
+- Calculate keyboard height as: `windowHeight - viewportHeight - offsetTop`
+- Use inline style (not className) when keyboard is open for precise positioning
+- Add small buffer (8px) above keyboard for visual separation
+
+### Mobile Back Button for Dialogs
+
+Intercept the mobile back button to close dialogs instead of navigating away:
+
+```tsx
+const closedViaBack = useRef(false);
+
+useEffect(() => {
+  if (!open) return;
+
+  const handlePopState = () => {
+    closedViaBack.current = true;
+    onOpenChange(false);
+  };
+
+  // Push history state so back button closes dialog
+  window.history.pushState({ dialogOpen: true }, "");
+  window.addEventListener("popstate", handlePopState);
+
+  return () => {
+    window.removeEventListener("popstate", handlePopState);
+    // Clean up history if closed via other means (not back button)
+    if (!closedViaBack.current && window.history.state?.dialogOpen) {
+      window.history.back();
+    }
+    closedViaBack.current = false;
+  };
+}, [open, onOpenChange]);
+```
+
+Used in: `SearchCommand`, and can be applied to any fullscreen mobile dialog.
+
 ## Do NOT
 
 - Import from `@/components/ui/` and modify those files (shadcn components)
@@ -1327,3 +1533,4 @@ export function useUserLibrary() {
 - Bypass the CDN for images (always use `src/lib/image.ts` utilities)
 - Use non-deterministic functions in render (Intl.NumberFormat, Date.now, Math.random)
 - Put sidebar in normal document flow on desktop (use fixed positioning)
+- Use `touch-pan-x` on scrollers (blocks vertical page scrolling on mobile)

@@ -2,7 +2,7 @@
  * AWS Bedrock Client Setup
  *
  * Configures the ChatBedrockConverse client for LLM inference.
- * Default: Amazon Nova Pro via APAC cross-region inference profile.
+ * Default: Kimi K2 Thinking model in us-east-1 region.
  *
  * IMPORTANT: Requires model access enabled in AWS Bedrock console.
  * See: https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html
@@ -10,14 +10,14 @@
 
 import { ChatBedrockConverse } from "@langchain/aws";
 
-// Amazon Nova Pro with APAC cross-region inference profile
-// See: https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html
-// Note: Kimi K2 (moonshot.kimi-k2-thinking) has non-standard tool calling that outputs
-// tool calls as text instead of structured API calls. Use Nova Pro for proper tool support.
+// Default model: Kimi K2 Thinking (reasoning model from Moonshot AI)
+// Note: Kimi K2 has non-standard tool calling that outputs tool calls as text
+// instead of structured API calls. This is handled in shouldContinue() in agent.ts.
 const DEFAULT_MODEL_ID = "moonshot.kimi-k2-thinking";
 
-// Source region for APAC inference profile
-const DEFAULT_REGION = "ap-south-1";
+// IMPORTANT: Kimi K2 is only available in us-east-1 (not ap-south-1)
+// Nova Pro uses APAC cross-region profile (apac.amazon.nova-pro-v1:0) in ap-south-1
+const DEFAULT_REGION = "us-east-1";
 
 /**
  * Create a ChatBedrockConverse instance for the movie agent
@@ -25,8 +25,8 @@ const DEFAULT_REGION = "ap-south-1";
  * Environment variables:
  * - AWS_ACCESS_KEY_ID (required)
  * - AWS_SECRET_ACCESS_KEY (required)
- * - BEDROCK_REGION (defaults to ap-south-1)
- * - BEDROCK_MODEL_ID (defaults to apac.amazon.nova-pro-v1:0)
+ * - BEDROCK_REGION (defaults to us-east-1 for Kimi K2)
+ * - BEDROCK_MODEL_ID (defaults to moonshot.kimi-k2-thinking)
  */
 export function createBedrockChat() {
   const modelId = process.env.BEDROCK_MODEL_ID || DEFAULT_MODEL_ID;

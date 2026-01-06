@@ -104,11 +104,11 @@ export function HeroContent({
         : [];
 
   const content = (
-    <div className="flex flex-col">
+    <div className="flex flex-col items-center text-center md:items-start md:text-left">
       {/* Logo - responsive constraints for tall/wide logos
-          Tall logos (like Godfather) need generous height,
-          Wide logos (like Spotlight) expand to fill available space */}
-      <motion.div variants={heroItemVariants} className="mb-4 md:mb-6 lg:mb-8">
+          Mobile: smaller, centered
+          Desktop: larger, left-aligned */}
+      <motion.div variants={heroItemVariants} className="mb-3 md:mb-6 lg:mb-8 drop-shadow-lg">
         <MediaLogo
           item={{
             id: itemId,
@@ -120,13 +120,13 @@ export function HeroContent({
           fallbackText={title}
           maxWidth={600}
           maxHeight={180}
-          className="max-w-[280px] sm:max-w-[380px] md:max-w-[500px] lg:max-w-[600px] max-h-[100px] sm:max-h-[130px] md:max-h-[160px] lg:max-h-[180px]"
+          className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
           priority={priority}
         />
       </motion.div>
 
-      {/* Info section - with consistent gaps */}
-      <div className="flex flex-col gap-2.5 md:gap-3">
+      {/* Info section - centered on mobile, left-aligned on desktop */}
+      <div className="flex flex-col items-center md:items-start gap-2 md:gap-3">
         {/* Genres */}
         {genres.length > 0 && (
           <motion.div variants={heroItemVariants}>
@@ -167,7 +167,12 @@ export function HeroContent({
   if (animate) {
     return (
       <motion.div
-        className={cn("hero-content-width", className)}
+        className={cn(
+          // Mobile: full width content (already centered via flex items-center)
+          // Desktop: constrained width, positioned at bottom-left
+          "w-full md:hero-content-width",
+          className
+        )}
         variants={heroContainerVariants}
         initial="hidden"
         animate="visible"
@@ -178,6 +183,6 @@ export function HeroContent({
     );
   }
 
-  return <div className={cn("hero-content-width", className)}>{content}</div>;
+  return <div className={cn("w-full md:hero-content-width", className)}>{content}</div>;
 }
 

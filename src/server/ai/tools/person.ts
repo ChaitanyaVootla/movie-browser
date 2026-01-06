@@ -12,6 +12,7 @@ import {
   getLightPersonDetails,
   searchPersonAndGetDetails,
 } from "@/server/utils";
+import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
 // Person Details Tool
@@ -73,7 +74,13 @@ export const getPersonTool = tool(
 
       return JSON.stringify(response);
     } catch (error) {
-      console.error("get_person error:", error);
+      aiToolLogger.error({
+        event: "tool_error",
+        tool: "get_person",
+        id: input.id,
+        name: input.name,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return JSON.stringify({
         error: "Failed to fetch person details",
       });
@@ -81,35 +88,22 @@ export const getPersonTool = tool(
   },
   {
     name: "get_person",
-    description: `Get information about an actor, director, or other film industry person.
+    description: `Get an actor/director's filmography, bio, and upcoming work.
 
-Supports TWO ways to look up:
-1. By ID: get_person(id: 500) - when you have the TMDB ID from a previous search
-2. By name: get_person(name: "Brad Pitt") - searches and returns top match
+Use when: "What else has X been in?", "What's X working on?", "Tell me about [person]"
+Prefer name over ID - we'll search: get_person(name: "Brad Pitt")
 
-Use this when:
-- User asks "What else has X been in?"
-- User asks "Tell me about X" (actor/director)
-- User asks about a person's filmography
-- User asks "What has X done recently?"
-
-Returns:
-- Basic info: name, known for (Acting/Directing), age, bio
-- Upcoming work: future releases with dates
-- Recent work: projects from the last 3 years
-- Notable movies: top 5 most popular films with roles
-- Notable series: top 5 most popular TV shows with roles
-
-PREFER using name over ID - we'll search for you!`,
+Returns: bio, age, notable movies/series, recent work, UPCOMING releases.
+Use the IDs from results for [MOVIE]/[SERIES]/[PERSON] tags.`,
     schema: z.object({
       id: z
         .number()
         .optional()
-        .describe("TMDB person ID (if known from a previous search/tool)"),
+        .describe("TMDB person ID if known"),
       name: z
         .string()
         .optional()
-        .describe("Person name to search for (preferred - we'll find them!)"),
+        .describe("Person name (preferred - we search for you)"),
     }),
   }
 );

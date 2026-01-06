@@ -1,9 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
-export function Footer() {
+interface FooterProps {
+  className?: string;
+}
+
+export function Footer({ className }: FooterProps) {
   return (
-    <footer className="border-t border-border/40 bg-muted/30">
+    <footer className={cn("border-t border-border/40 bg-muted/30", className)}>
       <div className="px-4 md:px-8 lg:px-12 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}

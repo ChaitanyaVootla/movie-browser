@@ -17,6 +17,7 @@ interface ImageGalleryProps {
 }
 
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
+const SWIPE_THRESHOLD = 50; // Minimum distance for swipe
 
 export function ImageGallery({
   images,
@@ -26,6 +27,7 @@ export function ImageGallery({
 }: ImageGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const visibleImages = images.slice(0, maxVisible);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] : null;
@@ -44,6 +46,38 @@ export function ImageGallery({
   const handleClose = useCallback(() => {
     setSelectedIndex(null);
   }, []);
+
+  // Touch swipe handlers for lightbox
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+
+    const touchEnd = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+    };
+
+    const dx = touchEnd.x - touchStartRef.current.x;
+    const dy = touchEnd.y - touchStartRef.current.y;
+
+    // Only trigger swipe if horizontal movement is greater than vertical
+    // and exceeds threshold
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
+      if (dx > 0) {
+        goToPrevious(); // Swipe right = previous
+      } else {
+        goToNext(); // Swipe left = next
+      }
+    }
+
+    touchStartRef.current = null;
+  }, [goToPrevious, goToNext]);
 
   // Scroll thumbnail into view when selected
   useEffect(() => {
@@ -145,7 +179,11 @@ export function ImageGallery({
 
       {/* Lightbox Modal - Custom full screen overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 bg-black">
+        <div
+          className="fixed inset-0 z-50 bg-black touch-pan-y"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {/* Close button */}
           <Button
             variant="ghost"
@@ -156,11 +194,11 @@ export function ImageGallery({
             <X className="h-5 w-5" />
           </Button>
 
-          {/* Navigation arrows */}
+          {/* Navigation arrows - hidden on mobile */}
           <Button
             variant="ghost"
             size="icon"
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-white/10 hover:bg-white/20 text-white h-12 w-12"
+            className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-white/10 hover:bg-white/20 text-white h-12 w-12"
             onClick={goToPrevious}
           >
             <ChevronLeft className="h-7 w-7" />
@@ -168,7 +206,7 @@ export function ImageGallery({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-white/10 hover:bg-white/20 text-white h-12 w-12"
+            className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-white/10 hover:bg-white/20 text-white h-12 w-12"
             onClick={goToNext}
           >
             <ChevronRight className="h-7 w-7" />
@@ -188,8 +226,9 @@ export function ImageGallery({
                 <img
                   src={`${TMDB_IMAGE_BASE}/original${selectedImage.file_path}`}
                   alt={`Gallery image ${selectedIndex + 1}`}
-                  className="max-w-full max-h-full object-contain"
+                  className="max-w-full max-h-full object-contain select-none pointer-events-none"
                   style={{ maxHeight: "calc(100vh - 160px)" }}
+                  draggable={false}
                 />
               )}
             </div>

@@ -10,6 +10,7 @@ import {
 } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
 import type { Series, Season, Episode, ExternalRating, WatchProviderData } from "@/types";
+import { dataLogger } from "@/lib/logger";
 
 const GetSeriesSchema = z.object({
   id: z.number().positive(),
@@ -124,7 +125,10 @@ export async function getSeries(id: number): Promise<Series | null> {
       watch_options: watchOptions,
     };
   } catch (error) {
-    console.error("Error fetching series:", error);
+    dataLogger.error({
+      action: "getSeries",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -152,7 +156,10 @@ export async function getSeason(seriesId: number, seasonNumber: number): Promise
       episodes: data.episodes as Season["episodes"],
     };
   } catch (error) {
-    console.error("Error fetching season:", error);
+    dataLogger.error({
+      action: "getSeason",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -195,7 +202,10 @@ export async function getEpisode(
       external_ids: data.external_ids as Episode["external_ids"],
     };
   } catch (error) {
-    console.error("Error fetching episode:", error);
+    dataLogger.error({
+      action: "getEpisode",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }

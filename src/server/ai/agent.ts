@@ -12,6 +12,8 @@ import { AgentState, type AgentStateType } from "./state";
 import { createBedrockChat } from "./bedrock";
 import { allTools } from "./tools";
 import { getSystemPrompt } from "./prompts/system";
+import { aiLogger, usageLogger, aiToolLogger } from "@/lib/logger";
+import { calculateUsageStats, getCurrentModelId, type UsageStats } from "@/lib/model-pricing";
 
 // =============================================================================
 // Debug Logging
@@ -57,6 +59,18 @@ interface InvocationStats {
   totalToolResultsChars: number;
 }
 
+// =============================================================================
+// Token Usage Tracking
+// =============================================================================
+
+interface TurnUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+// Accumulate token usage across all LLM calls in an invocation
+let turnUsages: TurnUsage[] = [];
+
 let currentTurn = 0;
 const turnLogs: TurnLog[] = [];
 let invocationStats: InvocationStats | null = null;
@@ -71,6 +85,56 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
   };
   turnLogs.push(turnLog);
 
+  // Structured logging for tool calls (always log, not just DEBUG)
+  if (log.toolCalls?.length) {
+    for (const tc of log.toolCalls) {
+      aiToolLogger.info({
+        event: "tool_call",
+        turn: currentTurn,
+        tool: tc.name,
+        argsSize: tc.argsSize,
+        args: tc.args,
+      });
+    }
+    // Update stats
+    if (invocationStats) {
+      invocationStats.totalToolArgsChars += log.toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0);
+    }
+  }
+
+  // Structured logging for tool results
+  if (log.toolResults?.length) {
+    for (const tr of log.toolResults) {
+      aiToolLogger.info({
+        event: "tool_result",
+        turn: currentTurn,
+        tool: tr.name,
+        resultSize: tr.resultSize,
+        durationMs: tr.duration,
+      });
+    }
+    // Update stats
+    if (invocationStats) {
+      invocationStats.totalToolResultsChars += log.toolResults.reduce((sum, tr) => sum + tr.resultSize, 0);
+    }
+  }
+
+  // Structured logging for LLM response
+  if (log.response && log.llmDuration) {
+    aiLogger.debug({
+      event: "llm_response",
+      turn: currentTurn,
+      responseSize: log.responseSize,
+      durationMs: log.llmDuration,
+      hasToolCalls: (log.toolCalls?.length || 0) > 0,
+    });
+    // Update stats
+    if (invocationStats && log.responseSize) {
+      invocationStats.totalOutputChars += log.responseSize;
+    }
+  }
+
+  // Pretty console output for development
   if (DEBUG) {
     console.log("\n" + "=".repeat(70));
     console.log(`[AI AGENT] Turn ${currentTurn} - ${log.node.toUpperCase()}`);
@@ -81,11 +145,6 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
       for (const tc of log.toolCalls) {
         console.log(`   └─ ${tc.name} (args: ${tc.argsSize} chars)`);
         console.log(`      Args: ${JSON.stringify(tc.args, null, 2).split("\n").join("\n      ")}`);
-      }
-      
-      // Update stats
-      if (invocationStats) {
-        invocationStats.totalToolArgsChars += log.toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0);
       }
     }
 
@@ -98,21 +157,11 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
         console.log(`   └─ ${tr.name} (${tr.duration}ms, ${tr.resultSize} chars)`);
         console.log(`      Result: ${resultPreview.split("\n").join("\n      ")}`);
       }
-      
-      // Update stats
-      if (invocationStats) {
-        invocationStats.totalToolResultsChars += log.toolResults.reduce((sum, tr) => sum + tr.resultSize, 0);
-      }
     }
 
     if (log.response) {
       const llmTime = log.llmDuration ? ` (LLM: ${log.llmDuration}ms)` : "";
       console.log(`\n💬 Response${llmTime}:`, log.response.slice(0, 300) + (log.response.length > 300 ? "..." : ""));
-      
-      // Update stats
-      if (invocationStats && log.responseSize) {
-        invocationStats.totalOutputChars += log.responseSize;
-      }
     }
   }
 }
@@ -121,6 +170,7 @@ export interface AgentLogs {
   turns: TurnLog[];
   totalTurns: number;
   stats: InvocationStats | null;
+  usage?: UsageStats;
 }
 
 export function getAgentLogs(): AgentLogs {
@@ -131,6 +181,7 @@ export function resetAgentLogs() {
   currentTurn = 0;
   turnLogs.length = 0;
   invocationStats = null;
+  turnUsages = [];
 }
 
 // =============================================================================
@@ -161,6 +212,15 @@ async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>
   const response = await model.invoke(messages);
   
   const llmDuration = Date.now() - lastLlmStartTime;
+
+  // Extract token usage from response metadata (LangChain provides this)
+  const usageMetadata = response.usage_metadata;
+  if (usageMetadata) {
+    turnUsages.push({
+      inputTokens: usageMetadata.input_tokens || 0,
+      outputTokens: usageMetadata.output_tokens || 0,
+    });
+  }
 
   // Log the turn
   const toolCalls: ToolCallLog[] = [];
@@ -263,6 +323,42 @@ async function toolNodeWithContext(
 }
 
 /**
+ * Parse tool calls from text output (Nova Pro quirk)
+ * Nova Pro sometimes outputs tool calls as text tokens instead of structured calls
+ */
+function parseToolCallsFromText(content: string): { name: string; args: Record<string, unknown> }[] {
+  const toolCalls: { name: string; args: Record<string, unknown> }[] = [];
+  
+  // Pattern: <|tool_call_begin|> functions.TOOL_NAME:N <|tool_call_argument_begin|> {...} <|tool_call_end|>
+  // or: functions.TOOL_NAME:N <|tool_call_argument_begin|> {...}
+  const pattern = /functions\.(\w+):\d+\s*<\|tool_call_argument_begin\|>\s*(\{[\s\S]*?\})\s*(?:<\|tool_call_end\|>|$)/g;
+  
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    try {
+      const toolName = match[1];
+      const argsStr = match[2].trim();
+      const args = JSON.parse(argsStr);
+      toolCalls.push({ name: toolName, args });
+      // Log recovered tool call (important for monitoring model behavior)
+      aiLogger.warn({
+        event: "tool_call_recovered",
+        tool: toolName,
+        reason: "parsed_from_text",
+        note: "Model output tool call as text instead of structured API call",
+      });
+      if (DEBUG) {
+        console.log(`[AI AGENT] Parsed tool call from text: ${toolName}`);
+      }
+    } catch {
+      // JSON parse failed, skip this match
+    }
+  }
+  
+  return toolCalls;
+}
+
+/**
  * Check if agent should continue to tools or finish
  */
 function shouldContinue(state: AgentStateType): "tools" | "__end__" {
@@ -271,6 +367,33 @@ function shouldContinue(state: AgentStateType): "tools" | "__end__" {
   // If the last message has tool calls, route to tools
   if (lastMessage instanceof AIMessage && lastMessage.tool_calls?.length) {
     return "tools";
+  }
+
+  // Check for tool calls embedded in text content (Nova Pro quirk)
+  if (lastMessage instanceof AIMessage) {
+    const content = typeof lastMessage.content === "string" 
+      ? lastMessage.content 
+      : Array.isArray(lastMessage.content)
+        ? lastMessage.content.map(c => typeof c === "string" ? c : (c as { text?: string }).text || "").join("")
+        : "";
+    
+    if (content.includes("<|tool_call_begin|>") || content.includes("functions.")) {
+      const parsedCalls = parseToolCallsFromText(content);
+      if (parsedCalls.length > 0) {
+        // Inject the parsed tool calls into the message
+        // Note: This mutates the message, but it's necessary to recover from the text-as-tool-call issue
+        (lastMessage as AIMessage).tool_calls = parsedCalls.map((tc, idx) => ({
+          id: `parsed_${idx}`,
+          name: tc.name,
+          args: tc.args,
+          type: "tool_call" as const,
+        }));
+        if (DEBUG) {
+          console.log(`[AI AGENT] Recovered ${parsedCalls.length} tool calls from text output`);
+        }
+        return "tools";
+      }
+    }
   }
 
   // Otherwise, we're done
@@ -371,6 +494,22 @@ export async function invokeAgent(
     totalToolResultsChars: 0,
   };
 
+  // Structured log for invocation start
+  aiLogger.info({
+    event: "invocation_start",
+    query: message.slice(0, 100),
+    queryLength: message.length,
+    user: userContext?.name || userId || "guest",
+    userId: userId || null,
+    region: userContext?.region || "unknown",
+    historyMessages: conversationHistory?.length || 0,
+    historySize,
+    systemPromptSize: systemPrompt.length,
+    isAuthenticated,
+    hasPageContext: !!pageContext,
+    pageContext: pageContext ? { path: pageContext.path, mediaType: pageContext.mediaType, itemId: pageContext.itemId } : null,
+  });
+
   if (DEBUG) {
     console.log("\n" + "🎬".repeat(35));
     console.log("[AI AGENT] New invocation");
@@ -382,6 +521,12 @@ export async function invokeAgent(
   }
 
   const result = await agent.invoke(initialState);
+
+  // Calculate total token usage across all turns
+  const totalInputTokens = turnUsages.reduce((sum, u) => sum + u.inputTokens, 0);
+  const totalOutputTokens = turnUsages.reduce((sum, u) => sum + u.outputTokens, 0);
+  const modelId = getCurrentModelId();
+  const usageStats = calculateUsageStats(modelId, totalInputTokens, totalOutputTokens);
 
   // Update stats with final timing
   if (invocationStats) {
@@ -398,12 +543,39 @@ export async function invokeAgent(
       console.log(`   Output: ${invocationStats.totalOutputChars} chars`);
       console.log("📊".repeat(35) + "\n");
     }
+
+    // Log usage/cost with structured logger (always, not just in DEBUG mode)
+    usageLogger.info({
+      type: "cost/usage",
+      event: "ai_invocation_complete",
+      model: usageStats.modelName,
+      modelId: usageStats.modelId,
+      tokens: {
+        input: usageStats.inputTokens,
+        output: usageStats.outputTokens,
+        total: usageStats.totalTokens,
+      },
+      cost: {
+        input: usageStats.inputCost,
+        output: usageStats.outputCost,
+        total: usageStats.totalCost,
+        formatted: usageStats.formatted,
+      },
+      turns: currentTurn,
+      durationMs: totalTime,
+      user: userContext?.name || userId || "guest",
+      region: userContext?.region || "unknown",
+      query: message.slice(0, 100), // Truncate long queries
+    });
   }
 
-  // Attach debug logs to result
+  // Attach debug logs to result (including usage stats)
+  const logs = getAgentLogs();
+  logs.usage = usageStats;
+
   return {
     ...result,
-    _debugLogs: getAgentLogs(),
+    _debugLogs: logs,
   };
 }
 
@@ -669,4 +841,5 @@ export function extractNavigation(
   }
   return null;
 }
+
 

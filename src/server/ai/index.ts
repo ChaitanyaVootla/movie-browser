@@ -19,7 +19,7 @@ export {
   getAgentLogs,
   resetAgentLogs,
 } from "./agent";
-export type { StreamEvent } from "./agent";
+export type { StreamEvent, AgentLogs, UserContextInput } from "./agent";
 
 // State
 export { AgentState } from "./state";
@@ -60,3 +60,15 @@ export {
   parseAndResolveContent,
   needsResolution,
 } from "./resolve-media-tags";
+
+// Logging & Cost Tracking (re-export from lib for convenience)
+export { usageLogger, aiLogger } from "@/lib/logger";
+export {
+  calculateUsageStats,
+  calculateCost,
+  getModelPricing,
+  getCurrentModelId,
+  getCurrentModelPricing,
+  MODEL_PRICING,
+} from "@/lib/model-pricing";
+export type { UsageStats, ModelPricing, TokenUsage, UsageCost } from "@/lib/model-pricing";

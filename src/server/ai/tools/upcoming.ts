@@ -14,6 +14,7 @@ import {
   getOnTheAirTV,
   getAiringTodayTV,
 } from "@/server/services/tmdb";
+import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
 // Helpers
@@ -153,7 +154,12 @@ export const getUpcomingTool = tool(
         });
       }
     } catch (error) {
-      console.error("get_upcoming error:", error);
+      aiToolLogger.error({
+        event: "tool_error",
+        tool: "get_upcoming",
+        mediaType: input.mediaType,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return JSON.stringify({
         error: "Failed to fetch upcoming content",
       });
@@ -161,40 +167,26 @@ export const getUpcomingTool = tool(
   },
   {
     name: "get_upcoming",
-    description: `Get upcoming releases and currently showing content.
+    description: `What's coming out soon or currently in theaters/airing.
 
-For MOVIES:
-- upcoming: Movies releasing soon (not yet in theaters)
-- nowPlaying: Movies currently in theaters
-
-For TV:
-- onTheAir: Shows with episodes airing in the next 7 days
-- airingToday: Shows with episodes airing today
-
-Use this when:
-- User asks "What's coming out soon?"
-- User asks "What's new in theaters?"
-- User asks "What's on TV tonight?"
-- User asks about upcoming releases
-
-Returns release dates to help users plan their viewing.`,
+Use when: "What's coming out?", "What's new?", "In theaters now?", "What's on TV?"
+Movies: upcoming releases + now playing
+TV: next 7 days + airing today`,
     schema: z.object({
       mediaType: z
         .enum(["movie", "tv"])
         .default("movie")
-        .describe("Content type: 'movie' for theater releases, 'tv' for shows"),
+        .describe("'movie' or 'tv'"),
       region: z
         .string()
         .optional()
-        .describe(
-          "Region code for theatrical releases (e.g., 'US', 'GB', 'IN'). Defaults to user's region."
-        ),
+        .describe("Region code (defaults to user's region)"),
       limit: z
         .number()
         .min(1)
         .max(20)
         .default(10)
-        .describe("Number of results per category"),
+        .describe("Results per category"),
     }),
   }
 );

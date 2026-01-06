@@ -268,7 +268,7 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
   const logoPath = englishLogo?.file_path ?? series.images?.logos?.[0]?.file_path;
 
   return (
-    <div className="hero-content-width pb-5 md:pb-6 lg:pb-8 flex flex-col items-start gap-2.5 md:gap-3">
+    <div className="flex flex-col items-center md:items-start gap-2 md:gap-3 pb-2 md:pb-6 lg:pb-8 md:hero-content-width">
       {/* Provide TMDB fallback data to hero shells via context */}
       <HeroMediaUpdater
         tmdbBackdropPath={series.backdrop_path}
@@ -277,7 +277,7 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
       />
 
       {/* Status badges (trending, new season, currently airing, etc.) */}
-      {badges.length > 0 && <DetailBadges badges={badges} />}
+      {badges.length > 0 && <DetailBadges badges={badges} className="drop-shadow-md" />}
 
       {/* Genres */}
       {genres.length > 0 && (
@@ -455,20 +455,22 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
 
       <HeroMediaProvider>
         <article className="pb-12">
-          {/* Hero section - backdrop & logo render IMMEDIATELY with just ID */}
+          {/* Hero section - backdrop & logo render IMMEDIATELY with just ID
+              Mobile: Image with aspect ratio, content below (centered)
+              Desktop: Image fills container, content overlays at bottom */}
           <section className="relative">
             <div className="hero-container relative w-full overflow-hidden">
               <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
-                {/* Content overlay - positioned at bottom */}
-                <div className="absolute inset-0 flex flex-col justify-end px-4 md:px-8 lg:px-12">
-                  {/* Logo renders immediately with just ID
-                      Constraints: tall logos need generous height,
-                      wide logos expand to fill available space */}
-                  <div className="mb-4 md:mb-6 lg:mb-8">
+                {/* Content container
+                    Mobile: centered, normal document flow (below image)
+                    Desktop: absolute positioned overlay at bottom */}
+                <div className="flex flex-col items-center text-center md:items-start md:text-left md:absolute md:inset-0 md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
+                  {/* Logo renders immediately with just ID */}
+                  <div className="mb-3 md:mb-6 lg:mb-8">
                     <HeroLogoShell
                       mediaId={id}
                       mediaType="series"
-                      className="max-w-[280px] sm:max-w-[380px] md:max-w-[500px] lg:max-w-[600px] max-h-[100px] sm:max-h-[130px] md:max-h-[160px] lg:max-h-[180px]"
+                      className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
                     />
                   </div>
                   

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/server/db";
 import { MoviesWatchlist } from "@/server/db/models/user-library";
 import { requireUserIdForDb } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
 
 interface RouteParams {
   params: Promise<{ movieId: string }>;
@@ -35,7 +36,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (error instanceof Error && error.message === "Authentication required") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("Error adding to watchlist:", error);
+    userApiLogger.error({
+      route: "/api/user/movie/[movieId]/watchlist",
+      method: "POST",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to add to watchlist" }, { status: 500 });
   }
 }
@@ -63,7 +68,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (error instanceof Error && error.message === "Authentication required") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("Error removing from watchlist:", error);
+    userApiLogger.error({
+      route: "/api/user/movie/[movieId]/watchlist",
+      method: "DELETE",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Failed to remove from watchlist" }, { status: 500 });
   }
 }

@@ -119,6 +119,7 @@ function SparkleEffect() {
 
 interface DetailBadgesProps {
   badges: MediaBadgeType[];
+  /** Additional className applied to the container */
   className?: string;
 }
 
@@ -207,7 +208,7 @@ export function DetailBadges({ badges, className }: DetailBadgesProps) {
         .animate-shimmer { animation: shimmer 3s ease-in-out infinite; }
       `}</style>
 
-      <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      <div className={cn("flex flex-wrap items-center gap-2 drop-shadow-md", className)}>
         {badges.map((badge) => {
           const config = BADGE_CONFIG[badge.type];
           const Icon = config?.icon || Sparkles;

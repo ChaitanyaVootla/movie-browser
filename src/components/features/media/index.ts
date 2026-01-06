@@ -6,6 +6,7 @@ export { RatingsBar } from "./ratings-bar";
 export { WatchOptions } from "./watch-options";
 export { MediaActions } from "./media-actions";
 export { MediaActionBar } from "./media-action-bar";
+export { QuickTake } from "./quick-take";
 export { MediaBackdrop, TrailerOverlay } from "./media-backdrop";
 export { HeroContent, heroContainerVariants, heroItemVariants } from "./hero-content";
 export { MediaHero } from "./media-hero";
@@ -43,5 +44,11 @@ export { WideCarousel } from "./wide-carousel";
 // Tracking components
 export { RecentTracker } from "./recent-tracker";
 
+// AI-generated content components
+export { AIQuestionsSection } from "./ai-questions-section";
+
 // User status badge (watchlist/watched indicator)
 export { UserStatusBadge, useIsWatched } from "./user-status-badge";
+
+// Admin tools
+export { EnrichButton } from "./enrich-button";

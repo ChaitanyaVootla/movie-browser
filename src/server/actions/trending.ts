@@ -4,7 +4,6 @@ import {
   getTrendingMovies,
   getTrendingTV,
   getTrendingAll,
-  discoverMovies,
   getMovieWatchProviders,
   getSeriesWatchProviders,
 } from "@/server/services/tmdb";
@@ -20,6 +19,7 @@ import {
 } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
+import { dataLogger } from "@/lib/logger";
 import type {
   MediaItem,
   MovieListItem,
@@ -268,7 +268,10 @@ export async function getTrending(): Promise<TrendingData> {
       heroEnhancedData,
     };
   } catch (error) {
-    console.error("Failed to fetch trending:", error);
+    dataLogger.error({
+      event: "fetch_trending_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return {
       allItems: [],
       movies: [],
@@ -306,36 +309,20 @@ function formatReleaseDate(releaseDate: string): string {
 }
 
 /**
- * Get upcoming movies using discover API with proper date filtering
- * Returns movies releasing from today onwards, sorted by release date
+ * Get upcoming movies using TMDB's dedicated upcoming endpoint
+ * Returns well-curated upcoming releases (not random obscure films)
  */
 export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
   try {
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    const countryCode = await getCountryCode();
     
-    // Get date 6 months from now for reasonable scope
-    const sixMonthsLater = new Date(today);
-    sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
-    const endDateStr = sixMonthsLater.toISOString().split("T")[0];
-
-    // Use discover endpoint with proper date filtering
+    // Use TMDB's dedicated upcoming endpoint - returns curated upcoming movies
+    // Much better quality than discover API which returns ANY movie with a future date
+    const { getUpcomingMovies } = await import("@/server/services/tmdb");
+    
     const [page1, page2] = await Promise.all([
-      discoverMovies({
-        "primary_release_date.gte": todayStr,
-        "primary_release_date.lte": endDateStr,
-        sort_by: "primary_release_date.asc",
-        "vote_count.gte": "0", // Include all, even unrated
-        page: "1",
-      }),
-      discoverMovies({
-        "primary_release_date.gte": todayStr,
-        "primary_release_date.lte": endDateStr,
-        sort_by: "primary_release_date.asc",
-        "vote_count.gte": "0",
-        page: "2",
-      }),
+      getUpcomingMovies(1, countryCode),
+      getUpcomingMovies(2, countryCode),
     ]);
 
     const allMovies = [
@@ -343,9 +330,25 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
       ...(page2.results as Record<string, unknown>[]),
     ];
 
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+
     // Map and format release dates
     const moviesWithInfo: MovieWithReleaseInfo[] = allMovies
-      .filter((item) => item.poster_path) // Only movies with posters
+      .filter((item) => {
+        // Must have poster
+        if (!item.poster_path) return false;
+        
+        // Only include movies releasing today or in the future
+        const releaseDate = item.release_date as string;
+        if (!releaseDate || releaseDate < todayStr) return false;
+        
+        // Filter out obscure movies - require some popularity
+        const popularity = item.popularity as number;
+        if (popularity < 5) return false;
+        
+        return true;
+      })
       .map((item) => {
         const movie = mapMovieGenres(item);
         const releaseDate = item.release_date as string;
@@ -354,11 +357,20 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
           ...movie,
           releaseLabel: formatReleaseDate(releaseDate),
         };
+      })
+      // Sort by release date (soonest first)
+      .sort((a, b) => {
+        const dateA = a.release_date || "";
+        const dateB = b.release_date || "";
+        return dateA.localeCompare(dateB);
       });
 
     return moviesWithInfo.slice(0, 20);
   } catch (error) {
-    console.error("Failed to fetch upcoming movies:", error);
+    dataLogger.error({
+      event: "fetch_upcoming_movies_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return [];
   }
 }

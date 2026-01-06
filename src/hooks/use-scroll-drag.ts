@@ -37,6 +37,7 @@ interface UseScrollDragReturn {
  * - Pointer capture only activates AFTER threshold is exceeded
  * - Arrow key scroll with configurable amount
  * - Supports external refs (for forwardRef components)
+ * - **Touch devices use native scroll** - drag-to-scroll only for mouse
  * 
  * Usage:
  * ```tsx
@@ -100,7 +101,11 @@ export function useScrollDrag(options: UseScrollDragOptions = {}): UseScrollDrag
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!internalRef.current) return;
     
-    // Only track left mouse button or touch
+    // Skip drag-to-scroll for touch - let native scroll handle it
+    // This allows vertical scrolling when starting on a horizontal scroller
+    if (e.pointerType === "touch") return;
+    
+    // Only track left mouse button
     if (e.pointerType === "mouse" && e.button !== 0) return;
     
     dragRef.current = {
@@ -115,6 +120,9 @@ export function useScrollDrag(options: UseScrollDragOptions = {}): UseScrollDrag
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Skip for touch devices - native scroll handles it
+    if (e.pointerType === "touch") return;
+    
     if (!dragRef.current.isDown || !internalRef.current) return;
     
     const dx = e.clientX - dragRef.current.startX;
@@ -140,6 +148,9 @@ export function useScrollDrag(options: UseScrollDragOptions = {}): UseScrollDrag
   }, []);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // Skip for touch devices
+    if (e.pointerType === "touch") return;
+    
     if (!internalRef.current || !dragRef.current.isDown) return;
     
     // Release pointer capture if we were dragging

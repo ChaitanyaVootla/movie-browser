@@ -3,6 +3,7 @@ import { connectDB } from "@/server/db";
 import { WatchedMovie } from "@/server/db/models/user-library";
 import { Movie } from "@/server/db/models/movie";
 import { getUserIdForDb } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
 
 /**
  * GET /api/user/watched
@@ -84,7 +85,11 @@ export async function GET() {
       allGenres,
     });
   } catch (error) {
-    console.error("Error fetching watched movies:", error);
+    userApiLogger.error({
+      route: "/api/user/watched",
+      event: "fetch_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       { error: "Failed to fetch watched movies" },
       { status: 500 }

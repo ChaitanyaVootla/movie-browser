@@ -158,8 +158,9 @@ create_package() {
     # - package.json (dependencies)
     # - next.config.ts (config)
     # - .env.local (environment variables)
+    # - scripts/ (admin tools like enrich)
     
-    FILES_TO_INCLUDE=".next public package.json next.config.mjs"
+    FILES_TO_INCLUDE=".next public package.json next.config.mjs scripts"
     
     # Add .env.local if it exists
     if [ -f ".env.local" ]; then
@@ -196,18 +197,21 @@ set -e
 
 cd $REMOTE_DIR
 
-echo "[1/4] Extracting package..."
+echo "[1/5] Extracting package..."
 tar -xzf $ZIP_FILE
 rm -f $ZIP_FILE
 
-echo "[2/4] Installing dependencies..."
+echo "[2/5] Creating data directories..."
+mkdir -p data/enriched
+
+echo "[3/5] Installing dependencies..."
 npm install --omit=dev --legacy-peer-deps --ignore-scripts
 
-echo "[3/4] Stopping existing process (if running)..."
+echo "[4/5] Stopping existing process (if running)..."
 pm2 stop $PM2_APP_NAME 2>/dev/null || true
 pm2 delete $PM2_APP_NAME 2>/dev/null || true
 
-echo "[4/4] Starting Next.js on port $NEXT_PORT..."
+echo "[5/5] Starting Next.js on port $NEXT_PORT..."
 PORT=$NEXT_PORT pm2 start npm --name $PM2_APP_NAME -- start
 pm2 save
 

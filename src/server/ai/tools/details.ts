@@ -26,6 +26,8 @@ import {
   UserRating,
 } from "@/server/db/models/user-library";
 import { getMovieDetails, getSeriesDetails } from "@/server/services/tmdb";
+import { getAIInputMarkdown } from "@/lib/ai-summary";
+import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
 // Types
@@ -155,7 +157,12 @@ async function fetchRelated(
       };
     }
   } catch (error) {
-    console.error("fetchRelated error:", error);
+    aiToolLogger.warn({
+      event: "fetch_related_error",
+      id,
+      mediaType,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -222,6 +229,14 @@ export const getDetailsTool = tool(
         if (Object.keys(movie.ratings).length > 0) {
           response.ratings = movie.ratings;
         }
+
+        // Include enriched AI summary if available
+        // TODO: Strip down to single summary/synopsis to reduce token usage.
+        // Currently includes full enriched markdown with plot, themes, reception, etc.
+        const aiSummary = await getAIInputMarkdown(input.id);
+        if (aiSummary) {
+          response.aiSummary = aiSummary;
+        }
       } else {
         const series = details as Awaited<ReturnType<typeof getLightSeriesDetails>>;
         if (!series) {
@@ -266,7 +281,13 @@ export const getDetailsTool = tool(
 
       return JSON.stringify(response);
     } catch (error) {
-      console.error("get_details error:", error);
+      aiToolLogger.error({
+        event: "tool_error",
+        tool: "get_details",
+        mediaType: input.mediaType,
+        id: input.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return JSON.stringify({
         error: `Failed to fetch ${input.mediaType} details`,
       });
@@ -274,40 +295,28 @@ export const getDetailsTool = tool(
   },
   {
     name: "get_details",
-    description: `Get detailed information about a movie or TV series.
+    description: `Get movie/series info: ratings, cast, streaming, similar content.
 
-Use this when:
-- User asks "Is X good?" or "What's X about?"
-- User asks "Who's in X?" or "Who directed X?"
-- User asks "Where can I watch X?"
-- User asks "How long is X?" (movies) or "How many seasons?" (series)
-- User asks for similar content: set includeRelated: true
-
-TRAILERS: Don't call this tool for trailers! Just output [TRAILER:movie:id] or [TRAILER:series:id] tag.
-The UI will render a play button that opens the trailer automatically.
+Use when: "Is X good?", "Who's in X?", "Where to watch?", "Similar to X"
+NOT for trailers: Just output [TRAILER:movie:id] tag instead - UI renders it.
 
 Parameters:
-- id: TMDB ID (from search/discover results)
+- id: From search/discover/get_page_context results
 - mediaType: "movie" or "series"
-- includeRelated: Set true to get similar/recommended content
+- includeRelated: true for "similar to X" requests
 
-Returns:
-- Basic info: title, year, runtime/seasons, genres, overview, certification
-- Ratings: TMDB, IMDb, Rotten Tomatoes, audience scores
-- Cast & crew: director/creators, top cast members
-- Streaming: where to watch (flatrate, rent, buy)
-- User context: watchlist status, watched status, user rating (if logged in)
-- related (optional): similar and recommended titles`,
+Returns: title, year, ratings (IMDb/RT/TMDB), cast, director, streaming, user status.
+Use the id for [RATINGS], [WATCH], [TRAILER] tags in your response.`,
     schema: z.object({
       id: z.number().describe("TMDB movie or series ID"),
       mediaType: z
         .enum(["movie", "series"])
-        .describe("Content type: 'movie' or 'series' (TV show)"),
+        .describe("Content type: 'movie' or 'series'"),
       includeRelated: z
         .boolean()
         .optional()
         .default(false)
-        .describe("Include similar/recommended content? Set true for 'like X' requests."),
+        .describe("Get similar/recommended? True for 'like X' requests."),
     }),
   }
 );

@@ -80,11 +80,7 @@ export const navigateTool = tool(
   },
   {
     name: "navigate_to",
-    description: `Navigate the user to a specific page in the app.
-Use this when you want to take the user directly to a movie/series/person detail page, or to browse/topics.
-The navigation will be triggered after your response is sent.
-
-IMPORTANT: Always tell the user what you're showing them when you navigate!`,
+    description: `Take user to a detail page. Tell them where you're sending them!`,
     schema: navigationSchema,
   }
 );

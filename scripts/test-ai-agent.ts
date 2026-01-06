@@ -15,8 +15,8 @@
  * 1. AWS credentials in .env.local:
  *    - AWS_ACCESS_KEY_ID
  *    - AWS_SECRET_ACCESS_KEY
- *    - BEDROCK_REGION (optional, defaults to ap-south-1)
- *    - BEDROCK_MODEL_ID (optional, defaults to Amazon Nova Pro)
+ *    - BEDROCK_REGION (optional, defaults to us-east-1 for Kimi K2)
+ *    - BEDROCK_MODEL_ID (optional, defaults to moonshot.kimi-k2-thinking)
  *
  * 2. Model access enabled in AWS Bedrock console:
  *    - Go to AWS Console > Amazon Bedrock > Model access
@@ -58,8 +58,8 @@ if (missingVars.length > 0) {
 }
 
 console.log("✅ Environment loaded");
-console.log(`   BEDROCK_REGION: ${process.env.BEDROCK_REGION || process.env.AWS_REGION || "ap-south-1 (default)"}`);
-console.log(`   BEDROCK_MODEL_ID: ${process.env.BEDROCK_MODEL_ID || "(default: Nova Pro)"}`);
+console.log(`   BEDROCK_REGION: ${process.env.BEDROCK_REGION || process.env.AWS_REGION || "us-east-1 (default)"}`);
+console.log(`   BEDROCK_MODEL_ID: ${process.env.BEDROCK_MODEL_ID || "(default: Kimi K2)"}`);
 console.log(`   TMDB_API_KEY: ${process.env.TMDB_API_KEY ? "✓ set" : "✗ missing"}`);
 console.log("");
 

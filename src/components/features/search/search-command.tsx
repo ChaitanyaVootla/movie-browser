@@ -30,7 +30,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { getSlug, getMediaHref } from "@/lib/utils";
+import { cn, getSlug, getMediaHref } from "@/lib/utils";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZES, TMDB_PROFILE_SIZES } from "@/lib/constants";
 import { quickSearch } from "@/server/actions/search";
 import { getPopularTopics, searchTopics } from "@/lib/topics";
@@ -83,6 +83,7 @@ function parseTopicKey(key: string): { type: "genre" | "theme"; mediaType: "movi
 }
 
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
+  console.log("[Search] Render - open:", open);
   const router = useRouter();
   const [query, setQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
@@ -122,6 +123,32 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
       return () => clearTimeout(timer);
     }
   }, [open]);
+
+  // Handle mobile back button - push history state when open, close on popstate
+  const closedViaBackRef = React.useRef(false);
+  
+  React.useEffect(() => {
+    if (!open) {
+      closedViaBackRef.current = false;
+      return;
+    }
+
+    // Push a history state so back button closes dialog instead of navigating
+    const handlePopState = () => {
+      closedViaBackRef.current = true;
+      onOpenChange(false);
+    };
+
+    window.history.pushState({ searchOpen: true }, "");
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      // Only go back if we closed via non-back-button means and we're still on the search state
+      // Don't call history.back() - it interferes with navigation
+      // The extra history entry is harmless and will be cleaned up naturally
+    };
+  }, [open, onOpenChange]);
 
   // Fetch API results on debounced query change
   React.useEffect(() => {
@@ -171,12 +198,15 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     id: number,
     name: string
   ) => {
+    console.log("[Search] handleSelectMedia called", { type, id, name });
+    // Close dialog first
     onOpenChange(false);
-    if (type === "person") {
-      router.push(`/person/${id}/${getSlug(name)}`);
-    } else {
-      router.push(getMediaHref(id, type === "movie", name));
-    }
+    // Then navigate
+    const path = type === "person" 
+      ? `/person/${id}/${getSlug(name)}`
+      : getMediaHref(id, type === "movie", name);
+    console.log("[Search] Navigating to:", path);
+    router.push(path);
   };
 
   const handleSelectTopic = (topicKey: string) => {
@@ -347,7 +377,14 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="overflow-hidden p-0 sm:max-w-[600px]"
+        className={cn(
+          "overflow-hidden p-0",
+          // Mobile: full screen, no padding, top-aligned
+          "max-sm:top-0 max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0",
+          "max-sm:max-w-none max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:border-0",
+          // Desktop: centered, constrained width
+          "sm:max-w-[600px]"
+        )}
         showCloseButton={false}
       >
         <DialogHeader className="sr-only">
@@ -357,7 +394,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
           </DialogDescription>
         </DialogHeader>
         <Command
-          filter={() => 1} // Disable client-side filtering, we do server-side
+          shouldFilter={false} // Disable client-side filtering, we do server-side
           className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
         >
           <CommandInput
@@ -514,8 +551,8 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
             )}
           </CommandList>
 
-          {/* Keyboard shortcuts footer */}
-          <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
+          {/* Keyboard shortcuts footer - hidden on mobile */}
+          <div className="hidden sm:flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
                 <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">

@@ -20,6 +20,7 @@ import {
   SeriesWatchlist,
   UserRating,
 } from "@/server/db/models/user-library";
+import { aiToolLogger } from "@/lib/logger";
 
 // Debug logging enabled by default - set AI_DEBUG=false to disable
 const DEBUG = process.env.AI_DEBUG !== "false";
@@ -156,7 +157,11 @@ async function searchPersonByName(
     }
     return { id: null, reason: `No person found matching "${name}"` };
   } catch (error) {
-    console.error(`Error searching for person "${name}":`, error);
+    aiToolLogger.warn({
+      event: "person_search_error",
+      name,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { id: null, reason: `Failed to search for "${name}"` };
   }
 }
@@ -194,7 +199,11 @@ async function searchKeywordByName(
     const topMatch = result.results[0];
     return { id: topMatch.id, matchedName: topMatch.name };
   } catch (error) {
-    console.error(`Error searching for keyword "${name}":`, error);
+    aiToolLogger.warn({
+      event: "keyword_search_error",
+      name,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { id: null, reason: `Failed to search for keyword "${name}"` };
   }
 }
@@ -493,6 +502,26 @@ type DiscoverInput = z.infer<typeof discoverSchema>;
 // =============================================================================
 // Unified Discover Tool
 // =============================================================================
+
+// Tool description - kept lean, system prompt has full context
+const DISCOVER_DESCRIPTION = `Find movies/series by criteria (genre, cast, keywords, streaming, year, etc.).
+
+USE THIS (not search) when: user wants to filter/discover, not lookup a specific title.
+
+KEY FILTERS (use names, we resolve to IDs):
+- genres: ["Action", "Comedy"] + genreMode: "or" for ANY genre
+- castNames: ["Tom Hanks"] + castMode: "and" for movies with BOTH actors
+- crewNames: ["Christopher Nolan"]
+- keywordNames: ["time travel", "heist"]
+- quality: "good" (7+), "great" (7.5+), "masterpiece" (8+)
+- releasedAfter: "recent" (2yr), "new" (6mo), or YYYY
+- watchProviders: ["Netflix"] or streamingAnywhere: true
+- certificationLte: "PG-13" for family-friendly
+
+USER FILTERING (logged-in only):
+- hideWatched, hideDisliked (default: on), hideInWatchlist
+
+EXCLUSIONS: excludeGenres, withoutCastNames, withoutKeywordNames`;
 
 export const discoverTool = tool(
   async (input: DiscoverInput, config?: RunnableConfig) => {
@@ -999,7 +1028,12 @@ export const discoverTool = tool(
 
       return JSON.stringify(response);
     } catch (error) {
-      console.error("Discover tool error:", error);
+      aiToolLogger.error({
+        event: "tool_error",
+        tool: "discover",
+        mediaType: input.mediaType,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return JSON.stringify({
         error: "Failed to discover content",
         movies: [],
@@ -1009,75 +1043,7 @@ export const discoverTool = tool(
   },
   {
     name: "discover",
-    description: `Discover movies or TV series based on filters.
-Use this when the user wants to find content matching specific criteria.
-
-COMMON USE CASES:
-- "Action movies from the 2010s" → genres: ["Action"], decade: 2010
-- "Horror on Netflix" → genres: ["Horror"], watchProviders: ["Netflix"]
-- "Highly rated sci-fi series" → mediaType: "tv", genres: ["Sci-Fi"], quality: "great"
-- "Short comedy films" → genres: ["Comedy"], maxRuntime: 90
-- "Korean dramas" → mediaType: "tv", language: "ko", genres: ["Drama"]
-- "Movies I haven't seen" → hideWatched: true
-- "Christopher Nolan films" → crewNames: ["Christopher Nolan"]
-- "Movies with Tom Hanks" → castNames: ["Tom Hanks"]
-- "Time travel movies" → keywordNames: ["time travel"]
-- "Anything streaming" → streamingAnywhere: true
-- "Recent good movies" → releasedAfter: "recent", quality: "good"
-- "Classic films" → releasedBefore: "classic"
-
-USER CONTENT FILTERING:
-- hideWatched: true - Exclude movies user has seen (movies only)
-- hideDisliked: true - Exclude disliked content (DEFAULT: always on)
-- hideInWatchlist: true - Exclude items in user's watchlist
-
-NAME-BASED FILTERS (automatically resolved - prefer these!):
-- castNames: Actor names like ["Tom Hanks", "Meryl Streep"]
-- crewNames: Director/writer names like ["Christopher Nolan"]
-- keywordNames: Themes like ["time travel", "heist", "based on true story"]
-
-EXCLUSION FILTERS (avoid certain content):
-- excludeGenres: ["Horror"] - Skip scary movies
-- withoutCastNames: ["Nicolas Cage"] - Avoid specific actors
-- withoutCrewNames: ["Michael Bay"] - Avoid specific directors
-- withoutKeywordNames: ["gore", "violence"] - Skip violent themes
-
-AND/OR LOGIC:
-- genreMode: "or" - Match ANY genre (default is "and" = all genres)
-- castMode: "and" - Movies with BOTH actors (default is "or" = any actor)
-- keywordMode: "and" - Must have ALL keywords (default is "or")
-
-AGE RATING / CERTIFICATION:
-- certificationLte: "PG-13" - Family-friendly (G, PG, PG-13 only)
-- certification: "R" - Exact rating match
-- Movie ratings: G, PG, PG-13, R, NC-17
-- TV ratings: TV-Y, TV-Y7, TV-G, TV-PG, TV-14, TV-MA
-
-QUALITY PRESETS:
-- quality: "decent" (6+), "good" (7+), "great" (7.5+), "masterpiece" (8+)
-
-DATE SHORTCUTS:
-- releasedAfter: "recent" (2 years), "new" (6 months), "this year", "last year"
-- releasedBefore: "classic" (pre-1980)
-
-STREAMING:
-- streamingAnywhere: true - Available on ANY major service
-- watchProviders: ["Netflix", "Disney+"] - Specific services
-
-GENRES:
-Movies: Action, Adventure, Animation, Comedy, Crime, Documentary, Drama, Family, Fantasy, History, Horror, Music, Mystery, Romance, Science Fiction, Thriller, War, Western
-TV: Action & Adventure, Animation, Comedy, Crime, Documentary, Drama, Family, Kids, Mystery, Sci-Fi & Fantasy, War & Politics, Western
-NOTE: "Horror" auto-substitutes to "Sci-Fi & Fantasy" for TV
-
-LANGUAGE CODES: en, ko, ja, hi, es, fr, de, zh, ta, te
-COUNTRY CODES: US, GB, KR, JP, IN, FR, DE, ES, IT, CN, AU, CA
-
-EXAMPLES OF NEW FEATURES:
-- "Family-friendly action" → genres: ["Action"], certificationLte: "PG-13"
-- "Comedies without Adam Sandler" → genres: ["Comedy"], withoutCastNames: ["Adam Sandler"]
-- "Sci-fi OR Fantasy" → genres: ["Science Fiction", "Fantasy"], genreMode: "or"
-- "Movies with BOTH Tom Hanks AND Meg Ryan" → castNames: ["Tom Hanks", "Meg Ryan"], castMode: "and"
-- "Thrillers without gore" → genres: ["Thriller"], withoutKeywordNames: ["gore", "graphic violence"]`,
+    description: DISCOVER_DESCRIPTION,
     schema: discoverSchema,
   }
 );

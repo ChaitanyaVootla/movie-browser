@@ -113,6 +113,22 @@ export interface ExternalData {
   metacritic?: number;
 }
 
+// AI-generated movie summary from enrichment pipeline
+export interface AISummary {
+  hook: string; // <80 chars - engaging one-liner
+  quickTake: string[]; // 2-4 labels for instant decision
+  themes: string[]; // 2-4 meaningful themes
+  mood: {
+    pacing: "slow" | "steady" | "fast";
+    intensity: "low" | "medium" | "high";
+    tone: "dark" | "light" | "mixed";
+    emotional: "light" | "medium" | "heavy";
+  };
+  aiQuestions: string[]; // 4-5 sassy questions for AI chat
+  generatedAt?: string;
+  modelId?: string;
+}
+
 // Collection/Franchise for movies
 export interface Collection {
   id: number;

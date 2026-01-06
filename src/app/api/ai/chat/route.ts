@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { getUserIdForDb } from "@/lib/user-id";
 import { extractNavigation, invokeAgent, getAgentResponse, resolveMediaTags } from "@/server/ai";
 import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import { apiLogger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Increased for streaming + tool calls
@@ -146,7 +147,12 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (error) {
-          console.error("AI stream error:", error);
+          apiLogger.error({
+            route: "/api/ai/chat",
+            event: "stream_error",
+            userId,
+            error: error instanceof Error ? error.message : String(error),
+          });
           const errorData = JSON.stringify({
             type: "error",
             error: "Something went wrong. Please try again.",
@@ -165,7 +171,12 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("AI chat route error:", error);
+    apiLogger.error({
+      route: "/api/ai/chat",
+      event: "request_error",
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

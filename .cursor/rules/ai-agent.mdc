@@ -11,14 +11,44 @@ The AI movie recommendation agent uses LangGraph.js for orchestration, AWS Bedro
 
 The agent supports multiple Bedrock models via the `BEDROCK_MODEL_ID` env variable:
 
-| Model | ID | Notes |
-|-------|-----|-------|
-| Amazon Nova Pro | `apac.amazon.nova-pro-v1:0` | **Default, recommended** - proper tool calling |
-| Claude 3 Haiku | `us.anthropic.claude-3-haiku-20240307-v1:0` | Fast, cost-effective |
+| Model | ID | Input $/1K | Output $/1K | Notes |
+|-------|-----|------------|-------------|-------|
+| Kimi K2 Thinking | `moonshot.kimi-k2-thinking` | $0.0006 | $0.0025 | **Default** - thinking model, tool call quirks handled |
+| Amazon Nova Pro | `apac.amazon.nova-pro-v1:0` | $0.0008 | $0.0032 | Tool call quirks handled |
+| Claude 3 Haiku | `us.anthropic.claude-3-haiku-20240307-v1:0` | $0.00025 | $0.00125 | Fast, proper tool calls |
+| Claude 3.5 Sonnet | `anthropic.claude-3-5-sonnet-20240620-v1:0` | $0.003 | $0.015 | High quality |
 
-**⚠️ Kimi K2 NOT Recommended:** `moonshot.kimi-k2-thinking` has non-standard tool calling behavior - it outputs tool calls as text tokens instead of structured API calls, which breaks LangChain's tool execution. Use Nova Pro or Claude instead.
+Model pricing is defined in `src/lib/model-pricing.ts` - add new models there.
+
+**⚠️ Model Tool Call Quirks:** Kimi K2 and Nova Pro sometimes output tool calls as text tokens instead of structured API calls. We handle this automatically in `shouldContinue()` with `parseToolCallsFromText()`.
 
 **Streaming Support:** Uses SSE format for responses. Tool calls use non-streaming invoke for reliability (ensures tools actually execute).
+
+### Nova Pro Tool Call Quirk (Important!)
+
+Nova Pro sometimes outputs tool calls as **text tokens** (`<|tool_call_begin|>`) instead of structured `tool_calls` in the API response. This would normally cause the agent to end prematurely.
+
+**We handle this automatically** in `src/server/ai/agent.ts`:
+
+```typescript
+// In shouldContinue() - detects and recovers tool calls from text
+if (content.includes("<|tool_call_begin|>") || content.includes("functions.")) {
+  const parsedCalls = parseToolCallsFromText(content);
+  if (parsedCalls.length > 0) {
+    // Inject parsed tool calls into the message
+    (lastMessage as AIMessage).tool_calls = parsedCalls.map(...);
+    return "tools"; // Continue to tool execution
+  }
+}
+```
+
+When this happens, you'll see in logs:
+```
+[AI AGENT] Parsed tool call from text: get_details
+[AI AGENT] Recovered 1 tool calls from text output
+```
+
+This is expected behavior - the agent continues normally after recovery.
 
 ### ⚠️ Testing & Validation - REQUIRED
 
@@ -62,6 +92,9 @@ yarn test:ai --user
 - Ratings: `"is inception any good"`
 - Streaming: `"where can I watch breaking bad"`
 - Trending: `"what's popular right now"`
+- Context-aware (test in browser): `"roast this movie"`, `"is this any good?"`, `"more like this"`
+
+**Note:** Context-aware queries need to be tested in the browser on a detail page, not via the CLI test script (which has no page context).
 
 ### Implemented Features
 
@@ -133,7 +166,7 @@ yarn test:ai --user
 src/
 ├── server/ai/
 │   ├── index.ts              # Agent exports
-│   ├── agent.ts              # LangGraph StateGraph
+│   ├── agent.ts              # LangGraph StateGraph + token tracking
 │   ├── bedrock.ts            # AWS Bedrock client
 │   ├── state.ts              # Agent state types (incl. UserContext)
 │   ├── resolve-media-tags.ts # Server-side ID resolution for tags
@@ -158,11 +191,14 @@ src/
 │       └── searchPersonAndGetDetails()  # Search + fetch combined
 ├── server/services/
 │   └── tmdb.ts           # TMDB API with retry logic (3x exponential backoff)
-├── lib/ai/
-│   ├── index.ts              # Exports
-│   └── parse-media-tags.ts   # Extended tag parser (MOVIE, SERIES, RATINGS, WATCH, PERSON)
-├── lib/ratings.ts            # combineRatings() - merges TMDB+MongoDB ratings
-├── lib/watch-options.ts      # getWatchOptionsForCountry() - deep links
+├── lib/
+│   ├── logger.ts             # Pino structured logging with module loggers
+│   ├── model-pricing.ts      # Model pricing config + cost calculation
+│   ├── ai/
+│   │   ├── index.ts          # Exports
+│   │   └── parse-media-tags.ts   # Extended tag parser
+│   ├── ratings.ts            # combineRatings() - merges TMDB+MongoDB ratings
+│   └── watch-options.ts      # getWatchOptionsForCountry() - deep links
 ├── app/api/ai/
 │   ├── chat/route.ts         # Chat endpoint (resolves tags before response)
 │   └── tag-data/route.ts     # Fetch ratings/watch data for tags
@@ -477,6 +513,15 @@ get_details({
 })
 ```
 
+**Response includes `aiSummary` field (movies only):**
+When enriched data exists for a movie (`data/enriched/<tmdb_id>/ai-input.md`), the full markdown content is included in the response. This contains:
+- Plot synopsis from multiple sources
+- Themes and critical reception
+- Legacy and cultural impact
+- Content advisory info
+
+⚠️ **TODO:** Strip down to single summary/synopsis to reduce token usage. Currently includes full enriched content which may have duplicate info from Wikipedia, IMDb, Fandom, etc.
+
 ### get_user_data Parameters
 
 ```typescript
@@ -569,10 +614,12 @@ Only call get_user_data when you need to actually see the data, not just filter 
 | Tool | Target Size | Max Items |
 |------|-------------|-----------|
 | discover | ~2KB | 8-10 results |
-| get_details | ~1-2KB | 1 result (more with optional includes) |
+| get_details | ~1-2KB (+ aiSummary) | 1 result (more with optional includes) |
 | get_person | ~1.5KB | 5 notable works |
 | get_user_data | ~2KB | 20 watchlist + 100 ratings + 50 watched |
 | get_trending | ~2KB | 10 items |
+
+**Note:** `get_details` for movies with enriched data can be significantly larger (~5-15KB) due to the `aiSummary` field. TODO: Optimize by stripping to single synopsis.
 
 ## Internal Context
 
@@ -632,62 +679,73 @@ type WatchLink = {
 
 ## Best Practices
 
-### Personality & Tone - BE FUN & SASSY
-The agent should be **playfully chaotic, opinionated, and concise** - like that friend who's seen everything:
-- **Sassy & playful** - hot takes welcome, be a little spicy
-- **Brief AF** - 1-2 sentences MAX. Cards are the star, not your text
-- **Opinionated** - "trust me on this one" energy
-- **Zero fluff** - never say "I'd be happy to help" or "Great question!" - just dive in
-- **Chaotic good** - surprise them, be unpredictable, have personality
+### System Prompt Design (Streamlined)
 
-Vibe check examples:
-- "Oh you want chaos? Say less."
-- "This slaps. Trust."
-- "Absolutely unhinged pick but hear me out..."
-- "If you haven't seen this, we can't be friends."
-- "A certified banger."
-- "Not me recommending this again..."
-- "Okay but THIS one though 👀"
-- "Main character energy."
-- "The taste jumped out."
+The system prompt (`src/server/ai/prompts/system.ts`) follows industry best practices:
+
+1. **Role assignment upfront** - Clear persona as a movie-obsessed friend
+2. **UI context explained early** - Critical: text and cards render SEPARATELY
+3. **Decision tree for tool vs. knowledge** - When to call tools vs. use training data
+4. **Context-awareness** - Use `get_page_context` when user says "this", "current page"
+5. **Consolidated rules** - No repetition, single source of truth
+
+Key prompt sections:
+- **Role** - Sassy, opinionated movie friend
+- **How The UI Works** - Text area + card row + chips (SEPARATE)
+- **Understanding Context** - When to use `get_page_context`
+- **When to Use Tools vs. Knowledge** - Decision guidance
+- **Tag Reference** - All tag types with examples
+- **Hard Rules** - Non-negotiable behaviors
 
 ### ⚠️ CRITICAL: UI Structure - Text and Cards Are SEPARATE
 
-**The UI displays text and media tags in separate areas:**
-- Text appears in one container (all tags stripped out)
-- Media tags become poster cards shown below in a card row
-- Interactive tags (ratings, watch, person) appear as chips between text and cards
+The floating chat renders in TWO SEPARATE AREAS:
+1. **Text Area** - Conversational text (all tags stripped out)
+2. **Card Row** - Poster cards from [MOVIE]/[SERIES] tags
+3. **Chips** - Interactive elements from [RATINGS]/[WATCH]/[PERSON] tags
 
-**This means text must make sense ON ITS OWN without the tags!**
+**Text must make sense ON ITS OWN without the tags visible next to it.**
 
-❌ **BAD** - Text is empty without tags:
+❌ "Check out [MOVIE:550:Fight Club]" → User sees: "Check out" (what??)
+✅ "Fight Club is a must-watch. [MOVIE:550:Fight Club]" → Clear text + card below
+
+### Context-Awareness
+
+When user says "this movie", "this one", "more like this", "the current page":
+→ Agent must call `get_page_context` to understand what they're viewing
+→ The tool returns the current item (id, type) and a helpful hint
+→ Agent can then use `get_details` with `includeRelated: true` for similar content
+
+**Page Context Response Format:**
+```json
+{
+  "page": "movie",
+  "path": "/movie/83533/avatar-fire-and-ash",
+  "currentItem": { "type": "movie", "id": 83533, "title": null },
+  "hint": "User is on a movie page. ID: 83533. You can use this ID directly with get_details or in tags like [MOVIE:83533:Title]."
+}
 ```
-"Here are my picks: [MOVIE:550:Fight Club] [MOVIE:807:Se7en]"
-→ User sees: "Here are my picks:" (what picks?!)
-```
 
-✅ **GOOD** - Text mentions titles:
-```
-"Fight Club and Se7en for tension. Zodiac if you want slow-burn obsession.
-[MOVIE:550:Fight Club] [MOVIE:807:Se7en] [MOVIE::Zodiac]"
-→ User sees: "Fight Club and Se7en for tension..." + cards below
-```
+**Note:** The title may be `null` if not passed from the page. The hint tells the agent they can use the ID directly - they don't need the title to proceed.
 
-### Tool Usage
-- **Use discover with name-based filters** - Don't make agent search for IDs first
-- **hideDisliked is ON by default** - No need to check ratings to avoid dislikes
-- **Set limit: 5-8** for conversational responses, up to 20 for lists
-- **Use current date context** - Check "Today:" in system prompt for actual year
+### Tool vs. Training Knowledge Decision
 
-### Response Quality - CARDS FIRST, TEXT SECOND
-- **1-2 sentences ONLY** - Cards do the heavy lifting, not paragraphs
-- **ALWAYS mention titles in text** - Cards shown separately from text!
-- **NO markdown formatting** - Tags must be plain text
-- **Use interactive tags** - don't type out ratings/watch info:
-  - ✅ `[RATINGS:movie:550]` renders a beautiful ratings bar
-  - ❌ "It has 8.8 on IMDb and 87% on RT" - don't type this out!
-- **Have personality** - boring = bad. Be fun!
-- **No fluff** - skip the "I'd be happy to help" BS
+**Use training knowledge (faster):**
+- Well-known classics (The Godfather, Pulp Fiction, Breaking Bad)
+- General questions about famous movies/actors
+- Quick suggestions where you're confident
+
+**Use tools (for accuracy):**
+- "What's new/trending/upcoming" - training data is outdated
+- Streaming availability - changes constantly
+- Ratings queries - use [RATINGS] tag with ID from tools
+- Discover by filters (year, cast, keywords)
+
+### Response Guidelines
+- **1-2 sentences MAX** - Cards do the heavy lifting
+- **Always mention titles in text** - Cards show separately
+- **Use interactive tags** - [RATINGS], [WATCH], [TRAILER] not typed text
+- **Brief, sassy, opinionated** - No "I'd be happy to help" fluff
 
 ### Response Examples
 
@@ -760,6 +818,68 @@ Key styling:
 - Box shadows with controlled falloff
 - Input container shadow pushed down to avoid overlap with cards
 
+### Mobile Positioning
+
+The AI assistant floats above the mobile bottom navigation bar:
+
+```tsx
+// Idle state positioning
+className={cn(
+  "fixed left-1/2 -translate-x-1/2 z-50",
+  "bottom-[4.25rem] md:bottom-6"  // Above bottom nav on mobile
+)}
+
+// Active state (MinimalView) positioning
+className={cn(
+  "fixed inset-x-0 flex flex-col items-center z-50",
+  keyboardHeight === 0 && "bottom-20 md:bottom-6" // Above bottom nav (when no keyboard)
+)}
+style={keyboardHeight > 0 ? { bottom: keyboardHeight + 8 } : undefined}
+```
+
+**Key values:**
+- Mobile bottom nav height: `h-14` (56px)
+- AI bubble offset on mobile: `bottom-[4.25rem]` (68px) or `bottom-20` (80px)
+- Desktop positioning: `bottom-6` (24px)
+
+### Mobile Keyboard Handling
+
+The AI chat adjusts position when the mobile virtual keyboard opens using the `visualViewport` API:
+
+```tsx
+// In MinimalView and ExpandedChat components
+const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+useEffect(() => {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+
+  const handleResize = () => {
+    // When keyboard opens, visualViewport.height shrinks
+    const viewportHeight = viewport.height;
+    const windowHeight = window.innerHeight;
+    const keyboardH = windowHeight - viewportHeight - viewport.offsetTop;
+    setKeyboardHeight(Math.max(0, keyboardH));
+  };
+
+  viewport.addEventListener("resize", handleResize);
+  viewport.addEventListener("scroll", handleResize);
+  
+  return () => {
+    viewport.removeEventListener("resize", handleResize);
+    viewport.removeEventListener("scroll", handleResize);
+  };
+}, []);
+
+// Position adjusts dynamically
+const bottomPosition = keyboardHeight > 0 ? keyboardHeight + 8 : undefined;
+```
+
+**Behavior:**
+- When keyboard is closed: Chat positioned above bottom nav (`bottom-20`)
+- When keyboard opens: Chat moves up to sit 8px above keyboard
+- ExpandedChat also adjusts height to fit available viewport space
+
 ### UI Test IDs
 
 All interactive elements have `data-testid` attributes for testing:
@@ -805,7 +925,7 @@ const stream = new ReadableStream({
 
 **Why non-streaming invoke?**
 - Tool calls execute reliably (LangChain handles the full ReAct loop)
-- No issues with reasoning models outputting tool calls as text
+- Built-in recovery for Nova Pro's text-as-tool-call quirk (see above)
 - Simpler error handling
 - Client still gets SSE format for consistent UI updates
 
@@ -830,6 +950,109 @@ async function rawFetchFromTMDB<T>(
 ```
 
 No manual retry needed when calling TMDB functions - it's built in.
+
+## Logging & Cost Tracking
+
+### Structured Logging (Pino)
+
+All AI operations use structured logging via Pino (`src/lib/logger.ts`). Logs are JSON in production, pretty-printed in development.
+
+**Logger Modules:**
+| Logger | Module | Purpose |
+|--------|--------|---------|
+| `aiLogger` | `ai` | Core agent operations (invocations, turns) |
+| `aiToolLogger` | `ai:tool` | Tool calls and results |
+| `usageLogger` | `usage` | **Token usage and cost tracking** |
+| `apiLogger` | `api` | API route operations |
+| `userApiLogger` | `api:user` | User library API routes |
+| `adminApiLogger` | `api:admin` | Admin API routes |
+| `dataLogger` | `data` | Data fetching operations |
+| `tmdbLogger` | `tmdb` | TMDB API service |
+
+### Key Log Events
+
+**AI Invocation Start:**
+```json
+{
+  "module": "ai",
+  "event": "invocation_start",
+  "query": "what is trending",
+  "user": "John",
+  "region": "US",
+  "isAuthenticated": true,
+  "hasPageContext": false
+}
+```
+
+**Tool Calls:**
+```json
+{
+  "module": "ai:tool",
+  "event": "tool_call",
+  "turn": 1,
+  "tool": "get_trending",
+  "argsSize": 39,
+  "args": { "mediaType": "all", "timeWindow": "week" }
+}
+```
+
+**Cost/Usage (Primary for Dashboards):**
+```json
+{
+  "module": "usage",
+  "type": "cost/usage",
+  "event": "ai_invocation_complete",
+  "model": "Kimi K2 Thinking",
+  "modelId": "moonshot.kimi-k2-thinking",
+  "tokens": { "input": 10017, "output": 412, "total": 10429 },
+  "cost": { "input": 0.006, "output": 0.001, "total": 0.007, "formatted": "$0.007040" },
+  "turns": 3,
+  "durationMs": 6173,
+  "user": "guest",
+  "region": "unknown",
+  "query": "what is trending"
+}
+```
+
+### Model Pricing Configuration
+
+Model pricing is defined in `src/lib/model-pricing.ts`:
+
+```typescript
+import { calculateCost, getModelPricing, getCurrentModelPricing } from "@/lib/model-pricing";
+
+// Get pricing for current model
+const pricing = getCurrentModelPricing();
+// { name: "Kimi K2 Thinking", inputCostPer1k: 0.0006, outputCostPer1k: 0.0025, provider: "Moonshot" }
+
+// Calculate cost for specific usage
+const cost = calculateCost("moonshot.kimi-k2-thinking", inputTokens, outputTokens);
+// { inputCost, outputCost, totalCost, formatted: "$0.007040" }
+```
+
+**Adding New Models:**
+1. Add pricing entry to `MODEL_PRICING` in `src/lib/model-pricing.ts`
+2. Update the supported models table above
+3. Test with `yarn test:ai "query" --debug` to verify token counting
+
+### Token Usage Tracking
+
+Token usage is extracted from LangChain's `AIMessage.usage_metadata`:
+- Accumulated across all turns in an invocation
+- Logged at invocation completion
+- Used for cost calculation
+
+### Usage Dashboard Fields
+
+Key fields for building dashboards:
+- `module: "usage"` - Filter for cost/usage logs
+- `model` / `modelId` - Model identification
+- `tokens.total` - Total tokens consumed
+- `cost.total` - Total cost in USD
+- `durationMs` - Response latency
+- `turns` - Conversation turns
+- `user` - User identifier
+- `region` - User's country
 
 ## Reference Documents
 

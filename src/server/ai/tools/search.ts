@@ -7,6 +7,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { search } from "@/server/actions/search";
+import { aiToolLogger } from "@/lib/logger";
 
 // Schema for search
 const searchSchema = z.object({
@@ -59,7 +60,12 @@ export const searchTool = tool(
         results: items,
       });
     } catch (error) {
-      console.error("Search tool error:", error);
+      aiToolLogger.error({
+        event: "tool_error",
+        tool: "search",
+        query: input.query,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return JSON.stringify({
         error: "Failed to search",
         query: input.query,
@@ -69,19 +75,13 @@ export const searchTool = tool(
   },
   {
     name: "search",
-    description: `Search for movies, TV shows, and people by name.
+    description: `Find movies, TV shows, or people by name.
 
-Use this when:
-- User mentions a specific title by name
-- User asks about a particular actor/director
-- You need to find the TMDB ID for a title
-- User says "What is X?" or "Tell me about X"
+Use when: User mentions a specific title or person by name.
+Don't use when: User wants to filter by criteria (use discover instead).
 
-Returns up to 8 results with basic info (id, title, year, rating, overview).
-Results include media_type so you know if it's a movie, series, or person.
-
-NOTE: For filtering by criteria (genre, year, cast, etc.) use discover instead.
-This is for NAME-BASED lookups only.`,
+Returns: Up to 8 results with id, title, year, rating, overview.
+Use the returned id for [RATINGS], [WATCH], [TRAILER] tags or get_details calls.`,
     schema: searchSchema,
   }
 );

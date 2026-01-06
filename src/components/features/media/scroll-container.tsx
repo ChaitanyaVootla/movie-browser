@@ -124,7 +124,7 @@ export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
         <div
           ref={setScrollRef}
           className={cn(
-            "flex overflow-x-auto scrollbar-hide touch-pan-x",
+            "flex overflow-x-auto scrollbar-hide touch-manipulation",
             gap,
             padding,
             bottomPadding,

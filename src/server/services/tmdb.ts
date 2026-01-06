@@ -7,12 +7,13 @@
 
 import { cachedFetch, type CacheNamespace } from "@/lib/cache";
 import { CACHE_DURATIONS } from "@/lib/constants";
+import { tmdbLogger } from "@/lib/logger";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 if (!TMDB_API_KEY) {
-  console.warn("TMDB_API_KEY not set. TMDB API calls will fail.");
+  tmdbLogger.warn("TMDB_API_KEY not set. TMDB API calls will fail.");
 }
 
 interface TMDBFetchOptions {
@@ -75,10 +76,13 @@ async function rawFetchFromTMDB<T>(
       
       // Only log non-connection errors or last attempt
       if (!isConnectionError || attempt === retries - 1) {
-        console.warn(
-          `TMDB fetch attempt ${attempt + 1}/${retries} failed for ${endpoint}:`,
-          (error as Error).message
-        );
+        tmdbLogger.warn({
+          event: "fetch_retry",
+          endpoint,
+          attempt: attempt + 1,
+          maxRetries: retries,
+          error: (error as Error).message,
+        });
       }
 
       // Don't wait after the last attempt

@@ -9,6 +9,7 @@ import {
   ContinueWatching,
 } from "@/server/db/models/user-library";
 import { getUserIdForDb } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
 
 /**
  * GET /api/user/library
@@ -87,7 +88,11 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error("Error fetching user library:", error);
+    userApiLogger.error({
+      route: "/api/user/library",
+      event: "fetch_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       { error: "Failed to fetch user library" },
       { status: 500 }

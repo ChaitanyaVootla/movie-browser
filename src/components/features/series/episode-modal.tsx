@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition, useCallback, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -23,6 +23,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerClose,
+} from "@/components/ui/drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +38,24 @@ import { ScrollContainer } from "@/components/features/media/scroll-container";
 import { cn } from "@/lib/utils";
 import { getEpisode } from "@/server/actions/series";
 import type { Episode, CastMember, CrewMember, EpisodeStill } from "@/types";
+
+// SSR-safe media query hook
+const emptySubscribe = () => () => {};
+const getIsMobileSnapshot = () => typeof window !== "undefined" && window.innerWidth < 768;
+const getServerSnapshot = () => false;
+
+function useIsMobile() {
+  const subscribeToResize = useCallback((callback: () => void) => {
+    window.addEventListener("resize", callback);
+    return () => window.removeEventListener("resize", callback);
+  }, []);
+  
+  return useSyncExternalStore(
+    typeof window !== "undefined" ? subscribeToResize : emptySubscribe,
+    getIsMobileSnapshot,
+    getServerSnapshot
+  );
+}
 
 interface EpisodeModalProps {
   episode: Episode | null;
@@ -122,6 +148,8 @@ function CrewAvatar({ person, label }: { person: CrewMember; label: string }) {
   );
 }
 
+const SWIPE_THRESHOLD = 50; // Minimum distance for swipe
+
 // Image carousel with 16:9 aspect ratio - renders lightbox via portal
 function EpisodeImageCarousel({
   stills,
@@ -134,6 +162,7 @@ function EpisodeImageCarousel({
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const slideDuration = 5000;
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev === 0 ? stills.length - 1 : prev - 1));
@@ -142,6 +171,42 @@ function EpisodeImageCarousel({
   const goToNext = useCallback(() => {
     setCurrentIndex((prev) => (prev === stills.length - 1 ? 0 : prev + 1));
   }, [stills.length]);
+
+  // Touch swipe handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+    setIsAutoPlaying(false);
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current || stills.length <= 1) {
+      setIsAutoPlaying(true);
+      return;
+    }
+
+    const touchEnd = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+    };
+
+    const dx = touchEnd.x - touchStartRef.current.x;
+    const dy = touchEnd.y - touchStartRef.current.y;
+
+    // Only trigger swipe if horizontal movement is greater than vertical
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
+      if (dx > 0) {
+        goToPrevious();
+      } else {
+        goToNext();
+      }
+    }
+
+    touchStartRef.current = null;
+    setIsAutoPlaying(true);
+  }, [stills.length, goToPrevious, goToNext]);
 
   useEffect(() => {
     if (!isAutoPlaying || stills.length <= 1 || isLightboxOpen) return;
@@ -181,8 +246,10 @@ function EpisodeImageCarousel({
   const lightbox = isLightboxOpen
     ? createPortal(
         <div
-          className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+          className="fixed inset-0 z-[200] bg-black flex items-center justify-center touch-pan-y"
           onClick={() => setIsLightboxOpen(false)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
           <Button
             variant="ghost"
@@ -198,7 +265,7 @@ function EpisodeImageCarousel({
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
+                className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
                 onClick={(e) => {
                   e.stopPropagation();
                   goToPrevious();
@@ -209,7 +276,7 @@ function EpisodeImageCarousel({
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
+                className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white h-12 w-12 rounded-full"
                 onClick={(e) => {
                   e.stopPropagation();
                   goToNext();
@@ -224,8 +291,8 @@ function EpisodeImageCarousel({
           <img
             src={`https://image.tmdb.org/t/p/original${currentStill.file_path}`}
             alt={`${episodeName} still ${currentIndex + 1}`}
-            className="max-w-[90vw] max-h-[90vh] object-contain"
-            onClick={(e) => e.stopPropagation()}
+            className="max-w-[90vw] max-h-[90vh] object-contain select-none pointer-events-none"
+            draggable={false}
           />
 
           {stills.length > 1 && (
@@ -241,9 +308,11 @@ function EpisodeImageCarousel({
   return (
     <>
       <div
-        className="relative aspect-video w-full max-w-full overflow-hidden rounded-lg bg-muted group cursor-pointer"
+        className="relative aspect-video w-full max-w-full overflow-hidden rounded-lg bg-muted group cursor-pointer touch-pan-y"
         onMouseEnter={() => setIsAutoPlaying(false)}
         onMouseLeave={() => setIsAutoPlaying(true)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         onClick={() => setIsLightboxOpen(true)}
       >
         <AnimatePresence mode="wait">
@@ -354,8 +423,8 @@ function InfoCard({
 // Loading skeleton
 function EpisodeDetailsSkeleton() {
   return (
-    <div className="p-5 space-y-5">
-      <div className="flex flex-col lg:flex-row gap-5 items-start">
+    <div className="p-4 md:p-5 space-y-4 md:space-y-5">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-5 items-start">
         <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
           <Skeleton className="aspect-video w-full rounded-lg" />
         </div>
@@ -379,34 +448,22 @@ function EpisodeDetailsSkeleton() {
   );
 }
 
-export function EpisodeModal({
+// Shared episode content component
+function EpisodeContent({
   episode,
-  seriesId,
+  fullEpisode,
   seriesName,
   seasonNumber,
-  onClose,
-}: EpisodeModalProps) {
-  const [fullEpisode, setFullEpisode] = useState<Episode | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (episode) {
-      setFullEpisode(null);
-      startTransition(async () => {
-        const data = await getEpisode(
-          seriesId,
-          seasonNumber,
-          episode.episode_number
-        );
-        if (data) {
-          setFullEpisode(data);
-        }
-      });
-    }
-  }, [episode, seriesId, seasonNumber]);
-
-  if (!episode) return null;
-
+  isPending,
+  variant,
+}: {
+  episode: Episode;
+  fullEpisode: Episode | null;
+  seriesName: string;
+  seasonNumber: number;
+  isPending: boolean;
+  variant: "dialog" | "drawer";
+}) {
   const displayEpisode = fullEpisode || episode;
 
   const airDate = displayEpisode.air_date
@@ -454,6 +511,215 @@ export function EpisodeModal({
         c.job !== "Story"
     ) || [];
 
+  if (isPending && !fullEpisode) {
+    return <EpisodeDetailsSkeleton />;
+  }
+
+  const Header = variant === "dialog" ? DialogHeader : DrawerHeader;
+  const Title = variant === "dialog" ? DialogTitle : DrawerTitle;
+  const Description = variant === "dialog" ? DialogDescription : DrawerDescription;
+
+  return (
+    <div className="flex-1 overflow-y-auto overscroll-contain">
+      <div className="p-4 md:p-5 space-y-4 md:space-y-5">
+        {/* Top section: Image + Info - flex layout with top alignment */}
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-5 items-start">
+          {/* Left: Image carousel - constrained width on desktop */}
+          <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
+            {stills.length > 0 ? (
+              <EpisodeImageCarousel
+                stills={stills}
+                episodeName={displayEpisode.name}
+              />
+            ) : (
+              <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
+                <Tv className="h-12 w-12 text-muted-foreground/30" />
+              </div>
+            )}
+          </div>
+
+          {/* Right: Title + Info cards - fills remaining space */}
+          <div className="flex-1 min-w-0">
+            {/* Header */}
+            <Header className="text-left space-y-1.5 mb-4 p-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-xs">
+                  S{seasonNumber} E{displayEpisode.episode_number}
+                </Badge>
+                {isUpcoming && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-muted text-muted-foreground"
+                  >
+                    Upcoming
+                  </Badge>
+                )}
+              </div>
+              <Title className="text-xl font-bold leading-tight">
+                {displayEpisode.name}
+              </Title>
+              <p className="text-sm text-muted-foreground">{seriesName}</p>
+            </Header>
+
+            {/* Info cards grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {displayEpisode.vote_average > 0 && !isUpcoming && (
+                <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/40">
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      Rating
+                    </p>
+                    <div className="flex items-baseline gap-1.5">
+                      <p className="text-sm font-bold">
+                        {displayEpisode.vote_average.toFixed(1)}
+                      </p>
+                      {displayEpisode.vote_count && displayEpisode.vote_count > 0 && (
+                        <p className="text-[10px] text-muted-foreground">
+                          ({displayEpisode.vote_count.toLocaleString()})
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {airDate && (
+                <InfoCard icon={Calendar} label="Air Date" value={airDate} />
+              )}
+              {displayEpisode.runtime && (
+                <InfoCard
+                  icon={Clock}
+                  label="Runtime"
+                  value={`${displayEpisode.runtime} min`}
+                />
+              )}
+              <InfoCard
+                icon={Tv}
+                label="Episode"
+                value={`${seasonNumber}×${displayEpisode.episode_number}`}
+              />
+            </div>
+
+            {/* Director & Writer with avatars */}
+            {(director || writers.length > 0) && (
+              <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-border/50">
+                {director && <CrewAvatar person={director} label="Director" />}
+                {writers.slice(0, 2).map((writer) => (
+                  <CrewAvatar key={writer.id} person={writer} label="Writer" />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Overview */}
+        {displayEpisode.overview && (
+          <Description className="text-sm text-muted-foreground leading-relaxed">
+            {displayEpisode.overview}
+          </Description>
+        )}
+
+        {/* Guest Stars scroller */}
+        {guestStars.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Guest Stars</h3>
+              <span className="text-xs text-muted-foreground">
+                ({guestStars.length})
+              </span>
+            </div>
+            <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
+              {guestStars.map((guest) => (
+                <PersonCard key={guest.id} person={guest} role="cast" />
+              ))}
+            </ScrollContainer>
+          </div>
+        )}
+
+        {/* Additional Crew scroller */}
+        {additionalCrew.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Clapperboard className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Crew</h3>
+              <span className="text-xs text-muted-foreground">
+                ({additionalCrew.length})
+              </span>
+            </div>
+            <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
+              {additionalCrew.slice(0, 12).map((crew) => (
+                <PersonCard
+                  key={`${crew.id}-${crew.job}`}
+                  person={crew}
+                  role="crew"
+                />
+              ))}
+            </ScrollContainer>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function EpisodeModal({
+  episode,
+  seriesId,
+  seriesName,
+  seasonNumber,
+  onClose,
+}: EpisodeModalProps) {
+  const [fullEpisode, setFullEpisode] = useState<Episode | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (episode) {
+      setFullEpisode(null);
+      startTransition(async () => {
+        const data = await getEpisode(
+          seriesId,
+          seasonNumber,
+          episode.episode_number
+        );
+        if (data) {
+          setFullEpisode(data);
+        }
+      });
+    }
+  }, [episode, seriesId, seasonNumber]);
+
+  if (!episode) return null;
+
+  // Mobile: Use Drawer (bottom pull-up)
+  if (isMobile) {
+    return (
+      <Drawer open={!!episode} onOpenChange={(open) => !open && onClose()}>
+        <DrawerContent className="max-h-[90vh] bg-background">
+          {/* Close button */}
+          <DrawerClose asChild>
+            <button
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-muted/80 hover:bg-muted transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </DrawerClose>
+          <EpisodeContent
+            episode={episode}
+            fullEpisode={fullEpisode}
+            seriesName={seriesName}
+            seasonNumber={seasonNumber}
+            isPending={isPending}
+            variant="drawer"
+          />
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  // Desktop: Use Dialog (centered modal)
   return (
     <Dialog open={!!episode} onOpenChange={() => onClose()}>
       <DialogContent
@@ -469,151 +735,14 @@ export function EpisodeModal({
         >
           <X className="h-4 w-4" />
         </Button>
-
-        {isPending && !fullEpisode ? (
-          <EpisodeDetailsSkeleton />
-        ) : (
-          <div className="flex-1 overflow-y-auto overscroll-contain">
-            <div className="p-5 space-y-5">
-              {/* Top section: Image + Info - flex layout with top alignment */}
-              <div className="flex flex-col lg:flex-row gap-5 items-start">
-                {/* Left: Image carousel - constrained width on desktop */}
-                <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
-                  {stills.length > 0 ? (
-                    <EpisodeImageCarousel
-                      stills={stills}
-                      episodeName={displayEpisode.name}
-                    />
-                  ) : (
-                    <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-                      <Tv className="h-12 w-12 text-muted-foreground/30" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Right: Title + Info cards - fills remaining space */}
-                <div className="flex-1 min-w-0">
-                  {/* Header */}
-                  <DialogHeader className="text-left space-y-1.5 mb-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="text-xs">
-                        S{seasonNumber} E{displayEpisode.episode_number}
-                      </Badge>
-                      {isUpcoming && (
-                        <Badge
-                          variant="secondary"
-                          className="text-xs bg-muted text-muted-foreground"
-                        >
-                          Upcoming
-                        </Badge>
-                      )}
-                    </div>
-                    <DialogTitle className="text-xl font-bold leading-tight">
-                      {displayEpisode.name}
-                    </DialogTitle>
-                    <p className="text-sm text-muted-foreground">{seriesName}</p>
-                  </DialogHeader>
-
-                  {/* Info cards grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {displayEpisode.vote_average > 0 && !isUpcoming && (
-                      <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/40">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                            Rating
-                          </p>
-                          <div className="flex items-baseline gap-1.5">
-                            <p className="text-sm font-bold">
-                              {displayEpisode.vote_average.toFixed(1)}
-                            </p>
-                            {displayEpisode.vote_count && displayEpisode.vote_count > 0 && (
-                              <p className="text-[10px] text-muted-foreground">
-                                ({displayEpisode.vote_count.toLocaleString()})
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {airDate && (
-                      <InfoCard icon={Calendar} label="Air Date" value={airDate} />
-                    )}
-                    {displayEpisode.runtime && (
-                      <InfoCard
-                        icon={Clock}
-                        label="Runtime"
-                        value={`${displayEpisode.runtime} min`}
-                      />
-                    )}
-                    <InfoCard
-                      icon={Tv}
-                      label="Episode"
-                      value={`${seasonNumber}×${displayEpisode.episode_number}`}
-                    />
-                  </div>
-
-                  {/* Director & Writer with avatars */}
-                  {(director || writers.length > 0) && (
-                    <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-border/50">
-                      {director && <CrewAvatar person={director} label="Director" />}
-                      {writers.slice(0, 2).map((writer) => (
-                        <CrewAvatar key={writer.id} person={writer} label="Writer" />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Overview */}
-              {displayEpisode.overview && (
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  {displayEpisode.overview}
-                </DialogDescription>
-              )}
-
-              {/* Guest Stars scroller */}
-              {guestStars.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Guest Stars</h3>
-                    <span className="text-xs text-muted-foreground">
-                      ({guestStars.length})
-                    </span>
-                  </div>
-                  <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
-                    {guestStars.map((guest) => (
-                      <PersonCard key={guest.id} person={guest} role="cast" />
-                    ))}
-                  </ScrollContainer>
-                </div>
-              )}
-
-              {/* Additional Crew scroller */}
-              {additionalCrew.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Clapperboard className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Crew</h3>
-                    <span className="text-xs text-muted-foreground">
-                      ({additionalCrew.length})
-                    </span>
-                  </div>
-                  <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
-                    {additionalCrew.slice(0, 12).map((crew) => (
-                      <PersonCard
-                        key={`${crew.id}-${crew.job}`}
-                        person={crew}
-                        role="crew"
-                      />
-                    ))}
-                  </ScrollContainer>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <EpisodeContent
+          episode={episode}
+          fullEpisode={fullEpisode}
+          seriesName={seriesName}
+          seasonNumber={seasonNumber}
+          isPending={isPending}
+          variant="dialog"
+        />
       </DialogContent>
     </Dialog>
   );

@@ -7,6 +7,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { getTrendingMovies, getTrendingTV, getTrendingAll } from "@/server/services/tmdb";
+import { aiToolLogger } from "@/lib/logger";
 
 // Schema for trending
 const trendingSchema = z.object({
@@ -65,7 +66,11 @@ export const getTrendingTool = tool(
         trending: formatted,
       });
     } catch (error) {
-      console.error("Trending tool error:", error);
+      aiToolLogger.error({
+        event: "tool_error",
+        tool: "get_trending",
+        error: error instanceof Error ? error.message : String(error),
+      });
       return JSON.stringify({
         error: "Failed to get trending content",
         trending: [],
@@ -74,9 +79,7 @@ export const getTrendingTool = tool(
   },
   {
     name: "get_trending",
-    description: `Get currently trending movies and/or TV shows.
-Use this when the user asks what's popular, trending, or hot right now.
-Returns up to 10 trending items.`,
+    description: `What's popular/trending right now. Use when: "What's hot?", "Popular movies?"`,
     schema: trendingSchema,
   }
 );

@@ -1,18 +1,25 @@
 "use client";
 
-import { Users } from "lucide-react";
+import { Users, Zap, Flame, Moon, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Movie, Series, CastMember } from "@/types";
+import type { Movie, Series, CastMember, AISummary } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import { KeywordsList } from "./keywords-list";
 import { CountryLanguageBadges } from "./country-language-badges";
 import { ContentWarningLink } from "./content-warning-link";
 import { MediaScroller } from "./media-scroller";
+import { EnrichButton } from "./enrich-button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MediaOverviewProps {
   item: Movie | Series;
   mediaType: "movie" | "series";
+  aiSummary?: AISummary | null;
   className?: string;
 }
 
@@ -88,6 +95,124 @@ function InfoItem({ label, value, href }: { label: string; value: React.ReactNod
   );
 }
 
+// Mood indicators - 2-line cards with label on top and value below
+// Colors based on values for visual meaning
+// Tooltips explain what each value means
+function MoodIndicators({ mood }: { mood: AISummary["mood"] }) {
+  const getColorClasses = (type: string, value: string) => {
+    switch (type) {
+      case "pacing":
+        return value === "fast" 
+          ? "border-yellow-500/40 text-yellow-400" 
+          : value === "slow" 
+            ? "border-blue-500/40 text-blue-400" 
+            : "border-gray-500/40 text-gray-400";
+      case "intensity":
+        return value === "high" 
+          ? "border-orange-500/40 text-orange-400" 
+          : value === "low" 
+            ? "border-cyan-500/40 text-cyan-400" 
+            : "border-gray-500/40 text-gray-400";
+      case "tone":
+        return value === "dark" 
+          ? "border-purple-500/40 text-purple-400" 
+          : value === "light" 
+            ? "border-amber-500/40 text-amber-400" 
+            : "border-gray-500/40 text-gray-400";
+      case "emotional":
+        return value === "heavy" 
+          ? "border-rose-500/40 text-rose-400" 
+          : value === "light" 
+            ? "border-emerald-500/40 text-emerald-400" 
+            : "border-gray-500/40 text-gray-400";
+      default:
+        return "border-white/20 text-muted-foreground";
+    }
+  };
+
+  // Tooltip descriptions for each mood type and value
+  const getTooltip = (type: string, value: string): string => {
+    const tooltips: Record<string, Record<string, string>> = {
+      pacing: {
+        fast: "Quick cuts, lots of action, keeps you on the edge of your seat",
+        steady: "Balanced rhythm with room to breathe between key moments",
+        slow: "Deliberate, contemplative storytelling that takes its time",
+      },
+      intensity: {
+        high: "Gripping and tense throughout, emotionally or physically demanding",
+        medium: "Engaging with peaks of tension but not relentless",
+        low: "Relaxed and easygoing, minimal stress or conflict",
+      },
+      tone: {
+        dark: "Serious, grim, or bleak themes and atmosphere",
+        light: "Upbeat, optimistic, or comedic in nature",
+        mixed: "Balances lighter and heavier moments throughout",
+      },
+      emotional: {
+        heavy: "Emotionally intense, may leave you thinking or feeling deeply",
+        medium: "Emotionally engaging without being overwhelming",
+        light: "Easy watch, won't weigh on you emotionally",
+      },
+    };
+    return tooltips[type]?.[value] || "";
+  };
+
+  const indicators = [
+    { key: "pacing", label: "Pace", value: mood.pacing, icon: Zap },
+    { key: "intensity", label: "Intensity", value: mood.intensity, icon: Flame },
+    { key: "tone", label: "Tone", value: mood.tone, icon: Moon },
+    { key: "emotional", label: "Feel", value: mood.emotional, icon: Heart },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-1.5 pt-2 mt-2 border-t border-white/5">
+      {indicators.map(({ key, label, value, icon: Icon }) => {
+        const colorClasses = getColorClasses(key, value);
+        const tooltip = getTooltip(key, value);
+        return (
+          <Tooltip key={key}>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  "flex flex-col items-center px-2 py-1.5 rounded bg-white/5 border cursor-help",
+                  colorClasses.split(" ")[0] // border color only
+                )}
+              >
+                <div className="flex items-center gap-1 text-[9px] text-muted-foreground uppercase tracking-wide">
+                  <Icon className={cn("h-2.5 w-2.5", colorClasses.split(" ")[1])} />
+                  <span>{label}</span>
+                </div>
+                <span className="text-[11px] font-medium text-foreground/80 capitalize">{value}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[200px] text-center">
+              <p className="text-xs">{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
+}
+
+// Themes list - displayed above keywords
+function ThemesList({ themes }: { themes: string[] }) {
+  if (!themes?.length) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {themes.map((theme, index) => (
+        <span
+          key={index}
+          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-white/5 text-foreground/70 border border-brand/30"
+        >
+          {theme}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // Series status badge with enhanced visuals
 function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: string; inProduction?: boolean; nextAirDate?: string }) {
   const getStatusConfig = () => {
@@ -157,7 +282,7 @@ function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: stri
   );
 }
 
-export function MediaOverview({ item, mediaType, className }: MediaOverviewProps) {
+export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOverviewProps) {
   const director = item.credits?.crew?.find((c) => c.job === "Director");
   const creators = !isMovie(item)
     ? item.created_by || item.credits?.crew?.filter((c) => c.job === "Creator")
@@ -193,12 +318,20 @@ export function MediaOverview({ item, mediaType, className }: MediaOverviewProps
       {/* Overview & Details - Card container */}
       <section className="px-4 md:px-8 lg:px-12">
         <div className="rounded-xl bg-card/40 border border-white/5 backdrop-blur-sm overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1px_280px] xl:grid-cols-[1fr_1px_320px]">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1px_300px] xl:grid-cols-[1fr_1px_360px]">
             {/* Main content - Overview */}
             <div className="p-4 md:p-5 space-y-3">
               {item.overview && (
                 <div>
                   <h2 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Overview</h2>
+                  {/* AI Hook - engaging one-liner with blockquote style */}
+                  {aiSummary?.hook && (
+                    <blockquote className="border-l-2 border-brand/50 pl-3 mb-2">
+                      <p className="text-sm italic text-muted-foreground leading-relaxed">
+                        {aiSummary.hook}
+                      </p>
+                    </blockquote>
+                  )}
                   <p className="text-sm text-foreground/90 leading-relaxed">{item.overview}</p>
                 </div>
               )}
@@ -213,6 +346,11 @@ export function MediaOverview({ item, mediaType, className }: MediaOverviewProps
                 />
                 <ContentWarningLink imdbId={imdbId} size="xs" />
               </div>
+
+              {/* AI Themes - above keywords */}
+              {aiSummary?.themes && aiSummary.themes.length > 0 && (
+                <ThemesList themes={aiSummary.themes} />
+              )}
 
               {/* Keywords */}
               {keywords && keywords.length > 0 && (
@@ -406,9 +544,15 @@ export function MediaOverview({ item, mediaType, className }: MediaOverviewProps
                     ))}
                   </div>
                 )}
+
+                {/* AI Mood indicators - at bottom of details */}
+                {aiSummary?.mood && <MoodIndicators mood={aiSummary.mood} />}
               </div>
             </div>
           </div>
+          
+          {/* Admin-only enrich button - subtle footer (only renders for admins) */}
+          <EnrichButton tmdbId={item.id} mediaType={mediaType} asFooter />
         </div>
       </section>
 

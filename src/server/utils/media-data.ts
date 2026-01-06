@@ -25,6 +25,7 @@ import {
 } from "@/lib/watch-options";
 import type { WatchProviderData } from "@/types";
 import { CACHE_DURATIONS } from "@/lib/constants";
+import { dataLogger } from "@/lib/logger";
 
 // =============================================================================
 // Types
@@ -504,7 +505,10 @@ export async function getLightMovieDetails(
       watchLinks,
     };
   } catch (error) {
-    console.error("Error fetching light movie details:", error);
+    dataLogger.error({
+      event: "fetch_light_movie_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -585,7 +589,10 @@ export async function getLightSeriesDetails(
       watchLinks,
     };
   } catch (error) {
-    console.error("Error fetching light series details:", error);
+    dataLogger.error({
+      event: "fetch_light_series_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -765,7 +772,10 @@ export async function getLightPersonDetails(
       upcomingWork,
     };
   } catch (error) {
-    console.error("Error fetching light person details:", error);
+    dataLogger.error({
+      event: "fetch_light_person_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -797,7 +807,10 @@ export async function searchPersonAndGetDetails(
 
     return getLightPersonDetails(topMatch.id);
   } catch (error) {
-    console.error("Error searching for person:", error);
+    dataLogger.error({
+      event: "search_person_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
