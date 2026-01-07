@@ -164,9 +164,35 @@ function toTMDBParams(params: Partial<DiscoverParams>): Record<string, string> {
   // Certification (age rating)
   if (params.certification) {
     tmdbParams.certification = params.certification;
+    // Default to US for certification country if not specified
+    tmdbParams.certification_country = params.certification_country || "US";
   }
-  if (params.certification_country) {
-    tmdbParams.certification_country = params.certification_country;
+
+  // Year filters - convert to date ranges
+  // Specific year
+  if (params.year) {
+    if (params.media_type === "tv") {
+      tmdbParams["first_air_date.gte"] = `${params.year}-01-01`;
+      tmdbParams["first_air_date.lte"] = `${params.year}-12-31`;
+    } else {
+      tmdbParams["primary_release_date.gte"] = `${params.year}-01-01`;
+      tmdbParams["primary_release_date.lte"] = `${params.year}-12-31`;
+    }
+  }
+  // Year range (for decades)
+  if (params.year_gte && !params.year) {
+    if (params.media_type === "tv") {
+      tmdbParams["first_air_date.gte"] = `${params.year_gte}-01-01`;
+    } else {
+      tmdbParams["primary_release_date.gte"] = `${params.year_gte}-01-01`;
+    }
+  }
+  if (params.year_lte && !params.year) {
+    if (params.media_type === "tv") {
+      tmdbParams["first_air_date.lte"] = `${params.year_lte}-12-31`;
+    } else {
+      tmdbParams["primary_release_date.lte"] = `${params.year_lte}-12-31`;
+    }
   }
 
   return tmdbParams;

@@ -35,6 +35,14 @@ export interface DiscoverParams {
   // Certification (age rating) - pipe-separated for multiple (e.g., "G|PG|PG-13")
   certification?: string;
   certification_country?: string;
+  // Year filter (simpler than full date range)
+  year?: number;
+  year_gte?: number;
+  year_lte?: number;
+  // User library filters (client-side only, not sent to TMDB)
+  hideWatched?: boolean;
+  hideWatchlist?: boolean;
+  hideDisliked?: boolean;
 }
 
 export interface DiscoverResponse<T> {
@@ -127,6 +135,46 @@ export const MONETIZATION_OPTIONS = [
   { value: "ads", label: "Free with ads" },
   { value: "rent", label: "Rent" },
   { value: "buy", label: "Buy" },
+] as const;
+
+// Year/decade filter options
+const currentYear = new Date().getFullYear();
+export const YEAR_OPTIONS = [
+  { value: "any", label: "Any year" },
+  { value: `${currentYear}`, label: `${currentYear}` },
+  { value: `${currentYear - 1}`, label: `${currentYear - 1}` },
+  { value: `${currentYear - 2}`, label: `${currentYear - 2}` },
+] as const;
+
+export const DECADE_OPTIONS = [
+  { value: "any", label: "Any decade" },
+  { value: "2020s", label: "2020s", gte: 2020, lte: 2029 },
+  { value: "2010s", label: "2010s", gte: 2010, lte: 2019 },
+  { value: "2000s", label: "2000s", gte: 2000, lte: 2009 },
+  { value: "1990s", label: "1990s", gte: 1990, lte: 1999 },
+  { value: "1980s", label: "1980s", gte: 1980, lte: 1989 },
+  { value: "1970s", label: "1970s", gte: 1970, lte: 1979 },
+  { value: "classic", label: "Classic (pre-1970)", gte: 1900, lte: 1969 },
+] as const;
+
+// Certification (age rating) options - US ratings
+export const MOVIE_CERTIFICATION_OPTIONS = [
+  { value: "any", label: "Any rating" },
+  { value: "G", label: "G - General Audiences" },
+  { value: "PG", label: "PG - Parental Guidance" },
+  { value: "PG-13", label: "PG-13 - Parents Cautioned" },
+  { value: "R", label: "R - Restricted" },
+  { value: "NC-17", label: "NC-17 - Adults Only" },
+] as const;
+
+export const TV_CERTIFICATION_OPTIONS = [
+  { value: "any", label: "Any rating" },
+  { value: "TV-Y", label: "TV-Y - All Children" },
+  { value: "TV-Y7", label: "TV-Y7 - Older Children" },
+  { value: "TV-G", label: "TV-G - General Audience" },
+  { value: "TV-PG", label: "TV-PG - Parental Guidance" },
+  { value: "TV-14", label: "TV-14 - Parents Cautioned" },
+  { value: "TV-MA", label: "TV-MA - Mature Audience" },
 ] as const;
 
 // ============================================
@@ -274,6 +322,33 @@ export function serializeDiscoverParams(params: Partial<DiscoverParams>): string
     searchParams.set("air_to", params["first_air_date.lte"]);
   }
 
+  // Year filters
+  if (params.year) {
+    searchParams.set("year", String(params.year));
+  }
+  if (params.year_gte) {
+    searchParams.set("year_from", String(params.year_gte));
+  }
+  if (params.year_lte) {
+    searchParams.set("year_to", String(params.year_lte));
+  }
+
+  // Certification
+  if (params.certification) {
+    searchParams.set("cert", params.certification);
+  }
+
+  // User library filters
+  if (params.hideWatched) {
+    searchParams.set("hide_watched", "1");
+  }
+  if (params.hideWatchlist) {
+    searchParams.set("hide_watchlist", "1");
+  }
+  if (params.hideDisliked) {
+    searchParams.set("hide_disliked", "1");
+  }
+
   if (params.page && params.page > 1) {
     searchParams.set("page", String(params.page));
   }
@@ -369,6 +444,25 @@ export function parseDiscoverParams(searchParams: URLSearchParams): Partial<Disc
 
   const airTo = searchParams.get("air_to") || searchParams.get("first_air_date.lte");
   if (airTo) params["first_air_date.lte"] = airTo;
+
+  // Year filters
+  const year = searchParams.get("year");
+  if (year) params.year = parseInt(year, 10);
+
+  const yearFrom = searchParams.get("year_from");
+  if (yearFrom) params.year_gte = parseInt(yearFrom, 10);
+
+  const yearTo = searchParams.get("year_to");
+  if (yearTo) params.year_lte = parseInt(yearTo, 10);
+
+  // Certification
+  const certification = searchParams.get("cert");
+  if (certification) params.certification = certification;
+
+  // User library filters
+  if (searchParams.get("hide_watched") === "1") params.hideWatched = true;
+  if (searchParams.get("hide_watchlist") === "1") params.hideWatchlist = true;
+  if (searchParams.get("hide_disliked") === "1") params.hideDisliked = true;
 
   return params;
 }

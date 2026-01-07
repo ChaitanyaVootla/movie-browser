@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -17,9 +20,11 @@ export function KeywordsList({
   maxVisible = 8,
   className,
 }: KeywordsListProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!keywords?.length) return null;
 
-  const visibleKeywords = keywords.slice(0, maxVisible);
+  const visibleKeywords = isExpanded ? keywords : keywords.slice(0, maxVisible);
   const remainingCount = keywords.length - maxVisible;
 
   // Build discover URL for keyword
@@ -42,9 +47,22 @@ export function KeywordsList({
           </Badge>
         </Link>
       ))}
-      {remainingCount > 0 && (
-        <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+      {remainingCount > 0 && !isExpanded && (
+        <Badge
+          variant="outline"
+          className="text-xs font-normal text-muted-foreground cursor-pointer hover:bg-white/5 transition-colors"
+          onClick={() => setIsExpanded(true)}
+        >
           +{remainingCount} more
+        </Badge>
+      )}
+      {isExpanded && keywords.length > maxVisible && (
+        <Badge
+          variant="outline"
+          className="text-xs font-normal text-muted-foreground cursor-pointer hover:bg-white/5 transition-colors"
+          onClick={() => setIsExpanded(false)}
+        >
+          Show less
         </Badge>
       )}
     </div>

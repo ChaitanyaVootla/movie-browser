@@ -505,12 +505,13 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                       >
                         {network.logo_path ? (
                           <Image
-                            src={`https://image.tmdb.org/t/p/w154${network.logo_path}`}
+                            src={`https://image.tmdb.org/t/p/w300${network.logo_path}`}
                             alt={network.name}
-                            width={40}
-                            height={16}
+                            width={80}
+                            height={32}
                             className="h-3.5 object-contain brightness-0 invert opacity-80"
                             style={{ width: "auto" }}
+                            unoptimized
                           />
                         ) : (
                           <span className="text-[9px] font-medium text-muted-foreground">{network.name}</span>
@@ -530,12 +531,13 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                       >
                         {company.logo_path ? (
                           <Image
-                            src={`https://image.tmdb.org/t/p/w154${company.logo_path}`}
+                            src={`https://image.tmdb.org/t/p/w300${company.logo_path}`}
                             alt={company.name}
-                            width={40}
-                            height={16}
+                            width={80}
+                            height={32}
                             className="h-3.5 object-contain brightness-0 invert opacity-80"
                             style={{ width: "auto" }}
+                            unoptimized
                           />
                         ) : (
                           <span className="text-[9px] font-medium text-muted-foreground">{company.name}</span>

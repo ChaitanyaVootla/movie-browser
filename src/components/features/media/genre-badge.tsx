@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -70,25 +73,44 @@ export function GenreList({
   maxVisible,
   linkToBrowse,
 }: GenreListProps) {
-  const visibleGenres = maxVisible ? genres.slice(0, maxVisible) : genres;
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const visibleGenres = maxVisible && !isExpanded ? genres.slice(0, maxVisible) : genres;
   const remainingCount = maxVisible ? Math.max(0, genres.length - maxVisible) : 0;
+
+  const sizeClasses = {
+    sm: "text-xs px-2 py-0.5",
+    md: "text-sm px-3 py-1",
+    lg: "text-base px-4 py-1.5",
+  };
 
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
       {visibleGenres.map((genre) => (
         <GenreBadge key={genre.id} genre={genre} mediaType={mediaType} size={size} linkToBrowse={linkToBrowse} />
       ))}
-      {remainingCount > 0 && (
+      {remainingCount > 0 && !isExpanded && (
         <Badge
           variant="secondary"
           className={cn(
-            "rounded-full bg-white/5 text-white/50 border-white/8",
-            size === "sm" && "text-xs px-2 py-0.5",
-            size === "md" && "text-sm px-3 py-1",
-            size === "lg" && "text-base px-4 py-1.5"
+            "rounded-full bg-white/5 text-white/50 border-white/8 cursor-pointer hover:bg-white/10 transition-colors",
+            sizeClasses[size]
           )}
+          onClick={() => setIsExpanded(true)}
         >
           +{remainingCount}
+        </Badge>
+      )}
+      {isExpanded && maxVisible && genres.length > maxVisible && (
+        <Badge
+          variant="secondary"
+          className={cn(
+            "rounded-full bg-white/5 text-white/50 border-white/8 cursor-pointer hover:bg-white/10 transition-colors",
+            sizeClasses[size]
+          )}
+          onClick={() => setIsExpanded(false)}
+        >
+          Less
         </Badge>
       )}
     </div>

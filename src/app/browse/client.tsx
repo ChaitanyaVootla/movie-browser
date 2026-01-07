@@ -26,6 +26,9 @@ import {
   RUNTIME_OPTIONS,
   STREAMING_PROVIDERS,
   MONETIZATION_OPTIONS,
+  DECADE_OPTIONS,
+  MOVIE_CERTIFICATION_OPTIONS,
+  TV_CERTIFICATION_OPTIONS,
   type DiscoverParams,
 } from "@/lib/discover";
 import { POPULAR_LANGUAGES, POPULAR_COUNTRIES } from "@/lib/topics";
@@ -161,7 +164,14 @@ export function BrowseClient({
     params.with_watch_monetization_types ||
     (params.with_cast?.length ?? 0) > 0 ||
     (params.with_crew?.length ?? 0) > 0 ||
-    toArray(params.with_keywords).length > 0;
+    toArray(params.with_keywords).length > 0 ||
+    params.year ||
+    params.year_gte ||
+    params.year_lte ||
+    params.certification ||
+    params.hideWatched ||
+    params.hideWatchlist ||
+    params.hideDisliked;
 
   // Format number with commas
   const formatNumber = (num: number) => {
@@ -343,6 +353,60 @@ export function BrowseClient({
         with_watch_monetization_types: undefined,
         watch_region: params.with_watch_providers?.length ? params.watch_region : undefined,
       }),
+    });
+  }
+
+  // Year/Decade pills
+  if (params.year) {
+    activeFilterPills.push({
+      key: "year",
+      label: `Year: ${params.year}`,
+      onRemove: () => handleParamsChange({ ...params, year: undefined }),
+    });
+  } else if (params.year_gte || params.year_lte) {
+    const decade = DECADE_OPTIONS.find(
+      (d) => d.value !== "any" && d.gte === params.year_gte && d.lte === params.year_lte
+    );
+    activeFilterPills.push({
+      key: "decade",
+      label: decade?.label || `${params.year_gte || "?"}-${params.year_lte || "?"}`,
+      onRemove: () => handleParamsChange({ ...params, year_gte: undefined, year_lte: undefined }),
+    });
+  }
+
+  // Certification pill
+  if (params.certification) {
+    const certOptions = params.media_type === "tv" ? TV_CERTIFICATION_OPTIONS : MOVIE_CERTIFICATION_OPTIONS;
+    const certOption = certOptions.find((o) => o.value === params.certification);
+    activeFilterPills.push({
+      key: "certification",
+      label: certOption?.label?.split(" - ")[0] || params.certification,
+      onRemove: () => handleParamsChange({ ...params, certification: undefined }),
+    });
+  }
+
+  // User library filter pills
+  if (params.hideWatched) {
+    activeFilterPills.push({
+      key: "hide-watched",
+      label: "Hiding watched",
+      onRemove: () => handleParamsChange({ ...params, hideWatched: undefined }),
+    });
+  }
+
+  if (params.hideWatchlist) {
+    activeFilterPills.push({
+      key: "hide-watchlist",
+      label: "Hiding watchlist",
+      onRemove: () => handleParamsChange({ ...params, hideWatchlist: undefined }),
+    });
+  }
+
+  if (params.hideDisliked) {
+    activeFilterPills.push({
+      key: "hide-disliked",
+      label: "Hiding disliked",
+      onRemove: () => handleParamsChange({ ...params, hideDisliked: undefined }),
     });
   }
 

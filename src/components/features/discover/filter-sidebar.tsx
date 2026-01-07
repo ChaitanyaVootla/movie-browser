@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Filter, X, ChevronDown } from "lucide-react";
+import { Filter, X, ChevronDown, Eye, EyeOff, Heart, List, ThumbsDown } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -32,6 +34,9 @@ import {
   MONETIZATION_OPTIONS,
   MOVIE_GENRE_LIST,
   TV_GENRE_LIST,
+  DECADE_OPTIONS,
+  MOVIE_CERTIFICATION_OPTIONS,
+  TV_CERTIFICATION_OPTIONS,
   type DiscoverParams,
 } from "@/lib/discover";
 import { POPULAR_LANGUAGES, POPULAR_COUNTRIES } from "@/lib/topics";
@@ -60,6 +65,12 @@ export function FilterSidebar({
   personMeta,
   onPersonMetaChange,
 }: FilterSidebarProps) {
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
+  
+  const [libraryOpen, setLibraryOpen] = useState(
+    params.hideWatched || params.hideWatchlist || params.hideDisliked
+  );
   const [genresOpen, setGenresOpen] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [streamingOpen, setStreamingOpen] = useState(
@@ -112,6 +123,23 @@ export function FilterSidebar({
     return "any";
   }, [params]);
 
+  // Get current decade filter value
+  const decadeValue = useMemo(() => {
+    if (params.year) return "any"; // Specific year overrides decade
+    if (params.year_gte && params.year_lte) {
+      const decade = DECADE_OPTIONS.find(
+        (d) => d.value !== "any" && d.gte === params.year_gte && d.lte === params.year_lte
+      );
+      return decade?.value || "any";
+    }
+    return "any";
+  }, [params.year, params.year_gte, params.year_lte]);
+
+  // Get certification options based on media type
+  const certificationOptions = params.media_type === "tv" 
+    ? TV_CERTIFICATION_OPTIONS 
+    : MOVIE_CERTIFICATION_OPTIONS;
+
   const selectedGenres = Array.isArray(params.with_genres)
     ? params.with_genres
     : params.with_genres
@@ -157,7 +185,14 @@ export function FilterSidebar({
     params.with_watch_monetization_types ||
     (Array.isArray(params.with_cast) ? params.with_cast.length : params.with_cast ? 1 : 0) > 0 ||
     (Array.isArray(params.with_crew) ? params.with_crew.length : params.with_crew ? 1 : 0) > 0 ||
-    (Array.isArray(params.with_keywords) ? params.with_keywords.length : params.with_keywords ? 1 : 0) > 0;
+    (Array.isArray(params.with_keywords) ? params.with_keywords.length : params.with_keywords ? 1 : 0) > 0 ||
+    params.year ||
+    params.year_gte ||
+    params.year_lte ||
+    params.certification ||
+    params.hideWatched ||
+    params.hideWatchlist ||
+    params.hideDisliked;
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
@@ -190,6 +225,71 @@ export function FilterSidebar({
                   className="w-full"
                 />
               </div>
+              <Separator />
+            </>
+          )}
+
+          {/* Your Library - Only for authenticated users */}
+          {isAuthenticated && (
+            <>
+              <Collapsible open={libraryOpen} onOpenChange={setLibraryOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full py-1">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground cursor-pointer flex items-center gap-2">
+                    Your Library
+                    {(params.hideWatched || params.hideWatchlist || params.hideDisliked) && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+                    )}
+                  </Label>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 text-muted-foreground transition-transform",
+                      libraryOpen && "rotate-180"
+                    )}
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  {/* Hide Watched - Movies only */}
+                  {params.media_type === "movie" && (
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="hide-watched" className="text-sm flex items-center gap-2 cursor-pointer">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        Hide watched
+                      </Label>
+                      <Switch
+                        id="hide-watched"
+                        checked={params.hideWatched || false}
+                        onCheckedChange={(checked) => updateParam("hideWatched", checked || undefined)}
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Hide Watchlist */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="hide-watchlist" className="text-sm flex items-center gap-2 cursor-pointer">
+                      <List className="h-4 w-4 text-muted-foreground" />
+                      Hide in watchlist
+                    </Label>
+                    <Switch
+                      id="hide-watchlist"
+                      checked={params.hideWatchlist || false}
+                      onCheckedChange={(checked) => updateParam("hideWatchlist", checked || undefined)}
+                    />
+                  </div>
+                  
+                  {/* Hide Disliked */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="hide-disliked" className="text-sm flex items-center gap-2 cursor-pointer">
+                      <ThumbsDown className="h-4 w-4 text-muted-foreground" />
+                      Hide disliked
+                    </Label>
+                    <Switch
+                      id="hide-disliked"
+                      checked={params.hideDisliked || false}
+                      onCheckedChange={(checked) => updateParam("hideDisliked", checked || undefined)}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
               <Separator />
             </>
           )}
@@ -232,9 +332,66 @@ export function FilterSidebar({
               />
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-3 space-y-4">
+              {/* Decade */}
+              <div className="space-y-2">
+                <Label className="text-sm">Decade</Label>
+                <Select
+                  value={decadeValue}
+                  onValueChange={(v) => {
+                    if (v === "any") {
+                      const newParams = { ...params };
+                      delete newParams.year;
+                      delete newParams.year_gte;
+                      delete newParams.year_lte;
+                      onChange(newParams);
+                    } else {
+                      const decade = DECADE_OPTIONS.find((d) => d.value === v);
+                      if (decade && decade.value !== "any") {
+                        const newParams = { ...params };
+                        delete newParams.year;
+                        newParams.year_gte = decade.gte;
+                        newParams.year_lte = decade.lte;
+                        onChange(newParams);
+                      }
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Any decade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DECADE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Age Rating / Certification */}
+              <div className="space-y-2">
+                <Label className="text-sm">Age Rating</Label>
+                <Select
+                  value={params.certification || "any"}
+                  onValueChange={(v) => updateParam("certification", v !== "any" ? v : undefined)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Any rating" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {certificationOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Rating */}
               <div className="space-y-2">
-                <Label className="text-sm">Minimum Rating</Label>
+                <Label className="text-sm">Minimum Score</Label>
                 <Select
                   value={params["vote_average.gte"]?.toString() || "any"}
                   onValueChange={(v) =>
