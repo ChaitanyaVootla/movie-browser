@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Play, Eye, ThumbsUp, ThumbsDown, Youtube } from "lucide-react";
+import { Play, Eye, ThumbsUp, ThumbsDown, Youtube, User } from "lucide-react";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { TrailerModal, youtubeToTrailerModalData, type TrailerModalData } from "./trailer-modal";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,44 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
       <span className="text-[11px] text-muted-foreground tabular-nums">{formatViewCount(dislikes)}</span>
       <ThumbsDown className="h-3 w-3 text-muted-foreground" />
     </div>
+  );
+}
+
+/**
+ * Channel avatar with fallback icon for missing/broken images
+ */
+function ChannelAvatar({ 
+  src, 
+  alt, 
+  size = 16 
+}: { 
+  src: string | null; 
+  alt: string;
+  size?: number;
+}) {
+  const [hasError, setHasError] = useState(false);
+  
+  if (!src || hasError) {
+    return (
+      <div 
+        className="rounded-full bg-muted flex items-center justify-center shrink-0"
+        style={{ width: size, height: size }}
+      >
+        <User className="text-muted-foreground" style={{ width: size * 0.65, height: size * 0.65 }} />
+      </div>
+    );
+  }
+  
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={size}
+      height={size}
+      className="rounded-full shrink-0"
+      unoptimized
+      onError={() => setHasError(true)}
+    />
   );
 }
 
@@ -111,9 +149,13 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
           )}
         </div>
 
-        {/* Channel name */}
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <Youtube className="h-3 w-3" />
+        {/* Channel */}
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <ChannelAvatar 
+            src={trailer.channelThumbnail} 
+            alt={trailer.channelTitle}
+            size={16}
+          />
           <span className="text-[10px] truncate">{trailer.channelTitle}</span>
         </div>
       </div>

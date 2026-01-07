@@ -442,6 +442,7 @@ export interface YouTubeTrendingTrailer {
   title: string;           // Extracted movie/show title
   trailerTitle: string;    // Full YouTube video title
   channelTitle: string;
+  channelThumbnail: string | null;  // Channel avatar (240px or 88px)
   channelCategory: string;
   publishedAt: string;
   viewCount: number;
@@ -470,6 +471,7 @@ export async function getYouTubeTrendingTrailers(
       title: t.extractedTitle,
       trailerTitle: t.title,
       channelTitle: t.channelTitle,
+      channelThumbnail: t.channelThumbnail,
       channelCategory: t.channelCategory,
       publishedAt: t.publishedAt,
       viewCount: t.viewCount,

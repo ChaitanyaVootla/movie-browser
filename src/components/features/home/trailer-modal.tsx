@@ -21,6 +21,7 @@ import {
   Calendar,
   MessageCircle,
   Heart,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatViewCount, formatRelativeTime } from "@/lib/youtube-utils";
@@ -36,6 +37,7 @@ export interface TrailerModalData {
   mediaType?: "movie" | "tv";
   publishedAt?: string;
   channelTitle?: string;
+  channelThumbnail?: string | null; // Channel avatar URL
   // Stats from YouTube API
   viewCount?: number;
   likeCount?: number;
@@ -85,6 +87,44 @@ function LikeDislikeBar({
       </span>
       <ThumbsDown className="h-4 w-4 text-muted-foreground" />
     </div>
+  );
+}
+
+/**
+ * Channel avatar with fallback icon for missing/broken images
+ */
+function ChannelAvatar({ 
+  src, 
+  alt, 
+  size = 20 
+}: { 
+  src?: string | null; 
+  alt: string;
+  size?: number;
+}) {
+  const [hasError, setHasError] = useState(false);
+  
+  if (!src || hasError) {
+    return (
+      <div 
+        className="rounded-full bg-muted flex items-center justify-center shrink-0"
+        style={{ width: size, height: size }}
+      >
+        <User className="text-muted-foreground" style={{ width: size * 0.6, height: size * 0.6 }} />
+      </div>
+    );
+  }
+  
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={size}
+      height={size}
+      className="rounded-full shrink-0"
+      unoptimized
+      onError={() => setHasError(true)}
+    />
   );
 }
 
@@ -490,19 +530,16 @@ export function TrailerModal({
                     </h3>
                   )}
 
-                  {/* Trailer title if different from movie title */}
-                  {currentTrailer.trailerTitle &&
-                    currentTrailer.trailerTitle !== currentTrailer.title && (
-                      <p className="text-sm text-muted-foreground line-clamp-1">
-                        {currentTrailer.trailerTitle}
-                      </p>
-                    )}
-
                   {/* Channel */}
                   {currentTrailer.channelTitle && (
-                    <p className="text-xs text-muted-foreground">
-                      {currentTrailer.channelTitle}
-                    </p>
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <ChannelAvatar 
+                        src={currentTrailer.channelThumbnail}
+                        alt={currentTrailer.channelTitle}
+                        size={20}
+                      />
+                      <span className="text-xs">{currentTrailer.channelTitle}</span>
+                    </div>
                   )}
                 </div>
 
@@ -649,6 +686,7 @@ export function youtubeToTrailerModalData(
     title: trailer.title,
     trailerTitle: trailer.trailerTitle,
     channelTitle: trailer.channelTitle,
+    channelThumbnail: trailer.channelThumbnail,
     publishedAt: trailer.publishedAt,
     viewCount: trailer.viewCount,
     likeCount: trailer.likeCount,

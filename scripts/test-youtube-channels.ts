@@ -292,13 +292,20 @@ function isLikelyTrailer(title: string, description: string): boolean {
   const hasTrailerKeyword = trailerKeywords.some(k => text.includes(k));
 
   // Negative signals (not trailers)
+  // Use word boundaries for short keywords to avoid false positives
+  // e.g., "ost" matching "posted", "song" matching "songwriting"
   const negativeKeywords = [
     "clip", "scene", "behind the scenes", "making of", "interview",
     "review", "reaction", "explained", "breakdown", "easter egg",
-    "soundtrack", "ost", "music video", "lyric", "song",
-    "deleted scene", "bonus", "extra", "commentary"
+    "soundtrack", "music video", "lyric", "deleted scene",
+    "bonus", "commentary", "podcast"
   ];
-  const hasNegativeKeyword = negativeKeywords.some(k => text.includes(k));
+  // Short keywords that need word boundary matching
+  const shortNegativeKeywords = ["ost", "song", "extra"];
+
+  const hasNegativeKeyword =
+    negativeKeywords.some(k => text.includes(k)) ||
+    shortNegativeKeywords.some(k => new RegExp(`\\b${k}\\b`).test(text));
 
   // Short clips from Movieclips are often scene clips
   if (text.includes("movieclips") && !hasTrailerKeyword) {
