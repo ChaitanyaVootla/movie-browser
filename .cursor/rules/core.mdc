@@ -22,10 +22,11 @@ The codebase is designed to be maintained by AI agents with human oversight.
 - **Auth**: Auth.js v5 (NextAuth)
 - **Animation**: Framer Motion
 - **Validation**: Zod
-- **Caching**: node-cache (in-memory for TMDB API)
+- **Caching**: Unified L1 (node-cache) + L2 (file) with stale-while-revalidate
 - **Logging**: Pino (structured JSON logging)
 - **Images**: CDN (`image.themoviebrowser.com`) with TMDB fallback
 - **Country Data**: country-list (complete ISO 3166-1 country list)
+- **Analytics**: ClickHouse + Grafana (self-hosted, privacy-first)
 
 ## Directory Structure
 
@@ -50,7 +51,7 @@ src/
 │   ├── watched/              # User watched movies (authenticated)
 │   │   ├── page.tsx          # Server component with metadata
 │   │   └── client.tsx        # Searchable grid with genre filter and sort
-│   ├── admin/                # Admin dashboard (protected)
+│   ├── admin/                # Admin dashboard (protected, analytics + users)
 │   └── api/
 │       ├── auth/[...nextauth]/  # Auth.js handlers
 │       ├── admin/               # Admin API routes (protected)
@@ -64,8 +65,16 @@ src/
 │           ├── rating/          # Like/dislike ratings
 │           ├── ratings/         # GET all ratings with full details
 │           └── watched/         # GET all watched movies with full details
+│       └── analytics/
+│           └── ingest/          # POST client-side analytics events
 ├── components/
 │   ├── ui/              # shadcn/ui components (DO NOT MODIFY)
+│   ├── analytics/       # Client-side analytics tracking
+│   │   ├── index.ts                    # Exports
+│   │   ├── analytics-provider.tsx      # Wrapper combining all trackers
+│   │   ├── page-view-tracker.tsx       # Page view tracking on navigation
+│   │   ├── web-vitals-tracker.tsx      # Core Web Vitals (TTFB, FCP, LCP, CLS, INP)
+│   │   └── analytics-error-boundary.tsx # Error boundary + global handlers
 │   └── features/        # Domain-specific components
 │       ├── movie/       # Movie components (cards, carousel, logo)
 │       ├── series/      # Series components
@@ -81,6 +90,10 @@ src/
 │       │   └── trailer-modal.tsx          # Full-featured trailer modal (Dialog)
 │       ├── discover/    # Browse/filter components (sidebar, grid, scroller)
 │       ├── auth/        # Auth components (GoogleOneTap, UserMenu, LoginDialog)
+│       ├── admin/       # Admin dashboard components
+│       │   ├── index.ts                 # Exports
+│       │   ├── analytics-dashboard.tsx  # Main analytics UI (traffic, AI, perf, system)
+│       │   └── alerts-panel.tsx         # Alert display component
 │       └── layout/      # Layout components
 │           ├── nav-bar.tsx           # Desktop navbar (hidden on mobile)
 │           ├── mobile-bottom-nav.tsx # Mobile bottom navigation bar
@@ -92,6 +105,15 @@ src/
 │   ├── constants.ts     # App constants, cache durations, excluded genres
 │   ├── discover.ts      # Discover params, sort options, genre lists
 │   ├── person-credits.ts # Person credit filtering (talk shows, upcoming/latest)
+│   ├── analytics/       # ClickHouse analytics client and tracking
+│   │   ├── index.ts     # Module exports (⚠️ includes server-only context.ts)
+│   │   ├── types.ts     # Event type definitions (client-safe)
+│   │   ├── client.ts    # ClickHouse HTTP client
+│   │   ├── track.ts     # Server-side tracking functions
+│   │   ├── context.ts   # Request context extraction (server-only, imports auth)
+│   │   ├── bot-detection.ts  # Bot/crawler detection (client-safe)
+│   │   ├── session.ts   # Session ID generation (client-safe)
+│   │   └── device-parser.ts  # User-agent parsing (client-safe)
 │   ├── topics/          # Topic utilities and definitions
 │   │   ├── index.ts     # Export hub
 │   │   ├── types.ts     # TopicMeta, ThemeDefinition types
@@ -106,7 +128,8 @@ src/
 │   │   ├── series-badges.ts # Series-specific badge logic
 │   │   └── utils.ts     # Date helpers, badge creation utilities
 │   ├── image.ts         # CDN image utilities
-│   ├── cache.ts         # In-memory cache layer (node-cache)
+│   ├── cache-service.ts # Unified L1+L2 cache (memory + file persistence)
+│   ├── cache.ts         # Re-exports from cache-service (backwards compat)
 │   ├── watch-options.ts # Watch provider processing utilities
 │   ├── auth.ts          # Auth.js config (Node.js - full)
 │   ├── auth.config.ts   # Auth.js config (Edge-safe - for proxy)
@@ -116,7 +139,8 @@ src/
 │   ├── use-scroll-drag.ts   # Drag-to-scroll hook with click detection threshold
 │   ├── use-user-library.ts  # Convenience hook for watchlist/watched/ratings
 │   ├── use-chat-stream.ts   # SSE chat hook for AI assistant
-│   └── use-mobile.ts        # Mobile detection hook (<768px breakpoint)
+│   ├── use-mobile.ts        # Mobile detection hook (<768px breakpoint)
+│   └── use-analytics.ts     # Client-side analytics action tracking
 ├── stores/              # Zustand stores
 │   ├── user.ts          # User library state (watchlist, watched, ratings, recents, continueWatching)
 │   └── preferences.ts   # User preferences with localStorage persistence (cardDisplayMode)
@@ -477,14 +501,96 @@ function ImageWithFallback({ sources }) {
 
 ## Caching Strategy
 
-### TMDB API Calls → In-Memory Cache (node-cache)
+### Unified Cache Service (L1 + L2)
 
-```tsx
-import { cachedFetch } from "@/lib/cache";
+The app uses a hybrid caching system with in-memory (L1) and file-based (L2) layers:
 
-// Automatically caches with namespace-based TTL
-const data = await cachedFetch("trending", cacheKey, fetcher);
+```typescript
+import { cachedFetchPersistent } from "@/lib/cache-service";
+
+// Automatically caches with L1 (memory) + L2 (file) + stale-while-revalidate
+const data = await cachedFetchPersistent("youtube", cacheKey, fetcher);
 ```
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Server Actions / API Routes                                    │
+│  (discover, trending, search, movie, series, person)           │
+├─────────────────────────────────────────────────────────────────┤
+│  TMDB Service (src/server/services/tmdb.ts)                    │
+│  fetchFromTMDB() → cachedFetch(namespace, key, fetcher)        │
+├─────────────────────────────────────────────────────────────────┤
+│  Unified Cache Service (src/lib/cache-service.ts)              │
+│  L1 (node-cache) → L2 (.cache/) → stale-while-revalidate       │
+│  + compression for >10KB payloads                               │
+└─────────────────────────────────────────────────────────────────┘
+
+Request → L1 (memory) → L2 (file) → Stale check → In-flight dedup → API call
+                ↓           ↓            ↓
+              HIT         HIT      Return stale + background refresh
+```
+
+**Key Features:**
+- **L1 (Memory)**: Fast node-cache, lost on restart
+- **L2 (File)**: Persists to `.cache/`, survives restarts
+- **Stale-While-Revalidate**: Returns stale data instantly, refreshes in background
+- **Request Deduplication**: Multiple concurrent requests share one API call
+- **Cache Versioning**: Bump `CACHE_VERSION` in cache-service.ts to invalidate
+- **Compression**: Payloads >10KB are gzip compressed (if >10% savings)
+- **Cache Warming**: L2 → L1 warming on server start for quota-sensitive data
+- **Prometheus Metrics**: Export metrics via `/api/health?format=prometheus`
+
+### Cache TTLs by Namespace
+
+| Namespace | L1 (Memory) | L2 (File) | Stale Grace | Use Case |
+|-----------|-------------|-----------|-------------|----------|
+| `youtube` | 1 hour | 24 hours | 1 hour | Video stats, comments |
+| `youtube-channels` | 1 hour | 24 hours | 2 hours | Channel trailer uploads |
+| `person` | 24 hours | 3 days | 24 hours | Person/actor data |
+| `movie` | 1 hour | 2 hours | — | Movie details |
+| `series` | 1 hour | 2 hours | — | Series details |
+| `search` | 5 min | 1 hour | — | Search results |
+| `discover` | 30 min | 1 hour | — | Browse/filter results |
+| `images` | 1 hour | 24 hours | — | Image metadata |
+| `trending` | 15 min | (none) | — | Trending (always fresh) |
+
+### Cache Warming on Startup
+
+On server start (`instrumentation.ts`), the cache is warmed from L2 to L1:
+
+```typescript
+// Warmed namespaces (quota-sensitive):
+// - youtube-channels (most critical - protects YouTube quota)
+// - youtube, person, movie, series
+```
+
+This ensures fast responses after server restarts without hitting external APIs.
+
+**Note:** The instrumentation file uses `.node.ts` suffix (`instrumentation.node.ts`) to ensure it only runs in Node.js runtime. This prevents Edge Runtime warnings for Node.js-only modules (fs, path, crypto, zlib).
+
+### Health Endpoint & Monitoring
+
+```bash
+# Basic health check
+GET /api/health
+# → { status: "healthy", cache: { hitRates: { l1: "85%", l2: "92%" } } }
+
+# Detailed stats
+GET /api/health?format=detailed
+# → Full cache stats including per-namespace sizes
+
+# Prometheus metrics
+GET /api/health?format=prometheus
+# → Plain text metrics for Grafana/Prometheus
+```
+
+**Available Prometheus Metrics:**
+- `cache_l1_hits_total`, `cache_l1_misses_total`
+- `cache_l2_hits_total`, `cache_l2_misses_total`
+- `cache_stale_hits_total`, `cache_background_refreshes_total`
+- `cache_compression_savings_bytes`, `cache_compressed_writes_total`
+- `cache_namespace_files{namespace="..."}`, `cache_namespace_bytes{namespace="..."}`
 
 ### MongoDB Queries → Next.js Cache
 
@@ -498,34 +604,32 @@ export const getMovie = cache(
 );
 ```
 
-### Cache TTLs (from constants.ts)
+### File Structure
 
-| Type | TTL | Use Case |
-|------|-----|----------|
-| trending | 15 min | Homepage trending content |
-| movie/series | 1 hour | Detail pages |
-| person | 24 hours | Person pages |
-| search | 5 min | Search results |
-| discover | 30 min | Browse/topics results |
-| images | 1 hour | Logo/image metadata |
-| youtube | 24 hours | YouTube video stats/comments |
-
-### YouTube Channels → File-Based Cache
-
-The YouTube channel monitoring service uses file-based caching to persist across server restarts and minimize API quota usage:
-
-```typescript
-// Cache location: .cache/youtube-channels/{channelId}.json
-// TTL: 12 hours
-// Structure: { timestamp: number, videos: YouTubeTrailer[] }
+```
+.cache/
+├── youtube/              # Video stats, comments
+├── youtube-channels/     # Channel uploads (quota-sensitive)
+├── person/               # Person data
+├── movie/                # Movie details
+├── series/               # Series details
+├── search/               # Search results
+├── discover/             # Browse results
+└── images/               # Image metadata
 ```
 
-**Quota Usage:**
-- ~3 units per channel (channels.list + playlistItems.list + videos.list)
-- ~100 units for all 33 channels
-- With 12h cache, daily usage is ~200 units (2% of 10,000 daily quota)
-| discover | 30 min | Browse/topics results |
-| images | 1 hour | Logo/image metadata |
+### YouTube API Quota Protection
+
+Daily quota: 10,000 units
+
+| Operation | Cost | With 24h Cache |
+|-----------|------|----------------|
+| channels.list | 1 unit | ~35/day |
+| playlistItems.list | 1 unit | ~35/day |
+| videos.list | 1 unit | ~35/day |
+| **Total** | — | **~105 units/day** (1% of quota) |
+
+For detailed cache documentation, see `docs/CACHING_IMPLEMENTATION.md`.
 
 ## Routing Patterns
 
@@ -1550,6 +1654,178 @@ useEffect(() => {
 ```
 
 Used in: `SearchCommand`, and can be applied to any fullscreen mobile dialog.
+
+## Analytics (ClickHouse + Grafana)
+
+Self-hosted privacy-first analytics using ClickHouse for storage and Grafana for visualization/alerting.
+
+**Status:** All Phases Complete ✅
+
+**Docker Images:**
+- ClickHouse: `clickhouse/clickhouse-server:25.12`
+- Grafana: `grafana/grafana:12.3.1`
+
+**What's Working:**
+- ✅ ClickHouse + Grafana infrastructure (Phase 1)
+- ✅ Page view tracking (`<PageViewTracker>`) (Phase 2)
+- ✅ AI usage tracking (automatic in `agent.ts`) (Phase 3)
+- ✅ User action tracking (`useAnalytics` hook) (Phase 4)
+- ✅ Error tracking (`<AnalyticsErrorBoundary>`) (Phase 5)
+- ✅ Core Web Vitals (`<WebVitalsTracker>` - TTFB, FCP, LCP, CLS, INP) (Phase 6)
+- ✅ **Admin Dashboard Analytics** (Phase 7) - Real-time metrics in `/admin`
+- ✅ **Alert System** (Phase 8) - Automated alerts surfaced in admin dashboard
+- ✅ **Grafana Dashboards** - Auto-provisioned for advanced analysis
+- ✅ Ingest API (`POST /api/analytics/ingest`)
+- ✅ `<AnalyticsProvider>` wrapper (integrated in Providers)
+
+**Admin Dashboard Analytics (`/admin` → Analytics tab):**
+- Traffic overview (page views, sessions, users, geo, devices)
+- AI usage & costs (invocations, tokens, cost/user, query types)
+- Core Web Vitals (LCP, FCP, TTFB, CLS, INP with Good/Needs Work/Poor thresholds)
+- Cache performance (L1/L2 hit rates, memory, compression)
+- Automated alerts for: AI cost spikes, error rate, performance degradation, cache issues, traffic anomalies
+
+**Admin Filtering:**
+Admin users (determined by `isAdminEmail()` in `@/lib/admin`) are automatically excluded from analytics tracking to avoid polluting data with internal testing/development activity. This filtering happens:
+- Server-side: `trackPageView`, `trackSession*`, `trackUserAction`, `trackPerformance` all skip if `is_admin: true`
+- Ingest API: Checks auth session and returns early for admin users
+- **Note:** Error tracking and cache metrics are NOT filtered (useful for debugging)
+
+**Grafana Dashboards (port 3004):**
+- Traffic Overview, AI Economics, Performance (Web Vitals), Errors, System Health
+
+### Setup
+
+```bash
+# Start analytics stack
+cd analytics && docker-compose -f docker-compose.analytics.yml up -d
+
+# Ports:
+# - ClickHouse: 8123 (HTTP), 9000 (Native)
+# - Grafana: 3004
+```
+
+### Environment Variables
+
+```bash
+# .env.local
+CLICKHOUSE_HOST=localhost
+CLICKHOUSE_PORT=8123
+CLICKHOUSE_USER=analytics
+CLICKHOUSE_PASSWORD=your_password
+CLICKHOUSE_DATABASE=analytics
+```
+
+### Directory Structure
+
+```
+src/components/analytics/       # Client-side tracking components
+├── index.ts                    # Exports
+├── analytics-provider.tsx      # Wrapper combining all trackers
+├── page-view-tracker.tsx       # Page view tracking on navigation
+├── web-vitals-tracker.tsx      # Core Web Vitals (TTFB, FCP, LCP, CLS, INP)
+└── analytics-error-boundary.tsx # Error boundary + global handlers
+
+src/lib/analytics/              # Server-side analytics library
+├── index.ts                    # Exports (⚠️ includes server-only code)
+├── types.ts                    # Event type definitions (client-safe)
+├── client.ts                   # ClickHouse HTTP client
+├── track.ts                    # Server-side tracking functions
+├── queries.ts                  # Reusable query functions for dashboards
+├── alerts.ts                   # Alert definitions and detection logic
+├── context.ts                  # Request context extraction (server-only)
+├── bot-detection.ts            # Bot/crawler detection (client-safe)
+├── session.ts                  # Session ID generation (client-safe)
+└── device-parser.ts            # User-agent parsing (client-safe)
+
+src/hooks/use-analytics.ts      # Client-side action tracking hook
+```
+
+### Key Patterns
+
+**⚠️ Client vs Server Imports:**
+
+```typescript
+// ❌ BAD - imports server-only code (context.ts imports auth which imports mongodb)
+import { getPageTypeFromPath } from "@/lib/analytics";
+
+// ✅ GOOD - import only from client-safe modules
+import type { PageType } from "@/lib/analytics/types";
+```
+
+**Timestamp Format:** ClickHouse requires `YYYY-MM-DD HH:MM:SS.mmm`:
+
+```typescript
+// ✅ Correct
+const timestamp = new Date().toISOString().replace("T", " ").replace("Z", "");
+```
+
+**Nullable Columns:** ClickHouse doesn't support `Nullable(LowCardinality(String))`:
+
+```sql
+-- ✅ Correct
+bot_type LowCardinality(String) DEFAULT ''
+```
+
+### Client-Side Tracking
+
+**Automatic (via AnalyticsProvider):**
+- Page views on every navigation (SSR + SPA)
+- Core Web Vitals on initial page load
+- Global error handlers (window.onerror, unhandledrejection)
+
+**Manual (via useAnalytics hook):**
+
+```typescript
+import { useAnalytics } from "@/hooks/use-analytics";
+
+function WatchlistButton({ movieId, title }: Props) {
+  const { trackWatchlistAdd } = useAnalytics();
+
+  const handleClick = () => {
+    trackWatchlistAdd(movieId, "movie", title);
+    // ... actual logic
+  };
+}
+```
+
+Available methods:
+- `trackWatchlistAdd/Remove(itemId, mediaType, title?)`
+- `trackRating(itemId, mediaType, "like"|"dislike"|"remove", title?)`
+- `trackWatched(itemId, mediaType, marked, title?)`
+- `trackWatchClick(itemId, mediaType, provider, title?)`
+- `trackTrailerPlay(itemId, mediaType, title?)`
+- `trackSearch(query, resultCount?)`
+- `trackFilterApply(filters)`
+- `trackAIChatOpen()` / `trackAIChatSubmit(query)`
+- `trackShareClick(itemId, mediaType, platform, title?)`
+- `trackExternalLink(url, source?)`
+
+### Web Vitals Behavior
+
+| Metric | Initial SSR Load | Client Navigation (SPA) |
+|--------|------------------|-------------------------|
+| Page Views | ✅ | ✅ |
+| TTFB, FCP, LCP | ✅ | ❌ (no server round-trip) |
+| CLS | ✅ | ⚠️ (continues accumulating) |
+| INP | ✅ | ✅ (continues measuring) |
+
+**Note:** FID was replaced by INP in web-vitals v4+.
+
+### Tables
+
+| Table | Retention | Purpose |
+|----|---|---|
+| `page_views` | 90 days | Traffic analytics |
+| `sessions` | 180 days | User journey |
+| `ai_usage` | 365 days | AI cost tracking |
+| `user_actions` | 180 days | User behavior |
+| `api_calls` | 30 days | API monitoring |
+| `errors` | 90 days | Error tracking |
+| `cache_metrics` | 30 days | Cache health |
+| `performance` | 90 days | Core Web Vitals |
+
+For full documentation, see `docs/ANALYTICS_MONITORING_PLAN.md`.
 
 ## Do NOT
 

@@ -16,6 +16,7 @@ interface RecentTrackerProps {
 /**
  * Invisible component that tracks page views and adds them to recents.
  * Only tracks for authenticated users.
+ * Properly handles navigation between pages by tracking which specific item was tracked.
  */
 export function RecentTracker({
   itemId,
@@ -27,15 +28,26 @@ export function RecentTracker({
 }: RecentTrackerProps) {
   const { status } = useSafeSession();
   const addToRecents = useUserStore((state) => state.addToRecents);
-  const trackedRef = useRef(false);
+  // Track which specific item was tracked (not just "was something tracked")
+  // This handles navigation between pages where component may be reused
+  const trackedItemRef = useRef<{ itemId: number; isMovie: boolean } | null>(null);
 
   useEffect(() => {
-    // Only track once per mount and only for authenticated users
-    if (status !== "authenticated" || trackedRef.current) {
+    // Only track for authenticated users
+    if (status !== "authenticated") {
       return;
     }
 
-    trackedRef.current = true;
+    // Check if we already tracked this specific item
+    if (
+      trackedItemRef.current?.itemId === itemId &&
+      trackedItemRef.current?.isMovie === isMovie
+    ) {
+      return;
+    }
+
+    // Mark this item as tracked
+    trackedItemRef.current = { itemId, isMovie };
 
     // Small delay to ensure hydration is complete
     const timer = setTimeout(() => {

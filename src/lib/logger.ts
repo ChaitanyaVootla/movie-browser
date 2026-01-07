@@ -105,6 +105,12 @@ export const tmdbLogger = logger.child({ module: "tmdb" });
  */
 export const authLogger = logger.child({ module: "auth" });
 
+/**
+ * Analytics logger - for analytics event tracking
+ * Use for: event ingestion, ClickHouse operations
+ */
+export const analyticsLogger = logger.child({ module: "analytics" });
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
@@ -187,7 +193,8 @@ export type LogModule =
   | "api:admin"
   | "data"
   | "tmdb"
-  | "auth";
+  | "auth"
+  | "analytics";
 
 // =============================================================================
 // Default Export

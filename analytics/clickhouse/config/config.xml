@@ -1,0 +1,29 @@
+<clickhouse>
+    <!-- Logging -->
+    <logger>
+        <level>warning</level>
+        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+        <size>100M</size>
+        <count>3</count>
+    </logger>
+
+    <!-- Memory limits (conservative for EC2) -->
+    <max_server_memory_usage_to_ram_ratio>0.8</max_server_memory_usage_to_ram_ratio>
+
+    <!-- Compression (zstd level 3 is a good balance) -->
+    <compression>
+        <case>
+            <method>zstd</method>
+            <level>3</level>
+        </case>
+    </compression>
+
+    <!-- HTTP Interface settings -->
+    <http_server_default_response>
+        <![CDATA[<html><body>ClickHouse Analytics Server</body></html>]]>
+    </http_server_default_response>
+
+    <!-- Allow connections from anywhere (secured by Docker network) -->
+    <listen_host>0.0.0.0</listen_host>
+</clickhouse>

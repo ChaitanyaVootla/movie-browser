@@ -14,6 +14,7 @@ import { allTools } from "./tools";
 import { getSystemPrompt } from "./prompts/system";
 import { aiLogger, usageLogger, aiToolLogger } from "@/lib/logger";
 import { calculateUsageStats, getCurrentModelId, type UsageStats } from "@/lib/model-pricing";
+import { trackAIUsage, type QueryType } from "@/lib/analytics";
 
 // =============================================================================
 // Debug Logging
@@ -567,6 +568,38 @@ export async function invokeAgent(
       region: userContext?.region || "unknown",
       query: message.slice(0, 100), // Truncate long queries
     });
+
+    // Track AI usage to ClickHouse (fire-and-forget)
+    const toolCallNames = turnLogs
+      .flatMap((t) => t.toolCalls?.map((tc) => tc.name) || [])
+      .filter((name): name is string => !!name);
+
+    trackAIUsage({
+      sessionId: "", // Will be enriched by API route if needed
+      userId: userId ?? null,
+      isAuthenticated: isAuthenticated,
+      country: userContext?.region || "unknown",
+      query: message,
+      queryType: classifyQueryType(message, toolCallNames),
+      hasPageContext: !!pageContext,
+      pageContextType: pageContext ? getPageTypeFromContext(pageContext) : null,
+      pageContextId: pageContext?.itemId ?? null,
+      modelId: usageStats.modelId,
+      modelName: usageStats.modelName,
+      inputTokens: usageStats.inputTokens,
+      outputTokens: usageStats.outputTokens,
+      totalTokens: usageStats.totalTokens,
+      inputCost: usageStats.inputCost,
+      outputCost: usageStats.outputCost,
+      totalCost: usageStats.totalCost,
+      turns: currentTurn,
+      toolCalls: toolCallNames,
+      durationMs: totalTime,
+      hadToolRecovery: turnLogs.some((t) => 
+        t.toolCalls?.some((tc) => tc.name.startsWith("parsed_"))
+      ),
+      responseLength: invocationStats?.totalOutputChars || 0,
+    });
   }
 
   // Attach debug logs to result (including usage stats)
@@ -843,6 +876,62 @@ export function getAgentResponse(state: AgentStateType): string {
 /**
  * Extract navigation action from tool results
  */
+// =============================================================================
+// Query Classification Helpers
+// =============================================================================
+
+/**
+ * Classify the query type based on the message content and tools used
+ */
+function classifyQueryType(message: string, toolCalls: string[]): QueryType {
+  const lowerMessage = message.toLowerCase();
+
+  // Check tool calls first (most accurate)
+  if (toolCalls.includes("discover")) return "discover";
+  if (toolCalls.includes("get_trending")) return "trending";
+  if (toolCalls.includes("get_person")) return "person";
+  if (toolCalls.includes("get_details")) {
+    // Could be detail, streaming, or ratings based on message
+    if (lowerMessage.includes("where") && lowerMessage.includes("watch")) return "streaming";
+    if (lowerMessage.includes("good") || lowerMessage.includes("rating")) return "ratings";
+    if (lowerMessage.includes("similar") || lowerMessage.includes("like")) return "recommendation";
+    if (lowerMessage.includes("trailer") || lowerMessage.includes("clip")) return "media";
+    return "detail";
+  }
+
+  // Fallback to message content analysis
+  if (lowerMessage.includes("where") && lowerMessage.includes("watch")) return "streaming";
+  if (lowerMessage.includes("good") || lowerMessage.includes("worth")) return "ratings";
+  if (lowerMessage.includes("similar") || lowerMessage.includes("like")) return "recommendation";
+  if (lowerMessage.includes("trending") || lowerMessage.includes("popular")) return "trending";
+  if (lowerMessage.includes("trailer") || lowerMessage.includes("clip")) return "media";
+  if (lowerMessage.includes("who") || lowerMessage.includes("actor") || lowerMessage.includes("director")) return "person";
+
+  return "other";
+}
+
+/**
+ * Get page type from page context for analytics
+ */
+function getPageTypeFromContext(context: PageContextInput | null): "movie" | "series" | "person" | null {
+  if (!context) return null;
+
+  switch (context.mediaType) {
+    case "movie":
+      return "movie";
+    case "series":
+      return "series";
+    case "person":
+      return "person";
+    default:
+      return null;
+  }
+}
+
+// =============================================================================
+// Navigation Extraction
+// =============================================================================
+
 export function extractNavigation(
   state: AgentStateType
 ): { path: string; id?: number; type?: string } | null {

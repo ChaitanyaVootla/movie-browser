@@ -203,6 +203,14 @@ rm -f $ZIP_FILE
 
 echo "[2/5] Creating data directories..."
 mkdir -p data/enriched
+mkdir -p .cache/youtube-channels
+mkdir -p .cache/youtube
+mkdir -p .cache/person
+mkdir -p .cache/search
+mkdir -p .cache/discover
+mkdir -p .cache/movie
+mkdir -p .cache/series
+mkdir -p .cache/images
 
 echo "[3/5] Installing dependencies..."
 npm install --omit=dev --legacy-peer-deps --ignore-scripts

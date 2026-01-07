@@ -304,30 +304,46 @@ Admin link only visible to admins (neutral styling to blend with other nav items
 
 ## Database Structure
 
-### Two Databases
+### Single Database: `test`
 
-| Database | Purpose | Collections |
-|----------|---------|-------------|
-| `moviebrowser` | Auth.js adapter | `users`, `accounts`, `sessions` |
-| `test` | Nuxt app data (shared) | `users`, `watchedmovies`, `movieswatchlists`, `serieslists`, `userratings`, etc. |
+Both Next.js and Nuxt apps share the same `test` database for all user data:
 
-**Important**: The admin dashboard fetches user data from the `test` database to access Nuxt app user activity data.
+| Collection | Purpose |
+|------------|---------|
+| `users` | User profiles (Auth.js + Nuxt compatible) |
+| `accounts` | OAuth account links |
+| `sessions` | Auth.js sessions |
+| `watchedmovies` | User watched movies |
+| `movieswatchlists` | User movie watchlist |
+| `serieslists` | User series watchlist |
+| `userratings` | User likes/dislikes |
+| `recents` | Recently viewed items |
+| `continuewatchings` | Continue watching state |
+
+**Note**: The `moviebrowser` database was a legacy artifact and is no longer used.
 
 ```typescript
-// API route for admin users
-const db = client.db("test"); // Nuxt app database
-const users = await db.collection("users").find().toArray();
+// Auth.js adapter uses test database
+MongoDBAdapter(clientPromise, { databaseName: "test" })
+
+// All user operations use test database
+const db = client.db("test");
 ```
 
-### User Schema (Nuxt/test database)
+### User Schema (test.users)
+
+The user schema is compatible with both Next.js Auth.js and the Nuxt app:
 
 ```typescript
-interface NuxtUser {
+interface User {
   _id: ObjectId;
-  sub: string;           // Google user ID (primary identifier)
+  // Nuxt-compatible fields
+  id: string;            // Google sub as string (primary identifier for Nuxt)
+  sub: string;           // Google sub (duplicate for compatibility)
   name: string;
   email: string;
   picture?: string;
+  image?: string;        // Auth.js uses 'image', Nuxt uses 'picture'
   location?: {
     countryCode: string;
     country: string;
@@ -335,10 +351,18 @@ interface NuxtUser {
     region: string;
     timezone: string;
   };
+  // Timestamps
   createdAt: Date;
-  lastVisited: Date;
+  updatedAt: Date;
+  lastVisited: Date;     // Updated on each sign-in
+  emailVerified?: Date;  // Auth.js field
 }
 ```
+
+**On sign-in**, the Next.js app:
+1. Creates/updates user in `test.users` with Nuxt-compatible fields
+2. Updates `lastVisited` timestamp
+3. Ensures `id` and `sub` fields are set (Google sub as string)
 
 ### User Library Collections (test database)
 

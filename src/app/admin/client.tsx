@@ -20,6 +20,7 @@ import {
   Activity,
   Network,
   Building,
+  BarChart3,
 } from "lucide-react";
 import { useState, Fragment } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +36,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { AnalyticsDashboard } from "@/components/features/admin";
 
 /**
  * Format a date as relative time (e.g., "2h ago", "3d ago")
@@ -223,49 +226,73 @@ export function AdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw
-            className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")}
-          />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </Button>
       </div>
 
-      {/* Compact Stats */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 mb-6">
-        <StatCard
-          title="Users"
-          value={stats.total}
-          icon={Users}
-          isLoading={isLoading}
-        />
-        <ActiveUsersCard
-          daily={stats.activeToday}
-          weekly={stats.activeWeek}
-          monthly={stats.activeMonth}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Watched"
-          value={stats.totalWatched}
-          icon={Film}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Watchlist"
-          value={stats.totalWatchlist}
-          icon={Heart}
-          isLoading={isLoading}
-        />
-      </div>
+      {/* Main Tabs */}
+      <Tabs defaultValue="analytics" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="analytics" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="users" className="gap-1.5">
+            <Users className="h-4 w-4" />
+            Users
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Users Table */}
-      <Card className="py-0 overflow-hidden">
+        {/* Analytics Tab */}
+        <TabsContent value="analytics">
+          <AnalyticsDashboard />
+        </TabsContent>
+
+        {/* Users Tab */}
+        <TabsContent value="users" className="space-y-6">
+          {/* Refresh Button */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw
+                className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")}
+              />
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
+
+          {/* Compact Stats */}
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+            <StatCard
+              title="Users"
+              value={stats.total}
+              icon={Users}
+              isLoading={isLoading}
+            />
+            <ActiveUsersCard
+              daily={stats.activeToday}
+              weekly={stats.activeWeek}
+              monthly={stats.activeMonth}
+              isLoading={isLoading}
+            />
+            <StatCard
+              title="Watched"
+              value={stats.totalWatched}
+              icon={Film}
+              isLoading={isLoading}
+            />
+            <StatCard
+              title="Watchlist"
+              value={stats.totalWatchlist}
+              icon={Heart}
+              isLoading={isLoading}
+            />
+          </div>
+
+          {/* Users Table */}
+          <Card className="py-0 overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -419,6 +446,8 @@ export function AdminDashboard() {
           </Table>
         </div>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

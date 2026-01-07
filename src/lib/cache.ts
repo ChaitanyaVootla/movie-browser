@@ -1,172 +1,80 @@
 /**
- * In-Memory Cache Layer
+ * Cache Layer - Re-exports from unified cache service
  *
- * Uses node-cache for fast in-memory caching of TMDB API responses.
- * This is server-side only and persists across requests in the same Node process.
+ * This file provides backwards compatibility for existing code.
+ * All caching now goes through the unified cache-service.ts which provides:
+ * - L1 (in-memory) + L2 (file-based) hybrid caching
+ * - Persistence across server restarts
+ * - Stale-while-revalidate support
+ *
+ * For new code, import directly from "@/lib/cache-service".
  */
 
+// Re-export everything from the unified cache service
+export {
+  // Types
+  type CacheNamespace,
+
+  // Core cache operations
+  cacheGet,
+  cacheSet,
+  cacheDel,
+  cacheFlushNamespace,
+  getCacheStats,
+
+  // Cached fetch (now with L2 persistence!)
+  cachedFetch,
+  cachedFetchPersistent,
+
+  // Maintenance utilities
+  cleanupExpiredCache,
+  getCacheSizeStats,
+} from "./cache-service";
+
+// Legacy exports for full backwards compatibility
 import NodeCache from "node-cache";
-import { CACHE_DURATIONS } from "./constants";
-
-// Global cache instance - survives across requests
-const globalCache = new NodeCache({
-  // Check for expired keys every 60 seconds
-  checkperiod: 60,
-  // Use clones to prevent accidental mutations
-  useClones: true,
-  // Delete expired keys on check
-  deleteOnExpire: true,
-});
-
-// Track in-flight requests to prevent duplicate fetches
-const inFlightRequests = new Map<string, Promise<unknown>>();
-
-export type CacheNamespace =
-  | "trending"
-  | "movie"
-  | "series"
-  | "person"
-  | "search"
-  | "discover"
-  | "images"
-  | "youtube";
 
 /**
- * Get TTL for a cache namespace
- */
-function getTTL(namespace: CacheNamespace): number {
-  switch (namespace) {
-    case "trending":
-      return CACHE_DURATIONS.trending;
-    case "movie":
-      return CACHE_DURATIONS.movie;
-    case "series":
-      return CACHE_DURATIONS.series;
-    case "person":
-      return CACHE_DURATIONS.person;
-    case "search":
-      return CACHE_DURATIONS.search;
-    case "discover":
-      return CACHE_DURATIONS.discover;
-    case "images":
-      return CACHE_DURATIONS.images;
-    case "youtube":
-      return CACHE_DURATIONS.youtube;
-    default:
-      return 3600; // 1 hour default
-  }
-}
-
-/**
- * Build a namespaced cache key
- */
-function buildKey(namespace: CacheNamespace, key: string): string {
-  return `${namespace}:${key}`;
-}
-
-/**
- * Get a value from cache
- */
-export function cacheGet<T>(namespace: CacheNamespace, key: string): T | undefined {
-  const fullKey = buildKey(namespace, key);
-  return globalCache.get<T>(fullKey);
-}
-
-/**
- * Set a value in cache
- */
-export function cacheSet<T>(namespace: CacheNamespace, key: string, value: T, ttl?: number): void {
-  const fullKey = buildKey(namespace, key);
-  const cacheTTL = ttl ?? getTTL(namespace);
-  globalCache.set(fullKey, value, cacheTTL);
-}
-
-/**
- * Delete a value from cache
- */
-export function cacheDel(namespace: CacheNamespace, key: string): void {
-  const fullKey = buildKey(namespace, key);
-  globalCache.del(fullKey);
-}
-
-/**
- * Flush all keys in a namespace
- */
-export function cacheFlushNamespace(namespace: CacheNamespace): void {
-  const keys = globalCache.keys();
-  const prefix = `${namespace}:`;
-  const keysToDelete = keys.filter((k) => k.startsWith(prefix));
-  globalCache.del(keysToDelete);
-}
-
-/**
- * Flush entire cache
- */
-export function cacheFlushAll(): void {
-  globalCache.flushAll();
-}
-
-/**
- * Get cache statistics
+ * @deprecated Use getCacheStats() from cache-service instead
  */
 export function cacheStats(): NodeCache.Stats {
-  return globalCache.getStats();
+  // Return a compatible stats object from the new service
+  const { getCacheStats } = require("./cache-service");
+  return getCacheStats().memory;
 }
 
 /**
- * Cached fetch wrapper - fetches from cache or executes fetcher
- * Includes request deduplication to prevent duplicate in-flight requests
+ * @deprecated Use cacheFlushNamespace for each namespace instead
  */
-export async function cachedFetch<T>(
-  namespace: CacheNamespace,
-  key: string,
-  fetcher: () => Promise<T>,
-  ttl?: number
-): Promise<T> {
-  const fullKey = buildKey(namespace, key);
-
-  // Check cache first
-  const cached = cacheGet<T>(namespace, key);
-  if (cached !== undefined) {
-    return cached;
+export function cacheFlushAll(): void {
+  const { cacheFlushNamespace } = require("./cache-service");
+  const namespaces = [
+    "trending",
+    "movie",
+    "series",
+    "person",
+    "search",
+    "discover",
+    "images",
+    "youtube",
+    "youtube-channels",
+  ];
+  for (const ns of namespaces) {
+    cacheFlushNamespace(ns);
   }
-
-  // Check if there's already an in-flight request for this key
-  const inFlight = inFlightRequests.get(fullKey);
-  if (inFlight) {
-    return inFlight as Promise<T>;
-  }
-
-  // Create new request and track it
-  const promise = fetcher()
-    .then((data) => {
-      // Store in cache
-      cacheSet(namespace, key, data, ttl);
-      return data;
-    })
-    .finally(() => {
-      // Clean up in-flight tracking
-      inFlightRequests.delete(fullKey);
-    });
-
-  inFlightRequests.set(fullKey, promise);
-
-  return promise;
 }
 
 /**
- * Get multiple values from cache (returns map of found values)
+ * @deprecated Use cacheGet instead
  */
 export function cacheGetMultiple<T>(
-  namespace: CacheNamespace,
+  namespace: import("./cache-service").CacheNamespace,
   keys: string[]
 ): Map<string, T | undefined> {
+  const { cacheGet } = require("./cache-service");
   const results = new Map<string, T | undefined>();
-
   for (const key of keys) {
-    results.set(key, cacheGet<T>(namespace, key));
+    results.set(key, cacheGet(namespace, key));
   }
-
   return results;
 }
-

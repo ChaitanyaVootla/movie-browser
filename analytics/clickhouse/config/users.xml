@@ -1,0 +1,17 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <!-- Query limits -->
+            <max_execution_time>30</max_execution_time>
+            <max_rows_to_read>100000000</max_rows_to_read>
+            <max_memory_usage>1000000000</max_memory_usage>
+            
+            <!-- Asynchronous insert settings for better batch performance -->
+            <async_insert>1</async_insert>
+            <wait_for_async_insert>1</wait_for_async_insert>
+            <async_insert_max_data_size>10000000</async_insert_max_data_size>
+            <async_insert_busy_timeout_ms>1000</async_insert_busy_timeout_ms>
+        </default>
+    </profiles>
+</clickhouse>
+

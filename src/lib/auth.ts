@@ -93,7 +93,7 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
   }
 
   const client = await clientPromise;
-  const db = client.db("moviebrowser");
+  const db = client.db("test"); // Same database as Nuxt app
   const usersCollection = db.collection("users");
   const accountsCollection = db.collection("accounts");
 
@@ -101,13 +101,18 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
 
   if (!user) {
     const now = new Date();
+    // Create user with Nuxt-compatible schema (includes id/sub fields)
     const result = await usersCollection.insertOne({
       name: tokenInfo.name,
       email: tokenInfo.email,
       image: tokenInfo.picture,
+      picture: tokenInfo.picture, // Nuxt uses 'picture' field
+      id: tokenInfo.sub,          // Nuxt stores Google sub as 'id' (string)
+      sub: tokenInfo.sub,         // Also store as 'sub' for compatibility
       emailVerified: now,
       createdAt: now,
       updatedAt: now,
+      lastVisited: now,
     });
     user = {
       _id: result.insertedId,
@@ -128,12 +133,23 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
 
     console.log(`New user created via One Tap: ${tokenInfo.email}`);
   } else {
+    // Update existing user with latest info and lastVisited
+    const updates: Record<string, unknown> = {
+      lastVisited: new Date(),
+      updatedAt: new Date(),
+    };
     if (tokenInfo.picture && user.image !== tokenInfo.picture) {
-      await usersCollection.updateOne(
-        { _id: user._id },
-        { $set: { image: tokenInfo.picture, updatedAt: new Date() } }
-      );
+      updates.image = tokenInfo.picture;
+      updates.picture = tokenInfo.picture;
     }
+    // Ensure Nuxt-compatible fields exist
+    if (!user.id) updates.id = tokenInfo.sub;
+    if (!user.sub) updates.sub = tokenInfo.sub;
+
+    await usersCollection.updateOne(
+      { _id: user._id },
+      { $set: updates }
+    );
 
     const existingAccount = await accountsCollection.findOne({
       userId: user._id,
@@ -169,8 +185,10 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
 
-  // Add database adapter (Node.js only)
-  adapter: clientPromise ? MongoDBAdapter(clientPromise) : undefined,
+  // Add database adapter pointing to 'test' database (same as Nuxt app)
+  adapter: clientPromise
+    ? MongoDBAdapter(clientPromise, { databaseName: "test" })
+    : undefined,
 
   // Define all providers here - Google OAuth + Google One Tap credentials
   providers: [
@@ -229,8 +247,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
 
-    async signIn({ user: _user, account }) {
+    async signIn({ user, account }) {
       if (account?.provider === "google" || account?.provider === "google-one-tap") {
+        // For regular Google OAuth (not One Tap), ensure Nuxt-compatible fields are set
+        // One Tap is already handled by getOrCreateGoogleUser
+        if (account?.provider === "google" && account.providerAccountId && clientPromise) {
+          try {
+            const client = await clientPromise;
+            const db = client.db("test");
+            await db.collection("users").updateOne(
+              { email: user.email },
+              {
+                $set: {
+                  id: account.providerAccountId,    // Google sub as string
+                  sub: account.providerAccountId,   // For compatibility
+                  picture: user.image,
+                  lastVisited: new Date(),
+                  updatedAt: new Date(),
+                },
+                $setOnInsert: {
+                  createdAt: new Date(),
+                },
+              }
+            );
+          } catch (error) {
+            console.error("Error updating user with Nuxt fields:", error);
+          }
+        }
         return true;
       }
       return false;

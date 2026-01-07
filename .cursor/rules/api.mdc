@@ -799,20 +799,12 @@ export async function getPersonDetails(personId: number) {
 }
 ```
 
-### Cache Layer (`src/lib/cache.ts`)
+### Cache Layer (`src/lib/cache-service.ts`)
+
+Unified L1 (memory) + L2 (file) cache with stale-while-revalidate:
 
 ```typescript
-import NodeCache from "node-cache";
-import { CACHE_DURATIONS } from "./constants";
-
-const globalCache = new NodeCache({
-  checkperiod: 60,
-  useClones: true,
-  deleteOnExpire: true,
-});
-
-// Track in-flight requests to prevent duplicate fetches
-const inFlightRequests = new Map<string, Promise<unknown>>();
+import { cachedFetchPersistent, type CacheNamespace } from "@/lib/cache-service";
 
 export type CacheNamespace =
   | "trending"
@@ -822,64 +814,70 @@ export type CacheNamespace =
   | "search"
   | "discover"
   | "images"
-  | "youtube";
+  | "youtube"
+  | "youtube-channels";
 
-// Get from cache
-export function cacheGet<T>(namespace: CacheNamespace, key: string): T | undefined;
-
-// Set in cache
-export function cacheSet<T>(namespace: CacheNamespace, key: string, value: T, ttl?: number): void;
-
-// Fetch with automatic caching AND request deduplication
-export async function cachedFetch<T>(
+// Fetch with L1+L2 caching, stale-while-revalidate, and request deduplication
+export async function cachedFetchPersistent<T>(
   namespace: CacheNamespace,
   key: string,
   fetcher: () => Promise<T>,
   ttl?: number
-): Promise<T> {
-  const fullKey = buildKey(namespace, key);
-  
-  // Check cache first
-  const cached = cacheGet<T>(namespace, key);
-  if (cached !== undefined) return cached;
-  
-  // Dedupe in-flight requests (prevents duplicate API calls)
-  if (inFlightRequests.has(fullKey)) {
-    return inFlightRequests.get(fullKey) as Promise<T>;
-  }
-  
-  const promise = fetcher().then((data) => {
-    cacheSet(namespace, key, data, ttl);
-    return data;
-  }).finally(() => {
-    inFlightRequests.delete(fullKey);
-  });
-  
-  inFlightRequests.set(fullKey, promise);
-  return promise;
-}
+): Promise<T>;
+
+// Direct cache operations
+export function cacheGet<T>(namespace: CacheNamespace, key: string): T | undefined;
+export function cacheSet<T>(namespace: CacheNamespace, key: string, value: T, ttl?: number): void;
+export function cacheDel(namespace: CacheNamespace, key: string): void;
+export function cacheFlushNamespace(namespace: CacheNamespace): void;
 ```
+
+**Architecture:**
+```
+Request → L1 (memory) → L2 (file) → Stale check → In-flight dedup → API call
+                ↓           ↓            ↓
+              HIT         HIT      Return stale + background refresh
+```
+
+**Key features:**
+- **L1 (Memory)**: Fast node-cache, lost on restart
+- **L2 (File)**: Persists to `.cache/`, survives restarts
+- **Stale-While-Revalidate**: Returns stale data instantly, refreshes in background
+- **Request Deduplication**: Multiple concurrent requests share one API call
+- **Compression**: Payloads >10KB are gzip compressed
+- **Cache Warming**: L2 → L1 warming on server start via `instrumentation.ts`
+
+**Monitoring:**
+```bash
+GET /api/health                    # Basic health + cache hit rates
+GET /api/health?format=detailed    # Full stats including per-namespace sizes
+GET /api/health?format=prometheus  # Prometheus metrics for Grafana
+```
+
+See `docs/CACHING_IMPLEMENTATION.md` for complete documentation.
 
 ### Cache Durations
 
-Defined in `src/lib/constants.ts`:
+Defined in `src/lib/cache-service.ts`:
 
-| Namespace | TTL | Use Case |
-|-----------|-----|----------|
-| trending | 15 min | Homepage trending content |
-| movie | 1 hour | Movie details |
-| series | 1 hour | Series details |
-| person | 24 hours | Person details |
-| search | 5 min | Search results |
-| discover | 30 min | Browse/topic results |
-| images | 1 hour | Logo/image metadata |
-| youtube | 30 min | YouTube video metadata |
+| Namespace | L1 (Memory) | L2 (File) | Stale Grace | Use Case |
+|-----------|-------------|-----------|-------------|----------|
+| `trending` | 15 min | ❌ none | — | Trending (always fresh) |
+| `movie` | 1 hour | 2 hours | — | Movie details |
+| `series` | 1 hour | 2 hours | — | Series details |
+| `person` | 24 hours | 3 days | 24 hours | Person filmography |
+| `search` | 5 min | 1 hour | — | Search results |
+| `discover` | 30 min | 1 hour | — | Browse/topic results |
+| `images` | 1 hour | 24 hours | — | Logo/image metadata |
+| `youtube` | 1 hour | 24 hours | 1 hour | YouTube video stats |
+| `youtube-channels` | 1 hour | 24 hours | 2 hours | YouTube channel uploads |
 
 ### When to Use Which Cache
 
 | Data Type | Cache Strategy |
 |-----------|---------------|
-| TMDB API data | In-memory (`node-cache`) |
+| TMDB API data | Unified L1+L2 cache (`cachedFetchPersistent`) |
+| YouTube API data | Unified L1+L2 cache (quota protection) |
 | MongoDB queries | `unstable_cache` with tags |
 | User-specific data | No cache or short TTL |
 | Static content | Build-time or ISR |

@@ -1036,7 +1036,7 @@ const stream = new ReadableStream({
 
 ## TMDB API Resilience
 
-The TMDB service (`src/server/services/tmdb.ts`) has built-in retry logic:
+The TMDB service (`src/server/services/tmdb.ts`) has built-in retry logic and caching:
 
 ```typescript
 // rawFetchFromTMDB has:
@@ -1044,7 +1044,6 @@ The TMDB service (`src/server/services/tmdb.ts`) has built-in retry logic:
 // - 20s timeout with AbortController
 // - ECONNRESET error handling
 // - Connection: close header to prevent pooling issues
-// - In-memory caching via node-cache to reduce API calls
 
 async function rawFetchFromTMDB<T>(
   endpoint: string,
@@ -1055,6 +1054,37 @@ async function rawFetchFromTMDB<T>(
 ```
 
 No manual retry needed when calling TMDB functions - it's built in.
+
+### Unified Cache (L1 + L2)
+
+All TMDB and YouTube API calls use the unified cache service:
+
+```typescript
+// fetchFromTMDB automatically uses cachedFetch internally
+const movie = await getMovieDetails(550);  // Uses "movie" namespace
+const results = await searchMulti("inception");  // Uses "search" namespace
+const trending = await getTrendingMovies();  // Uses "trending" namespace
+```
+
+**Cache namespaces:**
+| Namespace | L1 (Memory) | L2 (File) | Stale Grace |
+|-----------|-------------|-----------|-------------|
+| `trending` | 15 min | ❌ none | — |
+| `movie` | 1 hour | 2 hours | — |
+| `series` | 1 hour | 2 hours | — |
+| `person` | 24 hours | 3 days | 24 hours |
+| `search` | 5 min | 1 hour | — |
+| `discover` | 30 min | 1 hour | — |
+| `youtube` | 1 hour | 24 hours | 1 hour |
+| `youtube-channels` | 1 hour | 24 hours | 2 hours |
+
+**Features:**
+- L2 file cache survives server restarts
+- Cache warming on startup (via `instrumentation.ts`)
+- Compression for payloads >10KB
+- Prometheus metrics via `/api/health?format=prometheus`
+
+See `docs/CACHING_IMPLEMENTATION.md` for full details.
 
 ## Logging & Cost Tracking
 
@@ -1147,9 +1177,9 @@ Token usage is extracted from LangChain's `AIMessage.usage_metadata`:
 - Logged at invocation completion
 - Used for cost calculation
 
-### Usage Dashboard Fields
+### Usage Dashboard Fields (Pino Logs)
 
-Key fields for building dashboards:
+Key fields for building dashboards from Pino logs:
 - `module: "usage"` - Filter for cost/usage logs
 - `model` / `modelId` - Model identification
 - `tokens.total` - Total tokens consumed
@@ -1158,6 +1188,33 @@ Key fields for building dashboards:
 - `turns` - Conversation turns
 - `user` - User identifier
 - `region` - User's country
+
+### ClickHouse Analytics Integration
+
+AI usage is also tracked to ClickHouse for long-term analytics and dashboards:
+
+```typescript
+// Automatic in agent.ts after each invocation
+trackAIUsage(context, {
+  model: "Kimi K2 Thinking",
+  modelId: "moonshot.kimi-k2-thinking",
+  inputTokens: 10017,
+  outputTokens: 412,
+  inputCostMicro: 6010,    // Micro-dollars ($0.00601)
+  outputCostMicro: 1030,   // Micro-dollars ($0.00103)
+  turns: 3,
+  durationMs: 6173,
+  queryType: "discover",
+  pageContextType: "movie",
+});
+```
+
+**ClickHouse `ai_usage` table fields:**
+- `input_cost_micro` / `output_cost_micro` - Costs in micro-dollars (1/1,000,000 USD)
+- `query_type` - Inferred from tools used (discover, details, trending, etc.)
+- `page_context_type` - Page type if context-aware query
+
+See `docs/ANALYTICS_MONITORING_PLAN.md` for full schema and Grafana dashboard queries.
 
 ## Reference Documents
 

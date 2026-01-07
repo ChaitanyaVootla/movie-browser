@@ -2,28 +2,23 @@
  * YouTube Channel-Based Trailer Discovery Service
  *
  * Fetches trending trailers by monitoring official studio and aggregator channels.
- * Uses file-based caching (12h TTL) to minimize API quota usage.
+ * Uses unified cache service (24h TTL + stale-while-revalidate) to minimize API quota.
  *
  * Quota Usage:
  * - 3 units per channel (channels.list + playlistItems.list + videos.list)
  * - Cost is same whether fetching 1 or 50 videos per call
  * - ~100 units total for ~35 channels
- * - With 12h cache, daily usage is ~200 units (2% of 10,000 daily quota)
+ * - With 24h cache + stale-while-revalidate, daily usage is ~100 units (1% of quota)
  *
  * Note: YouTube Shorts are filtered client-side (no API filter available).
  * Using Search API to filter would cost 100 units vs 1 unit for playlistItems.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
 import { dataLogger } from "@/lib/logger";
+import { cachedFetchPersistent } from "@/lib/cache-service";
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
-
-// Cache configuration
-const CACHE_DIR = join(process.cwd(), ".cache", "youtube-channels");
-const CACHE_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 // =============================================================================
 // Channel Configuration
@@ -110,54 +105,6 @@ export interface YouTubeTrailer {
   isLikelyTrailer: boolean;
 }
 
-interface CacheEntry {
-  timestamp: number;
-  videos: YouTubeTrailer[];
-}
-
-// =============================================================================
-// Caching
-// =============================================================================
-
-function ensureCacheDir() {
-  if (!existsSync(CACHE_DIR)) {
-    mkdirSync(CACHE_DIR, { recursive: true });
-  }
-}
-
-function getCacheFile(channelId: string): string {
-  return join(CACHE_DIR, `${channelId}.json`);
-}
-
-function getCachedVideos(channelId: string): YouTubeTrailer[] | null {
-  try {
-    const cacheFile = getCacheFile(channelId);
-    if (!existsSync(cacheFile)) return null;
-
-    const data: CacheEntry = JSON.parse(readFileSync(cacheFile, "utf-8"));
-    if (Date.now() - data.timestamp < CACHE_DURATION_MS) {
-      return data.videos;
-    }
-  } catch {
-    // Invalid cache
-  }
-  return null;
-}
-
-function setCachedVideos(channelId: string, videos: YouTubeTrailer[]) {
-  try {
-    ensureCacheDir();
-    const cacheFile = getCacheFile(channelId);
-    const data: CacheEntry = { timestamp: Date.now(), videos };
-    writeFileSync(cacheFile, JSON.stringify(data, null, 2));
-  } catch (error) {
-    dataLogger.warn({
-      event: "youtube_cache_write_error",
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
 // =============================================================================
 // Trailer Detection
 // =============================================================================
@@ -223,131 +170,144 @@ function extractMovieTitle(trailerTitle: string): string {
 // =============================================================================
 
 /**
- * Fetch recent uploads from a channel
+ * Fetch recent uploads from a channel (internal - no caching)
+ */
+async function fetchChannelUploadsInternal(channel: Channel, maxResults: number = 50): Promise<YouTubeTrailer[]> {
+  if (!YOUTUBE_API_KEY) {
+    return [];
+  }
+
+  // Get uploads playlist ID AND channel thumbnail (snippet adds no extra quota cost)
+  const channelUrl = new URL(`${YOUTUBE_API_BASE}/channels`);
+  channelUrl.searchParams.set("part", "contentDetails,snippet");
+  channelUrl.searchParams.set("id", channel.id);
+  channelUrl.searchParams.set("key", YOUTUBE_API_KEY);
+
+  const channelResponse = await fetch(channelUrl.toString());
+  if (!channelResponse.ok) {
+    dataLogger.warn({
+      event: "youtube_channel_fetch_error",
+      channel: channel.name,
+      status: channelResponse.status,
+    });
+    throw new Error(`YouTube API error: ${channelResponse.status}`);
+  }
+
+  const channelData = await channelResponse.json();
+  const channelItem = channelData.items?.[0];
+  const uploadsPlaylistId = channelItem?.contentDetails?.relatedPlaylists?.uploads;
+
+  if (!uploadsPlaylistId) {
+    return [];
+  }
+
+  // Extract channel thumbnail (default is 88px, medium is 240px)
+  const channelThumbnail: string | null =
+    channelItem?.snippet?.thumbnails?.medium?.url ||
+    channelItem?.snippet?.thumbnails?.default?.url ||
+    null;
+
+  // Get recent uploads
+  const playlistUrl = new URL(`${YOUTUBE_API_BASE}/playlistItems`);
+  playlistUrl.searchParams.set("part", "snippet");
+  playlistUrl.searchParams.set("playlistId", uploadsPlaylistId);
+  playlistUrl.searchParams.set("maxResults", String(maxResults));
+  playlistUrl.searchParams.set("key", YOUTUBE_API_KEY);
+
+  const playlistResponse = await fetch(playlistUrl.toString());
+  if (!playlistResponse.ok) {
+    throw new Error(`YouTube playlist API error: ${playlistResponse.status}`);
+  }
+
+  const playlistData = await playlistResponse.json();
+  const videoIds = playlistData.items
+    ?.map((item: { snippet?: { resourceId?: { videoId?: string } } }) => item.snippet?.resourceId?.videoId)
+    .filter(Boolean) || [];
+
+  if (videoIds.length === 0) {
+    return [];
+  }
+
+  // Fetch video statistics
+  const statsUrl = new URL(`${YOUTUBE_API_BASE}/videos`);
+  statsUrl.searchParams.set("part", "statistics");
+  statsUrl.searchParams.set("id", videoIds.join(","));
+  statsUrl.searchParams.set("key", YOUTUBE_API_KEY);
+
+  const statsResponse = await fetch(statsUrl.toString());
+  const statsData = await statsResponse.json();
+  const statsMap = new Map<string, { views: number; likes: number }>();
+
+  for (const item of statsData.items || []) {
+    statsMap.set(item.id, {
+      views: parseInt(item.statistics?.viewCount || "0", 10),
+      likes: parseInt(item.statistics?.likeCount || "0", 10),
+    });
+  }
+
+  // Map to YouTubeTrailer format, filtering out YouTube Shorts
+  const videos: YouTubeTrailer[] = (playlistData.items || [])
+    .filter((item: { snippet?: { title?: string } }) => {
+      // Skip YouTube Shorts - they're rarely trailers and clutter results
+      const title = item.snippet?.title || "";
+      return !title.includes("#Shorts") && !title.includes("#shorts");
+    })
+    .map((item: {
+      snippet?: {
+        resourceId?: { videoId?: string };
+        title?: string;
+        channelTitle?: string;
+        publishedAt?: string;
+        description?: string;
+        thumbnails?: { high?: { url?: string }; medium?: { url?: string } };
+      };
+    }) => {
+      const videoId = item.snippet?.resourceId?.videoId || "";
+      const stats = statsMap.get(videoId) || { views: 0, likes: 0 };
+      const title = item.snippet?.title || "";
+      const description = item.snippet?.description?.slice(0, 300) || "";
+
+      return {
+        id: videoId,
+        title,
+        channelTitle: item.snippet?.channelTitle || channel.name,
+        channelId: channel.id,
+        channelCategory: channel.category,
+        channelThumbnail,
+        publishedAt: item.snippet?.publishedAt || "",
+        viewCount: stats.views,
+        likeCount: stats.likes,
+        thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || "",
+        description,
+        extractedTitle: extractMovieTitle(title),
+        isLikelyTrailer: isLikelyTrailer(title, description),
+      };
+    });
+
+  return videos;
+}
+
+/**
+ * Fetch recent uploads from a channel with caching
+ *
+ * Uses unified cache service with:
+ * - L1: 1 hour in-memory
+ * - L2: 24 hours on disk
+ * - 2 hour stale-while-revalidate grace period
  */
 async function fetchChannelUploads(channel: Channel, maxResults: number = 50): Promise<YouTubeTrailer[]> {
   if (!YOUTUBE_API_KEY) {
     return [];
   }
 
-  // Check cache first
-  const cached = getCachedVideos(channel.id);
-  if (cached) {
-    return cached;
-  }
+  const cacheKey = `channel:${channel.id}:${maxResults}`;
 
   try {
-    // Get uploads playlist ID AND channel thumbnail (snippet adds no extra quota cost)
-    const channelUrl = new URL(`${YOUTUBE_API_BASE}/channels`);
-    channelUrl.searchParams.set("part", "contentDetails,snippet");
-    channelUrl.searchParams.set("id", channel.id);
-    channelUrl.searchParams.set("key", YOUTUBE_API_KEY);
-
-    const channelResponse = await fetch(channelUrl.toString());
-    if (!channelResponse.ok) {
-      dataLogger.warn({
-        event: "youtube_channel_fetch_error",
-        channel: channel.name,
-        status: channelResponse.status,
-      });
-      return [];
-    }
-
-    const channelData = await channelResponse.json();
-    const channelItem = channelData.items?.[0];
-    const uploadsPlaylistId = channelItem?.contentDetails?.relatedPlaylists?.uploads;
-
-    if (!uploadsPlaylistId) {
-      return [];
-    }
-
-    // Extract channel thumbnail (default is 88px, medium is 240px)
-    const channelThumbnail: string | null =
-      channelItem?.snippet?.thumbnails?.medium?.url ||
-      channelItem?.snippet?.thumbnails?.default?.url ||
-      null;
-
-    // Get recent uploads
-    const playlistUrl = new URL(`${YOUTUBE_API_BASE}/playlistItems`);
-    playlistUrl.searchParams.set("part", "snippet");
-    playlistUrl.searchParams.set("playlistId", uploadsPlaylistId);
-    playlistUrl.searchParams.set("maxResults", String(maxResults));
-    playlistUrl.searchParams.set("key", YOUTUBE_API_KEY);
-
-    const playlistResponse = await fetch(playlistUrl.toString());
-    if (!playlistResponse.ok) {
-      return [];
-    }
-
-    const playlistData = await playlistResponse.json();
-    const videoIds = playlistData.items
-      ?.map((item: { snippet?: { resourceId?: { videoId?: string } } }) => item.snippet?.resourceId?.videoId)
-      .filter(Boolean) || [];
-
-    if (videoIds.length === 0) {
-      return [];
-    }
-
-    // Fetch video statistics
-    const statsUrl = new URL(`${YOUTUBE_API_BASE}/videos`);
-    statsUrl.searchParams.set("part", "statistics");
-    statsUrl.searchParams.set("id", videoIds.join(","));
-    statsUrl.searchParams.set("key", YOUTUBE_API_KEY);
-
-    const statsResponse = await fetch(statsUrl.toString());
-    const statsData = await statsResponse.json();
-    const statsMap = new Map<string, { views: number; likes: number }>();
-
-    for (const item of statsData.items || []) {
-      statsMap.set(item.id, {
-        views: parseInt(item.statistics?.viewCount || "0", 10),
-        likes: parseInt(item.statistics?.likeCount || "0", 10),
-      });
-    }
-
-    // Map to YouTubeTrailer format, filtering out YouTube Shorts
-    const videos: YouTubeTrailer[] = (playlistData.items || [])
-      .filter((item: { snippet?: { title?: string } }) => {
-        // Skip YouTube Shorts - they're rarely trailers and clutter results
-        const title = item.snippet?.title || "";
-        return !title.includes("#Shorts") && !title.includes("#shorts");
-      })
-      .map((item: {
-        snippet?: {
-          resourceId?: { videoId?: string };
-          title?: string;
-          channelTitle?: string;
-          publishedAt?: string;
-          description?: string;
-          thumbnails?: { high?: { url?: string }; medium?: { url?: string } };
-        };
-      }) => {
-        const videoId = item.snippet?.resourceId?.videoId || "";
-        const stats = statsMap.get(videoId) || { views: 0, likes: 0 };
-        const title = item.snippet?.title || "";
-        const description = item.snippet?.description?.slice(0, 300) || "";
-
-        return {
-          id: videoId,
-          title,
-          channelTitle: item.snippet?.channelTitle || channel.name,
-          channelId: channel.id,
-          channelCategory: channel.category,
-          channelThumbnail,
-          publishedAt: item.snippet?.publishedAt || "",
-          viewCount: stats.views,
-          likeCount: stats.likes,
-          thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || "",
-          description,
-          extractedTitle: extractMovieTitle(title),
-          isLikelyTrailer: isLikelyTrailer(title, description),
-        };
-      });
-
-    // Cache results
-    setCachedVideos(channel.id, videos);
-
-    return videos;
+    return await cachedFetchPersistent(
+      "youtube-channels",
+      cacheKey,
+      () => fetchChannelUploadsInternal(channel, maxResults)
+    );
   } catch (error) {
     dataLogger.error({
       event: "youtube_channel_fetch_error",
