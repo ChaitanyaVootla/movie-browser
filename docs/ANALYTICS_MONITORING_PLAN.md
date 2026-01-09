@@ -32,12 +32,23 @@
 - ✅ **Alert System** (Phase 8) - Real-time alerts surfaced in admin dashboard
 
 **Admin Dashboard Features:**
-- Traffic overview (page views, sessions, users, devices, geo)
-- AI usage & costs (invocations, tokens, cost/user, query types)
+- Traffic overview (page views, sessions, users, devices pie chart, geo pie chart)
+- **Daily traffic chart** with human vs bot comparison (toggleable series)
+- AI usage & costs (invocations, tokens, cost/user, query types pie chart)
+- **Lambda usage** (invocations, success rate donut, cost, duration, by-function breakdown, daily trend)
 - Core Web Vitals (LCP, FCP, TTFB, CLS, INP with thresholds)
-- Cache performance (L1/L2 hit rates, memory usage)
+- Cache performance (L1/L2 hit rate donuts, memory usage)
 - Error monitoring (by severity, source, type)
 - **Automated alerts** for: AI cost spikes, error rate, performance degradation, cache issues, traffic anomalies
+
+**Item Analytics Modal (detail pages):**
+- Accessible from admin strip on movie/series detail pages
+- Database status (PostgreSQL sync, TMDB refresh timestamps)
+- Traffic trend chart (daily page views for that item)
+- Device breakdown (pie chart)
+- Bot traffic breakdown (horizontal bar chart of top bots)
+- Enrichment status (ratings/watch links scraped, sources)
+- Lambda invocations (total, avg duration, cost, history table)
 
 This document outlines the comprehensive analytics, monitoring, and observability implementation for the Movie Browser app.
 
@@ -75,9 +86,10 @@ This document outlines the comprehensive analytics, monitoring, and observabilit
 │  │  ├── user_sessions     (session tracking, journey)                  │    │
 │  │  ├── ai_usage          (tokens, cost, model, query type)            │    │
 │  │  ├── user_actions      (watchlist, ratings, clicks)                 │    │
-│  │  ├── api_calls         (TMDB, YouTube, quota tracking)              │    │
+│  │  ├── api_calls         (TMDB, YouTube, Lambda, quota tracking)      │    │
 │  │  ├── errors            (client/server errors, stack traces)         │    │
 │  │  ├── cache_metrics     (L1/L2 hit rates, sizes)                     │    │
+│  │  ├── system_metrics    (CPU, memory, event loop - every 5min)       │    │
 │  │  └── performance       (Core Web Vitals, TTFB, LCP)                 │    │
 │  │                                                                      │    │
 │  │  Materialized Views:                                                │    │
@@ -739,6 +751,41 @@ ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY timestamp
 TTL timestamp + INTERVAL 30 DAY;
+
+-- =============================================================================
+-- SYSTEM METRICS (Node.js process metrics, sampled every 5 minutes)
+-- =============================================================================
+CREATE TABLE system_metrics (
+    timestamp DateTime64(3) DEFAULT now64(3),
+    
+    -- CPU
+    cpu_usage Float32,           -- Normalized CPU load (1m avg / cores)
+    cpu_cores UInt8,
+    load_avg_1m Float32,
+    load_avg_5m Float32,
+    load_avg_15m Float32,
+    
+    -- Memory (Process)
+    memory_rss UInt64,           -- Resident Set Size
+    memory_heap_total UInt64,    -- V8 heap total
+    memory_heap_used UInt64,     -- V8 heap used
+    memory_external UInt64,      -- V8 external
+    memory_array_buffers UInt64, -- V8 array buffers
+    
+    -- Memory (System)
+    memory_total UInt64,         -- OS total memory
+    memory_free UInt64,          -- OS free memory
+    
+    -- Event Loop
+    event_loop_lag Float32,      -- Event loop lag in ms
+    
+    -- Process
+    uptime UInt32                -- Process uptime in seconds
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY timestamp
+TTL toDateTime(timestamp) + INTERVAL 30 DAY;
 
 -- =============================================================================
 -- PERFORMANCE (Core Web Vitals)

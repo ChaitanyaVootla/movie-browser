@@ -577,6 +577,7 @@ export async function invokeAgent(
     trackAIUsage({
       sessionId: "", // Will be enriched by API route if needed
       userId: userId ?? null,
+      userName: userContext?.name || (isAuthenticated ? "Unknown" : "Guest"),
       isAuthenticated: isAuthenticated,
       country: userContext?.region || "unknown",
       query: message,

@@ -200,21 +200,76 @@ export function normalizeTMDBWatchProviders(
   return Array.from(providerMap.values());
 }
 
+// PostgreSQL scraped links format (from scraped_watch_links table)
+export type ScrapedWatchLinksMap = Record<string, Array<{ name: string; link: string; price?: string }>>;
+
+/**
+ * Process scraped watch links from PostgreSQL (country-keyed format)
+ */
+export function processScrapedWatchLinksFromPostgres(
+  scrapedLinks: ScrapedWatchLinksMap | undefined,
+  countryCode: string
+): WatchOption[] {
+  const links = scrapedLinks?.[countryCode];
+  if (!links?.length) return [];
+
+  const options: WatchOption[] = [];
+  const seenLinks = new Set<string>();
+
+  for (const opt of links) {
+    if (!opt.link || seenLinks.has(opt.link)) continue;
+
+    const mapped = mapWatchProvider(opt.name || "", opt.link);
+    if (!mapped) continue;
+
+    seenLinks.add(opt.link);
+    options.push({
+      name: opt.name || mapped.displayName,
+      displayName: mapped.displayName,
+      link: mapped.link,
+      price: opt.price?.replace("Premium", "") || "",
+      image: mapped.image,
+      key: mapped.key,
+      isJustWatch: false,
+    });
+  }
+
+  return options.sort((a, b) => {
+    if (a.price?.toLowerCase().includes("subscription")) return -1;
+    if (b.price?.toLowerCase().includes("subscription")) return 1;
+    return 0;
+  });
+}
+
 /**
  * Get watch options for a specific country with fallback logic
  *
  * @param countryCode - User's country code (e.g., "IN", "US")
- * @param googleData - Scraped watch data (only valid for India)
+ * @param googleData - Scraped watch data from MongoDB (only valid for India)
  * @param watchProviders - TMDB watch providers by country
+ * @param scrapedWatchLinks - Scraped deep links from PostgreSQL (country-keyed)
  */
 export function getWatchOptionsForCountry(
   countryCode: string,
   googleData: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> } | undefined,
-  watchProviders: Record<string, WatchProviderData> | undefined
+  watchProviders: Record<string, WatchProviderData> | undefined,
+  scrapedWatchLinks?: ScrapedWatchLinksMap
 ): ProcessedWatchOptions {
   const normalizedCode = countryCode?.toUpperCase() || "IN";
 
-  // For India: prefer scraped data if available
+  // Priority 1: PostgreSQL scraped deep links (any country, but typically India)
+  if (scrapedWatchLinks?.[normalizedCode]) {
+    const scraped = processScrapedWatchLinksFromPostgres(scrapedWatchLinks, normalizedCode);
+    if (scraped.length > 0) {
+      return {
+        options: scraped,
+        sourceCountry: normalizedCode,
+        isFromFallback: false,
+      };
+    }
+  }
+
+  // Priority 2: MongoDB scraped data (India only, legacy)
   if (normalizedCode === "IN") {
     const scraped = processScrapedWatchOptions(googleData);
     if (scraped.length > 0) {
@@ -226,7 +281,7 @@ export function getWatchOptionsForCountry(
     }
   }
 
-  // Try TMDB providers for the requested country
+  // Priority 3: TMDB providers for the requested country
   if (watchProviders?.[normalizedCode]) {
     const options = normalizeTMDBWatchProviders(watchProviders[normalizedCode], normalizedCode);
     if (options.length > 0) {
@@ -242,7 +297,19 @@ export function getWatchOptionsForCountry(
   for (const fallbackCode of FALLBACK_COUNTRIES) {
     if (fallbackCode === normalizedCode) continue;
 
-    // For India fallback, try scraped data
+    // Try PostgreSQL scraped links for fallback country
+    if (scrapedWatchLinks?.[fallbackCode]) {
+      const scraped = processScrapedWatchLinksFromPostgres(scrapedWatchLinks, fallbackCode);
+      if (scraped.length > 0) {
+        return {
+          options: scraped,
+          sourceCountry: fallbackCode,
+          isFromFallback: true,
+        };
+      }
+    }
+
+    // For India fallback, try MongoDB scraped data
     if (fallbackCode === "IN") {
       const scraped = processScrapedWatchOptions(googleData);
       if (scraped.length > 0) {

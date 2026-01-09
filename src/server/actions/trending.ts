@@ -14,7 +14,6 @@ import {
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
 import {
   getWatchOptionsForCountry,
-  getOptimizedWatchProviders,
   type ProcessedWatchOptions,
 } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
@@ -49,6 +48,7 @@ interface DBRatingsDoc {
 
 /**
  * Map genre IDs to genre names
+ * Note: overview intentionally omitted to reduce payload size (~200-500 bytes per item)
  */
 function mapMovieGenres(item: Record<string, unknown>): MovieListItem {
   const genreIds = (item.genre_ids as number[]) || [];
@@ -60,7 +60,7 @@ function mapMovieGenres(item: Record<string, unknown>): MovieListItem {
     vote_average: item.vote_average as number,
     vote_count: item.vote_count as number,
     release_date: item.release_date as string,
-    overview: item.overview as string,
+    // overview intentionally omitted - not needed for cards, saves ~200-500 bytes each
     popularity: item.popularity as number,
     adult: item.adult as boolean,
     genre_ids: genreIds,
@@ -79,7 +79,7 @@ function mapTVGenres(item: Record<string, unknown>): SeriesListItem {
     vote_average: item.vote_average as number,
     vote_count: item.vote_count as number,
     first_air_date: item.first_air_date as string,
-    overview: item.overview as string,
+    // overview intentionally omitted - not needed for cards, saves ~200-500 bytes each
     popularity: item.popularity as number,
     adult: item.adult as boolean,
     genre_ids: genreIds,
@@ -97,14 +97,17 @@ function mapMediaItem(item: Record<string, unknown>): MediaItem {
   }
 }
 
+import type { WatchOptionsItem } from "@/types/client-props";
+
 /**
  * Enhanced data for hero carousel items
+ * Note: watchProviders/googleData removed - WatchOptions now lazy-loads on country change
  */
 export interface HeroItemEnhancedData {
   ratings: ExternalRating[];
   watchOptions: ProcessedWatchOptions;
-  watchProviders?: Record<string, WatchProviderData>;
-  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
+  /** Light item data for continue watching (pre-extracted) */
+  item: WatchOptionsItem;
 }
 
 export interface TrendingData {
@@ -224,6 +227,7 @@ export async function getTrending(): Promise<TrendingData> {
       const isMovie = item.media_type === "movie";
       const mediaType = isMovie ? "movie" : "tv";
       const key = `${mediaType}:${item.id}`;
+      const title = isMovie ? (item as MovieListItem).title : (item as SeriesListItem).name;
 
       // Get MongoDB data
       const dbDoc = isMovie
@@ -250,14 +254,22 @@ export async function getTrending(): Promise<TrendingData> {
         watchProviders
       );
 
-      // Get optimized watch providers for client-side country switching
-      const optimizedWatchProviders = getOptimizedWatchProviders(countryCode, watchProviders);
+      // Build light item for WatchOptions (continue watching tracking)
+      const watchOptionsItem: WatchOptionsItem = {
+        id: item.id,
+        title: isMovie ? title : undefined,
+        name: !isMovie ? title : undefined,
+        poster_path: item.poster_path,
+        backdrop_path: item.backdrop_path,
+        // Note: englishBackdropPath not available here - would need images API call
+        // WatchOptions falls back to backdrop_path when not provided
+      };
 
+      // Note: watchProviders/googleData no longer included - WatchOptions lazy-loads on country change
       heroEnhancedData[key] = {
         ratings,
         watchOptions,
-        watchProviders: optimizedWatchProviders,
-        googleData,
+        item: watchOptionsItem,
       };
     });
 

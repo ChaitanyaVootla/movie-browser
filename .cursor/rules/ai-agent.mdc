@@ -1076,11 +1076,11 @@ const trending = await getTrendingMovies();  // Uses "trending" namespace
 | `search` | 5 min | 1 hour | — |
 | `discover` | 30 min | 1 hour | — |
 | `youtube` | 1 hour | 24 hours | 1 hour |
-| `youtube-channels` | 1 hour | 24 hours | 2 hours |
+| `youtube-channels` | 1 hour | 48 hours | 6 hours |
 
 **Features:**
 - L2 file cache survives server restarts
-- Cache warming on startup (via `instrumentation.ts`)
+- Cache warming on startup (via `instrumentation.node.ts`)
 - Compression for payloads >10KB
 - Prometheus metrics via `/api/health?format=prometheus`
 

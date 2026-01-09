@@ -5,15 +5,16 @@ import { MediaCard } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { filterOutTalkShows } from "@/lib/person-credits";
-import type { MovieListItem, SeriesListItem, PersonCombinedCastCredit } from "@/types";
+import type { MovieListItem, SeriesListItem } from "@/types";
+import type { LightPersonCastCredit } from "@/types/client-props";
 
 interface KnownForSectionProps {
-  credits: PersonCombinedCastCredit[];
+  credits: LightPersonCastCredit[];
   className?: string;
 }
 
-// Convert credit to list item format
-function creditToListItem(credit: PersonCombinedCastCredit): MovieListItem | SeriesListItem {
+// Convert credit to list item format (light version - no overview)
+function creditToListItem(credit: LightPersonCastCredit): MovieListItem | SeriesListItem {
   if (credit.media_type === "movie") {
     return {
       id: credit.id,
@@ -24,7 +25,6 @@ function creditToListItem(credit: PersonCombinedCastCredit): MovieListItem | Ser
       vote_count: credit.vote_count,
       release_date: credit.release_date || "",
       genre_ids: credit.genre_ids,
-      overview: credit.overview,
       popularity: credit.popularity,
       adult: credit.adult,
       media_type: "movie",
@@ -39,7 +39,6 @@ function creditToListItem(credit: PersonCombinedCastCredit): MovieListItem | Ser
       vote_count: credit.vote_count,
       first_air_date: credit.first_air_date || "",
       genre_ids: credit.genre_ids,
-      overview: credit.overview,
       popularity: credit.popularity,
       adult: credit.adult,
       media_type: "tv",

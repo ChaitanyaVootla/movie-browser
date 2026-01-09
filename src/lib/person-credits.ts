@@ -4,8 +4,10 @@
 
 import { EXCLUDED_TV_GENRES, LATEST_MONTHS } from "./constants";
 import type { PersonCombinedCastCredit, PersonCombinedCrewCredit } from "@/types";
+import type { LightPersonCastCredit, LightPersonCrewCredit } from "@/types/client-props";
 
 type Credit = PersonCombinedCastCredit | PersonCombinedCrewCredit;
+type LightCredit = LightPersonCastCredit | LightPersonCrewCredit;
 
 /**
  * Check if a credit is a talk show or news program (should be excluded)
@@ -116,3 +118,111 @@ export function deduplicateCredits<T extends Credit>(credits: T[]): T[] {
   return Array.from(seen.values());
 }
 
+// =============================================================================
+// Light credit type utilities (for client components using LightPersonCredit)
+// =============================================================================
+
+/**
+ * Check if a light credit is a talk show or news program (should be excluded)
+ */
+export function isTalkShowOrNewsLight(credit: LightCredit): boolean {
+  if (credit.media_type !== "tv") return false;
+  const genres = credit.genre_ids || [];
+  return genres.some((genreId) => EXCLUDED_TV_GENRES.includes(genreId as typeof EXCLUDED_TV_GENRES[number]));
+}
+
+/**
+ * Filter out talk shows and news programs from light credits
+ */
+export function filterOutTalkShowsLight<T extends LightCredit>(credits: T[]): T[] {
+  return credits.filter((credit) => !isTalkShowOrNewsLight(credit));
+}
+
+/**
+ * Get the release/air date from a light credit
+ */
+export function getCreditDateLight(credit: LightCredit): Date | null {
+  const dateStr = credit.media_type === "movie" ? credit.release_date : credit.first_air_date;
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Check if a light credit is upcoming (release date in the future)
+ */
+export function isUpcomingLight(credit: LightCredit): boolean {
+  const date = getCreditDateLight(credit);
+  if (!date) return false;
+  return date > new Date();
+}
+
+/**
+ * Check if a light credit is "latest" (released within the last LATEST_MONTHS)
+ */
+export function isLatestLight(credit: LightCredit): boolean {
+  const date = getCreditDateLight(credit);
+  if (!date) return false;
+  
+  const now = new Date();
+  const cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - LATEST_MONTHS);
+  
+  return date <= now && date >= cutoffDate;
+}
+
+/**
+ * Categorize light credits into upcoming and latest
+ * Excludes talk shows from both categories
+ */
+export function categorizeCreditsLight<T extends LightCredit>(credits: T[]): {
+  upcoming: T[];
+  latest: T[];
+} {
+  const filtered = filterOutTalkShowsLight(credits);
+  
+  const upcoming: T[] = [];
+  const latest: T[] = [];
+  
+  filtered.forEach((credit) => {
+    if (isUpcomingLight(credit)) {
+      upcoming.push(credit);
+    } else if (isLatestLight(credit)) {
+      latest.push(credit);
+    }
+  });
+  
+  // Sort upcoming by date (soonest first)
+  upcoming.sort((a, b) => {
+    const dateA = getCreditDateLight(a);
+    const dateB = getCreditDateLight(b);
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateA.getTime() - dateB.getTime();
+  });
+  
+  // Sort latest by date (most recent first)
+  latest.sort((a, b) => {
+    const dateA = getCreditDateLight(a);
+    const dateB = getCreditDateLight(b);
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    return dateB.getTime() - dateA.getTime();
+  });
+  
+  return { upcoming, latest };
+}
+
+/**
+ * Deduplicate light credits by ID (keep the one with most info - poster)
+ */
+export function deduplicateCreditsLight<T extends LightCredit>(credits: T[]): T[] {
+  const seen = new Map<number, T>();
+  credits.forEach((credit) => {
+    const existing = seen.get(credit.id);
+    if (!existing || (credit.poster_path && !existing.poster_path)) {
+      seen.set(credit.id, credit);
+    }
+  });
+  return Array.from(seen.values());
+}

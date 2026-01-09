@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: movie-browser-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: moviebrowser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev123}
+      POSTGRES_DB: moviebrowser
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moviebrowser -d moviebrowser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Performance tuning for local dev
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=64MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "max_parallel_workers_per_gather=2"
+
+volumes:
+  postgres_data:
+    name: movie-browser-postgres-data
+

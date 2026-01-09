@@ -5,21 +5,22 @@ import { Sparkles } from "lucide-react";
 import { MediaCard } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
-import { categorizeCredits, deduplicateCredits, getCreditDate } from "@/lib/person-credits";
-import type { MovieListItem, SeriesListItem, PersonCombinedCastCredit, PersonCombinedCrewCredit } from "@/types";
+import { categorizeCreditsLight, deduplicateCreditsLight, getCreditDateLight } from "@/lib/person-credits";
+import type { MovieListItem, SeriesListItem } from "@/types";
+import type { LightPersonCastCredit, LightPersonCrewCredit } from "@/types/client-props";
 
-type Credit = PersonCombinedCastCredit | PersonCombinedCrewCredit;
+type Credit = LightPersonCastCredit | LightPersonCrewCredit;
 
 interface UpcomingLatestSectionProps {
-  castCredits: PersonCombinedCastCredit[];
-  crewCredits: PersonCombinedCrewCredit[];
+  castCredits: LightPersonCastCredit[];
+  crewCredits: LightPersonCrewCredit[];
   className?: string;
 }
 
 // Max number of latest items to show
 const MAX_LATEST = 5;
 
-// Convert credit to MovieListItem/SeriesListItem
+// Convert credit to MovieListItem/SeriesListItem (light version - no overview)
 function creditToListItem(credit: Credit): MovieListItem | SeriesListItem {
   if (credit.media_type === "movie") {
     return {
@@ -31,7 +32,6 @@ function creditToListItem(credit: Credit): MovieListItem | SeriesListItem {
       vote_count: credit.vote_count,
       release_date: credit.release_date || "",
       genre_ids: credit.genre_ids,
-      overview: credit.overview,
       popularity: credit.popularity,
       adult: credit.adult,
       media_type: "movie",
@@ -46,7 +46,6 @@ function creditToListItem(credit: Credit): MovieListItem | SeriesListItem {
       vote_count: credit.vote_count,
       first_air_date: credit.first_air_date || "",
       genre_ids: credit.genre_ids,
-      overview: credit.overview,
       popularity: credit.popularity,
       adult: credit.adult,
       media_type: "tv",
@@ -67,7 +66,7 @@ function getSubtitle(credit: Credit): string {
 
 // Format date for display
 function formatReleaseDate(credit: Credit, isUpcoming: boolean): string {
-  const date = getCreditDate(credit);
+  const date = getCreditDateLight(credit);
   if (!date) return "";
   
   // For upcoming items, show relative time
@@ -113,8 +112,8 @@ export function UpcomingLatestSection({
   const combinedCredits = useMemo(() => {
     // Merge cast and crew credits
     const allCredits = [...castCredits, ...crewCredits];
-    const deduplicated = deduplicateCredits(allCredits);
-    const { upcoming, latest } = categorizeCredits(deduplicated);
+    const deduplicated = deduplicateCreditsLight(allCredits);
+    const { upcoming, latest } = categorizeCreditsLight(deduplicated);
     
     // Filter by display mode (poster or backdrop available)
     const filterByMode = (c: Credit) => 

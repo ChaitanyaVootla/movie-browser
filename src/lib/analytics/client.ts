@@ -338,7 +338,8 @@ type TableName =
   | "api_calls"
   | "errors"
   | "cache_metrics"
-  | "performance";
+  | "performance"
+  | "system_metrics";
 
 /**
  * Insert analytics events with type safety

@@ -19,8 +19,16 @@ Testing is critical for AI-maintained codebases. Tests provide:
 ### 1. E2E Tests (Playwright)
 
 - Location: `e2e/`
-- Purpose: Full user flows, SEO verification, SSR testing
+- Purpose: Full user flows, SEO verification, SSR testing, performance guards
 - Run: `yarn test:e2e`
+
+**Playwright Projects:**
+| Project | JS Enabled | Purpose |
+|---|-----|-----|
+| "SEO Tests (No JS)" | No | Validates pure SSR output |
+| "Performance Tests" | Yes | Response size guards, Web Vitals |
+| "E2E Tests (With JS)" | Yes | Full functionality tests |
+| "Mobile Chrome" | Yes | Mobile-specific tests |
 
 ### 2. Unit Tests (Vitest)
 
@@ -89,6 +97,142 @@ test.describe("Movie Page SEO", () => {
     await context.close();
   });
 });
+```
+
+### JSON-LD Structured Data Tests
+
+JSON-LD must be testable without waiting for hydration (uses regular `<script>` tags, not `next/script`):
+
+```typescript
+// e2e/content/json-ld.spec.ts
+test.describe("Movie JSON-LD Schema", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/movie/550/fight-club");
+    // JSON-LD is SSR'd, so just wait for DOM content
+    await page.waitForLoadState("domcontentloaded");
+  });
+
+  test("has valid Movie schema structure", async ({ page }) => {
+    const schemaScript = page.locator('script[type="application/ld+json"]').first();
+    const schemaText = await schemaScript.textContent();
+    const schema = JSON.parse(schemaText!);
+
+    expect(schema["@context"]).toBe("https://schema.org");
+    expect(schema["@type"]).toBe("Movie");
+    expect(schema.name).toBe("Fight Club");
+    expect(schema.aggregateRating["@type"]).toBe("AggregateRating");
+  });
+});
+```
+
+### Performance E2E Tests
+
+```typescript
+// e2e/perf/web-vitals.spec.ts
+test.describe("Core Web Vitals - Movie Page", () => {
+  test("LCP is within acceptable limits", async ({ page }) => {
+    await page.goto("/movie/550/fight-club");
+    await page.waitForLoadState("load");
+
+    const lcp = await page.evaluate(() => {
+      return new Promise<number>((resolve) => {
+        let lcpValue = 0;
+        const observer = new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          lcpValue = entries[entries.length - 1]?.startTime || 0;
+        });
+        observer.observe({ type: "largest-contentful-paint", buffered: true });
+        setTimeout(() => { observer.disconnect(); resolve(lcpValue); }, 5000);
+      });
+    });
+
+    console.log(`Movie page LCP: ${lcp.toFixed(0)}ms`);
+    expect(lcp).toBeLessThan(4000); // "needs improvement" threshold
+  });
+
+  test("CLS is within acceptable limits", async ({ page }) => {
+    await page.goto("/movie/550/fight-club");
+    await page.waitForLoadState("load");
+
+    const cls = await page.evaluate(() => {
+      return new Promise<number>((resolve) => {
+        let clsValue = 0;
+        const observer = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            if (!(entry as any).hadRecentInput) {
+              clsValue += (entry as any).value;
+            }
+          }
+        });
+        observer.observe({ type: "layout-shift", buffered: true });
+        setTimeout(() => { observer.disconnect(); resolve(clsValue); }, 5000);
+      });
+    });
+
+    console.log(`Movie page CLS: ${cls.toFixed(4)}`);
+    expect(cls).toBeLessThan(0.25); // "needs improvement" threshold
+  });
+});
+```
+
+### Response Size Guards
+
+Response size tests guard against payload regressions. Current limits are set to catch **25% regression** from baseline measurements.
+
+**Current Baselines (Jan 2026):**
+| Page | Baseline | Limit | Notes |
+|------|----------|-------|-------|
+| Movie | ~920KB | 1.5MB | RSC ~680KB, full videos/images/recs |
+| Series | ~500KB | 1.6MB | RSC ~285KB, episodes server-side |
+| Person | ~505KB | 1.1MB | Light DTOs applied |
+| Homepage | ~535KB | 850KB | Stripped overviews from list items |
+| Browse | ~190KB | 400KB | Near ideal |
+
+```typescript
+// e2e/perf/response-size.spec.ts
+const SIZE_LIMITS = {
+  movie: 1500 * 1024,   // ~1.5MB (baseline ~920KB)
+  series: 1600 * 1024,  // ~1.6MB (baseline ~500KB)
+  person: 1100 * 1024,  // ~1.1MB (baseline ~505KB)
+  homepage: 850 * 1024, // ~850KB (baseline ~535KB)
+  browse: 400 * 1024,   // 400KB (baseline ~190KB)
+};
+
+test("movie page payload is within size limit", async ({ page }) => {
+  await page.goto("/movie/550/fight-club");
+  await page.waitForLoadState("networkidle");
+  const content = await page.content();
+  const htmlSize = content.length;
+
+  console.log(`Movie page HTML size: ${(htmlSize / 1024).toFixed(2)}KB`);
+  
+  // Warn at 75% of limit
+  if (htmlSize > SIZE_LIMITS.movie * 0.75) {
+    console.warn(`⚠️ Approaching limit: ${(htmlSize / 1024).toFixed(2)}KB`);
+  }
+  
+  expect(htmlSize).toBeLessThan(SIZE_LIMITS.movie);
+});
+
+// RSC payload test (checks inline script size)
+test("movie page RSC payload is not bloated", async ({ page }) => {
+  await page.goto("/movie/550/fight-club");
+  
+  const rscScripts = await page.locator('script').evaluateAll((scripts) =>
+    scripts
+      .filter((s) => s.textContent?.includes("$R") || s.textContent?.includes("self.__next"))
+      .reduce((total, s) => total + (s.textContent?.length || 0), 0)
+  );
+  
+  console.log(`Movie RSC inline script size: ${(rscScripts / 1024).toFixed(2)}KB`);
+  expect(rscScripts).toBeLessThan(1000 * 1024); // 1MB RSC limit
+});
+```
+
+**Running Tests:**
+```bash
+# Single worker for accurate measurements
+npx playwright test e2e/perf/response-size.spec.ts --project="Performance Tests" --workers=1 --reporter=list
 ```
 
 ### Series Page E2E Tests
@@ -294,10 +438,28 @@ Add to `package.json`:
     "test:watch": "vitest --watch",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:seo": "playwright test e2e/seo/",
+    "test:seo": "playwright test --project='SEO Tests (No JS)'",
+    "test:perf": "playwright test --project='Performance Tests' --workers=1",
+    "test:json-ld": "playwright test e2e/content/json-ld.spec.ts --workers=1",
     "test:ci": "yarn typecheck && yarn lint && yarn test:unit"
   }
 }
+```
+
+### Running Specific Test Types
+
+```bash
+# SEO tests (validates pure SSR output, no JavaScript)
+npx playwright test --project="SEO Tests (No JS)"
+
+# Performance tests (response sizes, web vitals) - use single worker for accuracy
+npx playwright test --project="Performance Tests" --workers=1
+
+# JSON-LD structured data tests
+npx playwright test e2e/content/json-ld.spec.ts --project="E2E Tests (With JS)" --workers=1
+
+# All E2E tests with JavaScript
+npx playwright test --project="E2E Tests (With JS)"
 ```
 
 ## Before Committing
@@ -317,3 +479,17 @@ yarn test:seo    # SEO tests (if page changed)
 - Utility functions: 90%+ coverage
 - Critical user flows: E2E coverage
 - All pages: SEO test coverage
+
+## Current E2E Test Suite
+
+| File | Tests | Purpose |
+|---|---|----|
+| `e2e/seo/movie.spec.ts` | 6 | Movie page SEO (title, meta, OG, canonical) |
+| `e2e/seo/series.spec.ts` | 6 | Series page SEO tests |
+| `e2e/seo/person.spec.ts` | 6 | Person page SEO tests |
+| `e2e/seo/homepage.spec.ts` | - | Homepage SEO tests |
+| `e2e/content/json-ld.spec.ts` | 16 | JSON-LD structured data (Movie, Series, Person) |
+| `e2e/perf/response-size.spec.ts` | 9 | Response size guards (HTML, RSC payload) |
+| `e2e/perf/web-vitals.spec.ts` | 13 | Core Web Vitals (LCP, CLS, FCP, TTFB) |
+
+**Total: ~50 E2E tests covering SEO, structured data, and performance.**

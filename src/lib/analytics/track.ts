@@ -210,6 +210,8 @@ export function trackSessionEnd(
 interface TrackAIUsageOptions {
   sessionId: string;
   userId: string | null;
+  /** User display name for easier identification in dashboards */
+  userName?: string;
   isAuthenticated: boolean;
   country: string;
   query: string;
@@ -241,6 +243,7 @@ export function trackAIUsage(options: TrackAIUsageOptions): void {
     timestamp: toClickHouseTimestamp(),
     session_id: options.sessionId,
     user_id: options.userId,
+    user_name: options.userName || (options.isAuthenticated ? "Unknown" : "Guest"),
     is_authenticated: options.isAuthenticated,
     country: options.country,
     query: options.query.slice(0, 500), // Truncate long queries
@@ -319,7 +322,7 @@ export function trackUserAction(options: TrackUserActionOptions): void {
 interface TrackAPICallOptions {
   sessionId?: string;
   requestId?: string;
-  service: "tmdb" | "youtube" | "mongodb";
+  service: "tmdb" | "youtube" | "mongodb" | "lambda";
   endpoint: string;
   method?: string;
   statusCode: number;
@@ -333,7 +336,10 @@ interface TrackAPICallOptions {
 }
 
 /**
- * Track external API calls (TMDB, YouTube, MongoDB)
+ * Track external API calls (TMDB, YouTube, MongoDB, Lambda)
+ *
+ * Lambda calls are inserted immediately (low volume, important for debugging).
+ * Other API calls are batched for efficiency.
  */
 export function trackAPICall(options: TrackAPICallOptions): void {
   const event: Partial<APICallEvent> = {
@@ -354,7 +360,13 @@ export function trackAPICall(options: TrackAPICallOptions): void {
     error_message: options.errorMessage ?? null,
   };
 
-  queueEvent("api_calls", event as Record<string, unknown>);
+  // Lambda calls: insert immediately (low volume, important for item analytics)
+  // Other API calls: batch for efficiency
+  if (options.service === "lambda") {
+    insertAnalyticsEvent("api_calls", event);
+  } else {
+    queueEvent("api_calls", event as Record<string, unknown>);
+  }
 }
 
 // =============================================================================
@@ -498,5 +510,54 @@ export function trackCacheMetrics(options: TrackCacheMetricsOptions): void {
 
   // Insert immediately (low volume)
   insertAnalyticsEvent("cache_metrics", event);
+}
+
+
+// =============================================================================
+// System Metrics Tracking
+// =============================================================================
+
+interface TrackSystemMetricsOptions {
+  cpuUsage: number;
+  cpuCores: number;
+  loadAvg1m: number;
+  loadAvg5m: number;
+  loadAvg15m: number;
+  memoryRss: number;
+  memoryHeapTotal: number;
+  memoryHeapUsed: number;
+  memoryExternal: number;
+  memoryArrayBuffers: number;
+  memoryTotal: number;
+  memoryFree: number;
+  eventLoopLag: number;
+  uptime: number;
+}
+
+/**
+ * Track system metrics (CPU, memory, event loop)
+ * Called periodically (every 1-5 minutes) by background collector
+ */
+export function trackSystemMetrics(options: TrackSystemMetricsOptions): void {
+  const event = {
+    timestamp: toClickHouseTimestamp(),
+    cpu_usage: options.cpuUsage,
+    cpu_cores: options.cpuCores,
+    load_avg_1m: options.loadAvg1m,
+    load_avg_5m: options.loadAvg5m,
+    load_avg_15m: options.loadAvg15m,
+    memory_rss: options.memoryRss,
+    memory_heap_total: options.memoryHeapTotal,
+    memory_heap_used: options.memoryHeapUsed,
+    memory_external: options.memoryExternal,
+    memory_array_buffers: options.memoryArrayBuffers,
+    memory_total: options.memoryTotal,
+    memory_free: options.memoryFree,
+    event_loop_lag: options.eventLoopLag,
+    uptime: options.uptime,
+  };
+
+  // Insert immediately (low volume, time-critical for correlation)
+  insertAnalyticsEvent("system_metrics", event);
 }
 

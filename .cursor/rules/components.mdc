@@ -319,7 +319,17 @@ import { MediaHero, MediaActionBar } from "@/components/features/media";
 
 ### RatingsBar Component
 
-Unified ratings display showing scores from multiple sources (TMDB, IMDb, Rotten Tomatoes, Google).
+Unified ratings display showing scores from multiple sources. Only 5 sources are displayed (whitelisted):
+
+| Source | Scale | Display Format | Example |
+|--------|-------|----------------|---------|
+| TMDB | 0-10 | Decimal | 7.6 |
+| IMDb | 0-10 | Decimal | 7.3 |
+| RT Critic | 0-100 | Integer % | 86 |
+| RT Audience | 0-100 | Integer % | 95 |
+| Google | 0-100 | Integer % | 93 |
+
+Metacritic and Letterboxd are captured in the database but filtered out in the UI.
 
 ```tsx
 import { RatingsBar } from "@/components/features/media";
@@ -334,6 +344,10 @@ import { RatingsBar } from "@/components/features/media";
     : [{ name: "TMDB", rating: Math.round(movie.vote_average * 10).toString() }]
   }
 />
+
+// Rating format: { name: string, rating: string, link?: string, certified?: boolean }
+// - TMDB/IMDb: rating = "7.6" (0-10 scale, displayed as-is with decimal)
+// - RT/Google: rating = "86%" (0-100 scale, displayed as integer)
 ```
 
 **Design principles:**

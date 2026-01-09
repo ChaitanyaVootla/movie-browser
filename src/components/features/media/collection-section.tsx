@@ -6,11 +6,12 @@ import Link from "next/link";
 import { Clapperboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, getMediaHref } from "@/lib/utils";
-import type { Collection, CollectionPart } from "@/types";
+import type { LightCollection, LightCollectionPart } from "@/types/client-props";
 import { MediaScroller } from "./media-scroller";
 
 interface CollectionSectionProps {
-  collection: Collection;
+  /** Light collection with overview stripped from parts */
+  collection: LightCollection;
   currentMovieId: number;
   className?: string;
 }
@@ -19,7 +20,7 @@ function CollectionCard({
   part,
   isCurrent,
 }: {
-  part: CollectionPart;
+  part: LightCollectionPart;
   isCurrent: boolean;
 }) {
   const [imageError, setImageError] = useState(false);

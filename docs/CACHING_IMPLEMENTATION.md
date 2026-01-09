@@ -305,7 +305,18 @@ Consider adding a cron job or calling on a schedule.
 
 ## Monitoring
 
-### Check Cache Health
+### Admin Dashboard
+
+The admin dashboard (`/admin` → System tab) displays live cache metrics by reading directly from the cache service:
+- L1 (memory) and L2 (file) hit rates
+- Total hits/misses
+- Memory keys count
+- Compression savings
+- Fetch errors
+
+This provides **real-time** stats without relying on ClickHouse persistence.
+
+### Check Cache Health (Code)
 
 ```typescript
 const stats = getCacheStats();
@@ -392,9 +403,11 @@ On server start, the cache automatically warms L1 from L2 for quota-sensitive na
 
 ### How It Works
 
-1. **On startup** (`instrumentation.ts`): `warmCache()` is called
+1. **On startup** (`instrumentation.node.ts`): `warmCache()` is called
 2. **L2 → L1 loading**: Reads file cache entries and populates memory
 3. **Non-blocking**: Server starts handling requests while warming completes
+
+**Note:** Only `instrumentation.node.ts` should exist. The `.node.ts` suffix ensures Next.js only loads it in Node.js runtime (not Edge), preventing errors with Node.js-only modules (fs, path, crypto, zlib).
 
 ### Warmed Namespaces
 

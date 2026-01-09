@@ -7,10 +7,17 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { MediaScroller } from "./media-scroller";
-import type { Image as TMDBImage } from "@/types";
+
+/** Minimal image type for gallery (supports both full TMDBImage and light PersonProfileImage) */
+interface GalleryImage {
+  file_path: string;
+  aspect_ratio: number;
+  width: number;
+  height: number;
+}
 
 interface ImageGalleryProps {
-  images: TMDBImage[];
+  images: GalleryImage[];
   title?: string;
   className?: string;
   maxVisible?: number;

@@ -5,4 +5,3 @@ export { HoverCardWrapper } from "./hover-card-wrapper";
 
 // Mobile Quick Info Drawer (long-press on mobile)
 export { QuickInfoProvider, useQuickInfo } from "./mobile-quick-info-drawer";
-

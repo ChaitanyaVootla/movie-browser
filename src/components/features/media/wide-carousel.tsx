@@ -45,14 +45,14 @@ export function WideCarousel({
         ? Array.from({ length: 5 }).map((_, i) => (
             <WideCardSkeleton
               key={i}
-              className="w-[280px] sm:w-[320px] md:w-[380px] flex-shrink-0"
+              className="w-[260px] sm:w-[300px] md:w-[340px] flex-shrink-0"
             />
           ))
         : items.map((item) => (
             <WideCard
               key={`${item.itemId}-${item.isMovie}`}
               item={item}
-              className="w-[280px] sm:w-[320px] md:w-[380px] flex-shrink-0"
+              className="w-[260px] sm:w-[300px] md:w-[340px] flex-shrink-0"
               showWatchLink={showWatchLinks}
             />
           ))}

@@ -189,6 +189,8 @@ export interface AIUsageEvent {
   session_id: string;
   /** User ID (hashed) */
   user_id: string | null;
+  /** User display name for easier identification in dashboards */
+  user_name: string;
   /** Whether authenticated */
   is_authenticated: boolean;
   /** Country code */
@@ -271,8 +273,8 @@ export interface APICallEvent {
   session_id: string;
   /** Request ID */
   request_id: string;
-  /** Service name (tmdb, youtube, mongodb) */
-  service: "tmdb" | "youtube" | "mongodb";
+  /** Service name (tmdb, youtube, mongodb, lambda) */
+  service: "tmdb" | "youtube" | "mongodb" | "lambda";
   /** API endpoint */
   endpoint: string;
   /** HTTP method */

@@ -7,6 +7,7 @@
  * GET /api/admin/analytics?type=overview&range=7
  * GET /api/admin/analytics?type=ai&range=30
  * GET /api/admin/analytics?type=alerts
+ * GET /api/admin/analytics?type=system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,6 +17,9 @@ import {
   // Traffic
   getTrafficOverview,
   getDailyTraffic,
+  getDailyTrafficWithBots,
+  getHourlyTraffic,
+  getHourlyTrafficWithBots,
   getTopPages,
   getGeoDistribution,
   getDeviceBreakdown,
@@ -24,6 +28,7 @@ import {
   getDailyAICosts,
   getTopAIUsers,
   getQueryTypeDistribution,
+  getUserAIStats,
   // Performance
   getPerformanceMetrics,
   getPerformanceByPageType,
@@ -32,17 +37,54 @@ import {
   getErrorOverview,
   getErrorTrend,
   getTopErrors,
-  // Cache
-  getCacheMetricsSnapshot,
+  getErrorDetails,
+  getErrorOccurrences,
   // Content
   getTopContent,
   getUserActionSummary,
+  // Lambda
+  getLambdaUsageOverview,
+  getLambdaByFunction,
+  getDailyLambdaUsage,
+  // System
+  getSystemMetricsHistory,
+  getCPUHistory,
+  getMemoryHistory,
   // Alerts
   checkAllAlerts,
   // Utility
   hasAnalyticsData,
   checkClickHouseHealth,
+  type TrafficGranularity,
+  type Granularity,
 } from "@/lib/analytics";
+import { getCacheStats, getCacheSizeStats } from "@/lib/cache-service";
+import { getSystemMetrics, getSystemHealth } from "@/lib/system-metrics";
+
+/**
+ * Get live cache metrics directly from the cache service
+ * This provides real-time stats without needing ClickHouse persistence
+ */
+function getLiveCacheMetrics() {
+  try {
+    const stats = getCacheStats();
+    return {
+      l1HitRate: stats.hitRates.l1 * 100, // Convert to percentage
+      l2HitRate: stats.hitRates.l2 * 100,
+      totalHits: stats.custom.l1Hits + stats.custom.l2Hits,
+      totalMisses: stats.custom.l1Misses + stats.custom.l2Misses,
+      memoryKeys: stats.memory.keys,
+      compressionSavings: stats.custom.compressionSavings,
+      fetchErrors: stats.custom.fetchErrors,
+    };
+  } catch (error) {
+    adminApiLogger.warn({
+      event: "cache_stats_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -75,20 +117,24 @@ export async function GET(request: NextRequest) {
       // Overview (all metrics for dashboard)
       // =======================================================================
       case "overview": {
-        const [traffic, aiUsage, performance, errors, cache, alerts] = await Promise.all([
+        const [traffic, aiUsage, performance, errors, lambda, alerts] = await Promise.all([
           getTrafficOverview(range).catch(() => null),
           getAIUsageOverview(range).catch(() => null),
           getPerformanceMetrics(range).catch(() => null),
           getErrorOverview(range).catch(() => null),
-          getCacheMetricsSnapshot().catch(() => null),
+          getLambdaUsageOverview(range).catch(() => null),
           checkAllAlerts().catch(() => ({ alerts: [], checkedAt: new Date().toISOString(), durationMs: 0 })),
         ]);
+
+        // Get live cache metrics directly (more reliable than ClickHouse persistence)
+        const cache = getLiveCacheMetrics();
 
         return NextResponse.json({
           traffic,
           aiUsage,
           performance,
           errors,
+          lambda,
           cache,
           alerts: alerts.alerts,
           checkedAt: alerts.checkedAt,
@@ -99,9 +145,10 @@ export async function GET(request: NextRequest) {
       // Traffic Dashboard
       // =======================================================================
       case "traffic": {
-        const [overview, daily, topPages, geo, devices] = await Promise.all([
+        const [overview, daily, dailyWithBots, topPages, geo, devices] = await Promise.all([
           getTrafficOverview(range),
           getDailyTraffic(range),
+          getDailyTrafficWithBots(range),
           getTopPages(range, 15),
           getGeoDistribution(range, 10),
           getDeviceBreakdown(range),
@@ -110,6 +157,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           overview,
           daily,
+          dailyWithBots,
           topPages,
           geo,
           devices,
@@ -132,6 +180,23 @@ export async function GET(request: NextRequest) {
           daily,
           topUsers,
           queryTypes,
+        });
+      }
+
+      // =======================================================================
+      // Lambda Dashboard
+      // =======================================================================
+      case "lambda": {
+        const [overview, byFunction, daily] = await Promise.all([
+          getLambdaUsageOverview(range),
+          getLambdaByFunction(range),
+          getDailyLambdaUsage(range),
+        ]);
+
+        return NextResponse.json({
+          overview,
+          byFunction,
+          daily,
         });
       }
 
@@ -170,6 +235,38 @@ export async function GET(request: NextRequest) {
       }
 
       // =======================================================================
+      // Error Detail (for drill-down)
+      // =======================================================================
+      case "error_detail": {
+        const errorType = searchParams.get("errorType");
+        const errorSource = searchParams.get("errorSource");
+
+        if (!errorType || !errorSource) {
+          return NextResponse.json(
+            { error: "Missing errorType or errorSource parameter" },
+            { status: 400 }
+          );
+        }
+
+        const [detail, occurrences, topErrors] = await Promise.all([
+          getErrorDetails(errorType, errorSource, range),
+          getErrorOccurrences(errorType, errorSource, range, 20),
+          getTopErrors(range, 100), // Get all to count total
+        ]);
+
+        // Count total occurrences of this error type
+        const totalCount = topErrors.find(
+          (e) => e.errorType === errorType && e.errorSource === errorSource
+        )?.count || occurrences.length;
+
+        return NextResponse.json({
+          detail,
+          occurrences,
+          totalCount,
+        });
+      }
+
+      // =======================================================================
       // Content Performance
       // =======================================================================
       case "content": {
@@ -194,11 +291,77 @@ export async function GET(request: NextRequest) {
       }
 
       // =======================================================================
-      // Cache Metrics
+      // Cache Metrics (live from cache service)
       // =======================================================================
       case "cache": {
-        const metrics = await getCacheMetricsSnapshot();
-        return NextResponse.json({ metrics });
+        const metrics = getLiveCacheMetrics();
+        const sizeStats = getCacheSizeStats();
+        return NextResponse.json({ metrics, sizeStats });
+      }
+
+      // =======================================================================
+      // System Metrics (live from Node.js process)
+      // =======================================================================
+      case "system": {
+        const metrics = getSystemMetrics();
+        const health = getSystemHealth(metrics);
+        return NextResponse.json({ metrics, health });
+      }
+
+      // =======================================================================
+      // System Metrics History (for correlation charts)
+      // =======================================================================
+      case "system_history": {
+        const granularity = (searchParams.get("granularity") || "5min") as Granularity;
+        const history = await getSystemMetricsHistory(range, granularity);
+        return NextResponse.json(history);
+      }
+
+      // =======================================================================
+      // Traffic History (hourly granularity for correlation)
+      // =======================================================================
+      case "traffic_history": {
+        const granularity = (searchParams.get("granularity") || "day") as TrafficGranularity;
+
+        if (granularity === "hour") {
+          const [hourly, hourlyWithBots] = await Promise.all([
+            getHourlyTraffic(range),
+            getHourlyTrafficWithBots(range),
+          ]);
+          return NextResponse.json({ data: hourly, withBots: hourlyWithBots, granularity });
+        } else {
+          const [daily, dailyWithBots] = await Promise.all([
+            getDailyTraffic(range),
+            getDailyTrafficWithBots(range),
+          ]);
+          return NextResponse.json({ data: daily, withBots: dailyWithBots, granularity });
+        }
+      }
+
+      // =======================================================================
+      // CPU History (simple line chart data)
+      // =======================================================================
+      case "cpu_history": {
+        const granularity = (searchParams.get("granularity") || "5min") as Granularity;
+        const data = await getCPUHistory(range, granularity);
+        return NextResponse.json({ data, granularity });
+      }
+
+      // =======================================================================
+      // Memory History (simple line chart data)
+      // =======================================================================
+      case "memory_history": {
+        const granularity = (searchParams.get("granularity") || "5min") as Granularity;
+        const data = await getMemoryHistory(range, granularity);
+        return NextResponse.json({ data, granularity });
+      }
+
+      // =======================================================================
+      // User AI Stats (for Users dashboard)
+      // =======================================================================
+      case "user_ai_stats": {
+        const stats = await getUserAIStats(range);
+        return NextResponse.json(stats);
       }
 
       default:
@@ -221,4 +384,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 

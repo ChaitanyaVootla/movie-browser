@@ -21,3 +21,4 @@ datasources:
     secureJsonData:
       password: ${CLICKHOUSE_PASSWORD}
 
+

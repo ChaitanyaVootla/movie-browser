@@ -20,10 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { TMDB_IMAGE_BASE, TMDB_PROFILE_SIZES } from "@/lib/constants";
-import type { Person } from "@/types";
+import type { PersonHeroProps as PersonHeroData } from "@/types/client-props";
 
 interface PersonHeroProps {
-  person: Person;
+  person: PersonHeroData;
   className?: string;
 }
 

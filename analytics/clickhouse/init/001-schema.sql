@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS analytics.ai_usage (
     timestamp DateTime64(3) DEFAULT now64(3),
     session_id String DEFAULT '',
     user_id Nullable(String),
+    user_name String DEFAULT '',  -- User display name for easier identification
     is_authenticated UInt8 DEFAULT 0,
     country LowCardinality(String) DEFAULT 'unknown',
     
@@ -396,4 +397,49 @@ AS SELECT
     uniqState(session_id) AS affected_sessions_state
 FROM analytics.errors
 GROUP BY hour, error_source, severity, error_type;
+
+-- =============================================================================
+-- SYSTEM METRICS
+-- Server CPU, memory, and event loop tracking (sampled every 1-5 minutes)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS analytics.system_metrics (
+    timestamp DateTime64(3) DEFAULT now64(3),
+    
+    -- CPU metrics
+    cpu_usage Float32 DEFAULT 0,           -- Percentage (0-100+, can exceed 100 on multi-core)
+    cpu_cores UInt8 DEFAULT 1,
+    load_avg_1m Float32 DEFAULT 0,
+    load_avg_5m Float32 DEFAULT 0,
+    load_avg_15m Float32 DEFAULT 0,
+    
+    -- Memory metrics (in bytes)
+    memory_rss UInt64 DEFAULT 0,           -- Resident Set Size
+    memory_heap_total UInt64 DEFAULT 0,
+    memory_heap_used UInt64 DEFAULT 0,
+    memory_external UInt64 DEFAULT 0,
+    memory_array_buffers UInt64 DEFAULT 0,
+    memory_total UInt64 DEFAULT 0,         -- OS total memory
+    memory_free UInt64 DEFAULT 0,          -- OS free memory
+    
+    -- Event loop
+    event_loop_lag Float32 DEFAULT 0,      -- Idle percentage (higher = healthier)
+    
+    -- Server info
+    uptime UInt32 DEFAULT 0                -- Server uptime in seconds
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY timestamp
+TTL toDateTime(timestamp) + INTERVAL 7 DAY;  -- 7 days retention for granular data
+
+-- =============================================================================
+-- SCHEMA MIGRATIONS
+-- Run these manually if upgrading an existing database
+-- =============================================================================
+
+-- Migration: Add user_name column to ai_usage table (2026-01-09)
+-- ALTER TABLE analytics.ai_usage ADD COLUMN IF NOT EXISTS user_name String DEFAULT '';
+
+-- Migration: Add system_metrics table (2026-01-09)
+-- Run the CREATE TABLE statement above if upgrading
 

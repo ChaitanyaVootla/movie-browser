@@ -5,34 +5,17 @@ import { cn } from "@/lib/utils";
 import { MediaActions } from "./media-actions";
 import { TrailerModal, type TrailerModalData } from "@/components/features/home/trailer-modal";
 import { QuickTake } from "./quick-take";
-import type { Video } from "@/types";
+import type { TrailerData } from "@/types";
 import type { MediaType } from "@/stores/user";
 
 interface MediaActionBarProps {
   itemId: number;
   mediaType: MediaType;
   title: string;
-  videos?: { results: Video[] };
+  /** Pre-extracted trailer data (light) - preferred for RSC optimization */
+  trailer?: TrailerData | null;
   quickTake?: string[];
   className?: string;
-}
-
-// Get trailer from videos
-function getTrailer(videos?: { results: Video[] }): Video | null {
-  if (!videos?.results?.length) return null;
-
-  const officialTrailer = videos.results.find(
-    (v) => v.type === "Trailer" && v.official && v.site === "YouTube"
-  );
-  if (officialTrailer) return officialTrailer;
-
-  const anyTrailer = videos.results.find((v) => v.type === "Trailer" && v.site === "YouTube");
-  if (anyTrailer) return anyTrailer;
-
-  const teaser = videos.results.find((v) => v.type === "Teaser" && v.site === "YouTube");
-  if (teaser) return teaser;
-
-  return videos.results.find((v) => v.site === "YouTube") || null;
 }
 
 /**
@@ -44,12 +27,11 @@ export function MediaActionBar({
   itemId,
   mediaType,
   title,
-  videos,
+  trailer,
   quickTake,
   className,
 }: MediaActionBarProps) {
   const [showTrailer, setShowTrailer] = useState(false);
-  const trailer = getTrailer(videos);
 
   // Convert to TrailerModalData format for single trailer
   const modalTrailer: TrailerModalData | null = trailer

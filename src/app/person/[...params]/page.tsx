@@ -1,13 +1,22 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Script from "next/script";
 import { getPerson } from "@/server/actions/person";
 import { PersonHero, PersonFilmography, PersonImages, KnownForSection, UpcomingLatestSection } from "@/components/features/person";
 import { SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
+import {
+  extractPersonHeroProps,
+  extractKnownForCredits,
+  extractUpcomingLatestCredits,
+  extractFilmographyCredits,
+  extractPersonImages,
+} from "@/types/client-props";
 
 interface PersonPageProps {
   params: Promise<{
     params: string[]; // [personId] or [personId, slug]
+  }>;
+  searchParams: Promise<{
+    __e2e_error?: string; // Test-only: triggers error boundary for E2E testing
   }>;
 }
 
@@ -140,21 +149,27 @@ function PersonSchema({
   };
 
   return (
-    <Script
-      id="person-schema"
+    <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
 
-export default async function PersonPage({ params }: PersonPageProps) {
+export default async function PersonPage({ params, searchParams }: PersonPageProps) {
   const { params: routeParams } = await params;
+  const { __e2e_error } = await searchParams;
   const personId = routeParams[0];
   const id = parseInt(personId, 10);
 
   if (isNaN(id)) {
     notFound();
+  }
+
+  // E2E test trigger: throw an error to test error boundary
+  // Only works in development/test, never in production
+  if (__e2e_error === "true" && process.env.NODE_ENV !== "production") {
+    throw new Error("E2E Test Error: Simulated error for error boundary testing");
   }
 
   const person = await getPerson(id);
@@ -163,8 +178,26 @@ export default async function PersonPage({ params }: PersonPageProps) {
     notFound();
   }
 
-  // Get profile images
-  const profileImages = person.images?.profiles || [];
+  // Extract only the fields needed by each client component (RSC payload optimization)
+  // This reduces ~857KB → ~350KB by removing unused fields like overview from credits
+  const heroProps = extractPersonHeroProps(person);
+  const knownForCredits = extractKnownForCredits(person.combined_credits?.cast, 15);
+  const upcomingLatestCredits = extractUpcomingLatestCredits(
+    person.combined_credits?.cast,
+    person.combined_credits?.crew,
+    20, // cast limit
+    10  // crew limit
+  );
+  const filmographyData = {
+    id: person.id,
+    combined_credits: extractFilmographyCredits(
+      person.combined_credits?.cast,
+      person.combined_credits?.crew,
+      100, // cast limit
+      50   // crew limit
+    ),
+  };
+  const profileImages = extractPersonImages(person.images?.profiles, 12);
 
   return (
     <>
@@ -172,21 +205,21 @@ export default async function PersonPage({ params }: PersonPageProps) {
 
       <article className="pb-12">
         {/* Hero section with profile image, bio, and external links */}
-        <PersonHero person={person} />
+        <PersonHero person={heroProps} />
 
         {/* Upcoming & Latest - recent and upcoming projects */}
-        {person.combined_credits && (
+        {(upcomingLatestCredits.cast.length > 0 || upcomingLatestCredits.crew.length > 0) && (
           <UpcomingLatestSection
-            castCredits={person.combined_credits.cast || []}
-            crewCredits={person.combined_credits.crew || []}
+            castCredits={upcomingLatestCredits.cast}
+            crewCredits={upcomingLatestCredits.crew}
             className="mt-8"
           />
         )}
 
         {/* Known For - Top credits */}
-        {person.combined_credits?.cast && person.combined_credits.cast.length > 0 && (
+        {knownForCredits.length > 0 && (
           <KnownForSection
-            credits={person.combined_credits.cast}
+            credits={knownForCredits}
             className="mt-8"
           />
         )}
@@ -201,7 +234,7 @@ export default async function PersonPage({ params }: PersonPageProps) {
         )}
 
         {/* Full Filmography */}
-        <PersonFilmography person={person} className="mt-8" />
+        <PersonFilmography person={filmographyData} className="mt-8" />
       </article>
     </>
   );

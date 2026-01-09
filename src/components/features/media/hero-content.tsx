@@ -6,7 +6,8 @@ import { MediaLogo } from "@/components/features/movie/media-logo";
 import { GenreList } from "./genre-badge";
 import { RatingsBar } from "./ratings-bar";
 import { WatchOptions } from "./watch-options";
-import type { Genre, Rating, ProcessedWatchOptions, WatchProviderData } from "@/types";
+import type { Genre, Rating, ProcessedWatchOptions } from "@/types";
+import type { WatchOptionsItem } from "@/types/client-props";
 
 // Animation variants - shared across all hero sections
 export const heroContainerVariants = {
@@ -63,19 +64,8 @@ interface HeroContentProps {
   priority?: boolean;
   /** Processed watch options for display */
   watchOptions?: ProcessedWatchOptions;
-  /** Raw watch providers (for client-side country override) */
-  watchProviders?: Record<string, WatchProviderData>;
-  /** Scraped google data (for India watch options) */
-  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
-  /** Item data for continue watching tracking */
-  item?: {
-    id: number;
-    title?: string;
-    name?: string;
-    poster_path?: string | null;
-    backdrop_path?: string | null;
-    images?: { backdrops?: Array<{ file_path: string; iso_639_1: string | null }> };
-  };
+  /** Item data for continue watching tracking (light version) */
+  item?: WatchOptionsItem;
 }
 
 export function HeroContent({
@@ -91,8 +81,6 @@ export function HeroContent({
   animate = true,
   priority = false,
   watchOptions,
-  watchProviders,
-  googleData,
   item,
 }: HeroContentProps) {
   // Build ratings array - use provided ratings or fall back to TMDB vote
@@ -146,8 +134,6 @@ export function HeroContent({
           <motion.div variants={heroItemVariants}>
             <WatchOptions
               watchOptions={watchOptions}
-              watchProviders={watchProviders}
-              googleData={googleData}
               item={item || { id: itemId, title: mediaType === "movie" ? title : undefined, name: mediaType === "series" ? title : undefined }}
               isMovie={mediaType === "movie"}
             />

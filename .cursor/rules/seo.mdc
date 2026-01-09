@@ -77,14 +77,15 @@ export const metadata: Metadata = {
 
 ## Structured Data (JSON-LD)
 
+**CRITICAL:** JSON-LD must use a regular `<script>` tag, NOT `next/script`. This ensures structured data appears in the initial HTML response for all crawlers (Bing, social media scrapers) that don't execute JavaScript.
+
 ### Movie Schema
 
 ```tsx
-// src/components/features/movie/movie-schema.tsx
-import Script from "next/script";
+// In src/app/movie/[...params]/page.tsx
 import type { Movie } from "@/types";
 
-export function MovieSchema({ movie }: { movie: Movie }) {
+function MovieSchema({ movie }: { movie: Movie }) {
   const schema = {
     "@context": "https://schema.org",
     "@type": "Movie",
@@ -95,34 +96,43 @@ export function MovieSchema({ movie }: { movie: Movie }) {
     aggregateRating: movie.vote_average
       ? {
           "@type": "AggregateRating",
-          ratingValue: movie.vote_average,
+          ratingValue: movie.vote_average.toFixed(1),
           ratingCount: movie.vote_count,
           bestRating: 10,
           worstRating: 0,
         }
       : undefined,
     genre: movie.genres?.map((g) => g.name),
-    director: movie.credits?.crew?.find((c) => c.job === "Director")?.name,
+    duration: movie.runtime ? `PT${movie.runtime}M` : undefined,
+    director: movie.credits?.crew?.find((c) => c.job === "Director")
+      ? { "@type": "Person", name: movie.credits.crew.find((c) => c.job === "Director")!.name }
+      : undefined,
     actor: movie.credits?.cast?.slice(0, 5).map((a) => ({
       "@type": "Person",
       name: a.name,
     })),
   };
 
+  // ✅ Use regular <script> tag for SSR
   return (
-    <Script
-      id="movie-schema"
+    <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
+
+// ❌ DON'T use next/script - it doesn't render in initial HTML
+// import Script from "next/script";
+// <Script type="application/ld+json" ... />
+```
 ```
 
 ### Series Schema
 
 ```tsx
-export function SeriesSchema({ series }: { series: Series }) {
+// In src/app/series/[...params]/page.tsx
+function SeriesSchema({ series }: { series: Series }) {
   const schema = {
     "@context": "https://schema.org",
     "@type": "TVSeries",
@@ -135,14 +145,14 @@ export function SeriesSchema({ series }: { series: Series }) {
     aggregateRating: series.vote_average
       ? {
           "@type": "AggregateRating",
-          ratingValue: series.vote_average,
+          ratingValue: series.vote_average.toFixed(1),
           ratingCount: series.vote_count,
           bestRating: 10,
           worstRating: 0,
         }
       : undefined,
     genre: series.genres?.map((g) => g.name),
-    creator: series.created_by?.map((c) => ({
+    creator: series.credits?.crew?.filter((c) => c.job === "Creator").map((c) => ({
       "@type": "Person",
       name: c.name,
     })),
@@ -150,12 +160,21 @@ export function SeriesSchema({ series }: { series: Series }) {
       "@type": "Person",
       name: a.name,
     })),
-    productionCompany: series.networks?.map((n) => ({
-      "@type": "Organization",
-      name: n.name,
+    containsSeason: series.seasons?.map((s) => ({
+      "@type": "TVSeason",
+      seasonNumber: s.season_number,
+      numberOfEpisodes: s.episode_count,
+      name: s.name,
     })),
   };
-  // ...
+
+  // ✅ Regular <script> for SSR
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
 }
 ```
 
@@ -190,7 +209,8 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 ### Person Schema
 
 ```tsx
-export function PersonSchema({ person }: { person: Person }) {
+// In src/app/person/[...params]/page.tsx
+function PersonSchema({ person }: { person: Person }) {
   // Get notable works for performerIn
   const notableWorks = person.combined_credits?.cast
     ?.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
@@ -222,7 +242,14 @@ export function PersonSchema({ person }: { person: Person }) {
     ].filter(Boolean),
     performerIn: notableWorks,
   };
-  // ...
+
+  // ✅ Regular <script> for SSR
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
 }
 ```
 
@@ -311,9 +338,30 @@ import Image from "next/image";
 
 ### Core Web Vitals Targets
 
-- **LCP**: < 2.5s (Largest Contentful Paint)
-- **FID**: < 100ms (First Input Delay)
-- **CLS**: < 0.1 (Cumulative Layout Shift)
+| Metric | Good | Needs Work | Poor |
+|-----|---|----|---|
+| **LCP** | < 2.5s | < 4s | > 4s |
+| **CLS** | < 0.1 | < 0.25 | > 0.25 |
+| **INP** | < 200ms | < 500ms | > 500ms |
+
+**Current Performance (Jan 2026):**
+- Movie pages: LCP ~700ms, CLS ~0.0003 ✅
+- Series pages: LCP ~350ms, CLS ~0.0003 ✅
+- Person pages: LCP ~3.3s, CLS ~0.0003 (needs optimization)
+- Homepage: LCP ~3.2s, CLS ~0.0003 (varies due to external API calls)
+
+### E2E Tests for Web Vitals
+
+Performance is guarded by E2E tests in `e2e/perf/web-vitals.spec.ts`:
+- LCP tests for all page types
+- CLS tests verify zero layout shift
+- Hero section layout stability tests
+- Verification that hero backdrop is the LCP element
+
+```bash
+# Run performance tests
+npx playwright test --project="Performance Tests" --workers=1
+```
 
 ### Implementation
 
@@ -324,10 +372,21 @@ export default function RootLayout({ children }) {
     <html>
       <head>
         <link rel="preconnect" href="https://image.tmdb.org" />
+        <link rel="preconnect" href="https://image.themoviebrowser.com" />
         <link rel="dns-prefetch" href="https://api.themoviedb.org" />
       </head>
       <body>{children}</body>
     </html>
+  );
+}
+
+// Detail pages preload hero images
+function ImagePreloader({ movieId }: { movieId: number }) {
+  return (
+    <>
+      <link rel="preload" as="image" href={`${CDN_IMAGE_BASE}/movie/${movieId}/backdrop.webp`} type="image/webp" fetchPriority="high" />
+      <link rel="preload" as="image" href={`${CDN_IMAGE_BASE}/movie/${movieId}/logo.webp`} type="image/webp" fetchPriority="high" />
+    </>
   );
 }
 ```
@@ -412,9 +471,13 @@ Topic URLs use the standardized key format for SEO-friendly slugs:
 Content MUST be visible without JavaScript. Test with:
 
 ```bash
+# Verify H1 renders in SSR
 curl -s https://themoviebrowser.com/movie/550 | grep -o "<h1>.*</h1>"
 curl -s https://themoviebrowser.com/topics | grep -o "<h1>.*</h1>"
 curl -s https://themoviebrowser.com/browse | grep -o "grid"
+
+# Verify JSON-LD renders in SSR (critical for non-Google crawlers)
+curl -s http://localhost:3000/movie/550/fight-club | grep -o '<script type="application/ld+json">[^<]*</script>' | head -1
 ```
 
-The h1 with movie title must be present in the initial HTML.
+The h1 with movie title AND JSON-LD structured data must be present in the initial HTML.

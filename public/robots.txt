@@ -1,10 +1,18 @@
-# robots.txt file for TheMovieBrowser
-# Created in the distant future (the year 2000) after
-# the robotic uprising of the mid 90's which wiped out all humans.
+# robots.txt for The Movie Browser
+# Production domain: themoviebrowser.com
 
 User-agent: *
+
+# Private user content - not for indexing
 Disallow: /ratings
 Disallow: /watchlist
 Disallow: /watched
 
-Sitemap: https://www.themoviebrowser.com/sitemap.xml
+# API endpoints
+Disallow: /api/
+
+# Allow everything else
+Allow: /
+
+# Sitemap location
+Sitemap: https://themoviebrowser.com/sitemap.xml

@@ -23,7 +23,8 @@ interface RatingsBarProps {
 }
 
 // Convert ExternalRating to ProcessedRating for internal use
-function toProcessedRating(rating: ExternalRating): ProcessedRating {
+// Whitelisted sources: tmdb, imdb, rt_critic, rt_audience, google
+function toProcessedRating(rating: ExternalRating): ProcessedRating | null {
   const name = rating.name.toLowerCase();
   let source: ProcessedRating["source"] = "tmdb";
 
@@ -31,16 +32,26 @@ function toProcessedRating(rating: ExternalRating): ProcessedRating {
   else if (name.includes("audience")) source = "rt_audience";
   else if (name.includes("rotten")) source = "rt_critic";
   else if (name.includes("google")) source = "google";
-  else if (name.includes("metacritic")) source = "metacritic";
+  // Skip metacritic and letterboxd - not in whitelist
+  else if (name.includes("metacritic") || name.includes("letterboxd")) return null;
+
+  // Parse score - handle both "7.1" and "86%" formats
+  const scoreStr = rating.rating.replace("%", "");
+  const score = parseFloat(scoreStr);
 
   return {
     source,
-    score: parseInt(rating.rating, 10),
+    score: isNaN(score) ? 0 : score,
     label: rating.name,
     link: rating.link,
     certified: rating.certified,
     sentiment: rating.sentiment,
   };
+}
+
+// Format score for display - all scores are 0-100 scale, displayed as integers
+function formatScore(_source: ProcessedRating["source"], score: number): string {
+  return Math.round(score).toString();
 }
 
 // Single rating item within the grouped container
@@ -55,6 +66,7 @@ function RatingItem({
 }) {
   const icon = getRatingIcon(rating);
   const color = getRatingColor(rating.score);
+  const displayScore = formatScore(rating.source, rating.score);
 
   const sizeConfig = {
     sm: { icon: 16, text: "text-[11px]", height: "h-4" },
@@ -84,7 +96,7 @@ function RatingItem({
         className={cn("font-medium tabular-nums", textClass)}
         style={{ color }}
       >
-        {rating.score}
+        {displayScore}
       </span>
     </div>
   );
@@ -96,7 +108,7 @@ function RatingItem({
         target="_blank"
         rel="noopener noreferrer"
         className="focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 rounded"
-        aria-label={`${rating.label}: ${rating.score}%`}
+        aria-label={`${rating.label}: ${displayScore}`}
       >
         {content}
       </Link>
@@ -110,16 +122,18 @@ export function RatingsBar({
   ratings,
   className,
   size = "md",
-  maxVisible = 5,
+  maxVisible = 5, // TMDB, IMDb, RT Critic, RT Audience, Google
 }: RatingsBarProps) {
   if (!ratings?.length) return null;
 
-  // Convert and dedupe ratings
+  // Convert and dedupe ratings (filtering out non-whitelisted sources)
   const processedRatings: ProcessedRating[] = [];
   const seenSources = new Set<string>();
 
   for (const rating of ratings) {
     const processed = toProcessedRating(rating);
+    // Skip null (non-whitelisted sources like metacritic, letterboxd)
+    if (!processed) continue;
     if (seenSources.has(processed.source)) continue;
     if (isNaN(processed.score)) continue;
 
@@ -139,6 +153,7 @@ export function RatingsBar({
 
   return (
     <div
+      data-testid="ratings-bar"
       className={cn(
         "inline-flex items-center gap-2.5 rounded-full",
         "bg-black/50 backdrop-blur-sm border border-white/10",

@@ -86,6 +86,7 @@ export function HeroBackdropShell({
 
   return (
     <div
+      data-testid="hero-backdrop"
       className={cn(
         "relative w-full overflow-hidden bg-black",
         // Mobile: flex column, image + content stacked

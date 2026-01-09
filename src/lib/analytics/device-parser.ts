@@ -202,3 +202,4 @@ export function getSimpleOS(parsed: ParsedDevice): string {
   return majorVersion ? `${parsed.os} ${majorVersion}` : parsed.os;
 }
 
+

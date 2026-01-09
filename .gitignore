@@ -65,9 +65,11 @@ VectorDB/vector
 __pycache__
 dump
 dump.tar.gz
-postgres
 data
 ./public/data
+
+# PostgreSQL data (but keep config)
+postgres_data/
 
 # =============================================================================
 # Logs
@@ -80,6 +82,11 @@ nginx-logs/
 # Generated files
 # =============================================================================
 sitemap*.xml
+
+# TMDB daily exports (downloaded by sitemap generator)
+data/movie_ids_*.json
+data/tv_series_ids_*.json
+data/person_ids_*.json
 
 # =============================================================================
 # SSH Keys
@@ -95,3 +102,4 @@ sitemap*.xml
 .yarn/install-state.gz
 .pnp.*
 .cache
+data-dumps

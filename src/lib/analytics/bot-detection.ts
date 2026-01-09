@@ -263,3 +263,4 @@ export function getBotDescription(botType: string): string {
   return descriptions[botType] || `Bot: ${botType}`;
 }
 
+

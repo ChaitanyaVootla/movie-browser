@@ -106,6 +106,7 @@ export function HeroLogoShell({
       // No title available yet - show a minimal placeholder
       return (
         <div
+          data-testid="hero-logo"
           className={cn(
             "h-12 sm:h-16 md:h-20 bg-transparent",
             className
@@ -115,6 +116,7 @@ export function HeroLogoShell({
     }
     return (
       <h1
+        data-testid="hero-logo"
         className={cn(
           "text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white drop-shadow-lg line-clamp-2",
           className
@@ -128,7 +130,7 @@ export function HeroLogoShell({
   // Image state (cdn or tmdb)
   // className contains responsive max-w/max-h constraints, applied directly to img
   return (
-    <div className="relative">
+    <div data-testid="hero-logo" className="relative">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={currentSrc!}

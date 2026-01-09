@@ -2,13 +2,17 @@
  * YouTube Channel-Based Trailer Discovery Service
  *
  * Fetches trending trailers by monitoring official studio and aggregator channels.
- * Uses unified cache service (24h TTL + stale-while-revalidate) to minimize API quota.
+ * Uses unified L1+L2 cache for aggressive quota protection:
+ * - L1: 1 hour in-memory
+ * - L2: 48 hours on disk (channels rarely upload >1-2 videos/day)
+ * - Stale grace: 6 hours (serve cached while refreshing in background)
+ * - Cache warming on startup loads L2→L1 to avoid API calls after restart
  *
  * Quota Usage:
  * - 3 units per channel (channels.list + playlistItems.list + videos.list)
  * - Cost is same whether fetching 1 or 50 videos per call
  * - ~100 units total for ~35 channels
- * - With 24h cache + stale-while-revalidate, daily usage is ~100 units (1% of quota)
+ * - With 48h cache + 6h stale-while-revalidate, daily usage is ~50 units (<1% of quota)
  *
  * Note: YouTube Shorts are filtered client-side (no API filter available).
  * Using Search API to filter would cost 100 units vs 1 unit for playlistItems.

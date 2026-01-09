@@ -1,9 +1,13 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Script from "next/script";
-import { getMovie } from "@/server/actions/movie";
+import { getMovie as getMovieBase } from "@/server/actions/movie";
+
+// Deduplicate getMovie calls within the same request
+// generateMetadata, HeroContentAsync, MovieContentAsync all use the same cached result
+const getMovie = cache(getMovieBase);
 import { getMovieCollection } from "@/server/services/tmdb";
+import { getCollectionFromPostgres } from "@/server/db/postgres";
 import { getAISummary } from "@/lib/ai-summary";
 import {
   MediaActionBar,
@@ -26,11 +30,20 @@ import {
 import { getMediaBadges } from "@/lib/badges";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
-import type { Collection, Movie, AISummary } from "@/types";
+import type { Collection, Movie } from "@/types";
+import {
+  extractMovieOverviewProps,
+  extractWatchOptionsItem,
+  extractTrailerData,
+  extractLightCollection,
+} from "@/types/client-props";
 
 interface MoviePageProps {
   params: Promise<{
     params: string[]; // [movieId] or [movieId, slug]
+  }>;
+  searchParams: Promise<{
+    __e2e_error?: string; // Test-only: triggers error boundary for E2E testing
   }>;
 }
 
@@ -288,12 +301,11 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
         <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
       )}
 
-      {/* Watch Options */}
+      {/* Watch Options - using light item props to reduce RSC payload */}
       {movie.watch_options?.options?.length ? (
         <WatchOptions
           watchOptions={movie.watch_options}
-          watchProviders={movie.watch_providers}
-          item={{ id: movie.id, title: movie.title, poster_path: movie.poster_path, backdrop_path: movie.backdrop_path }}
+          item={extractWatchOptionsItem(movie, true)}
           isMovie={true}
         />
       ) : null}
@@ -327,17 +339,18 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
       />
 
       {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills */}
+      {/* Pass only trailer data instead of full videos array */}
       <MediaActionBar
         itemId={movie.id}
         mediaType="movie"
         title={movie.title}
-        videos={movie.videos}
+        trailer={extractTrailerData(movie.videos)}
         quickTake={aiSummary?.quickTake}
         className="mt-2 md:mt-3"
       />
 
-      {/* Overview, cast, and details */}
-      <MediaOverview item={movie} mediaType="movie" aiSummary={aiSummary} />
+      {/* Overview, cast, and details - using light props to reduce RSC payload by ~80% */}
+      <MediaOverview item={extractMovieOverviewProps(movie)} mediaType="movie" aiSummary={aiSummary} />
 
       {/* AI Questions - clickable prompts that trigger AI chat */}
       {aiSummary?.aiQuestions && aiSummary.aiQuestions.length > 0 && (
@@ -362,13 +375,13 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
 
       {/* Video Gallery */}
       {youtubeVideos.length > 0 && (
-        <VideoGallery videos={youtubeVideos} className="mt-8 md:mt-12" />
+        <VideoGallery videos={youtubeVideos.slice(0, 20)} className="mt-8 md:mt-12" />
       )}
 
       {/* Image Gallery */}
       {movie.images?.backdrops && movie.images.backdrops.length > 0 && (
         <ImageGallery
-          images={movie.images.backdrops}
+          images={movie.images.backdrops.slice(0, 20)}
           title="Gallery"
           className="mt-8 md:mt-12"
         />
@@ -376,8 +389,8 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
 
       {/* Recommendations & Similar */}
       <RecommendationsSection
-        recommendations={movie.recommendations?.results}
-        similar={movie.similar?.results}
+        recommendations={movie.recommendations?.results?.slice(0, 15)}
+        similar={movie.similar?.results?.slice(0, 15)}
         mediaType="movie"
         className="mt-8 md:mt-12"
       />
@@ -428,15 +441,14 @@ function MovieSchema({ movie }: { movie: Movie }) {
   };
 
   return (
-    <Script
-      id="movie-schema"
+    <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
 
-// Async collection component
+// Async collection component - tries PostgreSQL first, falls back to TMDB
 async function CollectionAsync({
   collectionId,
   currentMovieId,
@@ -445,21 +457,33 @@ async function CollectionAsync({
   currentMovieId: number;
 }) {
   try {
-    const collectionData = await getMovieCollection(collectionId);
-    if (!collectionData) return null;
+    // Try PostgreSQL first
+    const USE_POSTGRES = process.env.USE_POSTGRES_DATA === "true";
+    let collection: Collection | null = null;
 
-    const collection: Collection = {
-      id: collectionData.id as number,
-      name: collectionData.name as string,
-      overview: collectionData.overview as string | undefined,
-      poster_path: collectionData.poster_path as string | null,
-      backdrop_path: collectionData.backdrop_path as string | null,
-      parts: collectionData.parts as Collection["parts"],
-    };
+    if (USE_POSTGRES) {
+      collection = await getCollectionFromPostgres(collectionId);
+    }
 
+    // Fallback to TMDB if not in PostgreSQL
+    if (!collection) {
+      const collectionData = await getMovieCollection(collectionId);
+      if (!collectionData) return null;
+
+      collection = {
+        id: collectionData.id as number,
+        name: collectionData.name as string,
+        overview: collectionData.overview as string | undefined,
+        poster_path: collectionData.poster_path as string | null,
+        backdrop_path: collectionData.backdrop_path as string | null,
+        parts: collectionData.parts as Collection["parts"],
+      };
+    }
+
+    // Extract light collection to strip overview from parts (~2-15KB savings)
     return (
       <CollectionSection
-        collection={collection}
+        collection={extractLightCollection(collection)}
         currentMovieId={currentMovieId}
         className="mt-8 md:mt-12"
       />
@@ -469,13 +493,20 @@ async function CollectionAsync({
   }
 }
 
-export default async function MoviePage({ params }: MoviePageProps) {
+export default async function MoviePage({ params, searchParams }: MoviePageProps) {
   const { params: routeParams } = await params;
+  const { __e2e_error } = await searchParams;
   const movieId = routeParams[0];
   const id = parseInt(movieId, 10);
 
   if (isNaN(id)) {
     notFound();
+  }
+
+  // E2E test trigger: throw an error to test error boundary
+  // Only works in development/test, never in production
+  if (__e2e_error === "true" && process.env.NODE_ENV !== "production") {
+    throw new Error("E2E Test Error: Simulated error for error boundary testing");
   }
 
   // Hero images render IMMEDIATELY - just needs the ID

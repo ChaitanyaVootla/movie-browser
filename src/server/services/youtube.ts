@@ -2,10 +2,15 @@
  * YouTube API Service
  *
  * Handles YouTube Data API v3 and Return YouTube Dislike API calls.
- * Uses in-memory caching for performance.
+ * Uses unified L1+L2 cache with age-based TTL:
+ * - Recent videos (<30 days): 24 hour cache
+ * - Older videos (>30 days): 7 day cache (stats stabilize after ~30 days)
+ *
+ * Batch operations (getVideoStats) use default 24h TTL since they typically
+ * contain mixed-age videos from trending/recent content.
  */
 
-import { cachedFetch } from "@/lib/cache";
+import { cachedFetch, cacheGet, cacheSet } from "@/lib/cache";
 import type {
   YouTubeVideoStats,
   YouTubeComment,
@@ -17,8 +22,33 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 const RETURN_YOUTUBE_DISLIKE_API = "https://returnyoutubedislikeapi.com";
 
+// Age-based cache TTL configuration (in seconds)
+const CACHE_TTL = {
+  RECENT: 86400,    // 24 hours for videos <30 days old
+  OLD: 604800,      // 7 days for videos >30 days old (stats stabilize)
+  AGE_THRESHOLD_DAYS: 30,
+};
+
 if (!YOUTUBE_API_KEY) {
   console.warn("YOUTUBE_API_KEY not set. YouTube API calls will fail.");
+}
+
+// ============================================
+// Age-Based Cache Helpers
+// ============================================
+
+/**
+ * Calculate cache TTL based on video age
+ * Older videos (>30 days) get longer cache since their stats stabilize
+ */
+function getVideoAgeTTL(publishedAt: string | undefined): number {
+  if (!publishedAt) return CACHE_TTL.RECENT;
+  
+  const publishDate = new Date(publishedAt);
+  const now = new Date();
+  const ageInDays = (now.getTime() - publishDate.getTime()) / (1000 * 60 * 60 * 24);
+  
+  return ageInDays > CACHE_TTL.AGE_THRESHOLD_DAYS ? CACHE_TTL.OLD : CACHE_TTL.RECENT;
 }
 
 // ============================================
@@ -220,11 +250,27 @@ export async function getVideoStats(videoIds: string[]): Promise<Map<string, You
 }
 
 /**
- * Get stats for a single video (convenience wrapper)
+ * Get stats for a single video with age-based caching
+ * Uses longer cache TTL (7 days) for videos older than 30 days
  */
 export async function getSingleVideoStats(videoId: string): Promise<YouTubeVideoStats | null> {
+  const cacheKey = `single-stats:${videoId}`;
+  
+  // Check cache first (age-based TTL was applied when stored)
+  const cached = cacheGet<YouTubeVideoStats>("youtube", cacheKey);
+  if (cached) return cached;
+  
+  // Fetch from API
   const stats = await getVideoStats([videoId]);
-  return stats.get(videoId) || null;
+  const result = stats.get(videoId) || null;
+  
+  // Cache with age-based TTL
+  if (result) {
+    const ttl = getVideoAgeTTL(result.publishedAt);
+    cacheSet("youtube", cacheKey, result, ttl);
+  }
+  
+  return result;
 }
 
 // ============================================
@@ -234,9 +280,15 @@ export async function getSingleVideoStats(videoId: string): Promise<YouTubeVideo
 /**
  * Fetch dislike data from Return YouTube Dislike API
  * Rate limits: 100 requests/minute, 10,000 requests/day
+ *
+ * Uses 3-day cache since:
+ * - Dislike counts change slowly
+ * - The API has strict rate limits
+ * - We don't have publishedAt to determine video age here
  */
 export async function getVideoDislike(videoId: string): Promise<YouTubeDislikeData | null> {
   const cacheKey = `dislike:${videoId}`;
+  const DISLIKE_CACHE_TTL = 259200; // 3 days - moderate since dislikes change slowly
 
   try {
     const data = await cachedFetch<YouTubeDislikeData>(
@@ -249,7 +301,8 @@ export async function getVideoDislike(videoId: string): Promise<YouTubeDislikeDa
           throw new Error(`Dislike API error: ${response.status}`);
         }
         return response.json();
-      }
+      },
+      DISLIKE_CACHE_TTL
     );
     return data;
   } catch (error) {
@@ -294,45 +347,53 @@ export async function getVideoDislikes(
 // ============================================
 
 /**
- * Fetch top comments for a video
+ * Fetch top comments for a video with age-based caching
+ * Older videos get longer cache since comment order rarely changes
+ *
+ * @param videoId - YouTube video ID
+ * @param maxResults - Number of comments to fetch (default 20)
+ * @param pageToken - Pagination token
+ * @param publishedAt - Optional video publish date for age-based TTL
  */
 export async function getVideoComments(
   videoId: string,
   maxResults = 20,
-  pageToken?: string
+  pageToken?: string,
+  publishedAt?: string
 ): Promise<YouTubeCommentsResponse> {
   if (!YOUTUBE_API_KEY) {
     return { comments: [], totalCount: 0 };
   }
 
   const cacheKey = `comments:${videoId}:${maxResults}:${pageToken || "first"}`;
+  
+  // Check cache first
+  const cached = cacheGet<YouTubeCommentsResponse>("youtube", cacheKey);
+  if (cached) return cached;
 
   try {
-    const data = await cachedFetch<YouTubeCommentThreadsResponse>(
-      "youtube",
-      cacheKey,
-      async () => {
-        const url = new URL(`${YOUTUBE_API_BASE}/commentThreads`);
-        url.searchParams.set("part", "snippet");
-        url.searchParams.set("videoId", videoId);
-        url.searchParams.set("maxResults", String(maxResults));
-        url.searchParams.set("order", "relevance"); // Top comments
-        url.searchParams.set("key", YOUTUBE_API_KEY!);
-        if (pageToken) {
-          url.searchParams.set("pageToken", pageToken);
-        }
+    const url = new URL(`${YOUTUBE_API_BASE}/commentThreads`);
+    url.searchParams.set("part", "snippet");
+    url.searchParams.set("videoId", videoId);
+    url.searchParams.set("maxResults", String(maxResults));
+    url.searchParams.set("order", "relevance"); // Top comments
+    url.searchParams.set("key", YOUTUBE_API_KEY!);
+    if (pageToken) {
+      url.searchParams.set("pageToken", pageToken);
+    }
 
-        const response = await fetch(url.toString(), { cache: "no-store" });
-        if (!response.ok) {
-          // Comments might be disabled
-          if (response.status === 403) {
-            return { items: [], pageInfo: { totalResults: 0, resultsPerPage: 0 } };
-          }
-          throw new Error(`YouTube Comments API error: ${response.status}`);
-        }
-        return response.json();
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) {
+      // Comments might be disabled
+      if (response.status === 403) {
+        const emptyResult = { comments: [], totalCount: 0 };
+        cacheSet("youtube", cacheKey, emptyResult, CACHE_TTL.OLD); // Cache disabled comments for longer
+        return emptyResult;
       }
-    );
+      throw new Error(`YouTube Comments API error: ${response.status}`);
+    }
+    
+    const data = await response.json() as YouTubeCommentThreadsResponse;
 
     const comments: YouTubeComment[] = (data.items || []).map((item) => {
       const comment = item.snippet.topLevelComment.snippet;
@@ -353,11 +414,17 @@ export async function getVideoComments(
       };
     });
 
-    return {
+    const result: YouTubeCommentsResponse = {
       comments,
       totalCount: data.pageInfo?.totalResults || 0,
       nextPageToken: data.nextPageToken,
     };
+    
+    // Cache with age-based TTL
+    const ttl = getVideoAgeTTL(publishedAt);
+    cacheSet("youtube", cacheKey, result, ttl);
+
+    return result;
   } catch (error) {
     console.error("Failed to fetch comments:", error);
     return { comments: [], totalCount: 0 };
@@ -376,16 +443,22 @@ export interface FullVideoData {
 
 /**
  * Fetch all video data (stats, dislikes, comments) in parallel
+ * Uses age-based caching: older videos (>30 days) cached for 7 days
  */
 export async function getFullVideoData(
   videoId: string,
   includeComments = true
 ): Promise<FullVideoData> {
-  const [stats, dislike, comments] = await Promise.all([
+  // First get stats to determine video age for comments cache TTL
+  const [stats, dislike] = await Promise.all([
     getSingleVideoStats(videoId),
     getVideoDislike(videoId),
-    includeComments ? getVideoComments(videoId, 100) : Promise.resolve({ comments: [], totalCount: 0 }),
   ]);
+
+  // Fetch comments with video's publishedAt for age-based caching
+  const comments = includeComments
+    ? await getVideoComments(videoId, 100, undefined, stats?.publishedAt)
+    : { comments: [], totalCount: 0 };
 
   // Merge dislike count into stats if both are available
   if (stats && dislike) {

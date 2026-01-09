@@ -62,6 +62,7 @@ export function NavBar() {
   return (
     <>
       <header
+        data-testid="nav-header"
         className={cn(
           "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300",
           "hidden md:block", // Hide on mobile - using MobileBottomNav instead
@@ -74,7 +75,7 @@ export function NavBar() {
           {/* Left side: Logo + Navigation */}
           <div className="flex items-center gap-2 md:gap-4">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 font-bold text-xl group">
+            <Link href="/" data-testid="nav-logo" className="flex items-center gap-2 font-bold text-xl group">
               <Image
                 src="/popcorn-lite.png"
                 alt="TMB"
@@ -88,9 +89,9 @@ export function NavBar() {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-0.5">
+            <nav data-testid="nav-desktop" className="hidden md:flex items-center gap-0.5">
               {navItems.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href}>
+                <Link key={href} href={href} data-testid={`nav-${label.toLowerCase()}`}>
                   <Button
                     variant="ghost"
                     className={cn(
@@ -109,7 +110,7 @@ export function NavBar() {
               {/* Auth-only nav items */}
               {isAuthenticated &&
                 authNavItems.map(({ href, label, icon: Icon }) => (
-                  <Link key={href} href={href}>
+                  <Link key={href} href={href} data-testid={`nav-${label.toLowerCase()}`}>
                     <Button
                       variant="ghost"
                       className={cn(
@@ -127,7 +128,7 @@ export function NavBar() {
                 ))}
               {/* Admin link - only visible to admins */}
               {isAdmin && (
-                <Link href="/admin">
+                <Link href="/admin" data-testid="nav-admin">
                   <Button
                     variant="ghost"
                     className={cn(
@@ -150,6 +151,7 @@ export function NavBar() {
           <div className="flex items-center gap-3">
             {/* Desktop Search Trigger - Compact */}
             <button
+              data-testid="nav-search"
               onClick={() => setSearchOpen(true)}
               className={cn(
                 "hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-sm transition-colors",

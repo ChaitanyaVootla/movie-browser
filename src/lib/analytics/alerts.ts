@@ -664,3 +664,4 @@ export const ALERT_SEVERITY_META: Record<AlertSeverity, { icon: string; color: s
   info: { icon: "Info", color: "text-blue-500", bgColor: "bg-blue-500/10" },
 };
 
+

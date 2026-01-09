@@ -10,12 +10,13 @@ import { MediaCard } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { cn } from "@/lib/utils";
 import { buildBrowseUrl } from "@/lib/discover";
-import { filterOutTalkShows } from "@/lib/person-credits";
+import { filterOutTalkShowsLight } from "@/lib/person-credits";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
-import type { Person, PersonCombinedCastCredit, PersonCombinedCrewCredit, MovieListItem, SeriesListItem } from "@/types";
+import type { MovieListItem, SeriesListItem } from "@/types";
+import type { LightPersonCastCredit, LightPersonCrewCredit, PersonFilmographyProps as PersonFilmographyData } from "@/types/client-props";
 
 interface PersonFilmographyProps {
-  person: Person;
+  person: PersonFilmographyData;
   className?: string;
 }
 
@@ -23,13 +24,13 @@ type FilterOption = "all" | "cast" | "crew";
 
 // Credit with subtitle info
 interface CreditWithSubtitle {
-  credit: PersonCombinedCastCredit | PersonCombinedCrewCredit;
+  credit: LightPersonCastCredit | LightPersonCrewCredit;
   subtitle: string;
   isCast: boolean;
 }
 
 // Helper to get year from credit
-function getYear(credit: PersonCombinedCastCredit | PersonCombinedCrewCredit): number | null {
+function getYear(credit: LightPersonCastCredit | LightPersonCrewCredit): number | null {
   const date = credit.media_type === "movie" ? credit.release_date : credit.first_air_date;
   if (!date) return null;
   return parseInt(date.split("-")[0], 10);
@@ -41,9 +42,9 @@ function getDecade(year: number | null): string {
   return `${Math.floor(year / 10) * 10}s`;
 }
 
-// Convert credit to MovieListItem/SeriesListItem format for MovieCard
+// Convert credit to MovieListItem/SeriesListItem format for MovieCard (light version - no overview)
 function creditToListItem(
-  credit: PersonCombinedCastCredit | PersonCombinedCrewCredit
+  credit: LightPersonCastCredit | LightPersonCrewCredit
 ): MovieListItem | SeriesListItem {
   if (credit.media_type === "movie") {
     return {
@@ -55,7 +56,6 @@ function creditToListItem(
       vote_count: credit.vote_count,
       release_date: credit.release_date || "",
       genre_ids: credit.genre_ids,
-      overview: credit.overview,
       popularity: credit.popularity,
       adult: credit.adult,
       media_type: "movie",
@@ -70,7 +70,6 @@ function creditToListItem(
       vote_count: credit.vote_count,
       first_air_date: credit.first_air_date || "",
       genre_ids: credit.genre_ids,
-      overview: credit.overview,
       popularity: credit.popularity,
       adult: credit.adult,
       media_type: "tv",
@@ -79,12 +78,12 @@ function creditToListItem(
 }
 
 // Get subtitle for a credit (character or job)
-function getSubtitle(credit: PersonCombinedCastCredit | PersonCombinedCrewCredit, isCast: boolean): string {
+function getSubtitle(credit: LightPersonCastCredit | LightPersonCrewCredit, isCast: boolean): string {
   if (isCast) {
-    const castCredit = credit as PersonCombinedCastCredit;
+    const castCredit = credit as LightPersonCastCredit;
     return castCredit.character || "";
   } else {
-    const crewCredit = credit as PersonCombinedCrewCredit;
+    const crewCredit = credit as LightPersonCrewCredit;
     return crewCredit.job || crewCredit.department || "";
   }
 }
@@ -155,37 +154,37 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
 
   // Get combined credits with subtitle info, filtering out talk shows
   const combinedCast = useMemo(
-    () => filterOutTalkShows(person.combined_credits?.cast || []).map((credit) => ({
+    () => filterOutTalkShowsLight(person.combined_credits.cast).map((credit): CreditWithSubtitle => ({
       credit,
       subtitle: getSubtitle(credit, true),
       isCast: true,
     })),
-    [person.combined_credits?.cast]
+    [person.combined_credits.cast]
   );
   const combinedCrew = useMemo(
-    () => filterOutTalkShows(person.combined_credits?.crew || []).map((credit) => ({
+    () => filterOutTalkShowsLight(person.combined_credits.crew).map((credit): CreditWithSubtitle => ({
       credit,
       subtitle: getSubtitle(credit, false),
       isCast: false,
     })),
-    [person.combined_credits?.crew]
+    [person.combined_credits.crew]
   );
 
   // Separate by media type
   const movieCast = useMemo(
-    () => deduplicateCredits(combinedCast.filter((c) => c.credit.media_type === "movie")),
+    () => deduplicateCredits(combinedCast.filter((c: CreditWithSubtitle) => c.credit.media_type === "movie")),
     [combinedCast]
   );
   const movieCrew = useMemo(
-    () => deduplicateCredits(combinedCrew.filter((c) => c.credit.media_type === "movie")),
+    () => deduplicateCredits(combinedCrew.filter((c: CreditWithSubtitle) => c.credit.media_type === "movie")),
     [combinedCrew]
   );
   const tvCast = useMemo(
-    () => deduplicateCredits(combinedCast.filter((c) => c.credit.media_type === "tv")),
+    () => deduplicateCredits(combinedCast.filter((c: CreditWithSubtitle) => c.credit.media_type === "tv")),
     [combinedCast]
   );
   const tvCrew = useMemo(
-    () => deduplicateCredits(combinedCrew.filter((c) => c.credit.media_type === "tv")),
+    () => deduplicateCredits(combinedCrew.filter((c: CreditWithSubtitle) => c.credit.media_type === "tv")),
     [combinedCrew]
   );
 

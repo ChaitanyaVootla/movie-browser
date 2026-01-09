@@ -52,3 +52,4 @@ export { UserStatusBadge, useIsWatched } from "./user-status-badge";
 
 // Admin tools
 export { EnrichButton } from "./enrich-button";
+export { RefreshDataButton } from "./refresh-data-button";

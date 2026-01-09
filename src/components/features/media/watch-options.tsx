@@ -1,34 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Play, ChevronRight } from "lucide-react";
+import { Play, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserStore, selectCountryOverride } from "@/stores/user";
-import {
-  getWatchOptionsForCountry,
-  type WatchOption,
-  type ProcessedWatchOptions,
-} from "@/lib/watch-options";
-import type { WatchProviderData, ProcessedWatchOptions as WatchOptionsType } from "@/types";
+import { type WatchOption, type ProcessedWatchOptions } from "@/lib/watch-options";
+import type { ProcessedWatchOptions as WatchOptionsType, WatchOptionsItem } from "@/types";
 
 interface WatchOptionsProps {
-  /** Pre-processed watch options from server */
+  /** Pre-processed watch options from server (for user's detected country) */
   watchOptions?: WatchOptionsType;
-  /** Raw watch providers (for client-side re-processing on country change) */
-  watchProviders?: Record<string, WatchProviderData>;
-  /** Scraped google data (for India watch options) */
-  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
-  /** Media item details for continue watching tracking */
-  item: {
-    id: number;
-    title?: string;
-    name?: string;
-    poster_path?: string | null;
-    backdrop_path?: string | null;
-    images?: { backdrops?: Array<{ file_path: string; iso_639_1: string | null }> };
-  };
+  /** Light item details for continue watching tracking (pre-extracted) */
+  item: WatchOptionsItem;
   /** Whether this is a movie or series */
   isMovie: boolean;
   /** Additional className */
@@ -45,32 +30,99 @@ const containerVariants = {
   },
 };
 
+/**
+ * Fetch watch options for a specific country from the API
+ */
+async function fetchWatchOptions(
+  itemId: number,
+  mediaType: "movie" | "series",
+  country: string
+): Promise<ProcessedWatchOptions> {
+  const response = await fetch(
+    `/api/watch-providers/${mediaType}/${itemId}?country=${country}`
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch watch options");
+  }
+  return response.json();
+}
+
 export function WatchOptions({
   watchOptions: serverWatchOptions,
-  watchProviders,
-  googleData,
   item,
   isMovie,
   className,
 }: WatchOptionsProps) {
   const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [fetchedOptions, setFetchedOptions] = useState<ProcessedWatchOptions | null>(null);
   const countryOverride = useUserStore(selectCountryOverride);
   const addToContinueWatching = useUserStore((s) => s.addToContinueWatching);
+  
+  // Track the country we fetched for to avoid re-fetching
+  const lastFetchedCountry = useRef<string | null>(null);
 
-  // Compute watch options based on country override
-  const watchOptions = useMemo<ProcessedWatchOptions>(() => {
-    // If user has overridden country, re-process on client
-    if (countryOverride && watchProviders) {
-      return getWatchOptionsForCountry(countryOverride, googleData, watchProviders);
+  // Fetch watch options when country override changes
+  useEffect(() => {
+    // No override - use server options
+    if (!countryOverride) {
+      setFetchedOptions(null);
+      lastFetchedCountry.current = null;
+      return;
     }
-    // Otherwise use server-processed options
-    return serverWatchOptions || { options: [], sourceCountry: "IN", isFromFallback: false };
-  }, [countryOverride, watchProviders, googleData, serverWatchOptions]);
+
+    // Already fetched for this country
+    if (lastFetchedCountry.current === countryOverride) {
+      return;
+    }
+
+    // Same as server country - use server options
+    if (serverWatchOptions?.sourceCountry === countryOverride) {
+      setFetchedOptions(null);
+      lastFetchedCountry.current = countryOverride;
+      return;
+    }
+
+    // Fetch for new country
+    const abortController = new AbortController();
+    setLoading(true);
+
+    fetchWatchOptions(item.id, isMovie ? "movie" : "series", countryOverride)
+      .then((data) => {
+        if (!abortController.signal.aborted) {
+          setFetchedOptions(data);
+          lastFetchedCountry.current = countryOverride;
+        }
+      })
+      .catch((error) => {
+        if (!abortController.signal.aborted) {
+          console.error("Failed to fetch watch options:", error);
+          // On error, keep showing server options
+          setFetchedOptions(null);
+        }
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [countryOverride, item.id, isMovie, serverWatchOptions?.sourceCountry]);
+
+  // Use fetched options if available, otherwise use server options
+  const watchOptions = fetchedOptions || serverWatchOptions || {
+    options: [],
+    sourceCountry: "IN",
+    isFromFallback: false,
+  };
 
   const { options, sourceCountry, isFromFallback } = watchOptions;
 
-  // Don't render if no watch options
-  if (!options.length) {
+  // Don't render if no watch options and not loading
+  if (!options.length && !loading) {
     return null;
   }
 
@@ -91,16 +143,14 @@ export function WatchOptions({
       window.open(option.link, "_blank", "noopener,noreferrer");
     }
 
-    // Track continue watching
-    const englishBackdrop = item.images?.backdrops?.find((b) => b.iso_639_1 === "en")?.file_path;
-
+    // Track continue watching (englishBackdropPath pre-extracted on server)
     addToContinueWatching({
       itemId: item.id,
       isMovie,
       title: item.title,
       name: item.name,
       poster_path: item.poster_path,
-      backdrop_path: englishBackdrop || item.backdrop_path,
+      backdrop_path: item.englishBackdropPath || item.backdrop_path,
       watchLink: option.link,
       watchProviderName: option.key,
     });
@@ -112,6 +162,7 @@ export function WatchOptions({
       initial="hidden"
       animate="visible"
       className={cn("flex", className)}
+      data-testid="watch-options"
     >
       <div
         className={cn(
@@ -131,43 +182,48 @@ export function WatchOptions({
           )}
         </div>
 
-        {/* Provider icons */}
+        {/* Provider icons or loading state */}
         <div className="flex items-center gap-1.5">
-          {visibleOptions.map((option) => (
-            <button
-              key={option.key}
-              onClick={() => handleWatchClick(option)}
-              className="group transition-transform hover:scale-110"
-              title={`${option.displayName}${option.price ? ` (${option.price.replace("flatrate", "stream")})` : ""}`}
-            >
-              <div className="relative w-7 h-7 rounded overflow-hidden bg-black/20">
-                <Image
-                  src={option.image}
-                  alt={option.displayName}
-                  fill
-                  sizes="28px"
-                  className="object-contain p-0.5"
-                  unoptimized={option.image.startsWith("http")}
-                />
-              </div>
-            </button>
-          ))}
+          {loading ? (
+            <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
+          ) : (
+            <>
+              {visibleOptions.map((option) => (
+                <button
+                  key={option.key}
+                  onClick={() => handleWatchClick(option)}
+                  className="group transition-transform hover:scale-110"
+                  title={`${option.displayName}${option.price ? ` (${option.price.replace("flatrate", "stream")})` : ""}`}
+                >
+                  <div className="relative w-7 h-7 rounded overflow-hidden bg-black/20">
+                    <Image
+                      src={option.image}
+                      alt={option.displayName}
+                      fill
+                      sizes="28px"
+                      className="object-contain p-0.5"
+                      unoptimized={option.image.startsWith("http")}
+                    />
+                  </div>
+                </button>
+              ))}
 
-          {/* Expand/collapse button */}
-          {hasMore && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-white/50 hover:text-white transition-colors ml-0.5"
-              aria-label={expanded ? "Show fewer" : "Show more"}
-            >
-              <ChevronRight
-                className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
-              />
-            </button>
+              {/* Expand/collapse button */}
+              {hasMore && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="text-white/50 hover:text-white transition-colors ml-0.5"
+                  aria-label={expanded ? "Show fewer" : "Show more"}
+                >
+                  <ChevronRight
+                    className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
+                  />
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
     </motion.div>
   );
 }
-

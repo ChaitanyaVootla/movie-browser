@@ -18,35 +18,72 @@ import { createInterface } from 'readline';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Read data directly from TypeScript files
-function extractExportedData(filePath, exportName) {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const regex = new RegExp(`export const ${exportName}\\s*=\\s*([\\s\\S]*?);`, 'g');
-    const match = regex.exec(content);
-    if (match) {
-        try {
-            // Simple eval for object literals (risky but controlled environment)
-            return eval(`(${match[1]})`);
-        } catch (e) {
-            console.warn(`Failed to parse ${exportName} from ${filePath}`);
-            return null;
-        }
-    }
-    return null;
-}
+// Genres (from TMDB - these rarely change)
+// Source: src/lib/constants.ts
+const movieGenres = {
+    28: "Action",
+    12: "Adventure",
+    16: "Animation",
+    35: "Comedy",
+    80: "Crime",
+    99: "Documentary",
+    18: "Drama",
+    10751: "Family",
+    14: "Fantasy",
+    36: "History",
+    27: "Horror",
+    10402: "Music",
+    9648: "Mystery",
+    10749: "Romance",
+    878: "Science Fiction",
+    10770: "TV Movie",
+    53: "Thriller",
+    10752: "War",
+    37: "Western",
+};
 
-// Read constants from TypeScript files
-const constantsPath = path.resolve(__dirname, '../utils/constants.ts');
-const movieGenres = extractExportedData(constantsPath, 'movieGenres') || {};
-const seriesGenres = extractExportedData(constantsPath, 'seriesGenres') || {};
+const seriesGenres = {
+    10759: "Action & Adventure",
+    16: "Animation",
+    35: "Comedy",
+    80: "Crime",
+    99: "Documentary",
+    18: "Drama",
+    10751: "Family",
+    10762: "Kids",
+    9648: "Mystery",
+    10763: "News",
+    10764: "Reality",
+    10765: "Sci-Fi & Fantasy",
+    10766: "Soap",
+    10767: "Talk",
+    10768: "War & Politics",
+    37: "Western",
+};
 
-// Read themes data
-const themesPath = path.resolve(__dirname, '../utils/topics/themes/themes.json');
-const themes = JSON.parse(fs.readFileSync(themesPath, 'utf-8'));
+// Theme definitions (from src/lib/topics/topics.ts)
+const themes = [
+    { name: "Zombie" },
+    { name: "Time Travel" },
+    { name: "Superhero" },
+    { name: "Space" },
+    { name: "Artificial Intelligence" },
+    { name: "Heist" },
+    { name: "Serial Killer" },
+    { name: "Dystopia" },
+    { name: "Survival" },
+    { name: "True Story" },
+    { name: "Martial Arts" },
+    { name: "Mafia" },
+    { name: "Spy" },
+    { name: "Slasher" },
+    { name: "Coming of Age" },
+];
 
 const BASE_URL = 'https://themoviebrowser.com';
 const DATA_DIR = path.resolve(__dirname, '../data');
-const SITEMAPS_DIR = path.resolve(__dirname, '../sitemaps');
+// Output directly to public/ for Next.js static serving
+const SITEMAPS_DIR = path.resolve(__dirname, '../public');
 
 // Configuration - Simplified: Just pick top entries by popularity
 const CONFIG = {
@@ -60,19 +97,21 @@ const CONFIG = {
 
 /**
  * Helper functions to generate topic keys (matching the app logic)
+ * Format: {type}-{sanitized-name}-{media}
+ * Example: genre-action-movie, theme-superhero-tv
  */
 function getTopicKey(prefix, name, media) {
-    const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return media ? `${prefix}-${sanitized}-${media}` : `${prefix}-${sanitized}`;
+    const sanitized = name.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')  // Keep spaces for now
+        .replace(/\s+/g, '-')          // Convert spaces to hyphens
+        .replace(/-+/g, '-')           // Collapse multiple hyphens
+        .replace(/^-|-$/g, '');        // Trim hyphens from ends
+    return `${prefix}-${sanitized}-${media}`;
 }
 
 function getUrlSlugFromKey(key) {
-    // Convert topic key to URL slug (reverse engineering from the app)
-    return key.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
+    // Topic key IS the URL slug in Next.js
+    return key;
 }
 
 /**
@@ -81,49 +120,59 @@ function getUrlSlugFromKey(key) {
 function generateAllTopicRoutes() {
     const topics = [];
     
-    // 1. Genre-based topics (from movieGenres) - Premium priorities for traffic drivers
-    const topGenreNames = ['Action', 'Comedy', 'Drama', 'Horror'];  // Top 4 traffic drivers
+    // 1. Movie genres - Premium priorities for traffic drivers
+    const topGenreNames = ['Action', 'Comedy', 'Drama', 'Horror'];
     const popularGenreNames = ['Romance', 'Thriller', 'Adventure', 'Crime', 'Science Fiction'];
     
-    Object.values(movieGenres).forEach(genre => {
-        const genreKey = getTopicKey('genre', genre.name, 'movie');
-        const isTopGenre = topGenreNames.includes(genre.name);
-        const isPopular = popularGenreNames.includes(genre.name);
+    Object.values(movieGenres).forEach(genreName => {
+        const genreKey = getTopicKey('genre', genreName, 'movie');
+        const isTopGenre = topGenreNames.includes(genreName);
+        const isPopular = popularGenreNames.includes(genreName);
         
         topics.push({
-            url: `/topics/${getUrlSlugFromKey(genreKey)}`,
-            priority: isTopGenre ? '1.0' :      // Top 4 genres get priority 1.0
-                     isPopular ? '0.9' :        // Popular genres get 0.9
-                     '0.8',                     // Other genres get 0.8
+            url: `/topics/${genreKey}`,
+            priority: isTopGenre ? '1.0' : isPopular ? '0.9' : '0.8',
             changefreq: 'daily'
         });
     });
     
-    // 2. Theme-based topics (from themes.json) - Premium themes only
-    const topThemeNames = ['Zombie', 'Vampire', 'Superhero', 'Christmas'];  // Top themes that drive traffic
-    const popularThemeNames = ['Space', 'War', 'Time Travel', 'Dystopian'];
+    // 2. TV genres
+    const topTVGenreNames = ['Drama', 'Comedy', 'Crime'];
+    Object.values(seriesGenres).forEach(genreName => {
+        // Skip low-value genres for TV
+        if (['News', 'Talk', 'Soap'].includes(genreName)) return;
+        
+        const genreKey = getTopicKey('genre', genreName, 'tv');
+        const isTopGenre = topTVGenreNames.includes(genreName);
+        
+        topics.push({
+            url: `/topics/${genreKey}`,
+            priority: isTopGenre ? '0.9' : '0.8',
+            changefreq: 'daily'
+        });
+    });
     
-    themes.slice(0, 15).forEach(theme => {  // Limit to top 15 themes for premium quality
+    // 3. Theme-based topics - Premium themes only
+    const topThemeNames = ['Zombie', 'Superhero', 'Space', 'Time Travel'];
+    const popularThemeNames = ['Heist', 'Mafia', 'Spy', 'True Story'];
+    
+    themes.forEach(theme => {
         const isTopTheme = topThemeNames.includes(theme.name);
         const isPopular = popularThemeNames.includes(theme.name);
         
         // Movie themes
         const movieThemeKey = getTopicKey('theme', theme.name, 'movie');
         topics.push({
-            url: `/topics/${getUrlSlugFromKey(movieThemeKey)}`,
-            priority: isTopTheme ? '1.0' :     // Top themes get priority 1.0
-                     isPopular ? '0.8' :      // Popular themes get 0.8
-                     '0.7',                   // Standard themes get 0.7
+            url: `/topics/${movieThemeKey}`,
+            priority: isTopTheme ? '1.0' : isPopular ? '0.8' : '0.7',
             changefreq: 'daily'
         });
         
         // TV themes  
         const tvThemeKey = getTopicKey('theme', theme.name, 'tv');
         topics.push({
-            url: `/topics/${getUrlSlugFromKey(tvThemeKey)}`,
-            priority: isTopTheme ? '1.0' :     // Top themes get priority 1.0
-                     isPopular ? '0.8' :      // Popular themes get 0.8  
-                     '0.7',                   // Standard themes get 0.7
+            url: `/topics/${tvThemeKey}`,
+            priority: isTopTheme ? '0.9' : isPopular ? '0.7' : '0.6',
             changefreq: 'daily'
         });
     });
@@ -419,6 +468,7 @@ function createSitemap(urls, filename) {
 
 /**
  * Create sitemap index
+ * Note: sitemap files are served from root (e.g., /sitemap_movies.xml)
  */
 function createSitemapIndex(sitemapFiles) {
     console.log(`📋 Creating sitemap index with ${sitemapFiles.length} sitemaps`);
@@ -428,6 +478,7 @@ function createSitemapIndex(sitemapFiles) {
     
     sitemapFiles.forEach(filename => {
         xml += '  <sitemap>\n';
+        // Files are served from root of public/
         xml += `    <loc>${BASE_URL}/${filename}</loc>\n`;
         xml += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
         xml += '  </sitemap>\n';
@@ -437,7 +488,7 @@ function createSitemapIndex(sitemapFiles) {
     
     const indexPath = path.join(SITEMAPS_DIR, 'sitemap.xml');
     fs.writeFileSync(indexPath, xml);
-    console.log(`✅ Created sitemap index: sitemap.xml`);
+    console.log(`✅ Created sitemap index: ${indexPath}`);
 }
 
 /**

@@ -1,8 +1,11 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Script from "next/script";
-import { getSeries } from "@/server/actions/series";
+import { getSeries as getSeriesBase } from "@/server/actions/series";
+
+// Deduplicate getSeries calls within the same request
+// generateMetadata, HeroContentAsync, SeriesContentAsync all use the same cached result
+const getSeries = cache(getSeriesBase);
 import {
   MediaActionBar,
   MediaOverview,
@@ -24,10 +27,18 @@ import { SeasonSelector, EpisodeInfoSection } from "@/components/features/series
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
+import {
+  extractSeriesOverviewProps,
+  extractWatchOptionsItem,
+  extractTrailerData,
+} from "@/types/client-props";
 
 interface SeriesPageProps {
   params: Promise<{
     params: string[]; // [seriesId] or [seriesId, slug]
+  }>;
+  searchParams: Promise<{
+    __e2e_error?: string; // Test-only: triggers error boundary for E2E testing
   }>;
 }
 
@@ -289,12 +300,11 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
         <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
       )}
 
-      {/* Watch Options */}
+      {/* Watch Options - using light item props to reduce RSC payload */}
       {series.watch_options?.options?.length ? (
         <WatchOptions
           watchOptions={series.watch_options}
-          watchProviders={series.watch_providers}
-          item={{ id: series.id, name: series.name, poster_path: series.poster_path, backdrop_path: series.backdrop_path }}
+          item={extractWatchOptionsItem(series, false)}
           isMovie={false}
         />
       ) : null}
@@ -325,11 +335,12 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
       />
 
       {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share */}
+      {/* Pass only trailer data instead of full videos array */}
       <MediaActionBar
         itemId={series.id}
         mediaType="series"
         title={series.name}
-        videos={series.videos}
+        trailer={extractTrailerData(series.videos)}
         className="mt-2 md:mt-3"
       />
 
@@ -351,18 +362,18 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         className="mt-6 md:mt-8"
       />
 
-      {/* Overview, cast, and details */}
-      <MediaOverview item={series} mediaType="series" />
+      {/* Overview, cast, and details - using light props to reduce RSC payload by ~80% */}
+      <MediaOverview item={extractSeriesOverviewProps(series)} mediaType="series" />
 
       {/* Video Gallery */}
       {youtubeVideos.length > 0 && (
-        <VideoGallery videos={youtubeVideos} className="mt-8 md:mt-12" />
+        <VideoGallery videos={youtubeVideos.slice(0, 20)} className="mt-8 md:mt-12" />
       )}
 
       {/* Image Gallery */}
       {series.images?.backdrops && series.images.backdrops.length > 0 && (
         <ImageGallery
-          images={series.images.backdrops}
+          images={series.images.backdrops.slice(0, 20)}
           title="Gallery"
           className="mt-8 md:mt-12"
         />
@@ -370,8 +381,8 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
 
       {/* Recommendations & Similar */}
       <RecommendationsSection
-        recommendations={series.recommendations?.results}
-        similar={series.similar?.results}
+        recommendations={series.recommendations?.results?.slice(0, 15)}
+        similar={series.similar?.results?.slice(0, 15)}
         mediaType="series"
         className="mt-8 md:mt-12"
       />
@@ -428,21 +439,27 @@ function SeriesSchema({ series }: { series: Series }) {
   };
 
   return (
-    <Script
-      id="series-schema"
+    <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
 
-export default async function SeriesPage({ params }: SeriesPageProps) {
+export default async function SeriesPage({ params, searchParams }: SeriesPageProps) {
   const { params: routeParams } = await params;
+  const { __e2e_error } = await searchParams;
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
 
   if (isNaN(id)) {
     notFound();
+  }
+
+  // E2E test trigger: throw an error to test error boundary
+  // Only works in development/test, never in production
+  if (__e2e_error === "true" && process.env.NODE_ENV !== "production") {
+    throw new Error("E2E Test Error: Simulated error for error boundary testing");
   }
 
   // Hero images render IMMEDIATELY - just needs the ID

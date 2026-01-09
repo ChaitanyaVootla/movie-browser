@@ -18,7 +18,8 @@ The codebase is designed to be maintained by AI agents with human oversight.
 - **Language**: TypeScript (strict mode)
 - **UI**: shadcn/ui + Tailwind CSS v4
 - **State**: Zustand (client) + TanStack Query (server)
-- **Database**: MongoDB with Mongoose
+- **Database**: MongoDB with Mongoose (legacy) → PostgreSQL with Prisma (migration in progress)
+- **PostgreSQL**: Prisma 6.x ORM, pgvector for embeddings, pg_trgm for fuzzy search
 - **Auth**: Auth.js v5 (NextAuth)
 - **Animation**: Framer Motion
 - **Validation**: Zod
@@ -55,6 +56,8 @@ src/
 │   └── api/
 │       ├── auth/[...nextauth]/  # Auth.js handlers
 │       ├── admin/               # Admin API routes (protected)
+│       │   ├── analytics/       # Main analytics endpoint (overview, traffic, ai, lambda)
+│       │   └── item-analytics/  # Item-specific analytics (per movie/series)
 │       └── user/                # User library API routes
 │           ├── library/         # GET all user data (hydration)
 │           ├── watchlist/       # GET detailed watchlist
@@ -92,8 +95,10 @@ src/
 │       ├── auth/        # Auth components (GoogleOneTap, UserMenu, LoginDialog)
 │       ├── admin/       # Admin dashboard components
 │       │   ├── index.ts                 # Exports
-│       │   ├── analytics-dashboard.tsx  # Main analytics UI (traffic, AI, perf, system)
-│       │   └── alerts-panel.tsx         # Alert display component
+│       │   ├── analytics-dashboard.tsx  # Main analytics UI (traffic, AI, Lambda, perf, system)
+│       │   ├── analytics-charts.tsx     # Reusable chart components (pie, donut, trend, bar)
+│       │   ├── alerts-panel.tsx         # Alert display component
+│       │   └── item-analytics-modal.tsx # Item-specific analytics modal (detail pages)
 │       └── layout/      # Layout components
 │           ├── nav-bar.tsx           # Desktop navbar (hidden on mobile)
 │           ├── mobile-bottom-nav.tsx # Mobile bottom navigation bar
@@ -147,22 +152,51 @@ src/
 ├── server/              # Server-side code
 │   ├── actions/         # Server Actions
 │   │   ├── discover.ts  # discoverBatch for browse/topics
+│   │   ├── movie.ts     # getMovie() - uses hydration service
+│   │   ├── series.ts    # getSeries() - uses hydration service
 │   │   └── trending.ts  # getTrending(), getYouTubeTrendingTrailers()
 │   ├── services/        # External API services
 │   │   ├── tmdb.ts      # TMDB API with retry logic
 │   │   ├── youtube.ts   # YouTube Data API + Return YouTube Dislike API
-│   │   └── youtube-channels.ts  # YouTube channel monitoring for viral trailers
-│   └── db/              # Database layer (MongoDB)
-│       ├── index.ts     # Connection setup
-│       ├── models/      # Mongoose models
+│   │   ├── youtube-channels.ts  # YouTube channel monitoring for viral trailers
+│   │   └── hydration/   # Data hydration service (PostgreSQL + MongoDB + Lambda)
+│   │       ├── index.ts       # Main hydration logic (hydrateMovie, hydrateSeries)
+│   │       ├── types.ts       # EnrichedData, HydrationResult types
+│   │       ├── integration.ts # Transform to Movie/Series types for UI
+│   │       └── sources/       # Data source adapters
+│   │           ├── mongo.ts   # MongoDB enriched data (ratings, watch links)
+│   │           ├── postgres.ts # PostgreSQL queries + upserts
+│   │           └── lambda.ts  # AWS Lambda fallback (scraping)
+│   └── db/              # Database layer
+│       ├── index.ts     # MongoDB connection setup
+│       ├── models/      # Mongoose models (legacy - being migrated)
 │       │   ├── movie.ts
 │       │   ├── series.ts
 │       │   └── user-library.ts  # WatchedMovie, MoviesWatchlist, SeriesWatchlist, UserRating, RecentItem, ContinueWatching
-│       └── cached-queries.ts    # unstable_cache wrappers
+│       ├── cached-queries.ts    # unstable_cache wrappers
+│       └── postgres/    # PostgreSQL (primary data store)
+│           ├── movies.ts   # Movie queries + TMDB format transform
+│           ├── series.ts   # Series queries + transform
+│           └── hybrid.ts   # Hybrid lookup helpers
 ├── types/               # TypeScript types/interfaces
 │   └── next-auth.d.ts   # Auth.js type augmentation
 ├── proxy.ts             # Route protection (Edge Runtime)
 └── styles/              # Global styles, theme CSS variables
+
+prisma/
+├── schema.prisma           # PostgreSQL schema (V2 normalized)
+├── seed.ts                 # TMDB-direct seeding script
+└── seed-from-mongo.ts      # MongoDB-first seeding (recommended)
+
+postgres/
+├── docker-compose.postgres.yml  # Local PostgreSQL with pgvector
+├── init/                        # Init scripts (extensions, indexes)
+└── README.md
+
+scripts/
+├── download-tmdb-ids.ts    # Download TMDB daily ID exports
+└── verify/
+    └── test-postgres-hybrid.ts  # Test PostgreSQL hybrid mode
 ```
 
 ## Critical Rules
@@ -545,8 +579,10 @@ Request → L1 (memory) → L2 (file) → Stale check → In-flight dedup → AP
 
 | Namespace | L1 (Memory) | L2 (File) | Stale Grace | Use Case |
 |-----------|-------------|-----------|-------------|----------|
-| `youtube` | 1 hour | 24 hours | 1 hour | Video stats, comments |
-| `youtube-channels` | 1 hour | 24 hours | 2 hours | Channel trailer uploads |
+| `youtube` | 1 hour | 24 hours* | 1 hour | Video stats, comments |
+| `youtube-channels` | 1 hour | 48 hours | 6 hours | Channel trailer uploads |
+
+**\*Age-based caching for YouTube:** Videos older than 30 days get 7-day cache TTL (stats stabilize). Dislikes use 3-day cache. See `youtube.ts` for implementation.
 | `person` | 24 hours | 3 days | 24 hours | Person/actor data |
 | `movie` | 1 hour | 2 hours | — | Movie details |
 | `series` | 1 hour | 2 hours | — | Series details |
@@ -557,7 +593,7 @@ Request → L1 (memory) → L2 (file) → Stale check → In-flight dedup → AP
 
 ### Cache Warming on Startup
 
-On server start (`instrumentation.ts`), the cache is warmed from L2 to L1:
+On server start (`instrumentation.node.ts`), the cache is warmed from L2 to L1:
 
 ```typescript
 // Warmed namespaces (quota-sensitive):
@@ -567,7 +603,7 @@ On server start (`instrumentation.ts`), the cache is warmed from L2 to L1:
 
 This ensures fast responses after server restarts without hitting external APIs.
 
-**Note:** The instrumentation file uses `.node.ts` suffix (`instrumentation.node.ts`) to ensure it only runs in Node.js runtime. This prevents Edge Runtime warnings for Node.js-only modules (fs, path, crypto, zlib).
+**IMPORTANT:** Only `instrumentation.node.ts` should exist (NOT `instrumentation.ts`). The `.node.ts` suffix ensures Next.js only loads it in Node.js runtime, preventing Edge Runtime warnings for Node.js-only modules (fs, path, crypto, zlib).
 
 ### Health Endpoint & Monitoring
 
@@ -630,6 +666,146 @@ Daily quota: 10,000 units
 | **Total** | — | **~105 units/day** (1% of quota) |
 
 For detailed cache documentation, see `docs/CACHING_IMPLEMENTATION.md`.
+
+## PostgreSQL Migration (Complete ✅)
+
+### Status
+
+PostgreSQL is the **single source of truth**. MongoDB is used for enrichment until fully deprecated:
+
+| Component | Status |
+|-----------|--------|
+| Schema (V2 Normalized) | ✅ Complete |
+| Hydration Service | ✅ Complete |
+| Full round-trip verified | ✅ Complete |
+| User data migration | 🔜 Next |
+
+### Hydration Service
+
+The hydration service (`src/server/services/hydration/`) handles all data fetching for detail pages:
+
+**Flow (PostgreSQL = Source of Truth):**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Check PostgreSQL for fresh TMDB data                         │
+│    └─ Fresh? Use it. Stale/missing? Fetch from TMDB API        │
+├─────────────────────────────────────────────────────────────────┤
+│ 2. For series: Fetch all season episodes in parallel            │
+│    └─ Uses central TMDB service with 3x exponential retry       │
+├─────────────────────────────────────────────────────────────────┤
+│ 3. ALWAYS get enriched data from MongoDB                        │
+│    └─ Ratings, watch links, external IDs (until deprecation)   │
+├─────────────────────────────────────────────────────────────────┤
+│ 4. Upsert EVERYTHING to PostgreSQL (wait for completion)        │
+│    └─ TMDB data + episodes + enriched data merged               │
+├─────────────────────────────────────────────────────────────────┤
+│ 5. Read back FROM PostgreSQL (verify round-trip)                │
+│    └─ Return PostgreSQL data to UI                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Design Decisions:**
+- PostgreSQL is the source of truth
+- MongoDB enrichment happens on EVERY request (until deprecation)
+- Full round-trip: upsert → read back → return (verifies data integrity)
+- Lambda fallback if MongoDB stale/missing
+- **All TMDB API calls use the central service** (`src/server/services/tmdb.ts`) with 3x exponential backoff retry logic
+
+```typescript
+// src/server/actions/movie.ts
+export async function getMovie(id: number): Promise<Movie | null> {
+  if (HYDRATION_ENABLED) {
+    return getMovieWithHydration(id);  // Uses hydration service
+  }
+  // Legacy fallback...
+}
+```
+
+### MongoDB-First Seeding
+
+**Recommended** to preserve ratings and watch options:
+
+```bash
+# Set environment
+export MONGO_IP=<ip> MONGO_PASS=<pass>
+export DATABASE_URL="postgresql://moviebrowser:localdev123@localhost:5433/moviebrowser"
+
+# Seed commands
+npx tsx prisma/seed-from-mongo.ts              # Full (1K movies, 500 series)
+npx tsx prisma/seed-from-mongo.ts --quick      # Quick (100 movies, 50 series)
+npx tsx prisma/seed-from-mongo.ts --movie=550  # Specific movie
+npx tsx prisma/seed-from-mongo.ts --series=66732  # Specific series
+```
+
+### Data Captured
+
+| Data | Source | PostgreSQL Table |
+|------|--------|------------------|
+| Multi-source ratings | MongoDB `external_data.ratings` | `ratings` (unified) |
+| RT certified fresh | MongoDB `external_data.ratings.rottenTomatoes.*.certified` | `certified` column |
+| Scraped deep links (India) | MongoDB `googleData.allWatchOptions` | `scraped_watch_links` |
+| TMDB watch providers | TMDB API | `watch_options` |
+| **Episodes** | TMDB API (per-season fetch) | `episodes` |
+| Seasons | TMDB API | `seasons` |
+| origin_country | TMDB API | `origin_country` column |
+| Production companies | TMDB API | `movie_companies` junction |
+| Networks (series) | TMDB API | `series_networks` junction |
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `prisma/schema.prisma` | V2 normalized schema |
+| `prisma/seed-from-mongo.ts` | MongoDB → PostgreSQL migration |
+| `src/server/services/tmdb.ts` | **Central TMDB service** (3x retry, caching) |
+| `src/server/services/hydration/index.ts` | Main hydration logic |
+| `src/server/services/hydration/integration.ts` | Transform to Movie/Series types |
+| `src/server/services/hydration/sources/tmdb.ts` | TMDB data fetching (uses central service) |
+| `src/server/services/hydration/sources/mongo.ts` | MongoDB enriched data adapter |
+| `src/server/services/hydration/sources/postgres.ts` | PostgreSQL queries + upserts + episodes |
+| `src/server/services/hydration/sources/lambda.ts` | AWS Lambda fallback |
+
+### TMDB API Resilience
+
+**All TMDB API calls MUST use the central service** (`src/server/services/tmdb.ts`):
+
+```typescript
+import { fetchFromTMDB } from "@/server/services/tmdb";
+
+// Use fetchFromTMDB for custom endpoints with retry logic
+const data = await fetchFromTMDB<MovieData>(`/movie/${id}`, {
+  params: { append_to_response: "credits,videos" },
+  cacheNamespace: "movie",
+});
+
+// Or use existing helper functions
+import { getMovieDetails, getSeasonDetails } from "@/server/services/tmdb";
+```
+
+**Built-in features:**
+- 3x exponential backoff retry (300ms, 600ms, 1200ms)
+- 20s timeout with AbortController
+- ECONNRESET error handling
+- `Connection: close` header to prevent pooling issues
+- Unified caching (L1 memory + L2 file)
+
+**⚠️ Never use raw `fetch()` for TMDB API calls** - bypasses retry logic and causes failures.
+
+### Ratings Whitelist
+
+Only these 5 rating sources are displayed in the UI:
+
+| Source | Scale | Example |
+|--------|-------|---------|
+| TMDB | 0-10 | 7.6 |
+| IMDb | 0-10 | 7.3 |
+| RT Critic | 0-100 | 86 |
+| RT Audience | 0-100 | 95 |
+| Google | 0-100 | 93 |
+
+Metacritic and Letterboxd are captured but NOT displayed (filtered in `integration.ts`).
+
+For full details, see `docs/POSTGRESQL_MIGRATION_PLAN.md`.
 
 ## Routing Patterns
 
@@ -930,6 +1106,155 @@ className="max-w-[280px] sm:max-w-[380px] md:max-w-[500px] lg:max-w-[600px]
 
 **Why generous constraints:** Small logos leave large visual gaps in the hero area. The constraints should allow logos to expand and take up appropriate space while still having reasonable limits.
 
+## RSC Payload Optimization
+
+### Overview
+
+React Server Components (RSC) serialize all data passed to client components as inline JSON in `<script>` tags. Without optimization, detail pages can grow to 800KB+ of RSC payload.
+
+**Current Status (Jan 2026):**
+| Page | HTML Size | RSC Payload | Notes |
+|------|-----------|-------------|-------|
+| Movie | ~885KB | ~680KB | Full videos/images/recommendations included |
+| Series | ~497KB | ~285KB | Episodes stay server-side |
+| Person | ~505KB | ~400KB | Light DTOs applied |
+| Homepage | ~534KB | N/A | Trending items stripped of overview |
+| Browse | ~190KB | N/A | Minimal, near ideal |
+
+### Light DTOs Pattern
+
+Create minimal DTOs containing only fields client components need. Defined in `src/types/client-props.ts`:
+
+```typescript
+// Instead of passing full Movie (100+ fields):
+interface MovieOverviewProps {
+  id: number;
+  title: string;
+  overview: string;
+  director?: MediaOverviewDirector;
+  topCast: MediaOverviewCast[];  // Only top 15, with minimal fields
+  keywords?: MediaOverviewKeyword[];
+  // ... only what MediaOverview actually uses
+}
+
+// Extraction function strips unused fields on server
+export function extractMovieOverviewProps(movie: Movie): MovieOverviewProps {
+  return {
+    id: movie.id,
+    title: movie.title,
+    overview: movie.overview,
+    director: movie.credits?.crew?.find(c => c.job === "Director")
+      ? { id, name, profile_path }  // Only 3 fields, not full CrewMember
+      : undefined,
+    topCast: movie.credits?.cast?.slice(0, 15).map(c => ({
+      id: c.id, name: c.name, character: c.character, profile_path: c.profile_path
+    })) || [],
+    // ...
+  };
+}
+```
+
+### Available Extraction Functions
+
+| Function | Input | Output | Savings |
+|----------|-------|--------|---------|
+| `extractMovieOverviewProps(movie)` | Movie | MovieOverviewProps | ~50KB |
+| `extractSeriesOverviewProps(series)` | Series | SeriesOverviewProps | ~50KB |
+| `extractWatchOptionsItem(item, isMovie)` | Movie/Series | WatchOptionsItem | ~10KB |
+| `extractTrailerData(videos)` | Videos | TrailerData | ~5KB |
+| `extractBadgeProps(item)` | Movie/Series | BadgeComputeProps | ~100KB |
+| `extractLightCollection(collection)` | Collection | LightCollection | ~10KB |
+| `extractLightGalleryImages(images, limit)` | Images | LightGalleryImage[] | ~1KB |
+| `extractPersonHeroProps(person)` | Person | PersonHeroProps | ~200KB |
+| `extractKnownForCredits(cast, limit)` | Credits | LightPersonCastCredit[] | ~100KB |
+| `extractFilmographyCredits(cast, crew)` | Credits | PersonCreditsLight | ~200KB |
+
+### Usage in Page Components
+
+```tsx
+// src/app/movie/[...params]/page.tsx
+import {
+  extractMovieOverviewProps,
+  extractWatchOptionsItem,
+  extractTrailerData,
+  extractBadgeProps,
+  extractLightCollection,
+} from "@/types/client-props";
+
+export default async function MoviePage({ params }: PageProps) {
+  const movie = await getMovie(movieId);
+
+  // Extract only what client components need
+  const overviewProps = extractMovieOverviewProps(movie);
+  const watchOptionsItem = extractWatchOptionsItem(movie, true);
+  const trailerData = extractTrailerData(movie.videos);
+  const badgeProps = extractBadgeProps(movie);
+
+  return (
+    <>
+      <MediaOverview {...overviewProps} mediaType="movie" />
+      <WatchOptions item={watchOptionsItem} mediaType="movie" />
+      <MediaActionBar trailerData={trailerData} />
+      <BadgeDisplay badges={getMediaBadges("movie", badgeProps)} />
+    </>
+  );
+}
+```
+
+### Stripping `overview` from List Items
+
+List items (recommendations, similar, trending) include `overview` fields that cards don't display. Strip them in server actions:
+
+```typescript
+// src/server/actions/trending.ts
+export async function getTrending(): Promise<TrendingData> {
+  const movies = await getTrendingMovies();
+  
+  return {
+    // Strip overview from list items (saves ~200-500 bytes each × 20 items = 4-10KB)
+    movies: movies.map(({ overview: _o, ...rest }) => rest),
+    series: series.map(({ overview: _o, ...rest }) => rest),
+  };
+}
+```
+
+**Note:** Extraction functions like `extractLightMovieListItems()` are available but stripping is done at the server action level for trending/discover.
+
+### Lazy-Loading Watch Providers
+
+Watch providers are fetched on-demand when user changes country:
+
+```tsx
+// WatchOptions fetches via API when country changes
+// API: GET /api/watch-providers/[mediaType]/[id]?country=XX
+
+// Server sends only pre-processed watch_options for user's detected country
+// No more bundling 15+ countries in RSC payload
+```
+
+### What NOT to Trim
+
+Based on user feedback (Jan 2026), the following should NOT be limited to preserve user experience:
+
+- **Videos** - Keep all (was: limited to 20)
+- **Images/Backdrops** - Keep all (was: limited to 20)  
+- **Recommendations** - Keep all (was: limited to 15)
+- **Similar** - Keep all (was: limited to 15)
+
+The small payload savings (~10-15KB) didn't justify reduced content richness.
+
+### Response Size Tests
+
+E2E tests guard against payload regressions:
+
+```bash
+# Run response size tests
+npx playwright test e2e/perf/response-size.spec.ts --project="Performance Tests" --workers=1
+
+# Current limits (catch 25% regression from baseline):
+# Movie: 1.5MB, Series: 1.6MB, Person: 1.1MB, Homepage: 850KB, Browse: 400KB
+```
+
 ## Scroll Restoration
 
 ### ScrollToTop Component
@@ -1185,8 +1510,15 @@ Browse page sidebar should be fixed position to avoid scroll glitches:
 
 Watch options come from two sources with priority:
 
-1. **Scraped Data** (India only): From `googleData.allWatchOptions` in MongoDB - direct deep links to providers
-2. **TMDB Watch Providers**: For all countries - JustWatch attribution links (not direct deep links)
+1. **Scraped Deep Links** (India only): 
+   - MongoDB: `googleData.allWatchOptions`
+   - PostgreSQL: `scraped_watch_links` table
+   - Direct deep links to video players
+   
+2. **TMDB Watch Providers** (90+ countries):
+   - MongoDB: `watchProviders` field
+   - PostgreSQL: `movie_watch_options` / `series_watch_options` tables
+   - JustWatch attribution links (not direct deep links)
 
 ### Processing Flow
 
@@ -1679,11 +2011,33 @@ Self-hosted privacy-first analytics using ClickHouse for storage and Grafana for
 - ✅ `<AnalyticsProvider>` wrapper (integrated in Providers)
 
 **Admin Dashboard Analytics (`/admin` → Analytics tab):**
-- Traffic overview (page views, sessions, users, geo, devices)
-- AI usage & costs (invocations, tokens, cost/user, query types)
+- **Compact header** with inline time range selector (Today/1/7/30/90 days) + global bot filter toggle
+- **Collapsible alerts bar** - shows count summary, click to expand full details with error drill-down
+- Traffic overview (page views, sessions, users, geo, devices) - **compact stat cards**
+- **Traffic trend chart** with human vs bot comparison (toggleable series, **hourly or daily granularity**)
+- **Top pages with bot views** - shows human + bot views, pages link to detail pages
+- AI usage & costs (invocations, tokens, cost/user, query types - pie chart, **user names displayed**)
+- **Lambda usage** (invocations, success rate donut, cost, duration, by-function breakdown)
+- **Lambda time series chart** - dual-axis line chart (invocations + avg duration over time)
 - Core Web Vitals (LCP, FCP, TTFB, CLS, INP with Good/Needs Work/Poor thresholds)
-- Cache performance (L1/L2 hit rates, memory, compression)
+- **System metrics** - CPU load, memory usage, event loop lag (real-time + historical charts)
+- **System history chart** - CPU & memory line chart with configurable granularity (5min/15min/hourly)
+- Cache performance (L1/L2 hit rate donuts, memory, compression, **namespace breakdown**) - live from cache service
 - Automated alerts for: AI cost spikes, error rate, performance degradation, cache issues, traffic anomalies
+
+**Global Bot Filter:**
+The dashboard has a global `excludeBots` toggle that affects:
+- Traffic metrics (views, sessions, users)
+- Top pages (filters or shows bot views)
+- Defaults to `false` (show both human + bot for real-world view)
+
+**Item Analytics Modal (detail page admin strip):**
+- Database status (PostgreSQL, TMDB refresh timestamps)
+- Traffic trend chart (daily page views)
+- Device breakdown (pie chart)
+- Bot traffic (horizontal bar chart of top bots)
+- Enrichment status (ratings scraped, watch links scraped, sources)
+- Lambda invocations (total, avg duration, cost, history table)
 
 **Admin Filtering:**
 Admin users (determined by `isAdminEmail()` in `@/lib/admin`) are automatically excluded from analytics tracking to avoid polluting data with internal testing/development activity. This filtering happens:
@@ -1693,6 +2047,39 @@ Admin users (determined by `isAdminEmail()` in `@/lib/admin`) are automatically 
 
 **Grafana Dashboards (port 3004):**
 - Traffic Overview, AI Economics, Performance (Web Vitals), Errors, System Health
+
+**Reusable Chart Components (`src/components/features/admin/analytics-charts.tsx`):**
+
+| Component | Use Case |
+|-----------|----------|
+| `DevicePieChart` | Device breakdown (desktop/mobile/tablet) |
+| `DistributionPieChart` | Generic distribution (query types, geo, etc.) |
+| `DonutChart` | Single metric with percentage (cache hit rate, success rate) |
+| `TrendChart` | Time series area chart (daily traffic, invocations) |
+| `HorizontalBarChart` | Top items list (top bots, top pages) |
+| `MultiSeriesChart` | Multiple data series on one chart |
+| `MultiLineChart` | Multi-series line chart with legend |
+| `SystemMetricsChart` | CPU & memory history (wraps MultiLineChart) |
+| `LambdaTimeSeriesChart` | Dual-axis line chart (invocations + duration) |
+
+All charts use a neutral zinc color palette with semantic colors (green/amber/red) only for rate metrics.
+
+**Completed Improvements:**
+- ✅ CPU/memory tracking with historical charts (5min/15min/hourly granularity)
+- ✅ User names in top AI users list
+- ✅ Error detail drill-down modal (click alerts)
+- ✅ Hourly traffic granularity option
+
+**Pending:** See `docs/ADMIN_DASHBOARD_IMPROVEMENTS.md` for remaining enhancements:
+- Bot traffic correlation with resource usage
+- Real-time dashboard updates
+- Custom date range picker
+
+**Lambda Tracking:**
+Lambda invocations are tracked to the `api_calls` table with:
+- `service = 'lambda'`
+- `endpoint = 'functionName:mediaType:tmdbId'` (e.g., `puppeteer-node14:movie:550`)
+- When grouped by function, only the function name is extracted (before first `:`)
 
 ### Setup
 
@@ -1730,13 +2117,27 @@ src/lib/analytics/              # Server-side analytics library
 ├── index.ts                    # Exports (⚠️ includes server-only code)
 ├── types.ts                    # Event type definitions (client-safe)
 ├── client.ts                   # ClickHouse HTTP client
-├── track.ts                    # Server-side tracking functions
-├── queries.ts                  # Reusable query functions for dashboards
+├── track.ts                    # Server-side tracking functions (incl. trackSystemMetrics)
+├── queries.ts                  # Re-exports from queries/ (backwards compat)
+├── queries/                    # Modular query functions
+│   ├── index.ts                # Re-exports all query modules
+│   ├── types.ts                # TimeRange, getTimeRangeCondition helper
+│   ├── traffic.ts              # Traffic queries (daily + hourly granularity)
+│   ├── ai.ts                   # AI usage queries
+│   ├── performance.ts          # Web Vitals queries
+│   ├── errors.ts               # Error tracking queries
+│   ├── lambda.ts               # Lambda usage queries
+│   ├── system.ts               # System metrics history queries
+│   ├── item.ts                 # Item-specific analytics queries
+│   ├── content.ts              # Content performance queries
+│   └── utils.ts                # Utility functions
 ├── alerts.ts                   # Alert definitions and detection logic
 ├── context.ts                  # Request context extraction (server-only)
 ├── bot-detection.ts            # Bot/crawler detection (client-safe)
 ├── session.ts                  # Session ID generation (client-safe)
 └── device-parser.ts            # User-agent parsing (client-safe)
+
+src/lib/system-metrics.ts       # Node.js process metrics + background collector
 
 src/hooks/use-analytics.ts      # Client-side action tracking hook
 ```
@@ -1818,12 +2219,13 @@ Available methods:
 |----|---|---|
 | `page_views` | 90 days | Traffic analytics |
 | `sessions` | 180 days | User journey |
-| `ai_usage` | 365 days | AI cost tracking |
+| `ai_usage` | 365 days | AI cost tracking (includes `user_name` column) |
 | `user_actions` | 180 days | User behavior |
-| `api_calls` | 30 days | API monitoring |
+| `api_calls` | 30 days | API monitoring (includes Lambda with `service='lambda'`) |
 | `errors` | 90 days | Error tracking |
-| `cache_metrics` | 30 days | Cache health |
+| `cache_metrics` | 30 days | (unused - admin reads live from cache service) |
 | `performance` | 90 days | Core Web Vitals |
+| `system_metrics` | 30 days | CPU, memory, event loop (collected every 5 min) |
 
 For full documentation, see `docs/ANALYTICS_MONITORING_PLAN.md`.
 

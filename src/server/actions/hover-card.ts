@@ -1,6 +1,12 @@
 "use server";
 
 import { z } from "zod";
+import {
+  HYDRATION_ENABLED,
+  getMovieHoverHydrated,
+  getSeriesHoverHydrated,
+  type HoverCardHydrated,
+} from "@/server/services/hydration/integration";
 import { fetchFromTMDB } from "@/server/services/tmdb";
 import { getCachedMovieRatings, getCachedSeriesRatings } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
@@ -247,7 +253,13 @@ async function getSeriesHoverData(id: number, countryCode: string): Promise<Hove
 
 /**
  * Get hover card data for a movie or series
- * Optimized for minimal payload and fast response
+ *
+ * Uses partial hydration (if enabled):
+ * - Returns PostgreSQL data if available (warm cache from previous hovers)
+ * - Falls back to TMDB and seeds PostgreSQL in background
+ * - No MongoDB/Lambda calls (fast)
+ *
+ * Full enrichment happens when user clicks through to detail page.
  */
 export async function getHoverCardData(
   id: number,
@@ -255,6 +267,34 @@ export async function getHoverCardData(
 ): Promise<HoverCardData | null> {
   try {
     const validated = HoverCardSchema.parse({ id, mediaType });
+
+    // Use partial hydration (TMDB → PostgreSQL, no Lambda)
+    if (HYDRATION_ENABLED) {
+      const hydrated =
+        validated.mediaType === "movie"
+          ? await getMovieHoverHydrated(validated.id)
+          : await getSeriesHoverHydrated(validated.id);
+
+      if (hydrated) {
+        // Transform HoverCardHydrated to HoverCardData (add watch_options)
+        const countryCode = await getCountryCode();
+        return {
+          ...hydrated,
+          // Map cast to match CastMember type (character is required string)
+          cast: hydrated.cast.map((c) => ({
+            ...c,
+            character: c.character || "",
+          })),
+          watch_options: {
+            options: [], // Watch options need TMDB watch/providers - skipped for speed
+            sourceCountry: countryCode,
+            isFromFallback: false,
+          },
+        } satisfies HoverCardData;
+      }
+    }
+
+    // Fallback to legacy flow
     const countryCode = await getCountryCode();
 
     if (validated.mediaType === "movie") {

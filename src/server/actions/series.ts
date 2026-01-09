@@ -3,12 +3,17 @@
 import { z } from "zod";
 import { getSeriesDetails, getSeasonDetails, getEpisodeDetails } from "@/server/services/tmdb";
 import { getCachedSeriesRatings } from "@/server/db/cached-queries";
+import { getSeriesFromPostgresIfAvailable } from "@/server/db/postgres/hybrid";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
 import {
   getWatchOptionsForCountry,
   getOptimizedWatchProviders,
 } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
+import {
+  HYDRATION_ENABLED,
+  getSeriesWithHydration,
+} from "@/server/services/hydration/integration";
 import type { Series, Season, Episode, ExternalRating, WatchProviderData } from "@/types";
 import { dataLogger } from "@/lib/logger";
 
@@ -29,13 +34,45 @@ const GetEpisodeSchema = z.object({
 
 /**
  * Get full series details including credits, videos, images, keywords, recommendations, watch providers, and ratings
- * Fetches from MongoDB first (for ratings data), then enriches with fresh TMDB data
+ *
+ * Data source priority:
+ * 1. Hydration service (if USE_HYDRATION_SERVICE=true) - TMDB + MongoDB/Lambda → PostgreSQL
+ * 2. PostgreSQL (if USE_POSTGRES_DATA=true and series exists in DB)
+ * 3. TMDB API (with MongoDB for additional ratings)
  */
 export async function getSeries(id: number): Promise<Series | null> {
+  // Use hydration service if enabled
+  if (HYDRATION_ENABLED) {
+    return getSeriesWithHydration(id);
+  }
+
   try {
     const validated = GetSeriesSchema.parse({ id });
 
-    // Fetch TMDB data, cached MongoDB ratings, and country code in parallel
+    // Try PostgreSQL first (if enabled)
+    // NOTE: This legacy code path is deprecated - hydration service is the new default
+    const postgresSeries = await getSeriesFromPostgresIfAvailable(validated.id);
+    if (postgresSeries) {
+      // PostgreSQL has all the data we need, including watch providers
+      // Just need to process watch options for the user's country
+      const countryCode = await getCountryCode();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pgData = postgresSeries as any;
+      const tmdbWatchProviders = pgData["watch/providers"]?.results as Record<string, WatchProviderData> | undefined;
+
+      const watchOptions = getWatchOptionsForCountry(
+        countryCode,
+        undefined, // No googleData from postgres yet
+        tmdbWatchProviders
+      );
+
+      return {
+        ...postgresSeries,
+        watch_options: watchOptions,
+      } as Series;
+    }
+
+    // Fallback to TMDB + MongoDB
     const [tmdbData, dbSeries, countryCode] = await Promise.all([
       getSeriesDetails(validated.id),
       getCachedSeriesRatings(validated.id), // Uses Next.js cache with 1hr TTL

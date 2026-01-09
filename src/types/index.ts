@@ -1,5 +1,41 @@
 // Movie and Series types based on TMDB API
 
+// =============================================================================
+// Database String Constants (used instead of PostgreSQL enums for flexibility)
+// =============================================================================
+
+// Review types - stored as string in DB, validated at app level
+export const REVIEW_TYPES = [
+  "consensus",    // Aggregated summary (RT consensus, Metacritic summary)
+  "critic",       // Individual professional critic review
+  "user",         // Individual user review
+  "editorial",    // Editorial/site review (Common Sense Media, etc.)
+  "top_review",   // Featured/top review (IMDb top reviews)
+  "ai_summary",   // AI-generated summary
+  "ai_analysis",  // AI-generated analysis/themes
+] as const;
+
+export type ReviewType = (typeof REVIEW_TYPES)[number];
+
+// Data source slugs - for DataSource.slug field
+export const DATA_SOURCE_SLUGS = [
+  "tmdb",
+  "imdb",
+  "rt",           // Rotten Tomatoes (critics)
+  "rt_audience",  // Rotten Tomatoes (audience)
+  "letterboxd",
+  "metacritic",
+  "google",
+  "ai",
+  "youtube",
+] as const;
+
+export type DataSourceSlug = (typeof DATA_SOURCE_SLUGS)[number];
+
+// =============================================================================
+// TMDB Types
+// =============================================================================
+
 export interface Genre {
   id: number;
   name: string;
@@ -556,3 +592,6 @@ export interface YouTubeDislikeData {
   viewCount: number;
   deleted: boolean;
 }
+
+// Re-export light client prop types
+export * from "./client-props";

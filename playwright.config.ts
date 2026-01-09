@@ -26,13 +26,21 @@ export default defineConfig({
       testMatch: ["**/seo/**/*.spec.ts"],
     },
     {
+      name: "Performance Tests",
+      use: {
+        ...devices["Desktop Chrome"],
+        javaScriptEnabled: true,
+      },
+      testMatch: ["**/perf/**/*.spec.ts"],
+    },
+    {
       name: "E2E Tests (With JS)",
       use: {
         ...devices["Desktop Chrome"],
         javaScriptEnabled: true,
       },
-      testMatch: ["**/e2e/**/*.spec.ts"],
-      testIgnore: ["**/seo/**/*.spec.ts"],
+      testMatch: ["**/*.spec.ts"],
+      testIgnore: ["**/seo/**/*.spec.ts", "**/perf/**/*.spec.ts", "**/mobile/**/*.spec.ts"],
     },
     {
       name: "Mobile Chrome",

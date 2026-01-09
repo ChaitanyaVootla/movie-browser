@@ -3,12 +3,18 @@
 import { z } from "zod";
 import { getMovieDetails } from "@/server/services/tmdb";
 import { getCachedMovieRatings } from "@/server/db/cached-queries";
+import { getMovieFromPostgresIfAvailable } from "@/server/db/postgres/hybrid";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
 import {
   getWatchOptionsForCountry,
   getOptimizedWatchProviders,
+  type ScrapedWatchLinksMap,
 } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
+import {
+  HYDRATION_ENABLED,
+  getMovieWithHydration,
+} from "@/server/services/hydration/integration";
 import type { Movie, ExternalRating, WatchProviderData } from "@/types";
 
 const GetMovieSchema = z.object({
@@ -17,13 +23,48 @@ const GetMovieSchema = z.object({
 
 /**
  * Get full movie details including credits, videos, images, keywords, recommendations, watch providers, and ratings
- * Fetches from MongoDB first (for ratings data), then enriches with fresh TMDB data
+ *
+ * Data source priority:
+ * 1. Hydration service (if USE_HYDRATION_SERVICE=true) - TMDB + MongoDB/Lambda → PostgreSQL
+ * 2. PostgreSQL (if USE_POSTGRES_DATA=true and movie exists in DB)
+ * 3. TMDB API (with MongoDB for additional ratings)
  */
 export async function getMovie(id: number): Promise<Movie | null> {
+  // Use hydration service if enabled
+  if (HYDRATION_ENABLED) {
+    return getMovieWithHydration(id);
+  }
+
   try {
     const validated = GetMovieSchema.parse({ id });
 
-    // Fetch TMDB data, cached MongoDB ratings, and country code in parallel
+    // Try PostgreSQL first (if enabled)
+    // NOTE: This legacy code path is deprecated - hydration service is the new default
+    const postgresMovie = await getMovieFromPostgresIfAvailable(validated.id);
+    if (postgresMovie) {
+      // PostgreSQL has all the data we need, including watch providers and scraped deep links
+      const countryCode = await getCountryCode();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pgData = postgresMovie as any;
+      const tmdbWatchProviders = pgData["watch/providers"]?.results as Record<string, WatchProviderData> | undefined;
+      
+      // Get scraped deep links (India) from PostgreSQL
+      const scrapedWatchLinks = pgData.scraped_watch_links as ScrapedWatchLinksMap | undefined;
+
+      const watchOptions = getWatchOptionsForCountry(
+        countryCode,
+        undefined, // No MongoDB googleData when using PostgreSQL
+        tmdbWatchProviders,
+        scrapedWatchLinks // PostgreSQL scraped deep links
+      );
+
+      return {
+        ...postgresMovie,
+        watch_options: watchOptions,
+      } as Movie;
+    }
+
+    // Fallback to TMDB + MongoDB
     const [tmdbData, dbMovie, countryCode] = await Promise.all([
       getMovieDetails(validated.id),
       getCachedMovieRatings(validated.id), // Uses Next.js cache with 1hr TTL

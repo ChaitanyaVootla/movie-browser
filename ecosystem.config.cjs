@@ -15,24 +15,26 @@ module.exports = {
         PORT: "3002",
       },
     },
-    // TODO: Enable sitemap generator after beta
-    // {
-    //   name: "sitemap-generator",
-    //   script: "node",
-    //   args: "--max-old-space-size=2048 --expose-gc --optimize-for-size scripts/generate-sitemap.js",
-    //   cron_restart: "0 4 * * *",
-    //   autorestart: false,
-    //   restart_delay: 5000,
-    //   max_restarts: 2,
-    //   min_uptime: "1s",
-    //   watch: false,
-    //   max_memory_restart: "800M",
-    //   error_file: "./logs/sitemap-error.log",
-    //   out_file: "./logs/sitemap-out.log",
-    //   log_file: "./logs/sitemap-combined.log",
-    //   time: true,
-    //   env: { NODE_ENV: "production" },
-    //   kill_timeout: 300000,
-    // },
+    // Sitemap Generator - runs daily at 4 AM UTC
+    // Downloads TMDB daily exports and generates sitemaps to public/
+    {
+      name: "sitemap-generator",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "node",
+      args: "--max-old-space-size=2048 --expose-gc --optimize-for-size scripts/generate-sitemap.js",
+      cron_restart: "0 4 * * *",  // 4 AM daily
+      autorestart: false,
+      restart_delay: 5000,
+      max_restarts: 2,
+      min_uptime: "1s",
+      watch: false,
+      max_memory_restart: "800M",
+      error_file: "./logs/sitemap-error.log",
+      out_file: "./logs/sitemap-out.log",
+      log_file: "./logs/sitemap-combined.log",
+      time: true,
+      env: { NODE_ENV: "production" },
+      kill_timeout: 300000,  // 5 minutes - sitemap gen can take a while
+    },
   ],
 };

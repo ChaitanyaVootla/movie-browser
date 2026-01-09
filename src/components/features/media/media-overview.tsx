@@ -2,7 +2,12 @@
 
 import { Users, Zap, Flame, Moon, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Movie, Series, CastMember, AISummary } from "@/types";
+import type {
+  AISummary,
+  MovieOverviewProps,
+  SeriesOverviewProps,
+  MediaOverviewCast,
+} from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import { KeywordsList } from "./keywords-list";
@@ -10,20 +15,27 @@ import { CountryLanguageBadges } from "./country-language-badges";
 import { ContentWarningLink } from "./content-warning-link";
 import { MediaScroller } from "./media-scroller";
 import { EnrichButton } from "./enrich-button";
+import { RefreshDataButton } from "./refresh-data-button";
+import { ItemAnalyticsModal } from "@/components/features/admin";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+/**
+ * Light prop types for RSC serialization optimization.
+ * These contain only the fields needed for rendering, reducing payload by ~80%.
+ */
 interface MediaOverviewProps {
-  item: Movie | Series;
+  item: MovieOverviewProps | SeriesOverviewProps;
   mediaType: "movie" | "series";
   aiSummary?: AISummary | null;
   className?: string;
 }
 
-function isMovie(item: Movie | Series): item is Movie {
+function isMovie(item: MovieOverviewProps | SeriesOverviewProps): item is MovieOverviewProps {
   return "title" in item;
 }
 
@@ -51,7 +63,7 @@ function formatDate(dateString: string): string {
 }
 
 // Cast member card - compact size
-function CastCard({ cast }: { cast: CastMember }) {
+function CastCard({ cast }: { cast: MediaOverviewCast }) {
   if (!cast.profile_path) return null;
 
   const href = `/person/${cast.id}/${getSlug(cast.name)}`;
@@ -282,35 +294,50 @@ function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: stri
   );
 }
 
+/**
+ * Admin-only footer with data tools (only renders for admins)
+ */
+function AdminToolsFooter({ tmdbId, mediaType }: { tmdbId: number; mediaType: "movie" | "series" }) {
+  const isAdmin = useIsAdmin();
+  
+  // Don't render anything for non-admins
+  if (!isAdmin) return null;
+  
+  return (
+    <div className="flex justify-end items-center gap-2 px-4 py-2 border-t border-white/5">
+      <ItemAnalyticsModal tmdbId={tmdbId} mediaType={mediaType} />
+      <RefreshDataButton tmdbId={tmdbId} mediaType={mediaType} />
+      <EnrichButton tmdbId={tmdbId} mediaType={mediaType} />
+    </div>
+  );
+}
+
 export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOverviewProps) {
-  const director = item.credits?.crew?.find((c) => c.job === "Director");
-  const creators = !isMovie(item)
-    ? item.created_by || item.credits?.crew?.filter((c) => c.job === "Creator")
-    : [];
-  const topCast = item.credits?.cast?.slice(0, 15) || [];
-
-  // Get keywords based on media type
-  const keywords = isMovie(item) ? item.keywords?.keywords : item.keywords?.results;
-
-  // Get IMDB ID
-  const imdbId = isMovie(item) ? item.imdb_id : item.external_ids?.imdb_id;
+  // Props are now pre-extracted - no more digging into nested objects
+  const director = isMovie(item) ? item.director : undefined;
+  const creators = !isMovie(item) ? item.creators : undefined;
+  const topCast = item.topCast || [];
+  const keywords = item.keywords;
+  const imdbId = item.imdb_id;
 
   // Format currency - deterministic to avoid SSR hydration mismatch
-  const formatCurrency = (amount?: number): string | null => {
+  // Note: Prisma may return BigInt for large numbers, so we convert to Number
+  const formatCurrency = (amount?: number | bigint): string | null => {
     if (!amount) return null;
-    if (amount >= 1_000_000_000) {
-      const billions = amount / 1_000_000_000;
+    const num = typeof amount === "bigint" ? Number(amount) : amount;
+    if (num >= 1_000_000_000) {
+      const billions = num / 1_000_000_000;
       return `$${billions % 1 === 0 ? billions.toFixed(0) : billions.toFixed(1)}B`;
     }
-    if (amount >= 1_000_000) {
-      const millions = amount / 1_000_000;
+    if (num >= 1_000_000) {
+      const millions = num / 1_000_000;
       return `$${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
     }
-    if (amount >= 1_000) {
-      const thousands = amount / 1_000;
+    if (num >= 1_000) {
+      const thousands = num / 1_000;
       return `$${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}K`;
     }
-    return `$${amount}`;
+    return `$${num}`;
   };
 
   return (
@@ -447,7 +474,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                     <SeriesStatusBadge 
                       status={item.status} 
                       inProduction={item.in_production} 
-                      nextAirDate={item.next_episode_to_air?.air_date}
+                      nextAirDate={item.next_air_date}
                     />
                   </div>
                 )}
@@ -553,8 +580,8 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
             </div>
           </div>
           
-          {/* Admin-only enrich button - subtle footer (only renders for admins) */}
-          <EnrichButton tmdbId={item.id} mediaType={mediaType} asFooter />
+          {/* Admin-only tools - subtle footer (only renders for admins) */}
+          <AdminToolsFooter tmdbId={item.id} mediaType={mediaType} />
         </div>
       </section>
 

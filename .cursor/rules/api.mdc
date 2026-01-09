@@ -870,7 +870,7 @@ Defined in `src/lib/cache-service.ts`:
 | `discover` | 30 min | 1 hour | — | Browse/topic results |
 | `images` | 1 hour | 24 hours | — | Logo/image metadata |
 | `youtube` | 1 hour | 24 hours | 1 hour | YouTube video stats |
-| `youtube-channels` | 1 hour | 24 hours | 2 hours | YouTube channel uploads |
+| `youtube-channels` | 1 hour | 48 hours | 6 hours | YouTube channel uploads |
 
 ### When to Use Which Cache
 

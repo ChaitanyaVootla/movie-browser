@@ -8,10 +8,8 @@ import {
   Gauge,
   TrendingDown,
   Database,
-  CheckCircle2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -75,21 +73,14 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 // =============================================================================
 
 export function AlertsPanel({ alerts, isLoading }: AlertsPanelProps) {
+  // Don't show anything while loading if we don't know if there are alerts
   if (isLoading) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">System Alerts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return null;
+  }
+
+  // Only show panel when there are actual alerts
+  if (alerts.length === 0) {
+    return null;
   }
 
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
@@ -107,10 +98,8 @@ export function AlertsPanel({ alerts, isLoading }: AlertsPanelProps) {
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             {criticalCount > 0 ? (
               <AlertCircle className="h-4 w-4 text-red-500" />
-            ) : warningCount > 0 ? (
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
             ) : (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
             )}
             System Alerts
           </CardTitle>
@@ -129,18 +118,11 @@ export function AlertsPanel({ alerts, isLoading }: AlertsPanelProps) {
         </div>
       </CardHeader>
       <CardContent>
-        {alerts.length === 0 ? (
-          <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            All systems operational
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {alerts.map((alert) => (
-              <AlertItem key={alert.id} alert={alert} />
-            ))}
-          </div>
-        )}
+        <div className="space-y-2">
+          {alerts.map((alert) => (
+            <AlertItem key={alert.id} alert={alert} />
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
@@ -219,4 +201,5 @@ function getTimeAgo(dateString: string): string {
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays}d ago`;
 }
+
 

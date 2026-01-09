@@ -75,6 +75,12 @@ interface CacheConfig {
  */
 const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
   // === QUOTA SENSITIVE - Long persistent cache ===
+  // YouTube caching strategy:
+  // - youtube-channels: Channel upload lists. Channels rarely upload >1-2 videos/day.
+  //   Extended L2 to 48h with 6h stale grace for quota protection.
+  // - youtube: Video stats, comments, dislikes. Default 24h cache.
+  //   Age-based TTL applied in youtube.ts: older videos (>30 days) get 7-day cache.
+  // - Cache warming on startup loads L2->L1 to avoid API calls after restart.
   youtube: {
     l1TTL: 3600,           // 1 hour in-memory
     l2TTL: 86400,          // 24 hours on disk
@@ -83,9 +89,9 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
   },
   "youtube-channels": {
     l1TTL: 3600,           // 1 hour in-memory
-    l2TTL: 86400,          // 24 hours on disk (was 12h, extended)
+    l2TTL: 172800,         // 48 hours on disk (channels upload infrequently)
     persistToFile: true,
-    staleGracePeriod: 7200, // 2 hours grace - channels don't change fast
+    staleGracePeriod: 21600, // 6 hours grace - maximize quota protection
   },
 
   // === MEDIUM FREQUENCY - Persist for warm starts ===
@@ -905,7 +911,7 @@ export interface CacheWarmingConfig {
 /**
  * Warm the cache on server startup
  * 
- * This function should be called from instrumentation.ts on server start.
+ * This function should be called from instrumentation.node.ts on server start.
  * It performs two types of warming:
  * 
  * 1. **L2 → L1 warming**: Loads existing file cache entries into memory
@@ -913,7 +919,7 @@ export interface CacheWarmingConfig {
  * 
  * @example
  * ```typescript
- * // In instrumentation.ts
+ * // In instrumentation.node.ts
  * import { warmCache } from "@/lib/cache-service";
  * 
  * export async function register() {
@@ -1005,4 +1011,3 @@ export function isWarmingComplete(): boolean {
 export function setWarmingComplete(): void {
   cacheStats.warmingComplete = true;
 }
-

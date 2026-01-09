@@ -7,7 +7,8 @@
  */
 
 export interface ProcessedRating {
-  source: "tmdb" | "imdb" | "rt_critic" | "rt_audience" | "google" | "metacritic";
+  // Whitelisted rating sources for display
+  source: "tmdb" | "imdb" | "rt_critic" | "rt_audience" | "google";
   score: number; // Normalized 0-100
   label: string;
   link?: string;

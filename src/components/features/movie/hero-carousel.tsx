@@ -6,14 +6,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn, getMediaHref } from "@/lib/utils";
 import { MediaBackdrop } from "@/components/features/media/media-backdrop";
 import { HeroContent, heroContainerVariants } from "@/components/features/media/hero-content";
-import type { MediaItem, ExternalRating, ProcessedWatchOptions, WatchProviderData } from "@/types";
+import type { MediaItem, ExternalRating, ProcessedWatchOptions } from "@/types";
+import type { WatchOptionsItem } from "@/types/client-props";
 
 /** Enhanced data for hero items from getTrending */
 interface HeroItemEnhancedData {
   ratings: ExternalRating[];
   watchOptions: ProcessedWatchOptions;
-  watchProviders?: Record<string, WatchProviderData>;
-  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
+  /** Light item data for continue watching (pre-extracted) */
+  item: WatchOptionsItem;
 }
 
 interface HeroCarouselProps {
@@ -208,9 +209,7 @@ export function HeroCarousel({
                 ratings={enhancedData?.ratings}
                 voteAverage={rating}
                 watchOptions={enhancedData?.watchOptions}
-                watchProviders={enhancedData?.watchProviders}
-                googleData={enhancedData?.googleData}
-                item={{
+                item={enhancedData?.item || {
                   id: currentItem.id,
                   title: isMovie ? title : undefined,
                   name: !isMovie ? title : undefined,

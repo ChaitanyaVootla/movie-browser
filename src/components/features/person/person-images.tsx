@@ -2,10 +2,10 @@
 
 import { ImageGallery } from "@/components/features/media/image-gallery";
 import { cn } from "@/lib/utils";
-import type { Image as TMDBImage } from "@/types";
+import type { PersonProfileImage } from "@/types/client-props";
 
 interface PersonImagesProps {
-  images: TMDBImage[];
+  images: PersonProfileImage[];
   personName: string;
   className?: string;
 }

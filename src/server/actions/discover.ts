@@ -15,6 +15,10 @@ import type { MovieListItem, SeriesListItem, MediaItem } from "@/types";
 // Type Mappers
 // ============================================
 
+/**
+ * Map TMDB movie result to MovieListItem.
+ * Note: overview intentionally omitted to reduce payload size (~200-500 bytes per item)
+ */
 function mapMovieResult(item: Record<string, unknown>): MovieListItem {
   const genreIds = (item.genre_ids as number[]) || [];
   return {
@@ -25,7 +29,7 @@ function mapMovieResult(item: Record<string, unknown>): MovieListItem {
     vote_average: item.vote_average as number,
     vote_count: item.vote_count as number,
     release_date: (item.release_date as string) || "",
-    overview: item.overview as string,
+    // overview intentionally omitted - not needed for cards, saves ~200-500 bytes each
     popularity: item.popularity as number,
     adult: item.adult as boolean,
     genre_ids: genreIds,
@@ -34,6 +38,10 @@ function mapMovieResult(item: Record<string, unknown>): MovieListItem {
   };
 }
 
+/**
+ * Map TMDB TV result to SeriesListItem.
+ * Note: overview intentionally omitted to reduce payload size (~200-500 bytes per item)
+ */
 function mapTVResult(item: Record<string, unknown>): SeriesListItem {
   const genreIds = (item.genre_ids as number[]) || [];
   return {
@@ -44,7 +52,7 @@ function mapTVResult(item: Record<string, unknown>): SeriesListItem {
     vote_average: item.vote_average as number,
     vote_count: item.vote_count as number,
     first_air_date: (item.first_air_date as string) || "",
-    overview: item.overview as string,
+    // overview intentionally omitted - not needed for cards, saves ~200-500 bytes each
     popularity: item.popularity as number,
     adult: item.adult as boolean,
     genre_ids: genreIds,

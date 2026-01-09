@@ -1,27 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
   Bot,
-  DollarSign,
   Gauge,
   TrendingUp,
-  Users,
-  Eye,
   AlertTriangle,
-  Zap,
   Database,
-  Globe,
-  Smartphone,
-  Monitor,
-  Tablet,
-  BarChart3,
+  CloudCog,
+  ChevronDown,
+  ChevronRight,
+  AlertCircle,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -30,143 +23,54 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { AlertsPanel } from "./alerts-panel";
 
-// =============================================================================
+// Tabs
+import {
+  TrafficTab,
+  AITab,
+  LambdaTab,
+  PerformanceTab,
+  SystemTab,
+} from "./tabs";
+
+// Shared components
+import {
+  CompactStat,
+  getTimeAgo,
+  formatAlertValue,
+} from "./analytics-shared";
+
+// Error detail sheet
+import { ErrorDetailSheet } from "./error-detail-sheet";
+
 // Types
+import type { AnalyticsOverview, Alert, TimeRange } from "./analytics-types";
+
+// =============================================================================
+// Selected Error State
 // =============================================================================
 
-interface AnalyticsOverview {
-  traffic: {
-    pageViews: number;
-    uniqueSessions: number;
-    uniqueUsers: number;
-    botViews: number;
-    avgSessionDuration: number;
-    bounceRate: number;
-  } | null;
-  aiUsage: {
-    totalInvocations: number;
-    totalCost: number;
-    totalTokens: number;
-    avgResponseTime: number;
-    uniqueUsers: number;
-  } | null;
-  performance: {
-    p75Lcp: number;
-    p75Fcp: number;
-    p75Ttfb: number;
-    p75Cls: number;
-    p75Inp: number | null;
-    avgLcp: number;
-  } | null;
-  errors: {
-    totalErrors: number;
-    criticalErrors: number;
-    highErrors: number;
-    mediumErrors: number;
-    lowErrors: number;
-    affectedSessions: number;
-  } | null;
-  cache: {
-    l1HitRate: number;
-    l2HitRate: number;
-    totalHits: number;
-    totalMisses: number;
-    memoryKeys: number;
-    compressionSavings: number;
-    fetchErrors: number;
-  } | null;
-  alerts: Alert[];
-  checkedAt: string;
-}
-
-interface Alert {
-  id: string;
-  severity: "critical" | "warning" | "info";
-  category: string;
-  title: string;
-  message: string;
-  value: number | string;
-  threshold: number | string;
-  detectedAt: string;
-}
-
-interface AIData {
-  overview: {
-    totalInvocations: number;
-    totalCost: number;
-    totalTokens: number;
-    avgResponseTime: number;
-    uniqueUsers: number;
-  };
-  daily: Array<{
-    date: string;
-    invocations: number;
-    tokens: number;
-    cost: number;
-  }>;
-  topUsers: Array<{
-    userId: string;
-    isAuthenticated: boolean;
-    invocations: number;
-    cost: number;
-    tokens: number;
-  }>;
-  queryTypes: Array<{
-    queryType: string;
-    count: number;
-    percentage: number;
-  }>;
-}
-
-interface TrafficData {
-  overview: AnalyticsOverview["traffic"];
-  daily: Array<{
-    date: string;
-    pageViews: number;
-    sessions: number;
-    users: number;
-  }>;
-  topPages: Array<{
-    path: string;
-    pageType: string;
-    views: number;
-    uniqueVisitors: number;
-  }>;
-  geo: Array<{
-    country: string;
-    views: number;
-    percentage: number;
-  }>;
-  devices: Array<{
-    deviceType: string;
-    count: number;
-    percentage: number;
-  }>;
+interface SelectedError {
+  errorType: string;
+  errorSource: string;
+  count: number;
 }
 
 // =============================================================================
-// Fetch Functions
+// Fetch Function
 // =============================================================================
 
-async function fetchOverview(range: number): Promise<AnalyticsOverview> {
+async function fetchOverview(range: TimeRange): Promise<AnalyticsOverview> {
   const res = await fetch(`/api/admin/analytics?type=overview&range=${range}`);
   if (!res.ok) throw new Error("Failed to fetch analytics overview");
-  return res.json();
-}
-
-async function fetchAIData(range: number): Promise<AIData> {
-  const res = await fetch(`/api/admin/analytics?type=ai&range=${range}`);
-  if (!res.ok) throw new Error("Failed to fetch AI data");
-  return res.json();
-}
-
-async function fetchTrafficData(range: number): Promise<TrafficData> {
-  const res = await fetch(`/api/admin/analytics?type=traffic&range=${range}`);
-  if (!res.ok) throw new Error("Failed to fetch traffic data");
   return res.json();
 }
 
@@ -175,13 +79,15 @@ async function fetchTrafficData(range: number): Promise<TrafficData> {
 // =============================================================================
 
 export function AnalyticsDashboard() {
-  const [range, setRange] = useState(7);
+  const [range, setRange] = useState<TimeRange>(7);
+  const [excludeBots, setExcludeBots] = useState(false); // Show both human and bot by default
+  const [selectedError, setSelectedError] = useState<SelectedError | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "analytics", "overview", range],
     queryFn: () => fetchOverview(range),
     staleTime: 60 * 1000,
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    refetchInterval: 5 * 60 * 1000,
   });
 
   if (error) {
@@ -200,93 +106,80 @@ export function AnalyticsDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Range Selector */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Analytics</h2>
-        <Select value={String(range)} onValueChange={(v) => setRange(parseInt(v, 10))}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">Last 24h</SelectItem>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="space-y-4">
+      {/* Compact Header with Filters */}
+      <DashboardHeader
+        range={range}
+        onRangeChange={setRange}
+        excludeBots={excludeBots}
+        onExcludeBotsChange={setExcludeBots}
+        checkedAt={data?.checkedAt}
+      />
 
-      {/* Alerts Section */}
-      <AlertsPanel alerts={data?.alerts || []} isLoading={isLoading} />
+      {/* Compact Alerts Bar */}
+      <AlertsBar 
+        alerts={data?.alerts || []} 
+        isLoading={isLoading}
+        onErrorClick={(err) => setSelectedError(err)}
+      />
 
-      {/* Overview Stats */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Page Views"
-          value={data?.traffic?.pageViews}
-          icon={Eye}
-          isLoading={isLoading}
-          format="number"
-        />
-        <MetricCard
-          title="Sessions"
-          value={data?.traffic?.uniqueSessions}
-          icon={Users}
-          isLoading={isLoading}
-          format="number"
-        />
-        <MetricCard
-          title="AI Cost"
-          value={data?.aiUsage?.totalCost}
-          icon={DollarSign}
-          isLoading={isLoading}
-          format="currency"
-          subtext={`${data?.aiUsage?.totalInvocations || 0} calls`}
-        />
-        <MetricCard
-          title="Errors"
-          value={data?.errors?.totalErrors}
-          icon={AlertTriangle}
-          isLoading={isLoading}
-          format="number"
-          variant={
-            (data?.errors?.criticalErrors || 0) > 0
-              ? "destructive"
-              : (data?.errors?.totalErrors || 0) > 10
-                ? "warning"
-                : "default"
-          }
-        />
-      </div>
+      {/* Error Detail Sheet */}
+      <ErrorDetailSheet
+        open={selectedError !== null}
+        onOpenChange={(open) => !open && setSelectedError(null)}
+        errorType={selectedError?.errorType || ""}
+        errorSource={selectedError?.errorSource || ""}
+        range={range}
+        totalCount={selectedError?.count}
+      />
+
+      {/* Compact Stats Row */}
+      <StatsRow data={data} isLoading={isLoading} excludeBots={excludeBots} />
 
       {/* Tabs for Detailed Views */}
       <Tabs defaultValue="traffic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-          <TabsTrigger value="traffic" className="gap-1.5">
-            <TrendingUp className="h-4 w-4" />
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="traffic" className="gap-1.5 text-xs">
+            <TrendingUp className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Traffic</span>
           </TabsTrigger>
-          <TabsTrigger value="ai" className="gap-1.5">
-            <Bot className="h-4 w-4" />
+          <TabsTrigger value="ai" className="gap-1.5 text-xs">
+            <Bot className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">AI</span>
           </TabsTrigger>
-          <TabsTrigger value="performance" className="gap-1.5">
-            <Gauge className="h-4 w-4" />
-            <span className="hidden sm:inline">Performance</span>
+          <TabsTrigger value="lambda" className="gap-1.5 text-xs">
+            <CloudCog className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Lambda</span>
           </TabsTrigger>
-          <TabsTrigger value="system" className="gap-1.5">
-            <Database className="h-4 w-4" />
+          <TabsTrigger value="performance" className="gap-1.5 text-xs">
+            <Gauge className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Perf</span>
+          </TabsTrigger>
+          <TabsTrigger value="system" className="gap-1.5 text-xs">
+            <Database className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">System</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="traffic">
-          <TrafficTab range={range} overview={data?.traffic} isLoading={isLoading} />
+          <TrafficTab
+            range={range}
+            overview={data?.traffic}
+            isLoading={isLoading}
+            excludeBots={excludeBots}
+          />
         </TabsContent>
 
         <TabsContent value="ai">
           <AITab range={range} />
+        </TabsContent>
+
+        <TabsContent value="lambda">
+          <LambdaTab
+            range={range}
+            overview={data?.lambda}
+            isLoading={isLoading}
+          />
         </TabsContent>
 
         <TabsContent value="performance">
@@ -294,7 +187,7 @@ export function AnalyticsDashboard() {
         </TabsContent>
 
         <TabsContent value="system">
-          <SystemTab cache={data?.cache} isLoading={isLoading} />
+          <SystemTab cache={data?.cache} isLoading={isLoading} range={range} />
         </TabsContent>
       </Tabs>
     </div>
@@ -302,665 +195,301 @@ export function AnalyticsDashboard() {
 }
 
 // =============================================================================
-// Metric Card Component
+// Dashboard Header
 // =============================================================================
 
-interface MetricCardProps {
-  title: string;
-  value: number | undefined | null;
-  icon: React.ElementType;
-  isLoading: boolean;
-  format?: "number" | "currency" | "percentage" | "duration";
-  subtext?: string;
-  variant?: "default" | "destructive" | "warning";
+interface DashboardHeaderProps {
+  range: TimeRange;
+  onRangeChange: (range: TimeRange) => void;
+  excludeBots: boolean;
+  onExcludeBotsChange: (exclude: boolean) => void;
+  checkedAt?: string;
 }
 
-function MetricCard({
-  title,
-  value,
-  icon: Icon,
-  isLoading,
-  format = "number",
-  subtext,
-  variant = "default",
-}: MetricCardProps) {
-  const formatValue = (v: number) => {
-    switch (format) {
-      case "currency":
-        return `$${v.toFixed(2)}`;
-      case "percentage":
-        return `${v.toFixed(1)}%`;
-      case "duration":
-        return v >= 1000 ? `${(v / 1000).toFixed(1)}s` : `${v.toFixed(0)}ms`;
-      default:
-        return v.toLocaleString();
-    }
-  };
-
-  return (
-    <Card
-      className={cn(
-        "py-4",
-        variant === "destructive" && "border-red-500/50",
-        variant === "warning" && "border-amber-500/50"
-      )}
-    >
-      <CardContent className="p-4 pt-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              {title}
-            </p>
-            {isLoading ? (
-              <Skeleton className="h-7 w-20 mt-1" />
-            ) : (
-              <>
-                <p
-                  className={cn(
-                    "text-xl font-bold",
-                    variant === "destructive" && "text-red-500",
-                    variant === "warning" && "text-amber-500"
-                  )}
-                >
-                  {value !== null && value !== undefined ? formatValue(value) : "—"}
-                </p>
-                {subtext && (
-                  <p className="text-xs text-muted-foreground">{subtext}</p>
-                )}
-              </>
-            )}
-          </div>
-          <Icon
-            className={cn(
-              "h-6 w-6",
-              variant === "destructive"
-                ? "text-red-500/40"
-                : variant === "warning"
-                  ? "text-amber-500/40"
-                  : "text-muted-foreground/40"
-            )}
-          />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// =============================================================================
-// Traffic Tab
-// =============================================================================
-
-function TrafficTab({
+function DashboardHeader({
   range,
-  overview,
-  isLoading: overviewLoading,
-}: {
-  range: number;
-  overview: AnalyticsOverview["traffic"] | null | undefined;
-  isLoading: boolean;
-}) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin", "analytics", "traffic", range],
-    queryFn: () => fetchTrafficData(range),
-    staleTime: 60 * 1000,
-  });
-
-  const loading = overviewLoading || isLoading;
-
+  onRangeChange,
+  excludeBots,
+  onExcludeBotsChange,
+  checkedAt,
+}: DashboardHeaderProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {/* Session Metrics */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Session Metrics</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </>
-          ) : (
-            <>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Avg Duration</span>
-                <span className="font-medium">
-                  {overview?.avgSessionDuration
-                    ? `${Math.floor(overview.avgSessionDuration / 60)}m ${Math.floor(overview.avgSessionDuration % 60)}s`
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Bounce Rate</span>
-                <span className="font-medium">
-                  {overview?.bounceRate ? `${(overview.bounceRate * 100).toFixed(1)}%` : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Bot Traffic</span>
-                <span className="font-medium">
-                  {overview?.botViews?.toLocaleString() || "0"} views
-                </span>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Device Breakdown */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Devices</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {data?.devices?.map((device) => (
-                <div key={device.deviceType} className="flex items-center gap-2">
-                  {device.deviceType === "mobile" && <Smartphone className="h-4 w-4" />}
-                  {device.deviceType === "tablet" && <Tablet className="h-4 w-4" />}
-                  {device.deviceType === "desktop" && <Monitor className="h-4 w-4" />}
-                  <div className="flex-1">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="capitalize">{device.deviceType}</span>
-                      <span className="text-muted-foreground">
-                        {device.percentage.toFixed(1)}%
-                      </span>
-                    </div>
-                    <Progress value={device.percentage} className="h-1" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Top Countries */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Globe className="h-4 w-4" />
-            Top Countries
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-4 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {data?.geo?.slice(0, 5).map((country) => (
-                <div key={country.country} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    {country.country !== "unknown" && (
-                      <img
-                        src={`https://flagcdn.com/w20/${country.country.toLowerCase()}.png`}
-                        alt={country.country}
-                        width={16}
-                        height={12}
-                        className="rounded-sm"
-                      />
-                    )}
-                    <span>{country.country}</span>
-                  </div>
-                  <span className="text-muted-foreground">{country.views.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Top Pages */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Top Pages
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-4 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {data?.topPages?.slice(0, 5).map((page) => (
-                <div key={page.path} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Badge variant="outline" className="text-[10px] shrink-0">
-                      {page.pageType}
-                    </Badge>
-                    <span className="truncate text-muted-foreground">{page.path}</span>
-                  </div>
-                  <span className="shrink-0 ml-2">{page.views.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center gap-3">
+        <Select
+          value={String(range)}
+          onValueChange={(v) => onRangeChange(parseInt(v, 10) as TimeRange)}
+        >
+          <SelectTrigger className="w-[120px] h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">Today</SelectItem>
+            <SelectItem value="1">Last 24h</SelectItem>
+            <SelectItem value="7">Last 7 days</SelectItem>
+            <SelectItem value="30">Last 30 days</SelectItem>
+            <SelectItem value="90">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="exclude-bots"
+            checked={excludeBots}
+            onCheckedChange={onExcludeBotsChange}
+            className="h-4 w-7 data-[state=checked]:bg-green-500"
+          />
+          <Label
+            htmlFor="exclude-bots"
+            className="text-xs text-muted-foreground cursor-pointer"
+          >
+            Human traffic only
+          </Label>
+        </div>
+      </div>
+      {checkedAt && (
+        <span className="text-[10px] text-muted-foreground">
+          Updated {new Date(checkedAt).toLocaleTimeString()}
+        </span>
+      )}
     </div>
   );
 }
 
 // =============================================================================
-// AI Tab
+// Stats Row
 // =============================================================================
 
-function AITab({ range }: { range: number }) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["admin", "analytics", "ai", range],
-    queryFn: () => fetchAIData(range),
-    staleTime: 60 * 1000,
-  });
+interface StatsRowProps {
+  data: AnalyticsOverview | undefined;
+  isLoading: boolean;
+  excludeBots: boolean;
+}
 
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-muted-foreground">Could not load AI data</p>
-        </CardContent>
-      </Card>
-    );
+function StatsRow({ data, isLoading, excludeBots }: StatsRowProps) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <CompactStat
+        label="Views"
+        value={
+          excludeBots
+            ? data?.traffic?.pageViews
+            : (data?.traffic?.pageViews ?? 0) + (data?.traffic?.botViews ?? 0)
+        }
+        isLoading={isLoading}
+      />
+      <CompactStat
+        label="Sessions"
+        value={data?.traffic?.uniqueSessions}
+        isLoading={isLoading}
+      />
+      <CompactStat
+        label="Users"
+        value={data?.traffic?.uniqueUsers}
+        isLoading={isLoading}
+      />
+      <CompactStat
+        label="AI Cost"
+        value={data?.aiUsage?.totalCost}
+        format="currency"
+        suffix={`(${data?.aiUsage?.totalInvocations ?? 0})`}
+        isLoading={isLoading}
+      />
+      <CompactStat
+        label="Lambda"
+        value={data?.lambda?.estimatedCost}
+        format="currency"
+        suffix={`(${data?.lambda?.totalInvocations ?? 0})`}
+        isLoading={isLoading}
+      />
+      <CompactStat
+        label="Errors"
+        value={data?.errors?.totalErrors}
+        variant={
+          (data?.errors?.criticalErrors ?? 0) > 0
+            ? "destructive"
+            : (data?.errors?.totalErrors ?? 0) > 10
+              ? "warning"
+              : "default"
+        }
+        isLoading={isLoading}
+      />
+      {!excludeBots && (
+        <CompactStat
+          label="Bot Views"
+          value={data?.traffic?.botViews}
+          icon={Bot}
+          isLoading={isLoading}
+        />
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Alerts Bar (Collapsible & Compact)
+// =============================================================================
+
+interface AlertsBarProps {
+  alerts: Alert[];
+  isLoading: boolean;
+  onErrorClick?: (error: SelectedError) => void;
+}
+
+function AlertsBar({
+  alerts,
+  isLoading,
+  onErrorClick,
+}: AlertsBarProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (isLoading || alerts.length === 0) {
+    return null;
   }
 
+  const criticalCount = alerts.filter((a) => a.severity === "critical").length;
+  const warningCount = alerts.filter((a) => a.severity === "warning").length;
+
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {/* AI Overview */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">AI Usage Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {isLoading ? (
-            <>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-5/6" />
-            </>
-          ) : (
-            <>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Cost</span>
-                <span className="font-bold text-lg">${data?.overview.totalCost.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Invocations</span>
-                <span className="font-medium">{data?.overview.totalInvocations.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tokens Used</span>
-                <span className="font-medium">{data?.overview.totalTokens.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Avg Response</span>
-                <span className="font-medium">{data?.overview.avgResponseTime.toFixed(0)}ms</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Cost/Call</span>
-                <span className="font-medium">
-                  ${data?.overview.totalInvocations
-                    ? (data.overview.totalCost / data.overview.totalInvocations).toFixed(4)
-                    : "0.00"}
-                </span>
-              </div>
-            </>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button
+          className={cn(
+            "w-full flex items-center justify-between px-3 py-2 rounded-md border text-left transition-colors",
+            criticalCount > 0
+              ? "border-red-500/50 bg-red-500/5 hover:bg-red-500/10"
+              : "border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10"
           )}
-        </CardContent>
-      </Card>
-
-      {/* Query Types */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Query Types</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-4 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {data?.queryTypes?.slice(0, 6).map((qt) => (
-                <div key={qt.queryType} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="capitalize">{qt.queryType}</span>
-                    <span className="text-muted-foreground">
-                      {qt.count} ({qt.percentage.toFixed(1)}%)
-                    </span>
-                  </div>
-                  <Progress value={qt.percentage} className="h-1" />
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Top AI Users */}
-      <Card className="md:col-span-2">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Top AI Users</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-8 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {data?.topUsers?.map((user, i) => (
-                <div
-                  key={user.userId}
-                  className="flex items-center justify-between py-1.5 text-sm border-b last:border-0"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-5">{i + 1}.</span>
-                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded truncate max-w-[200px]">
-                      {user.userId.slice(0, 16)}...
-                    </code>
-                    {user.isAuthenticated && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        Auth
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 text-muted-foreground">
-                    <span>{user.invocations} calls</span>
-                    <span className="font-medium text-foreground">${user.cost.toFixed(3)}</span>
-                  </div>
-                </div>
-              ))}
-              {(!data?.topUsers || data.topUsers.length === 0) && (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No AI usage data
-                </p>
+        >
+          <div className="flex items-center gap-2">
+            {criticalCount > 0 ? (
+              <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+            ) : (
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+            )}
+            <span className="text-xs font-medium">
+              {criticalCount > 0 && (
+                <span className="text-red-500">{criticalCount} critical</span>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              {criticalCount > 0 && warningCount > 0 && (
+                <span className="text-muted-foreground"> · </span>
+              )}
+              {warningCount > 0 && (
+                <span className="text-amber-500">{warningCount} warning</span>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              {alerts.length} alert{alerts.length !== 1 ? "s" : ""}
+            </span>
+            {isOpen ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+          </div>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-2 space-y-1.5">
+          {alerts.map((alert) => (
+            <AlertRow 
+              key={alert.id} 
+              alert={alert} 
+              onErrorClick={onErrorClick}
+            />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
-// =============================================================================
-// Performance Tab
-// =============================================================================
+interface AlertRowProps {
+  alert: Alert;
+  onErrorClick?: (error: SelectedError) => void;
+}
 
-function PerformanceTab({
-  metrics,
-  isLoading,
-}: {
-  metrics: AnalyticsOverview["performance"] | null | undefined;
-  isLoading: boolean;
-}) {
-  // Web Vitals thresholds
-  const getVitalStatus = (metric: string, value: number) => {
-    const thresholds: Record<string, [number, number]> = {
-      lcp: [2500, 4000],
-      fcp: [1800, 3000],
-      ttfb: [800, 1800],
-      cls: [0.1, 0.25],
-      inp: [200, 500],
-    };
+function AlertRow({ alert, onErrorClick }: AlertRowProps) {
+  const colorClass =
+    alert.severity === "critical"
+      ? "text-red-500"
+      : alert.severity === "warning"
+        ? "text-amber-500"
+        : "text-blue-500";
+  const bgClass =
+    alert.severity === "critical"
+      ? "bg-red-500/5 hover:bg-red-500/10"
+      : alert.severity === "warning"
+        ? "bg-amber-500/5 hover:bg-amber-500/10"
+        : "bg-blue-500/5 hover:bg-blue-500/10";
 
-    const [good, poor] = thresholds[metric] || [0, 0];
-    if (value <= good) return "good";
-    if (value <= poor) return "moderate";
-    return "poor";
-  };
+  // Check if this is an error-type alert that can be drilled into
+  const isErrorAlert = alert.category === "errors";
+  const isClickable = isErrorAlert && onErrorClick;
 
-  const statusColors = {
-    good: "text-green-500",
-    moderate: "text-amber-500",
-    poor: "text-red-500",
+  const handleClick = () => {
+    if (!isClickable) return;
+    
+    // Extract error type and source from alert
+    // Alert title is typically the error type, we infer source from context
+    // Most errors are either "client" or "server" based on context
+    const errorType = alert.title;
+    // Try to determine source from the alert message/context
+    const errorSource = alert.message.toLowerCase().includes("server") 
+      ? "server" 
+      : alert.message.toLowerCase().includes("api")
+        ? "api"
+        : "client";
+    
+    onErrorClick({
+      errorType,
+      errorSource,
+      count: typeof alert.value === "number" ? alert.value : 0,
+    });
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {/* LCP */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Largest Contentful Paint (LCP)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-10 w-20" />
-          ) : (
-            <>
-              <p
-                className={cn(
-                  "text-2xl font-bold",
-                  metrics?.p75Lcp && statusColors[getVitalStatus("lcp", metrics.p75Lcp)]
-                )}
-              >
-                {metrics?.p75Lcp ? `${(metrics.p75Lcp / 1000).toFixed(2)}s` : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">P75 • Target: &lt;2.5s</p>
-            </>
+    <div 
+      className={cn(
+        "px-3 py-2 rounded-md text-xs transition-colors",
+        bgClass,
+        isClickable && "cursor-pointer"
+      )}
+      onClick={handleClick}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? (e) => e.key === "Enter" && handleClick() : undefined}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={cn("font-medium", colorClass)}>{alert.title}</span>
+          <Badge variant="outline" className="text-[9px] h-4 px-1">
+            {alert.category}
+          </Badge>
+          {isClickable && (
+            <span className="text-[9px] text-muted-foreground">(click for details)</span>
           )}
-        </CardContent>
-      </Card>
-
-      {/* FCP */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">First Contentful Paint (FCP)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-10 w-20" />
-          ) : (
-            <>
-              <p
-                className={cn(
-                  "text-2xl font-bold",
-                  metrics?.p75Fcp && statusColors[getVitalStatus("fcp", metrics.p75Fcp)]
-                )}
-              >
-                {metrics?.p75Fcp ? `${(metrics.p75Fcp / 1000).toFixed(2)}s` : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">P75 • Target: &lt;1.8s</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* TTFB */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Time to First Byte (TTFB)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-10 w-20" />
-          ) : (
-            <>
-              <p
-                className={cn(
-                  "text-2xl font-bold",
-                  metrics?.p75Ttfb && statusColors[getVitalStatus("ttfb", metrics.p75Ttfb)]
-                )}
-              >
-                {metrics?.p75Ttfb ? `${metrics.p75Ttfb.toFixed(0)}ms` : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">P75 • Target: &lt;800ms</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* CLS */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Cumulative Layout Shift (CLS)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-10 w-20" />
-          ) : (
-            <>
-              <p
-                className={cn(
-                  "text-2xl font-bold",
-                  metrics?.p75Cls !== undefined && statusColors[getVitalStatus("cls", metrics.p75Cls)]
-                )}
-              >
-                {metrics?.p75Cls !== undefined ? metrics.p75Cls.toFixed(3) : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">P75 • Target: &lt;0.1</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* INP */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Interaction to Next Paint (INP)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-10 w-20" />
-          ) : (
-            <>
-              <p
-                className={cn(
-                  "text-2xl font-bold",
-                  metrics?.p75Inp !== null &&
-                    metrics?.p75Inp !== undefined &&
-                    statusColors[getVitalStatus("inp", metrics.p75Inp)]
-                )}
-              >
-                {metrics?.p75Inp !== null && metrics?.p75Inp !== undefined
-                  ? `${metrics.p75Inp.toFixed(0)}ms`
-                  : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">P75 • Target: &lt;200ms</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+        <span className="text-muted-foreground">
+          {getTimeAgo(alert.detectedAt)}
+        </span>
+      </div>
+      <p className="text-muted-foreground mt-0.5">{alert.message}</p>
+      <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
+        <span>
+          Value:{" "}
+          <span className="text-foreground font-medium">
+            {formatAlertValue(alert.value)}
+          </span>
+        </span>
+        <span>
+          Threshold:{" "}
+          <span className="font-medium">
+            {formatAlertValue(alert.threshold)}
+          </span>
+        </span>
+      </div>
     </div>
   );
 }
-
-// =============================================================================
-// System Tab (Cache)
-// =============================================================================
-
-function SystemTab({
-  cache,
-  isLoading,
-}: {
-  cache: AnalyticsOverview["cache"] | null | undefined;
-  isLoading: boolean;
-}) {
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {/* Cache Hit Rates */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            Cache Performance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoading ? (
-            <>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-            </>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>L1 (Memory) Hit Rate</span>
-                  <span className="font-medium">{cache?.l1HitRate.toFixed(1) || 0}%</span>
-                </div>
-                <Progress value={cache?.l1HitRate || 0} className="h-2" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>L2 (File) Hit Rate</span>
-                  <span className="font-medium">{cache?.l2HitRate.toFixed(1) || 0}%</span>
-                </div>
-                <Progress value={cache?.l2HitRate || 0} className="h-2" />
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Cache Stats */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Cache Stats</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {isLoading ? (
-            <>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-5/6" />
-            </>
-          ) : (
-            <>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Memory Keys</span>
-                <span className="font-medium">{cache?.memoryKeys?.toLocaleString() || 0}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Hits</span>
-                <span className="font-medium">{cache?.totalHits?.toLocaleString() || 0}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Misses</span>
-                <span className="font-medium">{cache?.totalMisses?.toLocaleString() || 0}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Compression Savings</span>
-                <span className="font-medium">
-                  {cache?.compressionSavings
-                    ? `${(cache.compressionSavings / 1024 / 1024).toFixed(1)} MB`
-                    : "0 MB"}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Fetch Errors</span>
-                <span
-                  className={cn(
-                    "font-medium",
-                    (cache?.fetchErrors || 0) > 0 && "text-amber-500"
-                  )}
-                >
-                  {cache?.fetchErrors || 0}
-                </span>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
