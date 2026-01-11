@@ -46,3 +46,35 @@ export {
   getPostgresStats,
 } from "./hybrid";
 
+export {
+  fuzzySearch,
+  getSpellingSuggestions,
+  findExactMatch,
+  multiStrategySearch,
+  type FuzzySearchResult,
+  type FuzzySearchOptions,
+  type SpellingSuggestion,
+  type MultiStrategySearchResult,
+} from "./fuzzy-search";
+
+export {
+  semanticSearch,
+  findSimilarByEmbedding,
+  getEmbeddingStats,
+  type SemanticSearchResult,
+  type SemanticSearchOptions,
+  type SimilarByEmbeddingOptions,
+} from "./semantic-search";
+
+// Smart discover - unified filter + semantic search (preferred for AI tools)
+export {
+  smartDiscover,
+  resolveGenreIds,
+  resolveKeywordIds,
+  resolvePersonIds,
+  resolveProviderIds,
+  type SmartDiscoverFilters,
+  type SmartDiscoverResult,
+  type SmartDiscoverResponse,
+} from "./smart-discover";
+

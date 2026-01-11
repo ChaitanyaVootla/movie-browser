@@ -535,3 +535,35 @@ export async function getTrendingPeople(
     cacheTTL: CACHE_DURATIONS.trending,
   });
 }
+
+/**
+ * Get similar movies/series based on TMDB's algorithm
+ */
+export async function getSimilar(
+  id: number,
+  mediaType: "movie" | "series",
+  page = 1
+): Promise<TMDBListResponse> {
+  const endpoint = mediaType === "movie" ? `/movie/${id}/similar` : `/tv/${id}/similar`;
+  return fetchFromTMDB(endpoint, {
+    params: { page: String(page) },
+    cacheNamespace: mediaType,
+    cacheTTL: CACHE_DURATIONS[mediaType],
+  });
+}
+
+/**
+ * Get recommendations for a movie/series based on TMDB's algorithm
+ */
+export async function getRecommendations(
+  id: number,
+  mediaType: "movie" | "series",
+  page = 1
+): Promise<TMDBListResponse> {
+  const endpoint = mediaType === "movie" ? `/movie/${id}/recommendations` : `/tv/${id}/recommendations`;
+  return fetchFromTMDB(endpoint, {
+    params: { page: String(page) },
+    cacheNamespace: mediaType,
+    cacheTTL: CACHE_DURATIONS[mediaType],
+  });
+}

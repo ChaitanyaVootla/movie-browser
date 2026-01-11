@@ -92,5 +92,15 @@ export {
   type Granularity,
 } from "./system";
 
+// Database stats queries
+export {
+  getDatabaseCounts,
+  getTMDBAvailableCounts,
+  getMovieRefreshStats,
+  getSeriesRefreshStats,
+  getEnrichmentStats,
+  getDatabaseStats,
+} from "./database";
+
 // Re-export checkClickHouseHealth from client for consistency
 export { checkClickHouseHealth } from "../client";

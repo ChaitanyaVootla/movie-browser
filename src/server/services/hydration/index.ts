@@ -53,6 +53,8 @@ export * from "./types";
 export interface HydrationOptions {
   /** Force refresh from TMDB + MongoDB/Lambda, bypassing staleness checks */
   forceRefresh?: boolean;
+  /** Skip Lambda fallback - only use TMDB + MongoDB (for bulk population) */
+  skipLambda?: boolean;
 }
 
 /**
@@ -69,7 +71,7 @@ export async function hydrateMovie(
   movieId: number,
   options: HydrationOptions = {}
 ): Promise<HydrationResult<TmdbMovieData>> {
-  const { forceRefresh = false } = options;
+  const { forceRefresh = false, skipLambda = false } = options;
 
   // 1. Check PostgreSQL for existing data (skip if forcing refresh)
   const pgRaw = forceRefresh ? null : await fetchMovieRaw(movieId);
@@ -95,16 +97,16 @@ export async function hydrateMovie(
   }
 
   // 3. Get enriched data following the deprecation strategy:
-  // - Force refresh → Lambda directly
+  // - Force refresh → Lambda directly (unless skipLambda)
   // - PostgreSQL fresh → Use PostgreSQL
   // - Migrated after cutoff → Lambda (MongoDB is dead)
-  // - Otherwise → MongoDB if fresh, else Lambda
+  // - Otherwise → MongoDB if fresh, else Lambda (unless skipLambda)
   const { enriched, enrichedSource, mongoDocExists } = await getEnrichedData(
     "movie",
     movieId,
     tmdbData.release_date,
     tmdbData,
-    { forceRefresh, pgData: pgRaw }
+    { forceRefresh, pgData: pgRaw, skipLambda }
   );
 
   console.log(`[Hydration] Movie ${movieId}: enriched from ${enrichedSource}`);
@@ -173,7 +175,7 @@ export async function hydrateSeries(
   seriesId: number,
   options: HydrationOptions = {}
 ): Promise<HydrationResult<TmdbSeriesData>> {
-  const { forceRefresh = false } = options;
+  const { forceRefresh = false, skipLambda = false } = options;
 
   // 1. Check PostgreSQL for existing data (skip if forcing refresh)
   const pgRaw = forceRefresh ? null : await fetchSeriesRaw(seriesId);
@@ -211,16 +213,16 @@ export async function hydrateSeries(
   }
 
   // 3. Get enriched data following the deprecation strategy:
-  // - Force refresh → Lambda directly
+  // - Force refresh → Lambda directly (unless skipLambda)
   // - PostgreSQL fresh → Use PostgreSQL
   // - Migrated after cutoff → Lambda (MongoDB is dead)
-  // - Otherwise → MongoDB if fresh, else Lambda
+  // - Otherwise → MongoDB if fresh, else Lambda (unless skipLambda)
   const { enriched, enrichedSource, mongoDocExists } = await getEnrichedData(
     "series",
     seriesId,
     tmdbData.first_air_date,
     tmdbData,
-    { forceRefresh, pgData: pgRaw }
+    { forceRefresh, pgData: pgRaw, skipLambda }
   );
 
   console.log(`[Hydration] Series ${seriesId}: enriched from ${enrichedSource}`);
@@ -373,7 +375,7 @@ export async function hydrateSeriesPartial(seriesId: number): Promise<HydrationR
  * Get enriched data following the MongoDB deprecation strategy
  *
  * Flow:
- * 1. Force refresh? → Lambda directly (skip MongoDB)
+ * 1. Force refresh? → Lambda + merge with existing PostgreSQL data (preserves ratings)
  * 2. PostgreSQL has fresh enriched data? → Use PostgreSQL, skip MongoDB
  * 3. MongoDB migrated + after cutoff? → Lambda (MongoDB is dead for this doc)
  * 4. Otherwise → MongoDB if fresh, else Lambda
@@ -381,6 +383,10 @@ export async function hydrateSeriesPartial(seriesId: number): Promise<HydrationR
  * This enables gradual MongoDB deprecation:
  * - Documents migrated after cutoff never hit MongoDB again
  * - PostgreSQL becomes self-sufficient once it has fresh enriched data
+ *
+ * IMPORTANT: On force refresh, we still fetch existing PostgreSQL enriched data
+ * to merge with Lambda results. This preserves ratings that Lambda doesn't return
+ * (like Google ratings). This matches the legacy Nuxt app behavior.
  */
 async function getEnrichedData(
   mediaType: MediaType,
@@ -399,22 +405,42 @@ async function getEnrichedData(
     original_language?: string;
   },
   options: {
-    /** Force refresh - skip MongoDB, go straight to Lambda */
+    /** Force refresh - call Lambda but merge with existing PostgreSQL data */
     forceRefresh?: boolean;
     /** Existing PostgreSQL data (for enriched freshness check) */
     pgData?: PostgresMovieData | PostgresSeriesData | null;
+    /** Skip Lambda fallback - only use TMDB + MongoDB (for bulk population) */
+    skipLambda?: boolean;
   } = {}
 ): Promise<{
   enriched: EnrichedData;
-  enrichedSource: "mongodb" | "lambda" | "postgres";
+  enrichedSource: "mongodb" | "lambda" | "postgres" | "none";
   mongoDocExists: boolean;
 }> {
-  const { forceRefresh = false, pgData = null } = options;
+  const { forceRefresh = false, pgData = null, skipLambda = false } = options;
 
-  // 1. Force refresh → Lambda directly (skip MongoDB entirely)
-  if (forceRefresh) {
-    console.log(`[Hydration] ${mediaType} ${id}: FORCE REFRESH - calling Lambda directly`);
-    const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData);
+  // 1. Force refresh → Lambda + merge with existing PostgreSQL data
+  // CRITICAL: We fetch existing enriched data to preserve ratings that Lambda doesn't return
+  // (like Google ratings). This matches the legacy Nuxt app behavior.
+  if (forceRefresh && !skipLambda) {
+    // Fetch existing enriched data from PostgreSQL (if available)
+    let existingEnriched: EnrichedData | null = null;
+    if (pgData) {
+      existingEnriched = transformPostgresRatingsToEnriched(pgData);
+      console.log(`[Hydration] ${mediaType} ${id}: FORCE REFRESH - found existing ratings to merge`);
+    } else {
+      // If pgData wasn't passed (because forceRefresh skips it), fetch it now
+      const pgRaw = mediaType === "movie" 
+        ? await fetchMovieRaw(id) 
+        : await fetchSeriesRaw(id);
+      if (pgRaw) {
+        existingEnriched = transformPostgresRatingsToEnriched(pgRaw);
+        console.log(`[Hydration] ${mediaType} ${id}: FORCE REFRESH - fetched existing ratings to merge`);
+      }
+    }
+    
+    console.log(`[Hydration] ${mediaType} ${id}: FORCE REFRESH - calling Lambda (will merge with existing)`);
+    const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData, existingEnriched);
     return {
       enriched: lambdaEnriched,
       enrichedSource: "lambda",
@@ -437,8 +463,12 @@ async function getEnrichedData(
     const mongoResult = await fetchFromMongo(mediaType, id);
 
     if (mongoResult?.documentExists) {
-      // 3a. Document is migrated + after cutoff → Skip MongoDB, use Lambda
+      // 3a. Document is migrated + after cutoff → Skip MongoDB, use Lambda (unless skipLambda)
       if (isMigratedAfterCutoff(mongoResult.isMigrated, mongoResult.migratedAt)) {
+        if (skipLambda) {
+          console.log(`[Hydration] ${mediaType} ${id}: migrated after cutoff, skipping Lambda (skipLambda=true)`);
+          return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: true };
+        }
         console.log(
           `[Hydration] ${mediaType} ${id}: migrated after cutoff (${MONGODB_MIGRATION_CUTOFF.toISOString()}), ` +
           `using Lambda instead of MongoDB`
@@ -461,13 +491,21 @@ async function getEnrichedData(
         };
       }
 
-      // 3c. MongoDB stale → Fall through to Lambda
+      // 3c. MongoDB stale → Fall through to Lambda (unless skipLambda)
+      if (skipLambda) {
+        console.log(`[Hydration] ${mediaType} ${id}: MongoDB stale, skipping Lambda (skipLambda=true)`);
+        return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: true };
+      }
       console.log(
         `[Hydration] ${mediaType} ${id}: MongoDB stale (${mongoResult.updatedAt?.toISOString()}), calling Lambda`
       );
     }
 
-    // MongoDB not found or stale - use Lambda
+    // MongoDB not found or stale - use Lambda (unless skipLambda)
+    if (skipLambda) {
+      console.log(`[Hydration] ${mediaType} ${id}: MongoDB not found, skipping Lambda (skipLambda=true)`);
+      return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: mongoResult?.documentExists ?? false };
+    }
     const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData);
     return {
       enriched: lambdaEnriched,
@@ -476,7 +514,11 @@ async function getEnrichedData(
     };
   }
 
-  // MongoDB disabled - use Lambda directly
+  // MongoDB disabled - use Lambda directly (unless skipLambda)
+  if (skipLambda) {
+    console.log(`[Hydration] ${mediaType} ${id}: MongoDB disabled, skipping Lambda (skipLambda=true)`);
+    return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: false };
+  }
   console.log(`[Hydration] ${mediaType} ${id}: MongoDB disabled, using Lambda`);
   const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData);
   return {

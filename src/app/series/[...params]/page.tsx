@@ -11,7 +11,8 @@ import {
   MediaOverview,
   VideoGallery,
   ImageGallery,
-  RecommendationsSection,
+  SimilarSection,
+  SimilarSectionSkeleton,
   RecentTracker,
   HeroBackdropShell,
   HeroLogoShell,
@@ -22,6 +23,7 @@ import {
   WatchOptions,
   DetailBadges,
 } from "@/components/features/media";
+import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { SeasonSelector, EpisodeInfoSection } from "@/components/features/series";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -317,7 +319,10 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
   const series = await getSeries(seriesId);
   if (!series) return null;
 
-  const youtubeVideos = series.videos?.results?.filter((v) => v.site === "YouTube") || [];
+  // Filter YouTube videos and sort by priority (Trailer > Teaser > etc.) + date
+  const youtubeVideos = sortVideos(
+    series.videos?.results?.filter((v) => v.site === "YouTube") || []
+  );
   const displaySeasons = series.seasons?.filter((s) => s.season_number >= 0) || [];
 
   return (
@@ -367,7 +372,12 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
 
       {/* Video Gallery */}
       {youtubeVideos.length > 0 && (
-        <VideoGallery videos={youtubeVideos.slice(0, 20)} className="mt-8 md:mt-12" />
+        <VideoGallery
+          videos={youtubeVideos.slice(0, 20)}
+          mediaId={series.id}
+          mediaType="series"
+          className="mt-8 md:mt-12"
+        />
       )}
 
       {/* Image Gallery */}
@@ -379,13 +389,16 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         />
       )}
 
-      {/* Recommendations & Similar */}
-      <RecommendationsSection
-        recommendations={series.recommendations?.results?.slice(0, 15)}
-        similar={series.similar?.results?.slice(0, 15)}
-        mediaType="series"
-        className="mt-8 md:mt-12"
-      />
+      {/* Similar - AI-powered embedding similarity with TMDB fallback */}
+      <Suspense fallback={<SimilarSectionSkeleton />}>
+        <SimilarSection
+          itemId={series.id}
+          mediaType="series"
+          tmdbRecommendations={series.recommendations?.results?.slice(0, 15)}
+          tmdbSimilar={series.similar?.results?.slice(0, 15)}
+          className="mt-8 md:mt-12"
+        />
+      </Suspense>
     </>
   );
 }

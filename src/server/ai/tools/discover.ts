@@ -1,9 +1,15 @@
 /**
  * Discover Tools
  *
+ * @deprecated Use `smart_discover` instead - it combines filters WITH semantic search.
+ * Example: smart_discover({ genres: ["Horror"], originCountry: "KR", semanticQuery: "dark atmospheric" })
+ *
  * Filter-based discovery for movies and TV series with smart filtering.
  * Supports hiding watched/rated/watchlist items with automatic pagination.
  * Includes automatic resolution of person names, keyword names, and streaming providers.
+ *
+ * @see src/server/ai/tools/smart-discover.ts - Unified replacement with PostgreSQL backend
+ * @see docs/ADVANCED_SEARCH_IMPLEMENTATION_PLAN.md - Phase 4.2
  */
 
 import { tool } from "@langchain/core/tools";

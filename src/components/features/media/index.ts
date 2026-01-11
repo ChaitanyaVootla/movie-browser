@@ -28,13 +28,14 @@ export { ContentWarningLink } from "./content-warning-link";
 // Gallery/Scroller components
 export { ScrollContainer, useScrollDrag } from "./scroll-container";
 export { MediaScroller } from "./media-scroller";
-export { VideoGallery, VideoCard } from "./video-gallery";
+export { VideoGallery, VideoCard, sortVideos } from "./video-gallery";
 export { VideoStats, VideoStatsSkeleton, VideoStatsCompact, VideoLikeBar } from "./video-stats";
 export { VideoComments, VideoCommentsPreview } from "./video-comments";
 export { ImageGallery } from "./image-gallery";
 
 // Related content components
 export { RecommendationsSection } from "./recommendations-section";
+export { SimilarSection, SimilarSectionSkeleton } from "./similar-section";
 export { CollectionSection } from "./collection-section";
 
 // Wide card components (for recents, continue watching)

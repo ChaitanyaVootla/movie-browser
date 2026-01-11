@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -380,6 +379,9 @@ export function TrailerModal({
     dislikeCount?: number;
     commentCount?: number;
     description?: string;
+    title?: string;
+    channelTitle?: string;
+    channelThumbnail?: string;
   } | null>(null);
 
   const currentTrailer = trailers[currentIndex];
@@ -395,7 +397,13 @@ export function TrailerModal({
 
     const fetchData = async () => {
       try {
-        const res = await fetch(`/api/youtube?videoId=${currentTrailer.youtubeKey}`);
+        // Build URL with optional PostgreSQL-backed params
+        const params = new URLSearchParams({ videoId: currentTrailer.youtubeKey });
+        if (currentTrailer.tmdbId && currentTrailer.mediaType) {
+          params.set("mediaId", String(currentTrailer.tmdbId));
+          params.set("mediaType", currentTrailer.mediaType === "tv" ? "series" : "movie");
+        }
+        const res = await fetch(`/api/youtube?${params.toString()}`);
         if (!res.ok || cancelled) return;
         
         const data = await res.json();
@@ -412,6 +420,9 @@ export function TrailerModal({
             dislikeCount: data.stats.dislikeCount,
             commentCount: data.stats.commentCount,
             description: data.stats.description,
+            title: data.stats.title,
+            channelTitle: data.stats.channelTitle,
+            channelThumbnail: data.stats.channelThumbnail,
           });
           // Use stats.commentCount as the true total (from YouTube API)
           if (data.stats.commentCount) {
@@ -461,11 +472,11 @@ export function TrailerModal({
   const viewCount = stats?.viewCount ?? currentTrailer.viewCount;
   const likeCount = stats?.likeCount ?? currentTrailer.likeCount;
   const dislikeCount = stats?.dislikeCount ?? currentTrailer.dislikeCount;
+  const youtubeTitle = stats?.title ?? currentTrailer.trailerTitle;
+  const channelTitle = stats?.channelTitle ?? currentTrailer.channelTitle;
+  const channelThumbnail = stats?.channelThumbnail ?? currentTrailer.channelThumbnail;
 
   const youtubeUrl = `https://www.youtube.com/watch?v=${currentTrailer.youtubeKey}`;
-  const detailUrl = currentTrailer.tmdbId
-    ? `/${currentTrailer.mediaType || "movie"}/${currentTrailer.tmdbId}`
-    : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -488,10 +499,10 @@ export function TrailerModal({
       >
         {/* Hidden but accessible title for screen readers */}
         <DialogTitle className="sr-only">
-          {currentTrailer.trailerTitle || currentTrailer.title}
+          {youtubeTitle || currentTrailer.title}
         </DialogTitle>
         <DialogDescription className="sr-only">
-          Trailer for {currentTrailer.title}
+          {currentTrailer.title} - {channelTitle || "YouTube"}
         </DialogDescription>
 
         {/* Main content - two column layout on desktop */}
@@ -514,31 +525,21 @@ export function TrailerModal({
             <div className="p-4 sm:p-5 space-y-3 shrink-0">
               {/* Title Row */}
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div className="space-y-1 flex-1 min-w-0">
-                  {/* Movie/Show Title - linked if we have tmdbId */}
-                  {detailUrl ? (
-                    <Link
-                      href={detailUrl}
-                      className="text-lg sm:text-xl font-semibold text-foreground hover:text-brand transition-colors line-clamp-2"
-                      onClick={onClose}
-                    >
-                      {currentTrailer.title}
-                    </Link>
-                  ) : (
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground line-clamp-2">
-                      {currentTrailer.title}
-                    </h3>
-                  )}
+                <div className="space-y-2 flex-1 min-w-0">
+                  {/* Full YouTube Video Title */}
+                  <h3 className="text-lg sm:text-xl font-semibold text-foreground line-clamp-2">
+                    {youtubeTitle}
+                  </h3>
 
-                  {/* Channel */}
-                  {currentTrailer.channelTitle && (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                  {/* Channel info */}
+                  {channelTitle && (
+                    <div className="flex items-center gap-2">
                       <ChannelAvatar 
-                        src={currentTrailer.channelThumbnail}
-                        alt={currentTrailer.channelTitle}
-                        size={20}
+                        src={channelThumbnail}
+                        alt={channelTitle}
+                        size={24}
                       />
-                      <span className="text-xs">{currentTrailer.channelTitle}</span>
+                      <span className="text-sm font-medium text-foreground/80">{channelTitle}</span>
                     </div>
                   )}
                 </div>

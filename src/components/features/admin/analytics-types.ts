@@ -332,3 +332,70 @@ export interface TabProps {
 }
 
 export type StatVariant = "default" | "destructive" | "warning";
+
+/**
+ * Analytics sub-tab identifiers for URL deep linking
+ */
+export type AnalyticsSubTab = "traffic" | "ai" | "lambda" | "performance" | "system" | "database";
+
+// =============================================================================
+// Database Stats Types
+// =============================================================================
+
+/**
+ * Counts of items in PostgreSQL database
+ */
+export interface DatabaseCounts {
+  movies: number;
+  series: number;
+  persons: number;
+  episodes: number;
+  videos: number;
+  ratings: number;
+}
+
+/**
+ * Counts from TMDB daily export files (available items)
+ */
+export interface TMDBAvailableCounts {
+  movies: number;
+  series: number;
+  persons: number;
+  exportDate: string | null; // Date of the export file
+}
+
+/**
+ * Refresh activity stats for movies/series
+ */
+export interface RefreshStats {
+  lastHour: number;
+  last24Hours: number;
+  last7Days: number;
+  last30Days: number;
+}
+
+/**
+ * Enrichment stats (ratings scraped, watch links scraped)
+ */
+export interface EnrichmentStats {
+  moviesWithRatings: number;
+  seriesWithRatings: number;
+  moviesWithWatchLinks: number;
+  seriesWithWatchLinks: number;
+}
+
+/**
+ * Combined database stats
+ */
+export interface DatabaseStats {
+  dbCounts: DatabaseCounts;
+  tmdbCounts: TMDBAvailableCounts;
+  movieRefresh: RefreshStats;
+  seriesRefresh: RefreshStats;
+  enrichment: EnrichmentStats;
+  coverage: {
+    moviesPercent: number;
+    seriesPercent: number;
+    personsPercent: number;
+  };
+}

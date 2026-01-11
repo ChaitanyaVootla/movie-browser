@@ -14,7 +14,8 @@ import {
   MediaOverview,
   VideoGallery,
   ImageGallery,
-  RecommendationsSection,
+  SimilarSection,
+  SimilarSectionSkeleton,
   CollectionSection,
   RecentTracker,
   HeroBackdropShell,
@@ -27,6 +28,7 @@ import {
   DetailBadges,
   AIQuestionsSection,
 } from "@/components/features/media";
+import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
@@ -322,7 +324,10 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
   ]);
   if (!movie) return null;
 
-  const youtubeVideos = movie.videos?.results?.filter((v) => v.site === "YouTube") || [];
+  // Filter YouTube videos and sort by priority (Trailer > Teaser > etc.) + date
+  const youtubeVideos = sortVideos(
+    movie.videos?.results?.filter((v) => v.site === "YouTube") || []
+  );
 
   return (
     <>
@@ -375,7 +380,12 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
 
       {/* Video Gallery */}
       {youtubeVideos.length > 0 && (
-        <VideoGallery videos={youtubeVideos.slice(0, 20)} className="mt-8 md:mt-12" />
+        <VideoGallery
+          videos={youtubeVideos.slice(0, 20)}
+          mediaId={movie.id}
+          mediaType="movie"
+          className="mt-8 md:mt-12"
+        />
       )}
 
       {/* Image Gallery */}
@@ -387,13 +397,18 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         />
       )}
 
-      {/* Recommendations & Similar */}
-      <RecommendationsSection
-        recommendations={movie.recommendations?.results?.slice(0, 15)}
-        similar={movie.similar?.results?.slice(0, 15)}
-        mediaType="movie"
-        className="mt-8 md:mt-12"
-      />
+      {/* Similar - AI-powered embedding similarity with TMDB fallback */}
+      <Suspense fallback={<SimilarSectionSkeleton />}>
+        <SimilarSection
+          itemId={movie.id}
+          mediaType="movie"
+          tmdbRecommendations={movie.recommendations?.results?.slice(0, 15)}
+          tmdbSimilar={movie.similar?.results?.slice(0, 15)}
+          className="mt-8 md:mt-12"
+          // Exclude movies from the same collection (they're shown in CollectionSection above)
+          excludeCollectionId={(movie.belongs_to_collection as { id?: number } | null)?.id}
+        />
+      </Suspense>
     </>
   );
 }

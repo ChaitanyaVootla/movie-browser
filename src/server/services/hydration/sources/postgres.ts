@@ -234,7 +234,26 @@ export async function upsertMovieToPostgres(
   enriched: EnrichedData
 ): Promise<void> {
   try {
+    // Increase timeout for large movies with lots of credits/images
     await prisma.$transaction(async (tx) => {
+      // 0. Upsert collection if exists (must be done before movie due to FK constraint)
+      if (tmdb.belongs_to_collection) {
+        await tx.collection.upsert({
+          where: { id: tmdb.belongs_to_collection.id },
+          create: {
+            id: tmdb.belongs_to_collection.id,
+            name: tmdb.belongs_to_collection.name,
+            posterPath: tmdb.belongs_to_collection.poster_path,
+            backdropPath: tmdb.belongs_to_collection.backdrop_path,
+          },
+          update: {
+            name: tmdb.belongs_to_collection.name,
+            posterPath: tmdb.belongs_to_collection.poster_path,
+            backdropPath: tmdb.belongs_to_collection.backdrop_path,
+          },
+        });
+      }
+
       // 1. Upsert core movie
       await tx.movie.upsert({
         where: { id: tmdb.id },
@@ -320,12 +339,27 @@ export async function upsertMovieToPostgres(
         await upsertMovieCompanies(tx, tmdb.id, tmdb.production_companies);
       }
 
-      // 12. Upsert watch providers (TMDB)
+      // 12. Upsert countries (both origin and production)
+      if (tmdb.origin_country?.length || tmdb.production_countries?.length) {
+        await upsertMovieCountries(tx, tmdb.id, tmdb.origin_country || [], tmdb.production_countries || []);
+      }
+
+      // 13. Upsert spoken languages
+      if (tmdb.spoken_languages?.length) {
+        await upsertMovieLanguages(tx, tmdb.id, tmdb.spoken_languages);
+      }
+
+      // 14. Upsert watch providers (TMDB)
       if (tmdb["watch/providers"]?.results) {
         await upsertWatchProviders(tx, tmdb.id, "movie", tmdb["watch/providers"].results);
       }
 
-      // 13. Update enrichment timestamps
+      // 15. Upsert reviews
+      if (tmdb.reviews?.results?.length) {
+        await upsertReviews(tx, tmdb.id, "movie", tmdb.reviews.results);
+      }
+
+      // 16. Update enrichment timestamps
       const hasEnrichedRatings = enriched.ratings && Object.keys(enriched.ratings).length > 0;
       const hasScrapedWatchLinks = enriched.scrapedWatchLinks && enriched.scrapedWatchLinks.length > 0;
       
@@ -337,7 +371,7 @@ export async function upsertMovieToPostgres(
           ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
         },
       });
-    });
+    }, { timeout: 30000 }); // 30s timeout for large movies
 
     console.log(`[Hydration/Postgres] Upserted movie ${tmdb.id}: ${tmdb.title}`);
   } catch (error: any) {
@@ -463,21 +497,41 @@ export async function upsertSeriesToPostgres(
       }
 
       // 11. Upsert credits (cast & crew)
+      // Store BOTH regular credits (top-billed main cast) and aggregate credits (all-time)
+      // UI can choose which to display via isAggregate flag
       if (tmdb.credits) {
         await upsertCredits(tx, tmdb.id, "series", tmdb.credits);
       }
+      if (tmdb.aggregate_credits) {
+        await upsertSeriesAggregateCredits(tx, tmdb.id, tmdb.aggregate_credits);
+      }
 
-      // 12. Upsert networks
+      // 12. Upsert creators (created_by)
+      if (tmdb.created_by?.length) {
+        await upsertSeriesCreators(tx, tmdb.id, tmdb.created_by);
+      }
+
+      // 14. Upsert networks
       if (tmdb.networks?.length) {
         await upsertSeriesNetworks(tx, tmdb.id, tmdb.networks);
       }
 
-      // 13. Upsert watch providers (TMDB)
+      // 15. Upsert watch providers (TMDB)
       if (tmdb["watch/providers"]?.results) {
         await upsertWatchProviders(tx, tmdb.id, "series", tmdb["watch/providers"].results);
       }
 
-      // 14. Update enrichment timestamps
+      // 16. Upsert reviews
+      if (tmdb.reviews?.results?.length) {
+        await upsertReviews(tx, tmdb.id, "series", tmdb.reviews.results);
+      }
+
+      // 17. Upsert countries (origin countries)
+      if (tmdb.origin_country?.length) {
+        await upsertSeriesCountries(tx, tmdb.id, tmdb.origin_country);
+      }
+
+      // 18. Update enrichment timestamps
       const hasEnrichedRatings = enriched.ratings && Object.keys(enriched.ratings).length > 0;
       const hasScrapedWatchLinks = enriched.scrapedWatchLinks && enriched.scrapedWatchLinks.length > 0;
       
@@ -489,7 +543,7 @@ export async function upsertSeriesToPostgres(
           ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
         },
       });
-    });
+    }, { timeout: 60000 }); // 60s timeout for large series with many seasons/episodes
 
     console.log(`[Hydration/Postgres] Upserted series ${tmdb.id}: ${tmdb.name}`);
   } catch (error: any) {
@@ -528,6 +582,12 @@ async function getOrCreateSource(tx: PrismaTx, slug: string): Promise<number> {
   return source.id;
 }
 
+/**
+ * Upsert ratings - UPDATE existing or CREATE new, but NEVER delete existing
+ * 
+ * This ensures that if Lambda fails to return a rating (e.g., Google), the 
+ * existing one is preserved instead of being deleted.
+ */
 async function upsertRatings(
   tx: PrismaTx,
   mediaId: number,
@@ -535,128 +595,186 @@ async function upsertRatings(
   tmdb: { vote_average: number; vote_count: number },
   enrichedRatings: EnrichedRatings | null
 ): Promise<void> {
-  // Delete existing ratings
-  if (mediaType === "movie") {
-    await tx.rating.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.rating.deleteMany({ where: { seriesId: mediaId } });
-  }
-
-  const ratingsToCreate: Array<{
-    movieId: number | null;
-    seriesId: number | null;
-    sourceId: number;
-    score: number;
-    voteCount: number | null;
-    certified: boolean | null;
-    consensus: string | null;
-    sentiment: string | null;
-    sourceUrl: string | null;
-  }> = [];
-
-  const baseRating = {
+  // DO NOT delete existing ratings - we want to preserve them if Lambda doesn't return new ones
+  // Instead, upsert each rating individually
+  
+  const baseData = {
     movieId: mediaType === "movie" ? mediaId : null,
     seriesId: mediaType === "series" ? mediaId : null,
   };
 
+  console.log(`[Hydration/Postgres] Upserting ratings for ${mediaType} ${mediaId}:`);
+
   // TMDB rating (always available)
   if (tmdb.vote_average > 0) {
-    ratingsToCreate.push({
-      ...baseRating,
-      sourceId: await getOrCreateSource(tx, "tmdb"),
-      score: tmdb.vote_average,
-      voteCount: tmdb.vote_count,
-      certified: null,
-      consensus: null,
-      sentiment: null,
-      sourceUrl: null,
+    const sourceId = await getOrCreateSource(tx, "tmdb");
+    console.log(`  → TMDB: ${tmdb.vote_average} (${tmdb.vote_count} votes)`);
+    await tx.rating.upsert({
+      where: mediaType === "movie" 
+        ? { movieId_sourceId: { movieId: mediaId, sourceId } }
+        : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
+      create: {
+        ...baseData,
+        sourceId,
+        score: tmdb.vote_average,
+        voteCount: tmdb.vote_count,
+      },
+      update: {
+        score: tmdb.vote_average,
+        voteCount: tmdb.vote_count,
+        updatedAt: new Date(),
+      },
     });
   }
 
-  // Enriched ratings
+  // Enriched ratings - only upsert what we have, preserve existing for sources we don't have
   if (enrichedRatings) {
+    // IMDb
     if (enrichedRatings.imdb?.score) {
-      ratingsToCreate.push({
-        ...baseRating,
-        sourceId: await getOrCreateSource(tx, "imdb"),
-        score: enrichedRatings.imdb.score,
-        voteCount: enrichedRatings.imdb.voteCount ?? null,
-        certified: null,
-        consensus: null,
-        sentiment: null,
-        sourceUrl: enrichedRatings.imdb.sourceUrl ?? null,
+      const sourceId = await getOrCreateSource(tx, "imdb");
+      console.log(`  → IMDb: ${enrichedRatings.imdb.score} (${enrichedRatings.imdb.voteCount ?? 'N/A'} votes)`);
+      await tx.rating.upsert({
+        where: mediaType === "movie" 
+          ? { movieId_sourceId: { movieId: mediaId, sourceId } }
+          : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
+        create: {
+          ...baseData,
+          sourceId,
+          score: enrichedRatings.imdb.score,
+          voteCount: enrichedRatings.imdb.voteCount ?? null,
+          sourceUrl: enrichedRatings.imdb.sourceUrl ?? null,
+        },
+        update: {
+          score: enrichedRatings.imdb.score,
+          voteCount: enrichedRatings.imdb.voteCount ?? null,
+          sourceUrl: enrichedRatings.imdb.sourceUrl ?? null,
+          updatedAt: new Date(),
+        },
       });
     }
 
+    // RT Critic
     if (enrichedRatings.rtCritic?.score) {
-      ratingsToCreate.push({
-        ...baseRating,
-        sourceId: await getOrCreateSource(tx, "rt_critic"),
-        score: enrichedRatings.rtCritic.score,
-        voteCount: enrichedRatings.rtCritic.voteCount ?? null,
-        certified: enrichedRatings.rtCritic.certified ?? null,
-        consensus: enrichedRatings.rtCritic.consensus ?? null,
-        sentiment: enrichedRatings.rtCritic.sentiment ?? null,
-        sourceUrl: enrichedRatings.rtCritic.sourceUrl ?? null,
+      const sourceId = await getOrCreateSource(tx, "rt_critic");
+      console.log(`  → RT Critic: ${enrichedRatings.rtCritic.score}% (certified: ${enrichedRatings.rtCritic.certified ?? 'N/A'})`);
+      await tx.rating.upsert({
+        where: mediaType === "movie" 
+          ? { movieId_sourceId: { movieId: mediaId, sourceId } }
+          : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
+        create: {
+          ...baseData,
+          sourceId,
+          score: enrichedRatings.rtCritic.score,
+          voteCount: enrichedRatings.rtCritic.voteCount ?? null,
+          certified: enrichedRatings.rtCritic.certified ?? null,
+          consensus: enrichedRatings.rtCritic.consensus ?? null,
+          sentiment: enrichedRatings.rtCritic.sentiment ?? null,
+          sourceUrl: enrichedRatings.rtCritic.sourceUrl ?? null,
+        },
+        update: {
+          score: enrichedRatings.rtCritic.score,
+          voteCount: enrichedRatings.rtCritic.voteCount ?? null,
+          certified: enrichedRatings.rtCritic.certified ?? null,
+          consensus: enrichedRatings.rtCritic.consensus ?? null,
+          sentiment: enrichedRatings.rtCritic.sentiment ?? null,
+          sourceUrl: enrichedRatings.rtCritic.sourceUrl ?? null,
+          updatedAt: new Date(),
+        },
       });
     }
 
+    // RT Audience
     if (enrichedRatings.rtAudience?.score) {
-      ratingsToCreate.push({
-        ...baseRating,
-        sourceId: await getOrCreateSource(tx, "rt_audience"),
-        score: enrichedRatings.rtAudience.score,
-        voteCount: enrichedRatings.rtAudience.voteCount ?? null,
-        certified: enrichedRatings.rtAudience.certified ?? null,
-        consensus: null,
-        sentiment: enrichedRatings.rtAudience.sentiment ?? null,
-        sourceUrl: null,
+      const sourceId = await getOrCreateSource(tx, "rt_audience");
+      console.log(`  → RT Audience: ${enrichedRatings.rtAudience.score}%`);
+      await tx.rating.upsert({
+        where: mediaType === "movie" 
+          ? { movieId_sourceId: { movieId: mediaId, sourceId } }
+          : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
+        create: {
+          ...baseData,
+          sourceId,
+          score: enrichedRatings.rtAudience.score,
+          voteCount: enrichedRatings.rtAudience.voteCount ?? null,
+          certified: enrichedRatings.rtAudience.certified ?? null,
+          sentiment: enrichedRatings.rtAudience.sentiment ?? null,
+        },
+        update: {
+          score: enrichedRatings.rtAudience.score,
+          voteCount: enrichedRatings.rtAudience.voteCount ?? null,
+          certified: enrichedRatings.rtAudience.certified ?? null,
+          sentiment: enrichedRatings.rtAudience.sentiment ?? null,
+          updatedAt: new Date(),
+        },
       });
     }
 
+    // Metacritic
     if (enrichedRatings.metacritic?.score) {
-      ratingsToCreate.push({
-        ...baseRating,
-        sourceId: await getOrCreateSource(tx, "metacritic"),
-        score: enrichedRatings.metacritic.score,
-        voteCount: enrichedRatings.metacritic.voteCount ?? null,
-        certified: null,
-        consensus: null,
-        sentiment: null,
-        sourceUrl: enrichedRatings.metacritic.sourceUrl ?? null,
+      const sourceId = await getOrCreateSource(tx, "metacritic");
+      console.log(`  → Metacritic: ${enrichedRatings.metacritic.score}`);
+      await tx.rating.upsert({
+        where: mediaType === "movie" 
+          ? { movieId_sourceId: { movieId: mediaId, sourceId } }
+          : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
+        create: {
+          ...baseData,
+          sourceId,
+          score: enrichedRatings.metacritic.score,
+          voteCount: enrichedRatings.metacritic.voteCount ?? null,
+          sourceUrl: enrichedRatings.metacritic.sourceUrl ?? null,
+        },
+        update: {
+          score: enrichedRatings.metacritic.score,
+          voteCount: enrichedRatings.metacritic.voteCount ?? null,
+          sourceUrl: enrichedRatings.metacritic.sourceUrl ?? null,
+          updatedAt: new Date(),
+        },
       });
     }
 
+    // Letterboxd
     if (enrichedRatings.letterboxd?.score) {
-      ratingsToCreate.push({
-        ...baseRating,
-        sourceId: await getOrCreateSource(tx, "letterboxd"),
-        score: enrichedRatings.letterboxd.score,
-        voteCount: null,
-        certified: null,
-        consensus: null,
-        sentiment: null,
-        sourceUrl: null,
+      const sourceId = await getOrCreateSource(tx, "letterboxd");
+      console.log(`  → Letterboxd: ${enrichedRatings.letterboxd.score}`);
+      await tx.rating.upsert({
+        where: mediaType === "movie" 
+          ? { movieId_sourceId: { movieId: mediaId, sourceId } }
+          : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
+        create: {
+          ...baseData,
+          sourceId,
+          score: enrichedRatings.letterboxd.score,
+        },
+        update: {
+          score: enrichedRatings.letterboxd.score,
+          updatedAt: new Date(),
+        },
       });
     }
 
+    // Google
     if (enrichedRatings.google?.score) {
-      ratingsToCreate.push({
-        ...baseRating,
-        sourceId: await getOrCreateSource(tx, "google"),
-        score: enrichedRatings.google.score,
-        voteCount: null,
-        certified: null,
-        consensus: null,
-        sentiment: null,
-        sourceUrl: null,
+      const sourceId = await getOrCreateSource(tx, "google");
+      console.log(`  → Google: ${enrichedRatings.google.score}%`);
+      await tx.rating.upsert({
+        where: mediaType === "movie" 
+          ? { movieId_sourceId: { movieId: mediaId, sourceId } }
+          : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
+        create: {
+          ...baseData,
+          sourceId,
+          score: enrichedRatings.google.score,
+        },
+        update: {
+          score: enrichedRatings.google.score,
+          updatedAt: new Date(),
+        },
       });
     }
   }
-
-  if (ratingsToCreate.length > 0) {
-    await tx.rating.createMany({ data: ratingsToCreate });
-  }
+  
+  console.log(`[Hydration/Postgres] Ratings upsert complete for ${mediaType} ${mediaId}`);
 }
 
 async function upsertExternalIds(
@@ -876,31 +994,62 @@ async function upsertImages(
   }
 }
 
+/**
+ * Upsert scraped watch links - UPDATE existing or CREATE new, but NEVER delete existing
+ * 
+ * This ensures that if Lambda fails to return watch links, the existing ones are preserved.
+ */
 async function upsertScrapedWatchLinks(
   tx: PrismaTx,
   mediaId: number,
   mediaType: MediaType,
   links: ScrapedWatchLink[]
 ): Promise<void> {
-  // Delete existing scraped links
-  if (mediaType === "movie") {
-    await tx.scrapedWatchLink.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.scrapedWatchLink.deleteMany({ where: { seriesId: mediaId } });
+  // DO NOT delete existing links - preserve them if Lambda doesn't return new ones
+  // Only upsert the links we have
+  
+  if (links.length === 0) {
+    console.log(`[Hydration/Postgres] No watch links to upsert for ${mediaType} ${mediaId}`);
+    return;
   }
 
-  if (links.length === 0) return;
+  console.log(`[Hydration/Postgres] Upserting ${links.length} watch links for ${mediaType} ${mediaId}:`);
 
-  const linksToCreate = links.map((l) => ({
+  const baseData = {
     movieId: mediaType === "movie" ? mediaId : null,
     seriesId: mediaType === "series" ? mediaId : null,
-    providerName: l.provider,
-    link: l.link,
-    price: l.price || null,
-    countryCode: "IN", // Scraped links are currently India-only
-  }));
+  };
+  
+  const countryCode = "IN"; // Scraped links are currently India-only
 
-  await tx.scrapedWatchLink.createMany({ data: linksToCreate });
+  for (const link of links) {
+    console.log(`  → ${link.provider}: ${link.link} (${link.price || 'Free'})`);
+    
+    try {
+      await tx.scrapedWatchLink.upsert({
+        where: mediaType === "movie"
+          ? { movieId_providerName_countryCode: { movieId: mediaId, providerName: link.provider, countryCode } }
+          : { seriesId_providerName_countryCode: { seriesId: mediaId, providerName: link.provider, countryCode } },
+        create: {
+          ...baseData,
+          providerName: link.provider,
+          link: link.link,
+          price: link.price || null,
+          countryCode,
+        },
+        update: {
+          link: link.link,
+          price: link.price || null,
+          updatedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      // Log but don't fail - some links might have issues
+      console.warn(`[Hydration/Postgres] Failed to upsert watch link ${link.provider}:`, error);
+    }
+  }
+  
+  console.log(`[Hydration/Postgres] Watch links upsert complete for ${mediaType} ${mediaId}`);
 }
 
 interface SeasonWithEpisodes {
@@ -1033,13 +1182,23 @@ async function upsertMovieCertifications(
   }
 
   if (certsToCreate.length > 0) {
-    // Use upsert logic via raw query to handle unique constraint
-    for (const cert of certsToCreate) {
-      try {
-        await tx.movieCertification.create({ data: cert });
-      } catch {
-        // Ignore duplicates
-      }
+    // Get valid country codes from the database (filter out obsolete codes like SU)
+    const validCountries = await tx.country.findMany({
+      where: { code: { in: certsToCreate.map((c) => c.countryCode) } },
+      select: { code: true },
+    });
+    const validCodes = new Set(validCountries.map((c) => c.code));
+    const filteredCerts = certsToCreate.filter((c) => validCodes.has(c.countryCode));
+
+    if (filteredCerts.length > 0) {
+      // Delete existing certifications for this movie first
+      await tx.movieCertification.deleteMany({ where: { movieId } });
+
+      // Use createMany with skipDuplicates for remaining duplicates (same country+releaseType)
+      await tx.movieCertification.createMany({
+        data: filteredCerts,
+        skipDuplicates: true,
+      });
     }
   }
 }
@@ -1049,9 +1208,6 @@ async function upsertSeriesCertifications(
   seriesId: number,
   contentRatings: TmdbSeriesData["content_ratings"]["results"]
 ): Promise<void> {
-  // Delete existing certifications
-  await tx.seriesCertification.deleteMany({ where: { seriesId } });
-
   const certsToCreate = contentRatings
     .filter((r) => r.rating)
     .map((r) => ({
@@ -1061,7 +1217,19 @@ async function upsertSeriesCertifications(
     }));
 
   if (certsToCreate.length > 0) {
-    await tx.seriesCertification.createMany({ data: certsToCreate, skipDuplicates: true });
+    // Get valid country codes from the database (filter out obsolete codes like SU)
+    const validCountries = await tx.country.findMany({
+      where: { code: { in: certsToCreate.map((c) => c.countryCode) } },
+      select: { code: true },
+    });
+    const validCodes = new Set(validCountries.map((c) => c.code));
+    const filteredCerts = certsToCreate.filter((c) => validCodes.has(c.countryCode));
+
+    if (filteredCerts.length > 0) {
+      // Delete existing certifications
+      await tx.seriesCertification.deleteMany({ where: { seriesId } });
+      await tx.seriesCertification.createMany({ data: filteredCerts, skipDuplicates: true });
+    }
   }
 }
 
@@ -1081,12 +1249,19 @@ async function upsertMovieGenres(
   await tx.movieGenre.deleteMany({ where: { movieId } });
 
   for (const genre of genres) {
-    // Upsert the genre and get the DB ID back
-    const dbGenre = await tx.genre.upsert({
+    // Try to find existing genre first (fast, no lock contention)
+    let dbGenre = await tx.genre.findUnique({
       where: { tmdbId: genre.id },
-      create: { tmdbId: genre.id, name: genre.name },
-      update: { name: genre.name },
     });
+
+    // Only create if it doesn't exist (rare - genres are pre-populated)
+    if (!dbGenre) {
+      dbGenre = await tx.genre.upsert({
+        where: { tmdbId: genre.id },
+        create: { tmdbId: genre.id, name: genre.name },
+        update: { name: genre.name },
+      });
+    }
 
     // Create the junction using DB ID (not TMDB ID)
     await tx.movieGenre.create({
@@ -1112,12 +1287,19 @@ async function upsertMovieKeywords(
   await tx.movieKeyword.deleteMany({ where: { movieId } });
 
   for (const keyword of keywords) {
-    // Upsert the keyword and get DB ID
-    const dbKeyword = await tx.keyword.upsert({
+    // Try to find existing keyword first (fast, no lock contention)
+    let dbKeyword = await tx.keyword.findUnique({
       where: { tmdbId: keyword.id },
-      create: { tmdbId: keyword.id, name: keyword.name },
-      update: { name: keyword.name },
     });
+
+    // Only create if it doesn't exist
+    if (!dbKeyword) {
+      dbKeyword = await tx.keyword.upsert({
+        where: { tmdbId: keyword.id },
+        create: { tmdbId: keyword.id, name: keyword.name },
+        update: { name: keyword.name },
+      });
+    }
 
     // Create the junction using DB ID
     await tx.movieKeyword.create({
@@ -1132,7 +1314,11 @@ async function upsertMovieKeywords(
 }
 
 /**
- * Upsert credits (cast and crew)
+ * Upsert credits (cast and crew) - NON-AGGREGATE version
+ * 
+ * Stores ALL cast and ALL crew members (no arbitrary limits).
+ * For series: This stores the "regular" credits (main cast), NOT aggregate_credits.
+ * The isAggregate flag allows UI to choose which to display.
  */
 async function upsertCredits(
   tx: PrismaTx,
@@ -1140,11 +1326,12 @@ async function upsertCredits(
   mediaType: "movie" | "series",
   credits: { cast?: Array<any>; crew?: Array<any> }
 ) {
-  // Delete existing credits
+  // Delete existing non-aggregate credits only
   if (mediaType === "movie") {
     await tx.credit.deleteMany({ where: { movieId: mediaId } });
   } else {
-    await tx.credit.deleteMany({ where: { seriesId: mediaId } });
+    // For series: only delete non-aggregate credits (preserve aggregate)
+    await tx.credit.deleteMany({ where: { seriesId: mediaId, isAggregate: false } });
   }
 
   const allCredits: Array<{
@@ -1159,7 +1346,7 @@ async function upsertCredits(
     order?: number;
   }> = [];
 
-  // Process cast
+  // Process ALL cast
   for (const cast of credits.cast || []) {
     allCredits.push({
       personId: cast.id,
@@ -1172,41 +1359,45 @@ async function upsertCredits(
     });
   }
 
-  // Process crew (limit to important roles)
-  const importantJobs = ["Director", "Writer", "Screenplay", "Producer", "Executive Producer", "Composer", "Director of Photography"];
+  // Process ALL crew (no job filter - store everything)
   for (const crew of credits.crew || []) {
-    if (importantJobs.includes(crew.job)) {
-      allCredits.push({
-        personId: crew.id,
-        name: crew.name,
-        profilePath: crew.profile_path,
-        knownFor: crew.known_for_department,
-        creditType: "CREW",
-        job: crew.job,
-        department: crew.department,
-      });
-    }
+    allCredits.push({
+      personId: crew.id,
+      name: crew.name,
+      profilePath: crew.profile_path,
+      knownFor: crew.known_for_department,
+      creditType: "CREW",
+      job: crew.job,
+      department: crew.department,
+    });
   }
 
-  // Upsert persons and create credits
-  for (const credit of allCredits.slice(0, 50)) { // Limit to 50 credits
-    // Upsert person and get DB ID
-    const dbPerson = await tx.person.upsert({
+  // Upsert persons and create credits (no limit - store everything)
+  for (const credit of allCredits) {
+    // Try to find existing person first (fast, no lock contention)
+    let dbPerson = await tx.person.findUnique({
       where: { tmdbId: credit.personId },
-      create: {
-        tmdbId: credit.personId,
-        name: credit.name,
-        profilePath: credit.profilePath,
-        knownFor: credit.knownFor,
-      },
-      update: {
-        name: credit.name,
-        profilePath: credit.profilePath,
-        knownFor: credit.knownFor,
-      },
     });
 
-    // Create credit using DB ID
+    // Only upsert if person doesn't exist
+    if (!dbPerson) {
+      dbPerson = await tx.person.upsert({
+        where: { tmdbId: credit.personId },
+        create: {
+          tmdbId: credit.personId,
+          name: credit.name,
+          profilePath: credit.profilePath,
+          knownFor: credit.knownFor,
+        },
+        update: {
+          name: credit.name,
+          profilePath: credit.profilePath,
+          knownFor: credit.knownFor,
+        },
+      });
+    }
+
+    // Create credit using DB ID (non-aggregate)
     await tx.credit.create({
       data: {
         movieId: mediaType === "movie" ? mediaId : null,
@@ -1217,10 +1408,131 @@ async function upsertCredits(
         job: credit.job,
         department: credit.department,
         creditOrder: credit.order,
+        isAggregate: false,
       },
     }).catch(() => {
       // Ignore duplicates
     });
+  }
+}
+
+/**
+ * Upsert series aggregate credits (ALL cast/crew across all episodes)
+ * 
+ * aggregate_credits structure differs from regular credits:
+ * - Cast has `roles` array (character per season) instead of single `character`
+ * - Crew has `jobs` array instead of single `job`
+ * - Each has `total_episode_count` for episode appearances
+ * 
+ * This allows UI to filter by episode count (e.g., only show actors in 10+ episodes)
+ * and to choose between aggregate (all-time) vs regular (main/top-billed) credits.
+ */
+async function upsertSeriesAggregateCredits(
+  tx: PrismaTx,
+  seriesId: number,
+  aggregateCredits: {
+    cast?: Array<{
+      id: number;
+      name: string;
+      profile_path: string | null;
+      known_for_department: string;
+      roles: Array<{ character: string; episode_count: number }>;
+      total_episode_count: number;
+      order: number;
+    }>;
+    crew?: Array<{
+      id: number;
+      name: string;
+      profile_path: string | null;
+      known_for_department: string;
+      department: string;
+      jobs: Array<{ job: string; episode_count: number }>;
+      total_episode_count: number;
+    }>;
+  }
+) {
+  // Delete existing AGGREGATE credits only (preserve non-aggregate regular credits)
+  await tx.credit.deleteMany({ where: { seriesId, isAggregate: true } });
+
+  // Process ALL cast (flatten roles into individual credits)
+  for (const cast of aggregateCredits.cast || []) {
+    // Upsert person first
+    let dbPerson = await tx.person.findUnique({
+      where: { tmdbId: cast.id },
+    });
+
+    if (!dbPerson) {
+      dbPerson = await tx.person.upsert({
+        where: { tmdbId: cast.id },
+        create: {
+          tmdbId: cast.id,
+          name: cast.name,
+          profilePath: cast.profile_path,
+          knownFor: cast.known_for_department,
+        },
+        update: {
+          name: cast.name,
+          profilePath: cast.profile_path,
+          knownFor: cast.known_for_department,
+        },
+      });
+    }
+
+    // Create credit with combined characters from all roles
+    // Using combined characters to avoid duplicate person per series
+    const combinedCharacter = cast.roles.map(r => r.character).filter(Boolean).join(" / ");
+    
+    await tx.credit.create({
+      data: {
+        seriesId,
+        personId: dbPerson.id,
+        creditType: "CAST",
+        character: combinedCharacter || null,
+        creditOrder: cast.order,
+        isAggregate: true,
+        totalEpisodeCount: cast.total_episode_count,
+      },
+    }).catch(() => {});
+  }
+
+  // Process ALL crew (flatten jobs into individual credits)
+  for (const crew of aggregateCredits.crew || []) {
+    // Upsert person first
+    let dbPerson = await tx.person.findUnique({
+      where: { tmdbId: crew.id },
+    });
+
+    if (!dbPerson) {
+      dbPerson = await tx.person.upsert({
+        where: { tmdbId: crew.id },
+        create: {
+          tmdbId: crew.id,
+          name: crew.name,
+          profilePath: crew.profile_path,
+          knownFor: crew.known_for_department,
+        },
+        update: {
+          name: crew.name,
+          profilePath: crew.profile_path,
+          knownFor: crew.known_for_department,
+        },
+      });
+    }
+
+    // Create credit for each job (a person can be both Director and Writer)
+    for (const jobInfo of crew.jobs || []) {
+      await tx.credit.create({
+        data: {
+          seriesId,
+          personId: dbPerson.id,
+          creditType: "CREW",
+          job: jobInfo.job,
+          department: crew.department,
+          isAggregate: true,
+          totalEpisodeCount: crew.total_episode_count,
+        },
+      }).catch(() => {});
+    }
   }
 }
 
@@ -1236,31 +1548,41 @@ async function upsertMovieCompanies(
   await tx.movieCompany.deleteMany({ where: { movieId } });
 
   for (const company of companies) {
-    // Upsert the company and get DB ID
-    const dbCompany = await tx.productionCompany.upsert({
+    // Try to find existing company first (fast, no lock contention)
+    let dbCompany = await tx.productionCompany.findUnique({
       where: { tmdbId: company.id },
-      create: {
-        tmdbId: company.id,
-        name: company.name,
-        logoPath: company.logo_path,
-        originCountry: company.origin_country,
-      },
-      update: {
-        name: company.name,
-        logoPath: company.logo_path,
-        originCountry: company.origin_country,
-      },
     });
 
-    // Create junction using DB ID
-    await tx.movieCompany.create({
-      data: {
-        movieId,
-        companyId: dbCompany.id,
-      },
-    }).catch(() => {
-      // Ignore duplicates
+    // Only create if it doesn't exist
+    if (!dbCompany) {
+      dbCompany = await tx.productionCompany.upsert({
+        where: { tmdbId: company.id },
+        create: {
+          tmdbId: company.id,
+          name: company.name,
+          logoPath: company.logo_path,
+          originCountry: company.origin_country,
+        },
+        update: {
+          name: company.name,
+          logoPath: company.logo_path,
+          originCountry: company.origin_country,
+        },
+      });
+    }
+
+    // Create junction using DB ID (check first to avoid transaction abort on duplicate)
+    const existingJunction = await tx.movieCompany.findUnique({
+      where: { movieId_companyId: { movieId, companyId: dbCompany.id } },
     });
+    if (!existingJunction) {
+      await tx.movieCompany.create({
+        data: {
+          movieId,
+          companyId: dbCompany.id,
+        },
+      });
+    }
   }
 }
 
@@ -1283,11 +1605,8 @@ async function upsertWatchProviders(
     where: mediaType === "movie" ? { movieId: mediaId } : { seriesId: mediaId },
   });
 
-  // Only process a subset of countries to limit data size
-  const priorityCountries = ["US", "GB", "IN", "CA", "AU", "DE", "FR", "JP", "KR", "BR"];
-
+  // Store ALL countries (no limit - TMDB provides 90+ countries)
   for (const [countryCode, data] of Object.entries(providersByCountry)) {
-    if (!priorityCountries.includes(countryCode)) continue;
 
     const types: Array<{ type: "FLATRATE" | "RENT" | "BUY"; providers: typeof data.flatrate }> = [
       { type: "FLATRATE", providers: data.flatrate },
@@ -1297,21 +1616,28 @@ async function upsertWatchProviders(
 
     for (const { type, providers } of types) {
       for (const provider of providers || []) {
-        // Upsert the streaming provider and get DB ID
-        const dbProvider = await tx.streamingProvider.upsert({
+        // Try to find existing provider first (fast, no lock contention)
+        let dbProvider = await tx.streamingProvider.findUnique({
           where: { tmdbId: provider.provider_id },
-          create: {
-            tmdbId: provider.provider_id,
-            name: provider.provider_name,
-            logoPath: provider.logo_path,
-            priority: provider.display_priority || 100,
-          },
-          update: {
-            name: provider.provider_name,
-            logoPath: provider.logo_path,
-            priority: provider.display_priority || 100,
-          },
         });
+
+        // Only upsert if provider doesn't exist
+        if (!dbProvider) {
+          dbProvider = await tx.streamingProvider.upsert({
+            where: { tmdbId: provider.provider_id },
+            create: {
+              tmdbId: provider.provider_id,
+              name: provider.provider_name,
+              logoPath: provider.logo_path,
+              priority: provider.display_priority || 100,
+            },
+            update: {
+              name: provider.provider_name,
+              logoPath: provider.logo_path,
+              priority: provider.display_priority || 100,
+            },
+          });
+        }
 
         // Create watch option using DB ID
         await tx.watchOption.create({
@@ -1343,12 +1669,19 @@ async function upsertSeriesGenres(
   await tx.seriesGenre.deleteMany({ where: { seriesId } });
 
   for (const genre of genres) {
-    // Upsert the genre and get DB ID
-    const dbGenre = await tx.genre.upsert({
+    // Try to find existing genre first (fast, no lock contention)
+    let dbGenre = await tx.genre.findUnique({
       where: { tmdbId: genre.id },
-      create: { tmdbId: genre.id, name: genre.name },
-      update: { name: genre.name },
     });
+
+    // Only create if it doesn't exist (rare - genres are pre-populated)
+    if (!dbGenre) {
+      dbGenre = await tx.genre.upsert({
+        where: { tmdbId: genre.id },
+        create: { tmdbId: genre.id, name: genre.name },
+        update: { name: genre.name },
+      });
+    }
 
     // Create the junction using DB ID
     await tx.seriesGenre.create({
@@ -1374,12 +1707,19 @@ async function upsertSeriesKeywords(
   await tx.seriesKeyword.deleteMany({ where: { seriesId } });
 
   for (const keyword of keywords) {
-    // Upsert the keyword and get DB ID
-    const dbKeyword = await tx.keyword.upsert({
+    // Try to find existing keyword first (fast, no lock contention)
+    let dbKeyword = await tx.keyword.findUnique({
       where: { tmdbId: keyword.id },
-      create: { tmdbId: keyword.id, name: keyword.name },
-      update: { name: keyword.name },
     });
+
+    // Only create if it doesn't exist
+    if (!dbKeyword) {
+      dbKeyword = await tx.keyword.upsert({
+        where: { tmdbId: keyword.id },
+        create: { tmdbId: keyword.id, name: keyword.name },
+        update: { name: keyword.name },
+      });
+    }
 
     // Create the junction using DB ID
     await tx.seriesKeyword.create({
@@ -1405,21 +1745,28 @@ async function upsertSeriesNetworks(
   await tx.seriesNetwork.deleteMany({ where: { seriesId } });
 
   for (const network of networks) {
-    // Upsert the network and get DB ID
-    const dbNetwork = await tx.network.upsert({
+    // Try to find existing network first (fast, no lock contention)
+    let dbNetwork = await tx.network.findUnique({
       where: { tmdbId: network.id },
-      create: {
-        tmdbId: network.id,
-        name: network.name,
-        logoPath: network.logo_path,
-        originCountry: network.origin_country,
-      },
-      update: {
-        name: network.name,
-        logoPath: network.logo_path,
-        originCountry: network.origin_country,
-      },
     });
+
+    // Only create if it doesn't exist
+    if (!dbNetwork) {
+      dbNetwork = await tx.network.upsert({
+        where: { tmdbId: network.id },
+        create: {
+          tmdbId: network.id,
+          name: network.name,
+          logoPath: network.logo_path,
+          originCountry: network.origin_country,
+        },
+        update: {
+          name: network.name,
+          logoPath: network.logo_path,
+          originCountry: network.origin_country,
+        },
+      });
+    }
 
     // Create junction using DB ID
     await tx.seriesNetwork.create({
@@ -1430,5 +1777,243 @@ async function upsertSeriesNetworks(
     }).catch(() => {
       // Ignore duplicates
     });
+  }
+}
+
+/**
+ * Upsert series creators (created_by from TMDB)
+ */
+async function upsertSeriesCreators(
+  tx: PrismaTx,
+  seriesId: number,
+  creators: Array<{ id: number; name: string; profile_path: string | null }>
+) {
+  // Delete existing creator associations
+  await tx.seriesCreator.deleteMany({ where: { seriesId } });
+
+  for (const creator of creators) {
+    // Try to find existing person first (fast, no lock contention)
+    let dbPerson = await tx.person.findUnique({
+      where: { tmdbId: creator.id },
+    });
+
+    // Only create if person doesn't exist
+    if (!dbPerson) {
+      dbPerson = await tx.person.upsert({
+        where: { tmdbId: creator.id },
+        create: {
+          tmdbId: creator.id,
+          name: creator.name,
+          profilePath: creator.profile_path,
+        },
+        update: {
+          name: creator.name,
+          profilePath: creator.profile_path,
+        },
+      });
+    }
+
+    // Create junction using DB ID
+    await tx.seriesCreator.create({
+      data: {
+        seriesId,
+        personId: dbPerson.id,
+      },
+    }).catch(() => {
+      // Ignore duplicates
+    });
+  }
+}
+
+/**
+ * Upsert reviews from TMDB
+ */
+async function upsertReviews(
+  tx: PrismaTx,
+  mediaId: number,
+  mediaType: "movie" | "series",
+  reviews: TmdbMovieData["reviews"]["results"]
+) {
+  if (!reviews.length) return;
+
+  // Get or create TMDB data source
+  const tmdbSource = await tx.dataSource.upsert({
+    where: { slug: "tmdb" },
+    create: {
+      slug: "tmdb",
+      name: "TMDB",
+      baseUrl: "https://www.themoviedb.org",
+      providesReviews: true,
+    },
+    update: {},
+  });
+
+  // Delete existing TMDB reviews for this item
+  if (mediaType === "movie") {
+    await tx.review.deleteMany({
+      where: { movieId: mediaId, sourceId: tmdbSource.id },
+    });
+  } else {
+    await tx.review.deleteMany({
+      where: { seriesId: mediaId, sourceId: tmdbSource.id },
+    });
+  }
+
+  // Insert new reviews (use externalId for deduplication)
+  for (const review of reviews) {
+    await tx.review.create({
+      data: {
+        movieId: mediaType === "movie" ? mediaId : null,
+        seriesId: mediaType === "series" ? mediaId : null,
+        sourceId: tmdbSource.id,
+        reviewType: "user",
+        externalId: review.id, // TMDB review ID for uniqueness
+        content: review.content,
+        authorName: review.author_details?.name || review.author,
+        authorUrl: review.author_details?.username
+          ? `https://www.themoviedb.org/u/${review.author_details.username}`
+          : null,
+        authorImage: review.author_details?.avatar_path
+          ? `https://image.tmdb.org/t/p/w45${review.author_details.avatar_path}`
+          : null,
+        score: review.author_details?.rating ?? null,
+        reviewUrl: review.url,
+        reviewDate: review.created_at ? new Date(review.created_at) : null,
+        scrapedAt: new Date(),
+      },
+    }).catch(() => {
+      // Ignore duplicates
+    });
+  }
+}
+
+/**
+ * Upsert countries for a movie (both origin and production)
+ * 
+ * @param originCountries - From TMDB origin_country (ISO codes array)
+ * @param productionCountries - From TMDB production_countries (objects with name)
+ */
+async function upsertMovieCountries(
+  tx: PrismaTx,
+  movieId: number,
+  originCountries: string[],
+  productionCountries: Array<{ iso_3166_1: string; name: string }>
+) {
+  // Delete existing country associations
+  await tx.movieCountry.deleteMany({ where: { movieId } });
+
+  // Insert origin countries
+  for (const code of originCountries || []) {
+    // Upsert country lookup (name not available for origin, use code as fallback)
+    await tx.country.upsert({
+      where: { code },
+      create: { code, name: code },
+      update: {},
+    });
+
+    // Create junction with ORIGIN type
+    await tx.movieCountry.create({
+      data: {
+        movieId,
+        countryCode: code,
+        type: "ORIGIN",
+      },
+    }).catch(() => {});
+  }
+
+  // Insert production countries
+  for (const country of productionCountries || []) {
+    // Upsert country lookup with proper name
+    await tx.country.upsert({
+      where: { code: country.iso_3166_1 },
+      create: {
+        code: country.iso_3166_1,
+        name: country.name,
+      },
+      update: {
+        name: country.name,
+      },
+    });
+
+    // Create junction with PRODUCTION type
+    await tx.movieCountry.create({
+      data: {
+        movieId,
+        countryCode: country.iso_3166_1,
+        type: "PRODUCTION",
+      },
+    }).catch(() => {});
+  }
+}
+
+/**
+ * Upsert spoken languages for a movie
+ */
+async function upsertMovieLanguages(
+  tx: PrismaTx,
+  movieId: number,
+  languages: Array<{ iso_639_1: string; name: string; english_name: string }>
+) {
+  if (!languages.length) return;
+
+  // Delete existing language associations
+  await tx.movieLanguage.deleteMany({ where: { movieId } });
+
+  for (const lang of languages) {
+    // Upsert language lookup
+    await tx.language.upsert({
+      where: { code: lang.iso_639_1 },
+      create: {
+        code: lang.iso_639_1,
+        name: lang.english_name || lang.name,
+      },
+      update: {},
+    });
+
+    // Create junction (type: SPOKEN)
+    await tx.movieLanguage.create({
+      data: {
+        movieId,
+        languageCode: lang.iso_639_1,
+        type: "SPOKEN",
+      },
+    }).catch(() => {
+      // Ignore duplicates
+    });
+  }
+}
+
+/**
+ * Upsert countries for a series (origin countries only - series don't have production_countries in TMDB)
+ * 
+ * @param originCountries - From TMDB origin_country (ISO codes array)
+ */
+async function upsertSeriesCountries(
+  tx: PrismaTx,
+  seriesId: number,
+  originCountries: string[]
+) {
+  if (!originCountries?.length) return;
+
+  // Delete existing country associations
+  await tx.seriesCountry.deleteMany({ where: { seriesId } });
+
+  // Insert origin countries
+  for (const code of originCountries) {
+    // Upsert country lookup
+    await tx.country.upsert({
+      where: { code },
+      create: { code, name: code },
+      update: {},
+    });
+
+    // Create junction with ORIGIN type
+    await tx.seriesCountry.create({
+      data: {
+        seriesId,
+        countryCode: code,
+        type: "ORIGIN",
+      },
+    }).catch(() => {});
   }
 }

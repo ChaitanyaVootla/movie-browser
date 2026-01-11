@@ -1,8 +1,8 @@
 # PostgreSQL Migration Plan
 
-> **Status**: Phase 5 Complete ✅ (Hybrid Mode Working, MongoDB-First Seeding)  
+> **Status**: Phase 5.5 Complete ✅ (Hybrid Mode + YouTube Engagement Cache)  
 > **Schema Version**: V2 (Fully Normalized)  
-> **Last Updated**: January 8, 2026
+> **Last Updated**: January 9, 2026
 
 ## Overview
 
@@ -1364,15 +1364,22 @@ npx tsx prisma/seed-from-mongo.ts --series=66732
 
 ### What Gets Migrated per Movie/Series
 
-**From MongoDB:**
+**From TMDB (via hydration service):**
 - Core details (title, overview, dates, runtime, status, tagline, budget, revenue)
-- `origin_country` and `original_language` (for country badges)
-- Credits (ALL cast with `credit_id`, key crew)
+- **Countries** (dual types in `movie_countries`/`series_countries` tables):
+  - `ORIGIN` - Where content originates (for "Korean dramas", "Japanese anime")
+  - `PRODUCTION` - Where it was produced
+- **Spoken Languages** (`movie_languages` table with `type: SPOKEN`)
+- **Credits (NO LIMITS)** - ALL cast + ALL crew stored:
+  - Movies: ALL cast and ALL crew from `credits`
+  - Series: BOTH regular credits AND aggregate credits (with `is_aggregate` flag + `total_episode_count`)
+  - Series creators stored separately in `series_creators` junction table
+- **TMDB User Reviews** (stored in `reviews` table with `external_id` for deduplication)
 - Videos (ALL trailers, clips, featurettes)
 - Images (ALL backdrops, posters, logos)
 - Collections (franchise grouping)
 
-**Multi-Source Ratings (from `external_data`):**
+**Multi-Source Ratings (from MongoDB `external_data`):**
 - TMDB rating + vote count
 - IMDb rating + vote count + link
 - Rotten Tomatoes (Critics) + certified fresh status
@@ -1381,15 +1388,14 @@ npx tsx prisma/seed-from-mongo.ts --series=66732
 - Google Users rating
 - Letterboxd rating
 
-**Watch Options (dual sources):**
+**Watch Options (dual sources, ALL countries):**
 1. **Scraped Deep Links** (`scraped_watch_links` table)
    - From MongoDB `googleData.allWatchOptions`
    - India region only (deep links to player)
    - Provider name, direct URL, price
    
 2. **TMDB Watch Providers** (`movie_watch_options` table)
-   - From MongoDB `watchProviders`
-   - 90+ countries
+   - From TMDB API (all countries, no arbitrary limit)
    - Provider ID, type (flatrate/rent/buy), JustWatch link
 
 **Production Companies (with logos):**
@@ -1397,6 +1403,11 @@ npx tsx prisma/seed-from-mongo.ts --series=66732
 
 **Networks (for series, with logos):**
 - Network ID, name, logo_path
+
+**Key Design Decisions:**
+- **No arbitrary data limits** in the populate script - all data is stored
+- UI display logic can slice as needed (e.g., top 4 cast in cards)
+- Series aggregate credits allow filtering by episode count for UI flexibility
 
 ---
 

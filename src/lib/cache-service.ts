@@ -17,7 +17,13 @@
  *
  * @server-only This module uses Node.js-only APIs (fs, path, crypto, zlib)
  */
-import "server-only";
+
+// Only import server-only when running in Next.js context (not CLI scripts)
+// This allows the cache service to be used in test scripts
+if (typeof window === "undefined" && process.env.NEXT_RUNTIME) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("server-only");
+}
 
 import { existsSync, mkdirSync, readFileSync, writeFile, readdirSync, statSync, unlinkSync } from "fs";
 import { join } from "path";

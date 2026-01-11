@@ -124,4 +124,115 @@ export async function quickSearch(query: string): Promise<QuickSearchResponse> {
   };
 }
 
+// =============================================================================
+// Enhanced Search (Hybrid - pg_trgm + pgvector)
+// =============================================================================
+
+import {
+  hybridSearch,
+  hybridQuickSearch,
+  classifyQueryIntent,
+  type HybridSearchResult,
+  type HybridSearchResponse,
+  type IntentAnalysis,
+} from "@/lib/search";
+
+export interface EnhancedSearchResponse {
+  /** Primary results from hybrid search */
+  results: HybridSearchResult[];
+  /** Detected query intent */
+  intent: IntentAnalysis;
+  /** Spelling suggestions if no results */
+  suggestions?: string[];
+  /** TMDB fallback results (if PostgreSQL has limited coverage) */
+  tmdbFallback?: SearchResult[];
+  /** Search stats */
+  stats: {
+    hybridResultCount: number;
+    tmdbResultCount: number;
+    durationMs: number;
+  };
+}
+
+/**
+ * Enhanced search combining PostgreSQL hybrid search with TMDB fallback.
+ * 
+ * Flow:
+ * 1. Run hybrid search (fuzzy + semantic in PostgreSQL)
+ * 2. If limited results, supplement with TMDB search
+ * 3. Deduplicate and merge
+ * 
+ * @example
+ * const results = await enhancedSearch({ query: "Incepton" }); // Handles typos
+ * const results = await enhancedSearch({ query: "mind-bending sci-fi" }); // Semantic
+ */
+export async function enhancedSearch(
+  input: z.infer<typeof SearchQuerySchema>
+): Promise<EnhancedSearchResponse> {
+  const startTime = Date.now();
+  const { query, page } = SearchQuerySchema.parse(input);
+
+  // Run hybrid search (PostgreSQL)
+  const hybridResponse = await hybridSearch(query, {
+    limit: 20,
+    boostPopular: true,
+    mediaTypes: ["movie", "series", "person"],
+  });
+
+  const hybridResults = hybridResponse.results;
+  let tmdbFallback: SearchResult[] | undefined;
+
+  // If hybrid search has limited results, supplement with TMDB
+  // This handles items not in our PostgreSQL database
+  if (hybridResults.length < 10) {
+    const tmdbResponse = await searchMulti(query, page);
+    
+    // Filter out items already in hybrid results
+    const hybridIds = new Set(hybridResults.map((r) => `${r.mediaType}:${r.id}`));
+    const newTmdbResults = tmdbResponse.results.filter((r) => {
+      const mediaType = r.media_type === "tv" ? "series" : r.media_type;
+      return !hybridIds.has(`${mediaType}:${r.id}`);
+    });
+
+    if (newTmdbResults.length > 0) {
+      tmdbFallback = newTmdbResults.slice(0, 10) as SearchResult[];
+    }
+  }
+
+  return {
+    results: hybridResults,
+    intent: hybridResponse.intent,
+    suggestions: hybridResponse.suggestions,
+    tmdbFallback,
+    stats: {
+      hybridResultCount: hybridResults.length,
+      tmdbResultCount: tmdbFallback?.length ?? 0,
+      durationMs: Date.now() - startTime,
+    },
+  };
+}
+
+/**
+ * Quick enhanced search for autocomplete.
+ * Faster than full enhancedSearch - optimized for keystroke-by-keystroke.
+ */
+export async function enhancedQuickSearch(query: string): Promise<{
+  results: HybridSearchResult[];
+  intent: IntentAnalysis;
+}> {
+  if (!query.trim()) {
+    return {
+      results: [],
+      intent: classifyQueryIntent(""),
+    };
+  }
+
+  const results = await hybridQuickSearch(query, 8);
+  const intent = classifyQueryIntent(query);
+
+  return { results, intent };
+}
+
+// Note: HybridSearchResult and IntentAnalysis types should be imported directly
+// from "@/lib/search" - type re-exports from server action files cause bundler issues
 

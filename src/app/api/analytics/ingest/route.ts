@@ -122,10 +122,12 @@ const SingleOrBatchSchema = z.union([EventSchema, BatchRequestSchema]);
 export async function POST(request: NextRequest) {
   try {
     // Check if current user is admin - skip analytics for admins
+    // Unless TRACK_ADMIN_ANALYTICS=true is set (for development/testing)
     const session = await auth();
     const isAdmin = isAdminEmail(session?.user?.email);
+    const shouldTrackAdmin = process.env.TRACK_ADMIN_ANALYTICS === "true";
     
-    if (isAdmin) {
+    if (isAdmin && !shouldTrackAdmin) {
       // Return success without tracking to avoid polluting analytics
       return NextResponse.json({
         success: true,

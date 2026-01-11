@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   AlertCircle,
+  HardDrive,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ import {
   LambdaTab,
   PerformanceTab,
   SystemTab,
+  DatabaseTab,
 } from "./tabs";
 
 // Shared components
@@ -52,7 +54,7 @@ import {
 import { ErrorDetailSheet } from "./error-detail-sheet";
 
 // Types
-import type { AnalyticsOverview, Alert, TimeRange } from "./analytics-types";
+import type { AnalyticsOverview, Alert, TimeRange, AnalyticsSubTab } from "./analytics-types";
 
 // =============================================================================
 // Selected Error State
@@ -78,14 +80,25 @@ async function fetchOverview(range: TimeRange): Promise<AnalyticsOverview> {
 // Main Component
 // =============================================================================
 
-export function AnalyticsDashboard() {
-  const [range, setRange] = useState<TimeRange>(7);
+interface AnalyticsDashboardProps {
+  activeSubTab: AnalyticsSubTab;
+  onSubTabChange: (tab: AnalyticsSubTab) => void;
+  timeRange: TimeRange;
+  onTimeRangeChange: (range: TimeRange) => void;
+}
+
+export function AnalyticsDashboard({
+  activeSubTab,
+  onSubTabChange,
+  timeRange,
+  onTimeRangeChange,
+}: AnalyticsDashboardProps) {
   const [excludeBots, setExcludeBots] = useState(false); // Show both human and bot by default
   const [selectedError, setSelectedError] = useState<SelectedError | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["admin", "analytics", "overview", range],
-    queryFn: () => fetchOverview(range),
+    queryKey: ["admin", "analytics", "overview", timeRange],
+    queryFn: () => fetchOverview(timeRange),
     staleTime: 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   });
@@ -109,8 +122,8 @@ export function AnalyticsDashboard() {
     <div className="space-y-4">
       {/* Compact Header with Filters */}
       <DashboardHeader
-        range={range}
-        onRangeChange={setRange}
+        range={timeRange}
+        onRangeChange={onTimeRangeChange}
         excludeBots={excludeBots}
         onExcludeBotsChange={setExcludeBots}
         checkedAt={data?.checkedAt}
@@ -129,7 +142,7 @@ export function AnalyticsDashboard() {
         onOpenChange={(open) => !open && setSelectedError(null)}
         errorType={selectedError?.errorType || ""}
         errorSource={selectedError?.errorSource || ""}
-        range={range}
+        range={timeRange}
         totalCount={selectedError?.count}
       />
 
@@ -137,8 +150,12 @@ export function AnalyticsDashboard() {
       <StatsRow data={data} isLoading={isLoading} excludeBots={excludeBots} />
 
       {/* Tabs for Detailed Views */}
-      <Tabs defaultValue="traffic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+      <Tabs
+        value={activeSubTab}
+        onValueChange={(v) => onSubTabChange(v as AnalyticsSubTab)}
+        className="space-y-4"
+      >
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
           <TabsTrigger value="traffic" className="gap-1.5 text-xs">
             <TrendingUp className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Traffic</span>
@@ -159,11 +176,15 @@ export function AnalyticsDashboard() {
             <Database className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">System</span>
           </TabsTrigger>
+          <TabsTrigger value="database" className="gap-1.5 text-xs">
+            <HardDrive className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Data</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="traffic">
           <TrafficTab
-            range={range}
+            range={timeRange}
             overview={data?.traffic}
             isLoading={isLoading}
             excludeBots={excludeBots}
@@ -171,12 +192,12 @@ export function AnalyticsDashboard() {
         </TabsContent>
 
         <TabsContent value="ai">
-          <AITab range={range} />
+          <AITab range={timeRange} />
         </TabsContent>
 
         <TabsContent value="lambda">
           <LambdaTab
-            range={range}
+            range={timeRange}
             overview={data?.lambda}
             isLoading={isLoading}
           />
@@ -187,7 +208,11 @@ export function AnalyticsDashboard() {
         </TabsContent>
 
         <TabsContent value="system">
-          <SystemTab cache={data?.cache} isLoading={isLoading} range={range} />
+          <SystemTab cache={data?.cache} isLoading={isLoading} range={timeRange} />
+        </TabsContent>
+
+        <TabsContent value="database">
+          <DatabaseTab />
         </TabsContent>
       </Tabs>
     </div>

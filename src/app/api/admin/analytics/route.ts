@@ -50,6 +50,8 @@ import {
   getSystemMetricsHistory,
   getCPUHistory,
   getMemoryHistory,
+  // Database
+  getDatabaseStats,
   // Alerts
   checkAllAlerts,
   // Utility
@@ -361,6 +363,14 @@ export async function GET(request: NextRequest) {
       // =======================================================================
       case "user_ai_stats": {
         const stats = await getUserAIStats(range);
+        return NextResponse.json(stats);
+      }
+
+      // =======================================================================
+      // Database Stats (PostgreSQL counts, TMDB coverage, refresh activity)
+      // =======================================================================
+      case "database": {
+        const stats = await getDatabaseStats();
         return NextResponse.json(stats);
       }
 

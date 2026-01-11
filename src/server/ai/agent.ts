@@ -14,7 +14,8 @@ import { allTools } from "./tools";
 import { getSystemPrompt } from "./prompts/system";
 import { aiLogger, usageLogger, aiToolLogger } from "@/lib/logger";
 import { calculateUsageStats, getCurrentModelId, type UsageStats } from "@/lib/model-pricing";
-import { trackAIUsage, type QueryType } from "@/lib/analytics";
+import { trackAIUsage } from "@/lib/analytics/track";
+import type { QueryType } from "@/lib/analytics/types";
 
 // =============================================================================
 // Debug Logging

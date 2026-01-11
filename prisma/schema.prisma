@@ -157,6 +157,7 @@ model Country {
   name String
 
   movieCountries       MovieCountry[]
+  seriesCountries      SeriesCountry[]
   watchOptions         WatchOption[]
   movieCertifications  MovieCertification[]
   seriesCertifications SeriesCertification[]
@@ -217,8 +218,9 @@ model Movie {
   collectionId Int?        @map("collection_id")
   collection   Collection? @relation(fields: [collectionId], references: [id])
 
-  // Vector embedding for semantic search
-  embedding Unsupported("vector(1536)")?
+  // Vector embedding for semantic search (Amazon Titan Text Embeddings V2)
+  // Using 1024 dimensions - optimal balance of quality vs. storage
+  embedding Unsupported("vector(1024)")?
 
   // Timestamps
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -304,14 +306,16 @@ model MovieCompany {
 }
 
 model MovieCountry {
-  movieId     Int    @map("movie_id")
-  countryCode String @map("country_code")
+  movieId     Int         @map("movie_id")
+  countryCode String      @map("country_code")
+  type        CountryType @default(PRODUCTION)
 
   movie   Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
   country Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
 
-  @@id([movieId, countryCode])
+  @@id([movieId, countryCode, type])
   @@index([countryCode])
+  @@index([countryCode, type]) // For "movies from India" queries
   @@map("movie_countries")
 }
 
@@ -381,8 +385,9 @@ model Series {
   originalLanguage     String?   @map("original_language")
   originCountry        String[]  @map("origin_country") // ISO 3166-1 codes
 
-  // Vector embedding
-  embedding Unsupported("vector(1536)")?
+  // Vector embedding for semantic search (Amazon Titan Text Embeddings V2)
+  // Using 1024 dimensions - optimal balance of quality vs. storage
+  embedding Unsupported("vector(1024)")?
 
   // Timestamps
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -412,6 +417,7 @@ model Series {
   videos            Video[]
   images            Image[]
   seasons           Season[]
+  countries         SeriesCountry[]
   aiData            AiData?
 
   // User relations
@@ -488,6 +494,20 @@ model SeriesCreator {
   @@id([seriesId, personId])
   @@index([personId])
   @@map("series_creators")
+}
+
+model SeriesCountry {
+  seriesId    Int         @map("series_id")
+  countryCode String      @map("country_code")
+  type        CountryType @default(ORIGIN)
+
+  series  Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  country Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+
+  @@id([seriesId, countryCode, type])
+  @@index([countryCode])
+  @@index([countryCode, type]) // For "series from Korea" queries
+  @@map("series_countries")
 }
 
 // Keep separate - series certifications have simpler structure
@@ -617,6 +637,9 @@ model Review {
   sourceId   Int    @map("source_id")
   reviewType String @map("review_type") // "consensus", "critic", "user", "editorial", "top_review", "ai_summary", "ai_analysis"
 
+  // External ID from source (e.g., TMDB review ID) - used for deduplication
+  externalId String? @map("external_id")
+
   // Content
   title   String? // Review headline (for critic reviews)
   content String // Review text (consensus, full review, or excerpt)
@@ -650,9 +673,9 @@ model Review {
   series Series?    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   source DataSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
 
-  // One consensus/AI summary per source per entity
-  @@unique([movieId, sourceId, reviewType])
-  @@unique([seriesId, sourceId, reviewType])
+  // Unique constraints: either by externalId (TMDB user reviews) or by reviewType (consensus/AI)
+  @@unique([movieId, sourceId, externalId])
+  @@unique([seriesId, sourceId, externalId])
   @@index([movieId, reviewType])
   @@index([seriesId, reviewType])
   @@index([sourceId, reviewType])
@@ -688,6 +711,17 @@ model Video {
   // Top comments snapshot (JSON array for display)
   // Structure: [{ author, authorChannel, text, likeCount, publishedAt, isCreatorHeart }]
   topComments Json? @map("top_comments")
+
+  // Flexible metadata (JSONB for extensibility)
+  // Current structure: {
+  //   channelId?: string,
+  //   channelTitle?: string,
+  //   channelThumbnail?: string,
+  //   title?: string (YouTube title, may differ from TMDB name),
+  //   description?: string,
+  //   duration?: string (ISO 8601, e.g., "PT4M13S"),
+  // }
+  metadata Json? @map("metadata")
 
   // Engagement freshness tracking
   engagementScrapedAt DateTime? @map("engagement_scraped_at")
@@ -781,6 +815,12 @@ model Credit {
   creditOrder Int?       @map("credit_order")
   creditType  CreditType @map("credit_type")
 
+  // Aggregate credits tracking (series only)
+  // isAggregate=false → Regular credits (main/top-billed cast)
+  // isAggregate=true  → Aggregate credits (ALL cast/crew across all episodes)
+  isAggregate       Boolean @default(false) @map("is_aggregate")
+  totalEpisodeCount Int?    @map("total_episode_count") // For aggregate credits
+
   // Relations
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
@@ -789,10 +829,11 @@ model Credit {
   @@unique([movieId, creditId])
   @@unique([seriesId, creditId])
   @@unique([movieId, personId, creditType, character])
-  @@unique([seriesId, personId, creditType, character])
+  @@unique([seriesId, personId, creditType, character, isAggregate])
   @@index([movieId])
   @@index([seriesId])
   @@index([personId])
+  @@index([seriesId, isAggregate]) // For efficient filtering
   @@map("credits")
 }
 
@@ -887,6 +928,10 @@ model User {
   isPublic         Boolean  @default(true) @map("is_public")
   preferredCountry String?  @map("preferred_country")
 
+  // Flexible metadata for profile info + future preferences
+  // Structure: { profile: { familyName, givenName, location }, preferences: { theme, ... } }
+  metadata Json? @default("{}")
+
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   lastActiveAt DateTime? @map("last_active_at")
@@ -896,6 +941,7 @@ model User {
   ratings          UserRating[]
   recentItems      RecentItem[]
   continueWatching ContinueWatching[]
+  savedFilters     SavedFilter[]
 
   sentFriendRequests     Friendship[]   @relation("sentRequests")
   receivedFriendRequests Friendship[]   @relation("receivedRequests")
@@ -997,6 +1043,22 @@ model ContinueWatching {
   @@map("continue_watching")
 }
 
+// Saved discover filters from MongoDB 'filters' collection
+model SavedFilter {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String
+  params    Json     // Discover filter parameters
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("saved_filters")
+}
+
 // =============================================================================
 // SOCIAL MODELS (unchanged)
 // =============================================================================
@@ -1087,6 +1149,11 @@ enum ImageType {
 enum LanguageType {
   ORIGINAL
   SPOKEN
+}
+
+enum CountryType {
+  ORIGIN      // Where the content originates from (TMDB origin_country)
+  PRODUCTION  // Where it was produced (TMDB production_countries)
 }
 
 enum WatchOptionType {

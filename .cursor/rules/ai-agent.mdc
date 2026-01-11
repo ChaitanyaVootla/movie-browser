@@ -204,16 +204,20 @@ src/
 │   ├── bedrock.ts            # AWS Bedrock client
 │   ├── state.ts              # Agent state types (incl. UserContext)
 │   ├── resolve-media-tags.ts # Server-side ID resolution for tags
-│   ├── tools/                # All tools (9 consolidated tools)
+│   ├── tools/                # All tools (9 active + 3 legacy)
 │   │   ├── index.ts          # Tool exports + allTools array
-│   │   ├── discover.ts       # Unified discover with name resolution + Phase 8 filters
-│   │   ├── search.ts         # TMDB multi-search (renamed from search_movies)
+│   │   ├── smart-discover.ts # **THE POWER TOOL** - filters + semantic + similar (pgvector)
+│   │   ├── search.ts         # TMDB multi-search for exact title/person lookup
 │   │   ├── details.ts        # Unified get_details (merged movie/series/videos/related)
 │   │   ├── person.ts         # get_person by name or ID
 │   │   ├── upcoming.ts       # get_upcoming for movies & TV
+│   │   ├── trending.ts       # get_trending for movies & TV
 │   │   ├── user-data.ts      # Unified get_user_data (merged watchlist/ratings/watched)
 │   │   ├── context.ts        # get_page_context
-│   │   └── navigation.ts     # navigate_to
+│   │   ├── navigation.ts     # navigate_to
+│   │   ├── discover.ts       # (LEGACY) Replaced by smart_discover
+│   │   ├── semantic-search.ts # (LEGACY) Replaced by smart_discover
+│   │   └── similar.ts        # (LEGACY) Replaced by smart_discover
 │   └── prompts/system.ts     # System prompts with dynamic user context
 ├── server/utils/
 │   ├── index.ts              # Exports
@@ -429,100 +433,125 @@ Person chips display:
 - **Name**: Display name
 - **Link**: To `/person/{id}/{slug}` page (or search if no ID)
 
-## Discover Tool
+## smart_discover Tool (THE POWER TOOL)
+
+`smart_discover` consolidates discover + semantic_search + find_similar into ONE powerful PostgreSQL-backed tool. It can:
+1. Filter by structured criteria (genre, cast, year, streaming, etc.)
+2. Rank by semantic similarity (mood/vibe queries)
+3. Find similar items (via `similarTo` parameter)
+4. **Combine all of the above in a single call!**
+
+### The Magic: Filters + Semantic Together
+
+This was previously impossible with separate tools:
+
+```typescript
+// "Dark Korean horror from 2020s" - combines semantic ranking with filters!
+smart_discover({
+  semanticQuery: "dark atmospheric horror",
+  genres: ["Horror"],
+  originCountry: "KR",
+  releasedAfter: "2020"
+})
+// PostgreSQL does: filter by genre/country/year → rank by embedding similarity
+```
 
 ### Name-Based Filters (Preferred!)
 
 The agent should use names, not IDs. The tool resolves them automatically:
 
 ```typescript
-// Agent calls:
-discover({
-  crewNames: ["Christopher Nolan"],  // → resolves to ID 525
-  castNames: ["Tom Hanks"],          // → resolves to ID 31
-  keywordNames: ["time travel"],     // → fuzzy matches TMDB keywords
-  genres: ["Action"],                // → maps to genre ID 28
-  watchProviders: ["Netflix"],       // → maps to provider ID 8
+smart_discover({
+  crewNames: ["Christopher Nolan"],  // → resolves to ID
+  castNames: ["Tom Hanks"],          // → resolves to ID
+  keywordNames: ["time travel"],     // → fuzzy matches keywords
+  genres: ["Action"],                // → maps to genre ID
+  watchProviders: ["Netflix"],       // → maps to provider ID
 })
+```
+
+### Semantic Search (semanticQuery)
+
+For mood/vibe/description-based discovery:
+
+```typescript
+smart_discover({ semanticQuery: "mind-bending sci-fi" })
+smart_discover({ semanticQuery: "feel-good movies about friendship" })
+smart_discover({ semanticQuery: "dark thrillers with plot twists" })
+smart_discover({ semanticQuery: "cozy winter vibes" })
+```
+
+### Find Similar (similarTo)
+
+For "more like this" queries using embedding similarity:
+
+```typescript
+// After getting Inception's ID from get_page_context or search
+smart_discover({ similarTo: 27205 })
+
+// Can also combine with filters!
+smart_discover({ similarTo: 27205, genres: ["Thriller"] })
 ```
 
 ### User Content Filtering
 
 ```typescript
-discover({
+smart_discover({
   hideWatched: true,      // Exclude movies user has seen
   hideDisliked: true,     // Exclude disliked content (DEFAULT: on)
   hideInWatchlist: true,  // Exclude items in watchlist
-  limit: 8,               // Smart pagination fills this even after filtering
+  limit: 8,               // Target result count
 })
 ```
 
 ### Quality Presets
 
 ```typescript
-discover({ quality: "good" })      // minRating: 7, minVotes: 200
-discover({ quality: "great" })     // minRating: 7.5, minVotes: 500
-discover({ quality: "masterpiece" }) // minRating: 8, minVotes: 1000
+smart_discover({ quality: "good" })      // minRating: 7, minVotes: 200
+smart_discover({ quality: "great" })     // minRating: 7.5, minVotes: 500
+smart_discover({ quality: "masterpiece" }) // minRating: 8, minVotes: 1000
 ```
 
 ### Date Shortcuts
 
 ```typescript
-discover({ releasedAfter: "recent" })   // Last 2 years
-discover({ releasedAfter: "new" })      // Last 6 months
-discover({ releasedBefore: "classic" }) // Pre-1980
+smart_discover({ releasedAfter: "recent" })   // Last 2 years
+smart_discover({ releasedAfter: "new" })      // Last 6 months
+smart_discover({ releasedBefore: "classic" }) // Pre-1980
 ```
 
 ### Streaming
 
 ```typescript
-discover({ streamingAnywhere: true })                    // Any service
-discover({ watchProviders: ["Netflix", "Prime Video"] }) // Specific
+smart_discover({ streamingAnywhere: true })                    // Any service
+smart_discover({ watchProviders: ["Netflix", "Prime Video"] }) // Specific
 ```
 
-### Exclusion Filters (Phase 8) ✅
+### Exclusion Filters
 
 ```typescript
 // Exclude genres
-discover({ genres: ["Thriller"], excludeGenres: ["Horror"] })
+smart_discover({ genres: ["Thriller"], excludeGenres: ["Horror"] })
 
 // Exclude actors/directors
-discover({ genres: ["Comedy"], withoutCastNames: ["Adam Sandler"] })
-discover({ withoutCrewNames: ["Michael Bay"] })
+smart_discover({ genres: ["Comedy"], withoutCastNames: ["Adam Sandler"] })
+smart_discover({ withoutCrewNames: ["Michael Bay"] })
 
 // Exclude themes
-discover({ genres: ["Thriller"], withoutKeywordNames: ["gore", "graphic violence"] })
+smart_discover({ genres: ["Thriller"], withoutKeywordNames: ["gore", "graphic violence"] })
 ```
 
-### AND/OR Logic (Phase 8) ✅
-
-TMDB uses comma (AND) and pipe (OR) separators:
-
-```typescript
-// Must match ALL genres (AND - default)
-discover({ genres: ["Action", "Comedy"], genreMode: "and" })
-
-// Match ANY genre (OR)
-discover({ genres: ["Sci-Fi", "Fantasy"], genreMode: "or" })
-
-// Must have ALL actors (rare, but supported)
-discover({ castNames: ["Tom Hanks", "Meg Ryan"], castMode: "and" })
-
-// Keyword logic
-discover({ keywordNames: ["heist", "twist ending"], keywordMode: "and" })
-```
-
-### Certification/Age Rating (Phase 8) ✅
+### Certification/Age Rating
 
 ```typescript
 // Family-friendly movies (G, PG, PG-13 only)
-discover({ genres: ["Action"], certificationLte: "PG-13" })
+smart_discover({ genres: ["Action"], certificationLte: "PG-13" })
 
 // Exact rating
-discover({ certification: "R" })
+smart_discover({ certification: "R" })
 
 // TV ratings
-discover({ mediaType: "tv", certificationLte: "TV-PG" })
+smart_discover({ mediaType: "tv", certificationLte: "TV-PG" })
 ```
 
 | Movies (MPAA) | TV (US) |
@@ -532,6 +561,21 @@ discover({ mediaType: "tv", certificationLte: "TV-PG" })
 | PG-13 | TV-G, TV-PG |
 | R | TV-14 |
 | NC-17 | TV-MA |
+
+### Example: Complex Query
+
+"Feel-good Tom Hanks movies from the 90s on Netflix":
+
+```typescript
+smart_discover({
+  semanticQuery: "feel-good heartwarming",  // Semantic ranking
+  castNames: ["Tom Hanks"],                  // Filter by actor
+  releasedAfter: "1990",                     // Filter by year
+  releasedBefore: "1999",
+  watchProviders: ["Netflix"],               // Filter by streaming
+  quality: "good"                            // Quality floor
+})
+```
 
 ## User Context
 
@@ -552,19 +596,36 @@ Injected via `src/server/ai/agent.ts`:
 const systemPrompt = getSystemPrompt(isAuthenticated, state.userContext);
 ```
 
-## Available Tools (9 Consolidated)
+## Available Tools (9 Total)
 
 | Tool | Description | When to Use |
 |------|-------------|-------------|
 | `search` | Multi-search by name | Specific title/actor lookup |
-| `discover` | **Main tool** - find movies/series with filters | Any criteria-based discovery |
+| `smart_discover` | **THE POWER TOOL** - filters + semantic + similar combined | Everything else: mood/vibe, filters, "more like X", or ALL combined! |
 | `get_trending` | Current trending content | "What's popular?" |
-| `get_details` | Movie/series info + optional videos + related | "Is X good?", "Show trailer", "Similar to X" |
+| `get_details` | Movie/series info + optional videos + related | "Is X good?", "Show trailer" |
 | `get_person` | Filmography + upcoming work by name or ID | "What else has X been in?", "What is X working on?" |
 | `get_upcoming` | Now playing + upcoming releases (general) | "What's coming out soon?" |
 | `get_user_data` | User's watchlist, ratings, watched history | "Based on my taste", "Pick from my watchlist" |
 | `get_page_context` | Current page | Contextual recommendations |
 | `navigate_to` | Client navigation | Take user to detail page |
+
+### Tool Selection Guide
+
+**`search`** - For specific titles/people by name:
+- "The Dark Knight" → search
+- "Christopher Nolan" → search
+
+**`smart_discover`** - For EVERYTHING else (the power tool!):
+
+| Intent | Example | smart_discover Call |
+|--------|---------|---------------------|
+| Mood/vibe | "mind-bending sci-fi" | `{ semanticQuery: "mind-bending sci-fi" }` |
+| Filters | "Korean horror 2020s" | `{ genres: ["Horror"], originCountry: "KR", releasedAfter: "2020" }` |
+| **COMBO** | "dark Korean horror" | `{ semanticQuery: "dark atmospheric", genres: ["Horror"], originCountry: "KR" }` |
+| Similar | "More like Inception" | `{ similarTo: 27205 }` |
+
+The key advantage of `smart_discover` is combining semantic search WITH filters in a single call - this was previously impossible with separate tools.
 
 ### get_details Parameters
 

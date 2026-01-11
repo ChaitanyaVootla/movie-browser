@@ -140,6 +140,22 @@ export interface TmdbMovieData {
   recommendations: {
     results: Array<{ id: number; title: string; poster_path: string | null }>;
   };
+  reviews: {
+    results: Array<{
+      id: string;
+      author: string;
+      author_details: {
+        name: string | null;
+        username: string;
+        avatar_path: string | null;
+        rating: number | null;
+      };
+      content: string;
+      created_at: string;
+      updated_at: string;
+      url: string;
+    }>;
+  };
 }
 
 export interface TmdbSeriesData {
@@ -193,6 +209,33 @@ export interface TmdbSeriesData {
     name: string;
   } | null;
   credits: TmdbMovieData["credits"];
+  // aggregate_credits has ALL cast/crew across all episodes (much more complete than credits)
+  aggregate_credits?: {
+    cast: Array<{
+      id: number;
+      name: string;
+      profile_path: string | null;
+      known_for_department: string;
+      roles: Array<{
+        character: string;
+        episode_count: number;
+      }>;
+      total_episode_count: number;
+      order: number;
+    }>;
+    crew: Array<{
+      id: number;
+      name: string;
+      profile_path: string | null;
+      known_for_department: string;
+      department: string;
+      jobs: Array<{
+        job: string;
+        episode_count: number;
+      }>;
+      total_episode_count: number;
+    }>;
+  };
   videos: TmdbMovieData["videos"];
   images: TmdbMovieData["images"];
   keywords: {
@@ -219,6 +262,7 @@ export interface TmdbSeriesData {
   recommendations: {
     results: Array<{ id: number; name: string; poster_path: string | null }>;
   };
+  reviews: TmdbMovieData["reviews"];
 }
 
 // =============================================================================
@@ -232,7 +276,7 @@ export interface TmdbSeriesData {
 export async function fetchMovieFromTmdb(movieId: number): Promise<TmdbMovieData> {
   return fetchFromTMDB<TmdbMovieData>(`/movie/${movieId}`, {
     params: {
-      append_to_response: "credits,videos,images,keywords,recommendations,external_ids,watch/providers,release_dates",
+      append_to_response: "credits,videos,images,keywords,recommendations,external_ids,watch/providers,release_dates,reviews",
       include_image_language: "en,null",
     },
     cacheNamespace: "movie",
@@ -242,11 +286,15 @@ export async function fetchMovieFromTmdb(movieId: number): Promise<TmdbMovieData
 /**
  * Fetch complete series data from TMDB with ALL append_to_response options
  * Uses the central TMDB service with built-in retry logic (3x exponential backoff)
+ * 
+ * NOTE: We fetch BOTH credits AND aggregate_credits:
+ * - credits: Small subset (main cast only, ~8 people)
+ * - aggregate_credits: ALL cast/crew across all episodes (~347 people for Breaking Bad)
  */
 export async function fetchSeriesFromTmdb(seriesId: number): Promise<TmdbSeriesData> {
   return fetchFromTMDB<TmdbSeriesData>(`/tv/${seriesId}`, {
     params: {
-      append_to_response: "credits,videos,images,keywords,recommendations,external_ids,watch/providers,content_ratings",
+      append_to_response: "credits,aggregate_credits,videos,images,keywords,recommendations,external_ids,watch/providers,content_ratings,reviews",
       include_image_language: "en,null",
     },
     cacheNamespace: "series",

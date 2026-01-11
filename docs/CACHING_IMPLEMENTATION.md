@@ -131,6 +131,25 @@ Every external API call is cached. Here's the complete mapping:
 | `getYouTubeComments()` | `youtube` | 1h L1, 24h L2 |
 | `fetchChannelUploads()` | `youtube-channels` | 1h L1, 24h L2 |
 
+### YouTube Engagement → PostgreSQL (Primary)
+
+For detail pages, YouTube engagement is cached in PostgreSQL (`videos` table) instead of file cache:
+
+| Data | Storage | TTL | Notes |
+|------|---------|-----|-------|
+| Views, likes, duration, channel info | PostgreSQL `videos.metadata` | 24h (recent) / 7d (old) | Phase 1: Batch fetched on page load |
+| Dislikes, comments | PostgreSQL `videos.dislike_count`, `top_comments` | Same | Phase 2: Fetched when video selected |
+
+**Two-Phase Fetching Strategy:**
+1. **Phase 1 (Page Load)**: Batch fetch basic stats for all videos (1 YouTube API quota unit per 50 videos)
+2. **Phase 2 (User Clicks)**: On-demand fetch of dislikes + comments for selected video
+
+**Service:** `src/server/services/youtube-engagement.ts`
+
+**API Route:** `GET /api/youtube?videoId=xxx&mediaId=123&mediaType=movie`
+- When `mediaId` + `mediaType` provided → PostgreSQL-backed caching
+- Without these params → File-based caching (fallback)
+
 ## Namespace Configuration
 
 | Namespace | L1 TTL | L2 TTL | Stale Grace | Use Case |

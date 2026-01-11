@@ -91,7 +91,7 @@ export interface HydrationResult<T> {
   enrichedSource: EnrichedSource | null;
 }
 
-export type EnrichedSource = "mongodb" | "lambda" | "postgres";
+export type EnrichedSource = "mongodb" | "lambda" | "postgres" | "none";
 
 // =============================================================================
 // Media Type

@@ -90,7 +90,7 @@ src/
 │       │   ├── topic-scroller.tsx         # Topic content scroller
 │       │   ├── trailer-carousel.tsx       # TMDB trending trailers
 │       │   ├── youtube-trailer-carousel.tsx  # YouTube channel viral trailers
-│       │   └── trailer-modal.tsx          # Full-featured trailer modal (Dialog)
+│       │   └── trailer-modal.tsx          # Trailer modal (YouTube title, channel, stats, comments)
 │       ├── discover/    # Browse/filter components (sidebar, grid, scroller)
 │       ├── auth/        # Auth components (GoogleOneTap, UserMenu, LoginDialog)
 │       ├── admin/       # Admin dashboard components
@@ -133,6 +133,7 @@ src/
 │   │   ├── series-badges.ts # Series-specific badge logic
 │   │   └── utils.ts     # Date helpers, badge creation utilities
 │   ├── image.ts         # CDN image utilities
+│   ├── video-utils.ts   # Video sorting utilities (shared server/client)
 │   ├── cache-service.ts # Unified L1+L2 cache (memory + file persistence)
 │   ├── cache.ts         # Re-exports from cache-service (backwards compat)
 │   ├── watch-options.ts # Watch provider processing utilities
@@ -157,7 +158,8 @@ src/
 │   │   └── trending.ts  # getTrending(), getYouTubeTrendingTrailers()
 │   ├── services/        # External API services
 │   │   ├── tmdb.ts      # TMDB API with retry logic
-│   │   ├── youtube.ts   # YouTube Data API + Return YouTube Dislike API
+│   │   ├── youtube.ts   # YouTube Data API + Return YouTube Dislike API (file cache)
+│   │   ├── youtube-engagement.ts  # YouTube engagement (PostgreSQL cache)
 │   │   ├── youtube-channels.ts  # YouTube channel monitoring for viral trailers
 │   │   └── hydration/   # Data hydration service (PostgreSQL + MongoDB + Lambda)
 │   │       ├── index.ts       # Main hydration logic (hydrateMovie, hydrateSeries)
@@ -667,6 +669,33 @@ Daily quota: 10,000 units
 
 For detailed cache documentation, see `docs/CACHING_IMPLEMENTATION.md`.
 
+### YouTube Engagement (PostgreSQL Cache)
+
+For detail pages, YouTube video engagement is cached in PostgreSQL (`videos` table) with a two-phase strategy:
+
+**Phase 1 (Page Load):** Batch fetch basic stats for all videos
+- Views, likes, duration, channel info
+- 1 YouTube API quota unit per 50 videos
+- Stored in `videos.metadata` JSONB column
+
+**Phase 2 (User Clicks Video):** On-demand full engagement
+- Dislikes (from Return YouTube Dislike API - free)
+- Top comments (1 quota unit)
+- Stored in `videos.dislike_count`, `top_comments`
+
+**Staleness Logic:**
+- Recent videos (<30 days): 24h TTL
+- Old videos (>30 days): 7d TTL
+- Check via `engagement_scraped_at` column
+
+**Service:** `src/server/services/youtube-engagement.ts`
+
+**API:** `GET /api/youtube?videoId=xxx&mediaId=123&mediaType=movie`
+- With `mediaId` + `mediaType`: PostgreSQL-backed
+- Without: File-based fallback
+
+**Video name override:** When engagement is fetched, the `name` field is updated with the full YouTube title (may differ from TMDB's shorter name). The YouTube title is also stored in `metadata.title`.
+
 ## PostgreSQL Migration (Complete ✅)
 
 ### Status
@@ -678,6 +707,7 @@ PostgreSQL is the **single source of truth**. MongoDB is used for enrichment unt
 | Schema (V2 Normalized) | ✅ Complete |
 | Hydration Service | ✅ Complete |
 | Full round-trip verified | ✅ Complete |
+| YouTube Engagement Cache | ✅ Complete |
 | User data migration | 🔜 Next |
 
 ### Hydration Service
@@ -747,9 +777,57 @@ npx tsx prisma/seed-from-mongo.ts --series=66732  # Specific series
 | TMDB watch providers | TMDB API | `watch_options` |
 | **Episodes** | TMDB API (per-season fetch) | `episodes` |
 | Seasons | TMDB API | `seasons` |
-| origin_country | TMDB API | `origin_country` column |
+| **Countries (movies)** | TMDB API | `movie_countries` (with `type`: ORIGIN/PRODUCTION) |
+| **Countries (series)** | TMDB API | `series_countries` (ORIGIN type) |
+| **Spoken languages** | TMDB API | `movie_languages` (SPOKEN type) |
 | Production companies | TMDB API | `movie_companies` junction |
 | Networks (series) | TMDB API | `series_networks` junction |
+| **Credits (movies)** | TMDB API | `credits` (all cast + crew, no limits) |
+| **Credits (series)** | TMDB API | `credits` with `is_aggregate` + `total_episode_count` |
+| **Series creators** | TMDB API `created_by` | `series_creators` junction |
+| **TMDB reviews** | TMDB API `reviews` | `reviews` (with external_id) |
+| **YouTube engagement** | YouTube API + Dislike API | `videos` (view_count, like_count, etc.) |
+| YouTube metadata | YouTube API | `videos.metadata` (channel, title, desc, duration) |
+| Top comments | YouTube API | `videos.top_comments` (JSONB array) |
+
+### Country Types (CountryType Enum)
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `ORIGIN` | Where the content originates from | "Korean dramas", "Japanese anime" |
+| `PRODUCTION` | Where it was physically produced | "Co-productions with Germany" |
+
+```sql
+-- Find all Korean series (K-dramas)
+SELECT s.* FROM series s
+JOIN series_countries sc ON s.id = sc.series_id
+WHERE sc.country_code = 'KR' AND sc.type = 'ORIGIN';
+
+-- Find movies produced in both US and UK
+SELECT m.* FROM movies m
+JOIN movie_countries mc ON m.id = mc.movie_id
+WHERE mc.country_code IN ('US', 'GB') AND mc.type = 'PRODUCTION'
+GROUP BY m.id HAVING COUNT(DISTINCT mc.country_code) = 2;
+```
+
+### Series Credits (Aggregate vs Regular)
+
+Series store **both** regular and aggregate credits with differentiation:
+
+| Field | Description |
+|-------|-------------|
+| `is_aggregate` | `false` = main/top-billed cast, `true` = all-time cast across episodes |
+| `total_episode_count` | Episode appearances (aggregate only) - for filtering |
+
+```sql
+-- Get main cast (non-aggregate, ~10-50 people)
+SELECT * FROM credits WHERE series_id = 1396 AND is_aggregate = false;
+
+-- Get actors who appeared in 50+ episodes (comprehensive)
+SELECT * FROM credits WHERE series_id = 1396 AND is_aggregate = true AND total_episode_count >= 50;
+```
+
+**UI Decision:** Use `is_aggregate=false` for "current cast" display, `is_aggregate=true` for full filmography search.
 
 ### Key Files
 
@@ -758,12 +836,15 @@ npx tsx prisma/seed-from-mongo.ts --series=66732  # Specific series
 | `prisma/schema.prisma` | V2 normalized schema |
 | `prisma/seed-from-mongo.ts` | MongoDB → PostgreSQL migration |
 | `src/server/services/tmdb.ts` | **Central TMDB service** (3x retry, caching) |
+| `src/server/services/youtube-engagement.ts` | **YouTube engagement PostgreSQL cache** |
 | `src/server/services/hydration/index.ts` | Main hydration logic |
 | `src/server/services/hydration/integration.ts` | Transform to Movie/Series types |
 | `src/server/services/hydration/sources/tmdb.ts` | TMDB data fetching (uses central service) |
 | `src/server/services/hydration/sources/mongo.ts` | MongoDB enriched data adapter |
 | `src/server/services/hydration/sources/postgres.ts` | PostgreSQL queries + upserts + episodes |
 | `src/server/services/hydration/sources/lambda.ts` | AWS Lambda fallback |
+| `src/lib/video-utils.ts` | Video sorting (shared server/client) |
+| `src/app/api/youtube/route.ts` | YouTube API route (PostgreSQL + file fallback) |
 
 ### TMDB API Resilience
 

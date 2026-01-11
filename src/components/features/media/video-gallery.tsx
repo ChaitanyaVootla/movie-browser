@@ -15,6 +15,10 @@ import type { Video, YouTubeVideoStats, YouTubeComment } from "@/types";
 
 interface VideoGalleryProps {
   videos: Video[];
+  /** TMDB ID of movie or series (enables PostgreSQL-backed YouTube caching) */
+  mediaId?: number;
+  /** Type of media (enables PostgreSQL-backed YouTube caching) */
+  mediaType?: "movie" | "series";
   className?: string;
 }
 
@@ -37,25 +41,9 @@ interface FullVideoData {
   };
 }
 
-// Sort videos by type priority
-function sortVideos(videos: Video[]): Video[] {
-  const typePriority: Record<string, number> = {
-    Trailer: 0,
-    Teaser: 1,
-    Clip: 2,
-    "Behind the Scenes": 3,
-    Featurette: 4,
-    Bloopers: 5,
-  };
-
-  return [...videos].sort((a, b) => {
-    const priorityA = typePriority[a.type] ?? 99;
-    const priorityB = typePriority[b.type] ?? 99;
-    if (priorityA !== priorityB) return priorityA - priorityB;
-    if (a.official !== b.official) return a.official ? -1 : 1;
-    return 0;
-  });
-}
+// Import and re-export sortVideos from shared utility
+import { sortVideos } from "@/lib/video-utils";
+export { sortVideos };
 
 // Get unique video types for filtering
 function getVideoTypes(videos: Video[]): string[] {
@@ -125,7 +113,7 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
             isActive ? "text-brand" : "text-foreground group-hover:text-brand"
           )}
         >
-          {video.name}
+          {metadata?.title || video.name}
         </p>
         
         {/* View count and publish date */}
@@ -146,7 +134,7 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
   );
 }
 
-export function VideoGallery({ videos, className }: VideoGalleryProps) {
+export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGalleryProps) {
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [filter, setFilter] = useState("All");
@@ -179,7 +167,14 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
     if (videoIds.length === 0) return;
     
     try {
-      const response = await fetch(`/api/youtube?videoIds=${videoIds.join(",")}`);
+      // Build URL with optional PostgreSQL-backed params
+      const params = new URLSearchParams({ videoIds: videoIds.join(",") });
+      if (mediaId && mediaType) {
+        params.set("mediaId", String(mediaId));
+        params.set("mediaType", mediaType);
+      }
+      
+      const response = await fetch(`/api/youtube?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         if (data.videos) {
@@ -189,13 +184,20 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
     } catch (error) {
       console.error("Failed to fetch video metadata:", error);
     }
-  }, []);
+  }, [mediaId, mediaType]);
 
   // Fetch full data for active video (stats, dislikes, comments)
   const fetchActiveVideoData = useCallback(async (videoId: string) => {
     setIsLoadingActive(true);
     try {
-      const response = await fetch(`/api/youtube?videoId=${videoId}`);
+      // Build URL with optional PostgreSQL-backed params
+      const params = new URLSearchParams({ videoId });
+      if (mediaId && mediaType) {
+        params.set("mediaId", String(mediaId));
+        params.set("mediaType", mediaType);
+      }
+      
+      const response = await fetch(`/api/youtube?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setActiveVideoData(data);
@@ -205,7 +207,7 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
     } finally {
       setIsLoadingActive(false);
     }
-  }, []);
+  }, [mediaId, mediaType]);
 
   // Fetch metadata for all videos on mount
   useEffect(() => {
@@ -428,7 +430,7 @@ export function VideoGallery({ videos, className }: VideoGalleryProps) {
                 </div>
                 <div className="mt-1 px-0.5">
                   <p className="text-[11px] text-muted-foreground line-clamp-1">
-                    {video.name}
+                    {meta?.title || video.name}
                   </p>
                   {meta?.viewCount ? (
                     <div className="flex items-center gap-1 mt-0.5">

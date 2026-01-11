@@ -44,6 +44,7 @@ export type {
   CacheSizeStats,
   TimeRange,
   StatVariant,
+  AnalyticsSubTab,
 } from "./analytics-types";
 
 // Individual tabs (for custom dashboard layouts)

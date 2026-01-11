@@ -191,8 +191,18 @@ async function callGoogleLambda(
     }
 
     const payloadStr = new TextDecoder().decode(response.Payload);
+    console.log(`[Hydration/Lambda] Google Lambda RAW response:\n${payloadStr.slice(0, 2000)}`);
+    
+    const parsed = JSON.parse(payloadStr) as GoogleLambdaResponse;
+    console.log(`[Hydration/Lambda] Google Lambda PARSED:`, JSON.stringify({
+      ratingsCount: parsed.ratings?.length ?? 0,
+      watchOptionsCount: parsed.allWatchOptions?.length ?? 0,
+      imdbId: parsed.imdbId,
+      directorName: parsed.directorName,
+    }));
+    
     trackLambdaCall(GOOGLE_LAMBDA_FN, startTime, statusCode, null, null);
-    return JSON.parse(payloadStr) as GoogleLambdaResponse;
+    return parsed;
   } catch (error: any) {
     statusCode = 500;
     errorType = error?.name || "UnknownError";
@@ -264,12 +274,15 @@ async function callRatingsLambda(
     }
 
     const payloadStr = new TextDecoder().decode(response.Payload);
+    console.log(`[Hydration/Lambda] Ratings Lambda RAW response:\n${payloadStr.slice(0, 3000)}`);
+    
     const apiGatewayResponse = JSON.parse(payloadStr) as {
       statusCode?: number;
       body?: string;
     };
 
-    // Handle API Gateway response format
+    // Handle API Gateway response format (Ratings Lambda returns { statusCode, body: "..." })
+    let parsed: RatingsLambdaResponse;
     if (apiGatewayResponse.statusCode && apiGatewayResponse.body) {
       statusCode = apiGatewayResponse.statusCode;
       if (apiGatewayResponse.statusCode !== 200) {
@@ -277,13 +290,26 @@ async function callRatingsLambda(
         trackLambdaCall(RATINGS_LAMBDA_FN, startTime, statusCode, "Non200Response", `Status: ${statusCode}`);
         return null;
       }
-      trackLambdaCall(RATINGS_LAMBDA_FN, startTime, statusCode, null, null);
-      return JSON.parse(apiGatewayResponse.body) as RatingsLambdaResponse;
+      console.log(`[Hydration/Lambda] Ratings Lambda BODY (before parse):\n${apiGatewayResponse.body.slice(0, 2000)}`);
+      parsed = JSON.parse(apiGatewayResponse.body) as RatingsLambdaResponse;
+    } else {
+      // Direct response format (no API Gateway wrapper)
+      parsed = apiGatewayResponse as RatingsLambdaResponse;
     }
-
-    // Direct response format
+    
+    console.log(`[Hydration/Lambda] Ratings Lambda PARSED:`, JSON.stringify({
+      hasDetailedRatings: !!parsed.detailedRatings,
+      imdb: parsed.detailedRatings?.imdb ? `${parsed.detailedRatings.imdb.rating} (${parsed.detailedRatings.imdb.ratingCount} votes)` : null,
+      rtCritic: parsed.detailedRatings?.rottenTomatoes?.critic?.score ?? null,
+      rtAudience: parsed.detailedRatings?.rottenTomatoes?.audience?.score ?? null,
+      basicRatingsCount: parsed.ratings?.length ?? 0,
+      watchOptionsCount: parsed.allWatchOptions?.length ?? 0,
+      externalIds: parsed.externalIds ?? null,
+      googleError: parsed.googleError ?? null,
+    }));
+    
     trackLambdaCall(RATINGS_LAMBDA_FN, startTime, statusCode, null, null);
-    return apiGatewayResponse as RatingsLambdaResponse;
+    return parsed;
   } catch (error: any) {
     statusCode = 500;
     errorType = error?.name || "UnknownError";
@@ -313,6 +339,7 @@ async function callRatingsLambda(
  * @param mediaType - "movie" or "series"
  * @param id - TMDB ID
  * @param tmdbData - TMDB data with title, imdb_id, wikidata_id, release_date
+ * @param existingEnriched - Optional existing enriched data to merge with (preserves ratings Lambda doesn't return)
  */
 export async function fetchFromLambda(
   mediaType: MediaType,
@@ -328,7 +355,8 @@ export async function fetchFromLambda(
       imdb_id?: string | null;
     };
     original_language?: string;
-  }
+  },
+  existingEnriched?: EnrichedData | null
 ): Promise<EnrichedData> {
   // Set item context for tracking
   currentItemContext = { tmdbId: id, mediaType };
@@ -363,10 +391,45 @@ export async function fetchFromLambda(
     const googleData = googleResult.status === "fulfilled" ? googleResult.value : null;
     const ratingsData = ratingsResult.status === "fulfilled" ? ratingsResult.value : null;
 
-    console.log(`[Hydration/Lambda] Results - Google: ${googleData ? "✓" : "✗"}, Ratings: ${ratingsData ? "✓" : "✗"}`);
+    console.log(`[Hydration/Lambda] Results - Google Lambda: ${googleData ? "✓" : "✗"}, Ratings Lambda: ${ratingsData ? "✓" : "✗"}`);
+    
+    // Log raw results for debugging
+    if (googleData?.ratings?.length) {
+      console.log(`[Hydration/Lambda] Google Lambda ratings:`);
+      for (const r of googleData.ratings) {
+        console.log(`  → ${r.name}: ${r.rating}`);
+      }
+    }
+    if (googleData?.allWatchOptions?.length) {
+      console.log(`[Hydration/Lambda] Google Lambda watch options: ${googleData.allWatchOptions.length} providers`);
+      for (const w of googleData.allWatchOptions) {
+        console.log(`  → ${w.name}: ${w.link} (${w.price || 'N/A'})`);
+      }
+    }
+    if (ratingsData?.detailedRatings) {
+      console.log(`[Hydration/Lambda] Ratings Lambda detailed ratings:`);
+      if (ratingsData.detailedRatings.imdb?.rating != null) {
+        console.log(`  → IMDb: ${ratingsData.detailedRatings.imdb.rating} (${ratingsData.detailedRatings.imdb.ratingCount} votes)`);
+      }
+      if (ratingsData.detailedRatings.rottenTomatoes?.critic?.score != null) {
+        console.log(`  → RT Critic: ${ratingsData.detailedRatings.rottenTomatoes.critic.score}%`);
+      }
+      if (ratingsData.detailedRatings.rottenTomatoes?.audience?.score != null) {
+        console.log(`  → RT Audience: ${ratingsData.detailedRatings.rottenTomatoes.audience.score}%`);
+      }
+    }
+    if (existingEnriched?.ratings) {
+      console.log(`[Hydration/Lambda] Existing ratings to merge:`);
+      if (existingEnriched.ratings.imdb?.score) console.log(`  → IMDb: ${existingEnriched.ratings.imdb.score}`);
+      if (existingEnriched.ratings.rtCritic?.score) console.log(`  → RT Critic: ${existingEnriched.ratings.rtCritic.score}%`);
+      if (existingEnriched.ratings.rtAudience?.score) console.log(`  → RT Audience: ${existingEnriched.ratings.rtAudience.score}%`);
+      if (existingEnriched.ratings.google?.score) console.log(`  → Google: ${existingEnriched.ratings.google.score}%`);
+      if (existingEnriched.ratings.letterboxd?.score) console.log(`  → Letterboxd: ${existingEnriched.ratings.letterboxd.score}`);
+      if (existingEnriched.ratings.metacritic?.score) console.log(`  → Metacritic: ${existingEnriched.ratings.metacritic.score}`);
+    }
 
-    // Merge results
-    return mergeResponse(googleData, ratingsData);
+    // Merge results with existing data (preserves ratings Lambda doesn't return, like Google)
+    return mergeResponse(googleData, ratingsData, existingEnriched);
   } finally {
     // Clear item context
     currentItemContext = null;
@@ -383,26 +446,40 @@ function sanitizeString(str: string): string {
 
 /**
  * Merge responses from both lambdas into EnrichedData
- * Priority: Ratings Lambda data > Google Lambda data
+ * 
+ * Priority (same as legacy Nuxt app):
+ * 1. Ratings Lambda detailedRatings (IMDb, RT) - highest priority
+ * 2. Google Lambda basic ratings (Google, Letterboxd, Metacritic, etc.)
+ * 3. Existing enriched data (preserves ratings that Lambda doesn't return)
+ * 
+ * Key behavior (matching legacy app):
+ * - If Lambda returns empty ratings but existing has ratings → keep existing
+ * - If both have ratings → merge: new ratings + old ratings that don't exist in new
+ * - This preserves Google ratings which only come from Google Lambda
  */
 function mergeResponse(
   google: GoogleLambdaResponse | null,
-  ratings: RatingsLambdaResponse | null
+  ratings: RatingsLambdaResponse | null,
+  existingEnriched?: EnrichedData | null
 ): EnrichedData {
   const detailed = ratings?.detailedRatings;
   const externalIds = ratings?.externalIds || {};
+  const existingRatings = existingEnriched?.ratings || {};
 
   // Merge watch options: Google has deep links, use those
-  const scrapedWatchLinks = (google?.allWatchOptions || ratings?.allWatchOptions || []).map(
+  // Legacy app logic: use new if available, otherwise keep existing
+  const newWatchLinks = (google?.allWatchOptions || ratings?.allWatchOptions || []).map(
     (opt) => ({
       provider: opt.name,
       link: opt.link,
       price: opt.price || "Unknown",
     })
   );
+  const scrapedWatchLinks = newWatchLinks.length > 0 
+    ? newWatchLinks 
+    : (existingEnriched?.scrapedWatchLinks || []);
 
   // Try to extract RT ID from Google ratings link if not in Wikidata
-  // RT URLs look like: https://www.rottentomatoes.com/m/movie_name or /tv/series_name
   const allRatings = [...(google?.ratings || []), ...(ratings?.ratings || [])];
   let rtIdFromGoogle: string | undefined;
   if (!externalIds.rottentomatoes_id) {
@@ -410,7 +487,7 @@ function mergeResponse(
       if (r.link?.includes("rottentomatoes.com/")) {
         const match = r.link.match(/rottentomatoes\.com\/(m|tv)\/([^/?]+)/);
         if (match) {
-          rtIdFromGoogle = match[2]; // The slug after /m/ or /tv/
+          rtIdFromGoogle = match[2];
           console.log(`[Hydration/Lambda] Extracted RT ID from Google: ${rtIdFromGoogle}`);
           break;
         }
@@ -418,19 +495,23 @@ function mergeResponse(
     }
   }
 
-  // Build ratings from detailed data
+  // Build ratings from detailed data (Ratings Lambda)
   const enrichedRatings: EnrichedData["ratings"] = {};
 
-  // IMDb from Ratings Lambda (detailed)
+  // IMDb from Ratings Lambda (detailed) - or preserve existing
   if (detailed?.imdb?.rating != null) {
     enrichedRatings.imdb = {
       score: detailed.imdb.rating,
       voteCount: detailed.imdb.ratingCount ?? undefined,
       sourceUrl: detailed.imdb.sourceUrl,
     };
+  } else if (existingRatings.imdb?.score) {
+    // Preserve existing IMDb if Lambda didn't return one
+    enrichedRatings.imdb = existingRatings.imdb;
+    console.log(`[Hydration/Lambda] Preserved existing IMDb rating: ${existingRatings.imdb.score}`);
   }
 
-  // RT Critic from Ratings Lambda
+  // RT Critic from Ratings Lambda - or preserve existing
   if (detailed?.rottenTomatoes?.critic?.score != null) {
     enrichedRatings.rtCritic = {
       score: detailed.rottenTomatoes.critic.score,
@@ -440,9 +521,12 @@ function mergeResponse(
       sentiment: detailed.rottenTomatoes.critic.sentiment ?? undefined,
       sourceUrl: detailed.rottenTomatoes.sourceUrl,
     };
+  } else if (existingRatings.rtCritic?.score) {
+    enrichedRatings.rtCritic = existingRatings.rtCritic;
+    console.log(`[Hydration/Lambda] Preserved existing RT Critic rating: ${existingRatings.rtCritic.score}`);
   }
 
-  // RT Audience from Ratings Lambda
+  // RT Audience from Ratings Lambda - or preserve existing
   if (detailed?.rottenTomatoes?.audience?.score != null) {
     enrichedRatings.rtAudience = {
       score: detailed.rottenTomatoes.audience.score,
@@ -450,44 +534,93 @@ function mergeResponse(
       certified: detailed.rottenTomatoes.audience.certified ?? undefined,
       sentiment: detailed.rottenTomatoes.audience.sentiment ?? undefined,
     };
+  } else if (existingRatings.rtAudience?.score) {
+    enrichedRatings.rtAudience = existingRatings.rtAudience;
+    console.log(`[Hydration/Lambda] Preserved existing RT Audience rating: ${existingRatings.rtAudience.score}`);
   }
 
-  // Fallback to Google basic ratings if no detailed ratings
-  if (!enrichedRatings.imdb && !enrichedRatings.rtCritic) {
-    const basicRatings = google?.ratings || ratings?.ratings || [];
-    
-    for (const r of basicRatings) {
-      const score = parseFloat(r.rating.replace("%", ""));
-      if (isNaN(score)) continue;
+  // Process Google Lambda basic ratings for additional sources
+  // These sources (Google, Letterboxd, Metacritic) only come from Google Lambda
+  const basicRatings = google?.ratings || ratings?.ratings || [];
+  
+  for (const r of basicRatings) {
+    const score = parseFloat(r.rating.replace("%", ""));
+    if (isNaN(score)) continue;
 
-      if (r.name.toLowerCase().includes("imdb") && !enrichedRatings.imdb) {
-        enrichedRatings.imdb = { score, sourceUrl: r.link };
-      } else if (r.name.toLowerCase().includes("rotten") && !enrichedRatings.rtCritic) {
-        // Basic RT rating is usually critic score
-        enrichedRatings.rtCritic = { score, sourceUrl: r.link };
-      } else if (r.name.toLowerCase().includes("letterboxd") && !enrichedRatings.letterboxd) {
-        enrichedRatings.letterboxd = { score };
-      } else if (r.name.toLowerCase() === "google" && !enrichedRatings.google) {
-        enrichedRatings.google = { score };
-      } else if (r.name.toLowerCase().includes("metacritic") && !enrichedRatings.metacritic) {
-        enrichedRatings.metacritic = { score };
-      }
+    const nameLower = r.name.toLowerCase();
+    
+    // IMDb fallback (only if not already set from detailed)
+    if (nameLower.includes("imdb") && !enrichedRatings.imdb) {
+      enrichedRatings.imdb = { score, sourceUrl: r.link };
+    }
+    // RT fallback (only if not already set from detailed)
+    else if (nameLower.includes("rotten") && !enrichedRatings.rtCritic) {
+      enrichedRatings.rtCritic = { score, sourceUrl: r.link };
+    }
+    // Google rating - CRITICAL: this only comes from Google Lambda
+    else if (nameLower === "google" && !enrichedRatings.google) {
+      enrichedRatings.google = { score };
+    }
+    // Letterboxd - only from Google Lambda
+    else if (nameLower.includes("letterboxd") && !enrichedRatings.letterboxd) {
+      enrichedRatings.letterboxd = { score };
+    }
+    // Metacritic - only from Google Lambda  
+    else if (nameLower.includes("metacritic") && !enrichedRatings.metacritic) {
+      enrichedRatings.metacritic = { score };
     }
   }
 
+  // CRITICAL: Preserve existing ratings that Lambda didn't return
+  // This is the key fix - Google ratings get lost on force refresh without this
+  if (!enrichedRatings.google && existingRatings.google?.score) {
+    enrichedRatings.google = existingRatings.google;
+    console.log(`[Hydration/Lambda] Preserved existing Google rating: ${existingRatings.google.score}`);
+  }
+  if (!enrichedRatings.letterboxd && existingRatings.letterboxd?.score) {
+    enrichedRatings.letterboxd = existingRatings.letterboxd;
+    console.log(`[Hydration/Lambda] Preserved existing Letterboxd rating: ${existingRatings.letterboxd.score}`);
+  }
+  if (!enrichedRatings.metacritic && existingRatings.metacritic?.score) {
+    enrichedRatings.metacritic = existingRatings.metacritic;
+    console.log(`[Hydration/Lambda] Preserved existing Metacritic rating: ${existingRatings.metacritic.score}`);
+  }
+
+  // Merge external IDs: new > existing
+  const mergedExternalIds: EnrichedData["externalIds"] = {
+    // RT ID: prefer Wikidata, then Google scrape, then existing
+    rottentomatoes: externalIds.rottentomatoes_id ?? rtIdFromGoogle ?? existingEnriched?.externalIds?.rottentomatoes,
+    metacritic: externalIds.metacritic_id ?? existingEnriched?.externalIds?.metacritic,
+    letterboxd: externalIds.letterboxd_id ?? existingEnriched?.externalIds?.letterboxd,
+    netflix: externalIds.netflix_id ?? existingEnriched?.externalIds?.netflix,
+    apple: externalIds.apple_id ?? existingEnriched?.externalIds?.apple,
+    amazon: externalIds.prime_id ?? existingEnriched?.externalIds?.amazon,
+    hotstar: externalIds.hotstar_id ?? existingEnriched?.externalIds?.hotstar,
+  };
+
+  const finalRatings = Object.keys(enrichedRatings).length > 0 ? enrichedRatings : null;
+  
+  // Log final merged result
+  console.log(`[Hydration/Lambda] Final merged ratings:`);
+  if (finalRatings) {
+    if (finalRatings.imdb?.score) console.log(`  → IMDb: ${finalRatings.imdb.score}`);
+    if (finalRatings.rtCritic?.score) console.log(`  → RT Critic: ${finalRatings.rtCritic.score}%`);
+    if (finalRatings.rtAudience?.score) console.log(`  → RT Audience: ${finalRatings.rtAudience.score}%`);
+    if (finalRatings.google?.score) console.log(`  → Google: ${finalRatings.google.score}%`);
+    if (finalRatings.letterboxd?.score) console.log(`  → Letterboxd: ${finalRatings.letterboxd.score}`);
+    if (finalRatings.metacritic?.score) console.log(`  → Metacritic: ${finalRatings.metacritic.score}`);
+  } else {
+    console.log(`  (no ratings)`);
+  }
+  console.log(`[Hydration/Lambda] Final watch links: ${scrapedWatchLinks.length} providers`);
+  for (const w of scrapedWatchLinks) {
+    console.log(`  → ${w.provider}: ${w.link}`);
+  }
+
   return {
-    ratings: Object.keys(enrichedRatings).length > 0 ? enrichedRatings : null,
+    ratings: finalRatings,
     scrapedWatchLinks,
-    externalIds: {
-      // RT ID: prefer Wikidata, fallback to Google scrape extraction
-      rottentomatoes: externalIds.rottentomatoes_id ?? rtIdFromGoogle,
-      metacritic: externalIds.metacritic_id ?? undefined,
-      letterboxd: externalIds.letterboxd_id ?? undefined,
-      netflix: externalIds.netflix_id ?? undefined,
-      apple: externalIds.apple_id ?? undefined,
-      amazon: externalIds.prime_id ?? undefined,
-      hotstar: externalIds.hotstar_id ?? undefined,
-    },
+    externalIds: mergedExternalIds,
     source: "lambda",
     scrapedAt: new Date(),
   };

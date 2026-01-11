@@ -124,10 +124,11 @@ async function seedCountries() {
   console.log("📍 Seeding countries...");
   const countries = getCountryData();
 
-  // Add a few that country-list might miss
+  // Add a few that country-list might miss (including obsolete codes TMDB still uses)
   const additionalCountries = [
     { code: "XK", name: "Kosovo" },
     { code: "TW", name: "Taiwan" },
+    { code: "SU", name: "Soviet Union" }, // Obsolete but TMDB uses for old movie certifications
   ];
 
   const allCountries = [

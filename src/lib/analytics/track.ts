@@ -21,8 +21,12 @@ function toClickHouseTimestamp(date: Date = new Date()): string {
 /**
  * Check if tracking should be skipped for admin users
  * Admin traffic pollutes analytics with internal testing/dev activity
+ * Set TRACK_ADMIN_ANALYTICS=true to track admin traffic (for development/testing)
  */
 function shouldSkipForAdmin(context: { is_admin?: boolean }): boolean {
+  if (process.env.TRACK_ADMIN_ANALYTICS === "true") {
+    return false; // Track admin traffic when explicitly enabled
+  }
   return context.is_admin === true;
 }
 

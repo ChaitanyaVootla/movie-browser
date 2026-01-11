@@ -62,10 +62,9 @@ Instead of denormalized arrays (genres[], keywords[]), use proper relational tab
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ MEDIA TABLES                                                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ movie_videos        │ movie_id, key, name, site, type, official             │
-│ movie_images        │ movie_id, file_path, type, aspect_ratio, vote_avg     │
-│ series_videos       │ series_id, key, name, site, type, official            │
-│ series_images       │ series_id, file_path, type, aspect_ratio, vote_avg    │
+│ videos              │ Polymorphic - movie/series/season/episode videos      │
+│                     │ + YouTube engagement (views, likes, comments, metadata)│
+│ images              │ Polymorphic - movie/series/season/episode images      │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -232,6 +231,7 @@ model RatingSource {
   
   movieRatings  MovieRating[]
   seriesRatings SeriesRating[]
+  reviews       Review[] // User reviews, editorial, etc.
   
   @@map("rating_sources")
 }
@@ -240,10 +240,11 @@ model Country {
   code      String   @id // ISO 3166-1 alpha-2
   name      String
   
-  movieCountries      MovieCountry[]
-  movieWatchOptions   MovieWatchOption[]
-  movieCertifications MovieCertification[]
-  seriesWatchOptions  SeriesWatchOption[]
+  movieCountries       MovieCountry[]
+  seriesCountries      SeriesCountry[]
+  movieWatchOptions    MovieWatchOption[]
+  movieCertifications  MovieCertification[]
+  seriesWatchOptions   SeriesWatchOption[]
   seriesCertifications SeriesCertification[]
   
   @@map("countries")
@@ -323,6 +324,7 @@ model Movie {
   watchOptions    MovieWatchOption[]
   videos          MovieVideo[]
   images          MovieImage[]
+  reviews         Review[]  // User reviews from TMDB
   aiData          MovieAiData?
   
   // User relations
@@ -380,15 +382,16 @@ model MovieCompany {
 }
 
 model MovieCountry {
-  movieId     Int     @map("movie_id")
-  countryCode String  @map("country_code")
+  movieId     Int         @map("movie_id")
+  countryCode String      @map("country_code")
+  type        CountryType @default(PRODUCTION) // ORIGIN or PRODUCTION
   
   movie       Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
   country     Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
   
-  @@id([movieId, countryCode])
+  @@id([movieId, countryCode, type])
+  @@index([countryCode, type]) // For "movies from India" queries
   @@map("movie_countries")
-  @@index([countryCode])
 }
 
 model MovieLanguage {
@@ -423,14 +426,15 @@ model MovieCertification {
 }
 
 model MovieCredit {
-  id          Int        @id @default(autoincrement())
-  movieId     Int        @map("movie_id")
-  personId    Int        @map("person_id")
-  character   String?
-  job         String?    // Director, Writer, etc. (for crew)
-  department  String?    // Directing, Writing, etc.
-  creditOrder Int?       @map("credit_order")
-  creditType  CreditType @map("credit_type")
+  id            Int        @id @default(autoincrement())
+  movieId       Int        @map("movie_id")
+  personId      Int        @map("person_id")
+  character     String?
+  job           String?    // Director, Writer, etc. (for crew)
+  department    String?    // Directing, Writing, etc.
+  creditOrder   Int?       @map("credit_order")
+  creditType    CreditType @map("credit_type")
+  isAggregate   Boolean    @default(false) @map("is_aggregate") // Always false for movies
   
   movie       Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
   person      Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
@@ -438,7 +442,7 @@ model MovieCredit {
   @@map("movie_credits")
   @@index([movieId])
   @@index([personId])
-  @@unique([movieId, personId, creditType, job]) // Prevent duplicates
+  @@unique([movieId, personId, creditType, character, isAggregate])
 }
 
 model MovieExternalId {
@@ -592,6 +596,7 @@ model Series {
   keywords        SeriesKeyword[]
   networks        SeriesNetwork[]
   companies       SeriesCompany[]
+  countries       SeriesCountry[]
   creators        SeriesCreator[]
   certifications  SeriesCertification[]
   credits         SeriesCredit[]
@@ -600,6 +605,7 @@ model Series {
   watchOptions    SeriesWatchOption[]
   videos          SeriesVideo[]
   images          SeriesImage[]
+  reviews         Review[]  // User reviews from TMDB
   seasons         Season[]
   aiData          SeriesAiData?
   
@@ -667,6 +673,19 @@ model SeriesCompany {
   @@index([companyId])
 }
 
+model SeriesCountry {
+  seriesId    Int         @map("series_id")
+  countryCode String      @map("country_code")
+  type        CountryType @default(ORIGIN) // Series only have ORIGIN type
+  
+  series      Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  country     Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+  
+  @@id([seriesId, countryCode, type])
+  @@index([countryCode, type]) // For "series from Korea" queries
+  @@map("series_countries")
+}
+
 model SeriesCreator {
   seriesId  Int    @map("series_id")
   personId  Int    @map("person_id")
@@ -695,14 +714,16 @@ model SeriesCertification {
 }
 
 model SeriesCredit {
-  id          Int        @id @default(autoincrement())
-  seriesId    Int        @map("series_id")
-  personId    Int        @map("person_id")
-  character   String?
-  job         String?
-  department  String?
-  creditOrder Int?       @map("credit_order")
-  creditType  CreditType @map("credit_type")
+  id                Int        @id @default(autoincrement())
+  seriesId          Int        @map("series_id")
+  personId          Int        @map("person_id")
+  character         String?
+  job               String?
+  department        String?
+  creditOrder       Int?       @map("credit_order")
+  creditType        CreditType @map("credit_type")
+  isAggregate       Boolean    @default(false) @map("is_aggregate") // true = all-time cast across episodes
+  totalEpisodeCount Int?       @map("total_episode_count") // Number of episodes (aggregate only)
   
   series      Series     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   person      Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
@@ -710,7 +731,8 @@ model SeriesCredit {
   @@map("series_credits")
   @@index([seriesId])
   @@index([personId])
-  @@unique([seriesId, personId, creditType, job])
+  @@index([seriesId, isAggregate]) // For filtering regular vs aggregate credits
+  @@unique([seriesId, personId, creditType, character, isAggregate])
 }
 
 model SeriesExternalId {
@@ -856,6 +878,126 @@ model Episode {
   @@map("episodes")
   @@unique([seasonId, episodeNumber])
   @@index([seasonId])
+}
+
+// =============================================================================
+// UNIFIED MEDIA TABLES (Polymorphic)
+// =============================================================================
+
+// Unified Video table - stores TMDB video metadata + YouTube engagement data
+// Replaces separate MovieVideo/SeriesVideo tables with polymorphic design
+model Video {
+  id Int @id @default(autoincrement())
+
+  // Polymorphic reference - exactly ONE should be set
+  movieId   Int? @map("movie_id")
+  seriesId  Int? @map("series_id")
+  seasonId  Int? @map("season_id")
+  episodeId Int? @map("episode_id")
+
+  // Video identification (from TMDB)
+  key         String    // YouTube video ID
+  name        String    // TMDB name (overwritten with YouTube title on engagement fetch)
+  site        String    @default("YouTube")
+  type        String    // Trailer, Teaser, Clip, Featurette, Behind the Scenes
+  official    Boolean   @default(false)
+  size        Int?      // 360, 480, 720, 1080
+  publishedAt DateTime? @map("published_at")
+
+  // YouTube engagement metrics (fetched via YouTube API)
+  viewCount    BigInt? @map("view_count")
+  likeCount    Int?    @map("like_count")
+  dislikeCount Int?    @map("dislike_count") // From Return YouTube Dislike API
+  commentCount Int?    @map("comment_count")
+
+  // Top comments snapshot (JSON array)
+  // Structure: [{ author, authorChannel, text, likeCount, publishedAt, isCreatorHeart }]
+  topComments Json? @map("top_comments")
+
+  // Flexible metadata (JSONB for extensibility)
+  // Structure: {
+  //   channelId?: string,
+  //   channelTitle?: string,
+  //   channelThumbnail?: string,
+  //   title?: string (YouTube title, may differ from TMDB name),
+  //   description?: string,
+  //   duration?: string (ISO 8601, e.g., "PT4M13S"),
+  // }
+  metadata Json? @map("metadata")
+
+  // Engagement freshness tracking (for cache invalidation)
+  engagementScrapedAt DateTime? @map("engagement_scraped_at")
+
+  // Relations
+  movie   Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series  Series?  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  season  Season?  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  episode Episode? @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([movieId, key])
+  @@unique([seriesId, key])
+  @@unique([seasonId, key])
+  @@unique([episodeId, key])
+  @@index([movieId])
+  @@index([seriesId])
+  @@index([viewCount(sort: Desc)])
+  @@map("videos")
+}
+
+// Unified Review table - stores reviews from TMDB, RT, IMDb, critics, etc.
+model Review {
+  id Int @id @default(autoincrement())
+
+  // Polymorphic reference - exactly ONE should be set
+  movieId   Int? @map("movie_id")
+  seriesId  Int? @map("series_id")
+  seasonId  Int? @map("season_id")
+  episodeId Int? @map("episode_id")
+
+  sourceId   Int    @map("source_id")
+  reviewType String @map("review_type") // "consensus", "critic", "user", "editorial", "top_review", "ai_summary"
+
+  // External ID from source (e.g., TMDB review ID) - used for deduplication
+  externalId String? @map("external_id")
+
+  // Content
+  title   String? // Review headline (for critic reviews)
+  content String  // Review text (consensus, full review, or excerpt)
+  excerpt String? // Short excerpt for display
+
+  // Author (for individual reviews, null for consensus/AI)
+  authorName  String? @map("author_name")
+  authorUrl   String? @map("author_url")
+  authorImage String? @map("author_image")
+  publication String? // "The New York Times", "Empire", etc.
+
+  // Rating (optional)
+  score        Float?
+  scoreDisplay String? @map("score_display") // Original format: "4/5", "B+", "8.5/10"
+  sentiment    String? // "positive", "negative", "mixed", "fresh", "rotten"
+
+  // Metadata
+  reviewUrl  String?   @map("review_url")
+  reviewDate DateTime? @map("review_date")
+  scrapedAt  DateTime  @default(now()) @map("scraped_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Flags
+  isVerified Boolean @default(false) @map("is_verified") // Top Critic (RT), Verified (IMDb)
+  isFeatured Boolean @default(false) @map("is_featured")
+  isHidden   Boolean @default(false) @map("is_hidden") // Soft delete
+
+  // Relations
+  movie   Movie?       @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series  Series?      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  source  RatingSource @relation(fields: [sourceId], references: [id])
+
+  @@unique([movieId, sourceId, externalId]) // Prevent duplicate reviews from same source
+  @@unique([seriesId, sourceId, externalId])
+  @@index([movieId])
+  @@index([seriesId])
+  @@index([sourceId])
+  @@map("reviews")
 }
 
 // =============================================================================
@@ -1075,6 +1217,11 @@ enum ImageType {
 enum LanguageType {
   ORIGINAL
   SPOKEN
+}
+
+enum CountryType {
+  ORIGIN      // Where the content originates from (TMDB origin_country)
+  PRODUCTION  // Where it was produced (TMDB production_countries)
 }
 
 enum WatchOptionType {
