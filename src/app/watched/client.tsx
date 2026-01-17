@@ -48,7 +48,7 @@ async function fetchWatched(): Promise<WatchedData> {
 export function WatchedClient() {
   const { status: authStatus } = useSession();
   const displayMode = usePreferencesStore(selectCardDisplayMode);
-  
+
   // State for filters
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState<string>("all");
@@ -68,23 +68,19 @@ export function WatchedClient() {
   // Filter and sort movies
   const filteredMovies = useMemo(() => {
     if (!watched) return [];
-    
+
     let movies = [...watched.movies];
 
     // Filter by search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      movies = movies.filter((movie) =>
-        movie.title.toLowerCase().includes(query)
-      );
+      movies = movies.filter((movie) => movie.title.toLowerCase().includes(query));
     }
 
     // Filter by genre
     if (selectedGenre !== "all") {
       const genreId = parseInt(selectedGenre, 10);
-      movies = movies.filter((movie) =>
-        movie.genres?.some((g) => g.id === genreId)
-      );
+      movies = movies.filter((movie) => movie.genres?.some((g) => g.id === genreId));
     }
 
     // Sort
@@ -116,8 +112,10 @@ export function WatchedClient() {
   const hasFilters = searchQuery.trim() || selectedGenre !== "all" || sortBy !== "watched";
 
   // Grid classes
-  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
-  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+  const posterGridClass =
+    "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
+  const wideGridClass =
+    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
   // Loading state
   if (authStatus === "loading") {
@@ -192,7 +190,7 @@ export function WatchedClient() {
               : `${watched?.totalCount} movies`}
           </Badge>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
           <div className="relative w-full sm:w-48">
@@ -204,7 +202,7 @@ export function WatchedClient() {
               className="pl-8 h-9"
             />
           </div>
-          
+
           {/* Genre Filter */}
           {watched && watched.allGenres.length > 0 && (
             <Select value={selectedGenre} onValueChange={setSelectedGenre}>
@@ -221,7 +219,7 @@ export function WatchedClient() {
               </SelectContent>
             </Select>
           )}
-          
+
           {/* Sort */}
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-[160px] h-9">
@@ -286,8 +284,10 @@ export function WatchedClient() {
 function WatchedSkeleton() {
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 
-  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
-  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+  const posterGridClass =
+    "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
+  const wideGridClass =
+    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
   return (
     <div className="space-y-6">
@@ -313,9 +313,3 @@ function WatchedSkeleton() {
     </div>
   );
 }
-
-
-
-
-
-

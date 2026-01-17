@@ -11,10 +11,7 @@ declare global {
           initialize: (config: GoogleOneTapConfig) => void;
           prompt: (callback?: (notification: GoogleNotification) => void) => void;
           cancel: () => void;
-          renderButton: (
-            parent: HTMLElement,
-            options: GoogleButtonOptions
-          ) => void;
+          renderButton: (parent: HTMLElement, options: GoogleButtonOptions) => void;
         };
       };
     };
@@ -74,19 +71,19 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
   // Check if user recently dismissed One Tap
   const isOnCooldown = useCallback(() => {
     if (typeof window === "undefined") return true;
-    
+
     const dismissedAt = localStorage.getItem(ONE_TAP_COOLDOWN_KEY);
     if (!dismissedAt) return false;
-    
+
     const dismissedTime = parseInt(dismissedAt, 10);
     const now = Date.now();
-    
+
     // Clear expired cooldown
     if (now - dismissedTime > ONE_TAP_COOLDOWN_DURATION) {
       localStorage.removeItem(ONE_TAP_COOLDOWN_KEY);
       return false;
     }
-    
+
     return true;
   }, []);
 
@@ -97,23 +94,20 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
   }, []);
 
   // Handle Google One Tap credential response
-  const handleCredentialResponse = useCallback(
-    async (response: { credential: string }) => {
-      try {
-        const result = await signIn("google-one-tap", {
-          credential: response.credential,
-          redirect: false,
-        });
+  const handleCredentialResponse = useCallback(async (response: { credential: string }) => {
+    try {
+      const result = await signIn("google-one-tap", {
+        credential: response.credential,
+        redirect: false,
+      });
 
-        if (result?.error) {
-          console.error("Google One Tap authentication failed:", result.error);
-        }
-      } catch (error) {
-        console.error("Google One Tap sign-in error:", error);
+      if (result?.error) {
+        console.error("Google One Tap authentication failed:", result.error);
       }
-    },
-    []
-  );
+    } catch (error) {
+      console.error("Google One Tap sign-in error:", error);
+    }
+  }, []);
 
   // Initialize and show Google One Tap
   const initializeOneTap = useCallback(() => {
@@ -175,7 +169,7 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
   useEffect(() => {
     // Only run for unauthenticated users
     if (status !== "unauthenticated") return;
-    
+
     // Check cooldown
     if (isOnCooldown()) {
       console.debug("One Tap on cooldown, skipping");
@@ -219,5 +213,3 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
   // Component renders nothing - One Tap is a browser-level overlay
   return null;
 }
-
-

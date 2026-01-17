@@ -1,14 +1,14 @@
 #!/usr/bin/env npx tsx
 /**
  * YouTube Channel-Based Trailer Discovery
- * 
+ *
  * Goal: Find viral/popular trailers by monitoring official channels
  * This discovers trailers that might not show in TMDB trending.
- * 
+ *
  * Uses file-based caching to avoid quota waste during development.
- * 
+ *
  * Run: npx tsx scripts/test-youtube-channels.ts [command]
- * 
+ *
  * Commands:
  *   channels   - Fetch from all curated channels (default)
  *   top        - Show top trailers by views
@@ -51,18 +51,53 @@ interface Channel {
 
 const CHANNELS: Channel[] = [
   // === TRAILER AGGREGATORS (High volume, good quality) ===
-  { id: "UCi8e0iOVk1fEOogdfu4YgfA", name: "Movieclips Trailers", category: "aggregator", priority: 1 },
+  {
+    id: "UCi8e0iOVk1fEOogdfu4YgfA",
+    name: "Movieclips Trailers",
+    category: "aggregator",
+    priority: 1,
+  },
   { id: "UCVhQ2NnY5Rskt6UjCUkJ_DA", name: "ONE Media", category: "aggregator", priority: 1 },
-  { id: "UC3gNmTGu-TTbFPpfSs5kNkg", name: "KinoCheck International", category: "aggregator", priority: 1 },
-  { id: "UCgRQHK8Ttr1j9xCEpCAlgbQ", name: "Rotten Tomatoes Trailers", category: "aggregator", priority: 2 },
-  { id: "UCOlBfHN6TkmBVzZ_lkzcKwQ", name: "FilmSelect Trailer", category: "aggregator", priority: 2 },
+  {
+    id: "UC3gNmTGu-TTbFPpfSs5kNkg",
+    name: "KinoCheck International",
+    category: "aggregator",
+    priority: 1,
+  },
+  {
+    id: "UCgRQHK8Ttr1j9xCEpCAlgbQ",
+    name: "Rotten Tomatoes Trailers",
+    category: "aggregator",
+    priority: 2,
+  },
+  {
+    id: "UCOlBfHN6TkmBVzZ_lkzcKwQ",
+    name: "FilmSelect Trailer",
+    category: "aggregator",
+    priority: 2,
+  },
   { id: "UCKy1dAqELo0zrOtPkf0eTMw", name: "IGN", category: "aggregator", priority: 2 },
-  { id: "UCRX7UEyE8kp35mPrgC2sosA", name: "JoBlo Movie Network", category: "aggregator", priority: 2 },
+  {
+    id: "UCRX7UEyE8kp35mPrgC2sosA",
+    name: "JoBlo Movie Network",
+    category: "aggregator",
+    priority: 2,
+  },
 
   // === MAJOR HOLLYWOOD STUDIOS ===
-  { id: "UCjmJDM5pRKbUlVIzDYYWb6g", name: "Warner Bros. Pictures", category: "studio", priority: 1 },
+  {
+    id: "UCjmJDM5pRKbUlVIzDYYWb6g",
+    name: "Warner Bros. Pictures",
+    category: "studio",
+    priority: 1,
+  },
   { id: "UCH1oRy1dINbMVp3UFWrKP0w", name: "Universal Pictures", category: "studio", priority: 1 },
-  { id: "UCz97F7dMxBNOfGYu3rx8aCw", name: "Sony Pictures Entertainment", category: "studio", priority: 1 },
+  {
+    id: "UCz97F7dMxBNOfGYu3rx8aCw",
+    name: "Sony Pictures Entertainment",
+    category: "studio",
+    priority: 1,
+  },
   { id: "UCF9imwPMSGz4Vq1NiTWCC7g", name: "Paramount Pictures", category: "studio", priority: 1 },
   { id: "UC_IRYSp4auq7hKLvziWVH6w", name: "Walt Disney Studios", category: "studio", priority: 1 },
   { id: "UCJ6nMHaJPZvsJ-HmUmj1SeA", name: "Lionsgate Movies", category: "studio", priority: 1 },
@@ -83,22 +118,63 @@ const CHANNELS: Channel[] = [
 
   // === ANIMATION ===
   { id: "UCiifkYAs_bq1pt_zbNAzYGg", name: "Pixar", category: "animation", priority: 1 },
-  { id: "UC1q0wCZy7f6ngqlXo1FmPAg", name: "DreamWorks Animation", category: "animation", priority: 2 },
+  {
+    id: "UC1q0wCZy7f6ngqlXo1FmPAg",
+    name: "DreamWorks Animation",
+    category: "animation",
+    priority: 2,
+  },
   { id: "UCq7OHvWO6Z3u-LztFdrcU-g", name: "Illumination", category: "animation", priority: 2 },
 
   // === ANIME ===
   { id: "UC6pGDc4bFGD1_36IKv3FnYg", name: "Crunchyroll", category: "anime", priority: 1 },
 
   // === INDIAN STUDIOS (Bollywood) ===
-  { id: "UC6P24bhhCmMPOcujA9PKPTA", name: "Warner Bros. India", category: "india", region: "IN", priority: 1 },
-  { id: "UCqM4XnBn7hewxBLSCbcHY0A", name: "T-Series Films", category: "india", region: "IN", priority: 1 },
+  {
+    id: "UC6P24bhhCmMPOcujA9PKPTA",
+    name: "Warner Bros. India",
+    category: "india",
+    region: "IN",
+    priority: 1,
+  },
+  {
+    id: "UCqM4XnBn7hewxBLSCbcHY0A",
+    name: "T-Series Films",
+    category: "india",
+    region: "IN",
+    priority: 1,
+  },
   { id: "UCq-Fj5jknLsUf-MWSy4_brA", name: "YRF", category: "india", region: "IN", priority: 1 },
-  { id: "UCKQKIY2YlI4L5QVg7hhfjrQ", name: "Dharma Productions", category: "india", region: "IN", priority: 1 },
-  { id: "UCDtX2nB4LzwaPQGXCL-DZsg", name: "Sony Pictures India", category: "india", region: "IN", priority: 2 },
+  {
+    id: "UCKQKIY2YlI4L5QVg7hhfjrQ",
+    name: "Dharma Productions",
+    category: "india",
+    region: "IN",
+    priority: 1,
+  },
+  {
+    id: "UCDtX2nB4LzwaPQGXCL-DZsg",
+    name: "Sony Pictures India",
+    category: "india",
+    region: "IN",
+    priority: 2,
+  },
 
   // === SOUTH INDIAN (Telugu/Tamil) ===
-  { id: "UCnJjcn5FrgrOEp5_N45ZLEQ", name: "Sri Venkateswara Creations", category: "india-south", region: "IN", priority: 1 },
-  { id: "UC4zWG9LccdWGUlF77LZ8toA", name: "Prime Video India", category: "india-south", region: "IN", priority: 2 },
+  {
+    id: "UCnJjcn5FrgrOEp5_N45ZLEQ",
+    name: "Sri Venkateswara Creations",
+    category: "india-south",
+    region: "IN",
+    priority: 1,
+  },
+  {
+    id: "UC4zWG9LccdWGUlF77LZ8toA",
+    name: "Prime Video India",
+    category: "india-south",
+    region: "IN",
+    priority: 2,
+  },
 
   // === DC / MARVEL ===
   { id: "UCvC4D8onUfXzvjTOM-dBfEA", name: "Marvel Entertainment", category: "comics", priority: 1 },
@@ -179,7 +255,10 @@ function clearCache() {
 
 let quotaUsed = 0;
 
-async function getChannelUploads(channel: Channel, maxResults: number = 15): Promise<YouTubeVideo[]> {
+async function getChannelUploads(
+  channel: Channel,
+  maxResults: number = 15
+): Promise<YouTubeVideo[]> {
   // Check cache first
   const cached = getCachedVideos(channel.id);
   if (cached) {
@@ -225,7 +304,8 @@ async function getChannelUploads(channel: Channel, maxResults: number = 15): Pro
   }
 
   const data = await response.json();
-  const videoIds = data.items?.map((item: any) => item.snippet.resourceId?.videoId).filter(Boolean) || [];
+  const videoIds =
+    data.items?.map((item: any) => item.snippet.resourceId?.videoId).filter(Boolean) || [];
 
   if (videoIds.length === 0) {
     console.log(`   ⚠️ ${channel.name}: No videos`);
@@ -285,27 +365,51 @@ function isLikelyTrailer(title: string, description: string): boolean {
 
   // Positive signals
   const trailerKeywords = [
-    "trailer", "teaser", "official", "first look", "sneak peek",
-    "announcement", "reveal", "coming soon", "in theaters", "in cinemas",
-    "streaming", "premiere", "final trailer", "new trailer"
+    "trailer",
+    "teaser",
+    "official",
+    "first look",
+    "sneak peek",
+    "announcement",
+    "reveal",
+    "coming soon",
+    "in theaters",
+    "in cinemas",
+    "streaming",
+    "premiere",
+    "final trailer",
+    "new trailer",
   ];
-  const hasTrailerKeyword = trailerKeywords.some(k => text.includes(k));
+  const hasTrailerKeyword = trailerKeywords.some((k) => text.includes(k));
 
   // Negative signals (not trailers)
   // Use word boundaries for short keywords to avoid false positives
   // e.g., "ost" matching "posted", "song" matching "songwriting"
   const negativeKeywords = [
-    "clip", "scene", "behind the scenes", "making of", "interview",
-    "review", "reaction", "explained", "breakdown", "easter egg",
-    "soundtrack", "music video", "lyric", "deleted scene",
-    "bonus", "commentary", "podcast"
+    "clip",
+    "scene",
+    "behind the scenes",
+    "making of",
+    "interview",
+    "review",
+    "reaction",
+    "explained",
+    "breakdown",
+    "easter egg",
+    "soundtrack",
+    "music video",
+    "lyric",
+    "deleted scene",
+    "bonus",
+    "commentary",
+    "podcast",
   ];
   // Short keywords that need word boundary matching
   const shortNegativeKeywords = ["ost", "song", "extra"];
 
   const hasNegativeKeyword =
-    negativeKeywords.some(k => text.includes(k)) ||
-    shortNegativeKeywords.some(k => new RegExp(`\\b${k}\\b`).test(text));
+    negativeKeywords.some((k) => text.includes(k)) ||
+    shortNegativeKeywords.some((k) => new RegExp(`\\b${k}\\b`).test(text));
 
   // Short clips from Movieclips are often scene clips
   if (text.includes("movieclips") && !hasTrailerKeyword) {
@@ -366,8 +470,12 @@ function printVideo(video: YouTubeVideo, index: number, showChannel: boolean = t
   const icon = isTrailer ? "🎬" : "📹";
   const movieTitle = extractMovieTitle(video.title);
 
-  console.log(`\n${index + 1}. ${icon} ${video.title.slice(0, 70)}${video.title.length > 70 ? "..." : ""}`);
-  console.log(`   👁️  ${formatViews(video.viewCount)} views | 👍 ${formatViews(video.likeCount)} | 📅 ${formatDate(video.publishedAt)}`);
+  console.log(
+    `\n${index + 1}. ${icon} ${video.title.slice(0, 70)}${video.title.length > 70 ? "..." : ""}`
+  );
+  console.log(
+    `   👁️  ${formatViews(video.viewCount)} views | 👍 ${formatViews(video.likeCount)} | 📅 ${formatDate(video.publishedAt)}`
+  );
   if (showChannel) {
     console.log(`   📺 ${video.channelTitle} [${video.channelCategory}]`);
   }
@@ -389,10 +497,10 @@ async function fetchAllChannels() {
   const allVideos: YouTubeVideo[] = [];
 
   // Group channels by category
-  const categories = [...new Set(CHANNELS.map(c => c.category))];
+  const categories = [...new Set(CHANNELS.map((c) => c.category))];
 
   for (const category of categories) {
-    const categoryChannels = CHANNELS.filter(c => c.category === category);
+    const categoryChannels = CHANNELS.filter((c) => c.category === category);
     console.log(`\n📁 ${category.toUpperCase()} (${categoryChannels.length} channels)`);
     console.log("─".repeat(50));
 
@@ -401,20 +509,20 @@ async function fetchAllChannels() {
       allVideos.push(...videos);
 
       // Small delay between API calls
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
     }
   }
 
   // Dedupe by video ID
   const seen = new Set<string>();
-  const unique = allVideos.filter(v => {
+  const unique = allVideos.filter((v) => {
     if (seen.has(v.id)) return false;
     seen.add(v.id);
     return true;
   });
 
   // Filter to trailers only
-  const trailers = unique.filter(v => isLikelyTrailer(v.title, v.description));
+  const trailers = unique.filter((v) => isLikelyTrailer(v.title, v.description));
 
   console.log("\n" + "=".repeat(70));
   console.log(`📊 SUMMARY`);
@@ -453,8 +561,10 @@ async function showTopTrailers() {
   for (const [cat, vids] of byCat) {
     const totalViews = vids.reduce((sum, v) => sum + v.viewCount, 0);
     const avgViews = Math.round(totalViews / vids.length);
-    console.log(`\n${cat.toUpperCase()}: ${vids.length} trailers | Avg: ${formatViews(avgViews)} views`);
-    
+    console.log(
+      `\n${cat.toUpperCase()}: ${vids.length} trailers | Avg: ${formatViews(avgViews)} views`
+    );
+
     // Top 3 from each category
     vids.sort((a, b) => b.viewCount - a.viewCount);
     vids.slice(0, 3).forEach((v, i) => {
@@ -475,7 +585,7 @@ async function showFreshTrailers() {
   console.log("=".repeat(70));
 
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const fresh = trailers.filter(t => new Date(t.publishedAt).getTime() > weekAgo);
+  const fresh = trailers.filter((t) => new Date(t.publishedAt).getTime() > weekAgo);
 
   console.log(`Found ${fresh.length} trailers from the last 7 days\n`);
 
@@ -550,10 +660,10 @@ async function compareWithTMDB() {
   console.log("\n" + "=".repeat(70));
   console.log("📈 DISCOVERY VALUE");
   console.log("=".repeat(70));
-  
+
   const ytOnlyViews = ytOnly.reduce((sum, v) => sum + v.viewCount, 0);
   const inBothViews = inBoth.reduce((sum, v) => sum + v.viewCount, 0);
-  
+
   console.log(`
 YouTube-Only Discoveries:
   - Count: ${ytOnly.length} trailers
@@ -621,4 +731,3 @@ Commands:
 }
 
 main();
-

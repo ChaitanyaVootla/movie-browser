@@ -30,8 +30,7 @@ export const FRESHNESS_THRESHOLDS = {
 export function getRefreshThreshold(releaseDate: Date | null): number {
   if (!releaseDate) return FRESHNESS_THRESHOLDS.MATURE;
 
-  const daysSinceRelease =
-    (Date.now() - releaseDate.getTime()) / DAY_MS;
+  const daysSinceRelease = (Date.now() - releaseDate.getTime()) / DAY_MS;
 
   if (daysSinceRelease < 14) return FRESHNESS_THRESHOLDS.VERY_NEW;
   if (daysSinceRelease < 30) return FRESHNESS_THRESHOLDS.NEW;
@@ -46,10 +45,7 @@ export function getRefreshThreshold(releaseDate: Date | null): number {
  * @param releaseDate - Content release date (determines threshold)
  * @returns true if data is stale and should be refreshed
  */
-export function isDataStale(
-  lastUpdated: Date | null,
-  releaseDate: Date | null
-): boolean {
+export function isDataStale(lastUpdated: Date | null, releaseDate: Date | null): boolean {
   if (!lastUpdated) return true; // Never fetched = stale
 
   const age = Date.now() - lastUpdated.getTime();

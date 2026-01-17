@@ -42,9 +42,7 @@ export async function getTableCounts(): Promise<Record<string, number>> {
 
   for (const table of tables) {
     try {
-      const [result] = await query<{ count: string }>(
-        `SELECT count() AS count FROM ${table}`
-      );
+      const [result] = await query<{ count: string }>(`SELECT count() AS count FROM ${table}`);
       counts[table] = parseInt(result?.count || "0", 10);
     } catch {
       counts[table] = 0;

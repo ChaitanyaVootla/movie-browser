@@ -52,7 +52,9 @@ test.describe("Security Headers", () => {
       const headers = response!.headers();
 
       expect(headers["x-frame-options"], `${name} missing X-Frame-Options`).toBe("SAMEORIGIN");
-      expect(headers["x-content-type-options"], `${name} missing X-Content-Type-Options`).toBe("nosniff");
+      expect(headers["x-content-type-options"], `${name} missing X-Content-Type-Options`).toBe(
+        "nosniff"
+      );
     }
   });
 });
@@ -63,7 +65,7 @@ test.describe("Environment Variable Security", () => {
 
     // Get all inline scripts
     const scripts = await page.locator("script").all();
-    
+
     for (const script of scripts) {
       const content = await script.textContent();
       if (content) {
@@ -96,7 +98,7 @@ test.describe("Environment Variable Security", () => {
 
     // Get the serialized state/props
     const scripts = await page.locator("script").all();
-    
+
     for (const script of scripts) {
       const content = await script.textContent();
       if (content) {
@@ -118,15 +120,15 @@ test.describe("Cookie Security", () => {
   test("session cookie has secure attributes", async ({ page, context }) => {
     // Navigate to trigger any session creation
     await page.goto("/");
-    
+
     // Get cookies
     const cookies = await context.cookies();
-    
+
     // Find session-related cookies
     const sessionCookies = cookies.filter(
       (c) => c.name.includes("session") || c.name.includes("auth") || c.name.includes("next-auth")
     );
-    
+
     // If session cookies exist, verify security
     for (const cookie of sessionCookies) {
       // HttpOnly prevents JavaScript access (not checkable in Playwright)
@@ -135,7 +137,7 @@ test.describe("Cookie Security", () => {
         cookie.sameSite === "Strict" || cookie.sameSite === "Lax",
         `Cookie ${cookie.name} should have SameSite attribute`
       ).toBeTruthy();
-      
+
       // In production, should be Secure (HTTPS only)
       // In dev, this may be false, so we just log
       if (process.env.NODE_ENV === "production") {
@@ -160,7 +162,7 @@ test.describe("Error Page Security", () => {
 
   test("invalid movie ID does not leak server errors", async ({ page }) => {
     await page.goto("/movie/not-a-number");
-    
+
     // Page should show user-friendly not found
     const html = await page.content();
     expect(html).not.toMatch(/TypeError|ReferenceError|SyntaxError/);
@@ -172,7 +174,7 @@ test.describe("Request Security", () => {
   test("iframe embedding is blocked", async ({ page, context }) => {
     // Create a page with an iframe pointing to our site
     const testPage = await context.newPage();
-    
+
     await testPage.setContent(`
       <html>
         <body>
@@ -180,14 +182,14 @@ test.describe("Request Security", () => {
         </body>
       </html>
     `);
-    
+
     // Wait for iframe to attempt load
     await testPage.waitForTimeout(2000);
-    
+
     // Due to X-Frame-Options: SAMEORIGIN, the iframe should be blocked
     // or the content should not load from a different origin
     const iframe = testPage.frameLocator("#target");
-    
+
     // This test verifies the header is set; actual blocking depends on browser behavior
     // The important thing is we verified the header exists in previous tests
   });

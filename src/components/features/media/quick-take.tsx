@@ -37,4 +37,3 @@ export function QuickTake({ items, className, maxVisible = 4 }: QuickTakeProps) 
     </div>
   );
 }
-

@@ -123,5 +123,3 @@ export function CountryLanguageBadges({
     </div>
   );
 }
-
-

@@ -3,10 +3,12 @@
  *
  * Main exports for the movie recommendation AI agent.
  *
- * Tool consolidation (14 → 9 tools):
+ * Tool consolidation (14 → 8 tools):
  * - get_details: Merged movie/series details + videos + related
- * - get_user_data: Merged watchlist + ratings + watched
+ * - smart_discover: Unified discovery + semantic + similar + user watchlist (via fromWatchlist flag)
  * - search: Renamed from search_movies
+ *
+ * REMOVED: get_user_data - was inefficient (returned IDs without titles)
  */
 
 // Agent
@@ -30,22 +32,18 @@ export {
   allTools,
   // Core tools
   searchTool,
-  discoverTool,
+  smartDiscoverTool,
   getTrendingTool,
   navigateTool,
   // Detail tools
   getDetailsTool,
   getPersonTool,
   getUpcomingTool,
-  // User data
-  getUserDataTool,
   // Context
   getPageContextTool,
-  // Legacy aliases (deprecated)
+  // Legacy aliases
   getMovieDetailsTool,
   getSeriesDetailsTool,
-  discoverMoviesTool,
-  discoverSeriesTool,
 } from "./tools";
 
 // Bedrock
@@ -55,11 +53,7 @@ export { createBedrockChat, createBedrockChatWithTools } from "./bedrock";
 export { getSystemPrompt, SYSTEM_PROMPT } from "./prompts/system";
 
 // Media tag resolution (server-side)
-export {
-  resolveMediaTags,
-  parseAndResolveContent,
-  needsResolution,
-} from "./resolve-media-tags";
+export { resolveMediaTags, parseAndResolveContent, needsResolution } from "./resolve-media-tags";
 
 // Logging & Cost Tracking (re-export from lib for convenience)
 export { usageLogger, aiLogger } from "@/lib/logger";

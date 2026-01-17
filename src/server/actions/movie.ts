@@ -11,11 +11,19 @@ import {
   type ScrapedWatchLinksMap,
 } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
-import {
-  HYDRATION_ENABLED,
-  getMovieWithHydration,
-} from "@/server/services/hydration/integration";
+import { HYDRATION_ENABLED, getMovieWithHydration } from "@/server/services/hydration/integration";
 import type { Movie, ExternalRating, WatchProviderData } from "@/types";
+
+/**
+ * PostgreSQL movie result shape.
+ * Used instead of `as any` for type safety when accessing postgres movie data.
+ */
+interface PostgresMovieResult extends Movie {
+  "watch/providers"?: {
+    results?: Record<string, WatchProviderData>;
+  };
+  scraped_watch_links?: ScrapedWatchLinksMap;
+}
 
 const GetMovieSchema = z.object({
   id: z.number().positive(),
@@ -44,12 +52,11 @@ export async function getMovie(id: number): Promise<Movie | null> {
     if (postgresMovie) {
       // PostgreSQL has all the data we need, including watch providers and scraped deep links
       const countryCode = await getCountryCode();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pgData = postgresMovie as any;
-      const tmdbWatchProviders = pgData["watch/providers"]?.results as Record<string, WatchProviderData> | undefined;
-      
+      const pgData = postgresMovie as PostgresMovieResult;
+      const tmdbWatchProviders = pgData["watch/providers"]?.results;
+
       // Get scraped deep links (India) from PostgreSQL
-      const scrapedWatchLinks = pgData.scraped_watch_links as ScrapedWatchLinksMap | undefined;
+      const scrapedWatchLinks = pgData.scraped_watch_links;
 
       const watchOptions = getWatchOptionsForCountry(
         countryCode,
@@ -101,8 +108,9 @@ export async function getMovie(id: number): Promise<Movie | null> {
     }));
 
     // Process watch options for the user's country
-    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)
-      ?.results as Record<string, WatchProviderData> | undefined;
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)?.results as
+      | Record<string, WatchProviderData>
+      | undefined;
 
     const watchOptions = getWatchOptionsForCountry(
       countryCode,
@@ -172,4 +180,3 @@ export async function getMovieBasic(id: number) {
     genres: movie.genres,
   };
 }
-

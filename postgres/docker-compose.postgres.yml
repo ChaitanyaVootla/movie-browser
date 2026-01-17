@@ -32,4 +32,3 @@ services:
 volumes:
   postgres_data:
     name: movie-browser-postgres-data
-

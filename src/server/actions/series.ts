@@ -5,17 +5,21 @@ import { getSeriesDetails, getSeasonDetails, getEpisodeDetails } from "@/server/
 import { getCachedSeriesRatings } from "@/server/db/cached-queries";
 import { getSeriesFromPostgresIfAvailable } from "@/server/db/postgres/hybrid";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
-import {
-  getWatchOptionsForCountry,
-  getOptimizedWatchProviders,
-} from "@/lib/watch-options";
+import { getWatchOptionsForCountry, getOptimizedWatchProviders } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
-import {
-  HYDRATION_ENABLED,
-  getSeriesWithHydration,
-} from "@/server/services/hydration/integration";
+import { HYDRATION_ENABLED, getSeriesWithHydration } from "@/server/services/hydration/integration";
 import type { Series, Season, Episode, ExternalRating, WatchProviderData } from "@/types";
 import { dataLogger } from "@/lib/logger";
+
+/**
+ * PostgreSQL series result shape.
+ * Used instead of `as any` for type safety when accessing postgres series data.
+ */
+interface PostgresSeriesResult extends Series {
+  "watch/providers"?: {
+    results?: Record<string, WatchProviderData>;
+  };
+}
 
 const GetSeriesSchema = z.object({
   id: z.number().positive(),
@@ -56,9 +60,8 @@ export async function getSeries(id: number): Promise<Series | null> {
       // PostgreSQL has all the data we need, including watch providers
       // Just need to process watch options for the user's country
       const countryCode = await getCountryCode();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pgData = postgresSeries as any;
-      const tmdbWatchProviders = pgData["watch/providers"]?.results as Record<string, WatchProviderData> | undefined;
+      const pgData = postgresSeries as PostgresSeriesResult;
+      const tmdbWatchProviders = pgData["watch/providers"]?.results;
 
       const watchOptions = getWatchOptionsForCountry(
         countryCode,
@@ -106,8 +109,9 @@ export async function getSeries(id: number): Promise<Series | null> {
     }));
 
     // Process watch options for the user's country
-    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)
-      ?.results as Record<string, WatchProviderData> | undefined;
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)?.results as
+      | Record<string, WatchProviderData>
+      | undefined;
 
     const watchOptions = getWatchOptionsForCountry(
       countryCode,
@@ -265,4 +269,3 @@ export async function getSeriesBasic(id: number) {
     number_of_seasons: series.number_of_seasons,
   };
 }
-

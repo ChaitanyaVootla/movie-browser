@@ -121,7 +121,9 @@ export async function fetchFromMongo(
     const isMigrated = !!doc.migratedToPostgres;
     const migratedAt = parseDate(doc.migratedAt);
     const migrated = isMigrated ? ` (migrated ${migratedAt?.toISOString() ?? "unknown"})` : "";
-    console.log(`[Hydration/Mongo] ${mediaType} ${id}: found${migrated}, updatedAt=${doc.updatedAt}`);
+    console.log(
+      `[Hydration/Mongo] ${mediaType} ${id}: found${migrated}, updatedAt=${doc.updatedAt}`
+    );
 
     return {
       enriched: transformMongoToEnriched(doc),
@@ -150,10 +152,7 @@ export function isMongoFresh(updatedAt: Date | null, releaseDate: string | Date 
  * Call this REGARDLESS of whether we used MongoDB or Lambda data
  * This tracks migration progress for eventual MongoDB deprecation
  */
-export async function markMongoAsMigrated(
-  mediaType: MediaType,
-  id: number
-): Promise<void> {
+export async function markMongoAsMigrated(mediaType: MediaType, id: number): Promise<void> {
   if (!MONGODB_ENABLED) return;
   if (mongoose.connection.readyState !== 1) return;
 
@@ -228,8 +227,8 @@ function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedData {
   // Google rating from googleData.ratings array
   if (googleData?.ratings) {
     // Match "Google users", "Google", etc. - anything starting with "google"
-    const googleRating = googleData.ratings.find(
-      (r: { name: string }) => r.name.toLowerCase().startsWith("google")
+    const googleRating = googleData.ratings.find((r: { name: string }) =>
+      r.name.toLowerCase().startsWith("google")
     );
     if (googleRating?.rating) {
       const score = parseFloat(googleRating.rating.replace("%", ""));
@@ -239,8 +238,8 @@ function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedData {
     }
 
     // Metacritic from googleData.ratings (Google scrapes it)
-    const metacriticRating = googleData.ratings.find(
-      (r: { name: string }) => r.name.toLowerCase().includes("metacritic")
+    const metacriticRating = googleData.ratings.find((r: { name: string }) =>
+      r.name.toLowerCase().includes("metacritic")
     );
     if (metacriticRating?.rating) {
       const score = parseFloat(metacriticRating.rating.replace("%", ""));
@@ -250,8 +249,8 @@ function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedData {
     }
 
     // Letterboxd from googleData.ratings (if available)
-    const letterboxdRating = googleData.ratings.find(
-      (r: { name: string }) => r.name.toLowerCase().includes("letterboxd")
+    const letterboxdRating = googleData.ratings.find((r: { name: string }) =>
+      r.name.toLowerCase().includes("letterboxd")
     );
     if (letterboxdRating?.rating) {
       const rawScore = parseFloat(letterboxdRating.rating.replace("%", ""));
@@ -263,8 +262,8 @@ function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedData {
 
     // Also check for IMDb in googleData if not already set (fallback)
     if (!enrichedRatings.imdb) {
-      const imdbRating = googleData.ratings.find(
-        (r: { name: string }) => r.name.toLowerCase().includes("imdb")
+      const imdbRating = googleData.ratings.find((r: { name: string }) =>
+        r.name.toLowerCase().includes("imdb")
       );
       if (imdbRating?.rating) {
         const score = parseFloat(imdbRating.rating);
@@ -276,8 +275,8 @@ function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedData {
 
     // Check for Rotten Tomatoes in googleData if not already set (fallback)
     if (!enrichedRatings.rtCritic) {
-      const rtRating = googleData.ratings.find(
-        (r: { name: string }) => r.name.toLowerCase().includes("rotten")
+      const rtRating = googleData.ratings.find((r: { name: string }) =>
+        r.name.toLowerCase().includes("rotten")
       );
       if (rtRating?.rating) {
         const score = parseFloat(rtRating.rating.replace("%", ""));
@@ -349,9 +348,11 @@ export async function getMigrationProgress(): Promise<{
   try {
     const [movieTotal, movieMigrated, seriesTotal, seriesMigrated] = await Promise.all([
       mongoose.connection.db?.collection("movies").countDocuments() ?? 0,
-      mongoose.connection.db?.collection("movies").countDocuments({ migratedToPostgres: true }) ?? 0,
+      mongoose.connection.db?.collection("movies").countDocuments({ migratedToPostgres: true }) ??
+        0,
       mongoose.connection.db?.collection("series").countDocuments() ?? 0,
-      mongoose.connection.db?.collection("series").countDocuments({ migratedToPostgres: true }) ?? 0,
+      mongoose.connection.db?.collection("series").countDocuments({ migratedToPostgres: true }) ??
+        0,
     ]);
 
     return {

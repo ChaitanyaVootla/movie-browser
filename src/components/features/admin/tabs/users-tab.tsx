@@ -47,12 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { TimeRange } from "../analytics-types";
 
@@ -412,12 +407,7 @@ export function UsersTab({ range }: UsersTabProps) {
             </SelectContent>
           </Select>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")} />
           {isRefreshing ? "Refreshing..." : "Refresh"}
         </Button>
@@ -432,12 +422,7 @@ export function UsersTab({ range }: UsersTabProps) {
           monthly={stats.activeMonth}
           isLoading={isLoading}
         />
-        <StatCard
-          title="Watched"
-          value={stats.totalWatched}
-          icon={Film}
-          isLoading={isLoading}
-        />
+        <StatCard title="Watched" value={stats.totalWatched} icon={Film} isLoading={isLoading} />
         <StatCard
           title="Watchlist"
           value={stats.totalWatchlist}
@@ -530,10 +515,7 @@ export function UsersTab({ range }: UsersTabProps) {
                 <TableSkeleton />
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center py-8 text-muted-foreground"
-                  >
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     {searchQuery || activityFilter !== "all"
                       ? "No users match your filters"
                       : "No users found"}
@@ -603,9 +585,7 @@ function SortableHeader({
       onClick={() => onSort(field)}
     >
       {label}
-      {isActive && (
-        <span className="text-[10px]">{direction === "asc" ? "↑" : "↓"}</span>
-      )}
+      {isActive && <span className="text-[10px]">{direction === "asc" ? "↑" : "↓"}</span>}
     </button>
   );
 }
@@ -636,9 +616,7 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
       <TableCell>
         <div className="min-w-[180px]">
           <p className="font-medium truncate max-w-[200px]">{user.name || "Unknown"}</p>
-          <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-            {user.email}
-          </p>
+          <p className="text-xs text-muted-foreground truncate max-w-[200px]">{user.email}</p>
         </div>
       </TableCell>
       <TableCell>
@@ -652,9 +630,7 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
               className="rounded-sm shrink-0"
             />
             <span className="text-sm truncate max-w-[100px]">
-              {user.location.countryName ||
-                user.location.country ||
-                user.location.countryCode}
+              {user.location.countryName || user.location.country || user.location.countryCode}
             </span>
           </div>
         ) : (
@@ -665,11 +641,11 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
       <TableCell className="text-center font-medium">
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger>
-              {(user.MoviesWatchList || 0) + (user.SeriesList || 0)}
-            </TooltipTrigger>
+            <TooltipTrigger>{(user.MoviesWatchList || 0) + (user.SeriesList || 0)}</TooltipTrigger>
             <TooltipContent>
-              <p>{user.MoviesWatchList || 0} movies, {user.SeriesList || 0} series</p>
+              <p>
+                {user.MoviesWatchList || 0} movies, {user.SeriesList || 0} series
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -679,16 +655,19 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger>
-                <span className={cn(
-                  "font-medium",
-                  aiStats.cost > 1 ? "text-amber-500" : 
-                  aiStats.cost > 0.1 ? "text-blue-500" : ""
-                )}>
+                <span
+                  className={cn(
+                    "font-medium",
+                    aiStats.cost > 1 ? "text-amber-500" : aiStats.cost > 0.1 ? "text-blue-500" : ""
+                  )}
+                >
                   ${aiStats.cost.toFixed(3)}
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{aiStats.invocations} calls, {aiStats.tokens.toLocaleString()} tokens</p>
+                <p>
+                  {aiStats.invocations} calls, {aiStats.tokens.toLocaleString()} tokens
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -703,11 +682,7 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
       </TableCell>
       <TableCell>
         <Button variant="ghost" size="icon" className="h-6 w-6">
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
       </TableCell>
     </TableRow>
@@ -798,9 +773,7 @@ function ExpandedUserDetails({ user, aiStats }: ExpandedUserDetailsProps) {
             {(user.location.isp || user.location.org) && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Building className="h-3.5 w-3.5" />
-                <span className="text-xs truncate">
-                  {user.location.isp || user.location.org}
-                </span>
+                <span className="text-xs truncate">{user.location.isp || user.location.org}</span>
               </div>
             )}
             {user.location.asname && (
@@ -877,15 +850,8 @@ function ExpandedUserDetails({ user, aiStats }: ExpandedUserDetailsProps) {
               href={`/${item.title ? "movie" : "series"}/${item.itemId}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <Badge
-                variant="secondary"
-                className="text-xs hover:bg-secondary/80 cursor-pointer"
-              >
-                {item.title ? (
-                  <Film className="h-3 w-3 mr-1" />
-                ) : (
-                  <Tv className="h-3 w-3 mr-1" />
-                )}
+              <Badge variant="secondary" className="text-xs hover:bg-secondary/80 cursor-pointer">
+                {item.title ? <Film className="h-3 w-3 mr-1" /> : <Tv className="h-3 w-3 mr-1" />}
                 <span className="truncate max-w-[100px]">{item.title || item.name}</span>
               </Badge>
             </Link>
@@ -905,8 +871,7 @@ function ExpandedUserDetails({ user, aiStats }: ExpandedUserDetailsProps) {
             <strong className="text-foreground">{user.SeriesList || 0}</strong> series
           </span>
           <span>
-            <strong className="text-foreground">{user.ContinueWatching || 0}</strong>{" "}
-            continue
+            <strong className="text-foreground">{user.ContinueWatching || 0}</strong> continue
           </span>
         </div>
       </div>
@@ -927,16 +892,13 @@ function StatCard({
   isLoading: boolean;
   format?: "number" | "currency";
 }) {
-  const formattedValue =
-    format === "currency" ? `$${value.toFixed(2)}` : value.toLocaleString();
+  const formattedValue = format === "currency" ? `$${value.toFixed(2)}` : value.toLocaleString();
 
   return (
     <Card className="p-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            {title}
-          </p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{title}</p>
           {isLoading ? (
             <Skeleton className="h-6 w-12 mt-1" />
           ) : (

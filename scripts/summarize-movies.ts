@@ -283,9 +283,7 @@ async function summarizeMovie(
   try {
     const response = await client.invoke([
       new SystemMessage(SYSTEM_PROMPT),
-      new HumanMessage(
-        `Analyze this movie and generate the JSON summary:\n\n${aiInput}`
-      ),
+      new HumanMessage(`Analyze this movie and generate the JSON summary:\n\n${aiInput}`),
     ]);
 
     // Extract token usage from response metadata
@@ -406,18 +404,22 @@ async function runBatch(): Promise<void> {
   const startedAt = new Date().toISOString();
   let completed = 0;
 
-  console.log(`\n🚀 Starting summarization of ${toProcess.length} movies (${parallelN} parallel)...\n`);
+  console.log(
+    `\n🚀 Starting summarization of ${toProcess.length} movies (${parallelN} parallel)...\n`
+  );
 
   // Process in chunks for parallel execution
   async function processMovie(movieId: number): Promise<BatchResult> {
     const startTime = Date.now();
     const result = await summarizeMovie(movieId, client);
     const duration = Date.now() - startTime;
-    
+
     completed++;
     const progress = `[${completed}/${toProcess.length}]`;
-    console.log(`${progress} ${result.title} - ${result.success ? "✅" : "❌"} (${(duration / 1000).toFixed(1)}s)`);
-    
+    console.log(
+      `${progress} ${result.title} - ${result.success ? "✅" : "❌"} (${(duration / 1000).toFixed(1)}s)`
+    );
+
     return {
       id: movieId,
       title: result.title,
@@ -439,14 +441,8 @@ async function runBatch(): Promise<void> {
   // Generate report
   const successful = results.filter((r) => r.success);
   const failed = results.filter((r) => !r.success);
-  const totalInputTokens = successful.reduce(
-    (sum, r) => sum + (r.inputTokens || 0),
-    0
-  );
-  const totalOutputTokens = successful.reduce(
-    (sum, r) => sum + (r.outputTokens || 0),
-    0
-  );
+  const totalInputTokens = successful.reduce((sum, r) => sum + (r.inputTokens || 0), 0);
+  const totalOutputTokens = successful.reduce((sum, r) => sum + (r.outputTokens || 0), 0);
   const totalDuration = results.reduce((sum, r) => sum + (r.duration || 0), 0);
 
   const report: BatchReport = {
@@ -518,10 +514,7 @@ async function runSingle(movieId: number): Promise<void> {
   if (!forceRegenerate && hasSummary(movieId)) {
     console.log(`⚠️  Summary already exists. Use --force to regenerate.`);
     const existing = JSON.parse(
-      readFileSync(
-        join(ENRICHED_DIR, String(movieId), "ai-summary.json"),
-        "utf-8"
-      )
+      readFileSync(join(ENRICHED_DIR, String(movieId), "ai-summary.json"), "utf-8")
     );
     console.log(`\nExisting summary:`);
     console.log(`   Hook: ${existing.hook}`);
@@ -542,10 +535,7 @@ async function runSingle(movieId: number): Promise<void> {
   if (result.success) {
     // Show the generated summary
     const summary = JSON.parse(
-      readFileSync(
-        join(ENRICHED_DIR, String(movieId), "ai-summary.json"),
-        "utf-8"
-      )
+      readFileSync(join(ENRICHED_DIR, String(movieId), "ai-summary.json"), "utf-8")
     ) as AISummary;
 
     console.log(`\n📋 Generated Summary:`);
@@ -579,4 +569,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

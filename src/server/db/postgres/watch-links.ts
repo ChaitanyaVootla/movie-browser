@@ -30,9 +30,10 @@ export async function getScrapedWatchLinksFromPostgres(
   mediaType: "movie" | "series"
 ): Promise<ScrapedWatchLink[]> {
   try {
-    const where = mediaType === "movie"
-      ? { movieId: id, countryCode: "IN" }
-      : { seriesId: id, countryCode: "IN" };
+    const where =
+      mediaType === "movie"
+        ? { movieId: id, countryCode: "IN" }
+        : { seriesId: id, countryCode: "IN" };
 
     const links = await prisma.scrapedWatchLink.findMany({
       where,

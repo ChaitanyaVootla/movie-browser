@@ -29,43 +29,40 @@ function getDefaultSeasonNumber(seasons: Season[]): number {
   return defaultSeason?.season_number ?? 1;
 }
 
-export function SeasonSelector({
-  seriesId,
-  seriesName,
-  seasons,
-  className,
-}: SeasonSelectorProps) {
+export function SeasonSelector({ seriesId, seriesName, seasons, className }: SeasonSelectorProps) {
   // Compute default season number once - stable across renders
   const defaultSeasonNumber = useRef(getDefaultSeasonNumber(seasons)).current;
-  
+
   // State for the selected season number - always controlled
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState(defaultSeasonNumber);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [isPending, startTransition] = useTransition();
 
   // Get the currently selected season object for display
-  const selectedSeason = seasons.find((s) => s.season_number === selectedSeasonNumber) 
-    || seasons[0];
+  const selectedSeason =
+    seasons.find((s) => s.season_number === selectedSeasonNumber) || seasons[0];
 
   // Load initial season episodes on mount only
   useEffect(() => {
     let cancelled = false;
-    
+
     startTransition(async () => {
       const seasonData = await getSeason(seriesId, defaultSeasonNumber);
       if (!cancelled && seasonData?.episodes) {
         setEpisodes(seasonData.episodes);
       }
     });
-    
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Run only once on mount
   }, []);
 
   const handleSeasonChange = (value: string) => {
     const seasonNumber = parseInt(value, 10);
     if (isNaN(seasonNumber)) return;
-    
+
     setSelectedSeasonNumber(seasonNumber);
     startTransition(async () => {
       const seasonData = await getSeason(seriesId, seasonNumber);
@@ -80,10 +77,7 @@ export function SeasonSelector({
   // Season selector header content - passed to EpisodeScroller as title
   const seasonHeader = (
     <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-      <Select
-        value={selectedSeason?.season_number.toString()}
-        onValueChange={handleSeasonChange}
-      >
+      <Select value={selectedSeason?.season_number.toString()} onValueChange={handleSeasonChange}>
         <SelectTrigger className="w-[140px] sm:w-[180px]">
           <SelectValue placeholder="Select Season" />
         </SelectTrigger>
@@ -156,5 +150,3 @@ export function SeasonSelector({
     </div>
   );
 }
-
-

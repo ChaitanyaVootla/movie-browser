@@ -14,12 +14,7 @@ export function Footer({ className }: FooterProps) {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 font-bold text-lg mb-4">
-              <Image
-                src="/popcorn-lite.png"
-                alt="TMB"
-                width={24}
-                height={24}
-              />
+              <Image src="/popcorn-lite.png" alt="TMB" width={24} height={24} />
               <span className="tracking-wider font-extrabold">TMB</span>
             </Link>
             <p className="text-sm text-muted-foreground">

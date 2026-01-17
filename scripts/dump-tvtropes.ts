@@ -36,8 +36,10 @@ function log(message: string, data?: unknown) {
 
 async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   const headers = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
     "Cache-Control": "max-age=0",
@@ -59,7 +61,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
       throw new Error(`HTTP ${response.status}`);
     } catch (error) {
       if (i === retries - 1) throw error;
-      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
     }
   }
   throw new Error("Failed after retries");
@@ -69,26 +71,26 @@ interface TVTropesContent {
   title: string;
   url: string;
   namespace: string;
-  
+
   // Page description/intro
   description: string;
-  
+
   // All tropes mentioned (the main content!)
   tropes: Array<{
     name: string;
     description: string;
     examples?: string[];
   }>;
-  
+
   // Subpages linked
   subpages: string[];
-  
+
   // Related pages
   relatedPages: string[];
-  
+
   // Categories/indexes
   indexes: string[];
-  
+
   // Raw folder structure
   folders: Record<string, string[]>;
 }
@@ -143,7 +145,7 @@ async function dumpTVTropes(tvTropesId: string) {
       const $folder = $(folder);
       const folderTitle = $folder.find(".folderlabel").text().trim() || "Main";
       const folderItems: string[] = [];
-      
+
       $folder.find("ul li").each((_, li) => {
         const $li = $(li);
         const text = $li.text().trim();
@@ -169,7 +171,7 @@ async function dumpTVTropes(tvTropesId: string) {
           }
         }
       });
-      
+
       if (folderItems.length > 0) {
         content.folders[folderTitle] = folderItems;
       }
@@ -177,17 +179,19 @@ async function dumpTVTropes(tvTropesId: string) {
 
     // Also check non-folder ul lists (some pages don't use folders)
     mainContent.children("ul").each((_, ul) => {
-      $(ul).find("li").each((_, li) => {
-        const $li = $(li);
-        const tropeName = $li.find("a.twikilink").first().text().trim();
-        const text = $li.text().trim();
-        if (tropeName && text) {
-          content.tropes.push({
-            name: tropeName,
-            description: text,
-          });
-        }
-      });
+      $(ul)
+        .find("li")
+        .each((_, li) => {
+          const $li = $(li);
+          const tropeName = $li.find("a.twikilink").first().text().trim();
+          const text = $li.text().trim();
+          if (tropeName && text) {
+            content.tropes.push({
+              name: tropeName,
+              description: text,
+            });
+          }
+        });
     });
 
     // Get subpages (tabs/linked pages for this work)
@@ -233,9 +237,7 @@ async function dumpTVTropes(tvTropesId: string) {
       subpagesCount: content.subpages.length,
       indexesCount: content.indexes.length,
       relatedPagesCount: content.relatedPages.length,
-      folders: Object.fromEntries(
-        Object.entries(content.folders).map(([k, v]) => [k, v.length])
-      ),
+      folders: Object.fromEntries(Object.entries(content.folders).map(([k, v]) => [k, v.length])),
     };
     writeFileSync(join(outputDir, "structure.json"), JSON.stringify(structure, null, 2));
     console.log(`   ✅ Saved structure analysis`);
@@ -257,24 +259,44 @@ ${content.description || "(No description found)"}
 
 ## Subpages
 
-${content.subpages.length > 0 ? content.subpages.map(s => `- ${s}`).join("\n") : "(None)"}
+${content.subpages.length > 0 ? content.subpages.map((s) => `- ${s}`).join("\n") : "(None)"}
 
 ## Indexes (Categories)
 
-${content.indexes.length > 0 ? content.indexes.slice(0, 20).map(i => `- ${i}`).join("\n") : "(None)"}
+${
+  content.indexes.length > 0
+    ? content.indexes
+        .slice(0, 20)
+        .map((i) => `- ${i}`)
+        .join("\n")
+    : "(None)"
+}
 
 ## Tropes by Folder
 
-${Object.entries(content.folders).map(([folder, items]) => `
+${Object.entries(content.folders)
+  .map(
+    ([folder, items]) => `
 ### ${folder} (${items.length} items)
 
-${items.slice(0, 10).map(i => `- ${i.slice(0, 200)}${i.length > 200 ? "..." : ""}`).join("\n")}
+${items
+  .slice(0, 10)
+  .map((i) => `- ${i.slice(0, 200)}${i.length > 200 ? "..." : ""}`)
+  .join("\n")}
 ${items.length > 10 ? `\n... and ${items.length - 10} more` : ""}
-`).join("\n")}
+`
+  )
+  .join("\n")}
 
 ## Sample Tropes (First 20)
 
-${content.tropes.slice(0, 20).map(t => `- **${t.name}**: ${t.description.slice(0, 150)}${t.description.length > 150 ? "..." : ""}`).join("\n")}
+${content.tropes
+  .slice(0, 20)
+  .map(
+    (t) =>
+      `- **${t.name}**: ${t.description.slice(0, 150)}${t.description.length > 150 ? "..." : ""}`
+  )
+  .join("\n")}
 `;
 
     writeFileSync(join(outputDir, "content.md"), markdown);
@@ -302,7 +324,7 @@ ${content.tropes.slice(0, 20).map(t => `- **${t.name}**: ${t.description.slice(0
 }
 
 async function main() {
-  const args = process.argv.slice(2).filter(a => !a.startsWith("-"));
+  const args = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 
   if (args.length === 0) {
     console.log(`
@@ -328,4 +350,3 @@ You can find the TV Tropes ID from:
 }
 
 main();
-

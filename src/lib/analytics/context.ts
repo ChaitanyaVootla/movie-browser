@@ -233,4 +233,3 @@ export async function shouldTrack(): Promise<{
     shouldTrackAnonymous: true, // Always count page views
   };
 }
-

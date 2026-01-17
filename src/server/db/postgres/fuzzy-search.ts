@@ -242,9 +242,7 @@ export async function getSpellingSuggestions(
  *   redirect(`/movie/${match.id}`);
  * }
  */
-export async function findExactMatch(
-  query: string
-): Promise<FuzzySearchResult | null> {
+export async function findExactMatch(query: string): Promise<FuzzySearchResult | null> {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return null;
 
@@ -347,8 +345,7 @@ export async function multiStrategySearch(
   const fuzzyResults = await fuzzySearch(query, options);
 
   // If no results, get spelling suggestions
-  const suggestions =
-    fuzzyResults.length === 0 ? await getSpellingSuggestions(query) : [];
+  const suggestions = fuzzyResults.length === 0 ? await getSpellingSuggestions(query) : [];
 
   return {
     exactMatch: null,

@@ -12,31 +12,32 @@ This document outlines the implementation plan for adding powerful search capabi
 
 ### What's Done ✅
 
-| Component | Status | Files |
-|-----------|--------|-------|
-| **pg_trgm extension** | ✅ Installed | `postgres/init/01-extensions.sql` |
-| **Trigram indexes (SQL)** | ✅ Created & Applied | `postgres/init/02-search-indexes.sql` |
-| **Fuzzy search function** | ✅ Implemented & Tested | `src/server/db/postgres/fuzzy-search.ts` |
-| **Test script** | ✅ Created | `scripts/verify/test-fuzzy-search.ts` |
-| **Schema: vector(1024)** | ✅ Updated | `prisma/schema.prisma` |
-| **Embedding generator (Bedrock)** | ✅ Implemented | `src/lib/embeddings/generator.ts` |
-| **Embedding text builder** | ✅ Implemented | `src/lib/embeddings/text-builder.ts` |
-| **CLI script** | ✅ Updated | `scripts/generate-embeddings.ts` |
-| **Semantic search function** | ✅ Implemented | `src/server/db/postgres/semantic-search.ts` |
-| **Test script** | ✅ Created | `scripts/verify/test-semantic-search.ts` |
-| **HNSW vector index** | ✅ Applied | `postgres/init/02-search-indexes.sql` |
-| **Intent classification** | ✅ Implemented | `src/lib/search/intent.ts` |
-| **Hybrid search (RRF)** | ✅ Implemented | `src/lib/search/hybrid.ts` |
-| **Search API endpoint** | ✅ Implemented | `src/app/api/search/route.ts` |
-| **Enhanced search action** | ✅ Implemented | `src/server/actions/search.ts` |
-| **Hybrid test script** | ✅ Created | `scripts/verify/test-hybrid-search.ts` |
-| **AI semantic_search tool** | ✅ Implemented | `src/server/ai/tools/semantic-search.ts` |
-| **AI find_similar tool** | ✅ Implemented | `src/server/ai/tools/similar.ts` |
-| **System prompt updated** | ✅ Updated | `src/server/ai/prompts/system.ts` |
+| Component                         | Status                  | Files                                       |
+| --------------------------------- | ----------------------- | ------------------------------------------- |
+| **pg_trgm extension**             | ✅ Installed            | `postgres/init/01-extensions.sql`           |
+| **Trigram indexes (SQL)**         | ✅ Created & Applied    | `postgres/init/02-search-indexes.sql`       |
+| **Fuzzy search function**         | ✅ Implemented & Tested | `src/server/db/postgres/fuzzy-search.ts`    |
+| **Test script**                   | ✅ Created              | `scripts/verify/test-fuzzy-search.ts`       |
+| **Schema: vector(1024)**          | ✅ Updated              | `prisma/schema.prisma`                      |
+| **Embedding generator (Bedrock)** | ✅ Implemented          | `src/lib/embeddings/generator.ts`           |
+| **Embedding text builder**        | ✅ Implemented          | `src/lib/embeddings/text-builder.ts`        |
+| **CLI script**                    | ✅ Updated              | `scripts/generate-embeddings.ts`            |
+| **Semantic search function**      | ✅ Implemented          | `src/server/db/postgres/semantic-search.ts` |
+| **Test script**                   | ✅ Created              | `scripts/verify/test-semantic-search.ts`    |
+| **HNSW vector index**             | ✅ Applied              | `postgres/init/02-search-indexes.sql`       |
+| **Intent classification**         | ✅ Implemented          | `src/lib/search/intent.ts`                  |
+| **Hybrid search (RRF)**           | ✅ Implemented          | `src/lib/search/hybrid.ts`                  |
+| **Search API endpoint**           | ✅ Implemented          | `src/app/api/search/route.ts`               |
+| **Enhanced search action**        | ✅ Implemented          | `src/server/actions/search.ts`              |
+| **Hybrid test script**            | ✅ Created              | `scripts/verify/test-hybrid-search.ts`      |
+| **AI semantic_search tool**       | ✅ Implemented          | `src/server/ai/tools/semantic-search.ts`    |
+| **AI find_similar tool**          | ✅ Implemented          | `src/server/ai/tools/similar.ts`            |
+| **System prompt updated**         | ✅ Updated              | `src/server/ai/prompts/system.ts`           |
 
 ### Phase 1 COMPLETE ✅ (Jan 2026)
 
 Fuzzy search is fully functional with:
+
 - 5,000 movies, 2,000 series, 120K+ persons in database
 - All 8 trigram indexes created and working
 - Query times ~250-400ms
@@ -48,6 +49,7 @@ Fuzzy search is fully functional with:
 **Run tests:** `yarn test:fuzzy`
 
 **Apply indexes (if needed):**
+
 ```bash
 docker exec -i movie-browser-postgres psql -U moviebrowser -d moviebrowser < postgres/init/02-search-indexes.sql
 ```
@@ -55,6 +57,7 @@ docker exec -i movie-browser-postgres psql -U moviebrowser -d moviebrowser < pos
 ### Phase 2 COMPLETE ✅ (Jan 2026)
 
 Semantic search is fully functional with:
+
 - 150 movies with embeddings (initial test batch)
 - Amazon Titan Text Embeddings V2 (1024 dimensions)
 - HNSW vector index for fast similarity search
@@ -62,11 +65,12 @@ Semantic search is fully functional with:
 - Similarity search latency ~5-20ms
 
 **Test Results:**
+
 ```
 Query: "mind-bending sci-fi about dreams"
 → Inception (33.4% similarity) ✅
 
-Query: "horror scary supernatural"  
+Query: "horror scary supernatural"
 → 7 horror movies found (30-41% similarity)
 
 Similar to Inception:
@@ -76,6 +80,7 @@ Similar to Inception:
 **Run tests:** `yarn test:semantic`
 
 **Generate more embeddings:**
+
 ```bash
 # Generate for 1000 popular movies
 npx tsx scripts/generate-embeddings.ts --limit=1000 --min-popularity=5
@@ -84,6 +89,7 @@ npx tsx scripts/generate-embeddings.ts --limit=1000 --min-popularity=5
 ### Phase 3 COMPLETE ✅ (Jan 2026)
 
 Hybrid search combining fuzzy and semantic with RRF scoring:
+
 - Query intent classification (title/semantic/person/filter/mixed)
 - Reciprocal Rank Fusion (RRF) with k=60
 - Dynamic weight adjustment based on intent
@@ -94,6 +100,7 @@ Hybrid search combining fuzzy and semantic with RRF scoring:
 **Run tests:** `yarn test:hybrid`
 
 **API Usage:**
+
 ```bash
 # Basic search
 curl "http://localhost:3000/api/search?q=Inception"
@@ -113,38 +120,44 @@ curl "http://localhost:3000/api/search?q=nolan&type=person"
 AI Agent integration with semantic search capabilities.
 
 **Phase 4.1: Initial Tools** (completed earlier)
+
 - `semantic_search` - Natural language search using hybrid (fuzzy + embeddings)
 - `find_similar` - Embedding-based similarity with TMDB fallback
 
 **Phase 4.2: Tool Consolidation** ✨ (Jan 10, 2026)
 
 Consolidated three tools (`discover`, `semantic_search`, `find_similar`) into ONE powerful tool:
+
 - **`smart_discover`** - Unified PostgreSQL-backed discovery with optional semantic ranking
 
 **Why consolidate?**
+
 1. Simpler tool selection for the AI agent (less cognitive load)
 2. **Filter + semantic combined** - impossible with separate tools
 3. Single PostgreSQL query for efficiency
 4. Better fallback behavior
 
 **Key Features:**
+
 - **Filter-only queries:** Genre, year, cast, keywords, streaming, language, country
 - **Semantic queries:** Natural language mood/vibe ranking via embeddings
 - **Find similar:** Via `similarTo` parameter using source item's embedding
 - **THE MAGIC COMBO:** Filters + semantic in ONE query!
 
 **Example: "Dark Korean horror from 2020s"**
+
 ```typescript
 smart_discover({
   semanticQuery: "dark atmospheric horror",
   genres: ["Horror"],
   originCountry: "KR",
-  releasedAfter: "2020"
-})
+  releasedAfter: "2020",
+});
 // PostgreSQL does: filter by genre/country/year → rank by embedding similarity
 ```
 
 **New/Updated Files:**
+
 - `src/server/db/postgres/smart-discover.ts` - Core PostgreSQL query builder (NEW)
 - `src/server/ai/tools/smart-discover.ts` - AI tool definition (NEW)
 - `src/server/ai/tools/index.ts` - Updated (9 active tools + 3 legacy)
@@ -152,11 +165,13 @@ smart_discover({
 - `.cursor/rules/ai-agent.mdc` - Updated documentation
 
 **Legacy Tools (deprecated, kept for backward compatibility):**
+
 - `semantic-search.ts` → Use `smart_discover({ semanticQuery: "..." })`
 - `similar.ts` → Use `smart_discover({ similarTo: id })`
 - `discover.ts` → Use `smart_discover({ ...filters })`
 
 **Test Results:**
+
 ```
 Query: "dark Korean horror movies"
 → smart_discover({ semanticQuery: "dark atmospheric horror", genres: ["Horror"], originCountry: "KR" })
@@ -173,6 +188,7 @@ Query: "more like inception"
 ```
 
 **Run tests:**
+
 ```bash
 yarn test:ai "dark Korean horror movies" --debug
 yarn test:ai "mind-bending sci-fi" --debug
@@ -181,14 +197,14 @@ yarn test:ai "more like inception" --debug
 
 ### Phase Summary
 
-| Phase | Description | Status |
-|-------|-------------|--------|
-| **Phase 1** | Fuzzy Search (pg_trgm) | ✅ Complete |
-| **Phase 2** | Semantic Search (pgvector) | ✅ Complete |
-| **Phase 3** | Hybrid Search (RRF) | ✅ Complete |
-| **Phase 4** | AI Agent Integration | ✅ Complete |
+| Phase         | Description                           | Status               |
+| ------------- | ------------------------------------- | -------------------- |
+| **Phase 1**   | Fuzzy Search (pg_trgm)                | ✅ Complete          |
+| **Phase 2**   | Semantic Search (pgvector)            | ✅ Complete          |
+| **Phase 3**   | Hybrid Search (RRF)                   | ✅ Complete          |
+| **Phase 4**   | AI Agent Integration                  | ✅ Complete          |
 | **Phase 4.2** | Tool Consolidation (`smart_discover`) | ✅ Complete (Jan 10) |
-| **Phase 5** | Personalization | 📝 Planned |
+| **Phase 5**   | Personalization                       | 📝 Planned           |
 
 ---
 
@@ -213,24 +229,24 @@ yarn test:ai "more like inception" --debug
 
 ### What We Have ✅
 
-| Component | Status | Details |
-|-----------|--------|---------|
-| PostgreSQL Extensions | Installed | `pgvector`, `pg_trgm`, `uuid-ossp` |
-| Embedding Columns | Schema Ready | `vector(1024)` on `movies` and `series` tables |
-| Enriched Data | ~95 movies | AI summaries, themes, moods, keywords in `data/enriched/` |
-| AI Agent | Operational | 9 tools (smart_discover consolidates 3 legacy tools) |
-| Previous VectorDB Work | Prototype | ChromaDB + `text-embedding-3-small` in `VectorDB/` |
-| Trigram Settings | Configured | `pg_trgm.similarity_threshold = 0.2` |
+| Component              | Status       | Details                                                   |
+| ---------------------- | ------------ | --------------------------------------------------------- |
+| PostgreSQL Extensions  | Installed    | `pgvector`, `pg_trgm`, `uuid-ossp`                        |
+| Embedding Columns      | Schema Ready | `vector(1024)` on `movies` and `series` tables            |
+| Enriched Data          | ~95 movies   | AI summaries, themes, moods, keywords in `data/enriched/` |
+| AI Agent               | Operational  | 9 tools (smart_discover consolidates 3 legacy tools)      |
+| Previous VectorDB Work | Prototype    | ChromaDB + `text-embedding-3-small` in `VectorDB/`        |
+| Trigram Settings       | Configured   | `pg_trgm.similarity_threshold = 0.2`                      |
 
 ### Current Limitations ❌
 
-| Issue | Impact | Solution |
-|-------|--------|----------|
-| Search uses TMDB API only | No local intelligence, rate limited | PostgreSQL-first search |
-| Basic `ILIKE` matching | No typo tolerance | Trigram indexes + similarity |
-| Empty embedding columns | No semantic search | Embedding generation pipeline |
-| No hybrid search | Miss relevant results | RRF combination strategy |
-| No personalization | Generic recommendations | User taste embeddings |
+| Issue                     | Impact                              | Solution                      |
+| ------------------------- | ----------------------------------- | ----------------------------- |
+| Search uses TMDB API only | No local intelligence, rate limited | PostgreSQL-first search       |
+| Basic `ILIKE` matching    | No typo tolerance                   | Trigram indexes + similarity  |
+| Empty embedding columns   | No semantic search                  | Embedding generation pipeline |
+| No hybrid search          | Miss relevant results               | RRF combination strategy      |
+| No personalization        | Generic recommendations             | User taste embeddings         |
 
 ### Data Available for Embedding
 
@@ -326,6 +342,7 @@ For each movie/series we can embed:
 ## Phase 1: Fuzzy Search with `pg_trgm`
 
 ### Objective
+
 Enable typo-tolerant, forgiving search that handles misspellings and partial matches.
 
 ### Duration: 1-2 days
@@ -344,37 +361,37 @@ Add to `postgres/init/` or run migration:
 -- =============================================================================
 
 -- Movies
-CREATE INDEX IF NOT EXISTS idx_movies_title_trgm 
+CREATE INDEX IF NOT EXISTS idx_movies_title_trgm
 ON movies USING GIN (title gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS idx_movies_original_title_trgm 
+CREATE INDEX IF NOT EXISTS idx_movies_original_title_trgm
 ON movies USING GIN (original_title gin_trgm_ops);
 
 -- Composite index for both title fields
-CREATE INDEX IF NOT EXISTS idx_movies_titles_trgm 
+CREATE INDEX IF NOT EXISTS idx_movies_titles_trgm
 ON movies USING GIN ((title || ' ' || COALESCE(original_title, '')) gin_trgm_ops);
 
 -- Series
-CREATE INDEX IF NOT EXISTS idx_series_name_trgm 
+CREATE INDEX IF NOT EXISTS idx_series_name_trgm
 ON series USING GIN (name gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS idx_series_original_name_trgm 
+CREATE INDEX IF NOT EXISTS idx_series_original_name_trgm
 ON series USING GIN (original_name gin_trgm_ops);
 
 -- Persons (actors, directors)
-CREATE INDEX IF NOT EXISTS idx_persons_name_trgm 
+CREATE INDEX IF NOT EXISTS idx_persons_name_trgm
 ON persons USING GIN (name gin_trgm_ops);
 
 -- Person aliases (nicknames, alternate spellings)
-CREATE INDEX IF NOT EXISTS idx_person_aliases_trgm 
+CREATE INDEX IF NOT EXISTS idx_person_aliases_trgm
 ON person_aliases USING GIN (alias gin_trgm_ops);
 
 -- Keywords (for semantic tag matching)
-CREATE INDEX IF NOT EXISTS idx_keywords_name_trgm 
+CREATE INDEX IF NOT EXISTS idx_keywords_name_trgm
 ON keywords USING GIN (name gin_trgm_ops);
 
 -- Genres
-CREATE INDEX IF NOT EXISTS idx_genres_name_trgm 
+CREATE INDEX IF NOT EXISTS idx_genres_name_trgm
 ON genres USING GIN (name gin_trgm_ops);
 
 -- =============================================================================
@@ -382,24 +399,24 @@ ON genres USING GIN (name gin_trgm_ops);
 -- =============================================================================
 
 -- Movies with weighted vectors
-CREATE INDEX IF NOT EXISTS idx_movies_fts ON movies 
-USING GIN (to_tsvector('english', 
-  COALESCE(title, '') || ' ' || 
-  COALESCE(overview, '') || ' ' || 
+CREATE INDEX IF NOT EXISTS idx_movies_fts ON movies
+USING GIN (to_tsvector('english',
+  COALESCE(title, '') || ' ' ||
+  COALESCE(overview, '') || ' ' ||
   COALESCE(tagline, '')
 ));
 
 -- Series
-CREATE INDEX IF NOT EXISTS idx_series_fts ON series 
-USING GIN (to_tsvector('english', 
-  COALESCE(name, '') || ' ' || 
+CREATE INDEX IF NOT EXISTS idx_series_fts ON series
+USING GIN (to_tsvector('english',
+  COALESCE(name, '') || ' ' ||
   COALESCE(overview, '')
 ));
 
 -- Persons
-CREATE INDEX IF NOT EXISTS idx_persons_fts ON persons 
-USING GIN (to_tsvector('english', 
-  COALESCE(name, '') || ' ' || 
+CREATE INDEX IF NOT EXISTS idx_persons_fts ON persons
+USING GIN (to_tsvector('english',
+  COALESCE(name, '') || ' ' ||
   COALESCE(biography, '')
 ));
 ```
@@ -582,9 +599,7 @@ export async function getSpellingSuggestions(
 /**
  * Check if query exactly matches a known title (for direct navigation).
  */
-export async function findExactMatch(
-  query: string
-): Promise<FuzzySearchResult | null> {
+export async function findExactMatch(query: string): Promise<FuzzySearchResult | null> {
   const normalizedQuery = query.trim().toLowerCase();
 
   const result = await prisma.$queryRaw<FuzzySearchResult[]>`
@@ -618,12 +633,12 @@ export async function enhancedSearch(input: { query: string; page?: number }) {
 
   // Try PostgreSQL fuzzy search first for better typo handling
   const pgResults = await fuzzySearch(query, { limit: 20, boostPopular: true });
-  
+
   // If no results, get spelling suggestions
   let suggestions: string[] = [];
   if (pgResults.length === 0) {
     const spellingSuggestions = await getSpellingSuggestions(query);
-    suggestions = spellingSuggestions.map(s => s.suggestion);
+    suggestions = spellingSuggestions.map((s) => s.suggestion);
   }
 
   // Fallback to TMDB for items not in our database
@@ -654,7 +669,7 @@ describe("Fuzzy Search", () => {
 
   it("finds movies with partial matches", async () => {
     const results = await fuzzySearch("dark knight");
-    expect(results.some(r => r.title.includes("Dark Knight"))).toBe(true);
+    expect(results.some((r) => r.title.includes("Dark Knight"))).toBe(true);
   });
 
   it("searches across person aliases", async () => {
@@ -670,6 +685,7 @@ describe("Fuzzy Search", () => {
 ## Phase 2: Semantic Search with pgvector
 
 ### Objective
+
 Enable meaning-based search that understands context, themes, and mood - not just keywords.
 
 ### Duration: 3-5 days
@@ -680,15 +696,16 @@ Enable meaning-based search that understands context, themes, and mood - not jus
 
 **Selected: Amazon Titan Text Embeddings V2** (via AWS Bedrock)
 
-| Model | Provider | Dimensions | Cost/1K tokens | Pros | Cons |
-|-------|----------|------------|----------------|------|------|
-| **`amazon.titan-embed-text-v2:0`** | AWS Bedrock | 256/384/**1024** | $0.00002 | AWS ecosystem, configurable dims | ✅ Selected |
-| `text-embedding-3-small` | OpenAI | 1536 | $0.00002 | Fast, cheap, proven | Separate API |
-| `text-embedding-3-large` | OpenAI | 3072 | $0.00013 | Higher quality | More expensive |
-| `cohere.embed-english-v3` | AWS Bedrock | 1024 | $0.0001 | Good quality | 5x more expensive |
-| `amazon.nova-embed-v1:0` | AWS Bedrock | 256-3072 | $0.0002 | Multimodal | Overkill for text |
+| Model                              | Provider    | Dimensions       | Cost/1K tokens | Pros                             | Cons              |
+| ---------------------------------- | ----------- | ---------------- | -------------- | -------------------------------- | ----------------- |
+| **`amazon.titan-embed-text-v2:0`** | AWS Bedrock | 256/384/**1024** | $0.00002       | AWS ecosystem, configurable dims | ✅ Selected       |
+| `text-embedding-3-small`           | OpenAI      | 1536             | $0.00002       | Fast, cheap, proven              | Separate API      |
+| `text-embedding-3-large`           | OpenAI      | 3072             | $0.00013       | Higher quality                   | More expensive    |
+| `cohere.embed-english-v3`          | AWS Bedrock | 1024             | $0.0001        | Good quality                     | 5x more expensive |
+| `amazon.nova-embed-v1:0`           | AWS Bedrock | 256-3072         | $0.0002        | Multimodal                       | Overkill for text |
 
 **Why Titan Text Embeddings V2:**
+
 - **Same price** as OpenAI text-embedding-3-small ($0.00002/1K tokens)
 - **Configurable dimensions** (256, 384, 1024) for different use cases
 - **Already using Bedrock** for AI agent - consolidate on AWS
@@ -715,11 +732,11 @@ interface MovieEmbeddingInput {
   genres: string[];
   keywords: string[];
   tagline?: string | null;
-  
+
   // Credits
   director?: string | null;
   topCast?: string[];
-  
+
   // AI-enriched data (if available)
   themes?: string[];
   mood?: {
@@ -846,13 +863,15 @@ export async function generateMovieEmbeddings(
 
   // Get movies without embeddings
   // Note: Can't filter by embedding IS NULL in Prisma with Unsupported type
-  const movies = await prisma.$queryRaw<Array<{
-    id: number;
-    title: string;
-    overview: string | null;
-    tagline: string | null;
-    popularity: number | null;
-  }>>`
+  const movies = await prisma.$queryRaw<
+    Array<{
+      id: number;
+      title: string;
+      overview: string | null;
+      tagline: string | null;
+      popularity: number | null;
+    }>
+  >`
     SELECT m.id, m.title, m.overview, m.tagline, m.popularity
     FROM movies m
     WHERE m.embedding IS NULL
@@ -866,7 +885,7 @@ export async function generateMovieEmbeddings(
   // Process in batches
   for (let i = 0; i < movies.length; i += BATCH_SIZE) {
     const batch = movies.slice(i, i + BATCH_SIZE);
-    
+
     // Fetch additional data for each movie in batch
     const enrichedBatch = await Promise.all(
       batch.map(async (movie) => {
@@ -890,22 +909,22 @@ export async function generateMovieEmbeddings(
           }),
         ]);
 
-        const director = credits.find(c => c.job === "Director")?.person.name;
+        const director = credits.find((c) => c.job === "Director")?.person.name;
         const topCast = credits
-          .filter(c => c.creditType === "CAST")
+          .filter((c) => c.creditType === "CAST")
           .slice(0, 5)
-          .map(c => c.person.name);
+          .map((c) => c.person.name);
 
         const embeddingText = buildMovieEmbeddingText({
           title: movie.title,
           overview: movie.overview,
           tagline: movie.tagline,
-          genres: genres.map(g => g.genre.name),
-          keywords: keywords.map(k => k.keyword.name),
+          genres: genres.map((g) => g.genre.name),
+          keywords: keywords.map((k) => k.keyword.name),
           director,
           topCast,
           themes: aiData?.themes || undefined,
-          mood: aiData?.mood as any || undefined,
+          mood: (aiData?.mood as any) || undefined,
           quickTake: aiData?.quickTake || undefined,
         });
 
@@ -919,7 +938,7 @@ export async function generateMovieEmbeddings(
     );
 
     // Filter out movies with no meaningful text
-    const validBatch = enrichedBatch.filter(m => m.embeddingText.length > 50);
+    const validBatch = enrichedBatch.filter((m) => m.embeddingText.length > 50);
     stats.skipped += enrichedBatch.length - validBatch.length;
 
     if (validBatch.length === 0) continue;
@@ -928,11 +947,14 @@ export async function generateMovieEmbeddings(
     const totalTokens = validBatch.reduce((sum, m) => sum + m.tokens, 0);
     stats.tokensUsed += totalTokens;
 
-    logger.info({
-      batch: Math.floor(i / BATCH_SIZE) + 1,
-      movies: validBatch.length,
-      tokens: totalTokens,
-    }, "Processing batch");
+    logger.info(
+      {
+        batch: Math.floor(i / BATCH_SIZE) + 1,
+        movies: validBatch.length,
+        tokens: totalTokens,
+      },
+      "Processing batch"
+    );
 
     if (dryRun) {
       stats.processed += validBatch.length;
@@ -942,7 +964,7 @@ export async function generateMovieEmbeddings(
     try {
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
-        input: validBatch.map(m => m.embeddingText),
+        input: validBatch.map((m) => m.embeddingText),
       });
 
       // Update database with embeddings
@@ -959,14 +981,13 @@ export async function generateMovieEmbeddings(
 
       stats.processed += validBatch.length;
       logger.info({ processed: stats.processed }, "Batch complete");
-
     } catch (error) {
       logger.error({ error, batch: i }, "Batch failed");
       stats.errors += validBatch.length;
     }
 
     // Rate limit: OpenAI allows 3000 RPM, but be conservative
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
   return stats;
@@ -980,7 +1001,7 @@ export async function generateQueryEmbedding(query: string): Promise<number[]> {
     model: "text-embedding-3-small",
     input: query,
   });
-  
+
   return response.data[0].embedding;
 }
 ```
@@ -998,12 +1019,12 @@ export async function generateQueryEmbedding(query: string): Promise<number[]> {
 -- Cosine distance is best for text embeddings
 
 -- Movies embedding index
-CREATE INDEX IF NOT EXISTS idx_movies_embedding_hnsw 
+CREATE INDEX IF NOT EXISTS idx_movies_embedding_hnsw
 ON movies USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 
--- Series embedding index  
-CREATE INDEX IF NOT EXISTS idx_series_embedding_hnsw 
+-- Series embedding index
+CREATE INDEX IF NOT EXISTS idx_series_embedding_hnsw
 ON series USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 
@@ -1065,12 +1086,7 @@ export async function semanticSearch(
   query: string,
   options: SemanticSearchOptions = {}
 ): Promise<SemanticSearchResult[]> {
-  const {
-    limit = 20,
-    mediaType,
-    minScore = 0.5,
-    filters,
-  } = options;
+  const { limit = 20, mediaType, minScore = 0.5, filters } = options;
 
   // Generate embedding for query
   const queryEmbedding = await generateQueryEmbedding(query);
@@ -1078,7 +1094,7 @@ export async function semanticSearch(
 
   // Build filter conditions
   const conditions: string[] = ["embedding IS NOT NULL"];
-  
+
   if (filters?.genres?.length) {
     // Subquery for genre filtering
     conditions.push(`
@@ -1095,9 +1111,7 @@ export async function semanticSearch(
     `);
   }
 
-  const whereClause = conditions.length > 0 
-    ? `WHERE ${conditions.join(" AND ")}`
-    : "";
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   // Search movies
   if (mediaType !== "series") {
@@ -1122,7 +1136,7 @@ export async function semanticSearch(
     `);
 
     // Filter by minimum score
-    return movies.filter(m => m.score >= minScore);
+    return movies.filter((m) => m.score >= minScore);
   }
 
   // Search series (similar structure)
@@ -1146,7 +1160,7 @@ export async function semanticSearch(
     LIMIT ${limit}
   `);
 
-  return series.filter(s => s.score >= minScore);
+  return series.filter((s) => s.score >= minScore);
 }
 
 /**
@@ -1195,8 +1209,10 @@ import { generateMovieEmbeddings } from "@/lib/embeddings/generator";
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
-  const limit = parseInt(args.find(a => a.startsWith("--limit="))?.split("=")[1] || "1000");
-  const minPopularity = parseFloat(args.find(a => a.startsWith("--min-popularity="))?.split("=")[1] || "0");
+  const limit = parseInt(args.find((a) => a.startsWith("--limit="))?.split("=")[1] || "1000");
+  const minPopularity = parseFloat(
+    args.find((a) => a.startsWith("--min-popularity="))?.split("=")[1] || "0"
+  );
 
   console.log(`
 Embedding Generation
@@ -1219,7 +1235,7 @@ Processed: ${stats.processed}
 Skipped: ${stats.skipped}
 Errors: ${stats.errors}
 Tokens Used: ${stats.tokensUsed}
-Estimated Cost: $${(stats.tokensUsed * 0.00002 / 1000).toFixed(4)}
+Estimated Cost: $${((stats.tokensUsed * 0.00002) / 1000).toFixed(4)}
 `);
 }
 
@@ -1231,6 +1247,7 @@ main().catch(console.error);
 ## Phase 3: Hybrid Search with RRF
 
 ### Objective
+
 Combine fuzzy and semantic search for best-of-both-worlds results.
 
 ### Duration: 2-3 days
@@ -1256,9 +1273,27 @@ interface IntentAnalysis {
 }
 
 const SEMANTIC_INDICATORS = new Set([
-  "like", "similar", "vibe", "mood", "feel", "about", "with", "featuring",
-  "best", "top", "great", "good", "funny", "scary", "dark", "light",
-  "emotional", "action", "adventure", "romantic", "thrilling",
+  "like",
+  "similar",
+  "vibe",
+  "mood",
+  "feel",
+  "about",
+  "with",
+  "featuring",
+  "best",
+  "top",
+  "great",
+  "good",
+  "funny",
+  "scary",
+  "dark",
+  "light",
+  "emotional",
+  "action",
+  "adventure",
+  "romantic",
+  "thrilling",
 ]);
 
 const FILTER_PATTERNS = {
@@ -1283,23 +1318,23 @@ export function classifyQueryIntent(query: string): IntentAnalysis {
   }
 
   // Check for person-focused query
-  if (words.some(w => ["by", "starring", "directed", "with"].includes(w))) {
+  if (words.some((w) => ["by", "starring", "directed", "with"].includes(w))) {
     return { intent: "person", confidence: 0.8 };
   }
 
   // Count semantic indicators
-  const semanticCount = words.filter(w => SEMANTIC_INDICATORS.has(w)).length;
-  const hasFilterPatterns = Object.values(FILTER_PATTERNS).some(p => p.test(normalized));
+  const semanticCount = words.filter((w) => SEMANTIC_INDICATORS.has(w)).length;
+  const hasFilterPatterns = Object.values(FILTER_PATTERNS).some((p) => p.test(normalized));
 
   // Extract filters
   const extractedFilters: IntentAnalysis["extractedFilters"] = {};
-  
+
   const yearMatch = normalized.match(FILTER_PATTERNS.year);
   if (yearMatch) extractedFilters.year = parseInt(yearMatch[0]);
-  
+
   const decadeMatch = normalized.match(FILTER_PATTERNS.decade);
   if (decadeMatch) extractedFilters.decade = decadeMatch[0];
-  
+
   const genreMatch = normalized.match(FILTER_PATTERNS.genre);
   if (genreMatch) extractedFilters.genres = [genreMatch[0]];
 
@@ -1307,7 +1342,7 @@ export function classifyQueryIntent(query: string): IntentAnalysis {
   if (semanticCount >= 2 || words.length > 5) {
     return {
       intent: "semantic",
-      confidence: 0.7 + (semanticCount * 0.1),
+      confidence: 0.7 + semanticCount * 0.1,
       extractedFilters: hasFilterPatterns ? extractedFilters : undefined,
     };
   }
@@ -1388,7 +1423,7 @@ export async function hybridSearch(
     weights.fuzzy > 0
       ? fuzzySearch(query, {
           limit: limit * 2,
-          mediaTypes: mediaTypes?.filter(t => t !== "person") as any,
+          mediaTypes: mediaTypes?.filter((t) => t !== "person") as any,
           boostPopular,
         })
       : [],
@@ -1401,18 +1436,21 @@ export async function hybridSearch(
   ]);
 
   // Apply RRF scoring
-  const scoreMap = new Map<string, {
-    result: HybridSearchResult;
-    fuzzyRank: number | null;
-    semanticRank: number | null;
-    rrfScore: number;
-  }>();
+  const scoreMap = new Map<
+    string,
+    {
+      result: HybridSearchResult;
+      fuzzyRank: number | null;
+      semanticRank: number | null;
+      rrfScore: number;
+    }
+  >();
 
   // Process fuzzy results
   fuzzyResults.forEach((result, rank) => {
     const key = `${result.mediaType}:${result.id}`;
     const rrfContribution = weights.fuzzy / (RRF_K + rank + 1);
-    
+
     scoreMap.set(key, {
       result: {
         id: result.id,
@@ -1433,7 +1471,7 @@ export async function hybridSearch(
   semanticResults.forEach((result, rank) => {
     const key = `${result.mediaType}:${result.id}`;
     const rrfContribution = weights.semantic / (RRF_K + rank + 1);
-    
+
     if (scoreMap.has(key)) {
       const existing = scoreMap.get(key)!;
       existing.semanticRank = rank;
@@ -1514,9 +1552,8 @@ export async function GET(request: NextRequest) {
       type: searchParams.get("type"),
     });
 
-    const mediaTypes = params.type === "all"
-      ? undefined
-      : [params.type as "movie" | "series" | "person"];
+    const mediaTypes =
+      params.type === "all" ? undefined : [params.type as "movie" | "series" | "person"];
 
     const { results, intent, suggestions } = await hybridSearch(params.q, {
       limit: params.limit,
@@ -1547,6 +1584,7 @@ export async function GET(request: NextRequest) {
 ## Phase 4: AI Agent Integration
 
 ### Objective
+
 Enhance the AI agent with semantic search capabilities for more intelligent recommendations.
 
 ### Duration: 2-3 days
@@ -1564,15 +1602,19 @@ import { hybridSearch } from "@/lib/search/hybrid";
 import { aiToolLogger } from "@/lib/logger";
 
 const semanticSearchSchema = z.object({
-  query: z.string().describe(
-    "Natural language description of what to find. Examples: " +
-    "'mind-bending sci-fi', 'feel-good movies about friendship', " +
-    "'dark thrillers with plot twists', 'movies similar to Inception'"
-  ),
-  mediaType: z.enum(["movie", "series", "all"]).optional().default("all")
+  query: z
+    .string()
+    .describe(
+      "Natural language description of what to find. Examples: " +
+        "'mind-bending sci-fi', 'feel-good movies about friendship', " +
+        "'dark thrillers with plot twists', 'movies similar to Inception'"
+    ),
+  mediaType: z
+    .enum(["movie", "series", "all"])
+    .optional()
+    .default("all")
     .describe("Filter by content type"),
-  limit: z.number().min(1).max(15).optional().default(8)
-    .describe("Number of results to return"),
+  limit: z.number().min(1).max(15).optional().default(8).describe("Number of results to return"),
 });
 
 type SemanticSearchInput = z.infer<typeof semanticSearchSchema>;
@@ -1580,11 +1622,10 @@ type SemanticSearchInput = z.infer<typeof semanticSearchSchema>;
 export const semanticSearchTool = tool(
   async (input: SemanticSearchInput) => {
     const startTime = Date.now();
-    
+
     try {
-      const mediaTypes = input.mediaType === "all"
-        ? ["movie", "series"] as const
-        : [input.mediaType] as const;
+      const mediaTypes =
+        input.mediaType === "all" ? (["movie", "series"] as const) : ([input.mediaType] as const);
 
       const { results, intent } = await hybridSearch(input.query, {
         limit: input.limit,
@@ -1671,7 +1712,10 @@ const findSimilarSchema = z.object({
   id: z.number().describe("TMDB ID of the movie or series"),
   mediaType: z.enum(["movie", "series"]).describe("Type of content"),
   limit: z.number().min(1).max(15).optional().default(8),
-  useEmbeddings: z.boolean().optional().default(true)
+  useEmbeddings: z
+    .boolean()
+    .optional()
+    .default(true)
     .describe("Use semantic similarity (true) or TMDB recommendations (false)"),
 });
 
@@ -1716,7 +1760,7 @@ export const findSimilarTool = tool(
         }));
 
         results = results
-          ? [...results, ...tmdbResults.filter(t => !results!.some(r => r.id === t.id))]
+          ? [...results, ...tmdbResults.filter((t) => !results!.some((r) => r.id === t.id))]
           : tmdbResults;
       }
 
@@ -1771,21 +1815,21 @@ export { findSimilarTool } from "./similar";
 // Update allTools array
 export const allTools = [
   // Search & Discovery
-  searchTool,           // Keyword/title search (existing)
-  semanticSearchTool,   // NEW: Natural language semantic search
-  discoverTool,         // Filter-based discovery (existing)
-  getTrendingTool,      // Trending content (existing)
+  searchTool, // Keyword/title search (existing)
+  semanticSearchTool, // NEW: Natural language semantic search
+  discoverTool, // Filter-based discovery (existing)
+  getTrendingTool, // Trending content (existing)
 
   // Details & Similar
-  getDetailsTool,       // Movie/series details (existing)
-  findSimilarTool,      // NEW: Embedding-based similarity
-  getPersonTool,        // Person info (existing)
-  getUpcomingTool,      // Upcoming releases (existing)
+  getDetailsTool, // Movie/series details (existing)
+  findSimilarTool, // NEW: Embedding-based similarity
+  getPersonTool, // Person info (existing)
+  getUpcomingTool, // Upcoming releases (existing)
 
   // User & Context
-  getUserDataTool,      // User library (existing)
-  getPageContextTool,   // Current page (existing)
-  navigateTool,         // Navigation (existing)
+  getUserDataTool, // User library (existing)
+  getPageContextTool, // Current page (existing)
+  navigateTool, // Navigation (existing)
 ];
 ```
 
@@ -1875,8 +1919,8 @@ export async function updateUserTasteEmbedding(userId: number): Promise<void> {
   if (ratings.length === 0) return;
 
   // Get embeddings for rated movies
-  const movieIds = ratings.filter(r => r.movieId).map(r => r.movieId!);
-  const seriesIds = ratings.filter(r => r.seriesId).map(r => r.seriesId!);
+  const movieIds = ratings.filter((r) => r.movieId).map((r) => r.movieId!);
+  const seriesIds = ratings.filter((r) => r.seriesId).map((r) => r.seriesId!);
 
   const [movieEmbeddings, seriesEmbeddings] = await Promise.all([
     prisma.$queryRaw<Array<{ id: number; embedding: number[] }>>`
@@ -1895,8 +1939,8 @@ export async function updateUserTasteEmbedding(userId: number): Promise<void> {
 
   // Build embedding lookup
   const embeddingMap = new Map<string, number[]>();
-  movieEmbeddings.forEach(m => embeddingMap.set(`movie:${m.id}`, m.embedding));
-  seriesEmbeddings.forEach(s => embeddingMap.set(`series:${s.id}`, s.embedding));
+  movieEmbeddings.forEach((m) => embeddingMap.set(`movie:${m.id}`, m.embedding));
+  seriesEmbeddings.forEach((s) => embeddingMap.set(`series:${s.id}`, s.embedding));
 
   // Compute weighted average
   // Likes (+1) add positively, dislikes (-1) add negatively (inverted)
@@ -1905,11 +1949,9 @@ export async function updateUserTasteEmbedding(userId: number): Promise<void> {
   let totalWeight = 0;
 
   for (const rating of ratings) {
-    const key = rating.movieId 
-      ? `movie:${rating.movieId}` 
-      : `series:${rating.seriesId}`;
+    const key = rating.movieId ? `movie:${rating.movieId}` : `series:${rating.seriesId}`;
     const embedding = embeddingMap.get(key);
-    
+
     if (!embedding) continue;
 
     const weight = rating.rating; // +1 for like, -1 for dislike
@@ -1977,7 +2019,7 @@ export async function getPersonalizedRecommendations(
     LIMIT ${limit}
   `);
 
-  return recommendations.map(r => ({
+  return recommendations.map((r) => ({
     id: r.id,
     title: r.title,
     matchScore: r.match_score,
@@ -2009,19 +2051,21 @@ Example: ["alternative 1", "alternative 2", "alternative 3"]
 `;
 
   try {
-    const response = await bedrock.send(new InvokeModelCommand({
-      modelId: "anthropic.claude-3-haiku-20240307-v1:0",
-      body: JSON.stringify({
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 200,
-        messages: [{ role: "user", content: prompt }],
-      }),
-      contentType: "application/json",
-    }));
+    const response = await bedrock.send(
+      new InvokeModelCommand({
+        modelId: "anthropic.claude-3-haiku-20240307-v1:0",
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 200,
+          messages: [{ role: "user", content: prompt }],
+        }),
+        contentType: "application/json",
+      })
+    );
 
     const result = JSON.parse(new TextDecoder().decode(response.body));
     const content = result.content[0].text;
-    
+
     // Parse JSON array from response
     const expansions = JSON.parse(content);
     return [query, ...expansions];
@@ -2058,22 +2102,22 @@ export async function updateMovieEmbedding(movieId: number): Promise<void> {
 
   if (!movie) return;
 
-  const director = movie.credits.find(c => c.job === "Director")?.person.name;
+  const director = movie.credits.find((c) => c.job === "Director")?.person.name;
   const topCast = movie.credits
-    .filter(c => c.creditType === "CAST")
+    .filter((c) => c.creditType === "CAST")
     .slice(0, 5)
-    .map(c => c.person.name);
+    .map((c) => c.person.name);
 
   const embeddingText = buildMovieEmbeddingText({
     title: movie.title,
     overview: movie.overview,
     tagline: movie.tagline,
-    genres: movie.genres.map(g => g.genre.name),
-    keywords: movie.keywords.map(k => k.keyword.name),
+    genres: movie.genres.map((g) => g.genre.name),
+    keywords: movie.keywords.map((k) => k.keyword.name),
     director,
     topCast,
     themes: movie.aiData?.themes || undefined,
-    mood: movie.aiData?.mood as any || undefined,
+    mood: (movie.aiData?.mood as any) || undefined,
     quickTake: movie.aiData?.quickTake || undefined,
   });
 
@@ -2104,9 +2148,7 @@ interface VisualSearchResult {
 }
 
 // "Find movies with similar poster aesthetics"
-async function visualSimilaritySearch(
-  movieId: number
-): Promise<VisualSearchResult[]> {
+async function visualSimilaritySearch(movieId: number): Promise<VisualSearchResult[]> {
   // Use CLIP embeddings stored in a separate column
   // poster_embedding vector(512)
 }
@@ -2115,6 +2157,7 @@ async function visualSimilaritySearch(
 ### 6.2 Real-time Search Analytics
 
 Track search patterns to improve:
+
 - Popular queries without good results
 - Query intent misclassification
 - Search-to-click ratios
@@ -2149,6 +2192,7 @@ LIMIT 50;
 ### 6.4 Cross-Lingual Search
 
 Support queries in multiple languages by:
+
 - Detecting query language
 - Using multilingual embedding models
 - Translating queries before embedding
@@ -2159,21 +2203,21 @@ Support queries in multiple languages by:
 
 ### One-Time Costs
 
-| Item | Quantity | Unit Cost | Total |
-|------|----------|-----------|-------|
-| Movie embeddings (existing ~5K) | 5,000 | $0.00002/1K tokens | ~$0.50 |
-| Movie embeddings (full ~500K) | 500,000 | $0.00002/1K tokens | ~$50 |
-| Series embeddings (~100K) | 100,000 | $0.00002/1K tokens | ~$10 |
-| Development time | 15-20 days | - | - |
+| Item                            | Quantity   | Unit Cost          | Total  |
+| ------------------------------- | ---------- | ------------------ | ------ |
+| Movie embeddings (existing ~5K) | 5,000      | $0.00002/1K tokens | ~$0.50 |
+| Movie embeddings (full ~500K)   | 500,000    | $0.00002/1K tokens | ~$50   |
+| Series embeddings (~100K)       | 100,000    | $0.00002/1K tokens | ~$10   |
+| Development time                | 15-20 days | -                  | -      |
 
 ### Recurring Costs
 
-| Item | Volume | Unit Cost | Monthly Cost |
-|------|--------|-----------|--------------|
-| Query embeddings | 750K/month (25K/day) | $0.00002/1K tokens | ~$15 |
-| New content embeddings | 1K/month | $0.00002/1K tokens | ~$0.02 |
-| PostgreSQL storage | ~1GB vectors | - | Minimal |
-| **Total** | | | **~$15/month** |
+| Item                   | Volume               | Unit Cost          | Monthly Cost   |
+| ---------------------- | -------------------- | ------------------ | -------------- |
+| Query embeddings       | 750K/month (25K/day) | $0.00002/1K tokens | ~$15           |
+| New content embeddings | 1K/month             | $0.00002/1K tokens | ~$0.02         |
+| PostgreSQL storage     | ~1GB vectors         | -                  | Minimal        |
+| **Total**              |                      |                    | **~$15/month** |
 
 ### Cost Optimization Strategies
 
@@ -2188,30 +2232,30 @@ Support queries in multiple languages by:
 
 ### Search Quality Metrics
 
-| Metric | Current | Target | Measurement |
-|--------|---------|--------|-------------|
-| Typo tolerance | 0% | 95% | Queries with typos returning correct results |
-| Semantic recall | 0% | 80% | "Movies like X" returning relevant items |
-| Search latency (p50) | 200ms | <100ms | PostgreSQL-first search |
-| Search latency (p99) | 500ms | <300ms | With embedding generation |
-| Click-through rate | Baseline | +20% | Clicked results / shown results |
+| Metric               | Current  | Target | Measurement                                  |
+| -------------------- | -------- | ------ | -------------------------------------------- |
+| Typo tolerance       | 0%       | 95%    | Queries with typos returning correct results |
+| Semantic recall      | 0%       | 80%    | "Movies like X" returning relevant items     |
+| Search latency (p50) | 200ms    | <100ms | PostgreSQL-first search                      |
+| Search latency (p99) | 500ms    | <300ms | With embedding generation                    |
+| Click-through rate   | Baseline | +20%   | Clicked results / shown results              |
 
 ### User Experience Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| "Did you mean?" acceptance | >30% | Users clicking suggestions |
-| Zero-result queries | <5% | Queries with no results |
-| Search-to-discovery | >15% | Searches leading to detail page |
+| Metric                     | Target | Measurement                     |
+| -------------------------- | ------ | ------------------------------- |
+| "Did you mean?" acceptance | >30%   | Users clicking suggestions      |
+| Zero-result queries        | <5%    | Queries with no results         |
+| Search-to-discovery        | >15%   | Searches leading to detail page |
 
 ### Technical Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Index build time | <1 hour | HNSW index creation |
-| Query embedding latency | <50ms | OpenAI API call |
-| Similarity search latency | <20ms | pgvector query |
-| Embedding coverage | >90% | Movies with embeddings |
+| Metric                    | Target  | Measurement            |
+| ------------------------- | ------- | ---------------------- |
+| Index build time          | <1 hour | HNSW index creation    |
+| Query embedding latency   | <50ms   | OpenAI API call        |
+| Similarity search latency | <20ms   | pgvector query         |
+| Embedding coverage        | >90%    | Movies with embeddings |
 
 ---
 
@@ -2219,41 +2263,45 @@ Support queries in multiple languages by:
 
 ### Technical Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| OpenAI API rate limits | Medium | High | Batch requests, caching, retry logic |
-| Embedding quality issues | Low | Medium | A/B testing, human evaluation |
-| Index memory usage | Medium | Medium | Monitor, use IVFFlat if needed |
-| Cold start latency | Low | Low | Cache warming, connection pooling |
+| Risk                     | Likelihood | Impact | Mitigation                           |
+| ------------------------ | ---------- | ------ | ------------------------------------ |
+| OpenAI API rate limits   | Medium     | High   | Batch requests, caching, retry logic |
+| Embedding quality issues | Low        | Medium | A/B testing, human evaluation        |
+| Index memory usage       | Medium     | Medium | Monitor, use IVFFlat if needed       |
+| Cold start latency       | Low        | Low    | Cache warming, connection pooling    |
 
 ### Operational Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| API cost overrun | Low | Medium | Budget alerts, usage monitoring |
-| Embedding drift | Medium | Low | Regular re-embedding, monitoring |
-| Data consistency | Low | High | Transactions, embedding on write |
+| Risk             | Likelihood | Impact | Mitigation                       |
+| ---------------- | ---------- | ------ | -------------------------------- |
+| API cost overrun | Low        | Medium | Budget alerts, usage monitoring  |
+| Embedding drift  | Medium     | Low    | Regular re-embedding, monitoring |
+| Data consistency | Low        | High   | Transactions, embedding on write |
 
 ---
 
 ## Implementation Timeline
 
 ### Week 1: Foundation
+
 - [ ] Day 1-2: Phase 1 - Trigram indexes + fuzzy search
 - [ ] Day 3-4: Phase 2 - Embedding pipeline setup
 - [ ] Day 5: Phase 2 - Initial batch embedding generation
 
 ### Week 2: Core Search
+
 - [ ] Day 6-7: Phase 2 - Semantic search implementation
 - [ ] Day 8-9: Phase 3 - Hybrid search + RRF
 - [ ] Day 10: Phase 3 - Search API + testing
 
 ### Week 3: AI Integration
+
 - [ ] Day 11-12: Phase 4 - AI agent tools
 - [ ] Day 13: Phase 4 - System prompt updates
 - [ ] Day 14-15: Integration testing + optimization
 
 ### Week 4: Polish & Deploy
+
 - [ ] Day 16-17: UI integration + suggestions
 - [ ] Day 18: Performance tuning
 - [ ] Day 19: Documentation
@@ -2267,7 +2315,7 @@ Support queries in multiple languages by:
 
 ```sql
 -- Check embedding coverage
-SELECT 
+SELECT
   COUNT(*) FILTER (WHERE embedding IS NOT NULL) as with_embedding,
   COUNT(*) as total,
   ROUND(100.0 * COUNT(*) FILTER (WHERE embedding IS NOT NULL) / COUNT(*), 2) as coverage_pct
@@ -2289,7 +2337,7 @@ ORDER BY embedding <=> '[...]'::vector
 LIMIT 10;
 
 -- Check index usage
-SELECT 
+SELECT
   schemaname, tablename, indexname, idx_scan, idx_tup_read
 FROM pg_stat_user_indexes
 WHERE indexname LIKE '%embedding%' OR indexname LIKE '%trgm%';
@@ -2336,6 +2384,6 @@ BEDROCK_REGION=us-east-1        # ← Already in your .env.local (used by both)
 
 ## Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2026-01-10 | AI Agent | Initial comprehensive plan |
+| Version | Date       | Author   | Changes                    |
+| ------- | ---------- | -------- | -------------------------- |
+| 1.0     | 2026-01-10 | AI Agent | Initial comprehensive plan |

@@ -43,11 +43,12 @@ export const MediaChip = memo(function MediaChip({
 }: MediaChipProps) {
   const [imgError, setImgError] = useState(false);
   const Icon = tag.type === "movie" ? Film : Tv;
-  
+
   // If we have an ID, link to the detail page; otherwise search for it
-  const href = tag.id !== null
-    ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
-    : `/browse?q=${encodeURIComponent(tag.title)}`;
+  const href =
+    tag.id !== null
+      ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
+      : `/browse?q=${encodeURIComponent(tag.title)}`;
   const posterUrl = getPosterUrl(tag.id, tag.type);
 
   return (
@@ -110,17 +111,15 @@ interface PosterCardProps {
 /**
  * A larger poster card for displaying in recommendation grids
  */
-export const PosterCard = memo(function PosterCard({
-  tag,
-  className,
-}: PosterCardProps) {
+export const PosterCard = memo(function PosterCard({ tag, className }: PosterCardProps) {
   const [imgError, setImgError] = useState(false);
   const Icon = tag.type === "movie" ? Film : Tv;
-  
+
   // If we have an ID, link to the detail page; otherwise search for it
-  const href = tag.id !== null
-    ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
-    : `/browse?q=${encodeURIComponent(tag.title)}`;
+  const href =
+    tag.id !== null
+      ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
+      : `/browse?q=${encodeURIComponent(tag.title)}`;
   const posterUrl = getPosterUrl(tag.id, tag.type);
 
   return (
@@ -163,9 +162,7 @@ export const PosterCard = memo(function PosterCard({
         <span
           className={cn(
             "absolute top-1 right-1 px-1 py-0.5 rounded text-[9px] font-semibold uppercase",
-            tag.type === "movie"
-              ? "bg-blue-500/80 text-white"
-              : "bg-emerald-500/80 text-white"
+            tag.type === "movie" ? "bg-blue-500/80 text-white" : "bg-emerald-500/80 text-white"
           )}
         >
           {tag.type === "movie" ? "M" : "S"}
@@ -206,10 +203,7 @@ interface PosterRowProps {
 /**
  * A horizontal row of poster cards, scrollable on overflow
  */
-export const PosterRow = memo(function PosterRow({
-  tags,
-  className,
-}: PosterRowProps) {
+export const PosterRow = memo(function PosterRow({ tags, className }: PosterRowProps) {
   if (tags.length === 0) return null;
 
   return (
@@ -227,4 +221,3 @@ export const PosterRow = memo(function PosterRow({
     </div>
   );
 });
-

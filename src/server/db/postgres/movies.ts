@@ -6,7 +6,13 @@
  */
 
 import { prisma } from "./index";
-import type { Movie as TMDBMovie, CastMember, CrewMember, Genre as TMDBGenre, Video } from "@/types";
+import type {
+  Movie as TMDBMovie,
+  CastMember,
+  CrewMember,
+  Genre as TMDBGenre,
+  Video,
+} from "@/types";
 
 // ============================================
 // Types for PostgreSQL Movie Data
@@ -246,9 +252,7 @@ export async function getLightMovieFromPostgres(movieId: number) {
     genres: movie.genres.map((g) => ({ id: g.genre.tmdbId, name: g.genre.name })),
     vote_average: movie.ratings[0]?.score,
     vote_count: movie.ratings[0]?.voteCount,
-    images: movie.images.length
-      ? { logos: [{ file_path: movie.images[0].filePath }] }
-      : undefined,
+    images: movie.images.length ? { logos: [{ file_path: movie.images[0].filePath }] } : undefined,
     homepage: movie.homepage,
   };
 }
@@ -389,14 +393,14 @@ function transformPostgresMovieToTMDBFormat(movie: PostgresMovieWithRelations): 
 
   // Also build external_data for backwards compatibility
   const externalData: Record<string, number | undefined> = {};
-  
+
   movie.ratings.forEach((r) => {
     const score = r.score;
-    
+
     // Normalize score to 0-100 for display
     let normalizedScore: number;
     let link: string | undefined;
-    
+
     switch (r.source.slug) {
       case "tmdb":
         normalizedScore = Math.round(score * 10); // TMDB is 0-10
@@ -466,9 +470,24 @@ function transformPostgresMovieToTMDBFormat(movie: PostgresMovieWithRelations): 
     string,
     {
       link?: string;
-      flatrate?: { provider_id: number; provider_name: string; logo_path: string; display_priority: number }[];
-      rent?: { provider_id: number; provider_name: string; logo_path: string; display_priority: number }[];
-      buy?: { provider_id: number; provider_name: string; logo_path: string; display_priority: number }[];
+      flatrate?: {
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }[];
+      rent?: {
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }[];
+      buy?: {
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }[];
     }
   > = {};
 
@@ -495,7 +514,10 @@ function transformPostgresMovieToTMDBFormat(movie: PostgresMovieWithRelations): 
 
   // Build scraped watch links (India deep links) grouped by country
   // These have actual deep links to the player, unlike TMDB providers
-  const scrapedWatchLinks: Record<string, Array<{ name: string; link: string; price?: string }>> = {};
+  const scrapedWatchLinks: Record<
+    string,
+    Array<{ name: string; link: string; price?: string }>
+  > = {};
   movie.scrapedWatchLinks.forEach((swl) => {
     if (!scrapedWatchLinks[swl.countryCode]) {
       scrapedWatchLinks[swl.countryCode] = [];
@@ -707,4 +729,3 @@ export async function hasCollectionInPostgres(collectionId: number): Promise<boo
   });
   return count > 0;
 }
-

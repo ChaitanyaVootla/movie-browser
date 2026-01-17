@@ -1,0 +1,563 @@
+---
+description: Browse/filter components, topic components, and scroller patterns
+globs: ["src/components/features/discover/**", "src/components/features/home/**"]
+alwaysApply: false
+---
+
+# Discover & Browse Components
+
+## Component Structure
+
+```
+src/components/features/
+├── discover/                   # Browse/filter components
+│   ├── index.ts               # Export hub
+│   ├── filter-sidebar.tsx     # Main filter panel (genres, rating, language, etc.)
+│   ├── discover-grid.tsx      # Infinite scroll grid of results
+│   ├── discover-scroller.tsx  # Horizontal scroller for topic previews
+│   ├── media-type-toggle.tsx  # Movies/Series toggle
+│   ├── sort-select.tsx        # Sort dropdown (popularity, rating, date)
+│   ├── genre-filter.tsx       # Genre chips (compact + horizontal scroll variants)
+│   ├── multi-select-combobox.tsx  # Searchable multi-select (exclude genres)
+│   └── searchable-select.tsx  # Searchable single-select (language, country)
+└── home/
+    ├── index.ts
+    ├── personalized-sections.tsx  # ContinueWatchingSection + RecentVisitsSection
+    ├── trailer-carousel.tsx       # TMDB trending trailers with YouTube stats
+    ├── youtube-trailer-carousel.tsx  # YouTube channel viral trailers
+    ├── trailer-modal.tsx          # Full-featured trailer modal (Dialog-based)
+    ├── topic-pills.tsx            # Horizontal topic navigation
+    └── mood-cards.tsx             # Prime-style mood discovery cards
+```
+
+## FilterSidebar
+
+The main filter panel for browse page, uses collapsible sections:
+
+```tsx
+import { FilterSidebar } from "@/components/features/discover";
+
+<FilterSidebar
+  params={params}
+  onChange={handleParamsChange}
+  hideMediaToggle  // When toggle is in header instead
+  hideSort         // When sort is in header instead
+/>
+```
+
+**Sections:**
+- Genres (GenreFilterCompact - chips that wrap)
+- Minimum Rating (Select)
+- Minimum Votes (Select)
+- Language (SearchableSelect - searchable dropdown)
+- Country of Origin (SearchableSelect)
+- Exclude Genres (MultiSelectCombobox - searchable multi-select)
+
+## DiscoverGrid
+
+Infinite scroll grid with intersection observer. Uses `MediaCard` which respects user's card display preference:
+
+```tsx
+import { DiscoverGrid } from "@/components/features/discover";
+
+<DiscoverGrid
+  initialResults={results}
+  totalPages={totalPages}
+  totalResults={totalResults}
+  params={params}
+  showCount={false}     // Header shows count
+  infiniteScroll        // Enable infinite scroll
+/>
+```
+
+**Grid sizing adapts to display mode:**
+```tsx
+const displayMode = usePreferencesStore(selectCardDisplayMode);
+
+// Poster mode: more columns, smaller cards
+const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 md:gap-3";
+
+// Wide mode: fewer columns, larger cards
+const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+
+<div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
+  {results.map((item) => <MediaCard key={item.id} item={item} />)}
+</div>
+```
+
+## DiscoverScroller
+
+Horizontal scroller for topic previews (topics index page):
+
+```tsx
+import { DiscoverScroller } from "@/components/features/discover";
+import { buildBrowseUrl } from "@/lib/discover";
+
+// Link to topic detail page
+<DiscoverScroller
+  title="Action Movies"
+  seeAllHref="/topics/genre-action-movie"
+  initialResults={previewResults}
+  params={{ media_type: "movie", with_genres: [28] }}
+/>
+
+// Link to browse with filters
+<DiscoverScroller
+  title="Tom Cruise Movies"
+  seeAllHref={buildBrowseUrl({ media_type: "movie", with_cast: [500] })}
+  seeAllLabel="Browse All"
+  initialResults={previewResults}
+  params={{ media_type: "movie", with_cast: [500] }}
+/>
+```
+
+**Card sizing in scrollers:**
+```tsx
+className="w-[120px] sm:w-[135px] md:w-[150px] lg:w-[160px]"
+```
+
+## Scroller Architecture
+
+The app uses a unified, modular scroller system with two levels of abstraction:
+
+### Component Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ useScrollDrag (Hook) - src/hooks/use-scroll-drag.ts         │
+│  - Drag-to-scroll with 5px threshold (fixes click vs drag)  │
+│  - Arrow scroll function (80% of visible width)             │
+│  - External ref support for forwardRef components           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ ScrollContainer (Primitive) - media/scroll-container.tsx    │
+│  - Low-level scrollable container                           │
+│  - Drag-to-scroll + optional arrow controls                 │
+│  - ForwardRef support for external scroll control           │
+│  - Use for custom scroll UIs (image galleries, video lists) │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ MediaScroller (Composite) - media/media-scroller.tsx        │
+│  - High-level scroller section with header                  │
+│  - Title, icon, "See All" link, arrow controls in header    │
+│  - Uses ScrollContainer internally                          │
+│  - Use for standard content sections (cast, recs, etc.)     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### useScrollDrag Hook
+
+The foundation hook that handles drag-to-scroll with click detection:
+
+```typescript
+import { useScrollDrag } from "@/hooks/use-scroll-drag";
+
+function MyScroller() {
+  const {
+    scrollRef,           // Ref to attach to scroll container
+    setScrollRef,        // Callback ref (for forwardRef)
+    isDragging,          // Whether actively dragging
+    handlePointerDown,   // Pointer event handlers
+    handlePointerMove,
+    handlePointerUp,
+    handleDragStart,     // Prevents native drag
+    scroll,              // (direction: "left" | "right") => void
+  } = useScrollDrag({ scrollAmount: 0.8 });
+}
+```
+
+**Key feature:** 5px drag threshold - movement below this is treated as a click, allowing normal navigation. Pointer capture only activates AFTER threshold is exceeded.
+
+**Mobile touch behavior:**
+- Use `touch-manipulation` CSS (NOT `touch-pan-x`) on scroll containers
+- `touch-pan-x` blocks vertical page scrolling when touch starts on a scroller
+- `touch-manipulation` allows both horizontal scroll on the scroller AND vertical page scroll
+
+### ScrollContainer Component
+
+Low-level scrollable container for custom UIs:
+
+```tsx
+import { ScrollContainer } from "@/components/features/media";
+
+// Basic usage
+<ScrollContainer gap="gap-3" padding="px-4">
+  {items.map(item => <Card key={item.id} />)}
+</ScrollContainer>
+
+// With arrow controls at edge (default)
+<ScrollContainer showControls gap="gap-4" padding="px-4 md:px-8">
+  {items}
+</ScrollContainer>
+
+// Without controls (for custom UIs like image galleries)
+<ScrollContainer showControls={false}>
+  {images}
+</ScrollContainer>
+```
+
+**Props:**
+- `showControls` - Show arrow buttons (default: true)
+- `controlsPosition` - "edge" (default) or "inline"
+- `gap` - Tailwind gap class (default: "gap-4")
+- `padding` - Tailwind padding class (default: none)
+- `bottomPadding` - Bottom padding (default: "pb-4")
+
+### MediaScroller Component
+
+High-level scroller for content sections:
+
+```tsx
+import { MediaScroller } from "@/components/features/media";
+import { Users } from "lucide-react";
+
+<MediaScroller
+  title="Top Cast"
+  titleIcon={<Users className="h-5 w-5 text-brand" />}
+  seeAllHref="/browse?cast=500"
+  seeAllLabel="Browse All"
+  contentPadding="px-4 md:px-8 lg:px-12"
+  gap="gap-4"
+>
+  {cast.map(member => <PersonCard key={member.id} person={member} />)}
+</MediaScroller>
+```
+
+**Props:**
+- `title` - Section title (ReactNode)
+- `titleIcon` - Icon before title
+- `seeAllHref` - URL for "View All" link
+- `seeAllLabel` - Custom link text (default: "View All")
+- `contentPadding` - Padding for header and scroll area (default: "px-4 md:px-8 lg:px-12")
+- `gap` - Gap between items (default: "gap-4")
+- `showControls` - Show arrow controls (default: true)
+
+### Which Scroller to Use
+
+| Use Case | Component |
+|----------|-----------|
+| **Content sections** (cast, recommendations, collection) | `MediaScroller` |
+| **Custom layouts** (image gallery, video sidebar) | `ScrollContainer` |
+| **Infinite scroll** (discover scroller) | `useScrollDrag` hook directly |
+
+### Integration Examples
+
+**Cast Section (MediaOverview):**
+```tsx
+<MediaScroller
+  title="Top Cast"
+  titleIcon={<Users className="h-5 w-5 text-brand" />}
+  contentPadding="px-4 md:px-8 lg:px-12"
+>
+  {cast.map(member => <PersonCard key={member.id} person={member} />)}
+</MediaScroller>
+```
+
+**Collection Section:**
+```tsx
+<MediaScroller
+  title={collection.name}
+  titleIcon={<Clapperboard className="h-5 w-5 text-brand" />}
+  contentPadding="px-4 md:px-8 lg:px-12"
+>
+  {sortedParts.map(movie => <CollectionMovieCard key={movie.id} movie={movie} />)}
+</MediaScroller>
+```
+
+**Image Gallery (custom controls):**
+```tsx
+<ScrollContainer showControls={false} gap="gap-3" padding="px-4 md:px-8 lg:px-12">
+  {images.map((image, index) => (
+    <button key={index} onClick={() => openLightbox(index)}>
+      <Image src={image.url} />
+    </button>
+  ))}
+</ScrollContainer>
+```
+
+### Scroller "See All" Link Pattern
+
+All scrollers (`MovieCarousel`, `MediaScroller`, `DiscoverScroller`) use a uniform link pattern:
+
+```tsx
+// Props available on all scrollers:
+seeAllHref?: string;    // URL for "View All" link
+seeAllLabel?: string;   // Custom label (default: "View All")
+
+// Uniform link styling
+<Link
+  href={seeAllHref}
+  className="inline-flex items-center gap-1 text-sm text-brand hover:text-brand/80"
+>
+  {seeAllLabel}
+  <ArrowRight className="h-3.5 w-3.5" />
+</Link>
+```
+
+Usage examples:
+- **Home page carousels**: Link to browse with `sort_by: "popularity.desc"`
+- **Topic scrollers**: Link to topic detail page (`/topics/{key}`)
+- **Person filmography**: Link to browse with cast/crew filter
+- **Topic detail page**: "Customize" button links to browse with topic filters
+
+## SearchableSelect & MultiSelectCombobox
+
+Searchable dropdown components using shadcn Command:
+
+```tsx
+import { SearchableSelect, MultiSelectCombobox } from "@/components/features/discover";
+
+// Single select with search (language, country)
+<SearchableSelect
+  options={languageOptions}
+  value={params.with_original_language}
+  onChange={(val) => handleChange({ with_original_language: val })}
+  placeholder="Any language"
+  clearable
+/>
+
+// Multi-select with search (exclude genres)
+<MultiSelectCombobox
+  options={genreOptions}
+  selected={params.without_genres || []}
+  onChange={(genres) => handleChange({ without_genres: genres })}
+  placeholder="Select genres to exclude..."
+  maxDisplay={3}  // Show 3 badges, then "+N more"
+/>
+```
+
+## Active Filter Pills
+
+Display selected filters as closable pills in the header:
+
+```tsx
+// Pattern for filter pills
+{selectedGenreNames.map((name, idx) => (
+  <Badge key={idx} variant="secondary" className="gap-1 pr-1">
+    {name}
+    <button onClick={() => removeGenre(selectedGenres[idx])}>
+      <X className="h-3 w-3" />
+    </button>
+  </Badge>
+))}
+
+{activeFilterCount > 1 && (
+  <Button variant="ghost" size="sm" onClick={clearAllFilters}>
+    Clear all
+  </Button>
+)}
+```
+
+## Homepage Sections
+
+### Personalized Sections (Split Components)
+
+`ContinueWatchingSection` and `RecentVisitsSection` are separate components for flexible positioning:
+
+```tsx
+// src/components/features/home/personalized-sections.tsx
+"use client";
+
+export function ContinueWatchingSection() {
+  const { status } = useSafeSession();
+  const isHydrated = useUserStore(selectIsHydrated);
+  const continueWatching = useUserStore(selectContinueWatching);
+
+  if (status !== "authenticated") return null;
+  if (!isHydrated) return <WideCarousel loading ... />;
+  if (continueWatching.length === 0) return null;
+
+  return <WideCarousel title="Continue Watching" items={continueWatching} showWatchLinks />;
+}
+
+export function RecentVisitsSection() {
+  const { status } = useSafeSession();
+  const isHydrated = useUserStore(selectIsHydrated);
+  const recents = useUserStore(selectRecents);
+
+  if (status !== "authenticated") return null;
+  if (!isHydrated || recents.length === 0) return null;
+
+  return <WideCarousel title="Recent Visits" items={recents} />;
+}
+```
+
+### TrailerCarousel Component
+
+Displays trending movie trailers with YouTube metadata:
+
+```tsx
+// src/components/features/home/trailer-carousel.tsx
+interface TrendingTrailer {
+  tmdbId: number;
+  title: string;
+  mediaType: "movie";  // TV series skipped (TMDB has stale Season 1 trailers)
+  youtubeKey: string;
+  trailerType: string; // "Trailer" | "Teaser"
+  // ... other fields
+}
+
+// Features:
+// - YouTube thumbnail with hover play button
+// - Trailer/Teaser type badge
+// - Movie title linked to detail page
+// - YouTube stats (views + like/dislike ratio bar)
+// - Click to play in TrailerModal
+
+// YouTube metadata fetched client-side:
+useEffect(() => {
+  fetch(`/api/youtube?videoIds=${videoIds}`)
+    .then(/* set videoMetadata state */);
+}, [trailers]);
+```
+
+**Data source:** `getTrendingTrailers()` combines:
+- Trending movies (currently popular)
+- Upcoming movies (trailers being promoted)
+- Now playing movies (fresh releases)
+
+### TrailerModal Component
+
+Full-featured trailer modal using shadcn Dialog. Used by both `TrailerCarousel` (TMDB) and `YouTubeTrailerCarousel` (YouTube channels), as well as the detail page play button.
+
+```tsx
+// src/components/features/home/trailer-modal.tsx
+interface TrailerModalData {
+  youtubeKey: string;
+  title: string;           // Movie/show title
+  trailerTitle: string;    // Full trailer title from YouTube
+  tmdbId?: number;         // Optional - links to detail page
+  mediaType?: "movie" | "tv";
+  publishedAt?: string;
+  channelTitle?: string;
+  // Stats (loaded client-side)
+  viewCount?: number;
+  likeCount?: number;
+  dislikeCount?: number;
+}
+
+interface TrailerModalProps {
+  trailers: TrailerModalData[];
+  currentIndex: number;
+  isOpen: boolean;
+  onClose: () => void;
+  onNavigate: (index: number) => void;  // For prev/next
+}
+```
+
+**Features:**
+- **Proper Dialog** - Uses shadcn Dialog (ESC to close, backdrop, animations)
+- **Large size** - Nearly full screen (`95vh`, `max-w-[1600px]`)
+- **Two-column layout** (desktop) - Video + metadata on left, comments on right
+- **Video metadata** - Title, views, date, like/dislike ratio bar
+- **Video description** - Collapsible, auto-links URLs
+- **Prev/Next navigation** - Shows trailer titles, keyboard arrows work
+- **Comments section** - Scrollable list, shows total count from YouTube
+- **Watch on YouTube button** - Red branded button
+
+**Used by:**
+- `TrailerCarousel` - Homepage TMDB trailers
+- `YouTubeTrailerCarousel` - Homepage viral trailers from YouTube channels
+- `MediaActionBar` - Detail page "Play Trailer" button (single trailer)
+
+### Homepage Order
+
+```tsx
+// src/app/page.tsx
+<div className="px-4 md:px-8 lg:px-12 pb-16 space-y-10">
+  {/* 1. Continue Watching (logged-in only, top priority) */}
+  <ContinueWatchingSection />
+
+  {/* 2. Topic Pills */}
+  <TopicPills topics={popularTopics} />
+
+  {/* 3. Trending Trailers */}
+  <TrailerCarousel title="Trending Trailers" trailers={trendingTrailers} />
+
+  {/* 4. Trending Movies */}
+  <MovieCarousel title="Trending Movies" items={trending.movies} />
+
+  {/* 5. Trending TV Shows */}
+  <MovieCarousel title="Trending TV Shows" items={trending.tv} />
+
+  {/* 6. Recent Visits (logged-in only, after trending) */}
+  <RecentVisitsSection />
+
+  {/* 7. Mood Cards */}
+  <MoodCards />
+
+  {/* ... more sections */}
+</div>
+```
+
+### WideCard Component
+
+Wide backdrop card for recents and continue watching:
+
+```tsx
+// src/components/features/media/wide-card.tsx
+interface WideCardProps {
+  item: RecentItem | ContinueWatchingItem;
+  className?: string;
+  showWatchLink?: boolean;  // Show external link icon + provider logo
+}
+
+// Card dimensions: aspect-video (16:9)
+// Width: w-[280px] sm:w-[320px] md:w-[380px]
+// Image sources: CDN first (widePoster.webp), TMDB fallback
+```
+
+**Key behaviors:**
+- No play icon on hover for recents (clean hover with subtle scale)
+- External link icon only for continue watching items
+- Defensive `isMovie` handling with title/name fallback
+
+### RecentTracker Component
+
+Invisible component that tracks page views:
+
+```tsx
+// src/components/features/media/recent-tracker.tsx
+interface RecentTrackerProps {
+  itemId: number;
+  isMovie: boolean;
+  title?: string;       // For movies
+  name?: string;        // For series
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+}
+
+// Usage in movie/series detail pages:
+<RecentTracker
+  itemId={movie.id}
+  isMovie={true}
+  title={movie.title}
+  poster_path={movie.poster_path}
+  backdrop_path={movie.backdrop_path}
+/>
+```
+
+**Behavior:**
+- Only tracks for authenticated users
+- Fires once per page mount (with 500ms delay for hydration)
+- Syncs to server via `/api/user/recents` (fire and forget)
+
+## Topic Utilities
+
+Topics are searched locally using utilities from `@/lib/topics`:
+
+```tsx
+import { searchTopics, getPopularTopics } from "@/lib/topics";
+
+// Search topics by name (instant, case-insensitive)
+const matches = searchTopics("action", 4);
+// → [{ name: "Action Movies", key: "genre-action-movie" }, ...]
+
+// Get curated popular topics (for empty state)
+const popular = getPopularTopics();
+// → Action Movies, Comedy Movies, Horror Movies, Superhero Movies, ...
+```

@@ -11,14 +11,15 @@ interface SignInPageProps {
 
 export const metadata = {
   title: "Sign In",
-  description: "Sign in to Movie Browser to access your watchlist, ratings, and personalized recommendations.",
+  description:
+    "Sign in to Movie Browser to access your watchlist, ratings, and personalized recommendations.",
 };
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   // Check if user is already authenticated
   const session = await auth();
   const { callbackUrl, error } = await searchParams;
-  
+
   // If already logged in, redirect to callback or home
   if (session?.user) {
     redirect(callbackUrl || "/");
@@ -26,5 +27,3 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
   return <SignInClient callbackUrl={callbackUrl} error={error} />;
 }
-
-

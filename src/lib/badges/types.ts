@@ -50,4 +50,3 @@ export interface BadgeOptions {
   /** Context where badges will be displayed */
   context?: "card" | "detail" | "hover";
 }
-

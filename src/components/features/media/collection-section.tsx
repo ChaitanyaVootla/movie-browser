@@ -16,20 +16,12 @@ interface CollectionSectionProps {
   className?: string;
 }
 
-function CollectionCard({
-  part,
-  isCurrent,
-}: {
-  part: LightCollectionPart;
-  isCurrent: boolean;
-}) {
+function CollectionCard({ part, isCurrent }: { part: LightCollectionPart; isCurrent: boolean }) {
   const [imageError, setImageError] = useState(false);
   const year = part.release_date?.split("-")[0];
   const href = getMediaHref(part.id, true, part.title); // Collection parts are always movies
 
-  const posterUrl = part.poster_path
-    ? `https://image.tmdb.org/t/p/w342${part.poster_path}`
-    : null;
+  const posterUrl = part.poster_path ? `https://image.tmdb.org/t/p/w342${part.poster_path}` : null;
 
   return (
     <Link
@@ -52,19 +44,19 @@ function CollectionCard({
             isCurrent && "ring-2 ring-brand shadow-[0_0_12px_rgba(var(--brand-rgb),0.4)]"
           )}
         >
-        {posterUrl && !imageError ? (
-          <Image
-            src={posterUrl}
-            alt={`${part.title} poster`}
-            fill
-            className={cn(
-              "object-cover transition-all duration-300",
-              !isCurrent && "group-hover:scale-105"
-            )}
-            sizes="160px"
-            onError={() => setImageError(true)}
-          />
-        ) : (
+          {posterUrl && !imageError ? (
+            <Image
+              src={posterUrl}
+              alt={`${part.title} poster`}
+              fill
+              className={cn(
+                "object-cover transition-all duration-300",
+                !isCurrent && "group-hover:scale-105"
+              )}
+              sizes="160px"
+              onError={() => setImageError(true)}
+            />
+          ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
               <span className="text-muted-foreground text-[10px] text-center px-2 line-clamp-3">
                 {part.title}
@@ -147,11 +139,7 @@ export function CollectionSection({
       contentPadding="px-3 md:px-7 lg:px-11"
     >
       {sortedParts.map((part) => (
-        <CollectionCard
-          key={part.id}
-          part={part}
-          isCurrent={part.id === currentMovieId}
-        />
+        <CollectionCard key={part.id} part={part} isCurrent={part.id === currentMovieId} />
       ))}
     </MediaScroller>
   );

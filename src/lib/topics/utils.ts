@@ -6,7 +6,12 @@
 
 import { POPULAR_MOVIE_GENRES, POPULAR_TV_GENRES } from "../discover";
 import type { TopicMeta, TopicVariation, MediaType, ParsedTopicKey, TopicType } from "./types";
-import { getLanguageByCode, getLanguageByName, getCountryByCode, getCountryByName } from "./constants";
+import {
+  getLanguageByCode,
+  getLanguageByName,
+  getCountryByCode,
+  getCountryByName,
+} from "./constants";
 
 // ============================================
 // Slug Helpers
@@ -91,7 +96,10 @@ export function getGenreMeta(genreName: string, media: MediaType = "movie"): Top
 /**
  * Get topic metadata for a country
  */
-export function getCountryMeta(countryInput: string, media: MediaType = "movie"): TopicMeta | undefined {
+export function getCountryMeta(
+  countryInput: string,
+  media: MediaType = "movie"
+): TopicMeta | undefined {
   // Try by code first, then by name
   const country = getCountryByCode(countryInput.toUpperCase()) || getCountryByName(countryInput);
 
@@ -126,9 +134,13 @@ export function getCountryMeta(countryInput: string, media: MediaType = "movie")
 /**
  * Get topic metadata for a language
  */
-export function getLanguageMeta(languageInput: string, media: MediaType = "movie"): TopicMeta | undefined {
+export function getLanguageMeta(
+  languageInput: string,
+  media: MediaType = "movie"
+): TopicMeta | undefined {
   // Try by ISO code first, then by name
-  const language = getLanguageByCode(languageInput.toLowerCase()) || getLanguageByName(languageInput);
+  const language =
+    getLanguageByCode(languageInput.toLowerCase()) || getLanguageByName(languageInput);
 
   if (!language) return undefined;
 
@@ -171,9 +183,7 @@ export function getThemeMeta(
   themes: ThemeDefinition[],
   media: MediaType = "movie"
 ): TopicMeta | undefined {
-  const theme = themes.find(
-    (t) => sanitizeSlug(t.name) === sanitizeSlug(themeName)
-  );
+  const theme = themes.find((t) => sanitizeSlug(t.name) === sanitizeSlug(themeName));
 
   if (!theme) return undefined;
 
@@ -258,4 +268,3 @@ export function getTopicDisplayName(key: string): string | null {
       return null;
   }
 }
-

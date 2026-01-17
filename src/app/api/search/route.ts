@@ -92,9 +92,7 @@ export async function GET(request: NextRequest) {
     // Full Hybrid Search
     // =======================================================================
     const mediaTypes =
-      params.type === "all"
-        ? (["movie", "series", "person"] as const)
-        : ([params.type] as const);
+      params.type === "all" ? (["movie", "series", "person"] as const) : ([params.type] as const);
 
     const response = await hybridSearch(params.q, {
       limit: params.limit,
@@ -131,7 +129,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Invalid parameters",
-          details: error.errors.map((e) => ({
+          details: error.issues.map((e) => ({
             field: e.path.join("."),
             message: e.message,
           })),

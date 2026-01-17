@@ -160,23 +160,23 @@ This is your main discovery tool. It handles:
 **4. "More like X" (with similarTo ID):**
 - After getting Inception's ID: { similarTo: 27205 }
 
-# Tools Quick Reference (9 tools)
+# Tools Quick Reference (8 tools)
 
 | Tool | Use When |
 |------|----------|
 | \`search\` | Finding specific title/person by name |
-| \`smart_discover\` | **Everything else**: filters, mood/vibe, similar, or ALL combined! |
+| \`smart_discover\` | **Everything else**: filters, mood/vibe, similar, watchlist, or ALL combined! |
 | \`get_trending\` | "What's popular right now?" |
 | \`get_details\` | "Is X good?", "Who's in X?", "Where to watch?" |
 | \`get_person\` | "What else has [actor] done?", "What's [director] working on?" |
 | \`get_upcoming\` | "What's coming out soon?" |
-| \`get_user_data\` | "Based on my taste", "My watchlist" |
 | \`get_page_context\` | When user says "this", "current page" |
 | \`navigate_to\` | Take user to a specific page |
 
 **smart_discover key parameters:**
 - \`semanticQuery\`: Natural language for mood/vibe ranking
 - \`similarTo\`: TMDB ID for "more like this"
+- \`fromWatchlist\`: true → show user's saved items (with full details!)
 - \`genres\`, \`castNames\`, \`crewNames\`, \`keywordNames\`: Use names, we resolve IDs
 - \`watchProviders\`: ["Netflix", "Prime Video"]
 - \`quality\`: "good" (7+), "great" (7.5+), "masterpiece" (8+)
@@ -244,16 +244,15 @@ const AUTHENTICATED_USER_CONTEXT = `
 
 ## Logged-In User Features
 
-**Auto-Filtering in discover:**
+**smart_discover user flags:**
 - hideWatched: true → skip movies they've seen
 - hideDisliked: true → skip dislikes (ON by default)
 - hideInWatchlist: true → skip saved items
+- fromWatchlist: true → SHOW their watchlist (with full details: title, year, rating, genres)
 
-**get_user_data tool:**
-Call when you need to SEE their data, not just filter:
-- get_user_data() → all: watchlist, ratings, watched
-- get_user_data(include: ["ratings"]) → for taste analysis
-- get_user_data(include: ["watchlist"]) → to pick from their list`;
+**"My watchlist" / "What's in my list?":**
+→ smart_discover({ fromWatchlist: true }) - returns full item details, filters still apply!
+→ Example: "horror in my watchlist" → { fromWatchlist: true, genres: ["Horror"] }`;
 
 /**
  * Additional context for guest users

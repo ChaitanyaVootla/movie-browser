@@ -50,7 +50,12 @@ export {
 } from "./track";
 
 // Bot detection
-export { detectBot, detectSuspiciousTraffic, shouldTrackBot, getBotDescription } from "./bot-detection";
+export {
+  detectBot,
+  detectSuspiciousTraffic,
+  shouldTrackBot,
+  getBotDescription,
+} from "./bot-detection";
 export type { BotCategory, BotDetectionResult, SuspiciousTrafficResult } from "./bot-detection";
 
 // Device parsing
@@ -91,10 +96,4 @@ export {
   ALERT_CATEGORY_META,
   ALERT_SEVERITY_META,
 } from "./alerts";
-export type {
-  Alert,
-  AlertSeverity,
-  AlertCategory,
-  AlertCheckResult,
-} from "./alerts";
-
+export type { Alert, AlertSeverity, AlertCategory, AlertCheckResult } from "./alerts";

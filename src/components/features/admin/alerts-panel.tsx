@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  AlertCircle,
-  AlertTriangle,
-  Info,
-  Bot,
-  Gauge,
-  TrendingDown,
-  Database,
-} from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, Bot, Gauge, TrendingDown, Database } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -201,5 +193,3 @@ function getTimeAgo(dateString: string): string {
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays}d ago`;
 }
-
-

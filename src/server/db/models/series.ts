@@ -284,5 +284,3 @@ export const SeriesLightFields =
 
 export const Series: Model<ISeries> =
   mongoose.models.series || mongoose.model<ISeries>("series", SeriesSchema);
-
-

@@ -38,9 +38,7 @@ async function fetchWatchOptions(
   mediaType: "movie" | "series",
   country: string
 ): Promise<ProcessedWatchOptions> {
-  const response = await fetch(
-    `/api/watch-providers/${mediaType}/${itemId}?country=${country}`
-  );
+  const response = await fetch(`/api/watch-providers/${mediaType}/${itemId}?country=${country}`);
   if (!response.ok) {
     throw new Error("Failed to fetch watch options");
   }
@@ -58,7 +56,7 @@ export function WatchOptions({
   const [fetchedOptions, setFetchedOptions] = useState<ProcessedWatchOptions | null>(null);
   const countryOverride = useUserStore(selectCountryOverride);
   const addToContinueWatching = useUserStore((s) => s.addToContinueWatching);
-  
+
   // Track the country we fetched for to avoid re-fetching
   const lastFetchedCountry = useRef<string | null>(null);
 
@@ -66,6 +64,8 @@ export function WatchOptions({
   useEffect(() => {
     // No override - use server options
     if (!countryOverride) {
+      // Reset state when condition changes (valid pattern)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFetchedOptions(null);
       lastFetchedCountry.current = null;
       return;
@@ -113,11 +113,12 @@ export function WatchOptions({
   }, [countryOverride, item.id, isMovie, serverWatchOptions?.sourceCountry]);
 
   // Use fetched options if available, otherwise use server options
-  const watchOptions = fetchedOptions || serverWatchOptions || {
-    options: [],
-    sourceCountry: "IN",
-    isFromFallback: false,
-  };
+  const watchOptions = fetchedOptions ||
+    serverWatchOptions || {
+      options: [],
+      sourceCountry: "IN",
+      isFromFallback: false,
+    };
 
   const { options, sourceCountry, isFromFallback } = watchOptions;
 
@@ -176,9 +177,7 @@ export function WatchOptions({
           <Play className="h-3 w-3 fill-current" />
           <span className="text-[11px] font-medium">Watch</span>
           {isFromFallback && sourceCountry && (
-            <span className="text-white/50 text-[10px]">
-              ({sourceCountry})
-            </span>
+            <span className="text-white/50 text-[10px]">({sourceCountry})</span>
           )}
         </div>
 

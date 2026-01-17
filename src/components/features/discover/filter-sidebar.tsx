@@ -15,11 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { MediaTypeToggle } from "./media-type-toggle";
 import { GenreFilterCompact } from "./genre-filter";
@@ -67,7 +63,7 @@ export function FilterSidebar({
 }: FilterSidebarProps) {
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
-  
+
   const [libraryOpen, setLibraryOpen] = useState(
     params.hideWatched || params.hideWatchlist || params.hideDisliked
   );
@@ -136,21 +132,20 @@ export function FilterSidebar({
   }, [params.year, params.year_gte, params.year_lte]);
 
   // Get certification options based on media type
-  const certificationOptions = params.media_type === "tv" 
-    ? TV_CERTIFICATION_OPTIONS 
-    : MOVIE_CERTIFICATION_OPTIONS;
+  const certificationOptions =
+    params.media_type === "tv" ? TV_CERTIFICATION_OPTIONS : MOVIE_CERTIFICATION_OPTIONS;
 
   const selectedGenres = Array.isArray(params.with_genres)
     ? params.with_genres
     : params.with_genres
-    ? [params.with_genres]
-    : [];
+      ? [params.with_genres]
+      : [];
 
   const excludedGenres = Array.isArray(params.without_genres)
     ? params.without_genres
     : params.without_genres
-    ? [params.without_genres]
-    : [];
+      ? [params.without_genres]
+      : [];
 
   const updateParam = <K extends keyof DiscoverParams>(
     key: K,
@@ -185,7 +180,11 @@ export function FilterSidebar({
     params.with_watch_monetization_types ||
     (Array.isArray(params.with_cast) ? params.with_cast.length : params.with_cast ? 1 : 0) > 0 ||
     (Array.isArray(params.with_crew) ? params.with_crew.length : params.with_crew ? 1 : 0) > 0 ||
-    (Array.isArray(params.with_keywords) ? params.with_keywords.length : params.with_keywords ? 1 : 0) > 0 ||
+    (Array.isArray(params.with_keywords)
+      ? params.with_keywords.length
+      : params.with_keywords
+        ? 1
+        : 0) > 0 ||
     params.year ||
     params.year_gte ||
     params.year_lte ||
@@ -251,41 +250,56 @@ export function FilterSidebar({
                   {/* Hide Watched - Movies only */}
                   {params.media_type === "movie" && (
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="hide-watched" className="text-sm flex items-center gap-2 cursor-pointer">
+                      <Label
+                        htmlFor="hide-watched"
+                        className="text-sm flex items-center gap-2 cursor-pointer"
+                      >
                         <Eye className="h-4 w-4 text-muted-foreground" />
                         Hide watched
                       </Label>
                       <Switch
                         id="hide-watched"
                         checked={params.hideWatched || false}
-                        onCheckedChange={(checked) => updateParam("hideWatched", checked || undefined)}
+                        onCheckedChange={(checked) =>
+                          updateParam("hideWatched", checked || undefined)
+                        }
                       />
                     </div>
                   )}
-                  
+
                   {/* Hide Watchlist */}
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="hide-watchlist" className="text-sm flex items-center gap-2 cursor-pointer">
+                    <Label
+                      htmlFor="hide-watchlist"
+                      className="text-sm flex items-center gap-2 cursor-pointer"
+                    >
                       <List className="h-4 w-4 text-muted-foreground" />
                       Hide in watchlist
                     </Label>
                     <Switch
                       id="hide-watchlist"
                       checked={params.hideWatchlist || false}
-                      onCheckedChange={(checked) => updateParam("hideWatchlist", checked || undefined)}
+                      onCheckedChange={(checked) =>
+                        updateParam("hideWatchlist", checked || undefined)
+                      }
                     />
                   </div>
-                  
+
                   {/* Hide Disliked */}
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="hide-disliked" className="text-sm flex items-center gap-2 cursor-pointer">
+                    <Label
+                      htmlFor="hide-disliked"
+                      className="text-sm flex items-center gap-2 cursor-pointer"
+                    >
                       <ThumbsDown className="h-4 w-4 text-muted-foreground" />
                       Hide disliked
                     </Label>
                     <Switch
                       id="hide-disliked"
                       checked={params.hideDisliked || false}
-                      onCheckedChange={(checked) => updateParam("hideDisliked", checked || undefined)}
+                      onCheckedChange={(checked) =>
+                        updateParam("hideDisliked", checked || undefined)
+                      }
                     />
                   </div>
                 </CollapsibleContent>
@@ -536,7 +550,8 @@ export function FilterSidebar({
                   onValueChange={(v) => {
                     const newParams = { ...params };
                     if (v !== "any") {
-                      newParams.with_watch_monetization_types = v as DiscoverParams["with_watch_monetization_types"];
+                      newParams.with_watch_monetization_types =
+                        v as DiscoverParams["with_watch_monetization_types"];
                       // Availability filter requires watch_region
                       if (!newParams.watch_region) {
                         newParams.watch_region = "US";
@@ -594,10 +609,9 @@ export function FilterSidebar({
               </div>
 
               {/* Region hint */}
-              {((params.with_watch_providers?.length ?? 0) > 0 || params.with_watch_monetization_types) && (
-                <p className="text-xs text-muted-foreground">
-                  Showing results for US region
-                </p>
+              {((params.with_watch_providers?.length ?? 0) > 0 ||
+                params.with_watch_monetization_types) && (
+                <p className="text-xs text-muted-foreground">Showing results for US region</p>
               )}
             </CollapsibleContent>
           </Collapsible>
@@ -654,11 +668,7 @@ export function FilterSidebar({
       {/* Reset Button */}
       {hasActiveFilters && (
         <div className="p-5 border-t">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={resetFilters}
-          >
+          <Button variant="outline" className="w-full" onClick={resetFilters}>
             <X className="h-4 w-4 mr-2" />
             Reset Filters
           </Button>
@@ -685,18 +695,11 @@ export function MobileFilterTrigger({
       variant="outline"
       size="sm"
       onClick={onClick}
-      className={cn(
-        "md:hidden",
-        hasActiveFilters && "border-brand text-brand",
-        className
-      )}
+      className={cn("md:hidden", hasActiveFilters && "border-brand text-brand", className)}
     >
       <Filter className="h-4 w-4 mr-2" />
       Filters
-      {hasActiveFilters && (
-        <span className="ml-1 h-2 w-2 rounded-full bg-brand" />
-      )}
+      {hasActiveFilters && <span className="ml-1 h-2 w-2 rounded-full bg-brand" />}
     </Button>
   );
 }
-

@@ -45,7 +45,12 @@
       "gridPos": { "h": 8, "w": 16, "x": 0, "y": 0 },
       "id": 1,
       "options": {
-        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "title": "Daily Page Views",
@@ -67,14 +72,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1000 }, { "color": "green", "value": 5000 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "green", "value": 5000 }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
       "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
       "id": 2,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "Page Views Today",
       "type": "stat",
       "targets": [
@@ -99,7 +120,16 @@
       },
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
       "id": 3,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "Sessions Today",
       "type": "stat",
       "targets": [
@@ -124,7 +154,16 @@
       },
       "gridPos": { "h": 4, "w": 4, "x": 16, "y": 4 },
       "id": 4,
-      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "Unique Users",
       "type": "stat",
       "targets": [
@@ -142,14 +181,29 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": null }, { "color": "red", "value": 100 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "orange", "value": null },
+              { "color": "red", "value": 100 }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 4 },
       "id": 5,
-      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "Bot Views Today",
       "type": "stat",
       "targets": [
@@ -174,7 +228,12 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "id": 6,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": ["value", "percent"]
+        },
         "pieType": "pie",
         "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
         "tooltip": { "mode": "single", "sort": "none" }
@@ -203,7 +262,12 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "id": 7,
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": ["value", "percent"]
+        },
         "pieType": "pie",
         "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
         "tooltip": { "mode": "single", "sort": "none" }
@@ -229,12 +293,21 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "views" }, "properties": [{ "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }] }
+          {
+            "matcher": { "id": "byName", "options": "views" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }
+            ]
+          }
         ]
       },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "id": 8,
-      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
       "title": "Top Pages",
       "type": "table",
       "targets": [
@@ -279,5 +352,3 @@
   "version": 1,
   "weekStart": ""
 }
-
-

@@ -15,6 +15,35 @@
 import { prisma } from "./index";
 import { generateQueryEmbedding } from "@/lib/embeddings";
 import { dataLogger } from "@/lib/logger";
+import { z } from "zod";
+
+// =============================================================================
+// Validation Schemas
+// =============================================================================
+
+const SearchFiltersSchema = z.object({
+  genres: z.array(z.number().int().positive()).optional(),
+  yearRange: z
+    .tuple([z.number().int().min(1800).max(2100), z.number().int().min(1800).max(2100)])
+    .optional(),
+  minRating: z.number().min(0).max(10).optional(),
+});
+
+const SemanticSearchOptionsSchema = z.object({
+  limit: z.number().int().positive().max(100).optional(),
+  mediaType: z.enum(["movie", "series"]).optional(),
+  minScore: z.number().min(0).max(1).optional(),
+  filters: SearchFiltersSchema.optional(),
+});
+
+const SimilarByEmbeddingOptionsSchema = z.object({
+  limit: z.number().int().positive().max(100).optional(),
+  minScore: z.number().min(0).max(1).optional(),
+  excludeSelf: z.boolean().optional(),
+  excludeCollectionId: z.number().int().positive().optional(),
+  excludeIds: z.array(z.number().int().positive()).optional(),
+  minRating: z.number().min(0).max(10).optional(),
+});
 
 // =============================================================================
 // Types
@@ -77,12 +106,9 @@ export async function semanticSearch(
   query: string,
   options: SemanticSearchOptions = {}
 ): Promise<SemanticSearchResult[]> {
-  const {
-    limit = 20,
-    mediaType,
-    minScore = 0.3,
-    filters,
-  } = options;
+  // Validate inputs
+  const validated = SemanticSearchOptionsSchema.parse(options);
+  const { limit = 20, mediaType, minScore = 0.4, filters } = validated;
 
   const startTime = Date.now();
 
@@ -90,6 +116,11 @@ export async function semanticSearch(
     // Generate embedding for query
     const queryEmbedding = await generateQueryEmbedding(query);
     const embeddingStr = `[${queryEmbedding.join(",")}]`;
+
+    // Validate embedding format (only numbers, commas, spaces, brackets, minus signs)
+    if (!/^\[[\d.,\s-]+\]$/.test(embeddingStr)) {
+      throw new Error("Invalid embedding format");
+    }
 
     const results: SemanticSearchResult[] = [];
 
@@ -114,9 +145,7 @@ export async function semanticSearch(
     }
 
     // Sort by score (descending) and limit
-    const sortedResults = results
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    const sortedResults = results.sort((a, b) => b.score - a.score).slice(0, limit);
 
     dataLogger.info({
       event: "semantic_search",
@@ -142,7 +171,7 @@ export async function semanticSearch(
  * @example
  * // Find movies similar to Inception (id: 27205)
  * const similar = await findSimilarByEmbedding(27205, "movie", { limit: 10 });
- * 
+ *
  * // Exclude collection + watched movies
  * const similar = await findSimilarByEmbedding(27205, "movie", {
  *   limit: 15,
@@ -156,28 +185,30 @@ export async function findSimilarByEmbedding(
   mediaType: "movie" | "series",
   options: SimilarByEmbeddingOptions = {}
 ): Promise<SemanticSearchResult[]> {
-  const { 
-    limit = 10, 
-    minScore = 0.5, 
+  // Validate inputs
+  const validated = SimilarByEmbeddingOptionsSchema.parse(options);
+  const {
+    limit = 10,
+    minScore = 0.5,
     excludeSelf = true,
     excludeCollectionId,
     excludeIds,
     minRating,
-  } = options;
+  } = validated;
 
   const startTime = Date.now();
 
   try {
     if (mediaType === "movie") {
-      const results = await findSimilarMovies(id, { 
-        limit, 
-        minScore, 
+      const results = await findSimilarMovies(id, {
+        limit,
+        minScore,
         excludeSelf,
         excludeCollectionId,
         excludeIds,
         minRating,
       });
-      
+
       dataLogger.debug({
         event: "find_similar_movies",
         sourceId: id,
@@ -187,17 +218,17 @@ export async function findSimilarByEmbedding(
         minRating,
         durationMs: Date.now() - startTime,
       });
-      
+
       return results;
     } else {
-      const results = await findSimilarSeries(id, { 
-        limit, 
-        minScore, 
+      const results = await findSimilarSeries(id, {
+        limit,
+        minScore,
         excludeSelf,
         excludeIds,
         minRating,
       });
-      
+
       dataLogger.debug({
         event: "find_similar_series",
         sourceId: id,
@@ -206,7 +237,7 @@ export async function findSimilarByEmbedding(
         minRating,
         durationMs: Date.now() - startTime,
       });
-      
+
       return results;
     }
   } catch (error) {
@@ -229,46 +260,57 @@ async function searchMoviesByEmbedding(
   options: {
     limit: number;
     minScore: number;
-    filters?: SemanticSearchOptions["filters"];
+    filters?: z.infer<typeof SearchFiltersSchema>;
   }
 ): Promise<SemanticSearchResult[]> {
   const { limit, minScore, filters } = options;
 
   // Build filter conditions
+  // NOTE: All filter values are validated by Zod (SearchFiltersSchema) before reaching here
+  // - genres: array of positive integers
+  // - yearRange: tuple of integers 1800-2100
+  // - minRating: number 0-10
   const conditions: string[] = ["embedding IS NOT NULL"];
 
   if (filters?.genres?.length) {
+    // Safe: genres validated as positive integers by Zod
+    const genreIds = filters.genres.map((id) => Number(id)).join(",");
     conditions.push(`
       id IN (
-        SELECT movie_id FROM movie_genres 
-        WHERE genre_id = ANY(ARRAY[${filters.genres.join(",")}])
+        SELECT movie_id FROM movie_genres
+        WHERE genre_id = ANY(ARRAY[${genreIds}])
       )
     `);
   }
 
   if (filters?.yearRange) {
+    // Safe: yearRange validated as [1800-2100, 1800-2100] by Zod
+    const [startYear, endYear] = filters.yearRange;
     conditions.push(`
-      EXTRACT(YEAR FROM release_date) BETWEEN ${filters.yearRange[0]} AND ${filters.yearRange[1]}
+      EXTRACT(YEAR FROM release_date) BETWEEN ${Number(startYear)} AND ${Number(endYear)}
     `);
   }
 
   if (filters?.minRating) {
-    conditions.push(`vote_average >= ${filters.minRating}`);
+    // Safe: minRating validated as 0-10 by Zod
+    conditions.push(`vote_average >= ${Number(filters.minRating)}`);
   }
 
-  const whereClause = conditions.join(" AND ");
+  const whereClause = conditions.length > 0 ? conditions.join(" AND ") : "embedding IS NOT NULL";
 
   // Note: 1 - (embedding <=> query) = cosine similarity
   // <=> is cosine distance, so subtract from 1 to get similarity
-  const results = await prisma.$queryRawUnsafe<Array<{
-    id: number;
-    title: string;
-    score: number;
-    poster_path: string | null;
-    year: string | null;
-    overview: string | null;
-    genres: string[];
-  }>>(`
+  const results = await prisma.$queryRawUnsafe<
+    Array<{
+      id: number;
+      title: string;
+      score: number;
+      poster_path: string | null;
+      year: string | null;
+      overview: string | null;
+      genres: string[];
+    }>
+  >(`
     SELECT 
       m.id,
       m.title,
@@ -310,43 +352,52 @@ async function searchSeriesByEmbedding(
   options: {
     limit: number;
     minScore: number;
-    filters?: SemanticSearchOptions["filters"];
+    filters?: z.infer<typeof SearchFiltersSchema>;
   }
 ): Promise<SemanticSearchResult[]> {
   const { limit, minScore, filters } = options;
 
+  // Build filter conditions
+  // NOTE: All filter values are validated by Zod (SearchFiltersSchema) before reaching here
   const conditions: string[] = ["embedding IS NOT NULL"];
 
   if (filters?.genres?.length) {
+    // Safe: genres validated as positive integers by Zod
+    const genreIds = filters.genres.map((id) => Number(id)).join(",");
     conditions.push(`
       id IN (
-        SELECT series_id FROM series_genres 
-        WHERE genre_id = ANY(ARRAY[${filters.genres.join(",")}])
+        SELECT series_id FROM series_genres
+        WHERE genre_id = ANY(ARRAY[${genreIds}])
       )
     `);
   }
 
   if (filters?.yearRange) {
+    // Safe: yearRange validated as [1800-2100, 1800-2100] by Zod
+    const [startYear, endYear] = filters.yearRange;
     conditions.push(`
-      EXTRACT(YEAR FROM first_air_date) BETWEEN ${filters.yearRange[0]} AND ${filters.yearRange[1]}
+      EXTRACT(YEAR FROM first_air_date) BETWEEN ${Number(startYear)} AND ${Number(endYear)}
     `);
   }
 
   if (filters?.minRating) {
-    conditions.push(`vote_average >= ${filters.minRating}`);
+    // Safe: minRating validated as 0-10 by Zod
+    conditions.push(`vote_average >= ${Number(filters.minRating)}`);
   }
 
-  const whereClause = conditions.join(" AND ");
+  const whereClause = conditions.length > 0 ? conditions.join(" AND ") : "embedding IS NOT NULL";
 
-  const results = await prisma.$queryRawUnsafe<Array<{
-    id: number;
-    name: string;
-    score: number;
-    poster_path: string | null;
-    year: string | null;
-    overview: string | null;
-    genres: string[];
-  }>>(`
+  const results = await prisma.$queryRawUnsafe<
+    Array<{
+      id: number;
+      name: string;
+      score: number;
+      poster_path: string | null;
+      year: string | null;
+      overview: string | null;
+      genres: string[];
+    }>
+  >(`
     SELECT 
       s.id,
       s.name,
@@ -385,9 +436,9 @@ async function searchSeriesByEmbedding(
 
 async function findSimilarMovies(
   movieId: number,
-  options: { 
-    limit: number; 
-    minScore: number; 
+  options: {
+    limit: number;
+    minScore: number;
     excludeSelf: boolean;
     excludeCollectionId?: number;
     excludeIds?: number[];
@@ -398,35 +449,51 @@ async function findSimilarMovies(
   // Note: minRating not used - V2 schema stores ratings in separate table
   // Could add JOIN with ratings table in future if needed
 
+  // Validate and sanitize ID (already validated by Zod but extra safety)
+  const safeMovieId = Math.floor(Number(movieId));
+  if (!Number.isInteger(safeMovieId) || safeMovieId <= 0) {
+    throw new Error("Invalid movie ID");
+  }
+
   // Build exclusion conditions
   const conditions: string[] = ["t.embedding IS NOT NULL"];
-  
+
   if (excludeSelf) {
-    conditions.push(`t.id != ${movieId}`);
+    conditions.push(`t.id != ${safeMovieId}`);
   }
-  
+
   // Exclude movies from the same collection (they're shown in CollectionSection)
   if (excludeCollectionId) {
-    conditions.push(`(t.collection_id IS NULL OR t.collection_id != ${excludeCollectionId})`);
+    const safeCollectionId = Math.floor(Number(excludeCollectionId));
+    if (!Number.isInteger(safeCollectionId) || safeCollectionId <= 0) {
+      throw new Error("Invalid collection ID");
+    }
+    conditions.push(`(t.collection_id IS NULL OR t.collection_id != ${safeCollectionId})`);
   }
-  
+
   // Exclude specific IDs (watched, watchlist)
   if (excludeIds && excludeIds.length > 0) {
-    conditions.push(`t.id NOT IN (${excludeIds.join(",")})`);
+    // Safe: excludeIds validated by Zod as array of positive integers
+    const safeIds = excludeIds.map((id) => Math.floor(Number(id))).filter((id) => Number.isInteger(id) && id > 0);
+    if (safeIds.length > 0) {
+      conditions.push(`t.id NOT IN (${safeIds.join(",")})`);
+    }
   }
 
   const whereClause = conditions.join(" AND ");
 
-  const results = await prisma.$queryRawUnsafe<Array<{
-    id: number;
-    title: string;
-    score: number;
-    poster_path: string | null;
-    year: string | null;
-    overview: string | null;
-  }>>(`
+  const results = await prisma.$queryRawUnsafe<
+    Array<{
+      id: number;
+      title: string;
+      score: number;
+      poster_path: string | null;
+      year: string | null;
+      overview: string | null;
+    }>
+  >(`
     WITH source AS (
-      SELECT embedding FROM movies WHERE id = ${movieId}
+      SELECT embedding FROM movies WHERE id = ${safeMovieId}
     )
     SELECT 
       t.id,
@@ -458,9 +525,9 @@ async function findSimilarMovies(
 
 async function findSimilarSeries(
   seriesId: number,
-  options: { 
-    limit: number; 
-    minScore: number; 
+  options: {
+    limit: number;
+    minScore: number;
     excludeSelf: boolean;
     excludeIds?: number[];
     minRating?: number;
@@ -470,30 +537,42 @@ async function findSimilarSeries(
   // Note: minRating not used - V2 schema stores ratings in separate table
   // Could add JOIN with ratings table in future if needed
 
+  // Validate and sanitize ID (already validated by Zod but extra safety)
+  const safeSeriesId = Math.floor(Number(seriesId));
+  if (!Number.isInteger(safeSeriesId) || safeSeriesId <= 0) {
+    throw new Error("Invalid series ID");
+  }
+
   // Build exclusion conditions
   const conditions: string[] = ["t.embedding IS NOT NULL"];
-  
+
   if (excludeSelf) {
-    conditions.push(`t.id != ${seriesId}`);
+    conditions.push(`t.id != ${safeSeriesId}`);
   }
-  
+
   // Exclude specific IDs (watched, watchlist)
   if (excludeIds && excludeIds.length > 0) {
-    conditions.push(`t.id NOT IN (${excludeIds.join(",")})`);
+    // Safe: excludeIds validated by Zod as array of positive integers
+    const safeIds = excludeIds.map((id) => Math.floor(Number(id))).filter((id) => Number.isInteger(id) && id > 0);
+    if (safeIds.length > 0) {
+      conditions.push(`t.id NOT IN (${safeIds.join(",")})`);
+    }
   }
 
   const whereClause = conditions.join(" AND ");
 
-  const results = await prisma.$queryRawUnsafe<Array<{
-    id: number;
-    name: string;
-    score: number;
-    poster_path: string | null;
-    year: string | null;
-    overview: string | null;
-  }>>(`
+  const results = await prisma.$queryRawUnsafe<
+    Array<{
+      id: number;
+      name: string;
+      score: number;
+      poster_path: string | null;
+      year: string | null;
+      overview: string | null;
+    }>
+  >(`
     WITH source AS (
-      SELECT embedding FROM series WHERE id = ${seriesId}
+      SELECT embedding FROM series WHERE id = ${safeSeriesId}
     )
     SELECT 
       t.id,
@@ -558,16 +637,13 @@ export async function getEmbeddingStats(): Promise<{
     movies: {
       total: movieTotal,
       withEmbedding: movieWithEmbedding,
-      coverage: movieTotal > 0 
-        ? `${((movieWithEmbedding / movieTotal) * 100).toFixed(2)}%`
-        : "0%",
+      coverage: movieTotal > 0 ? `${((movieWithEmbedding / movieTotal) * 100).toFixed(2)}%` : "0%",
     },
     series: {
       total: seriesTotal,
       withEmbedding: seriesWithEmbedding,
-      coverage: seriesTotal > 0
-        ? `${((seriesWithEmbedding / seriesTotal) * 100).toFixed(2)}%`
-        : "0%",
+      coverage:
+        seriesTotal > 0 ? `${((seriesWithEmbedding / seriesTotal) * 100).toFixed(2)}%` : "0%",
     },
   };
 }

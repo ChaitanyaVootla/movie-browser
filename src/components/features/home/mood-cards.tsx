@@ -134,7 +134,7 @@ export function MoodCards({ className }: MoodCardsProps) {
           >
             {/* Background shine effect on hover */}
             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            
+
             {/* Content */}
             <div className="relative z-10 flex flex-col items-center gap-1">
               <span className="text-3xl sm:text-4xl">{mood.emoji}</span>
@@ -155,4 +155,3 @@ export function MoodCards({ className }: MoodCardsProps) {
 }
 
 export { MOODS };
-

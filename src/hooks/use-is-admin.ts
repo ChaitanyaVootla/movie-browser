@@ -10,6 +10,3 @@ export function useIsAdmin(): boolean {
   const { data: session } = useSession();
   return session?.user?.role === "admin";
 }
-
-
-

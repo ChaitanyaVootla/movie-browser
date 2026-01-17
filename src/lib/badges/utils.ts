@@ -44,9 +44,7 @@ export function createBadge(type: BadgeType): MediaBadge {
  * Sort badges by priority (lower = higher priority) and limit count
  */
 export function sortAndLimitBadges(badges: MediaBadge[], limit: number): MediaBadge[] {
-  return badges
-    .sort((a, b) => a.priority - b.priority)
-    .slice(0, limit);
+  return badges.sort((a, b) => a.priority - b.priority).slice(0, limit);
 }
 
 /**
@@ -130,4 +128,3 @@ export function getBadgeScoopColor(className: string): string {
   const colorName = bgMatch[1];
   return BADGE_SCOOP_COLORS[colorName] || "transparent";
 }
-

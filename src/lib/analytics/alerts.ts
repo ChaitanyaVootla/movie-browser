@@ -222,7 +222,10 @@ async function checkAIAlerts(): Promise<Alert[]> {
     WHERE timestamp >= today() AND total_cost >= ${ALERT_THRESHOLDS.ai.singleInvocationWarning}
   `);
 
-  if (expensiveCall && parseFloat(expensiveCall.max_cost) >= ALERT_THRESHOLDS.ai.singleInvocationWarning) {
+  if (
+    expensiveCall &&
+    parseFloat(expensiveCall.max_cost) >= ALERT_THRESHOLDS.ai.singleInvocationWarning
+  ) {
     alerts.push({
       id: "ai-expensive-call",
       severity: "info",
@@ -596,7 +599,10 @@ async function checkTrafficAlerts(): Promise<Alert[]> {
   const hoursElapsed = new Date().getHours() + new Date().getMinutes() / 60;
   const expectedSoFar = avgCount * (hoursElapsed / 24);
 
-  if (expectedSoFar > 100 && todayCount < expectedSoFar * ALERT_THRESHOLDS.traffic.trafficDropMultiplier) {
+  if (
+    expectedSoFar > 100 &&
+    todayCount < expectedSoFar * ALERT_THRESHOLDS.traffic.trafficDropMultiplier
+  ) {
     alerts.push({
       id: "traffic-drop",
       severity: "warning",
@@ -658,10 +664,11 @@ export const ALERT_CATEGORY_META: Record<AlertCategory, { icon: string; color: s
   cache: { icon: "Database", color: "green" },
 };
 
-export const ALERT_SEVERITY_META: Record<AlertSeverity, { icon: string; color: string; bgColor: string }> = {
+export const ALERT_SEVERITY_META: Record<
+  AlertSeverity,
+  { icon: string; color: string; bgColor: string }
+> = {
   critical: { icon: "AlertCircle", color: "text-red-500", bgColor: "bg-red-500/10" },
   warning: { icon: "AlertTriangle", color: "text-amber-500", bgColor: "bg-amber-500/10" },
   info: { icon: "Info", color: "text-blue-500", bgColor: "bg-blue-500/10" },
 };
-
-

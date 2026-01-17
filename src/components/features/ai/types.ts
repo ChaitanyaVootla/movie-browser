@@ -1,0 +1,83 @@
+import type { useChatStream } from "@/hooks/use-chat-stream";
+import type { PageContext } from "@/hooks/use-chat-stream";
+
+// =============================================================================
+// Floaty State
+// =============================================================================
+
+export type FloatyState = "idle" | "active" | "expanded";
+
+// =============================================================================
+// Prompt Types
+// =============================================================================
+
+export interface PromptConfig {
+  text: string;
+  message: string;
+}
+
+// =============================================================================
+// Extended Page Context
+// =============================================================================
+
+export interface ExtendedPageContext extends PageContext {
+  aiQuestions?: string[];
+}
+
+// =============================================================================
+// Component Props
+// =============================================================================
+
+export interface AssistantFloatyProps {
+  className?: string;
+  itemContext?: {
+    mediaType: "movie" | "series" | "person";
+    itemId: number;
+    itemTitle?: string;
+    aiQuestions?: string[];
+  };
+}
+
+export interface IdleCircleProps {
+  onExpand: (clickedPrompt?: PromptConfig) => void;
+  showPrompt: boolean;
+  prompt: PromptConfig | null;
+  hasActiveConversation?: boolean;
+}
+
+export interface MinimalViewProps {
+  messages: ReturnType<typeof useChatStream>["messages"];
+  isLoading: boolean;
+  input: string;
+  onInputChange: (value: string) => void;
+  onSend: () => void;
+  onExpand: () => void;
+  onMinimize: () => void;
+  onClose: () => void;
+  prompts: PromptConfig[];
+  featuredPrompt: PromptConfig | null;
+  onPromptClick: (message: string) => void;
+  pendingNavigation: ReturnType<typeof useChatStream>["pendingNavigation"];
+  onNavigate: () => void;
+}
+
+export interface ExpandedChatProps {
+  messages: ReturnType<typeof useChatStream>["messages"];
+  isLoading: boolean;
+  input: string;
+  onInputChange: (value: string) => void;
+  onSend: () => void;
+  onCollapse: () => void;
+  onClose: () => void;
+  onReset: () => void;
+  pendingNavigation: ReturnType<typeof useChatStream>["pendingNavigation"];
+  onNavigate: () => void;
+}
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+export const CARD_WIDTH = 150;
+export const CARD_HEIGHT = 225;
+export const TRANSITION_EASE = [0.4, 0, 0.2, 1] as const;

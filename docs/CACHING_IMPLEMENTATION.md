@@ -5,6 +5,7 @@
 A unified L1 (in-memory) + L2 (file-based) caching system that survives server restarts and protects API quotas.
 
 **Recent Enhancements:**
+
 - ✅ Cache warming on server start
 - ✅ Health endpoint with cache stats
 - ✅ Compression for large payloads (>10KB)
@@ -42,17 +43,17 @@ A unified L1 (in-memory) + L2 (file-based) caching system that survives server r
 
 ## Key Features
 
-| Feature | Description |
-|---------|-------------|
-| **L1 (Memory)** | Fast node-cache, configurable TTLs per namespace |
-| **L2 (File)** | Persists to `.cache/` directory, survives restarts |
-| **Stale-While-Revalidate** | Returns stale data instantly, refreshes in background |
-| **Request Deduplication** | Multiple concurrent requests share one API call |
-| **Cache Versioning** | Bump `CACHE_VERSION` to invalidate old cache on structure changes |
-| **Async Writes** | File writes are non-blocking (fire-and-forget) |
-| **Compression** | Payloads >10KB are gzip compressed (if >10% savings) |
-| **Cache Warming** | L2 → L1 warming on server start for quota-sensitive data |
-| **Prometheus Metrics** | Export metrics for monitoring dashboards |
+| Feature                    | Description                                                       |
+| -------------------------- | ----------------------------------------------------------------- |
+| **L1 (Memory)**            | Fast node-cache, configurable TTLs per namespace                  |
+| **L2 (File)**              | Persists to `.cache/` directory, survives restarts                |
+| **Stale-While-Revalidate** | Returns stale data instantly, refreshes in background             |
+| **Request Deduplication**  | Multiple concurrent requests share one API call                   |
+| **Cache Versioning**       | Bump `CACHE_VERSION` to invalidate old cache on structure changes |
+| **Async Writes**           | File writes are non-blocking (fire-and-forget)                    |
+| **Compression**            | Payloads >10KB are gzip compressed (if >10% savings)              |
+| **Cache Warming**          | L2 → L1 warming on server start for quota-sensitive data          |
+| **Prometheus Metrics**     | Export metrics for monitoring dashboards                          |
 
 ## Full Architecture
 
@@ -94,75 +95,77 @@ Every external API call is cached. Here's the complete mapping:
 
 ### TMDB Endpoints → Cache Namespace
 
-| Endpoint Function | Cache Namespace | TTL Constants |
-|-------------------|-----------------|---------------|
-| `getTrendingMovies()` | `trending` | 15 min |
-| `getTrendingTV()` | `trending` | 15 min |
-| `getTrendingAll()` | `trending` | 15 min |
-| `getMovieDetails()` | `movie` | 1h L1, 2h L2 |
-| `getMovieCollection()` | `movie` | 1h L1, 2h L2 |
-| `getMovieImages()` | `images` | 1h L1, 24h L2 |
-| `getMovieWatchProviders()` | `movie` | 1h L1, 2h L2 |
-| `getSeriesDetails()` | `series` | 1h L1, 2h L2 |
-| `getSeasonDetails()` | `series` | 1h L1, 2h L2 |
-| `getEpisodeDetails()` | `series` | 1h L1, 2h L2 |
-| `getSeriesImages()` | `images` | 1h L1, 24h L2 |
-| `getSeriesWatchProviders()` | `series` | 1h L1, 2h L2 |
-| `getPersonDetails()` | `person` | 24h L1, 3d L2 |
-| `getPersonBasicInfo()` | `person` | 24h L1, 3d L2 |
-| `searchMulti()` | `search` | 5m L1, 1h L2 |
-| `searchPerson()` | `search` | 5m L1, 1h L2 |
-| `searchKeyword()` | `search` | 5m L1, 1h L2 |
-| `discoverMovies()` | `discover` | 30m L1, 1h L2 |
-| `discoverTV()` | `discover` | 30m L1, 1h L2 |
-| `getNowPlayingMovies()` | `trending` | 15 min |
-| `getUpcomingMovies()` | `trending` | 15 min |
-| `getTopRatedMovies()` | `trending` | 15 min |
-| `getOnTheAirTV()` | `trending` | 15 min |
-| `getAiringTodayTV()` | `trending` | 15 min |
-| `getTopRatedTV()` | `trending` | 15 min |
-| `getTrendingPeople()` | `trending` | 15 min |
+| Endpoint Function           | Cache Namespace | TTL Constants |
+| --------------------------- | --------------- | ------------- |
+| `getTrendingMovies()`       | `trending`      | 15 min        |
+| `getTrendingTV()`           | `trending`      | 15 min        |
+| `getTrendingAll()`          | `trending`      | 15 min        |
+| `getMovieDetails()`         | `movie`         | 1h L1, 2h L2  |
+| `getMovieCollection()`      | `movie`         | 1h L1, 2h L2  |
+| `getMovieImages()`          | `images`        | 1h L1, 24h L2 |
+| `getMovieWatchProviders()`  | `movie`         | 1h L1, 2h L2  |
+| `getSeriesDetails()`        | `series`        | 1h L1, 2h L2  |
+| `getSeasonDetails()`        | `series`        | 1h L1, 2h L2  |
+| `getEpisodeDetails()`       | `series`        | 1h L1, 2h L2  |
+| `getSeriesImages()`         | `images`        | 1h L1, 24h L2 |
+| `getSeriesWatchProviders()` | `series`        | 1h L1, 2h L2  |
+| `getPersonDetails()`        | `person`        | 24h L1, 3d L2 |
+| `getPersonBasicInfo()`      | `person`        | 24h L1, 3d L2 |
+| `searchMulti()`             | `search`        | 5m L1, 1h L2  |
+| `searchPerson()`            | `search`        | 5m L1, 1h L2  |
+| `searchKeyword()`           | `search`        | 5m L1, 1h L2  |
+| `discoverMovies()`          | `discover`      | 30m L1, 1h L2 |
+| `discoverTV()`              | `discover`      | 30m L1, 1h L2 |
+| `getNowPlayingMovies()`     | `trending`      | 15 min        |
+| `getUpcomingMovies()`       | `trending`      | 15 min        |
+| `getTopRatedMovies()`       | `trending`      | 15 min        |
+| `getOnTheAirTV()`           | `trending`      | 15 min        |
+| `getAiringTodayTV()`        | `trending`      | 15 min        |
+| `getTopRatedTV()`           | `trending`      | 15 min        |
+| `getTrendingPeople()`       | `trending`      | 15 min        |
 
 ### YouTube Endpoints → Cache Namespace
 
-| Endpoint Function | Cache Namespace | TTL |
-|-------------------|-----------------|-----|
-| `getYouTubeVideoStats()` | `youtube` | 1h L1, 24h L2 |
-| `getYouTubeComments()` | `youtube` | 1h L1, 24h L2 |
-| `fetchChannelUploads()` | `youtube-channels` | 1h L1, 24h L2 |
+| Endpoint Function        | Cache Namespace    | TTL           |
+| ------------------------ | ------------------ | ------------- |
+| `getYouTubeVideoStats()` | `youtube`          | 1h L1, 24h L2 |
+| `getYouTubeComments()`   | `youtube`          | 1h L1, 24h L2 |
+| `fetchChannelUploads()`  | `youtube-channels` | 1h L1, 24h L2 |
 
 ### YouTube Engagement → PostgreSQL (Primary)
 
 For detail pages, YouTube engagement is cached in PostgreSQL (`videos` table) instead of file cache:
 
-| Data | Storage | TTL | Notes |
-|------|---------|-----|-------|
-| Views, likes, duration, channel info | PostgreSQL `videos.metadata` | 24h (recent) / 7d (old) | Phase 1: Batch fetched on page load |
-| Dislikes, comments | PostgreSQL `videos.dislike_count`, `top_comments` | Same | Phase 2: Fetched when video selected |
+| Data                                 | Storage                                           | TTL                     | Notes                                |
+| ------------------------------------ | ------------------------------------------------- | ----------------------- | ------------------------------------ |
+| Views, likes, duration, channel info | PostgreSQL `videos.metadata`                      | 24h (recent) / 7d (old) | Phase 1: Batch fetched on page load  |
+| Dislikes, comments                   | PostgreSQL `videos.dislike_count`, `top_comments` | Same                    | Phase 2: Fetched when video selected |
 
 **Two-Phase Fetching Strategy:**
+
 1. **Phase 1 (Page Load)**: Batch fetch basic stats for all videos (1 YouTube API quota unit per 50 videos)
 2. **Phase 2 (User Clicks)**: On-demand fetch of dislikes + comments for selected video
 
 **Service:** `src/server/services/youtube-engagement.ts`
 
 **API Route:** `GET /api/youtube?videoId=xxx&mediaId=123&mediaType=movie`
+
 - When `mediaId` + `mediaType` provided → PostgreSQL-backed caching
 - Without these params → File-based caching (fallback)
 
 ## Namespace Configuration
 
-| Namespace | L1 TTL | L2 TTL | Stale Grace | Use Case |
-|-----------|--------|--------|-------------|----------|
-| `youtube` | 1 hour | 24 hours | 1 hour | Video stats, comments, dislikes |
-| `youtube-channels` | 1 hour | 24 hours | 2 hours | Channel uploads (trailer discovery) |
-| `person` | 24 hours | 3 days | 24 hours | Person/actor data |
-| `search` | 5 min | 1 hour | — | Search results |
-| `discover` | 30 min | 1 hour | — | Browse/filter results |
-| `movie` | 1 hour | 2 hours | — | Movie details |
-| `series` | 1 hour | 2 hours | — | Series details |
-| `images` | 1 hour | 24 hours | — | Image metadata |
-| `trending` | 15 min | (none) | — | Trending content (no file cache) |
+| Namespace          | L1 TTL   | L2 TTL   | Stale Grace | Use Case                            |
+| ------------------ | -------- | -------- | ----------- | ----------------------------------- |
+| `youtube`          | 1 hour   | 24 hours | 1 hour      | Video stats, comments, dislikes     |
+| `youtube-channels` | 1 hour   | 24 hours | 2 hours     | Channel uploads (trailer discovery) |
+| `person`           | 24 hours | 3 days   | 24 hours    | Person/actor data                   |
+| `search`           | 5 min    | 1 hour   | —           | Search results                      |
+| `discover`         | 30 min   | 1 hour   | —           | Browse/filter results               |
+| `movie`            | 1 hour   | 2 hours  | —           | Movie details                       |
+| `series`           | 1 hour   | 2 hours  | —           | Series details                      |
+| `images`           | 1 hour   | 24 hours | —           | Image metadata                      |
+| `trending`         | 15 min   | (none)   | —           | Trending content (no file cache)    |
 
 ## File Structure
 
@@ -185,6 +188,7 @@ For detail pages, YouTube engagement is cached in PostgreSQL (`videos` table) in
 ### Cache File Format
 
 **Uncompressed entry (<10KB):**
+
 ```json
 {
   "v": 1,                           // Cache version (for invalidation)
@@ -195,14 +199,15 @@ For detail pages, YouTube engagement is cached in PostgreSQL (`videos` table) in
 ```
 
 **Compressed entry (>10KB with >10% savings):**
+
 ```json
 {
   "v": 1,
-  "data": "H4sIAAAAAAAAA...",       // Base64-encoded gzip data
+  "data": "H4sIAAAAAAAAA...", // Base64-encoded gzip data
   "timestamp": 1704672000000,
   "expiresAt": 1704758400000,
-  "compressed": true,               // Flag indicating compression
-  "originalSize": 52480             // Original size in bytes (for metrics)
+  "compressed": true, // Flag indicating compression
+  "originalSize": 52480 // Original size in bytes (for metrics)
 }
 ```
 
@@ -212,18 +217,18 @@ For detail pages, YouTube engagement is cached in PostgreSQL (`videos` table) in
 
 ```typescript
 import {
-  cachedFetchPersistent,  // Main function - fetch with L1+L2 caching
-  cachedFetch,            // Alias (backwards compatible)
-  cacheGet,               // Direct cache read
-  cacheSet,               // Direct cache write
-  cacheDel,               // Delete from cache
-  cacheFlushNamespace,    // Clear entire namespace
+  cachedFetchPersistent, // Main function - fetch with L1+L2 caching
+  cachedFetch, // Alias (backwards compatible)
+  cacheGet, // Direct cache read
+  cacheSet, // Direct cache write
+  cacheDel, // Delete from cache
+  cacheFlushNamespace, // Clear entire namespace
 } from "@/lib/cache-service";
 
 // Example: Fetch with caching
 const data = await cachedFetchPersistent(
-  "youtube",                        // namespace
-  `stats:${videoId}`,              // cache key
+  "youtube", // namespace
+  `stats:${videoId}`, // cache key
   () => fetchFromYouTubeAPI(videoId) // fetcher function
 );
 ```
@@ -232,12 +237,12 @@ const data = await cachedFetchPersistent(
 
 ```typescript
 import {
-  getCacheStats,          // Get hit rates and statistics
-  getCacheSizeStats,      // Get file counts and sizes per namespace
-  cleanupExpiredCache,    // Remove expired files (run via cron)
-  getPrometheusMetrics,   // Export metrics in Prometheus format
-  warmCache,              // Warm cache on server start
-  isWarmingComplete,      // Check if warming is done
+  getCacheStats, // Get hit rates and statistics
+  getCacheSizeStats, // Get file counts and sizes per namespace
+  cleanupExpiredCache, // Remove expired files (run via cron)
+  getPrometheusMetrics, // Export metrics in Prometheus format
+  warmCache, // Warm cache on server start
+  isWarmingComplete, // Check if warming is done
 } from "@/lib/cache-service";
 
 // Example: Get statistics
@@ -250,6 +255,7 @@ const stats = getCacheStats();
 ### 1. Cache Key Design
 
 Keys should be:
+
 - **Unique**: Include all parameters that affect the result
 - **Deterministic**: Same inputs = same key
 - **Readable**: Easy to debug
@@ -261,7 +267,7 @@ const key = `stats:${videoIds.sort().join(",")}`;
 const key = `discover:${JSON.stringify(params)}`;
 
 // Bad: Missing parameters that affect result
-const key = `channel:${channelId}`;  // Missing maxResults!
+const key = `channel:${channelId}`; // Missing maxResults!
 ```
 
 ### 2. Namespace Separation
@@ -276,7 +282,7 @@ When you change the data structure of cached items:
 
 ```typescript
 // In cache-service.ts
-const CACHE_VERSION = 2;  // Bump this!
+const CACHE_VERSION = 2; // Bump this!
 ```
 
 All old cache files will be ignored on read (version mismatch).
@@ -299,6 +305,7 @@ This is critical for YouTube quota protection.
 ### Cache Persistence
 
 The `.cache/` directory is:
+
 - ✅ In `.gitignore` (not committed)
 - ✅ **NOT** included in deploy tarball (preserves production cache)
 - ✅ Created on EC2 by deploy script (`mkdir -p .cache/{namespaces}`)
@@ -327,6 +334,7 @@ Consider adding a cron job or calling on a schedule.
 ### Admin Dashboard
 
 The admin dashboard (`/admin` → System tab) displays live cache metrics by reading directly from the cache service:
+
 - L1 (memory) and L2 (file) hit rates
 - Total hits/misses
 - Memory keys count
@@ -388,9 +396,9 @@ curl https://yoursite.com/api/health?format=prometheus
 
 ### Health Status
 
-| Status | Condition |
-|--------|-----------|
-| `healthy` | Normal operation |
+| Status     | Condition                                                 |
+| ---------- | --------------------------------------------------------- |
+| `healthy`  | Normal operation                                          |
 | `degraded` | L1 hit rate <50% after 100+ requests, or >10 fetch errors |
 
 ### Prometheus Metrics
@@ -430,13 +438,13 @@ On server start, the cache automatically warms L1 from L2 for quota-sensitive na
 
 ### Warmed Namespaces
 
-| Namespace | Why |
-|-----------|-----|
+| Namespace          | Why                                        |
+| ------------------ | ------------------------------------------ |
 | `youtube-channels` | Protects YouTube API quota (most critical) |
-| `youtube` | Video stats |
-| `person` | Large payloads, rarely change |
-| `movie` | Movie details |
-| `series` | Series details |
+| `youtube`          | Video stats                                |
+| `person`           | Large payloads, rarely change              |
+| `movie`            | Movie details                              |
+| `series`           | Series details                             |
 
 ### Custom Warmers
 
@@ -471,6 +479,7 @@ Payloads larger than 10KB are automatically gzip compressed before writing to L2
 ### Metrics
 
 Track compression effectiveness via:
+
 - `compressionSavings`: Total bytes saved across all compressed entries
 - `compressedWrites`: Number of entries that were compressed
 
@@ -479,4 +488,3 @@ Track compression effectiveness via:
 - [ ] Add cache invalidation webhooks (e.g., when TMDB data updates)
 - [ ] Add Redis L1 for multi-instance deployments
 - [ ] Add cache preloading for specific high-traffic pages
-

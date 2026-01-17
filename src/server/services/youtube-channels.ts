@@ -42,17 +42,47 @@ interface Channel {
  */
 const CHANNELS: Channel[] = [
   // === TRAILER AGGREGATORS ===
-  { id: "UCi8e0iOVk1fEOogdfu4YgfA", name: "Rotten Tomatoes Trailers", category: "aggregator", priority: 1 },
+  {
+    id: "UCi8e0iOVk1fEOogdfu4YgfA",
+    name: "Rotten Tomatoes Trailers",
+    category: "aggregator",
+    priority: 1,
+  },
   { id: "UCzcRQ3vRNr6fJ1A9rqFn7QA", name: "ONE Media", category: "aggregator", priority: 1 },
   { id: "UC3gNmTGu-TTbFPpfSs5kNkg", name: "Movieclips", category: "aggregator", priority: 1 },
-  { id: "UCTCwrNjKEc0YMzBgD_GqZSg", name: "KinoCheck International", category: "aggregator", priority: 2 },
-  { id: "UCOlBfHN6TkmBVzZ_lkzcKwQ", name: "FilmSelect Trailer", category: "aggregator", priority: 2 },
-  { id: "UCRX7UEyE8kp35mPrgC2sosA", name: "JoBlo Movie Network", category: "aggregator", priority: 2 },
+  {
+    id: "UCTCwrNjKEc0YMzBgD_GqZSg",
+    name: "KinoCheck International",
+    category: "aggregator",
+    priority: 2,
+  },
+  {
+    id: "UCOlBfHN6TkmBVzZ_lkzcKwQ",
+    name: "FilmSelect Trailer",
+    category: "aggregator",
+    priority: 2,
+  },
+  {
+    id: "UCRX7UEyE8kp35mPrgC2sosA",
+    name: "JoBlo Movie Network",
+    category: "aggregator",
+    priority: 2,
+  },
 
   // === MAJOR HOLLYWOOD STUDIOS ===
-  { id: "UCjmJDM5pRKbUlVIzDYYWb6g", name: "Warner Bros. Pictures", category: "studio", priority: 1 },
+  {
+    id: "UCjmJDM5pRKbUlVIzDYYWb6g",
+    name: "Warner Bros. Pictures",
+    category: "studio",
+    priority: 1,
+  },
   { id: "UCq0OueAsdxH6b8nyAspwViw", name: "Universal Pictures", category: "studio", priority: 1 },
-  { id: "UCz97F7dMxBNOfGYu3rx8aCw", name: "Sony Pictures Entertainment", category: "studio", priority: 1 },
+  {
+    id: "UCz97F7dMxBNOfGYu3rx8aCw",
+    name: "Sony Pictures Entertainment",
+    category: "studio",
+    priority: 1,
+  },
   { id: "UCF9imwPMSGz4Vq1NiTWCC7g", name: "Paramount Pictures", category: "studio", priority: 1 },
   { id: "UCJ6nMHaJPZvsJ-HmUmj1SeA", name: "Lionsgate Movies", category: "studio", priority: 1 },
   { id: "UCuPivVjnfNo4mb3Oog_frZg", name: "A24", category: "studio", priority: 1 },
@@ -71,18 +101,47 @@ const CHANNELS: Channel[] = [
 
   // === ANIMATION ===
   { id: "UC_IRYSp4auq7hKLvziWVH6w", name: "Pixar", category: "animation", priority: 2 },
-  { id: "UC1q0wCZy7f6ngqlXo1FmPAg", name: "DreamWorks Animation", category: "animation", priority: 2 },
+  {
+    id: "UC1q0wCZy7f6ngqlXo1FmPAg",
+    name: "DreamWorks Animation",
+    category: "animation",
+    priority: 2,
+  },
   { id: "UCq7OHvWO6Z3u-LztFdrcU-g", name: "Illumination", category: "animation", priority: 2 },
 
   // === ANIME ===
   { id: "UC6pGDc4bFGD1_36IKv3FnYg", name: "Crunchyroll", category: "anime", priority: 2 },
 
   // === INDIAN STUDIOS ===
-  { id: "UC2FrJXBb3WVAKZ8jpxkZxlA", name: "Warner Bros. India", category: "india", region: "IN", priority: 1 },
-  { id: "UCq-Fj5jknLsUf-MWSy4_brA", name: "T-Series", category: "india", region: "IN", priority: 1 },
+  {
+    id: "UC2FrJXBb3WVAKZ8jpxkZxlA",
+    name: "Warner Bros. India",
+    category: "india",
+    region: "IN",
+    priority: 1,
+  },
+  {
+    id: "UCq-Fj5jknLsUf-MWSy4_brA",
+    name: "T-Series",
+    category: "india",
+    region: "IN",
+    priority: 1,
+  },
   { id: "UCbTLwN10NoCU4WDzLf1JMOA", name: "YRF", category: "india", region: "IN", priority: 1 },
-  { id: "UCKQKIY2YlI4L5QVg7hhfjrQ", name: "Dharma Productions", category: "india", region: "IN", priority: 1 },
-  { id: "UCDtX2nB4LzwaPQGXCL-DZsg", name: "Sony Pictures India", category: "india", region: "IN", priority: 2 },
+  {
+    id: "UCKQKIY2YlI4L5QVg7hhfjrQ",
+    name: "Dharma Productions",
+    category: "india",
+    region: "IN",
+    priority: 1,
+  },
+  {
+    id: "UCDtX2nB4LzwaPQGXCL-DZsg",
+    name: "Sony Pictures India",
+    category: "india",
+    region: "IN",
+    priority: 2,
+  },
 
   // === COMICS ===
   { id: "UCvC4D8onUfXzvjTOM-dBfEA", name: "Marvel Entertainment", category: "comics", priority: 1 },
@@ -121,27 +180,51 @@ function isLikelyTrailer(title: string, description: string): boolean {
 
   // Positive signals
   const trailerKeywords = [
-    "trailer", "teaser", "official", "first look", "sneak peek",
-    "announcement", "reveal", "coming soon", "in theaters", "in cinemas",
-    "streaming", "premiere", "final trailer", "new trailer"
+    "trailer",
+    "teaser",
+    "official",
+    "first look",
+    "sneak peek",
+    "announcement",
+    "reveal",
+    "coming soon",
+    "in theaters",
+    "in cinemas",
+    "streaming",
+    "premiere",
+    "final trailer",
+    "new trailer",
   ];
-  const hasTrailerKeyword = trailerKeywords.some(k => text.includes(k));
+  const hasTrailerKeyword = trailerKeywords.some((k) => text.includes(k));
 
   // Negative signals (not trailers)
   // Use word boundaries for short keywords to avoid false positives
   // e.g., "ost" matching "posted", "song" matching "songwriting"
   const negativeKeywords = [
-    "clip", "scene", "behind the scenes", "making of", "interview",
-    "review", "reaction", "explained", "breakdown", "easter egg",
-    "soundtrack", "music video", "lyric", "deleted scene",
-    "bonus", "commentary", "podcast"
+    "clip",
+    "scene",
+    "behind the scenes",
+    "making of",
+    "interview",
+    "review",
+    "reaction",
+    "explained",
+    "breakdown",
+    "easter egg",
+    "soundtrack",
+    "music video",
+    "lyric",
+    "deleted scene",
+    "bonus",
+    "commentary",
+    "podcast",
   ];
   // Short keywords that need word boundary matching
   const shortNegativeKeywords = ["ost", "song", "extra"];
 
   const hasNegativeKeyword =
-    negativeKeywords.some(k => text.includes(k)) ||
-    shortNegativeKeywords.some(k => new RegExp(`\\b${k}\\b`).test(text));
+    negativeKeywords.some((k) => text.includes(k)) ||
+    shortNegativeKeywords.some((k) => new RegExp(`\\b${k}\\b`).test(text));
 
   return hasTrailerKeyword && !hasNegativeKeyword;
 }
@@ -176,7 +259,10 @@ function extractMovieTitle(trailerTitle: string): string {
 /**
  * Fetch recent uploads from a channel (internal - no caching)
  */
-async function fetchChannelUploadsInternal(channel: Channel, maxResults: number = 50): Promise<YouTubeTrailer[]> {
+async function fetchChannelUploadsInternal(
+  channel: Channel,
+  maxResults: number = 50
+): Promise<YouTubeTrailer[]> {
   if (!YOUTUBE_API_KEY) {
     return [];
   }
@@ -224,9 +310,13 @@ async function fetchChannelUploadsInternal(channel: Channel, maxResults: number 
   }
 
   const playlistData = await playlistResponse.json();
-  const videoIds = playlistData.items
-    ?.map((item: { snippet?: { resourceId?: { videoId?: string } } }) => item.snippet?.resourceId?.videoId)
-    .filter(Boolean) || [];
+  const videoIds =
+    playlistData.items
+      ?.map(
+        (item: { snippet?: { resourceId?: { videoId?: string } } }) =>
+          item.snippet?.resourceId?.videoId
+      )
+      .filter(Boolean) || [];
 
   if (videoIds.length === 0) {
     return [];
@@ -256,37 +346,40 @@ async function fetchChannelUploadsInternal(channel: Channel, maxResults: number 
       const title = item.snippet?.title || "";
       return !title.includes("#Shorts") && !title.includes("#shorts");
     })
-    .map((item: {
-      snippet?: {
-        resourceId?: { videoId?: string };
-        title?: string;
-        channelTitle?: string;
-        publishedAt?: string;
-        description?: string;
-        thumbnails?: { high?: { url?: string }; medium?: { url?: string } };
-      };
-    }) => {
-      const videoId = item.snippet?.resourceId?.videoId || "";
-      const stats = statsMap.get(videoId) || { views: 0, likes: 0 };
-      const title = item.snippet?.title || "";
-      const description = item.snippet?.description?.slice(0, 300) || "";
+    .map(
+      (item: {
+        snippet?: {
+          resourceId?: { videoId?: string };
+          title?: string;
+          channelTitle?: string;
+          publishedAt?: string;
+          description?: string;
+          thumbnails?: { high?: { url?: string }; medium?: { url?: string } };
+        };
+      }) => {
+        const videoId = item.snippet?.resourceId?.videoId || "";
+        const stats = statsMap.get(videoId) || { views: 0, likes: 0 };
+        const title = item.snippet?.title || "";
+        const description = item.snippet?.description?.slice(0, 300) || "";
 
-      return {
-        id: videoId,
-        title,
-        channelTitle: item.snippet?.channelTitle || channel.name,
-        channelId: channel.id,
-        channelCategory: channel.category,
-        channelThumbnail,
-        publishedAt: item.snippet?.publishedAt || "",
-        viewCount: stats.views,
-        likeCount: stats.likes,
-        thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || "",
-        description,
-        extractedTitle: extractMovieTitle(title),
-        isLikelyTrailer: isLikelyTrailer(title, description),
-      };
-    });
+        return {
+          id: videoId,
+          title,
+          channelTitle: item.snippet?.channelTitle || channel.name,
+          channelId: channel.id,
+          channelCategory: channel.category,
+          channelThumbnail,
+          publishedAt: item.snippet?.publishedAt || "",
+          viewCount: stats.views,
+          likeCount: stats.likes,
+          thumbnail:
+            item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || "",
+          description,
+          extractedTitle: extractMovieTitle(title),
+          isLikelyTrailer: isLikelyTrailer(title, description),
+        };
+      }
+    );
 
   return videos;
 }
@@ -299,7 +392,10 @@ async function fetchChannelUploadsInternal(channel: Channel, maxResults: number 
  * - L2: 24 hours on disk
  * - 2 hour stale-while-revalidate grace period
  */
-async function fetchChannelUploads(channel: Channel, maxResults: number = 50): Promise<YouTubeTrailer[]> {
+async function fetchChannelUploads(
+  channel: Channel,
+  maxResults: number = 50
+): Promise<YouTubeTrailer[]> {
   if (!YOUTUBE_API_KEY) {
     return [];
   }
@@ -307,10 +403,8 @@ async function fetchChannelUploads(channel: Channel, maxResults: number = 50): P
   const cacheKey = `channel:${channel.id}:${maxResults}`;
 
   try {
-    return await cachedFetchPersistent(
-      "youtube-channels",
-      cacheKey,
-      () => fetchChannelUploadsInternal(channel, maxResults)
+    return await cachedFetchPersistent("youtube-channels", cacheKey, () =>
+      fetchChannelUploadsInternal(channel, maxResults)
     );
   } catch (error) {
     dataLogger.error({
@@ -351,37 +445,31 @@ export async function getYouTubeChannelTrailers(
   const allVideos: YouTubeTrailer[] = [];
 
   // Filter channels based on options
-  const channelsToFetch = includeRegional
-    ? CHANNELS
-    : CHANNELS.filter(c => !c.region);
+  const channelsToFetch = includeRegional ? CHANNELS : CHANNELS.filter((c) => !c.region);
 
   // Fetch from all channels in parallel (with batching to avoid rate limits)
   const BATCH_SIZE = 10;
   for (let i = 0; i < channelsToFetch.length; i += BATCH_SIZE) {
     const batch = channelsToFetch.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(
-      batch.map(channel => fetchChannelUploads(channel))
-    );
+    const results = await Promise.all(batch.map((channel) => fetchChannelUploads(channel)));
     allVideos.push(...results.flat());
 
     // Small delay between batches
     if (i + BATCH_SIZE < channelsToFetch.length) {
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
     }
   }
 
   // Dedupe by video ID
   const seen = new Set<string>();
-  const unique = allVideos.filter(v => {
+  const unique = allVideos.filter((v) => {
     if (seen.has(v.id)) return false;
     seen.add(v.id);
     return true;
   });
 
   // Filter to trailers only with minimum view count
-  const trailers = unique.filter(
-    v => v.isLikelyTrailer && v.viewCount >= minViews
-  );
+  const trailers = unique.filter((v) => v.isLikelyTrailer && v.viewCount >= minViews);
 
   // Sort by views (most popular first)
   trailers.sort((a, b) => b.viewCount - a.viewCount);
@@ -393,7 +481,7 @@ export async function getYouTubeChannelTrailers(
  * Get trailer channels configuration (for debugging/admin)
  */
 export function getChannelConfig() {
-  return CHANNELS.map(c => ({
+  return CHANNELS.map((c) => ({
     id: c.id,
     name: c.name,
     category: c.category,
@@ -401,4 +489,3 @@ export function getChannelConfig() {
     priority: c.priority,
   }));
 }
-

@@ -41,9 +41,7 @@ export default function AllTopicsPage() {
           Back to Topics
         </Link>
         <h1 className="text-2xl md:text-3xl font-bold">All Topics</h1>
-        <p className="text-muted-foreground mt-1">
-          {ALL_TOPICS.length} topics available
-        </p>
+        <p className="text-muted-foreground mt-1">{ALL_TOPICS.length} topics available</p>
       </div>
 
       {/* Movie Genres */}
@@ -127,10 +125,7 @@ function TopicCard({ topic }: { topic: (typeof ALL_TOPICS)[0] }) {
           <Film className="h-4 w-4 text-amber-500" />
         )}
       </div>
-      <span className="text-sm font-medium truncate group-hover:text-foreground">
-        {topic.name}
-      </span>
+      <span className="text-sm font-medium truncate group-hover:text-foreground">{topic.name}</span>
     </Link>
   );
 }
-

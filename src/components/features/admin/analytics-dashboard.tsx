@@ -26,29 +26,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 // Tabs
-import {
-  TrafficTab,
-  AITab,
-  LambdaTab,
-  PerformanceTab,
-  SystemTab,
-  DatabaseTab,
-} from "./tabs";
+import { TrafficTab, AITab, LambdaTab, PerformanceTab, SystemTab, DatabaseTab } from "./tabs";
 
 // Shared components
-import {
-  CompactStat,
-  getTimeAgo,
-  formatAlertValue,
-} from "./analytics-shared";
+import { CompactStat, getTimeAgo, formatAlertValue } from "./analytics-shared";
 
 // Error detail sheet
 import { ErrorDetailSheet } from "./error-detail-sheet";
@@ -107,9 +92,7 @@ export function AnalyticsDashboard({
     return (
       <Card className="border-destructive">
         <CardContent className="pt-6">
-          <p className="text-destructive">
-            Error loading analytics: {error.message}
-          </p>
+          <p className="text-destructive">Error loading analytics: {error.message}</p>
           <p className="text-sm text-muted-foreground mt-2">
             Make sure ClickHouse is running and configured.
           </p>
@@ -130,8 +113,8 @@ export function AnalyticsDashboard({
       />
 
       {/* Compact Alerts Bar */}
-      <AlertsBar 
-        alerts={data?.alerts || []} 
+      <AlertsBar
+        alerts={data?.alerts || []}
         isLoading={isLoading}
         onErrorClick={(err) => setSelectedError(err)}
       />
@@ -196,11 +179,7 @@ export function AnalyticsDashboard({
         </TabsContent>
 
         <TabsContent value="lambda">
-          <LambdaTab
-            range={timeRange}
-            overview={data?.lambda}
-            isLoading={isLoading}
-          />
+          <LambdaTab range={timeRange} overview={data?.lambda} isLoading={isLoading} />
         </TabsContent>
 
         <TabsContent value="performance">
@@ -263,10 +242,7 @@ function DashboardHeader({
             onCheckedChange={onExcludeBotsChange}
             className="h-4 w-7 data-[state=checked]:bg-green-500"
           />
-          <Label
-            htmlFor="exclude-bots"
-            className="text-xs text-muted-foreground cursor-pointer"
-          >
+          <Label htmlFor="exclude-bots" className="text-xs text-muted-foreground cursor-pointer">
             Human traffic only
           </Label>
         </div>
@@ -302,16 +278,8 @@ function StatsRow({ data, isLoading, excludeBots }: StatsRowProps) {
         }
         isLoading={isLoading}
       />
-      <CompactStat
-        label="Sessions"
-        value={data?.traffic?.uniqueSessions}
-        isLoading={isLoading}
-      />
-      <CompactStat
-        label="Users"
-        value={data?.traffic?.uniqueUsers}
-        isLoading={isLoading}
-      />
+      <CompactStat label="Sessions" value={data?.traffic?.uniqueSessions} isLoading={isLoading} />
+      <CompactStat label="Users" value={data?.traffic?.uniqueUsers} isLoading={isLoading} />
       <CompactStat
         label="AI Cost"
         value={data?.aiUsage?.totalCost}
@@ -360,11 +328,7 @@ interface AlertsBarProps {
   onErrorClick?: (error: SelectedError) => void;
 }
 
-function AlertsBar({
-  alerts,
-  isLoading,
-  onErrorClick,
-}: AlertsBarProps) {
+function AlertsBar({ alerts, isLoading, onErrorClick }: AlertsBarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (isLoading || alerts.length === 0) {
@@ -392,37 +356,25 @@ function AlertsBar({
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
             )}
             <span className="text-xs font-medium">
-              {criticalCount > 0 && (
-                <span className="text-red-500">{criticalCount} critical</span>
-              )}
+              {criticalCount > 0 && <span className="text-red-500">{criticalCount} critical</span>}
               {criticalCount > 0 && warningCount > 0 && (
                 <span className="text-muted-foreground"> · </span>
               )}
-              {warningCount > 0 && (
-                <span className="text-amber-500">{warningCount} warning</span>
-              )}
+              {warningCount > 0 && <span className="text-amber-500">{warningCount} warning</span>}
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>
               {alerts.length} alert{alerts.length !== 1 ? "s" : ""}
             </span>
-            {isOpen ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
+            {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </div>
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="mt-2 space-y-1.5">
           {alerts.map((alert) => (
-            <AlertRow 
-              key={alert.id} 
-              alert={alert} 
-              onErrorClick={onErrorClick}
-            />
+            <AlertRow key={alert.id} alert={alert} onErrorClick={onErrorClick} />
           ))}
         </div>
       </CollapsibleContent>
@@ -455,18 +407,18 @@ function AlertRow({ alert, onErrorClick }: AlertRowProps) {
 
   const handleClick = () => {
     if (!isClickable) return;
-    
+
     // Extract error type and source from alert
     // Alert title is typically the error type, we infer source from context
     // Most errors are either "client" or "server" based on context
     const errorType = alert.title;
     // Try to determine source from the alert message/context
-    const errorSource = alert.message.toLowerCase().includes("server") 
-      ? "server" 
+    const errorSource = alert.message.toLowerCase().includes("server")
+      ? "server"
       : alert.message.toLowerCase().includes("api")
         ? "api"
         : "client";
-    
+
     onErrorClick({
       errorType,
       errorSource,
@@ -475,7 +427,7 @@ function AlertRow({ alert, onErrorClick }: AlertRowProps) {
   };
 
   return (
-    <div 
+    <div
       className={cn(
         "px-3 py-2 rounded-md text-xs transition-colors",
         bgClass,
@@ -496,23 +448,16 @@ function AlertRow({ alert, onErrorClick }: AlertRowProps) {
             <span className="text-[9px] text-muted-foreground">(click for details)</span>
           )}
         </div>
-        <span className="text-muted-foreground">
-          {getTimeAgo(alert.detectedAt)}
-        </span>
+        <span className="text-muted-foreground">{getTimeAgo(alert.detectedAt)}</span>
       </div>
       <p className="text-muted-foreground mt-0.5">{alert.message}</p>
       <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
         <span>
           Value:{" "}
-          <span className="text-foreground font-medium">
-            {formatAlertValue(alert.value)}
-          </span>
+          <span className="text-foreground font-medium">{formatAlertValue(alert.value)}</span>
         </span>
         <span>
-          Threshold:{" "}
-          <span className="font-medium">
-            {formatAlertValue(alert.threshold)}
-          </span>
+          Threshold: <span className="font-medium">{formatAlertValue(alert.threshold)}</span>
         </span>
       </div>
     </div>

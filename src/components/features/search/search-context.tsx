@@ -27,9 +27,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo(() => ({ open, setOpen }), [open]);
 
-  return (
-    <SearchContext.Provider value={value}>{children}</SearchContext.Provider>
-  );
+  return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>;
 }
 
 export function useSearch() {
@@ -39,6 +37,3 @@ export function useSearch() {
   }
   return context;
 }
-
-
-

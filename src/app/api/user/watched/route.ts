@@ -16,10 +16,7 @@ export async function GET() {
     const userId = await getUserIdForDb();
 
     if (!userId) {
-      return NextResponse.json(
-        { movies: [], totalCount: 0, allGenres: [] },
-        { status: 200 }
-      );
+      return NextResponse.json({ movies: [], totalCount: 0, allGenres: [] }, { status: 200 });
     }
 
     await connectDB();
@@ -33,16 +30,11 @@ export async function GET() {
     const movieIds = watchedItems.map((w) => w.movieId);
 
     if (movieIds.length === 0) {
-      return NextResponse.json(
-        { movies: [], totalCount: 0, allGenres: [] },
-        { status: 200 }
-      );
+      return NextResponse.json({ movies: [], totalCount: 0, allGenres: [] }, { status: 200 });
     }
 
     // Create a map for watchedAt dates
-    const watchedDates = new Map(
-      watchedItems.map((w) => [w.movieId, w.createdAt])
-    );
+    const watchedDates = new Map(watchedItems.map((w) => [w.movieId, w.createdAt]));
 
     // Fetch full movie details
     const movies = await Movie.find({ id: { $in: movieIds } })
@@ -75,9 +67,7 @@ export async function GET() {
         }
       }
     }
-    const allGenres = Array.from(genreMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
+    const allGenres = Array.from(genreMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json({
       movies: moviesWithDetails,
@@ -90,13 +80,6 @@ export async function GET() {
       event: "fetch_error",
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { error: "Failed to fetch watched movies" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch watched movies" }, { status: 500 });
   }
 }
-
-
-
-

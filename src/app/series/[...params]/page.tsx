@@ -68,9 +68,7 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   const backdropUrl = series.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${series.backdrop_path}`
     : undefined;
-  const posterUrl = series.poster_path
-    ? `${TMDB_IMAGE_BASE}/w500${series.poster_path}`
-    : undefined;
+  const posterUrl = series.poster_path ? `${TMDB_IMAGE_BASE}/w500${series.poster_path}` : undefined;
 
   return {
     title,
@@ -128,20 +126,8 @@ function ImagePreloader({ seriesId }: { seriesId: number }) {
 
   return (
     <>
-      <link
-        rel="preload"
-        as="image"
-        href={backdropUrl}
-        type="image/webp"
-        fetchPriority="high"
-      />
-      <link
-        rel="preload"
-        as="image"
-        href={logoUrl}
-        type="image/webp"
-        fetchPriority="high"
-      />
+      <link rel="preload" as="image" href={backdropUrl} type="image/webp" fetchPriority="high" />
+      <link rel="preload" as="image" href={logoUrl} type="image/webp" fetchPriority="high" />
     </>
   );
 }
@@ -162,10 +148,10 @@ function HeroContentSkeleton() {
         <Skeleton className="h-6 w-24 rounded-full bg-white/10" />
         <Skeleton className="h-6 w-16 rounded-full bg-white/10" />
       </div>
-      
+
       {/* Ratings skeleton */}
       <Skeleton className="h-8 w-52 rounded-full bg-white/10" />
-      
+
       {/* Watch options skeleton */}
       <div className="flex gap-2">
         <Skeleton className="h-9 w-28 rounded-lg bg-white/10" />
@@ -264,20 +250,17 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
   if (!series) return null;
 
   const genres = series.genres || [];
-  const displayRatings =
-    series.ratings?.length
-      ? series.ratings
-      : series.vote_average && series.vote_average > 0
-        ? [{ name: "TMDB", rating: Math.round(series.vote_average * 10).toString() }]
-        : [];
+  const displayRatings = series.ratings?.length
+    ? series.ratings
+    : series.vote_average && series.vote_average > 0
+      ? [{ name: "TMDB", rating: Math.round(series.vote_average * 10).toString() }]
+      : [];
 
   // Get badges for detail page (show more than cards)
   const badges = getMediaBadges(series, { maxBadges: 3, context: "detail" });
 
   // Get English logo for fallback (prefer English, then first available)
-  const englishLogo = series.images?.logos?.find(
-    (logo) => logo.iso_639_1 === "en"
-  );
+  const englishLogo = series.images?.logos?.find((logo) => logo.iso_639_1 === "en");
   const logoPath = englishLogo?.file_path ?? series.images?.logos?.[0]?.file_path;
 
   return (
@@ -405,8 +388,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
 
 // JSON-LD structured data for SEO
 function SeriesSchema({ series }: { series: Series }) {
-  const creators =
-    series.credits?.crew?.filter((c) => c.job === "Creator") || [];
+  const creators = series.credits?.crew?.filter((c) => c.job === "Creator") || [];
   const actors = series.credits?.cast?.slice(0, 5) || [];
 
   const schema = {
@@ -415,9 +397,7 @@ function SeriesSchema({ series }: { series: Series }) {
     name: series.name,
     description: series.overview,
     datePublished: series.first_air_date,
-    image: series.poster_path
-      ? `${TMDB_IMAGE_BASE}/w500${series.poster_path}`
-      : undefined,
+    image: series.poster_path ? `${TMDB_IMAGE_BASE}/w500${series.poster_path}` : undefined,
     aggregateRating:
       series.vote_average && series.vote_count
         ? {
@@ -503,7 +483,7 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
                       className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
                     />
                   </div>
-                  
+
                   {/* Genres, ratings, watch options load via Suspense */}
                   <Suspense fallback={<HeroContentSkeleton />}>
                     <HeroContentAsync seriesId={id} />

@@ -49,11 +49,7 @@ interface BrowseClientProps {
   totalResults: number;
 }
 
-export function BrowseClient({
-  initialResults,
-  totalPages,
-  totalResults,
-}: BrowseClientProps) {
+export function BrowseClient({ initialResults, totalPages, totalResults }: BrowseClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -75,7 +71,7 @@ export function BrowseClient({
   const [results, setResults] = useState<MediaItem[]>(initialResults);
   const [currentTotalPages, setCurrentTotalPages] = useState(totalPages);
   const [currentTotalResults, setCurrentTotalResults] = useState(totalResults);
-  
+
   // Person metadata for displaying names in pills
   const [personMeta, setPersonMeta] = useState<{
     cast?: PersonOption[];
@@ -87,28 +83,26 @@ export function BrowseClient({
     const fetchPersonNames = async () => {
       const castIds = params.with_cast || [];
       const crewIds = params.with_crew || [];
-      
+
       // Only fetch if we have IDs but no metadata
-      const needsCast = castIds.length > 0 && (!personMeta.cast || personMeta.cast.length !== castIds.length);
-      const needsCrew = crewIds.length > 0 && (!personMeta.crew || personMeta.crew.length !== crewIds.length);
-      
+      const needsCast =
+        castIds.length > 0 && (!personMeta.cast || personMeta.cast.length !== castIds.length);
+      const needsCrew =
+        crewIds.length > 0 && (!personMeta.crew || personMeta.crew.length !== crewIds.length);
+
       if (!needsCast && !needsCrew) return;
 
       const newMeta: typeof personMeta = { ...personMeta };
 
       if (needsCast) {
-        const castResults = await Promise.all(
-          castIds.map((id) => getPersonBasic(id))
-        );
+        const castResults = await Promise.all(castIds.map((id) => getPersonBasic(id)));
         newMeta.cast = castResults
           .filter((p): p is { id: number; name: string } => p !== null)
           .map((p) => ({ id: p.id, name: p.name }));
       }
 
       if (needsCrew) {
-        const crewResults = await Promise.all(
-          crewIds.map((id) => getPersonBasic(id))
-        );
+        const crewResults = await Promise.all(crewIds.map((id) => getPersonBasic(id)));
         newMeta.crew = crewResults
           .filter((p): p is { id: number; name: string } => p !== null)
           .map((p) => ({ id: p.id, name: p.name }));
@@ -206,7 +200,10 @@ export function BrowseClient({
       label: getGenreName(id),
       onRemove: () => {
         const newGenres = toArray(params.with_genres).filter((g) => g !== id);
-        handleParamsChange({ ...params, with_genres: newGenres.length > 0 ? newGenres : undefined });
+        handleParamsChange({
+          ...params,
+          with_genres: newGenres.length > 0 ? newGenres : undefined,
+        });
       },
     });
   });
@@ -217,7 +214,10 @@ export function BrowseClient({
       label: `Not ${getGenreName(id)}`,
       onRemove: () => {
         const newGenres = toArray(params.without_genres).filter((g) => g !== id);
-        handleParamsChange({ ...params, without_genres: newGenres.length > 0 ? newGenres : undefined });
+        handleParamsChange({
+          ...params,
+          without_genres: newGenres.length > 0 ? newGenres : undefined,
+        });
       },
     });
   });
@@ -267,7 +267,10 @@ export function BrowseClient({
       label: `Keyword: ${id}`,
       onRemove: () => {
         const newKeywords = toArray(params.with_keywords).filter((k) => k !== id);
-        handleParamsChange({ ...params, with_keywords: newKeywords.length > 0 ? newKeywords : undefined });
+        handleParamsChange({
+          ...params,
+          with_keywords: newKeywords.length > 0 ? newKeywords : undefined,
+        });
       },
     });
   });
@@ -313,11 +316,12 @@ export function BrowseClient({
     activeFilterPills.push({
       key: "runtime",
       label: runtimeOption?.label || `${min}-${max} min`,
-      onRemove: () => handleParamsChange({ 
-        ...params, 
-        "with_runtime.gte": undefined, 
-        "with_runtime.lte": undefined 
-      }),
+      onRemove: () =>
+        handleParamsChange({
+          ...params,
+          "with_runtime.gte": undefined,
+          "with_runtime.lte": undefined,
+        }),
     });
   }
 
@@ -330,8 +334,8 @@ export function BrowseClient({
         label: provider?.name || `Provider ${providerId}`,
         onRemove: () => {
           const newProviders = params.with_watch_providers?.filter((id) => id !== providerId) || [];
-          handleParamsChange({ 
-            ...params, 
+          handleParamsChange({
+            ...params,
             with_watch_providers: newProviders.length > 0 ? newProviders : undefined,
             watch_region: newProviders.length > 0 ? params.watch_region : undefined,
           });
@@ -348,11 +352,12 @@ export function BrowseClient({
     activeFilterPills.push({
       key: "availability",
       label: monetizationOption?.label || params.with_watch_monetization_types,
-      onRemove: () => handleParamsChange({ 
-        ...params, 
-        with_watch_monetization_types: undefined,
-        watch_region: params.with_watch_providers?.length ? params.watch_region : undefined,
-      }),
+      onRemove: () =>
+        handleParamsChange({
+          ...params,
+          with_watch_monetization_types: undefined,
+          watch_region: params.with_watch_providers?.length ? params.watch_region : undefined,
+        }),
     });
   }
 
@@ -376,7 +381,8 @@ export function BrowseClient({
 
   // Certification pill
   if (params.certification) {
-    const certOptions = params.media_type === "tv" ? TV_CERTIFICATION_OPTIONS : MOVIE_CERTIFICATION_OPTIONS;
+    const certOptions =
+      params.media_type === "tv" ? TV_CERTIFICATION_OPTIONS : MOVIE_CERTIFICATION_OPTIONS;
     const certOption = certOptions.find((o) => o.value === params.certification);
     activeFilterPills.push({
       key: "certification",
@@ -428,7 +434,13 @@ export function BrowseClient({
             value={params.media_type}
             onChange={(value) => {
               setPersonMeta({});
-              handleParamsChange({ ...params, media_type: value, with_genres: [], with_cast: undefined, with_crew: undefined });
+              handleParamsChange({
+                ...params,
+                media_type: value,
+                with_genres: [],
+                with_cast: undefined,
+                with_crew: undefined,
+              });
             }}
           />
           <Drawer open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
@@ -436,15 +448,11 @@ export function BrowseClient({
               <Button
                 variant="outline"
                 size="sm"
-                className={cn(
-                  hasActiveFilters && "border-brand text-brand"
-                )}
+                className={cn(hasActiveFilters && "border-brand text-brand")}
               >
                 <SlidersHorizontal className="h-4 w-4 mr-2" />
                 Filters
-                {hasActiveFilters && (
-                  <span className="ml-2 h-2 w-2 rounded-full bg-brand" />
-                )}
+                {hasActiveFilters && <span className="ml-2 h-2 w-2 rounded-full bg-brand" />}
               </Button>
             </DrawerTrigger>
             <DrawerContent className="max-h-[85vh]">
@@ -493,7 +501,13 @@ export function BrowseClient({
                     value={params.media_type}
                     onChange={(value) => {
                       setPersonMeta({});
-                      handleParamsChange({ ...params, media_type: value, with_genres: [], with_cast: undefined, with_crew: undefined });
+                      handleParamsChange({
+                        ...params,
+                        media_type: value,
+                        with_genres: [],
+                        with_cast: undefined,
+                        with_crew: undefined,
+                      });
                     }}
                   />
                 </div>

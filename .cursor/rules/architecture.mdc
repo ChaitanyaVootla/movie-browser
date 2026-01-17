@@ -1,0 +1,322 @@
+---
+description: Project architecture, tech stack, directory structure, and critical coding rules
+globs: ["src/**/*.ts", "src/**/*.tsx"]
+alwaysApply: true
+---
+
+# Movie Browser - Architecture Rules
+
+## Project Overview
+
+This is an AI-first movie/TV discovery platform built with Next.js 15, React 19, and TypeScript.
+The codebase is designed to be maintained by AI agents with human oversight.
+
+## Tech Stack
+
+- **Framework**: Next.js 15 with App Router
+- **React**: 19.x with Server Components
+- **Language**: TypeScript (strict mode)
+- **UI**: shadcn/ui + Tailwind CSS v4
+- **State**: Zustand (client) + TanStack Query (server)
+- **Database**: MongoDB with Mongoose (legacy) -> PostgreSQL with Prisma (migration in progress)
+- **PostgreSQL**: Prisma 6.x ORM, pgvector for embeddings, pg_trgm for fuzzy search
+- **Auth**: Auth.js v5 (NextAuth)
+- **Animation**: Framer Motion
+- **Validation**: Zod
+- **Caching**: Unified L1 (node-cache) + L2 (file) with stale-while-revalidate
+- **Logging**: Pino (structured JSON logging)
+- **Images**: CDN (`image.themoviebrowser.com`) with TMDB fallback
+- **Country Data**: country-list (complete ISO 3166-1 country list)
+- **Analytics**: ClickHouse + Grafana (self-hosted, privacy-first)
+
+## Directory Structure
+
+```
+src/
+├── app/                 # Next.js App Router pages
+│   ├── movie/[...params]/    # Catch-all: /movie/id or /movie/id/slug
+│   ├── series/[...params]/   # Catch-all: /series/id or /series/id/slug
+│   ├── person/[...params]/   # Catch-all: /person/id or /person/id/slug
+│   ├── browse/               # Discover with filters (server + client.tsx)
+│   ├── topics/               # Curated topic collections
+│   │   ├── page.tsx          # Topics index (scrollers preview)
+│   │   ├── client.tsx        # Client-side topics list
+│   │   ├── all/page.tsx      # All topics grid
+│   │   └── [topic]/          # Topic detail (genre-action-movie, theme-christmas-movie)
+│   ├── watchlist/            # User watchlist (authenticated)
+│   ├── ratings/              # User likes/dislikes (authenticated)
+│   ├── watched/              # User watched movies (authenticated)
+│   ├── admin/                # Admin dashboard (protected, analytics + users)
+│   └── api/
+│       ├── auth/[...nextauth]/  # Auth.js handlers
+│       ├── admin/               # Admin API routes (protected)
+│       └── user/                # User library API routes
+├── components/
+│   ├── ui/              # shadcn/ui components (DO NOT MODIFY)
+│   ├── analytics/       # Client-side analytics tracking
+│   └── features/        # Domain-specific components
+│       ├── movie/       # Movie components (cards, carousel, logo)
+│       ├── series/      # Series components
+│       ├── person/      # Person components
+│       ├── media/       # Shared movie/series components
+│       ├── home/        # Homepage components
+│       ├── discover/    # Browse/filter components
+│       ├── auth/        # Auth components
+│       ├── admin/       # Admin dashboard components
+│       └── layout/      # Layout components (navbar, footer, etc.)
+├── lib/                 # Utilities, constants, helpers
+│   ├── utils.ts         # General utilities (cn, formatNumber, getSlug)
+│   ├── constants.ts     # App constants, cache durations
+│   ├── discover.ts      # Discover params, sort options, genre lists
+│   ├── analytics/       # ClickHouse analytics client and tracking
+│   ├── topics/          # Topic utilities and definitions
+│   ├── badges/          # Media badge system
+│   ├── image.ts         # CDN image utilities
+│   ├── cache-service.ts # Unified L1+L2 cache
+│   ├── watch-options.ts # Watch provider processing utilities
+│   ├── auth.ts          # Auth.js config (Node.js - full)
+│   └── auth.config.ts   # Auth.js config (Edge-safe)
+├── hooks/               # Custom React hooks
+├── stores/              # Zustand stores
+├── server/              # Server-side code
+│   ├── actions/         # Server Actions
+│   ├── services/        # External API services
+│   │   ├── tmdb.ts      # TMDB API with retry logic
+│   │   ├── youtube.ts   # YouTube Data API
+│   │   └── hydration/   # Data hydration service (PostgreSQL + MongoDB + Lambda)
+│   └── db/              # Database layer
+│       ├── models/      # Mongoose models (legacy)
+│       └── postgres/    # PostgreSQL queries
+├── types/               # TypeScript types/interfaces
+└── styles/              # Global styles, theme CSS variables
+
+prisma/
+├── schema.prisma           # PostgreSQL schema (V2 normalized)
+└── seed-from-mongo.ts      # MongoDB-first seeding (recommended)
+
+postgres/
+└── docker-compose.postgres.yml  # Local PostgreSQL with pgvector
+```
+
+## Critical Rules
+
+### 1. Server Components First
+
+- Default to Server Components (no "use client" directive)
+- Only add "use client" when you need:
+  - Event handlers (onClick, onChange, etc.)
+  - Hooks (useState, useEffect, custom hooks)
+  - Browser APIs (window, localStorage)
+  - Third-party client libraries
+
+### 2. Data Fetching Patterns
+
+```tsx
+// GOOD: Server Component with async/await
+export default async function MoviePage({ params }) {
+  const movie = await getMovie(params.movieId);
+  return <MovieDetails movie={movie} />;
+}
+
+// BAD: Client Component for data fetching
+("use client");
+export default function MoviePage({ params }) {
+  const [movie, setMovie] = useState(null);
+  useEffect(() => {
+    fetchMovie(params.movieId).then(setMovie);
+  }, []);
+}
+```
+
+### 3. Server Actions for Mutations
+
+- Prefer Server Actions over API routes
+- Define in `src/server/actions/`
+- Always validate input with Zod
+
+```tsx
+// src/server/actions/watchlist.ts
+"use server";
+import { z } from "zod";
+
+const AddToWatchlistSchema = z.object({
+  movieId: z.number(),
+  userId: z.string(),
+});
+
+export async function addToWatchlist(input: z.infer<typeof AddToWatchlistSchema>) {
+  const validated = AddToWatchlistSchema.parse(input);
+  // ... implementation
+}
+```
+
+### 4. Naming Conventions
+
+- **Files**: kebab-case (`movie-card.tsx`, `use-auth.ts`)
+- **Components**: PascalCase (`MovieCard`, `AuthProvider`)
+- **Hooks**: camelCase with `use` prefix (`useAuth`, `useMovieData`)
+- **Server Actions**: camelCase (`getMovie`, `addToWatchlist`)
+- **Types/Interfaces**: PascalCase (`Movie`, `UserSession`)
+- **Constants**: SCREAMING_SNAKE_CASE (`API_BASE_URL`)
+
+### 5. Import Order
+
+```tsx
+// 1. React/Next.js
+import { Suspense } from "react";
+import Image from "next/image";
+
+// 2. External packages
+import { motion } from "framer-motion";
+
+// 3. Internal components
+import { Button } from "@/components/ui/button";
+import { MovieCard } from "@/components/features/movie/movie-card";
+
+// 4. Hooks/stores
+import { useUserStore } from "@/stores/user";
+
+// 5. Utils/lib
+import { cn } from "@/lib/utils";
+import { getPosterSources } from "@/lib/image";
+
+// 6. Types
+import type { Movie } from "@/types";
+```
+
+### 6. Error Handling & Logging
+
+- Use error boundaries for client components
+- Use try/catch in Server Actions
+- Always provide user-friendly error messages
+- **Use structured logging** via Pino (`src/lib/logger.ts`)
+
+```typescript
+import { dataLogger, apiLogger, aiToolLogger } from "@/lib/logger";
+
+// GOOD - Structured logging
+dataLogger.error({
+  event: "fetch_movie_error",
+  movieId: id,
+  error: error instanceof Error ? error.message : String(error),
+});
+
+// BAD - Unstructured console.error
+console.error("Failed to fetch movie:", error);
+```
+
+### 7. Performance Requirements
+
+- Images MUST use `next/image` with proper sizing
+- Large lists MUST be virtualized or paginated
+- Heavy components MUST use dynamic imports
+- Animations MUST not block main thread
+
+## Image Handling
+
+### CDN-First Strategy
+
+All images should use the CDN as primary source with TMDB fallback:
+
+```tsx
+import { getPosterSources } from "@/lib/image";
+
+const sources = getPosterSources(item, "movie");
+// primary: https://image.themoviebrowser.com/movie/{id}/poster.webp
+// fallback: https://image.tmdb.org/t/p/w500/...
+```
+
+### CDN URL Format
+
+```
+https://image.themoviebrowser.com/{movie|series}/{id}/{type}.webp
+
+Types: poster, backdrop, logo, widePoster
+```
+
+### Image Fallback Pattern
+
+```tsx
+"use client";
+import { useState } from "react";
+
+function ImageWithFallback({ sources }) {
+  const [useFallback, setUseFallback] = useState(false);
+  const src = useFallback ? sources.fallback : sources.primary;
+
+  return (
+    <Image
+      src={src}
+      onError={() => !useFallback && setUseFallback(true)}
+      unoptimized={!useFallback} // CDN already optimized
+    />
+  );
+}
+```
+
+## Caching Strategy
+
+### Unified Cache Service (L1 + L2)
+
+The app uses a hybrid caching system with in-memory (L1) and file-based (L2) layers:
+
+```typescript
+import { cachedFetchPersistent } from "@/lib/cache-service";
+
+// Automatically caches with L1 (memory) + L2 (file) + stale-while-revalidate
+const data = await cachedFetchPersistent("youtube", cacheKey, fetcher);
+```
+
+**Architecture:**
+```
+Request -> L1 (memory) -> L2 (file) -> Stale check -> In-flight dedup -> API call
+                |           |            |
+              HIT         HIT      Return stale + background refresh
+```
+
+**Key Features:**
+- **L1 (Memory)**: Fast node-cache, lost on restart
+- **L2 (File)**: Persists to `.cache/`, survives restarts
+- **Stale-While-Revalidate**: Returns stale data instantly, refreshes in background
+- **Request Deduplication**: Multiple concurrent requests share one API call
+- **Compression**: Payloads >10KB are gzip compressed
+
+### Cache TTLs by Namespace
+
+| Namespace | L1 (Memory) | L2 (File) | Use Case |
+|-----------|-------------|-----------|----------|
+| `youtube` | 1 hour | 24 hours* | Video stats, comments |
+| `youtube-channels` | 1 hour | 48 hours | Channel trailer uploads |
+| `person` | 24 hours | 3 days | Person/actor data |
+| `movie` | 1 hour | 2 hours | Movie details |
+| `series` | 1 hour | 2 hours | Series details |
+| `search` | 5 min | 1 hour | Search results |
+| `discover` | 30 min | 1 hour | Browse/filter results |
+| `trending` | 15 min | (none) | Trending (always fresh) |
+
+### MongoDB Queries with Next.js Cache
+
+```tsx
+import { unstable_cache as cache } from "next/cache";
+
+export const getMovie = cache(
+  async (id) => Movie.findOne({ id }).lean(),
+  ["movie"],
+  { revalidate: 3600, tags: ["movies"] }
+);
+```
+
+## Key Types
+
+Core types are defined in `src/types/index.ts`. See also:
+- `src/types/client-props.ts` - Light DTOs for RSC optimization
+- `src/lib/watch-options.ts` - Watch provider types
+
+## Related Rule Files
+
+- **database.mdc** - PostgreSQL migration, hydration service
+- **routing-loading.mdc** - Routing patterns, progressive loading
+- **rsc-optimization.mdc** - RSC payload optimization, Light DTOs
+- **discover-topics.mdc** - Browse/Topics architecture
+- **state-mobile.mdc** - Zustand state management, mobile patterns
+- **analytics.mdc** - ClickHouse + Grafana analytics

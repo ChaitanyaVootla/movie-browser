@@ -19,11 +19,7 @@ import {
   Bot,
   Monitor,
 } from "lucide-react";
-import {
-  DevicePieChart,
-  TrendChart,
-  HorizontalBarChart,
-} from "./analytics-charts";
+import { DevicePieChart, TrendChart, HorizontalBarChart } from "./analytics-charts";
 import {
   Dialog,
   DialogContent,
@@ -34,11 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -158,9 +150,7 @@ export function ItemAnalyticsModal({ tmdbId, mediaType }: ItemAnalyticsModalProp
             <BarChart3 className="h-5 w-5 text-brand" />
             Item Analytics
             {data?.title && (
-              <span className="text-muted-foreground font-normal">
-                — {data.title}
-              </span>
+              <span className="text-muted-foreground font-normal">— {data.title}</span>
             )}
           </DialogTitle>
         </DialogHeader>
@@ -212,13 +202,21 @@ export function ItemAnalyticsModal({ tmdbId, mediaType }: ItemAnalyticsModalProp
                     label="Last Updated"
                     value={formatTimeAgo(data.database.updatedAt)}
                     icon={Clock}
-                    tooltip={data.database.updatedAt ? new Date(data.database.updatedAt).toLocaleString() : undefined}
+                    tooltip={
+                      data.database.updatedAt
+                        ? new Date(data.database.updatedAt).toLocaleString()
+                        : undefined
+                    }
                   />
                   <StatItem
                     label="TMDB Refreshed"
                     value={formatTimeAgo(data.database.tmdbUpdatedAt)}
                     icon={Clock}
-                    tooltip={data.database.tmdbUpdatedAt ? new Date(data.database.tmdbUpdatedAt).toLocaleString() : undefined}
+                    tooltip={
+                      data.database.tmdbUpdatedAt
+                        ? new Date(data.database.tmdbUpdatedAt).toLocaleString()
+                        : undefined
+                    }
                   />
                 </div>
               </Section>
@@ -272,7 +270,9 @@ export function ItemAnalyticsModal({ tmdbId, mediaType }: ItemAnalyticsModalProp
               <Section title="Bot Traffic" icon={Bot}>
                 <div className="flex justify-between text-sm mb-3">
                   <span className="text-muted-foreground">Total Bot Views</span>
-                  <span className="font-medium">{data.botStats.totalBotViews.toLocaleString()}</span>
+                  <span className="font-medium">
+                    {data.botStats.totalBotViews.toLocaleString()}
+                  </span>
                 </div>
                 {data.botStats.topBots.length > 0 ? (
                   <HorizontalBarChart
@@ -281,7 +281,9 @@ export function ItemAnalyticsModal({ tmdbId, mediaType }: ItemAnalyticsModalProp
                     maxItems={5}
                   />
                 ) : (
-                  <p className="text-xs text-muted-foreground text-center py-4">No bot traffic recorded</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    No bot traffic recorded
+                  </p>
                 )}
               </Section>
             </div>
@@ -293,19 +295,29 @@ export function ItemAnalyticsModal({ tmdbId, mediaType }: ItemAnalyticsModalProp
                   label="Source"
                   value={data.enrichment.source || "None"}
                   icon={Database}
-                  iconClassName={data.enrichment.source ? "text-green-500" : "text-muted-foreground"}
+                  iconClassName={
+                    data.enrichment.source ? "text-green-500" : "text-muted-foreground"
+                  }
                 />
                 <StatItem
                   label="Ratings Scraped"
                   value={formatTimeAgo(data.enrichment.ratingsScrapedAt)}
                   icon={Star}
-                  tooltip={data.enrichment.ratingsScrapedAt ? new Date(data.enrichment.ratingsScrapedAt).toLocaleString() : undefined}
+                  tooltip={
+                    data.enrichment.ratingsScrapedAt
+                      ? new Date(data.enrichment.ratingsScrapedAt).toLocaleString()
+                      : undefined
+                  }
                 />
                 <StatItem
                   label="Watch Links Scraped"
                   value={formatTimeAgo(data.enrichment.watchLinksScrapedAt)}
                   icon={Play}
-                  tooltip={data.enrichment.watchLinksScrapedAt ? new Date(data.enrichment.watchLinksScrapedAt).toLocaleString() : undefined}
+                  tooltip={
+                    data.enrichment.watchLinksScrapedAt
+                      ? new Date(data.enrichment.watchLinksScrapedAt).toLocaleString()
+                      : undefined
+                  }
                 />
                 <StatItem
                   label="Watch Providers"
@@ -317,7 +329,11 @@ export function ItemAnalyticsModal({ tmdbId, mediaType }: ItemAnalyticsModalProp
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <span className="text-xs text-muted-foreground mr-1">Rating sources:</span>
                   {data.enrichment.ratingSources.map((source, idx) => (
-                    <Badge key={`${source}-${idx}`} variant="secondary" className="text-[10px] px-1.5 py-0">
+                    <Badge
+                      key={`${source}-${idx}`}
+                      variant="secondary"
+                      className="text-[10px] px-1.5 py-0"
+                    >
                       {String(source)}
                     </Badge>
                   ))}
@@ -384,7 +400,10 @@ export function ItemAnalyticsModal({ tmdbId, mediaType }: ItemAnalyticsModalProp
                             </td>
                             <td className="px-3 py-2 text-center">
                               {invocation.statusCode === 200 ? (
-                                <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
+                                <Badge
+                                  variant="default"
+                                  className="bg-green-500/20 text-green-400 border-green-500/30"
+                                >
                                   OK
                                 </Badge>
                               ) : (
@@ -558,7 +577,7 @@ function LoadingSkeleton() {
 
 function formatTimeAgo(dateString: string | null | undefined): string {
   if (!dateString) return "Never";
-  
+
   // ClickHouse returns timestamps as "YYYY-MM-DD HH:MM:SS.mmm" in UTC
   // We need to add 'Z' suffix if not present to ensure JS treats it as UTC
   let normalizedDate = dateString;
@@ -571,7 +590,7 @@ function formatTimeAgo(dateString: string | null | undefined): string {
   }
 
   const date = new Date(normalizedDate);
-  
+
   // Check for invalid dates (epoch time or NaN)
   if (isNaN(date.getTime()) || date.getFullYear() < 2020) {
     return "Never";
@@ -579,12 +598,12 @@ function formatTimeAgo(dateString: string | null | undefined): string {
 
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  
+
   // If negative (future date) or more than 10 years ago, something is wrong
   if (diffMs < 0 || diffMs > 10 * 365 * 24 * 60 * 60 * 1000) {
     return "Never";
   }
-  
+
   const diffMins = Math.floor(diffMs / 60000);
 
   if (diffMins < 1) return "Just now";

@@ -42,5 +42,3 @@ export interface ParsedTopicKey {
   topic: string;
   media: MediaType;
 }
-
-

@@ -1,20 +1,20 @@
 #!/usr/bin/env npx tsx
 /**
  * YouTube Hybrid Test - Best of Both Worlds
- * 
+ *
  * Strategy: TMDB for discovery + YouTube for engagement metrics
- * 
+ *
  * This approach:
  * 1. Gets trending movies/TV from TMDB (free)
  * 2. Gets their official trailers from TMDB (free, already linked)
  * 3. Batch fetches YouTube stats for those videos (1 unit per 50 videos!)
- * 
+ *
  * Benefits:
  * - No fuzzy title matching needed
  * - Official trailers only (not fan content)
  * - Real view counts and engagement
  * - Very low YouTube API quota usage
- * 
+ *
  * Run: npx tsx scripts/test-youtube-hybrid.ts
  */
 
@@ -46,13 +46,13 @@ interface TrendingTrailer {
   rating: number;
   popularity: number;
   posterPath: string | null;
-  
+
   // Trailer info from TMDB
   youtubeId: string;
   trailerTitle: string;
   trailerType: string;
   publishedAt: string;
-  
+
   // YouTube stats (fetched separately)
   viewCount?: number;
   likeCount?: number;
@@ -136,24 +136,25 @@ async function getTMDBVideos(id: number, mediaType: "movie" | "tv"): Promise<TMD
 
 async function getTMDBTrendingWithTrailers(limit: number = 15): Promise<TrendingTrailer[]> {
   console.log("\n📊 Step 1: Fetching trending from TMDB...");
-  
+
   const trending = await getTMDBTrending("all", limit + 5); // Fetch extra in case some don't have trailers
   console.log(`   Found ${trending.length} trending items`);
-  
+
   console.log("\n🎬 Step 2: Fetching trailers for each...");
   const trailers: TrendingTrailer[] = [];
-  
+
   for (const item of trending) {
     const itemType = item.media_type || (item.title ? "movie" : "tv");
     const videos = await getTMDBVideos(item.id, itemType);
-    
+
     // Find best official trailer (English, YouTube)
     const officialTrailers = videos
-      .filter(v => 
-        v.site === "YouTube" &&
-        (v.type === "Trailer" || v.type === "Teaser") &&
-        v.official &&
-        v.iso_639_1 === "en"
+      .filter(
+        (v) =>
+          v.site === "YouTube" &&
+          (v.type === "Trailer" || v.type === "Teaser") &&
+          v.official &&
+          v.iso_639_1 === "en"
       )
       .sort((a, b) => {
         // Prefer Trailer over Teaser, then newest
@@ -161,7 +162,7 @@ async function getTMDBTrendingWithTrailers(limit: number = 15): Promise<Trending
         if (b.type === "Trailer" && a.type !== "Trailer") return 1;
         return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
       });
-    
+
     const bestTrailer = officialTrailers[0];
     if (bestTrailer) {
       trailers.push({
@@ -177,14 +178,14 @@ async function getTMDBTrendingWithTrailers(limit: number = 15): Promise<Trending
         trailerType: bestTrailer.type,
         publishedAt: bestTrailer.published_at,
       });
-      
+
       if (trailers.length >= limit) break;
     }
-    
+
     // Small delay
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
   }
-  
+
   console.log(`   Found ${trailers.length} items with trailers`);
   return trailers;
 }
@@ -202,31 +203,31 @@ async function getYouTubeStats(videoIds: string[]): Promise<Map<string, YouTubeS
     console.log("   ⚠️ No YouTube API key - skipping stats");
     return new Map();
   }
-  
+
   const stats = new Map<string, YouTubeStats>();
-  
+
   // YouTube allows up to 50 video IDs per request
   const batchSize = 50;
   let quotaUsed = 0;
-  
+
   for (let i = 0; i < videoIds.length; i += batchSize) {
     const batch = videoIds.slice(i, i + batchSize);
-    
+
     const url = new URL(`${YOUTUBE_API_BASE}/videos`);
     url.searchParams.set("part", "statistics");
     url.searchParams.set("id", batch.join(","));
     url.searchParams.set("key", YOUTUBE_API_KEY);
-    
+
     const response = await fetch(url.toString());
     quotaUsed += 1;
-    
+
     if (!response.ok) {
       console.error(`   YouTube API Error: ${response.status}`);
       continue;
     }
-    
+
     const data = await response.json();
-    
+
     for (const item of data.items || []) {
       stats.set(item.id, {
         viewCount: parseInt(item.statistics?.viewCount || "0", 10),
@@ -235,7 +236,7 @@ async function getYouTubeStats(videoIds: string[]): Promise<Map<string, YouTubeS
       });
     }
   }
-  
+
   console.log(`   Fetched stats for ${stats.size} videos (quota: ${quotaUsed} units)`);
   return stats;
 }
@@ -248,15 +249,15 @@ async function testHybridApproach() {
   console.log("=".repeat(70));
   console.log("🚀 HYBRID APPROACH: TMDB Discovery + YouTube Stats");
   console.log("=".repeat(70));
-  
+
   // Step 1 & 2: Get trending with trailers from TMDB
   const trailers = await getTMDBTrendingWithTrailers(15);
-  
+
   // Step 3: Batch fetch YouTube stats
   console.log("\n📈 Step 3: Fetching YouTube engagement stats...");
-  const videoIds = trailers.map(t => t.youtubeId);
+  const videoIds = trailers.map((t) => t.youtubeId);
   const statsMap = await getYouTubeStats(videoIds);
-  
+
   // Merge stats into trailers
   for (const trailer of trailers) {
     const stats = statsMap.get(trailer.youtubeId);
@@ -266,21 +267,21 @@ async function testHybridApproach() {
       trailer.commentCount = stats.commentCount;
     }
   }
-  
+
   // Sort by view count
   trailers.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-  
+
   // Display results
   console.log("\n" + "=".repeat(70));
   console.log("📋 RESULTS: Trending Trailers with Engagement Metrics");
   console.log("=".repeat(70));
-  
+
   for (let i = 0; i < trailers.length; i++) {
     const t = trailers[i];
     const typeIcon = t.mediaType === "movie" ? "🎬" : "📺";
     const views = t.viewCount ? formatViews(t.viewCount) : "N/A";
     const likes = t.likeCount ? formatViews(t.likeCount) : "N/A";
-    
+
     console.log(`\n${i + 1}. ${typeIcon} ${t.title}`);
     console.log(`   ⭐ ${t.rating.toFixed(1)} | 📅 ${formatDate(t.releaseDate)}`);
     console.log(`   🎬 "${t.trailerTitle}" (${t.trailerType})`);
@@ -288,16 +289,16 @@ async function testHybridApproach() {
     console.log(`   🔗 https://youtube.com/watch?v=${t.youtubeId}`);
     console.log(`   📊 TMDB ID: ${t.tmdbId}`);
   }
-  
+
   // Analysis
   console.log("\n" + "=".repeat(70));
   console.log("📊 ANALYSIS");
   console.log("=".repeat(70));
-  
-  const withStats = trailers.filter(t => t.viewCount !== undefined);
+
+  const withStats = trailers.filter((t) => t.viewCount !== undefined);
   const avgViews = withStats.reduce((sum, t) => sum + (t.viewCount || 0), 0) / withStats.length;
   const avgLikes = withStats.reduce((sum, t) => sum + (t.likeCount || 0), 0) / withStats.length;
-  
+
   console.log(`
 Total trailers: ${trailers.length}
 With YouTube stats: ${withStats.length}
@@ -322,11 +323,11 @@ async function compareWithTMDBOnly() {
   console.log("\n" + "=".repeat(70));
   console.log("📊 COMPARISON: YouTube Stats vs TMDB Popularity");
   console.log("=".repeat(70));
-  
+
   const trailers = await getTMDBTrendingWithTrailers(10);
-  const videoIds = trailers.map(t => t.youtubeId);
+  const videoIds = trailers.map((t) => t.youtubeId);
   const statsMap = await getYouTubeStats(videoIds);
-  
+
   // Add YouTube stats
   for (const trailer of trailers) {
     const stats = statsMap.get(trailer.youtubeId);
@@ -335,43 +336,45 @@ async function compareWithTMDBOnly() {
       trailer.likeCount = stats.likeCount;
     }
   }
-  
+
   // Compare rankings
   const byPopularity = [...trailers].sort((a, b) => b.popularity - a.popularity);
   const byViews = [...trailers].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-  
+
   console.log(`
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ TMDB Popularity Ranking    vs    YouTube Views Ranking                      │
 ├─────────────────────────────────────────────────────────────────────────────┤`);
-  
+
   for (let i = 0; i < Math.min(10, trailers.length); i++) {
     const byPop = byPopularity[i];
     const byView = byViews[i];
-    
+
     const popTitle = byPop.title.slice(0, 20).padEnd(20);
     const viewTitle = byView.title.slice(0, 20).padEnd(20);
     const popScore = byPop.popularity.toFixed(0).padStart(5);
     const viewCount = formatViews(byView.viewCount || 0).padStart(6);
-    
-    console.log(`│ ${i + 1}. ${popTitle} (${popScore})  │  ${i + 1}. ${viewTitle} (${viewCount})  │`);
+
+    console.log(
+      `│ ${i + 1}. ${popTitle} (${popScore})  │  ${i + 1}. ${viewTitle} (${viewCount})  │`
+    );
   }
-  
+
   console.log(`└─────────────────────────────────────────────────────────────────────────────┘`);
-  
+
   // Check correlation
-  const viewRanks = byViews.map(t => t.tmdbId);
-  const popRanks = byPopularity.map(t => t.tmdbId);
-  
+  const viewRanks = byViews.map((t) => t.tmdbId);
+  const popRanks = byPopularity.map((t) => t.tmdbId);
+
   let sameRank = 0;
   let offByOne = 0;
-  
+
   for (let i = 0; i < viewRanks.length; i++) {
     const popIdx = popRanks.indexOf(viewRanks[i]);
     if (popIdx === i) sameRank++;
     else if (Math.abs(popIdx - i) <= 1) offByOne++;
   }
-  
+
   console.log(`
 Correlation Analysis:
   - Same rank: ${sameRank}/${trailers.length}
@@ -388,40 +391,38 @@ async function testRecentTrailers() {
   console.log("\n" + "=".repeat(70));
   console.log("📅 FRESH TRAILERS: Recent releases + Upcoming");
   console.log("=".repeat(70));
-  
+
   // Combine trending with upcoming for fresher content
   const trending = await getTMDBTrendingWithTrailers(10);
-  
+
   // Get upcoming movies
   console.log("\n📅 Fetching upcoming movies...");
   const today = new Date().toISOString().split("T")[0];
   const threeMonthsLater = new Date();
   threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
   const maxDate = threeMonthsLater.toISOString().split("T")[0];
-  
+
   const upcomingUrl = new URL(`${TMDB_API_BASE}/discover/movie`);
   upcomingUrl.searchParams.set("api_key", TMDB_API_KEY!);
   upcomingUrl.searchParams.set("primary_release_date.gte", today);
   upcomingUrl.searchParams.set("primary_release_date.lte", maxDate);
   upcomingUrl.searchParams.set("sort_by", "popularity.desc");
   upcomingUrl.searchParams.set("with_original_language", "en");
-  
+
   const upcomingResponse = await fetch(upcomingUrl.toString());
   const upcomingData = await upcomingResponse.json();
   const upcomingMovies = (upcomingData.results || []).slice(0, 8);
-  
+
   console.log(`   Found ${upcomingMovies.length} upcoming movies`);
-  
+
   // Get trailers for upcoming
   const upcomingTrailers: TrendingTrailer[] = [];
   for (const movie of upcomingMovies) {
     const videos = await getTMDBVideos(movie.id, "movie");
-    const trailer = videos.find(v => 
-      v.site === "YouTube" && 
-      (v.type === "Trailer" || v.type === "Teaser") && 
-      v.official
+    const trailer = videos.find(
+      (v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser") && v.official
     );
-    
+
     if (trailer) {
       upcomingTrailers.push({
         tmdbId: movie.id,
@@ -437,23 +438,23 @@ async function testRecentTrailers() {
         publishedAt: trailer.published_at,
       });
     }
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
   }
-  
+
   // Combine and dedupe
   const allTrailers = [...trending, ...upcomingTrailers];
   const seen = new Set<number>();
-  const unique = allTrailers.filter(t => {
+  const unique = allTrailers.filter((t) => {
     if (seen.has(t.tmdbId)) return false;
     seen.add(t.tmdbId);
     return true;
   });
-  
+
   // Get YouTube stats
   console.log("\n📈 Fetching YouTube stats...");
-  const videoIds = unique.map(t => t.youtubeId);
+  const videoIds = unique.map((t) => t.youtubeId);
   const statsMap = await getYouTubeStats(videoIds);
-  
+
   for (const trailer of unique) {
     const stats = statsMap.get(trailer.youtubeId);
     if (stats) {
@@ -461,18 +462,20 @@ async function testRecentTrailers() {
       trailer.likeCount = stats.likeCount;
     }
   }
-  
+
   // Sort by trailer publish date (newest first)
   unique.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  
+
   console.log("\n📋 Fresh Trailers (sorted by trailer publish date):");
-  
+
   for (let i = 0; i < Math.min(15, unique.length); i++) {
     const t = unique[i];
     const typeIcon = t.mediaType === "movie" ? "🎬" : "📺";
     const views = t.viewCount ? formatViews(t.viewCount) : "N/A";
-    const trailerAge = Math.floor((Date.now() - new Date(t.publishedAt).getTime()) / (1000 * 60 * 60 * 24));
-    
+    const trailerAge = Math.floor(
+      (Date.now() - new Date(t.publishedAt).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
     console.log(`\n${i + 1}. ${typeIcon} ${t.title}`);
     console.log(`   📅 Release: ${formatDate(t.releaseDate)} | Trailer: ${trailerAge}d ago`);
     console.log(`   👁️  ${views} views | 🔗 https://youtube.com/watch?v=${t.youtubeId}`);
@@ -490,7 +493,9 @@ async function main() {
   console.log("🎬 YouTube Hybrid Approach Test");
   console.log("================================\n");
   console.log(`TMDB_API_KEY: ✅ Configured`);
-  console.log(`YOUTUBE_API_KEY: ${YOUTUBE_API_KEY ? "✅ Configured" : "⚠️ Not set (stats will be skipped)"}`);
+  console.log(
+    `YOUTUBE_API_KEY: ${YOUTUBE_API_KEY ? "✅ Configured" : "⚠️ Not set (stats will be skipped)"}`
+  );
 
   try {
     switch (test) {
@@ -519,6 +524,3 @@ async function main() {
 }
 
 main();
-
-
-

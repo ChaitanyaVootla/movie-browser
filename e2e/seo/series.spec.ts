@@ -24,9 +24,9 @@ test.describe("Series Page SEO", () => {
 
   test("has meaningful meta description", async ({ page }) => {
     const description = page.locator('meta[name="description"]');
-    const content = await description.getAttribute("content");
+    const content = description;
 
-    expect(content).toBeTruthy();
+    await expect(content).toHaveAttribute("content");
     expect(content!.length).toBeGreaterThan(50);
     expect(content!.toLowerCase()).not.toBe("watch game of thrones");
   });

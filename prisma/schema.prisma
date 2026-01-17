@@ -170,7 +170,8 @@ model Language {
   name        String
   englishName String? @map("english_name")
 
-  movieLanguages MovieLanguage[]
+  movieLanguages  MovieLanguage[]
+  seriesLanguages SeriesLanguage[]
 
   @@map("languages")
 }
@@ -418,6 +419,7 @@ model Series {
   images            Image[]
   seasons           Season[]
   countries         SeriesCountry[]
+  languages         SeriesLanguage[]
   aiData            AiData?
 
   // User relations
@@ -508,6 +510,19 @@ model SeriesCountry {
   @@index([countryCode])
   @@index([countryCode, type]) // For "series from Korea" queries
   @@map("series_countries")
+}
+
+model SeriesLanguage {
+  seriesId     Int          @map("series_id")
+  languageCode String       @map("language_code")
+  type         LanguageType @default(SPOKEN) // ORIGINAL or SPOKEN
+
+  series   Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  language Language @relation(fields: [languageCode], references: [code], onDelete: Cascade)
+
+  @@id([seriesId, languageCode, type])
+  @@index([languageCode])
+  @@map("series_languages")
 }
 
 // Keep separate - series certifications have simpler structure

@@ -1,0 +1,448 @@
+---
+description: Server Actions patterns, data fetching, validation, and error handling
+globs: ["src/server/actions/**/*.ts"]
+alwaysApply: false
+---
+
+# Server Actions
+
+## Location
+
+All Server Actions go in `src/server/actions/`:
+
+```
+src/server/actions/
+├── movie.ts        # Movie-related actions
+├── series.ts       # Series-related actions
+├── person.ts       # Person-related actions
+├── trending.ts     # Trending content actions
+├── discover.ts     # TMDB discover API (browse/topics)
+├── hover-card.ts   # Lean hover card data (ratings, cast, watch options)
+├── user.ts         # User-related actions
+├── watchlist.ts    # Watchlist actions
+└── search.ts       # Search actions
+```
+
+## Basic Pattern
+
+```typescript
+// src/server/actions/movie.ts
+"use server";
+
+import { z } from "zod";
+import { getMovieDetails } from "@/server/services/tmdb";
+
+// Validation schemas
+const GetMovieSchema = z.object({
+  id: z.number().positive(),
+});
+
+// Public action - uses in-memory cached TMDB service
+export async function getMovie(input: z.infer<typeof GetMovieSchema>) {
+  const { id } = GetMovieSchema.parse(input);
+  return getMovieDetails(id);
+}
+```
+
+## Series Actions
+
+```typescript
+// src/server/actions/series.ts
+"use server";
+
+import { z } from "zod";
+import { getSeriesDetails, getSeasonDetails, getEpisodeDetails } from "@/server/services/tmdb";
+import type { Series, Season, Episode } from "@/types";
+
+// Get full series with credits, videos, images, recommendations, ratings
+export async function getSeries(id: number): Promise<Series | null>;
+
+// Get season with all episodes
+export async function getSeason(seriesId: number, seasonNumber: number): Promise<Season | null>;
+
+// Get episode details with images, credits, videos, and external IDs (for EpisodeModal)
+export async function getEpisode(
+  seriesId: number,
+  seasonNumber: number,
+  episodeNumber: number
+): Promise<Episode | null>;
+// Returns: id, name, overview, still_path, air_date, runtime, vote_average, vote_count,
+//          crew[], guest_stars[], images.stills[], videos.results[], external_ids
+
+// Usage in components
+const series = await getSeries(1396);           // Breaking Bad
+const season = await getSeason(1396, 5);        // Season 5
+const episode = await getEpisode(1396, 5, 1);   // S05E01 - Live Free or Die
+```
+
+## Ratings Data
+
+Movie and Series actions fetch ratings from MongoDB (scraped external data) and combine with TMDB:
+
+```typescript
+// src/lib/ratings.ts
+import { combineRatings } from "@/lib/ratings";
+
+// Combines ratings from multiple sources into ExternalRating[]
+const ratings = combineRatings(
+  googleData,      // From MongoDB - Google scraper data
+  externalData,    // From MongoDB - IMDb/RT scraper data
+  tmdbRating,      // From TMDB API
+  tmdbVoteCount,
+  itemId,
+  "movie" | "tv"
+);
+
+// Returns array of ExternalRating:
+interface ExternalRating {
+  name: string;           // "TMDB", "IMDb", "Rotten Tomatoes", etc.
+  rating: string;         // Normalized 0-100 score as string
+  link?: string;          // URL to source
+  certified?: boolean;    // RT certified fresh
+  sentiment?: "POSITIVE" | "NEGATIVE";  // RT tomato/splat
+}
+```
+
+**Data flow (optimized with parallel fetching):**
+1. `getMovie()`/`getSeries()` fetches TMDB and MongoDB **in parallel**
+2. MongoDB queries use `unstable_cache` for Next.js caching
+3. Extracts `googleData` and `external_data` (scraped ratings + watch options)
+4. Combines all sources via `combineRatings()`
+5. Processes watch options via `getWatchOptionsForCountry()`
+6. Returns `ratings`, `watch_options`, and `optimized_watch_providers` in response
+
+```typescript
+// Parallel fetch pattern (src/server/actions/movie.ts)
+const [tmdbData, dbMovie] = await Promise.all([
+  getMovieDetails(validated.id),           // TMDB with in-memory cache
+  getCachedMovieRatings(validated.id),     // MongoDB with Next.js cache (includes googleData)
+]);
+```
+
+## Watch Options Processing
+
+Watch options are processed server-side but allow client-side country switching:
+
+```typescript
+// In movie.ts / series.ts server action
+import { getWatchOptionsForCountry, getOptimizedWatchProviders } from "@/lib/watch-options";
+import { headers } from "next/headers";
+
+// Get country from header (set by Nginx in prod, or default)
+const headersList = await headers();
+const countryCode = headersList.get("x-country-code") || "IN";
+
+// Process for current country
+const watchProviders = tmdbData["watch/providers"]?.results;
+const watch_options = getWatchOptionsForCountry(
+  countryCode,
+  dbMovie?.googleData,     // Scraped data (India only)
+  watchProviders           // TMDB watch providers
+);
+
+// Optimize payload - include only ~15 common countries
+const optimized_watch_providers = getOptimizedWatchProviders(countryCode, watchProviders);
+
+return {
+  ...movie,
+  ratings,
+  watch_options,                  // Pre-processed for current country
+  optimized_watch_providers,      // For client-side country switching
+  googleData: dbMovie?.googleData, // For client-side re-processing
+};
+```
+
+**Why this pattern:**
+- Server-side processing avoids sending all 50+ countries' watch data
+- Client can re-process instantly when user changes country (no API call)
+- Scraped data (deep links) only available for India, TMDB for others
+
+## Person Actions
+
+```typescript
+// src/server/actions/person.ts
+"use server";
+
+import { z } from "zod";
+import { getPersonDetails, getPersonBasicInfo } from "@/server/services/tmdb";
+import type { Person } from "@/types";
+
+// Get full person with credits, images, and external IDs
+export async function getPerson(id: number): Promise<Person | null>;
+
+// Get minimal person info (for filter pills, autocomplete)
+// Uses lightweight TMDB endpoint (~1KB vs ~100KB+ for full details)
+export async function getPersonBasic(id: number): Promise<{ id: number; name: string } | null>;
+
+// Usage
+const person = await getPerson(17419);      // Bryan Cranston - full details
+const basic = await getPersonBasic(17419);  // { id: 17419, name: "Bryan Cranston" }
+```
+
+**IMPORTANT:** Use `getPersonBasic()` when you only need name/id (filter pills, autocomplete).
+Full `getPerson()` fetches ~100KB+ of data including all credits.
+
+TMDB data (full getPerson) includes:
+- `movie_credits` - Movie filmography (cast + crew)
+- `tv_credits` - TV filmography (cast + crew)
+- `combined_credits` - Both movie + TV in one (preferred for filmography)
+- `images` - Profile photos
+- `external_ids` - IMDb, Instagram, Twitter, Facebook, YouTube, Wikidata
+- `tagged_images` - Photos from movies/shows they appeared in
+
+## Discover Action
+
+```typescript
+// src/server/actions/discover.ts
+"use server";
+
+import type { DiscoverParams } from "@/lib/discover";
+import type { MediaItem } from "@/types";
+
+interface DiscoverResult {
+  results: MediaItem[];
+  page: number;
+  total_pages: number;
+  total_results: number;
+}
+
+// Fetch discover results for browse/topics
+export async function discoverBatch(
+  params: Partial<DiscoverParams> & { media_type: "movie" | "tv" }
+): Promise<DiscoverResult> {
+  const endpoint = params.media_type === "tv" ? "/discover/tv" : "/discover/movie";
+
+  const queryParams: Record<string, string> = {
+    page: String(params.page || 1),
+    sort_by: params.sort_by || "popularity.desc",
+  };
+
+  // Genre filters
+  if (params.with_genres?.length) {
+    queryParams.with_genres = params.with_genres.join(",");
+  }
+  if (params.without_genres?.length) {
+    queryParams.without_genres = params.without_genres.join(",");
+  }
+
+  // Rating/vote filters
+  if (params["vote_average.gte"]) {
+    queryParams["vote_average.gte"] = String(params["vote_average.gte"]);
+  }
+  if (params["vote_count.gte"]) {
+    queryParams["vote_count.gte"] = String(params["vote_count.gte"]);
+  }
+
+  // Language/region filters
+  if (params.with_original_language) {
+    queryParams.with_original_language = params.with_original_language;
+  }
+  if (params.with_origin_country) {
+    queryParams.with_origin_country = params.with_origin_country;
+  }
+
+  // Theme-specific filters (keywords, date ranges, etc.)
+  if (params.with_keywords) queryParams.with_keywords = params.with_keywords;
+  if (params["primary_release_date.gte"])
+    queryParams["primary_release_date.gte"] = params["primary_release_date.gte"];
+
+  return fetchFromTMDB<DiscoverResult>(endpoint, {
+    params: queryParams,
+    cacheNamespace: "discover",
+  });
+}
+```
+
+**Usage patterns:**
+
+```tsx
+// Browse page (client-controlled filters)
+const { results, total_pages } = await discoverBatch({
+  media_type: "movie",
+  with_genres: [28, 12],  // Action & Adventure
+  sort_by: "popularity.desc",
+  page: 1,
+});
+
+// Topic page (preset filters from topic definition)
+const topic = getTopicByKey("genre-action-movie");
+const { results } = await discoverBatch(topic.filterParams);
+
+// Theme topic (with keywords)
+const christmas = getTopicByKey("theme-christmas-movie");
+// christmas.filterParams = { media_type: "movie", with_keywords: "207317|..." }
+const { results } = await discoverBatch(christmas.filterParams);
+```
+
+## Hover Card Action
+
+Lean API endpoint optimized for fast loading (~2-3KB vs ~50KB+ for full movie details):
+
+```typescript
+// src/server/actions/hover-card.ts
+"use server";
+
+import { z } from "zod";
+
+const HoverCardSchema = z.object({
+  id: z.number().positive(),
+  mediaType: z.enum(["movie", "series"]),
+});
+
+export interface HoverCardData {
+  id: number;
+  title: string;
+  backdrop_path: string | null;
+  poster_path: string | null;
+  year: string | null;
+  runtime?: number;           // Movies only
+  number_of_seasons?: number; // Series only
+  genres: { id: number; name: string }[];
+  ratings: { name: string; rating: string; certified?: boolean; sentiment?: string }[];
+  cast: { id: number; name: string; character?: string; profile_path: string | null }[];
+  watch_options: ProcessedWatchOptions;
+}
+
+// Fetch minimal data for hover card preview
+export async function getHoverCardData(
+  id: number,
+  mediaType: "movie" | "series"
+): Promise<HoverCardData | null>;
+```
+
+**Data fetched:**
+- TMDB basic details (title, year, runtime/seasons, genres)
+- MongoDB ratings (googleData + external_data) - combined via `combineRatings()`
+- Top 4 cast members (name, character, photo)
+- Watch options for user's country (via `getWatchOptionsForCountry()`)
+
+**Caching:** Uses same namespace as movie/series (1 hour TTL)
+
+**Usage:**
+```tsx
+// Called by HoverCardOverlay when user hovers on a card
+const data = await getHoverCardData(movieId, "movie");
+```
+
+## Mutations with Auth
+
+```typescript
+"use server";
+
+import { auth } from "@/lib/auth";
+import { revalidateTag } from "next/cache";
+
+export async function addToWatchlist(movieId: number) {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error("Authentication required");
+  }
+
+  await Watchlist.create({
+    userId: session.user.id,
+    movieId,
+    addedAt: new Date(),
+  });
+
+  revalidateTag(`user-${session.user.id}-watchlist`);
+  return { success: true };
+}
+```
+
+## Zod Validation Patterns
+
+```typescript
+// Common validation schemas
+const IdSchema = z.object({
+  id: z.number().positive(),
+});
+
+const PaginationSchema = z.object({
+  page: z.number().min(1).max(500).default(1),
+  limit: z.number().min(1).max(100).default(20),
+});
+
+const MediaTypeSchema = z.enum(["movie", "tv", "series"]);
+
+// Composite schemas
+const DiscoverSchema = z.object({
+  media_type: MediaTypeSchema,
+  page: z.number().min(1).default(1),
+  with_genres: z.array(z.number()).optional(),
+  sort_by: z.string().default("popularity.desc"),
+});
+
+// Always validate at action entry point
+export async function discover(input: z.infer<typeof DiscoverSchema>) {
+  const validated = DiscoverSchema.parse(input);
+  // ... use validated data
+}
+```
+
+## Error Handling in Actions
+
+```typescript
+"use server";
+
+import { AppError, NotFoundError } from "@/lib/errors";
+
+export async function getMovie(id: number) {
+  try {
+    const movie = await fetchMovieFromTMDB(id);
+
+    if (!movie) {
+      throw new NotFoundError("Movie");
+    }
+
+    return movie;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error; // Re-throw known errors
+    }
+
+    console.error("Failed to fetch movie:", error);
+    throw new AppError("Failed to fetch movie", 500);
+  }
+}
+```
+
+## Trending Action
+
+```typescript
+// src/server/actions/trending.ts
+"use server";
+
+// Trending action returns items with enhanced data for hero carousel
+// CDN URL: https://image.themoviebrowser.com/{movie|series}/{id}/logo.webp
+export interface TrendingData {
+  allItems: MediaItem[];   // Top 10 for hero carousel
+  movies: MovieListItem[]; // Top 20 trending movies
+  tv: SeriesListItem[];    // Top 20 trending TV shows
+  heroEnhancedData: Record<string, HeroItemEnhancedData>; // Keyed by "{mediaType}:{id}"
+}
+
+// Enhanced data for hero items includes ratings and watch options
+interface HeroItemEnhancedData {
+  ratings: ExternalRating[];           // Combined ratings (TMDB, IMDb, RT, Google)
+  watchOptions: ProcessedWatchOptions; // Pre-processed for user's country
+  watchProviders?: Record<string, WatchProviderData>; // For client-side country switching
+  googleData?: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> };
+}
+
+// The getTrending() action:
+// 1. Fetches TMDB trending lists (3 parallel calls)
+// 2. For top 10 hero items, batch fetches MongoDB ratings (1-2 DB calls)
+// 3. Fetches TMDB watch providers for hero items (10 parallel calls, lightweight endpoint)
+// 4. Processes ratings with combineRatings() and watch options with getWatchOptionsForCountry()
+// 5. All calls cached (trending: 15min, details: 1hr)
+
+export async function getTrendingTrailers(limit: number = 12): Promise<TrendingTrailer[]>
+
+// Combines multiple TMDB sources:
+// - Trending movies (currently popular)
+// - Upcoming movies (trailers being actively promoted)
+// - Now playing movies (recent releases with fresh trailers)
+//
+// NOTE: TV series trailers are skipped - TMDB often only has Season 1 trailers
+// even for currently airing shows.
+```

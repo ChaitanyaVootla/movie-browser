@@ -6,7 +6,14 @@
  */
 
 import { prisma } from "./index";
-import type { Series as TMDBSeries, CastMember, CrewMember, Genre as TMDBGenre, Video, Season } from "@/types";
+import type {
+  Series as TMDBSeries,
+  CastMember,
+  CrewMember,
+  Genre as TMDBGenre,
+  Video,
+  Season,
+} from "@/types";
 
 // ============================================
 // Types for PostgreSQL Series Data
@@ -178,6 +185,7 @@ export async function getSeriesFromPostgres(seriesId: number): Promise<TMDBSerie
         include: { person: true },
       },
       credits: {
+        where: { isAggregate: false }, // Avoid duplicates from aggregate credits
         include: { person: true },
         orderBy: { creditOrder: "asc" },
         // No limit - get all credits
@@ -513,9 +521,24 @@ function transformPostgresSeriesToTMDBFormat(series: PostgresSeriesWithRelations
     string,
     {
       link?: string;
-      flatrate?: { provider_id: number; provider_name: string; logo_path: string; display_priority: number }[];
-      rent?: { provider_id: number; provider_name: string; logo_path: string; display_priority: number }[];
-      buy?: { provider_id: number; provider_name: string; logo_path: string; display_priority: number }[];
+      flatrate?: {
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }[];
+      rent?: {
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }[];
+      buy?: {
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }[];
     }
   > = {};
 
@@ -593,7 +616,9 @@ function transformPostgresSeriesToTMDBFormat(series: PostgresSeriesWithRelations
           air_date: series.lastEpisodeAirDate?.toISOString().split("T")[0],
         }
       : undefined,
-    keywords: { results: series.keywords.map((k) => ({ id: k.keyword.tmdbId, name: k.keyword.name })) },
+    keywords: {
+      results: series.keywords.map((k) => ({ id: k.keyword.tmdbId, name: k.keyword.name })),
+    },
     "watch/providers": { results: watchProvidersResults },
     ratings: ratingsArray.length > 0 ? ratingsArray : undefined,
     // Source indicator for debugging
@@ -688,4 +713,3 @@ export async function getPopularSeriesFromPostgres(limit = 20, page = 1) {
     total_results: total,
   };
 }
-

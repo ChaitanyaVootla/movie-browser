@@ -27,7 +27,7 @@ test.describe("Movie Detail Page Content", () => {
 
   test("renders ratings bar with at least one rating source", async ({ page }) => {
     const ratingsBar = page.locator('[data-testid="ratings-bar"]');
-    
+
     // Ratings bar should be present
     await expect(ratingsBar).toBeVisible();
 
@@ -39,7 +39,7 @@ test.describe("Movie Detail Page Content", () => {
 
   test("renders watch options if available", async ({ page }) => {
     const watchOptions = page.locator('[data-testid="watch-options"]');
-    
+
     // Watch options may or may not be present depending on availability
     // If present, should have at least one provider button
     const count = await watchOptions.count();
@@ -83,7 +83,7 @@ test.describe("Movie Detail Page Content", () => {
     const actionButtons = page.locator("button svg");
     const buttonCount = await actionButtons.count();
     expect(buttonCount).toBeGreaterThan(0);
-    
+
     // Check for specific data-testid or aria-label if available
     // Or just verify buttons exist in the action area
   });
@@ -101,13 +101,15 @@ test.describe("Movie Detail Page Content", () => {
 
   test("renders recommendations section", async ({ page }) => {
     // Recommendations heading
-    const recsHeading = page.locator("h2, h3").filter({ hasText: /Recommended|Similar|You May Also Like/i });
-    
+    const recsHeading = page
+      .locator("h2, h3")
+      .filter({ hasText: /Recommended|Similar|You May Also Like/i });
+
     // Some movies may not have recommendations
     const count = await recsHeading.count();
     if (count > 0) {
       await expect(recsHeading).toBeVisible();
-      
+
       // Should have some recommendation cards
       const recCards = page.locator('a[href*="/movie/"]').filter({ has: page.locator("img") });
       const cardCount = await recCards.count();
@@ -152,11 +154,11 @@ test.describe("Series Detail Page Content", () => {
   test("renders episode cards or list", async ({ page }) => {
     // Wait for episodes to load
     await page.waitForTimeout(1000);
-    
+
     // Should have episode entries (cards or list items)
     const episodeEntries = page.locator("[class*='episode'], [class*='Episode']");
     const count = await episodeEntries.count();
-    
+
     // Alternatively, check for episode images/thumbnails
     if (count === 0) {
       const episodeThumbnails = page.locator("img[alt*='Episode'], img[alt*='S0'], img[alt*='S1']");
@@ -214,7 +216,9 @@ test.describe("Person Detail Page Content", () => {
 
   test("renders filmography section", async ({ page }) => {
     // Should have Known For or Filmography section (or some credit section)
-    const filmographyHeading = page.locator("h2, h3").filter({ hasText: /Known For|Filmography|Movies|Credits|Acting|Directing/i });
+    const filmographyHeading = page
+      .locator("h2, h3")
+      .filter({ hasText: /Known For|Filmography|Movies|Credits|Acting|Directing/i });
     const count = await filmographyHeading.count();
     expect(count).toBeGreaterThan(0);
   });
@@ -223,10 +227,10 @@ test.describe("Person Detail Page Content", () => {
     // Should have links to movies/series
     const movieLinks = page.locator('a[href*="/movie/"]');
     const seriesLinks = page.locator('a[href*="/series/"]');
-    
+
     const movieCount = await movieLinks.count();
     const seriesCount = await seriesLinks.count();
-    
+
     // Brad Pitt should have movie credits
     expect(movieCount + seriesCount).toBeGreaterThan(0);
   });
@@ -249,15 +253,15 @@ test.describe("Person Detail Page Content", () => {
 test.describe("Navigation Integration", () => {
   test("movie page has working navigation bar", async ({ page }) => {
     await page.goto(`/movie/${testMovieIds.popular}/fight-club`);
-    
+
     // Nav header should be visible (on desktop)
     const navHeader = page.locator('[data-testid="nav-header"]');
     await expect(navHeader).toBeVisible();
 
     // Logo should link to home
     const navLogo = page.locator('[data-testid="nav-logo"]');
-    const logoHref = await navLogo.getAttribute("href");
-    expect(logoHref).toBe("/");
+    const logoHref = navLogo;
+    await expect(logoHref).toHaveAttribute("href", "/");
 
     // Search button should be present
     const searchBtn = page.locator('[data-testid="nav-search"]');
@@ -267,11 +271,11 @@ test.describe("Navigation Integration", () => {
   test("clicking cast member navigates to person page", async ({ page }) => {
     await page.goto(`/movie/${testMovieIds.popular}/fight-club`);
     await page.waitForLoadState("networkidle");
-    
+
     // Click first cast member link
     const firstCastLink = page.locator('a[href*="/person/"]').first();
     await firstCastLink.click();
-    
+
     // Should navigate to person page
     await page.waitForURL(/\/person\/\d+/);
     expect(page.url()).toMatch(/\/person\/\d+/);
@@ -280,11 +284,11 @@ test.describe("Navigation Integration", () => {
   test("clicking genre navigates to topics page", async ({ page }) => {
     await page.goto(`/movie/${testMovieIds.popular}/fight-club`);
     await page.waitForLoadState("networkidle");
-    
+
     // Click first genre link (genres link to /topics/genre-*)
     const genreLink = page.locator('a[href*="/topics/genre-"]').first();
     const count = await genreLink.count();
-    
+
     if (count > 0) {
       await genreLink.click();
       await page.waitForURL(/\/topics\/genre-/);
@@ -297,17 +301,17 @@ test.describe("Loading States", () => {
   test("movie page shows skeletons then content", async ({ page }) => {
     // Go to movie page
     await page.goto(`/movie/${testMovieIds.popular}/fight-club`);
-    
+
     // Hero content should eventually load
     const ratingsBar = page.locator('[data-testid="ratings-bar"]');
-    
+
     // Wait for actual content (not skeleton)
     await expect(ratingsBar).toBeVisible({ timeout: 10000 });
   });
 
   test("series page shows skeletons then content", async ({ page }) => {
     await page.goto(`/series/${testSeriesIds.popular}/game-of-thrones`);
-    
+
     const ratingsBar = page.locator('[data-testid="ratings-bar"]');
     await expect(ratingsBar).toBeVisible({ timeout: 10000 });
   });
@@ -316,32 +320,32 @@ test.describe("Loading States", () => {
 test.describe("Error Handling", () => {
   test("invalid movie ID shows not found", async ({ page }) => {
     const response = await page.goto("/movie/999999999/fake-movie");
-    
+
     // Should return 404 or show not found message
     const status = response?.status();
     const notFoundText = page.locator("text=/not found|404|doesn't exist/i");
     const notFoundCount = await notFoundText.count();
-    
+
     expect(status === 404 || notFoundCount > 0).toBeTruthy();
   });
 
   test("invalid series ID shows not found", async ({ page }) => {
     const response = await page.goto("/series/999999999/fake-series");
-    
+
     const status = response?.status();
     const notFoundText = page.locator("text=/not found|404|doesn't exist/i");
     const notFoundCount = await notFoundText.count();
-    
+
     expect(status === 404 || notFoundCount > 0).toBeTruthy();
   });
 
   test("non-numeric ID shows not found", async ({ page }) => {
     const response = await page.goto("/movie/abc/fake-movie");
-    
+
     const status = response?.status();
     const notFoundText = page.locator("text=/not found|404/i");
     const notFoundCount = await notFoundText.count();
-    
+
     expect(status === 404 || notFoundCount > 0).toBeTruthy();
   });
 });

@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -69,9 +64,7 @@ function LikeDislikeBar({
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <ThumbsUp className="h-4 w-4 text-muted-foreground" />
-      <span className="text-sm text-foreground/80 tabular-nums">
-        {formatViewCount(likes)}
-      </span>
+      <span className="text-sm text-foreground/80 tabular-nums">{formatViewCount(likes)}</span>
 
       {/* Progress bar - neutral colors */}
       <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -81,9 +74,7 @@ function LikeDislikeBar({
         />
       </div>
 
-      <span className="text-sm text-foreground/80 tabular-nums">
-        {formatViewCount(dislikes)}
-      </span>
+      <span className="text-sm text-foreground/80 tabular-nums">{formatViewCount(dislikes)}</span>
       <ThumbsDown className="h-4 w-4 text-muted-foreground" />
     </div>
   );
@@ -92,20 +83,20 @@ function LikeDislikeBar({
 /**
  * Channel avatar with fallback icon for missing/broken images
  */
-function ChannelAvatar({ 
-  src, 
-  alt, 
-  size = 20 
-}: { 
-  src?: string | null; 
+function ChannelAvatar({
+  src,
+  alt,
+  size = 20,
+}: {
+  src?: string | null;
   alt: string;
   size?: number;
 }) {
   const [hasError, setHasError] = useState(false);
-  
+
   if (!src || hasError) {
     return (
-      <div 
+      <div
         className="rounded-full bg-muted flex items-center justify-center shrink-0"
         style={{ width: size, height: size }}
       >
@@ -113,7 +104,7 @@ function ChannelAvatar({
       </div>
     );
   }
-  
+
   return (
     <Image
       src={src}
@@ -280,9 +271,7 @@ function CommentItem({ comment }: { comment: YouTubeComment }) {
             <span>{formatViewCount(comment.likeCount)}</span>
           </div>
 
-          {comment.isHearted && (
-            <Heart className="h-3 w-3 text-red-500 fill-current" />
-          )}
+          {comment.isHearted && <Heart className="h-3 w-3 text-red-500 fill-current" />}
 
           {comment.replyCount > 0 && (
             <div className="flex items-center gap-1">
@@ -329,7 +318,9 @@ function CommentsSection({
 
   if (!Array.isArray(comments) || comments.length === 0) {
     return (
-      <div className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}>
+      <div
+        className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
+      >
         No comments available
       </div>
     );
@@ -386,8 +377,7 @@ export function TrailerModal({
 
   const currentTrailer = trailers[currentIndex];
   const prevTrailer = currentIndex > 0 ? trailers[currentIndex - 1] : null;
-  const nextTrailer =
-    currentIndex < trailers.length - 1 ? trailers[currentIndex + 1] : null;
+  const nextTrailer = currentIndex < trailers.length - 1 ? trailers[currentIndex + 1] : null;
 
   // Fetch comments and fresh stats when video changes
   useEffect(() => {
@@ -405,7 +395,7 @@ export function TrailerModal({
         }
         const res = await fetch(`/api/youtube?${params.toString()}`);
         if (!res.ok || cancelled) return;
-        
+
         const data = await res.json();
         if (cancelled) return;
 
@@ -498,9 +488,7 @@ export function TrailerModal({
         showCloseButton
       >
         {/* Hidden but accessible title for screen readers */}
-        <DialogTitle className="sr-only">
-          {youtubeTitle || currentTrailer.title}
-        </DialogTitle>
+        <DialogTitle className="sr-only">{youtubeTitle || currentTrailer.title}</DialogTitle>
         <DialogDescription className="sr-only">
           {currentTrailer.title} - {channelTitle || "YouTube"}
         </DialogDescription>
@@ -534,11 +522,7 @@ export function TrailerModal({
                   {/* Channel info */}
                   {channelTitle && (
                     <div className="flex items-center gap-2">
-                      <ChannelAvatar 
-                        src={channelThumbnail}
-                        alt={channelTitle}
-                        size={24}
-                      />
+                      <ChannelAvatar src={channelThumbnail} alt={channelTitle} size={24} />
                       <span className="text-sm font-medium text-foreground/80">{channelTitle}</span>
                     </div>
                   )}
@@ -551,11 +535,7 @@ export function TrailerModal({
                   size="sm"
                   className="shrink-0 gap-2 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white"
                 >
-                  <a
-                    href={youtubeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href={youtubeUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
                     <span className="hidden sm:inline">Watch on</span> YouTube
                   </a>
@@ -568,9 +548,7 @@ export function TrailerModal({
                 {viewCount !== undefined && (
                   <div className="flex items-center gap-1.5">
                     <Eye className="h-4 w-4" />
-                    <span className="tabular-nums">
-                      {formatViewCount(viewCount)} views
-                    </span>
+                    <span className="tabular-nums">{formatViewCount(viewCount)} views</span>
                   </div>
                 )}
 
@@ -583,19 +561,13 @@ export function TrailerModal({
                 )}
 
                 {/* Like/Dislike bar */}
-                {likeCount !== undefined &&
-                  (likeCount > 0 || (dislikeCount ?? 0) > 0) && (
-                    <LikeDislikeBar
-                      likes={likeCount}
-                      dislikes={dislikeCount ?? 0}
-                    />
-                  )}
+                {likeCount !== undefined && (likeCount > 0 || (dislikeCount ?? 0) > 0) && (
+                  <LikeDislikeBar likes={likeCount} dislikes={dislikeCount ?? 0} />
+                )}
               </div>
 
               {/* Video Description */}
-              {stats?.description && (
-                <VideoDescription description={stats.description} />
-              )}
+              {stats?.description && <VideoDescription description={stats.description} />}
 
               {/* Navigation Row */}
               {trailers.length > 1 && (

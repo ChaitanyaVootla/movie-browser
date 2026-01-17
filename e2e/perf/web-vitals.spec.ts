@@ -160,7 +160,9 @@ test.describe("Core Web Vitals - Movie Page", () => {
 
     // Warn if not meeting "good" threshold
     if (lcp > VITALS_LIMITS.lcp.good) {
-      console.warn(`⚠️ Movie LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`);
+      console.warn(
+        `⚠️ Movie LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`
+      );
     }
 
     // Fail if exceeding "needs improvement" threshold
@@ -179,7 +181,9 @@ test.describe("Core Web Vitals - Movie Page", () => {
 
     // CLS should be minimal - our progressive loading strategy should prevent shifts
     if (cls > VITALS_LIMITS.cls.good) {
-      console.warn(`⚠️ Movie CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`);
+      console.warn(
+        `⚠️ Movie CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`
+      );
     }
 
     expect(
@@ -201,7 +205,9 @@ test.describe("Core Web Vitals - Movie Page", () => {
     if (fcp > 0) {
       expect(fcp, `FCP (${fcp.toFixed(0)}ms) exceeds 3000ms`).toBeLessThan(3000);
     } else {
-      console.warn("⚠️ FCP not observed - this can happen if page was already painted before observer started");
+      console.warn(
+        "⚠️ FCP not observed - this can happen if page was already painted before observer started"
+      );
     }
   });
 
@@ -229,7 +235,9 @@ test.describe("Core Web Vitals - Series Page", () => {
     console.log(`Series page LCP: ${lcp.toFixed(0)}ms`);
 
     if (lcp > VITALS_LIMITS.lcp.good) {
-      console.warn(`⚠️ Series LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`);
+      console.warn(
+        `⚠️ Series LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`
+      );
     }
 
     expect(
@@ -246,7 +254,9 @@ test.describe("Core Web Vitals - Series Page", () => {
     console.log(`Series page CLS: ${cls.toFixed(4)}`);
 
     if (cls > VITALS_LIMITS.cls.good) {
-      console.warn(`⚠️ Series CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`);
+      console.warn(
+        `⚠️ Series CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`
+      );
     }
 
     expect(
@@ -267,7 +277,9 @@ test.describe("Core Web Vitals - Person Page", () => {
     console.log(`Person page LCP: ${lcp.toFixed(0)}ms`);
 
     if (lcp > VITALS_LIMITS.lcp.good) {
-      console.warn(`⚠️ Person LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`);
+      console.warn(
+        `⚠️ Person LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`
+      );
     }
 
     expect(
@@ -284,7 +296,9 @@ test.describe("Core Web Vitals - Person Page", () => {
     console.log(`Person page CLS: ${cls.toFixed(4)}`);
 
     if (cls > VITALS_LIMITS.cls.good) {
-      console.warn(`⚠️ Person CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`);
+      console.warn(
+        `⚠️ Person CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`
+      );
     }
 
     expect(
@@ -307,14 +321,15 @@ test.describe("Core Web Vitals - Homepage", () => {
     console.log(`Homepage LCP: ${lcp.toFixed(0)}ms`);
 
     if (lcp > VITALS_LIMITS.lcp.good) {
-      console.warn(`⚠️ Homepage LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`);
+      console.warn(
+        `⚠️ Homepage LCP (${lcp.toFixed(0)}ms) exceeds "good" threshold (${VITALS_LIMITS.lcp.good}ms)`
+      );
     }
 
     // Homepage has dynamic content (trending, YouTube) - use relaxed limit for dev
-    expect(
-      lcp,
-      `LCP (${lcp.toFixed(0)}ms) exceeds limit (${HOMEPAGE_LCP_LIMIT}ms)`
-    ).toBeLessThan(HOMEPAGE_LCP_LIMIT);
+    expect(lcp, `LCP (${lcp.toFixed(0)}ms) exceeds limit (${HOMEPAGE_LCP_LIMIT}ms)`).toBeLessThan(
+      HOMEPAGE_LCP_LIMIT
+    );
   });
 
   test("CLS is within acceptable limits", async ({ page }) => {
@@ -325,7 +340,9 @@ test.describe("Core Web Vitals - Homepage", () => {
     console.log(`Homepage CLS: ${cls.toFixed(4)}`);
 
     if (cls > VITALS_LIMITS.cls.good) {
-      console.warn(`⚠️ Homepage CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`);
+      console.warn(
+        `⚠️ Homepage CLS (${cls.toFixed(4)}) exceeds "good" threshold (${VITALS_LIMITS.cls.good})`
+      );
     }
 
     expect(

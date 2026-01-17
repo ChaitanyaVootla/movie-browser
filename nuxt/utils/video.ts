@@ -3,23 +3,21 @@
  * Prioritizes official trailers on YouTube, with fallback logic
  */
 export function findPrimaryTrailer(videos: any): any {
-    if (!videos?.results || videos.results.length === 0) {
-        return null;
-    }
+  if (!videos?.results || videos.results.length === 0) {
+    return null;
+  }
 
-    const videoList = videos.results;
+  const videoList = videos.results;
 
-    // First, try to find an official trailer on YouTube
-    const trailer = videoList.find(
-        (v: any) => v.type === 'Trailer' && v.site === 'YouTube'
-    );
+  // First, try to find an official trailer on YouTube
+  const trailer = videoList.find((v: any) => v.type === "Trailer" && v.site === "YouTube");
 
-    if (trailer) {
-        return trailer;
-    }
+  if (trailer) {
+    return trailer;
+  }
 
-    // Fallback: Return the first video if available
-    return videoList[0] || null;
+  // Fallback: Return the first video if available
+  return videoList[0] || null;
 }
 
 /**
@@ -27,13 +25,13 @@ export function findPrimaryTrailer(videos: any): any {
  * This is what should be sent in minimal API responses
  */
 export function getPrimaryVideoInfo(videos: any): { results: any[] } {
-    const primaryTrailer = findPrimaryTrailer(videos);
+  const primaryTrailer = findPrimaryTrailer(videos);
 
-    if (!primaryTrailer) {
-        return { results: [] };
-    }
+  if (!primaryTrailer) {
+    return { results: [] };
+  }
 
-    return {
-        results: [primaryTrailer]
-    };
+  return {
+    results: [primaryTrailer],
+  };
 }

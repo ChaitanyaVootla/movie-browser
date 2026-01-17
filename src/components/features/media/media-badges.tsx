@@ -137,11 +137,7 @@ export function SingleBadge({
 
   return (
     <Badge
-      className={cn(
-        "text-[10px] px-1.5 py-0 font-medium",
-        badge.className,
-        className
-      )}
+      className={cn("text-[10px] px-1.5 py-0 font-medium", badge.className, className)}
       title={badge.description}
     >
       {showIcon && Icon && <Icon className="h-2.5 w-2.5 mr-0.5" />}
@@ -149,4 +145,3 @@ export function SingleBadge({
     </Badge>
   );
 }
-

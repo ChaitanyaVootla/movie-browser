@@ -39,7 +39,7 @@ export function LoginDialog({
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     onSignInStart?.();
-    
+
     try {
       await signIn("google", { callbackUrl: window.location.href });
     } catch (error) {
@@ -59,10 +59,10 @@ export function LoginDialog({
 
     try {
       renderAttempted.current = true;
-      
+
       // Clear any existing content
       googleButtonRef.current.innerHTML = "";
-      
+
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         type: "standard",
         theme: "outline",
@@ -97,20 +97,13 @@ export function LoginDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center space-y-3">
-          <DialogTitle className="text-2xl font-semibold">
-            Welcome to Movie Browser
-          </DialogTitle>
-          <DialogDescription className="text-base">
-            {message}
-          </DialogDescription>
+          <DialogTitle className="text-2xl font-semibold">Welcome to Movie Browser</DialogTitle>
+          <DialogDescription className="text-base">{message}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-6 py-6">
           {/* Google Sign-In Button (rendered by Google Identity Services) */}
-          <div
-            ref={googleButtonRef}
-            className="min-h-[44px] flex items-center justify-center"
-          />
+          <div ref={googleButtonRef} className="min-h-[44px] flex items-center justify-center" />
 
           {/* Fallback button if GIS fails to render */}
           <Button
@@ -188,4 +181,3 @@ export function useLoginDialog() {
     setIsOpen,
   };
 }
-

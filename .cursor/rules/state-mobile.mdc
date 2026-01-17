@@ -1,0 +1,379 @@
+---
+description: Zustand state management, mobile patterns, and responsive layout architecture
+globs: ["src/stores/**/*.ts", "src/hooks/**/*.ts", "src/components/features/layout/**/*.tsx"]
+alwaysApply: false
+---
+
+# Movie Browser - State & Mobile Rules
+
+## Zustand State Management
+
+### User Store Pattern
+
+User-specific state (watchlist, watched, ratings, recents, continue watching) is managed via Zustand with server sync:
+
+```typescript
+// src/stores/user.ts
+interface RecentItem {
+  id: number;
+  itemId: number;
+  isMovie: boolean;
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  viewedAt: Date | string;
+}
+
+interface ContinueWatchingItem {
+  id: number;
+  itemId: number;
+  isMovie: boolean;
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  watchLink: string;
+  watchProviderName?: string;
+  updatedAt: Date | string;
+}
+
+interface UserLibraryState {
+  // IDs only - for quick lookups
+  watchedMovies: Set<number>;
+  watchlistMovies: Set<number>;
+  watchlistSeries: Set<number>;
+  ratings: Map<string, number>; // "movie:123" -> rating
+
+  // Full items (synced with server)
+  recents: RecentItem[];
+  continueWatching: ContinueWatchingItem[];
+
+  // User preferences (client-side only)
+  countryOverride: string | null; // Watch provider country override
+
+  // State management
+  isHydrated: boolean;
+  isHydrating: boolean;
+  lastHydratedAt: number | null;
+}
+
+interface UserLibraryActions {
+  // Watchlist/Watched/Ratings
+  isInWatchlist: (id: number, mediaType: MediaType) => boolean;
+  toggleWatchlist: (id: number, mediaType: MediaType) => Promise<void>;
+  // ...
+
+  // Recents (synced with server)
+  addToRecents: (item: Omit<RecentItem, "id" | "viewedAt">) => Promise<void>;
+
+  // Continue Watching (synced with server)
+  addToContinueWatching: (item: Omit<ContinueWatchingItem, "id" | "updatedAt">) => Promise<void>;
+  removeFromContinueWatching: (itemId: number, isMovie: boolean) => Promise<void>;
+
+  // Country preference (client-only, triggers WatchOptions re-render)
+  setCountryOverride: (countryCode: string | null) => void;
+
+  // Hydration
+  hydrate: () => Promise<void>;
+  reset: () => void;
+}
+```
+
+**Key patterns:**
+- All data is server-synced (no local persistence)
+- Optimistic updates with rollback on error
+- Single hydration endpoint (`/api/user/library`) fetches all user data
+- Recents tracked automatically via `RecentTracker` component on detail pages
+- Continue watching added when user clicks streaming links
+
+### Preferences Store Pattern
+
+User preferences (not requiring server sync) are stored in a separate store with localStorage persistence:
+
+```typescript
+// src/stores/preferences.ts
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export type CardDisplayMode = "poster" | "wide";
+
+interface PreferencesState {
+  cardDisplayMode: CardDisplayMode;  // "poster" (default) or "wide" (OTT-style)
+}
+
+interface PreferencesActions {
+  setCardDisplayMode: (mode: CardDisplayMode) => void;
+}
+
+export const usePreferencesStore = create<PreferencesStore>()(
+  persist(
+    (set) => ({
+      cardDisplayMode: "poster",
+      setCardDisplayMode: (mode) => set({ cardDisplayMode: mode }),
+    }),
+    {
+      name: "movie-browser-preferences",
+      // Persist to localStorage
+      partialize: (state) => ({ cardDisplayMode: state.cardDisplayMode }),
+    }
+  )
+);
+
+// Selector for performance
+export const selectCardDisplayMode = (state: PreferencesStore) => state.cardDisplayMode;
+```
+
+**Key patterns:**
+- Uses Zustand `persist` middleware with localStorage
+- No server sync needed (client-only preferences)
+- Separate from user store to keep concerns isolated
+- Future settings (like theme) can be added here
+
+**Usage in components:**
+
+```tsx
+import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
+
+function MyComponent() {
+  const displayMode = usePreferencesStore(selectCardDisplayMode);
+  const setDisplayMode = usePreferencesStore((s) => s.setCardDisplayMode);
+
+  // Use displayMode to conditionally render poster vs wide cards
+}
+```
+
+### Store Hydration Provider
+
+Hydrate the store when user authenticates:
+
+```typescript
+// src/components/providers/user-store-provider.tsx
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useEffect, useRef } from "react";
+import { useUserStore } from "@/stores/user";
+
+export function UserStoreProvider() {
+  const { status } = useSession();
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && !hydrated.current) {
+      hydrated.current = true;
+      useUserStore.getState().hydrate();
+    }
+    if (status === "unauthenticated") {
+      hydrated.current = false;
+      useUserStore.getState().clear();
+    }
+  }, [status]);
+
+  return null;
+}
+
+// Add to providers
+<Providers>
+  <UserStoreProvider />
+  {children}
+</Providers>
+```
+
+### useUserLibrary Hook
+
+Convenience hook for user library actions with toast notifications:
+
+```typescript
+// src/hooks/use-user-library.ts
+export function useUserLibrary() {
+  const { toast } = useToast();
+  const store = useUserStore();
+
+  const toggleWatchlist = async (itemId: number, mediaType: "movie" | "series", title: string) => {
+    const wasInList = store.isInWatchlist(itemId, mediaType);
+    await store.toggleWatchlist(itemId, mediaType);
+    toast({
+      description: wasInList ? `Removed from watchlist` : `Added to watchlist`,
+    });
+  };
+
+  return {
+    isInWatchlist: store.isInWatchlist,
+    toggleWatchlist,
+    isWatched: store.isWatched,
+    toggleWatched: store.toggleWatched,
+    // ... more
+  };
+}
+```
+
+## Mobile Patterns
+
+### Responsive Layout Architecture
+
+The app uses different navigation patterns for mobile and desktop:
+
+```
+Desktop (md+)                     | Mobile (<md)
+----------------------------------|-------------------------------------
+NavBar (top, fixed)               | NavBar: hidden
+Footer (bottom of page)           | Footer: hidden
+                                  | MobileBottomNav (bottom, fixed)
+                                  | AssistantFloaty above bottom nav
+```
+
+**Root layout structure (`src/app/layout.tsx`):**
+
+```tsx
+<Providers>
+  <ScrollToTop />
+  <NavBar />                          {/* hidden md:block */}
+  <main className="flex-1 pb-16 md:pb-0">{children}</main>  {/* pb-16 for mobile nav */}
+  <Footer className="hidden md:block" />
+  <MobileBottomNav />                 {/* md:hidden */}
+</Providers>
+```
+
+**Key patterns:**
+- `pb-16` on main content provides clearance for mobile bottom nav (h-14 + 8px buffer)
+- Desktop navbar uses `hidden md:block` to hide on mobile
+- Footer uses `hidden md:block` to hide on mobile
+- MobileBottomNav uses `md:hidden` to hide on desktop
+
+**MobileBottomNav items:**
+| Home | Browse | Search | Watchlist | You/Menu |
+|------|--------|--------|-----------|----------|
+
+**AI Assistant positioning:**
+- Desktop: Floating UI at `bottom-6` centered (MinimalView/ExpandedChat)
+- Mobile: Idle bubble at `bottom-[4.25rem]` above bottom nav, opens as bottom sheet drawer (Vaul)
+- Mobile drawer auto-closes when clicking poster cards for seamless navigation
+
+### Touch Scrolling on Horizontal Scrollers
+
+**CRITICAL:** Use `touch-manipulation` not `touch-pan-x` on scroll containers:
+
+```tsx
+// GOOD: Allows both horizontal scroll AND vertical page scroll
+<div className="flex overflow-x-auto touch-manipulation">
+
+// BAD: Blocks vertical page scrolling when touch starts on scroller
+<div className="flex overflow-x-auto touch-pan-x">
+```
+
+### Hero Section Mobile Layout
+
+Hero uses different layout strategies per viewport:
+
+| Viewport | Image | Content | Height |
+|----------|-------|---------|--------|
+| Mobile (<md) | `aspect-video object-cover object-[center_20%]` | Stacked below image, centered | Auto (flexible) |
+| Desktop (md+) | Aspect-ratio preserving, right-aligned | Overlays image at bottom-left | Fixed (60vh max) |
+
+**Key CSS:** `.hero-container` has `height: auto` on mobile to let content flow naturally.
+
+Hero content is pulled up into the image gradient with `-mt-8` for tight spacing:
+
+```tsx
+// HeroBackdropShell children container
+<div className={cn(
+  "relative z-10 bg-black px-4 -mt-8 pb-6",  // Mobile: pull up into gradient
+  "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"  // Desktop: overlay
+)}>
+  {children}
+</div>
+```
+
+### Responsive Component Patterns
+
+Keep UI elements on single lines using responsive sizing:
+
+```tsx
+// Season selector: dropdown + metadata on one line
+<div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+  <Select className="w-[140px] sm:w-[180px]">...</Select>
+  <span className="text-xs sm:text-sm">{episodeCount} Episodes</span>
+  <span className="text-xs sm:text-sm">{formatDate(date, "short")}</span>
+</div>
+```
+
+Date formatting shortcuts for space-constrained mobile:
+- Use short month: "Jul" instead of "July"
+- Use relative dates when possible: "Tomorrow", "in 3 days"
+
+### Mobile Virtual Keyboard Handling
+
+For fixed-position UI elements (like the AI chat), use the `visualViewport` API to detect when the mobile keyboard opens and adjust positioning:
+
+```tsx
+const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+useEffect(() => {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+
+  const handleResize = () => {
+    // When keyboard opens, visualViewport.height shrinks
+    const viewportHeight = viewport.height;
+    const windowHeight = window.innerHeight;
+    const keyboardH = windowHeight - viewportHeight - viewport.offsetTop;
+    setKeyboardHeight(Math.max(0, keyboardH));
+  };
+
+  viewport.addEventListener("resize", handleResize);
+  viewport.addEventListener("scroll", handleResize);
+
+  return () => {
+    viewport.removeEventListener("resize", handleResize);
+    viewport.removeEventListener("scroll", handleResize);
+  };
+}, []);
+
+// Apply dynamic positioning when keyboard is open
+<div
+  className={cn(
+    "fixed bottom-20", // Default position
+    keyboardHeight === 0 && "bottom-20" // Only apply CSS when no keyboard
+  )}
+  style={keyboardHeight > 0 ? { bottom: keyboardHeight + 8 } : undefined}
+>
+```
+
+**Key points:**
+- `visualViewport.height` shrinks when keyboard opens
+- Calculate keyboard height as: `windowHeight - viewportHeight - offsetTop`
+- Use inline style (not className) when keyboard is open for precise positioning
+- Add small buffer (8px) above keyboard for visual separation
+
+### Mobile Back Button for Dialogs
+
+Intercept the mobile back button to close dialogs instead of navigating away:
+
+```tsx
+const closedViaBack = useRef(false);
+
+useEffect(() => {
+  if (!open) return;
+
+  const handlePopState = () => {
+    closedViaBack.current = true;
+    onOpenChange(false);
+  };
+
+  // Push history state so back button closes dialog
+  window.history.pushState({ dialogOpen: true }, "");
+  window.addEventListener("popstate", handlePopState);
+
+  return () => {
+    window.removeEventListener("popstate", handlePopState);
+    // Clean up history if closed via other means (not back button)
+    if (!closedViaBack.current && window.history.state?.dialogOpen) {
+      window.history.back();
+    }
+    closedViaBack.current = false;
+  };
+}, [open, onOpenChange]);
+```
+
+Used in: `SearchCommand`, and can be applied to any fullscreen mobile dialog.

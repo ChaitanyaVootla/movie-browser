@@ -4,10 +4,10 @@ Movie Browser Analytics using ClickHouse + Grafana.
 
 ## Docker Image Versions
 
-| Service | Image | Version |
-|---------|-------|---------|
-| ClickHouse | `clickhouse/clickhouse-server` | `25.12` |
-| Grafana | `grafana/grafana` | `12.3.1` |
+| Service    | Image                          | Version  |
+| ---------- | ------------------------------ | -------- |
+| ClickHouse | `clickhouse/clickhouse-server` | `25.12`  |
+| Grafana    | `grafana/grafana`              | `12.3.1` |
 
 ## Quick Start
 
@@ -45,6 +45,7 @@ docker-compose -f docker-compose.analytics.yml up -d
 - Production: https://analytics.themoviebrowser.com (after Nginx config)
 
 Default credentials:
+
 - Username: `admin`
 - Password: Value of `GRAFANA_PASSWORD`
 
@@ -92,7 +93,7 @@ import { trackPageView, trackAIUsage, getTrackingContext } from "@/lib/analytics
 // In a Server Component or API route
 export default async function MoviePage({ params }) {
   const context = await getTrackingContext();
-  
+
   trackPageView(context, {
     path: `/movie/${params.id}`,
     pageType: "movie",
@@ -100,7 +101,7 @@ export default async function MoviePage({ params }) {
     itemTitle: "Fight Club",
     itemMediaType: "movie",
   });
-  
+
   // ... rest of component
 }
 ```
@@ -130,16 +131,16 @@ AI usage is automatically tracked in `src/server/ai/agent.ts` after each invocat
 
 ## Tables & Retention
 
-| Table | Retention | Purpose |
-|-------|-----------|---------|
-| `page_views` | 90 days | Traffic analytics |
-| `sessions` | 180 days | User journey |
-| `ai_usage` | 365 days | Cost tracking |
-| `user_actions` | 180 days | User behavior |
-| `api_calls` | 30 days | API monitoring |
-| `errors` | 90 days | Error tracking |
-| `cache_metrics` | 30 days | Cache health |
-| `performance` | 90 days | Web Vitals |
+| Table           | Retention | Purpose           |
+| --------------- | --------- | ----------------- |
+| `page_views`    | 90 days   | Traffic analytics |
+| `sessions`      | 180 days  | User journey      |
+| `ai_usage`      | 365 days  | Cost tracking     |
+| `user_actions`  | 180 days  | User behavior     |
+| `api_calls`     | 30 days   | API monitoring    |
+| `errors`        | 90 days   | Error tracking    |
+| `cache_metrics` | 30 days   | Cache health      |
+| `performance`   | 90 days   | Web Vitals        |
 
 ## Nginx Configuration (Production)
 
@@ -181,7 +182,7 @@ curl http://localhost:3002/api/health?format=detailed
 
 ```sql
 -- Daily page views (excluding bots)
-SELECT 
+SELECT
     toDate(timestamp) AS date,
     count() AS views,
     uniq(session_id) AS sessions
@@ -192,7 +193,7 @@ ORDER BY date DESC
 LIMIT 7;
 
 -- AI costs by day
-SELECT 
+SELECT
     toDate(timestamp) AS date,
     round(sum(total_cost), 4) AS cost_usd,
     count() AS invocations
@@ -202,7 +203,7 @@ ORDER BY date DESC
 LIMIT 7;
 
 -- Top pages today
-SELECT 
+SELECT
     path,
     count() AS views
 FROM analytics.page_views
@@ -220,10 +221,10 @@ ClickHouse `DateTime64` requires timestamps in `YYYY-MM-DD HH:MM:SS.mmm` format,
 
 ```typescript
 // ❌ Wrong - ISO 8601 format causes parse errors
-timestamp: new Date().toISOString() // "2026-01-07T10:00:00.000Z"
+timestamp: new Date().toISOString(); // "2026-01-07T10:00:00.000Z"
 
-// ✅ Correct - ClickHouse-compatible format  
-timestamp: new Date().toISOString().replace("T", " ").replace("Z", "") // "2026-01-07 10:00:00.000"
+// ✅ Correct - ClickHouse-compatible format
+timestamp: new Date().toISOString().replace("T", " ").replace("Z", ""); // "2026-01-07 10:00:00.000"
 ```
 
 This is handled automatically in the analytics lib.
@@ -244,13 +245,13 @@ docker logs analytics-clickhouse 2>&1 | tail -50
 
 5 pre-built dashboards are auto-provisioned when Grafana starts:
 
-| Dashboard | Description | Key Metrics |
-|-----------|-------------|-------------|
-| **Traffic Overview** | Page views, sessions, geographic & device distribution | Daily views, sessions, top pages, top countries |
-| **AI Economics** | AI agent costs and usage | Daily costs, invocations, tokens, cost per user, query types |
-| **Performance (Web Vitals)** | Core Web Vitals monitoring | LCP, FCP, TTFB, CLS, INP with thresholds |
-| **Errors** | Error tracking and analysis | Error rate, severity breakdown, top errors |
-| **System Health** | Cache and system metrics | L1/L2 hit rates, memory usage, fetch errors |
+| Dashboard                    | Description                                            | Key Metrics                                                  |
+| ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
+| **Traffic Overview**         | Page views, sessions, geographic & device distribution | Daily views, sessions, top pages, top countries              |
+| **AI Economics**             | AI agent costs and usage                               | Daily costs, invocations, tokens, cost per user, query types |
+| **Performance (Web Vitals)** | Core Web Vitals monitoring                             | LCP, FCP, TTFB, CLS, INP with thresholds                     |
+| **Errors**                   | Error tracking and analysis                            | Error rate, severity breakdown, top errors                   |
+| **System Health**            | Cache and system metrics                               | L1/L2 hit rates, memory usage, fetch errors                  |
 
 Access at: http://localhost:3004 (local) or https://analytics.themoviebrowser.com (production)
 
@@ -297,4 +298,3 @@ src/app/api/analytics/
 src/app/api/admin/analytics/
 └── route.ts          # Admin dashboard analytics API
 ```
-

@@ -21,10 +21,7 @@ import {
  * All badges except "coming-soon" and "highly-anticipated" require
  * a minimum vote count to avoid noise from obscure titles.
  */
-export function getMovieBadges(
-  movie: Movie | MovieListItem,
-  options?: BadgeOptions
-): MediaBadge[] {
+export function getMovieBadges(movie: Movie | MovieListItem, options?: BadgeOptions): MediaBadge[] {
   const badges: MediaBadge[] = [];
   const maxBadges = options?.maxBadges ?? 2;
 
@@ -130,9 +127,3 @@ export function getMovieBadges(
 
   return sortAndLimitBadges(badges, maxBadges);
 }
-
-
-
-
-
-

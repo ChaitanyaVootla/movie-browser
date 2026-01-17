@@ -25,33 +25,33 @@ interface ScrollContainerProps {
 
 /**
  * ScrollContainer - Low-level primitive for horizontal scrolling with drag support.
- * 
+ *
  * This is the foundational component for all horizontal scrollers in the app.
  * It provides:
  * - Drag-to-scroll with click detection (won't block clicks on items)
  * - Optional left/right arrow controls
  * - Consistent scrollbar-hidden styling
- * 
+ *
  * Use this directly when you need:
  * - A simple horizontal scroll without a header/title
  * - Custom layout that wraps the scroll area
  * - Embedding inside other components (Cast sections, Collections, etc.)
- * 
+ *
  * Use MediaScroller when you need:
  * - A full section with title, icon, and "View All" link
- * 
+ *
  * @example
  * // Simple usage
  * <ScrollContainer gap="gap-3">
  *   {items.map(item => <Card key={item.id} />)}
  * </ScrollContainer>
- * 
+ *
  * @example
  * // With custom padding and controls
  * <ScrollContainer padding="px-4 md:px-8" showControls={false}>
  *   {items.map(item => <Card key={item.id} />)}
  * </ScrollContainer>
- * 
+ *
  * @example
  * // With custom controls render
  * <ScrollContainer
@@ -90,10 +90,12 @@ export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
     } = useScrollDrag({ externalRef: forwardedRef });
 
     const defaultControls = showControls && (
-      <div className={cn(
-        "hidden md:flex gap-1",
-        controlsPosition === "edge" && "absolute right-0 top-1/2 -translate-y-1/2 z-10"
-      )}>
+      <div
+        className={cn(
+          "hidden md:flex gap-1",
+          controlsPosition === "edge" && "absolute right-0 top-1/2 -translate-y-1/2 z-10"
+        )}
+      >
         <Button
           variant="ghost"
           size="icon"
@@ -118,8 +120,8 @@ export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
     return (
       <div className={cn("relative", className)}>
         {/* Controls */}
-        {renderControls ? renderControls(scroll) : (controlsPosition === "edge" && defaultControls)}
-        
+        {renderControls ? renderControls(scroll) : controlsPosition === "edge" && defaultControls}
+
         {/* Scroll area */}
         <div
           ref={setScrollRef}

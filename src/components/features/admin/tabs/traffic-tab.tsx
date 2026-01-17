@@ -102,9 +102,7 @@ export function TrafficTab({
 
   // Use history data if hourly, otherwise use daily data
   const chartData =
-    granularity === "hour" && historyData?.withBots
-      ? historyData.withBots
-      : data?.dailyWithBots;
+    granularity === "hour" && historyData?.withBots ? historyData.withBots : data?.dailyWithBots;
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -171,9 +169,7 @@ export function TrafficTab({
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Bounce Rate</span>
                 <span className="font-medium">
-                  {overview?.bounceRate
-                    ? `${(overview.bounceRate * 100).toFixed(1)}%`
-                    : "—"}
+                  {overview?.bounceRate ? `${(overview.bounceRate * 100).toFixed(1)}%` : "—"}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -205,15 +201,9 @@ export function TrafficTab({
           ) : (
             <DevicePieChart
               data={{
-                desktop:
-                  data?.devices?.find((d) => d.deviceType === "desktop")
-                    ?.count ?? 0,
-                mobile:
-                  data?.devices?.find((d) => d.deviceType === "mobile")
-                    ?.count ?? 0,
-                tablet:
-                  data?.devices?.find((d) => d.deviceType === "tablet")
-                    ?.count ?? 0,
+                desktop: data?.devices?.find((d) => d.deviceType === "desktop")?.count ?? 0,
+                mobile: data?.devices?.find((d) => d.deviceType === "mobile")?.count ?? 0,
+                tablet: data?.devices?.find((d) => d.deviceType === "tablet")?.count ?? 0,
               }}
               size={120}
             />
@@ -289,11 +279,7 @@ export function TrafficTab({
           ) : data?.topPages && data.topPages.length > 0 ? (
             <div className="space-y-1.5">
               {data.topPages.slice(0, 5).map((page) => (
-                <TopPageRow
-                  key={page.path}
-                  page={page}
-                  excludeBots={topPagesExcludeBots}
-                />
+                <TopPageRow key={page.path} page={page} excludeBots={topPagesExcludeBots} />
               ))}
             </div>
           ) : (
@@ -309,24 +295,15 @@ export function TrafficTab({
 // Top Page Row
 // =============================================================================
 
-function TopPageRow({
-  page,
-  excludeBots,
-}: {
-  page: TopPage;
-  excludeBots: boolean;
-}) {
+function TopPageRow({ page, excludeBots }: { page: TopPage; excludeBots: boolean }) {
   // Parse path to get item type and ID for linking
   const pathParts = page.path.split("/").filter(Boolean);
   const itemType = pathParts[0]; // movie, series, person
   const itemId = pathParts[1]; // ID or ID/slug
-  const isDetailPage =
-    ["movie", "series", "person"].includes(itemType) && itemId;
+  const isDetailPage = ["movie", "series", "person"].includes(itemType) && itemId;
 
   const href = isDetailPage ? page.path : undefined;
-  const displayViews = excludeBots
-    ? page.views - (page.botViews ?? 0)
-    : page.views;
+  const displayViews = excludeBots ? page.views - (page.botViews ?? 0) : page.views;
 
   const content = (
     <div className="flex items-center justify-between text-sm py-1 group">
@@ -346,9 +323,7 @@ function TopPageRow({
           <ExternalLink className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
         )}
       </div>
-      <span className="shrink-0 ml-2 font-medium text-xs">
-        {displayViews.toLocaleString()}
-      </span>
+      <span className="shrink-0 ml-2 font-medium text-xs">{displayViews.toLocaleString()}</span>
     </div>
   );
 
@@ -402,15 +377,10 @@ function TrafficComparisonChart({
             onCheckedChange={(c) => setShowHuman(c === true)}
             className="h-3 w-3"
           />
-          <Label
-            htmlFor="show-human"
-            className="flex items-center gap-1.5 text-xs cursor-pointer"
-          >
+          <Label htmlFor="show-human" className="flex items-center gap-1.5 text-xs cursor-pointer">
             <span className="w-2 h-2 rounded-full bg-zinc-200" />
             Human
-            <span className="text-muted-foreground">
-              ({totalHuman.toLocaleString()})
-            </span>
+            <span className="text-muted-foreground">({totalHuman.toLocaleString()})</span>
           </Label>
         </div>
         <div className="flex items-center gap-2">
@@ -420,15 +390,10 @@ function TrafficComparisonChart({
             onCheckedChange={(c) => setShowBot(c === true)}
             className="h-3 w-3"
           />
-          <Label
-            htmlFor="show-bot"
-            className="flex items-center gap-1.5 text-xs cursor-pointer"
-          >
+          <Label htmlFor="show-bot" className="flex items-center gap-1.5 text-xs cursor-pointer">
             <span className="w-2 h-2 rounded-full bg-zinc-500" />
             Bot
-            <span className="text-muted-foreground">
-              ({totalBot.toLocaleString()})
-            </span>
+            <span className="text-muted-foreground">({totalBot.toLocaleString()})</span>
           </Label>
         </div>
       </div>
@@ -487,10 +452,7 @@ function TrafficAreaChart({
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart
-        data={data}
-        margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-      >
+      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
         <defs>
           <linearGradient id="humanGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#e4e4e7" stopOpacity={0.3} />
@@ -508,11 +470,7 @@ function TrafficAreaChart({
           axisLine={false}
           tickLine={false}
         />
-        <YAxis
-          tick={{ fontSize: 10, fill: "#71717a" }}
-          axisLine={false}
-          tickLine={false}
-        />
+        <YAxis tick={{ fontSize: 10, fill: "#71717a" }} axisLine={false} tickLine={false} />
         <RechartsTooltip
           contentStyle={{
             backgroundColor: "#18181b",
@@ -524,10 +482,7 @@ function TrafficAreaChart({
           labelFormatter={formatTooltipDate}
           formatter={(value, name) => {
             if (value === null || value === undefined) return ["-", String(name)];
-            return [
-              (value as number).toLocaleString(),
-              name === "human" ? "Human" : "Bot",
-            ];
+            return [(value as number).toLocaleString(), name === "human" ? "Human" : "Bot"];
           }}
         />
         {showHuman && (

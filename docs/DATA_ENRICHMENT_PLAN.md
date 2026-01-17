@@ -7,6 +7,7 @@
 ## Overview
 
 This document outlines the plan to:
+
 1. **Consolidate duplicate tables** - Unify movie/series tables using polymorphic pattern
 2. Migrate enriched data (ratings, watch links) from MongoDB to PostgreSQL
 3. Track data freshness with timestamps
@@ -20,27 +21,27 @@ This document outlines the plan to:
 
 The current Prisma schema has significant duplication with separate Movie* and Series* tables that are structurally identical. We're consolidating to unified polymorphic tables:
 
-| Before (Duplicated) | After (Unified) | Tables Removed |
-|---------------------|-----------------|----------------|
-| `MovieRating` + `SeriesRating` | `Rating` | 1 |
-| `MovieExternalId` + `SeriesExternalId` + `PersonExternalId` | `ExternalId` | 2 |
-| `MovieVideo` + `SeriesVideo` | `Video` | 1 |
-| `MovieImage` + `SeriesImage` | `Image` | 1 |
-| `MovieAiData` + `SeriesAiData` | `AiData` | 1 |
-| `MovieCredit` + `SeriesCredit` | `Credit` | 1 |
-| `MovieWatchOption` + `SeriesWatchOption` | `WatchOption` | 1 |
-| `MovieWatchlistItem` + `SeriesWatchlistItem` | `WatchlistItem` | 1 |
-| `RatingSource` | `DataSource` (unified) | — |
-| **Total** | | **~9 fewer tables** |
+| Before (Duplicated)                                         | After (Unified)        | Tables Removed      |
+| ----------------------------------------------------------- | ---------------------- | ------------------- |
+| `MovieRating` + `SeriesRating`                              | `Rating`               | 1                   |
+| `MovieExternalId` + `SeriesExternalId` + `PersonExternalId` | `ExternalId`           | 2                   |
+| `MovieVideo` + `SeriesVideo`                                | `Video`                | 1                   |
+| `MovieImage` + `SeriesImage`                                | `Image`                | 1                   |
+| `MovieAiData` + `SeriesAiData`                              | `AiData`               | 1                   |
+| `MovieCredit` + `SeriesCredit`                              | `Credit`               | 1                   |
+| `MovieWatchOption` + `SeriesWatchOption`                    | `WatchOption`          | 1                   |
+| `MovieWatchlistItem` + `SeriesWatchlistItem`                | `WatchlistItem`        | 1                   |
+| `RatingSource`                                              | `DataSource` (unified) | —                   |
+| **Total**                                                   |                        | **~9 fewer tables** |
 
 ### Tables to Keep Separate
 
-| Table | Reason |
-|-------|--------|
+| Table                                        | Reason                                         |
+| -------------------------------------------- | ---------------------------------------------- |
 | `MovieCertification` / `SeriesCertification` | Different fields (movie has releaseType, note) |
-| `MovieGenre` / `SeriesGenre` | Junction tables, minimal benefit |
-| `MovieKeyword` / `SeriesKeyword` | Junction tables |
-| `MovieCompany` / `SeriesCompany` | Junction tables |
+| `MovieGenre` / `SeriesGenre`                 | Junction tables, minimal benefit               |
+| `MovieKeyword` / `SeriesKeyword`             | Junction tables                                |
+| `MovieCompany` / `SeriesCompany`             | Junction tables                                |
 
 ---
 
@@ -114,18 +115,18 @@ The current Prisma schema has significant duplication with separate Movie* and S
 
 ### 1. TMDB API Data (Always Fresh from Next.js)
 
-| Data | Endpoint | Notes |
-|------|----------|-------|
-| Movie details | `/movie/{id}` | Title, overview, dates, runtime, etc. |
-| Credits | `append_to_response=credits` | Cast + crew |
-| Videos | `append_to_response=videos` | Trailers, clips |
-| Images | `append_to_response=images` | Posters, backdrops, logos |
-| Keywords | `append_to_response=keywords` | Tags |
-| Recommendations | `append_to_response=recommendations` | Similar movies |
-| External IDs | `append_to_response=external_ids` | IMDb, Wikidata, etc. |
-| Watch Providers | `append_to_response=watch/providers` | TMDB/JustWatch data (90+ countries) |
-| Release Dates | `/movie/{id}/release_dates` | Per-country certifications |
-| Collection | `/collection/{id}` | Franchise info |
+| Data            | Endpoint                             | Notes                                 |
+| --------------- | ------------------------------------ | ------------------------------------- |
+| Movie details   | `/movie/{id}`                        | Title, overview, dates, runtime, etc. |
+| Credits         | `append_to_response=credits`         | Cast + crew                           |
+| Videos          | `append_to_response=videos`          | Trailers, clips                       |
+| Images          | `append_to_response=images`          | Posters, backdrops, logos             |
+| Keywords        | `append_to_response=keywords`        | Tags                                  |
+| Recommendations | `append_to_response=recommendations` | Similar movies                        |
+| External IDs    | `append_to_response=external_ids`    | IMDb, Wikidata, etc.                  |
+| Watch Providers | `append_to_response=watch/providers` | TMDB/JustWatch data (90+ countries)   |
+| Release Dates   | `/movie/{id}/release_dates`          | Per-country certifications            |
+| Collection      | `/collection/{id}`                   | Franchise info                        |
 
 ### 2. MongoDB Enriched Data (Scraped/Aggregated)
 
@@ -137,39 +138,39 @@ This is the primary source for detailed ratings:
 interface MongoExternalData {
   ratings?: {
     imdb?: {
-      rating: number;           // 8.8 (0-10 scale)
-      ratingCount: number;      // 2,345,678
-      sourceUrl?: string;       // https://www.imdb.com/title/tt0137523
+      rating: number; // 8.8 (0-10 scale)
+      ratingCount: number; // 2,345,678
+      sourceUrl?: string; // https://www.imdb.com/title/tt0137523
       error?: string;
     };
     rottenTomatoes?: {
       critic?: {
-        score: number;          // 79 (0-100%)
-        ratingCount: number;    // 234
-        certified: boolean;     // Certified Fresh badge
-        sentiment?: string;     // "Fresh" | "Certified Fresh" | "Rotten"
-        consensus?: string;     // "Stylish, dark and subversive..."
+        score: number; // 79 (0-100%)
+        ratingCount: number; // 234
+        certified: boolean; // Certified Fresh badge
+        sentiment?: string; // "Fresh" | "Certified Fresh" | "Rotten"
+        consensus?: string; // "Stylish, dark and subversive..."
       };
       audience?: {
-        score: number;          // 96 (0-100%)
-        ratingCount: number;    // 1,234,567
-        certified?: boolean;    // Verified Hot badge (less common)
-        sentiment?: string;     // "Upright" | "Spilled"
+        score: number; // 96 (0-100%)
+        ratingCount: number; // 1,234,567
+        certified?: boolean; // Verified Hot badge (less common)
+        sentiment?: string; // "Upright" | "Spilled"
       };
-      sourceUrl?: string;       // https://www.rottentomatoes.com/m/fight_club
+      sourceUrl?: string; // https://www.rottentomatoes.com/m/fight_club
       error?: string;
     };
   };
   externalIds?: {
-    imdb_id?: string;           // tt0137523
-    tmdb_id?: string;           // 550
+    imdb_id?: string; // tt0137523
+    tmdb_id?: string; // 550
     rottentomatoes_id?: string; // fight_club
-    metacritic_id?: string;     // fight-club
-    letterboxd_id?: string;     // fight-club
-    netflix_id?: string;        // 80100172
-    apple_id?: string;          // umc.cmc.xyz...
-    amazon_id?: string;         // B00FMO7318
-    wikidata_id?: string;       // Q190050
+    metacritic_id?: string; // fight-club
+    letterboxd_id?: string; // fight-club
+    netflix_id?: string; // 80100172
+    apple_id?: string; // umc.cmc.xyz...
+    amazon_id?: string; // B00FMO7318
+    wikidata_id?: string; // Q190050
   };
 }
 ```
@@ -181,19 +182,19 @@ Secondary source with additional ratings and deep watch links:
 ```typescript
 interface MongoGoogleData {
   ratings?: Array<{
-    rating: string;    // "8.8" or "79%" or "4.3/5"
-    name: string;      // "IMDb", "Rotten Tomatoes", "Letterboxd", "Google", etc.
-    link: string;      // Source URL
+    rating: string; // "8.8" or "79%" or "4.3/5"
+    name: string; // "IMDb", "Rotten Tomatoes", "Letterboxd", "Google", etc.
+    link: string; // Source URL
   }>;
   allWatchOptions?: Array<{
-    link: string;      // Deep link: https://www.netflix.com/watch/80100172
-    name: string;      // "Netflix", "Prime Video", "JioHotstar", etc.
-    price?: string;    // "Free", "₹149", "Rent from ₹99"
+    link: string; // Deep link: https://www.netflix.com/watch/80100172
+    name: string; // "Netflix", "Prime Video", "JioHotstar", etc.
+    price?: string; // "Free", "₹149", "Rent from ₹99"
   }>;
-  imdbId?: string;       // tt0137523 (backup, used for validation)
+  imdbId?: string; // tt0137523 (backup, used for validation)
   directorName?: string; // "David Fincher" (used for validation)
-  debugText?: string;    // Raw page text for debugging
-  googleError?: string;  // Error message if scraping failed
+  debugText?: string; // Raw page text for debugging
+  googleError?: string; // Error message if scraping failed
 }
 ```
 
@@ -201,39 +202,43 @@ interface MongoGoogleData {
 
 ```typescript
 interface MongoWatchProviders {
-  results?: Record<string, {  // Country code: "US", "IN", "GB", etc.
-    link?: string;            // JustWatch attribution link
-    flatrate?: TMDBWatchProvider[];  // Subscription streaming
-    rent?: TMDBWatchProvider[];
-    buy?: TMDBWatchProvider[];
-    free?: TMDBWatchProvider[];
-    ads?: TMDBWatchProvider[];
-  }>;
+  results?: Record<
+    string,
+    {
+      // Country code: "US", "IN", "GB", etc.
+      link?: string; // JustWatch attribution link
+      flatrate?: TMDBWatchProvider[]; // Subscription streaming
+      rent?: TMDBWatchProvider[];
+      buy?: TMDBWatchProvider[];
+      free?: TMDBWatchProvider[];
+      ads?: TMDBWatchProvider[];
+    }
+  >;
 }
 
 interface TMDBWatchProvider {
-  provider_id: number;       // 8 (Netflix)
-  provider_name: string;     // "Netflix"
-  logo_path?: string;        // /pbpMk...
+  provider_id: number; // 8 (Netflix)
+  provider_name: string; // "Netflix"
+  logo_path?: string; // /pbpMk...
   display_priority?: number; // Display order
 }
 ```
 
 ### 3. What's NOT Available from TMDB
 
-| Data | Source | Why It's Valuable |
-|------|--------|-------------------|
-| IMDb Rating + Vote Count | IMDb scrape | Most recognized rating globally |
-| Rotten Tomatoes Scores | RT scrape | Critic vs Audience divide |
-| RT Certified Fresh | RT scrape | Quality badge |
-| RT Consensus | RT scrape | Critics summary text (unique!) |
-| RT Sentiment | RT scrape | "Fresh", "Rotten", etc. |
-| Letterboxd Rating | Google scrape | Film enthusiast community |
-| Google Users Rating | Google scrape | General audience sentiment |
+| Data                     | Source        | Why It's Valuable                |
+| ------------------------ | ------------- | -------------------------------- |
+| IMDb Rating + Vote Count | IMDb scrape   | Most recognized rating globally  |
+| Rotten Tomatoes Scores   | RT scrape     | Critic vs Audience divide        |
+| RT Certified Fresh       | RT scrape     | Quality badge                    |
+| RT Consensus             | RT scrape     | Critics summary text (unique!)   |
+| RT Sentiment             | RT scrape     | "Fresh", "Rotten", etc.          |
+| Letterboxd Rating        | Google scrape | Film enthusiast community        |
+| Google Users Rating      | Google scrape | General audience sentiment       |
 | Deep Watch Links (India) | Google scrape | Direct to player (not JustWatch) |
-| Netflix/Prime/Apple IDs | Wikidata | For deep linking |
-| Rotten Tomatoes URL Slug | Wikidata | For RT page linking |
-| **YouTube Video Stats** | YouTube API | Views, likes, dislikes, comments |
+| Netflix/Prime/Apple IDs  | Wikidata      | For deep linking                 |
+| Rotten Tomatoes URL Slug | Wikidata      | For RT page linking              |
+| **YouTube Video Stats**  | YouTube API   | Views, likes, dislikes, comments |
 
 ---
 
@@ -251,16 +256,16 @@ model DataSource {
   icon      String?  // Icon path
   baseUrl   String?  @map("base_url")
   maxScore  Int?     @map("max_score") // 10, 100, etc. (for ratings)
-  
+
   // Type flags - a source can provide multiple types
   providesRatings   Boolean @default(false) @map("provides_ratings")
   providesReviews   Boolean @default(false) @map("provides_reviews")
   providesMetadata  Boolean @default(false) @map("provides_metadata")  // AI summaries, etc.
-  
+
   // Relations
   ratings   Rating[]
   reviews   Review[]
-  
+
   @@map("data_sources")
 }
 ```
@@ -269,14 +274,60 @@ model DataSource {
 
 ```typescript
 const dataSources = [
-  { slug: "tmdb", name: "TMDB", providesRatings: true, maxScore: 10, baseUrl: "https://www.themoviedb.org" },
-  { slug: "imdb", name: "IMDb", providesRatings: true, providesReviews: true, maxScore: 10, baseUrl: "https://www.imdb.com" },
-  { slug: "rt", name: "Rotten Tomatoes", providesRatings: true, providesReviews: true, maxScore: 100, baseUrl: "https://www.rottentomatoes.com" },
-  { slug: "rt_audience", name: "RT Audience", providesRatings: true, maxScore: 100, baseUrl: "https://www.rottentomatoes.com" },
-  { slug: "letterboxd", name: "Letterboxd", providesRatings: true, providesReviews: true, maxScore: 5, baseUrl: "https://letterboxd.com" },
-  { slug: "metacritic", name: "Metacritic", providesRatings: true, providesReviews: true, maxScore: 100, baseUrl: "https://www.metacritic.com" },
+  {
+    slug: "tmdb",
+    name: "TMDB",
+    providesRatings: true,
+    maxScore: 10,
+    baseUrl: "https://www.themoviedb.org",
+  },
+  {
+    slug: "imdb",
+    name: "IMDb",
+    providesRatings: true,
+    providesReviews: true,
+    maxScore: 10,
+    baseUrl: "https://www.imdb.com",
+  },
+  {
+    slug: "rt",
+    name: "Rotten Tomatoes",
+    providesRatings: true,
+    providesReviews: true,
+    maxScore: 100,
+    baseUrl: "https://www.rottentomatoes.com",
+  },
+  {
+    slug: "rt_audience",
+    name: "RT Audience",
+    providesRatings: true,
+    maxScore: 100,
+    baseUrl: "https://www.rottentomatoes.com",
+  },
+  {
+    slug: "letterboxd",
+    name: "Letterboxd",
+    providesRatings: true,
+    providesReviews: true,
+    maxScore: 5,
+    baseUrl: "https://letterboxd.com",
+  },
+  {
+    slug: "metacritic",
+    name: "Metacritic",
+    providesRatings: true,
+    providesReviews: true,
+    maxScore: 100,
+    baseUrl: "https://www.metacritic.com",
+  },
   { slug: "google", name: "Google", providesRatings: true, maxScore: 5, baseUrl: null },
-  { slug: "ai", name: "AI Generated", providesReviews: true, providesMetadata: true, baseUrl: null },
+  {
+    slug: "ai",
+    name: "AI Generated",
+    providesReviews: true,
+    providesMetadata: true,
+    baseUrl: null,
+  },
   { slug: "youtube", name: "YouTube", providesMetadata: true, baseUrl: "https://www.youtube.com" },
 ];
 ```
@@ -288,44 +339,44 @@ Polymorphic table supporting movies, series, and future season/episode ratings:
 ```prisma
 model Rating {
   id          Int       @id @default(autoincrement())
-  
+
   // Polymorphic reference - exactly ONE should be set
   movieId     Int?      @map("movie_id")
   seriesId    Int?      @map("series_id")
   seasonId    Int?      @map("season_id")    // Future: season-level ratings
   episodeId   Int?      @map("episode_id")   // Future: episode-level ratings
-  
+
   // Source and score
   sourceId    Int       @map("source_id")
   score       Float     // Normalized to source's scale
   voteCount   Int?      @map("vote_count")
-  
+
   // RT-specific (nullable for other sources)
   certified   Boolean?  // RT Certified Fresh / Verified Hot
   consensus   String?   // RT critic consensus text
   sentiment   String?   // "Fresh", "Certified Fresh", "Rotten", "Upright", "Spilled"
   sourceUrl   String?   @map("source_url") // Link to rating source page
-  
+
   // Timestamps
   scrapedAt   DateTime  @default(now()) @map("scraped_at")
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
-  
+
   // Relations
   movie       Movie?      @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series      Series?     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   source      DataSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  
+
   // Unique constraints: one rating per source per entity
   @@unique([movieId, sourceId])
   @@unique([seriesId, sourceId])
   @@unique([seasonId, sourceId])
   @@unique([episodeId, sourceId])
-  
+
   // Indexes
   @@index([movieId])
   @@index([seriesId])
   @@index([sourceId])
-  
+
   @@map("ratings")
 }
 ```
@@ -337,58 +388,58 @@ Flexible review system for consensus, critic reviews, user reviews, AI-generated
 ```prisma
 model Review {
   id          Int       @id @default(autoincrement())
-  
+
   // Polymorphic reference
   movieId     Int?      @map("movie_id")
   seriesId    Int?      @map("series_id")
   seasonId    Int?      @map("season_id")
   episodeId   Int?      @map("episode_id")
-  
+
   sourceId    Int    @map("source_id")
   reviewType  String @map("review_type") // "consensus", "critic", "user", "editorial", "top_review", "ai_summary", "ai_analysis"
-  
+
   // Content
   title       String?     // Review headline (for critic reviews)
   content     String      // Review text (consensus, full review, or excerpt)
   excerpt     String?     // Short excerpt for display
-  
+
   // Author (for individual reviews, null for consensus/AI)
   authorName  String?     @map("author_name")
   authorUrl   String?     @map("author_url")
   authorImage String?     @map("author_image")
   publication String?     // "The New York Times", "Empire", etc.
-  
+
   // Rating (optional)
   score       Float?
   scoreDisplay String?    @map("score_display") // Original format: "4/5", "B+", "8.5/10"
   sentiment   String?     // "positive", "negative", "mixed", "fresh", "rotten"
-  
+
   // Metadata
   reviewUrl   String?     @map("review_url")
   reviewDate  DateTime?   @map("review_date")
   scrapedAt   DateTime    @default(now()) @map("scraped_at")
   updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at")
-  
+
   // Flags
   isVerified  Boolean     @default(false) @map("is_verified")  // Top Critic (RT), Verified (IMDb)
   isFeatured  Boolean     @default(false) @map("is_featured")
   isHidden    Boolean     @default(false) @map("is_hidden")    // Soft delete
   language    String      @default("en")
-  
+
   // Relations
   movie       Movie?      @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series      Series?     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   source      DataSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  
+
   // One consensus per source per entity
   @@unique([movieId, sourceId, reviewType])
   @@unique([seriesId, sourceId, reviewType])
-  
+
   @@index([movieId, reviewType])
   @@index([seriesId, reviewType])
   @@index([sourceId, reviewType])
   @@index([reviewDate(sort: Desc)])
-  
+
   @@map("reviews")
 }
 
@@ -404,13 +455,13 @@ Replaces MovieVideo + SeriesVideo with added YouTube engagement data:
 ```prisma
 model Video {
   id          Int       @id @default(autoincrement())
-  
+
   // Polymorphic reference
   movieId     Int?      @map("movie_id")
   seriesId    Int?      @map("series_id")
   seasonId    Int?      @map("season_id")    // Future: season trailers
   episodeId   Int?      @map("episode_id")   // Future: episode clips
-  
+
   // Video identification
   key         String    // YouTube video ID
   name        String
@@ -419,31 +470,31 @@ model Video {
   official    Boolean   @default(false)
   size        Int?      // 360, 480, 720, 1080
   publishedAt DateTime? @map("published_at")
-  
+
   // YouTube engagement metrics (fetched separately)
   viewCount       BigInt?   @map("view_count")
   likeCount       Int?      @map("like_count")
   dislikeCount    Int?      @map("dislike_count")  // From Return YouTube Dislike API
   commentCount    Int?      @map("comment_count")
-  
+
   // Top comments snapshot (JSON array for display, not full history)
   // Structure: [{ author, text, likeCount, publishedAt }]
   topComments     Json?     @map("top_comments")
-  
+
   // Engagement freshness tracking
   engagementScrapedAt DateTime? @map("engagement_scraped_at")
-  
+
   // Relations
   movie   Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series  Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@unique([movieId, key])
   @@unique([seriesId, key])
-  
+
   @@index([movieId])
   @@index([seriesId])
   @@index([viewCount(sort: Desc)])
-  
+
   @@map("videos")
 }
 ```
@@ -469,25 +520,25 @@ topComments: TopComment[]
 ```prisma
 model ExternalId {
   id         Int     @id @default(autoincrement())
-  
+
   // Polymorphic reference
   movieId    Int?    @map("movie_id")
   seriesId   Int?    @map("series_id")
   personId   Int?    @map("person_id")
-  
+
   source     String  // "imdb", "wikidata", "facebook", "instagram", "twitter", "tiktok", "youtube", "netflix", "amazon", "apple", "rt", "letterboxd", "metacritic"
   externalId String  @map("external_id")
-  
+
   movie   Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series  Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   person  Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
+
   @@unique([movieId, source])
   @@unique([seriesId, source])
   @@unique([personId, source])
-  
+
   @@index([source, externalId])
-  
+
   @@map("external_ids")
 }
 ```
@@ -497,12 +548,12 @@ model ExternalId {
 ```prisma
 model Image {
   id          Int       @id @default(autoincrement())
-  
+
   // Polymorphic reference
   movieId     Int?      @map("movie_id")
   seriesId    Int?      @map("series_id")
   personId    Int?      @map("person_id")    // Future: person photos
-  
+
   filePath    String    @map("file_path")
   type        ImageType // POSTER, BACKDROP, LOGO, PROFILE
   aspectRatio Float?    @map("aspect_ratio")
@@ -511,13 +562,13 @@ model Image {
   voteAverage Float?    @map("vote_average")
   voteCount   Int?      @map("vote_count")
   language    String?   // ISO 639-1
-  
+
   movie   Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series  Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@index([movieId, type])
   @@index([seriesId, type])
-  
+
   @@map("images")
 }
 
@@ -535,11 +586,11 @@ enum ImageType {
 ```prisma
 model Credit {
   id          Int        @id @default(autoincrement())
-  
+
   // Polymorphic reference
   movieId     Int?       @map("movie_id")
   seriesId    Int?       @map("series_id")
-  
+
   personId    Int        @map("person_id")
   creditId    String?    @map("credit_id")  // TMDB credit_id
   character   String?
@@ -547,20 +598,20 @@ model Credit {
   department  String?    // Directing, Writing, etc.
   creditOrder Int?       @map("credit_order")
   creditType  CreditType @map("credit_type")
-  
+
   movie   Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series  Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   person  Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
+
   @@unique([movieId, creditId])
   @@unique([seriesId, creditId])
   @@unique([movieId, personId, creditType, character])
   @@unique([seriesId, personId, creditType, character])
-  
+
   @@index([movieId])
   @@index([seriesId])
   @@index([personId])
-  
+
   @@map("credits")
 }
 ```
@@ -570,11 +621,11 @@ model Credit {
 ```prisma
 model WatchOption {
   id          Int             @id @default(autoincrement())
-  
+
   // Polymorphic reference
   movieId     Int?            @map("movie_id")
   seriesId    Int?            @map("series_id")
-  
+
   providerId  Int             @map("provider_id")
   countryCode String          @map("country_code")
   type        WatchOptionType // FLATRATE, RENT, BUY, FREE, ADS
@@ -582,18 +633,18 @@ model WatchOption {
   price       String?         // For rent/buy options
   quality     String?         // HD, 4K, etc.
   updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at")
-  
+
   movie    Movie?            @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series   Series?           @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   provider StreamingProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   country  Country           @relation(fields: [countryCode], references: [code], onDelete: Cascade)
-  
+
   @@unique([movieId, providerId, countryCode, type])
   @@unique([seriesId, providerId, countryCode, type])
-  
+
   @@index([movieId, countryCode])
   @@index([seriesId, countryCode])
-  
+
   @@map("watch_options")
 }
 ```
@@ -603,11 +654,11 @@ model WatchOption {
 ```prisma
 model AiData {
   id          Int       @id @default(autoincrement())
-  
+
   // Polymorphic reference (one must be set)
   movieId     Int?      @unique @map("movie_id")
   seriesId    Int?      @unique @map("series_id")
-  
+
   hook        String?   // One-liner hook
   quickTake   String[]  @map("quick_take")
   themes      String[]
@@ -615,10 +666,10 @@ model AiData {
   questions   String[]  // AI-generated questions
   generatedAt DateTime? @map("generated_at")
   modelId     String?   @map("model_id")
-  
+
   movie   Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series  Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("ai_data")
 }
 ```
@@ -629,22 +680,22 @@ model AiData {
 model WatchlistItem {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
-  
+
   // Polymorphic reference
   movieId   Int?     @map("movie_id")
   seriesId  Int?     @map("series_id")
-  
+
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, movieId])
   @@unique([userId, seriesId])
-  
+
   @@index([userId, createdAt(sort: Desc)])
-  
+
   @@map("watchlist")
 }
 ```
@@ -657,73 +708,73 @@ PostgreSQL check constraints ensure exactly one entity type is set per row. Add 
 
 ```sql
 -- Rating: exactly one of movieId, seriesId, seasonId, episodeId must be set
-ALTER TABLE ratings ADD CONSTRAINT rating_single_entity_check 
+ALTER TABLE ratings ADD CONSTRAINT rating_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
-  (series_id IS NOT NULL)::int + 
-  (season_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
+  (series_id IS NOT NULL)::int +
+  (season_id IS NOT NULL)::int +
   (episode_id IS NOT NULL)::int = 1
 );
 
 -- Review: same pattern
-ALTER TABLE reviews ADD CONSTRAINT review_single_entity_check 
+ALTER TABLE reviews ADD CONSTRAINT review_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
-  (series_id IS NOT NULL)::int + 
-  (season_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
+  (series_id IS NOT NULL)::int +
+  (season_id IS NOT NULL)::int +
   (episode_id IS NOT NULL)::int = 1
 );
 
 -- Video: same pattern
-ALTER TABLE videos ADD CONSTRAINT video_single_entity_check 
+ALTER TABLE videos ADD CONSTRAINT video_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
-  (series_id IS NOT NULL)::int + 
-  (season_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
+  (series_id IS NOT NULL)::int +
+  (season_id IS NOT NULL)::int +
   (episode_id IS NOT NULL)::int = 1
 );
 
 -- ExternalId: one of movieId, seriesId, personId
-ALTER TABLE external_ids ADD CONSTRAINT external_id_single_entity_check 
+ALTER TABLE external_ids ADD CONSTRAINT external_id_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
-  (series_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
+  (series_id IS NOT NULL)::int +
   (person_id IS NOT NULL)::int = 1
 );
 
 -- Image: one of movieId, seriesId, personId
-ALTER TABLE images ADD CONSTRAINT image_single_entity_check 
+ALTER TABLE images ADD CONSTRAINT image_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
-  (series_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
+  (series_id IS NOT NULL)::int +
   (person_id IS NOT NULL)::int = 1
 );
 
 -- Credit: one of movieId, seriesId
-ALTER TABLE credits ADD CONSTRAINT credit_single_entity_check 
+ALTER TABLE credits ADD CONSTRAINT credit_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
   (series_id IS NOT NULL)::int = 1
 );
 
 -- WatchOption: one of movieId, seriesId
-ALTER TABLE watch_options ADD CONSTRAINT watch_option_single_entity_check 
+ALTER TABLE watch_options ADD CONSTRAINT watch_option_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
   (series_id IS NOT NULL)::int = 1
 );
 
 -- AiData: one of movieId, seriesId
-ALTER TABLE ai_data ADD CONSTRAINT ai_data_single_entity_check 
+ALTER TABLE ai_data ADD CONSTRAINT ai_data_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
   (series_id IS NOT NULL)::int = 1
 );
 
 -- WatchlistItem: one of movieId, seriesId
-ALTER TABLE watchlist ADD CONSTRAINT watchlist_single_entity_check 
+ALTER TABLE watchlist ADD CONSTRAINT watchlist_single_entity_check
 CHECK (
-  (movie_id IS NOT NULL)::int + 
+  (movie_id IS NOT NULL)::int +
   (series_id IS NOT NULL)::int = 1
 );
 ```
@@ -761,6 +812,7 @@ model Series {
 **Decision:** No PostgreSQL history tables (MovieRatingHistory, etc.). All time-series analytics go to ClickHouse.
 
 **Rationale:**
+
 - ClickHouse is designed for time-series analytics
 - Already set up and running
 - No unbounded growth in PostgreSQL
@@ -773,32 +825,32 @@ model Series {
 CREATE TABLE IF NOT EXISTS analytics.lambda_invocations (
     invocation_id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime64(3) DEFAULT now64(3),
-    
+
     -- Function info
     function_name LowCardinality(String),  -- "movie-ratings-scraper"
     function_region LowCardinality(String) DEFAULT 'us-east-1',
-    
+
     -- Target
     movie_id Nullable(UInt32),
     series_id Nullable(UInt32),
     media_type LowCardinality(String),  -- "movie" | "series"
-    
+
     -- Trigger info
     trigger_type LowCardinality(String),  -- "staleness" | "new_release" | "manual" | "seed"
     triggered_by Nullable(String),        -- User ID if manual, null otherwise
-    
+
     -- Execution
     success UInt8,
     error_message Nullable(String),
     duration_ms UInt32,
     billed_duration_ms UInt32,
     memory_mb UInt16,
-    
+
     -- Cost (micro-dollars for precision)
     request_cost_micro UInt32 DEFAULT 0,
     compute_cost_micro UInt32 DEFAULT 0,
     total_cost_micro UInt32 DEFAULT 0,
-    
+
     -- Results
     has_imdb_rating UInt8 DEFAULT 0,
     has_rt_critic UInt8 DEFAULT 0,
@@ -857,23 +909,23 @@ GROUP BY date, function_name, media_type, trigger_type;
 
 ### Refresh Intervals (Based on Release Date)
 
-| Content Age | Refresh Interval | Rationale |
-|-------------|------------------|-----------|
-| < 14 days | Daily | Ratings change rapidly at release |
-| 14-30 days | Every 4 days | Still accumulating reviews |
-| 30-90 days | Weekly | Stabilizing |
-| > 90 days | Monthly | Mature content, minimal change |
+| Content Age | Refresh Interval | Rationale                         |
+| ----------- | ---------------- | --------------------------------- |
+| < 14 days   | Daily            | Ratings change rapidly at release |
+| 14-30 days  | Every 4 days     | Still accumulating reviews        |
+| 30-90 days  | Weekly           | Stabilizing                       |
+| > 90 days   | Monthly          | Mature content, minimal change    |
 
 ### Staleness Check Flow
 
 ```typescript
 function shouldRefresh(movie: Movie): boolean {
   const scrapedAt = movie.ratingsScrapedAt;
-  if (!scrapedAt) return true;  // Never scraped
-  
+  if (!scrapedAt) return true; // Never scraped
+
   const age = Date.now() - scrapedAt.getTime();
   const threshold = getRefreshThreshold(movie.releaseDate);
-  
+
   return age > threshold;
 }
 ```
@@ -885,6 +937,7 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 1: Schema Consolidation 🔄 (Current)
 
 **1.1 Unified Tables:**
+
 - [ ] Create `DataSource` table (replaces RatingSource)
 - [ ] Create unified `Rating` table (replaces MovieRating + SeriesRating)
 - [ ] Create unified `Review` table
@@ -902,6 +955,7 @@ function shouldRefresh(movie: Movie): boolean {
 - [ ] Run Prisma migration
 
 **1.2 Seed Script Updates:**
+
 - [ ] Update to use unified `DataSource` table
 - [ ] Update to use unified `Rating` table
 - [ ] Capture RT consensus in `Review` table
@@ -911,11 +965,13 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 2: Data Freshness Logic
 
 **2.1 Staleness Calculation:**
+
 - [ ] Create `src/lib/data-freshness.ts`
 - [ ] Port `movieUpdateInterval()` logic from Nuxt
 - [ ] Add configurable thresholds via env vars
 
 **2.2 Integration:**
+
 - [ ] Add `shouldRefreshRatings(movie)` function
 - [ ] Add `shouldRefreshWatchLinks(movie)` function
 - [ ] Expose via server actions
@@ -923,11 +979,13 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 3: Lambda Integration Service
 
 **3.1 AWS SDK Setup:**
+
 - [ ] Install `@aws-sdk/client-lambda`
 - [ ] Create `src/server/services/enrichment-lambda.ts`
 - [ ] Add Lambda ARN to environment config
 
 **3.2 Lambda Response Handling:**
+
 - [ ] Parse Lambda response
 - [ ] Transform to PostgreSQL format
 - [ ] Handle errors gracefully
@@ -936,12 +994,14 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 4: Background Refresh System
 
 **4.1 Non-Blocking Refresh:**
+
 - [ ] Add staleness check to `getMovie()` action
 - [ ] If stale: return cached data + queue refresh
 - [ ] Use `Promise.all()` for non-blocking async
 - [ ] Add `ENABLE_LAMBDA_REFRESH` env flag
 
 **4.2 Data Updates:**
+
 - [ ] Update Rating records after Lambda
 - [ ] Update ScrapedWatchLink records
 - [ ] Update Movie.ratingsScrapedAt timestamp
@@ -950,12 +1010,14 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 5: Video Engagement Tracking
 
 **5.1 YouTube API Integration:**
+
 - [ ] Create `src/server/services/youtube-engagement.ts`
 - [ ] Fetch video stats (views, likes, comments)
 - [ ] Integrate Return YouTube Dislike API for dislikes
 - [ ] Fetch top comments (top 10 by likes)
 
 **5.2 Refresh Strategy:**
+
 - [ ] Fresh content videos: daily refresh
 - [ ] Popular trailers (>1M views): weekly refresh
 - [ ] Older videos: monthly refresh
@@ -963,17 +1025,20 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 6: Lambda Analytics (ClickHouse)
 
 **6.1 Schema:**
+
 - [ ] Create `lambda_invocations` table
 - [ ] Create `rating_changes` table (optional)
 - [ ] Create `lambda_daily_costs` materialized view
 - [ ] Add to ClickHouse init scripts
 
 **6.2 Tracking:**
+
 - [ ] Create `src/lib/analytics/lambda-tracking.ts`
 - [ ] Track each invocation with full context
 - [ ] Calculate costs using Lambda pricing
 
 **6.3 Grafana Dashboard:**
+
 - [ ] Daily invocation counts
 - [ ] Cost breakdown by trigger type
 - [ ] Success/failure rates
@@ -982,11 +1047,13 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 7: Admin Controls
 
 **7.1 Admin API:**
+
 - [ ] `POST /api/admin/refresh/:type/:id` - Force refresh
 - [ ] `GET /api/admin/stale-content` - List stale items
 - [ ] `POST /api/admin/refresh/batch` - Bulk refresh
 
 **7.2 Admin Dashboard:**
+
 - [ ] Stale content overview widget
 - [ ] Recent Lambda invocations table
 - [ ] Manual refresh button per movie
@@ -995,18 +1062,21 @@ function shouldRefresh(movie: Movie): boolean {
 ### Phase 8: MongoDB Retirement
 
 **8.1 Verification:**
+
 - [ ] Audit: All ratings migrated correctly
 - [ ] Audit: All watch links migrated
 - [ ] Audit: All external IDs migrated
 - [ ] Run parallel comparison tests
 
 **8.2 Cutover:**
+
 - [ ] Set `USE_POSTGRES_DATA=true` permanently
 - [ ] Remove MongoDB queries from server actions
 - [ ] Remove `src/server/db/cached-queries.ts`
 - [ ] Update AI agent tools to use PostgreSQL
 
 **8.3 Cleanup:**
+
 - [ ] Remove MongoDB connection code
 - [ ] Remove Mongoose models
 - [ ] Archive MongoDB data to S3
@@ -1018,21 +1088,21 @@ function shouldRefresh(movie: Movie): boolean {
 
 ### Lambda Pricing (us-east-1)
 
-| Component | Rate |
-|-----------|------|
-| Requests | $0.20 per 1M requests |
-| Duration | $0.0000166667 per GB-second |
-| Memory | 512MB configured |
+| Component | Rate                        |
+| --------- | --------------------------- |
+| Requests  | $0.20 per 1M requests       |
+| Duration  | $0.0000166667 per GB-second |
+| Memory    | 512MB configured            |
 
 ### Estimated Costs
 
-| Scenario | Invocations/Day | Est. Cost/Day | Est. Cost/Month |
-|----------|-----------------|---------------|-----------------|
-| Initial seed (5K movies) | 5,000 one-time | $0.50 | - |
-| New releases (daily) | ~50 | $0.005 | $0.15 |
-| Recent content refresh | ~200 | $0.02 | $0.60 |
-| Monthly refresh (3K movies) | ~100/day avg | $0.01 | $0.30 |
-| **Total steady state** | ~350/day | $0.035 | **~$1.00** |
+| Scenario                    | Invocations/Day | Est. Cost/Day | Est. Cost/Month |
+| --------------------------- | --------------- | ------------- | --------------- |
+| Initial seed (5K movies)    | 5,000 one-time  | $0.50         | -               |
+| New releases (daily)        | ~50             | $0.005        | $0.15           |
+| Recent content refresh      | ~200            | $0.02         | $0.60           |
+| Monthly refresh (3K movies) | ~100/day avg    | $0.01         | $0.30           |
+| **Total steady state**      | ~350/day        | $0.035        | **~$1.00**      |
 
 ---
 
@@ -1051,24 +1121,24 @@ function shouldRefresh(movie: Movie): boolean {
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
-| `src/lib/data-freshness.ts` | Staleness calculation logic |
-| `src/server/services/enrichment-lambda.ts` | AWS Lambda invocation wrapper |
-| `src/server/services/youtube-engagement.ts` | YouTube stats + comments fetcher |
-| `src/lib/analytics/lambda-tracking.ts` | ClickHouse tracking for Lambda costs |
+| File                                             | Purpose                                |
+| ------------------------------------------------ | -------------------------------------- |
+| `src/lib/data-freshness.ts`                      | Staleness calculation logic            |
+| `src/server/services/enrichment-lambda.ts`       | AWS Lambda invocation wrapper          |
+| `src/server/services/youtube-engagement.ts`      | YouTube stats + comments fetcher       |
+| `src/lib/analytics/lambda-tracking.ts`           | ClickHouse tracking for Lambda costs   |
 | `analytics/clickhouse/init/04_lambda_tables.sql` | ClickHouse schema for Lambda analytics |
 
 ### Files to Update
 
-| File | Changes |
-|------|---------|
-| `prisma/schema.prisma` | Consolidate to unified tables, add check constraints |
-| `prisma/seed-from-mongo.ts` | Use unified tables, capture all fields |
-| `src/server/actions/movie.ts` | Add staleness check + background refresh |
-| `src/server/actions/series.ts` | Same as movie.ts |
-| `analytics/grafana/dashboards/` | Add Lambda economics dashboard |
-| `.env.template` | Add Lambda ARN and refresh toggle |
+| File                            | Changes                                              |
+| ------------------------------- | ---------------------------------------------------- |
+| `prisma/schema.prisma`          | Consolidate to unified tables, add check constraints |
+| `prisma/seed-from-mongo.ts`     | Use unified tables, capture all fields               |
+| `src/server/actions/movie.ts`   | Add staleness check + background refresh             |
+| `src/server/actions/series.ts`  | Same as movie.ts                                     |
+| `analytics/grafana/dashboards/` | Add Lambda economics dashboard                       |
+| `.env.template`                 | Add Lambda ARN and refresh toggle                    |
 
 ### Environment Variables to Add
 
@@ -1105,7 +1175,7 @@ ENABLE_VIDEO_ENGAGEMENT=false
 
 ### Still Open
 
-6. **Rate Limiting**: How many concurrent Lambda calls to allow? 
+6. **Rate Limiting**: How many concurrent Lambda calls to allow?
    - Suggestion: 5 concurrent, with exponential backoff on rate limit errors
 
 7. **Fallback**: What to show if Lambda fails repeatedly?
@@ -1129,7 +1199,7 @@ interface LambdaResponse {
     ratingCount: number;
     sourceUrl: string;
   };
-  
+
   // From Rotten Tomatoes scraper
   rottenTomatoes?: {
     critic?: {
@@ -1147,7 +1217,7 @@ interface LambdaResponse {
     };
     sourceUrl?: string;
   };
-  
+
   // From Wikidata
   externalIds?: {
     imdb_id?: string;
@@ -1159,7 +1229,7 @@ interface LambdaResponse {
     amazon_id?: string;
     wikidata_id?: string;
   };
-  
+
   // Aggregated result
   detailedRatings: {
     imdb?: {...};

@@ -12,11 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 export interface ComboboxOption {
@@ -78,11 +74,7 @@ export function MultiSelectCombobox({
               <span className="text-muted-foreground">{placeholder}</span>
             ) : selected.length <= maxDisplay ? (
               selectedLabels.map((label, i) => (
-                <Badge
-                  key={selected[i]}
-                  variant="secondary"
-                  className="px-1.5 py-0 text-xs"
-                >
+                <Badge key={selected[i]} variant="secondary" className="px-1.5 py-0 text-xs">
                   {label}
                   <button
                     onClick={(e) => handleRemove(selected[i], e)}
@@ -93,9 +85,7 @@ export function MultiSelectCombobox({
                 </Badge>
               ))
             ) : (
-              <span className="text-sm">
-                {selected.length} selected
-              </span>
+              <span className="text-sm">{selected.length} selected</span>
             )}
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -116,9 +106,7 @@ export function MultiSelectCombobox({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      selected.includes(option.value)
-                        ? "opacity-100"
-                        : "opacity-0"
+                      selected.includes(option.value) ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {option.label}
@@ -217,5 +205,3 @@ export function SearchableSelect({
     </Popover>
   );
 }
-
-

@@ -99,15 +99,17 @@ export interface SmartDiscoverFilters {
   /** Watch region for streaming availability (default: US) */
   watchRegion?: string;
 
-  // ===== User Exclusions =====
-  /** User ID for exclusion filters */
+  // ===== User Library Filters =====
+  /** User ID for exclusion/inclusion filters */
   userId?: number;
   /** IDs of items user has watched (to exclude) */
   watchedIds?: number[];
   /** IDs of items user has disliked (to exclude) */
   dislikedIds?: number[];
-  /** IDs of items in user's watchlist (to exclude) */
+  /** IDs of items in user's watchlist (to exclude OR include based on fromWatchlist) */
   watchlistIds?: number[];
+  /** If true, ONLY return items from user's watchlist (instead of excluding them) */
+  fromWatchlist?: boolean;
 
   // ===== Item Exclusions (for "similar" queries) =====
   /** Collection ID to exclude (movies from same franchise) */
@@ -117,12 +119,7 @@ export interface SmartDiscoverFilters {
 
   // ===== Sorting =====
   /** Sort order (default: by semantic relevance if query, else popularity) */
-  sortBy?:
-    | "relevance"
-    | "popularity"
-    | "rating"
-    | "release_date"
-    | "vote_count";
+  sortBy?: "relevance" | "popularity" | "rating" | "release_date" | "vote_count";
   /** Sort direction */
   sortDirection?: "asc" | "desc";
 
@@ -196,9 +193,7 @@ export interface SmartDiscoverResponse {
  *   limit: 10,
  * });
  */
-export async function smartDiscover(
-  filters: SmartDiscoverFilters
-): Promise<SmartDiscoverResponse> {
+export async function smartDiscover(filters: SmartDiscoverFilters): Promise<SmartDiscoverResponse> {
   const startTime = Date.now();
 
   const {
@@ -232,6 +227,7 @@ export async function smartDiscover(
     watchedIds,
     dislikedIds,
     watchlistIds,
+    fromWatchlist,
     excludeCollectionId,
     excludeIds,
     sortBy = semanticQuery || similarToId ? "relevance" : "popularity",
@@ -307,7 +303,7 @@ export async function smartDiscover(
   if (minRating !== undefined || maxRating !== undefined || minVotes) {
     const ratingConditions: string[] = [];
     const fkCol = mediaType === "movie" ? "movie_id" : "series_id";
-    
+
     if (minRating !== undefined) {
       ratingConditions.push(`r.score >= $${paramIndex}`);
       params.push(minRating);
@@ -323,7 +319,7 @@ export async function smartDiscover(
       params.push(minVotes);
       paramIndex++;
     }
-    
+
     // Join with ratings table (TMDB source_id = 1)
     conditions.push(`
       EXISTS (
@@ -454,21 +450,29 @@ export async function smartDiscover(
     paramIndex += 2;
   }
 
-  // ===== User Exclusions =====
-  if (watchedIds?.length) {
-    conditions.push(`m.id != ALL($${paramIndex}::int[])`);
-    params.push(watchedIds);
-    paramIndex++;
-  }
-  if (dislikedIds?.length) {
-    conditions.push(`m.id != ALL($${paramIndex}::int[])`);
-    params.push(dislikedIds);
-    paramIndex++;
-  }
-  if (watchlistIds?.length) {
-    conditions.push(`m.id != ALL($${paramIndex}::int[])`);
+  // ===== User Library Filters =====
+  if (fromWatchlist && watchlistIds?.length) {
+    // INCLUDE only watchlist items (for "show my watchlist" queries)
+    conditions.push(`m.id = ANY($${paramIndex}::int[])`);
     params.push(watchlistIds);
     paramIndex++;
+  } else {
+    // Standard exclusion mode
+    if (watchedIds?.length) {
+      conditions.push(`m.id != ALL($${paramIndex}::int[])`);
+      params.push(watchedIds);
+      paramIndex++;
+    }
+    if (dislikedIds?.length) {
+      conditions.push(`m.id != ALL($${paramIndex}::int[])`);
+      params.push(dislikedIds);
+      paramIndex++;
+    }
+    if (watchlistIds?.length) {
+      conditions.push(`m.id != ALL($${paramIndex}::int[])`);
+      params.push(watchlistIds);
+      paramIndex++;
+    }
   }
 
   // ===== Item Exclusions (for "similar" queries) =====
@@ -489,9 +493,12 @@ export async function smartDiscover(
 
   if (similarToId) {
     // Get the source item's embedding
-    const sourceEmb = await prisma.$queryRawUnsafe<{ embedding: string }[]>(`
+    const sourceEmb = await prisma.$queryRawUnsafe<{ embedding: string }[]>(
+      `
       SELECT embedding::text FROM ${table} WHERE id = $1
-    `, similarToId);
+    `,
+      similarToId
+    );
 
     if (sourceEmb[0]?.embedding) {
       embeddingStr = sourceEmb[0].embedding;
@@ -524,7 +531,7 @@ export async function smartDiscover(
   let orderBy: string;
   const ratingSubquery = `(SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1)`;
   const voteCountSubquery = `(SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = 1 LIMIT 1)`;
-  
+
   if (embeddingStr && sortBy === "relevance") {
     if (popularityWeight > 0) {
       // Blend semantic similarity with popularity
@@ -631,22 +638,20 @@ export async function smartDiscover(
     }
 
     // Map to response format
-    const finalResults: SmartDiscoverResult[] = filteredResults
-      .slice(0, limit)
-      .map((r, index) => ({
-        id: r.id,
-        title: r.title,
-        mediaType,
-        posterPath: r.poster_path,
-        year: r.year,
-        rating: r.rating,
-        voteCount: r.vote_count,
-        popularity: r.popularity,
-        overview: r.overview,
-        genres: r.genres || [],
-        semanticScore: r.semantic_score ?? undefined,
-        score: r.semantic_score ?? (r.popularity || 0) / 100,
-      }));
+    const finalResults: SmartDiscoverResult[] = filteredResults.slice(0, limit).map((r, index) => ({
+      id: r.id,
+      title: r.title,
+      mediaType,
+      posterPath: r.poster_path,
+      year: r.year,
+      rating: r.rating,
+      voteCount: r.vote_count,
+      popularity: r.popularity,
+      overview: r.overview,
+      genres: r.genres || [],
+      semanticScore: r.semantic_score ?? undefined,
+      score: r.semantic_score ?? (r.popularity || 0) / 100,
+    }));
 
     const durationMs = Date.now() - startTime;
 
@@ -655,6 +660,7 @@ export async function smartDiscover(
       mediaType,
       hasSemanticQuery: !!semanticQuery,
       hasSimilarTo: !!similarToId,
+      fromWatchlist: !!fromWatchlist,
       excludeCollectionId,
       excludeIdsCount: excludeIds?.length,
       popularityWeight,
@@ -707,7 +713,7 @@ export async function resolveGenreIds(
 
   for (const name of names) {
     const normalizedName = name.toLowerCase();
-    
+
     // Try exact match first
     if (genreMap.has(normalizedName)) {
       found.push({ name, id: genreMap.get(normalizedName)! });
@@ -802,7 +808,7 @@ export async function resolveProviderIds(
 
   for (const name of names) {
     const normalizedName = name.toLowerCase();
-    
+
     const match = allProviders.find(
       (p) =>
         p.name.toLowerCase() === normalizedName ||

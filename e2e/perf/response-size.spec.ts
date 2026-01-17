@@ -39,7 +39,10 @@ test.describe("Response Size Guards", () => {
    * Helper to measure total page HTML size after full load
    * Uses page.content() which returns the full serialized DOM
    */
-  async function measurePageSize(page: import("@playwright/test").Page, url: string): Promise<number> {
+  async function measurePageSize(
+    page: import("@playwright/test").Page,
+    url: string
+  ): Promise<number> {
     await page.goto(url);
     await page.waitForLoadState("networkidle");
     const content = await page.content();
@@ -146,11 +149,13 @@ test.describe("JSON Payload Guards (RSC)", () => {
     await page.goto(`/movie/${testMovieIds.popular}/fight-club`);
 
     // Check for Next.js RSC script tags
-    const rscScripts = await page.locator('script').evaluateAll((scripts) =>
-      scripts
-        .filter((s) => s.textContent?.includes("$R") || s.textContent?.includes("self.__next"))
-        .reduce((total, s) => total + (s.textContent?.length || 0), 0)
-    );
+    const rscScripts = await page
+      .locator("script")
+      .evaluateAll((scripts) =>
+        scripts
+          .filter((s) => s.textContent?.includes("$R") || s.textContent?.includes("self.__next"))
+          .reduce((total, s) => total + (s.textContent?.length || 0), 0)
+      );
 
     console.log(`Movie RSC inline script size: ${(rscScripts / 1024).toFixed(2)}KB`);
 
@@ -163,11 +168,13 @@ test.describe("JSON Payload Guards (RSC)", () => {
   test("series page RSC payload is not bloated", async ({ page }) => {
     await page.goto(`/series/${testSeriesIds.popular}/game-of-thrones`);
 
-    const rscScripts = await page.locator('script').evaluateAll((scripts) =>
-      scripts
-        .filter((s) => s.textContent?.includes("$R") || s.textContent?.includes("self.__next"))
-        .reduce((total, s) => total + (s.textContent?.length || 0), 0)
-    );
+    const rscScripts = await page
+      .locator("script")
+      .evaluateAll((scripts) =>
+        scripts
+          .filter((s) => s.textContent?.includes("$R") || s.textContent?.includes("self.__next"))
+          .reduce((total, s) => total + (s.textContent?.length || 0), 0)
+      );
 
     console.log(`Series RSC inline script size: ${(rscScripts / 1024).toFixed(2)}KB`);
 

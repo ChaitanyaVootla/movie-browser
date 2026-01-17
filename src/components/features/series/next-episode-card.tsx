@@ -27,8 +27,7 @@ function getDaysText(airDate: string, isUpcoming: boolean): string {
 
   if (diffDays === 0) return isUpcoming ? "Airs today" : "Aired today";
   if (diffDays === 1) return isUpcoming ? "Airs tomorrow" : "Aired yesterday";
-  if (diffDays < 7)
-    return isUpcoming ? `Airs in ${diffDays} days` : `Aired ${diffDays} days ago`;
+  if (diffDays < 7) return isUpcoming ? `Airs in ${diffDays} days` : `Aired ${diffDays} days ago`;
   if (diffDays < 30) {
     const weeks = Math.floor(diffDays / 7);
     return isUpcoming
@@ -48,9 +47,7 @@ export function NextEpisodeCard({
   const [imageError, setImageError] = useState(false);
 
   const isUpcoming =
-    type === "next" && episode.air_date
-      ? new Date(episode.air_date) > new Date()
-      : false;
+    type === "next" && episode.air_date ? new Date(episode.air_date) > new Date() : false;
 
   const airDate = episode.air_date
     ? new Date(episode.air_date).toLocaleDateString("en-US", {
@@ -60,9 +57,7 @@ export function NextEpisodeCard({
       })
     : null;
 
-  const daysText = episode.air_date
-    ? getDaysText(episode.air_date, !!isUpcoming)
-    : "";
+  const daysText = episode.air_date ? getDaysText(episode.air_date, !!isUpcoming) : "";
 
   const stillUrl = episode.still_path
     ? `https://image.tmdb.org/t/p/w500${episode.still_path}`
@@ -133,11 +128,7 @@ export function NextEpisodeCard({
                 variant="secondary"
                 className="text-[10px] px-1.5 py-0 bg-muted/60 text-muted-foreground border-0"
               >
-                {isUpcoming
-                  ? "Upcoming"
-                  : type === "next"
-                    ? "Next"
-                    : "Latest"}
+                {isUpcoming ? "Upcoming" : type === "next" ? "Next" : "Latest"}
               </Badge>
             </div>
 
@@ -164,9 +155,7 @@ export function NextEpisodeCard({
 
             {/* Overview (truncated) */}
             {episode.overview && (
-              <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                {episode.overview}
-              </p>
+              <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{episode.overview}</p>
             )}
           </div>
         </div>
@@ -192,8 +181,7 @@ export function EpisodeInfoSection({
   if (!nextEpisode && !lastEpisode) return null;
 
   // Prefer next episode if it's upcoming, otherwise show last
-  const hasUpcomingNext =
-    nextEpisode?.air_date && new Date(nextEpisode.air_date) > new Date();
+  const hasUpcomingNext = nextEpisode?.air_date && new Date(nextEpisode.air_date) > new Date();
 
   return (
     <section className={cn("space-y-4", className)}>
@@ -206,17 +194,9 @@ export function EpisodeInfoSection({
 
       <div className="px-4 md:px-8 lg:px-12">
         {hasUpcomingNext && nextEpisode ? (
-          <NextEpisodeCard
-            episode={nextEpisode}
-            type="next"
-            seriesName={seriesName}
-          />
+          <NextEpisodeCard episode={nextEpisode} type="next" seriesName={seriesName} />
         ) : lastEpisode ? (
-          <NextEpisodeCard
-            episode={lastEpisode}
-            type="last"
-            seriesName={seriesName}
-          />
+          <NextEpisodeCard episode={lastEpisode} type="last" seriesName={seriesName} />
         ) : null}
       </div>
     </section>

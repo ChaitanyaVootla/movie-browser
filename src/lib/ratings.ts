@@ -8,7 +8,7 @@
 
 export interface ProcessedRating {
   // Whitelisted rating sources for display
-  source: "tmdb" | "imdb" | "rt_critic" | "rt_audience" | "google";
+  source: "tmdb" | "imdb" | "rt_critic" | "rt_audience" | "google" | "metacritic";
   score: number; // Normalized 0-100
   label: string;
   link?: string;
@@ -238,4 +238,3 @@ export function getRatingTier(score: number): "great" | "good" | "mixed" | "poor
   if (score >= 40) return "mixed";
   return "poor";
 }
-

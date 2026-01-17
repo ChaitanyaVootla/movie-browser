@@ -51,10 +51,7 @@ const cachedHydrateSeries = cache((id: number) => hydrateSeries(id));
  */
 export async function getMovieWithHydration(id: number): Promise<Movie | null> {
   try {
-    const [result, countryCode] = await Promise.all([
-      cachedHydrateMovie(id),
-      getCountryCode(),
-    ]);
+    const [result, countryCode] = await Promise.all([cachedHydrateMovie(id), getCountryCode()]);
 
     return transformHydratedMovieToMovie(result, countryCode);
   } catch (error) {
@@ -105,9 +102,16 @@ function transformHydratedMovieToMovie(
 
   // Convert enriched scraped links to the format expected by getWatchOptionsForCountry
   // Scraped links are India-specific deep links
-  const scrapedWatchLinksMap = enriched.scrapedWatchLinks.length > 0
-    ? { IN: enriched.scrapedWatchLinks.map(l => ({ name: l.provider, link: l.link, price: l.price })) }
-    : undefined;
+  const scrapedWatchLinksMap =
+    enriched.scrapedWatchLinks.length > 0
+      ? {
+          IN: enriched.scrapedWatchLinks.map((l) => ({
+            name: l.provider,
+            link: l.link,
+            price: l.price,
+          })),
+        }
+      : undefined;
 
   const watchOptions = getWatchOptionsForCountry(
     countryCode,
@@ -165,10 +169,7 @@ function transformHydratedMovieToMovie(
  */
 export async function getSeriesWithHydration(id: number): Promise<Series | null> {
   try {
-    const [result, countryCode] = await Promise.all([
-      cachedHydrateSeries(id),
-      getCountryCode(),
-    ]);
+    const [result, countryCode] = await Promise.all([cachedHydrateSeries(id), getCountryCode()]);
 
     return transformHydratedSeriesToSeries(result, countryCode);
   } catch (error) {
@@ -219,9 +220,16 @@ function transformHydratedSeriesToSeries(
 
   // Convert enriched scraped links to the format expected by getWatchOptionsForCountry
   // Scraped links are India-specific deep links
-  const scrapedWatchLinksMap = enriched.scrapedWatchLinks.length > 0
-    ? { IN: enriched.scrapedWatchLinks.map(l => ({ name: l.provider, link: l.link, price: l.price })) }
-    : undefined;
+  const scrapedWatchLinksMap =
+    enriched.scrapedWatchLinks.length > 0
+      ? {
+          IN: enriched.scrapedWatchLinks.map((l) => ({
+            name: l.provider,
+            link: l.link,
+            price: l.price,
+          })),
+        }
+      : undefined;
 
   const watchOptions = getWatchOptionsForCountry(
     countryCode,
@@ -298,7 +306,12 @@ export interface HoverCardHydrated {
   number_of_seasons?: number;
   status?: string;
   genres: Array<{ id: number; name: string }>;
-  cast: Array<{ id: number; name: string; character: string | undefined; profile_path: string | null }>;
+  cast: Array<{
+    id: number;
+    name: string;
+    character: string | undefined;
+    profile_path: string | null;
+  }>;
   ratings: ExternalRating[];
   tagline?: string;
 }
@@ -345,12 +358,7 @@ function transformToHoverCard(
   const tmdb = data as TmdbMovieData & TmdbSeriesData;
 
   // Build ratings from enriched data
-  const ratings = buildRatingsArray(
-    result.enriched,
-    tmdb.id,
-    tmdb.vote_average,
-    mediaType
-  );
+  const ratings = buildRatingsArray(result.enriched, tmdb.id, tmdb.vote_average, mediaType);
 
   // Get top 4 cast
   const cast = (tmdb.credits?.cast || []).slice(0, 4).map((c) => ({
@@ -400,10 +408,10 @@ function normalizeSentiment(sentiment?: string): "POSITIVE" | "NEGATIVE" | undef
 
 /**
  * Build ratings array from enriched data + TMDB fallback
- * 
+ *
  * Whitelisted sources (in order): TMDB, IMDb, RT Critic, RT Audience, Google
  * Excluded: Metacritic, Letterboxd
- * 
+ *
  * All scores are normalized to 0-100 scale for consistent color grading.
  * The UI component (ratings-bar.tsx) converts back to display format.
  */

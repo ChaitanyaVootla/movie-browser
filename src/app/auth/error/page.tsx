@@ -55,7 +55,9 @@ export const metadata = {
 
 export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
   const { error } = await searchParams;
-  const errorInfo = error ? errorDescriptions[error] || errorDescriptions.Default : errorDescriptions.Default;
+  const errorInfo = error
+    ? errorDescriptions[error] || errorDescriptions.Default
+    : errorDescriptions.Default;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-16">
@@ -78,9 +80,7 @@ export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps
               </div>
             </div>
             <CardTitle className="text-2xl font-bold">{errorInfo.title}</CardTitle>
-            <CardDescription className="text-base">
-              {errorInfo.description}
-            </CardDescription>
+            <CardDescription className="text-base">{errorInfo.description}</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
@@ -114,5 +114,3 @@ export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps
     </div>
   );
 }
-
-

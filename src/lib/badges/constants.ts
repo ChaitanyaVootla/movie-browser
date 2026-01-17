@@ -2,7 +2,7 @@ import type { BadgeType, MediaBadge } from "./types";
 
 /**
  * Thresholds for badge calculations
- * 
+ *
  * BASE_VOTE_COUNT: Minimum votes required for quality/popularity badges
  * This prevents obscure items with extreme ratings from getting badges
  * Exception: Unreleased items can get "coming-soon" and "highly-anticipated"
@@ -69,7 +69,7 @@ export const BADGE_DEFINITIONS: Record<BadgeType, Omit<MediaBadge, "type">> = {
     priority: 0,
     description: "Released within the last week",
   },
-  "new": {
+  new: {
     label: "New Release",
     shortLabel: "New",
     className: "bg-emerald-600/70 text-emerald-50",
@@ -94,14 +94,14 @@ export const BADGE_DEFINITIONS: Record<BadgeType, Omit<MediaBadge, "type">> = {
   },
 
   // ===== Popularity badges =====
-  "viral": {
+  viral: {
     label: "Viral",
     className: "bg-pink-600/70 text-pink-50",
     icon: "Zap",
     priority: 2,
     description: "Extremely high popularity right now",
   },
-  "trending": {
+  trending: {
     label: "Trending",
     className: "bg-orange-600/70 text-orange-50",
     icon: "TrendingUp",
@@ -206,7 +206,7 @@ export const BADGE_DEFINITIONS: Record<BadgeType, Omit<MediaBadge, "type">> = {
   },
 
   // ===== Movie-specific badges =====
-  "blockbuster": {
+  blockbuster: {
     label: "Blockbuster",
     className: "bg-amber-600/70 text-amber-50",
     icon: "DollarSign",
@@ -220,7 +220,7 @@ export const BADGE_DEFINITIONS: Record<BadgeType, Omit<MediaBadge, "type">> = {
     priority: 7,
     description: "Strong box office performance",
   },
-  "indie": {
+  indie: {
     label: "Indie",
     className: "bg-teal-600/70 text-teal-50",
     icon: "Clapperboard",
@@ -229,18 +229,17 @@ export const BADGE_DEFINITIONS: Record<BadgeType, Omit<MediaBadge, "type">> = {
   },
 
   // ===== User status badges (bottom-right) =====
-  "watchlist": {
+  watchlist: {
     label: "Watchlist",
     shortLabel: "Saved",
     className: "bg-neutral-800/80 text-neutral-200",
     priority: 100, // User badges have lowest priority (shown separately)
     description: "In your watchlist",
   },
-  "watched": {
+  watched: {
     label: "Watched",
     className: "bg-neutral-800/80 text-neutral-200",
     priority: 100,
     description: "You have watched this",
   },
 };
-

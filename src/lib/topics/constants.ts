@@ -108,5 +108,3 @@ export function getCountryByName(name: string): Country | undefined {
   const lowerName = name.toLowerCase();
   return POPULAR_COUNTRIES.find((c) => c.name.toLowerCase() === lowerName);
 }
-
-

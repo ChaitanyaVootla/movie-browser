@@ -134,7 +134,11 @@ function formatMovieDate(dateStr: string): string {
   if (diffDays > 0 && diffDays <= 7) return `in ${diffDays} days`;
   if (diffDays > 7 && diffDays <= 30) return `in ${Math.ceil(diffDays / 7)} weeks`;
 
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+  });
 }
 
 async function fetchWatchlist(): Promise<WatchlistData> {
@@ -150,9 +154,7 @@ export function WatchlistClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const displayMode = usePreferencesStore(selectCardDisplayMode);
-  const [activeTab, setActiveTab] = useState<string>(
-    searchParams.get("tab") || "series"
-  );
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get("tab") || "series");
   const [movieSearch, setMovieSearch] = useState("");
   const [selectedGenre, setSelectedGenre] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("added");
@@ -177,8 +179,10 @@ export function WatchlistClient() {
   };
 
   // Grid classes based on display mode
-  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
-  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+  const posterGridClass =
+    "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
+  const wideGridClass =
+    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
   // Loading state
   if (authStatus === "loading") {
@@ -193,8 +197,8 @@ export function WatchlistClient() {
           <ListX className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-2xl font-semibold">Sign in to see your watchlist</h2>
           <p className="text-muted-foreground max-w-md">
-            Keep track of movies and shows you want to watch by adding them to your
-            personal watchlist.
+            Keep track of movies and shows you want to watch by adding them to your personal
+            watchlist.
           </p>
         </div>
         <Button size="lg" onClick={() => signIn("google")}>
@@ -340,8 +344,8 @@ function EmptyState({ type }: { type: "movies" | "series" }) {
           No {type === "movies" ? "movies" : "TV shows"} in your watchlist
         </h3>
         <p className="text-muted-foreground max-w-sm">
-          Browse {type === "movies" ? "movies" : "TV shows"} and add them to your
-          watchlist to keep track of what you want to watch.
+          Browse {type === "movies" ? "movies" : "TV shows"} and add them to your watchlist to keep
+          track of what you want to watch.
         </p>
       </div>
       <Button asChild>
@@ -443,7 +447,9 @@ function MovieSection({
             popularity: 0,
             adult: false,
           }}
-          subtitle={showReleaseDate && movie.release_date ? formatMovieDate(movie.release_date) : undefined}
+          subtitle={
+            showReleaseDate && movie.release_date ? formatMovieDate(movie.release_date) : undefined
+          }
           className={posterCardClass}
           wideClassName={wideCardClass}
           hideUserStatus
@@ -493,17 +499,13 @@ function MoviesTabContent({
     // Filter by search
     if (movieSearch.trim()) {
       const searchLower = movieSearch.toLowerCase().trim();
-      movies = movies.filter((movie) =>
-        movie.title.toLowerCase().includes(searchLower)
-      );
+      movies = movies.filter((movie) => movie.title.toLowerCase().includes(searchLower));
     }
 
     // Filter by genre
     if (selectedGenre !== "all") {
       const genreId = parseInt(selectedGenre, 10);
-      movies = movies.filter((movie) =>
-        movie.genres?.some((g) => g.id === genreId)
-      );
+      movies = movies.filter((movie) => movie.genres?.some((g) => g.id === genreId));
     }
 
     // Sort
@@ -631,9 +633,7 @@ function MoviesTabContent({
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Search className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">
-                No movies match your filters
-              </p>
+              <p className="text-muted-foreground">No movies match your filters</p>
               <Button
                 variant="link"
                 onClick={() => {
@@ -657,8 +657,10 @@ function WatchlistSkeleton() {
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 
   // Grid classes based on display mode
-  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 md:gap-4";
-  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+  const posterGridClass =
+    "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 md:gap-4";
+  const wideGridClass =
+    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
   return (
     <div className="space-y-8">
@@ -676,4 +678,3 @@ function WatchlistSkeleton() {
     </div>
   );
 }
-

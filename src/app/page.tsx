@@ -1,17 +1,51 @@
 import { Film, Tv, CalendarDays, Clapperboard, Play } from "lucide-react";
-import { getTrending, getUpcoming, getNowPlaying, getTrendingTrailers, getYouTubeTrendingTrailers } from "@/server/actions/trending";
+
+// ISR: Revalidate every 4 hours (matches trending/discover cache TTL)
+// Personalized sections (ContinueWatching, Recents) are client components and unaffected
+export const revalidate = 14400;
+import {
+  getTrending,
+  getUpcoming,
+  getNowPlaying,
+  getTrendingTrailers,
+  getYouTubeTrendingTrailers,
+} from "@/server/actions/trending";
 import { discoverBatch } from "@/server/actions/discover";
 import { HeroCarousel } from "@/components/features/movie/hero-carousel";
 import { MovieCarousel } from "@/components/features/movie/movie-carousel";
 import { UpcomingCarousel } from "@/components/features/movie/upcoming-carousel";
-import { ContinueWatchingSection, RecentVisitsSection, TopicPills, MoodCards, TopicScroller, TrailerCarousel, YouTubeTrailerCarousel } from "@/components/features/home";
+import {
+  ContinueWatchingSection,
+  RecentVisitsSection,
+  TopicPills,
+  MoodCards,
+  TopicScroller,
+  TrailerCarousel,
+  YouTubeTrailerCarousel,
+} from "@/components/features/home";
 import { buildBrowseUrl } from "@/lib/discover";
 import { getPopularTopics, getTopicByKey } from "@/lib/topics";
 
-// Randomize and pick N items from an array
-function shuffleAndPick<T>(arr: T[], count: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+/**
+ * Pick N items from an array using a stable day-based rotation.
+ * This ensures the same topics are shown for the entire day, enabling effective caching.
+ * Topics rotate daily to keep the homepage fresh.
+ */
+function stablePickForDay<T>(arr: T[], count: number): T[] {
+  // Use day of year as a stable seed (changes once per day)
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Rotate the starting index based on day of year
+  const startIndex = dayOfYear % arr.length;
+
+  // Pick items starting from the rotated index, wrapping around
+  const result: T[] = [];
+  for (let i = 0; i < count && i < arr.length; i++) {
+    result.push(arr[(startIndex + i) % arr.length]);
+  }
+  return result;
 }
 
 // Topic configuration for scrollers
@@ -25,33 +59,36 @@ const TOPIC_SCROLLER_KEYS = [
 ];
 
 export default async function HomePage() {
-  // Get random topics for scrollers (pick 3)
-  const selectedTopicKeys = shuffleAndPick(TOPIC_SCROLLER_KEYS, 3);
+  // Get stable topics for scrollers (pick 3, rotates daily for cacheability)
+  const selectedTopicKeys = stablePickForDay(TOPIC_SCROLLER_KEYS, 3);
   const selectedTopics = selectedTopicKeys
     .map((key) => getTopicByKey(key))
     .filter((t): t is NonNullable<typeof t> => t !== null);
 
-  // Fetch all data in parallel
-  const [trending, upcoming, nowPlaying, trendingTrailers, youtubeTrailers, ...topicResults] = await Promise.all([
-    getTrending(),
-    getUpcoming(),
-    getNowPlaying(),
-    getTrendingTrailers(10),
-    getYouTubeTrendingTrailers(12),
-    // Fetch topic scrollers
-    ...selectedTopics.map((topic) =>
-      discoverBatch(
-        {
-          media_type: topic.filterParams.media_type || "movie", // Ensure media_type is set
-          ...topic.filterParams,
-          sort_by: "popularity.desc",
-          "vote_average.gte": 6,
-          "vote_count.gte": 100,
-        },
-        1 // Single page for scrollers
-      )
-    ),
-  ]);
+  // Fetch trending first (to share trending movies with trailers)
+  const trending = await getTrending();
+
+  // Fetch remaining data in parallel, passing trending movies to avoid duplicate API calls
+  const [upcoming, nowPlaying, trendingTrailers, youtubeTrailers, ...topicResults] =
+    await Promise.all([
+      getUpcoming(),
+      getNowPlaying(),
+      getTrendingTrailers(10, trending.movies), // Reuse trending movies data
+      getYouTubeTrendingTrailers(12),
+      // Fetch topic scrollers
+      ...selectedTopics.map((topic) =>
+        discoverBatch(
+          {
+            media_type: topic.filterParams.media_type || "movie", // Ensure media_type is set
+            ...topic.filterParams,
+            sort_by: "popularity.desc",
+            "vote_average.gte": 6,
+            "vote_count.gte": 100,
+          },
+          1 // Single page for scrollers
+        )
+      ),
+    ]);
 
   // Prepare topic scroller data
   const topicScrollers = selectedTopics.map((topic, index) => ({
@@ -127,6 +164,8 @@ export default async function HomePage() {
             title="In Theaters Now"
             items={nowPlaying}
             icon={<Clapperboard className="h-5 w-5 text-brand" />}
+            // Server Component - Date.now() is evaluated once on server, not during re-renders
+            /* eslint-disable react-hooks/purity */
             seeAllHref={buildBrowseUrl({
               media_type: "movie",
               sort_by: "popularity.desc",
@@ -135,6 +174,7 @@ export default async function HomePage() {
                 .toISOString()
                 .split("T")[0], // Last 60 days
             })}
+            /* eslint-enable react-hooks/purity */
             seeAllLabel="Browse All"
           />
         )}

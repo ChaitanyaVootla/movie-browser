@@ -82,7 +82,10 @@ export interface PersonEmbeddingInput {
 export function buildMovieEmbeddingText(input: MovieEmbeddingInput): string {
   const parts: string[] = [];
 
-  // 1. Title is critical for title-based searches
+  // Cohere v4 handles positional encoding correctly, so title-first is fine
+  // The asymmetric input_type (search_document vs search_query) handles semantic matching
+
+  // 1. Title first for direct title searches
   parts.push(`Movie: ${input.title}`);
 
   // 2. Overview is the richest semantic content
@@ -95,18 +98,27 @@ export function buildMovieEmbeddingText(input: MovieEmbeddingInput): string {
     parts.push(`Genres: ${input.genres.join(", ")}`);
   }
 
-  // 3. Keywords capture specific themes and tropes
+  // 4. Keywords capture specific themes and tropes
   if (input.keywords.length > 0) {
-    // Limit keywords to avoid noise (top 20)
-    parts.push(`Keywords: ${input.keywords.slice(0, 20).join(", ")}`);
+    parts.push(`Keywords: ${input.keywords.join(", ")}`);
   }
 
-  // 4. AI-enriched themes (high value if available)
+  // 5. Director (important for auteur matching)
+  if (input.director) {
+    parts.push(`Directed by ${input.director}`);
+  }
+
+  // 6. Top cast
+  if (input.topCast && input.topCast.length > 0) {
+    parts.push(`Starring ${input.topCast.slice(0, 5).join(", ")}`);
+  }
+
+  // 7. AI-enriched themes (high value if available)
   if (input.themes && input.themes.length > 0) {
     parts.push(`Themes: ${input.themes.join(", ")}`);
   }
 
-  // 5. Mood descriptors
+  // 8. Mood descriptors
   if (input.mood) {
     const moodParts = Object.entries(input.mood)
       .filter(([_, v]) => v)
@@ -116,29 +128,19 @@ export function buildMovieEmbeddingText(input: MovieEmbeddingInput): string {
     }
   }
 
-  // 6. Quick take / style descriptors
+  // 9. Quick take / style descriptors
   if (input.quickTake && input.quickTake.length > 0) {
     parts.push(`Style: ${input.quickTake.join(", ")}`);
   }
 
-  // 7. Hook (one-liner that captures essence)
+  // 10. Hook (one-liner that captures essence)
   if (input.hook) {
-    parts.push(`Hook: ${input.hook}`);
+    parts.push(input.hook);
   }
 
-  // 8. Tagline (often captures essence)
+  // 11. Tagline (often captures essence)
   if (input.tagline) {
-    parts.push(`Tagline: ${input.tagline}`);
-  }
-
-  // 9. Director (for "movies by X" queries)
-  if (input.director) {
-    parts.push(`Director: ${input.director}`);
-  }
-
-  // 10. Top cast (for "movies with X" queries)
-  if (input.topCast && input.topCast.length > 0) {
-    parts.push(`Starring: ${input.topCast.slice(0, 5).join(", ")}`);
+    parts.push(input.tagline);
   }
 
   return parts.join(". ");
@@ -146,11 +148,15 @@ export function buildMovieEmbeddingText(input: MovieEmbeddingInput): string {
 
 /**
  * Build optimized text for series embedding generation.
+ * Order matters - most important content first (for potential truncation).
  */
 export function buildSeriesEmbeddingText(input: SeriesEmbeddingInput): string {
   const parts: string[] = [];
 
-  // 1. Name is critical for title-based searches
+  // Cohere v4 handles positional encoding correctly, so title-first is fine
+  // The asymmetric input_type (search_document vs search_query) handles semantic matching
+
+  // 1. Title first for direct title searches
   parts.push(`TV Series: ${input.name}`);
 
   // 2. Overview is the richest semantic content
@@ -163,14 +169,27 @@ export function buildSeriesEmbeddingText(input: SeriesEmbeddingInput): string {
     parts.push(`Genres: ${input.genres.join(", ")}`);
   }
 
+  // 4. Keywords capture specific themes and tropes
   if (input.keywords.length > 0) {
-    parts.push(`Keywords: ${input.keywords.slice(0, 20).join(", ")}`);
+    parts.push(`Keywords: ${input.keywords.join(", ")}`);
   }
 
+  // 5. Creators (important for auteur matching)
+  if (input.creators && input.creators.length > 0) {
+    parts.push(`Created by ${input.creators.join(", ")}`);
+  }
+
+  // 6. Top cast
+  if (input.topCast && input.topCast.length > 0) {
+    parts.push(`Starring ${input.topCast.slice(0, 5).join(", ")}`);
+  }
+
+  // 7. AI-enriched themes (high value if available)
   if (input.themes && input.themes.length > 0) {
     parts.push(`Themes: ${input.themes.join(", ")}`);
   }
 
+  // 8. Mood descriptors
   if (input.mood) {
     const moodParts = Object.entries(input.mood)
       .filter(([_, v]) => v)
@@ -180,20 +199,14 @@ export function buildSeriesEmbeddingText(input: SeriesEmbeddingInput): string {
     }
   }
 
+  // 9. Quick take / style descriptors
   if (input.quickTake && input.quickTake.length > 0) {
     parts.push(`Style: ${input.quickTake.join(", ")}`);
   }
 
+  // 10. Tagline (often captures essence)
   if (input.tagline) {
-    parts.push(`Tagline: ${input.tagline}`);
-  }
-
-  if (input.creators && input.creators.length > 0) {
-    parts.push(`Created by: ${input.creators.join(", ")}`);
-  }
-
-  if (input.topCast && input.topCast.length > 0) {
-    parts.push(`Starring: ${input.topCast.slice(0, 5).join(", ")}`);
+    parts.push(input.tagline);
   }
 
   return parts.join(". ");

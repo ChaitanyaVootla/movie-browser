@@ -4,11 +4,7 @@ import { useState, useMemo } from "react";
 import { Check, Search } from "lucide-react";
 import { getNames, getCode, getName } from "country-list";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -18,7 +14,16 @@ import { useUserStore, selectCountryOverride } from "@/stores/user";
 const ALL_COUNTRY_NAMES = getNames().sort();
 
 // Priority countries to show at the top
-const PRIORITY_COUNTRIES = ["India", "United States of America", "United Kingdom", "Canada", "Australia", "Germany", "France", "Japan"];
+const PRIORITY_COUNTRIES = [
+  "India",
+  "United States of America",
+  "United Kingdom",
+  "Canada",
+  "Australia",
+  "Germany",
+  "France",
+  "Japan",
+];
 
 interface CountrySelectorProps {
   className?: string;
@@ -29,10 +34,10 @@ interface CountrySelectorProps {
 export function CountrySelector({ className, compact = false }: CountrySelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  
+
   const countryOverride = useUserStore(selectCountryOverride);
   const setCountryOverride = useUserStore((s) => s.setCountryOverride);
-  
+
   // Default to India if no override
   const selectedCode = countryOverride || "IN";
   const selectedCountryName = getName(selectedCode) || "India";
@@ -40,7 +45,7 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
   // Filter and sort countries - priority countries first, then alphabetical
   const filteredCountries = useMemo(() => {
     let countries = ALL_COUNTRY_NAMES;
-    
+
     if (search) {
       const lower = search.toLowerCase();
       countries = countries.filter((name) => {
@@ -48,12 +53,12 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
         return name.toLowerCase().includes(lower) || (code && code.toLowerCase().includes(lower));
       });
     }
-    
+
     // Sort: priority countries first, then alphabetical
     return countries.sort((a, b) => {
       const aPriority = PRIORITY_COUNTRIES.indexOf(a);
       const bPriority = PRIORITY_COUNTRIES.indexOf(b);
-      
+
       if (aPriority !== -1 && bPriority !== -1) return aPriority - bPriority;
       if (aPriority !== -1) return -1;
       if (bPriority !== -1) return 1;
@@ -76,10 +81,7 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            "gap-1.5 px-2 h-9 hover:bg-white/10",
-            className
-          )}
+          className={cn("gap-1.5 px-2 h-9 hover:bg-white/10", className)}
         >
           <img
             src={`https://flagcdn.com/w40/${selectedCode.toLowerCase()}.png`}
@@ -89,9 +91,7 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
             className="rounded-[2px] object-cover"
           />
           {!compact && (
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              {selectedCode}
-            </span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">{selectedCode}</span>
           )}
         </Button>
       </PopoverTrigger>
@@ -108,14 +108,14 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
             />
           </div>
         </div>
-        
+
         {/* Country list */}
         <ScrollArea className="h-[300px]">
           <div className="p-1">
             {filteredCountries.map((countryName) => {
               const code = getCode(countryName);
               if (!code) return null;
-              
+
               return (
                 <button
                   key={code}
@@ -141,9 +141,7 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
               );
             })}
             {filteredCountries.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-4">
-                No countries found
-              </p>
+              <p className="text-center text-sm text-muted-foreground py-4">No countries found</p>
             )}
           </div>
         </ScrollArea>
@@ -151,4 +149,3 @@ export function CountrySelector({ className, compact = false }: CountrySelectorP
     </Popover>
   );
 }
-

@@ -17,10 +17,5 @@
 
 export { PageViewTracker } from "./page-view-tracker";
 export { WebVitalsTracker } from "./web-vitals-tracker";
-export {
-  AnalyticsErrorBoundary,
-  initGlobalErrorTracking,
-} from "./analytics-error-boundary";
+export { AnalyticsErrorBoundary, initGlobalErrorTracking } from "./analytics-error-boundary";
 export { AnalyticsProvider } from "./analytics-provider";
-
-

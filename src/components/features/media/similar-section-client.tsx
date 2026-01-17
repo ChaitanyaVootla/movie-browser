@@ -45,27 +45,35 @@ export function SimilarSectionClient({
 
   // Filter out items without poster (for poster mode) or without backdrop (for wide mode)
   const filteredEmbedding = embeddingSimilar
-    ?.filter((item) => displayMode === "wide" ? item.backdrop_path : item.poster_path)
+    ?.filter((item) => (displayMode === "wide" ? item.backdrop_path : item.poster_path))
     .slice(0, maxItems);
 
   const filteredRecommendations = recommendations
-    ?.filter((item) => displayMode === "wide" ? item.backdrop_path : item.poster_path)
+    ?.filter((item) => (displayMode === "wide" ? item.backdrop_path : item.poster_path))
     .slice(0, maxItems);
 
   const filteredSimilar = similar
-    ?.filter((item) => displayMode === "wide" ? item.backdrop_path : item.poster_path)
+    ?.filter((item) => (displayMode === "wide" ? item.backdrop_path : item.poster_path))
     .slice(0, maxItems);
 
   const hasEmbedding = filteredEmbedding && filteredEmbedding.length > 0;
   const hasRecommendations = filteredRecommendations && filteredRecommendations.length > 0;
   const hasSimilar = filteredSimilar && filteredSimilar.length > 0;
 
+  // Determine if we should show AI badge: only if we have filtered embedding results
+  // This prevents showing AI badge when filtering removed all embedding results
+  const shouldShowAI = hasEmbedding && hasEmbeddingResults;
+
+  // Determine if we should show TMDB fallbacks: only if NO embedding results after filtering
+  // This ensures TMDB shows when embedding results got filtered out
+  const shouldShowTmdbFallback = !hasEmbedding;
+
   if (!hasEmbedding && !hasRecommendations && !hasSimilar) return null;
 
   return (
     <div className={cn("space-y-10", className)}>
       {/* AI-Powered Similar (from embeddings) - shown when we have good embedding results */}
-      {hasEmbedding && hasEmbeddingResults && (
+      {shouldShowAI && (
         <MediaScroller
           title={
             <span className="flex items-center gap-2">
@@ -81,10 +89,12 @@ export function SimilarSectionClient({
           {filteredEmbedding.map((item) => (
             <MediaCard
               key={item.id}
-              item={{
-                ...item,
-                media_type: mediaType === "movie" ? "movie" : "tv",
-              } as MovieListItem | SeriesListItem}
+              item={
+                {
+                  ...item,
+                  media_type: mediaType === "movie" ? "movie" : "tv",
+                } as MovieListItem | SeriesListItem
+              }
               className={posterCardClass}
               wideClassName={wideCardClass}
             />
@@ -92,19 +102,18 @@ export function SimilarSectionClient({
         </MediaScroller>
       )}
 
-      {/* TMDB Recommendations (show when no embedding results OR as supplement) */}
-      {hasRecommendations && !hasEmbeddingResults && (
-        <MediaScroller
-          title="Recommended"
-          titleIcon={<Sparkles className="h-5 w-5 text-brand" />}
-        >
+      {/* TMDB Recommendations (show when no embedding results after filtering) */}
+      {hasRecommendations && shouldShowTmdbFallback && (
+        <MediaScroller title="Recommended" titleIcon={<Sparkles className="h-5 w-5 text-brand" />}>
           {filteredRecommendations.map((item) => (
             <MediaCard
               key={item.id}
-              item={{
-                ...item,
-                media_type: mediaType === "movie" ? "movie" : "tv",
-              } as MovieListItem | SeriesListItem}
+              item={
+                {
+                  ...item,
+                  media_type: mediaType === "movie" ? "movie" : "tv",
+                } as MovieListItem | SeriesListItem
+              }
               className={posterCardClass}
               wideClassName={wideCardClass}
             />
@@ -112,19 +121,18 @@ export function SimilarSectionClient({
         </MediaScroller>
       )}
 
-      {/* TMDB Similar (show when no embedding results) */}
-      {hasSimilar && !hasEmbeddingResults && (
-        <MediaScroller
-          title="Similar"
-          titleIcon={<Film className="h-5 w-5 text-brand" />}
-        >
+      {/* TMDB Similar (show when no embedding results after filtering) */}
+      {hasSimilar && shouldShowTmdbFallback && (
+        <MediaScroller title="More Like This" titleIcon={<Film className="h-5 w-5 text-brand" />}>
           {filteredSimilar.map((item) => (
             <MediaCard
               key={item.id}
-              item={{
-                ...item,
-                media_type: mediaType === "movie" ? "movie" : "tv",
-              } as MovieListItem | SeriesListItem}
+              item={
+                {
+                  ...item,
+                  media_type: mediaType === "movie" ? "movie" : "tv",
+                } as MovieListItem | SeriesListItem
+              }
               className={posterCardClass}
               wideClassName={wideCardClass}
             />

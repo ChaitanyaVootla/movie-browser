@@ -84,7 +84,7 @@ const TEST_QUERIES: TestQuery[] = [
   // Person queries
   {
     query: "Christopher Nolan",
-    expectedIntent: "title",  // Ambiguous - could be title or person, we default to title
+    expectedIntent: "title", // Ambiguous - could be title or person, we default to title
     description: "Person name (ambiguous, defaults to title)",
   },
   {
@@ -187,9 +187,7 @@ async function testIntentClassification(): Promise<void> {
 
     // Show extracted filters if any
     if (result.extractedFilters && Object.keys(result.extractedFilters).length > 0) {
-      console.log(
-        colorize(`    Filters: ${JSON.stringify(result.extractedFilters)}`, "dim")
-      );
+      console.log(colorize(`    Filters: ${JSON.stringify(result.extractedFilters)}`, "dim"));
     }
   }
 
@@ -221,7 +219,10 @@ async function testHybridSearch(query: string): Promise<void> {
         colorize(`(${(response.intent.confidence * 100).toFixed(0)}% confidence)`, "dim")
     );
 
-    if (response.intent.extractedFilters && Object.keys(response.intent.extractedFilters).length > 0) {
+    if (
+      response.intent.extractedFilters &&
+      Object.keys(response.intent.extractedFilters).length > 0
+    ) {
       console.log(colorize(`Filters: ${JSON.stringify(response.intent.extractedFilters)}`, "dim"));
     }
 
@@ -272,7 +273,9 @@ async function testHybridSearch(query: string): Promise<void> {
 
     console.log("\n" + colorize(`Total time: ${formatDuration(duration)}`, "dim"));
   } catch (error) {
-    console.error(colorize(`Error: ${error instanceof Error ? error.message : String(error)}`, "red"));
+    console.error(
+      colorize(`Error: ${error instanceof Error ? error.message : String(error)}`, "red")
+    );
   }
 }
 
@@ -298,7 +301,9 @@ async function testQuickSearch(query: string): Promise<void> {
 
     console.log(colorize(`\nDuration: ${formatDuration(duration)}`, "dim"));
   } catch (error) {
-    console.error(colorize(`Error: ${error instanceof Error ? error.message : String(error)}`, "red"));
+    console.error(
+      colorize(`Error: ${error instanceof Error ? error.message : String(error)}`, "red")
+    );
   }
 }
 

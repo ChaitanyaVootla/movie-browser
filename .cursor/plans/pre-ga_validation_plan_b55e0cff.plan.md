@@ -90,7 +90,6 @@ A systematic audit and hardening pass before switching traffic from Nuxt to Next
 ### Actions Completed
 
 1. **Fixed JSON-LD SSR** ✅ (Jan 2026)
-
    - Replaced `next/script` with regular `<script>` tag in movie, series, person pages
    - JSON-LD now appears in initial HTML for all crawlers
    - Un-skipped and verified 16 JSON-LD E2E tests pass
@@ -120,7 +119,6 @@ The 0% hit rate in admin dashboard is expected behavior - cache stats (`cacheSta
 
 1. **Add debug endpoint** or CLI command to dump cache state
 2. **Add E2E test** that verifies cache behavior:
-
    - Request page twice, second should be faster (or verify via health endpoint)
 
 ---
@@ -152,8 +150,8 @@ The 0% hit rate in admin dashboard is expected behavior - cache stats (`cacheSta
 test("movie page LCP under 2.5s", async ({ page }) => {
   await page.goto("/movie/550/fight-club");
   const lcp = await page.evaluate(() => {
-    return new Promise(resolve => {
-      new PerformanceObserver(list => {
+    return new Promise((resolve) => {
+      new PerformanceObserver((list) => {
         const entries = list.getEntries();
         resolve(entries[entries.length - 1].startTime);
       }).observe({ entryTypes: ["largest-contentful-paint"] });
@@ -207,7 +205,6 @@ After implementing light DTOs and limiting arrays:
 **Changes made:**
 
 1. Created light DTOs in `src/types/client-props.ts`:
-
    - `MovieOverviewProps` / `SeriesOverviewProps` for MediaOverview
    - `WatchOptionsItem` for WatchOptions
    - `TrailerData` for MediaActionBar
@@ -325,7 +322,6 @@ Response size tests revealed the pages are **significantly larger than ideal**:
 ### Completed ✅
 
 4. **Fix JSON-LD SSR Issue** ✅ (Jan 2026)
-
    - Replaced `next/script` with regular `<script>` tag in all detail pages
    - JSON-LD now appears in initial HTML for all crawlers
    - Files updated: `src/app/movie/[...params]/page.tsx`, `src/app/series/[...params]/page.tsx`, `src/app/person/[...params]/page.tsx`
@@ -333,20 +329,17 @@ Response size tests revealed the pages are **significantly larger than ideal**:
 ### Actions Remaining (Next Session)
 
 1. **Audit RSC Serialization** (P1, 2-3h)
-
    - Identify what data is being passed to client components
    - Check if full movie/series objects are being serialized when only a few fields are needed
    - Use React DevTools to inspect hydration payload
    - **Start here:** Check which client components receive the full `movie`/`series` objects
 
 2. **Optimize Data Fetching** (P1, 4-6h)
-
    - Create "light" versions of data types for client components
    - Only serialize fields that client components actually use
    - Consider server-only data fetching where possible
 
 3. **Review Component Boundaries** (P2, 2-3h)
-
    - Check if any client components could be server components
    - Move data-heavy rendering to server components
    - Use composition to avoid passing large props
@@ -468,14 +461,12 @@ Reduce page sizes by ~50% by optimizing what data is serialized to the RSC paylo
 ### What Was Done (Kept)
 
 1. **Created light DTOs** (`src/types/client-props.ts`):
-
    - `MovieOverviewProps` / `SeriesOverviewProps` - Only fields MediaOverview uses
    - `WatchOptionsItem` - Pre-extracted backdrop for continue watching
    - `TrailerData` - Single trailer instead of full videos array
    - Extraction functions: `extractMovieOverviewProps()`, `extractSeriesOverviewProps()`, etc.
 
 2. **Limited arrays to reduce payload**:
-
    - Videos: Max 20 (was unlimited)
    - Images: Max 20 backdrops (was unlimited)
    - Recommendations/Similar: Max 15 each (was unlimited)
@@ -551,7 +542,6 @@ Server → Serialize only user's detected country (watch_options) → Client
 1. Created `src/app/api/watch-providers/[mediaType]/[id]/route.ts` - API route for on-demand fetching
 2. Created `src/server/db/postgres/watch-links.ts` - Query for India deep links
 3. Updated `src/components/features/media/watch-options.tsx`:
-
    - Removed `watchProviders` and `googleData` props
    - Added useEffect to fetch on country change
    - Shows loading spinner during fetch
@@ -570,7 +560,6 @@ Server → Serialize only user's detected country (watch_options) → Client
 **Implementation steps:**
 
 1. Create `PersonOverviewProps` in `client-props.ts`:
-
    - Basic info: id, name, biography (truncated), birthday, deathday, place_of_birth
    - Known for: knownForDepartment
    - Social: external_ids (just the IDs, no nested objects)

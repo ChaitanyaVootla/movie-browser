@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useRef,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 import type { HoverCardData } from "@/server/actions/hover-card";
 import type { MovieListItem, SeriesListItem } from "@/types";
 
@@ -21,10 +14,7 @@ interface HoverCardState {
 
 interface HoverCardContextValue {
   state: HoverCardState;
-  openHoverCard: (
-    item: MovieListItem | SeriesListItem,
-    bounds: DOMRect
-  ) => void;
+  openHoverCard: (item: MovieListItem | SeriesListItem, bounds: DOMRect) => void;
   closeHoverCard: () => void;
   setHoverCardData: (data: HoverCardData) => void;
   setLoading: (loading: boolean) => void;
@@ -146,4 +136,3 @@ export function HoverCardProvider({ children }: HoverCardProviderProps) {
     </HoverCardContext.Provider>
   );
 }
-

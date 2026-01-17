@@ -18,11 +18,7 @@ import { EnrichButton } from "./enrich-button";
 import { RefreshDataButton } from "./refresh-data-button";
 import { ItemAnalyticsModal } from "@/components/features/admin";
 import { useIsAdmin } from "@/hooks/use-is-admin";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
  * Light prop types for RSC serialization optimization.
@@ -79,16 +75,24 @@ function CastCard({ cast }: { cast: MediaOverviewCast }) {
           sizes="110px"
         />
       </div>
-      <p className="text-xs font-medium line-clamp-1 group-hover:text-brand transition-colors">
+      <p className="text-xs font-medium group-hover:text-brand transition-colors">
         {cast.name}
       </p>
-      <p className="text-[11px] text-muted-foreground line-clamp-1">{cast.character}</p>
+      <p className="text-[11px] text-muted-foreground">{cast.character}</p>
     </Link>
   );
 }
 
 // Info item component
-function InfoItem({ label, value, href }: { label: string; value: React.ReactNode; href?: string }) {
+function InfoItem({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: React.ReactNode;
+  href?: string;
+}) {
   if (!value) return null;
 
   const content = <span className="text-foreground">{value}</span>;
@@ -114,28 +118,28 @@ function MoodIndicators({ mood }: { mood: AISummary["mood"] }) {
   const getColorClasses = (type: string, value: string) => {
     switch (type) {
       case "pacing":
-        return value === "fast" 
-          ? "border-yellow-500/40 text-yellow-400" 
-          : value === "slow" 
-            ? "border-blue-500/40 text-blue-400" 
+        return value === "fast"
+          ? "border-yellow-500/40 text-yellow-400"
+          : value === "slow"
+            ? "border-blue-500/40 text-blue-400"
             : "border-gray-500/40 text-gray-400";
       case "intensity":
-        return value === "high" 
-          ? "border-orange-500/40 text-orange-400" 
-          : value === "low" 
-            ? "border-cyan-500/40 text-cyan-400" 
+        return value === "high"
+          ? "border-orange-500/40 text-orange-400"
+          : value === "low"
+            ? "border-cyan-500/40 text-cyan-400"
             : "border-gray-500/40 text-gray-400";
       case "tone":
-        return value === "dark" 
-          ? "border-purple-500/40 text-purple-400" 
-          : value === "light" 
-            ? "border-amber-500/40 text-amber-400" 
+        return value === "dark"
+          ? "border-purple-500/40 text-purple-400"
+          : value === "light"
+            ? "border-amber-500/40 text-amber-400"
             : "border-gray-500/40 text-gray-400";
       case "emotional":
-        return value === "heavy" 
-          ? "border-rose-500/40 text-rose-400" 
-          : value === "light" 
-            ? "border-emerald-500/40 text-emerald-400" 
+        return value === "heavy"
+          ? "border-rose-500/40 text-rose-400"
+          : value === "light"
+            ? "border-emerald-500/40 text-emerald-400"
             : "border-gray-500/40 text-gray-400";
       default:
         return "border-white/20 text-muted-foreground";
@@ -194,7 +198,9 @@ function MoodIndicators({ mood }: { mood: AISummary["mood"] }) {
                   <Icon className={cn("h-2.5 w-2.5", colorClasses.split(" ")[1])} />
                   <span>{label}</span>
                 </div>
-                <span className="text-[11px] font-medium text-foreground/80 capitalize">{value}</span>
+                <span className="text-[11px] font-medium text-foreground/80 capitalize">
+                  {value}
+                </span>
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[200px] text-center">
@@ -226,60 +232,68 @@ function ThemesList({ themes }: { themes: string[] }) {
 }
 
 // Series status badge with enhanced visuals
-function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: string; inProduction?: boolean; nextAirDate?: string }) {
+function SeriesStatusBadge({
+  status,
+  inProduction,
+  nextAirDate,
+}: {
+  status: string;
+  inProduction?: boolean;
+  nextAirDate?: string;
+}) {
   const getStatusConfig = () => {
     // Check if there's an upcoming episode
     const hasUpcomingEpisode = nextAirDate && new Date(nextAirDate) > new Date();
-    
+
     switch (status) {
       case "Returning Series":
         if (hasUpcomingEpisode) {
-          return { 
-            label: "Airing", 
+          return {
+            label: "Airing",
             color: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
-            icon: "●" 
+            icon: "●",
           };
         }
-        return { 
-          label: inProduction ? "Ongoing" : "Returning Soon", 
+        return {
+          label: inProduction ? "Ongoing" : "Returning Soon",
           color: "bg-green-500/20 text-green-400 border border-green-500/30",
-          icon: null 
+          icon: null,
         };
       case "Ended":
-        return { 
-          label: "Ended", 
+        return {
+          label: "Ended",
           color: "bg-slate-500/20 text-slate-400 border border-slate-500/30",
-          icon: null 
+          icon: null,
         };
       case "Canceled":
-        return { 
-          label: "Canceled", 
+        return {
+          label: "Canceled",
           color: "bg-red-500/20 text-red-400 border border-red-500/30",
-          icon: null 
+          icon: null,
         };
       case "In Production":
-        return { 
-          label: "In Production", 
+        return {
+          label: "In Production",
           color: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
-          icon: null 
+          icon: null,
         };
       case "Pilot":
-        return { 
-          label: "Pilot", 
+        return {
+          label: "Pilot",
           color: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
-          icon: null 
+          icon: null,
         };
       case "Planned":
-        return { 
-          label: "Planned", 
+        return {
+          label: "Planned",
           color: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
-          icon: null 
+          icon: null,
         };
       default:
-        return { 
-          label: status, 
+        return {
+          label: status,
           color: "bg-muted text-muted-foreground border border-border",
-          icon: null 
+          icon: null,
         };
     }
   };
@@ -287,7 +301,12 @@ function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: stri
   const config = getStatusConfig();
 
   return (
-    <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium", config.color)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium",
+        config.color
+      )}
+    >
       {config.icon && <span className="animate-pulse text-[6px]">{config.icon}</span>}
       {config.label}
     </span>
@@ -297,12 +316,18 @@ function SeriesStatusBadge({ status, inProduction, nextAirDate }: { status: stri
 /**
  * Admin-only footer with data tools (only renders for admins)
  */
-function AdminToolsFooter({ tmdbId, mediaType }: { tmdbId: number; mediaType: "movie" | "series" }) {
+function AdminToolsFooter({
+  tmdbId,
+  mediaType,
+}: {
+  tmdbId: number;
+  mediaType: "movie" | "series";
+}) {
   const isAdmin = useIsAdmin();
-  
+
   // Don't render anything for non-admins
   if (!isAdmin) return null;
-  
+
   return (
     <div className="flex justify-end items-center gap-2 px-4 py-2 border-t border-white/5">
       <ItemAnalyticsModal tmdbId={tmdbId} mediaType={mediaType} />
@@ -350,7 +375,9 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
             <div className="p-4 md:p-5 space-y-3">
               {item.overview && (
                 <div>
-                  <h2 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Overview</h2>
+                  <h2 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
+                    Overview
+                  </h2>
                   {/* AI Hook - engaging one-liner with blockquote style */}
                   {aiSummary?.hook && (
                     <blockquote className="border-l-2 border-brand/50 pl-3 mb-2">
@@ -392,7 +419,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
             <div className="p-4 md:p-5 space-y-2 border-t lg:border-t-0 border-white/10">
               {/* Director/Creator at top with avatar */}
               {isMovie(item) && director && (
-                <Link 
+                <Link
                   href={`/person/${director.id}/${getSlug(director.name)}`}
                   className="flex items-center gap-2.5 group mb-3"
                 >
@@ -412,8 +439,12 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Director</p>
-                    <p className="text-xs font-medium truncate group-hover:text-brand transition-colors">{director.name}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      Director
+                    </p>
+                    <p className="text-xs font-medium truncate group-hover:text-brand transition-colors">
+                      {director.name}
+                    </p>
                   </div>
                 </Link>
               )}
@@ -421,7 +452,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="flex -space-x-1.5">
                     {creators.slice(0, 2).map((c) => (
-                      <Link 
+                      <Link
                         key={c.id}
                         href={`/person/${c.id}/${getSlug(c.name)}`}
                         className="relative h-9 w-9 rounded-full overflow-hidden bg-muted ring-2 ring-background hover:ring-brand/50 transition-all flex-shrink-0"
@@ -461,32 +492,34 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                 {!isMovie(item) && item.first_air_date && (
                   <InfoItem label="First Aired" value={formatDate(item.first_air_date)} />
                 )}
-                
+
                 {/* Runtime (movies only) */}
                 {isMovie(item) && item.runtime && (
                   <InfoItem label="Runtime" value={formatRuntime(item.runtime)} />
                 )}
-              
+
                 {/* Series status with badge */}
                 {!isMovie(item) && item.status && (
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground text-xs">Status</span>
-                    <SeriesStatusBadge 
-                      status={item.status} 
-                      inProduction={item.in_production} 
+                    <SeriesStatusBadge
+                      status={item.status}
+                      inProduction={item.in_production}
                       nextAirDate={item.next_air_date}
                     />
                   </div>
                 )}
                 {isMovie(item) && <InfoItem label="Status" value={item.status} />}
-              
+
                 {/* Budget & Revenue - Combined on one row */}
                 {isMovie(item) && (item.budget || item.revenue) && (
                   <div className="flex items-baseline gap-2 flex-wrap">
                     {item.budget ? (
                       <>
                         <span className="text-muted-foreground text-xs">Budget</span>
-                        <span className="text-xs text-foreground">{formatCurrency(item.budget)}</span>
+                        <span className="text-xs text-foreground">
+                          {formatCurrency(item.budget)}
+                        </span>
                       </>
                     ) : null}
                     {item.budget && item.revenue ? (
@@ -495,12 +528,14 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                     {item.revenue ? (
                       <>
                         <span className="text-muted-foreground text-xs">Revenue</span>
-                        <span className="text-xs text-foreground">{formatCurrency(item.revenue)}</span>
+                        <span className="text-xs text-foreground">
+                          {formatCurrency(item.revenue)}
+                        </span>
                       </>
                     ) : null}
                   </div>
                 )}
-              
+
                 {/* Seasons & Episodes - Combined on one row */}
                 {!isMovie(item) && (item.number_of_seasons || item.number_of_episodes) && (
                   <div className="flex items-baseline gap-2 flex-wrap">
@@ -541,13 +576,15 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                             unoptimized
                           />
                         ) : (
-                          <span className="text-[9px] font-medium text-muted-foreground">{network.name}</span>
+                          <span className="text-[9px] font-medium text-muted-foreground">
+                            {network.name}
+                          </span>
                         )}
                       </div>
                     ))}
                   </div>
                 )}
-              
+
                 {/* Studio with logo */}
                 {item.production_companies && item.production_companies.length > 0 && (
                   <div className="flex items-center gap-1.5 pt-1">
@@ -567,7 +604,9 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                             unoptimized
                           />
                         ) : (
-                          <span className="text-[9px] font-medium text-muted-foreground">{company.name}</span>
+                          <span className="text-[9px] font-medium text-muted-foreground">
+                            {company.name}
+                          </span>
                         )}
                       </div>
                     ))}
@@ -579,7 +618,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
               </div>
             </div>
           </div>
-          
+
           {/* Admin-only tools - subtle footer (only renders for admins) */}
           <AdminToolsFooter tmdbId={item.id} mediaType={mediaType} />
         </div>
@@ -587,10 +626,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
 
       {/* Cast Carousel - Full width, using unified MediaScroller */}
       {topCast.length > 0 && (
-        <MediaScroller
-          title="Top Cast"
-          titleIcon={<Users className="h-5 w-5 text-brand" />}
-        >
+        <MediaScroller title="Top Cast" titleIcon={<Users className="h-5 w-5 text-brand" />}>
           {topCast.map((cast) => (
             <CastCard key={cast.id} cast={cast} />
           ))}

@@ -57,12 +57,7 @@ export function SignInClient({ callbackUrl, error }: SignInClientProps) {
           <CardHeader className="text-center space-y-2">
             {/* Logo */}
             <div className="flex justify-center mb-2">
-              <Image
-                src="/popcorn-lite.png"
-                alt="Movie Browser"
-                width={48}
-                height={48}
-              />
+              <Image src="/popcorn-lite.png" alt="Movie Browser" width={48} height={48} />
             </div>
             <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
             <CardDescription className="text-base">
@@ -103,9 +98,7 @@ export function SignInClient({ callbackUrl, error }: SignInClientProps) {
                 <span className="w-full border-t border-border/40" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Why sign in?
-                </span>
+                <span className="bg-background px-2 text-muted-foreground">Why sign in?</span>
               </div>
             </div>
 
@@ -146,5 +139,3 @@ export function SignInClient({ callbackUrl, error }: SignInClientProps) {
     </div>
   );
 }
-
-

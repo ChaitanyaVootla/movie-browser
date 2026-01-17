@@ -78,4 +78,3 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     </main>
   );
 }
-

@@ -156,15 +156,15 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
     : 0;
 
   // Transform history data for chart
-  const chartData = historyData?.dataPoints.map((dp) => ({
-    timestamp: dp.timestamp,
-    cpuLoad: dp.loadAvg1m,
-    memoryUsedPct: dp.memoryTotal > 0 
-      ? ((dp.memoryTotal - dp.memoryFree) / dp.memoryTotal) * 100 
-      : 0,
-    heapUsedMB: dp.memoryHeapUsed / (1024 * 1024),
-    eventLoopLag: dp.eventLoopLag,
-  })) || [];
+  const chartData =
+    historyData?.dataPoints.map((dp) => ({
+      timestamp: dp.timestamp,
+      cpuLoad: dp.loadAvg1m,
+      memoryUsedPct:
+        dp.memoryTotal > 0 ? ((dp.memoryTotal - dp.memoryFree) / dp.memoryTotal) * 100 : 0,
+      heapUsedMB: dp.memoryHeapUsed / (1024 * 1024),
+      eventLoopLag: dp.eventLoopLag,
+    })) || [];
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -177,8 +177,8 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
               System History
               {historyData?.summary && (
                 <span className="text-xs font-normal text-muted-foreground">
-                  (avg CPU: {historyData.summary.avgCpuUsage.toFixed(1)}%, 
-                  max: {historyData.summary.maxCpuUsage.toFixed(1)}%)
+                  (avg CPU: {historyData.summary.avgCpuUsage.toFixed(1)}%, max:{" "}
+                  {historyData.summary.maxCpuUsage.toFixed(1)}%)
                 </span>
               )}
             </CardTitle>
@@ -199,9 +199,9 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
         </CardHeader>
         <CardContent>
           {range === 0 ? (
-            <EmptyState 
-              message="Select a time range to view history (not available for 'Today')" 
-              height={200} 
+            <EmptyState
+              message="Select a time range to view history (not available for 'Today')"
+              height={200}
             />
           ) : historyLoading ? (
             <Skeleton className="h-[200px] w-full" />
@@ -214,9 +214,9 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
               showEventLoop={false}
             />
           ) : (
-            <EmptyState 
-              message="No system metrics history available. Data collection starts automatically." 
-              height={200} 
+            <EmptyState
+              message="No system metrics history available. Data collection starts automatically."
+              height={200}
             />
           )}
         </CardContent>
@@ -228,9 +228,7 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Server className="h-4 w-4" />
             Process
-            {systemData?.health && (
-              <HealthBadge status={systemData.health.status} />
-            )}
+            {systemData?.health && <HealthBadge status={systemData.health.status} />}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -240,15 +238,11 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <p className="text-muted-foreground text-xs">Uptime</p>
-                <p className="font-medium">
-                  {formatUptime(systemData.metrics.process.uptime)}
-                </p>
+                <p className="font-medium">{formatUptime(systemData.metrics.process.uptime)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Node.js</p>
-                <p className="font-medium">
-                  {systemData.metrics.process.nodeVersion}
-                </p>
+                <p className="font-medium">{systemData.metrics.process.nodeVersion}</p>
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">PID</p>
@@ -283,15 +277,11 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs">1m Load</p>
-                  <p className="font-medium">
-                    {formatCpuLoad(systemData.metrics.cpu.loadAvg1m)}
-                  </p>
+                  <p className="font-medium">{formatCpuLoad(systemData.metrics.cpu.loadAvg1m)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">5m Load</p>
-                  <p className="font-medium">
-                    {formatCpuLoad(systemData.metrics.cpu.loadAvg5m)}
-                  </p>
+                  <p className="font-medium">{formatCpuLoad(systemData.metrics.cpu.loadAvg5m)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Cores</p>
@@ -353,9 +343,7 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs">RSS</p>
-                  <p className="font-medium">
-                    {formatBytes(systemData.metrics.processMemory.rss)}
-                  </p>
+                  <p className="font-medium">{formatBytes(systemData.metrics.processMemory.rss)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">External</p>
@@ -373,10 +361,7 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
                     {formatBytes(systemData.metrics.systemMemory.total)}
                   </span>
                 </div>
-                <Progress
-                  value={systemData.metrics.systemMemory.usedPercent}
-                  className="h-1.5"
-                />
+                <Progress value={systemData.metrics.systemMemory.usedPercent} className="h-1.5" />
               </div>
             </div>
           ) : (
@@ -401,16 +386,8 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
             </div>
           ) : cache ? (
             <div className="flex justify-around items-center">
-              <DonutChart
-                value={cache.l1HitRate ?? 0}
-                label="L1 (Memory)"
-                size={80}
-              />
-              <DonutChart
-                value={cache.l2HitRate ?? 0}
-                label="L2 (File)"
-                size={80}
-              />
+              <DonutChart value={cache.l1HitRate ?? 0} label="L1 (Memory)" size={80} />
+              <DonutChart value={cache.l2HitRate ?? 0} label="L2 (File)" size={80} />
             </div>
           ) : (
             <EmptyState message="Cache metrics unavailable" height={80} />
@@ -433,28 +410,20 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <p className="text-muted-foreground text-xs">Memory Keys</p>
-                <p className="font-medium">
-                  {cache.memoryKeys?.toLocaleString() || 0}
-                </p>
+                <p className="font-medium">{cache.memoryKeys?.toLocaleString() || 0}</p>
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Total Hits</p>
-                <p className="font-medium">
-                  {cache.totalHits?.toLocaleString() || 0}
-                </p>
+                <p className="font-medium">{cache.totalHits?.toLocaleString() || 0}</p>
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Misses</p>
-                <p className="font-medium">
-                  {cache.totalMisses?.toLocaleString() || 0}
-                </p>
+                <p className="font-medium">{cache.totalMisses?.toLocaleString() || 0}</p>
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Compression</p>
                 <p className="font-medium">
-                  {cache.compressionSavings
-                    ? formatBytes(cache.compressionSavings)
-                    : "0 B"}
+                  {cache.compressionSavings ? formatBytes(cache.compressionSavings) : "0 B"}
                 </p>
               </div>
             </div>
@@ -498,9 +467,7 @@ export function SystemTab({ cache, isLoading, range }: SystemTabProps) {
                 <Archive className="h-3 w-3" />
                 {totalFiles.toLocaleString()} files
               </span>
-              <span className="font-medium text-foreground">
-                {formatBytes(totalBytes)}
-              </span>
+              <span className="font-medium text-foreground">{formatBytes(totalBytes)}</span>
             </div>
           </div>
         </CardHeader>
@@ -568,8 +535,7 @@ function CacheNamespaceGrid({ sizeStats, totalBytes }: CacheNamespaceGridProps) 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
       {entries.map(([namespace, stats]) => {
-        const percentage =
-          totalBytes > 0 ? (stats.sizeBytes / totalBytes) * 100 : 0;
+        const percentage = totalBytes > 0 ? (stats.sizeBytes / totalBytes) * 100 : 0;
 
         return (
           <div
@@ -581,10 +547,7 @@ function CacheNamespaceGrid({ sizeStats, totalBytes }: CacheNamespaceGridProps) 
                 {namespace.replace(/_/g, " ")}
               </p>
               {percentage >= 20 && (
-                <Badge
-                  variant="secondary"
-                  className="text-[8px] h-3.5 px-1 shrink-0"
-                >
+                <Badge variant="secondary" className="text-[8px] h-3.5 px-1 shrink-0">
                   {percentage.toFixed(0)}%
                 </Badge>
               )}

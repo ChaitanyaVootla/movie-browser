@@ -39,10 +39,7 @@ export function RecentTracker({
     }
 
     // Check if we already tracked this specific item
-    if (
-      trackedItemRef.current?.itemId === itemId &&
-      trackedItemRef.current?.isMovie === isMovie
-    ) {
+    if (trackedItemRef.current?.itemId === itemId && trackedItemRef.current?.isMovie === isMovie) {
       return;
     }
 
@@ -67,4 +64,3 @@ export function RecentTracker({
   // Render nothing - this is just a tracking component
   return null;
 }
-

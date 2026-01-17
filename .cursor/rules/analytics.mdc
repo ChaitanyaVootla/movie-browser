@@ -1,0 +1,243 @@
+---
+description: Analytics (ClickHouse + Grafana), tracking patterns, and admin dashboard
+globs: ["src/lib/analytics/**/*.ts", "src/components/analytics/**/*.tsx", "src/hooks/use-analytics.ts", "src/components/features/admin/**/*.tsx", "src/app/api/analytics/**/*.ts", "src/app/admin/**/*.tsx"]
+alwaysApply: false
+---
+
+# Movie Browser - Analytics Rules
+
+## Overview
+
+Self-hosted privacy-first analytics using ClickHouse for storage and Grafana for visualization/alerting.
+
+**Status:** All Phases Complete
+
+**Docker Images:**
+- ClickHouse: `clickhouse/clickhouse-server:25.12`
+- Grafana: `grafana/grafana:12.3.1`
+
+**What's Working:**
+- ClickHouse + Grafana infrastructure (Phase 1)
+- Page view tracking (`<PageViewTracker>`) (Phase 2)
+- AI usage tracking (automatic in `agent.ts`) (Phase 3)
+- User action tracking (`useAnalytics` hook) (Phase 4)
+- Error tracking (`<AnalyticsErrorBoundary>`) (Phase 5)
+- Core Web Vitals (`<WebVitalsTracker>` - TTFB, FCP, LCP, CLS, INP) (Phase 6)
+- **Admin Dashboard Analytics** (Phase 7) - Real-time metrics in `/admin`
+- **Alert System** (Phase 8) - Automated alerts surfaced in admin dashboard
+- **Grafana Dashboards** - Auto-provisioned for advanced analysis
+- Ingest API (`POST /api/analytics/ingest`)
+- `<AnalyticsProvider>` wrapper (integrated in Providers)
+
+## Admin Dashboard Analytics (`/admin` -> Analytics tab)
+
+- **Compact header** with inline time range selector (Today/1/7/30/90 days) + global bot filter toggle
+- **Collapsible alerts bar** - shows count summary, click to expand full details with error drill-down
+- Traffic overview (page views, sessions, users, geo, devices) - **compact stat cards**
+- **Traffic trend chart** with human vs bot comparison (toggleable series, **hourly or daily granularity**)
+- **Top pages with bot views** - shows human + bot views, pages link to detail pages
+- AI usage & costs (invocations, tokens, cost/user, query types - pie chart, **user names displayed**)
+- **Lambda usage** (invocations, success rate donut, cost, duration, by-function breakdown)
+- **Lambda time series chart** - dual-axis line chart (invocations + avg duration over time)
+- Core Web Vitals (LCP, FCP, TTFB, CLS, INP with Good/Needs Work/Poor thresholds)
+- **System metrics** - CPU load, memory usage, event loop lag (real-time + historical charts)
+- **System history chart** - CPU & memory line chart with configurable granularity (5min/15min/hourly)
+- Cache performance (L1/L2 hit rate donuts, memory, compression, **namespace breakdown**) - live from cache service
+- Automated alerts for: AI cost spikes, error rate, performance degradation, cache issues, traffic anomalies
+
+**Global Bot Filter:**
+The dashboard has a global `excludeBots` toggle that affects:
+- Traffic metrics (views, sessions, users)
+- Top pages (filters or shows bot views)
+- Defaults to `false` (show both human + bot for real-world view)
+
+**Item Analytics Modal (detail page admin strip):**
+- Database status (PostgreSQL, TMDB refresh timestamps)
+- Traffic trend chart (daily page views)
+- Device breakdown (pie chart)
+- Bot traffic (horizontal bar chart of top bots)
+- Enrichment status (ratings scraped, watch links scraped, sources)
+- Lambda invocations (total, avg duration, cost, history table)
+
+**Admin Filtering:**
+Admin users (determined by `isAdminEmail()` in `@/lib/admin`) are automatically excluded from analytics tracking to avoid polluting data with internal testing/development activity. This filtering happens:
+- Server-side: `trackPageView`, `trackSession*`, `trackUserAction`, `trackPerformance` all skip if `is_admin: true`
+- Ingest API: Checks auth session and returns early for admin users
+- **Note:** Error tracking and cache metrics are NOT filtered (useful for debugging)
+
+## Setup
+
+```bash
+# Start analytics stack
+cd analytics && docker-compose -f docker-compose.analytics.yml up -d
+
+# Ports:
+# - ClickHouse: 8123 (HTTP), 9000 (Native)
+# - Grafana: 3004
+```
+
+## Environment Variables
+
+```bash
+# .env.local
+CLICKHOUSE_HOST=localhost
+CLICKHOUSE_PORT=8123
+CLICKHOUSE_USER=analytics
+CLICKHOUSE_PASSWORD=your_password
+CLICKHOUSE_DATABASE=analytics
+```
+
+## Directory Structure
+
+```
+src/components/analytics/       # Client-side tracking components
+├── index.ts                    # Exports
+├── analytics-provider.tsx      # Wrapper combining all trackers
+├── page-view-tracker.tsx       # Page view tracking on navigation
+├── web-vitals-tracker.tsx      # Core Web Vitals (TTFB, FCP, LCP, CLS, INP)
+└── analytics-error-boundary.tsx # Error boundary + global handlers
+
+src/lib/analytics/              # Server-side analytics library
+├── index.ts                    # Exports (includes server-only code)
+├── types.ts                    # Event type definitions (client-safe)
+├── client.ts                   # ClickHouse HTTP client
+├── track.ts                    # Server-side tracking functions (incl. trackSystemMetrics)
+├── queries.ts                  # Re-exports from queries/ (backwards compat)
+├── queries/                    # Modular query functions
+│   ├── index.ts                # Re-exports all query modules
+│   ├── types.ts                # TimeRange, getTimeRangeCondition helper
+│   ├── traffic.ts              # Traffic queries (daily + hourly granularity)
+│   ├── ai.ts                   # AI usage queries
+│   ├── performance.ts          # Web Vitals queries
+│   ├── errors.ts               # Error tracking queries
+│   ├── lambda.ts               # Lambda usage queries
+│   ├── system.ts               # System metrics history queries
+│   ├── item.ts                 # Item-specific analytics queries
+│   ├── content.ts              # Content performance queries
+│   └── utils.ts                # Utility functions
+├── alerts.ts                   # Alert definitions and detection logic
+├── context.ts                  # Request context extraction (server-only)
+├── bot-detection.ts            # Bot/crawler detection (client-safe)
+├── session.ts                  # Session ID generation (client-safe)
+└── device-parser.ts            # User-agent parsing (client-safe)
+
+src/lib/system-metrics.ts       # Node.js process metrics + background collector
+
+src/hooks/use-analytics.ts      # Client-side action tracking hook
+```
+
+## Key Patterns
+
+**Client vs Server Imports:**
+
+```typescript
+// BAD - imports server-only code (context.ts imports auth which imports mongodb)
+import { getPageTypeFromPath } from "@/lib/analytics";
+
+// GOOD - import only from client-safe modules
+import type { PageType } from "@/lib/analytics/types";
+```
+
+**Timestamp Format:** ClickHouse requires `YYYY-MM-DD HH:MM:SS.mmm`:
+
+```typescript
+// Correct
+const timestamp = new Date().toISOString().replace("T", " ").replace("Z", "");
+```
+
+**Nullable Columns:** ClickHouse doesn't support `Nullable(LowCardinality(String))`:
+
+```sql
+-- Correct
+bot_type LowCardinality(String) DEFAULT ''
+```
+
+## Client-Side Tracking
+
+**Automatic (via AnalyticsProvider):**
+- Page views on every navigation (SSR + SPA)
+- Core Web Vitals on initial page load
+- Global error handlers (window.onerror, unhandledrejection)
+
+**Manual (via useAnalytics hook):**
+
+```typescript
+import { useAnalytics } from "@/hooks/use-analytics";
+
+function WatchlistButton({ movieId, title }: Props) {
+  const { trackWatchlistAdd } = useAnalytics();
+
+  const handleClick = () => {
+    trackWatchlistAdd(movieId, "movie", title);
+    // ... actual logic
+  };
+}
+```
+
+Available methods:
+- `trackWatchlistAdd/Remove(itemId, mediaType, title?)`
+- `trackRating(itemId, mediaType, "like"|"dislike"|"remove", title?)`
+- `trackWatched(itemId, mediaType, marked, title?)`
+- `trackWatchClick(itemId, mediaType, provider, title?)`
+- `trackTrailerPlay(itemId, mediaType, title?)`
+- `trackSearch(query, resultCount?)`
+- `trackFilterApply(filters)`
+- `trackAIChatOpen()` / `trackAIChatSubmit(query)`
+- `trackShareClick(itemId, mediaType, platform, title?)`
+- `trackExternalLink(url, source?)`
+
+## Web Vitals Behavior
+
+| Metric | Initial SSR Load | Client Navigation (SPA) |
+|--------|------------------|-------------------------|
+| Page Views | Yes | Yes |
+| TTFB, FCP, LCP | Yes | No (no server round-trip) |
+| CLS | Yes | Continues accumulating |
+| INP | Yes | Continues measuring |
+
+**Note:** FID was replaced by INP in web-vitals v4+.
+
+## Tables
+
+| Table | Retention | Purpose |
+|----|---|---|
+| `page_views` | 90 days | Traffic analytics |
+| `sessions` | 180 days | User journey |
+| `ai_usage` | 365 days | AI cost tracking (includes `user_name` column) |
+| `user_actions` | 180 days | User behavior |
+| `api_calls` | 30 days | API monitoring (includes Lambda with `service='lambda'`) |
+| `errors` | 90 days | Error tracking |
+| `cache_metrics` | 30 days | (unused - admin reads live from cache service) |
+| `performance` | 90 days | Core Web Vitals |
+| `system_metrics` | 30 days | CPU, memory, event loop (collected every 5 min) |
+
+## Reusable Chart Components
+
+Components in `src/components/features/admin/analytics-charts.tsx`:
+
+| Component | Use Case |
+|-----------|----------|
+| `DevicePieChart` | Device breakdown (desktop/mobile/tablet) |
+| `DistributionPieChart` | Generic distribution (query types, geo, etc.) |
+| `DonutChart` | Single metric with percentage (cache hit rate, success rate) |
+| `TrendChart` | Time series area chart (daily traffic, invocations) |
+| `HorizontalBarChart` | Top items list (top bots, top pages) |
+| `MultiSeriesChart` | Multiple data series on one chart |
+| `MultiLineChart` | Multi-series line chart with legend |
+| `SystemMetricsChart` | CPU & memory history (wraps MultiLineChart) |
+| `LambdaTimeSeriesChart` | Dual-axis line chart (invocations + duration) |
+
+All charts use a neutral zinc color palette with semantic colors (green/amber/red) only for rate metrics.
+
+## Lambda Tracking
+
+Lambda invocations are tracked to the `api_calls` table with:
+- `service = 'lambda'`
+- `endpoint = 'functionName:mediaType:tmdbId'` (e.g., `puppeteer-node14:movie:550`)
+- When grouped by function, only the function name is extracted (before first `:`)
+
+## Grafana Dashboards (port 3004)
+
+- Traffic Overview, AI Economics, Performance (Web Vitals), Errors, System Health
+
+For full documentation, see `docs/ANALYTICS_MONITORING_PLAN.md`.

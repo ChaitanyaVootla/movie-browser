@@ -6,11 +6,7 @@ import { Sparkles, Loader2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EnrichButtonProps {
   tmdbId: number;
@@ -26,7 +22,12 @@ type EnrichStatus = "idle" | "loading" | "success" | "error";
  * Admin-only button to trigger content enrichment.
  * Appears subtle at the bottom of overview sections.
  */
-export function EnrichButton({ tmdbId, mediaType, asFooter = false, className }: EnrichButtonProps) {
+export function EnrichButton({
+  tmdbId,
+  mediaType,
+  asFooter = false,
+  className,
+}: EnrichButtonProps) {
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const [status, setStatus] = useState<EnrichStatus>("idle");
@@ -116,24 +117,24 @@ export function EnrichButton({ tmdbId, mediaType, asFooter = false, className }:
   );
 
   // Show tooltip with error message when there's an error
-  const buttonWithTooltip = status === "error" && errorMessage ? (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[200px]">
-        <p className="text-xs text-red-400">{errorMessage}</p>
-      </TooltipContent>
-    </Tooltip>
-  ) : button;
+  const buttonWithTooltip =
+    status === "error" && errorMessage ? (
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[200px]">
+          <p className="text-xs text-red-400">{errorMessage}</p>
+        </TooltipContent>
+      </Tooltip>
+    ) : (
+      button
+    );
 
   // Wrap in footer container if requested
   if (asFooter) {
     return (
-      <div className="flex justify-end px-4 py-2 border-t border-white/5">
-        {buttonWithTooltip}
-      </div>
+      <div className="flex justify-end px-4 py-2 border-t border-white/5">{buttonWithTooltip}</div>
     );
   }
 
   return buttonWithTooltip;
 }
-

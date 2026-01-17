@@ -1,0 +1,253 @@
+---
+description: Person page component patterns, filmography, and credits filtering
+globs: ["src/components/features/person/**"]
+alwaysApply: false
+---
+
+# Person Components
+
+## Component Structure
+
+```
+src/components/features/person/
+├── index.ts                   # Export hub for person components
+├── person-hero.tsx            # Profile photo, bio (expand/collapse), external links
+├── person-filmography.tsx     # Credits by decade with role info, tab-based filter
+├── known-for-section.tsx      # Top credits scroller with character names
+├── upcoming-latest-section.tsx # Recent releases + upcoming projects
+├── person-card.tsx            # Card for cast sections (+ compact variant)
+└── person-images.tsx          # Photo gallery (reuses ImageGallery)
+```
+
+## Person Page Structure
+
+The person page follows this layout:
+1. **PersonHero** - Profile photo, name, bio (with expand/collapse), meta info, social links
+2. **UpcomingLatestSection** - Recent releases (last 5) + upcoming projects
+3. **KnownForSection** - Top credits by popularity with character names
+4. **PersonImages** - Photo gallery (reuses ImageGallery from media)
+5. **PersonFilmography** - Full filmography grouped by decade with role info
+
+## Talk Show Filtering
+
+Person credits are filtered to exclude talk shows and news programs that pollute filmography:
+
+```typescript
+// src/lib/constants.ts
+export const EXCLUDED_TV_GENRES = [
+  10763, // News
+  10767, // Talk
+] as const;
+
+// src/lib/person-credits.ts - utilities for credit filtering
+import { filterOutTalkShows, categorizeCredits } from "@/lib/person-credits";
+
+// Filter credits before display
+const filteredCredits = filterOutTalkShows(person.combined_credits.cast);
+
+// Categorize into upcoming/latest for the section
+const { upcoming, latest } = categorizeCredits(allCredits);
+```
+
+**Applied in:**
+- `KnownForSection` - Filters before sorting by popularity
+- `PersonFilmography` - Filters cast and crew credits
+- `UpcomingLatestSection` - Filters before categorizing
+
+## PersonHero Spacing
+
+Person pages need extra top padding since there's no backdrop:
+
+```tsx
+// PersonHero uses more top padding to clear navbar
+<div className="px-4 md:px-8 lg:px-12 pt-16 md:pt-20 pb-8 md:pb-12">
+```
+
+## PersonFilmography Pattern
+
+Filmography uses `MediaCard` in `MediaScroller` for visual consistency and respects card display preference:
+
+```tsx
+import { PersonFilmography } from "@/components/features/person";
+
+<PersonFilmography person={person} className="mt-8" />
+```
+
+Features:
+- **Tabs**: Movies / TV Shows with counts
+- **Filter tabs**: All / Cast / Crew (inline toggle, not dropdown) - defaults to "All"
+- **Role display**: Shows character name (cast) or job (crew) as subtitle on each card
+- **Browse All link**: Links to `/browse` with cast/crew filter for the person
+- **Grouped by decade**: 2020s, 2010s, 2000s, etc.
+- **Uses MediaCard**: Respects user's poster/wide card preference
+- **Talk show filtering**: Excludes news/talk show appearances
+- **No truncation**: Shows all credits (with posters or backdrops depending on mode)
+
+```tsx
+// Decade scrollers structure - uses MediaCard with both sizing classes
+const posterCardClass = "w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0";
+const wideCardClass = "w-[220px] sm:w-[260px] md:w-[300px] flex-shrink-0";
+
+<MediaScroller title="2020s">
+  {credits.map((credit) => (
+    <MediaCard
+      item={creditToListItem(credit)}
+      className={posterCardClass}
+      wideClassName={wideCardClass}
+      showRating
+      subtitle={credit.character || credit.job}  // Shows role/job below title
+    />
+  ))}
+</MediaScroller>
+```
+
+## UpcomingLatestSection Component
+
+Shows recent and upcoming projects in a single scroller:
+
+```tsx
+import { UpcomingLatestSection } from "@/components/features/person";
+
+<UpcomingLatestSection
+  castCredits={person.combined_credits.cast || []}
+  crewCredits={person.combined_credits.crew || []}
+  className="mt-8"
+/>
+```
+
+**Features:**
+- Combines last 5 releases + all upcoming in one scroller
+- Order: Latest (most recent first) → Upcoming (soonest first)
+- Shows character/job + release date as subtitle
+- Upcoming items show relative time ("In 3 days", "In 2 months")
+- Ratings hidden for upcoming (may not exist yet)
+- Filters out talk shows automatically
+- Only renders if there are items to show
+
+**Date range:**
+- "Latest": Released within last 24 months (`LATEST_MONTHS` constant)
+- "Upcoming": Release date in the future
+
+## PersonCard for Cast Sections
+
+Use `PersonCard` in cast carousels for linking to person pages:
+
+```tsx
+import { PersonCard } from "@/components/features/person";
+
+// In cast scrollers
+{cast.map((member) => (
+  <PersonCard
+    key={member.id}
+    person={member}
+    size="md" // or "sm"
+    className="flex-shrink-0"
+  />
+))}
+```
+
+Card sizes:
+- `size="md"` (default): `w-20 md:w-24`, `h-28 md:h-36`
+- `size="sm"`: `w-16`, `h-24`
+
+## PersonImages Gallery
+
+Photo gallery that reuses the `ImageGallery` component from media features:
+
+```tsx
+import { PersonImages } from "@/components/features/person";
+
+{profileImages.length > 1 && (
+  <PersonImages
+    images={profileImages}
+    personName={person.name}
+    className="mt-8"
+  />
+)}
+```
+
+Features (inherited from ImageGallery):
+- Horizontal scroll thumbnails with proper aspect ratio handling
+- Click to open full-screen lightbox
+- Keyboard navigation (←/→, Esc)
+- Thumbnail strip at bottom of lightbox
+- "+N more" button when images exceed maxVisible
+
+## KnownForSection
+
+Shows top credits by popularity with character names:
+
+```tsx
+import { KnownForSection } from "@/components/features/person";
+
+<KnownForSection
+  credits={person.combined_credits.cast}
+  className="mt-8"
+/>
+```
+
+Features:
+- Filters out talk shows/news before sorting
+- Shows character name as subtitle on each card
+- Sorted by popularity, limited to top 12
+- Uses MediaCard (respects card display preference)
+
+## Credit to ListItem Conversion
+
+When using `MovieCard` with person credits, convert to list item format:
+
+```tsx
+function creditToListItem(credit: PersonCombinedCastCredit): MovieListItem | SeriesListItem {
+  if (credit.media_type === "movie") {
+    return {
+      id: credit.id,
+      title: credit.title || "",
+      poster_path: credit.poster_path,
+      backdrop_path: credit.backdrop_path,
+      vote_average: credit.vote_average,
+      vote_count: credit.vote_count,
+      release_date: credit.release_date || "",
+      genre_ids: credit.genre_ids,
+      overview: credit.overview,
+      popularity: credit.popularity,
+      adult: credit.adult,
+      media_type: "movie",
+    };
+  }
+  // Similar for TV...
+}
+```
+
+## Person Card in Episode Modal
+
+Guest Stars and Crew use squircle poster cards (`aspect-[2/3] rounded-lg`) matching the main cast scroller:
+
+```tsx
+function PersonCard({ person, role }) {
+  return (
+    <Link href={`/person/${person.id}`} className="flex-shrink-0 group">
+      <div className="w-[85px] text-center">
+        {/* Squircle poster aspect ratio */}
+        <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-1.5 ring-1 ring-white/10">
+          {person.profile_path ? (
+            <Image src={`https://image.tmdb.org/t/p/w185${person.profile_path}`} fill className="object-cover" />
+          ) : (
+            <User className="h-6 w-6 text-muted-foreground/30 absolute inset-0 m-auto" />
+          )}
+        </div>
+        <p className="text-xs font-medium line-clamp-1">{person.name}</p>
+        <p className="text-[10px] text-muted-foreground line-clamp-1">{person.character || person.job}</p>
+      </div>
+    </Link>
+  );
+}
+```
+
+**Person Scrollers use ScrollContainer:**
+```tsx
+<ScrollContainer showControls gap="gap-3" padding="px-0">
+  {guestStars.map((guest) => (
+    <PersonCard key={guest.id} person={guest} role="cast" />
+  ))}
+</ScrollContainer>
+```

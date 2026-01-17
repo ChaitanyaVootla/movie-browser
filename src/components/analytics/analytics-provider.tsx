@@ -21,10 +21,7 @@
 import { useEffect, type ReactNode, Suspense } from "react";
 import { PageViewTracker } from "./page-view-tracker";
 import { WebVitalsTracker } from "./web-vitals-tracker";
-import {
-  AnalyticsErrorBoundary,
-  initGlobalErrorTracking,
-} from "./analytics-error-boundary";
+import { AnalyticsErrorBoundary, initGlobalErrorTracking } from "./analytics-error-boundary";
 
 // =============================================================================
 // Types
@@ -101,10 +98,7 @@ export function AnalyticsProvider({
    */
   if (enableErrorBoundary) {
     return (
-      <AnalyticsErrorBoundary
-        fallback={errorFallback}
-        componentName="AnalyticsProvider"
-      >
+      <AnalyticsErrorBoundary fallback={errorFallback} componentName="AnalyticsProvider">
         {content}
       </AnalyticsErrorBoundary>
     );
@@ -112,5 +106,3 @@ export function AnalyticsProvider({
 
   return content;
 }
-
-

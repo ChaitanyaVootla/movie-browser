@@ -14,7 +14,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getSlug } from "@/lib/utils";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZES, TMDB_PROFILE_SIZES } from "@/lib/constants";
 import { search } from "@/server/actions/search";
-import type { SearchResponse, SearchMovieResult, SearchSeriesResult, SearchPersonResult } from "@/server/actions/search";
+import type {
+  SearchResponse,
+  SearchMovieResult,
+  SearchSeriesResult,
+  SearchPersonResult,
+} from "@/server/actions/search";
 
 type FilterType = "all" | "movie" | "tv" | "person";
 
@@ -40,10 +45,15 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export function SearchClient({ initialQuery, initialResults, initialPage, initialType }: SearchClientProps) {
+export function SearchClient({
+  initialQuery,
+  initialResults,
+  initialPage,
+  initialType,
+}: SearchClientProps) {
   const router = useRouter();
   const _searchParams = useSearchParams();
-  
+
   const [query, setQuery] = React.useState(initialQuery);
   const [results, setResults] = React.useState<SearchResponse | null>(initialResults);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -53,13 +63,16 @@ export function SearchClient({ initialQuery, initialResults, initialPage, initia
   const debouncedQuery = useDebounce(query, 400);
 
   // Update URL when search params change
-  const updateUrl = React.useCallback((newQuery: string, newPage: number, newType: FilterType) => {
-    const params = new URLSearchParams();
-    if (newQuery) params.set("q", newQuery);
-    if (newPage > 1) params.set("page", String(newPage));
-    if (newType !== "all") params.set("type", newType);
-    router.push(`/search?${params.toString()}`, { scroll: false });
-  }, [router]);
+  const updateUrl = React.useCallback(
+    (newQuery: string, newPage: number, newType: FilterType) => {
+      const params = new URLSearchParams();
+      if (newQuery) params.set("q", newQuery);
+      if (newPage > 1) params.set("page", String(newPage));
+      if (newType !== "all") params.set("type", newType);
+      router.push(`/search?${params.toString()}`, { scroll: false });
+    },
+    [router]
+  );
 
   // Fetch results
   React.useEffect(() => {
@@ -87,7 +100,7 @@ export function SearchClient({ initialQuery, initialResults, initialPage, initia
   // Filter results by type
   const filteredResults = React.useMemo(() => {
     if (!results) return [];
-    
+
     switch (type) {
       case "movie":
         return results.movies;
@@ -117,7 +130,7 @@ export function SearchClient({ initialQuery, initialResults, initialPage, initia
       {/* Search Header */}
       <div className="space-y-4">
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Search</h1>
-        
+
         {/* Search Input */}
         <form onSubmit={handleSubmit} className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -218,7 +231,11 @@ export function SearchClient({ initialQuery, initialResults, initialPage, initia
 }
 
 // Result Card Component
-function ResultCard({ result }: { result: SearchMovieResult | SearchSeriesResult | SearchPersonResult }) {
+function ResultCard({
+  result,
+}: {
+  result: SearchMovieResult | SearchSeriesResult | SearchPersonResult;
+}) {
   if (result.media_type === "person") {
     return <PersonResultCard person={result} />;
   }
@@ -278,9 +295,7 @@ function ResultCard({ result }: { result: SearchMovieResult | SearchSeriesResult
               )}
             </div>
             {result.overview && (
-              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                {result.overview}
-              </p>
+              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{result.overview}</p>
             )}
           </div>
 
@@ -320,11 +335,11 @@ function PersonResultCard({ person }: { person: SearchPersonResult }) {
           <div className="flex flex-1 flex-col justify-center overflow-hidden">
             <div className="flex items-center gap-2">
               <h3 className="truncate font-semibold">{person.name}</h3>
-              <Badge variant="outline" className="flex-shrink-0">Person</Badge>
+              <Badge variant="outline" className="flex-shrink-0">
+                Person
+              </Badge>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {person.known_for_department}
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{person.known_for_department}</p>
             {person.known_for && person.known_for.length > 0 && (
               <p className="mt-1 text-sm text-muted-foreground">
                 Known for:{" "}
@@ -383,10 +398,7 @@ function InitialState() {
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <Search className="h-16 w-16 text-muted-foreground/30" />
       <h2 className="mt-4 text-lg font-semibold">Search for anything</h2>
-      <p className="mt-1 text-muted-foreground">
-        Find movies, TV shows, and people
-      </p>
+      <p className="mt-1 text-muted-foreground">Find movies, TV shows, and people</p>
     </div>
   );
 }
-

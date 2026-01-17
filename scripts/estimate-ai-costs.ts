@@ -22,7 +22,7 @@ config({ path: resolve(process.cwd(), ".env.local") });
 
 interface ModelPricing {
   name: string;
-  inputPer1M: number;  // $ per 1M input tokens
+  inputPer1M: number; // $ per 1M input tokens
   outputPer1M: number; // $ per 1M output tokens
   contextWindow: number;
 }
@@ -31,8 +31,8 @@ const MODELS: Record<string, ModelPricing> = {
   // Amazon Bedrock models
   "nova-pro": {
     name: "Amazon Nova Pro",
-    inputPer1M: 0.80,
-    outputPer1M: 3.20,
+    inputPer1M: 0.8,
+    outputPer1M: 3.2,
     contextWindow: 300000,
   },
   "nova-lite": {
@@ -55,27 +55,27 @@ const MODELS: Record<string, ModelPricing> = {
   },
   "claude-3-sonnet": {
     name: "Claude 3.5 Sonnet",
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
+    inputPer1M: 3.0,
+    outputPer1M: 15.0,
     contextWindow: 200000,
   },
   "claude-3-opus": {
     name: "Claude 3 Opus",
-    inputPer1M: 15.00,
-    outputPer1M: 75.00,
+    inputPer1M: 15.0,
+    outputPer1M: 75.0,
     contextWindow: 200000,
   },
   // OpenAI for comparison
   "gpt-4o": {
     name: "GPT-4o",
-    inputPer1M: 2.50,
-    outputPer1M: 10.00,
+    inputPer1M: 2.5,
+    outputPer1M: 10.0,
     contextWindow: 128000,
   },
   "gpt-4o-mini": {
     name: "GPT-4o Mini",
     inputPer1M: 0.15,
-    outputPer1M: 0.60,
+    outputPer1M: 0.6,
     contextWindow: 128000,
   },
 };
@@ -159,12 +159,12 @@ function analyzeEnrichedMovie(tmdbId: string): MovieStats | null {
     // New optimized format - use ai-input.md for token count
     const metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
     const aiInput = readFileSync(aiInputPath, "utf-8");
-    
+
     stats.title = metadata.title || "";
     stats.totalBytes = statSync(aiInputPath).size;
     stats.totalChars = aiInput.length;
     stats.totalTokens = metadata.stats?.estimatedTokens || estimateTokens(aiInput);
-    
+
     // Add source breakdown from individual markdown files
     const mdFiles = ["tmdb.md", "wikipedia.md", "imdb.md", "fandom.md"];
     for (const file of mdFiles) {
@@ -178,7 +178,7 @@ function analyzeEnrichedMovie(tmdbId: string): MovieStats | null {
         tokens: estimateTokens(content),
       });
     }
-    
+
     // Add wikidata if exists
     const wikidataPath = join(dir, "wikidata.json");
     if (existsSync(wikidataPath)) {
@@ -190,7 +190,7 @@ function analyzeEnrichedMovie(tmdbId: string): MovieStats | null {
         tokens: estimateTokens(wikidata),
       });
     }
-    
+
     return stats;
   }
 
@@ -230,9 +230,18 @@ function analyzeEnrichedMovie(tmdbId: string): MovieStats | null {
       stats.sections.push({ name: "TMDB Credits", tokens: countTokensInJson(data.credits) });
     }
     if (file === "wikipedia.json") {
-      stats.sections.push({ name: "Wikipedia Summary", tokens: estimateTokens(data.summary || "") });
-      stats.sections.push({ name: "Wikipedia Plot", tokens: estimateTokens(data.sections?.Plot || "") });
-      stats.sections.push({ name: "Wikipedia Categories", tokens: countTokensInJson(data.categories) });
+      stats.sections.push({
+        name: "Wikipedia Summary",
+        tokens: estimateTokens(data.summary || ""),
+      });
+      stats.sections.push({
+        name: "Wikipedia Plot",
+        tokens: estimateTokens(data.sections?.Plot || ""),
+      });
+      stats.sections.push({
+        name: "Wikipedia Categories",
+        tokens: countTokensInJson(data.categories),
+      });
     }
     if (file === "imdb.json") {
       stats.sections.push({ name: "IMDb Synopsis", tokens: estimateTokens(data.synopsis || "") });
@@ -246,7 +255,7 @@ function analyzeEnrichedMovie(tmdbId: string): MovieStats | null {
 function getAllEnrichedMovies(): string[] {
   const dir = join(process.cwd(), "data", "enriched");
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter(f => /^\d+$/.test(f));
+  return readdirSync(dir).filter((f) => /^\d+$/.test(f));
 }
 
 // =============================================================================
@@ -286,7 +295,7 @@ function calculateCost(
 
 async function analyzeAll() {
   const movieIds = getAllEnrichedMovies();
-  
+
   if (movieIds.length === 0) {
     console.log("❌ No enriched movies found. Run:");
     console.log("   yarn enrich 693134  # Dune: Part Two");
@@ -305,8 +314,10 @@ async function analyzeAll() {
     if (stats) {
       allStats.push(stats);
       console.log(`📽️  ${stats.title || id}`);
-      console.log(`   Total: ${(stats.totalBytes / 1024).toFixed(1)}KB, ~${stats.totalTokens.toLocaleString()} tokens`);
-      console.log(`   Sources: ${stats.sources.map(s => `${s.name}(${s.tokens})`).join(", ")}`);
+      console.log(
+        `   Total: ${(stats.totalBytes / 1024).toFixed(1)}KB, ~${stats.totalTokens.toLocaleString()} tokens`
+      );
+      console.log(`   Sources: ${stats.sources.map((s) => `${s.name}(${s.tokens})`).join(", ")}`);
     }
   }
 
@@ -315,8 +326,8 @@ async function analyzeAll() {
   // Calculate averages
   const avgBytes = allStats.reduce((sum, s) => sum + s.totalBytes, 0) / allStats.length;
   const avgTokens = allStats.reduce((sum, s) => sum + s.totalTokens, 0) / allStats.length;
-  const maxTokens = Math.max(...allStats.map(s => s.totalTokens));
-  const minTokens = Math.min(...allStats.map(s => s.totalTokens));
+  const maxTokens = Math.max(...allStats.map((s) => s.totalTokens));
+  const minTokens = Math.min(...allStats.map((s) => s.totalTokens));
 
   console.log(`\n${"=".repeat(80)}`);
   console.log(`📊 SUMMARY (${allStats.length} movies)`);
@@ -331,12 +342,15 @@ async function analyzeAll() {
   console.log("-".repeat(60));
   const sourceNames = ["tmdb", "wikidata", "wikipedia", "fandom", "imdb"];
   for (const name of sourceNames) {
-    const avgForSource = allStats.reduce((sum, s) => {
-      const src = s.sources.find(x => x.name === name);
-      return sum + (src?.tokens || 0);
-    }, 0) / allStats.length;
+    const avgForSource =
+      allStats.reduce((sum, s) => {
+        const src = s.sources.find((x) => x.name === name);
+        return sum + (src?.tokens || 0);
+      }, 0) / allStats.length;
     const pct = (avgForSource / avgTokens) * 100;
-    console.log(`   ${name.padEnd(15)} ${Math.round(avgForSource).toLocaleString().padStart(10)} tokens (${pct.toFixed(1)}%)`);
+    console.log(
+      `   ${name.padEnd(15)} ${Math.round(avgForSource).toLocaleString().padStart(10)} tokens (${pct.toFixed(1)}%)`
+    );
   }
 
   // Estimate AI processing scenarios
@@ -349,43 +363,47 @@ async function analyzeAll() {
     {
       name: "Full Summarization",
       description: "Send all data, get detailed summary + labels",
-      inputMultiplier: 1.0,  // Use all tokens
-      outputTokens: 2000,    // ~1500 words output
+      inputMultiplier: 1.0, // Use all tokens
+      outputTokens: 2000, // ~1500 words output
     },
     {
       name: "Efficient Extraction",
       description: "Send only plot + keywords + categories",
-      inputMultiplier: 0.3,  // Use 30% of tokens
-      outputTokens: 500,     // Just labels + one-liner
+      inputMultiplier: 0.3, // Use 30% of tokens
+      outputTokens: 500, // Just labels + one-liner
     },
     {
       name: "Minimal Labels",
       description: "Send overview + keywords only",
-      inputMultiplier: 0.1,  // Use 10% of tokens
-      outputTokens: 200,     // Just tropes/labels
+      inputMultiplier: 0.1, // Use 10% of tokens
+      outputTokens: 200, // Just tropes/labels
     },
   ];
 
   for (const scenario of scenarios) {
     console.log(`\n📝 ${scenario.name}`);
     console.log(`   ${scenario.description}`);
-    console.log(`   Input: ~${Math.round(avgTokens * scenario.inputMultiplier).toLocaleString()} tokens/movie`);
+    console.log(
+      `   Input: ~${Math.round(avgTokens * scenario.inputMultiplier).toLocaleString()} tokens/movie`
+    );
     console.log(`   Output: ~${scenario.outputTokens.toLocaleString()} tokens/movie`);
     console.log();
 
     const inputTokensPerMovie = Math.round(avgTokens * scenario.inputMultiplier);
-    
+
     // Per 1000 movies
     const inputTokens1K = inputTokensPerMovie * 1000;
     const outputTokens1K = scenario.outputTokens * 1000;
 
     console.log(`   Cost per 1000 movies:`);
-    console.log(`   ${"Model".padEnd(25)} ${"Input".padStart(12)} ${"Output".padStart(12)} ${"Total".padStart(12)}`);
+    console.log(
+      `   ${"Model".padEnd(25)} ${"Input".padStart(12)} ${"Output".padStart(12)} ${"Total".padStart(12)}`
+    );
     console.log(`   ${"-".repeat(61)}`);
 
     for (const [key, model] of Object.entries(MODELS)) {
       if (["claude-3-opus", "claude-3-sonnet"].includes(key)) continue; // Skip expensive ones for 1K
-      
+
       const cost = calculateCost(inputTokens1K, outputTokens1K, model);
       console.log(
         `   ${model.name.padEnd(25)} $${cost.inputCost.toFixed(2).padStart(10)} $${cost.outputCost.toFixed(2).padStart(10)} $${cost.totalCost.toFixed(2).padStart(10)}`
@@ -397,11 +415,13 @@ async function analyzeAll() {
   console.log(`\n${"=".repeat(80)}`);
   console.log(`💵 COST PER MOVIE (Full Summarization)`);
   console.log("=".repeat(80));
-  
+
   const fullInput = Math.round(avgTokens);
   const fullOutput = 2000;
 
-  console.log(`\n   ${"Model".padEnd(25)} ${"Cost/Movie".padStart(15)} ${"Cost/1K Movies".padStart(15)}`);
+  console.log(
+    `\n   ${"Model".padEnd(25)} ${"Cost/Movie".padStart(15)} ${"Cost/1K Movies".padStart(15)}`
+  );
   console.log(`   ${"-".repeat(55)}`);
 
   for (const [key, model] of Object.entries(MODELS)) {
@@ -441,7 +461,7 @@ async function analyzeAll() {
 
 async function analyzeOne(tmdbId: string) {
   const stats = analyzeEnrichedMovie(tmdbId);
-  
+
   if (!stats) {
     console.log(`❌ No enriched data for TMDB ${tmdbId}`);
     console.log(`   Run: yarn enrich ${tmdbId}`);
@@ -459,7 +479,9 @@ async function analyzeOne(tmdbId: string) {
   for (const src of stats.sources) {
     const pct = (src.tokens / stats.totalTokens) * 100;
     const bar = "█".repeat(Math.round(pct / 5)) + "░".repeat(20 - Math.round(pct / 5));
-    console.log(`   ${src.name.padEnd(12)} ${src.tokens.toLocaleString().padStart(8)} tokens (${pct.toFixed(1).padStart(5)}%) ${bar}`);
+    console.log(
+      `   ${src.name.padEnd(12)} ${src.tokens.toLocaleString().padStart(8)} tokens (${pct.toFixed(1).padStart(5)}%) ${bar}`
+    );
   }
 
   console.log(`\n📝 KEY SECTIONS`);
@@ -467,7 +489,9 @@ async function analyzeOne(tmdbId: string) {
   for (const section of stats.sections.sort((a, b) => b.tokens - a.tokens)) {
     if (section.tokens > 0) {
       const pct = (section.tokens / stats.totalTokens) * 100;
-      console.log(`   ${section.name.padEnd(25)} ${section.tokens.toLocaleString().padStart(8)} tokens (${pct.toFixed(1)}%)`);
+      console.log(
+        `   ${section.name.padEnd(25)} ${section.tokens.toLocaleString().padStart(8)} tokens (${pct.toFixed(1)}%)`
+      );
     }
   }
 
@@ -476,7 +500,7 @@ async function analyzeOne(tmdbId: string) {
   const outputTokens = 1500;
   console.log(`   Assuming ~${outputTokens} output tokens`);
   console.log();
-  
+
   for (const [key, model] of Object.entries(MODELS)) {
     if (["claude-3-opus", "claude-3-sonnet", "gpt-4o"].includes(key)) continue;
     const cost = calculateCost(stats.totalTokens, outputTokens, model);
@@ -495,4 +519,3 @@ async function main() {
 }
 
 main();
-

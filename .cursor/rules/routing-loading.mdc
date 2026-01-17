@@ -1,0 +1,345 @@
+---
+description: Routing patterns, progressive loading, hero image architecture, and scroll restoration
+globs: ["src/app/**/page.tsx", "src/app/**/loading.tsx", "src/components/features/media/**/*.tsx"]
+alwaysApply: false
+---
+
+# Movie Browser - Routing & Loading Rules
+
+## Routing Patterns
+
+### Catch-All Routes for SEO-Friendly URLs
+
+Support both `/movie/550` and `/movie/550/fight-club` with catch-all routes:
+
+```
+src/app/movie/[...params]/page.tsx   # /movie/550 or /movie/550/fight-club
+src/app/series/[...params]/page.tsx  # /series/1396 or /series/1396/breaking-bad
+src/app/person/[...params]/page.tsx  # /person/17419 or /person/17419/bryan-cranston
+```
+
+```tsx
+interface PageProps {
+  params: Promise<{
+    params: string[]; // [movieId] or [movieId, slug]
+  }>;
+}
+
+export default async function MoviePage({ params }: PageProps) {
+  const { params: routeParams } = await params;
+  const movieId = routeParams[0]; // First segment is always the ID
+  // slug = routeParams[1] (optional, ignored for data fetching)
+
+  const id = parseInt(movieId, 10);
+  if (isNaN(id)) return notFound();
+
+  const movie = await getMovie(id);
+  if (!movie) return notFound();
+
+  return <MovieDetails movie={movie} />;
+}
+```
+
+### Link Generation
+
+Always generate SEO-friendly slugs for links:
+
+```tsx
+function getSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+// Usage
+const href = `/movie/${movie.id}/${getSlug(movie.title)}`;
+// -> /movie/550/fight-club
+```
+
+## Progressive Loading (Detail Pages)
+
+Detail pages use a progressive loading strategy for optimal perceived performance:
+
+### Architecture
+
+```
+1. loading.tsx (instant)
+   Skeleton UI shown immediately on navigation
+
+2. Hero Shell Components (instant - CDN URLs only)
+   HeroBackdropShell + HeroLogoShell render with just ID
+   Uses deterministic CDN URLs, no data fetch needed
+
+3. Suspense Boundaries (progressive)
+   HeroContentAsync -> genres, ratings, watch options
+   PageContentAsync -> overview, videos, gallery, recs
+   CollectionAsync  -> collection section (movies only)
+```
+
+### loading.tsx Pattern
+
+Each detail page route has a `loading.tsx` for instant feedback:
+
+```tsx
+// src/app/movie/[...params]/loading.tsx
+import { HeroBackdropSkeleton, HeroContentSkeleton, PageContentSkeleton, CollectionSectionSkeleton } from "@/components/features/media";
+
+export default function MovieLoading() {
+  return (
+    <article>
+      <HeroBackdropSkeleton />
+      <HeroContentSkeleton />
+      <PageContentSkeleton />
+      <CollectionSectionSkeleton />
+    </article>
+  );
+}
+```
+
+### Hero Shell Components (Instant Images)
+
+Shell components load images immediately using only the ID (available from URL):
+
+```tsx
+// CDN URLs are deterministic - no data fetch needed
+import { HeroBackdropShell, HeroLogoShell } from "@/components/features/media";
+
+// In page.tsx - these render BEFORE getMovie() resolves
+<HeroBackdropShell
+  itemId={movieId}
+  mediaType="movie"
+  title="Loading..."
+  priority
+>
+  <HeroLogoShell
+    itemId={movieId}
+    mediaType="movie"
+    title="Loading..."
+    priority
+  />
+</HeroBackdropShell>
+```
+
+**Key pattern:** Shell components only need `itemId` and `mediaType` to construct CDN image URLs:
+- `https://image.themoviebrowser.com/movie/{id}/backdrop.webp`
+- `https://image.themoviebrowser.com/movie/{id}/logo.webp`
+
+### Suspense Boundaries Pattern
+
+Wrap data-dependent content in Suspense for streaming:
+
+```tsx
+// src/app/movie/[...params]/page.tsx
+export default async function MoviePage({ params }: PageProps) {
+  const { params: routeParams } = await params;
+  const movieId = parseInt(routeParams[0], 10);
+  if (isNaN(movieId)) return notFound();
+
+  return (
+    <article>
+      {/* Image preloads */}
+      <link rel="preload" as="image" href={`https://image.themoviebrowser.com/movie/${movieId}/backdrop.webp`} />
+      <link rel="preload" as="image" href={`https://image.themoviebrowser.com/movie/${movieId}/logo.webp`} />
+
+      {/* Hero section - shells render instantly */}
+      <section className="hero-container relative w-full overflow-hidden">
+        <HeroBackdropShell itemId={movieId} mediaType="movie" title="Loading..." priority>
+          <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 md:px-8 lg:px-12">
+            <HeroLogoShell itemId={movieId} mediaType="movie" title="Loading..." priority />
+
+            {/* Hero content streams in after data loads */}
+            <Suspense fallback={<HeroContentSkeleton />}>
+              <HeroContentAsync movieId={movieId} />
+            </Suspense>
+          </div>
+        </HeroBackdropShell>
+      </section>
+
+      {/* Main content streams in */}
+      <Suspense fallback={<PageContentSkeleton />}>
+        <PageContentAsync movieId={movieId} />
+      </Suspense>
+    </article>
+  );
+}
+
+// Async components fetch their own data
+async function HeroContentAsync({ movieId }: { movieId: number }) {
+  const movie = await getMovie(movieId);
+  if (!movie) return null;
+  return (
+    <div className="hero-content-width flex flex-col items-start gap-2.5">
+      <GenreList genres={movie.genres} mediaType="movie" />
+      <RatingsBar ratings={movie.ratings} />
+      <WatchOptions watchOptions={movie.watch_options} />
+    </div>
+  );
+}
+```
+
+### Flex Container Alignment
+
+When using flex column containers in hero content, add `items-start` to prevent children from stretching:
+
+```tsx
+// GOOD: items-start prevents RatingsBar from stretching
+<div className="hero-content-width flex flex-col items-start gap-2.5">
+  <GenreList ... />
+  <RatingsBar ... />  {/* Uses inline-flex, will fit content */}
+</div>
+
+// BAD: Without items-start, flex children stretch to fill width
+<div className="hero-content-width flex flex-col gap-2.5">
+  <RatingsBar ... />  {/* Will stretch to full container width */}
+</div>
+```
+
+### Key Benefits
+
+1. **Instant visual feedback** - loading.tsx shows skeleton immediately
+2. **Prioritized images** - Hero images start loading before data fetch completes
+3. **Progressive streaming** - Content appears as it becomes available
+4. **No layout shift** - Skeletons match final component dimensions
+
+## Hero Image & Gradient Architecture
+
+### Backdrop Image Sizing
+
+Hero backdrop images maintain aspect ratio without cropping:
+
+```tsx
+// hero-backdrop-shell.tsx / media-backdrop.tsx
+<div className="absolute inset-0 flex justify-end">
+  <div className="relative h-full">
+    <img
+      src={backdropSrc}
+      alt="backdrop"
+      className="h-full w-auto max-w-none"  // Height fills, width auto-scales
+    />
+    {/* Left edge gradient follows image */}
+  </div>
+</div>
+```
+
+**Key constraints:**
+- `h-full` - Image height fills container (60vh on desktop)
+- `w-auto` - Width scales proportionally to maintain aspect ratio
+- `max-w-none` - Allow image to exceed container width
+- `justify-end` - Align image to right edge (important content typically on right)
+
+**Why not `object-cover`:** Using `object-cover` crops top/bottom of images, cutting off important content like character hands/heads. The aspect-ratio approach shows the complete image.
+
+### Gradient Overlay System
+
+Three gradient layers, kept separate to avoid dulling the image:
+
+```tsx
+{/* 1. Left edge gradient - ON the image, follows its edge */}
+<div className="relative h-full">
+  <img ... />
+  <div
+    className="absolute inset-0 pointer-events-none"
+    style={{
+      background: `linear-gradient(to right,
+        rgba(0,0,0,0.95) 0%,
+        rgba(0,0,0,0.7) 5%,
+        rgba(0,0,0,0.3) 12%,
+        transparent 22%)`  // Quick falloff - only covers ~22% of image
+    }}
+  />
+</div>
+
+{/* 2. Top gradient - for navbar readability */}
+<div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-black/25 to-transparent" />
+
+{/* 3. Bottom gradient - subtle fade to content area */}
+<div className="absolute inset-x-0 bottom-0 h-[8%] bg-linear-to-t from-background/70 via-background/5 to-transparent" />
+```
+
+**Critical patterns:**
+- Left gradient is **inside** the image wrapper so it follows the image edge at any screen size
+- Top/bottom gradients are at **opposite edges** - don't overlap to dull the image
+- Left gradient falls off quickly (~22%) to preserve image vibrancy
+- **Never add a right-side gradient** - it dulls the main content area
+
+### Hero Height CSS Variables
+
+Defined in `globals.css`:
+
+```css
+:root {
+  /* Hero height (desktop): target 60vh, min 400px, max 750px */
+  --hero-height-target: 60vh;
+  --hero-height-min: 400px;
+  --hero-height-max: 750px;
+}
+
+@media (min-width: 768px) {
+  .hero-container {
+    height: clamp(
+      var(--hero-height-min),
+      var(--hero-height-target),
+      var(--hero-height-max)
+    );
+    max-height: 60vh;
+  }
+}
+```
+
+### Logo Constraints
+
+Logos have responsive constraints for both tall (e.g., The Godfather) and wide (e.g., Spotlight) formats:
+
+```tsx
+// HeroLogoShell defaults
+maxWidth = 600
+maxHeight = 180
+
+// Responsive className constraints
+className="max-w-[280px] sm:max-w-[380px] md:max-w-[500px] lg:max-w-[600px]
+           max-h-[90px] sm:max-h-[120px] md:max-h-[150px] lg:max-h-[180px]"
+```
+
+**Why generous constraints:** Small logos leave large visual gaps in the hero area. The constraints should allow logos to expand and take up appropriate space while still having reasonable limits.
+
+## Scroll Restoration
+
+### ScrollToTop Component
+
+A global component that handles scroll position on route changes:
+
+```tsx
+// src/components/features/layout/scroll-to-top.tsx
+"use client";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
+
+export function ScrollToTop() {
+  const pathname = usePathname();
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    window.scrollTo(0, 0);  // Instant scroll during route transition
+  }, [pathname]);
+
+  return null;
+}
+```
+
+**Usage:** Add once in root layout inside Providers:
+
+```tsx
+// src/app/layout.tsx
+<Providers>
+  <ScrollToTop />
+  <NavBar />
+  <main>{children}</main>
+</Providers>
+```
+
+**Design decision:** Instant scroll (not smooth) because the scroll happens during the route transition, so users don't see the jump - they see the new page from the top.

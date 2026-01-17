@@ -26,7 +26,7 @@ const MODELS_TO_TEST = [
   { id: "apac.amazon.nova-pro-v1:0", name: "Nova Pro v1 (APAC)" },
 ];
 
-const REGION = "ap-south-1";
+const REGION = process.env.BEDROCK_REGION || "ap-south-1";
 
 async function testModel(client: BedrockRuntimeClient, modelId: string, modelName: string) {
   const inputText = "What is 2+2? Answer in one word.";
@@ -126,4 +126,3 @@ async function testNovaLite() {
 }
 
 testNovaLite();
-

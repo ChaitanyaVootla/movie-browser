@@ -40,8 +40,10 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
   return (
     <div className="flex items-center gap-1">
       <ThumbsUp className="h-3 w-3 text-muted-foreground" />
-      <span className="text-[11px] text-muted-foreground tabular-nums">{formatViewCount(likes)}</span>
-      
+      <span className="text-[11px] text-muted-foreground tabular-nums">
+        {formatViewCount(likes)}
+      </span>
+
       {/* Compact progress bar */}
       <div className="w-10 h-1 bg-muted rounded-full overflow-hidden">
         <div
@@ -49,8 +51,10 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
           style={{ width: `${likePercentage}%` }}
         />
       </div>
-      
-      <span className="text-[11px] text-muted-foreground tabular-nums">{formatViewCount(dislikes)}</span>
+
+      <span className="text-[11px] text-muted-foreground tabular-nums">
+        {formatViewCount(dislikes)}
+      </span>
       <ThumbsDown className="h-3 w-3 text-muted-foreground" />
     </div>
   );
@@ -62,7 +66,7 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
 function TrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCardProps) {
   const detailUrl = `/movie/${trailer.tmdbId}`;
   const thumbnailUrl = `https://img.youtube.com/vi/${trailer.youtubeKey}/mqdefault.jpg`;
-  
+
   return (
     <div className="group relative w-[280px] sm:w-[320px] md:w-[360px] flex-shrink-0">
       {/* Thumbnail with play button */}
@@ -80,7 +84,7 @@ function TrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCar
           priority={priority}
           unoptimized // YouTube thumbnails don't need Next.js optimization
         />
-        
+
         {/* Play button overlay - subtle, appears on hover */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-all duration-300">
           <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300">
@@ -88,7 +92,7 @@ function TrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCar
           </div>
         </div>
       </button>
-      
+
       {/* Title and stats */}
       <div className="mt-2 space-y-1">
         <Link
@@ -97,13 +101,15 @@ function TrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCar
         >
           {trailer.title}
         </Link>
-        
+
         {/* YouTube stats: Views (left) | Like bar (right) */}
         {metadata && (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1 text-muted-foreground">
               <Eye className="h-3 w-3" />
-              <span className="text-[11px] tabular-nums">{formatViewCount(metadata.viewCount)} views</span>
+              <span className="text-[11px] tabular-nums">
+                {formatViewCount(metadata.viewCount)} views
+              </span>
             </div>
             {(metadata.likeCount > 0 || metadata.dislikeCount > 0) && (
               <TrailerLikeBar likes={metadata.likeCount} dislikes={metadata.dislikeCount} />
@@ -133,19 +139,14 @@ export function TrailerCardSkeleton() {
 /**
  * Carousel for displaying trending trailers with play functionality
  */
-export function TrailerCarousel({
-  title,
-  trailers,
-  icon,
-  className,
-}: TrailerCarouselProps) {
+export function TrailerCarousel({ title, trailers, icon, className }: TrailerCarouselProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [videoMetadata, setVideoMetadata] = useState<Map<string, VideoMetadata>>(new Map());
-  
+
   const handlePlay = useCallback((index: number) => {
     setActiveIndex(index);
   }, []);
-  
+
   const handleClose = useCallback(() => {
     setActiveIndex(null);
   }, []);
@@ -153,16 +154,16 @@ export function TrailerCarousel({
   const handleNavigate = useCallback((index: number) => {
     setActiveIndex(index);
   }, []);
-  
+
   // Fetch YouTube metadata (views, likes, dislikes) for all trailers
   useEffect(() => {
     if (trailers.length === 0) return;
-    
-    const videoIds = trailers.map(t => t.youtubeKey).join(",");
-    
+
+    const videoIds = trailers.map((t) => t.youtubeKey).join(",");
+
     fetch(`/api/youtube?videoIds=${videoIds}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
         if (data?.videos) {
           setVideoMetadata(new Map(Object.entries(data.videos)));
         }
@@ -174,24 +175,19 @@ export function TrailerCarousel({
 
   // Convert trailers to modal format with metadata
   const modalTrailers: TrailerModalData[] = useMemo(() => {
-    return trailers.map(trailer => {
+    return trailers.map((trailer) => {
       const metadata = videoMetadata.get(trailer.youtubeKey);
       return toTrailerModalData(trailer, metadata);
     });
   }, [trailers, videoMetadata]);
-  
+
   if (trailers.length === 0) {
     return null;
   }
-  
+
   return (
     <>
-      <MediaScroller
-        title={title}
-        titleIcon={icon}
-        className={cn(className)}
-        contentPadding=""
-      >
+      <MediaScroller title={title} titleIcon={icon} className={cn(className)} contentPadding="">
         {trailers.map((trailer, index) => (
           <TrailerCard
             key={`${trailer.tmdbId}-${trailer.youtubeKey}`}
@@ -202,7 +198,7 @@ export function TrailerCarousel({
           />
         ))}
       </MediaScroller>
-      
+
       {/* Trailer modal */}
       <TrailerModal
         trailers={modalTrailers}

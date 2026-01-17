@@ -84,18 +84,9 @@ function RatingItem({
       )}
     >
       <div className={cn("relative flex-shrink-0", heightClass)} style={{ width: iconSize }}>
-        <Image
-          src={icon}
-          alt={rating.label}
-          fill
-          className="object-contain"
-          unoptimized
-        />
+        <Image src={icon} alt={rating.label} fill className="object-contain" unoptimized />
       </div>
-      <span
-        className={cn("font-medium tabular-nums", textClass)}
-        style={{ color }}
-      >
+      <span className={cn("font-medium tabular-nums", textClass)} style={{ color }}>
         {displayScore}
       </span>
     </div>
@@ -172,4 +163,3 @@ export function RatingsBar({
     </div>
   );
 }
-

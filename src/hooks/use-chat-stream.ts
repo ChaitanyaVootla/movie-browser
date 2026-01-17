@@ -50,46 +50,48 @@ interface StreamEvent {
  * Also filters LangGraph/Bedrock tool call markers
  */
 function filterInternalTags(content: string): string {
-  return content
-    // Remove thinking tags
-    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
-    .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
-    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    // Remove tool call markers (LangGraph/Bedrock XML format)
-    .replace(/<tool_call_begin>[\s\S]*?<tool_call_end>/gi, "")
-    .replace(/<tool_calls_section_begin>[\s\S]*?<tool_calls_section_end>/gi, "")
-    .replace(/<tool_call_argument_begin>[\s\S]*?<tool_call_argument_end>/gi, "")
-    // Remove Kimi K2 / Moonshot format tool markers (pipe delimited)
-    .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, "")
-    .replace(/<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_argument_end\|>/gi, "")
-    // Remove function call markers
-    .replace(/<functions\.[\w]+>[\s\S]*?<\/functions\.[\w]+>/gi, "")
-    .replace(/functions\.[\w]+:\d+/gi, "")
-    // Handle unclosed tags (streaming partial content)
-    .replace(/<thinking>[\s\S]*$/gi, "")
-    .replace(/<thought>[\s\S]*$/gi, "")
-    .replace(/<reasoning>[\s\S]*$/gi, "")
-    .replace(/<think>[\s\S]*$/gi, "")
-    .replace(/<tool_call_begin>[\s\S]*$/gi, "")
-    .replace(/<tool_calls_section_begin>[\s\S]*$/gi, "")
-    .replace(/<tool_call_argument_begin>[\s\S]*$/gi, "")
-    .replace(/<functions\.[\w]+>[\s\S]*$/gi, "")
-    // Handle unclosed Kimi K2 format markers
-    .replace(/<\|tool_call_begin\|>[\s\S]*$/gi, "")
-    .replace(/<\|tool_call_argument_begin\|>[\s\S]*$/gi, "")
-    // Clean up any standalone closing tags that might be left
-    .replace(/<tool_call_end>/gi, "")
-    .replace(/<tool_calls_section_end>/gi, "")
-    .replace(/<tool_call_argument_end>/gi, "")
-    .replace(/<\/functions\.[\w]+>/gi, "")
-    .replace(/<\|tool_call_end\|>/gi, "")
-    .replace(/<\|tool_call_argument_end\|>/gi, "")
-    // Clean up any leftover angle bracket/pipe artifacts
-    .replace(/<\|[^|]*\|>/gi, "")
-    // Clean up extra whitespace from removals
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return (
+    content
+      // Remove thinking tags
+      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
+      .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
+      .replace(/<think>[\s\S]*?<\/think>/gi, "")
+      // Remove tool call markers (LangGraph/Bedrock XML format)
+      .replace(/<tool_call_begin>[\s\S]*?<tool_call_end>/gi, "")
+      .replace(/<tool_calls_section_begin>[\s\S]*?<tool_calls_section_end>/gi, "")
+      .replace(/<tool_call_argument_begin>[\s\S]*?<tool_call_argument_end>/gi, "")
+      // Remove Kimi K2 / Moonshot format tool markers (pipe delimited)
+      .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, "")
+      .replace(/<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_argument_end\|>/gi, "")
+      // Remove function call markers
+      .replace(/<functions\.[\w]+>[\s\S]*?<\/functions\.[\w]+>/gi, "")
+      .replace(/functions\.[\w]+:\d+/gi, "")
+      // Handle unclosed tags (streaming partial content)
+      .replace(/<thinking>[\s\S]*$/gi, "")
+      .replace(/<thought>[\s\S]*$/gi, "")
+      .replace(/<reasoning>[\s\S]*$/gi, "")
+      .replace(/<think>[\s\S]*$/gi, "")
+      .replace(/<tool_call_begin>[\s\S]*$/gi, "")
+      .replace(/<tool_calls_section_begin>[\s\S]*$/gi, "")
+      .replace(/<tool_call_argument_begin>[\s\S]*$/gi, "")
+      .replace(/<functions\.[\w]+>[\s\S]*$/gi, "")
+      // Handle unclosed Kimi K2 format markers
+      .replace(/<\|tool_call_begin\|>[\s\S]*$/gi, "")
+      .replace(/<\|tool_call_argument_begin\|>[\s\S]*$/gi, "")
+      // Clean up any standalone closing tags that might be left
+      .replace(/<tool_call_end>/gi, "")
+      .replace(/<tool_calls_section_end>/gi, "")
+      .replace(/<tool_call_argument_end>/gi, "")
+      .replace(/<\/functions\.[\w]+>/gi, "")
+      .replace(/<\|tool_call_end\|>/gi, "")
+      .replace(/<\|tool_call_argument_end\|>/gi, "")
+      // Clean up any leftover angle bracket/pipe artifacts
+      .replace(/<\|[^|]*\|>/gi, "")
+      // Clean up extra whitespace from removals
+      .replace(/\s{2,}/g, " ")
+      .trim()
+  );
 }
 
 // =============================================================================
@@ -108,11 +110,13 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTools, setActiveTools] = useState<string[]>([]);
-  const [pendingNavigation, setPendingNavigation] = useState<StreamEvent["navigation"] | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<StreamEvent["navigation"] | null>(
+    null
+  );
   const router = useRouter();
   const abortControllerRef = useRef<AbortController | null>(null);
   const messageIdRef = useRef(0);
-  
+
   // Store page context in ref so it can be updated without re-creating sendMessage
   const pageContextRef = useRef<PageContext | null>(options.pageContext ?? null);
   pageContextRef.current = options.pageContext ?? null;
@@ -316,7 +320,12 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantId
-                ? { ...msg, content: msg.content || "Cancelled", isStreaming: false, isThinking: false }
+                ? {
+                    ...msg,
+                    content: msg.content || "Cancelled",
+                    isStreaming: false,
+                    isThinking: false,
+                  }
                 : msg
             )
           );
@@ -382,4 +391,3 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
     stopStream,
   };
 }
-

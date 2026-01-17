@@ -41,15 +41,24 @@ async function main() {
       console.log(`   Overview: ${movie.overview?.substring(0, 100)}...`);
       console.log(`   Release Date: ${movie.release_date}`);
       console.log(`   Genres: ${movie.genres?.map((g) => g.name).join(", ")}`);
-      console.log(`   Cast (first 5): ${movie.credits?.cast?.slice(0, 5).map((c) => c.name).join(", ")}`);
+      console.log(
+        `   Cast (first 5): ${movie.credits?.cast
+          ?.slice(0, 5)
+          .map((c) => c.name)
+          .join(", ")}`
+      );
       console.log(`   Videos: ${movie.videos?.results?.length || 0}`);
 
       // Check for data completeness
       console.log("\n   📋 Data Completeness Check:");
       console.log(`      - Has credits: ${movie.credits?.cast?.length ? "✅" : "❌"}`);
       console.log(`      - Has videos: ${movie.videos?.results?.length ? "✅" : "❌"}`);
-      console.log(`      - Has images: ${movie.images?.backdrops?.length || movie.images?.posters?.length ? "✅" : "❌"}`);
-      console.log(`      - Has watch providers: ${Object.keys(movie["watch/providers"]?.results || {}).length ? "✅" : "❌"}`);
+      console.log(
+        `      - Has images: ${movie.images?.backdrops?.length || movie.images?.posters?.length ? "✅" : "❌"}`
+      );
+      console.log(
+        `      - Has watch providers: ${Object.keys(movie["watch/providers"]?.results || {}).length ? "✅" : "❌"}`
+      );
     }
   }
 
@@ -87,4 +96,3 @@ async function main() {
 main()
   .catch(console.error)
   .finally(() => prisma.$disconnect());
-

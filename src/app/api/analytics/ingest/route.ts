@@ -23,11 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { insertEvents } from "@/lib/analytics/client";
 import { detectBot } from "@/lib/analytics/bot-detection";
-import {
-  generateSessionId,
-  normalizeCountryCode,
-  extractClientIP,
-} from "@/lib/analytics/session";
+import { generateSessionId, normalizeCountryCode, extractClientIP } from "@/lib/analytics/session";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { apiLogger } from "@/lib/logger";
@@ -126,7 +122,7 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     const isAdmin = isAdminEmail(session?.user?.email);
     const shouldTrackAdmin = process.env.TRACK_ADMIN_ANALYTICS === "true";
-    
+
     if (isAdmin && !shouldTrackAdmin) {
       // Return success without tracking to avoid polluting analytics
       return NextResponse.json({
@@ -206,12 +202,8 @@ export async function POST(request: NextRequest) {
 
     // Group events by type for insertion into correct tables
     const pageViews = enrichedEvents.filter((e) => e.event_type === "page_view");
-    const userActions = enrichedEvents.filter(
-      (e) => e.event_type === "user_action"
-    );
-    const performance = enrichedEvents.filter(
-      (e) => e.event_type === "performance"
-    );
+    const userActions = enrichedEvents.filter((e) => e.event_type === "user_action");
+    const performance = enrichedEvents.filter((e) => e.event_type === "performance");
     const errors = enrichedEvents.filter((e) => e.event_type === "error");
 
     // Insert into respective tables (fire-and-forget pattern with await for error detection)
@@ -243,10 +235,7 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : String(error),
     });
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 

@@ -67,36 +67,12 @@ export function DatabaseTab() {
             <Skeleton className="h-32 w-full" />
           ) : data?.dbCounts ? (
             <div className="grid grid-cols-2 gap-3">
-              <CountItem
-                icon={Film}
-                label="Movies"
-                value={data.dbCounts.movies}
-              />
-              <CountItem
-                icon={Tv}
-                label="Series"
-                value={data.dbCounts.series}
-              />
-              <CountItem
-                icon={Users}
-                label="Persons"
-                value={data.dbCounts.persons}
-              />
-              <CountItem
-                icon={Tv2}
-                label="Episodes"
-                value={data.dbCounts.episodes}
-              />
-              <CountItem
-                icon={Star}
-                label="Ratings"
-                value={data.dbCounts.ratings}
-              />
-              <CountItem
-                icon={Film}
-                label="Videos"
-                value={data.dbCounts.videos}
-              />
+              <CountItem icon={Film} label="Movies" value={data.dbCounts.movies} />
+              <CountItem icon={Tv} label="Series" value={data.dbCounts.series} />
+              <CountItem icon={Users} label="Persons" value={data.dbCounts.persons} />
+              <CountItem icon={Tv2} label="Episodes" value={data.dbCounts.episodes} />
+              <CountItem icon={Star} label="Ratings" value={data.dbCounts.ratings} />
+              <CountItem icon={Film} label="Videos" value={data.dbCounts.videos} />
             </div>
           ) : (
             <EmptyState message="No database data" height={132} />
@@ -355,11 +331,7 @@ function RefreshStatItem({ label, value, highlight }: RefreshStatItemProps) {
       }`}
     >
       <p className="text-[10px] text-muted-foreground">{label}</p>
-      <p
-        className={`text-lg font-semibold ${
-          highlight && value > 0 ? "text-green-500" : ""
-        }`}
-      >
+      <p className={`text-lg font-semibold ${highlight && value > 0 ? "text-green-500" : ""}`}>
         {value.toLocaleString()}
       </p>
     </div>
@@ -405,9 +377,7 @@ function FreshnessOverview({ data }: FreshnessOverviewProps) {
         <p className={`text-3xl font-bold ${statusColor}`}>
           {totalRefreshLast24h.toLocaleString()}
         </p>
-        <p className="text-xs text-muted-foreground">
-          items refreshed in last 24h
-        </p>
+        <p className="text-xs text-muted-foreground">items refreshed in last 24h</p>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="text-center p-1.5 bg-muted/30 rounded">

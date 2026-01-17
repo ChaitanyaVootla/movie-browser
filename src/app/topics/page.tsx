@@ -11,8 +11,7 @@ export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: `Topics | ${SITE_NAME}`,
-  description:
-    "Explore curated movie and TV show collections by genre, theme, language, and more.",
+  description: "Explore curated movie and TV show collections by genre, theme, language, and more.",
   openGraph: {
     title: `Topics | ${SITE_NAME}`,
     description:
@@ -76,4 +75,3 @@ export default async function TopicsPage() {
     />
   );
 }
-

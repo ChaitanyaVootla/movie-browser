@@ -154,4 +154,3 @@ export { getSeriesFromPostgres, hasSeriesInPostgres } from "./series";
 // Aliases for the hybrid approach (check + fetch)
 export const getMovieHybrid = getMovieFromPostgresIfAvailable;
 export const getSeriesHybrid = getSeriesFromPostgresIfAvailable;
-

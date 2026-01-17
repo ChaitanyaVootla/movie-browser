@@ -70,7 +70,10 @@ export function DevicePieChart({
   const total = data.desktop + data.mobile + data.tablet;
   if (total === 0) {
     return (
-      <div className={cn("flex items-center justify-center text-muted-foreground text-sm", className)} style={{ height: size }}>
+      <div
+        className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
+        style={{ height: size }}
+      >
         No data
       </div>
     );
@@ -124,10 +127,7 @@ export function DevicePieChart({
         <div className="space-y-2">
           {chartData.map((item) => (
             <div key={item.name} className="flex items-center gap-2 text-sm">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: item.color }}
-              />
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
               <span className="text-muted-foreground">{item.name}</span>
               <span className="font-medium ml-auto">
                 {((item.value / total) * 100).toFixed(1)}%
@@ -162,7 +162,10 @@ export function DistributionPieChart({
   const total = data.reduce((acc, d) => acc + d.value, 0);
   if (total === 0 || data.length === 0) {
     return (
-      <div className={cn("flex items-center justify-center text-muted-foreground text-sm", className)} style={{ height: size }}>
+      <div
+        className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
+        style={{ height: size }}
+      >
         No data
       </div>
     );
@@ -274,15 +277,20 @@ export function DonutChart({
   const clampedValue = Math.max(0, Math.min(100, value));
   // Use semantic colors for success-rate/hit-rate type metrics
   const labelLower = label?.toLowerCase() ?? "";
-  const isRateMetric = labelLower.includes("success") || 
-                       labelLower.includes("hit") || 
-                       labelLower.includes("l1") || 
-                       labelLower.includes("l2");
-  const chartColor = color ?? (
-    isRateMetric
-      ? (clampedValue >= 95 ? CHART_COLORS.success : clampedValue >= 80 ? CHART_COLORS.warning : CHART_COLORS.destructive)
-      : CHART_COLORS.primary
-  );
+  const isRateMetric =
+    labelLower.includes("success") ||
+    labelLower.includes("hit") ||
+    labelLower.includes("l1") ||
+    labelLower.includes("l2");
+  const chartColor =
+    color ??
+    (isRateMetric
+      ? clampedValue >= 95
+        ? CHART_COLORS.success
+        : clampedValue >= 80
+          ? CHART_COLORS.warning
+          : CHART_COLORS.destructive
+      : CHART_COLORS.primary);
 
   const chartData = [
     { name: "Value", value: clampedValue, fill: chartColor },
@@ -315,9 +323,7 @@ export function DonutChart({
           <span className="text-lg font-bold" style={{ color: chartColor }}>
             {clampedValue.toFixed(0)}%
           </span>
-          {label && (
-            <span className="text-[10px] text-muted-foreground">{label}</span>
-          )}
+          {label && <span className="text-[10px] text-muted-foreground">{label}</span>}
         </div>
       )}
     </div>
@@ -353,7 +359,10 @@ export function TrendChart({
 }: TrendChartProps) {
   if (!data.length) {
     return (
-      <div className={cn("flex items-center justify-center text-muted-foreground text-sm", className)} style={{ height }}>
+      <div
+        className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
+        style={{ height }}
+      >
         No data
       </div>
     );
@@ -438,7 +447,10 @@ export function HorizontalBarChart({
 
   if (!chartData.length) {
     return (
-      <div className={cn("flex items-center justify-center text-muted-foreground text-sm", className)} style={{ height }}>
+      <div
+        className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
+        style={{ height }}
+      >
         No data
       </div>
     );
@@ -447,7 +459,11 @@ export function HorizontalBarChart({
   return (
     <div className={className} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+        <BarChart
+          data={chartData}
+          layout="vertical"
+          margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+        >
           <XAxis type="number" hide />
           <YAxis
             type="category"
@@ -509,7 +525,10 @@ export function MultiSeriesChart({
 }: MultiSeriesChartProps) {
   if (!data.length) {
     return (
-      <div className={cn("flex items-center justify-center text-muted-foreground text-sm", className)} style={{ height }}>
+      <div
+        className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
+        style={{ height }}
+      >
         No data
       </div>
     );
@@ -607,7 +626,10 @@ export function MultiLineChart({
 }: MultiLineChartProps) {
   if (!data.length) {
     return (
-      <div className={cn("flex items-center justify-center text-muted-foreground text-sm", className)} style={{ height }}>
+      <div
+        className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
+        style={{ height }}
+      >
         No data
       </div>
     );
@@ -616,7 +638,10 @@ export function MultiLineChart({
   return (
     <div className={className} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 5, right: dualAxis ? 40 : 5, left: showAxis ? -10 : 0, bottom: 5 }}>
+        <LineChart
+          data={data}
+          margin={{ top: 5, right: dualAxis ? 40 : 5, left: showAxis ? -10 : 0, bottom: 5 }}
+        >
           {showAxis && (
             <>
               <XAxis

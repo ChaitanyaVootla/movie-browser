@@ -7,6 +7,27 @@ alwaysApply: true
 
 The AI movie recommendation agent uses LangGraph.js for orchestration, AWS Bedrock as the LLM, and integrates with existing TMDB APIs and user data from MongoDB.
 
+### TODO: Upgrade to Cohere Embed v4
+
+**Current:** Amazon Titan Text Embeddings V2 (`amazon.titan-embed-text-v2:0`, 1024 dimensions)
+
+**Planned:** Cohere Embed v4 (`cohere.embed-v4:0`) - requires AWS Marketplace subscription
+
+**Benefits of Cohere v4:**
+- Asymmetric embeddings via `input_type` parameter (`search_document` vs `search_query`)
+- Better semantic understanding, less positional bias
+- 1536 dimensions (will require schema update: `vector(1024)` → `vector(1536)`)
+- Up to 128k token context length
+
+**Migration steps:**
+1. Enable Cohere model in AWS Bedrock console (Marketplace subscription)
+2. Update Prisma schema: change `embedding` column from `vector(1024)` to `vector(1536)`
+3. Run migration: `yarn db:migrate`
+4. Switch exports in `src/lib/embeddings/index.ts` to use Cohere
+5. Regenerate all embeddings: `npx tsx scripts/generate-cohere-embeddings.ts --type=both --xlarge`
+
+**Implementation ready:** `src/lib/embeddings/cohere-generator.ts`
+
 ### Supported Models
 
 The agent supports multiple Bedrock models via the `BEDROCK_MODEL_ID` env variable:
@@ -204,7 +225,7 @@ src/
 │   ├── bedrock.ts            # AWS Bedrock client
 │   ├── state.ts              # Agent state types (incl. UserContext)
 │   ├── resolve-media-tags.ts # Server-side ID resolution for tags
-│   ├── tools/                # All tools (9 active + 3 legacy)
+│   ├── tools/                # All 9 active tools
 │   │   ├── index.ts          # Tool exports + allTools array
 │   │   ├── smart-discover.ts # **THE POWER TOOL** - filters + semantic + similar (pgvector)
 │   │   ├── search.ts         # TMDB multi-search for exact title/person lookup
@@ -214,10 +235,7 @@ src/
 │   │   ├── trending.ts       # get_trending for movies & TV
 │   │   ├── user-data.ts      # Unified get_user_data (merged watchlist/ratings/watched)
 │   │   ├── context.ts        # get_page_context
-│   │   ├── navigation.ts     # navigate_to
-│   │   ├── discover.ts       # (LEGACY) Replaced by smart_discover
-│   │   ├── semantic-search.ts # (LEGACY) Replaced by smart_discover
-│   │   └── similar.ts        # (LEGACY) Replaced by smart_discover
+│   │   └── navigation.ts     # navigate_to
 │   └── prompts/system.ts     # System prompts with dynamic user context
 ├── server/utils/
 │   ├── index.ts              # Exports
@@ -243,8 +261,14 @@ src/
 ├── hooks/
 │   ├── use-chat-stream.ts    # SSE chat hook
 │   └── use-mobile.ts         # Mobile detection hook (<768px)
-└── components/features/ai/
-    ├── assistant-floaty.tsx  # Main floating UI (desktop) + IdleCircle
+└── components/features/ai/   # Modular AI assistant components
+    ├── assistant-floaty.tsx  # Main orchestrator (state, mobile drawer)
+    ├── types.ts              # Shared types (FloatyState, PromptConfig, etc.)
+    ├── prompts.ts            # Prompt generation functions
+    ├── idle-circle.tsx       # Floating bubble (idle state)
+    ├── minimal-view.tsx      # Collapsed chat with prompt pills
+    ├── expanded-chat.tsx     # Full chat view
+    ├── poster-card-large.tsx # Large poster cards in chat
     ├── mobile-chat-drawer.tsx # Mobile bottom sheet drawer (Vaul)
     ├── ai-animations.tsx     # ThinkingIndicator, GlowContainer, BottomGlow
     ├── rich-message-content.tsx  # Renders all tag types

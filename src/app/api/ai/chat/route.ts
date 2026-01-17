@@ -56,13 +56,12 @@ function convertHistory(history: ChatMessage[]): BaseMessage[] {
   });
 }
 
-
 /**
  * POST /api/ai/chat
  *
  * Send a message to the AI agent.
  * Uses non-streaming invoke wrapped in SSE format for reliable tool execution.
- * 
+ *
  * Stream event types:
  * - thinking: Initial "Processing..." indicator
  * - text: Final response content
@@ -81,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Get user session for name
     const session = await auth();
-    
+
     // Get country from headers
     const headersList = await headers();
     const region = headersList.get("x-country-code") || "US";
@@ -106,7 +105,13 @@ export async function POST(request: NextRequest) {
 
     // Non-streaming response
     if (!stream) {
-      const result = await invokeAgent(message, userId, conversationHistory, pageContext, userContext);
+      const result = await invokeAgent(
+        message,
+        userId,
+        conversationHistory,
+        pageContext,
+        userContext
+      );
       let responseText = getAgentResponse(result);
       const navigation = extractNavigation(result);
 
@@ -127,10 +132,20 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
           // Send initial thinking indicator
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "thinking", content: "Processing..." })}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "thinking", content: "Processing..." })}\n\n`
+            )
+          );
 
           // Use non-streaming invoke for reliable tool execution
-          const result = await invokeAgent(message, userId, conversationHistory, pageContext, userContext);
+          const result = await invokeAgent(
+            message,
+            userId,
+            conversationHistory,
+            pageContext,
+            userContext
+          );
           let responseText = getAgentResponse(result);
           const navigation = extractNavigation(result);
 
@@ -138,12 +153,18 @@ export async function POST(request: NextRequest) {
           responseText = await resolveMediaTags(responseText);
 
           // Send the final response
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: responseText })}\n\n`));
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-            type: "done", 
-            message: responseText, 
-            navigation 
-          })}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: "text", content: responseText })}\n\n`)
+          );
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "done",
+                message: responseText,
+                navigation,
+              })}\n\n`
+            )
+          );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (error) {
@@ -180,4 +201,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-

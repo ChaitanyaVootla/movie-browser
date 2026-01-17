@@ -170,11 +170,7 @@ export function DiscoverScroller({
         {results.length === 0 && isPending ? (
           // Initial loading skeletons
           Array.from({ length: displayMode === "wide" ? 6 : 10 }).map((_, i) => (
-            <MediaCardSkeleton
-              key={i}
-              className={posterCardClass}
-              wideClassName={wideCardClass}
-            />
+            <MediaCardSkeleton key={i} className={posterCardClass} wideClassName={wideCardClass} />
           ))
         ) : (
           <>
@@ -189,10 +185,7 @@ export function DiscoverScroller({
             ))}
             {/* Loader sentinel */}
             {canLoadMore && (
-              <div
-                ref={loaderRef}
-                className="flex items-center justify-center w-16 flex-shrink-0"
-              >
+              <div ref={loaderRef} className="flex items-center justify-center w-16 flex-shrink-0">
                 {isPending && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
               </div>
             )}

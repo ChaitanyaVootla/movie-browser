@@ -22,17 +22,17 @@ interface SimilarSectionProps {
 
 /**
  * SimilarSection - Async server component that shows similar content using AI-powered embedding similarity.
- * 
+ *
  * This component:
  * 1. Fetches embedding-based similar items from PostgreSQL (if available)
  * 2. Falls back to TMDB recommendations/similar if no embeddings
  * 3. Shows AI badge when embedding results are available
- * 
+ *
  * Features:
  * - "Similar" section with AI badge when embedding results are available
  * - "Recommended" section from TMDB as fallback
  * - "Similar" section from TMDB as fallback
- * 
+ *
  * @example
  * // In a Suspense boundary on movie/series detail page
  * <Suspense fallback={<SimilarSectionSkeleton />}>

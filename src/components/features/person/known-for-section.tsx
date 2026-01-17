@@ -48,7 +48,7 @@ function creditToListItem(credit: LightPersonCastCredit): MovieListItem | Series
 
 /**
  * KnownForSection - Shows top credits for a person in a horizontal scroller
- * 
+ *
  * This is a client component to support the card display preference feature.
  * Shows character name for each credit.
  */
@@ -61,7 +61,7 @@ export function KnownForSection({ credits, className }: KnownForSectionProps) {
 
   // Filter out talk shows/news, then get top credits sorted by popularity
   const topCredits = filterOutTalkShows(credits)
-    .filter((c) => displayMode === "wide" ? c.backdrop_path : c.poster_path)
+    .filter((c) => (displayMode === "wide" ? c.backdrop_path : c.poster_path))
     .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
     .slice(0, 12);
 

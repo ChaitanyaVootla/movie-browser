@@ -89,6 +89,7 @@ terraform apply
 ```
 
 Review the plan and type `yes` to confirm. This will:
+
 - Create EC2 instance with Ubuntu 24.04 LTS
 - Generate SSH key pair (saved as `movie-browser-ec2-key.pem`)
 - Set up security groups
@@ -256,6 +257,7 @@ sudo nano /etc/caddy/Caddyfile
 ```
 
 Example Caddyfile:
+
 ```
 themoviebrowser.com {
     reverse_proxy localhost:3001
@@ -319,6 +321,7 @@ terraform destroy
 The SSH private key is stored locally at `movie-browser-ec2-key.pem` and is gitignored. Keep this file secure!
 
 To regenerate:
+
 ```bash
 terraform taint tls_private_key.ec2_key
 terraform apply
@@ -347,6 +350,7 @@ rm /tmp/mongodb-backup.gz
 ### User Data Script Failed
 
 Check the log:
+
 ```bash
 ssh -i movie-browser-ec2-key.pem ubuntu@<elastic-ip>
 sudo cat /var/log/user-data.log
@@ -370,6 +374,7 @@ pm2 restart all
 ### Can't Connect to MongoDB Remotely
 
 Check security group:
+
 ```bash
 terraform output security_group_id
 # Verify port 27018 is open in AWS Console
@@ -414,7 +419,7 @@ terraform output security_group_id
 ## Support
 
 For issues or questions:
+
 1. Check logs: `/var/log/user-data.log` on EC2
 2. Review Terraform output: `terraform show`
 3. Check AWS Console for resource status
-

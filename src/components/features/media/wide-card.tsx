@@ -54,7 +54,10 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
   return (
     <div className={cn("group flex-shrink-0", className)}>
       {/* Image container with aspect ratio */}
-      <Link href={showWatchLink && watchLink ? watchLink : detailHref} target={showWatchLink && watchLink ? "_blank" : undefined}>
+      <Link
+        href={showWatchLink && watchLink ? watchLink : detailHref}
+        target={showWatchLink && watchLink ? "_blank" : undefined}
+      >
         <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
           {imageSrc ? (
             <>
@@ -73,7 +76,7 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
               />
               {/* Subtle hover overlay */}
               <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-              
+
               {/* External link icon only for continue watching */}
               {showWatchLink && watchLink && (
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
@@ -119,4 +122,3 @@ export function WideCardSkeleton({ className }: { className?: string }) {
     </div>
   );
 }
-

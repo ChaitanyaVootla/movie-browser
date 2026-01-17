@@ -84,12 +84,11 @@ export function HeroContent({
   item,
 }: HeroContentProps) {
   // Build ratings array - use provided ratings or fall back to TMDB vote
-  const displayRatings =
-    ratings?.length
-      ? ratings
-      : voteAverage && voteAverage > 0
-        ? [{ name: "TMDB", rating: Math.round(voteAverage * 10).toString() }]
-        : [];
+  const displayRatings = ratings?.length
+    ? ratings
+    : voteAverage && voteAverage > 0
+      ? [{ name: "TMDB", rating: Math.round(voteAverage * 10).toString() }]
+      : [];
 
   const content = (
     <div className="flex flex-col items-center text-center md:items-start md:text-left">
@@ -134,7 +133,13 @@ export function HeroContent({
           <motion.div variants={heroItemVariants}>
             <WatchOptions
               watchOptions={watchOptions}
-              item={item || { id: itemId, title: mediaType === "movie" ? title : undefined, name: mediaType === "series" ? title : undefined }}
+              item={
+                item || {
+                  id: itemId,
+                  title: mediaType === "movie" ? title : undefined,
+                  name: mediaType === "series" ? title : undefined,
+                }
+              }
               isMovie={mediaType === "movie"}
             />
           </motion.div>
@@ -171,4 +176,3 @@ export function HeroContent({
 
   return <div className={cn("w-full md:hero-content-width", className)}>{content}</div>;
 }
-

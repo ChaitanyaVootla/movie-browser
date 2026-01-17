@@ -17,9 +17,7 @@ const navItems = [
   { href: "/topics", label: "Topics", icon: Sparkles },
 ];
 
-const authNavItems = [
-  { href: "/watchlist", label: "Watchlist", icon: Bookmark },
-];
+const authNavItems = [{ href: "/watchlist", label: "Watchlist", icon: Bookmark }];
 
 export function NavBar() {
   const pathname = usePathname();
@@ -31,7 +29,7 @@ export function NavBar() {
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
   const isAdmin = session?.user?.role === "admin";
-  
+
   // Detect OS for keyboard shortcut display (client-side only)
   const [isMac, setIsMac] = useState(() => {
     // Default to true for SSR, will be corrected on client
@@ -75,7 +73,11 @@ export function NavBar() {
           {/* Left side: Logo + Navigation */}
           <div className="flex items-center gap-2 md:gap-4">
             {/* Logo */}
-            <Link href="/" data-testid="nav-logo" className="flex items-center gap-2 font-bold text-xl group">
+            <Link
+              href="/"
+              data-testid="nav-logo"
+              className="flex items-center gap-2 font-bold text-xl group"
+            >
               <Image
                 src="/popcorn-lite.png"
                 alt="TMB"
@@ -99,7 +101,8 @@ export function NavBar() {
                       isScrolled
                         ? "text-foreground/80 hover:text-foreground"
                         : "text-white/90 hover:text-white",
-                      pathname?.startsWith(href) && (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
+                      pathname?.startsWith(href) &&
+                        (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -118,7 +121,8 @@ export function NavBar() {
                         isScrolled
                           ? "text-foreground/80 hover:text-foreground"
                           : "text-white/90 hover:text-white",
-                        pathname?.startsWith(href) && (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
+                        pathname?.startsWith(href) &&
+                          (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
                       )}
                     >
                       <Icon className="h-4 w-4" />
@@ -136,7 +140,8 @@ export function NavBar() {
                       isScrolled
                         ? "text-foreground/80 hover:text-foreground"
                         : "text-white/90 hover:text-white",
-                      pathname?.startsWith("/admin") && (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
+                      pathname?.startsWith("/admin") &&
+                        (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
                     )}
                   >
                     <Shield className="h-4 w-4" />
@@ -161,17 +166,19 @@ export function NavBar() {
               )}
             >
               <Search className="h-3.5 w-3.5" />
-              <kbd className={cn(
-                "inline-flex h-5 items-center gap-0.5 rounded border px-1.5 font-mono text-[10px]",
-                isScrolled
-                  ? "border-border bg-background text-muted-foreground"
-                  : "border-white/20 bg-white/10 text-white/60"
-              )}>
+              <kbd
+                className={cn(
+                  "inline-flex h-5 items-center gap-0.5 rounded border px-1.5 font-mono text-[10px]",
+                  isScrolled
+                    ? "border-border bg-background text-muted-foreground"
+                    : "border-white/20 bg-white/10 text-white/60"
+                )}
+              >
                 {isMac ? "⌘" : "Ctrl"}K
               </kbd>
             </button>
 
-{/* Country Selector */}
+            {/* Country Selector */}
             <CountrySelector compact className="hidden sm:flex" />
 
             {/* Auth: User Menu with theme toggle, or Settings + Sign In for non-auth */}
@@ -193,10 +200,9 @@ export function NavBar() {
               </>
             )}
 
-{/* Mobile hamburger menu removed - using MobileBottomNav instead */}
+            {/* Mobile hamburger menu removed - using MobileBottomNav instead */}
           </div>
         </div>
-
       </header>
 
       {/* Login Dialog */}

@@ -48,10 +48,4 @@ export type {
 } from "./analytics-types";
 
 // Individual tabs (for custom dashboard layouts)
-export {
-  TrafficTab,
-  AITab,
-  LambdaTab,
-  PerformanceTab,
-  SystemTab,
-} from "./tabs";
+export { TrafficTab, AITab, LambdaTab, PerformanceTab, SystemTab } from "./tabs";

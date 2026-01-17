@@ -198,8 +198,7 @@ export function searchTopics(query: string, limit = 20): TopicSearchItem[] {
 
   const searchLower = query.toLowerCase();
 
-  return ALL_TOPICS
-    .filter((topic) => topic.name.toLowerCase().includes(searchLower))
+  return ALL_TOPICS.filter((topic) => topic.name.toLowerCase().includes(searchLower))
     .slice(0, limit)
     .map((topic) => ({
       name: topic.name,
@@ -242,10 +241,10 @@ export interface PopularTopicItem {
 function parseTopicKey(key: string): { type: "genre" | "theme"; mediaType: "movie" | "tv" } | null {
   const parts = key.split("-");
   if (parts.length < 3) return null;
-  
+
   const type = parts[0] as "genre" | "theme";
   const media = parts[parts.length - 1] as "movie" | "tv";
-  
+
   if ((type === "genre" || type === "theme") && (media === "movie" || media === "tv")) {
     return { type, mediaType: media };
   }
@@ -269,18 +268,15 @@ const POPULAR_TOPIC_KEYS = [
  * Returns a curated mix of popular genres and themes
  */
 export function getPopularTopics(): PopularTopicItem[] {
-  return POPULAR_TOPIC_KEYS
-    .map((key) => {
-      const topic = ALL_TOPICS.find((t) => t.key === key);
-      if (!topic) return null;
-      const parsed = parseTopicKey(key);
-      return {
-        name: topic.name,
-        key: topic.key,
-        type: parsed?.type || "genre",
-        mediaType: parsed?.mediaType || "movie",
-      } as PopularTopicItem;
-    })
-    .filter((t): t is PopularTopicItem => t !== null);
+  return POPULAR_TOPIC_KEYS.map((key) => {
+    const topic = ALL_TOPICS.find((t) => t.key === key);
+    if (!topic) return null;
+    const parsed = parseTopicKey(key);
+    return {
+      name: topic.name,
+      key: topic.key,
+      type: parsed?.type || "genre",
+      mediaType: parsed?.mediaType || "movie",
+    } as PopularTopicItem;
+  }).filter((t): t is PopularTopicItem => t !== null);
 }
-

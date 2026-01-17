@@ -29,10 +29,7 @@ export function PersonCard({ person, className, size = "md" }: PersonCardProps) 
   const cardWidth = size === "sm" ? "w-16" : "w-20 md:w-24";
 
   return (
-    <Link
-      href={href}
-      className={cn("flex-shrink-0 group", cardWidth, className)}
-    >
+    <Link href={href} className={cn("flex-shrink-0 group", cardWidth, className)}>
       {/* Profile Image */}
       <div
         className={cn(
@@ -62,7 +59,7 @@ export function PersonCard({ person, className, size = "md" }: PersonCardProps) 
       {/* Name */}
       <h3
         className={cn(
-          "mt-1.5 font-medium line-clamp-2 group-hover:text-primary transition-colors",
+          "mt-1.5 font-medium group-hover:text-primary transition-colors",
           size === "sm" ? "text-xs" : "text-xs md:text-sm"
         )}
       >
@@ -73,7 +70,7 @@ export function PersonCard({ person, className, size = "md" }: PersonCardProps) 
       {role && (
         <p
           className={cn(
-            "text-muted-foreground line-clamp-2 mt-0.5",
+            "text-muted-foreground mt-0.5",
             size === "sm" ? "text-[10px]" : "text-[10px] md:text-xs"
           )}
         >
@@ -127,5 +124,3 @@ export function PersonCardCompact({
     </Link>
   );
 }
-
-

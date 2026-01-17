@@ -14,7 +14,7 @@ interface AIIconProps {
  */
 export function AISparkIcon({ className, size = 20, animated = true }: AIIconProps) {
   const uniqueId = useId();
-  
+
   return (
     <svg
       width={size}
@@ -36,7 +36,7 @@ export function AISparkIcon({ className, size = 20, animated = true }: AIIconPro
           }
         `}</style>
       )}
-      
+
       {/* Main vertical spark */}
       <path
         d="M12 3C12 3 13 8 13 10C13 11.1 12.55 12 12 12C11.45 12 11 11.1 11 10C11 8 12 3 12 3Z"
@@ -46,7 +46,7 @@ export function AISparkIcon({ className, size = 20, animated = true }: AIIconPro
         d="M12 21C12 21 11 16 11 14C11 12.9 11.45 12 12 12C12.55 12 13 12.9 13 14C13 16 12 21 12 21Z"
         fill="currentColor"
       />
-      
+
       {/* Horizontal spark */}
       <path
         d="M3 12C3 12 8 11 10 11C11.1 11 12 11.45 12 12C12 12.55 11.1 13 10 13C8 13 3 12 3 12Z"
@@ -56,7 +56,7 @@ export function AISparkIcon({ className, size = 20, animated = true }: AIIconPro
         d="M21 12C21 12 16 13 14 13C12.9 13 12 12.55 12 12C12 11.45 12.9 11 14 11C16 11 21 12 21 12Z"
         fill="currentColor"
       />
-      
+
       {/* Diagonal sparks - animated with staggered delays */}
       <path
         className={animated ? `spike-${uniqueId.replace(/:/g, "")}` : undefined}
@@ -114,7 +114,7 @@ export function AIIconMinimal({ className, size = 20 }: AIIconProps) {
  */
 export function AIGlowIcon({ className, size = 20, animated = false }: AIIconProps) {
   const id = useId();
-  
+
   return (
     <svg
       width={size}
@@ -131,21 +131,21 @@ export function AIGlowIcon({ className, size = 20, animated = false }: AIIconPro
           <stop offset="100%" stopColor="currentColor" stopOpacity="0.3" />
         </radialGradient>
       </defs>
-      
+
       {/* Outer glow ring */}
-      <circle 
-        cx="12" 
-        cy="12" 
-        r="10" 
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
         stroke={`url(#${id}-grad)`}
         strokeWidth="1"
         fill="none"
         opacity="0.3"
       />
-      
+
       {/* Inner structure */}
       <circle cx="12" cy="12" r="3" fill="currentColor" />
-      
+
       {/* Orbital dots */}
       <circle cx="12" cy="5" r="1.5" fill="currentColor" opacity="0.8" />
       <circle cx="18" cy="9.5" r="1.5" fill="currentColor" opacity="0.8" />

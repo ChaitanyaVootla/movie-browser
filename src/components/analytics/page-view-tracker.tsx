@@ -119,9 +119,7 @@ function extractItemTitle(): string | null {
     const content = ogTitle.getAttribute("content");
     if (content) {
       // Remove common suffixes
-      return content
-        .replace(/ - Movie Browser$/, "")
-        .replace(/ \| Movie Browser$/, "");
+      return content.replace(/ - Movie Browser$/, "").replace(/ \| Movie Browser$/, "");
     }
   }
 
@@ -163,61 +161,54 @@ export function PageViewTracker() {
   /**
    * Track a page view
    */
-  const trackPageView = useCallback(
-    (path: string, isEntryPage: boolean = false) => {
-      // Respect Do Not Track
-      if (isDNTEnabled()) return;
+  const trackPageView = useCallback((path: string, isEntryPage: boolean = false) => {
+    // Respect Do Not Track
+    if (isDNTEnabled()) return;
 
-      // Don't track the same path twice in a row
-      if (lastTrackedPath.current === path) return;
-      lastTrackedPath.current = path;
+    // Don't track the same path twice in a row
+    if (lastTrackedPath.current === path) return;
+    lastTrackedPath.current = path;
 
-      // Get page type and item info
-      const pageType = getPageTypeFromPath(path);
-      const { mediaType, itemId } = getItemFromPath(path);
+    // Get page type and item info
+    const pageType = getPageTypeFromPath(path);
+    const { mediaType, itemId } = getItemFromPath(path);
 
-      // Get previous path from session storage
-      const previousPath = sessionStorage.getItem(SESSION_KEYS.PREVIOUS_PATH);
+    // Get previous path from session storage
+    const previousPath = sessionStorage.getItem(SESSION_KEYS.PREVIOUS_PATH);
 
-      // Determine if this is an entry page (first page of session)
-      const entryPageFlag = sessionStorage.getItem(SESSION_KEYS.ENTRY_PAGE);
-      const isEntry = isEntryPage || entryPageFlag === null;
+    // Determine if this is an entry page (first page of session)
+    const entryPageFlag = sessionStorage.getItem(SESSION_KEYS.ENTRY_PAGE);
+    const isEntry = isEntryPage || entryPageFlag === null;
 
-      // Update session storage
-      sessionStorage.setItem(SESSION_KEYS.PREVIOUS_PATH, path);
-      if (isEntry) {
-        sessionStorage.setItem(SESSION_KEYS.ENTRY_PAGE, "false");
-      }
+    // Update session storage
+    sessionStorage.setItem(SESSION_KEYS.PREVIOUS_PATH, path);
+    if (isEntry) {
+      sessionStorage.setItem(SESSION_KEYS.ENTRY_PAGE, "false");
+    }
 
-      // Increment page count
-      const pageCount = parseInt(
-        sessionStorage.getItem(SESSION_KEYS.PAGE_COUNT) || "0",
-        10
-      );
-      sessionStorage.setItem(SESSION_KEYS.PAGE_COUNT, String(pageCount + 1));
+    // Increment page count
+    const pageCount = parseInt(sessionStorage.getItem(SESSION_KEYS.PAGE_COUNT) || "0", 10);
+    sessionStorage.setItem(SESSION_KEYS.PAGE_COUNT, String(pageCount + 1));
 
-      // Extract title (may not be available immediately on navigation)
-      // Use a small delay to allow the page to render
-      setTimeout(() => {
-        const itemTitle =
-          itemId !== null ? extractItemTitle() : null;
+    // Extract title (may not be available immediately on navigation)
+    // Use a small delay to allow the page to render
+    setTimeout(() => {
+      const itemTitle = itemId !== null ? extractItemTitle() : null;
 
-        const event: PageViewData = {
-          event_type: "page_view",
-          path,
-          page_type: pageType,
-          item_id: itemId,
-          item_title: itemTitle,
-          item_media_type: mediaType,
-          previous_path: previousPath,
-          entry_page: isEntry,
-        };
+      const event: PageViewData = {
+        event_type: "page_view",
+        path,
+        page_type: pageType,
+        item_id: itemId,
+        item_title: itemTitle,
+        item_media_type: mediaType,
+        previous_path: previousPath,
+        entry_page: isEntry,
+      };
 
-        sendAnalyticsEvent(event);
-      }, 100);
-    },
-    []
-  );
+      sendAnalyticsEvent(event);
+    }, 100);
+  }, []);
 
   /**
    * Track page view on mount and navigation
@@ -239,4 +230,3 @@ export function PageViewTracker() {
   // This component renders nothing
   return null;
 }
-

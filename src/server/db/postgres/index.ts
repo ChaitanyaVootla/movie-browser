@@ -7,7 +7,6 @@
 import { PrismaClient } from "@prisma/client";
 
 declare global {
-  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 
@@ -35,16 +34,9 @@ export {
   hasCollectionInPostgres,
 } from "./movies";
 
-export {
-  getSeriesFromPostgres,
-  hasSeriesInPostgres,
-} from "./series";
+export { getSeriesFromPostgres, hasSeriesInPostgres } from "./series";
 
-export {
-  getMovieHybrid,
-  getSeriesHybrid,
-  getPostgresStats,
-} from "./hybrid";
+export { getMovieHybrid, getSeriesHybrid, getPostgresStats } from "./hybrid";
 
 export {
   fuzzySearch,
@@ -77,4 +69,3 @@ export {
   type SmartDiscoverResult,
   type SmartDiscoverResponse,
 } from "./smart-discover";
-

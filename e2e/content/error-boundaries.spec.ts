@@ -30,7 +30,7 @@ test.describe("Error Boundaries", () => {
 
       // Should NOT show hero content (movie page didn't render)
       const heroBackdrop = page.locator('[data-testid="hero-backdrop"]');
-      await expect(heroBackdrop).not.toBeVisible();
+      await expect(heroBackdrop).toBeHidden();
     });
 
     test("shows retry button that attempts to reload", async ({ page }) => {
@@ -118,7 +118,7 @@ test.describe("Error Boundaries", () => {
 
       // Error boundary should NOT be visible
       const errorBoundary = page.locator('[data-testid="error-boundary"]');
-      await expect(errorBoundary).not.toBeVisible();
+      await expect(errorBoundary).toBeHidden();
 
       // Hero content should be visible (normal page render)
       const heroBackdrop = page.locator('[data-testid="hero-backdrop"]');
@@ -129,7 +129,7 @@ test.describe("Error Boundaries", () => {
       await page.goto(`/series/${testSeriesIds.popular}/game-of-thrones`);
 
       const errorBoundary = page.locator('[data-testid="error-boundary"]');
-      await expect(errorBoundary).not.toBeVisible();
+      await expect(errorBoundary).toBeHidden();
 
       const heroBackdrop = page.locator('[data-testid="hero-backdrop"]');
       await expect(heroBackdrop).toBeVisible({ timeout: 10000 });
@@ -139,7 +139,7 @@ test.describe("Error Boundaries", () => {
       await page.goto(`/person/${testPersonIds.actor}/brad-pitt`);
 
       const errorBoundary = page.locator('[data-testid="error-boundary"]');
-      await expect(errorBoundary).not.toBeVisible();
+      await expect(errorBoundary).toBeHidden();
 
       // Person name should be visible
       const personName = page.locator("h1, h2").filter({ hasText: /Brad Pitt/i });
@@ -158,10 +158,10 @@ test.describe("Error Boundaries", () => {
       // This test just verifies the button is clickable.
       const retryButton = page.locator('[data-testid="error-retry-button"]');
       await expect(retryButton).toBeEnabled();
-      
+
       // Click the button - it should be functional even if error recurs
       await retryButton.click();
-      
+
       // Page should still show error (since param is still there)
       // This verifies the error boundary recovered and re-rendered
       await expect(page.locator('[data-testid="error-boundary"]')).toBeVisible({ timeout: 5000 });
@@ -177,7 +177,7 @@ test.describe("Error Boundaries", () => {
       // Should navigate to homepage and not show error
       await page.waitForURL("/");
       const errorBoundary = page.locator('[data-testid="error-boundary"]');
-      await expect(errorBoundary).not.toBeVisible();
+      await expect(errorBoundary).toBeHidden();
     });
   });
 
@@ -189,15 +189,15 @@ test.describe("Error Boundaries", () => {
       await expect(errorBoundary).toBeVisible();
 
       // Should have error icon (AlertTriangle)
-      const errorIcon = errorBoundary.locator('svg').first();
+      const errorIcon = errorBoundary.locator("svg").first();
       await expect(errorIcon).toBeVisible();
 
       // Should have heading
-      const heading = errorBoundary.locator('h1');
+      const heading = errorBoundary.locator("h1");
       await expect(heading).toBeVisible();
 
       // Should have description text
-      const description = errorBoundary.locator('p').first();
+      const description = errorBoundary.locator("p").first();
       await expect(description).toBeVisible();
 
       // Should have retry and home buttons with test IDs
@@ -218,7 +218,7 @@ test.describe("Error Boundaries", () => {
       if (viewportSize && boundingBox) {
         const centerX = boundingBox.x + boundingBox.width / 2;
         const viewportCenterX = viewportSize.width / 2;
-        
+
         // Allow 100px tolerance for center positioning
         expect(Math.abs(centerX - viewportCenterX)).toBeLessThan(100);
       }

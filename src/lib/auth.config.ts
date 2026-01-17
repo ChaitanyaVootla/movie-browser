@@ -49,13 +49,7 @@ export const authConfig: NextAuthConfig = {
       const pathname = nextUrl.pathname;
 
       // Protected routes that require authentication
-      const protectedRoutes = [
-        "/profile",
-        "/watchlist",
-        "/favorites",
-        "/ratings",
-        "/settings",
-      ];
+      const protectedRoutes = ["/profile", "/watchlist", "/favorites", "/ratings", "/settings"];
 
       // Admin-only routes
       const adminRoutes = ["/admin"];

@@ -10,15 +10,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getFullVideoData,
-  getVideoStats,
-  getVideoDislikes,
-} from "@/server/services/youtube";
-import {
-  getVideoEngagement,
-  getBatchVideoEngagement,
-} from "@/server/services/youtube-engagement";
+import { getFullVideoData, getVideoStats, getVideoDislikes } from "@/server/services/youtube";
+import { getVideoEngagement, getBatchVideoEngagement } from "@/server/services/youtube-engagement";
 import { dataLogger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +45,7 @@ export async function GET(request: NextRequest) {
       // PostgreSQL-backed: Use DB as source of truth
       if (usePostgres) {
         const engagement = await getVideoEngagement(videoId, mediaId, mediaTypeParam);
-        
+
         if (engagement) {
           return NextResponse.json({
             stats: {
@@ -75,7 +68,7 @@ export async function GET(request: NextRequest) {
             },
           });
         }
-        
+
         // Fall through to file-based if video not found in DB
         dataLogger.warn({
           event: "youtube_api_postgres_fallback",
@@ -94,19 +87,22 @@ export async function GET(request: NextRequest) {
     // Batch stats for multiple videos (sidebar thumbnails)
     if (videoIds) {
       const ids = videoIds.split(",").filter(Boolean).slice(0, 50);
-      
+
       // PostgreSQL-backed batch
       if (usePostgres) {
         const engagementMap = await getBatchVideoEngagement(ids, mediaId, mediaTypeParam);
-        
-        const result: Record<string, {
-          viewCount: number;
-          likeCount: number;
-          dislikeCount: number;
-          duration?: string;
-          title?: string;
-          channelThumbnail?: string;
-        }> = {};
+
+        const result: Record<
+          string,
+          {
+            viewCount: number;
+            likeCount: number;
+            dislikeCount: number;
+            duration?: string;
+            title?: string;
+            channelThumbnail?: string;
+          }
+        > = {};
 
         for (const [id, engagement] of engagementMap) {
           result[id] = {
@@ -124,7 +120,7 @@ export async function GET(request: NextRequest) {
         if (Object.keys(result).length > 0) {
           return NextResponse.json({ videos: result });
         }
-        
+
         // Fall through to file-based if no videos found in DB
         dataLogger.warn({
           event: "youtube_api_batch_postgres_fallback",
@@ -141,19 +137,22 @@ export async function GET(request: NextRequest) {
         getVideoDislikes(ids),
       ]);
 
-      const result: Record<string, {
-        viewCount: number;
-        likeCount: number;
-        dislikeCount: number;
-        duration: string;
-        title: string;
-        channelThumbnail?: string;
-      }> = {};
+      const result: Record<
+        string,
+        {
+          viewCount: number;
+          likeCount: number;
+          dislikeCount: number;
+          duration: string;
+          title: string;
+          channelThumbnail?: string;
+        }
+      > = {};
 
       for (const id of ids) {
         const stats = statsMap.get(id);
         const dislikes = dislikesMap.get(id);
-        
+
         if (stats) {
           result[id] = {
             viewCount: stats.viewCount,
@@ -169,19 +168,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ videos: result });
     }
 
-    return NextResponse.json(
-      { error: "Missing videoId or videoIds parameter" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing videoId or videoIds parameter" }, { status: 400 });
   } catch (error) {
     dataLogger.error({
       event: "youtube_api_error",
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { error: "Failed to fetch YouTube data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch YouTube data" }, { status: 500 });
   }
 }
-

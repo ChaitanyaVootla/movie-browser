@@ -156,8 +156,8 @@ const smartDiscoverSchema = z.object({
     .optional()
     .describe(
       "Natural language description for semantic ranking. " +
-      "Examples: 'dark atmospheric thrillers', 'mind-bending sci-fi', 'feel-good comedies about friendship'. " +
-      "When provided, results are ranked by semantic similarity to this query."
+        "Examples: 'dark atmospheric thrillers', 'mind-bending sci-fi', 'feel-good comedies about friendship'. " +
+        "When provided, results are ranked by semantic similarity to this query."
     ),
 
   similarTo: z
@@ -165,8 +165,8 @@ const smartDiscoverSchema = z.object({
     .optional()
     .describe(
       "TMDB ID of a movie/series to find similar content. " +
-      "Use instead of semanticQuery when user says 'more like this' or 'similar to [title]'. " +
-      "Requires the ID from a previous search or get_details call."
+        "Use instead of semanticQuery when user says 'more like this' or 'similar to [title]'. " +
+        "Requires the ID from a previous search or get_details call."
     ),
 
   // Result control
@@ -177,20 +177,24 @@ const smartDiscoverSchema = z.object({
     .default(DEFAULT_LIMIT)
     .describe(`Number of results (1-${MAX_LIMIT}, default ${DEFAULT_LIMIT})`),
 
-  // User exclusion flags
+  // User library flags
   hideWatched: z.boolean().default(false).describe("Exclude watched items"),
   hideDisliked: z.boolean().default(true).describe("Exclude disliked items (default: on)"),
   hideInWatchlist: z.boolean().default(false).describe("Exclude watchlist items"),
+  fromWatchlist: z
+    .boolean()
+    .default(false)
+    .describe(
+      "ONLY return items from user's watchlist (with full details). " +
+        "Use for 'my watchlist', 'what's in my list'. Filters still apply."
+    ),
 
   // ===== Genre Filters =====
   genres: z
     .array(z.string())
     .optional()
     .describe("Genre names: 'Action', 'Comedy', 'Horror', 'Thriller', 'Sci-Fi', 'Drama'"),
-  excludeGenres: z
-    .array(z.string())
-    .optional()
-    .describe("Genre names to exclude"),
+  excludeGenres: z.array(z.string()).optional().describe("Genre names to exclude"),
   genreMode: z
     .enum(["and", "or"])
     .default("or")
@@ -202,11 +206,10 @@ const smartDiscoverSchema = z.object({
   releasedAfter: z
     .string()
     .optional()
-    .describe("YYYY-MM-DD, YYYY, or shortcuts: 'recent' (2yr), 'new' (6mo), 'this year', 'last year'"),
-  releasedBefore: z
-    .string()
-    .optional()
-    .describe("YYYY-MM-DD, YYYY, or 'classic' (pre-1980)"),
+    .describe(
+      "YYYY-MM-DD, YYYY, or shortcuts: 'recent' (2yr), 'new' (6mo), 'this year', 'last year'"
+    ),
+  releasedBefore: z.string().optional().describe("YYYY-MM-DD, YYYY, or 'classic' (pre-1980)"),
 
   // ===== Rating Filters =====
   minRating: z.number().min(0).max(10).optional().describe("Minimum TMDB rating (0-10)"),
@@ -286,7 +289,8 @@ SEMANTIC QUERY TIPS:
 
 QUALITY PRESETS: 'decent' (6+), 'good' (7+), 'great' (7.5+), 'masterpiece' (8+)
 DATE SHORTCUTS: 'recent' (2yr), 'new' (6mo), 'classic' (pre-1980)
-USER FILTERS: hideWatched, hideDisliked (default: on), hideInWatchlist`;
+USER FILTERS: hideWatched, hideDisliked (default: on), hideInWatchlist
+WATCHLIST: fromWatchlist=true → show user's saved items (with full details, filters apply)`;
 
 export const smartDiscoverTool = tool(
   async (input: SmartDiscoverInput, config?: RunnableConfig) => {
@@ -396,9 +400,7 @@ export const smartDiscoverTool = tool(
         const result = await resolvePersonIds(input.castNames);
         if (result.found.length) {
           filters.castIds = result.found.map((f) => f.id);
-          result.found.forEach((f) =>
-            resolutions.push(`Cast: "${f.name}" → ${f.matchedName}`)
-          );
+          result.found.forEach((f) => resolutions.push(`Cast: "${f.name}" → ${f.matchedName}`));
         }
         result.notFound.forEach((n) => warnings.push(`Unknown actor: "${n}"`));
       }
@@ -407,9 +409,7 @@ export const smartDiscoverTool = tool(
         const result = await resolvePersonIds(input.crewNames);
         if (result.found.length) {
           filters.crewIds = result.found.map((f) => f.id);
-          result.found.forEach((f) =>
-            resolutions.push(`Crew: "${f.name}" → ${f.matchedName}`)
-          );
+          result.found.forEach((f) => resolutions.push(`Crew: "${f.name}" → ${f.matchedName}`));
         }
         result.notFound.forEach((n) => warnings.push(`Unknown crew: "${n}"`));
       }
@@ -433,9 +433,7 @@ export const smartDiscoverTool = tool(
         const result = await resolveKeywordIds(input.keywordNames);
         if (result.found.length) {
           filters.keywordIds = result.found.map((f) => f.id);
-          result.found.forEach((f) =>
-            resolutions.push(`Keyword: "${f.name}" → ${f.matchedName}`)
-          );
+          result.found.forEach((f) => resolutions.push(`Keyword: "${f.name}" → ${f.matchedName}`));
         }
         result.notFound.forEach((n) => warnings.push(`Unknown keyword: "${n}"`));
       }
@@ -452,9 +450,7 @@ export const smartDiscoverTool = tool(
         const result = await resolveProviderIds(input.watchProviders);
         if (result.found.length) {
           filters.providerIds = result.found.map((f) => f.id);
-          result.found.forEach((f) =>
-            resolutions.push(`Provider: "${f.name}" → ${f.matchedName}`)
-          );
+          result.found.forEach((f) => resolutions.push(`Provider: "${f.name}" → ${f.matchedName}`));
         }
         result.notFound.forEach((n) => warnings.push(`Unknown provider: "${n}"`));
       }
@@ -464,22 +460,48 @@ export const smartDiscoverTool = tool(
       }
       filters.watchRegion = input.watchRegion || "US";
 
-      // ===== User Exclusions =====
+      // ===== User Library Filters =====
       const userId = getUserIdFromConfig(config);
-      const needsFiltering =
-        userId && (input.hideWatched || input.hideDisliked || input.hideInWatchlist);
+      const needsUserData =
+        userId &&
+        (input.hideWatched || input.hideDisliked || input.hideInWatchlist || input.fromWatchlist);
 
-      if (needsFiltering) {
+      if (needsUserData) {
         const exclusions = await fetchUserExclusions(userId, mediaType);
-        if (input.hideWatched && exclusions.watchedIds.length) {
-          filters.watchedIds = exclusions.watchedIds;
-        }
-        if (input.hideDisliked && exclusions.dislikedIds.length) {
-          filters.dislikedIds = exclusions.dislikedIds;
-        }
-        if (input.hideInWatchlist && exclusions.watchlistIds.length) {
+
+        if (input.fromWatchlist) {
+          // INCLUDE mode: only return watchlist items
+          if (exclusions.watchlistIds.length === 0) {
+            // Empty watchlist - return early with helpful message
+            return JSON.stringify({
+              totalResults: 0,
+              resultsReturned: 0,
+              mediaType,
+              message: "Your watchlist is empty! Save some titles first.",
+              [mediaType === "movie" ? "movies" : "series"]: [],
+            });
+          }
           filters.watchlistIds = exclusions.watchlistIds;
+          filters.fromWatchlist = true;
+        } else {
+          // EXCLUDE mode (standard behavior)
+          if (input.hideWatched && exclusions.watchedIds.length) {
+            filters.watchedIds = exclusions.watchedIds;
+          }
+          if (input.hideDisliked && exclusions.dislikedIds.length) {
+            filters.dislikedIds = exclusions.dislikedIds;
+          }
+          if (input.hideInWatchlist && exclusions.watchlistIds.length) {
+            filters.watchlistIds = exclusions.watchlistIds;
+          }
         }
+      } else if (input.fromWatchlist && !userId) {
+        // User not logged in but requested watchlist
+        return JSON.stringify({
+          error: "Not logged in",
+          message: "Sign in to see your watchlist!",
+          [mediaType === "movie" ? "movies" : "series"]: [],
+        });
       }
 
       // ===== Execute Smart Discover =====

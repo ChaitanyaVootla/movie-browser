@@ -36,6 +36,8 @@
     "lambda",
     "playground",
     "VectorDB",
-    "scripts"
+    "scripts",
+    "prisma",
+    "e2e"
   ]
 }

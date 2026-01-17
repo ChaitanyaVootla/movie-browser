@@ -1,4 +1,4 @@
-declare module 'node-fetch' {
+declare module "node-fetch" {
   interface RequestInit {
     method?: string;
     headers?: Record<string, string>;

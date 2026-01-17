@@ -1,0 +1,363 @@
+---
+description: PostgreSQL migration, database patterns, hydration service, and data sources
+globs: ["src/server/db/**/*.ts", "src/server/services/hydration/**/*.ts", "prisma/**/*.ts", "prisma/**/*.prisma"]
+alwaysApply: false
+---
+
+# Movie Browser - Database Rules
+
+## PostgreSQL Migration Status
+
+### Current State (Jan 2026)
+
+PostgreSQL is the **single source of truth** for movies/series. MongoDB is used for user data (until GA):
+
+| Component | Status |
+|-----------|--------|
+| Schema (V2 Normalized) | ✅ Complete |
+| Hydration Service | ✅ Complete |
+| Full round-trip verified | ✅ Complete |
+| YouTube Engagement Cache | ✅ Complete |
+| Series companies/languages | ✅ Complete |
+| `tmdbUpdatedAt` tracking | ✅ Complete |
+| User data migration | ⏳ Script ready (`scripts/migrate-user-data.ts`) |
+| Auth adapter switch | ⏳ At GA (MongoDBAdapter → PrismaAdapter) |
+
+### Hydration Service
+
+The hydration service (`src/server/services/hydration/`) handles all data fetching for detail pages:
+
+**Flow (PostgreSQL = Source of Truth):**
+```
+1. Check PostgreSQL for fresh TMDB data
+   - Fresh? Use it. Stale/missing? Fetch from TMDB API
+
+2. For series: Fetch all season episodes in parallel
+   - Uses central TMDB service with 3x exponential retry
+
+3. ALWAYS get enriched data from MongoDB
+   - Ratings, watch links, external IDs (until deprecation)
+
+4. Upsert EVERYTHING to PostgreSQL (wait for completion)
+   - TMDB data + episodes + enriched data merged
+
+5. Read back FROM PostgreSQL (verify round-trip)
+   - Return PostgreSQL data to UI
+```
+
+**Key Design Decisions:**
+- PostgreSQL is the source of truth
+- MongoDB enrichment happens on EVERY request (until deprecation)
+- Full round-trip: upsert -> read back -> return (verifies data integrity)
+- Lambda fallback if MongoDB stale/missing
+- **All TMDB API calls use the central service** (`src/server/services/tmdb.ts`) with 3x exponential backoff retry logic
+
+```typescript
+// src/server/actions/movie.ts
+export async function getMovie(id: number): Promise<Movie | null> {
+  if (HYDRATION_ENABLED) {
+    return getMovieWithHydration(id);  // Uses hydration service
+  }
+  // Legacy fallback...
+}
+```
+
+### MongoDB-First Seeding
+
+**Recommended** to preserve ratings and watch options:
+
+```bash
+# Set environment
+export MONGO_IP=<ip> MONGO_PASS=<pass>
+export DATABASE_URL="postgresql://moviebrowser:localdev123@localhost:5433/moviebrowser"
+
+# Seed commands
+npx tsx prisma/seed-from-mongo.ts              # Full (1K movies, 500 series)
+npx tsx prisma/seed-from-mongo.ts --quick      # Quick (100 movies, 50 series)
+npx tsx prisma/seed-from-mongo.ts --movie=550  # Specific movie
+npx tsx prisma/seed-from-mongo.ts --series=66732  # Specific series
+```
+
+### Data Captured
+
+| Data | Source | PostgreSQL Table |
+|------|--------|------------------|
+| Multi-source ratings | MongoDB `external_data.ratings` | `ratings` (unified) |
+| RT certified fresh | MongoDB `external_data.ratings.rottenTomatoes.*.certified` | `certified` column |
+| Scraped deep links (India) | MongoDB `googleData.allWatchOptions` | `scraped_watch_links` |
+| TMDB watch providers | TMDB API | `watch_options` |
+| **Episodes** | TMDB API (per-season fetch) | `episodes` |
+| Seasons | TMDB API | `seasons` |
+| **Countries (movies)** | TMDB API | `movie_countries` (with `type`: ORIGIN/PRODUCTION) |
+| **Countries (series)** | TMDB API | `series_countries` (ORIGIN type) |
+| **Spoken languages (movies)** | TMDB API | `movie_languages` (SPOKEN type) |
+| **Spoken languages (series)** | TMDB API | `series_languages` (SPOKEN type) |
+| Production companies (movies) | TMDB API | `movie_companies` junction |
+| **Production companies (series)** | TMDB API | `series_companies` junction |
+| Networks (series) | TMDB API | `series_networks` junction |
+| **Credits (movies)** | TMDB API | `credits` (all cast + crew, no limits) |
+| **Credits (series)** | TMDB API | `credits` with `is_aggregate` + `total_episode_count` |
+| **Series creators** | TMDB API `created_by` | `series_creators` junction |
+| **TMDB reviews** | TMDB API `reviews` | `reviews` (with external_id) |
+| **YouTube engagement** | YouTube API + Dislike API | `videos` (view_count, like_count, etc.) |
+| YouTube metadata | YouTube API | `videos.metadata` (channel, title, desc, duration) |
+| Top comments | YouTube API | `videos.top_comments` (JSONB array) |
+
+### Country Types (CountryType Enum)
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `ORIGIN` | Where the content originates from | "Korean dramas", "Japanese anime" |
+| `PRODUCTION` | Where it was physically produced | "Co-productions with Germany" |
+
+```sql
+-- Find all Korean series (K-dramas)
+SELECT s.* FROM series s
+JOIN series_countries sc ON s.id = sc.series_id
+WHERE sc.country_code = 'KR' AND sc.type = 'ORIGIN';
+
+-- Find movies produced in both US and UK
+SELECT m.* FROM movies m
+JOIN movie_countries mc ON m.id = mc.movie_id
+WHERE mc.country_code IN ('US', 'GB') AND mc.type = 'PRODUCTION'
+GROUP BY m.id HAVING COUNT(DISTINCT mc.country_code) = 2;
+```
+
+### Series Credits (Aggregate vs Regular)
+
+Series store **both** regular and aggregate credits with differentiation:
+
+| Field | Description |
+|-------|-------------|
+| `is_aggregate` | `false` = main/top-billed cast, `true` = all-time cast across episodes |
+| `total_episode_count` | Episode appearances (aggregate only) - for filtering |
+
+```sql
+-- Get main cast (non-aggregate, ~10-50 people)
+SELECT * FROM credits WHERE series_id = 1396 AND is_aggregate = false;
+
+-- Get actors who appeared in 50+ episodes (comprehensive)
+SELECT * FROM credits WHERE series_id = 1396 AND is_aggregate = true AND total_episode_count >= 50;
+```
+
+**UI Decision:** Use `is_aggregate=false` for "current cast" display, `is_aggregate=true` for full filmography search.
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `prisma/schema.prisma` | V2 normalized schema |
+| `prisma/seed-from-mongo.ts` | MongoDB -> PostgreSQL migration |
+| `src/server/services/tmdb.ts` | **Central TMDB service** (3x retry, caching) |
+| `src/server/services/youtube-engagement.ts` | **YouTube engagement PostgreSQL cache** |
+| `src/server/services/hydration/index.ts` | Main hydration logic |
+| `src/server/services/hydration/integration.ts` | Transform to Movie/Series types |
+| `src/server/services/hydration/sources/tmdb.ts` | TMDB data fetching (uses central service) |
+| `src/server/services/hydration/sources/mongo.ts` | MongoDB enriched data adapter |
+| `src/server/services/hydration/sources/postgres/` | **Modular PostgreSQL operations** |
+| `  └── types.ts` | Interfaces (PrismaTx, PostgresMovieData, etc.) |
+| `  └── queries.ts` | Read operations (fetchMovieFromPostgres) |
+| `  └── movie-upsert.ts` | Movie write operations |
+| `  └── series-upsert.ts` | Series write operations |
+| `  └── shared-upserts.ts` | Shared upserts (genres, credits, ratings) |
+| `  └── error-utils.ts` | Type-safe error handling |
+| `  └── index.ts` | Re-exports |
+| `src/server/services/hydration/sources/lambda.ts` | AWS Lambda fallback |
+| `src/lib/video-utils.ts` | Video sorting (shared server/client) |
+| `src/app/api/youtube/route.ts` | YouTube API route (PostgreSQL + file fallback) |
+
+### TMDB API Resilience
+
+**All TMDB API calls MUST use the central service** (`src/server/services/tmdb.ts`):
+
+```typescript
+import { fetchFromTMDB } from "@/server/services/tmdb";
+
+// Use fetchFromTMDB for custom endpoints with retry logic
+const data = await fetchFromTMDB<MovieData>(`/movie/${id}`, {
+  params: { append_to_response: "credits,videos" },
+  cacheNamespace: "movie",
+});
+
+// Or use existing helper functions
+import { getMovieDetails, getSeasonDetails } from "@/server/services/tmdb";
+```
+
+**Built-in features:**
+- 3x exponential backoff retry (300ms, 600ms, 1200ms)
+- 20s timeout with AbortController
+- ECONNRESET error handling
+- `Connection: close` header to prevent pooling issues
+- Unified caching (L1 memory + L2 file)
+
+**Never use raw `fetch()` for TMDB API calls** - bypasses retry logic and causes failures.
+
+### Ratings Whitelist
+
+Only these 5 rating sources are displayed in the UI:
+
+| Source | Scale | Example |
+|--------|-------|---------|
+| TMDB | 0-10 | 7.6 |
+| IMDb | 0-10 | 7.3 |
+| RT Critic | 0-100 | 86 |
+| RT Audience | 0-100 | 95 |
+| Google | 0-100 | 93 |
+
+Metacritic and Letterboxd are captured but NOT displayed (filtered in `integration.ts`).
+
+## YouTube Engagement (PostgreSQL Cache)
+
+For detail pages, YouTube video engagement is cached in PostgreSQL (`videos` table) with a two-phase strategy:
+
+**Phase 1 (Page Load):** Batch fetch basic stats for all videos
+- Views, likes, duration, channel info
+- 1 YouTube API quota unit per 50 videos
+- Stored in `videos.metadata` JSONB column
+
+**Phase 2 (User Clicks Video):** On-demand full engagement
+- Dislikes (from Return YouTube Dislike API - free)
+- Top comments (1 quota unit)
+- Stored in `videos.dislike_count`, `top_comments`
+
+**Staleness Logic:**
+- Recent videos (<30 days): 24h TTL
+- Old videos (>30 days): 7d TTL
+- Check via `engagement_scraped_at` column
+
+**Service:** `src/server/services/youtube-engagement.ts`
+
+**API:** `GET /api/youtube?videoId=xxx&mediaId=123&mediaType=movie`
+- With `mediaId` + `mediaType`: PostgreSQL-backed
+- Without: File-based fallback
+
+**Video name override:** When engagement is fetched, the `name` field is updated with the full YouTube title (may differ from TMDB's shorter name). The YouTube title is also stored in `metadata.title`.
+
+## YouTube API Quota Protection
+
+Daily quota: 10,000 units
+
+| Operation | Cost | With 24h Cache |
+|-----------|------|----------------|
+| channels.list | 1 unit | ~35/day |
+| playlistItems.list | 1 unit | ~35/day |
+| videos.list | 1 unit | ~35/day |
+| **Total** | - | **~105 units/day** (1% of quota) |
+
+## Key Types
+
+### Series Types
+
+```typescript
+interface Series {
+  id: number;
+  name: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  first_air_date: string;
+  last_air_date?: string;
+  status: string;              // "Returning Series" | "Ended" | "Canceled" | etc.
+  in_production?: boolean;
+  number_of_seasons: number;
+  number_of_episodes: number;
+  seasons: Season[];
+  next_episode_to_air?: Episode;
+  last_episode_to_air?: Episode;
+  created_by?: { id: number; name: string; profile_path: string | null }[];
+  networks?: { id: number; name: string; logo_path: string | null }[];
+  // ... common media fields (genres, vote_average, overview, etc.)
+}
+
+interface Season {
+  id: number;
+  season_number: number;
+  name: string;
+  poster_path: string | null;
+  air_date: string;
+  episode_count: number;
+  episodes?: Episode[];
+}
+
+interface Episode {
+  id: number;
+  episode_number: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  still_path: string | null;
+  air_date: string;
+  runtime?: number;
+  vote_average: number;
+  vote_count: number;
+  crew?: CrewMember[];
+  guest_stars?: CastMember[];
+  images?: { stills: EpisodeStill[] };
+  videos?: { results: EpisodeVideo[] };
+  external_ids?: EpisodeExternalIds;
+}
+```
+
+### Person Types
+
+```typescript
+interface Person {
+  id: number;
+  name: string;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  profile_path: string | null;
+  homepage: string | null;
+  imdb_id: string | null;
+  popularity: number;
+  known_for_department: string;   // "Acting" | "Directing" | "Writing" | etc.
+  also_known_as?: string[];
+  gender: number;                 // 0: unknown, 1: female, 2: male, 3: non-binary
+  movie_credits?: { cast: PersonMovieCredit[]; crew: PersonMovieCrewCredit[] };
+  tv_credits?: { cast: PersonTVCredit[]; crew: PersonTVCrewCredit[] };
+  combined_credits?: { cast: PersonCombinedCastCredit[]; crew: PersonCombinedCrewCredit[] };
+  images?: { profiles: Image[] };
+  external_ids?: PersonExternalIds;
+  tagged_images?: { results: TaggedImage[]; total_results: number };
+}
+
+interface PersonExternalIds {
+  imdb_id: string | null;
+  instagram_id: string | null;
+  twitter_id: string | null;
+  facebook_id: string | null;
+  youtube_id: string | null;
+  tiktok_id: string | null;
+  wikidata_id: string | null;
+}
+```
+
+### Watch Options Types
+
+```typescript
+interface WatchOption {
+  name: string;
+  displayName: string;
+  link: string;
+  price: string;
+  image: string;
+  key: string;
+  isJustWatch?: boolean;
+}
+
+interface ProcessedWatchOptions {
+  options: WatchOption[];
+  sourceCountry: string;
+  isFromFallback: boolean;
+}
+
+interface WatchProviderData {
+  link?: string;
+  flatrate?: WatchProvider[];
+  rent?: WatchProvider[];
+  buy?: WatchProvider[];
+}
+```
+
+For full documentation, see `docs/POSTGRESQL_MIGRATION_PLAN.md`.

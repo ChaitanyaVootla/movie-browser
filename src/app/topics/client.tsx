@@ -81,7 +81,7 @@ export function TopicsClient({
                 className="pl-8 h-9"
               />
             </div>
-            
+
             {/* View All Button */}
             <Button asChild variant="outline" size="sm">
               <Link href="/topics/all">
@@ -166,12 +166,8 @@ export function TopicsClient({
 
         {filteredTopics.length === 0 && (
           <div className="text-center py-16 px-4">
-            <p className="text-lg font-medium text-muted-foreground">
-              No topics found
-            </p>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Try a different search term
-            </p>
+            <p className="text-lg font-medium text-muted-foreground">No topics found</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">Try a different search term</p>
           </div>
         )}
 
@@ -189,4 +185,3 @@ export function TopicsClient({
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 /**
  * Test script to verify complete data hydration for movies and series.
  * Tests with top 10 most popular movies and series.
- * 
+ *
  * Usage: npx tsx scripts/verify/test-hydration-complete.ts
  */
 
@@ -71,9 +71,21 @@ async function verifyMovieData(movieId: number) {
     { name: "Genres", check: async () => movie.genres.length, expected: ">0" },
     { name: "Keywords", check: async () => movie.keywords.length, expected: ">0" },
     { name: "Credits (total)", check: async () => movie.credits.length, expected: ">0" },
-    { name: "Credits (cast)", check: async () => movie.credits.filter(c => c.creditType === "CAST").length, expected: ">0" },
-    { name: "Credits (crew)", check: async () => movie.credits.filter(c => c.creditType === "CREW").length, expected: ">0" },
-    { name: "Directors", check: async () => movie.credits.filter(c => c.job === "Director").length, expected: ">0" },
+    {
+      name: "Credits (cast)",
+      check: async () => movie.credits.filter((c) => c.creditType === "CAST").length,
+      expected: ">0",
+    },
+    {
+      name: "Credits (crew)",
+      check: async () => movie.credits.filter((c) => c.creditType === "CREW").length,
+      expected: ">0",
+    },
+    {
+      name: "Directors",
+      check: async () => movie.credits.filter((c) => c.job === "Director").length,
+      expected: ">0",
+    },
     { name: "Countries", check: async () => movie.countries.length, expected: ">0" },
     { name: "Languages", check: async () => movie.languages.length, expected: ">0" },
     { name: "Companies", check: async () => movie.companies.length, expected: ">=0" },
@@ -87,7 +99,7 @@ async function verifyMovieData(movieId: number) {
   ];
 
   console.log(`\n  📽️  ${movie.title} (${movieId})`);
-  
+
   const results: Record<string, number> = {};
   for (const { name, check } of checks) {
     const count = await check();
@@ -95,7 +107,7 @@ async function verifyMovieData(movieId: number) {
     const icon = count > 0 ? "✅" : "⚠️";
     console.log(`     ${icon} ${name}: ${count}`);
   }
-  
+
   return results;
 }
 
@@ -109,6 +121,8 @@ async function verifySeriesData(seriesId: number) {
       creators: { include: { person: true } },
       networks: { include: { network: true } },
       companies: { include: { company: true } },
+      languages: { include: { language: true } },
+      countries: { include: { country: true } },
       certifications: true,
       seasons: { include: { episodes: true } },
       videos: true,
@@ -127,8 +141,8 @@ async function verifySeriesData(seriesId: number) {
   }
 
   // Count aggregate vs non-aggregate credits
-  const aggregateCredits = series.credits.filter(c => c.isAggregate);
-  const regularCredits = series.credits.filter(c => !c.isAggregate);
+  const aggregateCredits = series.credits.filter((c) => c.isAggregate);
+  const regularCredits = series.credits.filter((c) => !c.isAggregate);
 
   const checks: DataCheck[] = [
     { name: "Genres", check: async () => series.genres.length, expected: ">0" },
@@ -136,12 +150,22 @@ async function verifySeriesData(seriesId: number) {
     { name: "Creators", check: async () => series.creators.length, expected: ">0" },
     { name: "Credits (total)", check: async () => series.credits.length, expected: ">0" },
     { name: "Credits (regular/main)", check: async () => regularCredits.length, expected: ">0" },
-    { name: "Credits (aggregate/all-time)", check: async () => aggregateCredits.length, expected: ">0" },
+    {
+      name: "Credits (aggregate/all-time)",
+      check: async () => aggregateCredits.length,
+      expected: ">0",
+    },
     { name: "Networks", check: async () => series.networks.length, expected: ">0" },
     { name: "Companies", check: async () => series.companies.length, expected: ">=0" },
+    { name: "Languages", check: async () => series.languages.length, expected: ">=0" },
+    { name: "Countries", check: async () => series.countries.length, expected: ">=0" },
     { name: "Certifications", check: async () => series.certifications.length, expected: ">=0" },
     { name: "Seasons", check: async () => series.seasons.length, expected: ">0" },
-    { name: "Episodes", check: async () => series.seasons.reduce((sum, s) => sum + s.episodes.length, 0), expected: ">0" },
+    {
+      name: "Episodes",
+      check: async () => series.seasons.reduce((sum, s) => sum + s.episodes.length, 0),
+      expected: ">0",
+    },
     { name: "Videos", check: async () => series.videos.length, expected: ">=0" },
     { name: "Images", check: async () => series.images.length, expected: ">=0" },
     { name: "Ratings", check: async () => series.ratings.length, expected: ">=0" },
@@ -151,7 +175,7 @@ async function verifySeriesData(seriesId: number) {
   ];
 
   console.log(`\n  📺 ${series.name} (${seriesId})`);
-  
+
   const results: Record<string, number> = {};
   for (const { name, check } of checks) {
     const count = await check();
@@ -163,7 +187,7 @@ async function verifySeriesData(seriesId: number) {
   // Show some aggregate credit details
   if (aggregateCredits.length > 0) {
     const topAggregate = aggregateCredits
-      .filter(c => c.creditType === "CAST" && c.totalEpisodeCount !== null)
+      .filter((c) => c.creditType === "CAST" && c.totalEpisodeCount !== null)
       .sort((a, b) => (b.totalEpisodeCount || 0) - (a.totalEpisodeCount || 0))
       .slice(0, 3);
     if (topAggregate.length > 0) {
@@ -173,7 +197,7 @@ async function verifySeriesData(seriesId: number) {
       }
     }
   }
-  
+
   return results;
 }
 
@@ -191,7 +215,7 @@ async function main() {
   // Hydrate movies
   console.log("\n\n🎬 HYDRATING MOVIES...");
   console.log("─".repeat(50));
-  
+
   for (const movieId of movieIds) {
     try {
       console.log(`\n  Hydrating movie ${movieId}...`);
@@ -204,7 +228,7 @@ async function main() {
   // Verify movie data
   console.log("\n\n📊 VERIFYING MOVIE DATA...");
   console.log("─".repeat(50));
-  
+
   const movieResults: Array<Record<string, number> | null> = [];
   for (const movieId of movieIds) {
     const result = await verifyMovieData(movieId);
@@ -214,7 +238,7 @@ async function main() {
   // Hydrate series
   console.log("\n\n📺 HYDRATING SERIES...");
   console.log("─".repeat(50));
-  
+
   for (const seriesId of seriesIds) {
     try {
       console.log(`\n  Hydrating series ${seriesId}...`);
@@ -227,7 +251,7 @@ async function main() {
   // Verify series data
   console.log("\n\n📊 VERIFYING SERIES DATA...");
   console.log("─".repeat(50));
-  
+
   const seriesResults: Array<Record<string, number> | null> = [];
   for (const seriesId of seriesIds) {
     const result = await verifySeriesData(seriesId);
@@ -237,18 +261,23 @@ async function main() {
   // Summary
   console.log("\n\n📋 SUMMARY");
   console.log("═".repeat(50));
-  
+
   // Movie summary
   const validMovies = movieResults.filter(Boolean) as Record<string, number>[];
   console.log(`\n🎬 Movies: ${validMovies.length}/${movieIds.length} hydrated successfully`);
-  
+
   if (validMovies.length > 0) {
-    const avgCredits = validMovies.reduce((sum, m) => sum + (m["Credits (total)"] || 0), 0) / validMovies.length;
-    const avgDirectors = validMovies.reduce((sum, m) => sum + (m["Directors"] || 0), 0) / validMovies.length;
-    const avgCountries = validMovies.reduce((sum, m) => sum + (m["Countries"] || 0), 0) / validMovies.length;
-    const avgLanguages = validMovies.reduce((sum, m) => sum + (m["Languages"] || 0), 0) / validMovies.length;
-    const avgReviews = validMovies.reduce((sum, m) => sum + (m["Reviews"] || 0), 0) / validMovies.length;
-    
+    const avgCredits =
+      validMovies.reduce((sum, m) => sum + (m["Credits (total)"] || 0), 0) / validMovies.length;
+    const avgDirectors =
+      validMovies.reduce((sum, m) => sum + (m["Directors"] || 0), 0) / validMovies.length;
+    const avgCountries =
+      validMovies.reduce((sum, m) => sum + (m["Countries"] || 0), 0) / validMovies.length;
+    const avgLanguages =
+      validMovies.reduce((sum, m) => sum + (m["Languages"] || 0), 0) / validMovies.length;
+    const avgReviews =
+      validMovies.reduce((sum, m) => sum + (m["Reviews"] || 0), 0) / validMovies.length;
+
     console.log(`   Avg credits: ${avgCredits.toFixed(1)}`);
     console.log(`   Avg directors: ${avgDirectors.toFixed(1)}`);
     console.log(`   Avg countries: ${avgCountries.toFixed(1)}`);
@@ -259,15 +288,23 @@ async function main() {
   // Series summary
   const validSeries = seriesResults.filter(Boolean) as Record<string, number>[];
   console.log(`\n📺 Series: ${validSeries.length}/${seriesIds.length} hydrated successfully`);
-  
+
   if (validSeries.length > 0) {
-    const avgCredits = validSeries.reduce((sum, s) => sum + (s["Credits (total)"] || 0), 0) / validSeries.length;
-    const avgRegular = validSeries.reduce((sum, s) => sum + (s["Credits (regular/main)"] || 0), 0) / validSeries.length;
-    const avgAggregate = validSeries.reduce((sum, s) => sum + (s["Credits (aggregate/all-time)"] || 0), 0) / validSeries.length;
-    const avgCreators = validSeries.reduce((sum, s) => sum + (s["Creators"] || 0), 0) / validSeries.length;
-    const avgEpisodes = validSeries.reduce((sum, s) => sum + (s["Episodes"] || 0), 0) / validSeries.length;
-    const avgReviews = validSeries.reduce((sum, s) => sum + (s["Reviews"] || 0), 0) / validSeries.length;
-    
+    const avgCredits =
+      validSeries.reduce((sum, s) => sum + (s["Credits (total)"] || 0), 0) / validSeries.length;
+    const avgRegular =
+      validSeries.reduce((sum, s) => sum + (s["Credits (regular/main)"] || 0), 0) /
+      validSeries.length;
+    const avgAggregate =
+      validSeries.reduce((sum, s) => sum + (s["Credits (aggregate/all-time)"] || 0), 0) /
+      validSeries.length;
+    const avgCreators =
+      validSeries.reduce((sum, s) => sum + (s["Creators"] || 0), 0) / validSeries.length;
+    const avgEpisodes =
+      validSeries.reduce((sum, s) => sum + (s["Episodes"] || 0), 0) / validSeries.length;
+    const avgReviews =
+      validSeries.reduce((sum, s) => sum + (s["Reviews"] || 0), 0) / validSeries.length;
+
     console.log(`   Avg credits (total): ${avgCredits.toFixed(1)}`);
     console.log(`   Avg credits (regular/main): ${avgRegular.toFixed(1)}`);
     console.log(`   Avg credits (aggregate/all-time): ${avgAggregate.toFixed(1)}`);
@@ -277,7 +314,7 @@ async function main() {
   }
 
   console.log("\n✅ Test complete!\n");
-  
+
   await prisma.$disconnect();
 }
 

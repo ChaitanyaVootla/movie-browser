@@ -9,7 +9,14 @@ import { UsersTab } from "@/components/features/admin/tabs";
 import type { TimeRange, AnalyticsSubTab } from "@/components/features/admin/analytics-types";
 
 const VALID_TABS = ["analytics", "users"] as const;
-const VALID_SUBTABS: AnalyticsSubTab[] = ["traffic", "ai", "lambda", "performance", "system", "database"];
+const VALID_SUBTABS: AnalyticsSubTab[] = [
+  "traffic",
+  "ai",
+  "lambda",
+  "performance",
+  "system",
+  "database",
+];
 const DEFAULT_TAB = "analytics";
 const DEFAULT_SUBTAB: AnalyticsSubTab = "traffic";
 const DEFAULT_RANGE: TimeRange = 7;
@@ -23,15 +30,16 @@ export function AdminDashboard() {
   const subtabParam = searchParams.get("subtab");
   const rangeParam = searchParams.get("range");
 
-  const activeTab = VALID_TABS.includes(tabParam as typeof VALID_TABS[number])
+  const activeTab = VALID_TABS.includes(tabParam as (typeof VALID_TABS)[number])
     ? tabParam!
     : DEFAULT_TAB;
   const activeSubTab = VALID_SUBTABS.includes(subtabParam as AnalyticsSubTab)
     ? (subtabParam as AnalyticsSubTab)
     : DEFAULT_SUBTAB;
-  const timeRange = rangeParam && !isNaN(parseInt(rangeParam))
-    ? (parseInt(rangeParam) as TimeRange)
-    : DEFAULT_RANGE;
+  const timeRange =
+    rangeParam && !isNaN(parseInt(rangeParam))
+      ? (parseInt(rangeParam) as TimeRange)
+      : DEFAULT_RANGE;
 
   // Update URL without full navigation
   const updateUrl = useCallback(
@@ -103,11 +111,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Main Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="space-y-6"
-      >
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
           <TabsTrigger value="analytics" className="gap-1.5">
             <BarChart3 className="h-4 w-4" />

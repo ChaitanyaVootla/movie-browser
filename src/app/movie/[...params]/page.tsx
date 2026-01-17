@@ -73,9 +73,7 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
   const backdropUrl = movie.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${movie.backdrop_path}`
     : undefined;
-  const posterUrl = movie.poster_path
-    ? `${TMDB_IMAGE_BASE}/w500${movie.poster_path}`
-    : undefined;
+  const posterUrl = movie.poster_path ? `${TMDB_IMAGE_BASE}/w500${movie.poster_path}` : undefined;
 
   return {
     title,
@@ -133,20 +131,8 @@ function ImagePreloader({ movieId }: { movieId: number }) {
 
   return (
     <>
-      <link
-        rel="preload"
-        as="image"
-        href={backdropUrl}
-        type="image/webp"
-        fetchPriority="high"
-      />
-      <link
-        rel="preload"
-        as="image"
-        href={logoUrl}
-        type="image/webp"
-        fetchPriority="high"
-      />
+      <link rel="preload" as="image" href={backdropUrl} type="image/webp" fetchPriority="high" />
+      <link rel="preload" as="image" href={logoUrl} type="image/webp" fetchPriority="high" />
     </>
   );
 }
@@ -167,10 +153,10 @@ function HeroContentSkeleton() {
         <Skeleton className="h-6 w-24 rounded-full bg-white/10" />
         <Skeleton className="h-6 w-16 rounded-full bg-white/10" />
       </div>
-      
+
       {/* Ratings skeleton */}
       <Skeleton className="h-8 w-52 rounded-full bg-white/10" />
-      
+
       {/* Watch options skeleton */}
       <div className="flex gap-2">
         <Skeleton className="h-9 w-28 rounded-lg bg-white/10" />
@@ -265,20 +251,17 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
   if (!movie) return null;
 
   const genres = movie.genres || [];
-  const displayRatings =
-    movie.ratings?.length
-      ? movie.ratings
-      : movie.vote_average && movie.vote_average > 0
-        ? [{ name: "TMDB", rating: Math.round(movie.vote_average * 10).toString() }]
-        : [];
+  const displayRatings = movie.ratings?.length
+    ? movie.ratings
+    : movie.vote_average && movie.vote_average > 0
+      ? [{ name: "TMDB", rating: Math.round(movie.vote_average * 10).toString() }]
+      : [];
 
   // Get badges for detail page (show more than cards)
   const badges = getMediaBadges(movie, { maxBadges: 3, context: "detail" });
 
   // Get English logo for fallback (prefer English, then first available)
-  const englishLogo = movie.images?.logos?.find(
-    (logo) => logo.iso_639_1 === "en"
-  );
+  const englishLogo = movie.images?.logos?.find((logo) => logo.iso_639_1 === "en");
   const logoPath = englishLogo?.file_path ?? movie.images?.logos?.[0]?.file_path;
 
   return (
@@ -318,10 +301,7 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
 // Async page content - action bar, overview, galleries, recommendations
 async function MovieContentAsync({ movieId }: { movieId: number }) {
   // Fetch movie data and AI summary in parallel
-  const [movie, aiSummary] = await Promise.all([
-    getMovie(movieId),
-    getAISummary(movieId),
-  ]);
+  const [movie, aiSummary] = await Promise.all([getMovie(movieId), getAISummary(movieId)]);
   if (!movie) return null;
 
   // Filter YouTube videos and sort by priority (Trailer > Teaser > etc.) + date
@@ -355,7 +335,11 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
       />
 
       {/* Overview, cast, and details - using light props to reduce RSC payload by ~80% */}
-      <MediaOverview item={extractMovieOverviewProps(movie)} mediaType="movie" aiSummary={aiSummary} />
+      <MediaOverview
+        item={extractMovieOverviewProps(movie)}
+        mediaType="movie"
+        aiSummary={aiSummary}
+      />
 
       {/* AI Questions - clickable prompts that trigger AI chat */}
       {aiSummary?.aiQuestions && aiSummary.aiQuestions.length > 0 && (
@@ -424,9 +408,7 @@ function MovieSchema({ movie }: { movie: Movie }) {
     name: movie.title,
     description: movie.overview,
     datePublished: movie.release_date,
-    image: movie.poster_path
-      ? `${TMDB_IMAGE_BASE}/w500${movie.poster_path}`
-      : undefined,
+    image: movie.poster_path ? `${TMDB_IMAGE_BASE}/w500${movie.poster_path}` : undefined,
     aggregateRating:
       movie.vote_average && movie.vote_count
         ? {
@@ -496,6 +478,8 @@ async function CollectionAsync({
     }
 
     // Extract light collection to strip overview from parts (~2-15KB savings)
+    // Note: JSX in try/catch is valid in RSC - it catches data fetch errors, not render errors
+    /* eslint-disable react-hooks/error-boundaries */
     return (
       <CollectionSection
         collection={extractLightCollection(collection)}
@@ -503,6 +487,7 @@ async function CollectionAsync({
         className="mt-8 md:mt-12"
       />
     );
+    /* eslint-enable react-hooks/error-boundaries */
   } catch {
     return null;
   }
@@ -552,7 +537,7 @@ export default async function MoviePage({ params, searchParams }: MoviePageProps
                       className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
                     />
                   </div>
-                  
+
                   {/* Genres, ratings, watch options load via Suspense */}
                   <Suspense fallback={<HeroContentSkeleton />}>
                     <HeroContentAsync movieId={id} />

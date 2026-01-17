@@ -20,7 +20,7 @@ interface MediaBackdropProps {
 
 /**
  * MediaBackdrop - Prime Video-style backdrop for hero sections
- * 
+ *
  * Mobile: Image preserves aspect ratio (16:9), content renders below
  * Desktop: Image fills height, aligned right, content overlays
  */
@@ -49,13 +49,15 @@ export function MediaBackdrop({
   };
 
   return (
-    <div className={cn(
-      "relative w-full overflow-hidden bg-black",
-      // Mobile: flex column, image + content stacked
-      // Desktop: fixed height with overlay
-      "flex flex-col md:block md:h-full",
-      className
-    )}>
+    <div
+      className={cn(
+        "relative w-full overflow-hidden bg-black",
+        // Mobile: flex column, image + content stacked
+        // Desktop: fixed height with overlay
+        "flex flex-col md:block md:h-full",
+        className
+      )}
+    >
       {/* Backdrop Image Container */}
       {hasBackdrop && backdropSrc ? (
         <>
@@ -72,14 +74,14 @@ export function MediaBackdrop({
             <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-black/40 to-transparent" />
             {/* Bottom gradient - fade to black for content below */}
             {overlay !== "none" && (
-              <div 
+              <div
                 className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
                 style={{
                   background: `linear-gradient(to top, 
                     rgb(0,0,0) 0%,
                     rgba(0,0,0,0.9) 30%,
                     rgba(0,0,0,0.5) 60%,
-                    transparent 100%)`
+                    transparent 100%)`,
                 }}
               />
             )}
@@ -98,22 +100,23 @@ export function MediaBackdrop({
               />
               {/* Gradient overlay - positioned on the image, fades left edge quickly */}
               {overlay !== "none" && (
-                <div 
+                <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
-                    background: overlay === "light" 
-                      ? `linear-gradient(to right, 
+                    background:
+                      overlay === "light"
+                        ? `linear-gradient(to right, 
                           rgba(0,0,0,0.95) 0%,
                           rgba(0,0,0,0.7) 5%,
                           rgba(0,0,0,0.3) 12%,
                           transparent 22%)`
-                      : overlay === "medium"
-                      ? `linear-gradient(to right, 
+                        : overlay === "medium"
+                          ? `linear-gradient(to right, 
                           rgba(0,0,0,0.98) 0%,
                           rgba(0,0,0,0.75) 8%,
                           rgba(0,0,0,0.4) 18%,
                           transparent 30%)`
-                      : `linear-gradient(to right, 
+                          : `linear-gradient(to right, 
                           black 0%,
                           rgba(0,0,0,0.8) 10%,
                           rgba(0,0,0,0.4) 22%,
@@ -151,16 +154,17 @@ export function MediaBackdrop({
 
       {/* Content - mobile: normal flow below image, desktop: overlay */}
       {children && (
-        <div className={cn(
-          // Mobile: normal flow, pull up into gradient for tight spacing
-          "relative z-10 bg-black px-4 -mt-12 pt-0 pb-6",
-          // Desktop: absolute overlay at bottom
-          "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"
-        )}>
+        <div
+          className={cn(
+            // Mobile: normal flow, pull up into gradient for tight spacing
+            "relative z-10 bg-black px-4 -mt-12 pt-0 pb-6",
+            // Desktop: absolute overlay at bottom
+            "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"
+          )}
+        >
           {children}
         </div>
       )}
     </div>
   );
 }
-

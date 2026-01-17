@@ -12,6 +12,7 @@ import {
   Loader2,
   History,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -31,10 +32,16 @@ import {
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { cn, getSlug, getMediaHref, isMovieItem, getDisplayTitle } from "@/lib/utils";
-import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZES, TMDB_PROFILE_SIZES } from "@/lib/constants";
+import {
+  TMDB_IMAGE_BASE,
+  TMDB_BACKDROP_SIZES,
+  TMDB_POSTER_SIZES,
+  TMDB_PROFILE_SIZES,
+} from "@/lib/constants";
 import { quickSearch } from "@/server/actions/search";
 import { getPopularTopics, searchTopics } from "@/lib/topics";
 import { useUserStore, selectRecents } from "@/stores/user";
+import { useDebounce } from "@/hooks/use-debounce";
 import type {
   SearchResult,
   SearchMovieResult,
@@ -44,48 +51,179 @@ import type {
 } from "@/server/actions/search";
 import type { PopularTopicItem } from "@/lib/topics";
 
+// =============================================================================
+// Constants
+// =============================================================================
+
+const SEARCH_DEBOUNCE_MS = 250;
+const MIN_SEARCH_LENGTH = 2;
+const MAX_TOPIC_MATCHES = 4;
+const MAX_RECENT_ITEMS = 5;
+const MAX_POPULAR_TOPICS = 8;
+const CONTENT_MIN_HEIGHT = "360px";
+const CLOSE_ANIMATION_DELAY_MS = 300;
+
+// Popular topics (computed once at module load)
+const popularTopics = getPopularTopics();
+
+// =============================================================================
+// Types
+// =============================================================================
+
 interface SearchCommandProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// Debounce hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
+type MediaType = "movie" | "tv" | "person";
 
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+// =============================================================================
+// Helper Functions (pure, outside component)
+// =============================================================================
 
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-
-  return debouncedValue;
+/** Get icon component for media type */
+function getMediaIcon(mediaType: MediaType): React.ReactNode {
+  switch (mediaType) {
+    case "movie":
+      return <Film className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+    case "tv":
+      return <Tv className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+    case "person":
+      return <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+  }
 }
 
-// Min height for content area to prevent layout shift
-const CONTENT_MIN_HEIGHT = "360px";
+/** Safely parse year from date string, returns null if invalid */
+function parseYear(dateString: string | null | undefined): number | null {
+  if (!dateString) return null;
+  const year = new Date(dateString).getFullYear();
+  return isNaN(year) ? null : year;
+}
 
-// Popular topics (memoized to avoid recalculating)
-const popularTopics = getPopularTopics();
-
-// Parse topic key to get type and media type
+/** Parse topic key to get type and media type with type guards */
 function parseTopicKey(key: string): { type: "genre" | "theme"; mediaType: "movie" | "tv" } | null {
   const parts = key.split("-");
   if (parts.length < 3) return null;
-  const type = parts[0] as "genre" | "theme";
-  const media = parts[parts.length - 1] as "movie" | "tv";
-  if ((type === "genre" || type === "theme") && (media === "movie" || media === "tv")) {
+
+  const type = parts[0];
+  const media = parts[parts.length - 1];
+
+  const isValidType = (v: string): v is "genre" | "theme" => v === "genre" || v === "theme";
+  const isValidMedia = (v: string): v is "movie" | "tv" => v === "movie" || v === "tv";
+
+  if (isValidType(type) && isValidMedia(media)) {
     return { type, mediaType: media };
   }
   return null;
 }
 
+// =============================================================================
+// Subcomponents
+// =============================================================================
+
+interface MediaThumbnailProps {
+  backdropPath?: string | null;
+  posterPath?: string | null;
+  profilePath?: string | null;
+  alt: string;
+  type: "movie" | "tv" | "person";
+  className?: string;
+}
+
+/** Reusable thumbnail component with backdrop/poster/profile fallbacks */
+const MediaThumbnail = React.memo(function MediaThumbnail({
+  backdropPath,
+  posterPath,
+  profilePath,
+  alt,
+  type,
+  className,
+}: MediaThumbnailProps) {
+  const isPerson = type === "person";
+  const FallbackIcon = type === "movie" ? Film : type === "tv" ? Tv : User;
+
+  // Person uses profile path with circular styling
+  if (isPerson) {
+    return (
+      <div className={cn("relative flex-shrink-0 overflow-hidden rounded-full bg-muted", className)}>
+        {profilePath ? (
+          <Image
+            src={`${TMDB_IMAGE_BASE}/${TMDB_PROFILE_SIZES.small}${profilePath}`}
+            alt={alt}
+            fill
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <FallbackIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Movie/TV uses backdrop with poster fallback
+  return (
+    <div className={cn("relative flex-shrink-0 overflow-hidden rounded bg-muted", className)}>
+      {backdropPath ? (
+        <Image
+          src={`${TMDB_IMAGE_BASE}/${TMDB_BACKDROP_SIZES.small}${backdropPath}`}
+          alt={alt}
+          fill
+          className="object-cover"
+          unoptimized
+        />
+      ) : posterPath ? (
+        <Image
+          src={`${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZES.small}${posterPath}`}
+          alt={alt}
+          fill
+          className="object-cover"
+          unoptimized
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <FallbackIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        </div>
+      )}
+    </div>
+  );
+});
+
+interface TopicPillsProps {
+  topics: PopularTopicItem[];
+  showIcon?: boolean;
+  onSelectTopic: (key: string) => void;
+}
+
+/** Compact topic pills for genre/theme selection */
+const TopicPills = React.memo(function TopicPills({
+  topics,
+  showIcon = false,
+  onSelectTopic,
+}: TopicPillsProps) {
+  return (
+    <div className="flex flex-wrap gap-1.5 px-2 py-2" role="group" aria-label="Topic suggestions">
+      {topics.map((topic) => (
+        <button
+          key={topic.key}
+          onClick={() => onSelectTopic(topic.key)}
+          className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-xs transition-colors hover:bg-muted hover:border-foreground/20"
+        >
+          {showIcon && <Sparkles className="h-3 w-3 text-muted-foreground" aria-hidden="true" />}
+          <span>{topic.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+});
+
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
+  const [hasError, setHasError] = React.useState(false);
   const [results, setResults] = React.useState<QuickSearchResponse>({
     results: [],
   });
@@ -94,14 +232,20 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const recents = useUserStore(selectRecents);
 
   const requestIdRef = React.useRef(0);
-  const debouncedQuery = useDebounce(query, 250);
+  const debouncedQuery = useDebounce(query, SEARCH_DEBOUNCE_MS);
+
+  // Memoize recent items slice
+  const recentItems = React.useMemo(
+    () => recents.slice(0, MAX_RECENT_ITEMS),
+    [recents]
+  );
 
   // Search topics instantly (no debounce needed - local search)
   const matchingTopics = React.useMemo(() => {
     const trimmed = query.trim();
-    if (!trimmed || trimmed.length < 2) return [];
-    
-    const matches = searchTopics(trimmed, 4);
+    if (!trimmed || trimmed.length < MIN_SEARCH_LENGTH) return [];
+
+    const matches = searchTopics(trimmed, MAX_TOPIC_MATCHES);
     return matches.map((t) => {
       const parsed = parseTopicKey(t.key);
       return {
@@ -119,7 +263,8 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
       const timer = setTimeout(() => {
         setQuery("");
         setResults({ results: [] });
-      }, 300);
+        setHasError(false);
+      }, CLOSE_ANIMATION_DELAY_MS);
       return () => clearTimeout(timer);
     }
   }, [open]);
@@ -147,6 +292,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     if (!trimmedQuery) {
       setResults({ results: [] });
       setIsLoading(false);
+      setHasError(false);
       return;
     }
 
@@ -154,15 +300,19 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
 
     const fetchResults = async () => {
       setIsLoading(true);
+      setHasError(false);
       try {
         const data = await quickSearch(trimmedQuery);
         if (currentRequestId === requestIdRef.current) {
           setResults(data);
         }
-      } catch (error) {
-        console.error("Search error:", error);
+      } catch (error: unknown) {
+        // Log error details for debugging (client-side, console is acceptable)
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("Search error:", message);
         if (currentRequestId === requestIdRef.current) {
           setResults({ results: [] });
+          setHasError(true);
         }
       } finally {
         if (currentRequestId === requestIdRef.current) {
@@ -176,29 +326,33 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
 
   const hasApiResults = results.results.length > 0;
   const hasTopics = matchingTopics.length > 0;
-  const showEmptyState = debouncedQuery.trim() && !isLoading && !hasApiResults && !hasTopics;
+  const showEmptyState =
+    debouncedQuery.trim() && !isLoading && !hasApiResults && !hasTopics && !hasError;
+  const showErrorState = debouncedQuery.trim() && !isLoading && hasError;
   const showInitialState = !query.trim() && !isLoading;
 
   // For initial state: show recents + popular topics
-  const recentItems = recents.slice(0, 5);
   const showPopularTopics = recentItems.length < 3;
 
-  const handleSelectMedia = React.useCallback((
-    type: "movie" | "series" | "person",
-    id: number,
-    name: string
-  ) => {
-    const path = type === "person" 
-      ? `/person/${id}/${getSlug(name)}`
-      : getMediaHref(id, type === "movie", name);
-    onOpenChange(false);
-    router.push(path);
-  }, [onOpenChange, router]);
+  const handleSelectMedia = React.useCallback(
+    (type: "movie" | "series" | "person", id: number, name: string) => {
+      const path =
+        type === "person"
+          ? `/person/${id}/${getSlug(name)}`
+          : getMediaHref(id, type === "movie", name);
+      onOpenChange(false);
+      router.push(path);
+    },
+    [onOpenChange, router]
+  );
 
-  const handleSelectTopic = React.useCallback((topicKey: string) => {
-    onOpenChange(false);
-    router.push(`/topics/${topicKey}`);
-  }, [onOpenChange, router]);
+  const handleSelectTopic = React.useCallback(
+    (topicKey: string) => {
+      onOpenChange(false);
+      router.push(`/topics/${topicKey}`);
+    },
+    [onOpenChange, router]
+  );
 
   const handleViewAll = React.useCallback(() => {
     if (!query.trim()) return;
@@ -206,102 +360,98 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     router.push(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [query, onOpenChange, router]);
 
-  // Get icon for media type
-  const getMediaIcon = (mediaType: string) => {
-    switch (mediaType) {
-      case "movie":
-        return <Film className="h-4 w-4 text-muted-foreground" />;
-      case "tv":
-        return <Tv className="h-4 w-4 text-muted-foreground" />;
-      case "person":
-        return <User className="h-4 w-4 text-muted-foreground" />;
-      default:
-        return null;
+  // Retry search after error
+  const handleRetry = React.useCallback(() => {
+    setHasError(false);
+    // Force re-fetch by incrementing request ID and triggering effect
+    requestIdRef.current++;
+    const trimmedQuery = debouncedQuery.trim();
+    if (trimmedQuery) {
+      setIsLoading(true);
+      quickSearch(trimmedQuery)
+        .then((data) => {
+          setResults(data);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          setHasError(true);
+          setIsLoading(false);
+        });
     }
-  };
+  }, [debouncedQuery]);
 
   // Render a media result item (movie, tv, person)
   const renderMediaResult = (result: SearchResult, index: number) => {
     if (result.media_type === "movie") {
       const movie = result as SearchMovieResult;
+      const year = parseYear(movie.release_date);
       return (
         <CommandItem
           key={`movie-${movie.id}-${index}`}
           value={`movie-${movie.id}`}
           onSelect={() => handleSelectMedia("movie", movie.id, movie.title)}
-          className="gap-3 py-3"
+          className="gap-2.5 py-2"
         >
-          <div className="relative h-12 w-8 flex-shrink-0 overflow-hidden rounded bg-muted">
-            {movie.poster_path ? (
-              <Image
-                src={`${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZES.small}${movie.poster_path}`}
-                alt={movie.title}
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <Film className="h-4 w-4 text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          <MediaThumbnail
+            backdropPath={movie.backdrop_path}
+            posterPath={movie.poster_path}
+            alt={movie.title}
+            type="movie"
+            className="h-11 w-20"
+          />
           <div className="flex-1 overflow-hidden">
             <p className="truncate font-medium">{movie.title}</p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {movie.release_date && (
-                <span>{new Date(movie.release_date).getFullYear()}</span>
-              )}
+              {year && <span>{year}</span>}
               {movie.vote_average > 0 && (
-                <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                <Badge
+                  variant="secondary"
+                  className="h-4 px-1 text-[10px]"
+                  aria-label={`Rating: ${movie.vote_average.toFixed(1)} out of 10`}
+                >
                   ★ {movie.vote_average.toFixed(1)}
                 </Badge>
               )}
             </div>
           </div>
-          <Film className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          {getMediaIcon("movie")}
         </CommandItem>
       );
     }
 
     if (result.media_type === "tv") {
       const show = result as SearchSeriesResult;
+      const year = parseYear(show.first_air_date);
       return (
         <CommandItem
           key={`tv-${show.id}-${index}`}
           value={`tv-${show.id}`}
           onSelect={() => handleSelectMedia("series", show.id, show.name)}
-          className="gap-3 py-3"
+          className="gap-2.5 py-2"
         >
-          <div className="relative h-12 w-8 flex-shrink-0 overflow-hidden rounded bg-muted">
-            {show.poster_path ? (
-              <Image
-                src={`${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZES.small}${show.poster_path}`}
-                alt={show.name}
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <Tv className="h-4 w-4 text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          <MediaThumbnail
+            backdropPath={show.backdrop_path}
+            posterPath={show.poster_path}
+            alt={show.name}
+            type="tv"
+            className="h-11 w-20"
+          />
           <div className="flex-1 overflow-hidden">
             <p className="truncate font-medium">{show.name}</p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {show.first_air_date && (
-                <span>{new Date(show.first_air_date).getFullYear()}</span>
-              )}
+              {year && <span>{year}</span>}
               {show.vote_average > 0 && (
-                <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                <Badge
+                  variant="secondary"
+                  className="h-4 px-1 text-[10px]"
+                  aria-label={`Rating: ${show.vote_average.toFixed(1)} out of 10`}
+                >
                   ★ {show.vote_average.toFixed(1)}
                 </Badge>
               )}
             </div>
           </div>
-          <Tv className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          {getMediaIcon("tv")}
         </CommandItem>
       );
     }
@@ -313,52 +463,25 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
           key={`person-${person.id}-${index}`}
           value={`person-${person.id}`}
           onSelect={() => handleSelectMedia("person", person.id, person.name)}
-          className="gap-3 py-3"
+          className="gap-2.5 py-2"
         >
-          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-muted">
-            {person.profile_path ? (
-              <Image
-                src={`${TMDB_IMAGE_BASE}/${TMDB_PROFILE_SIZES.small}${person.profile_path}`}
-                alt={person.name}
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <User className="h-4 w-4 text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          <MediaThumbnail
+            profilePath={person.profile_path}
+            alt={person.name}
+            type="person"
+            className="h-11 w-11"
+          />
           <div className="flex-1 overflow-hidden">
             <p className="truncate font-medium">{person.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {person.known_for_department}
-            </p>
+            <p className="text-xs text-muted-foreground">{person.known_for_department}</p>
           </div>
-          <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          {getMediaIcon("person")}
         </CommandItem>
       );
     }
 
     return null;
   };
-
-  // Render compact topic pills
-  const renderTopicPills = (topics: PopularTopicItem[], showIcon = false) => (
-    <div className="flex flex-wrap gap-1.5 px-2 py-2">
-      {topics.map((topic) => (
-        <button
-          key={topic.key}
-          onClick={() => handleSelectTopic(topic.key)}
-          className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-xs transition-colors hover:bg-muted hover:border-foreground/20"
-        >
-          {showIcon && <Sparkles className="h-3 w-3 text-muted-foreground" />}
-          <span>{topic.name}</span>
-        </button>
-      ))}
-    </div>
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
@@ -375,9 +498,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Search</DialogTitle>
-          <DialogDescription>
-            Search for movies, TV shows, and people
-          </DialogDescription>
+          <DialogDescription>Search for movies, TV shows, and people</DialogDescription>
         </DialogHeader>
         <Command
           shouldFilter={false} // Disable client-side filtering, we do server-side
@@ -387,25 +508,41 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
             placeholder="Search movies, shows, people, genres..."
             value={query}
             onValueChange={setQuery}
+            aria-label="Search for movies, TV shows, people, and genres"
           />
-          <CommandList
-            className="max-h-[400px]"
-            style={{ minHeight: CONTENT_MIN_HEIGHT }}
-          >
+          <CommandList className="max-h-[400px]" style={{ minHeight: CONTENT_MIN_HEIGHT }}>
+            {/* Error state */}
+            {showErrorState && (
+              <div
+                className="flex flex-col items-center justify-center gap-3"
+                style={{ minHeight: CONTENT_MIN_HEIGHT }}
+                role="alert"
+              >
+                <AlertCircle className="h-10 w-10 text-destructive/50" />
+                <p className="text-sm text-muted-foreground">Something went wrong</p>
+                <button
+                  onClick={handleRetry}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
             {/* Empty state - only show when no topics match either */}
             {showEmptyState && (
               <CommandEmpty>
                 <div
                   className="flex flex-col items-center justify-center gap-2"
                   style={{ minHeight: CONTENT_MIN_HEIGHT }}
+                  role="status"
+                  aria-live="polite"
                 >
-                  <Search className="h-10 w-10 text-muted-foreground/50" />
+                  <Search className="h-10 w-10 text-muted-foreground/50" aria-hidden="true" />
                   <p className="text-sm text-muted-foreground">
                     No results found for &ldquo;{debouncedQuery}&rdquo;
                   </p>
-                  <p className="text-xs text-muted-foreground/60">
-                    Press Enter to search all
-                  </p>
+                  <p className="text-xs text-muted-foreground/60">Press Enter to search all</p>
                 </div>
               </CommandEmpty>
             )}
@@ -418,45 +555,28 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   <CommandGroup heading="Recent">
                     {recentItems.map((recent) => {
                       // Derive movie/series from item properties (title = movie, name = series)
-                      const recentIsMovie = isMovieItem(recent);
-                      const recentTitle = getDisplayTitle(recent);
+                      const isMovie = isMovieItem(recent);
+                      const title = getDisplayTitle(recent);
+                      const mediaType: MediaType = isMovie ? "movie" : "tv";
                       return (
                         <CommandItem
-                          key={`recent-${recentIsMovie ? "movie" : "tv"}-${recent.itemId}`}
+                          key={`recent-${mediaType}-${recent.itemId}`}
                           value={`recent-${recent.itemId}`}
                           onSelect={() =>
-                            handleSelectMedia(
-                              recentIsMovie ? "movie" : "series",
-                              recent.itemId,
-                              recentTitle
-                            )
+                            handleSelectMedia(isMovie ? "movie" : "series", recent.itemId, title)
                           }
-                          className="gap-3 py-2"
+                          className="gap-2.5 py-1.5"
                         >
-                          <History className="h-4 w-4 text-muted-foreground/50" />
-                          <div className="relative h-8 w-6 flex-shrink-0 overflow-hidden rounded bg-muted">
-                            {recent.poster_path ? (
-                              <Image
-                                src={`${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZES.small}${recent.poster_path}`}
-                                alt={recentTitle}
-                                fill
-                                className="object-cover"
-                                unoptimized
-                              />
-                            ) : (
-                              <div className="flex h-full items-center justify-center">
-                                {recentIsMovie ? (
-                                  <Film className="h-3 w-3 text-muted-foreground" />
-                                ) : (
-                                  <Tv className="h-3 w-3 text-muted-foreground" />
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <span className="flex-1 truncate text-sm">
-                            {recentTitle}
-                          </span>
-                          {getMediaIcon(recentIsMovie ? "movie" : "tv")}
+                          <History className="h-4 w-4 text-muted-foreground/50" aria-hidden="true" />
+                          <MediaThumbnail
+                            backdropPath={recent.backdrop_path}
+                            posterPath={recent.poster_path}
+                            alt={title}
+                            type={mediaType}
+                            className="h-10 w-[72px]"
+                          />
+                          <span className="flex-1 truncate text-sm">{title}</span>
+                          {getMediaIcon(mediaType)}
                         </CommandItem>
                       );
                     })}
@@ -468,9 +588,15 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   <>
                     {recentItems.length > 0 && <CommandSeparator />}
                     <div className="px-2 py-1.5">
-                      <p className="px-2 text-xs font-medium text-muted-foreground">Popular Topics</p>
+                      <p className="px-2 text-xs font-medium text-muted-foreground">
+                        Popular Topics
+                      </p>
                     </div>
-                    {renderTopicPills(popularTopics.slice(0, 8), true)}
+                    <TopicPills
+                      topics={popularTopics.slice(0, MAX_POPULAR_TOPICS)}
+                      showIcon
+                      onSelectTopic={handleSelectTopic}
+                    />
                   </>
                 )}
 
@@ -480,10 +606,8 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                     className="flex flex-col items-center justify-center gap-2"
                     style={{ minHeight: CONTENT_MIN_HEIGHT }}
                   >
-                    <Search className="h-12 w-12 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">
-                      Start typing to search
-                    </p>
+                    <Search className="h-12 w-12 text-muted-foreground/30" aria-hidden="true" />
+                    <p className="text-sm text-muted-foreground">Start typing to search</p>
                     <p className="text-xs text-muted-foreground/60">
                       Movies, TV shows, people, and genres
                     </p>
@@ -498,11 +622,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 {/* Search all - first item so Enter goes here by default */}
                 {query.trim() && (
                   <CommandGroup>
-                    <CommandItem
-                      value="search-all"
-                      onSelect={handleViewAll}
-                      className="gap-2 py-3"
-                    >
+                    <CommandItem value="search-all" onSelect={handleViewAll} className="gap-2 py-2">
                       <Search className="h-4 w-4 text-muted-foreground" />
                       <span>Search all for &ldquo;{query}&rdquo;</span>
                       <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground" />
@@ -517,23 +637,26 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                     <div className="px-2 py-1.5">
                       <p className="px-2 text-xs font-medium text-muted-foreground">Topics</p>
                     </div>
-                    {renderTopicPills(matchingTopics)}
+                    <TopicPills topics={matchingTopics} onSelectTopic={handleSelectTopic} />
                   </>
                 )}
 
                 {/* API Results or Loading */}
                 {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <div
+                    className="flex items-center justify-center py-8"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                    <span className="sr-only">Loading search results...</span>
                   </div>
                 ) : (
                   hasApiResults && (
                     <>
                       <CommandSeparator />
                       <CommandGroup heading="Results">
-                        {results.results.map((result, index) =>
-                          renderMediaResult(result, index)
-                        )}
+                        {results.results.map((result, index) => renderMediaResult(result, index))}
                       </CommandGroup>
                     </>
                   )
@@ -552,16 +675,12 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 <span>Navigate</span>
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                  ↵
-                </kbd>
+                <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>
                 <span>Open</span>
               </span>
             </div>
             <span className="flex items-center gap-1">
-              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                esc
-              </kbd>
+              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">esc</kbd>
               <span>Close</span>
             </span>
           </div>
@@ -570,4 +689,3 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     </Dialog>
   );
 }
-

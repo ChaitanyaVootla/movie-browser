@@ -6,10 +6,7 @@
 
 import { config } from "dotenv";
 import { resolve } from "path";
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-} from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 
 // Load env
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -39,7 +36,7 @@ async function testBedrockDirect() {
 
   const startTime = Date.now();
   console.log("⏳ Sending request to Bedrock (15s timeout)...");
-  
+
   // Log every 5 seconds
   const interval = setInterval(() => {
     console.log(`   ... still waiting (${Math.round((Date.now() - startTime) / 1000)}s)`);
@@ -184,4 +181,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

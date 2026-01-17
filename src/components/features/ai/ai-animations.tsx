@@ -60,10 +60,7 @@ export function BottomGlow({ isActive, className }: BottomGlowProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className={cn(
-            "fixed left-0 right-0 bottom-0 z-100 pointer-events-none",
-            className
-          )}
+          className={cn("fixed left-0 right-0 bottom-0 z-100 pointer-events-none", className)}
         >
           {/* Subtle gradient glow */}
           <motion.div

@@ -47,7 +47,12 @@ export interface TmdbMovieData {
     backdrop_path: string | null;
   } | null;
   genres: Array<{ id: number; name: string }>;
-  production_companies: Array<{ id: number; name: string; logo_path: string | null; origin_country: string }>;
+  production_companies: Array<{
+    id: number;
+    name: string;
+    logo_path: string | null;
+    origin_country: string;
+  }>;
   production_countries: Array<{ iso_3166_1: string; name: string }>;
   spoken_languages: Array<{ iso_639_1: string; name: string; english_name: string }>;
   credits: {
@@ -130,12 +135,15 @@ export interface TmdbMovieData {
     }>;
   };
   "watch/providers": {
-    results: Record<string, {
-      link: string;
-      flatrate?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
-      rent?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
-      buy?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
-    }>;
+    results: Record<
+      string,
+      {
+        link: string;
+        flatrate?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
+        rent?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
+        buy?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
+      }
+    >;
   };
   recommendations: {
     results: Array<{ id: number; title: string; poster_path: string | null }>;
@@ -183,12 +191,22 @@ export interface TmdbSeriesData {
   vote_count: number;
   genres: Array<{ id: number; name: string }>;
   networks: Array<{ id: number; name: string; logo_path: string | null; origin_country: string }>;
-  production_companies: Array<{ id: number; name: string; logo_path: string | null; origin_country: string }>;
+  production_companies: Array<{
+    id: number;
+    name: string;
+    logo_path: string | null;
+    origin_country: string;
+  }>;
+  spoken_languages?: Array<{
+    iso_639_1: string;
+    name: string;
+    english_name?: string;
+  }>;
   seasons: Array<{
     id: number;
     season_number: number;
     name: string;
-    overview: string;
+    overview: string | null;
     poster_path: string | null;
     air_date: string | null;
     episode_count: number;
@@ -276,7 +294,8 @@ export interface TmdbSeriesData {
 export async function fetchMovieFromTmdb(movieId: number): Promise<TmdbMovieData> {
   return fetchFromTMDB<TmdbMovieData>(`/movie/${movieId}`, {
     params: {
-      append_to_response: "credits,videos,images,keywords,recommendations,external_ids,watch/providers,release_dates,reviews",
+      append_to_response:
+        "credits,videos,images,keywords,recommendations,external_ids,watch/providers,release_dates,reviews",
       include_image_language: "en,null",
     },
     cacheNamespace: "movie",
@@ -286,7 +305,7 @@ export async function fetchMovieFromTmdb(movieId: number): Promise<TmdbMovieData
 /**
  * Fetch complete series data from TMDB with ALL append_to_response options
  * Uses the central TMDB service with built-in retry logic (3x exponential backoff)
- * 
+ *
  * NOTE: We fetch BOTH credits AND aggregate_credits:
  * - credits: Small subset (main cast only, ~8 people)
  * - aggregate_credits: ALL cast/crew across all episodes (~347 people for Breaking Bad)
@@ -294,7 +313,8 @@ export async function fetchMovieFromTmdb(movieId: number): Promise<TmdbMovieData
 export async function fetchSeriesFromTmdb(seriesId: number): Promise<TmdbSeriesData> {
   return fetchFromTMDB<TmdbSeriesData>(`/tv/${seriesId}`, {
     params: {
-      append_to_response: "credits,aggregate_credits,videos,images,keywords,recommendations,external_ids,watch/providers,content_ratings,reviews",
+      append_to_response:
+        "credits,aggregate_credits,videos,images,keywords,recommendations,external_ids,watch/providers,content_ratings,reviews",
       include_image_language: "en,null",
     },
     cacheNamespace: "series",
@@ -349,18 +369,18 @@ export async function fetchAllSeasonEpisodes(
   seasons: TmdbSeriesData["seasons"]
 ): Promise<TmdbSeasonWithEpisodes[]> {
   // Filter out seasons with no episodes
-  const seasonsToFetch = seasons.filter(s => s.episode_count > 0);
-  
+  const seasonsToFetch = seasons.filter((s) => s.episode_count > 0);
+
   console.log(`[Hydration/TMDB] Fetching ${seasonsToFetch.length} seasons for series ${seriesId}`);
-  
+
   // Fetch all seasons in parallel using the central TMDB service (has retry logic)
   const seasonPromises = seasonsToFetch.map(async (season) => {
     try {
       const data = await getTmdbSeasonDetails(seriesId, season.season_number);
       const episodes = (data.episodes as TmdbEpisode[]) || [];
-      
+
       console.log(`[Hydration/TMDB] Season ${season.season_number}: ${episodes.length} episodes`);
-      
+
       return {
         id: data.id as number,
         season_number: data.season_number as number,
@@ -380,10 +400,10 @@ export async function fetchAllSeasonEpisodes(
       } as TmdbSeasonWithEpisodes;
     }
   });
-  
+
   const results = await Promise.all(seasonPromises);
   const totalEpisodes = results.reduce((sum, s) => sum + s.episodes.length, 0);
   console.log(`[Hydration/TMDB] Total: ${totalEpisodes} episodes across ${results.length} seasons`);
-  
+
   return results;
 }

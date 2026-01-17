@@ -1,0 +1,803 @@
+---
+description: Movie and series component patterns, hero sections, cards, and media details
+globs: ["src/components/features/movie/**", "src/components/features/series/**", "src/components/features/media/**"]
+alwaysApply: false
+---
+
+# Movie & Series Components
+
+## Feature Components Location
+
+Place domain-specific components in `src/components/features/{domain}/`:
+
+```
+src/components/features/
+├── movie/
+│   ├── movie-card.tsx         # Poster card (2:3 aspect ratio) - supports badges
+│   ├── wide-movie-card.tsx    # Wide card (16:9 aspect ratio, OTT-style) - supports badges
+│   ├── media-card.tsx         # Smart wrapper - switches based on user preference + hover card
+│   ├── movie-card-actions.tsx
+│   ├── movie-carousel.tsx
+│   ├── hero-carousel.tsx      # Landing page hero (uses MediaBackdrop + HeroContent)
+│   └── media-logo.tsx
+├── media/                      # Shared movie/series detail components
+│   ├── index.ts               # Export hub for all media components
+│   ├── hero-backdrop-shell.tsx # Progressive loading: backdrop with just ID (instant)
+│   ├── hero-logo-shell.tsx     # Progressive loading: logo with just ID (instant)
+│   ├── hero-content.tsx        # Shared hero content layout (logo, genres, ratings, watch options)
+│   ├── media-hero.tsx          # Details page hero (uses MediaBackdrop + HeroContent)
+│   ├── media-backdrop.tsx      # Prime Video-style backdrop (image right, black left)
+│   ├── media-action-bar.tsx    # Action bar below hero (trailer, watchlist, like/dislike, share, + quickTake)
+│   ├── media-overview.tsx      # Overview, cast carousel, details sidebar (+ AI hook, themes, mood)
+│   ├── quick-take.tsx          # AI-generated quick take pills (displayed next to action buttons)
+│   ├── ai-questions-section.tsx # AI-generated questions section (triggers AI chat)
+│   ├── media-actions.tsx       # Individual action buttons (Play, watchlist, favorite)
+│   ├── scroll-container.tsx    # Low-level scrollable container primitive (drag + arrows)
+│   ├── media-scroller.tsx      # High-level scroller with header, title, see-all link
+│   ├── genre-badge.tsx         # Genre list component
+│   ├── ratings-bar.tsx         # Multi-source ratings (TMDB, IMDb, RT, Google)
+│   ├── image-gallery.tsx       # Gallery with full-screen lightbox modal
+│   ├── video-gallery.tsx       # YouTube video player with sidebar + metadata
+│   ├── video-stats.tsx         # YouTube stats (views, likes, comments, channel)
+│   ├── video-comments.tsx      # Comments section with expand/collapse
+│   ├── collection-section.tsx  # Movie collection (franchise) scroller
+│   ├── recommendations-section.tsx  # Recommended & Similar scrollers
+│   ├── keywords-list.tsx       # Clickable keyword badges
+│   ├── country-language-badges.tsx  # Country flags and language
+│   ├── content-warning-link.tsx     # Parental guidance link
+│   ├── watch-options.tsx            # Streaming providers pill (compact)
+│   └── user-status-badge.tsx        # Watchlist/Watched badge (bottom-right of cards)
+└── series/
+    ├── index.ts               # Export hub for series components
+    ├── season-selector.tsx    # Season dropdown with episode count/date
+    ├── episode-scroller.tsx   # Horizontal episode cards scroller
+    ├── episode-modal.tsx      # Episode detail modal (Dialog) with image carousel
+    └── next-episode-card.tsx  # Upcoming/latest episode card
+```
+
+## Hero Shell Components (Progressive Loading)
+
+For instant image loading on detail pages, use shell components that only need the media ID:
+
+```tsx
+import { HeroBackdropShell, HeroLogoShell } from "@/components/features/media";
+
+// Renders immediately using CDN URLs - no data fetch needed
+<HeroBackdropShell
+  itemId={movieId}
+  mediaType="movie"
+  title="Loading..."  // Fallback alt text
+  priority
+>
+  <HeroLogoShell
+    itemId={movieId}
+    mediaType="movie"
+    title="Loading..."  // Fallback text if no logo
+    priority
+  />
+</HeroBackdropShell>
+```
+
+**HeroBackdropShell** - Client component for backdrop images:
+- Uses CDN URL: `https://image.themoviebrowser.com/{type}/{id}/backdrop.webp`
+- Falls back to TMDB `backdrop_path` if CDN fails
+- Handles gradient overlays (light/medium/heavy/none)
+- Accepts children for content overlay
+
+**HeroLogoShell** - Client component for logo images:
+- Uses CDN URL: `https://image.themoviebrowser.com/{type}/{id}/logo.webp`
+- Falls back to TMDB logo via `tmdbLogoPath` prop
+- Falls back to text title if no logo available
+- Three-state loading: cdn → tmdb → text
+
+**Key pattern:** These components work with just `itemId` and `mediaType` (available from URL params), enabling instant image loading before the data fetch completes.
+
+## Hero Section Architecture
+
+The hero sections use a **unified, composable architecture** for visual consistency between homepage carousel and detail pages:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ HeroCarousel (landing page)    │ MediaHero (detail pages)   │
+├─────────────────────────────────────────────────────────────┤
+│            Aspect-Ratio Container (shared specs)            │
+│  aspect-[16/9] md:aspect-[2.2/1] lg:aspect-[2.5/1]         │
+│  max-h-[65vh] overflow-hidden                               │
+├─────────────────────────────────────────────────────────────┤
+│                    MediaBackdrop                            │
+│  (handles backdrop image positioning, gradients, overlays)  │
+├─────────────────────────────────────────────────────────────┤
+│          Content Overlay (absolute inset-0 z-10)           │
+│          flex flex-col justify-end                          │
+├─────────────────────────────────────────────────────────────┤
+│                     HeroContent                             │
+│  (logo, genres, ratings, watch options - bottom aligned)    │
+│  pb-5 md:pb-6 lg:pb-8 max-w-xl lg:max-w-2xl                │
+└─────────────────────────────────────────────────────────────┘
+│                                                             │
+│  MediaActionBar (separate component, below hero)            │
+│  Play Trailer, Watchlist, Like/Dislike, Share              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Unified Container Structure
+
+**CRITICAL**: Both `HeroCarousel` and `MediaHero` MUST use identical container specs for seamless transitions.
+
+The hero uses CSS variables (defined in `globals.css`) for easily tweakable responsive sizing:
+
+```css
+/* globals.css - Hero Section Layout Variables */
+:root {
+  /* Hero height constraints */
+  --hero-height-target: 60vh;
+  --hero-height-min: 400px;
+  --hero-height-max: 800px;
+  --hero-height-mobile-target: 50vh;
+  --hero-height-mobile-min: 300px;
+  --hero-height-mobile-max: 500px;
+
+  /* Hero content width (desktop): target 30vw, min 280px, max 480px */
+  --hero-content-width-target: 30vw;
+  --hero-content-min-width: 280px;
+  --hero-content-max-width: 480px;
+
+  /* Mobile content width: target 85vw, min 260px, max 400px */
+  --hero-content-mobile-width-target: 85vw;
+  --hero-content-mobile-min-width: 260px;
+  --hero-content-mobile-max-width: 400px;
+}
+
+/* Hero container uses height-based sizing with max-height cap */
+.hero-container {
+  width: 100%;
+  height: clamp(
+    var(--hero-height-mobile-min),
+    var(--hero-height-mobile-target),
+    var(--hero-height-mobile-max)
+  );
+}
+
+@media (min-width: 768px) {
+  .hero-container {
+    height: clamp(
+      var(--hero-height-min),
+      var(--hero-height-target),
+      var(--hero-height-max)
+    );
+    max-height: 60vh;  /* Cap at 60% of viewport */
+  }
+}
+```
+
+**Key design decisions:**
+- Height-based sizing ensures hero never takes more than 60% of viewport
+- `clamp()` provides smooth responsive behavior between min/max bounds
+- Image positioning (`objectPosition: "85% 20%"`) shows top-right of image to preserve important content
+
+```tsx
+// Container uses .hero-container class for CSS variable-based height
+<div className="hero-container relative w-full overflow-hidden">
+  <MediaBackdrop ... className="absolute inset-0" />
+
+  {/* Content overlay - positioned at bottom */}
+  <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 md:px-8 lg:px-12">
+    {/* HeroContent uses .hero-content-width class for CSS variable-based width */}
+    <HeroContent ... className="pb-5 md:pb-6 lg:pb-8" />
+  </div>
+</div>
+```
+
+### Shared Components
+
+**`MediaBackdrop`** / **`HeroBackdropShell`** - Prime Video-style backdrop:
+
+**Desktop (md+):**
+- Image positioned to the right: `left-0 md:left-[18%] lg:left-[25%]`
+- `object-cover` with `objectPosition: "85% 20%"` - 85% from left (right bias), 20% from top (shows more top of image)
+- Black background base for clean left gradient fade
+- Gradient fade from black on image's left edge (35-50% width)
+- Subtle bottom gradient (10-28% height depending on overlay intensity)
+- Three overlay presets: `light`, `medium`, `heavy`
+- MUST have `h-full` on children wrapper for flexbox to work
+
+**Mobile (<md):**
+- Full-bleed `object-cover` fills entire container
+- `object-[center_20%]` - centered horizontally, 20% from top (shows faces/important content)
+- Enhanced bottom gradient for content readability (95% opacity at bottom → transparent at 60%)
+- No left gradient needed (content overlays the image)
+
+**`HeroContent`** - Content layout (bottom-aligned):
+- Uses `.hero-content-width` class for responsive width (30vw desktop, 85vw mobile with min/max)
+- Logo (with responsive constraints: `max-w-[220px] md:max-w-[420px] lg:max-w-[520px]`)
+- Gap between logo and info: `mb-4 md:mb-6 lg:mb-8`
+- Genres → Ratings → Watch Options (compact vertical stack)
+- Shared animation variants (`heroContainerVariants`, `heroItemVariants`)
+- **No actions prop** - actions moved to separate `MediaActionBar`
+- **Text shadows for mobile**: `[text-shadow:0_1px_3px_rgba(0,0,0,0.8)]` on content containers for readability over backdrop
+- **Drop shadow on logo**: `drop-shadow-lg` applied to logo container
+
+**`MediaActionBar`** - Action buttons (separate from hero):
+- Play Trailer, Watchlist toggle, Like/Dislike, Share
+- Positioned between hero and overview with negative margin
+- `className="px-4 md:px-8 lg:px-12 -mt-8 md:-mt-10 lg:-mt-12 relative z-20"`
+
+```tsx
+import { MediaHero, MediaActionBar } from "@/components/features/media";
+
+// Detail page usage:
+<MediaHero item={movie} mediaType="movie" />
+<MediaActionBar
+  itemId={movie.id}
+  mediaType="movie"
+  title={movie.title}
+  trailer={trailer}
+  className="px-4 md:px-8 lg:px-12 -mt-8 md:-mt-10 relative z-20"
+/>
+<MediaOverview item={movie} mediaType="movie" />
+
+// HeroCarousel (landing page) - uses heroEnhancedData from getTrending()
+<HeroCarousel
+  items={trending.allItems}
+  heroEnhancedData={trending.heroEnhancedData}  // Ratings + watch options per item
+/>
+```
+
+### Design Specs
+
+- **Container**: `aspect-[16/9] md:aspect-[2.2/1] lg:aspect-[2.5/1] max-h-[65vh]`
+- **Content positioning**: `flex flex-col justify-end` with bottom padding
+- **Content max-width**: `max-w-xl lg:max-w-2xl` (prevents text spanning full width)
+- **HeroCarousel**: Fully clickable (navigates to detail page)
+- **Action buttons**: Glassmorphism style (`bg-white/10 hover:bg-white/20 backdrop-blur-sm`)
+
+## RatingsBar Component
+
+Unified ratings display showing scores from multiple sources. Only 5 sources are displayed (whitelisted):
+
+| Source | Scale | Display Format | Example |
+|--------|-------|----------------|---------|
+| TMDB | 0-10 | Decimal | 7.6 |
+| IMDb | 0-10 | Decimal | 7.3 |
+| RT Critic | 0-100 | Integer % | 86 |
+| RT Audience | 0-100 | Integer % | 95 |
+| Google | 0-100 | Integer % | 93 |
+
+Metacritic and Letterboxd are captured in the database but filtered out in the UI.
+
+```tsx
+import { RatingsBar } from "@/components/features/media";
+
+// Basic usage with ratings from movie/series
+<RatingsBar ratings={movie.ratings} size="md" />
+
+// Fallback to TMDB-only when no external ratings
+<RatingsBar
+  ratings={movie.ratings?.length
+    ? movie.ratings
+    : [{ name: "TMDB", rating: Math.round(movie.vote_average * 10).toString() }]
+  }
+/>
+
+// Rating format: { name: string, rating: string, link?: string, certified?: boolean }
+// - TMDB/IMDb: rating = "7.6" (0-10 scale, displayed as-is with decimal)
+// - RT/Google: rating = "86%" (0-100 scale, displayed as integer)
+```
+
+**Design principles:**
+- Single grouped pill container (not separate pills per source)
+- Ratings separated by subtle `border-white/15` dividers
+- Icon + color-coded score for each source
+- Muted color palette: `hsl(h, 50%, 55%)` for scores
+- Sizes: `sm` (cards), `md` (hero), `lg` (detail sections)
+
+**Vertical alignment pattern:**
+```tsx
+// Use fixed-height wrapper for icons to ensure alignment
+<div className={cn("relative flex-shrink-0", heightClass)} style={{ width: iconSize }}>
+  <Image src={icon} fill className="object-contain" unoptimized />
+</div>
+```
+
+## WatchOptions Component
+
+Compact pill showing streaming providers for a movie/series:
+
+```tsx
+import { WatchOptions } from "@/components/features/media";
+
+<WatchOptions
+  watchOptions={item.watch_options}           // Pre-processed for user's country
+  watchProviders={item.watch_providers}       // Raw TMDB data for country switching
+  googleData={googleData}                     // Scraped data (India only)
+  item={{ id, title, poster_path, backdrop_path, images }}
+  isMovie={true}
+/>
+```
+
+**Design specs:**
+- Compact pill design with glassmorphism (`bg-black/30 backdrop-blur-sm`)
+- Provider icons at 24x24px with tooltips for details
+- Shows "Watch (IN)" indicator when using fallback country
+- Max 5 providers visible, expand button for more
+
+## MediaLogo Component
+
+For movie/series logos with 3-tier fallback:
+
+```tsx
+import { MediaLogo } from "@/components/features/movie/media-logo";
+
+// Fallback chain: CDN logo → TMDB logo → Text
+// CDN URL: https://image.themoviebrowser.com/{movie|series}/{id}/logo.webp
+<MediaLogo
+  item={{ id: 123, title: "Movie Title" }}
+  mediaType="movie"
+  // tmdbLogoPath is OPTIONAL - only pass if you already have it
+  // The component tries CDN first, which covers most cases
+  tmdbLogoPath={logoPath}
+  fallbackText="Movie Title"
+  maxWidth={400}
+  maxHeight={120}
+/>
+
+// Typical usage (no tmdbLogoPath - relies on CDN → text fallback)
+<MediaLogo
+  item={{ id: movie.id, title: movie.title }}
+  mediaType="movie"
+  fallbackText={movie.title}
+/>
+```
+
+**Performance note:** Don't fetch TMDB images just to get a logo path.
+The CDN should have logos for popular content. Let it fall back to text for rare cases.
+
+## Media Detail Page Patterns
+
+### Card Sizes in Scrollers
+
+Consistent card widths across scrollable sections:
+
+```tsx
+// Standard poster cards (recommendations, similar, collection)
+className="w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0"
+
+// Cast cards (slightly smaller)
+className="w-[110px] sm:w-[125px] md:w-[140px] flex-shrink-0"
+
+// Gallery image thumbnails
+style={{ height: "120px", width: `${aspectRatio * 120}px` }}
+```
+
+### Video Gallery with YouTube Integration
+
+The VideoGallery component displays YouTube videos with rich metadata from the YouTube Data API.
+
+**Component Structure:**
+```
+src/components/features/media/
+├── video-gallery.tsx      # Main gallery component
+├── video-stats.tsx        # Stats display (views, likes, comments, channel)
+└── video-comments.tsx     # Comments section with expand/collapse
+```
+
+**Features:**
+- Batch fetches metadata for all videos on mount (up to 50 per API call)
+- Fetches full data (stats + 100 comments) for active video
+- Shows view count, comment count, like/dislike bar, channel info
+- Comments in a card with show more/less toggle
+- Sidebar at 25% width with video thumbnails
+
+**Stats Row Layout:**
+```tsx
+// Views • Comments • Like/Dislike bar (all inline)
+<div className="flex items-center gap-4">
+  <div className="flex items-center gap-3 text-muted-foreground">
+    <div className="flex items-center gap-1">
+      <Eye className="h-3.5 w-3.5" />
+      <span className="text-xs font-medium">{formatViewCount(viewCount)}</span>
+    </div>
+    <div className="flex items-center gap-1">
+      <MessageCircle className="h-3.5 w-3.5" />
+      <span className="text-xs font-medium">{formatViewCount(commentCount)}</span>
+    </div>
+  </div>
+  <InlineLikeBar likes={likeCount} dislikes={dislikeCount} />
+</div>
+```
+
+### Video Gallery Height Sync
+
+Sync sidebar scroll area height with main player:
+
+```tsx
+const mainPlayerRef = useRef<HTMLDivElement>(null);
+const [playerHeight, setPlayerHeight] = useState(0);
+
+useEffect(() => {
+  const updateHeight = () => {
+    if (mainPlayerRef.current) {
+      setPlayerHeight(mainPlayerRef.current.offsetHeight);
+    }
+  };
+  updateHeight();
+  window.addEventListener("resize", updateHeight);
+  return () => window.removeEventListener("resize", updateHeight);
+}, []);
+
+// Sidebar at 25% width
+<div className="w-[25%] min-w-[280px] max-w-[400px] flex-shrink-0">
+  <ScrollArea style={{ height: `${playerHeight + 60}px` }}>
+```
+
+### Inline Video Playback
+
+Videos should play in-place, not in modals:
+
+```tsx
+const [isPlaying, setIsPlaying] = useState(false);
+
+{isPlaying ? (
+  <iframe
+    src={`https://www.youtube-nocookie.com/embed/${videoKey}?autoplay=1&rel=0`}
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media"
+    allowFullScreen
+    className="absolute inset-0 w-full h-full"
+  />
+) : (
+  <>
+    <Image src={thumbnailUrl} fill />
+    <button onClick={() => setIsPlaying(true)}>
+      <Play />
+    </button>
+  </>
+)}
+```
+
+## AI Summary Integration (Detail Pages)
+
+AI-generated content is integrated into movie detail pages when available. Data is read from `data/enriched/<tmdb_id>/ai-summary.json`.
+
+### Component Overview
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `QuickTake` | Next to action buttons | AI-generated quick take pills |
+| `AIQuestionsSection` | Below overview | Clickable questions that trigger AI chat |
+| `MoodIndicators` | Details sidebar (bottom) | Pacing, intensity, tone, emotional indicators |
+
+### QuickTake Pills
+
+Displayed next to action buttons (Trailer, Watchlist, etc.):
+
+```tsx
+// In MediaActionBar - flows right after buttons
+<div className="flex items-center gap-6">
+  <MediaActions ... />
+  {quickTake && quickTake.length > 0 && (
+    <QuickTake items={quickTake} maxVisible={3} className="hidden sm:flex" />
+  )}
+</div>
+```
+
+**Styling:** Subtle bordered pills (`border-white/10`) - no brand/red colors.
+
+## Series-Specific Components
+
+### Season Selector Pattern
+
+The `SeasonSelector` manages season selection and episode loading:
+
+```tsx
+import { SeasonSelector } from "@/components/features/series";
+
+<SeasonSelector
+  seriesId={series.id}
+  seriesName={series.name}
+  seasons={series.seasons}
+  className="mt-6"
+/>
+```
+
+Features:
+- Dropdown for season selection (defaults to latest season)
+- Displays episode count and air date
+- Lazy loads episodes via `getSeason()` server action
+- Shows loading skeleton while fetching
+
+**Mobile-optimized header layout:**
+- Single line: Season dropdown + episode count + air date
+- Responsive dropdown width: `w-[140px] sm:w-[180px]`
+- Shorter date format on mobile: "Jul 2012" instead of "July 2012"
+- Smaller text on mobile: `text-xs sm:text-sm`
+- Uses `flex-wrap sm:flex-nowrap` for graceful wrapping only if necessary
+- Divider: `|` character between elements with `mx-1.5 text-muted-foreground/50`
+
+### Episode Cards
+
+Episode cards in scrollers follow a consistent pattern:
+
+```tsx
+// Episode card dimensions (aspect-video thumbnails)
+className="w-[240px] md:w-[280px] flex-shrink-0"
+
+// Episode thumbnail
+<div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
+  <Image
+    src={`https://image.tmdb.org/t/p/w400${episode.still_path}`}
+    alt={episode.name}
+    fill
+    className="object-cover"
+    sizes="280px"
+  />
+  {/* Rating badge */}
+  <Badge className="absolute top-2 right-2 bg-black/70">
+    {episode.vote_average.toFixed(1)}
+  </Badge>
+  {/* Runtime badge */}
+  <Badge className="absolute bottom-2 right-2 bg-black/70">
+    {episode.runtime}m
+  </Badge>
+</div>
+```
+
+### Episode Modal (Dialog) with Image Carousel
+
+The `EpisodeModal` uses a Dialog (not Sheet) for consistency with other detail views in the app:
+
+```tsx
+<EpisodeModal
+  episode={selectedEpisode}
+  seriesId={seriesId}
+  seriesName={seriesName}
+  seasonNumber={seasonNumber}
+  onClose={() => setSelectedEpisode(null)}
+/>
+```
+
+**Layout:** Flex layout with fixed image width and natural heights (no height stretching):
+
+```tsx
+<DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-5xl max-h-[90vh] overflow-y-auto">
+  {/* Flex layout with items-start for natural heights */}
+  <div className="flex flex-col lg:flex-row lg:items-start gap-5">
+    {/* Left: Image carousel - fixed width, natural height */}
+    <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
+      <EpisodeImageCarousel stills={stills} />
+    </div>
+
+    {/* Right: Title + Info cards - fills remaining space */}
+    <div className="flex-1 min-w-0 space-y-4">
+      <DialogTitle>{episode.name}</DialogTitle>
+      <div className="grid grid-cols-2 gap-2">
+        {/* Rating now includes vote count inline */}
+        <InfoCard icon={Star} label="Rating" value="8.6 (186)" />
+        <InfoCard icon={Calendar} label="Air Date" value="Jul 15, 2012" />
+        <InfoCard icon={Clock} label="Runtime" value="43 min" />
+        <InfoCard icon={Tv} label="Episode" value="5×1" />
+      </div>
+
+      {/* Director/Writers with circular avatars */}
+      <DirectorWritersSection crew={crew} />
+    </div>
+  </div>
+</DialogContent>
+```
+
+**Key layout principle:** Use `flex items-start` instead of grid to prevent height matching. Each column takes its natural height.
+
+### Next/Last Episode Card
+
+Show upcoming or latest episode info:
+
+```tsx
+import { EpisodeInfoSection } from "@/components/features/series";
+
+<EpisodeInfoSection
+  nextEpisode={series.next_episode_to_air}
+  lastEpisode={series.last_episode_to_air}
+  seriesName={series.name}
+  className="mt-8"
+/>
+```
+
+**Layout:** Two-column card (image left, info right):
+
+```tsx
+<div className="flex flex-col sm:flex-row rounded-xl bg-card/50 border">
+  {/* Image: 280px wide, rating/runtime badges on image */}
+  <div className="relative w-full sm:w-[280px] sm:h-[160px]">
+    <Image src={stillUrl} fill className="object-cover" />
+    <Badge className="absolute top-3 right-3 bg-black/60">
+      <Star /> {vote_average}
+    </Badge>
+    <Badge className="absolute bottom-3 right-3 bg-black/60">
+      {runtime} min
+    </Badge>
+  </div>
+
+  {/* Info: Episode details */}
+  <div className="flex-1 p-4">
+    <div className="flex items-center gap-2">
+      <p className="text-xs text-muted-foreground">S{season} E{episode}</p>
+      {/* Muted badge - NOT bright colors */}
+      <Badge className="bg-muted/60 text-muted-foreground">Latest</Badge>
+    </div>
+    <h3 className="text-lg font-semibold">{name}</h3>
+    {/* Meta row with icons */}
+    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <span><Calendar /> {airDate}</span>
+      <span><Timer /> {daysText}</span>
+    </div>
+    <p className="text-sm text-muted-foreground line-clamp-2">{overview}</p>
+  </div>
+</div>
+```
+
+### Series Status Badge
+
+Enhanced status badge with visual states:
+
+```tsx
+function SeriesStatusBadge({ status, inProduction, nextAirDate }) {
+  // Returns appropriate color/label based on status:
+  // - "Airing" (emerald + pulsing dot) - has upcoming episode
+  // - "Ongoing" / "Returning Soon" (green)
+  // - "Ended" (slate)
+  // - "Canceled" (red)
+  // - "In Production" (yellow)
+  // - "Pilot" (purple)
+  // - "Planned" (blue)
+}
+```
+
+## Media Badges System
+
+A unified badge system for displaying contextual labels on movie/series cards (e.g., "New", "Trending", "Acclaimed").
+
+### Architecture
+
+```
+src/lib/badges/
+├── index.ts          # Export hub + universal getMediaBadges(), getHoverCardBadges(), getBadgeScoopColor()
+├── types.ts          # BadgeType, MediaBadge, BadgeOptions
+├── constants.ts      # BADGE_THRESHOLDS, BADGE_DEFINITIONS (70% opacity colors)
+├── movie-badges.ts   # Movie-specific badge logic
+├── series-badges.ts  # Series-specific badge logic
+└── utils.ts          # Date helpers, badge creation utilities, getBadgeScoopColor()
+```
+
+### Usage
+
+```tsx
+import { getMediaBadges, getHoverCardBadges, getBadgeScoopColor } from "@/lib/badges";
+
+// Universal getter (auto-detects movie vs series)
+const badges = getMediaBadges(item, { maxBadges: 1 });
+
+// For hover card with minimal data
+const badges = getHoverCardBadges(hoverData, isMovie, { maxBadges: 2 });
+
+// In MovieCard/WideMovieCard
+const badge = useMemo(
+  () => (showBadges ? getMediaBadges(item, { maxBadges: 1 })[0] : undefined),
+  [item, showBadges]
+);
+
+// Get rgba color for inverted corner box-shadow
+const scoopColor = getBadgeScoopColor(badge.className);
+// "bg-emerald-600/70 text-emerald-50" → "rgba(5, 150, 105, 0.7)"
+```
+
+### Badge Types
+
+| Category | Badges | Criteria |
+|----------|--------|----------|
+| **Recency** | `just-released`, `new`, `coming-soon`, `highly-anticipated` | Release date relative to today |
+| **Popularity** | `viral`, `trending`, `very-popular` | TMDB popularity score + vote threshold |
+| **Quality** | `all-time-great`, `critically-acclaimed`, `hidden-gem`, `really-bad` | Vote average + vote count |
+| **Series** | `new-episode`, `new-season`, `currently-airing`, `mini-series`, `season-finale`, `series-finale`, `returning-soon` | Series status, episode air dates |
+| **Movie** | `blockbuster`, `box-office-hit`, `indie` | Revenue, budget, rating |
+
+### Badge Visual Design
+
+Badges appear inside the image at bottom-left with an **inverted corner** (Chrome tab style) effect:
+
+```tsx
+{badge && (
+  <div className="absolute bottom-0 left-0 z-10 flex items-end">
+    {/* Badge - small and sleek */}
+    <span
+      className={cn(
+        "inline-flex items-center px-1.5 py-0.5 text-[9px] font-semibold",
+        "rounded-tr-md",
+        badge.className  // e.g., "bg-emerald-600/70 text-emerald-50"
+      )}
+    >
+      {badge.shortLabel || badge.label}
+    </span>
+    {/* Inverted corner - creates smooth curve to image */}
+    <div
+      className="w-[6px] h-[6px] -ml-px"
+      style={{
+        background: "transparent",
+        borderBottomLeftRadius: "6px",
+        boxShadow: `-6px 6px 0 0 ${getBadgeScoopColor(badge.className)}`,
+      }}
+      aria-hidden="true"
+    />
+  </div>
+)}
+```
+
+### User Status Badges (Watchlist/Watched)
+
+User status badges show in the **bottom-right** corner of cards (separate from content badges in bottom-left):
+
+```tsx
+import { UserStatusBadge, useIsWatched } from "@/components/features/media";
+
+// In card components
+<UserStatusBadge itemId={item.id} mediaType={mediaType} />
+
+// Hook for grayscale effect on watched items
+const isWatched = useIsWatched(item.id);
+```
+
+**Badge types:**
+- `watchlist` - Shows "Saved" when item is in user's watchlist
+- `watched` - Shows "Watched" when user has marked item as watched
+
+**Grayscale effect for watched items:**
+```tsx
+// In card image
+<Image
+  className={cn(
+    "object-cover",
+    isWatched && "grayscale brightness-75 group-hover:grayscale-0 group-hover:brightness-100"
+  )}
+/>
+```
+
+## MediaCard Component (Card Display Preference)
+
+The `MediaCard` component is a smart wrapper that renders either `MovieCard` (poster) or `WideMovieCard` (wide) based on the user's display preference stored in the preferences store.
+
+```tsx
+import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
+
+// Basic usage - MediaCard reads preference internally
+<MediaCard
+  item={movie}
+  className="w-[150px] flex-shrink-0"           // Size for poster mode
+  wideClassName="w-[300px] flex-shrink-0"       // Size for wide mode
+  showRating
+  priority={index < 4}
+/>
+
+// With subtitle (character/job info for filmography)
+<MediaCard
+  item={movie}
+  subtitle="Tony Stark / Iron Man"  // Shows below title in muted text
+  showRating
+/>
+
+// Skeleton also respects preference
+<MediaCardSkeleton className="w-[150px]" wideClassName="w-[300px]" />
+```
+
+**Props:**
+- `item` - MovieListItem or SeriesListItem
+- `className` - Sizing for poster mode
+- `wideClassName` - Sizing for wide mode
+- `showRating` - Show rating badge (default: true)
+- `showBadges` - Show content badges like "New", "Trending" (default: true)
+- `priority` - Image loading priority
+- `enableHover` - Enable hover card (default: true on desktop)
+- `subtitle` - Optional text below title (e.g., character name, job role)
+- `hideUserStatus` - Hide watchlist/watched badge AND grayscale effect (use in watchlist/watched/ratings pages)
+
+**WideMovieCard image fallback chain:**
+1. CDN `widePoster` → `https://image.themoviebrowser.com/{type}/{id}/widePoster.webp`
+2. CDN `backdrop` → `https://image.themoviebrowser.com/{type}/{id}/backdrop.webp`
+3. TMDB `backdrop` → `https://image.tmdb.org/t/p/w780{backdrop_path}`

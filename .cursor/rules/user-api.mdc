@@ -1,0 +1,466 @@
+---
+description: User library API patterns - watchlist, watched, ratings, recents, continue watching
+globs: ["src/app/api/user/**/*.ts"]
+alwaysApply: false
+---
+
+# User Library API
+
+All user-specific endpoints for managing watchlist, watched status, ratings, and viewing history.
+
+## User Library Models (`user-library.ts`)
+
+All user-specific data models with Nuxt app compatibility:
+
+```typescript
+// Collections (matching Nuxt app):
+// - watchedmovies     -> WatchedMovie
+// - movieswatchlists  -> MoviesWatchlist
+// - serieslists       -> SeriesWatchlist
+// - userratings       -> UserRating
+// - recents           -> RecentItem
+// - continuewatchings -> ContinueWatching
+
+// RecentItem schema
+const RecentItemSchema = new Schema({
+  userId: { type: Number, required: true },
+  itemId: { type: Number, required: true },
+  isMovie: { type: Boolean, required: true },
+  poster_path: String,
+  backdrop_path: String,
+  title: String,      // For movies
+  name: String,       // For series
+  updatedAt: { type: Date, default: Date.now },
+}, { collection: "recents" });
+
+// ContinueWatching schema
+const ContinueWatchingSchema = new Schema({
+  userId: { type: Number, required: true },
+  itemId: { type: Number, required: true },
+  isMovie: { type: Boolean, required: true },
+  poster_path: String,
+  backdrop_path: String,
+  title: String,
+  name: String,
+  watchLink: { type: String, required: true },
+  watchProviderName: String,
+  updatedAt: { type: Date, default: Date.now },
+}, { collection: "continuewatchings" });
+
+// IMPORTANT: userId is Google OAuth `sub` as Number for Nuxt compatibility
+```
+
+## CRUD Pattern
+
+User library routes follow a consistent pattern for CRUD operations:
+
+```typescript
+// src/app/api/user/movie/[movieId]/watchlist/route.ts
+import { NextResponse } from "next/server";
+import { connectDB } from "@/server/db";
+import { MoviesWatchlist } from "@/server/db/models/user-library";
+import { getUserIdForDb } from "@/lib/user-id";
+
+// Add to watchlist
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ movieId: string }> }
+) {
+  try {
+    const userId = await getUserIdForDb();
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { movieId } = await params;
+    const movieIdNum = parseInt(movieId, 10);
+
+    await connectDB();
+    await MoviesWatchlist.findOneAndUpdate(
+      { userId, movieId: movieIdNum },
+      { userId, movieId: movieIdNum, createdAt: new Date() },
+      { upsert: true }
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to add" }, { status: 500 });
+  }
+}
+
+// Remove from watchlist
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ movieId: string }> }
+) {
+  try {
+    const userId = await getUserIdForDb();
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { movieId } = await params;
+    await connectDB();
+    await MoviesWatchlist.deleteOne({ userId, movieId: parseInt(movieId, 10) });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to remove" }, { status: 500 });
+  }
+}
+```
+
+## Library Hydration Endpoint
+
+Single endpoint to fetch all user library data for Zustand store hydration:
+
+```typescript
+// src/app/api/user/library/route.ts
+export async function GET() {
+  const userId = await getUserIdForDb();
+  if (!userId) {
+    return NextResponse.json({
+      watchedMovies: [],
+      watchlistMovies: [],
+      watchlistSeries: [],
+      ratings: [],
+      recents: [],
+      continueWatching: [],
+    });
+  }
+
+  await connectDB();
+
+  const [watchedMovies, watchlistMovies, watchlistSeries, ratings, recents, continueWatching] =
+    await Promise.all([
+      WatchedMovie.find({ userId }).select("movieId -_id").lean(),
+      MoviesWatchlist.find({ userId }).select("movieId -_id").lean(),
+      SeriesWatchlist.find({ userId }).select("seriesId -_id").lean(),
+      UserRating.find({ userId }).select("itemId itemType rating -_id").lean(),
+      RecentItem.find({ userId }).select("-__v -userId").sort({ updatedAt: -1 }).limit(20).lean(),
+      ContinueWatching.find({ userId }).select("-__v -userId").sort({ updatedAt: -1 }).limit(10).lean(),
+    ]);
+
+  return NextResponse.json({
+    watchedMovies: watchedMovies.map((m) => m.movieId),
+    watchlistMovies: watchlistMovies.map((m) => m.movieId),
+    watchlistSeries: watchlistSeries.map((s) => s.seriesId),
+    ratings: ratings.map((r) => ({ itemId: r.itemId, itemType: r.itemType, rating: r.rating })),
+    recents: recents.map((r) => ({
+      id: r.itemId,
+      itemId: r.itemId,
+      isMovie: Boolean(r.isMovie),  // Ensure boolean
+      poster_path: r.poster_path,
+      backdrop_path: r.backdrop_path,
+      title: r.title,
+      name: r.name,
+      viewedAt: r.updatedAt,
+    })),
+    continueWatching: continueWatching.map((item) => ({
+      id: item.itemId,
+      itemId: item.itemId,
+      isMovie: Boolean(item.isMovie),  // Ensure boolean
+      poster_path: item.poster_path,
+      backdrop_path: item.backdrop_path,
+      title: item.title,
+      name: item.name,
+      watchLink: item.watchLink,
+      watchProviderName: item.watchProviderName,
+      updatedAt: item.updatedAt,
+    })),
+  });
+}
+```
+
+## Watchlist Endpoint
+
+Full watchlist with movie/series details, categorized and sorted:
+
+```typescript
+// GET /api/user/watchlist
+interface WatchlistResponse {
+  movies: {
+    newAndUpcoming: MovieWithDetails[];  // Future + last 60 days, sorted chronologically
+    collection: MovieWithDetails[];       // Everything else, sorted by addedAt desc
+    allGenres: { id: number; name: string }[];  // Unique genres for filtering
+    totalCount: number;
+  };
+  series: {
+    currentlyAiring: SeriesWithDetails[];  // Has next_episode_to_air, sorted by next air date
+    returning: SeriesWithDetails[];        // Returning/In Production/Planned, sorted by last air date
+    completed: SeriesWithDetails[];        // Ended/Canceled, sorted by last air date
+    totalCount: number;
+  };
+}
+```
+
+**Series sorting logic:**
+- `currentlyAiring`: by `next_episode_to_air.air_date` ascending (soonest first)
+- `returning`: by `last_episode_to_air.air_date` descending (most recent first)
+- `completed`: by `last_episode_to_air.air_date` descending (most recent first)
+
+**Movies sorting logic:**
+- `newAndUpcoming`: upcoming first (by release date asc), then recent releases (by release date desc)
+- `collection`: by `addedAt` descending (most recently added first)
+
+```typescript
+// Categorize movies
+function categorizeMovies(movies: MovieWithDetails[]) {
+  const today = new Date();
+  const sixtyDaysAgo = new Date(today);
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+  for (const movie of movies) {
+    const releaseDate = new Date(movie.release_date || "");
+    if (releaseDate > today || releaseDate >= sixtyDaysAgo) {
+      newAndUpcoming.push(movie);
+    } else {
+      collection.push(movie);
+    }
+  }
+
+  // Sort newAndUpcoming: upcoming first (by date asc), then new releases (by date desc)
+  newAndUpcoming.sort((a, b) => {
+    const isUpcomingA = new Date(a.release_date) > today;
+    const isUpcomingB = new Date(b.release_date) > today;
+    if (isUpcomingA && !isUpcomingB) return -1;
+    if (!isUpcomingA && isUpcomingB) return 1;
+    if (isUpcomingA && isUpcomingB) return dateA - dateB;  // Soonest first
+    return dateB - dateA;  // Most recent first
+  });
+
+  // Collect unique genres for filtering
+  const allGenres = Array.from(genreMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+  return { newAndUpcoming, collection, allGenres, totalCount };
+}
+```
+
+## Recents API
+
+Track recently viewed movies/series:
+
+```typescript
+// src/app/api/user/recents/route.ts
+// GET - Fetch user's recent items (max 20)
+// POST - Add item to recents (auto-tracked by RecentTracker component)
+
+// POST body:
+{
+  itemId: number;
+  isMovie: boolean;
+  poster_path?: string;
+  backdrop_path?: string;
+  title?: string;  // For movies
+  name?: string;   // For series
+}
+```
+
+## Continue Watching API
+
+Track items user started watching on streaming platforms:
+
+```typescript
+// src/app/api/user/continueWatching/route.ts
+// GET - Fetch user's continue watching items (max 10)
+// POST - Add item to continue watching
+// DELETE - Remove item (?itemId=123&isMovie=true)
+
+// POST body:
+{
+  itemId: number;
+  isMovie: boolean;
+  poster_path?: string;
+  backdrop_path?: string;
+  title?: string;
+  name?: string;
+  watchLink: string;          // Required - streaming URL
+  watchProviderName?: string; // e.g., "Netflix", "Amazon Prime Video"
+}
+```
+
+## Ratings API
+
+### Single Rating Endpoint
+
+```typescript
+// src/app/api/user/rating/route.ts
+// POST - Add or update rating
+// DELETE - Remove rating (?itemId=123&itemType=movie)
+
+// POST body:
+{
+  itemId: number;
+  itemType: "movie" | "series";
+  rating: 1 | -1;  // 1 = like, -1 = dislike
+}
+```
+
+### Ratings List Endpoint
+
+Fetch all user ratings with full movie/series details:
+
+```typescript
+// GET /api/user/ratings
+interface RatingsResponse {
+  likes: {
+    movies: MovieWithDetails[];
+    series: SeriesWithDetails[];
+  };
+  dislikes: {
+    movies: MovieWithDetails[];
+    series: SeriesWithDetails[];
+  };
+  totalCount: number;
+}
+```
+
+**Data structure:**
+- Groups by rating direction (likes=1, dislikes=-1)
+- Each group contains `movies[]` and `series[]`
+- Items include full details: poster, backdrop, vote_average, genres, release_date
+- Sorted by most recently rated
+
+## Watched Movies API
+
+Fetch all watched movies with full details:
+
+```typescript
+// GET /api/user/watched
+interface WatchedResponse {
+  movies: MovieWithDetails[];
+  totalCount: number;
+  allGenres: { id: number; name: string }[];  // For genre filtering
+}
+```
+
+**Data structure:**
+- All watched movies with full details
+- `allGenres` array for client-side filtering
+- Sorted by most recently marked as watched
+
+## Mongoose Model Pattern
+
+```typescript
+// src/server/db/models/movie.ts
+import mongoose, { Schema, Document } from "mongoose";
+
+export interface IMovie extends Document {
+  id: number;
+  title: string;
+  overview?: string;
+  poster_path?: string;
+  backdrop_path?: string;
+  release_date?: string;
+  vote_average?: number;
+  vote_count?: number;
+  genres?: { id: number; name: string }[];
+  updatedAt: Date;
+}
+
+const MovieSchema = new Schema<IMovie>(
+  {
+    id: { type: Number, required: true, unique: true, index: true },
+    title: { type: String, required: true },
+    overview: String,
+    poster_path: String,
+    backdrop_path: String,
+    release_date: String,
+    vote_average: Number,
+    vote_count: Number,
+    genres: [{ id: Number, name: String }],
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { strict: false }
+); // Allow additional fields from TMDB
+
+export const Movie =
+  mongoose.models.Movie || mongoose.model<IMovie>("Movie", MovieSchema, "movies");
+```
+
+## Authentication Pattern
+
+All user endpoints use the same authentication check:
+
+```typescript
+import { getUserIdForDb } from "@/lib/user-id";
+
+export async function POST(request: Request) {
+  const userId = await getUserIdForDb();
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // userId is Google OAuth `sub` as Number for Nuxt compatibility
+  // ... handle request
+}
+```
+
+## Response Patterns
+
+```typescript
+// Unauthenticated user - return empty arrays (not error)
+if (!userId) {
+  return NextResponse.json({
+    watchedMovies: [],
+    watchlistMovies: [],
+    // ...
+  });
+}
+
+// Success response
+return NextResponse.json({ success: true });
+
+// Error response
+return NextResponse.json({ error: "Failed to add" }, { status: 500 });
+
+// Data response
+return NextResponse.json({
+  movies: categorizedMovies,
+  series: categorizedSeries,
+  totalCount: total,
+});
+```
+
+## Database Connection
+
+Always connect before queries:
+
+```typescript
+import { connectDB } from "@/server/db";
+
+export async function GET() {
+  await connectDB();
+
+  const results = await SomeModel.find({ userId }).lean();
+  // ...
+}
+```
+
+## Parallel Queries
+
+Use `Promise.all` for multiple independent queries:
+
+```typescript
+const [watchedMovies, watchlistMovies, watchlistSeries, ratings] =
+  await Promise.all([
+    WatchedMovie.find({ userId }).select("movieId -_id").lean(),
+    MoviesWatchlist.find({ userId }).select("movieId -_id").lean(),
+    SeriesWatchlist.find({ userId }).select("seriesId -_id").lean(),
+    UserRating.find({ userId }).select("itemId itemType rating -_id").lean(),
+  ]);
+```
+
+## Upsert Pattern
+
+Use `findOneAndUpdate` with `upsert: true` for add operations:
+
+```typescript
+await MoviesWatchlist.findOneAndUpdate(
+  { userId, movieId: movieIdNum },           // Find criteria
+  { userId, movieId: movieIdNum, createdAt: new Date() },  // Update data
+  { upsert: true }                           // Create if not exists
+);
+```
+
+This prevents duplicate entries and simplifies add/update logic.

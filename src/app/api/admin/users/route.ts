@@ -18,10 +18,7 @@ export async function GET() {
 
     const clientPromise = getMongoClient();
     if (!clientPromise) {
-      return NextResponse.json(
-        { error: "Database not configured" },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
     const client = await clientPromise;
@@ -73,9 +70,7 @@ export async function GET() {
 
       // Add activity counts and items
       activityData.forEach(({ key, items }) => {
-        const userItems = items.filter(
-          (item) => item.userId?.toString() === user.sub?.toString()
-        );
+        const userItems = items.filter((item) => item.userId?.toString() === user.sub?.toString());
         userData[key] = userItems.length;
         userData[`${key}-items`] = userItems.slice(0, 10);
       });
@@ -101,9 +96,6 @@ export async function GET() {
       }
     }
     console.error("Admin users API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -15,15 +15,8 @@ import {
   findExactMatch,
   type FuzzySearchResult,
 } from "@/server/db/postgres/fuzzy-search";
-import {
-  semanticSearch,
-  type SemanticSearchResult,
-} from "@/server/db/postgres/semantic-search";
-import {
-  classifyQueryIntent,
-  getSearchWeights,
-  type IntentAnalysis,
-} from "./intent";
+import { semanticSearch, type SemanticSearchResult } from "@/server/db/postgres/semantic-search";
+import { classifyQueryIntent, getSearchWeights, type IntentAnalysis } from "./intent";
 import { dataLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -192,9 +185,7 @@ export async function hybridSearch(
   const weights = getSearchWeights(intent.intent);
 
   // Filter mediaTypes for semantic (doesn't support "person")
-  const semanticMediaTypes = mediaTypes.filter(
-    (t): t is "movie" | "series" => t !== "person"
-  );
+  const semanticMediaTypes = mediaTypes.filter((t): t is "movie" | "series" => t !== "person");
 
   // Merge extracted filters with provided filters
   const mergedFilters = {
@@ -349,10 +340,7 @@ export async function hybridSearch(
  * Fast search for autocomplete with limited results.
  * Prioritizes fuzzy search for speed, with optional semantic boost.
  */
-export async function hybridQuickSearch(
-  query: string,
-  limit = 8
-): Promise<HybridSearchResult[]> {
+export async function hybridQuickSearch(query: string, limit = 8): Promise<HybridSearchResult[]> {
   const intent = classifyQueryIntent(query);
 
   // For short queries, just use fuzzy search (faster)
@@ -397,10 +385,7 @@ function fuzzyToHybrid(
   };
 }
 
-function semanticToHybrid(
-  result: SemanticSearchResult,
-  rank: number
-): HybridSearchResult {
+function semanticToHybrid(result: SemanticSearchResult, rank: number): HybridSearchResult {
   return {
     id: result.id,
     title: result.title,

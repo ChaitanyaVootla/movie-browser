@@ -15,9 +15,9 @@ export default function SeriesLoading() {
           <div className="absolute inset-0 md:left-[18%] lg:left-[25%]">
             <Skeleton className="absolute inset-0 rounded-none" />
           </div>
-          
+
           {/* Left fade gradient overlay */}
-          <div 
+          <div
             className="absolute inset-y-0 left-0 w-[50%] md:w-[40%] lg:w-[35%] pointer-events-none"
             style={{
               background: `linear-gradient(to right, 
@@ -35,21 +35,21 @@ export default function SeriesLoading() {
             <div className="hero-content-width pb-5 md:pb-6 lg:pb-8 flex flex-col gap-4">
               {/* Logo skeleton */}
               <Skeleton className="h-16 sm:h-20 md:h-24 w-64 sm:w-80 md:w-96 bg-white/10" />
-              
+
               {/* Genres skeleton */}
               <div className="flex gap-2">
                 <Skeleton className="h-6 w-20 rounded-full bg-white/10" />
                 <Skeleton className="h-6 w-24 rounded-full bg-white/10" />
                 <Skeleton className="h-6 w-16 rounded-full bg-white/10" />
               </div>
-              
+
               {/* Ratings skeleton */}
               <div className="flex gap-4">
                 <Skeleton className="h-8 w-16 rounded bg-white/10" />
                 <Skeleton className="h-8 w-16 rounded bg-white/10" />
                 <Skeleton className="h-8 w-16 rounded bg-white/10" />
               </div>
-              
+
               {/* Watch options skeleton */}
               <div className="flex gap-2">
                 <Skeleton className="h-9 w-28 rounded-lg bg-white/10" />
@@ -79,7 +79,7 @@ export default function SeriesLoading() {
               <Skeleton key={i} className="h-9 w-24 rounded-lg flex-shrink-0" />
             ))}
           </div>
-          
+
           {/* Episodes skeleton */}
           <div className="flex gap-3 overflow-hidden">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -110,7 +110,7 @@ export default function SeriesLoading() {
                 <Skeleton className="h-4 w-full mb-2" />
                 <Skeleton className="h-4 w-3/4" />
               </div>
-              
+
               {/* Keywords skeleton */}
               <div className="flex flex-wrap gap-2 pt-2">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -171,4 +171,3 @@ export default function SeriesLoading() {
     </article>
   );
 }
-

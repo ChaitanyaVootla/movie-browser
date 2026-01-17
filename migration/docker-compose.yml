@@ -1,7 +1,7 @@
-version: '3.8'
+version: "3.8"
 
 # MongoDB Migration Setup with S3 Storage
-# 
+#
 # Usage:
 # - Full migration: docker-compose up --abort-on-container-exit
 # - Dump only: docker-compose up dump-initiator

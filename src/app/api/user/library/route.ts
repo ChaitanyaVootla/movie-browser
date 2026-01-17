@@ -13,7 +13,7 @@ import { userApiLogger } from "@/lib/logger";
 
 /**
  * GET /api/user/library
- * 
+ *
  * Returns all user library data for efficient client-side state hydration.
  * Includes: watchlist IDs, watched IDs, ratings, recents, and continue watching.
  */
@@ -43,11 +43,7 @@ export async function GET() {
         MoviesWatchlist.find({ userId }).select("movieId -_id").lean(),
         SeriesWatchlist.find({ userId }).select("seriesId -_id").lean(),
         UserRating.find({ userId }).select("itemId itemType rating -_id").lean(),
-        RecentItem.find({ userId })
-          .select("-__v -userId")
-          .sort({ updatedAt: -1 })
-          .limit(20)
-          .lean(),
+        RecentItem.find({ userId }).select("-__v -userId").sort({ updatedAt: -1 }).limit(20).lean(),
         ContinueWatching.find({ userId })
           .select("-__v -userId")
           .sort({ updatedAt: -1 })
@@ -93,11 +89,6 @@ export async function GET() {
       event: "fetch_error",
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { error: "Failed to fetch user library" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch user library" }, { status: 500 });
   }
 }
-
-

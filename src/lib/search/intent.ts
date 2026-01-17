@@ -201,10 +201,7 @@ export function classifyQueryIntent(query: string): IntentAnalysis {
   // Extract year range (e.g., "2010-2020")
   const yearRangeMatch = normalized.match(FILTER_PATTERNS.yearRange);
   if (yearRangeMatch) {
-    extractedFilters.yearRange = [
-      parseInt(yearRangeMatch[1]),
-      parseInt(yearRangeMatch[2]),
-    ];
+    extractedFilters.yearRange = [parseInt(yearRangeMatch[1]), parseInt(yearRangeMatch[2])];
     cleanedQuery = cleanedQuery.replace(FILTER_PATTERNS.yearRange, "").trim();
   }
 
@@ -293,9 +290,9 @@ export function classifyQueryIntent(query: string): IntentAnalysis {
   ).length;
 
   const hasFilterPatterns =
-    (Object.keys(extractedFilters).filter(k => k !== "genres").length > 0) ||
+    Object.keys(extractedFilters).filter((k) => k !== "genres").length > 0 ||
     Boolean(genreMatches?.length && genreMatches.length > 0);
-  
+
   // Check if query contains genre-adjacent words that suggest semantic intent
   const hasGenreDescriptors = Boolean(genreMatches?.length);
 
@@ -331,7 +328,7 @@ export function classifyQueryIntent(query: string): IntentAnalysis {
   const hasYearFilters = Boolean(
     extractedFilters.year || extractedFilters.yearRange || extractedFilters.decade
   );
-  
+
   if (hasYearFilters && semanticCount === 0) {
     return {
       intent: "filter",

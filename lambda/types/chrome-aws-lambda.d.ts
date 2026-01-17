@@ -1,4 +1,4 @@
-declare module 'chrome-aws-lambda' {
+declare module "chrome-aws-lambda" {
   export const args: string[];
   export const defaultViewport: {
     width: number;

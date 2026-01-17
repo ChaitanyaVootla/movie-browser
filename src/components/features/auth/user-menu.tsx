@@ -3,7 +3,20 @@
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { User, LogOut, Eye, List, Star, Settings, Moon, Sun, Monitor, Palette, LayoutGrid, LayoutList } from "lucide-react";
+import {
+  User,
+  LogOut,
+  Eye,
+  List,
+  Star,
+  Settings,
+  Moon,
+  Sun,
+  Monitor,
+  Palette,
+  LayoutGrid,
+  LayoutList,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +34,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
-import { usePreferencesStore, selectCardDisplayMode, type CardDisplayMode } from "@/stores/preferences";
+import {
+  usePreferencesStore,
+  selectCardDisplayMode,
+  type CardDisplayMode,
+} from "@/stores/preferences";
 
 const themes = [
   { value: "light", label: "Light", icon: Sun },
@@ -94,13 +111,9 @@ export function UserMenu({ className }: UserMenuProps) {
         {/* User Info Header */}
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            {user.name && (
-              <p className="text-sm font-medium leading-none">{user.name}</p>
-            )}
+            {user.name && <p className="text-sm font-medium leading-none">{user.name}</p>}
             {user.email && (
-              <p className="text-xs leading-none text-muted-foreground truncate">
-                {user.email}
-              </p>
+              <p className="text-xs leading-none text-muted-foreground truncate">{user.email}</p>
             )}
           </div>
         </DropdownMenuLabel>
@@ -149,11 +162,7 @@ export function UserMenu({ className }: UserMenuProps) {
         {mounted && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="gap-2">
-              {theme === "light" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
+              {theme === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span>Appearance</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
@@ -169,9 +178,7 @@ export function UserMenu({ className }: UserMenuProps) {
                   >
                     <Icon className="h-4 w-4" />
                     {label}
-                    {cardDisplayMode === value && (
-                      <span className="ml-auto text-brand">✓</span>
-                    )}
+                    {cardDisplayMode === value && <span className="ml-auto text-brand">✓</span>}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
@@ -179,16 +186,10 @@ export function UserMenu({ className }: UserMenuProps) {
                   Mode
                 </DropdownMenuLabel>
                 {themes.map(({ value, label, icon: Icon }) => (
-                  <DropdownMenuItem
-                    key={value}
-                    onClick={() => setTheme(value)}
-                    className="gap-2"
-                  >
+                  <DropdownMenuItem key={value} onClick={() => setTheme(value)} className="gap-2">
                     <Icon className="h-4 w-4" />
                     {label}
-                    {theme === value && (
-                      <span className="ml-auto text-brand">✓</span>
-                    )}
+                    {theme === value && <span className="ml-auto text-brand">✓</span>}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
@@ -196,16 +197,10 @@ export function UserMenu({ className }: UserMenuProps) {
                   Color Theme
                 </DropdownMenuLabel>
                 {colorThemes.map(({ value, label }) => (
-                  <DropdownMenuItem
-                    key={value}
-                    onClick={() => setTheme(value)}
-                    className="gap-2"
-                  >
+                  <DropdownMenuItem key={value} onClick={() => setTheme(value)} className="gap-2">
                     <Palette className="h-4 w-4" />
                     {label}
-                    {theme === value && (
-                      <span className="ml-auto text-brand">✓</span>
-                    )}
+                    {theme === value && <span className="ml-auto text-brand">✓</span>}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>
@@ -235,5 +230,3 @@ function getInitials(name: string): string {
   }
   return name.slice(0, 2).toUpperCase();
 }
-
-

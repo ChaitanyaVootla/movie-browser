@@ -16,7 +16,7 @@ interface UseUserLibraryOptions {
 /**
  * Hook for accessing and modifying user library state.
  * Provides a clean API for watchlist, watched, and rating operations.
- * 
+ *
  * @example
  * ```tsx
  * const { isInWatchlist, toggleWatchlist, rating, setRating } = useUserLibrary({
@@ -36,11 +36,11 @@ export function useUserLibrary(
 
   // Store selectors
   const isHydrated = useUserStore((state) => state.isHydrated);
-  
+
   // For movies only
   const watchedMovies = useUserStore((state) => state.watchedMovies);
   const isWatched = mediaType === "movie" ? watchedMovies.has(itemId) : false;
-  
+
   // Watchlist
   const watchlistMovies = useUserStore((state) => state.watchlistMovies);
   const watchlistSeries = useUserStore((state) => state.watchlistSeries);
@@ -95,9 +95,7 @@ export function useUserLibrary(
     try {
       await storeToggleWatchlist(itemId, mediaType);
       if (showToasts) {
-        toast.success(
-          isInWatchlist ? "Removed from watchlist" : "Added to watchlist"
-        );
+        toast.success(isInWatchlist ? "Removed from watchlist" : "Added to watchlist");
       }
     } catch {
       if (showToasts) {
@@ -150,17 +148,17 @@ export function useUserLibrary(
     isWatched,
     isInWatchlist,
     rating,
-    
+
     // Derived
     isLiked: rating === 1,
     isDisliked: rating === -1,
-    
+
     // Actions
     toggleWatched,
     toggleWatchlist,
     setRating,
     clearRating,
-    
+
     // Convenience
     like: () => setRating(rating === 1 ? 0 : 1),
     dislike: () => setRating(rating === -1 ? 0 : -1),
@@ -175,16 +173,13 @@ export function useUserLibraryBulk() {
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
   const isHydrated = useUserStore((state) => state.isHydrated);
-  
+
   const watchedMovies = useUserStore((state) => state.watchedMovies);
   const watchlistMovies = useUserStore((state) => state.watchlistMovies);
   const watchlistSeries = useUserStore((state) => state.watchlistSeries);
   const ratings = useUserStore((state) => state.ratings);
 
-  const isWatched = useCallback(
-    (movieId: number) => watchedMovies.has(movieId),
-    [watchedMovies]
-  );
+  const isWatched = useCallback((movieId: number) => watchedMovies.has(movieId), [watchedMovies]);
 
   const isInWatchlist = useCallback(
     (id: number, mediaType: MediaType) => {
@@ -212,5 +207,3 @@ export function useUserLibraryBulk() {
     getRating,
   };
 }
-
-

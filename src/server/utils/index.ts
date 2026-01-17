@@ -15,9 +15,3 @@ export {
   type LightSeriesDetails,
   type LightPersonDetails,
 } from "./media-data";
-
-
-
-
-
-

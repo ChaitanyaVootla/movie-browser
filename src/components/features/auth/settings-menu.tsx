@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMounted } from "@/hooks/use-mounted";
 import { cn } from "@/lib/utils";
-import { usePreferencesStore, selectCardDisplayMode, type CardDisplayMode } from "@/stores/preferences";
+import {
+  usePreferencesStore,
+  selectCardDisplayMode,
+  type CardDisplayMode,
+} from "@/stores/preferences";
 
 const themes = [
   { value: "light", label: "Light", icon: Sun },
@@ -64,11 +68,7 @@ export function SettingsMenu({ className }: SettingsMenuProps) {
           Card Display
         </DropdownMenuLabel>
         {cardDisplayModes.map(({ value, label, icon: Icon }) => (
-          <DropdownMenuItem
-            key={value}
-            onClick={() => setCardDisplayMode(value)}
-            className="gap-2"
-          >
+          <DropdownMenuItem key={value} onClick={() => setCardDisplayMode(value)} className="gap-2">
             <Icon className="h-4 w-4" />
             {label}
             {cardDisplayMode === value && <span className="ml-auto text-brand">✓</span>}
@@ -100,4 +100,3 @@ export function SettingsMenu({ className }: SettingsMenuProps) {
     </DropdownMenu>
   );
 }
-

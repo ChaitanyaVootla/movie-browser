@@ -107,9 +107,7 @@ function getResourceInfo(): { count: number; size: number } {
     return { count: 0, size: 0 };
   }
 
-  const resources = performance.getEntriesByType(
-    "resource"
-  ) as PerformanceResourceTiming[];
+  const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
 
   let totalSize = 0;
   for (const resource of resources) {
@@ -166,12 +164,7 @@ export function WebVitalsTracker() {
     const vitals = vitalsRef.current;
 
     // Require at least TTFB, FCP, LCP, and CLS (core metrics)
-    if (
-      vitals.ttfb === null ||
-      vitals.fcp === null ||
-      vitals.lcp === null ||
-      vitals.cls === null
-    ) {
+    if (vitals.ttfb === null || vitals.fcp === null || vitals.lcp === null || vitals.cls === null) {
       return;
     }
 
@@ -276,4 +269,3 @@ export function WebVitalsTracker() {
   // This component renders nothing
   return null;
 }
-

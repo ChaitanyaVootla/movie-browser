@@ -3,7 +3,7 @@ import { testMovieIds, seoExpectations } from "../fixtures/test-data";
 
 /**
  * Movie Page SEO Tests (No JavaScript)
- * 
+ *
  * These tests validate SEO metadata that's available in the initial HTML response.
  * For JSON-LD structured data tests, see the "Content Tests" project which runs with JS
  * since the schema is rendered inside Suspense boundaries.
@@ -25,10 +25,10 @@ test.describe("Movie Page SEO", () => {
 
   test("has meaningful meta description", async ({ page }) => {
     const description = page.locator('meta[name="description"]');
-    const content = await description.getAttribute("content");
+    const content = description;
 
     // Description should exist and be reasonably long (not just "Watch...")
-    expect(content).toBeTruthy();
+    await expect(content).toHaveAttribute("content");
     expect(content!.length).toBeGreaterThan(50);
     // Should not be generic placeholder
     expect(content!.toLowerCase()).not.toBe("watch fight club");

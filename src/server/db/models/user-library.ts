@@ -92,8 +92,7 @@ UserRatingSchema.index({ userId: 1, createdAt: -1 });
 
 export type IUserRating = InferSchemaType<typeof UserRatingSchema>;
 export const UserRating =
-  mongoose.models.userratings ||
-  mongoose.model<IUserRating>("userratings", UserRatingSchema);
+  mongoose.models.userratings || mongoose.model<IUserRating>("userratings", UserRatingSchema);
 
 // =============================================================================
 // Recent Items (Continue Watching / History)

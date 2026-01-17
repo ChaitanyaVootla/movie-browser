@@ -66,10 +66,7 @@ export async function DELETE(request: NextRequest) {
     const itemType = searchParams.get("itemType");
 
     if (isNaN(itemId) || !itemType || !["movie", "series"].includes(itemType)) {
-      return NextResponse.json(
-        { error: "Invalid itemId or itemType" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid itemId or itemType" }, { status: 400 });
     }
 
     await connectDB();
@@ -89,5 +86,3 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Failed to remove rating" }, { status: 500 });
   }
 }
-
-

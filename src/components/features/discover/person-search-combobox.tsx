@@ -13,11 +13,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { searchPerson } from "@/server/actions/person";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -54,7 +50,7 @@ export function PersonSearchCombobox({
   const [query, setQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [results, setResults] = React.useState<PersonOption[]>([]);
-  
+
   const debouncedQuery = useDebounce(query, 300);
 
   // Fetch results when query changes
@@ -70,7 +66,7 @@ export function PersonSearchCombobox({
     searchPerson(debouncedQuery)
       .then((data) => {
         if (cancelled) return;
-        
+
         let filtered = data.map((p) => ({
           id: p.id,
           name: p.name,
@@ -80,9 +76,7 @@ export function PersonSearchCombobox({
 
         // Filter by department if specified
         if (filterDepartment) {
-          filtered = filtered.filter(
-            (p) => p.known_for_department === filterDepartment
-          );
+          filtered = filtered.filter((p) => p.known_for_department === filterDepartment);
         }
 
         setResults(filtered);
@@ -135,11 +129,7 @@ export function PersonSearchCombobox({
               </span>
             ) : selected.length <= maxDisplay ? (
               selected.map((person) => (
-                <Badge
-                  key={person.id}
-                  variant="secondary"
-                  className="px-1.5 py-0 text-xs"
-                >
+                <Badge key={person.id} variant="secondary" className="px-1.5 py-0 text-xs">
                   {person.name}
                   <button
                     onClick={(e) => handleRemove(person.id, e)}
@@ -157,11 +147,7 @@ export function PersonSearchCombobox({
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput
-            placeholder={searchPlaceholder}
-            value={query}
-            onValueChange={setQuery}
-          />
+          <CommandInput placeholder={searchPlaceholder} value={query} onValueChange={setQuery} />
           <CommandList>
             {isLoading ? (
               <div className="flex items-center justify-center py-6">
@@ -185,10 +171,7 @@ export function PersonSearchCombobox({
                       className="flex items-center gap-3 py-2"
                     >
                       <Check
-                        className={cn(
-                          "h-4 w-4 shrink-0",
-                          isSelected ? "opacity-100" : "opacity-0"
-                        )}
+                        className={cn("h-4 w-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")}
                       />
                       {person.profile_path ? (
                         <Image
@@ -205,9 +188,7 @@ export function PersonSearchCombobox({
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {person.name}
-                        </div>
+                        <div className="text-sm font-medium truncate">{person.name}</div>
                         {person.known_for_department && (
                           <div className="text-xs text-muted-foreground">
                             {person.known_for_department}
@@ -225,5 +206,3 @@ export function PersonSearchCombobox({
     </Popover>
   );
 }
-
-

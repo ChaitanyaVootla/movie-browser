@@ -204,12 +204,7 @@ export function useAnalytics() {
   );
 
   const trackWatched = useCallback(
-    (
-      itemId: number,
-      mediaType: "movie" | "series",
-      marked: boolean,
-      title?: string
-    ) => {
+    (itemId: number, mediaType: "movie" | "series", marked: boolean, title?: string) => {
       trackAction({
         action: marked ? "mark_watched" : "unmark_watched",
         mediaType,
@@ -221,12 +216,7 @@ export function useAnalytics() {
   );
 
   const trackWatchClick = useCallback(
-    (
-      itemId: number,
-      mediaType: "movie" | "series",
-      provider: string,
-      title?: string
-    ) => {
+    (itemId: number, mediaType: "movie" | "series", provider: string, title?: string) => {
       trackAction({
         action: "watch_click",
         mediaType,
@@ -339,4 +329,3 @@ export function useAnalytics() {
     flush,
   };
 }
-

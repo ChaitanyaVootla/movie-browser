@@ -64,10 +64,7 @@ function isMovie(item: MediaItem): item is Movie | MovieListItem {
  * const badges = getMediaBadges(movie, { maxBadges: 3, context: "detail" });
  * ```
  */
-export function getMediaBadges(
-  item: MediaItem,
-  options?: BadgeOptions
-): MediaBadge[] {
+export function getMediaBadges(item: MediaItem, options?: BadgeOptions): MediaBadge[] {
   if (isMovie(item)) {
     return getMovieBadges(item, options);
   }
@@ -198,4 +195,3 @@ export function getHoverCardBadges(
 
   return sortAndLimitBadges(badges, maxBadges);
 }
-

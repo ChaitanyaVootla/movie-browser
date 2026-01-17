@@ -90,12 +90,9 @@ export function getSeriesBadges(
 
     // Season/series finale detection
     if (lastEp && full.seasons) {
-      const currentSeason = full.seasons.find(
-        (s) => s.season_number === lastEp.season_number
-      );
+      const currentSeason = full.seasons.find((s) => s.season_number === lastEp.season_number);
       if (currentSeason && currentSeason.episode_count > 0) {
-        const isLastEpisodeOfSeason =
-          lastEp.episode_number === currentSeason.episode_count;
+        const isLastEpisodeOfSeason = lastEp.episode_number === currentSeason.episode_count;
         const daysSinceFinale = getDaysDiff(lastEp.air_date);
         const isRecentFinale = daysSinceFinale >= 0 && daysSinceFinale <= 14;
 
@@ -113,9 +110,7 @@ export function getSeriesBadges(
     if (full.seasons && full.seasons.length > 0) {
       const realSeasons = full.seasons.filter((s) => s.season_number > 0);
       if (realSeasons.length > 0) {
-        const latestSeason = realSeasons.sort(
-          (a, b) => b.season_number - a.season_number
-        )[0];
+        const latestSeason = realSeasons.sort((a, b) => b.season_number - a.season_number)[0];
 
         if (latestSeason?.air_date) {
           const daysSinceSeasonStart = getDaysDiff(latestSeason.air_date);
@@ -217,4 +212,3 @@ export function getSeriesBadges(
 
   return sortAndLimitBadges(badges, maxBadges);
 }
-

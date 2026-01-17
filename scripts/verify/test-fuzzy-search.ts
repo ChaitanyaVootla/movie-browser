@@ -29,9 +29,7 @@ import {
 async function checkExtensions() {
   console.log("\n📦 Checking PostgreSQL Extensions...");
 
-  const extensions = await prisma.$queryRaw<
-    Array<{ extname: string; extversion: string }>
-  >`
+  const extensions = await prisma.$queryRaw<Array<{ extname: string; extversion: string }>>`
     SELECT extname, extversion 
     FROM pg_extension 
     WHERE extname IN ('pg_trgm', 'vector', 'uuid-ossp')
@@ -39,8 +37,12 @@ async function checkExtensions() {
 
   const extMap = new Map(extensions.map((e) => [e.extname, e.extversion]));
 
-  console.log(`   pg_trgm: ${extMap.get("pg_trgm") ? `✅ v${extMap.get("pg_trgm")}` : "❌ NOT INSTALLED"}`);
-  console.log(`   vector: ${extMap.get("vector") ? `✅ v${extMap.get("vector")}` : "❌ NOT INSTALLED"}`);
+  console.log(
+    `   pg_trgm: ${extMap.get("pg_trgm") ? `✅ v${extMap.get("pg_trgm")}` : "❌ NOT INSTALLED"}`
+  );
+  console.log(
+    `   vector: ${extMap.get("vector") ? `✅ v${extMap.get("vector")}` : "❌ NOT INSTALLED"}`
+  );
 
   if (!extMap.get("pg_trgm")) {
     console.error("\n❌ pg_trgm extension is required for fuzzy search!");
@@ -125,13 +127,38 @@ const TEST_CASES: TestCase[] = [
   { name: "Partial: 'Star Wars'", query: "Star Wars", expected: "Star Wars" },
 
   // Person search
-  { name: "Person: 'Tom Hanks'", query: "Tom Hanks", expected: "Tom Hanks", mediaTypes: ["person"] },
-  { name: "Person: 'Leonardo DiCaprio'", query: "Leonardo DiCaprio", expected: "Leonardo", mediaTypes: ["person"] },
-  { name: "Person typo: 'Chrstopher Nolan'", query: "Chrstopher Nolan", expected: "Christopher Nolan", mediaTypes: ["person"] },
+  {
+    name: "Person: 'Tom Hanks'",
+    query: "Tom Hanks",
+    expected: "Tom Hanks",
+    mediaTypes: ["person"],
+  },
+  {
+    name: "Person: 'Leonardo DiCaprio'",
+    query: "Leonardo DiCaprio",
+    expected: "Leonardo",
+    mediaTypes: ["person"],
+  },
+  {
+    name: "Person typo: 'Chrstopher Nolan'",
+    query: "Chrstopher Nolan",
+    expected: "Christopher Nolan",
+    mediaTypes: ["person"],
+  },
 
   // Series search
-  { name: "Series: 'Breaking Bad'", query: "Breaking Bad", expected: "Breaking Bad", mediaTypes: ["series"] },
-  { name: "Series: 'Game of Thrones'", query: "Game of Thrones", expected: "Game of Thrones", mediaTypes: ["series"] },
+  {
+    name: "Series: 'Breaking Bad'",
+    query: "Breaking Bad",
+    expected: "Breaking Bad",
+    mediaTypes: ["series"],
+  },
+  {
+    name: "Series: 'Game of Thrones'",
+    query: "Game of Thrones",
+    expected: "Game of Thrones",
+    mediaTypes: ["series"],
+  },
 
   // Edge cases
   { name: "Short query: 'Up'", query: "Up", expected: "Up" },
@@ -163,7 +190,9 @@ async function runTests() {
         console.log(`✅ ${testCase.name}`);
         console.log(`   Query: "${testCase.query}" → ${results.length} results (${duration}ms)`);
         if (results[0]) {
-          console.log(`   Top: "${results[0].title}" (similarity: ${results[0].similarity.toFixed(3)})`);
+          console.log(
+            `   Top: "${results[0].title}" (similarity: ${results[0].similarity.toFixed(3)})`
+          );
         }
         passed++;
       } else if (results.length === 0) {
@@ -173,7 +202,12 @@ async function runTests() {
       } else {
         console.log(`❌ ${testCase.name}`);
         console.log(`   Query: "${testCase.query}" → Expected "${testCase.expected}" not found`);
-        console.log(`   Got: ${results.slice(0, 3).map((r) => r.title).join(", ")}`);
+        console.log(
+          `   Got: ${results
+            .slice(0, 3)
+            .map((r) => r.title)
+            .join(", ")}`
+        );
         failed++;
       }
     } catch (error) {
@@ -201,7 +235,9 @@ async function testSpellingSuggestions() {
 
   for (const query of testQueries) {
     const suggestions = await getSpellingSuggestions(query);
-    console.log(`   "${query}" → ${suggestions.length > 0 ? suggestions.map((s) => s.suggestion).join(", ") : "No suggestions"}`);
+    console.log(
+      `   "${query}" → ${suggestions.length > 0 ? suggestions.map((s) => s.suggestion).join(", ") : "No suggestions"}`
+    );
   }
 }
 
@@ -228,10 +264,14 @@ async function testMultiStrategy() {
   console.log(`   Query: "Incepton"`);
   console.log(`   Exact match: ${result.exactMatch ? result.exactMatch.title : "None"}`);
   console.log(`   Fuzzy results: ${result.fuzzyResults.length}`);
-  console.log(`   Suggestions: ${result.suggestions.map((s) => s.suggestion).join(", ") || "None"}`);
+  console.log(
+    `   Suggestions: ${result.suggestions.map((s) => s.suggestion).join(", ") || "None"}`
+  );
 
   if (result.fuzzyResults.length > 0) {
-    console.log(`   Top fuzzy: ${result.fuzzyResults[0].title} (sim: ${result.fuzzyResults[0].similarity.toFixed(3)})`);
+    console.log(
+      `   Top fuzzy: ${result.fuzzyResults[0].title} (sim: ${result.fuzzyResults[0].similarity.toFixed(3)})`
+    );
   }
 }
 
@@ -240,9 +280,7 @@ async function testRawSimilarity() {
 
   const query = "Incepton";
 
-  const results = await prisma.$queryRaw<
-    Array<{ id: number; title: string; sim: number }>
-  >`
+  const results = await prisma.$queryRaw<Array<{ id: number; title: string; sim: number }>>`
     SELECT id, title, similarity(LOWER(title), ${query.toLowerCase()}) as sim
     FROM movies
     WHERE title % ${query}

@@ -12,10 +12,7 @@ import {
   getCachedSeriesRatingsBatch,
 } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
-import {
-  getWatchOptionsForCountry,
-  type ProcessedWatchOptions,
-} from "@/lib/watch-options";
+import { getWatchOptionsForCountry, type ProcessedWatchOptions } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
 import { MOVIE_GENRES, TV_GENRES, CACHE_DURATIONS } from "@/lib/constants";
 import { dataLogger } from "@/lib/logger";
@@ -38,8 +35,18 @@ interface DBRatingsDoc {
     ratings?: {
       imdb?: { rating: number | null; ratingCount: number | null; sourceUrl?: string };
       rottenTomatoes?: {
-        critic?: { score: number | null; ratingCount: number | null; certified: boolean | null; sentiment: string | null };
-        audience?: { score: number | null; ratingCount: number | null; certified: boolean | null; sentiment: string | null };
+        critic?: {
+          score: number | null;
+          ratingCount: number | null;
+          certified: boolean | null;
+          sentiment: string | null;
+        };
+        audience?: {
+          score: number | null;
+          ratingCount: number | null;
+          certified: boolean | null;
+          sentiment: string | null;
+        };
         sourceUrl?: string;
       };
     };
@@ -127,9 +134,7 @@ async function fetchWatchProviders(
 ): Promise<Record<string, WatchProviderData> | undefined> {
   try {
     const data =
-      mediaType === "movie"
-        ? await getMovieWatchProviders(id)
-        : await getSeriesWatchProviders(id);
+      mediaType === "movie" ? await getMovieWatchProviders(id) : await getSeriesWatchProviders(id);
     return data?.results as Record<string, WatchProviderData>;
   } catch {
     return undefined;
@@ -189,17 +194,13 @@ export async function getTrending(): Promise<TrendingData> {
       .slice(0, 20)
       .map(mapMovieGenres);
 
-    const tv = (tvTrending.results as Record<string, unknown>[])
-      .slice(0, 20)
-      .map(mapTVGenres);
+    const tv = (tvTrending.results as Record<string, unknown>[]).slice(0, 20).map(mapTVGenres);
 
     // Separate hero items by media type for batch fetching
     const heroMovieIds = allItems
       .filter((item) => item.media_type === "movie")
       .map((item) => item.id);
-    const heroTVIds = allItems
-      .filter((item) => item.media_type === "tv")
-      .map((item) => item.id);
+    const heroTVIds = allItems.filter((item) => item.media_type === "tv").map((item) => item.id);
 
     // Fetch MongoDB ratings and TMDB watch providers in parallel
     const [movieRatings, seriesRatings, ...watchProvidersResults] = await Promise.all([
@@ -213,12 +214,8 @@ export async function getTrending(): Promise<TrendingData> {
     ]);
 
     // Create lookup maps for MongoDB data
-    const movieRatingsMap = new Map(
-      (movieRatings as DBRatingsDoc[]).map((doc) => [doc.id, doc])
-    );
-    const seriesRatingsMap = new Map(
-      (seriesRatings as DBRatingsDoc[]).map((doc) => [doc.id, doc])
-    );
+    const movieRatingsMap = new Map((movieRatings as DBRatingsDoc[]).map((doc) => [doc.id, doc]));
+    const seriesRatingsMap = new Map((seriesRatings as DBRatingsDoc[]).map((doc) => [doc.id, doc]));
 
     // Build enhanced data for each hero item
     const heroEnhancedData: Record<string, HeroItemEnhancedData> = {};
@@ -230,9 +227,7 @@ export async function getTrending(): Promise<TrendingData> {
       const title = isMovie ? (item as MovieListItem).title : (item as SeriesListItem).name;
 
       // Get MongoDB data
-      const dbDoc = isMovie
-        ? movieRatingsMap.get(item.id)
-        : seriesRatingsMap.get(item.id);
+      const dbDoc = isMovie ? movieRatingsMap.get(item.id) : seriesRatingsMap.get(item.id);
 
       // Get watch providers (from parallel fetch results)
       const watchProviders = watchProvidersResults[index];
@@ -247,12 +242,10 @@ export async function getTrending(): Promise<TrendingData> {
       );
 
       // Process watch options for user's country
-      const googleData = dbDoc?.googleData as { allWatchOptions?: Array<{ name: string; link: string; price?: string }> } | undefined;
-      const watchOptions = getWatchOptionsForCountry(
-        countryCode,
-        googleData,
-        watchProviders
-      );
+      const googleData = dbDoc?.googleData as
+        | { allWatchOptions?: Array<{ name: string; link: string; price?: string }> }
+        | undefined;
+      const watchOptions = getWatchOptionsForCountry(countryCode, googleData, watchProviders);
 
       // Build light item for WatchOptions (continue watching tracking)
       const watchOptionsItem: WatchOptionsItem = {
@@ -305,14 +298,14 @@ export interface MovieWithReleaseInfo extends MovieListItem {
  */
 function formatReleaseDate(releaseDate: string): string {
   if (!releaseDate) return "TBA";
-  
+
   const release = new Date(releaseDate + "T00:00:00"); // Parse as local date
   const today = new Date();
   const currentYear = today.getFullYear();
   const releaseYear = release.getFullYear();
-  
+
   const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  
+
   // Include year if different from current year
   if (releaseYear !== currentYear) {
     return release.toLocaleDateString("en-US", { ...options, year: "numeric" });
@@ -328,10 +321,10 @@ function formatReleaseDate(releaseDate: string): string {
 export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
   try {
     const { discoverMovies } = await import("@/server/services/tmdb");
-    
+
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
-    
+
     // Use discover API - more reliable than /movie/upcoming which is region-specific
     // Fetch multiple pages sorted by popularity to get quality upcoming content
     const [page1, page2] = await Promise.all([
@@ -359,21 +352,21 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
       .filter((item) => {
         // Must have poster
         if (!item.poster_path) return false;
-        
+
         // Verify release date is in the future (discover should handle this but double-check)
         const releaseDate = item.release_date as string;
         if (!releaseDate || releaseDate < todayStr) return false;
-        
+
         // Filter out very obscure movies - require some popularity
         const popularity = item.popularity as number;
         if (popularity < 3) return false;
-        
+
         return true;
       })
       .map((item) => {
         const movie = mapMovieGenres(item);
         const releaseDate = item.release_date as string;
-        
+
         return {
           ...movie,
           releaseLabel: formatReleaseDate(releaseDate),
@@ -402,9 +395,9 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
 export async function getNowPlaying(): Promise<MovieListItem[]> {
   try {
     const countryCode = await getCountryCode();
-    
+
     const { getNowPlayingMovies } = await import("@/server/services/tmdb");
-    
+
     const [page1, page2] = await Promise.all([
       getNowPlayingMovies(1, countryCode),
       getNowPlayingMovies(2, countryCode),
@@ -451,10 +444,10 @@ import { getYouTubeChannelTrailers } from "@/server/services/youtube-channels";
  */
 export interface YouTubeTrendingTrailer {
   youtubeId: string;
-  title: string;           // Extracted movie/show title
-  trailerTitle: string;    // Full YouTube video title
+  title: string; // Extracted movie/show title
+  trailerTitle: string; // Full YouTube video title
   channelTitle: string;
-  channelThumbnail: string | null;  // Channel avatar (240px or 88px)
+  channelThumbnail: string | null; // Channel avatar (240px or 88px)
   channelCategory: string;
   publishedAt: string;
   viewCount: number;
@@ -478,7 +471,7 @@ export async function getYouTubeTrendingTrailers(
       minViews: 50000, // Higher threshold for home page
     });
 
-    return trailers.map(t => ({
+    return trailers.map((t) => ({
       youtubeId: t.id,
       title: t.extractedTitle,
       trailerTitle: t.title,
@@ -516,7 +509,7 @@ export interface TrendingTrailer {
   releaseDate: string;
   rating: number;
   popularity: number;
-  
+
   // Trailer info
   youtubeKey: string;
   trailerTitle: string;
@@ -557,23 +550,43 @@ interface TMDBTrendingItem {
  * - Upcoming movies (trailers being actively promoted)
  * - Now playing movies (recent releases with fresh trailers)
  *
+ * @param limit - Maximum number of trailers to return
+ * @param preloadedTrendingMovies - Optional pre-fetched trending movies (from getTrending) to avoid duplicate API calls
+ *
  * TODO: Add TV series trailers once we find a reliable source for fresh content.
  * TMDB often only has Season 1 trailers even for currently airing shows.
  * KinoCheck had fresher content but is geo-blocked in countries like India.
  */
 export async function getTrendingTrailers(
-  limit: number = 12
+  limit: number = 12,
+  preloadedTrendingMovies?: MovieListItem[]
 ): Promise<TrendingTrailer[]> {
   try {
-    const { fetchFromTMDB, getUpcomingMovies, getNowPlayingMovies } = await import("@/server/services/tmdb");
+    const { fetchFromTMDB, getUpcomingMovies, getNowPlayingMovies } =
+      await import("@/server/services/tmdb");
 
-    // Fetch multiple sources in parallel
+    // Fetch sources in parallel, reusing preloaded trending if available
     const [trendingData, upcomingData, nowPlayingData] = await Promise.all([
-      // Trending movies
-      fetchFromTMDB<{ results: TMDBTrendingItem[] }>(
-        "/trending/movie/week",
-        { cacheNamespace: "trending", cacheTTL: CACHE_DURATIONS.trending }
-      ),
+      // Use preloaded trending movies if provided, otherwise fetch
+      preloadedTrendingMovies
+        ? Promise.resolve({
+            results: preloadedTrendingMovies.map(
+              (m): TMDBTrendingItem => ({
+                id: m.id,
+                title: m.title,
+                media_type: "movie",
+                poster_path: m.poster_path,
+                backdrop_path: m.backdrop_path,
+                release_date: m.release_date,
+                vote_average: m.vote_average,
+                popularity: m.popularity,
+              })
+            ),
+          })
+        : fetchFromTMDB<{ results: TMDBTrendingItem[] }>("/trending/movie/week", {
+            cacheNamespace: "trending",
+            cacheTTL: CACHE_DURATIONS.trending,
+          }),
       // Upcoming movies (trailers being actively promoted)
       getUpcomingMovies(1),
       // Now playing (recent releases)
@@ -610,59 +623,63 @@ export async function getTrendingTrailers(
 
     // Take more than needed in case some don't have trailers
     const candidates = allMovies.slice(0, limit + 8);
+
+    // Fetch all videos in parallel (instead of sequential for loop)
+    const videoResults = await Promise.all(
+      candidates.map(async (item) => {
+        try {
+          const videosData = await fetchFromTMDB<{ results: TMDBVideo[] }>(
+            `/movie/${item.id}/videos`,
+            { cacheNamespace: "movie", cacheTTL: CACHE_DURATIONS.movie }
+          );
+          return { item, videos: videosData.results || [] };
+        } catch {
+          return { item, videos: [] };
+        }
+      })
+    );
+
+    // Process results and build trailers list
     const trailers: TrendingTrailer[] = [];
 
-    // Fetch videos for each movie
-    for (const item of candidates) {
+    for (const { item, videos } of videoResults) {
       if (trailers.length >= limit) break;
 
-      try {
-        const videosData = await fetchFromTMDB<{ results: TMDBVideo[] }>(
-          `/movie/${item.id}/videos`,
-          { cacheNamespace: "movie", cacheTTL: CACHE_DURATIONS.movie }
-        );
+      // Find best official trailer (prefer Trailer over Teaser, English, recent)
+      const officialTrailers = videos
+        .filter(
+          (v) =>
+            v.site === "YouTube" &&
+            (v.type === "Trailer" || v.type === "Teaser") &&
+            v.official &&
+            (v.iso_639_1 === "en" || !v.iso_639_1) // English or unspecified
+        )
+        .sort((a, b) => {
+          // Prefer "Trailer" over "Teaser"
+          if (a.type === "Trailer" && b.type !== "Trailer") return -1;
+          if (b.type === "Trailer" && a.type !== "Trailer") return 1;
+          // Then by publish date (most recent first)
+          return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+        });
 
-        const videos = videosData.results || [];
+      const bestTrailer = officialTrailers[0];
+      if (bestTrailer) {
+        trailers.push({
+          tmdbId: item.id,
+          title: item.title || item.name || "Unknown",
+          mediaType: "movie",
+          posterPath: item.poster_path,
+          backdropPath: item.backdrop_path,
+          releaseDate: item.release_date || "",
+          rating: item.vote_average,
+          popularity: item.popularity,
 
-        // Find best official trailer (prefer Trailer over Teaser, English, recent)
-        const officialTrailers = videos
-          .filter(
-            (v) =>
-              v.site === "YouTube" &&
-              (v.type === "Trailer" || v.type === "Teaser") &&
-              v.official &&
-              (v.iso_639_1 === "en" || !v.iso_639_1) // English or unspecified
-          )
-          .sort((a, b) => {
-            // Prefer "Trailer" over "Teaser"
-            if (a.type === "Trailer" && b.type !== "Trailer") return -1;
-            if (b.type === "Trailer" && a.type !== "Trailer") return 1;
-            // Then by publish date (most recent first)
-            return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
-          });
-
-        const bestTrailer = officialTrailers[0];
-        if (bestTrailer) {
-          trailers.push({
-            tmdbId: item.id,
-            title: item.title || item.name || "Unknown",
-            mediaType: "movie",
-            posterPath: item.poster_path,
-            backdropPath: item.backdrop_path,
-            releaseDate: item.release_date || "",
-            rating: item.vote_average,
-            popularity: item.popularity,
-
-            youtubeKey: bestTrailer.key,
-            trailerTitle: bestTrailer.name,
-            trailerType: bestTrailer.type,
-            official: bestTrailer.official,
-            publishedAt: bestTrailer.published_at,
-          });
-        }
-      } catch {
-        // Skip items that fail to fetch videos
-        continue;
+          youtubeKey: bestTrailer.key,
+          trailerTitle: bestTrailer.name,
+          trailerType: bestTrailer.type,
+          official: bestTrailer.official,
+          publishedAt: bestTrailer.published_at,
+        });
       }
     }
 

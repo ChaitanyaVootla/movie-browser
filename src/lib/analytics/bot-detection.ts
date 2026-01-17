@@ -18,13 +18,7 @@ interface BotPattern {
   category: BotCategory;
 }
 
-export type BotCategory =
-  | "search_engine"
-  | "social"
-  | "tool"
-  | "monitoring"
-  | "scraper"
-  | "ai";
+export type BotCategory = "search_engine" | "social" | "tool" | "monitoring" | "scraper" | "ai";
 
 export interface BotDetectionResult {
   isBot: boolean;
@@ -178,9 +172,7 @@ interface SuspiciousTrafficInput {
  * Detect suspicious (likely automated) traffic patterns
  * beyond simple bot detection
  */
-export function detectSuspiciousTraffic(
-  request: SuspiciousTrafficInput
-): SuspiciousTrafficResult {
+export function detectSuspiciousTraffic(request: SuspiciousTrafficInput): SuspiciousTrafficResult {
   // Missing standard headers that browsers always send
   if (!request.acceptLanguage && !request.acceptEncoding) {
     return {
@@ -262,5 +254,3 @@ export function getBotDescription(botType: string): string {
 
   return descriptions[botType] || `Bot: ${botType}`;
 }
-
-

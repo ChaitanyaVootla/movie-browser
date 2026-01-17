@@ -22,14 +22,14 @@ interface HoverCardWrapperProps {
 
 /**
  * HoverCardWrapper - Wraps any card component to enable hover card functionality
- * 
+ *
  * Usage:
  * ```tsx
  * <HoverCardWrapper item={movie}>
  *   <MovieCard item={movie} />
  * </HoverCardWrapper>
  * ```
- * 
+ *
  * The wrapper handles:
  * - Hover delay to prevent accidental triggers (desktop)
  * - Long-press to open quick info drawer (mobile)
@@ -49,7 +49,7 @@ export function HoverCardWrapper({
   const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTriggeredRef = useRef(false);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  
+
   const { openHoverCard, startClose, closeHoverCard } = useHoverCardContext();
   const { openQuickInfo } = useQuickInfo();
 
@@ -72,12 +72,12 @@ export function HoverCardWrapper({
   // Desktop: Mouse hover handlers
   const handleMouseEnter = useCallback(() => {
     if (!enabled) return;
-    
+
     // Don't show on mobile/touch devices
     if (window.innerWidth < 768) return;
 
     clearHoverTimeout();
-    
+
     hoverTimeoutRef.current = setTimeout(() => {
       if (containerRef.current) {
         const bounds = containerRef.current.getBoundingClientRect();
@@ -98,51 +98,60 @@ export function HoverCardWrapper({
   }, [clearHoverTimeout, closeHoverCard]);
 
   // Mobile: Long-press (touch) handlers
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!enabled) return;
-    // Only on mobile
-    if (window.innerWidth >= 768) return;
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!enabled) return;
+      // Only on mobile
+      if (window.innerWidth >= 768) return;
 
-    longPressTriggeredRef.current = false;
-    touchStartPosRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-
-    clearLongPressTimeout();
-    
-    longPressTimeoutRef.current = setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      // Vibrate for haptic feedback (if supported)
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-      openQuickInfo(item, isMovie);
-    }, longPressDelay);
-  }, [enabled, longPressDelay, item, isMovie, openQuickInfo, clearLongPressTimeout]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    // Cancel if finger moves more than 10px (prevents accidental triggers during scroll)
-    if (touchStartPosRef.current) {
-      const dx = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x);
-      const dy = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y);
-      if (dx > 10 || dy > 10) {
-        clearLongPressTimeout();
-        touchStartPosRef.current = null;
-      }
-    }
-  }, [clearLongPressTimeout]);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    clearLongPressTimeout();
-    touchStartPosRef.current = null;
-    
-    // Prevent click/navigation if long-press was triggered
-    if (longPressTriggeredRef.current) {
-      e.preventDefault();
       longPressTriggeredRef.current = false;
-    }
-  }, [clearLongPressTimeout]);
+      touchStartPosRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
+
+      clearLongPressTimeout();
+
+      longPressTimeoutRef.current = setTimeout(() => {
+        longPressTriggeredRef.current = true;
+        // Vibrate for haptic feedback (if supported)
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        openQuickInfo(item, isMovie);
+      }, longPressDelay);
+    },
+    [enabled, longPressDelay, item, isMovie, openQuickInfo, clearLongPressTimeout]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      // Cancel if finger moves more than 10px (prevents accidental triggers during scroll)
+      if (touchStartPosRef.current) {
+        const dx = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x);
+        const dy = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y);
+        if (dx > 10 || dy > 10) {
+          clearLongPressTimeout();
+          touchStartPosRef.current = null;
+        }
+      }
+    },
+    [clearLongPressTimeout]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      clearLongPressTimeout();
+      touchStartPosRef.current = null;
+
+      // Prevent click/navigation if long-press was triggered
+      if (longPressTriggeredRef.current) {
+        e.preventDefault();
+        longPressTriggeredRef.current = false;
+      }
+    },
+    [clearLongPressTimeout]
+  );
 
   return (
     <div
@@ -159,4 +168,3 @@ export function HoverCardWrapper({
     </div>
   );
 }
-

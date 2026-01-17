@@ -12,7 +12,7 @@ interface PersonImagesProps {
 
 /**
  * PersonImages - Displays a gallery of profile images for a person
- * 
+ *
  * Reuses the ImageGallery component from media features for consistent
  * gallery behavior (horizontal scroll, lightbox, thumbnails, keyboard nav).
  */

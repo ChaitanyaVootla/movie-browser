@@ -58,7 +58,7 @@ async function rawFetchFromTMDB<T>(
         cache: "no-store",
         // Prevent connection pooling issues that cause ECONNRESET
         headers: {
-          "Connection": "close",
+          Connection: "close",
         },
       });
 
@@ -71,9 +71,10 @@ async function rawFetchFromTMDB<T>(
       return response.json();
     } catch (error) {
       lastError = error as Error;
-      const isConnectionError = (error as NodeJS.ErrnoException).code === "ECONNRESET" ||
+      const isConnectionError =
+        (error as NodeJS.ErrnoException).code === "ECONNRESET" ||
         (error as Error).message?.includes("fetch failed");
-      
+
       // Only log non-connection errors or last attempt
       if (!isConnectionError || attempt === retries - 1) {
         tmdbLogger.warn({
@@ -119,13 +120,7 @@ export async function fetchFromTMDB<T>(
   endpoint: string,
   options: TMDBFetchOptions = {}
 ): Promise<T> {
-  const {
-    params = {},
-    cacheNamespace = "movie",
-    cacheTTL,
-    retries = 3,
-    timeout = 15000,
-  } = options;
+  const { params = {}, cacheNamespace = "movie", cacheTTL, retries = 3, timeout = 15000 } = options;
 
   const cacheKey = buildCacheKey(endpoint, params);
 
@@ -218,12 +213,30 @@ export async function getMovieImages(movieId: number): Promise<{
  */
 export async function getMovieWatchProviders(movieId: number): Promise<{
   id: number;
-  results: Record<string, {
-    link?: string;
-    flatrate?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
-    rent?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
-    buy?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
-  }>;
+  results: Record<
+    string,
+    {
+      link?: string;
+      flatrate?: Array<{
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }>;
+      rent?: Array<{
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }>;
+      buy?: Array<{
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }>;
+    }
+  >;
 }> {
   return fetchFromTMDB(`/movie/${movieId}/watch/providers`, {
     cacheNamespace: "movie",
@@ -238,7 +251,8 @@ export async function getMovieWatchProviders(movieId: number): Promise<{
 export async function getSeriesDetails(seriesId: number): Promise<Record<string, unknown>> {
   return fetchFromTMDB<Record<string, unknown>>(`/tv/${seriesId}`, {
     params: {
-      append_to_response: "credits,videos,images,keywords,recommendations,similar,external_ids,watch/providers",
+      append_to_response:
+        "credits,videos,images,keywords,recommendations,similar,external_ids,watch/providers",
       include_image_language: "en,null",
     },
     cacheNamespace: "series",
@@ -294,12 +308,30 @@ export async function getSeriesImages(seriesId: number): Promise<{
  */
 export async function getSeriesWatchProviders(seriesId: number): Promise<{
   id: number;
-  results: Record<string, {
-    link?: string;
-    flatrate?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
-    rent?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
-    buy?: Array<{ provider_id: number; provider_name: string; logo_path: string; display_priority: number }>;
-  }>;
+  results: Record<
+    string,
+    {
+      link?: string;
+      flatrate?: Array<{
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }>;
+      rent?: Array<{
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }>;
+      buy?: Array<{
+        provider_id: number;
+        provider_name: string;
+        logo_path: string;
+        display_priority: number;
+      }>;
+    }
+  >;
 }> {
   return fetchFromTMDB(`/tv/${seriesId}/watch/providers`, {
     cacheNamespace: "series",
@@ -318,7 +350,8 @@ export async function getSeriesWatchProviders(seriesId: number): Promise<{
 export async function getPersonDetails(personId: number): Promise<Record<string, unknown>> {
   return fetchFromTMDB<Record<string, unknown>>(`/person/${personId}`, {
     params: {
-      append_to_response: "movie_credits,tv_credits,combined_credits,images,external_ids,tagged_images",
+      append_to_response:
+        "movie_credits,tv_credits,combined_credits,images,external_ids,tagged_images",
     },
     cacheNamespace: "person",
     cacheTTL: CACHE_DURATIONS.person,
@@ -374,7 +407,10 @@ export interface PersonSearchResult {
   popularity: number;
 }
 
-export async function searchPerson(query: string, page = 1): Promise<{
+export async function searchPerson(
+  query: string,
+  page = 1
+): Promise<{
   page: number;
   results: PersonSearchResult[];
   total_pages: number;
@@ -396,7 +432,10 @@ export interface KeywordSearchResult {
   name: string;
 }
 
-export async function searchKeyword(query: string, page = 1): Promise<{
+export async function searchKeyword(
+  query: string,
+  page = 1
+): Promise<{
   page: number;
   results: KeywordSearchResult[];
   total_pages: number;
@@ -560,7 +599,8 @@ export async function getRecommendations(
   mediaType: "movie" | "series",
   page = 1
 ): Promise<TMDBListResponse> {
-  const endpoint = mediaType === "movie" ? `/movie/${id}/recommendations` : `/tv/${id}/recommendations`;
+  const endpoint =
+    mediaType === "movie" ? `/movie/${id}/recommendations` : `/tv/${id}/recommendations`;
   return fetchFromTMDB(endpoint, {
     params: { page: String(page) },
     cacheNamespace: mediaType,

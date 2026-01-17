@@ -171,10 +171,7 @@ const BATCH_FLUSH_INTERVAL_MS = 5000;
  * Add an event to the batch buffer for delayed insertion
  * Useful for high-volume events like page views
  */
-export function queueEvent<T extends Record<string, unknown>>(
-  table: string,
-  event: T
-): void {
+export function queueEvent<T extends Record<string, unknown>>(table: string, event: T): void {
   const config = getConfigCached();
   if (!config) {
     return; // Analytics disabled
@@ -344,10 +341,7 @@ type TableName =
 /**
  * Insert analytics events with type safety
  */
-export function insertAnalyticsEvents(
-  table: TableName,
-  events: Partial<AnalyticsEvent>[]
-): void {
+export function insertAnalyticsEvents(table: TableName, events: Partial<AnalyticsEvent>[]): void {
   // Queue for batched insertion
   for (const event of events) {
     queueEvent(table, event as Record<string, unknown>);

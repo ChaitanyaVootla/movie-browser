@@ -48,7 +48,7 @@ export async function getAISummary(tmdbId: number): Promise<AISummary | null> {
 /**
  * Get enriched AI input markdown for a movie by TMDB ID
  * Reads from data/enriched/<tmdb_id>/ai-input.md
- * 
+ *
  * This contains the full enriched content (plot, themes, reception, etc.)
  * used by the AI agent for contextual answers.
  *
@@ -70,4 +70,3 @@ export async function getAIInputMarkdown(tmdbId: number): Promise<string | null>
     return null;
   }
 }
-

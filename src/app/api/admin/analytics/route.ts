@@ -125,7 +125,11 @@ export async function GET(request: NextRequest) {
           getPerformanceMetrics(range).catch(() => null),
           getErrorOverview(range).catch(() => null),
           getLambdaUsageOverview(range).catch(() => null),
-          checkAllAlerts().catch(() => ({ alerts: [], checkedAt: new Date().toISOString(), durationMs: 0 })),
+          checkAllAlerts().catch(() => ({
+            alerts: [],
+            checkedAt: new Date().toISOString(),
+            durationMs: 0,
+          })),
         ]);
 
         // Get live cache metrics directly (more reliable than ClickHouse persistence)
@@ -257,9 +261,9 @@ export async function GET(request: NextRequest) {
         ]);
 
         // Count total occurrences of this error type
-        const totalCount = topErrors.find(
-          (e) => e.errorType === errorType && e.errorSource === errorSource
-        )?.count || occurrences.length;
+        const totalCount =
+          topErrors.find((e) => e.errorType === errorType && e.errorSource === errorSource)
+            ?.count || occurrences.length;
 
         return NextResponse.json({
           detail,
@@ -394,5 +398,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-

@@ -45,11 +45,7 @@ export function UpcomingCarousel({
     >
       {loading
         ? Array.from({ length: displayMode === "wide" ? 5 : 8 }).map((_, i) => (
-            <MediaCardSkeleton
-              key={i}
-              className={posterCardClass}
-              wideClassName={wideCardClass}
-            />
+            <MediaCardSkeleton key={i} className={posterCardClass} wideClassName={wideCardClass} />
           ))
         : items.map((item, index) => (
             <MediaCard

@@ -114,7 +114,9 @@ export function mapWatchProvider(
  * Process scraped watch options from googleData (India only)
  */
 export function processScrapedWatchOptions(
-  googleData: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> } | undefined
+  googleData:
+    | { allWatchOptions?: Array<{ name: string; link: string; price?: string }> }
+    | undefined
 ): WatchOption[] {
   if (!googleData?.allWatchOptions?.length) {
     return [];
@@ -201,7 +203,10 @@ export function normalizeTMDBWatchProviders(
 }
 
 // PostgreSQL scraped links format (from scraped_watch_links table)
-export type ScrapedWatchLinksMap = Record<string, Array<{ name: string; link: string; price?: string }>>;
+export type ScrapedWatchLinksMap = Record<
+  string,
+  Array<{ name: string; link: string; price?: string }>
+>;
 
 /**
  * Process scraped watch links from PostgreSQL (country-keyed format)
@@ -251,7 +256,9 @@ export function processScrapedWatchLinksFromPostgres(
  */
 export function getWatchOptionsForCountry(
   countryCode: string,
-  googleData: { allWatchOptions?: Array<{ name: string; link: string; price?: string }> } | undefined,
+  googleData:
+    | { allWatchOptions?: Array<{ name: string; link: string; price?: string }> }
+    | undefined,
   watchProviders: Record<string, WatchProviderData> | undefined,
   scrapedWatchLinks?: ScrapedWatchLinksMap
 ): ProcessedWatchOptions {
@@ -344,8 +351,21 @@ export function getWatchOptionsForCountry(
 
 // Common countries to include in API response for client-side country switching
 const COMMON_COUNTRIES = [
-  "US", "GB", "IN", "CA", "AU", "DE", "FR", "JP", "KR", "BR", 
-  "MX", "ES", "IT", "NL", "SE"
+  "US",
+  "GB",
+  "IN",
+  "CA",
+  "AU",
+  "DE",
+  "FR",
+  "JP",
+  "KR",
+  "BR",
+  "MX",
+  "ES",
+  "IT",
+  "NL",
+  "SE",
 ];
 
 /**
@@ -376,4 +396,3 @@ export function getOptimizedWatchProviders(
 
   return Object.keys(result).length > 0 ? result : undefined;
 }
-

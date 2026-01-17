@@ -9,10 +9,8 @@ import { testMovieIds, testSeriesIds, testPersonIds } from "../fixtures/test-dat
  * in the initial HTML response (no JavaScript execution).
  */
 
-const GOOGLEBOT_UA =
-  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
-const BINGBOT_UA =
-  "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)";
+const GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+const BINGBOT_UA = "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)";
 
 test.describe("Googlebot Crawler", () => {
   test.use({
@@ -86,10 +84,7 @@ test.describe("Googlebot Crawler", () => {
     await page.goto(`/person/${testPersonIds.actor}/brad-pitt`);
 
     // Essential meta tags
-    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
-      "content",
-      "profile"
-    );
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "profile");
 
     // JSON-LD schema
     const jsonLdScript = page.locator('script[type="application/ld+json"]');
@@ -109,10 +104,7 @@ test.describe("Googlebot Crawler", () => {
     await expect(page).toHaveTitle(/Movie Browser/i);
 
     // Essential meta tags
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
-      "content",
-      /.+/
-    );
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /.+/);
 
     // Main content should have trending/featured sections
     const main = page.locator("main");
@@ -179,14 +171,14 @@ test.describe("Bot Content Completeness", () => {
     expect(title).toContain("Fight Club");
 
     // Check meta description is not empty/placeholder
-    const description = await page.locator('meta[name="description"]').getAttribute("content");
-    expect(description).toBeTruthy();
+    const description = page.locator('meta[name="description"]');
+    await expect(description).toHaveAttribute("content");
     expect(description!.length).toBeGreaterThan(20);
     expect(description).not.toMatch(/loading|placeholder|undefined/i);
 
     // Check OG image is a real URL, not placeholder
-    const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
-    expect(ogImage).toBeTruthy();
+    const ogImage = page.locator('meta[property="og:image"]');
+    await expect(ogImage).toHaveAttribute("content");
     expect(ogImage).toMatch(/^https?:\/\//);
   });
 
@@ -196,11 +188,11 @@ test.describe("Bot Content Completeness", () => {
     // JSON-LD should include numberOfSeasons or numberOfEpisodes
     const jsonLdScript = page.locator('script[type="application/ld+json"]');
     const jsonLdContent = await jsonLdScript.textContent();
-    
+
     // Parse and verify structure
     const schema = JSON.parse(jsonLdContent!);
     expect(schema["@type"]).toBe("TVSeries");
-    
+
     // Should have some indication of episodes/seasons in the schema
     // Note: The exact fields depend on your schema implementation
     expect(schema.name).toBeTruthy();
@@ -210,15 +202,15 @@ test.describe("Bot Content Completeness", () => {
     await page.goto(`/person/${testPersonIds.actor}/brad-pitt`);
 
     // Check meta description exists and is meaningful
-    const description = await page.locator('meta[name="description"]').getAttribute("content");
-    expect(description).toBeTruthy();
+    const description = page.locator('meta[name="description"]');
+    await expect(description).toHaveAttribute("content");
     expect(description!.length).toBeGreaterThan(30);
 
     // JSON-LD should have person details
     const jsonLdScript = page.locator('script[type="application/ld+json"]');
     const jsonLdContent = await jsonLdScript.textContent();
     const schema = JSON.parse(jsonLdContent!);
-    
+
     expect(schema["@type"]).toBe("Person");
     expect(schema.name).toContain("Brad Pitt");
   });

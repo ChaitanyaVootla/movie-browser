@@ -85,9 +85,7 @@ export default function SeriesError({ error, reset }: ErrorProps) {
 
         {/* Alternative action */}
         <div className="mt-6 pt-6 border-t border-border">
-          <p className="text-sm text-muted-foreground mb-3">
-            Looking for something else?
-          </p>
+          <p className="text-sm text-muted-foreground mb-3">Looking for something else?</p>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/browse?type=tv">
               <Search className="h-4 w-4 mr-2" />

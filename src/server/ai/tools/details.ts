@@ -13,11 +13,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
-import {
-  getLightMovieDetails,
-  getLightSeriesDetails,
-  getCountryCode,
-} from "@/server/utils";
+import { getLightMovieDetails, getLightSeriesDetails, getCountryCode } from "@/server/utils";
 import { connectDB } from "@/server/db";
 import {
   WatchedMovie,
@@ -131,29 +127,21 @@ async function fetchRelated(
 
     if (isMovie) {
       const movie = await getMovieDetails(id);
-      const similar =
-        (movie.similar as RelatedResults | undefined)?.results || [];
-      const recommendations =
-        (movie.recommendations as RelatedResults | undefined)?.results || [];
+      const similar = (movie.similar as RelatedResults | undefined)?.results || [];
+      const recommendations = (movie.recommendations as RelatedResults | undefined)?.results || [];
 
       return {
         similar: similar.slice(0, 5).map((m) => formatRelatedItem(m, true)),
-        recommendations: recommendations
-          .slice(0, 5)
-          .map((m) => formatRelatedItem(m, true)),
+        recommendations: recommendations.slice(0, 5).map((m) => formatRelatedItem(m, true)),
       };
     } else {
       const series = await getSeriesDetails(id);
-      const similar =
-        (series.similar as RelatedResults | undefined)?.results || [];
-      const recommendations =
-        (series.recommendations as RelatedResults | undefined)?.results || [];
+      const similar = (series.similar as RelatedResults | undefined)?.results || [];
+      const recommendations = (series.recommendations as RelatedResults | undefined)?.results || [];
 
       return {
         similar: similar.slice(0, 5).map((s) => formatRelatedItem(s, false)),
-        recommendations: recommendations
-          .slice(0, 5)
-          .map((s) => formatRelatedItem(s, false)),
+        recommendations: recommendations.slice(0, 5).map((s) => formatRelatedItem(s, false)),
       };
     }
   } catch (error) {
@@ -309,9 +297,7 @@ Returns: title, year, ratings (IMDb/RT/TMDB), cast, director, streaming, user st
 Use the id for [RATINGS], [WATCH], [TRAILER] tags in your response.`,
     schema: z.object({
       id: z.number().describe("TMDB movie or series ID"),
-      mediaType: z
-        .enum(["movie", "series"])
-        .describe("Content type: 'movie' or 'series'"),
+      mediaType: z.enum(["movie", "series"]).describe("Content type: 'movie' or 'series'"),
       includeRelated: z
         .boolean()
         .optional()

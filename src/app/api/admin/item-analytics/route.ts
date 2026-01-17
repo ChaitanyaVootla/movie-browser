@@ -118,7 +118,13 @@ export async function GET(request: NextRequest) {
       getItemAnalytics(id, mediaType, { days }).catch(() => null),
       getItemLambdaHistory(id, mediaType, 10).catch(() => []),
       getItemBotStats(id, mediaType, { days }, 5).catch(() => ({ totalBotViews: 0, topBots: [] })),
-      getItemDeviceStats(id, mediaType, { days }).catch(() => ({ mobile: 0, desktop: 0, tablet: 0, other: 0, total: 0 })),
+      getItemDeviceStats(id, mediaType, { days }).catch(() => ({
+        mobile: 0,
+        desktop: 0,
+        tablet: 0,
+        other: 0,
+        total: 0,
+      })),
       getItemDailyTrend(id, mediaType, { days }).catch(() => []),
     ]);
 

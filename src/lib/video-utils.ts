@@ -20,10 +20,10 @@ export function sortVideos(videos: Video[]): Video[] {
     const priorityA = typePriority[a.type] ?? 99;
     const priorityB = typePriority[b.type] ?? 99;
     if (priorityA !== priorityB) return priorityA - priorityB;
-    
+
     // 2. Official videos first
     if (a.official !== b.official) return a.official ? -1 : 1;
-    
+
     // 3. Most recent first (by published_at)
     const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
     const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;

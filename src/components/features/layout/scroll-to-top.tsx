@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 
 /**
  * ScrollToTop - Handles scroll restoration on route changes
- * 
+ *
  * Uses a subtle fade-in approach rather than jarring instant scroll:
  * 1. Instantly scrolls to top (no animation - this happens during page transition)
  * 2. The page content fades in naturally via the loading/Suspense states
- * 
+ *
  * This is placed once in the layout and handles all route changes.
  */
 export function ScrollToTop() {
@@ -31,4 +31,3 @@ export function ScrollToTop() {
 
   return null;
 }
-

@@ -109,7 +109,9 @@ export function WideMovieCard({
                   sizes="(max-width: 640px) 280px, (max-width: 1024px) 340px, 400px"
                   className={cn(
                     "object-cover transition-all duration-300 group-hover:scale-105",
-                    isWatched && !hideUserStatus && "grayscale brightness-75 group-hover:grayscale-0 group-hover:brightness-100"
+                    isWatched &&
+                      !hideUserStatus &&
+                      "grayscale brightness-75 group-hover:grayscale-0 group-hover:brightness-100"
                   )}
                   priority={priority}
                   onError={handleImageError}
@@ -117,9 +119,7 @@ export function WideMovieCard({
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <span className="text-muted-foreground text-sm text-center px-2">
-                    {title}
-                  </span>
+                  <span className="text-muted-foreground text-sm text-center px-2">{title}</span>
                 </div>
               )}
 
@@ -142,7 +142,7 @@ export function WideMovieCard({
                 isMovie={itemIsMovie}
                 className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               />
-              
+
               {/* Badge inside image at bottom-left with inverted corner */}
               {badge && (
                 <div className="absolute bottom-0 left-0 z-10 flex items-end">
@@ -180,9 +180,7 @@ export function WideMovieCard({
               {title}
             </h3>
             {subtitle && (
-              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                {subtitle}
-              </p>
+              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{subtitle}</p>
             )}
           </div>
         </CardContent>
@@ -200,4 +198,3 @@ export function WideMovieCardSkeleton({ className }: { className?: string }) {
     </div>
   );
 }
-

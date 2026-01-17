@@ -211,10 +211,7 @@ export function extractSeriesOverviewProps(series: Series): SeriesOverviewProps 
 }
 
 /** Extract only the fields needed for WatchOptions item prop */
-export function extractWatchOptionsItem(
-  item: Movie | Series,
-  isMovie: boolean
-): WatchOptionsItem {
+export function extractWatchOptionsItem(item: Movie | Series, isMovie: boolean): WatchOptionsItem {
   // Find English backdrop for continue watching
   const englishBackdrop = item.images?.backdrops?.find((b) => b.iso_639_1 === "en");
 
@@ -263,7 +260,7 @@ export type LightMovieListItem = Omit<MovieListItem, "overview">;
 /** Light series list item without overview (~200-500 bytes saved per item) */
 export type LightSeriesListItem = Omit<SeriesListItem, "overview">;
 
-/** 
+/**
  * Strip overview from movie list items.
  * Saves ~200-500 bytes per item × 15-30 items = 3-15KB per array
  */
@@ -272,7 +269,7 @@ export function extractLightMovieListItems(
   limit = 15
 ): LightMovieListItem[] {
   if (!items || items.length === 0) return [];
-  
+
   return items.slice(0, limit).map(({ overview: _overview, ...rest }) => rest);
 }
 
@@ -285,7 +282,7 @@ export function extractLightSeriesListItems(
   limit = 15
 ): LightSeriesListItem[] {
   if (!items || items.length === 0) return [];
-  
+
   return items.slice(0, limit).map(({ overview: _overview, ...rest }) => rest);
 }
 
@@ -313,7 +310,7 @@ export interface BadgeComputeProps {
  */
 export function extractBadgeProps(item: Movie | Series): BadgeComputeProps {
   const isMovieType = "title" in item;
-  
+
   return {
     vote_average: item.vote_average,
     vote_count: item.vote_count,
@@ -380,7 +377,7 @@ export function extractLightGalleryImages(
   limit = 20
 ): LightGalleryImage[] {
   if (!images || images.length === 0) return [];
-  
+
   return images.slice(0, limit).map((img) => ({
     file_path: img.file_path,
     aspect_ratio: img.aspect_ratio,
@@ -616,10 +613,7 @@ export function extractFilmographyCredits(
 }
 
 /** Extract limited profile images */
-export function extractPersonImages(
-  images: Image[] | undefined,
-  limit = 12
-): PersonProfileImage[] {
+export function extractPersonImages(images: Image[] | undefined, limit = 12): PersonProfileImage[] {
   if (!images || images.length === 0) return [];
 
   return images.slice(0, limit).map((img) => ({

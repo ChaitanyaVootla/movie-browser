@@ -1,0 +1,581 @@
+---
+description: Layout components, navigation, footer, modals, HoverCard, and search
+globs: ["src/components/features/layout/**", "src/components/features/search/**", "src/components/features/hover-card/**"]
+alwaysApply: false
+---
+
+# Layout Components
+
+## Component Structure
+
+```
+src/components/features/
+├── layout/
+│   ├── nav-bar.tsx            # Compact search, nav items, country selector
+│   ├── footer.tsx
+│   ├── theme-toggle.tsx       # Standalone toggle (used in mobile menu only)
+│   ├── country-selector.tsx   # Country selection for watch providers
+│   ├── mobile-bottom-nav.tsx  # Native-app-style bottom navigation
+│   └── scroll-to-top.tsx      # Scroll restoration on route changes
+├── hover-card/                 # Netflix-style hover card system
+│   ├── index.ts               # Export hub
+│   ├── hover-card-context.tsx # Global state (only one hover card open at a time)
+│   ├── hover-card-overlay.tsx # Positioned overlay with edge detection
+│   └── hover-card-wrapper.tsx # Wrapper for any card component
+├── search/
+│   ├── index.ts
+│   └── search-command.tsx     # Dialog with Command for global search
+├── auth/
+│   ├── index.ts               # Export hub for auth components
+│   ├── google-one-tap.tsx     # Google One Tap prompt (non-invasive)
+│   ├── login-dialog.tsx       # Manual sign-in modal
+│   ├── user-menu.tsx          # Avatar dropdown (profile, watchlist, appearance, logout)
+│   └── settings-menu.tsx      # Settings dropdown for non-auth users (card display, theme)
+└── providers/
+    ├── index.tsx              # Main providers wrapper (auth, theme, query, etc.)
+    └── user-store-provider.tsx # Hydrates user store on auth changes
+```
+
+## NavBar Patterns
+
+The navbar uses scroll-aware styling with compact, left-aligned elements. **Hidden on mobile** - `MobileBottomNav` handles navigation instead.
+
+**Desktop NavBar:**
+- Hidden on mobile: `hidden md:block`
+- Scroll-aware background (transparent → solid on scroll)
+- Compact search button with keyboard shortcut (⌘K / Ctrl+K)
+
+**Search Button (Compact):**
+```tsx
+// Small button with search icon + keyboard shortcut (not a wide search bar)
+<button onClick={() => setSearchOpen(true)} className="...">
+  <Search className="h-4 w-4" />
+  <kbd className="hidden lg:inline-flex h-5 ...">
+    {isMac ? "⌘" : "Ctrl"}K
+  </kbd>
+</button>
+```
+
+**Scroll-Aware Styling:**
+```tsx
+// Nav items adapt to scroll state (transparent vs solid background)
+<Button
+  variant="ghost"
+  className={cn(
+    "gap-2",
+    isScrolled
+      ? "text-foreground/80 hover:text-foreground hover:bg-accent"
+      : "text-white/90 hover:text-white hover:bg-white/10",
+    pathname?.startsWith(href) && (isScrolled ? "bg-accent" : "bg-white/10")
+  )}
+>
+```
+
+**Right-Side Elements:**
+- Compact search button (icon + shortcut)
+- Country selector
+- **Auth users**: UserMenu (includes card display + theme toggle in Appearance submenu)
+- **Non-auth users**: SettingsMenu (cog icon) + Sign In button
+
+**Settings Toggle Locations:**
+- **Card Display**: Top of Appearance submenu (Poster Cards / Wide Cards)
+- **Theme Mode**: Below card display (Light / Dark / System)
+- **Color Theme**: Below mode (Default / Midnight Blue / Forest Green)
+
+| Setting | Auth Users | Non-Auth Users |
+|---------|------------|----------------|
+| Card Display | UserMenu → Appearance | SettingsMenu |
+| Theme Mode | UserMenu → Appearance | SettingsMenu |
+| Color Theme | UserMenu → Appearance | SettingsMenu |
+
+## MobileBottomNav Component
+
+Native-app-style bottom navigation bar for mobile devices. Shows on screens < md (768px).
+
+```
+src/components/features/layout/mobile-bottom-nav.tsx
+```
+
+**Layout:**
+```
+┌───────────────────────────────────────────────────────────────┐
+│ Home    Browse    Search    Watchlist    You/Menu            │
+└───────────────────────────────────────────────────────────────┘
+         │                                      │
+         └──────────────────────────────────────┘
+                    h-14, fixed bottom-0
+```
+
+**Nav Items:**
+| Position | Item | Icon | Behavior |
+|------|----|------|---------|
+| 1 | Home | `Home` | Links to `/` |
+| 2 | Browse | `Compass` | Links to `/browse` |
+| 3 | Search | `Search` | Opens SearchCommand dialog |
+| 4 | Watchlist | `Bookmark` | Links to `/watchlist` |
+| 5 | You/Menu | `User` or Avatar | Opens MobileUserSheet |
+
+**User Avatar Display:**
+- **Authenticated**: Shows user's avatar image or initials fallback
+- **Unauthenticated**: Shows generic User icon with "Menu" label
+
+```tsx
+// User avatar with initials fallback (matches desktop navbar pattern)
+{isAuthenticated ? (
+  <Avatar className="h-5 w-5 ring-1 ring-border/40">
+    {user?.image && <AvatarImage src={user.image} ... />}
+    <AvatarFallback>{getInitials(user?.name || "U")}</AvatarFallback>
+  </Avatar>
+) : (
+  <User className="h-5 w-5 text-muted-foreground/70" />
+)}
+```
+
+**Mobile User Sheet:**
+- Bottom sheet (slides up from bottom)
+- Shows user profile when authenticated
+- Links: Watchlist, Watched, My Ratings, Settings
+- Theme toggle with visual switch
+- Sign In / Sign Out action
+
+**Key implementation details:**
+- Nav height: `h-14` (56px)
+- Background: `bg-background/95 backdrop-blur-xl border-t border-border/30`
+- Search uses `useSearchCommand` hook to control SearchCommand dialog
+- AssistantFloaty (AI bubble) floats above the nav at `bottom-[4.25rem]`
+
+**Usage in layout.tsx:**
+```tsx
+<Providers>
+  <ScrollToTop />
+  <NavBar />
+  <main className="flex-1 pb-16 md:pb-0">{children}</main>  {/* pb-16 for mobile nav */}
+  <Footer className="hidden md:block" />
+  <MobileBottomNav />
+</Providers>
+```
+
+## CountrySelector Component
+
+Dropdown for selecting watch provider region:
+
+```tsx
+import { CountrySelector } from "@/components/features/layout";
+
+// In NavBar
+<CountrySelector />
+
+// Compact mode (flag only)
+<CountrySelector compact />
+```
+
+**Features:**
+- Uses `country-list` library for complete country list (250+ countries)
+- Priority countries (IN, US, UK, CA, AU, DE, FR, JP) shown at top
+- Searchable with flag icons from `flagcdn.com`
+- Stores selection in `countryOverride` (Zustand user store)
+- Client-side only (not persisted to server)
+
+**Design specs:**
+- Button: Flag icon + country code (e.g., 🇮🇳 IN)
+- Popover: 260px wide, 300px scroll area
+- Search input at top for filtering
+
+## HoverCard System (Netflix-style)
+
+Enhanced hover card that provides quick preview of movie/series info when hovering over cards. Shows ratings, genres, cast, and watch options in a sleek overlay.
+
+```
+src/components/features/hover-card/
+├── index.ts                  # Export hub
+├── hover-card-context.tsx    # Global state management (ensures only one card open)
+├── hover-card-overlay.tsx    # Main overlay component with positioning logic
+└── hover-card-wrapper.tsx    # Wrapper component for any card
+```
+
+### Usage
+
+The `HoverCardWrapper` wraps any card component to enable hover functionality:
+
+```tsx
+import { HoverCardWrapper } from "@/components/features/hover-card";
+
+// Wrap individual cards
+<HoverCardWrapper item={movie}>
+  <MovieCard item={movie} />
+</HoverCardWrapper>
+
+// Already integrated in MediaCard
+<MediaCard item={movie} enableHover />  // Default: enabled on desktop
+```
+
+### Provider Setup
+
+`HoverCardProvider` is already included in the main providers wrapper:
+
+```tsx
+// src/components/providers/index.tsx
+<HoverCardProvider>
+  {children}
+  <HoverCardOverlay />  {/* Portal to body */}
+</HoverCardProvider>
+```
+
+### Server Action
+
+Lean API endpoint (`src/server/actions/hover-card.ts`) returns only essential data:
+
+```typescript
+interface HoverCardData {
+  id: number;
+  title: string;
+  backdrop_path: string | null;
+  poster_path: string | null;
+  year: string | null;
+  runtime?: number;           // Movies only
+  number_of_seasons?: number; // Series only
+  genres: { id: number; name: string }[];
+  ratings: { name: string; rating: string; certified?: boolean; sentiment?: string }[];
+  cast: { id: number; name: string; character?: string; profile_path: string | null }[];
+  watch_options: ProcessedWatchOptions;
+}
+
+// Usage in components
+import { getHoverCardData } from "@/server/actions/hover-card";
+
+const data = await getHoverCardData(movieId, "movie");
+```
+
+**Payload size:** ~2-3KB vs ~50KB+ for full movie details
+
+### Design Specs
+
+- **Width:** 440px
+- **Edge detection:** Automatically positions to stay within viewport
+- **Hover delay:** 500ms default (configurable via `delay` prop)
+- **Animation:** Scale + fade with spring easing
+
+### Hover Card Content Layout
+
+```
+┌─────────────────────────────────────────────────────┐
+│  [Backdrop Image - 16:9 aspect ratio]               │
+│                                                     │
+│  Title                                              │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ 2025  ⏱ 1h 47m  Animation • Comedy         [+] [👁] │  ← Top row
+├─────────────────────────────────────────────────────┤
+│ [TMDb 76] [IMDb 76] [RT 91] [RT🍿 96] [G 94]       │  ← Ratings
+├─────────────────────────────────────────────────────┤
+│ ▶ WATCH NOW                                         │
+│ [Netflix] [Prime] [Disney+]                         │  ← Provider icons
+├─────────────────────────────────────────────────────┤
+│ STARRING                                            │
+│ [Photo] Name          [Photo] Name                  │  ← 2x2 cast grid
+│         Character             Character             │
+│ [Photo] Name          [Photo] Name                  │
+│         Character             Character             │
+└─────────────────────────────────────────────────────┘
+```
+
+### Key Features
+
+- **No tagline** (removed for cleaner appearance)
+- **No "More Info" button** (clicking anywhere navigates to details)
+- **Year, runtime, genres** on same row as action buttons
+- **5 ratings** shown (TMDB, IMDb, RT Critic, RT Audience, Google)
+- **4 cast members** in 2x2 grid with photos and character names
+- **Watch providers** with click-through to streaming service
+- **Badges** shown using `getHoverCardBadges()` (Trending, New, etc.)
+
+### HoverCardWrapper Props
+
+```typescript
+interface HoverCardWrapperProps {
+  children: ReactNode;
+  item: MovieListItem | SeriesListItem;
+  delay?: number;      // Hover delay in ms (default: 500)
+  enabled?: boolean;   // Enable/disable (default: true on desktop)
+  className?: string;
+}
+```
+
+### Disabling Hover Cards
+
+```tsx
+// Disable for specific card
+<HoverCardWrapper item={movie} enabled={false}>
+  <MovieCard item={movie} />
+</HoverCardWrapper>
+
+// Or disable via MediaCard prop
+<MediaCard item={movie} enableHover={false} />
+```
+
+## Search Command Component
+
+### SearchCommand Usage
+
+```tsx
+import { SearchCommand, useSearchCommand } from "@/components/features/search";
+
+// In layout or navbar
+function NavBar() {
+  const { open, setOpen } = useSearchCommand(); // Handles Cmd+K shortcut
+
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>
+        <Search /> Search
+      </Button>
+      <SearchCommand open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+// In MobileBottomNav - separate instance for mobile
+function MobileBottomNav() {
+  const { open, setOpen } = useSearchCommand();
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>Search</button>
+      <SearchCommand open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+```
+
+### Mobile Fullscreen Behavior
+
+On mobile (< sm breakpoint), the search dialog expands to fullscreen:
+
+```tsx
+<DialogContent
+  className={cn(
+    "overflow-hidden p-0",
+    // Mobile: full screen, no padding, top-aligned
+    "max-sm:top-0 max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0",
+    "max-sm:max-w-none max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:border-0",
+    // Desktop: centered, constrained width
+    "sm:max-w-[600px]"
+  )}
+>
+```
+
+**Mobile-specific:**
+- Fullscreen with no padding (keyboard takes bottom portion anyway)
+- No rounded corners or border
+- Keyboard shortcuts footer hidden (`hidden sm:flex`)
+
+### Back Button Handling (Mobile)
+
+The search dialog intercepts the mobile back button so pressing back closes the dialog instead of navigating away:
+
+```tsx
+// Handle mobile back button - push history state when open, close on popstate
+const closedViaBack = React.useRef(false);
+
+React.useEffect(() => {
+  if (!open) return;
+
+  const handlePopState = () => {
+    closedViaBack.current = true;
+    onOpenChange(false);
+  };
+
+  // Push a history state so back button closes dialog instead of navigating
+  window.history.pushState({ searchOpen: true }, "");
+  window.addEventListener("popstate", handlePopState);
+
+  return () => {
+    window.removeEventListener("popstate", handlePopState);
+    // Clean up the history state if dialog closes normally (not via back)
+    if (!closedViaBack.current && window.history.state?.searchOpen) {
+      window.history.back();
+    }
+    closedViaBack.current = false;
+  };
+}, [open, onOpenChange]);
+```
+
+**Behavior:**
+1. When dialog opens, pushes a history state `{ searchOpen: true }`
+2. If user presses back button, `popstate` event fires → dialog closes
+3. If dialog closes via other means (clicking result, X, Escape), the pushed history state is cleaned up
+4. This prevents the back button from navigating away from the app
+
+### Search Architecture
+
+**Three-tier search with instant + deferred results:**
+
+1. **Instant topics** (local, no API call) - Genres/themes match immediately as user types
+2. **Recent visits** (from Zustand store) - Shown when search is empty
+3. **API results** (debounced 250ms) - Movies, TV shows, people from TMDB
+
+```
+┌────────────────────────────────────────────────────────┐
+│ Empty State                                            │
+├────────────────────────────────────────────────────────┤
+│ Recent (from user store)                               │
+│ ├─ Breaking Bad               [TV icon]               │
+│ ├─ Inception                  [Film icon]             │
+│ └─ (up to 5 items)                                    │
+├────────────────────────────────────────────────────────┤
+│ Popular Topics (if < 3 recents)                        │
+│ [Action Movies] [Comedy Movies] [Horror Movies] ...   │
+│ (compact pills, up to 8)                              │
+└────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────┐
+│ Typing "action" State                                  │
+├────────────────────────────────────────────────────────┤
+│ [🔍 Search all for "action" →]                        │
+├────────────────────────────────────────────────────────┤
+│ Topics (instant, no API wait)                          │
+│ [Action Movies] [Action Shows]                         │
+├────────────────────────────────────────────────────────┤
+│ Results (API - unified relevance order)               │
+│ ├─ Action Movie Title    2019  ★7.5    [Film icon]   │
+│ ├─ Action TV Show        2020  ★8.2    [TV icon]     │
+│ └─ Action Star Actor     Acting        [User icon]   │
+└────────────────────────────────────────────────────────┘
+```
+
+### Key Design Decisions
+
+**1. Fixed minimum height** - Prevents layout shift when results load:
+```tsx
+const CONTENT_MIN_HEIGHT = "360px";
+<CommandList style={{ minHeight: CONTENT_MIN_HEIGHT }}>
+```
+
+**2. Topics search instantly** - Uses `useMemo` (not debounced), from local `searchTopics()`:
+```tsx
+const matchingTopics = React.useMemo(() => {
+  if (!query.trim() || query.length < 2) return [];
+  return searchTopics(query, 4); // Local search, instant
+}, [query]);
+```
+
+**3. Unified results order** - API results stay in TMDB's relevance order (no segregation by type):
+```tsx
+// Server action returns unified results
+export async function quickSearch(query: string): Promise<QuickSearchResponse> {
+  return {
+    results: response.results.slice(0, 8), // Mixed movies/tv/people in relevance order
+  };
+}
+```
+
+**4. Compact topic pills** - Topics render as horizontal pills (not full command items):
+```tsx
+const renderTopicPills = (topics) => (
+  <div className="flex flex-wrap gap-1.5 px-2 py-2">
+    {topics.map((topic) => (
+      <button
+        onClick={() => handleSelectTopic(topic.key)}
+        className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-xs"
+      >
+        {topic.name}
+      </button>
+    ))}
+  </div>
+);
+```
+
+### Media Type Icons
+
+Results show type icons for quick identification:
+
+```tsx
+const getMediaIcon = (mediaType: string) => {
+  switch (mediaType) {
+    case "movie": return <Film className="h-4 w-4" />;
+    case "tv":    return <Tv className="h-4 w-4" />;
+    case "person": return <User className="h-4 w-4" />;
+  }
+};
+```
+
+### Search Action
+
+The `quickSearch` server action (`src/server/actions/search.ts`):
+
+```typescript
+// Returns unified results in TMDB relevance order
+export async function quickSearch(query: string): Promise<QuickSearchResponse> {
+  if (!query.trim()) return { results: [] };
+
+  const response = await search({ query, page: 1 });
+  return { results: response.results.slice(0, 8) };
+}
+
+// Full search (for /search page)
+export async function search(input): Promise<SearchResponse> {
+  // Returns results, movies, series, people (categorized for full page)
+}
+```
+
+### Keyboard Shortcuts
+
+The `useSearchCommand` hook manages Cmd+K (Mac) / Ctrl+K (Windows):
+
+```tsx
+export function useSearchCommand() {
+  const [open, setOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
+
+  return { open, setOpen };
+}
+```
+
+## User Library Pages Pattern
+
+The user library pages (watchlist, ratings, watched) share a common pattern:
+
+```
+src/app/watchlist/     # Movies + Series user wants to watch
+├── page.tsx           # Server component with metadata
+└── client.tsx         # Tabbed Movies/Series view
+
+src/app/ratings/       # Movies + Series user has liked/disliked
+├── page.tsx           # Server component with metadata
+└── client.tsx         # Filtered grid with type + rating toggles
+
+src/app/watched/       # Movies user has marked as watched
+├── page.tsx           # Server component with metadata
+└── client.tsx         # Searchable grid with genre filter
+```
+
+### Common Patterns
+
+All user library pages:
+- Use TanStack Query for client-side data fetching
+- Show unauthenticated state with sign-in prompt
+- Pass `hideUserStatus` to cards (status is redundant on these pages)
+- Support search, filter, and sort controls
+
+### Data Fetching
+
+Use TanStack Query for client-side data fetching with optimistic hydration:
+
+```tsx
+const { data: watchlist, isLoading } = useQuery({
+  queryKey: ["watchlist"],
+  queryFn: () => fetch("/api/user/watchlist").then(r => r.json()),
+  enabled: authStatus === "authenticated",
+  staleTime: 30000,
+});
+```

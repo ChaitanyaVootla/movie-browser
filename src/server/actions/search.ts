@@ -156,12 +156,12 @@ export interface EnhancedSearchResponse {
 
 /**
  * Enhanced search combining PostgreSQL hybrid search with TMDB fallback.
- * 
+ *
  * Flow:
  * 1. Run hybrid search (fuzzy + semantic in PostgreSQL)
  * 2. If limited results, supplement with TMDB search
  * 3. Deduplicate and merge
- * 
+ *
  * @example
  * const results = await enhancedSearch({ query: "Incepton" }); // Handles typos
  * const results = await enhancedSearch({ query: "mind-bending sci-fi" }); // Semantic
@@ -186,10 +186,14 @@ export async function enhancedSearch(
   // This handles items not in our PostgreSQL database
   if (hybridResults.length < 10) {
     const tmdbResponse = await searchMulti(query, page);
-    
+
     // Filter out items already in hybrid results
     const hybridIds = new Set(hybridResults.map((r) => `${r.mediaType}:${r.id}`));
-    const newTmdbResults = tmdbResponse.results.filter((r) => {
+    const typedResults = tmdbResponse.results as Array<{
+      id: number;
+      media_type: "movie" | "tv" | "person";
+    }>;
+    const newTmdbResults = typedResults.filter((r) => {
       const mediaType = r.media_type === "tv" ? "series" : r.media_type;
       return !hybridIds.has(`${mediaType}:${r.id}`);
     });
@@ -235,4 +239,3 @@ export async function enhancedQuickSearch(query: string): Promise<{
 
 // Note: HybridSearchResult and IntentAnalysis types should be imported directly
 // from "@/lib/search" - type re-exports from server action files cause bundler issues
-

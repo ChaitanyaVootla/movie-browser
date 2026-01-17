@@ -1,9 +1,9 @@
 #!/usr/bin/env npx tsx
 /**
  * MongoDB User Data Explorer
- * 
+ *
  * Run with: MONGO_IP=<ip> MONGO_PASS=<pass> npx tsx scripts/explore-mongo-user-data.ts
- * 
+ *
  * This script explores all user-related collections in MongoDB to understand
  * the actual data structure before migrating to PostgreSQL.
  */
@@ -25,13 +25,13 @@ const MONGO_URI = `mongodb://root:${MONGO_PASS}@${MONGO_IP}:${MONGO_PORT}`;
 // Collections to explore
 const USER_COLLECTIONS = [
   "users",
-  "watchedmovies",       // WatchedMovies model
-  "movieswatchlists",    // MoviesWatchList model  
-  "serieslists",         // SeriesList model
-  "userratings",         // UserRating model
-  "recents",             // Recent model
-  "continuewatchings",   // ContinueWatching model
-  "filters",             // Filters model (user saved filters)
+  "watchedmovies", // WatchedMovies model
+  "movieswatchlists", // MoviesWatchList model
+  "serieslists", // SeriesList model
+  "userratings", // UserRating model
+  "recents", // Recent model
+  "continuewatchings", // ContinueWatching model
+  "filters", // Filters model (user saved filters)
 ];
 
 async function exploreCollection(db: mongoose.Connection["db"], collectionName: string) {
@@ -41,7 +41,7 @@ async function exploreCollection(db: mongoose.Connection["db"], collectionName: 
 
   try {
     const collection = db!.collection(collectionName);
-    
+
     // Get count
     const count = await collection.countDocuments();
     console.log(`Total documents: ${count}`);
@@ -53,18 +53,18 @@ async function exploreCollection(db: mongoose.Connection["db"], collectionName: 
 
     // Get sample documents
     const samples = await collection.find({}).limit(5).toArray();
-    
+
     // Analyze schema from samples
     const allFields = new Set<string>();
     const fieldTypes: Record<string, Set<string>> = {};
-    
+
     for (const doc of samples) {
       for (const [key, value] of Object.entries(doc)) {
         allFields.add(key);
         if (!fieldTypes[key]) {
           fieldTypes[key] = new Set();
         }
-        const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+        const type = value === null ? "null" : Array.isArray(value) ? "array" : typeof value;
         fieldTypes[key].add(type);
       }
     }
@@ -87,18 +87,18 @@ async function exploreCollection(db: mongoose.Connection["db"], collectionName: 
 
     // For ratings, check itemType distribution
     if (collectionName === "userratings") {
-      const itemTypes = await collection.aggregate([
-        { $group: { _id: "$itemType", count: { $sum: 1 } } }
-      ]).toArray();
+      const itemTypes = await collection
+        .aggregate([{ $group: { _id: "$itemType", count: { $sum: 1 } } }])
+        .toArray();
       console.log("\nRatings by itemType:");
       for (const t of itemTypes) {
         console.log(`  ${t._id || "(null)"}: ${t.count}`);
       }
-      
+
       // Check rating values
-      const ratingValues = await collection.aggregate([
-        { $group: { _id: "$rating", count: { $sum: 1 } } }
-      ]).toArray();
+      const ratingValues = await collection
+        .aggregate([{ $group: { _id: "$rating", count: { $sum: 1 } } }])
+        .toArray();
       console.log("\nRating value distribution:");
       for (const r of ratingValues) {
         console.log(`  ${r._id}: ${r.count}`);
@@ -125,25 +125,24 @@ async function exploreCollection(db: mongoose.Connection["db"], collectionName: 
 
     // For recents and continueWatching, show media type distribution
     if (collectionName === "recents" || collectionName === "continuewatchings") {
-      const typeDistribution = await collection.aggregate([
-        { $group: { _id: "$isMovie", count: { $sum: 1 } } }
-      ]).toArray();
+      const typeDistribution = await collection
+        .aggregate([{ $group: { _id: "$isMovie", count: { $sum: 1 } } }])
+        .toArray();
       console.log("\nMedia type distribution:");
       for (const t of typeDistribution) {
         console.log(`  ${t._id ? "Movies" : "Series"}: ${t.count}`);
       }
     }
 
-    return { 
-      name: collectionName, 
-      count, 
+    return {
+      name: collectionName,
+      count,
       sampleDoc: samples[0],
       fields: Array.from(allFields),
       fieldTypes: Object.fromEntries(
         Object.entries(fieldTypes).map(([k, v]) => [k, Array.from(v)])
-      )
+      ),
     };
-
   } catch (error) {
     console.error(`Error exploring ${collectionName}:`, error);
     return { name: collectionName, error: String(error) };
@@ -153,10 +152,10 @@ async function exploreCollection(db: mongoose.Connection["db"], collectionName: 
 async function main() {
   console.log("Connecting to MongoDB...");
   console.log(`URI: mongodb://root:***@${MONGO_IP}:${MONGO_PORT}`);
-  
+
   await mongoose.connect(MONGO_URI);
   const client = mongoose.connection.getClient();
-  
+
   // User data is split across two databases:
   // - 'test' database: users collection (Auth.js)
   // - 'movieBrowser' database: all user activity collections
@@ -183,12 +182,12 @@ async function main() {
   // Explore user collections
   // 'users' is in 'test' database, rest are in 'movieBrowser'
   console.log("\n\n========== EXPLORING USER COLLECTIONS ==========");
-  
+
   results["users"] = await exploreCollection(testDb, "users");
   results["accounts"] = await exploreCollection(testDb, "accounts");
-  
+
   // User activity collections in movieBrowser
-  for (const collName of USER_COLLECTIONS.filter(c => c !== "users")) {
+  for (const collName of USER_COLLECTIONS.filter((c) => c !== "users")) {
     results[collName] = await exploreCollection(db, collName);
   }
 
@@ -216,7 +215,7 @@ async function main() {
       }
     }
   }
-  
+
   console.log("\nChecking for other potential user collections in test...");
   for (const col of testCollections) {
     if (col.name !== "users" && col.name !== "accounts") {

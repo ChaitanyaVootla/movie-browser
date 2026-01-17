@@ -6,7 +6,7 @@ import { useUserStore } from "@/stores/user";
 
 /**
  * Provider that handles user store hydration based on auth state.
- * 
+ *
  * - Hydrates the store when user signs in
  * - Resets the store when user signs out
  * - Should be placed inside AuthProvider
@@ -29,5 +29,3 @@ export function UserStoreProvider({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-
-

@@ -23,9 +23,7 @@ import { Series as SeriesModel } from "./models/series";
  */
 export async function getMovieRatingsDirect(id: number) {
   await connectDB();
-  const movie = await MovieModel.findOne({ id })
-    .select("googleData external_data homepage")
-    .lean();
+  const movie = await MovieModel.findOne({ id }).select("googleData external_data homepage").lean();
   return movie;
 }
 
@@ -120,5 +118,3 @@ export const getCachedSeriesRatingsBatch = cache(
     tags: ["series"],
   }
 );
-
-

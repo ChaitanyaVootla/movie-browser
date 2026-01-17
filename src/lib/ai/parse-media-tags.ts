@@ -90,7 +90,12 @@ export interface ParsedPersonTag {
   needsResolution: boolean;
 }
 
-export type ParsedTag = ParsedMediaTag | ParsedRatingsTag | ParsedWatchTag | ParsedTrailerTag | ParsedPersonTag;
+export type ParsedTag =
+  | ParsedMediaTag
+  | ParsedRatingsTag
+  | ParsedWatchTag
+  | ParsedTrailerTag
+  | ParsedPersonTag;
 
 // =============================================================================
 // Content Segments (for inline rendering)
@@ -305,7 +310,9 @@ export function parseContent(content: string): ParsedContent {
   const mediaTags = allTags.filter((t): t is ParsedMediaTag => t.kind === "media");
   const segments: ContentSegment[] = [];
   const hasUnresolvedTags = allTags.some(
-    (tag) => (tag.kind === "media" && tag.needsResolution) || (tag.kind === "person" && tag.needsResolution)
+    (tag) =>
+      (tag.kind === "media" && tag.needsResolution) ||
+      (tag.kind === "person" && tag.needsResolution)
   );
 
   if (allTags.length === 0) {
@@ -396,7 +403,9 @@ export function hasAnyTags(content: string): boolean {
 export function hasUnresolvedTags(content: string): boolean {
   const tags = parseAllTags(content);
   return tags.some(
-    (tag) => (tag.kind === "media" && tag.needsResolution) || (tag.kind === "person" && tag.needsResolution)
+    (tag) =>
+      (tag.kind === "media" && tag.needsResolution) ||
+      (tag.kind === "person" && tag.needsResolution)
   );
 }
 
@@ -438,10 +447,7 @@ export function applyResolvedIds(
 /**
  * Update content with resolved IDs for person tags
  */
-export function applyResolvedPersonIds(
-  content: string,
-  resolutions: Map<string, number>
-): string {
+export function applyResolvedPersonIds(content: string, resolutions: Map<string, number>): string {
   const allTags = parseAllTags(content);
   const personTags = allTags.filter((t): t is ParsedPersonTag => t.kind === "person");
   if (personTags.length === 0) return content;
@@ -492,7 +498,9 @@ export function getUnresolvedTitles(content: string): Array<{ type: MediaType; t
  */
 export function getUnresolvedPersonNames(content: string): string[] {
   const allTags = parseAllTags(content);
-  const personTags = allTags.filter((t): t is ParsedPersonTag => t.kind === "person" && t.needsResolution);
+  const personTags = allTags.filter(
+    (t): t is ParsedPersonTag => t.kind === "person" && t.needsResolution
+  );
 
   // Deduplicate by name
   const seen = new Set<string>();

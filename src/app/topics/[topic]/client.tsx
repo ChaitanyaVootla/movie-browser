@@ -4,10 +4,7 @@ import Link from "next/link";
 import { ChevronLeft, Film, Tv, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DiscoverGrid,
-  DiscoverScroller,
-} from "@/components/features/discover";
+import { DiscoverGrid, DiscoverScroller } from "@/components/features/discover";
 import { cn } from "@/lib/utils";
 import { buildBrowseUrl, type DiscoverParams } from "@/lib/discover";
 import type { TopicMeta } from "@/lib/topics";
@@ -113,4 +110,3 @@ export function TopicDetailClient({
     </div>
   );
 }
-

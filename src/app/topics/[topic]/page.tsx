@@ -1,12 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-import {
-  getTopicByKey,
-  getTopicMetaFromKey,
-  ALL_TOPICS,
-  THEME_DEFINITIONS,
-} from "@/lib/topics";
+import { getTopicByKey, getTopicMetaFromKey, ALL_TOPICS, THEME_DEFINITIONS } from "@/lib/topics";
 import { discoverBatch } from "@/server/actions/discover";
 import type { DiscoverParams } from "@/lib/discover";
 import { TopicDetailClient } from "./client";
@@ -29,9 +24,7 @@ export async function generateStaticParams() {
 }
 
 // Generate metadata dynamically
-export async function generateMetadata({
-  params,
-}: TopicPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: TopicPageProps): Promise<Metadata> {
   const { topic: topicKey } = await params;
   const decodedKey = decodeURIComponent(topicKey);
 
@@ -92,7 +85,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
   const mainParams = topic.filterParams as Partial<DiscoverParams> & {
     media_type: "movie" | "tv";
   };
-  
+
   const initialResult = await discoverBatch(mainParams, 2);
 
   // Fetch preview data for scroll variations (if any)
@@ -100,24 +93,34 @@ export default async function TopicPage({ params }: TopicPageProps) {
 
   if (topic.scrollVariations && topic.scrollVariations.length > 0) {
     const variationResults = await Promise.all(
-      topic.scrollVariations.slice(0, 6).map(async (variation: { key: string; name: string; filterParams: Partial<DiscoverParams> }) => {
-        try {
-          const params = {
-            ...mainParams,
-            ...variation.filterParams,
-          } as Partial<DiscoverParams> & { media_type: "movie" | "tv" };
-          
-          const result = await discoverBatch(params, 1);
-          return { key: variation.key, results: result.results.slice(0, 15) };
-        } catch {
-          return { key: variation.key, results: [] };
-        }
-      })
+      topic.scrollVariations
+        .slice(0, 6)
+        .map(
+          async (variation: {
+            key: string;
+            name: string;
+            filterParams: Partial<DiscoverParams>;
+          }) => {
+            try {
+              const params = {
+                ...mainParams,
+                ...variation.filterParams,
+              } as Partial<DiscoverParams> & { media_type: "movie" | "tv" };
+
+              const result = await discoverBatch(params, 1);
+              return { key: variation.key, results: result.results.slice(0, 15) };
+            } catch {
+              return { key: variation.key, results: [] };
+            }
+          }
+        )
     );
 
-    variationResults.forEach(({ key, results }: { key: string; results: typeof initialResult.results }) => {
-      variationPreviews[key] = results;
-    });
+    variationResults.forEach(
+      ({ key, results }: { key: string; results: typeof initialResult.results }) => {
+        variationPreviews[key] = results;
+      }
+    );
   }
 
   return (
@@ -130,4 +133,3 @@ export default async function TopicPage({ params }: TopicPageProps) {
     />
   );
 }
-

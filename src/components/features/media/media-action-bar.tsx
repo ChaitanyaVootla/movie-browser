@@ -61,11 +61,7 @@ export function MediaActionBar({
 
           {/* QuickTake pills (AI-generated) - flows right after buttons */}
           {quickTake && quickTake.length > 0 && (
-            <QuickTake
-              items={quickTake}
-              maxVisible={3}
-              className="hidden sm:flex"
-            />
+            <QuickTake items={quickTake} maxVisible={3} className="hidden sm:flex" />
           )}
         </div>
       </div>

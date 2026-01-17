@@ -73,10 +73,7 @@ interface TrackPageViewOptions {
  * Track a page view event
  * Note: Skipped for admin users to avoid polluting analytics
  */
-export function trackPageView(
-  context: TrackingContext,
-  options: TrackPageViewOptions
-): void {
+export function trackPageView(context: TrackingContext, options: TrackPageViewOptions): void {
   // Skip admin traffic
   if (shouldSkipForAdmin(context)) {
     return;
@@ -174,10 +171,7 @@ interface TrackSessionEndOptions {
  * Track session end
  * Note: Skipped for admin users to avoid polluting analytics
  */
-export function trackSessionEnd(
-  context: TrackingContext,
-  options: TrackSessionEndOptions
-): void {
+export function trackSessionEnd(context: TrackingContext, options: TrackSessionEndOptions): void {
   // Skip admin traffic
   if (shouldSkipForAdmin(context)) {
     return;
@@ -516,7 +510,6 @@ export function trackCacheMetrics(options: TrackCacheMetricsOptions): void {
   insertAnalyticsEvent("cache_metrics", event);
 }
 
-
 // =============================================================================
 // System Metrics Tracking
 // =============================================================================
@@ -564,4 +557,3 @@ export function trackSystemMetrics(options: TrackSystemMetricsOptions): void {
   // Insert immediately (low volume, time-critical for correlation)
   insertAnalyticsEvent("system_metrics", event);
 }
-

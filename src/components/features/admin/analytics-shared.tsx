@@ -3,12 +3,7 @@
 import { useState, useCallback } from "react";
 import { LucideIcon, Check, Copy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { StatVariant } from "./analytics-types";
 
@@ -29,10 +24,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={cn(
-        "flex items-center justify-center text-muted-foreground text-sm",
-        className
-      )}
+      className={cn("flex items-center justify-center text-muted-foreground text-sm", className)}
       style={{ height: typeof height === "number" ? `${height}px` : height }}
     >
       {message}
@@ -83,9 +75,7 @@ export function CompactStat({
       )}
     >
       {Icon && <Icon className="h-3 w-3 text-muted-foreground" />}
-      <span className="text-[10px] uppercase text-muted-foreground">
-        {label}
-      </span>
+      <span className="text-[10px] uppercase text-muted-foreground">{label}</span>
       {isLoading ? (
         <Skeleton className="h-4 w-8" />
       ) : (
@@ -99,9 +89,7 @@ export function CompactStat({
           {value !== null && value !== undefined ? formatValue(value) : "—"}
         </span>
       )}
-      {suffix && (
-        <span className="text-[10px] text-muted-foreground">{suffix}</span>
-      )}
+      {suffix && <span className="text-[10px] text-muted-foreground">{suffix}</span>}
     </div>
   );
 }
@@ -117,16 +105,10 @@ interface CopyableTextProps {
   className?: string;
 }
 
-export function CopyableText({
-  text,
-  displayText,
-  maxLength = 12,
-  className,
-}: CopyableTextProps) {
+export function CopyableText({ text, displayText, maxLength = 12, className }: CopyableTextProps) {
   const [copied, setCopied] = useState(false);
   const truncated =
-    displayText ||
-    (text.length > maxLength ? `${text.slice(0, maxLength)}...` : text);
+    displayText || (text.length > maxLength ? `${text.slice(0, maxLength)}...` : text);
   const isTruncated = text.length > maxLength || displayText !== undefined;
 
   const handleCopy = useCallback(
@@ -186,17 +168,12 @@ export function CopyableText({
     <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="max-w-xs bg-zinc-900 border-zinc-700"
-        >
+        <TooltipContent side="top" className="max-w-xs bg-zinc-900 border-zinc-700">
           <div className="space-y-1.5">
             <p className="text-[10px] text-zinc-400 flex items-center gap-1">
               <Copy className="h-2.5 w-2.5" /> Click to copy full ID
             </p>
-            <code className="text-xs break-all font-mono text-zinc-200 block">
-              {text}
-            </code>
+            <code className="text-xs break-all font-mono text-zinc-200 block">{text}</code>
           </div>
         </TooltipContent>
       </Tooltip>

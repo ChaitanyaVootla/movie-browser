@@ -1,0 +1,317 @@
+---
+description: Admin dashboard components, analytics charts, and monitoring
+globs: ["src/components/features/admin/**"]
+alwaysApply: false
+---
+
+# Admin Components
+
+## Component Structure
+
+```
+src/components/features/admin/
+├── analytics-dashboard.tsx    # Main dashboard with tabs and overview
+├── analytics-charts.tsx       # Recharts-based charts (line, bar, area)
+├── analytics-shared.tsx       # Shared components (CompactStat, formatters)
+├── analytics-types.ts         # TypeScript types for analytics data
+├── alerts-panel.tsx           # Active alerts display
+├── error-detail-sheet.tsx     # Error details slide-out panel
+├── item-analytics-modal.tsx   # Per-item analytics modal
+└── tabs/
+    ├── index.ts               # Export hub
+    ├── traffic-tab.tsx        # Traffic analytics (page views, sessions)
+    ├── ai-tab.tsx             # AI/LLM usage analytics
+    ├── lambda-tab.tsx         # AWS Lambda metrics
+    ├── performance-tab.tsx    # Performance metrics (Core Web Vitals)
+    ├── system-tab.tsx         # System health monitoring
+    ├── database-tab.tsx       # Database metrics
+    └── users-tab.tsx          # User analytics
+```
+
+## Analytics Dashboard
+
+The main dashboard component with tabbed navigation:
+
+```tsx
+import { AnalyticsDashboard } from "@/components/features/admin";
+
+// In admin page
+<AnalyticsDashboard />
+```
+
+**Features:**
+- Uses TanStack Query for data fetching
+- Time range selector (1h, 24h, 7d, 30d)
+- Tab-based navigation between analytics categories
+- Collapsible alerts panel
+- Auto-refresh with configurable interval
+
+**Time Range Pattern:**
+```tsx
+type TimeRange = "1h" | "24h" | "7d" | "30d";
+
+const [range, setRange] = useState<TimeRange>("24h");
+
+<Select value={range} onValueChange={setRange}>
+  <SelectTrigger className="w-[120px]">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="1h">Last Hour</SelectItem>
+    <SelectItem value="24h">Last 24h</SelectItem>
+    <SelectItem value="7d">Last 7 Days</SelectItem>
+    <SelectItem value="30d">Last 30 Days</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+## Analytics Charts
+
+Chart components using Recharts library:
+
+```tsx
+import {
+  LineChart,
+  BarChart,
+  AreaChart,
+  PieChart,
+} from "@/components/features/admin/analytics-charts";
+
+// Line chart for time series data
+<LineChart
+  data={pageViewsData}
+  xKey="timestamp"
+  yKey="views"
+  color="hsl(var(--brand))"
+  height={200}
+/>
+
+// Bar chart for categorical data
+<BarChart
+  data={topPagesData}
+  xKey="path"
+  yKey="views"
+  color="hsl(var(--brand))"
+/>
+
+// Area chart for cumulative metrics
+<AreaChart
+  data={sessionsData}
+  xKey="timestamp"
+  yKey="sessions"
+  gradientFrom="hsl(var(--brand))"
+  gradientTo="transparent"
+/>
+```
+
+**Chart styling guidelines:**
+- Use CSS variables for colors (`hsl(var(--brand))`)
+- Consistent height across similar charts
+- Responsive containers with `ResponsiveContainer`
+- Tooltip with custom formatting
+
+## Shared Components
+
+```tsx
+import {
+  CompactStat,
+  getTimeAgo,
+  formatAlertValue,
+} from "@/components/features/admin/analytics-shared";
+
+// Compact stat card
+<CompactStat
+  label="Page Views"
+  value={12500}
+  change={+15.2}  // Percentage change
+  trend="up"
+/>
+
+// Time formatting
+getTimeAgo(timestamp)  // "2 hours ago", "3 days ago"
+
+// Alert value formatting
+formatAlertValue(value, type)  // Formats based on metric type
+```
+
+**CompactStat design:**
+```tsx
+function CompactStat({ label, value, change, trend }) {
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-2xl font-bold">{formatNumber(value)}</p>
+      {change && (
+        <div className={cn(
+          "flex items-center gap-1 text-xs",
+          trend === "up" ? "text-emerald-500" : "text-red-500"
+        )}>
+          {trend === "up" ? <TrendingUp /> : <TrendingDown />}
+          {Math.abs(change)}%
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Item Analytics Modal
+
+Modal showing analytics for a specific movie/series:
+
+```tsx
+import { ItemAnalyticsModal } from "@/components/features/admin";
+
+<ItemAnalyticsModal
+  itemId={movie.id}
+  mediaType="movie"
+  title={movie.title}
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+/>
+```
+
+**Features:**
+- Page views over time
+- User engagement metrics
+- Watch provider clicks
+- Related item navigation
+
+## Error Detail Sheet
+
+Slide-out panel for error details:
+
+```tsx
+import { ErrorDetailSheet } from "@/components/features/admin";
+
+<ErrorDetailSheet
+  error={selectedError}
+  isOpen={isOpen}
+  onClose={() => setSelectedError(null)}
+/>
+```
+
+**Shows:**
+- Error type and message
+- Stack trace
+- Request details
+- Occurrence count and timeline
+
+## Alerts Panel
+
+Collapsible panel showing active alerts:
+
+```tsx
+import { AlertsPanel } from "@/components/features/admin";
+
+<AlertsPanel
+  alerts={activeAlerts}
+  onDismiss={handleDismiss}
+  onViewDetails={handleViewDetails}
+/>
+```
+
+**Alert types:**
+- Error rate threshold exceeded
+- Response time degradation
+- Database connection issues
+- Lambda cold start warnings
+- Memory/CPU warnings
+
+**Alert badge colors:**
+```tsx
+const severityColors = {
+  critical: "bg-red-500/10 text-red-500 border-red-500/20",
+  warning: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
+  info: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+};
+```
+
+## Tab Components
+
+Each tab handles its own data fetching and display:
+
+```tsx
+// Traffic Tab - Page views, sessions, referrers
+<TrafficTab range={range} />
+
+// AI Tab - LLM usage, tokens, costs
+<AITab range={range} />
+
+// Lambda Tab - Invocations, duration, errors
+<LambdaTab range={range} />
+
+// Performance Tab - Core Web Vitals (LCP, FID, CLS)
+<PerformanceTab range={range} />
+
+// System Tab - Server health, uptime
+<SystemTab range={range} />
+
+// Database Tab - Query performance, connections
+<DatabaseTab range={range} />
+
+// Users Tab - User activity, registrations
+<UsersTab range={range} />
+```
+
+**Tab data pattern:**
+```tsx
+function TrafficTab({ range }: { range: TimeRange }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin", "traffic", range],
+    queryFn: () => fetchTrafficData(range),
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  if (isLoading) return <TabSkeleton />;
+
+  return (
+    <div className="space-y-6">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CompactStat label="Page Views" value={data.pageViews} />
+        <CompactStat label="Unique Visitors" value={data.uniqueVisitors} />
+        <CompactStat label="Avg Session" value={data.avgSession} />
+        <CompactStat label="Bounce Rate" value={data.bounceRate} />
+      </div>
+
+      {/* Charts */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Traffic Over Time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LineChart data={data.timeSeries} ... />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+## API Routes
+
+Admin analytics API structure:
+
+```typescript
+// /api/admin/analytics - Main analytics endpoint
+GET /api/admin/analytics?type=overview&range=24h
+GET /api/admin/analytics?type=traffic&range=24h
+GET /api/admin/analytics?type=ai&range=24h
+GET /api/admin/analytics?type=performance&range=24h
+
+// /api/admin/item-analytics - Per-item analytics
+GET /api/admin/item-analytics?id=123&mediaType=movie&range=7d
+
+// /api/admin/errors - Error details
+GET /api/admin/errors?type=ServerError&source=api&range=24h
+```
+
+## Design Guidelines
+
+1. **Consistent card layout** - Use `Card` with `CardHeader` and `CardContent`
+2. **Loading states** - Show skeletons while data fetches
+3. **Error handling** - Display error states with retry option
+4. **Responsive grids** - Adapt from 1 column (mobile) to 4+ (desktop)
+5. **Color coding** - Green for good, yellow for warning, red for critical
+6. **Number formatting** - Use `Intl.NumberFormat` for consistency

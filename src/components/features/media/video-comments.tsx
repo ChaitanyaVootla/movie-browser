@@ -80,9 +80,7 @@ function CommentItem({
             <span>{formatViewCount(comment.likeCount)}</span>
           </div>
 
-          {comment.isHearted && (
-            <Heart className="h-2.5 w-2.5 text-red-500 fill-current" />
-          )}
+          {comment.isHearted && <Heart className="h-2.5 w-2.5 text-red-500 fill-current" />}
 
           {comment.replyCount > 0 && (
             <div className="flex items-center gap-0.5">
@@ -99,11 +97,7 @@ function CommentItem({
 /**
  * Video comments section component - in a card
  */
-export function VideoComments({
-  comments,
-  isLoading = false,
-  className,
-}: VideoCommentsProps) {
+export function VideoComments({ comments, isLoading = false, className }: VideoCommentsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (isLoading && comments.length === 0) {

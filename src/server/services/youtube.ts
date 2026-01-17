@@ -24,8 +24,8 @@ const RETURN_YOUTUBE_DISLIKE_API = "https://returnyoutubedislikeapi.com";
 
 // Age-based cache TTL configuration (in seconds)
 const CACHE_TTL = {
-  RECENT: 86400,    // 24 hours for videos <30 days old
-  OLD: 604800,      // 7 days for videos >30 days old (stats stabilize)
+  RECENT: 86400, // 24 hours for videos <30 days old
+  OLD: 604800, // 7 days for videos >30 days old (stats stabilize)
   AGE_THRESHOLD_DAYS: 30,
 };
 
@@ -43,11 +43,11 @@ if (!YOUTUBE_API_KEY) {
  */
 function getVideoAgeTTL(publishedAt: string | undefined): number {
   if (!publishedAt) return CACHE_TTL.RECENT;
-  
+
   const publishDate = new Date(publishedAt);
   const now = new Date();
   const ageInDays = (now.getTime() - publishDate.getTime()) / (1000 * 60 * 60 * 24);
-  
+
   return ageInDays > CACHE_TTL.AGE_THRESHOLD_DAYS ? CACHE_TTL.OLD : CACHE_TTL.RECENT;
 }
 
@@ -147,22 +147,18 @@ async function getChannelThumbnails(channelIds: string[]): Promise<Map<string, s
     const cacheKey = `channels:${batch.sort().join(",")}`;
 
     try {
-      const data = await cachedFetch<YouTubeChannelListResponse>(
-        "youtube",
-        cacheKey,
-        async () => {
-          const url = new URL(`${YOUTUBE_API_BASE}/channels`);
-          url.searchParams.set("part", "snippet");
-          url.searchParams.set("id", batch.join(","));
-          url.searchParams.set("key", YOUTUBE_API_KEY!);
+      const data = await cachedFetch<YouTubeChannelListResponse>("youtube", cacheKey, async () => {
+        const url = new URL(`${YOUTUBE_API_BASE}/channels`);
+        url.searchParams.set("part", "snippet");
+        url.searchParams.set("id", batch.join(","));
+        url.searchParams.set("key", YOUTUBE_API_KEY!);
 
-          const response = await fetch(url.toString(), { cache: "no-store" });
-          if (!response.ok) {
-            throw new Error(`YouTube Channels API error: ${response.status}`);
-          }
-          return response.json();
+        const response = await fetch(url.toString(), { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`YouTube Channels API error: ${response.status}`);
         }
-      );
+        return response.json();
+      });
 
       for (const item of data.items || []) {
         results.set(item.id, item.snippet.thumbnails.default.url);
@@ -197,22 +193,18 @@ export async function getVideoStats(videoIds: string[]): Promise<Map<string, You
     const cacheKey = `stats:${batch.sort().join(",")}`;
 
     try {
-      const data = await cachedFetch<YouTubeVideoListResponse>(
-        "youtube",
-        cacheKey,
-        async () => {
-          const url = new URL(`${YOUTUBE_API_BASE}/videos`);
-          url.searchParams.set("part", "snippet,statistics,contentDetails");
-          url.searchParams.set("id", batch.join(","));
-          url.searchParams.set("key", YOUTUBE_API_KEY!);
+      const data = await cachedFetch<YouTubeVideoListResponse>("youtube", cacheKey, async () => {
+        const url = new URL(`${YOUTUBE_API_BASE}/videos`);
+        url.searchParams.set("part", "snippet,statistics,contentDetails");
+        url.searchParams.set("id", batch.join(","));
+        url.searchParams.set("key", YOUTUBE_API_KEY!);
 
-          const response = await fetch(url.toString(), { cache: "no-store" });
-          if (!response.ok) {
-            throw new Error(`YouTube API error: ${response.status}`);
-          }
-          return response.json();
+        const response = await fetch(url.toString(), { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`YouTube API error: ${response.status}`);
         }
-      );
+        return response.json();
+      });
 
       for (const item of data.items || []) {
         channelIds.push(item.snippet.channelId);
@@ -255,21 +247,21 @@ export async function getVideoStats(videoIds: string[]): Promise<Map<string, You
  */
 export async function getSingleVideoStats(videoId: string): Promise<YouTubeVideoStats | null> {
   const cacheKey = `single-stats:${videoId}`;
-  
+
   // Check cache first (age-based TTL was applied when stored)
   const cached = cacheGet<YouTubeVideoStats>("youtube", cacheKey);
   if (cached) return cached;
-  
+
   // Fetch from API
   const stats = await getVideoStats([videoId]);
   const result = stats.get(videoId) || null;
-  
+
   // Cache with age-based TTL
   if (result) {
     const ttl = getVideoAgeTTL(result.publishedAt);
     cacheSet("youtube", cacheKey, result, ttl);
   }
-  
+
   return result;
 }
 
@@ -322,7 +314,7 @@ export async function getVideoDislikes(
   // Return YouTube Dislike API doesn't support batch requests
   // Fetch in parallel with a small delay to avoid rate limiting
   const BATCH_SIZE = 10;
-  
+
   for (let i = 0; i < videoIds.length; i += BATCH_SIZE) {
     const batch = videoIds.slice(i, i + BATCH_SIZE);
     const promises = batch.map(async (videoId) => {
@@ -332,7 +324,7 @@ export async function getVideoDislikes(
       }
     });
     await Promise.all(promises);
-    
+
     // Small delay between batches to respect rate limits
     if (i + BATCH_SIZE < videoIds.length) {
       await new Promise((r) => setTimeout(r, 100));
@@ -366,7 +358,7 @@ export async function getVideoComments(
   }
 
   const cacheKey = `comments:${videoId}:${maxResults}:${pageToken || "first"}`;
-  
+
   // Check cache first
   const cached = cacheGet<YouTubeCommentsResponse>("youtube", cacheKey);
   if (cached) return cached;
@@ -392,8 +384,8 @@ export async function getVideoComments(
       }
       throw new Error(`YouTube Comments API error: ${response.status}`);
     }
-    
-    const data = await response.json() as YouTubeCommentThreadsResponse;
+
+    const data = (await response.json()) as YouTubeCommentThreadsResponse;
 
     const comments: YouTubeComment[] = (data.items || []).map((item) => {
       const comment = item.snippet.topLevelComment.snippet;
@@ -419,7 +411,7 @@ export async function getVideoComments(
       totalCount: data.pageInfo?.totalResults || 0,
       nextPageToken: data.nextPageToken,
     };
-    
+
     // Cache with age-based TTL
     const ttl = getVideoAgeTTL(publishedAt);
     cacheSet("youtube", cacheKey, result, ttl);
@@ -467,4 +459,3 @@ export async function getFullVideoData(
 
   return { stats, dislike, comments };
 }
-

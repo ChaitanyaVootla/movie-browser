@@ -30,8 +30,8 @@ const REPORT_FILE = join(ENRICHED_DIR, "batch-report.json");
 
 // Parse arguments
 const args = process.argv.slice(2);
-const topArg = args.find(a => a.startsWith("--top="));
-const skipArg = args.find(a => a.startsWith("--skip="));
+const topArg = args.find((a) => a.startsWith("--top="));
+const skipArg = args.find((a) => a.startsWith("--skip="));
 const dryRun = args.includes("--dry-run");
 
 const topN = topArg ? parseInt(topArg.split("=")[1], 10) : 100;
@@ -79,10 +79,12 @@ async function ensureTmdbIds(): Promise<void> {
     console.log("");
   } else {
     // Check if file is recent
-    const metadata = JSON.parse(readFileSync(join(process.cwd(), "data", "tmdb-dump", "metadata.json"), "utf-8"));
+    const metadata = JSON.parse(
+      readFileSync(join(process.cwd(), "data", "tmdb-dump", "metadata.json"), "utf-8")
+    );
     const downloadedAt = new Date(metadata.downloadedAt);
     const hoursSinceDownload = (Date.now() - downloadedAt.getTime()) / (1000 * 60 * 60);
-    
+
     if (hoursSinceDownload > 24) {
       console.log(`📥 TMDB IDs file is ${hoursSinceDownload.toFixed(0)}h old, refreshing...\n`);
       execSync("yarn tmdb:ids", { stdio: "inherit" });
@@ -103,42 +105,44 @@ function isAlreadyEnriched(tmdbId: number): boolean {
   return existsSync(enrichedPath);
 }
 
-async function enrichMovie(id: number): Promise<{ success: boolean; tokens?: number; hasRatings?: boolean; error?: string }> {
+async function enrichMovie(
+  id: number
+): Promise<{ success: boolean; tokens?: number; hasRatings?: boolean; error?: string }> {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const proc = spawn("npx", ["tsx", "scripts/enrich-content.ts", String(id)], {
       stdio: ["inherit", "pipe", "pipe"],
       cwd: process.cwd(),
     });
-    
+
     let stdout = "";
     let stderr = "";
-    
+
     proc.stdout?.on("data", (data) => {
       stdout += data.toString();
       process.stdout.write(data);
     });
-    
+
     proc.stderr?.on("data", (data) => {
       stderr += data.toString();
       process.stderr.write(data);
     });
-    
+
     proc.on("close", (code) => {
       if (code === 0) {
         // Parse tokens from output
         const tokenMatch = stdout.match(/~([\d,]+) tokens/);
         const tokens = tokenMatch ? parseInt(tokenMatch[1].replace(",", ""), 10) : undefined;
-        
+
         // Check for ratings
         const hasRatings = stdout.includes("Multi-source ratings: ✅");
-        
+
         resolve({ success: true, tokens, hasRatings });
       } else {
         resolve({ success: false, error: stderr || `Exit code ${code}` });
       }
     });
-    
+
     proc.on("error", (err) => {
       resolve({ success: false, error: err.message });
     });
@@ -146,7 +150,7 @@ async function enrichMovie(id: number): Promise<{ success: boolean; tokens?: num
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(r => setTimeout(r, ms));
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function main() {
@@ -157,18 +161,18 @@ async function main() {
   console.log(`   Skip: ${skipN} movies`);
   console.log(`   Dry run: ${dryRun}`);
   console.log("");
-  
+
   // Ensure we have TMDB IDs
   await ensureTmdbIds();
-  
+
   // Load movie IDs
   const allMovies = loadMovieIds();
   const selectedMovies = allMovies.slice(skipN, skipN + topN);
-  
+
   // Check which are already enriched
   const toEnrich: MovieIdEntry[] = [];
   const alreadyEnriched: MovieIdEntry[] = [];
-  
+
   for (const movie of selectedMovies) {
     if (isAlreadyEnriched(movie.id)) {
       alreadyEnriched.push(movie);
@@ -176,13 +180,13 @@ async function main() {
       toEnrich.push(movie);
     }
   }
-  
+
   console.log(`📊 Selection Summary:`);
   console.log(`   Selected: ${selectedMovies.length} movies`);
   console.log(`   Already enriched: ${alreadyEnriched.length}`);
   console.log(`   To enrich: ${toEnrich.length}`);
   console.log("");
-  
+
   if (dryRun) {
     console.log("🔍 Dry run - Movies to enrich:\n");
     toEnrich.slice(0, 20).forEach((m, i) => {
@@ -194,30 +198,32 @@ async function main() {
     console.log("\nRun without --dry-run to start enrichment.");
     return;
   }
-  
+
   if (toEnrich.length === 0) {
     console.log("✅ All selected movies are already enriched!");
     return;
   }
-  
+
   // Start enrichment
   const results: BatchResult[] = [];
   const startedAt = new Date().toISOString();
-  
+
   console.log(`\n🚀 Starting enrichment of ${toEnrich.length} movies...\n`);
-  
+
   for (let i = 0; i < toEnrich.length; i++) {
     const movie = toEnrich[i];
     const progress = `[${i + 1}/${toEnrich.length}]`;
-    
+
     console.log(`\n${"=".repeat(70)}`);
-    console.log(`${progress} ${movie.original_title} (ID: ${movie.id}, Pop: ${movie.popularity.toFixed(1)})`);
+    console.log(
+      `${progress} ${movie.original_title} (ID: ${movie.id}, Pop: ${movie.popularity.toFixed(1)})`
+    );
     console.log("=".repeat(70));
-    
+
     const startTime = Date.now();
     const result = await enrichMovie(movie.id);
     const duration = Date.now() - startTime;
-    
+
     results.push({
       id: movie.id,
       title: movie.original_title,
@@ -227,21 +233,21 @@ async function main() {
       error: result.error,
       duration,
     });
-    
+
     // Rate limiting - wait between requests
     if (i < toEnrich.length - 1) {
       console.log(`\n⏳ Waiting 2s before next movie...`);
       await sleep(2000);
     }
   }
-  
+
   // Generate report
-  const successful = results.filter(r => r.success);
-  const failed = results.filter(r => !r.success);
-  const withRatings = successful.filter(r => r.hasRatings);
+  const successful = results.filter((r) => r.success);
+  const failed = results.filter((r) => !r.success);
+  const withRatings = successful.filter((r) => r.hasRatings);
   const totalTokens = successful.reduce((sum, r) => sum + (r.tokens || 0), 0);
   const totalDuration = results.reduce((sum, r) => sum + (r.duration || 0), 0);
-  
+
   const report: BatchReport = {
     startedAt,
     completedAt: new Date().toISOString(),
@@ -258,13 +264,13 @@ async function main() {
       totalDuration,
     },
   };
-  
+
   // Save report
   if (!existsSync(ENRICHED_DIR)) {
     mkdirSync(ENRICHED_DIR, { recursive: true });
   }
   writeFileSync(REPORT_FILE, JSON.stringify(report, null, 2));
-  
+
   // Print summary
   console.log(`\n${"=".repeat(70)}`);
   console.log("📊 BATCH ENRICHMENT COMPLETE");
@@ -276,27 +282,24 @@ async function main() {
   console.log(`   Total tokens: ~${totalTokens.toLocaleString()}`);
   console.log(`   Avg tokens/movie: ~${report.summary.avgTokens.toLocaleString()}`);
   console.log(`   Total time: ${(totalDuration / 1000 / 60).toFixed(1)} minutes`);
-  
+
   if (failed.length > 0) {
     console.log(`\n❌ Failed movies:`);
-    failed.forEach(r => {
+    failed.forEach((r) => {
       console.log(`   - ${r.id}: ${r.title} - ${r.error}`);
     });
   }
-  
+
   // Cost estimate for scaling
   const costPer1k = (report.summary.avgTokens / 1000) * 0.00025 * 1000; // Haiku input
   console.log(`\n💰 Cost Estimate (Claude Haiku):`);
-  console.log(`   Per movie: ~$${(report.summary.avgTokens / 1000 * 0.00025).toFixed(4)}`);
-  console.log(`   Top 1,000: ~$${(costPer1k).toFixed(2)}`);
+  console.log(`   Per movie: ~$${((report.summary.avgTokens / 1000) * 0.00025).toFixed(4)}`);
+  console.log(`   Top 1,000: ~$${costPer1k.toFixed(2)}`);
   console.log(`   Top 5,000: ~$${(costPer1k * 5).toFixed(2)}`);
   console.log(`   Top 10,000: ~$${(costPer1k * 10).toFixed(2)}`);
-  
+
   console.log(`\n📄 Full report: ${REPORT_FILE}`);
   console.log(`\n✅ Done!`);
 }
 
 main().catch(console.error);
-
-
-

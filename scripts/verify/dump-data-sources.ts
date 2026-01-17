@@ -1,6 +1,6 @@
 /**
  * Dump full data from MongoDB and TMDB API for comparison
- * 
+ *
  * Usage:
  *   npx tsx scripts/verify/dump-data-sources.ts
  *   npx tsx scripts/verify/dump-data-sources.ts --movie=550
@@ -72,7 +72,7 @@ async function fetchFullMovieFromTMDB(movieId: number): Promise<Record<string, u
   const details = await fetchTMDB<Record<string, unknown>>(`/movie/${movieId}`, {
     append_to_response: [
       "credits",
-      "videos", 
+      "videos",
       "images",
       "keywords",
       "recommendations",
@@ -156,7 +156,7 @@ function extractKeys(obj: unknown, prefix = ""): string[] {
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
     keys.push(fullKey);
-    
+
     if (value !== null && typeof value === "object") {
       keys.push(...extractKeys(value, fullKey));
     }
@@ -164,7 +164,10 @@ function extractKeys(obj: unknown, prefix = ""): string[] {
   return keys;
 }
 
-function compareKeys(tmdbKeys: string[], mongoKeys: string[]): {
+function compareKeys(
+  tmdbKeys: string[],
+  mongoKeys: string[]
+): {
   onlyInTMDB: string[];
   onlyInMongo: string[];
   inBoth: string[];
@@ -226,11 +229,15 @@ async function dumpMovieData(movieId: number): Promise<void> {
     };
 
     writeFileSync(join(movieDir, "analysis.json"), JSON.stringify(analysis, null, 2));
-    
+
     if (comparison) {
-      console.log(`  📊 Analysis: ${comparison.onlyInTMDB.length} TMDB-only, ${comparison.onlyInMongo.length} Mongo-only, ${comparison.inBoth.length} shared`);
+      console.log(
+        `  📊 Analysis: ${comparison.onlyInTMDB.length} TMDB-only, ${comparison.onlyInMongo.length} Mongo-only, ${comparison.inBoth.length} shared`
+      );
     } else {
-      console.log(`  📊 TMDB keys: ${tmdbKeys.length} total, ${Object.keys(tmdbData).length} top-level`);
+      console.log(
+        `  📊 TMDB keys: ${tmdbKeys.length} total, ${Object.keys(tmdbData).length} top-level`
+      );
     }
   }
 }
@@ -275,18 +282,22 @@ async function dumpSeriesData(seriesId: number): Promise<void> {
     };
 
     writeFileSync(join(seriesDir, "analysis.json"), JSON.stringify(analysis, null, 2));
-    
+
     if (comparison) {
-      console.log(`  📊 Analysis: ${comparison.onlyInTMDB.length} TMDB-only, ${comparison.onlyInMongo.length} Mongo-only, ${comparison.inBoth.length} shared`);
+      console.log(
+        `  📊 Analysis: ${comparison.onlyInTMDB.length} TMDB-only, ${comparison.onlyInMongo.length} Mongo-only, ${comparison.inBoth.length} shared`
+      );
     } else {
-      console.log(`  📊 TMDB keys: ${tmdbKeys.length} total, ${Object.keys(tmdbData).length} top-level`);
+      console.log(
+        `  📊 TMDB keys: ${tmdbKeys.length} total, ${Object.keys(tmdbData).length} top-level`
+      );
     }
   }
 }
 
 async function main() {
   const args = process.argv.slice(2);
-  
+
   // Parse specific IDs from args
   let movieIds = SAMPLE_MOVIE_IDS.slice(0, 2); // Default: first 2
   let seriesIds = SAMPLE_SERIES_IDS.slice(0, 2);
@@ -315,7 +326,7 @@ async function main() {
   // Connect to MongoDB (optional)
   const mongoUri = getMongoURI();
   let mongoConnected = false;
-  
+
   if (mongoUri) {
     console.log("\n🔌 Connecting to MongoDB...");
     try {

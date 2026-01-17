@@ -78,36 +78,39 @@ export function HeroCarousel({
     setIsAutoPlaying(false);
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current || items.length <= 1) {
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStartRef.current || items.length <= 1) {
+        setIsAutoPlaying(true);
+        setAnimationKey((k) => k + 1);
+        return;
+      }
+
+      const touchEnd = {
+        x: e.changedTouches[0].clientX,
+        y: e.changedTouches[0].clientY,
+      };
+
+      const dx = touchEnd.x - touchStartRef.current.x;
+      const dy = touchEnd.y - touchStartRef.current.y;
+
+      // Only trigger swipe if horizontal movement is greater than vertical
+      // and exceeds threshold
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
+        if (dx > 0) {
+          goToPrevious(); // Swipe right = previous
+        } else {
+          goToNext(); // Swipe left = next
+        }
+      }
+
+      touchStartRef.current = null;
+      // Resume autoplay
       setIsAutoPlaying(true);
       setAnimationKey((k) => k + 1);
-      return;
-    }
-
-    const touchEnd = {
-      x: e.changedTouches[0].clientX,
-      y: e.changedTouches[0].clientY,
-    };
-
-    const dx = touchEnd.x - touchStartRef.current.x;
-    const dy = touchEnd.y - touchStartRef.current.y;
-
-    // Only trigger swipe if horizontal movement is greater than vertical
-    // and exceeds threshold
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0) {
-        goToPrevious(); // Swipe right = previous
-      } else {
-        goToNext(); // Swipe left = next
-      }
-    }
-
-    touchStartRef.current = null;
-    // Resume autoplay
-    setIsAutoPlaying(true);
-    setAnimationKey((k) => k + 1);
-  }, [items.length, goToPrevious, goToNext]);
+    },
+    [items.length, goToPrevious, goToNext]
+  );
 
   // Auto-advance using interval (CSS handles the smooth progress)
   useEffect(() => {
@@ -209,13 +212,15 @@ export function HeroCarousel({
                 ratings={enhancedData?.ratings}
                 voteAverage={rating}
                 watchOptions={enhancedData?.watchOptions}
-                item={enhancedData?.item || {
-                  id: currentItem.id,
-                  title: isMovie ? title : undefined,
-                  name: !isMovie ? title : undefined,
-                  poster_path: currentItem.poster_path,
-                  backdrop_path: currentItem.backdrop_path,
-                }}
+                item={
+                  enhancedData?.item || {
+                    id: currentItem.id,
+                    title: isMovie ? title : undefined,
+                    name: !isMovie ? title : undefined,
+                    poster_path: currentItem.poster_path,
+                    backdrop_path: currentItem.backdrop_path,
+                  }
+                }
                 animate={false} // Parent handles animation
                 priority
               />

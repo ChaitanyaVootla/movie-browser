@@ -22,9 +22,9 @@ test.describe("Person Page SEO - Actor", () => {
 
   test("has meaningful meta description", async ({ page }) => {
     const description = page.locator('meta[name="description"]');
-    const content = await description.getAttribute("content");
+    const content = description;
 
-    expect(content).toBeTruthy();
+    await expect(content).toHaveAttribute("content");
     expect(content!.length).toBeGreaterThan(30);
     // Should mention the person's profession or works
     expect(content!.toLowerCase()).toMatch(/actor|actress|filmography|known for/i);

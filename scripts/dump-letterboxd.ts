@@ -28,8 +28,9 @@ config({ path: resolve(process.cwd(), ".env.local") });
 
 async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   const headers = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   };
 
   for (let i = 0; i < retries; i++) {
@@ -40,7 +41,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
       throw new Error(`HTTP ${response.status}`);
     } catch (error) {
       if (i === retries - 1) throw error;
-      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
     }
   }
   throw new Error("Failed after retries");
@@ -50,7 +51,7 @@ interface LetterboxdContent {
   title: string;
   url: string;
   year: string;
-  
+
   // Film info
   director: string[];
   runtime: string;
@@ -58,18 +59,18 @@ interface LetterboxdContent {
   countries: string[];
   languages: string[];
   studios: string[];
-  
+
   // Ratings
   averageRating: string;
   ratingsCount: string;
-  
+
   // Tagline and description
   tagline: string;
   description: string;
-  
+
   // Cast
   cast: Array<{ name: string; character: string }>;
-  
+
   // Reviews (popular ones)
   reviews: Array<{
     author: string;
@@ -78,13 +79,13 @@ interface LetterboxdContent {
     likes: string;
     date: string;
   }>;
-  
+
   // Themes/tags
   themes: string[];
-  
+
   // Lists this film appears in
   popularLists: string[];
-  
+
   // Similar films
   similarFilms: string[];
 }
@@ -109,7 +110,8 @@ async function dumpLetterboxd(letterboxdId: string) {
     console.log(`   ✅ Saved raw HTML (${(html.length / 1024).toFixed(1)}KB)`);
 
     const content: LetterboxdContent = {
-      title: $("h1.headline-1").text().trim() || $('meta[property="og:title"]').attr("content") || "",
+      title:
+        $("h1.headline-1").text().trim() || $('meta[property="og:title"]').attr("content") || "",
       url: baseUrl,
       year: $(".releaseyear a").text().trim(),
       director: [],
@@ -138,14 +140,19 @@ async function dumpLetterboxd(letterboxdId: string) {
     });
 
     // Get runtime
-    content.runtime = $(".text-footer").text().match(/(\d+)\s*mins?/i)?.[1] || "";
+    content.runtime =
+      $(".text-footer")
+        .text()
+        .match(/(\d+)\s*mins?/i)?.[1] || "";
 
     // Get rating
     content.averageRating = $('meta[name="twitter:data2"]').attr("content") || "";
-    
+
     // Get description
-    content.description = $(".truncate p").first().text().trim() || 
-                          $('meta[property="og:description"]').attr("content") || "";
+    content.description =
+      $(".truncate p").first().text().trim() ||
+      $('meta[property="og:description"]').attr("content") ||
+      "";
 
     // Get tagline
     content.tagline = $(".tagline").text().trim();
@@ -186,7 +193,11 @@ async function dumpLetterboxd(letterboxdId: string) {
         content.reviews.push({
           author: $review.find(".name").text().trim(),
           rating: $review.find(".rating").text().trim(),
-          content: $review.find(".body-text p").map((_, p) => $reviews(p).text().trim()).get().join("\n"),
+          content: $review
+            .find(".body-text p")
+            .map((_, p) => $reviews(p).text().trim())
+            .get()
+            .join("\n"),
           likes: $review.find(".count").text().trim(),
           date: $review.find(".date a").text().trim(),
         });
@@ -219,7 +230,7 @@ async function dumpLetterboxd(letterboxdId: string) {
       const similarHtml = await similarResponse.text();
       const $similar = cheerio.load(similarHtml);
 
-      $similar('.poster-container img').each((i, el) => {
+      $similar(".poster-container img").each((i, el) => {
         if (i < 20) {
           const title = $similar(el).attr("alt") || "";
           if (title) content.similarFilms.push(title);
@@ -277,20 +288,31 @@ ${content.themes.join(", ") || "(None)"}
 
 ## Cast (Top ${Math.min(10, content.cast.length)})
 
-${content.cast.slice(0, 10).map(c => `- ${c.name}${c.character ? ` as ${c.character}` : ""}`).join("\n")}
+${content.cast
+  .slice(0, 10)
+  .map((c) => `- ${c.name}${c.character ? ` as ${c.character}` : ""}`)
+  .join("\n")}
 
 ## Popular Reviews (${content.reviews.length})
 
-${content.reviews.slice(0, 5).map(r => `
+${content.reviews
+  .slice(0, 5)
+  .map(
+    (r) => `
 ### ${r.author} - ${r.rating}
 *${r.date} • ${r.likes} likes*
 
 ${r.content.slice(0, 500)}${r.content.length > 500 ? "..." : ""}
-`).join("\n---\n")}
+`
+  )
+  .join("\n---\n")}
 
 ## Popular Lists (${content.popularLists.length})
 
-${content.popularLists.slice(0, 10).map(l => `- ${l}`).join("\n")}
+${content.popularLists
+  .slice(0, 10)
+  .map((l) => `- ${l}`)
+  .join("\n")}
 
 ## Similar Films
 
@@ -320,7 +342,7 @@ ${content.similarFilms.join(", ") || "(None)"}
 }
 
 async function main() {
-  const args = process.argv.slice(2).filter(a => !a.startsWith("-"));
+  const args = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 
   if (args.length === 0) {
     console.log(`
@@ -343,6 +365,3 @@ Get the ID from Wikidata (P6127) or search on letterboxd.com
 }
 
 main();
-
-
-

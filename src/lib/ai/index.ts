@@ -7,23 +7,23 @@ export {
   parseMediaTags,
   parseAllTags,
   parseContent,
-  
+
   // Tag stripping utilities
   stripMediaTags,
   stripAllTags,
-  
+
   // Detection utilities
   hasMediaTags,
   hasAnyTags,
   hasUnresolvedTags,
-  
+
   // Resolution utilities
   applyResolvedIds,
   applyResolvedPersonIds,
   getUnresolvedTitles,
   getUnresolvedPersonNames,
   getDataFetchIds,
-  
+
   // Types
   type MediaType,
   type TagKind,

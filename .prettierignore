@@ -24,3 +24,13 @@ tsconfig.tsbuildinfo
 # Misc
 *.log
 
+# Legacy/separate projects
+nuxt/
+lambda/
+playground/
+VectorDB/
+scripts/
+migration/
+terraform/
+prisma/
+

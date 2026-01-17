@@ -37,11 +37,7 @@ interface LambdaTabProps {
   isLoading: boolean;
 }
 
-export function LambdaTab({
-  range,
-  overview,
-  isLoading: overviewLoading,
-}: LambdaTabProps) {
+export function LambdaTab({ range, overview, isLoading: overviewLoading }: LambdaTabProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "analytics", "lambda", range],
     queryFn: () => fetchLambdaData(range),
@@ -71,12 +67,7 @@ export function LambdaTab({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Cost</span>
                   <span className="font-bold">
-                    $
-                    {(
-                      data?.overview.estimatedCost ??
-                      overview?.estimatedCost ??
-                      0
-                    ).toFixed(4)}
+                    ${(data?.overview.estimatedCost ?? overview?.estimatedCost ?? 0).toFixed(4)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -92,22 +83,14 @@ export function LambdaTab({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Avg</span>
                   <span className="font-medium">
-                    {(
-                      data?.overview.avgDurationMs ??
-                      overview?.avgDurationMs ??
-                      0
-                    ).toFixed(0)}
+                    {(data?.overview.avgDurationMs ?? overview?.avgDurationMs ?? 0).toFixed(0)}
                     ms
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">P95</span>
                   <span className="font-medium">
-                    {(
-                      data?.overview.p95DurationMs ??
-                      overview?.p95DurationMs ??
-                      0
-                    ).toFixed(0)}
+                    {(data?.overview.p95DurationMs ?? overview?.p95DurationMs ?? 0).toFixed(0)}
                     ms
                   </span>
                 </div>
@@ -196,10 +179,7 @@ function LambdaTimeSeriesChart({
   return (
     <div className="h-[180px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={data}
-          margin={{ top: 5, right: 30, left: -10, bottom: 5 }}
-        >
+        <LineChart data={data} margin={{ top: 5, right: 30, left: -10, bottom: 5 }}>
           <XAxis
             dataKey="date"
             tickFormatter={formatChartDate}

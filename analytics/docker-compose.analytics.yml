@@ -1,5 +1,5 @@
 # Analytics Stack: ClickHouse + Grafana
-# 
+#
 # Deploy alongside existing services on EC2:
 #   docker-compose -f analytics/docker-compose.analytics.yml up -d
 #
@@ -16,8 +16,8 @@ services:
     image: clickhouse/clickhouse-server:25.12
     container_name: analytics-clickhouse
     ports:
-      - "8123:8123"   # HTTP interface
-      - "9000:9000"   # Native interface
+      - "8123:8123" # HTTP interface
+      - "9000:9000" # Native interface
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - clickhouse-logs:/var/log/clickhouse-server
@@ -81,4 +81,3 @@ volumes:
 networks:
   default:
     name: analytics-network
-

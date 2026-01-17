@@ -30,6 +30,7 @@ cp template.env .env.local
 ```
 
 Required environment variables:
+
 - `AUTH_SECRET` - Generate with `openssl rand -base64 32`
 - `GOOGLE_AUTH_CLIENT_ID` / `GOOGLE_AUTH_CLIENT_SECRET` - From Google Cloud Console
 - `MONGODB_URI` or `MONGO_IP`/`MONGO_PASS` - MongoDB connection
@@ -48,10 +49,10 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ### Production URLs
 
-| Environment | URL | Port |
-|-------------|-----|------|
-| Production (Nuxt legacy) | https://themoviebrowser.com | 3001 |
-| Beta (Next.js) | https://beta.themoviebrowser.com | 3002 |
+| Environment              | URL                              | Port |
+| ------------------------ | -------------------------------- | ---- |
+| Production (Nuxt legacy) | https://themoviebrowser.com      | 3001 |
+| Beta (Next.js)           | https://beta.themoviebrowser.com | 3002 |
 
 ### EC2 Deployment
 
@@ -87,12 +88,12 @@ yarn ssh:logs         # View PM2 logs
 
 ### Infrastructure
 
-| Service | Details |
-|---------|---------|
-| EC2 | t4g.medium (ARM64), Ubuntu 24.04 |
-| Nginx | Reverse proxy with GeoIP headers, SSL via Let's Encrypt |
-| MongoDB | Docker container on port 27018 |
-| PM2 | Process manager for Node.js apps |
+| Service | Details                                                 |
+| ------- | ------------------------------------------------------- |
+| EC2     | t4g.medium (ARM64), Ubuntu 24.04                        |
+| Nginx   | Reverse proxy with GeoIP headers, SSL via Let's Encrypt |
+| MongoDB | Docker container on port 27018                          |
+| PM2     | Process manager for Node.js apps                        |
 
 ### Adding a New Subdomain
 
@@ -104,16 +105,16 @@ yarn ssh:logs         # View PM2 logs
 
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `yarn dev` | Start dev server with Turbopack |
-| `yarn build` | Production build |
-| `yarn start` | Start production server |
-| `yarn deploy` | Build and deploy to EC2 |
-| `yarn typecheck` | Run TypeScript checks |
-| `yarn lint` | Run ESLint |
-| `yarn test:unit` | Run unit tests |
-| `yarn test:e2e` | Run Playwright E2E tests |
+| Script           | Description                     |
+| ---------------- | ------------------------------- |
+| `yarn dev`       | Start dev server with Turbopack |
+| `yarn build`     | Production build                |
+| `yarn start`     | Start production server         |
+| `yarn deploy`    | Build and deploy to EC2         |
+| `yarn typecheck` | Run TypeScript checks           |
+| `yarn lint`      | Run ESLint                      |
+| `yarn test:unit` | Run unit tests                  |
+| `yarn test:e2e`  | Run Playwright E2E tests        |
 
 ## Project Structure
 
@@ -144,6 +145,7 @@ terraform/                # Infrastructure as Code
 ## Architecture Rules
 
 See `.cursor/rules/` for detailed AI-agent guidelines:
+
 - `core.mdc` - Architecture patterns
 - `ai-agent.mdc` - AI agent implementation
 - `api.mdc` - API and Server Actions

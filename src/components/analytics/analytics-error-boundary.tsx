@@ -248,8 +248,7 @@ export function initGlobalErrorTracking(): () => void {
       event_type: "error",
       error_source: "client",
       error_type: error?.name || "UnhandledRejection",
-      error_message:
-        error?.message || (typeof error === "string" ? error : "Unknown error"),
+      error_message: error?.message || (typeof error === "string" ? error : "Unknown error"),
       error_stack: error?.stack?.slice(0, 2000) || null,
       route: getCurrentRoute(),
       component: null,
@@ -269,4 +268,3 @@ export function initGlobalErrorTracking(): () => void {
     window.removeEventListener("unhandledrejection", handleUnhandledRejection);
   };
 }
-

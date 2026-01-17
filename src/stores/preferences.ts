@@ -49,6 +49,4 @@ export const usePreferencesStore = create<PreferencesStore>()(
 // Selectors
 // =============================================================================
 
-export const selectCardDisplayMode = (state: PreferencesStore) =>
-  state.cardDisplayMode;
-
+export const selectCardDisplayMode = (state: PreferencesStore) => state.cardDisplayMode;

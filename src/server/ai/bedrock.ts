@@ -62,4 +62,3 @@ export function createBedrockChatWithTools(
   const model = createBedrockChat();
   return model.bindTools(tools);
 }
-

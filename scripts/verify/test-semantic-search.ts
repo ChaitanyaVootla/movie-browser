@@ -39,11 +39,7 @@ import {
   generateQueryEmbedding,
   EMBEDDING_CONFIG,
 } from "@/lib/embeddings";
-import {
-  semanticSearch,
-  findSimilarByEmbedding,
-  getEmbeddingStats,
-} from "@/server/db/postgres";
+import { semanticSearch, findSimilarByEmbedding, getEmbeddingStats } from "@/server/db/postgres";
 import { prisma } from "@/server/db/postgres";
 
 // =============================================================================

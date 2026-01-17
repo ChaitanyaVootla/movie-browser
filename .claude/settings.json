@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(git:*)",
+      "Bash(prisma:*)",
+      "Bash(eslint:*)",
+      "Bash(prettier:*)",
+      "Read(src/**)",
+      "Read(prisma/**)",
+      "Read(scripts/**)",
+      "Read(e2e/**)",
+      "Read(docs/**)",
+      "Read(.cursor/**)",
+      "Edit(src/**)",
+      "Edit(prisma/**)",
+      "Edit(scripts/**)",
+      "Edit(e2e/**)"
+    ],
+    "deny": [
+      "Read(.env*)",
+      "Read(.aws/**)",
+      "Read(movie-browser-ec2-key.pem)",
+      "Edit(.env*)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}

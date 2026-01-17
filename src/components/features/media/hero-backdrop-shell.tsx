@@ -48,13 +48,12 @@ export function HeroBackdropShell({
   // CDN URL is deterministic - just needs ID
   const cdnUrl = `${CDN_IMAGE_BASE}/${mediaType}/${mediaId}/backdrop.webp`;
   // TMDB fallback needs the path
-  const tmdbUrl = tmdbBackdropPath
-    ? `${TMDB_IMAGE_BASE}/w1280${tmdbBackdropPath}`
-    : null;
+  const tmdbUrl = tmdbBackdropPath ? `${TMDB_IMAGE_BASE}/w1280${tmdbBackdropPath}` : null;
 
   // When context provides TMDB path and we're in pending state, try TMDB
   useEffect(() => {
     if (loadState === "pending" && tmdbUrl) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadState("tmdb");
     }
   }, [loadState, tmdbUrl]);
@@ -78,8 +77,7 @@ export function HeroBackdropShell({
   };
 
   // Determine current image source
-  const currentSrc =
-    loadState === "cdn" ? cdnUrl : loadState === "tmdb" ? tmdbUrl : null;
+  const currentSrc = loadState === "cdn" ? cdnUrl : loadState === "tmdb" ? tmdbUrl : null;
 
   // Show backdrop image when we have a source and not in failed/pending state
   const showBackdrop = loadState !== "failed" && loadState !== "pending";
@@ -111,14 +109,14 @@ export function HeroBackdropShell({
             <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-black/40 to-transparent" />
             {/* Bottom gradient - fade to black for content below */}
             {overlay !== "none" && (
-              <div 
+              <div
                 className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
                 style={{
                   background: `linear-gradient(to top, 
                     rgb(0,0,0) 0%,
                     rgba(0,0,0,0.9) 30%,
                     rgba(0,0,0,0.5) 60%,
-                    transparent 100%)`
+                    transparent 100%)`,
                 }}
               />
             )}
@@ -192,8 +190,7 @@ export function HeroBackdropShell({
             className={cn(
               "absolute inset-x-0 bottom-0 bg-linear-to-t to-transparent hidden md:block",
               overlay === "light" && "h-[8%] from-background/70 via-background/5",
-              overlay === "medium" &&
-                "h-[12%] from-background/80 via-background/15",
+              overlay === "medium" && "h-[12%] from-background/80 via-background/15",
               overlay === "heavy" && "h-[20%] from-background via-background/30"
             )}
           />
@@ -202,12 +199,14 @@ export function HeroBackdropShell({
 
       {/* Content - mobile: normal flow below image, desktop: overlay */}
       {children && (
-        <div className={cn(
-          // Mobile: pull content up into the gradient for tight spacing
-          "relative z-10 bg-black px-4 -mt-8 pb-6",
-          // Desktop: absolute overlay at bottom
-          "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"
-        )}>
+        <div
+          className={cn(
+            // Mobile: pull content up into the gradient for tight spacing
+            "relative z-10 bg-black px-4 -mt-8 pb-6",
+            // Desktop: absolute overlay at bottom
+            "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"
+          )}
+        >
           {children}
         </div>
       )}

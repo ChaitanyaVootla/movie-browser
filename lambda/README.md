@@ -41,12 +41,10 @@ Output: { ratings, allWatchOptions, externalIds, detailedRatings, ... }
 ```json
 {
   "ratings": [
-    {"rating": "8.5", "name": "IMDb", "link": "..."},
-    {"rating": "91%", "name": "Rotten Tomatoes", "link": "..."}
+    { "rating": "8.5", "name": "IMDb", "link": "..." },
+    { "rating": "91%", "name": "Rotten Tomatoes", "link": "..." }
   ],
-  "allWatchOptions": [
-    {"link": "...", "name": "Netflix", "price": "Subscription"}
-  ],
+  "allWatchOptions": [{ "link": "...", "name": "Netflix", "price": "Subscription" }],
   "imdbId": "tt0111161",
   "directorName": "Frank Darabont",
   "externalIds": {
@@ -86,7 +84,7 @@ Output: { ratings, allWatchOptions, externalIds, detailedRatings, ... }
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - AWS CLI configured
 - Terraform
 
@@ -114,6 +112,7 @@ terraform apply
 ### Configuration
 
 The Lambda function will be deployed with:
+
 - **Runtime**: Node.js 22.x
 - **Handler**: `dist/index.handler`
 - **Timeout**: 5 minutes
@@ -123,6 +122,7 @@ The Lambda function will be deployed with:
 ### Terraform Outputs
 
 After deployment, Terraform will output:
+
 - `lambda_function_name`: Name of the deployed function
 - `lambda_function_arn`: ARN for direct invocation
 - `lambda_invoke_arn`: Invoke ARN for application backend
@@ -130,14 +130,16 @@ After deployment, Terraform will output:
 ### Why This Approach?
 
 **Platform Independent**: The entire build and package process uses Node.js tools:
+
 - ✅ No platform-specific commands (works on Windows, Linux, Mac)
 - ✅ No external zip tools required
 - ✅ All packaging logic in JavaScript code
 - ✅ Consistent deployment packages across environments
 
 **Terraform for Infrastructure**: Direct lambda invocation (no API Gateway) makes Terraform ideal for:
+
 - Infrastructure as Code
-- Consistent deployments  
+- Consistent deployments
 - Integration with existing AWS infrastructure
 - No additional deployment complexity
 
@@ -154,11 +156,13 @@ After deployment, Terraform will output:
 ### Example Requests
 
 For a movie:
+
 ```bash
 curl -X GET "https://YOUR_API_GATEWAY_URL/dev?searchString=The%20Shawshank%20Redemption&mediaType=movie&wikidataId=Q172241&imdbId=tt0111161"
 ```
 
 For a TV series:
+
 ```bash
 curl -X GET "https://YOUR_API_GATEWAY_URL/dev?searchString=Peacemaker%20tv%20series&mediaType=tv&wikidataId=Q101089777&imdbId=tt13146488"
 ```

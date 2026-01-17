@@ -64,6 +64,8 @@ export interface VideoMetadata {
   title?: string; // YouTube title (may differ from TMDB name)
   description?: string;
   duration?: string; // ISO 8601 (e.g., "PT4M13S")
+  // Index signature for Prisma JSON compatibility
+  [key: string]: string | undefined;
 }
 
 interface VideoDbRecord {
@@ -86,19 +88,14 @@ interface VideoDbRecord {
 /**
  * Calculate whether engagement data is stale based on video age
  */
-function isEngagementStale(
-  engagementScrapedAt: Date | null,
-  publishedAt: Date | null
-): boolean {
+function isEngagementStale(engagementScrapedAt: Date | null, publishedAt: Date | null): boolean {
   if (!engagementScrapedAt) return true;
 
   const now = Date.now();
   const scrapedAtMs = engagementScrapedAt.getTime();
 
   // Calculate video age
-  const videoAgeMs = publishedAt
-    ? now - publishedAt.getTime()
-    : 0;
+  const videoAgeMs = publishedAt ? now - publishedAt.getTime() : 0;
   const videoAgeDays = videoAgeMs / (1000 * 60 * 60 * 24);
 
   // Determine TTL based on video age
@@ -232,9 +229,7 @@ export async function getVideoEngagement(
 /**
  * Fetch engagement from YouTube API and store in PostgreSQL
  */
-async function fetchAndStoreEngagement(
-  video: VideoDbRecord
-): Promise<VideoEngagement | null> {
+async function fetchAndStoreEngagement(video: VideoDbRecord): Promise<VideoEngagement | null> {
   const { key: videoKey, id: videoDbId, publishedAt } = video;
 
   // Fetch stats, dislikes, and comments in parallel
@@ -392,17 +387,19 @@ async function fetchAndStoreDislikesAndComments(
 function dbRecordToEngagement(video: VideoDbRecord): VideoEngagement {
   // Parse stored comments
   const topComments: YouTubeComment[] = Array.isArray(video.topComments)
-    ? (video.topComments as Array<{
-        id: string;
-        author: string;
-        authorChannel: string;
-        authorImage: string;
-        text: string;
-        likeCount: number;
-        publishedAt: string;
-        replyCount: number;
-        isHearted: boolean;
-      }>).map((c) => ({
+    ? (
+        video.topComments as Array<{
+          id: string;
+          author: string;
+          authorChannel: string;
+          authorImage: string;
+          text: string;
+          likeCount: number;
+          publishedAt: string;
+          replyCount: number;
+          isHearted: boolean;
+        }>
+      ).map((c) => ({
         id: c.id,
         author: {
           displayName: c.author,
@@ -536,7 +533,7 @@ export async function getBatchVideoEngagement(
     if (staleVideoKeys.length > 0) {
       // Fetch stats for all stale videos at once (YouTube API supports batching up to 50)
       const statsMap = await getVideoStats(staleVideoKeys);
-      
+
       dataLogger.info({
         event: "youtube_engagement_batch_api_response",
         requestedCount: staleVideoKeys.length,

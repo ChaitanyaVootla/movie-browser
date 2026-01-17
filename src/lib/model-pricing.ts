@@ -238,6 +238,3 @@ export function getCurrentModelId(): string {
 export function getCurrentModelPricing(): ModelPricing {
   return getModelPricing(getCurrentModelId());
 }
-
-
-

@@ -39,9 +39,7 @@ export function GenreFilter({
               variant={isSelected ? "default" : "outline"}
               className={cn(
                 "cursor-pointer transition-colors whitespace-nowrap",
-                isSelected
-                  ? "bg-brand hover:bg-brand/80"
-                  : "hover:bg-muted"
+                isSelected ? "bg-brand hover:bg-brand/80" : "hover:bg-muted"
               )}
               onClick={() => toggleGenre(genre.id)}
             >
@@ -101,4 +99,3 @@ export function GenreFilterCompact({
     </div>
   );
 }
-

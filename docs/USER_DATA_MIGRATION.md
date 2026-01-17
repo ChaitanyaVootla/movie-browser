@@ -1,6 +1,19 @@
 # User Data Migration: MongoDB → PostgreSQL
 
-## Status: Planning Phase
+## Status: Scripts Ready, Awaiting GA Switch
+
+**Current State (Jan 2026):**
+- ✅ Migration script complete and tested (`scripts/migrate-user-data.ts`)
+- ✅ PostgreSQL schema has all required tables
+- ✅ Media data (movies/series) hydration uses PostgreSQL as source of truth
+- ⏳ User data still uses MongoDB (intentional - waiting for full GA readiness)
+- ⏳ Auth.js still uses MongoDBAdapter (will switch to PrismaAdapter at GA)
+
+**What happens at GA:**
+1. Run user data migration script
+2. Switch Auth.js from MongoDBAdapter → PrismaAdapter
+3. Switch user API routes from MongoDB → Prisma
+4. Deprecate MongoDB entirely
 
 This document outlines the migration of all user-related data from MongoDB to PostgreSQL, to be executed just before the Next.js app goes GA.
 
@@ -27,17 +40,17 @@ This document outlines the migration of all user-related data from MongoDB to Po
 
 ### Database: `test` (ALL user data)
 
-| Collection | Documents | Purpose | Key Fields |
-|------------|-----------|---------|------------|
-| `users` | 153 | User profiles | `_id`, `sub`, `id`, `name`, `email`, `picture`, `family_name`, `given_name`, `createdAt`, `lastVisited`, `location` |
-| `accounts` | 3 | OAuth provider links | `userId`, `provider`, `providerAccountId` |
-| `watchedmovies` | ~varies | Movies user has watched | `userId`, `movieId`, `createdAt` |
-| `movieswatchlists` | ~varies | Movie watchlist | `userId`, `movieId`, `createdAt` |
-| `serieslists` | ~varies | Series watchlist | `userId`, `seriesId`, `createdAt` |
-| `userratings` | ~varies | Like/dislike ratings | `userId`, `itemId`, `itemType`, `rating`, `createdAt` |
-| `recents` | ~varies | Recently viewed | `userId`, `itemId`, `isMovie`, `updatedAt` |
-| `continuewatchings` | ~varies | Continue watching | `userId`, `itemId`, `isMovie`, `watchLink`, `updatedAt` |
-| `filters` | ~varies | Saved discover filters | `userId`, `name`, + filter params |
+| Collection          | Documents | Purpose                 | Key Fields                                                                                                          |
+| ------------------- | --------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `users`             | 153       | User profiles           | `_id`, `sub`, `id`, `name`, `email`, `picture`, `family_name`, `given_name`, `createdAt`, `lastVisited`, `location` |
+| `accounts`          | 3         | OAuth provider links    | `userId`, `provider`, `providerAccountId`                                                                           |
+| `watchedmovies`     | ~varies   | Movies user has watched | `userId`, `movieId`, `createdAt`                                                                                    |
+| `movieswatchlists`  | ~varies   | Movie watchlist         | `userId`, `movieId`, `createdAt`                                                                                    |
+| `serieslists`       | ~varies   | Series watchlist        | `userId`, `seriesId`, `createdAt`                                                                                   |
+| `userratings`       | ~varies   | Like/dislike ratings    | `userId`, `itemId`, `itemType`, `rating`, `createdAt`                                                               |
+| `recents`           | ~varies   | Recently viewed         | `userId`, `itemId`, `isMovie`, `updatedAt`                                                                          |
+| `continuewatchings` | ~varies   | Continue watching       | `userId`, `itemId`, `isMovie`, `watchLink`, `updatedAt`                                                             |
+| `filters`           | ~varies   | Saved discover filters  | `userId`, `name`, + filter params                                                                                   |
 
 ### User ID Format
 
@@ -45,10 +58,11 @@ This document outlines the migration of all user-related data from MongoDB to Po
 
 ```javascript
 // Example userId values:
-112345678901234567  // Google OAuth sub parsed to number
+112345678901234567; // Google OAuth sub parsed to number
 ```
 
 The Next.js app retrieves this via:
+
 ```typescript
 // src/lib/user-id.ts
 const googleId = session.user.googleId || session.user.id;
@@ -73,14 +87,14 @@ model User {
   bio              String?
   isPublic         Boolean  @default(true) @map("is_public")
   preferredCountry String?  @map("preferred_country")
-  
+
   // Flexible metadata for profile + preferences (JSONB)
   metadata         Json?    @default("{}")
-  
+
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
   lastActiveAt     DateTime? @map("last_active_at")
-  
+
   // Relations
   watchlistItems   WatchlistItem[]
   watchedMovies    WatchedMovie[]
@@ -96,7 +110,7 @@ model WatchlistItem {
   movieId  Int?     @map("movie_id")
   seriesId Int?     @map("series_id")
   addedAt  DateTime @default(now()) @map("added_at")
-  
+
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
@@ -107,7 +121,7 @@ model WatchedMovie {
   userId    Int      @map("user_id")
   movieId   Int      @map("movie_id")
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
 }
@@ -119,7 +133,7 @@ model UserRating {
   seriesId  Int?     @map("series_id")
   rating    Int      // 1 = like, -1 = dislike
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
@@ -131,7 +145,7 @@ model RecentItem {
   movieId  Int?     @map("movie_id")
   seriesId Int?     @map("series_id")
   viewedAt DateTime @default(now()) @map("viewed_at")
-  
+
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
@@ -145,7 +159,7 @@ model ContinueWatching {
   watchLink         String   @map("watch_link")
   watchProviderName String?  @map("watch_provider_name")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
-  
+
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
@@ -161,6 +175,7 @@ model ContinueWatching {
 **Problem:** MongoDB uses numeric `userId` (Google `sub`), PostgreSQL uses auto-increment `id` with FK.
 
 **Solution:** During migration:
+
 1. Create User record using `googleId` field (the Google `sub` string)
 2. Use the PostgreSQL `id` (auto-generated) for FK relationships
 3. Build a lookup map: `mongoUserId → postgresUserId`
@@ -192,9 +207,9 @@ model SavedFilter {
   params    Json     // Store filter parameters as JSON
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, name])
   @@index([userId])
   @@map("saved_filters")
@@ -204,17 +219,20 @@ model SavedFilter {
 ### Gap 3: Missing User Fields ✅ SOLVED
 
 **Problem:** Some MongoDB user fields aren't in PostgreSQL:
+
 - `location` (geographic info)
 - `family_name` / `given_name`
 - `picture` (alias for `image`)
 
 **Solution:** Added `metadata` JSONB column to User model:
+
 ```prisma
 // Flexible metadata for profile info + future preferences
 metadata Json? @default("{}")
 ```
 
 This stores:
+
 - Profile data: `familyName`, `givenName`, `location`
 - Future preferences: `theme`, `cardDisplayMode`, etc.
 
@@ -244,6 +262,7 @@ No schema migrations needed for new preference fields!
 PostgreSQL uses `movieId` or `seriesId` columns.
 
 **Solution:** During migration:
+
 ```typescript
 if (mongoRating.itemType === "movie" || !mongoRating.itemType) {
   // Assume movie if itemType is null (legacy data)
@@ -404,16 +423,17 @@ The Next.js app can continue using MongoDB for user data while PostgreSQL is bei
 ### Users (`test.users`)
 
 **MongoDB Fields (discovered via explore script):**
+
 ```json
 {
   "_id": "631cae5d4935e5f8c09cf43d",
-  "id": "100739281047185839198",     // Google sub as string
-  "sub": 100739281047185830000,       // Google sub as Number (loses precision!)
+  "id": "100739281047185839198", // Google sub as string
+  "sub": 100739281047185830000, // Google sub as Number (loses precision!)
   "name": "Chaitanya",
   "email": "speedblaze@gmail.com",
   "picture": "https://lh3.googleusercontent.com/...",
-  "family_name": "Vootla",            // From Google
-  "given_name": "Chaitanya",          // From Google
+  "family_name": "Vootla", // From Google
+  "given_name": "Chaitanya", // From Google
   "email_verified": true,
   "createdAt": "2022-09-10T15:33:49.794Z",
   "updatedAt": "2026-01-09T05:59:48.280Z",
@@ -471,8 +491,8 @@ interface UserMetadata {
     };
   };
   preferences?: {
-    theme?: string;        // Future: light/dark/system
-    cardDisplayMode?: string;  // Future: poster/wide
+    theme?: string; // Future: light/dark/system
+    cardDisplayMode?: string; // Future: poster/wide
     // ... other app preferences
   };
 }
@@ -483,18 +503,20 @@ This allows storing future preferences without schema migrations.
 ### UserRatings (`movieBrowser.userratings`)
 
 **MongoDB Fields:**
+
 ```json
 {
   "_id": "ObjectId",
   "userId": 112345678901234567,
   "itemId": 550,
-  "itemType": "movie",  // or "series" or null
-  "rating": 1,          // 1=like, -1=dislike
+  "itemType": "movie", // or "series" or null
+  "rating": 1, // 1=like, -1=dislike
   "createdAt": "2024-01-01T00:00:00.000Z"
 }
 ```
 
 **Mapping Notes:**
+
 - `itemType` determines whether to set `movieId` or `seriesId`
 - If `itemType` is null, assume movie (legacy data)
 - Skip if movie/series doesn't exist in PostgreSQL
@@ -502,6 +524,7 @@ This allows storing future preferences without schema migrations.
 ### Filters (`movieBrowser.filters`)
 
 **MongoDB Fields (flexible schema):**
+
 ```json
 {
   "_id": "ObjectId",
@@ -509,12 +532,13 @@ This allows storing future preferences without schema migrations.
   "name": "Action Movies 2024",
   "with_genres": [28],
   "sort_by": "popularity.desc",
-  "primary_release_year": 2024,
+  "primary_release_year": 2024
   // ... other discover params
 }
 ```
 
 **Mapping:**
+
 - Store all non-system fields (`_id`, `userId`, `name`) as JSON in `params` column
 
 ---
@@ -523,17 +547,17 @@ This allows storing future preferences without schema migrations.
 
 Based on production MongoDB (discovered 2026-01-09):
 
-| Collection | Actual Records | Database |
-|------------|----------------|----------|
-| users | 153 | test |
-| accounts | 3 | test |
-| watchedmovies | varies per user | test |
-| movieswatchlists | varies per user | test |
-| serieslists | varies per user | test |
-| userratings | varies per user | test |
-| recents | varies per user | test |
-| continuewatchings | varies per user | test |
-| filters | varies per user | test |
+| Collection        | Actual Records  | Database |
+| ----------------- | --------------- | -------- |
+| users             | 153             | test     |
+| accounts          | 3               | test     |
+| watchedmovies     | varies per user | test     |
+| movieswatchlists  | varies per user | test     |
+| serieslists       | varies per user | test     |
+| userratings       | varies per user | test     |
+| recents           | varies per user | test     |
+| continuewatchings | varies per user | test     |
+| filters           | varies per user | test     |
 
 **⚠️ Note:** All collections are in `test` database, NOT `movieBrowser` (which has empty collections).
 
@@ -545,11 +569,62 @@ Based on production MongoDB (discovered 2026-01-09):
 
 After successful migration:
 
-1. **Update API routes** to use PostgreSQL via Prisma instead of MongoDB models
-2. **Update Zustand store** hydration to use new API
-3. **Deprecate MongoDB models** in `src/server/db/models/user-library.ts`
-4. **Monitor** for any data discrepancies for 24-48 hours
-5. **Clean up** MongoDB collections (optional, after confidence period)
+### 1. Switch Auth.js Adapter
+
+**File:** `src/lib/auth.ts`
+
+```typescript
+// Change from:
+import { MongoDBAdapter } from "@auth/mongodb-adapter"
+// To:
+import { PrismaAdapter } from "@auth/prisma-adapter"
+```
+
+### 2. Update User API Routes (10 files)
+
+Switch these files from MongoDB models to Prisma:
+
+| File | Current | Action |
+|------|---------|--------|
+| `src/app/api/user/library/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/watchlist/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/watched/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/ratings/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/recents/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/continueWatching/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/movie/[movieId]/watchlist/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/movie/[movieId]/watched/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/rating/route.ts` | MongoDB | Switch to Prisma |
+| `src/app/api/user/series/[seriesId]/watchlist/route.ts` | MongoDB | Switch to Prisma |
+
+### 3. Update AI Agent Tools (3 files)
+
+| File | Action |
+|------|--------|
+| `src/server/ai/tools/user-data.ts` | Switch to Prisma |
+| `src/server/ai/tools/details.ts` | Switch to Prisma |
+| `src/server/ai/tools/smart-discover.ts` | Switch to Prisma |
+
+### 4. Update Admin API
+
+**File:** `src/app/api/admin/users/route.ts` - Switch to Prisma
+
+### 5. Delete MongoDB Infrastructure
+
+After confirming everything works:
+
+```bash
+# Files to delete:
+rm src/server/db/index.ts                          # MongoDB connection
+rm -rf src/server/db/models/                       # All MongoDB models
+rm src/server/db/cached-queries.ts                 # MongoDB cached queries
+rm src/server/services/hydration/sources/mongo.ts  # Already marked DELETE
+```
+
+### 6. Monitor and Clean Up
+
+- **Monitor** for any data discrepancies for 24-48 hours
+- **Clean up** MongoDB collections (optional, after confidence period)
 
 ---
 

@@ -33,7 +33,7 @@ interface BrowsePageProps {
 
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const resolvedParams = await searchParams;
-  
+
   // Convert searchParams to URLSearchParams for parsing
   const urlSearchParams = new URLSearchParams();
   Object.entries(resolvedParams).forEach(([key, value]) => {
@@ -46,7 +46,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
 
   // Parse filters from URL
   const parsedParams = parseDiscoverParams(urlSearchParams);
-  
+
   // Fetch initial results with parsed params
   const initialResult = await discover({
     media_type: parsedParams.media_type || "movie",
@@ -71,4 +71,3 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     />
   );
 }
-

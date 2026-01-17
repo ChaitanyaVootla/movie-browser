@@ -1,3 +1,3 @@
 export const TMDB = {
-    BASE_URL: 'https://api.themoviedb.org/3',
+  BASE_URL: "https://api.themoviedb.org/3",
 };

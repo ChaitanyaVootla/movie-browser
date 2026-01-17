@@ -1,4 +1,5 @@
 ## AI Search Roadmap
+
 - Embed common features individually (Genres, Actors, Keywords) to improve search accuracy
 - Find optimal weights for each feature to improve search accuracy
 - Add a negative search feature to exclude certain genres, actors, or keywords
@@ -6,6 +7,7 @@
 ## Test cases
 
 ### Search by Actor name
+
 - Tom hanks
 - Tom Cruise
 - Tom Hardy
@@ -23,6 +25,7 @@
 - Chris Pratt
 
 ### Search by Actor and genres combination
+
 - Tom Cruise, Action
 - Arnold Schwarzenegger, Comedy
 - Sylvester Stallone, Drama
@@ -34,6 +37,7 @@
 - Robert Downey Jr, Thriller
 
 ### Search by Movie name
+
 - The Shawshank Redemption
 - The Godfather
 - The Dark Knight
@@ -53,6 +57,7 @@
 - The Lord of the Rings: The Return of the King
 
 ### Search by genres combination
+
 - Action, Adventure
 - Action, Adventure, Sci-Fi
 - Action, Adventure, Fantasy
@@ -63,6 +68,7 @@
 - Crime, Action
 
 ### Search by popular keywords
+
 - Superhero
 - Alien
 - Time travel
@@ -89,6 +95,7 @@
 - Soviet Submarine
 
 ### Search by popular keyword and genres combination
+
 - Superhero, Action
 - Superhero, Comedy
 - Post-apocalyptic, Action
@@ -104,6 +111,7 @@
 - World War 2, Spy
 
 ### Search by common niches
+
 - Stuck in a time loop
 - Stuck in a parallel universe
 - Based on a true story

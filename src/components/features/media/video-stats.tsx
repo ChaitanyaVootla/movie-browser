@@ -19,13 +19,7 @@ interface VideoStatsProps {
 /**
  * Compact like/dislike bar for inline display
  */
-function InlineLikeBar({
-  likes,
-  dislikes,
-}: {
-  likes: number;
-  dislikes: number;
-}) {
+function InlineLikeBar({ likes, dislikes }: { likes: number; dislikes: number }) {
   const total = likes + dislikes;
   const likePercentage = total > 0 ? (likes / total) * 100 : 100;
 
@@ -33,7 +27,7 @@ function InlineLikeBar({
     <div className="flex items-center gap-1.5">
       <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground" />
       <span className="text-xs text-muted-foreground">{formatViewCount(likes)}</span>
-      
+
       {/* Compact progress bar */}
       <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
         <div
@@ -41,7 +35,7 @@ function InlineLikeBar({
           style={{ width: `${likePercentage}%` }}
         />
       </div>
-      
+
       <span className="text-xs text-muted-foreground">{formatViewCount(dislikes)}</span>
       <ThumbsDown className="h-3.5 w-3.5 text-muted-foreground" />
     </div>
@@ -99,9 +93,7 @@ export function VideoStats({
             </div>
           )}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {channelTitle && (
-              <span className="text-foreground/80">{channelTitle}</span>
-            )}
+            {channelTitle && <span className="text-foreground/80">{channelTitle}</span>}
             {channelTitle && publishedAt && <span>•</span>}
             {publishedAt && <span>{formatRelativeTime(publishedAt)}</span>}
           </div>

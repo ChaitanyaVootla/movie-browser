@@ -62,29 +62,32 @@ export function ImageGallery({
     };
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
 
-    const touchEnd = {
-      x: e.changedTouches[0].clientX,
-      y: e.changedTouches[0].clientY,
-    };
+      const touchEnd = {
+        x: e.changedTouches[0].clientX,
+        y: e.changedTouches[0].clientY,
+      };
 
-    const dx = touchEnd.x - touchStartRef.current.x;
-    const dy = touchEnd.y - touchStartRef.current.y;
+      const dx = touchEnd.x - touchStartRef.current.x;
+      const dy = touchEnd.y - touchStartRef.current.y;
 
-    // Only trigger swipe if horizontal movement is greater than vertical
-    // and exceeds threshold
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0) {
-        goToPrevious(); // Swipe right = previous
-      } else {
-        goToNext(); // Swipe left = next
+      // Only trigger swipe if horizontal movement is greater than vertical
+      // and exceeds threshold
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
+        if (dx > 0) {
+          goToPrevious(); // Swipe right = previous
+        } else {
+          goToNext(); // Swipe left = next
+        }
       }
-    }
 
-    touchStartRef.current = null;
-  }, [goToPrevious, goToNext]);
+      touchStartRef.current = null;
+    },
+    [goToPrevious, goToNext]
+  );
 
   // Scroll thumbnail into view when selected
   useEffect(() => {

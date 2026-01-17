@@ -114,7 +114,9 @@ export function PersonHero({ person, className }: PersonHeroProps) {
     person.imdb_id;
 
   return (
-    <section className={cn("relative bg-gradient-to-b from-background/50 to-background", className)}>
+    <section
+      className={cn("relative bg-gradient-to-b from-background/50 to-background", className)}
+    >
       <div className="px-4 md:px-8 lg:px-12 pt-16 md:pt-20 pb-8 md:pb-12">
         <motion.div
           className="flex flex-col md:flex-row gap-8 md:gap-12"
@@ -320,4 +322,3 @@ export function PersonHero({ person, className }: PersonHeroProps) {
     </section>
   );
 }
-

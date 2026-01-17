@@ -1,16 +1,16 @@
 #!/usr/bin/env npx tsx
 /**
  * User Data Migration: MongoDB → PostgreSQL
- * 
+ *
  * Migrates all user-related data from MongoDB to PostgreSQL just before GA.
- * 
+ *
  * Usage:
  *   npx tsx scripts/migrate-user-data.ts                    # Full migration
  *   npx tsx scripts/migrate-user-data.ts --dry-run          # Analyze only
  *   npx tsx scripts/migrate-user-data.ts --user=1234567890  # Single user
  *   npx tsx scripts/migrate-user-data.ts --skip=filters     # Skip collections
  *   npx tsx scripts/migrate-user-data.ts --verbose          # Detailed logging
- * 
+ *
  * Environment:
  *   MONGO_IP, MONGO_PASS, DATABASE_URL
  */
@@ -46,7 +46,10 @@ function parseArgs(): Config {
       config.targetUserId = parseInt(arg.split("=")[1], 10);
     }
     if (arg.startsWith("--skip=")) {
-      arg.split("=")[1].split(",").forEach(c => config.skipCollections.add(c.trim()));
+      arg
+        .split("=")[1]
+        .split(",")
+        .forEach((c) => config.skipCollections.add(c.trim()));
     }
   }
 
@@ -92,8 +95,8 @@ function verbose(message: string) {
 
 interface MongoUser {
   _id: mongoose.Types.ObjectId;
-  sub?: number;         // Number - loses precision for large IDs!
-  id?: string;          // String - USE THIS for googleId
+  sub?: number; // Number - loses precision for large IDs!
+  id?: string; // String - USE THIS for googleId
   name?: string;
   email?: string;
   picture?: string;
@@ -227,13 +230,13 @@ const existingSeriesIds = new Set<number>();
 
 async function loadExistingContentIds() {
   log("📦 Loading existing content IDs from PostgreSQL...");
-  
+
   const movies = await prisma.movie.findMany({ select: { id: true } });
-  movies.forEach(m => existingMovieIds.add(m.id));
-  
+  movies.forEach((m) => existingMovieIds.add(m.id));
+
   const series = await prisma.series.findMany({ select: { id: true } });
-  series.forEach(s => existingSeriesIds.add(s.id));
-  
+  series.forEach((s) => existingSeriesIds.add(s.id));
+
   log(`   ✅ Loaded ${existingMovieIds.size} movies, ${existingSeriesIds.size} series`);
 }
 
@@ -243,21 +246,19 @@ async function loadExistingContentIds() {
 
 async function migrateUsers(testDb: mongoose.mongo.Db) {
   log("👤 Migrating users...");
-  
+
   const usersCollection = testDb.collection<MongoUser>("users");
   // For targeting, use the string id field
-  const query = config.targetUserId 
-    ? { id: config.targetUserId.toString() } 
-    : {};
+  const query = config.targetUserId ? { id: config.targetUserId.toString() } : {};
   const users = await usersCollection.find(query).toArray();
-  
+
   stats.users.total = users.length;
   log(`   Found ${users.length} users`);
 
   for (const user of users) {
     // IMPORTANT: Use string `id` field, NOT `sub` (number loses precision!)
     const googleId = user.id;
-    
+
     if (!googleId || !user.email) {
       verbose(`Skipping user without googleId or email: ${user._id}`);
       stats.users.skipped++;
@@ -268,7 +269,7 @@ async function migrateUsers(testDb: mongoose.mongo.Db) {
     // But since sub loses precision, we parse the string id instead
     // This will be an approximation but still work for mapping
     const mongoUserId = user.sub || parseInt(googleId, 10);
-    
+
     if (config.dryRun) {
       verbose(`Would migrate user: ${user.email} (googleId: ${googleId})`);
       stats.users.migrated++;
@@ -280,7 +281,7 @@ async function migrateUsers(testDb: mongoose.mongo.Db) {
     try {
       // Build metadata from MongoDB fields
       const metadata: UserMetadata = {};
-      
+
       if (user.family_name || user.given_name || user.location) {
         metadata.profile = {};
         if (user.family_name) metadata.profile.familyName = user.family_name;
@@ -295,7 +296,7 @@ async function migrateUsers(testDb: mongoose.mongo.Db) {
           };
         }
       }
-      
+
       // Set preferredCountry from location if available
       const preferredCountry = user.location?.countryCode || null;
 
@@ -327,7 +328,7 @@ async function migrateUsers(testDb: mongoose.mongo.Db) {
       if (user.sub) {
         userIdMap.set(user.sub, pgUser.id);
       }
-      
+
       stats.users.migrated++;
       verbose(`Migrated user: ${user.email} → PG id ${pgUser.id} (mongoUserId: ${mongoUserId})`);
     } catch (error) {
@@ -336,7 +337,9 @@ async function migrateUsers(testDb: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Users: ${stats.users.migrated} migrated, ${stats.users.skipped} skipped, ${stats.users.errors} errors`);
+  log(
+    `   ✅ Users: ${stats.users.migrated} migrated, ${stats.users.skipped} skipped, ${stats.users.errors} errors`
+  );
 }
 
 // ============================================
@@ -350,17 +353,17 @@ async function migrateWatchedMovies(db: mongoose.mongo.Db) {
   }
 
   log("🎬 Migrating watched movies...");
-  
+
   const collection = db.collection<MongoWatchedMovie>("watchedmovies");
   const query = config.targetUserId ? { userId: config.targetUserId } : {};
   const items = await collection.find(query).toArray();
-  
+
   stats.watchedMovies.total = items.length;
   log(`   Found ${items.length} watched movie records`);
 
   for (const item of items) {
     const pgUserId = userIdMap.get(item.userId);
-    
+
     if (!pgUserId) {
       verbose(`Skipping watched movie - no user mapping for userId ${item.userId}`);
       stats.watchedMovies.skipped++;
@@ -397,7 +400,9 @@ async function migrateWatchedMovies(db: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Watched: ${stats.watchedMovies.migrated} migrated, ${stats.watchedMovies.skipped} skipped, ${stats.watchedMovies.errors} errors`);
+  log(
+    `   ✅ Watched: ${stats.watchedMovies.migrated} migrated, ${stats.watchedMovies.skipped} skipped, ${stats.watchedMovies.errors} errors`
+  );
 }
 
 // ============================================
@@ -411,17 +416,17 @@ async function migrateMovieWatchlist(db: mongoose.mongo.Db) {
   }
 
   log("📋 Migrating movie watchlist...");
-  
+
   const collection = db.collection<MongoWatchlist>("movieswatchlists");
   const query = config.targetUserId ? { userId: config.targetUserId } : {};
   const items = await collection.find(query).toArray();
-  
+
   stats.movieWatchlist.total = items.length;
   log(`   Found ${items.length} movie watchlist records`);
 
   for (const item of items) {
     const pgUserId = userIdMap.get(item.userId);
-    
+
     if (!pgUserId) {
       stats.movieWatchlist.skipped++;
       continue;
@@ -456,7 +461,9 @@ async function migrateMovieWatchlist(db: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Movie watchlist: ${stats.movieWatchlist.migrated} migrated, ${stats.movieWatchlist.skipped} skipped, ${stats.movieWatchlist.errors} errors`);
+  log(
+    `   ✅ Movie watchlist: ${stats.movieWatchlist.migrated} migrated, ${stats.movieWatchlist.skipped} skipped, ${stats.movieWatchlist.errors} errors`
+  );
 }
 
 // ============================================
@@ -470,17 +477,17 @@ async function migrateSeriesWatchlist(db: mongoose.mongo.Db) {
   }
 
   log("📺 Migrating series watchlist...");
-  
+
   const collection = db.collection<MongoWatchlist>("serieslists");
   const query = config.targetUserId ? { userId: config.targetUserId } : {};
   const items = await collection.find(query).toArray();
-  
+
   stats.seriesWatchlist.total = items.length;
   log(`   Found ${items.length} series watchlist records`);
 
   for (const item of items) {
     const pgUserId = userIdMap.get(item.userId);
-    
+
     if (!pgUserId) {
       stats.seriesWatchlist.skipped++;
       continue;
@@ -515,7 +522,9 @@ async function migrateSeriesWatchlist(db: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Series watchlist: ${stats.seriesWatchlist.migrated} migrated, ${stats.seriesWatchlist.skipped} skipped, ${stats.seriesWatchlist.errors} errors`);
+  log(
+    `   ✅ Series watchlist: ${stats.seriesWatchlist.migrated} migrated, ${stats.seriesWatchlist.skipped} skipped, ${stats.seriesWatchlist.errors} errors`
+  );
 }
 
 // ============================================
@@ -529,17 +538,17 @@ async function migrateRatings(db: mongoose.mongo.Db) {
   }
 
   log("⭐ Migrating user ratings...");
-  
+
   const collection = db.collection<MongoUserRating>("userratings");
   const query = config.targetUserId ? { userId: config.targetUserId } : {};
   const items = await collection.find(query).toArray();
-  
+
   stats.ratings.total = items.length;
   log(`   Found ${items.length} rating records`);
 
   for (const item of items) {
     const pgUserId = userIdMap.get(item.userId);
-    
+
     if (!pgUserId) {
       stats.ratings.skipped++;
       continue;
@@ -603,7 +612,9 @@ async function migrateRatings(db: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Ratings: ${stats.ratings.migrated} migrated, ${stats.ratings.skipped} skipped, ${stats.ratings.errors} errors`);
+  log(
+    `   ✅ Ratings: ${stats.ratings.migrated} migrated, ${stats.ratings.skipped} skipped, ${stats.ratings.errors} errors`
+  );
 }
 
 // ============================================
@@ -617,23 +628,23 @@ async function migrateRecents(db: mongoose.mongo.Db) {
   }
 
   log("🕐 Migrating recent items...");
-  
+
   const collection = db.collection<MongoRecent>("recents");
   const query = config.targetUserId ? { userId: config.targetUserId } : {};
   const items = await collection.find(query).toArray();
-  
+
   stats.recents.total = items.length;
   log(`   Found ${items.length} recent records`);
 
   for (const item of items) {
     const pgUserId = userIdMap.get(item.userId);
-    
+
     if (!pgUserId) {
       stats.recents.skipped++;
       continue;
     }
 
-    const contentExists = item.isMovie 
+    const contentExists = item.isMovie
       ? existingMovieIds.has(item.itemId)
       : existingSeriesIds.has(item.itemId);
 
@@ -684,7 +695,9 @@ async function migrateRecents(db: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Recents: ${stats.recents.migrated} migrated, ${stats.recents.skipped} skipped, ${stats.recents.errors} errors`);
+  log(
+    `   ✅ Recents: ${stats.recents.migrated} migrated, ${stats.recents.skipped} skipped, ${stats.recents.errors} errors`
+  );
 }
 
 // ============================================
@@ -698,23 +711,23 @@ async function migrateContinueWatching(db: mongoose.mongo.Db) {
   }
 
   log("▶️ Migrating continue watching...");
-  
+
   const collection = db.collection<MongoContinueWatching>("continuewatchings");
   const query = config.targetUserId ? { userId: config.targetUserId } : {};
   const items = await collection.find(query).toArray();
-  
+
   stats.continueWatching.total = items.length;
   log(`   Found ${items.length} continue watching records`);
 
   for (const item of items) {
     const pgUserId = userIdMap.get(item.userId);
-    
+
     if (!pgUserId) {
       stats.continueWatching.skipped++;
       continue;
     }
 
-    const contentExists = item.isMovie 
+    const contentExists = item.isMovie
       ? existingMovieIds.has(item.itemId)
       : existingSeriesIds.has(item.itemId);
 
@@ -778,7 +791,9 @@ async function migrateContinueWatching(db: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Continue watching: ${stats.continueWatching.migrated} migrated, ${stats.continueWatching.skipped} skipped, ${stats.continueWatching.errors} errors`);
+  log(
+    `   ✅ Continue watching: ${stats.continueWatching.migrated} migrated, ${stats.continueWatching.skipped} skipped, ${stats.continueWatching.errors} errors`
+  );
 }
 
 // ============================================
@@ -792,7 +807,7 @@ async function migrateFilters(db: mongoose.mongo.Db) {
   }
 
   log("🔍 Migrating saved filters...");
-  
+
   // Check if SavedFilter table exists
   try {
     await prisma.$queryRaw`SELECT 1 FROM saved_filters LIMIT 1`;
@@ -800,17 +815,17 @@ async function migrateFilters(db: mongoose.mongo.Db) {
     log("   ⚠️ saved_filters table doesn't exist - skipping. Run schema migration first.");
     return;
   }
-  
+
   const collection = db.collection<MongoFilter>("filters");
   const query = config.targetUserId ? { userId: config.targetUserId } : {};
   const items = await collection.find(query).toArray();
-  
+
   stats.filters.total = items.length;
   log(`   Found ${items.length} saved filter records`);
 
   for (const item of items) {
     const pgUserId = userIdMap.get(item.userId);
-    
+
     if (!pgUserId) {
       stats.filters.skipped++;
       continue;
@@ -842,7 +857,9 @@ async function migrateFilters(db: mongoose.mongo.Db) {
     }
   }
 
-  log(`   ✅ Filters: ${stats.filters.migrated} migrated, ${stats.filters.skipped} skipped, ${stats.filters.errors} errors`);
+  log(
+    `   ✅ Filters: ${stats.filters.migrated} migrated, ${stats.filters.skipped} skipped, ${stats.filters.errors} errors`
+  );
 }
 
 // ============================================
@@ -853,7 +870,7 @@ function printSummary() {
   console.log("\n" + "=".repeat(60));
   console.log(config.dryRun ? "DRY RUN SUMMARY" : "MIGRATION SUMMARY");
   console.log("=".repeat(60));
-  
+
   const collections = [
     { name: "Users", stats: stats.users },
     { name: "Watched Movies", stats: stats.watchedMovies },
@@ -865,9 +882,15 @@ function printSummary() {
     { name: "Saved Filters", stats: stats.filters },
   ];
 
-  console.log("\nCollection".padEnd(20) + "Total".padStart(10) + "Migrated".padStart(10) + "Skipped".padStart(10) + "Errors".padStart(10));
+  console.log(
+    "\nCollection".padEnd(20) +
+      "Total".padStart(10) +
+      "Migrated".padStart(10) +
+      "Skipped".padStart(10) +
+      "Errors".padStart(10)
+  );
   console.log("-".repeat(60));
-  
+
   let totalRecords = 0;
   let totalMigrated = 0;
   let totalSkipped = 0;
@@ -875,11 +898,11 @@ function printSummary() {
 
   for (const { name, stats: s } of collections) {
     console.log(
-      name.padEnd(20) + 
-      s.total.toString().padStart(10) + 
-      s.migrated.toString().padStart(10) + 
-      s.skipped.toString().padStart(10) + 
-      s.errors.toString().padStart(10)
+      name.padEnd(20) +
+        s.total.toString().padStart(10) +
+        s.migrated.toString().padStart(10) +
+        s.skipped.toString().padStart(10) +
+        s.errors.toString().padStart(10)
     );
     totalRecords += s.total;
     totalMigrated += s.migrated;
@@ -889,11 +912,11 @@ function printSummary() {
 
   console.log("-".repeat(60));
   console.log(
-    "TOTAL".padEnd(20) + 
-    totalRecords.toString().padStart(10) + 
-    totalMigrated.toString().padStart(10) + 
-    totalSkipped.toString().padStart(10) + 
-    totalErrors.toString().padStart(10)
+    "TOTAL".padEnd(20) +
+      totalRecords.toString().padStart(10) +
+      totalMigrated.toString().padStart(10) +
+      totalSkipped.toString().padStart(10) +
+      totalErrors.toString().padStart(10)
   );
 
   if (totalErrors > 0) {
@@ -913,7 +936,7 @@ async function main() {
   console.log("=".repeat(60));
   console.log(config.dryRun ? "USER DATA MIGRATION (DRY RUN)" : "USER DATA MIGRATION");
   console.log("=".repeat(60));
-  
+
   if (config.dryRun) {
     log("🔍 DRY RUN MODE - No data will be written\n");
   }
@@ -923,21 +946,21 @@ async function main() {
   }
 
   const mongoUri = getMongoURI();
-  
+
   log("Connecting to MongoDB...");
   await mongoose.connect(mongoUri);
-  
+
   const client = mongoose.connection.getClient();
   // ALL user data is in 'test' database (discovered via explore script)
   const testDb = client.db("test");
-  
+
   log("Connecting to PostgreSQL...");
   await prisma.$connect();
-  
+
   try {
     // Pre-load content IDs
     await loadExistingContentIds();
-    
+
     // Migrate in order - ALL collections are in 'test' database
     await migrateUsers(testDb);
     await migrateWatchedMovies(testDb);
@@ -947,9 +970,8 @@ async function main() {
     await migrateRecents(testDb);
     await migrateContinueWatching(testDb);
     await migrateFilters(testDb);
-    
+
     printSummary();
-    
   } finally {
     await mongoose.disconnect();
     await prisma.$disconnect();

@@ -27,10 +27,10 @@ interface AIQuestionsSectionProps {
  */
 function triggerAIChat(question: string, title: string, year: string | undefined, tmdbId: number) {
   // Append movie context to the question for the AI agent
-  const contextSuffix = year 
+  const contextSuffix = year
     ? ` [About: ${title} (${year}), TMDB ID: ${tmdbId}]`
     : ` [About: ${title}, TMDB ID: ${tmdbId}]`;
-  
+
   const event = new CustomEvent("ai-chat-trigger", {
     detail: { message: question + contextSuffix },
   });
@@ -52,9 +52,7 @@ export function AIQuestionsSection({
         <div className="rounded-xl bg-black/80 backdrop-blur-sm p-4 md:p-5">
           <div className="flex items-center gap-2 mb-3">
             <AISparkIcon size={16} className="text-brand" />
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Ask about {title}
-            </h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Ask about {title}</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {questions.map((question, index) => (
@@ -81,4 +79,3 @@ export function AIQuestionsSection({
     </section>
   );
 }
-

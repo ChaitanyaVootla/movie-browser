@@ -10,18 +10,18 @@ This document tracks improvements to the admin analytics dashboard for GA releas
 
 ### ✅ Implemented - Phase 2.3: Users Tab Enhancement & Code Restructuring
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| **Code Restructuring** | ✅ | Extracted Users tab to `tabs/users-tab.tsx` (~700 lines) |
-| `client.tsx` refactor | ✅ | Reduced from ~750 lines to ~55 lines |
-| **Users Tab Enhancements** | ✅ | Search, filter, sort, AI stats integration |
-| Search by name/email | ✅ | Real-time search input with clear button |
-| Activity filter | ✅ | All/Today/Week/Month/Inactive dropdown |
-| Sortable columns | ✅ | Sort by name, last visit, watched, watchlist, AI cost |
-| Per-user AI stats | ✅ | Shows AI calls, cost, tokens per user |
-| AI Stats totals | ✅ | New stats cards for total AI calls and cost |
-| **New Query** | ✅ | `getUserAIStats()` - aggregates AI usage by user |
-| API endpoint | ✅ | `type=user_ai_stats` in analytics API |
+| Feature                    | Status | Notes                                                    |
+| -------------------------- | ------ | -------------------------------------------------------- |
+| **Code Restructuring**     | ✅     | Extracted Users tab to `tabs/users-tab.tsx` (~700 lines) |
+| `client.tsx` refactor      | ✅     | Reduced from ~750 lines to ~55 lines                     |
+| **Users Tab Enhancements** | ✅     | Search, filter, sort, AI stats integration               |
+| Search by name/email       | ✅     | Real-time search input with clear button                 |
+| Activity filter            | ✅     | All/Today/Week/Month/Inactive dropdown                   |
+| Sortable columns           | ✅     | Sort by name, last visit, watched, watchlist, AI cost    |
+| Per-user AI stats          | ✅     | Shows AI calls, cost, tokens per user                    |
+| AI Stats totals            | ✅     | New stats cards for total AI calls and cost              |
+| **New Query**              | ✅     | `getUserAIStats()` - aggregates AI usage by user         |
+| API endpoint               | ✅     | `type=user_ai_stats` in analytics API                    |
 
 ### New Files
 
@@ -42,11 +42,13 @@ src/app/api/admin/analytics/route.ts              # Added user_ai_stats endpoint
 ### Users Tab Features
 
 **Search & Filter:**
+
 - Real-time search by name or email
 - Activity filter: All, Active Today, This Week, This Month, Inactive (>30 days)
 - Results count shown when filters applied
 
 **Sortable Columns:**
+
 - Name (alphabetical)
 - Last Visit (most recent)
 - Watched count
@@ -54,6 +56,7 @@ src/app/api/admin/analytics/route.ts              # Added user_ai_stats endpoint
 - AI Cost (highest spenders)
 
 **AI Usage Integration:**
+
 - Per-user AI stats (calls, cost, tokens) shown in table
 - Color-coded costs (amber for >$1, blue for >$0.10)
 - Tooltip shows full breakdown on hover
@@ -69,23 +72,23 @@ AI stats are matched to users by display name (primary) or email (fallback), sin
 
 ### ✅ Implemented - Phase 3.1: CPU & Memory Tracking + Query Modularity
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| **System Metrics Collection** | ✅ | Real-time CPU, memory, event loop tracking |
-| `system-metrics.ts` module | ✅ | Node.js process metrics with background collection |
-| ClickHouse `system_metrics` table | ✅ | Historical system data with TTL |
-| Background collector | ✅ | Collects every 5 minutes, auto-starts in production |
-| **Query Modularization** | ✅ | `queries.ts` split into domain-specific modules |
-| `queries/types.ts` | ✅ | Shared types + `getTimeRangeCondition` helper |
-| `queries/traffic.ts` | ✅ | Traffic queries with hourly granularity |
-| `queries/ai.ts` | ✅ | AI usage queries |
-| `queries/performance.ts` | ✅ | Web Vitals queries |
-| `queries/errors.ts` | ✅ | Error tracking queries |
-| `queries/lambda.ts` | ✅ | Lambda usage queries |
-| `queries/system.ts` | ✅ | System metrics history queries |
-| **"Today" Time Range** | ✅ | Added `0` option for today's data only |
-| **Hourly Traffic Granularity** | ✅ | TrafficTab defaults to hourly view |
-| **System History Charts** | ✅ | CPU & memory at top of SystemTab, defaults to hourly |
+| Feature                           | Status | Notes                                                |
+| --------------------------------- | ------ | ---------------------------------------------------- |
+| **System Metrics Collection**     | ✅     | Real-time CPU, memory, event loop tracking           |
+| `system-metrics.ts` module        | ✅     | Node.js process metrics with background collection   |
+| ClickHouse `system_metrics` table | ✅     | Historical system data with TTL                      |
+| Background collector              | ✅     | Collects every 5 minutes, auto-starts in production  |
+| **Query Modularization**          | ✅     | `queries.ts` split into domain-specific modules      |
+| `queries/types.ts`                | ✅     | Shared types + `getTimeRangeCondition` helper        |
+| `queries/traffic.ts`              | ✅     | Traffic queries with hourly granularity              |
+| `queries/ai.ts`                   | ✅     | AI usage queries                                     |
+| `queries/performance.ts`          | ✅     | Web Vitals queries                                   |
+| `queries/errors.ts`               | ✅     | Error tracking queries                               |
+| `queries/lambda.ts`               | ✅     | Lambda usage queries                                 |
+| `queries/system.ts`               | ✅     | System metrics history queries                       |
+| **"Today" Time Range**            | ✅     | Added `0` option for today's data only               |
+| **Hourly Traffic Granularity**    | ✅     | TrafficTab defaults to hourly view                   |
+| **System History Charts**         | ✅     | CPU & memory at top of SystemTab, defaults to hourly |
 
 ### Migration Required
 
@@ -142,18 +145,18 @@ src/lib/
 
 ### ✅ Implemented - Phase 2 User Experience & AI User Names
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| **AI User Names** | ✅ | User names displayed in Top AI Users (not just IDs) |
-| ClickHouse schema update | ✅ | Added `user_name` column to `ai_usage` table |
-| Track user names | ✅ | `trackAIUsage()` now accepts and stores userName |
-| Display user names | ✅ | AI tab shows names prominently, ID as secondary |
-| **Error Detail Sheet** | ✅ | Click alerts to see full error details |
-| Error queries | ✅ | `getErrorDetails()`, `getErrorOccurrences()` |
-| API endpoint | ✅ | `type=error_detail` in analytics API |
-| Stack trace display | ✅ | Full stack traces in detail sheet |
-| Recent occurrences | ✅ | Last 20 occurrences with timestamps |
-| Context display | ✅ | JSON context from error events |
+| Feature                  | Status | Notes                                               |
+| ------------------------ | ------ | --------------------------------------------------- |
+| **AI User Names**        | ✅     | User names displayed in Top AI Users (not just IDs) |
+| ClickHouse schema update | ✅     | Added `user_name` column to `ai_usage` table        |
+| Track user names         | ✅     | `trackAIUsage()` now accepts and stores userName    |
+| Display user names       | ✅     | AI tab shows names prominently, ID as secondary     |
+| **Error Detail Sheet**   | ✅     | Click alerts to see full error details              |
+| Error queries            | ✅     | `getErrorDetails()`, `getErrorOccurrences()`        |
+| API endpoint             | ✅     | `type=error_detail` in analytics API                |
+| Stack trace display      | ✅     | Full stack traces in detail sheet                   |
+| Recent occurrences       | ✅     | Last 20 occurrences with timestamps                 |
+| Context display          | ✅     | JSON context from error events                      |
 
 ### Migration Required
 
@@ -169,20 +172,20 @@ ALTER TABLE analytics.ai_usage ADD COLUMN IF NOT EXISTS user_name String DEFAULT
 
 ### ✅ Implemented - Code Restructuring & Quick Wins
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| **Modular architecture** | ✅ | Dashboard split into ~300-line files |
-| Shared types file | ✅ | `analytics-types.ts` - centralized types |
-| Shared components | ✅ | `analytics-shared.tsx` - EmptyState, CompactStat, CopyableText |
-| TrafficTab extraction | ✅ | `tabs/traffic-tab.tsx` |
-| AITab extraction | ✅ | `tabs/ai-tab.tsx` |
-| LambdaTab extraction | ✅ | `tabs/lambda-tab.tsx` |
-| PerformanceTab extraction | ✅ | `tabs/performance-tab.tsx` |
-| SystemTab extraction | ✅ | `tabs/system-tab.tsx` |
-| **User ID tooltips** | ✅ | Full ID shown on hover |
-| **Copy-to-clipboard** | ✅ | Click to copy full user ID |
-| **No data states** | ✅ | All charts/sections have EmptyState |
-| **Enhanced cache stats** | ✅ | Namespace sizes with percentage badges |
+| Feature                   | Status | Notes                                                          |
+| ------------------------- | ------ | -------------------------------------------------------------- |
+| **Modular architecture**  | ✅     | Dashboard split into ~300-line files                           |
+| Shared types file         | ✅     | `analytics-types.ts` - centralized types                       |
+| Shared components         | ✅     | `analytics-shared.tsx` - EmptyState, CompactStat, CopyableText |
+| TrafficTab extraction     | ✅     | `tabs/traffic-tab.tsx`                                         |
+| AITab extraction          | ✅     | `tabs/ai-tab.tsx`                                              |
+| LambdaTab extraction      | ✅     | `tabs/lambda-tab.tsx`                                          |
+| PerformanceTab extraction | ✅     | `tabs/performance-tab.tsx`                                     |
+| SystemTab extraction      | ✅     | `tabs/system-tab.tsx`                                          |
+| **User ID tooltips**      | ✅     | Full ID shown on hover                                         |
+| **Copy-to-clipboard**     | ✅     | Click to copy full user ID                                     |
+| **No data states**        | ✅     | All charts/sections have EmptyState                            |
+| **Enhanced cache stats**  | ✅     | Namespace sizes with percentage badges                         |
 
 ### New File Structure
 
@@ -234,19 +237,20 @@ src/components/features/admin/
 
 ### ✅ Implemented
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Compact header with inline filters | ✅ | Time range dropdown + global bot toggle in header |
-| Collapsible alerts bar | ✅ | Shows count, click to expand, shows details |
-| Sleek metric cards (CompactStat) | ✅ | Inline stats with icons, color variants |
-| Global bot filter | ✅ | Toggle to include/exclude bots from all metrics |
-| Bot filter in top pages | ✅ | Shows bot views alongside human views |
-| Clickable pages → detail pages | ✅ | Links to /movie/{id}, /series/{id} |
-| Lambda time series chart | ✅ | Dual-axis line chart (invocations + duration) |
-| Cache namespace breakdown | ✅ | System tab shows namespace sizes |
-| Default: show both human + bot | ✅ | `excludeBots` defaults to false |
+| Feature                            | Status | Notes                                             |
+| ---------------------------------- | ------ | ------------------------------------------------- |
+| Compact header with inline filters | ✅     | Time range dropdown + global bot toggle in header |
+| Collapsible alerts bar             | ✅     | Shows count, click to expand, shows details       |
+| Sleek metric cards (CompactStat)   | ✅     | Inline stats with icons, color variants           |
+| Global bot filter                  | ✅     | Toggle to include/exclude bots from all metrics   |
+| Bot filter in top pages            | ✅     | Shows bot views alongside human views             |
+| Clickable pages → detail pages     | ✅     | Links to /movie/{id}, /series/{id}                |
+| Lambda time series chart           | ✅     | Dual-axis line chart (invocations + duration)     |
+| Cache namespace breakdown          | ✅     | System tab shows namespace sizes                  |
+| Default: show both human + bot     | ✅     | `excludeBots` defaults to false                   |
 
 ### Files Modified
+
 - `src/components/features/admin/analytics-dashboard.tsx` - Major rewrite
 - `src/lib/analytics/queries.ts` - Added `botViews` to `getTopPages()`
 
@@ -255,20 +259,24 @@ src/components/features/admin/
 ## Phase 2: User Experience Polish (Priority: High) ✅ Complete
 
 ### 2.1 Clickable Alert Error Details
+
 **Status:** ✅ Complete  
 **Effort:** Small
 
 Error alerts in the collapsible alerts bar are now clickable:
+
 - Opens `ErrorDetailSheet` with full error details
 - Shows error message, stack trace, context
 - Displays recent occurrences list
 - Shows session info (country, timestamp, user agent)
 
 ### 2.2 Top AI Users - Show Names
+
 **Status:** ✅ Complete  
 **Effort:** Medium
 
 User names are now displayed in the Top AI Users section:
+
 1. Added `user_name` column to ClickHouse `ai_usage` table
 2. Updated `trackAIUsage()` to accept and store userName
 3. AI tab shows user name prominently, user ID as secondary (copyable)
@@ -279,10 +287,12 @@ ALTER TABLE analytics.ai_usage ADD COLUMN IF NOT EXISTS user_name String DEFAULT
 ```
 
 ### 2.3 Users Tab Enhancement
+
 **Status:** ✅ Complete  
 **Effort:** Medium
 
 Enhanced the existing Users tab (in `/admin`) with:
+
 - ✅ Per-user AI usage stats (calls, cost, tokens)
 - ✅ Search/filter by email and name
 - ✅ Activity filter (Today/Week/Month/Inactive)
@@ -295,12 +305,14 @@ Enhanced the existing Users tab (in `/admin`) with:
 ## Phase 3: System Metrics (Priority: Medium)
 
 ### 3.1 CPU & Memory Tracking
+
 **Status:** ✅ Complete  
 **Effort:** Medium-High
 
 Real-time and historical system metrics implemented:
 
 **Features:**
+
 - Real-time CPU/memory/event loop display in SystemTab
 - Background collector tracks metrics every 5 minutes
 - Historical line charts with configurable granularity (5min/15min/hourly)
@@ -308,35 +320,42 @@ Real-time and historical system metrics implemented:
 - ClickHouse storage with 30-day TTL
 
 **Implementation:**
+
 - `src/lib/system-metrics.ts` - Node.js metrics collection + background collector
 - `src/lib/analytics/queries/system.ts` - History queries with granularity
 - `src/lib/analytics/track.ts` - `trackSystemMetrics()` function
 - ClickHouse `system_metrics` table (see Session 4 migration)
 
 **Granularity Options (System & Traffic):**
+
 - 5 minutes - ~288 data points/day
-- 15 minutes - ~96 data points/day  
+- 15 minutes - ~96 data points/day
 - Hourly (default) - 24 data points/day
 
 **UI Defaults:**
+
 - System history chart: Hourly granularity, positioned at top of SystemTab
 - Traffic trend chart: Hourly granularity (can switch to daily)
 
 ### 3.2 File System Cache Size
+
 **Status:** ✅ Complete  
 **Effort:** Small
 
 Implemented in `SystemTab`:
+
 - Total disk usage per namespace
 - Percentage badges for large namespaces (≥20%)
 - File count per namespace
 - Responsive grid layout
 
 ### 3.3 Bot Traffic Correlation
+
 **Status:** Pending  
 **Effort:** Medium
 
 Correlate bot spikes with resource usage:
+
 - Overlay bot traffic on CPU/memory charts
 - Alert when bot traffic coincides with resource spikes
 - Identify aggressive bot patterns
@@ -346,19 +365,23 @@ Correlate bot spikes with resource usage:
 ## Phase 4: Advanced Analytics (Priority: Low)
 
 ### 4.1 Real-time Dashboard Updates
+
 **Status:** Not Started  
 **Effort:** Medium
 
 Add WebSocket/SSE for live updates:
+
 - Live error stream
 - Real-time traffic counter
 - Active sessions indicator
 
 ### 4.2 Custom Date Range Picker
+
 **Status:** Not Started  
 **Effort:** Small
 
 Replace preset dropdowns with date range picker:
+
 ```typescript
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 
@@ -369,19 +392,23 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 ```
 
 ### 4.3 Export/Download Reports
+
 **Status:** Not Started  
 **Effort:** Medium
 
 Add CSV/PDF export for:
+
 - Traffic reports
 - AI cost reports
 - Error summaries
 
 ### 4.4 Comparison Mode
+
 **Status:** Not Started  
 **Effort:** Medium
 
 Compare metrics between periods:
+
 - Week over week
 - Month over month
 - Before/after deployment
@@ -393,6 +420,7 @@ Compare metrics between periods:
 ### ~~TBD: ClickHouse Schema Updates~~ ✅ Done
 
 Completed for Phase 3.1:
+
 1. ✅ Added `system_metrics` table (see Session 4 migration SQL)
 2. ✅ Updated analytics client with `system_metrics` table type
 3. ✅ 30-day TTL configured for automatic cleanup
@@ -400,6 +428,7 @@ Completed for Phase 3.1:
 ### TBD: MongoDB → PostgreSQL User Migration
 
 When user data moves to PostgreSQL:
+
 - Update user lookup queries
 - Simplify AI user name resolution
 - Add proper foreign key relationships
@@ -409,7 +438,7 @@ When user data moves to PostgreSQL:
 ## Priority Order
 
 1. ~~**Phase 2.2** - AI Users names~~ ✅ Complete
-2. ~~**Phase 2.1** - Error details modal~~ ✅ Complete  
+2. ~~**Phase 2.1** - Error details modal~~ ✅ Complete
 3. ~~**Phase 3.2** - File cache size~~ ✅ Complete
 4. ~~**Phase 3.1** - CPU/Memory (resource monitoring)~~ ✅ Complete
 5. ~~**Phase 2.3** - Users tab enhancements~~ ✅ Complete

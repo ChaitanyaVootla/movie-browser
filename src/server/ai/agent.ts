@@ -6,7 +6,13 @@
 
 import { StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import { AIMessage, HumanMessage, SystemMessage, BaseMessage, ToolMessage } from "@langchain/core/messages";
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  BaseMessage,
+  ToolMessage,
+} from "@langchain/core/messages";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentState, type AgentStateType } from "./state";
 import { createBedrockChat } from "./bedrock";
@@ -117,7 +123,10 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
     }
     // Update stats
     if (invocationStats) {
-      invocationStats.totalToolResultsChars += log.toolResults.reduce((sum, tr) => sum + tr.resultSize, 0);
+      invocationStats.totalToolResultsChars += log.toolResults.reduce(
+        (sum, tr) => sum + tr.resultSize,
+        0
+      );
     }
   }
 
@@ -153,9 +162,8 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
     if (log.toolResults?.length) {
       console.log("\n📥 Tool Results:");
       for (const tr of log.toolResults) {
-        const resultPreview = tr.result.length > 500 
-          ? tr.result.slice(0, 500) + "... [truncated]" 
-          : tr.result;
+        const resultPreview =
+          tr.result.length > 500 ? tr.result.slice(0, 500) + "... [truncated]" : tr.result;
         console.log(`   └─ ${tr.name} (${tr.duration}ms, ${tr.resultSize} chars)`);
         console.log(`      Result: ${resultPreview.split("\n").join("\n      ")}`);
       }
@@ -163,7 +171,10 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
 
     if (log.response) {
       const llmTime = log.llmDuration ? ` (LLM: ${log.llmDuration}ms)` : "";
-      console.log(`\n💬 Response${llmTime}:`, log.response.slice(0, 300) + (log.response.length > 300 ? "..." : ""));
+      console.log(
+        `\n💬 Response${llmTime}:`,
+        log.response.slice(0, 300) + (log.response.length > 300 ? "..." : "")
+      );
     }
   }
 }
@@ -209,10 +220,10 @@ async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>
 
   // Track LLM timing
   lastLlmStartTime = Date.now();
-  
+
   // Invoke the model
   const response = await model.invoke(messages);
-  
+
   const llmDuration = Date.now() - lastLlmStartTime;
 
   // Extract token usage from response metadata (LangChain provides this)
@@ -291,10 +302,10 @@ async function toolNodeWithContext(
 
   // Track tool execution times
   const startTime = Date.now();
-  
+
   // Run tools with the updated config
   const result = await toolNode.invoke(state, configWithContext);
-  
+
   const endTime = Date.now();
 
   // Extract tool results from the messages
@@ -302,7 +313,8 @@ async function toolNodeWithContext(
   if (result.messages) {
     for (const msg of result.messages) {
       if (msg instanceof ToolMessage) {
-        const resultStr = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+        const resultStr =
+          typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
         toolResults.push({
           name: msg.name || "unknown",
           result: resultStr,
@@ -328,13 +340,16 @@ async function toolNodeWithContext(
  * Parse tool calls from text output (Nova Pro quirk)
  * Nova Pro sometimes outputs tool calls as text tokens instead of structured calls
  */
-function parseToolCallsFromText(content: string): { name: string; args: Record<string, unknown> }[] {
+function parseToolCallsFromText(
+  content: string
+): { name: string; args: Record<string, unknown> }[] {
   const toolCalls: { name: string; args: Record<string, unknown> }[] = [];
-  
+
   // Pattern: <|tool_call_begin|> functions.TOOL_NAME:N <|tool_call_argument_begin|> {...} <|tool_call_end|>
   // or: functions.TOOL_NAME:N <|tool_call_argument_begin|> {...}
-  const pattern = /functions\.(\w+):\d+\s*<\|tool_call_argument_begin\|>\s*(\{[\s\S]*?\})\s*(?:<\|tool_call_end\|>|$)/g;
-  
+  const pattern =
+    /functions\.(\w+):\d+\s*<\|tool_call_argument_begin\|>\s*(\{[\s\S]*?\})\s*(?:<\|tool_call_end\|>|$)/g;
+
   let match;
   while ((match = pattern.exec(content)) !== null) {
     try {
@@ -356,7 +371,7 @@ function parseToolCallsFromText(content: string): { name: string; args: Record<s
       // JSON parse failed, skip this match
     }
   }
-  
+
   return toolCalls;
 }
 
@@ -373,12 +388,15 @@ function shouldContinue(state: AgentStateType): "tools" | "__end__" {
 
   // Check for tool calls embedded in text content (Nova Pro quirk)
   if (lastMessage instanceof AIMessage) {
-    const content = typeof lastMessage.content === "string" 
-      ? lastMessage.content 
-      : Array.isArray(lastMessage.content)
-        ? lastMessage.content.map(c => typeof c === "string" ? c : (c as { text?: string }).text || "").join("")
-        : "";
-    
+    const content =
+      typeof lastMessage.content === "string"
+        ? lastMessage.content
+        : Array.isArray(lastMessage.content)
+          ? lastMessage.content
+              .map((c) => (typeof c === "string" ? c : (c as { text?: string }).text || ""))
+              .join("")
+          : "";
+
     if (content.includes("<|tool_call_begin|>") || content.includes("functions.")) {
       const parsedCalls = parseToolCallsFromText(content);
       if (parsedCalls.length > 0) {
@@ -463,7 +481,7 @@ export async function invokeAgent(
 ): Promise<AgentStateType & { _debugLogs?: AgentLogs }> {
   // Reset logs for this invocation
   resetAgentLogs();
-  
+
   const agent = createMovieAgent();
 
   // Build initial state
@@ -477,7 +495,7 @@ export async function invokeAgent(
   // Calculate system prompt size for stats
   const isAuthenticated = !!userId;
   const systemPrompt = getSystemPrompt(isAuthenticated, userContext);
-  
+
   // Calculate history size
   const historySize = (conversationHistory || []).reduce((sum, msg) => {
     const content = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
@@ -509,16 +527,22 @@ export async function invokeAgent(
     systemPromptSize: systemPrompt.length,
     isAuthenticated,
     hasPageContext: !!pageContext,
-    pageContext: pageContext ? { path: pageContext.path, mediaType: pageContext.mediaType, itemId: pageContext.itemId } : null,
+    pageContext: pageContext
+      ? { path: pageContext.path, mediaType: pageContext.mediaType, itemId: pageContext.itemId }
+      : null,
   });
 
   if (DEBUG) {
     console.log("\n" + "🎬".repeat(35));
     console.log("[AI AGENT] New invocation");
     console.log(`   Query: "${message}" (${message.length} chars)`);
-    console.log(`   User: ${userContext?.name || userId || "guest"} (${userContext?.region || "unknown"})`);
+    console.log(
+      `   User: ${userContext?.name || userId || "guest"} (${userContext?.region || "unknown"})`
+    );
     console.log(`   History: ${conversationHistory?.length || 0} messages (${historySize} chars)`);
-    console.log(`   System prompt: ${systemPrompt.length} chars (~${Math.ceil(systemPrompt.length / 4)} tokens)`);
+    console.log(
+      `   System prompt: ${systemPrompt.length} chars (~${Math.ceil(systemPrompt.length / 4)} tokens)`
+    );
     console.log("🎬".repeat(35) + "\n");
   }
 
@@ -533,13 +557,15 @@ export async function invokeAgent(
   // Update stats with final timing
   if (invocationStats) {
     const totalTime = Date.now() - invocationStats.startTime;
-    
+
     if (DEBUG) {
       console.log("\n" + "📊".repeat(35));
       console.log("[AI AGENT] Invocation Complete");
       console.log(`   Total time: ${totalTime}ms`);
       console.log(`   Turns: ${currentTurn}`);
-      console.log(`   Input chars: ${invocationStats.totalInputChars} (~${Math.ceil(invocationStats.totalInputChars / 4)} tokens)`);
+      console.log(
+        `   Input chars: ${invocationStats.totalInputChars} (~${Math.ceil(invocationStats.totalInputChars / 4)} tokens)`
+      );
       console.log(`   Tool args: ${invocationStats.totalToolArgsChars} chars`);
       console.log(`   Tool results: ${invocationStats.totalToolResultsChars} chars`);
       console.log(`   Output: ${invocationStats.totalOutputChars} chars`);
@@ -597,7 +623,7 @@ export async function invokeAgent(
       turns: currentTurn,
       toolCalls: toolCallNames,
       durationMs: totalTime,
-      hadToolRecovery: turnLogs.some((t) => 
+      hadToolRecovery: turnLogs.some((t) =>
         t.toolCalls?.some((tc) => tc.name.startsWith("parsed_"))
       ),
       responseLength: invocationStats?.totalOutputChars || 0,
@@ -627,11 +653,11 @@ export interface StreamEvent {
 
 /**
  * Stream the agent response with separate thinking/text events
- * 
+ *
  * For reasoning models like Kimi K2:
  * - reasoning_content blocks are yielded as "thinking" events
  * - Regular text content is yielded as "text" events
- * 
+ *
  * For standard models:
  * - All content is yielded as "text" events
  */
@@ -644,7 +670,7 @@ export async function* streamAgent(
 ): AsyncGenerator<StreamEvent> {
   // Reset logs for this invocation
   resetAgentLogs();
-  
+
   const agent = createMovieAgent();
 
   const initialState = {
@@ -658,7 +684,9 @@ export async function* streamAgent(
     console.log("\n" + "🎬".repeat(35));
     console.log("[AI AGENT] Streaming invocation");
     console.log(`   Query: "${message}"`);
-    console.log(`   User: ${userContext?.name || userId || "guest"} (${userContext?.region || "unknown"})`);
+    console.log(
+      `   User: ${userContext?.name || userId || "guest"} (${userContext?.region || "unknown"})`
+    );
     console.log(`   History: ${conversationHistory?.length || 0} messages`);
     console.log("🎬".repeat(35) + "\n");
   }
@@ -676,7 +704,10 @@ export async function* streamAgent(
     if (DEBUG && event.event === "on_chat_model_stream") {
       const chunk = event.data?.chunk;
       if (chunk?.content && (typeof chunk.content === "string" ? chunk.content : true)) {
-        console.log("[AI Stream] chunk type:", typeof chunk.content === "string" ? "string" : "array");
+        console.log(
+          "[AI Stream] chunk type:",
+          typeof chunk.content === "string" ? "string" : "array"
+        );
       }
     }
 
@@ -744,69 +775,71 @@ export async function* streamAgent(
 
 /**
  * Clean model output of internal markers
- * 
+ *
  * Kimi K2 and Nova Pro have quirks where internal markers can leak into output:
  * - Tool call markers in various formats (XML-style and pipe-delimited)
  * - Thinking/reasoning tags from chain-of-thought
  * - Function call markers when tool calling fails
- * 
+ *
  * This function aggressively strips all such markers to ensure clean output.
  */
 function cleanModelOutput(content: string): string {
-  return content
-    // ===== Kimi K2 Pipe-Delimited Markers =====
-    // These use <|marker|> format and are the most common leak
-    .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, "")
-    .replace(/<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/gi, "")
-    .replace(/<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_argument_end\|>/gi, "")
-    // Standalone pipe-delimited markers
-    .replace(/<\|tool_call_begin\|>/gi, "")
-    .replace(/<\|tool_call_end\|>/gi, "")
-    .replace(/<\|tool_calls_section_begin\|>/gi, "")
-    .replace(/<\|tool_calls_section_end\|>/gi, "")
-    .replace(/<\|tool_call_argument_begin\|>/gi, "")
-    .replace(/<\|tool_call_argument_end\|>/gi, "")
-    .replace(/<\|im_start\|>/gi, "")
-    .replace(/<\|im_end\|>/gi, "")
-    // Function call markers in text (e.g., "functions.get_trending:0")
-    .replace(/functions\.[\w]+:\d+/gi, "")
-    
-    // ===== XML-Style Markers (Nova Pro) =====
-    .replace(/<tool_call_begin>[\s\S]*?<tool_call_end>/gi, "")
-    .replace(/<tool_calls_section_begin>[\s\S]*?<tool_calls_section_end>/gi, "")
-    .replace(/<tool_call_argument_begin>[\s\S]*?<tool_call_argument_end>/gi, "")
-    .replace(/<functions\.[\w]+>[\s\S]*?<\/functions\.[\w]+>/gi, "")
-    // Standalone XML markers
-    .replace(/<tool_call_begin>/gi, "")
-    .replace(/<tool_call_end>/gi, "")
-    .replace(/<tool_calls_section_begin>/gi, "")
-    .replace(/<tool_calls_section_end>/gi, "")
-    .replace(/<tool_call_argument_begin>/gi, "")
-    .replace(/<tool_call_argument_end>/gi, "")
-    .replace(/<\/functions\.[\w]+>/gi, "")
-    
-    // ===== Thinking/Reasoning Tags =====
-    // Full blocks
-    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
-    // Standalone open/close tags (often leak separately)
-    .replace(/<\/?thinking>/gi, "")
-    .replace(/<\/?think>/gi, "")
-    .replace(/<\/?reasoning>/gi, "")
-    
-    // ===== Other Common Model Artifacts =====
-    // Sometimes models output raw JSON tool calls
-    .replace(/\{"name":\s*"[\w]+",\s*"arguments":\s*\{[^}]*\}\}/g, "")
-    
-    // ===== Cleanup =====
-    // Collapse multiple newlines to max 2
-    .replace(/\n{3,}/g, "\n\n")
-    // Collapse multiple spaces to single space
-    .replace(/ {2,}/g, " ")
-    // Clean up whitespace around newlines
-    .replace(/ *\n */g, "\n")
-    .trim();
+  return (
+    content
+      // ===== Kimi K2 Pipe-Delimited Markers =====
+      // These use <|marker|> format and are the most common leak
+      .replace(/<\|tool_call_begin\|>[\s\S]*?<\|tool_call_end\|>/gi, "")
+      .replace(/<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/gi, "")
+      .replace(/<\|tool_call_argument_begin\|>[\s\S]*?<\|tool_call_argument_end\|>/gi, "")
+      // Standalone pipe-delimited markers
+      .replace(/<\|tool_call_begin\|>/gi, "")
+      .replace(/<\|tool_call_end\|>/gi, "")
+      .replace(/<\|tool_calls_section_begin\|>/gi, "")
+      .replace(/<\|tool_calls_section_end\|>/gi, "")
+      .replace(/<\|tool_call_argument_begin\|>/gi, "")
+      .replace(/<\|tool_call_argument_end\|>/gi, "")
+      .replace(/<\|im_start\|>/gi, "")
+      .replace(/<\|im_end\|>/gi, "")
+      // Function call markers in text (e.g., "functions.get_trending:0")
+      .replace(/functions\.[\w]+:\d+/gi, "")
+
+      // ===== XML-Style Markers (Nova Pro) =====
+      .replace(/<tool_call_begin>[\s\S]*?<tool_call_end>/gi, "")
+      .replace(/<tool_calls_section_begin>[\s\S]*?<tool_calls_section_end>/gi, "")
+      .replace(/<tool_call_argument_begin>[\s\S]*?<tool_call_argument_end>/gi, "")
+      .replace(/<functions\.[\w]+>[\s\S]*?<\/functions\.[\w]+>/gi, "")
+      // Standalone XML markers
+      .replace(/<tool_call_begin>/gi, "")
+      .replace(/<tool_call_end>/gi, "")
+      .replace(/<tool_calls_section_begin>/gi, "")
+      .replace(/<tool_calls_section_end>/gi, "")
+      .replace(/<tool_call_argument_begin>/gi, "")
+      .replace(/<tool_call_argument_end>/gi, "")
+      .replace(/<\/functions\.[\w]+>/gi, "")
+
+      // ===== Thinking/Reasoning Tags =====
+      // Full blocks
+      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+      .replace(/<think>[\s\S]*?<\/think>/gi, "")
+      .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
+      // Standalone open/close tags (often leak separately)
+      .replace(/<\/?thinking>/gi, "")
+      .replace(/<\/?think>/gi, "")
+      .replace(/<\/?reasoning>/gi, "")
+
+      // ===== Other Common Model Artifacts =====
+      // Sometimes models output raw JSON tool calls
+      .replace(/\{"name":\s*"[\w]+",\s*"arguments":\s*\{[^}]*\}\}/g, "")
+
+      // ===== Cleanup =====
+      // Collapse multiple newlines to max 2
+      .replace(/\n{3,}/g, "\n\n")
+      // Collapse multiple spaces to single space
+      .replace(/ {2,}/g, " ")
+      // Clean up whitespace around newlines
+      .replace(/ *\n */g, "\n")
+      .trim()
+  );
 }
 
 /**
@@ -822,12 +855,12 @@ export function getAgentResponse(state: AgentStateType): string {
       if (msg.tool_calls?.length) {
         continue;
       }
-      
+
       // Standard string content
       if (typeof msg.content === "string" && msg.content.trim()) {
         return cleanModelOutput(msg.content);
       }
-      
+
       // Array content (reasoning models like Kimi K2)
       if (Array.isArray(msg.content)) {
         // First, look for a proper text block
@@ -844,7 +877,7 @@ export function getAgentResponse(state: AgentStateType): string {
             return cleanModelOutput(block.text);
           }
         }
-        
+
         // Fallback: Kimi K2 sometimes puts the response inside reasoning_content after tool calls
         // Extract from reasoningText if no text block exists
         for (const block of msg.content) {
@@ -861,9 +894,14 @@ export function getAgentResponse(state: AgentStateType): string {
               // (not just thinking/planning text)
               const text = reasoningText.text.trim();
               // Check if it contains media tags or looks like a user-facing response
-              if (text.includes("[MOVIE:") || text.includes("[SERIES:") || 
-                  text.startsWith("Here") || text.startsWith("Based on") ||
-                  text.includes("trending") || text.includes("recommend")) {
+              if (
+                text.includes("[MOVIE:") ||
+                text.includes("[SERIES:") ||
+                text.startsWith("Here") ||
+                text.startsWith("Based on") ||
+                text.includes("trending") ||
+                text.includes("recommend")
+              ) {
                 return cleanModelOutput(text);
               }
             }
@@ -907,7 +945,12 @@ function classifyQueryType(message: string, toolCalls: string[]): QueryType {
   if (lowerMessage.includes("similar") || lowerMessage.includes("like")) return "recommendation";
   if (lowerMessage.includes("trending") || lowerMessage.includes("popular")) return "trending";
   if (lowerMessage.includes("trailer") || lowerMessage.includes("clip")) return "media";
-  if (lowerMessage.includes("who") || lowerMessage.includes("actor") || lowerMessage.includes("director")) return "person";
+  if (
+    lowerMessage.includes("who") ||
+    lowerMessage.includes("actor") ||
+    lowerMessage.includes("director")
+  )
+    return "person";
 
   return "other";
 }
@@ -915,7 +958,9 @@ function classifyQueryType(message: string, toolCalls: string[]): QueryType {
 /**
  * Get page type from page context for analytics
  */
-function getPageTypeFromContext(context: PageContextInput | null): "movie" | "series" | "person" | null {
+function getPageTypeFromContext(
+  context: PageContextInput | null
+): "movie" | "series" | "person" | null {
   if (!context) return null;
 
   switch (context.mediaType) {
@@ -972,5 +1017,3 @@ export function extractNavigation(
   }
   return null;
 }
-
-

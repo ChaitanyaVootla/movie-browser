@@ -93,4 +93,3 @@ If they're on a movie/series page, you'll get the ID to use with get_details.`,
     schema: pageContextSchema,
   }
 );
-

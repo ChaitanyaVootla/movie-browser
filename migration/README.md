@@ -5,12 +5,14 @@ This setup automates the extraction of your MongoDB database from Digital Ocean,
 ## Quick Start
 
 1. **Configure credentials** (if not already done):
+
    ```bash
    # Edit the .env file with your credentials
    # The file is already configured with the provided values
    ```
 
 2. **Run the migration test**:
+
    ```bash
    cd migration
    docker-compose up --abort-on-container-exit
@@ -24,6 +26,7 @@ This setup automates the extraction of your MongoDB database from Digital Ocean,
 ## What This Does
 
 ### Automated Execution Order:
+
 1. **dump-initiator**: SSH into DO droplet and extract MongoDB dump
 2. **mongodb-latest**: Start fresh MongoDB 8.0 container (runs in parallel)
 3. **restore-runner**: Wait for both dump completion AND MongoDB health, then restore
@@ -52,16 +55,19 @@ This setup automates the extraction of your MongoDB database from Digital Ocean,
 Services can now be run independently for better iteration:
 
 ### Dump Only (to S3)
+
 ```bash
 docker-compose up dump-initiator
 ```
 
 ### Start MongoDB Only
+
 ```bash
 docker-compose up mongodb-latest
 ```
 
 ### Restore Only (requires MongoDB running + S3 dump)
+
 ```bash
 docker-compose up restore-runner
 ```
@@ -76,12 +82,14 @@ docker-compose up restore-runner
 ## Test Mode
 
 Currently configured to **exclude movies and series collections** for faster testing:
+
 - This allows quick validation of the dump/restore process
 - Once verified, remove `--excludeCollection` flags to include all data
 
 ## Output
 
 The script will show:
+
 - ✅ Dump completion status
 - ☁️ S3 upload confirmation
 - 📊 Collection counts
@@ -122,8 +130,8 @@ docker exec -it migration-mongodb-latest mongosh -u root -p newpassword123 --aut
 db.getCollectionNames()
 
 # Check document counts
-db.getCollectionNames().forEach(function(name) { 
-  print(name + ': ' + db.getCollection(name).countDocuments()); 
+db.getCollectionNames().forEach(function(name) {
+  print(name + ': ' + db.getCollection(name).countDocuments());
 })
 ```
 
@@ -143,6 +151,7 @@ rm -rf dumps/*
 ## Next Steps
 
 Once this test succeeds:
+
 1. Use the same dump approach for AWS migration
 2. Create Terraform configs for EC2/DocumentDB
 3. Automate deployment pipeline

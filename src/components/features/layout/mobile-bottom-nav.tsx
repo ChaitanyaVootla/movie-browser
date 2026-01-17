@@ -3,7 +3,21 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Home, Compass, Search, User, List, Eye, Star, LogOut, Settings, Moon, Sun, ChevronRight, Bookmark } from "lucide-react";
+import {
+  Home,
+  Compass,
+  Search,
+  User,
+  List,
+  Eye,
+  Star,
+  LogOut,
+  Settings,
+  Moon,
+  Sun,
+  ChevronRight,
+  Bookmark,
+} from "lucide-react";
 import { useState, useCallback } from "react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -87,13 +101,9 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start">
-                  {user.name && (
-                    <span className="font-semibold text-base">{user.name}</span>
-                  )}
+                  {user.name && <span className="font-semibold text-base">{user.name}</span>}
                   {user.email && (
-                    <span className="text-sm text-muted-foreground">
-                      {user.email}
-                    </span>
+                    <span className="text-sm text-muted-foreground">{user.email}</span>
                   )}
                 </div>
               </div>
@@ -242,7 +252,6 @@ function NavItemButton({ item, isActive }: NavItemButtonProps) {
   );
 }
 
-
 // =============================================================================
 // Main Component
 // =============================================================================
@@ -348,4 +357,3 @@ function getInitials(name: string): string {
   }
   return name.slice(0, 2).toUpperCase();
 }
-

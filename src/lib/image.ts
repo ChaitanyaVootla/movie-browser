@@ -51,20 +51,14 @@ export function getCdnImageUrl(
 /**
  * Get TMDB fallback URL for a media item
  */
-export function getTmdbImageUrl(
-  item: ImageItem,
-  imageType: ImageType,
-  size?: string
-): string {
+export function getTmdbImageUrl(item: ImageItem, imageType: ImageType, size?: string): string {
   switch (imageType) {
     case ImageType.POSTER:
       return item.poster_path ? `${TMDB_IMAGE_BASE}/${size || "w500"}${item.poster_path}` : "";
 
     case ImageType.BACKDROP:
     case ImageType.WIDE_CARD:
-      return item.backdrop_path
-        ? `${TMDB_IMAGE_BASE}/${size || "w1280"}${item.backdrop_path}`
-        : "";
+      return item.backdrop_path ? `${TMDB_IMAGE_BASE}/${size || "w1280"}${item.backdrop_path}` : "";
 
     case ImageType.LOGO:
       // No direct TMDB logo URL - logos come from the images endpoint
@@ -134,5 +128,3 @@ export function getTmdbLogoUrl(logoPath: string, size = "w500"): string {
 export function getWidePosterSources(item: ImageItem, mediaType?: MediaType): ImageSources {
   return getImageSources(item, ImageType.WIDE_CARD, mediaType, "w780");
 }
-
-

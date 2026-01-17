@@ -104,7 +104,6 @@ const requestSchema = z.object({
   trailerSeriesIds: z.array(z.number()).optional().default([]),
 });
 
-
 // =============================================================================
 // Route Handler
 // =============================================================================
@@ -251,10 +250,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch tag data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch tag data" }, { status: 500 });
   }
 }
-

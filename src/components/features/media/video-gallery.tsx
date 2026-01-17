@@ -115,7 +115,7 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
         >
           {metadata?.title || video.name}
         </p>
-        
+
         {/* View count and publish date */}
         <div className="flex items-center gap-1.5 text-muted-foreground mt-1 text-xs">
           {metadata?.viewCount ? (
@@ -125,9 +125,7 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
             </>
           ) : null}
           {metadata?.viewCount && video.published_at && <span>•</span>}
-          {video.published_at && (
-            <span>{formatRelativeTime(video.published_at)}</span>
-          )}
+          {video.published_at && <span>{formatRelativeTime(video.published_at)}</span>}
         </div>
       </div>
     </button>
@@ -163,51 +161,57 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
   const activeVideo = currentVideo || filteredVideos[0];
 
   // Fetch batch metadata for all videos
-  const fetchBatchMetadata = useCallback(async (videoIds: string[]) => {
-    if (videoIds.length === 0) return;
-    
-    try {
-      // Build URL with optional PostgreSQL-backed params
-      const params = new URLSearchParams({ videoIds: videoIds.join(",") });
-      if (mediaId && mediaType) {
-        params.set("mediaId", String(mediaId));
-        params.set("mediaType", mediaType);
-      }
-      
-      const response = await fetch(`/api/youtube?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.videos) {
-          setVideoMetadata(new Map(Object.entries(data.videos)));
+  const fetchBatchMetadata = useCallback(
+    async (videoIds: string[]) => {
+      if (videoIds.length === 0) return;
+
+      try {
+        // Build URL with optional PostgreSQL-backed params
+        const params = new URLSearchParams({ videoIds: videoIds.join(",") });
+        if (mediaId && mediaType) {
+          params.set("mediaId", String(mediaId));
+          params.set("mediaType", mediaType);
         }
+
+        const response = await fetch(`/api/youtube?${params.toString()}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.videos) {
+            setVideoMetadata(new Map(Object.entries(data.videos)));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch video metadata:", error);
       }
-    } catch (error) {
-      console.error("Failed to fetch video metadata:", error);
-    }
-  }, [mediaId, mediaType]);
+    },
+    [mediaId, mediaType]
+  );
 
   // Fetch full data for active video (stats, dislikes, comments)
-  const fetchActiveVideoData = useCallback(async (videoId: string) => {
-    setIsLoadingActive(true);
-    try {
-      // Build URL with optional PostgreSQL-backed params
-      const params = new URLSearchParams({ videoId });
-      if (mediaId && mediaType) {
-        params.set("mediaId", String(mediaId));
-        params.set("mediaType", mediaType);
+  const fetchActiveVideoData = useCallback(
+    async (videoId: string) => {
+      setIsLoadingActive(true);
+      try {
+        // Build URL with optional PostgreSQL-backed params
+        const params = new URLSearchParams({ videoId });
+        if (mediaId && mediaType) {
+          params.set("mediaId", String(mediaId));
+          params.set("mediaType", mediaType);
+        }
+
+        const response = await fetch(`/api/youtube?${params.toString()}`);
+        if (response.ok) {
+          const data = await response.json();
+          setActiveVideoData(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch active video data:", error);
+      } finally {
+        setIsLoadingActive(false);
       }
-      
-      const response = await fetch(`/api/youtube?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setActiveVideoData(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch active video data:", error);
-    } finally {
-      setIsLoadingActive(false);
-    }
-  }, [mediaId, mediaType]);
+    },
+    [mediaId, mediaType]
+  );
 
   // Fetch metadata for all videos on mount
   useEffect(() => {
@@ -271,10 +275,7 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
                   key={type}
                   variant={filter === type ? "secondary" : "ghost"}
                   size="sm"
-                  className={cn(
-                    "text-xs h-7 px-3 shrink-0",
-                    filter === type && "bg-secondary"
-                  )}
+                  className={cn("text-xs h-7 px-3 shrink-0", filter === type && "bg-secondary")}
                   onClick={() => setFilter(type)}
                 >
                   {type}
@@ -303,7 +304,7 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
               className="absolute inset-0 w-full h-full"
             />
           </div>
-          
+
           {/* Video info with stats */}
           <div className="mt-2 space-y-1.5">
             <h3 className="font-medium line-clamp-1">{activeVideo.name}</h3>
@@ -325,10 +326,7 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
 
             {/* Comments in card */}
             {activeComments.length > 0 && (
-              <VideoComments
-                comments={activeComments}
-                isLoading={isLoadingActive}
-              />
+              <VideoComments comments={activeComments} isLoading={isLoadingActive} />
             )}
           </div>
         </div>
@@ -365,11 +363,11 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
               className="absolute inset-0 w-full h-full"
             />
           </div>
-          
+
           {/* Mobile video info */}
           <div className="mt-2 space-y-2">
             <h3 className="font-medium line-clamp-1 text-sm">{activeVideo.name}</h3>
-            
+
             {/* Mobile stats */}
             {isLoadingActive ? (
               <VideoStatsSkeleton />
@@ -387,11 +385,7 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
         </div>
 
         {/* Horizontal scroll of other videos */}
-        <ScrollContainer
-          gap="gap-3"
-          padding="px-4"
-          showControls={false}
-        >
+        <ScrollContainer gap="gap-3" padding="px-4" showControls={false}>
           {filteredVideos.map((video) => {
             const meta = videoMetadata.get(video.key);
             return (
@@ -446,7 +440,6 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
           })}
         </ScrollContainer>
       </div>
-
     </div>
   );
 }

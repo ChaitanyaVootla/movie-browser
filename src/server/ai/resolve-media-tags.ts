@@ -36,7 +36,7 @@ interface SearchResult {
 function extractYearFromTitle(title: string): { cleanTitle: string; year: number | null } {
   // Match (YYYY), [YYYY], or - YYYY at the end
   const yearMatch = title.match(/[\s]*[(\[]\s*(\d{4})\s*[)\]][\s]*$|[\s]*-\s*(\d{4})[\s]*$/);
-  
+
   if (yearMatch) {
     const year = parseInt(yearMatch[1] || yearMatch[2], 10);
     // Validate year is reasonable (1800-2100)
@@ -45,7 +45,7 @@ function extractYearFromTitle(title: string): { cleanTitle: string; year: number
       return { cleanTitle, year };
     }
   }
-  
+
   return { cleanTitle: title, year: null };
 }
 
@@ -61,7 +61,7 @@ function getResultYear(result: SearchResult): number | null {
 
 /**
  * Search TMDB for a title and return the best matching ID
- * 
+ *
  * Supports optional year hints in the title for more deterministic matching:
  * - "Fight Club (1999)" → searches "Fight Club" and prefers 1999 result
  * - "The Batman (2022)" → distinguishes from older Batman films
@@ -74,11 +74,13 @@ async function searchForTitle(
     // Extract year hint if present
     const { cleanTitle, year: hintYear } = extractYearFromTitle(title);
     const searchTitle = cleanTitle || title;
-    
+
     if (DEBUG && hintYear) {
-      console.log(`[resolve-tags] Extracted year ${hintYear} from "${title}" → searching "${searchTitle}"`);
+      console.log(
+        `[resolve-tags] Extracted year ${hintYear} from "${title}" → searching "${searchTitle}"`
+      );
     }
-    
+
     const response = await searchMulti(searchTitle);
     const results = response.results as SearchResult[];
 
@@ -93,9 +95,7 @@ async function searchForTitle(
 
     if (typeMatches.length === 0) {
       // If no exact type match, check if there's content of other type
-      const otherType = results.find(
-        (r) => r.media_type === "movie" || r.media_type === "tv"
-      );
+      const otherType = results.find((r) => r.media_type === "movie" || r.media_type === "tv");
       if (otherType) {
         if (DEBUG) {
           console.log(
@@ -116,9 +116,9 @@ async function searchForTitle(
     // 2. Exact title match (any year)
     // 3. Year match (if year hint provided) + highest popularity
     // 4. Highest popularity
-    
+
     const lowerSearchTitle = searchTitle.toLowerCase();
-    
+
     // 1. Exact title + exact year match
     if (hintYear) {
       const exactTitleYearMatch = typeMatches.find((r) => {
@@ -126,7 +126,7 @@ async function searchForTitle(
         const resultYear = getResultYear(r);
         return resultTitle === lowerSearchTitle && resultYear === hintYear;
       });
-      
+
       if (exactTitleYearMatch) {
         if (DEBUG) {
           console.log(
@@ -139,7 +139,7 @@ async function searchForTitle(
         };
       }
     }
-    
+
     // 2. Exact title match (any year)
     const exactTitleMatch = typeMatches.find(
       (r) => (r.title || r.name || "").toLowerCase() === lowerSearchTitle
@@ -160,7 +160,7 @@ async function searchForTitle(
         matchedTitle: exactTitleMatch.title || exactTitleMatch.name || searchTitle,
       };
     }
-    
+
     // 3. Year match (if year hint provided) among top results
     if (hintYear) {
       const yearMatches = typeMatches.filter((r) => getResultYear(r) === hintYear);
@@ -199,9 +199,7 @@ async function searchForTitle(
 /**
  * Search TMDB for a person and return the best matching ID
  */
-async function searchForPerson(
-  name: string
-): Promise<{ id: number; matchedName: string } | null> {
+async function searchForPerson(name: string): Promise<{ id: number; matchedName: string } | null> {
   try {
     const response = await searchPerson(name);
     const results = response.results as Array<{
@@ -217,9 +215,7 @@ async function searchForPerson(
 
     // Find best match - prefer exact name match, then most popular
     const lowerName = name.toLowerCase();
-    const exactMatch = results.find(
-      (r) => r.name.toLowerCase() === lowerName
-    );
+    const exactMatch = results.find((r) => r.name.toLowerCase() === lowerName);
 
     if (exactMatch) {
       return {
@@ -321,7 +317,7 @@ export async function resolveMediaTags(content: string): Promise<string> {
   if (personResolutions.size > 0) {
     resolved = applyResolvedPersonIds(resolved, personResolutions);
   }
-  
+
   return resolved;
 }
 
@@ -341,4 +337,3 @@ export function needsResolution(content: string): boolean {
   const unresolvedTitles = getUnresolvedTitles(content);
   return unresolvedTitles.length > 0;
 }
-

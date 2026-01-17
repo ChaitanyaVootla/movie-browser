@@ -11,12 +11,7 @@ interface MediaTypeToggleProps {
 
 export function MediaTypeToggle({ value, onChange, className }: MediaTypeToggleProps) {
   return (
-    <div
-      className={cn(
-        "flex items-center rounded-lg bg-muted/50 p-1",
-        className
-      )}
-    >
+    <div className={cn("flex items-center rounded-lg bg-muted/50 p-1", className)}>
       <button
         type="button"
         onClick={() => onChange("movie")}
@@ -46,5 +41,3 @@ export function MediaTypeToggle({ value, onChange, className }: MediaTypeToggleP
     </div>
   );
 }
-
-

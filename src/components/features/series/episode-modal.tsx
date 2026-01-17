@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback, useRef, useSyncExternalStore } from "react";
+import {
+  useState,
+  useEffect,
+  useTransition,
+  useCallback,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,7 +56,7 @@ function useIsMobile() {
     window.addEventListener("resize", callback);
     return () => window.removeEventListener("resize", callback);
   }, []);
-  
+
   return useSyncExternalStore(
     typeof window !== "undefined" ? subscribeToResize : emptySubscribe,
     getIsMobileSnapshot,
@@ -73,18 +80,10 @@ function getSlug(name: string): string {
 }
 
 // Person card with squircle avatar (like CastCard in media-overview)
-function PersonCard({
-  person,
-  role,
-}: {
-  person: CastMember | CrewMember;
-  role: "cast" | "crew";
-}) {
+function PersonCard({ person, role }: { person: CastMember | CrewMember; role: "cast" | "crew" }) {
   const href = `/person/${person.id}/${getSlug(person.name)}`;
   const displayRole =
-    role === "cast"
-      ? (person as CastMember).character
-      : (person as CrewMember).job;
+    role === "cast" ? (person as CastMember).character : (person as CrewMember).job;
 
   return (
     <Link href={href} className="group flex-shrink-0 w-[85px]">
@@ -105,13 +104,11 @@ function PersonCard({
           </div>
         )}
       </div>
-      <p className="text-xs font-medium line-clamp-1 group-hover:text-brand transition-colors">
+      <p className="text-xs font-medium group-hover:text-brand transition-colors">
         {person.name}
       </p>
       {displayRole && (
-        <p className="text-[11px] text-muted-foreground line-clamp-1">
-          {displayRole}
-        </p>
+        <p className="text-[11px] text-muted-foreground">{displayRole}</p>
       )}
     </Link>
   );
@@ -181,32 +178,35 @@ function EpisodeImageCarousel({
     setIsAutoPlaying(false);
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current || stills.length <= 1) {
-      setIsAutoPlaying(true);
-      return;
-    }
-
-    const touchEnd = {
-      x: e.changedTouches[0].clientX,
-      y: e.changedTouches[0].clientY,
-    };
-
-    const dx = touchEnd.x - touchStartRef.current.x;
-    const dy = touchEnd.y - touchStartRef.current.y;
-
-    // Only trigger swipe if horizontal movement is greater than vertical
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0) {
-        goToPrevious();
-      } else {
-        goToNext();
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStartRef.current || stills.length <= 1) {
+        setIsAutoPlaying(true);
+        return;
       }
-    }
 
-    touchStartRef.current = null;
-    setIsAutoPlaying(true);
-  }, [stills.length, goToPrevious, goToNext]);
+      const touchEnd = {
+        x: e.changedTouches[0].clientX,
+        y: e.changedTouches[0].clientY,
+      };
+
+      const dx = touchEnd.x - touchStartRef.current.x;
+      const dy = touchEnd.y - touchStartRef.current.y;
+
+      // Only trigger swipe if horizontal movement is greater than vertical
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
+        if (dx > 0) {
+          goToPrevious();
+        } else {
+          goToNext();
+        }
+      }
+
+      touchStartRef.current = null;
+      setIsAutoPlaying(true);
+    },
+    [stills.length, goToPrevious, goToNext]
+  );
 
   useEffect(() => {
     if (!isAutoPlaying || stills.length <= 1 || isLightboxOpen) return;
@@ -375,9 +375,7 @@ function EpisodeImageCarousel({
                 }}
                 className={cn(
                   "w-1.5 h-1.5 rounded-full transition-all",
-                  idx === currentIndex
-                    ? "bg-white w-4"
-                    : "bg-white/50 hover:bg-white/70"
+                  idx === currentIndex ? "bg-white w-4" : "bg-white/50 hover:bg-white/70"
                 )}
               />
             ))}
@@ -411,9 +409,7 @@ function InfoCard({
     <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/40">
       <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <div className="min-w-0">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-          {label}
-        </p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
         <p className="text-sm font-medium truncate">{value}</p>
       </div>
     </div>
@@ -474,15 +470,13 @@ function EpisodeContent({
       })
     : null;
 
-  const isUpcoming =
-    displayEpisode.air_date && new Date(displayEpisode.air_date) > new Date();
+  const isUpcoming = displayEpisode.air_date && new Date(displayEpisode.air_date) > new Date();
 
   // Crew
   const director = displayEpisode.crew?.find((c) => c.job === "Director");
   const writers =
     displayEpisode.crew?.filter(
-      (c) =>
-        c.department === "Writing" || c.job === "Writer" || c.job === "Story"
+      (c) => c.department === "Writing" || c.job === "Writer" || c.job === "Story"
     ) || [];
 
   // Episode stills
@@ -527,10 +521,7 @@ function EpisodeContent({
           {/* Left: Image carousel - constrained width on desktop */}
           <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
             {stills.length > 0 ? (
-              <EpisodeImageCarousel
-                stills={stills}
-                episodeName={displayEpisode.name}
-              />
+              <EpisodeImageCarousel stills={stills} episodeName={displayEpisode.name} />
             ) : (
               <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
                 <Tv className="h-12 w-12 text-muted-foreground/30" />
@@ -547,17 +538,12 @@ function EpisodeContent({
                   S{seasonNumber} E{displayEpisode.episode_number}
                 </Badge>
                 {isUpcoming && (
-                  <Badge
-                    variant="secondary"
-                    className="text-xs bg-muted text-muted-foreground"
-                  >
+                  <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
                     Upcoming
                   </Badge>
                 )}
               </div>
-              <Title className="text-xl font-bold leading-tight">
-                {displayEpisode.name}
-              </Title>
+              <Title className="text-xl font-bold leading-tight">{displayEpisode.name}</Title>
               <p className="text-sm text-muted-foreground">{seriesName}</p>
             </Header>
 
@@ -571,9 +557,7 @@ function EpisodeContent({
                       Rating
                     </p>
                     <div className="flex items-baseline gap-1.5">
-                      <p className="text-sm font-bold">
-                        {displayEpisode.vote_average.toFixed(1)}
-                      </p>
+                      <p className="text-sm font-bold">{displayEpisode.vote_average.toFixed(1)}</p>
                       {displayEpisode.vote_count && displayEpisode.vote_count > 0 && (
                         <p className="text-[10px] text-muted-foreground">
                           ({displayEpisode.vote_count.toLocaleString()})
@@ -583,15 +567,9 @@ function EpisodeContent({
                   </div>
                 </div>
               )}
-              {airDate && (
-                <InfoCard icon={Calendar} label="Air Date" value={airDate} />
-              )}
+              {airDate && <InfoCard icon={Calendar} label="Air Date" value={airDate} />}
               {displayEpisode.runtime && (
-                <InfoCard
-                  icon={Clock}
-                  label="Runtime"
-                  value={`${displayEpisode.runtime} min`}
-                />
+                <InfoCard icon={Clock} label="Runtime" value={`${displayEpisode.runtime} min`} />
               )}
               <InfoCard
                 icon={Tv}
@@ -625,9 +603,7 @@ function EpisodeContent({
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold">Guest Stars</h3>
-              <span className="text-xs text-muted-foreground">
-                ({guestStars.length})
-              </span>
+              <span className="text-xs text-muted-foreground">({guestStars.length})</span>
             </div>
             <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
               {guestStars.map((guest) => (
@@ -643,17 +619,11 @@ function EpisodeContent({
             <div className="flex items-center gap-2">
               <Clapperboard className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold">Crew</h3>
-              <span className="text-xs text-muted-foreground">
-                ({additionalCrew.length})
-              </span>
+              <span className="text-xs text-muted-foreground">({additionalCrew.length})</span>
             </div>
             <ScrollContainer gap="gap-3" showControls={false} bottomPadding="pb-2">
               {additionalCrew.slice(0, 12).map((crew) => (
-                <PersonCard
-                  key={`${crew.id}-${crew.job}`}
-                  person={crew}
-                  role="crew"
-                />
+                <PersonCard key={`${crew.id}-${crew.job}`} person={crew} role="crew" />
               ))}
             </ScrollContainer>
           </div>
@@ -676,13 +646,10 @@ export function EpisodeModal({
 
   useEffect(() => {
     if (episode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFullEpisode(null);
       startTransition(async () => {
-        const data = await getEpisode(
-          seriesId,
-          seasonNumber,
-          episode.episode_number
-        );
+        const data = await getEpisode(seriesId, seasonNumber, episode.episode_number);
         if (data) {
           setFullEpisode(data);
         }

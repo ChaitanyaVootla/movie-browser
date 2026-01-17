@@ -79,6 +79,7 @@ This document tracks the migration from Nuxt.js 4/Vue 3 to Next.js 15/React 19.
 ## Additional Features Implemented
 
 ### AI Agent (Phases 1-8 Complete)
+
 - [x] LangGraph.js agent with AWS Bedrock
 - [x] 9 consolidated tools (search, discover, details, etc.)
 - [x] Floating assistant UI
@@ -86,6 +87,7 @@ This document tracks the migration from Nuxt.js 4/Vue 3 to Next.js 15/React 19.
 - [x] Enhanced discover with exclusions and AND/OR logic
 
 ### Advanced UI Components
+
 - [x] Card display preference (poster vs wide cards)
 - [x] Country selector for watch providers
 - [x] Episode modal with image carousel
@@ -128,16 +130,19 @@ src/
 ## Remaining Work
 
 ### High Priority
+
 1. Complete E2E SEO tests for movie/series/person pages
 2. Add user flow E2E tests (watchlist, search)
 3. AI Agent Phase 9: Mutation tools (add to watchlist via chat)
 
 ### Medium Priority
+
 1. PWA setup for mobile app-like experience
 2. AI Agent Phase 10-11: Enriched user data + conversation intelligence
 3. Performance optimization audit
 
 ### Future
+
 1. AI Agent Phase 12-13: Production readiness + Vector DB
 2. Social features (lists, reviews, follows)
 3. Episode-level tracking for series

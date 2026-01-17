@@ -5,12 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp, ArrowRight, RotateCcw, Film } from "lucide-react";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { AISparkIcon } from "./ai-icon";
 import { cn, getSlug } from "@/lib/utils";
 import { CDN_IMAGE_BASE } from "@/lib/constants";
@@ -22,12 +17,7 @@ import {
   type ParsedMediaTag,
 } from "@/lib/ai/parse-media-tags";
 import type { useChatStream } from "@/hooks/use-chat-stream";
-import {
-  ChatRatings,
-  ChatWatchOptions,
-  PersonChip,
-  useTagData,
-} from "./chat-tags";
+import { ChatRatings, ChatWatchOptions, PersonChip, useTagData } from "./chat-tags";
 import { ThinkingIndicator } from "./ai-animations";
 
 // =============================================================================
@@ -64,14 +54,13 @@ function MobilePosterCard({ tag, onNavigate }: { tag: ParsedMediaTag; onNavigate
     tag.id !== null
       ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
       : `/browse?q=${encodeURIComponent(tag.title)}`;
-  const posterUrl =
-    tag.id !== null ? `${CDN_IMAGE_BASE}/${tag.type}/${tag.id}/poster.webp` : null;
+  const posterUrl = tag.id !== null ? `${CDN_IMAGE_BASE}/${tag.type}/${tag.id}/poster.webp` : null;
 
   return (
-    <Link 
-      href={href} 
+    <Link
+      href={href}
       onClick={onNavigate}
-      className="shrink-0 flex flex-col" 
+      className="shrink-0 flex flex-col"
       style={{ width: CARD_WIDTH }}
     >
       <div
@@ -99,9 +88,7 @@ function MobilePosterCard({ tag, onNavigate }: { tag: ParsedMediaTag; onNavigate
           </div>
         )}
       </div>
-      <p className="mt-1.5 text-xs font-medium text-center text-white line-clamp-2">
-        {tag.title}
-      </p>
+      <p className="mt-1.5 text-xs font-medium text-center text-white line-clamp-2">{tag.title}</p>
     </Link>
   );
 }
@@ -153,8 +140,7 @@ export function MobileChatDrawer({
     return null;
   }, [messages]);
 
-  const isWaitingForResponse =
-    lastAssistantMessage?.isStreaming && !lastAssistantMessage?.content;
+  const isWaitingForResponse = lastAssistantMessage?.isStreaming && !lastAssistantMessage?.content;
 
   const { mediaTags, cleanText, parsedContent, dataFetchIds, isReceivingTag } = useMemo(() => {
     const content = lastAssistantMessage?.content || "";
@@ -474,4 +460,3 @@ export function MobileChatDrawer({
     </Drawer>
   );
 }
-

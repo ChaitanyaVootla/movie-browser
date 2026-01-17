@@ -70,7 +70,7 @@ export function RatingsClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const displayMode = usePreferencesStore(selectCardDisplayMode);
-  
+
   // State for filters
   const [mediaType, setMediaType] = useState<"movies" | "series">(
     (searchParams.get("type") as "movies" | "series") || "movies"
@@ -116,7 +116,7 @@ export function RatingsClient() {
   // Filter and sort items
   const filteredItems = useMemo(() => {
     if (!ratings) return [];
-    
+
     const items = ratings[ratingType][mediaType] || [];
     let filtered = [...items];
 
@@ -166,14 +166,16 @@ export function RatingsClient() {
 
   // Count helpers
   const likesCount = ratings ? ratings.likes.movies.length + ratings.likes.series.length : 0;
-  const dislikesCount = ratings ? ratings.dislikes.movies.length + ratings.dislikes.series.length : 0;
-  const currentTypeCount = ratings 
-    ? ratings[ratingType][mediaType].length 
+  const dislikesCount = ratings
+    ? ratings.dislikes.movies.length + ratings.dislikes.series.length
     : 0;
+  const currentTypeCount = ratings ? ratings[ratingType][mediaType].length : 0;
 
   // Grid classes
-  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
-  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+  const posterGridClass =
+    "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
+  const wideGridClass =
+    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
   // Loading state
   if (authStatus === "loading") {
@@ -311,8 +313,8 @@ export function RatingsClient() {
             </Select>
           </div>
           <Badge variant="outline" className="text-muted-foreground">
-            {searchQuery.trim() 
-              ? `${filteredItems.length} of ${currentTypeCount}` 
+            {searchQuery.trim()
+              ? `${filteredItems.length} of ${currentTypeCount}`
               : `${currentTypeCount} ${mediaType}`}
           </Badge>
         </div>
@@ -325,11 +327,7 @@ export function RatingsClient() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Search className="h-10 w-10 text-muted-foreground mb-3" />
           <p className="text-muted-foreground">No results match your search</p>
-          <Button
-            variant="link"
-            onClick={() => setSearchQuery("")}
-            className="mt-2"
-          >
+          <Button variant="link" onClick={() => setSearchQuery("")} className="mt-2">
             Clear search
           </Button>
         </div>
@@ -370,11 +368,11 @@ export function RatingsClient() {
   );
 }
 
-function EmptyState({ 
-  mediaType, 
-  ratingType 
-}: { 
-  mediaType: "movies" | "series"; 
+function EmptyState({
+  mediaType,
+  ratingType,
+}: {
+  mediaType: "movies" | "series";
   ratingType: "likes" | "dislikes";
 }) {
   const Icon = ratingType === "likes" ? ThumbsUp : ThumbsDown;
@@ -391,7 +389,8 @@ function EmptyState({
           No {action} {typeLabel}
         </h3>
         <p className="text-muted-foreground max-w-sm">
-          Browse {typeLabel} and {ratingType === "likes" ? "like" : "dislike"} them to see them here.
+          Browse {typeLabel} and {ratingType === "likes" ? "like" : "dislike"} them to see them
+          here.
         </p>
       </div>
       <Button asChild>
@@ -406,8 +405,10 @@ function EmptyState({
 function RatingsSkeleton() {
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 
-  const posterGridClass = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
-  const wideGridClass = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
+  const posterGridClass =
+    "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2.5 md:gap-3";
+  const wideGridClass =
+    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
   return (
     <div className="space-y-6">
@@ -426,4 +427,3 @@ function RatingsSkeleton() {
     </div>
   );
 }
-

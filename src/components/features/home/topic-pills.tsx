@@ -33,14 +33,14 @@ const TOPIC_EMOJIS: Record<string, string> = {
 function getTopicEmoji(key: string): string {
   // Direct match
   if (TOPIC_EMOJIS[key]) return TOPIC_EMOJIS[key];
-  
+
   // Partial match (e.g., "genre-action-movie" → "genre-action")
   const parts = key.split("-");
   if (parts.length >= 2) {
     const prefix = `${parts[0]}-${parts[1]}`;
     if (TOPIC_EMOJIS[prefix]) return TOPIC_EMOJIS[prefix];
   }
-  
+
   return "🎬"; // Default
 }
 
@@ -80,7 +80,7 @@ export function TopicPills({ topics, className }: TopicPillsProps) {
             <span>{getShortName(topic.name)}</span>
           </Link>
         ))}
-        
+
         {/* "More" pill linking to all topics */}
         <Link
           href="/topics"
@@ -98,6 +98,3 @@ export function TopicPills({ topics, className }: TopicPillsProps) {
     </div>
   );
 }
-
-
-

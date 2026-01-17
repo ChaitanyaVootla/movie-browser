@@ -34,7 +34,7 @@ export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
           overlay="light"
           className="absolute inset-0"
         />
-        
+
         {/* Content overlay - positioned at bottom */}
         <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 md:px-8 lg:px-12">
           <HeroContent
@@ -46,7 +46,6 @@ export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
             voteAverage={item.vote_average}
             tmdbLogoPath={tmdbLogoPath}
             watchOptions={item.watch_options}
-            watchProviders={item.watch_providers}
             item={item}
             priority
             className="pb-5 md:pb-6 lg:pb-8"

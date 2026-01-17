@@ -1,0 +1,583 @@
+---
+description: API route patterns, authentication, error responses, and admin endpoints
+globs: ["src/app/api/**/*.ts"]
+alwaysApply: false
+---
+
+# API Routes
+
+Use API routes only for:
+- Webhooks
+- External API callbacks
+- Complex streaming responses
+- Third-party integrations
+- Admin endpoints (protected)
+- User library operations (watchlist, watched, ratings)
+
+## Location
+
+```
+src/app/api/
+├── auth/[...nextauth]/route.ts  # Auth.js handler
+├── admin/
+│   └── users/route.ts           # Admin user list (protected)
+├── user/
+│   ├── library/route.ts         # GET all user library data (for store hydration)
+│   ├── watchlist/route.ts       # GET detailed watchlist with movie/series info
+│   ├── movie/[movieId]/
+│   │   ├── watchlist/route.ts   # POST/DELETE movie watchlist
+│   │   └── watched/route.ts     # POST/DELETE movie watched
+│   ├── series/[seriesId]/
+│   │   └── watchlist/route.ts   # POST/DELETE series watchlist
+│   ├── rating/route.ts          # POST/DELETE user ratings (like/dislike)
+│   ├── ratings/route.ts         # GET all ratings with movie/series details
+│   └── watched/route.ts         # GET all watched movies with details
+├── webhooks/
+│   └── tmdb/route.ts
+└── cron/
+    └── sync-trending/route.ts
+```
+
+## Basic Route Pattern
+
+```typescript
+// src/app/api/example/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(request: NextRequest) {
+  try {
+    // ... handle request
+    return NextResponse.json({ data: result });
+  } catch (error) {
+    console.error("API error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    // ... handle request
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to process request" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## Dynamic Route Parameters
+
+```typescript
+// src/app/api/movie/[movieId]/route.ts
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ movieId: string }> }
+) {
+  const { movieId } = await params;
+  const movieIdNum = parseInt(movieId, 10);
+
+  if (isNaN(movieIdNum)) {
+    return NextResponse.json({ error: "Invalid movie ID" }, { status: 400 });
+  }
+
+  // ... fetch and return movie
+}
+```
+
+## Authentication in Routes
+
+```typescript
+import { getUserIdForDb } from "@/lib/user-id";
+
+export async function POST(request: Request) {
+  const userId = await getUserIdForDb();
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // ... handle authenticated request
+}
+```
+
+## Protected Admin Routes
+
+Admin routes require authentication AND admin role:
+
+```typescript
+// src/app/api/admin/users/route.ts
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
+import { getMongoClient } from "@/server/db";
+
+export async function GET() {
+  try {
+    // This throws if not admin
+    await requireAdmin();
+
+    const client = await getMongoClient();
+    // Use 'test' database for Nuxt app user data
+    const db = client.db("test");
+
+    const users = await db.collection("users")
+      .find()
+      .sort({ lastVisited: -1 })
+      .toArray();
+
+    // Aggregate activity data per user
+    const usersWithActivity = await Promise.all(
+      users.map(async (user) => ({
+        ...user,
+        WatchedMovies: await db.collection("watchedmovies")
+          .countDocuments({ userId: user.sub }),
+        // ... more activity counts
+      }))
+    );
+
+    return NextResponse.json(usersWithActivity);
+  } catch (error) {
+    const status = error.message.includes("required") ? 403 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  }
+}
+```
+
+## Error Response Formats
+
+```typescript
+// Standard error response
+return NextResponse.json(
+  { error: "Error message here" },
+  { status: 400 | 401 | 403 | 404 | 500 }
+);
+
+// With error code
+return NextResponse.json(
+  { error: "Not found", code: "NOT_FOUND" },
+  { status: 404 }
+);
+
+// Success response
+return NextResponse.json({ success: true });
+
+// Success with data
+return NextResponse.json({ data: result, success: true });
+```
+
+## External API Calls (TMDB Service)
+
+### In-Memory Caching (Preferred)
+
+Use `node-cache` for TMDB API responses. This provides fast in-memory caching that survives across requests in the same Node process.
+
+```typescript
+// src/server/services/tmdb.ts
+import { cachedFetch, type CacheNamespace } from "@/lib/cache";
+
+export async function fetchFromTMDB<T>(
+  endpoint: string,
+  options: {
+    params?: Record<string, string>;
+    cacheNamespace?: CacheNamespace;
+    cacheTTL?: number;
+  } = {}
+): Promise<T> {
+  const { params = {}, cacheNamespace = "movie", cacheTTL } = options;
+  const cacheKey = buildCacheKey(endpoint, params);
+
+  return cachedFetch<T>(
+    cacheNamespace,
+    cacheKey,
+    () => rawFetchFromTMDB<T>(endpoint, params),
+    cacheTTL
+  );
+}
+
+// Usage
+export async function getTrendingMovies() {
+  return fetchFromTMDB<TMDBListResponse>("/trending/movie/week", {
+    cacheNamespace: "trending",
+    // Uses CACHE_DURATIONS.trending (15 min) via namespace default
+  });
+}
+
+// Series endpoints
+export async function getSeriesDetails(seriesId: number) {
+  return fetchFromTMDB(`/tv/${seriesId}`, {
+    params: {
+      append_to_response: "credits,videos,images,keywords,recommendations,similar,external_ids,watch/providers",
+      include_image_language: "en,null",
+    },
+    cacheNamespace: "series",
+  });
+}
+
+export async function getSeasonDetails(seriesId: number, seasonNumber: number) {
+  return fetchFromTMDB(`/tv/${seriesId}/season/${seasonNumber}`, {
+    cacheNamespace: "series",
+  });
+}
+
+export async function getEpisodeDetails(seriesId: number, seasonNumber: number, episodeNumber: number) {
+  return fetchFromTMDB(`/tv/${seriesId}/season/${seasonNumber}/episode/${episodeNumber}`, {
+    params: { append_to_response: "credits,images,videos,external_ids" },
+    cacheNamespace: "series",
+  });
+}
+
+// Person endpoints
+export async function getPersonDetails(personId: number) {
+  return fetchFromTMDB(`/person/${personId}`, {
+    params: {
+      append_to_response: "movie_credits,tv_credits,combined_credits,images,external_ids,tagged_images",
+    },
+    cacheNamespace: "person",
+    cacheTTL: CACHE_DURATIONS.person, // 24 hours
+  });
+}
+```
+
+## Cache Layer (`src/lib/cache-service.ts`)
+
+Unified L1 (memory) + L2 (file) cache with stale-while-revalidate:
+
+```typescript
+import { cachedFetchPersistent, type CacheNamespace } from "@/lib/cache-service";
+
+export type CacheNamespace =
+  | "trending"
+  | "movie"
+  | "series"
+  | "person"
+  | "search"
+  | "discover"
+  | "images"
+  | "youtube"
+  | "youtube-channels";
+
+// Fetch with L1+L2 caching, stale-while-revalidate, and request deduplication
+export async function cachedFetchPersistent<T>(
+  namespace: CacheNamespace,
+  key: string,
+  fetcher: () => Promise<T>,
+  ttl?: number
+): Promise<T>;
+
+// Direct cache operations
+export function cacheGet<T>(namespace: CacheNamespace, key: string): T | undefined;
+export function cacheSet<T>(namespace: CacheNamespace, key: string, value: T, ttl?: number): void;
+export function cacheDel(namespace: CacheNamespace, key: string): void;
+export function cacheFlushNamespace(namespace: CacheNamespace): void;
+```
+
+**Architecture:**
+```
+Request -> L1 (memory) -> L2 (file) -> Stale check -> In-flight dedup -> API call
+                |           |            |
+              HIT         HIT      Return stale + background refresh
+```
+
+**Key features:**
+- **L1 (Memory)**: Fast node-cache, lost on restart
+- **L2 (File)**: Persists to `.cache/`, survives restarts
+- **Stale-While-Revalidate**: Returns stale data instantly, refreshes in background
+- **Request Deduplication**: Multiple concurrent requests share one API call
+- **Compression**: Payloads >10KB are gzip compressed
+- **Cache Warming**: L2 -> L1 warming on server start via `instrumentation.ts`
+
+**Monitoring:**
+```bash
+GET /api/health                    # Basic health + cache hit rates
+GET /api/health?format=detailed    # Full stats including per-namespace sizes
+GET /api/health?format=prometheus  # Prometheus metrics for Grafana
+```
+
+## Cache Durations
+
+Defined in `src/lib/cache-service.ts`:
+
+| Namespace | L1 (Memory) | L2 (File) | Stale Grace | Use Case |
+|-----------|-------------|-----------|-------------|----------|
+| `trending` | 15 min | none | - | Trending (always fresh) |
+| `movie` | 1 hour | 2 hours | - | Movie details |
+| `series` | 1 hour | 2 hours | - | Series details |
+| `person` | 24 hours | 3 days | 24 hours | Person filmography |
+| `search` | 5 min | 1 hour | - | Search results |
+| `discover` | 30 min | 1 hour | - | Browse/topic results |
+| `images` | 1 hour | 24 hours | - | Logo/image metadata |
+| `youtube` | 1 hour | 24 hours | 1 hour | YouTube video stats |
+| `youtube-channels` | 1 hour | 48 hours | 6 hours | YouTube channel uploads |
+
+## When to Use Which Cache
+
+| Data Type | Cache Strategy |
+|-----------|---------------|
+| TMDB API data | Unified L1+L2 cache (`cachedFetchPersistent`) |
+| YouTube API data | Unified L1+L2 cache (quota protection) |
+| MongoDB queries | `unstable_cache` with tags |
+| User-specific data | No cache or short TTL |
+| Static content | Build-time or ISR |
+
+## YouTube API Integration
+
+### Service Location
+
+YouTube API calls are handled in `src/server/services/youtube.ts`:
+
+```typescript
+// src/server/services/youtube.ts
+import { cachedFetch } from "@/lib/cache";
+
+// Batch fetch video stats (up to 50 videos per call)
+export async function getVideosStats(videoIds: string[]): Promise<Record<string, YouTubeVideoStats>>;
+
+// Get full video data (stats + comments + dislikes)
+export async function getFullVideoData(videoId: string): Promise<FullVideoData>;
+
+// Fetch comments (max 100 per call)
+export async function getVideoComments(videoId: string, maxResults?: number): Promise<VideoCommentsResult>;
+
+// Fetch dislikes from Return YouTube Dislike API
+export async function getVideoDislike(videoId: string): Promise<YouTubeDislikeData | null>;
+```
+
+### API Route
+
+Client-side requests go through `/api/youtube/route.ts`:
+
+```typescript
+// GET /api/youtube?ids=abc,def  -> Batch video stats
+// GET /api/youtube?id=abc&full=true  -> Full video data with comments
+```
+
+### Data Types
+
+```typescript
+interface YouTubeVideoStats {
+  viewCount: number;
+  likeCount: number;
+  dislikeCount: number;
+  commentCount: number;
+  publishedAt: string;
+  channelTitle: string;
+  channelThumbnail: string;
+  duration: string;  // ISO 8601 format (PT2M27S)
+}
+
+interface YouTubeComment {
+  id: string;
+  textDisplay: string;
+  textOriginal: string;
+  author: {
+    displayName: string;
+    profileImageUrl: string;
+    channelUrl: string;
+  };
+  likeCount: number;
+  replyCount: number;
+  publishedAt: string;
+  isHearted: boolean;
+}
+
+interface FullVideoData {
+  stats: YouTubeVideoStats | null;
+  comments: { comments: YouTubeComment[]; totalCount: number };
+}
+```
+
+## YouTube Channel Monitoring Service
+
+**Location:** `src/server/services/youtube-channels.ts`
+
+Discovers viral trailers by monitoring official studio and aggregator YouTube channels.
+
+### Monitored Channels (33 total)
+
+| Category | Channels |
+|----------|----------|
+| Aggregators | Movieclips Trailers, ONE Media, KinoCheck, Rotten Tomatoes, FilmSelect, JoBlo |
+| Studios | Warner Bros, Universal, Sony, Paramount, Disney, Lionsgate, A24, Focus, Searchlight, NEON, Blumhouse |
+| Streamers | Netflix, Prime Video, Apple TV, HBO, Disney+, Peacock |
+| Animation | Pixar, DreamWorks, Illumination |
+| Anime | Crunchyroll |
+| India | Warner Bros India, T-Series, YRF, Dharma, Sony India |
+| Comics | Marvel Entertainment |
+
+### Usage
+
+```typescript
+import { getYouTubeChannelTrailers } from "@/server/services/youtube-channels";
+
+const trailers = await getYouTubeChannelTrailers({
+  limit: 12,           // Max trailers to return
+  includeRegional: true, // Include Indian channels
+  minViews: 50000,     // Minimum view count threshold
+});
+
+// Returns: YouTubeTrailer[]
+// { id, title, channelTitle, viewCount, likeCount, thumbnail, isLikelyTrailer, extractedTitle }
+```
+
+### Trailer Detection
+
+Positive keywords: "trailer", "teaser", "official", "first look", "sneak peek", "coming soon"
+Negative keywords: "clip", "scene", "behind the scenes", "interview", "review", "reaction"
+
+### File-Based Caching
+
+```
+.cache/youtube-channels/{channelId}.json
+TTL: 12 hours
+Structure: { timestamp: number, videos: YouTubeTrailer[] }
+```
+
+### Quota Usage
+
+- ~3 units per channel (`channels.list` + `playlistItems.list` + `videos.list`)
+- ~100 units for all 33 channels
+- With 12h cache, daily usage is ~200 units (2% of 10,000 daily quota)
+
+## Rate Limiting
+
+For public-facing APIs:
+
+```typescript
+// src/lib/rate-limit.ts
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+export const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, "10 s"),
+});
+
+// Usage in API route
+export async function GET(request: NextRequest) {
+  const ip = request.ip ?? "anonymous";
+  const { success } = await ratelimit.limit(ip);
+
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
+  // ... handle request
+}
+```
+
+## Database Layer
+
+### Models Location
+
+```
+src/server/db/
+├── index.ts           # Connection setup
+├── cached-queries.ts  # Cached MongoDB queries (uses unstable_cache)
+├── models/
+│   ├── movie.ts       # Movie metadata from TMDB + ratings
+│   ├── series.ts      # Series metadata from TMDB + ratings
+│   └── user-library.ts  # User library models (see below)
+└── types.ts           # Shared DB types
+```
+
+### Cached MongoDB Queries (Preferred)
+
+Use `unstable_cache` for MongoDB queries to avoid repeated DB hits:
+
+```typescript
+// src/server/db/cached-queries.ts
+import { unstable_cache as cache } from "next/cache";
+import { connectDB } from "./index";
+import { Movie as MovieModel } from "./models/movie";
+
+// Cached movie ratings + watch options query (1 hour TTL with tag-based revalidation)
+// googleData contains both scraped ratings AND allWatchOptions (for India)
+export const getCachedMovieRatings = cache(
+  async (id: number) => {
+    await connectDB();
+    return MovieModel.findOne({ id }).select("googleData external_data").lean();
+  },
+  ["movie-ratings"],
+  { revalidate: 3600, tags: ["movies"] }
+);
+
+// Batch query for multiple movies (useful for discover/topics)
+export const getCachedMovieRatingsBatch = cache(
+  async (ids: number[]) => {
+    await connectDB();
+    return MovieModel.find({ id: { $in: ids } })
+      .select("id googleData external_data")
+      .lean();
+  },
+  ["movie-ratings-batch"],
+  { revalidate: 3600, tags: ["movies"] }
+);
+
+// Similar patterns for series...
+export const getCachedSeriesRatings = cache(...);
+export const getCachedSeriesRatingsBatch = cache(...);
+```
+
+### Connection Pattern
+
+```typescript
+// src/server/db/index.ts
+import mongoose from "mongoose";
+
+const MONGODB_URI = process.env.MONGODB_URI!;
+
+if (!MONGODB_URI) {
+  throw new Error("Please define MONGODB_URI environment variable");
+}
+
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+export async function connectDB() {
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI);
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+```
+
+## Error Handling
+
+```typescript
+// src/lib/errors.ts
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number = 500,
+    public code?: string
+  ) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(resource: string) {
+    super(`${resource} not found`, 404, "NOT_FOUND");
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor() {
+    super("Authentication required", 401, "UNAUTHORIZED");
+  }
+}
+```

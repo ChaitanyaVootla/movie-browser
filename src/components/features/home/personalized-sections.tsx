@@ -2,7 +2,12 @@
 
 import { PlayCircle, History } from "lucide-react";
 import { useSafeSession } from "@/hooks/use-safe-session";
-import { useUserStore, selectContinueWatching, selectRecents, selectIsHydrated } from "@/stores/user";
+import {
+  useUserStore,
+  selectContinueWatching,
+  selectRecents,
+  selectIsHydrated,
+} from "@/stores/user";
 import { WideCarousel } from "@/components/features/media/wide-carousel";
 
 /**
@@ -86,4 +91,3 @@ export function PersonalizedSections() {
     </div>
   );
 }
-

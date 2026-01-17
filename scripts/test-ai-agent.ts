@@ -58,7 +58,9 @@ if (missingVars.length > 0) {
 }
 
 console.log("✅ Environment loaded");
-console.log(`   BEDROCK_REGION: ${process.env.BEDROCK_REGION || process.env.AWS_REGION || "us-east-1 (default)"}`);
+console.log(
+  `   BEDROCK_REGION: ${process.env.BEDROCK_REGION || process.env.AWS_REGION || "us-east-1 (default)"}`
+);
 console.log(`   BEDROCK_MODEL_ID: ${process.env.BEDROCK_MODEL_ID || "(default: Kimi K2)"}`);
 console.log(`   TMDB_API_KEY: ${process.env.TMDB_API_KEY ? "✓ set" : "✗ missing"}`);
 console.log("");
@@ -172,7 +174,7 @@ async function runTest(
     // Get debug logs with stats
     const debugLogs = result._debugLogs;
     const turns = debugLogs?.totalTurns || 0;
-    
+
     // Extract detailed tool information
     const { toolCalls, toolResults } = extractDetailedToolInfo(result, options);
 
@@ -181,27 +183,39 @@ async function runTest(
 
     // Print results
     console.log(`\n⏱️  Time: ${elapsed}ms | Turns: ${turns}`);
-    
+
     if (options.debug || options.verbose) {
       if (stats) {
         console.log(`\n📊 Context & Token Estimation:`);
-        console.log(`   System prompt: ${stats.systemPromptSize} chars (~${estimateTokens(stats.systemPromptSize)} tokens)`);
+        console.log(
+          `   System prompt: ${stats.systemPromptSize} chars (~${estimateTokens(stats.systemPromptSize)} tokens)`
+        );
         console.log(`   Query: ${stats.querySize} chars`);
         console.log(`   History: ${stats.historySize} chars`);
         console.log(`   ─────────────────────────`);
-        console.log(`   Total input: ${stats.totalInputChars} chars (~${estimateTokens(stats.totalInputChars)} tokens)`);
+        console.log(
+          `   Total input: ${stats.totalInputChars} chars (~${estimateTokens(stats.totalInputChars)} tokens)`
+        );
         console.log(`   Tool args: ${stats.totalToolArgsChars} chars`);
         console.log(`   Tool results: ${stats.totalToolResultsChars} chars`);
-        console.log(`   Response: ${response.length} chars (~${estimateTokens(response.length)} tokens)`);
+        console.log(
+          `   Response: ${response.length} chars (~${estimateTokens(response.length)} tokens)`
+        );
         console.log(`   ─────────────────────────`);
         const totalContext = stats.totalInputChars + stats.totalToolResultsChars;
         console.log(`   Total context: ~${estimateTokens(totalContext)} tokens (sent to LLM)`);
       } else {
         console.log(`\n📊 Token Estimation:`);
         console.log(`   Input (approx): ${estimateTokens(query.length)} tokens`);
-        console.log(`   Tool args total: ${toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0)} chars`);
-        console.log(`   Tool results total: ${toolResults.reduce((sum, tr) => sum + tr.resultSize, 0)} chars`);
-        console.log(`   Response: ${response.length} chars (~${estimateTokens(response.length)} tokens)`);
+        console.log(
+          `   Tool args total: ${toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0)} chars`
+        );
+        console.log(
+          `   Tool results total: ${toolResults.reduce((sum, tr) => sum + tr.resultSize, 0)} chars`
+        );
+        console.log(
+          `   Response: ${response.length} chars (~${estimateTokens(response.length)} tokens)`
+        );
       }
     }
 
@@ -239,7 +253,11 @@ async function runTest(
     }
 
     // Show response
-    const responsePreview = options.verbose ? response : (response.length > 500 ? response.slice(0, 500) + "..." : response);
+    const responsePreview = options.verbose
+      ? response
+      : response.length > 500
+        ? response.slice(0, 500) + "..."
+        : response;
     console.log(`\n📝 Response:\n${responsePreview}`);
 
     if (navigation) {
@@ -335,15 +353,19 @@ function checkForIssues(
       for (const tc of seriesCalls) {
         const args = tc.args as { genres?: string[] };
         if (!args.genres?.length) {
-          issues.push("❗ discover_series called without genres - 'Horror' might not be a valid TV genre");
+          issues.push(
+            "❗ discover_series called without genres - 'Horror' might not be a valid TV genre"
+          );
         }
       }
     }
-    
+
     // Check if results are empty (horror isn't a TV genre)
     for (const tr of toolResults) {
       if (tr.name === "discover_series" && tr.resultPreview.includes('"series":[]')) {
-        issues.push("⚠️  Empty results - 'Horror' is NOT a TV genre (only movie). TV has 'Sci-Fi & Fantasy' instead");
+        issues.push(
+          "⚠️  Empty results - 'Horror' is NOT a TV genre (only movie). TV has 'Sci-Fi & Fantasy' instead"
+        );
       }
     }
   }
@@ -356,14 +378,18 @@ function checkForIssues(
   // Check for large tool results (token waste)
   const totalResultSize = toolResults.reduce((sum, tr) => sum + tr.resultSize, 0);
   if (totalResultSize > 10000) {
-    issues.push(`⚠️  Large tool results (${(totalResultSize / 1000).toFixed(1)}KB) - may waste tokens`);
+    issues.push(
+      `⚠️  Large tool results (${(totalResultSize / 1000).toFixed(1)}KB) - may waste tokens`
+    );
   }
 
   // Check for no results in discover
   for (const tr of toolResults) {
-    if (tr.resultPreview.includes('"totalResults":0') || 
-        tr.resultPreview.includes('"movies":[]') || 
-        tr.resultPreview.includes('"series":[]')) {
+    if (
+      tr.resultPreview.includes('"totalResults":0') ||
+      tr.resultPreview.includes('"movies":[]') ||
+      tr.resultPreview.includes('"series":[]')
+    ) {
       issues.push(`⚠️  ${tr.name} returned empty results`);
     }
   }
@@ -439,8 +465,10 @@ async function main() {
 
   if (customQuery) {
     console.log("Running single custom query...");
-    console.log(`Mode: ${debugMode ? "debug" : "normal"}, ${verboseMode ? "verbose" : "truncated"}\n`);
-    
+    console.log(
+      `Mode: ${debugMode ? "debug" : "normal"}, ${verboseMode ? "verbose" : "truncated"}\n`
+    );
+
     // If --user flag is set and we have a test userId, use it
     const userId = includeUserTests ? testUserId : null;
     await runTest(customQuery, 0, userId, options);
@@ -449,7 +477,9 @@ async function main() {
 
   // Run all test queries
   console.log(`Running ${TEST_QUERIES.length} test queries...`);
-  console.log(`Mode: ${debugMode ? "debug" : "normal"}, ${verboseMode ? "verbose" : "truncated"}\n`);
+  console.log(
+    `Mode: ${debugMode ? "debug" : "normal"}, ${verboseMode ? "verbose" : "truncated"}\n`
+  );
 
   const results: { query: string; result: TestResult }[] = [];
 
@@ -477,7 +507,12 @@ async function main() {
     }
 
     for (let i = 0; i < USER_CONTEXT_QUERIES.length; i++) {
-      const result = await runTest(USER_CONTEXT_QUERIES[i], TEST_QUERIES.length + i, testUserId, options);
+      const result = await runTest(
+        USER_CONTEXT_QUERIES[i],
+        TEST_QUERIES.length + i,
+        testUserId,
+        options
+      );
       results.push({ query: USER_CONTEXT_QUERIES[i], result });
 
       // Small delay between tests
@@ -509,7 +544,7 @@ async function main() {
       toolUsage[tc.name] = (toolUsage[tc.name] || 0) + 1;
     }
   }
-  
+
   console.log(`\n📊 Tool Usage:`);
   for (const [name, count] of Object.entries(toolUsage).sort((a, b) => b[1] - a[1])) {
     console.log(`   ${name}: ${count}`);

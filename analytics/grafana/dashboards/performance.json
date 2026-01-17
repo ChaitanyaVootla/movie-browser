@@ -12,14 +12,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 2500 }, { "color": "red", "value": 4000 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2500 },
+              { "color": "red", "value": 4000 }
+            ]
+          },
           "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": { "h": 5, "w": 5, "x": 0, "y": 0 },
       "id": 1,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "LCP (P75)",
       "description": "Largest Contentful Paint - Target: <2.5s",
       "type": "stat",
@@ -38,14 +54,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1800 }, { "color": "red", "value": 3000 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1800 },
+              { "color": "red", "value": 3000 }
+            ]
+          },
           "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": { "h": 5, "w": 5, "x": 5, "y": 0 },
       "id": 2,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "FCP (P75)",
       "description": "First Contentful Paint - Target: <1.8s",
       "type": "stat",
@@ -64,14 +96,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 800 }, { "color": "red", "value": 1800 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 800 },
+              { "color": "red", "value": 1800 }
+            ]
+          },
           "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": { "h": 5, "w": 5, "x": 10, "y": 0 },
       "id": 3,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "TTFB (P75)",
       "description": "Time to First Byte - Target: <800ms",
       "type": "stat",
@@ -90,14 +138,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.1 }, { "color": "red", "value": 0.25 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
       "gridPos": { "h": 5, "w": 5, "x": 15, "y": 0 },
       "id": 4,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "CLS (P75)",
       "description": "Cumulative Layout Shift - Target: <0.1",
       "type": "stat",
@@ -116,14 +180,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 200 }, { "color": "red", "value": 500 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 200 },
+              { "color": "red", "value": 500 }
+            ]
+          },
           "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": { "h": 5, "w": 4, "x": 20, "y": 0 },
       "id": 5,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showPercentChange": false, "textMode": "auto", "wideLayout": true },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
       "title": "INP (P75)",
       "description": "Interaction to Next Paint - Target: <200ms",
       "type": "stat",
@@ -162,7 +242,14 @@
             "thresholdsStyle": { "mode": "line+area" }
           },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 2500 }, { "color": "red", "value": 4000 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2500 },
+              { "color": "red", "value": 4000 }
+            ]
+          },
           "unit": "ms"
         },
         "overrides": []
@@ -170,7 +257,12 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
       "id": 6,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "title": "LCP Over Time (Hourly)",
@@ -210,7 +302,14 @@
             "thresholdsStyle": { "mode": "line+area" }
           },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.1 }, { "color": "red", "value": 0.25 }] },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
@@ -218,7 +317,12 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
       "id": 7,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "title": "CLS Over Time (Hourly)",
@@ -239,16 +343,49 @@
           "color": { "mode": "thresholds" },
           "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 2500 }, { "color": "red", "value": 4000 }] }
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2500 },
+              { "color": "red", "value": 4000 }
+            ]
+          }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "p75_lcp" }, "properties": [{ "id": "unit", "value": "ms" }, { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }] },
-          { "matcher": { "id": "byName", "options": "p75_cls" }, "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.1 }, { "color": "red", "value": 0.25 }] } }, { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }] }
+          {
+            "matcher": { "id": "byName", "options": "p75_lcp" },
+            "properties": [
+              { "id": "unit", "value": "ms" },
+              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p75_cls" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.1 },
+                    { "color": "red", "value": 0.25 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }
+            ]
+          }
         ]
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
       "id": 8,
-      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
       "title": "Performance by Page Type",
       "type": "table",
       "targets": [
@@ -270,12 +407,34 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "p75_lcp" }, "properties": [{ "id": "unit", "value": "ms" }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 2500 }, { "color": "red", "value": 4000 }] } }, { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }] }
+          {
+            "matcher": { "id": "byName", "options": "p75_lcp" },
+            "properties": [
+              { "id": "unit", "value": "ms" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 2500 },
+                    { "color": "red", "value": 4000 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } }
+            ]
+          }
         ]
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
       "id": 9,
-      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [{ "desc": true, "displayName": "samples" }] },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "samples" }]
+      },
       "title": "Performance by Device Type",
       "type": "table",
       "targets": [
@@ -299,5 +458,3 @@
   "version": 1,
   "weekStart": ""
 }
-
-

@@ -33,7 +33,7 @@ type LoadState = "cdn" | "tmdb" | "text";
 /**
  * Internal component that handles the actual logo rendering
  * Separated to allow key-based reset when item changes
- * 
+ *
  * Handles both wide and tall logos with flexible constraints:
  * - Wide logos: constrained by maxWidth, height adjusts
  * - Tall logos: constrained by maxHeight, width adjusts
@@ -162,4 +162,3 @@ export function getLogoSources(
     tmdb: tmdbLogoPath ? getTmdbLogoUrl(tmdbLogoPath, "w500") : null,
   };
 }
-

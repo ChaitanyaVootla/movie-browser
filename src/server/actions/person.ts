@@ -80,4 +80,3 @@ export async function getPersonBasic(id: number): Promise<{ id: number; name: st
   if (!data) return null;
   return { id: data.id, name: data.name };
 }
-

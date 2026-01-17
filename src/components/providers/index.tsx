@@ -6,7 +6,11 @@ import { AuthProvider } from "./auth-provider";
 import { UserStoreProvider } from "./user-store-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { GoogleOneTap } from "@/components/features/auth";
-import { HoverCardProvider, HoverCardOverlay, QuickInfoProvider } from "@/components/features/hover-card";
+import {
+  HoverCardProvider,
+  HoverCardOverlay,
+  QuickInfoProvider,
+} from "@/components/features/hover-card";
 import { AssistantFloaty } from "@/components/features/ai";
 import { SearchProvider, SearchCommand, useSearch } from "@/components/features/search";
 import { AnalyticsProvider } from "@/components/analytics";

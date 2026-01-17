@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { adminApiLogger } from "@/lib/logger";
-import {
-  forceRefreshMovie,
-  forceRefreshSeries,
-} from "@/server/services/hydration/integration";
+import { forceRefreshMovie, forceRefreshSeries } from "@/server/services/hydration/integration";
 
 /**
  * POST /api/admin/refresh-data
@@ -71,10 +68,7 @@ export async function POST(request: NextRequest) {
     // Check if it's an auth error
     if (error instanceof Error && error.message.includes("access required")) {
       adminApiLogger.warn({ event: "refresh_data_auth_denied", error: error.message });
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     adminApiLogger.error({

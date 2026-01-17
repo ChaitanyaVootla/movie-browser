@@ -15,13 +15,13 @@ docker exec -it movie-browser-postgres psql -U moviebrowser -d moviebrowser -c "
 
 ## Connection Details
 
-| Parameter | Value |
-|-----------|-------|
-| Host | localhost |
-| Port | 5433 |
-| Database | moviebrowser |
-| User | moviebrowser |
-| Password | localdev123 (default) |
+| Parameter | Value                 |
+| --------- | --------------------- |
+| Host      | localhost             |
+| Port      | 5433                  |
+| Database  | moviebrowser          |
+| User      | moviebrowser          |
+| Password  | localdev123 (default) |
 
 > **Note:** Using port 5433 to avoid conflict with existing PostgreSQL on 5432
 
@@ -40,25 +40,28 @@ SHADOW_DATABASE_URL="postgresql://moviebrowser:localdev123@localhost:5433/movieb
 
 ## Extensions Installed
 
-| Extension | Purpose |
-|-----------|---------|
-| `vector` (pgvector) | Vector similarity search for embeddings |
-| `pg_trgm` | Trigram fuzzy text search for typo tolerance |
-| `uuid-ossp` | UUID generation |
+| Extension           | Purpose                                      |
+| ------------------- | -------------------------------------------- |
+| `vector` (pgvector) | Vector similarity search for embeddings      |
+| `pg_trgm`           | Trigram fuzzy text search for typo tolerance |
+| `uuid-ossp`         | UUID generation                              |
 
 ## Commands
 
 ### Connect to database
+
 ```bash
 docker exec -it movie-browser-postgres psql -U moviebrowser -d moviebrowser
 ```
 
 ### View tables
+
 ```sql
 \dt
 ```
 
 ### Test fuzzy search
+
 ```sql
 -- Find movies similar to "Shawshnk Redemtion" (intentional typos)
 SELECT id, title, similarity(title, 'Shawshnk Redemtion') as sim
@@ -69,6 +72,7 @@ LIMIT 5;
 ```
 
 ### Test vector search (after embeddings populated)
+
 ```sql
 -- Find movies similar to a query embedding
 SELECT id, title, 1 - (embedding <=> '[0.1, 0.2, ...]'::vector) as similarity
@@ -80,22 +84,26 @@ LIMIT 10;
 ## Maintenance
 
 ### Backup
+
 ```bash
 docker exec movie-browser-postgres pg_dump -U moviebrowser moviebrowser > backup.sql
 ```
 
 ### Restore
+
 ```bash
 docker exec -i movie-browser-postgres psql -U moviebrowser moviebrowser < backup.sql
 ```
 
 ### Reset database
+
 ```bash
 docker-compose -f docker-compose.postgres.yml down -v
 docker-compose -f docker-compose.postgres.yml up -d
 ```
 
 ### View logs
+
 ```bash
 docker logs -f movie-browser-postgres
 ```
@@ -111,4 +119,3 @@ For EC2 deployment:
 5. Set up automated backups
 
 See `docs/POSTGRESQL_MIGRATION_PLAN.md` for full deployment guide.
-

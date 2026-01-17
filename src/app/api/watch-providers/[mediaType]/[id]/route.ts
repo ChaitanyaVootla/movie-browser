@@ -1,8 +1,8 @@
 /**
  * Watch Providers API - Lazy load watch options for specific country
- * 
+ *
  * GET /api/watch-providers/[mediaType]/[id]?country=XX
- * 
+ *
  * This endpoint is called when a user changes their country preference.
  * Instead of serializing watch providers for all 90+ countries in the initial
  * page load, we fetch on demand.
@@ -40,10 +40,7 @@ export async function GET(
     const resolvedParams = await params;
     const parsedParams = ParamsSchema.safeParse(resolvedParams);
     if (!parsedParams.success) {
-      return NextResponse.json(
-        { error: "Invalid media type or ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid media type or ID" }, { status: 400 });
     }
 
     // Validate query
@@ -52,19 +49,15 @@ export async function GET(
       country: searchParams.get("country"),
     });
     if (!parsedQuery.success) {
-      return NextResponse.json(
-        { error: "Invalid or missing country code" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid or missing country code" }, { status: 400 });
     }
 
     const { mediaType, id } = parsedParams.data;
     const { country } = parsedQuery.data;
 
     // Fetch watch providers from TMDB (cached)
-    const watchProvidersResponse = mediaType === "movie"
-      ? await getMovieWatchProviders(id)
-      : await getSeriesWatchProviders(id);
+    const watchProvidersResponse =
+      mediaType === "movie" ? await getMovieWatchProviders(id) : await getSeriesWatchProviders(id);
 
     const tmdbWatchProviders = watchProvidersResponse?.results;
 
@@ -74,10 +67,10 @@ export async function GET(
       const scrapedLinks = await getScrapedWatchLinksFromPostgres(id, mediaType);
       if (scrapedLinks && scrapedLinks.length > 0) {
         scrapedWatchLinksMap = {
-          IN: scrapedLinks.map(l => ({
+          IN: scrapedLinks.map((l) => ({
             name: l.provider,
             link: l.link,
-            price: l.price,
+            price: l.price ?? undefined,
           })),
         };
       }
@@ -99,9 +92,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("[API/watch-providers] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch watch providers" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch watch providers" }, { status: 500 });
   }
 }

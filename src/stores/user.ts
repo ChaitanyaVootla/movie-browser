@@ -294,10 +294,9 @@ export const useUserStore = create<UserStore>()(
 
           // Server sync
           try {
-            const response = await fetch(
-              `/api/user/rating?itemId=${id}&itemType=${mediaType}`,
-              { method: "DELETE" }
-            );
+            const response = await fetch(`/api/user/rating?itemId=${id}&itemType=${mediaType}`, {
+              method: "DELETE",
+            });
 
             if (!response.ok) {
               throw new Error("Failed to sync");
@@ -475,9 +474,7 @@ export const useUserStore = create<UserStore>()(
 
         setLibraryData: (data) => {
           set((state) => ({
-            watchedMovies: data.watchedMovies
-              ? new Set(data.watchedMovies)
-              : state.watchedMovies,
+            watchedMovies: data.watchedMovies ? new Set(data.watchedMovies) : state.watchedMovies,
             watchlistMovies: data.watchlistMovies
               ? new Set(data.watchlistMovies)
               : state.watchlistMovies,
@@ -485,9 +482,7 @@ export const useUserStore = create<UserStore>()(
               ? new Set(data.watchlistSeries)
               : state.watchlistSeries,
             ratings: data.ratings
-              ? new Map(
-                  data.ratings.map((r) => [getRatingKey(r.itemId, r.itemType), r.rating])
-                )
+              ? new Map(data.ratings.map((r) => [getRatingKey(r.itemId, r.itemType), r.rating]))
               : state.ratings,
             recents: data.recents ?? state.recents,
             continueWatching: data.continueWatching ?? state.continueWatching,
@@ -513,8 +508,7 @@ export const useUserStore = create<UserStore>()(
 // Selectors (for performance - avoid re-renders)
 // =============================================================================
 
-export const selectIsWatched = (id: number) => (state: UserStore) =>
-  state.watchedMovies.has(id);
+export const selectIsWatched = (id: number) => (state: UserStore) => state.watchedMovies.has(id);
 
 export const selectIsInWatchlist = (id: number, mediaType: MediaType) => (state: UserStore) =>
   mediaType === "movie" ? state.watchlistMovies.has(id) : state.watchlistSeries.has(id);

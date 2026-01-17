@@ -60,9 +60,9 @@ function setCache<T>(key: string, data: T, ttlSeconds: number): void {
 
 // Cache TTLs
 const CACHE_TTL = {
-  TRENDING: 15 * 60,       // 15 minutes
-  KINOCHECK: 60 * 60,      // 1 hour
-  TMDB_VIDEOS: 30 * 60,    // 30 minutes
+  TRENDING: 15 * 60, // 15 minutes
+  KINOCHECK: 60 * 60, // 1 hour
+  TMDB_VIDEOS: 30 * 60, // 30 minutes
 };
 
 // Simple retry wrapper for fetch
@@ -74,7 +74,7 @@ async function fetchWithRetry(url: string, retries = 3, delay = 500): Promise<Re
     } catch (error) {
       if (i === retries - 1) throw error;
       console.log(`   ⚠️ Retry ${i + 1}/${retries} after error`);
-      await new Promise(r => setTimeout(r, delay * (i + 1)));
+      await new Promise((r) => setTimeout(r, delay * (i + 1)));
     }
   }
   throw new Error("Max retries reached");
@@ -94,7 +94,9 @@ if (!TMDB_API_KEY) {
 }
 
 console.log(`✅ TMDB_API_KEY: configured`);
-console.log(`✅ YOUTUBE_API_KEY: ${YOUTUBE_API_KEY ? "configured" : "not set (YouTube tests will fail)"}`);
+console.log(
+  `✅ YOUTUBE_API_KEY: ${YOUTUBE_API_KEY ? "configured" : "not set (YouTube tests will fail)"}`
+);
 console.log("");
 
 // =============================================================================
@@ -164,9 +166,10 @@ async function getMostPopularFilmVideos(
     channelTitle: item.snippet.channelTitle,
     publishedAt: item.snippet.publishedAt,
     viewCount: parseInt(item.statistics?.viewCount || "0", 10),
-    thumbnail: item.snippet.thumbnails?.maxres?.url ||
-               item.snippet.thumbnails?.high?.url ||
-               item.snippet.thumbnails?.medium?.url,
+    thumbnail:
+      item.snippet.thumbnails?.maxres?.url ||
+      item.snippet.thumbnails?.high?.url ||
+      item.snippet.thumbnails?.medium?.url,
     description: item.snippet.description?.slice(0, 200) || "",
   }));
 
@@ -348,7 +351,7 @@ interface TrendingTrailer {
   rating: number;
   popularity: number;
   posterPath: string | null;
-  
+
   // Trailer info
   youtubeId: string;
   trailerTitle: string;
@@ -508,10 +511,7 @@ async function getTMDBUpcomingTrailers(limit: number = 15): Promise<TrendingTrai
     // Find best official trailer
     const officialTrailers = videos
       .filter(
-        (v) =>
-          v.site === "YouTube" &&
-          (v.type === "Trailer" || v.type === "Teaser") &&
-          v.official
+        (v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser") && v.official
       )
       .sort((a, b) => {
         if (a.type === "Trailer" && b.type !== "Trailer") return -1;
@@ -558,8 +558,8 @@ interface KinoCheckVideo {
   thumbnail: string;
   youtube_thumbnail: string;
   language: string;
-  categories: string[];  // ["Trailer"], ["Teaser Trailer"], etc.
-  published: string;     // ISO date (not published_at)
+  categories: string[]; // ["Trailer"], ["Teaser Trailer"], etc.
+  published: string; // ISO date (not published_at)
   views?: number;
 }
 
@@ -575,13 +575,13 @@ interface KinoCheckResponse {
 
 /**
  * KinoCheck API - Fetch trailers by TMDB ID
- * 
+ *
  * Advantages over TMDB videos:
  * - More comprehensive video database
  * - Better categorization (Trailer, Teaser, Featurette, etc.)
  * - Fresher content especially for TV shows
  * - No API key needed for basic use
- * 
+ *
  * Endpoints:
  * - /movies?tmdb_id={id} - Get movie trailers
  * - /shows?tmdb_id={id} - Get TV show trailers
@@ -606,7 +606,7 @@ async function getKinoCheckTrailers(
 
   try {
     const response = await fetch(url.toString());
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         // Not found - cache empty result to avoid repeated calls
@@ -619,12 +619,10 @@ async function getKinoCheckTrailers(
 
     const data: KinoCheckResponse = await response.json();
     const videos = data.videos || [];
-    
+
     // Sort by publish date (newest first)
-    videos.sort((a, b) => 
-      new Date(b.published).getTime() - new Date(a.published).getTime()
-    );
-    
+    videos.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
+
     setCache(cacheKey, videos, CACHE_TTL.KINOCHECK);
     return videos;
   } catch (error) {
@@ -642,12 +640,13 @@ async function getKinoCheckLatestTrailer(
   language: string = "en"
 ): Promise<KinoCheckVideo | null> {
   const videos = await getKinoCheckTrailers(tmdbId, mediaType, language);
-  
+
   // Prefer "Trailer" category, then "Teaser"
-  const trailer = videos.find(v => v.categories.includes("Trailer"))
-    || videos.find(v => v.categories.includes("Teaser"))
-    || videos[0];
-  
+  const trailer =
+    videos.find((v) => v.categories.includes("Trailer")) ||
+    videos.find((v) => v.categories.includes("Teaser")) ||
+    videos[0];
+
   return trailer || null;
 }
 
@@ -665,17 +664,17 @@ async function getEnhancedTrendingTrailers(
   // Step 1: Get trending from TMDB (cached)
   const trendingCacheKey = `tmdb:trending:${mediaType}`;
   let trendingItems = getCached<TMDBTrendingItem[]>(trendingCacheKey);
-  
+
   if (!trendingItems) {
     const trendingUrl = new URL(`${TMDB_API_BASE}/trending/${mediaType}/week`);
     trendingUrl.searchParams.set("api_key", TMDB_API_KEY!);
-    
+
     const response = await fetch(trendingUrl.toString());
     if (!response.ok) {
       console.error(`❌ TMDB Trending API Error: ${response.status}`);
       return [];
     }
-    
+
     const data = await response.json();
     trendingItems = (data.results as TMDBTrendingItem[]).slice(0, limit);
     setCache(trendingCacheKey, trendingItems, CACHE_TTL.TRENDING);
@@ -693,10 +692,10 @@ async function getEnhancedTrendingTrailers(
   for (const item of trendingItems) {
     const itemType = item.media_type || (item.title ? "movie" : "tv");
     const title = item.title || item.name || "Unknown";
-    
+
     // Try KinoCheck first (better for recent content)
     const kcTrailer = await getKinoCheckLatestTrailer(item.id, itemType);
-    
+
     if (kcTrailer) {
       kinoCheckHits++;
       trailers.push({
@@ -720,11 +719,11 @@ async function getEnhancedTrendingTrailers(
     // Fallback to TMDB videos
     const tmdbCacheKey = `tmdb:videos:${itemType}:${item.id}`;
     let videos = getCached<TMDBVideo[]>(tmdbCacheKey);
-    
+
     if (!videos) {
       const videosUrl = new URL(`${TMDB_API_BASE}/${itemType}/${item.id}/videos`);
       videosUrl.searchParams.set("api_key", TMDB_API_KEY!);
-      
+
       const response = await fetch(videosUrl.toString());
       if (response.ok) {
         const data = await response.json();
@@ -737,11 +736,12 @@ async function getEnhancedTrendingTrailers(
 
     // Filter to official English trailers
     const officialTrailers = videos
-      .filter(v => 
-        v.site === "YouTube" &&
-        (v.type === "Trailer" || v.type === "Teaser") &&
-        v.official &&
-        v.iso_639_1 === "en"
+      .filter(
+        (v) =>
+          v.site === "YouTube" &&
+          (v.type === "Trailer" || v.type === "Teaser") &&
+          v.official &&
+          v.iso_639_1 === "en"
       )
       .sort((a, b) => {
         if (a.type === "Trailer" && b.type !== "Trailer") return -1;
@@ -770,12 +770,12 @@ async function getEnhancedTrendingTrailers(
     }
 
     // Small delay between requests
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
   }
 
   console.log(`   ✅ Results: ${trailers.length} trailers`);
   console.log(`   📊 KinoCheck hits: ${kinoCheckHits}, TMDB fallbacks: ${tmdbFallbacks}`);
-  
+
   return trailers;
 }
 
@@ -868,7 +868,9 @@ function printTMDBTrailer(trailer: TrendingTrailer, index: number) {
   const publishedStr = formatDate(trailer.publishedAt);
 
   console.log(`\n${index + 1}. ${type} ${trailer.title}`);
-  console.log(`   ⭐ ${trailer.rating.toFixed(1)} | 🔥 ${Math.round(trailer.popularity)} popularity | 📅 ${dateStr}`);
+  console.log(
+    `   ⭐ ${trailer.rating.toFixed(1)} | 🔥 ${Math.round(trailer.popularity)} popularity | 📅 ${dateStr}`
+  );
   console.log(`   🎬 ${trailer.trailerTitle} (${trailer.trailerType})`);
   console.log(`   📺 Published: ${publishedStr}`);
   console.log(`   🔗 https://youtube.com/watch?v=${trailer.youtubeId}`);
@@ -925,7 +927,9 @@ async function testMostPopular() {
   console.log("\n" + "─".repeat(50));
   console.log("📊 Analysis:");
   console.log(`   - Total videos: ${videos.length}`);
-  console.log(`   - Likely trailers: ${likelyTrailers.length} (${Math.round(likelyTrailers.length / videos.length * 100)}%)`);
+  console.log(
+    `   - Likely trailers: ${likelyTrailers.length} (${Math.round((likelyTrailers.length / videos.length) * 100)}%)`
+  );
   console.log(`   - Non-trailers include: music videos, clips, fan content`);
 }
 
@@ -1029,7 +1033,7 @@ async function testKinoCheck() {
   console.log("\n" + "=".repeat(60));
   console.log("TEST 6: KinoCheck API Direct Test");
   console.log("=".repeat(60));
-  
+
   // Test with known TMDB IDs
   const testCases = [
     { id: 66732, type: "tv" as const, name: "Stranger Things" },
@@ -1039,22 +1043,24 @@ async function testKinoCheck() {
     { id: 157336, type: "movie" as const, name: "Interstellar" },
     { id: 83533, type: "movie" as const, name: "Avatar: Fire and Ash" },
   ];
-  
+
   console.log("\n📋 Testing KinoCheck API with known TMDB IDs:\n");
-  
+
   for (const testCase of testCases) {
-    console.log(`\n${testCase.type === "movie" ? "🎬" : "📺"} ${testCase.name} (TMDB: ${testCase.id})`);
+    console.log(
+      `\n${testCase.type === "movie" ? "🎬" : "📺"} ${testCase.name} (TMDB: ${testCase.id})`
+    );
     console.log("─".repeat(40));
-    
+
     const videos = await getKinoCheckTrailers(testCase.id, testCase.type);
-    
+
     if (videos.length === 0) {
       console.log("   ❌ No videos found");
       continue;
     }
-    
+
     console.log(`   Found ${videos.length} videos:`);
-    
+
     // Show top 3 videos
     for (let i = 0; i < Math.min(3, videos.length); i++) {
       const v = videos[i];
@@ -1064,9 +1070,9 @@ async function testKinoCheck() {
       console.log(`      📅 ${dateStr} | 🏷️ ${cats}`);
       console.log(`      🔗 https://youtube.com/watch?v=${v.youtube_video_id}`);
     }
-    
+
     // Small delay between tests
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
   }
 }
 
@@ -1074,19 +1080,19 @@ async function testEnhancedApproach() {
   console.log("\n" + "=".repeat(60));
   console.log("TEST 7: Enhanced Approach (TMDB + KinoCheck)");
   console.log("=".repeat(60));
-  
+
   const trailers = await getEnhancedTrendingTrailers("all", 12);
-  
+
   console.log(`\n📋 Results: ${trailers.length} trailers\n`);
-  
+
   for (let i = 0; i < trailers.length; i++) {
     printTMDBTrailer(trailers[i], i);
   }
-  
+
   // Stats
-  const movieCount = trailers.filter(t => t.mediaType === "movie").length;
-  const tvCount = trailers.filter(t => t.mediaType === "tv").length;
-  
+  const movieCount = trailers.filter((t) => t.mediaType === "movie").length;
+  const tvCount = trailers.filter((t) => t.mediaType === "tv").length;
+
   console.log("\n" + "─".repeat(50));
   console.log("📊 Analysis:");
   console.log(`   - Movies: ${movieCount}, TV Shows: ${tvCount}`);
@@ -1097,36 +1103,41 @@ async function testTMDBvsKinoCheck() {
   console.log("\n" + "=".repeat(60));
   console.log("TEST 8: Compare TMDB vs KinoCheck for TV Shows");
   console.log("=".repeat(60));
-  
+
   // Get trending TV shows
   const trendingUrl = new URL(`${TMDB_API_BASE}/trending/tv/week`);
   trendingUrl.searchParams.set("api_key", TMDB_API_KEY!);
-  
+
   const response = await fetch(trendingUrl.toString());
   const data = await response.json();
   const shows = (data.results as TMDBTrendingItem[]).slice(0, 5);
-  
+
   console.log(`\nComparing trailers for ${shows.length} trending TV shows:\n`);
-  
+
   for (const show of shows) {
     const title = show.name || show.title || "Unknown";
     console.log(`\n📺 ${title} (TMDB: ${show.id})`);
     console.log("═".repeat(50));
-    
+
     // Get TMDB videos
     const tmdbUrl = new URL(`${TMDB_API_BASE}/tv/${show.id}/videos`);
     tmdbUrl.searchParams.set("api_key", TMDB_API_KEY!);
     const tmdbResponse = await fetch(tmdbUrl.toString());
     const tmdbData = await tmdbResponse.json();
     const tmdbVideos = (tmdbData.results || []) as TMDBVideo[];
-    
+
     // Filter to English trailers
     const tmdbTrailers = tmdbVideos
-      .filter(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser") && v.iso_639_1 === "en")
+      .filter(
+        (v) =>
+          v.site === "YouTube" &&
+          (v.type === "Trailer" || v.type === "Teaser") &&
+          v.iso_639_1 === "en"
+      )
       .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
-    
+
     const newestTMDB = tmdbTrailers[0];
-    
+
     console.log(`\n   📊 TMDB Videos: ${tmdbTrailers.length} trailers`);
     if (newestTMDB) {
       console.log(`   Latest: "${newestTMDB.name}"`);
@@ -1134,11 +1145,11 @@ async function testTMDBvsKinoCheck() {
     } else {
       console.log("   ❌ No trailers found");
     }
-    
+
     // Get KinoCheck videos
     const kcVideos = await getKinoCheckTrailers(show.id, "tv");
     const newestKC = kcVideos[0];
-    
+
     console.log(`\n   🎬 KinoCheck Videos: ${kcVideos.length} trailers`);
     if (newestKC) {
       console.log(`   Latest: "${newestKC.title}"`);
@@ -1146,24 +1157,28 @@ async function testTMDBvsKinoCheck() {
     } else {
       console.log("   ❌ No trailers found");
     }
-    
+
     // Compare dates
     if (newestTMDB && newestKC) {
       const tmdbDate = new Date(newestTMDB.published_at);
       const kcDate = new Date(newestKC.published);
-      
+
       if (kcDate > tmdbDate) {
-        const daysDiff = Math.round((kcDate.getTime() - tmdbDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.round(
+          (kcDate.getTime() - tmdbDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
         console.log(`\n   ✅ KinoCheck is ${daysDiff} days newer!`);
       } else if (tmdbDate > kcDate) {
-        const daysDiff = Math.round((tmdbDate.getTime() - kcDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.round(
+          (tmdbDate.getTime() - kcDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
         console.log(`\n   ✅ TMDB is ${daysDiff} days newer`);
       } else {
         console.log(`\n   ⚖️ Same publish date`);
       }
     }
-    
-    await new Promise(r => setTimeout(r, 200));
+
+    await new Promise((r) => setTimeout(r, 200));
   }
 }
 
@@ -1203,7 +1218,7 @@ HYBRID APPROACH (Best of Both):
   // Run TMDB test to show actual results
   console.log("\n🎬 Running TMDB approach to show actual results...\n");
   const tmdbTrailers = await getTMDBTrendingTrailers("movie", 8);
-  
+
   console.log("Sample Results:");
   for (let i = 0; i < Math.min(5, tmdbTrailers.length); i++) {
     printTMDBTrailer(tmdbTrailers[i], i);
@@ -1330,7 +1345,7 @@ YouTube tests (requires YOUTUBE_API_KEY):
       await testKinoCheck();
       await testEnhancedApproach();
       await testTMDBvsKinoCheck();
-      
+
       if (YOUTUBE_API_KEY) {
         await testMostPopular();
         await testSearchApproach();
@@ -1377,4 +1392,3 @@ YouTube tests (requires YOUTUBE_API_KEY):
 }
 
 main();
-

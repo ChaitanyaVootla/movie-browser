@@ -74,7 +74,9 @@ export async function GET() {
         : [],
       allSeriesIds.length > 0
         ? Series.find({ id: { $in: allSeriesIds } })
-            .select("id name poster_path backdrop_path vote_average first_air_date genres number_of_seasons status")
+            .select(
+              "id name poster_path backdrop_path vote_average first_air_date genres number_of_seasons status"
+            )
             .lean()
         : [],
     ]);
@@ -128,7 +130,3 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch ratings" }, { status: 500 });
   }
 }
-
-
-
-

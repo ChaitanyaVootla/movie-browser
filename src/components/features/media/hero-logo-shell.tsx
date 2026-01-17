@@ -46,17 +46,17 @@ export function HeroLogoShell({
   // CDN URL is deterministic - just needs ID
   const cdnUrl = `${CDN_IMAGE_BASE}/${mediaType}/${mediaId}/logo.webp`;
   // TMDB fallback needs the path
-  const tmdbUrl = tmdbLogoPath
-    ? `${TMDB_IMAGE_BASE}/w500${tmdbLogoPath}`
-    : null;
+  const tmdbUrl = tmdbLogoPath ? `${TMDB_IMAGE_BASE}/w500${tmdbLogoPath}` : null;
 
   // When context provides data and we're in pending state, transition appropriately
   useEffect(() => {
     if (loadState === "pending") {
       if (tmdbUrl) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoadState("tmdb");
       } else if (fallbackText) {
         // No logo path but we have title - show text
+
         setLoadState("text");
       }
     }
@@ -84,8 +84,7 @@ export function HeroLogoShell({
   };
 
   // Determine current image source
-  const currentSrc =
-    loadState === "cdn" ? cdnUrl : loadState === "tmdb" ? tmdbUrl : null;
+  const currentSrc = loadState === "cdn" ? cdnUrl : loadState === "tmdb" ? tmdbUrl : null;
 
   // Loading/pending state - show skeleton while waiting for context data
   if (loadState === "pending") {
@@ -107,10 +106,7 @@ export function HeroLogoShell({
       return (
         <div
           data-testid="hero-logo"
-          className={cn(
-            "h-12 sm:h-16 md:h-20 bg-transparent",
-            className
-          )}
+          className={cn("h-12 sm:h-16 md:h-20 bg-transparent", className)}
         />
       );
     }

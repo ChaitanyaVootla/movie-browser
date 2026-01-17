@@ -5,7 +5,11 @@ import { Sparkles } from "lucide-react";
 import { MediaCard } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
-import { categorizeCreditsLight, deduplicateCreditsLight, getCreditDateLight } from "@/lib/person-credits";
+import {
+  categorizeCreditsLight,
+  deduplicateCreditsLight,
+  getCreditDateLight,
+} from "@/lib/person-credits";
 import type { MovieListItem, SeriesListItem } from "@/types";
 import type { LightPersonCastCredit, LightPersonCrewCredit } from "@/types/client-props";
 
@@ -68,13 +72,13 @@ function getSubtitle(credit: Credit): string {
 function formatReleaseDate(credit: Credit, isUpcoming: boolean): string {
   const date = getCreditDateLight(credit);
   if (!date) return "";
-  
+
   // For upcoming items, show relative time
   if (isUpcoming) {
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays <= 7) return `In ${diffDays} day${diffDays === 1 ? "" : "s"}`;
     if (diffDays <= 30) {
       const weeks = Math.ceil(diffDays / 7);
@@ -85,14 +89,14 @@ function formatReleaseDate(credit: Credit, isUpcoming: boolean): string {
       return `In ${months} month${months === 1 ? "" : "s"}`;
     }
   }
-  
+
   // Default: show month and year
   return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
 /**
  * UpcomingLatestSection - Shows recent and upcoming items for a person
- * 
+ *
  * Combines the last 5 releases with all upcoming projects in a single scroller.
  * Order: Latest (most recent first, max 5) → Upcoming (soonest first)
  * Talk shows and news programs are filtered out.
@@ -114,14 +118,13 @@ export function UpcomingLatestSection({
     const allCredits = [...castCredits, ...crewCredits];
     const deduplicated = deduplicateCreditsLight(allCredits);
     const { upcoming, latest } = categorizeCreditsLight(deduplicated);
-    
+
     // Filter by display mode (poster or backdrop available)
-    const filterByMode = (c: Credit) => 
-      displayMode === "wide" ? c.backdrop_path : c.poster_path;
-    
+    const filterByMode = (c: Credit) => (displayMode === "wide" ? c.backdrop_path : c.poster_path);
+
     const upcomingFiltered = upcoming.filter(filterByMode);
     const latestFiltered = latest.filter(filterByMode).slice(0, MAX_LATEST);
-    
+
     // Combine: latest first (already sorted most recent first), then upcoming (soonest first)
     return [
       ...latestFiltered.map((credit) => ({ credit, isUpcoming: false })),
@@ -144,10 +147,12 @@ export function UpcomingLatestSection({
       {combinedCredits.map(({ credit, isUpcoming }) => {
         const subtitle = getSubtitle(credit);
         const dateLabel = formatReleaseDate(credit, isUpcoming);
-        const fullSubtitle = subtitle 
-          ? (dateLabel ? `${subtitle} • ${dateLabel}` : subtitle)
+        const fullSubtitle = subtitle
+          ? dateLabel
+            ? `${subtitle} • ${dateLabel}`
+            : subtitle
           : dateLabel;
-        
+
         return (
           <MediaCard
             key={credit.credit_id}
@@ -162,4 +167,3 @@ export function UpcomingLatestSection({
     </MediaScroller>
   );
 }
-

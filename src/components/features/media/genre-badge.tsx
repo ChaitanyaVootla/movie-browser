@@ -24,7 +24,13 @@ function getTopicKey(genreName: string, mediaType: "movie" | "series"): string {
   return `genre-${slug}-${mediaType === "movie" ? "movies" : "tv"}`;
 }
 
-export function GenreBadge({ genre, mediaType, size = "md", className, linkToBrowse }: GenreBadgeProps) {
+export function GenreBadge({
+  genre,
+  mediaType,
+  size = "md",
+  className,
+  linkToBrowse,
+}: GenreBadgeProps) {
   const href = linkToBrowse
     ? buildBrowseUrl({
         media_type: mediaType === "movie" ? "movie" : "tv",
@@ -87,7 +93,13 @@ export function GenreList({
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
       {visibleGenres.map((genre) => (
-        <GenreBadge key={genre.id} genre={genre} mediaType={mediaType} size={size} linkToBrowse={linkToBrowse} />
+        <GenreBadge
+          key={genre.id}
+          genre={genre}
+          mediaType={mediaType}
+          size={size}
+          linkToBrowse={linkToBrowse}
+        />
       ))}
       {remainingCount > 0 && !isExpanded && (
         <Badge
@@ -116,4 +128,3 @@ export function GenreList({
     </div>
   );
 }
-

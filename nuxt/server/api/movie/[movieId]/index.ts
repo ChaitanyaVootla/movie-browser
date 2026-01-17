@@ -8,291 +8,341 @@ import { getWatchOptions } from "~/server/utils/watchOptions";
 import { JWT } from "next-auth/jwt";
 import { getPrimaryVideoInfo } from "~/utils/video";
 
-const QUERY_PARAMS = '&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids';
+const QUERY_PARAMS =
+  "&append_to_response=videos,images,credits,similar,recommendations,keywords,external_ids";
 
 const DAY_MILLIS = 1000 * 60 * 60 * 24;
 
 export default defineEventHandler(async (event) => {
-    const movieId = getRouterParam(event, 'movieId');
-    let isForce = getQuery(event).force ? true : false;
-    const checkUpdate = getQuery(event).checkUpdate ? true : false;
-    const minimal = getQuery(event).minimal ? true : false;
-    let country = getQuery(event).country as string;
-    if (!country) {
-        country = getHeader(event, 'X-Country-Code') || 'IN';
-    }
-    const userData = event.context.userData as JWT;
-    if (isForce && (!userData || !userData?.sub)) {
-        event.node.res.statusCode = 401;
-        event.node.res.end(`Unauthorized`);
-        return;
-    }
+  const movieId = getRouterParam(event, "movieId");
+  let isForce = getQuery(event).force ? true : false;
+  const checkUpdate = getQuery(event).checkUpdate ? true : false;
+  const minimal = getQuery(event).minimal ? true : false;
+  let country = getQuery(event).country as string;
+  if (!country) {
+    country = getHeader(event, "X-Country-Code") || "IN";
+  }
+  const userData = event.context.userData as JWT;
+  if (isForce && (!userData || !userData?.sub)) {
+    event.node.res.statusCode = 401;
+    event.node.res.end(`Unauthorized`);
+    return;
+  }
 
-    if (!movieId) {
-        event.node.res.statusCode = 404;
-        event.node.res.end(`Movie not found for id: ${movieId}`);
-    }
-    const movie = await movieGetHandler(movieId as string, checkUpdate, isForce, false, false, event, country, minimal);
-    if (!movie) {
-        event.node.res.statusCode = 404;
-        event.node.res.end(`Movie not found for id: ${movieId}`);
-    }
-    if (movie.adult && (!userData || !userData?.sub)) {
-        event.node.res.statusCode = 401;
-        event.node.res.end(`Unauthorized`);
-        return;
-    }
+  if (!movieId) {
+    event.node.res.statusCode = 404;
+    event.node.res.end(`Movie not found for id: ${movieId}`);
+  }
+  const movie = await movieGetHandler(
+    movieId as string,
+    checkUpdate,
+    isForce,
+    false,
+    false,
+    event,
+    country,
+    minimal
+  );
+  if (!movie) {
+    event.node.res.statusCode = 404;
+    event.node.res.end(`Movie not found for id: ${movieId}`);
+  }
+  if (movie.adult && (!userData || !userData?.sub)) {
+    event.node.res.statusCode = 401;
+    event.node.res.end(`Unauthorized`);
+    return;
+  }
 
-    if (minimal) {
-        const m = movie as any;
-        return {
-            id: m.id,
-            title: m.title,
-            backdrop_path: m.backdrop_path,
-            poster_path: m.poster_path,
-            videos: getPrimaryVideoInfo(m.videos), // Only send primary trailer
-            genres: m.genres,
-            release_date: m.release_date,
-            runtime: m.runtime,
-            ratings: m.ratings, // Combined ratings (already processed)
-            watch_options: m.watch_options, // Processed watch options for user's region
-            vote_average: m.vote_average,
-            overview: m.overview
-        };
-    }
+  if (minimal) {
+    const m = movie as any;
+    return {
+      id: m.id,
+      title: m.title,
+      backdrop_path: m.backdrop_path,
+      poster_path: m.poster_path,
+      videos: getPrimaryVideoInfo(m.videos), // Only send primary trailer
+      genres: m.genres,
+      release_date: m.release_date,
+      runtime: m.runtime,
+      ratings: m.ratings, // Combined ratings (already processed)
+      watch_options: m.watch_options, // Processed watch options for user's region
+      vote_average: m.vote_average,
+      overview: m.overview,
+    };
+  }
 
-    return movie;
+  return movie;
 });
 
-export const movieGetHandler = async (movieId: string, checkUpdate: boolean, isForce: boolean,
-    forceFrequent: boolean, shallowUpdate = false, event?: any, country?: string, minimal = false): Promise<IMovie> => {
-    let movie = {} as any;
-    let canUpdate = false;
-    let dbMovie;
-    if (country && /^[a-zA-Z]{2}$/.test(country)) {
-        const pCountry = country.toUpperCase();
-        // Use aggregation to selectively project nested watchProviders while excluding others
-        const pipeline = [
-            { $match: { id: parseInt(movieId) } },
-            {
-                $addFields: {
-                    _wp_tmp: {
-                        US: "$watchProviders.US",
-                        [pCountry]: `$watchProviders.${pCountry}`
-                    }
-                }
-            },
-            {
-                $project: {
-                    _id: 0, __v: 0, external_ids: 0, "images.posters": 0,
-                    production_companies: 0, production_countries: 0,
-                    spoken_languages: 0, releaseDates: 0, watchProviders: 0,
-                    ...(minimal ? { credits: 0, similar: 0, recommendations: 0, keywords: 0 } : {})
-                }
-            },
-            { $addFields: { watchProviders: "$_wp_tmp" } },
-            { $project: { _wp_tmp: 0 } }
-        ];
-        // @ts-ignore
-        const results = await Movie.aggregate(pipeline);
-        dbMovie = results[0];
-    } else {
-        let query = Movie.findOne({ id: movieId })
-            .select('-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates');
-
-        if (minimal) {
-            query = query.select('-credits -similar -recommendations -keywords');
-        } else {
-            query = query.select('-watchProviders');
-        }
-
-        dbMovie = await query;
-    }
-
-    if (dbMovie && (dbMovie.title || (dbMovie as any).id)) {
-        movie = (dbMovie as any).toJSON ? dbMovie.toJSON() : dbMovie;
-    }
-
-    if (movie?.updatedAt) {
-        const sinceUpdate = Date.now() - movie.updatedAt;
-        const sinceMovieRelase = Date.now() - new Date(movie.release_date).getTime();
-        let updateInterval = movieUpdateInterval(sinceMovieRelase);
-        if (forceFrequent) {
-            updateInterval = DAY_MILLIS / 2;
-        }
-        if (sinceUpdate > updateInterval) {
-            canUpdate = true;
-        }
-    }
-    if (checkUpdate && canUpdate) {
-        isForce = true;
-    }
-
-    if (isForce || !movie.title) {
-        const queryParams = minimal
-            ? '&append_to_response=videos,images,external_ids,watch/providers'
-            : QUERY_PARAMS;
-
-        try {
-            const [details, releaseDates, watchProviders]: [any, any, any] = await Promise.all([
-                $fetch(`${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${queryParams}`, {
-                    retry: 5,
-                }),
-                $fetch(`${TMDB.BASE_URL}/movie/${movieId}/release_dates?api_key=${process.env.TMDB_API_KEY}`, {
-                    retry: 5,
-                }),
-                $fetch(`${TMDB.BASE_URL}/movie/${movieId}/watch/providers?api_key=${process.env.TMDB_API_KEY}`, {
-                    retry: 5,
-                }),
-            ]);
-            details.releaseDates = releaseDates.results;
-            details.watchProviders = watchProviders.results;
-
-            if (!minimal && details.belongs_to_collection?.id) {
-                const collectionDetails: any = await $fetch(
-                    `${TMDB.BASE_URL}/collection/${details.belongs_to_collection.id}?api_key=${process.env.TMDB_API_KEY}`,
-                    {
-                        retry: 5,
-                    }
-                )
-                collectionDetails.parts = _.sortBy(collectionDetails.parts, ({ release_date }: any) => {
-                    return release_date ? release_date : 'zzzz';
-                });
-                details.collectionDetails = collectionDetails;
-            }
-
-            let googleData = movie.googleData || {} as any;
-            let externalData = movie.external_data || {} as any;
-
-            if (!shallowUpdate) {
-                // If minimal, we might skip some heavy lambda checks if we already have ratings
-                // But user wants ratings, so we should probably try to get them if missing.
-                // For now, keep logic same but rely on existing logic.
-
-                if (details.imdb_id || details.directorName) {
-                    const movieDirectorName = details?.credits?.crew?.find(({ job }: any) => job === 'Director')?.name;
-
-                    // Call both lambdas in parallel
-                    const [oldLambdaResponse, newLambdaResponse] = await Promise.allSettled([
-                        getGoogleLambdaData(details),
-                        getNewLambdaData(details)
-                    ]);
-
-                    // Process old lambda response
-                    if (oldLambdaResponse.status === 'fulfilled' && oldLambdaResponse.value) {
-                        const lambdaResponse = oldLambdaResponse.value;
-                        if ((lambdaResponse?.imdbId === details.imdb_id) || (lambdaResponse?.directorName === movieDirectorName)) {
-                            // Merge ratings logic: don't override existing if new is empty, and add on top
-                            const newRatings = lambdaResponse.ratings || [];
-                            const oldRatings = googleData.ratings || [];
-
-                            if (newRatings.length === 0 && oldRatings.length > 0) {
-                                lambdaResponse.ratings = oldRatings;
-                            } else if (newRatings.length > 0 && oldRatings.length > 0) {
-                                // Merge: keep new ones, add old ones that don't exist in new
-                                const mergedRatings = [...newRatings];
-                                for (const oldRating of oldRatings) {
-                                    if (!mergedRatings.find(r => r.name === oldRating.name)) {
-                                        mergedRatings.push(oldRating);
-                                    }
-                                }
-                                lambdaResponse.ratings = mergedRatings;
-                            }
-
-                            googleData = lambdaResponse;
-                        }
-                    }
-
-                    // Process new lambda response
-                    if (newLambdaResponse.status === 'fulfilled' && newLambdaResponse.value) {
-                        const newLambdaData = newLambdaResponse.value;
-                        const newDetailedRatings = newLambdaData.detailedRatings || {};
-                        const oldDetailedRatings = externalData.ratings || {};
-
-                        // Merge IMDb
-                        if (!newDetailedRatings.imdb && oldDetailedRatings.imdb) {
-                            newDetailedRatings.imdb = oldDetailedRatings.imdb;
-                        }
-
-                        // Merge Rotten Tomatoes
-                        if (oldDetailedRatings.rottenTomatoes) {
-                            if (!newDetailedRatings.rottenTomatoes) {
-                                newDetailedRatings.rottenTomatoes = oldDetailedRatings.rottenTomatoes;
-                            } else {
-                                // Deep merge RT (critic/audience)
-                                if (!newDetailedRatings.rottenTomatoes.critic && oldDetailedRatings.rottenTomatoes.critic) {
-                                    newDetailedRatings.rottenTomatoes.critic = oldDetailedRatings.rottenTomatoes.critic;
-                                }
-                                if (!newDetailedRatings.rottenTomatoes.audience && oldDetailedRatings.rottenTomatoes.audience) {
-                                    newDetailedRatings.rottenTomatoes.audience = oldDetailedRatings.rottenTomatoes.audience;
-                                }
-                            }
-                        }
-
-                        externalData = {
-                            ratings: newDetailedRatings,
-                            externalIds: { ...(externalData.externalIds || {}), ...(newLambdaData.externalIds || {}) }
-                        };
-                    }
-                }
-            }
-            movie = {
-                ...details,
-                googleData,
-                external_data: externalData,
-                rottenTomatoes: {},
-            };
-            if (!shallowUpdate) {
-                movie.updatedAt = new Date();
-            }
-        } catch (e) {
-            console.error(`TMDB get movie failed for id: ${movieId}`, e);
-        }
-
-        if (movie?.title) {
-            await Movie.updateOne(
-                { id: movieId },
-                {
-                    $set: {
-                        ...movie,
-                        shallowUpdatedAt: new Date(),
-                    },
-                },
-                { upsert: true },
-            ).exec();
-        }
-    }
-
-    // Create combined ratings object for response only (not saved to DB)
-    const combinedRatings = combineRatings(
-        movie.googleData,
-        movie.external_data,
-        movie.vote_average,
-        movie.vote_count,
-        movie.id,
-        'movie'
+export const movieGetHandler = async (
+  movieId: string,
+  checkUpdate: boolean,
+  isForce: boolean,
+  forceFrequent: boolean,
+  shallowUpdate = false,
+  event?: any,
+  country?: string,
+  minimal = false
+): Promise<IMovie> => {
+  let movie = {} as any;
+  let canUpdate = false;
+  let dbMovie;
+  if (country && /^[a-zA-Z]{2}$/.test(country)) {
+    const pCountry = country.toUpperCase();
+    // Use aggregation to selectively project nested watchProviders while excluding others
+    const pipeline = [
+      { $match: { id: parseInt(movieId) } },
+      {
+        $addFields: {
+          _wp_tmp: {
+            US: "$watchProviders.US",
+            [pCountry]: `$watchProviders.${pCountry}`,
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          __v: 0,
+          external_ids: 0,
+          "images.posters": 0,
+          production_companies: 0,
+          production_countries: 0,
+          spoken_languages: 0,
+          releaseDates: 0,
+          watchProviders: 0,
+          ...(minimal ? { credits: 0, similar: 0, recommendations: 0, keywords: 0 } : {}),
+        },
+      },
+      { $addFields: { watchProviders: "$_wp_tmp" } },
+      { $project: { _wp_tmp: 0 } },
+    ];
+    // @ts-ignore
+    const results = await Movie.aggregate(pipeline);
+    dbMovie = results[0];
+  } else {
+    let query = Movie.findOne({ id: movieId }).select(
+      "-_id -__v -external_ids -images.posters -production_companies -production_countries -spoken_languages -releaseDates"
     );
 
-    // Create watch options based on country and available data
-    const watchOptions = event ? getWatchOptions(event, movie.googleData, movie.watchProviders) : [];
+    if (minimal) {
+      query = query.select("-credits -similar -recommendations -keywords");
+    } else {
+      query = query.select("-watchProviders");
+    }
 
-    movie.canUpdate = canUpdate;
-    return {
-        ...movie,
-        ratings: combinedRatings, // Add ratings only to the response
-        watch_options: watchOptions // Add watch options for current country
-    } as IMovie;
-}
+    dbMovie = await query;
+  }
+
+  if (dbMovie && (dbMovie.title || (dbMovie as any).id)) {
+    movie = (dbMovie as any).toJSON ? dbMovie.toJSON() : dbMovie;
+  }
+
+  if (movie?.updatedAt) {
+    const sinceUpdate = Date.now() - movie.updatedAt;
+    const sinceMovieRelase = Date.now() - new Date(movie.release_date).getTime();
+    let updateInterval = movieUpdateInterval(sinceMovieRelase);
+    if (forceFrequent) {
+      updateInterval = DAY_MILLIS / 2;
+    }
+    if (sinceUpdate > updateInterval) {
+      canUpdate = true;
+    }
+  }
+  if (checkUpdate && canUpdate) {
+    isForce = true;
+  }
+
+  if (isForce || !movie.title) {
+    const queryParams = minimal
+      ? "&append_to_response=videos,images,external_ids,watch/providers"
+      : QUERY_PARAMS;
+
+    try {
+      const [details, releaseDates, watchProviders]: [any, any, any] = await Promise.all([
+        $fetch(
+          `${TMDB.BASE_URL}/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}${queryParams}`,
+          {
+            retry: 5,
+          }
+        ),
+        $fetch(
+          `${TMDB.BASE_URL}/movie/${movieId}/release_dates?api_key=${process.env.TMDB_API_KEY}`,
+          {
+            retry: 5,
+          }
+        ),
+        $fetch(
+          `${TMDB.BASE_URL}/movie/${movieId}/watch/providers?api_key=${process.env.TMDB_API_KEY}`,
+          {
+            retry: 5,
+          }
+        ),
+      ]);
+      details.releaseDates = releaseDates.results;
+      details.watchProviders = watchProviders.results;
+
+      if (!minimal && details.belongs_to_collection?.id) {
+        const collectionDetails: any = await $fetch(
+          `${TMDB.BASE_URL}/collection/${details.belongs_to_collection.id}?api_key=${process.env.TMDB_API_KEY}`,
+          {
+            retry: 5,
+          }
+        );
+        collectionDetails.parts = _.sortBy(collectionDetails.parts, ({ release_date }: any) => {
+          return release_date ? release_date : "zzzz";
+        });
+        details.collectionDetails = collectionDetails;
+      }
+
+      let googleData = movie.googleData || ({} as any);
+      let externalData = movie.external_data || ({} as any);
+
+      if (!shallowUpdate) {
+        // If minimal, we might skip some heavy lambda checks if we already have ratings
+        // But user wants ratings, so we should probably try to get them if missing.
+        // For now, keep logic same but rely on existing logic.
+
+        if (details.imdb_id || details.directorName) {
+          const movieDirectorName = details?.credits?.crew?.find(
+            ({ job }: any) => job === "Director"
+          )?.name;
+
+          // Call both lambdas in parallel
+          const [oldLambdaResponse, newLambdaResponse] = await Promise.allSettled([
+            getGoogleLambdaData(details),
+            getNewLambdaData(details),
+          ]);
+
+          // Process old lambda response
+          if (oldLambdaResponse.status === "fulfilled" && oldLambdaResponse.value) {
+            const lambdaResponse = oldLambdaResponse.value;
+            if (
+              lambdaResponse?.imdbId === details.imdb_id ||
+              lambdaResponse?.directorName === movieDirectorName
+            ) {
+              // Merge ratings logic: don't override existing if new is empty, and add on top
+              const newRatings = lambdaResponse.ratings || [];
+              const oldRatings = googleData.ratings || [];
+
+              if (newRatings.length === 0 && oldRatings.length > 0) {
+                lambdaResponse.ratings = oldRatings;
+              } else if (newRatings.length > 0 && oldRatings.length > 0) {
+                // Merge: keep new ones, add old ones that don't exist in new
+                const mergedRatings = [...newRatings];
+                for (const oldRating of oldRatings) {
+                  if (!mergedRatings.find((r) => r.name === oldRating.name)) {
+                    mergedRatings.push(oldRating);
+                  }
+                }
+                lambdaResponse.ratings = mergedRatings;
+              }
+
+              googleData = lambdaResponse;
+            }
+          }
+
+          // Process new lambda response
+          if (newLambdaResponse.status === "fulfilled" && newLambdaResponse.value) {
+            const newLambdaData = newLambdaResponse.value;
+            const newDetailedRatings = newLambdaData.detailedRatings || {};
+            const oldDetailedRatings = externalData.ratings || {};
+
+            // Merge IMDb
+            if (!newDetailedRatings.imdb && oldDetailedRatings.imdb) {
+              newDetailedRatings.imdb = oldDetailedRatings.imdb;
+            }
+
+            // Merge Rotten Tomatoes
+            if (oldDetailedRatings.rottenTomatoes) {
+              if (!newDetailedRatings.rottenTomatoes) {
+                newDetailedRatings.rottenTomatoes = oldDetailedRatings.rottenTomatoes;
+              } else {
+                // Deep merge RT (critic/audience)
+                if (
+                  !newDetailedRatings.rottenTomatoes.critic &&
+                  oldDetailedRatings.rottenTomatoes.critic
+                ) {
+                  newDetailedRatings.rottenTomatoes.critic =
+                    oldDetailedRatings.rottenTomatoes.critic;
+                }
+                if (
+                  !newDetailedRatings.rottenTomatoes.audience &&
+                  oldDetailedRatings.rottenTomatoes.audience
+                ) {
+                  newDetailedRatings.rottenTomatoes.audience =
+                    oldDetailedRatings.rottenTomatoes.audience;
+                }
+              }
+            }
+
+            externalData = {
+              ratings: newDetailedRatings,
+              externalIds: {
+                ...(externalData.externalIds || {}),
+                ...(newLambdaData.externalIds || {}),
+              },
+            };
+          }
+        }
+      }
+      movie = {
+        ...details,
+        googleData,
+        external_data: externalData,
+        rottenTomatoes: {},
+      };
+      if (!shallowUpdate) {
+        movie.updatedAt = new Date();
+      }
+    } catch (e) {
+      console.error(`TMDB get movie failed for id: ${movieId}`, e);
+    }
+
+    if (movie?.title) {
+      await Movie.updateOne(
+        { id: movieId },
+        {
+          $set: {
+            ...movie,
+            shallowUpdatedAt: new Date(),
+          },
+        },
+        { upsert: true }
+      ).exec();
+    }
+  }
+
+  // Create combined ratings object for response only (not saved to DB)
+  const combinedRatings = combineRatings(
+    movie.googleData,
+    movie.external_data,
+    movie.vote_average,
+    movie.vote_count,
+    movie.id,
+    "movie"
+  );
+
+  // Create watch options based on country and available data
+  const watchOptions = event ? getWatchOptions(event, movie.googleData, movie.watchProviders) : [];
+
+  movie.canUpdate = canUpdate;
+  return {
+    ...movie,
+    ratings: combinedRatings, // Add ratings only to the response
+    watch_options: watchOptions, // Add watch options for current country
+  } as IMovie;
+};
 
 const movieUpdateInterval = (sinceMovieRelase: number) => {
-    if (sinceMovieRelase < DAY_MILLIS * 14) {
-        return DAY_MILLIS;
-    }
-    if (sinceMovieRelase < DAY_MILLIS * 30) {
-        return DAY_MILLIS * 4;
-    }
-    if (sinceMovieRelase < DAY_MILLIS * 90) {
-        return DAY_MILLIS * 7;
-    }
-    return DAY_MILLIS * 30;
-}
+  if (sinceMovieRelase < DAY_MILLIS * 14) {
+    return DAY_MILLIS;
+  }
+  if (sinceMovieRelase < DAY_MILLIS * 30) {
+    return DAY_MILLIS * 4;
+  }
+  if (sinceMovieRelase < DAY_MILLIS * 90) {
+    return DAY_MILLIS * 7;
+  }
+  return DAY_MILLIS * 30;
+};

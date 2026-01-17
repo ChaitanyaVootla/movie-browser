@@ -43,9 +43,3 @@ export default function WatchedPage() {
     </main>
   );
 }
-
-
-
-
-
-

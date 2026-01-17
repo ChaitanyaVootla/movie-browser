@@ -6,7 +6,7 @@
  * - IMDb ratings + vote counts
  * - Rotten Tomatoes (critic + audience) scores
  * - Letterboxd ratings
- * - Google ratings  
+ * - Google ratings
  * - External IDs (Netflix, Apple, RT, Metacritic, Letterboxd)
  * - Deep watch links (allWatchOptions)
  *
@@ -57,9 +57,12 @@ async function _sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchTMDB<T>(endpoint: string, params: Record<string, string> = {}): Promise<T | null> {
+async function fetchTMDB<T>(
+  endpoint: string,
+  params: Record<string, string> = {}
+): Promise<T | null> {
   if (!TMDB_API_KEY) return null;
-  
+
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
   url.searchParams.set("api_key", TMDB_API_KEY);
   Object.entries(params).forEach(([key, value]) => {
@@ -219,13 +222,55 @@ async function seedRatingSources() {
   log("⭐ Seeding rating sources...");
 
   const ratingSources = [
-    { slug: "tmdb", name: "TMDB", icon: "/images/ratings/tmdb.svg", maxScore: 10, urlTemplate: "https://www.themoviedb.org/{type}/{id}" },
-    { slug: "imdb", name: "IMDb", icon: "/images/ratings/imdb.svg", maxScore: 10, urlTemplate: "https://www.imdb.com/title/{external_id}" },
-    { slug: "rt_critic", name: "Rotten Tomatoes (Critics)", icon: "/images/ratings/rt.svg", maxScore: 100, urlTemplate: null },
-    { slug: "rt_audience", name: "Rotten Tomatoes (Audience)", icon: "/images/ratings/rt.svg", maxScore: 100, urlTemplate: null },
-    { slug: "metacritic", name: "Metacritic", icon: "/images/ratings/metacritic.svg", maxScore: 100, urlTemplate: "https://www.metacritic.com/movie/{external_id}" },
-    { slug: "google", name: "Google Users", icon: "/images/ratings/google.svg", maxScore: 100, urlTemplate: null },
-    { slug: "letterboxd", name: "Letterboxd", icon: "/images/ratings/letterboxd.svg", maxScore: 5, urlTemplate: "https://letterboxd.com/film/{external_id}" },
+    {
+      slug: "tmdb",
+      name: "TMDB",
+      icon: "/images/ratings/tmdb.svg",
+      maxScore: 10,
+      urlTemplate: "https://www.themoviedb.org/{type}/{id}",
+    },
+    {
+      slug: "imdb",
+      name: "IMDb",
+      icon: "/images/ratings/imdb.svg",
+      maxScore: 10,
+      urlTemplate: "https://www.imdb.com/title/{external_id}",
+    },
+    {
+      slug: "rt_critic",
+      name: "Rotten Tomatoes (Critics)",
+      icon: "/images/ratings/rt.svg",
+      maxScore: 100,
+      urlTemplate: null,
+    },
+    {
+      slug: "rt_audience",
+      name: "Rotten Tomatoes (Audience)",
+      icon: "/images/ratings/rt.svg",
+      maxScore: 100,
+      urlTemplate: null,
+    },
+    {
+      slug: "metacritic",
+      name: "Metacritic",
+      icon: "/images/ratings/metacritic.svg",
+      maxScore: 100,
+      urlTemplate: "https://www.metacritic.com/movie/{external_id}",
+    },
+    {
+      slug: "google",
+      name: "Google Users",
+      icon: "/images/ratings/google.svg",
+      maxScore: 100,
+      urlTemplate: null,
+    },
+    {
+      slug: "letterboxd",
+      name: "Letterboxd",
+      icon: "/images/ratings/letterboxd.svg",
+      maxScore: 5,
+      urlTemplate: "https://letterboxd.com/film/{external_id}",
+    },
   ];
 
   await prisma.ratingSource.createMany({
@@ -269,12 +314,33 @@ async function seedStreamingProviders() {
   }
 
   const priorityMap: Record<string, number> = {
-    Netflix: 1, "Amazon Prime Video": 2, "Disney Plus": 3, "HBO Max": 4, Max: 4,
-    "Apple TV Plus": 5, Hulu: 6, "Paramount Plus": 7, Peacock: 8,
-    "Amazon Video": 10, "Google Play Movies": 11, YouTube: 12,
-    "JioCinema": 15, "Hotstar": 16, "Disney+ Hotstar": 16, "SonyLIV": 17, "Zee5": 18,
-    "Jio Cinema": 15, "Sony LIV": 17, "ZEE5": 18, "Voot": 19, "MX Player": 20,
-    "aha": 21, "Sun NXT": 22, "Lionsgate Play": 23, "Eros Now": 24, "ShemarooMe": 25,
+    Netflix: 1,
+    "Amazon Prime Video": 2,
+    "Disney Plus": 3,
+    "HBO Max": 4,
+    Max: 4,
+    "Apple TV Plus": 5,
+    Hulu: 6,
+    "Paramount Plus": 7,
+    Peacock: 8,
+    "Amazon Video": 10,
+    "Google Play Movies": 11,
+    YouTube: 12,
+    JioCinema: 15,
+    Hotstar: 16,
+    "Disney+ Hotstar": 16,
+    SonyLIV: 17,
+    Zee5: 18,
+    "Jio Cinema": 15,
+    "Sony LIV": 17,
+    ZEE5: 18,
+    Voot: 19,
+    "MX Player": 20,
+    aha: 21,
+    "Sun NXT": 22,
+    "Lionsgate Play": 23,
+    "Eros Now": 24,
+    ShemarooMe: 25,
   };
 
   const providers = Array.from(allProviders.values()).map((p) => ({
@@ -375,7 +441,12 @@ interface MongoMovie {
   origin_country?: string[];
   production_countries?: Array<{ iso_3166_1: string; name: string }>;
   genres?: Array<{ id: number; name: string }>;
-  production_companies?: Array<{ id: number; name: string; logo_path?: string; origin_country?: string }>;
+  production_companies?: Array<{
+    id: number;
+    name: string;
+    logo_path?: string;
+    origin_country?: string;
+  }>;
   homepage?: string;
   imdb_id?: string;
   tagline?: string;
@@ -383,23 +454,65 @@ interface MongoMovie {
   budget?: number;
   revenue?: number;
   credits?: {
-    cast?: Array<{ id: number; name: string; character?: string; profile_path?: string; order?: number; credit_id?: string }>;
-    crew?: Array<{ id: number; name: string; job?: string; department?: string; profile_path?: string; credit_id?: string }>;
+    cast?: Array<{
+      id: number;
+      name: string;
+      character?: string;
+      profile_path?: string;
+      order?: number;
+      credit_id?: string;
+    }>;
+    crew?: Array<{
+      id: number;
+      name: string;
+      job?: string;
+      department?: string;
+      profile_path?: string;
+      credit_id?: string;
+    }>;
   };
-  videos?: { results?: Array<{ id?: string; key: string; name: string; site?: string; type?: string; official?: boolean }> };
+  videos?: {
+    results?: Array<{
+      id?: string;
+      key: string;
+      name: string;
+      site?: string;
+      type?: string;
+      official?: boolean;
+    }>;
+  };
   images?: {
-    backdrops?: Array<{ file_path: string; aspect_ratio?: number; width?: number; height?: number; vote_average?: number }>;
-    posters?: Array<{ file_path: string; aspect_ratio?: number; width?: number; height?: number; vote_average?: number }>;
+    backdrops?: Array<{
+      file_path: string;
+      aspect_ratio?: number;
+      width?: number;
+      height?: number;
+      vote_average?: number;
+    }>;
+    posters?: Array<{
+      file_path: string;
+      aspect_ratio?: number;
+      width?: number;
+      height?: number;
+      vote_average?: number;
+    }>;
     logos?: Array<{ file_path: string; aspect_ratio?: number; width?: number; height?: number }>;
   };
   external_data?: MongoExternalData;
   googleData?: MongoGoogleData;
-  belongs_to_collection?: { id: number; name: string; poster_path?: string; backdrop_path?: string };
+  belongs_to_collection?: {
+    id: number;
+    name: string;
+    poster_path?: string;
+    backdrop_path?: string;
+  };
   keywords?: { keywords?: Array<{ id: number; name: string }> };
   // TMDB watch providers (from /movie/{id}/watch/providers)
-  watchProviders?: {
-    results?: Record<string, TMDBWatchProviderCountry>;
-  } | Record<string, TMDBWatchProviderCountry>;
+  watchProviders?:
+    | {
+        results?: Record<string, TMDBWatchProviderCountry>;
+      }
+    | Record<string, TMDBWatchProviderCountry>;
 }
 
 interface MongoSeries {
@@ -425,30 +538,92 @@ interface MongoSeries {
   type?: string;
   in_production?: boolean;
   networks?: Array<{ id: number; name: string; logo_path?: string; origin_country?: string }>;
-  production_companies?: Array<{ id: number; name: string; logo_path?: string; origin_country?: string }>;
+  production_companies?: Array<{
+    id: number;
+    name: string;
+    logo_path?: string;
+    origin_country?: string;
+  }>;
   homepage?: string;
   tagline?: string;
   created_by?: Array<{ id: number; name: string; profile_path?: string }>;
   external_ids?: { imdb_id?: string; tvdb_id?: number };
   credits?: {
-    cast?: Array<{ id: number; name: string; character?: string; profile_path?: string; order?: number; credit_id?: string }>;
-    crew?: Array<{ id: number; name: string; job?: string; department?: string; profile_path?: string; credit_id?: string }>;
+    cast?: Array<{
+      id: number;
+      name: string;
+      character?: string;
+      profile_path?: string;
+      order?: number;
+      credit_id?: string;
+    }>;
+    crew?: Array<{
+      id: number;
+      name: string;
+      job?: string;
+      department?: string;
+      profile_path?: string;
+      credit_id?: string;
+    }>;
   };
-  videos?: { results?: Array<{ id?: string; key: string; name: string; site?: string; type?: string; official?: boolean }> };
+  videos?: {
+    results?: Array<{
+      id?: string;
+      key: string;
+      name: string;
+      site?: string;
+      type?: string;
+      official?: boolean;
+    }>;
+  };
   images?: {
-    backdrops?: Array<{ file_path: string; aspect_ratio?: number; width?: number; height?: number; vote_average?: number }>;
-    posters?: Array<{ file_path: string; aspect_ratio?: number; width?: number; height?: number; vote_average?: number }>;
+    backdrops?: Array<{
+      file_path: string;
+      aspect_ratio?: number;
+      width?: number;
+      height?: number;
+      vote_average?: number;
+    }>;
+    posters?: Array<{
+      file_path: string;
+      aspect_ratio?: number;
+      width?: number;
+      height?: number;
+      vote_average?: number;
+    }>;
     logos?: Array<{ file_path: string; aspect_ratio?: number; width?: number; height?: number }>;
   };
-  seasons?: Array<{ id?: number; season_number: number; name?: string; overview?: string; poster_path?: string; air_date?: string; episode_count?: number }>;
-  next_episode_to_air?: { id: number; episode_number: number; season_number: number; name?: string; air_date?: string };
-  last_episode_to_air?: { id: number; episode_number: number; season_number: number; name?: string; air_date?: string };
+  seasons?: Array<{
+    id?: number;
+    season_number: number;
+    name?: string;
+    overview?: string;
+    poster_path?: string;
+    air_date?: string;
+    episode_count?: number;
+  }>;
+  next_episode_to_air?: {
+    id: number;
+    episode_number: number;
+    season_number: number;
+    name?: string;
+    air_date?: string;
+  };
+  last_episode_to_air?: {
+    id: number;
+    episode_number: number;
+    season_number: number;
+    name?: string;
+    air_date?: string;
+  };
   external_data?: MongoExternalData;
   googleData?: MongoGoogleData;
   // TMDB watch providers (from /tv/{id}/watch/providers)
-  watchProviders?: {
-    results?: Record<string, TMDBWatchProviderCountry>;
-  } | Record<string, TMDBWatchProviderCountry>;
+  watchProviders?:
+    | {
+        results?: Record<string, TMDBWatchProviderCountry>;
+      }
+    | Record<string, TMDBWatchProviderCountry>;
 }
 
 // ============================================
@@ -479,7 +654,12 @@ async function loadCaches() {
   providers.forEach((p) => providerCache.set(p.name.toLowerCase(), p.id));
 }
 
-async function getOrCreatePerson(tmdbId: number, name: string, profilePath?: string | null, knownFor?: string): Promise<number> {
+async function getOrCreatePerson(
+  tmdbId: number,
+  name: string,
+  profilePath?: string | null,
+  knownFor?: string
+): Promise<number> {
   if (personCache.has(tmdbId)) {
     return personCache.get(tmdbId)!;
   }
@@ -494,7 +674,12 @@ async function getOrCreatePerson(tmdbId: number, name: string, profilePath?: str
   return person.id;
 }
 
-async function getOrCreateCompany(tmdbId: number, name: string, logoPath?: string | null, originCountry?: string | null): Promise<number> {
+async function getOrCreateCompany(
+  tmdbId: number,
+  name: string,
+  logoPath?: string | null,
+  originCountry?: string | null
+): Promise<number> {
   if (companyCache.has(tmdbId)) {
     return companyCache.get(tmdbId)!;
   }
@@ -509,7 +694,12 @@ async function getOrCreateCompany(tmdbId: number, name: string, logoPath?: strin
   return company.id;
 }
 
-async function getOrCreateNetwork(tmdbId: number, name: string, logoPath?: string | null, originCountry?: string | null): Promise<number> {
+async function getOrCreateNetwork(
+  tmdbId: number,
+  name: string,
+  logoPath?: string | null,
+  originCountry?: string | null
+): Promise<number> {
   if (networkCache.has(tmdbId)) {
     return networkCache.get(tmdbId)!;
   }
@@ -641,10 +831,16 @@ async function migrateMovie(movie: MongoMovie): Promise<void> {
 
     // Key crew (directors, writers, producers - no limit)
     const keyCrew = (movie.credits.crew || []).filter(
-      (c) => c.job === "Director" || c.job === "Writer" || c.job === "Screenplay" || c.job === "Producer"
+      (c) =>
+        c.job === "Director" || c.job === "Writer" || c.job === "Screenplay" || c.job === "Producer"
     );
     for (const crew of keyCrew) {
-      const personId = await getOrCreatePerson(crew.id, crew.name, crew.profile_path, crew.department);
+      const personId = await getOrCreatePerson(
+        crew.id,
+        crew.name,
+        crew.profile_path,
+        crew.department
+      );
       creditData.push({
         movieId: movie.id,
         personId,
@@ -731,7 +927,12 @@ async function migrateMovie(movie: MongoMovie): Promise<void> {
   // 7. Production companies
   if (movie.production_companies?.length) {
     for (const company of movie.production_companies.slice(0, 5)) {
-      const companyId = await getOrCreateCompany(company.id, company.name, company.logo_path, company.origin_country);
+      const companyId = await getOrCreateCompany(
+        company.id,
+        company.name,
+        company.logo_path,
+        company.origin_country
+      );
       await prisma.movieCompany.upsert({
         where: { movieId_companyId: { movieId: movie.id, companyId } },
         create: { movieId: movie.id, companyId },
@@ -874,13 +1075,25 @@ async function migrateMovieExternalIds(movie: MongoMovie): Promise<void> {
       externalIds.push({ movieId: movie.id, source: "imdb", externalId: extIds.imdb_id });
     }
     if (extIds.rottentomatoes_id) {
-      externalIds.push({ movieId: movie.id, source: "rottentomatoes", externalId: extIds.rottentomatoes_id });
+      externalIds.push({
+        movieId: movie.id,
+        source: "rottentomatoes",
+        externalId: extIds.rottentomatoes_id,
+      });
     }
     if (extIds.metacritic_id) {
-      externalIds.push({ movieId: movie.id, source: "metacritic", externalId: extIds.metacritic_id });
+      externalIds.push({
+        movieId: movie.id,
+        source: "metacritic",
+        externalId: extIds.metacritic_id,
+      });
     }
     if (extIds.letterboxd_id) {
-      externalIds.push({ movieId: movie.id, source: "letterboxd", externalId: extIds.letterboxd_id });
+      externalIds.push({
+        movieId: movie.id,
+        source: "letterboxd",
+        externalId: extIds.letterboxd_id,
+      });
     }
     if (extIds.netflix_id) {
       externalIds.push({ movieId: movie.id, source: "netflix", externalId: extIds.netflix_id });
@@ -905,7 +1118,7 @@ async function migrateMovieWatchOptions(movie: MongoMovie): Promise<void> {
   // 1. SCRAPED DEEP LINKS (India only) - from googleData.allWatchOptions
   // Store in separate table - these have actual deep links to the player page
   const scrapedOptions = movie.googleData?.allWatchOptions;
-  
+
   if (scrapedOptions?.length) {
     for (const opt of scrapedOptions) {
       if (!opt.name || !opt.link) continue;
@@ -936,7 +1149,9 @@ async function migrateMovieWatchOptions(movie: MongoMovie): Promise<void> {
   if (!watchProviders) return;
 
   // Handle both formats: { results: { US: {...} } } or { US: {...} }
-  const providers = (watchProviders as { results?: Record<string, TMDBWatchProviderCountry> }).results || watchProviders as Record<string, TMDBWatchProviderCountry>;
+  const providers =
+    (watchProviders as { results?: Record<string, TMDBWatchProviderCountry> }).results ||
+    (watchProviders as Record<string, TMDBWatchProviderCountry>);
 
   // Process ALL countries in the data
   for (const [countryCode, countryProviders] of Object.entries(providers)) {
@@ -952,7 +1167,9 @@ async function migrateMovieWatchOptions(movie: MongoMovie): Promise<void> {
     };
 
     for (const [typeName, watchType] of Object.entries(typeMap)) {
-      const providerList = (countryProviders as TMDBWatchProviderCountry)[typeName as keyof TMDBWatchProviderCountry];
+      const providerList = (countryProviders as TMDBWatchProviderCountry)[
+        typeName as keyof TMDBWatchProviderCountry
+      ];
       if (!Array.isArray(providerList)) continue;
 
       for (const provider of providerList) {
@@ -1076,7 +1293,12 @@ async function migrateSeries(series: MongoSeries): Promise<void> {
   // 3. Networks
   if (series.networks?.length) {
     for (const network of series.networks.slice(0, 5)) {
-      const networkId = await getOrCreateNetwork(network.id, network.name, network.logo_path, network.origin_country);
+      const networkId = await getOrCreateNetwork(
+        network.id,
+        network.name,
+        network.logo_path,
+        network.origin_country
+      );
       await prisma.seriesNetwork.upsert({
         where: { seriesId_networkId: { seriesId: series.id, networkId } },
         create: { seriesId: series.id, networkId },
@@ -1088,7 +1310,12 @@ async function migrateSeries(series: MongoSeries): Promise<void> {
   // 4. Creators
   if (series.created_by?.length) {
     for (const creator of series.created_by) {
-      const personId = await getOrCreatePerson(creator.id, creator.name, creator.profile_path, "Creator");
+      const personId = await getOrCreatePerson(
+        creator.id,
+        creator.name,
+        creator.profile_path,
+        "Creator"
+      );
       await prisma.seriesCreator.upsert({
         where: { seriesId_personId: { seriesId: series.id, personId } },
         create: { seriesId: series.id, personId },
@@ -1124,9 +1351,16 @@ async function migrateSeries(series: MongoSeries): Promise<void> {
     }
 
     // Key crew (all - no limit)
-    const keyCrew = (series.credits.crew || []).filter((c) => c.job === "Executive Producer" || c.job === "Creator");
+    const keyCrew = (series.credits.crew || []).filter(
+      (c) => c.job === "Executive Producer" || c.job === "Creator"
+    );
     for (const crew of keyCrew) {
-      const personId = await getOrCreatePerson(crew.id, crew.name, crew.profile_path, crew.department);
+      const personId = await getOrCreatePerson(
+        crew.id,
+        crew.name,
+        crew.profile_path,
+        crew.department
+      );
       creditData.push({
         seriesId: series.id,
         personId,
@@ -1214,7 +1448,9 @@ async function migrateSeries(series: MongoSeries): Promise<void> {
   if (series.seasons?.length) {
     for (const season of series.seasons) {
       await prisma.season.upsert({
-        where: { seriesId_seasonNumber: { seriesId: series.id, seasonNumber: season.season_number } },
+        where: {
+          seriesId_seasonNumber: { seriesId: series.id, seasonNumber: season.season_number },
+        },
         create: {
           seriesId: series.id,
           tmdbSeasonId: season.id,
@@ -1309,10 +1545,18 @@ async function migrateSeriesExternalIds(series: MongoSeries): Promise<void> {
   const externalIds: Array<{ seriesId: number; source: string; externalId: string }> = [];
 
   if (series.external_ids?.imdb_id) {
-    externalIds.push({ seriesId: series.id, source: "imdb", externalId: series.external_ids.imdb_id });
+    externalIds.push({
+      seriesId: series.id,
+      source: "imdb",
+      externalId: series.external_ids.imdb_id,
+    });
   }
   if (series.external_ids?.tvdb_id) {
-    externalIds.push({ seriesId: series.id, source: "tvdb", externalId: String(series.external_ids.tvdb_id) });
+    externalIds.push({
+      seriesId: series.id,
+      source: "tvdb",
+      externalId: String(series.external_ids.tvdb_id),
+    });
   }
 
   if (externalIds.length) {
@@ -1329,8 +1573,9 @@ async function migrateSeriesExternalIds(series: MongoSeries): Promise<void> {
 async function migrateSeriesWatchOptions(series: MongoSeries): Promise<void> {
   // 1. SCRAPED DEEP LINKS (India only) - from googleData.allWatchOptions
   // Store in separate table - these have actual deep links
-  const scrapedOptions = (series as unknown as { googleData?: MongoGoogleData }).googleData?.allWatchOptions;
-  
+  const scrapedOptions = (series as unknown as { googleData?: MongoGoogleData }).googleData
+    ?.allWatchOptions;
+
   if (scrapedOptions?.length) {
     for (const opt of scrapedOptions) {
       if (!opt.name || !opt.link) continue;
@@ -1360,7 +1605,9 @@ async function migrateSeriesWatchOptions(series: MongoSeries): Promise<void> {
   if (!watchProviders) return;
 
   // Handle both formats: { results: { US: {...} } } or { US: {...} }
-  const providers = (watchProviders as { results?: Record<string, TMDBWatchProviderCountry> }).results || watchProviders as Record<string, TMDBWatchProviderCountry>;
+  const providers =
+    (watchProviders as { results?: Record<string, TMDBWatchProviderCountry> }).results ||
+    (watchProviders as Record<string, TMDBWatchProviderCountry>);
 
   // Process ALL countries in the data
   for (const [countryCode, countryProviders] of Object.entries(providers)) {
@@ -1375,7 +1622,9 @@ async function migrateSeriesWatchOptions(series: MongoSeries): Promise<void> {
     };
 
     for (const [typeName, watchType] of Object.entries(typeMap)) {
-      const providerList = (countryProviders as TMDBWatchProviderCountry)[typeName as keyof TMDBWatchProviderCountry];
+      const providerList = (countryProviders as TMDBWatchProviderCountry)[
+        typeName as keyof TMDBWatchProviderCountry
+      ];
       if (!Array.isArray(providerList)) continue;
 
       for (const provider of providerList) {
@@ -1448,12 +1697,14 @@ async function ensureTmdbIds(): Promise<void> {
     const metadata = JSON.parse(readFileSync(TMDB_METADATA_FILE, "utf-8"));
     const downloadedAt = new Date(metadata.downloadedAt);
     const hoursSinceDownload = (Date.now() - downloadedAt.getTime()) / (1000 * 60 * 60);
-    
+
     if (hoursSinceDownload > 72) {
       log(`📥 TMDB IDs file is ${hoursSinceDownload.toFixed(0)}h old, refreshing...`);
       execSync("yarn tmdb:ids", { stdio: "inherit" });
     } else {
-      log(`📂 Using cached TMDB IDs from ${metadata.sourceDate} (${hoursSinceDownload.toFixed(0)}h ago)`);
+      log(
+        `📂 Using cached TMDB IDs from ${metadata.sourceDate} (${hoursSinceDownload.toFixed(0)}h ago)`
+      );
     }
   }
 }
@@ -1473,7 +1724,7 @@ async function migrateMovies(count: number, specificIds?: number[] | null) {
   if (!mongoDb) throw new Error("MongoDB not connected");
 
   let movieIds: number[];
-  
+
   if (specificIds && specificIds.length > 0) {
     // Use provided IDs directly
     movieIds = specificIds;
@@ -1492,10 +1743,10 @@ async function migrateMovies(count: number, specificIds?: number[] | null) {
 
   // Batch fetch from MongoDB by IDs
   const BATCH_SIZE = specificIds ? movieIds.length : 100; // No batching for specific IDs
-  
+
   for (let i = 0; i < movieIds.length; i += BATCH_SIZE) {
     const batchIds = movieIds.slice(i, i + BATCH_SIZE);
-    
+
     // Fetch batch from MongoDB
     const movies = await mongoDb
       .collection("movies")
@@ -1508,7 +1759,7 @@ async function migrateMovies(count: number, specificIds?: number[] | null) {
     // Process in order of original IDs (maintains popularity order)
     for (const movieId of batchIds) {
       const movie = movieMap.get(movieId);
-      
+
       if (!movie) {
         // Movie not in MongoDB - skip (might be new on TMDB)
         if (specificIds) {
@@ -1537,7 +1788,9 @@ async function migrateMovies(count: number, specificIds?: number[] | null) {
     }
   }
 
-  log(`\n✅ Movies migration complete: ${found} migrated, ${movieIds.length - found} not in MongoDB, ${errors} errors\n`);
+  log(
+    `\n✅ Movies migration complete: ${found} migrated, ${movieIds.length - found} not in MongoDB, ${errors} errors\n`
+  );
 }
 
 async function migrateSeries_(count: number, specificIds?: number[] | null) {
@@ -1546,22 +1799,16 @@ async function migrateSeries_(count: number, specificIds?: number[] | null) {
 
   let cursor;
   let totalCount: number;
-  
+
   if (specificIds && specificIds.length > 0) {
     // Fetch specific series by IDs
     log(`\n📺 MIGRATING ${specificIds.length} SPECIFIC SERIES: [${specificIds.join(", ")}]\n`);
-    cursor = mongoDb
-      .collection("series")
-      .find({ id: { $in: specificIds } });
+    cursor = mongoDb.collection("series").find({ id: { $in: specificIds } });
     totalCount = specificIds.length;
   } else {
     // Fetch by popularity
     log(`\n📺 MIGRATING TOP ${count} SERIES FROM MONGODB\n`);
-    cursor = mongoDb
-      .collection("series")
-      .find({})
-      .sort({ popularity: -1 })
-      .limit(count);
+    cursor = mongoDb.collection("series").find({}).sort({ popularity: -1 }).limit(count);
     totalCount = count;
   }
 
@@ -1594,41 +1841,47 @@ async function migrateSeries_(count: number, specificIds?: number[] | null) {
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  
+
   const getArgValue = (prefix: string): string | null => {
     const arg = args.find((a) => a.startsWith(`${prefix}=`));
     return arg ? arg.split("=")[1] : null;
   };
-  
+
   const hasFlag = (flag: string) => args.includes(flag);
-  
+
   // Parse specific IDs
   const movieIdArg = getArgValue("--movie");
   const moviesArg = getArgValue("--movies");
   const seriesIdArg = getArgValue("--series");
   const seriesListArg = getArgValue("--series-list");
   const limitArg = getArgValue("--limit");
-  
+
   // Parse specific movie IDs
   let specificMovieIds: number[] | null = null;
   if (movieIdArg) {
     specificMovieIds = [parseInt(movieIdArg, 10)];
   } else if (moviesArg) {
-    specificMovieIds = moviesArg.split(",").map((id) => parseInt(id.trim(), 10)).filter((id) => !isNaN(id));
+    specificMovieIds = moviesArg
+      .split(",")
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !isNaN(id));
   }
-  
+
   // Parse specific series IDs
   let specificSeriesIds: number[] | null = null;
   if (seriesIdArg) {
     specificSeriesIds = [parseInt(seriesIdArg, 10)];
   } else if (seriesListArg) {
-    specificSeriesIds = seriesListArg.split(",").map((id) => parseInt(id.trim(), 10)).filter((id) => !isNaN(id));
+    specificSeriesIds = seriesListArg
+      .split(",")
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !isNaN(id));
   }
-  
+
   // Determine counts
   let movieCount: number;
   let seriesCount: number;
-  
+
   if (specificMovieIds) {
     movieCount = specificMovieIds.length;
   } else if (limitArg) {
@@ -1638,7 +1891,7 @@ function parseArgs() {
   } else {
     movieCount = CONFIG.full.movieCount;
   }
-  
+
   if (specificSeriesIds) {
     seriesCount = specificSeriesIds.length;
   } else if (limitArg) {
@@ -1648,7 +1901,7 @@ function parseArgs() {
   } else {
     seriesCount = CONFIG.full.seriesCount;
   }
-  
+
   return {
     isQuick: hasFlag("--quick"),
     refOnly: hasFlag("--ref"),
@@ -1671,7 +1924,7 @@ async function main() {
   log("═══════════════════════════════════════════════════════════════");
   log("  PostgreSQL Seed - MongoDB as Primary Source");
   log("═══════════════════════════════════════════════════════════════");
-  
+
   if (opts.specificMovieIds) {
     log(`  Mode: Specific Movies [${opts.specificMovieIds.join(", ")}]`);
   } else if (opts.specificSeriesIds) {
@@ -1723,4 +1976,3 @@ main()
     await mongoose.disconnect();
     await prisma.$disconnect();
   });
-

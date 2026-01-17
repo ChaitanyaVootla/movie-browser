@@ -1,1 +1,1 @@
-export const isMovie = (item: any) => item.hasOwnProperty('title')
+export const isMovie = (item: any) => item.hasOwnProperty("title");

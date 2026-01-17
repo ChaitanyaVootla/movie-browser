@@ -44,16 +44,9 @@ export function HeroMediaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(
-    () => ({ data, setData: stableSetData }),
-    [data, stableSetData]
-  );
+  const contextValue = useMemo(() => ({ data, setData: stableSetData }), [data, stableSetData]);
 
-  return (
-    <HeroMediaContext.Provider value={contextValue}>
-      {children}
-    </HeroMediaContext.Provider>
-  );
+  return <HeroMediaContext.Provider value={contextValue}>{children}</HeroMediaContext.Provider>;
 }
 
 /**
@@ -85,11 +78,7 @@ export function useHeroMedia() {
  * }
  * ```
  */
-export function HeroMediaUpdater({
-  tmdbBackdropPath,
-  tmdbLogoPath,
-  title,
-}: HeroMediaData) {
+export function HeroMediaUpdater({ tmdbBackdropPath, tmdbLogoPath, title }: HeroMediaData) {
   const ctx = useHeroMedia();
   // Extract setData so we don't depend on the whole ctx object (which includes data)
   const setData = ctx?.setData;
@@ -102,7 +91,3 @@ export function HeroMediaUpdater({
 
   return null;
 }
-
-
-
-

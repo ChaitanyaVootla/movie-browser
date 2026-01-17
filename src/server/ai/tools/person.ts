@@ -8,10 +8,7 @@
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import {
-  getLightPersonDetails,
-  searchPersonAndGetDetails,
-} from "@/server/utils";
+import { getLightPersonDetails, searchPersonAndGetDetails } from "@/server/utils";
 import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -96,14 +93,8 @@ Prefer name over ID - we'll search: get_person(name: "Brad Pitt")
 Returns: bio, age, notable movies/series, recent work, UPCOMING releases.
 Use the IDs from results for [MOVIE]/[SERIES]/[PERSON] tags.`,
     schema: z.object({
-      id: z
-        .number()
-        .optional()
-        .describe("TMDB person ID if known"),
-      name: z
-        .string()
-        .optional()
-        .describe("Person name (preferred - we search for you)"),
+      id: z.number().optional().describe("TMDB person ID if known"),
+      name: z.string().optional().describe("Person name (preferred - we search for you)"),
     }),
   }
 );
@@ -113,4 +104,3 @@ Use the IDs from results for [MOVIE]/[SERIES]/[PERSON] tags.`,
 // =============================================================================
 
 export const personTools = [getPersonTool];
-

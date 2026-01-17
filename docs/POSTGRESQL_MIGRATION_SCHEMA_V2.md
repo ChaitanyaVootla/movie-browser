@@ -3,6 +3,7 @@
 ## Design Philosophy
 
 Instead of denormalized arrays (genres[], keywords[]), use proper relational tables that:
+
 1. Mirror TMDB's structure for easy sync
 2. Allow adding new data sources without schema changes
 3. Enable efficient queries like "all movies with keyword X"
@@ -107,14 +108,14 @@ model Genre {
   id        Int      @id @default(autoincrement())
   tmdbId    Int      @unique @map("tmdb_id")
   name      String
-  
+
   // For potential future use
   description String?
   icon        String?
-  
+
   movies    MovieGenre[]
   series    SeriesGenre[]
-  
+
   @@map("genres")
   @@index([name])
 }
@@ -123,10 +124,10 @@ model Keyword {
   id        Int      @id @default(autoincrement())
   tmdbId    Int      @unique @map("tmdb_id")
   name      String
-  
+
   movies    MovieKeyword[]
   series    SeriesKeyword[]
-  
+
   @@map("keywords")
   @@index([name])
 }
@@ -137,10 +138,10 @@ model ProductionCompany {
   name          String
   logoPath      String?  @map("logo_path")
   originCountry String?  @map("origin_country")
-  
+
   movies        MovieCompany[]
   series        SeriesCompany[]
-  
+
   @@map("production_companies")
   @@index([name])
 }
@@ -151,9 +152,9 @@ model Network {
   name          String
   logoPath      String?  @map("logo_path")
   originCountry String?  @map("origin_country")
-  
+
   series        SeriesNetwork[]
-  
+
   @@map("networks")
   @@index([name])
 }
@@ -171,14 +172,14 @@ model Person {
   popularity      Float?
   gender          Int?      // 0=unknown, 1=female, 2=male, 3=non-binary
   homepage        String?
-  
+
   // Relations
   movieCredits    MovieCredit[]
   seriesCredits   SeriesCredit[]
   aliases         PersonAlias[]
   externalIds     PersonExternalId[]
   seriesCreated   SeriesCreator[]
-  
+
   @@map("persons")
   @@index([name])
 }
@@ -187,9 +188,9 @@ model PersonAlias {
   id        Int    @id @default(autoincrement())
   personId  Int    @map("person_id")
   alias     String
-  
+
   person    Person @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
+
   @@map("person_aliases")
   @@index([personId])
 }
@@ -199,9 +200,9 @@ model PersonExternalId {
   personId    Int     @map("person_id")
   source      String  // "imdb", "facebook", "instagram", "twitter", "tiktok", "youtube", "wikidata"
   externalId  String  @map("external_id")
-  
+
   person      Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
+
   @@map("person_external_ids")
   @@unique([personId, source])
   @@index([source, externalId])
@@ -213,10 +214,10 @@ model StreamingProvider {
   name        String
   logoPath    String?  @map("logo_path")
   priority    Int      @default(100) // Lower = higher priority in display
-  
+
   movieOptions  MovieWatchOption[]
   seriesOptions SeriesWatchOption[]
-  
+
   @@map("streaming_providers")
   @@index([name])
 }
@@ -228,25 +229,25 @@ model RatingSource {
   icon        String?  // Icon path or URL
   maxScore    Int      @map("max_score") // 10, 100, etc.
   urlTemplate String?  @map("url_template") // "https://imdb.com/title/{external_id}"
-  
+
   movieRatings  MovieRating[]
   seriesRatings SeriesRating[]
   reviews       Review[] // User reviews, editorial, etc.
-  
+
   @@map("rating_sources")
 }
 
 model Country {
   code      String   @id // ISO 3166-1 alpha-2
   name      String
-  
+
   movieCountries       MovieCountry[]
   seriesCountries      SeriesCountry[]
   movieWatchOptions    MovieWatchOption[]
   movieCertifications  MovieCertification[]
   seriesWatchOptions   SeriesWatchOption[]
   seriesCertifications SeriesCertification[]
-  
+
   @@map("countries")
 }
 
@@ -254,9 +255,9 @@ model Language {
   code        String   @id // ISO 639-1
   name        String
   englishName String?  @map("english_name")
-  
+
   movieLanguages MovieLanguage[]
-  
+
   @@map("languages")
 }
 
@@ -270,9 +271,9 @@ model Collection {
   overview     String?
   posterPath   String?   @map("poster_path")
   backdropPath String?   @map("backdrop_path")
-  
+
   movies       Movie[]
-  
+
   @@map("collections")
 }
 
@@ -298,19 +299,19 @@ model Movie {
   homepage        String?
   originalLanguage String?  @map("original_language")
   originCountry   String[]  @map("origin_country") // ISO 3166-1 codes
-  
+
   // Collection (franchise) reference
   collectionId    Int?      @map("collection_id")
   collection      Collection? @relation(fields: [collectionId], references: [id])
-  
+
   // Vector embedding for semantic search
   embedding       Unsupported("vector(1536)")?
-  
+
   // Timestamps
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   tmdbUpdatedAt   DateTime? @map("tmdb_updated_at") // When TMDB data was last fetched
-  
+
   // Relations to junction tables
   genres          MovieGenre[]
   keywords        MovieKeyword[]
@@ -326,14 +327,14 @@ model Movie {
   images          MovieImage[]
   reviews         Review[]  // User reviews from TMDB
   aiData          MovieAiData?
-  
+
   // User relations
   watchlistItems  MovieWatchlistItem[]
   watchedByUsers  WatchedMovie[]
   userRatings     UserRating[]
   recentViews     RecentItem[]
   continueWatching ContinueWatching[]
-  
+
   @@map("movies")
   @@index([popularity(sort: Desc)])
   @@index([releaseDate(sort: Desc)])
@@ -348,10 +349,10 @@ model Movie {
 model MovieGenre {
   movieId   Int   @map("movie_id")
   genreId   Int   @map("genre_id")
-  
+
   movie     Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
   genre     Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
-  
+
   @@id([movieId, genreId])
   @@map("movie_genres")
   @@index([genreId])
@@ -360,10 +361,10 @@ model MovieGenre {
 model MovieKeyword {
   movieId   Int     @map("movie_id")
   keywordId Int     @map("keyword_id")
-  
+
   movie     Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
   keyword   Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
-  
+
   @@id([movieId, keywordId])
   @@map("movie_keywords")
   @@index([keywordId])
@@ -372,10 +373,10 @@ model MovieKeyword {
 model MovieCompany {
   movieId   Int               @map("movie_id")
   companyId Int               @map("company_id")
-  
+
   movie     Movie             @relation(fields: [movieId], references: [id], onDelete: Cascade)
   company   ProductionCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+
   @@id([movieId, companyId])
   @@map("movie_companies")
   @@index([companyId])
@@ -385,10 +386,10 @@ model MovieCountry {
   movieId     Int         @map("movie_id")
   countryCode String      @map("country_code")
   type        CountryType @default(PRODUCTION) // ORIGIN or PRODUCTION
-  
+
   movie       Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
   country     Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
-  
+
   @@id([movieId, countryCode, type])
   @@index([countryCode, type]) // For "movies from India" queries
   @@map("movie_countries")
@@ -398,10 +399,10 @@ model MovieLanguage {
   movieId      Int      @map("movie_id")
   languageCode String   @map("language_code")
   type         LanguageType @default(SPOKEN) // ORIGINAL or SPOKEN
-  
+
   movie        Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
   language     Language @relation(fields: [languageCode], references: [code], onDelete: Cascade)
-  
+
   @@id([movieId, languageCode, type])
   @@map("movie_languages")
   @@index([languageCode])
@@ -415,10 +416,10 @@ model MovieCertification {
   releaseDate   DateTime? @map("release_date")
   releaseType   Int?      @map("release_type") // 1=Premiere, 2=Theatrical (limited), 3=Theatrical, 4=Digital, 5=Physical, 6=TV
   note          String?
-  
+
   movie         Movie     @relation(fields: [movieId], references: [id], onDelete: Cascade)
   country       Country   @relation(fields: [countryCode], references: [code], onDelete: Cascade)
-  
+
   @@map("movie_certifications")
   @@unique([movieId, countryCode, releaseType])
   @@index([countryCode])
@@ -435,10 +436,10 @@ model MovieCredit {
   creditOrder   Int?       @map("credit_order")
   creditType    CreditType @map("credit_type")
   isAggregate   Boolean    @default(false) @map("is_aggregate") // Always false for movies
-  
+
   movie       Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
   person      Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
+
   @@map("movie_credits")
   @@index([movieId])
   @@index([personId])
@@ -450,9 +451,9 @@ model MovieExternalId {
   movieId     Int     @map("movie_id")
   source      String  // "imdb", "facebook", "instagram", "twitter", "wikidata", "netflix", "amazon", etc.
   externalId  String  @map("external_id")
-  
+
   movie       Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  
+
   @@map("movie_external_ids")
   @@unique([movieId, source])
   @@index([source, externalId])
@@ -466,10 +467,10 @@ model MovieRating {
   voteCount   Int?         @map("vote_count")
   certified   Boolean?     // e.g., RT Certified Fresh
   updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at")
-  
+
   movie       Movie        @relation(fields: [movieId], references: [id], onDelete: Cascade)
   source      RatingSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  
+
   @@map("movie_ratings")
   @@unique([movieId, sourceId])
   @@index([sourceId])
@@ -485,11 +486,11 @@ model MovieWatchOption {
   price       String?           // For rent/buy options
   quality     String?           // HD, 4K, etc.
   updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
-  
+
   movie       Movie             @relation(fields: [movieId], references: [id], onDelete: Cascade)
   provider    StreamingProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   country     Country           @relation(fields: [countryCode], references: [code], onDelete: Cascade)
-  
+
   @@map("movie_watch_options")
   @@unique([movieId, providerId, countryCode, type])
   @@index([providerId])
@@ -507,9 +508,9 @@ model MovieVideo {
   official    Boolean   @default(false)
   size        Int?      // 360, 480, 720, 1080
   publishedAt DateTime? @map("published_at")
-  
+
   movie       Movie     @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  
+
   @@map("movie_videos")
   @@unique([movieId, key])
   @@index([movieId])
@@ -526,9 +527,9 @@ model MovieImage {
   voteAverage Float?    @map("vote_average")
   voteCount   Int?      @map("vote_count")
   language    String?   // ISO 639-1
-  
+
   movie       Movie     @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  
+
   @@map("movie_images")
   @@index([movieId, type])
 }
@@ -543,9 +544,9 @@ model MovieAiData {
   questions   String[]  // AI-generated questions
   generatedAt DateTime? @map("generated_at")
   modelId     String?   @map("model_id")
-  
+
   movie       Movie     @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  
+
   @@map("movie_ai_data")
 }
 
@@ -571,7 +572,7 @@ model Series {
   numberOfSeasons  Int?      @map("number_of_seasons")
   numberOfEpisodes Int?      @map("number_of_episodes")
   episodeRunTime   Int[]     @map("episode_run_time")
-  
+
   // Last/Next episode (denormalized for quick access)
   lastEpisodeSeasonNum  Int?  @map("last_episode_season_num")
   lastEpisodeNum        Int?  @map("last_episode_num")
@@ -582,15 +583,15 @@ model Series {
   homepage        String?
   originalLanguage String?  @map("original_language")
   originCountry   String[]  @map("origin_country") // ISO 3166-1 codes
-  
+
   // Vector embedding
   embedding       Unsupported("vector(1536)")?
-  
+
   // Timestamps
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   tmdbUpdatedAt   DateTime? @map("tmdb_updated_at")
-  
+
   // Relations
   genres          SeriesGenre[]
   keywords        SeriesKeyword[]
@@ -608,13 +609,13 @@ model Series {
   reviews         Review[]  // User reviews from TMDB
   seasons         Season[]
   aiData          SeriesAiData?
-  
+
   // User relations
   watchlistItems  SeriesWatchlistItem[]
   userRatings     UserRating[]
   recentViews     RecentItem[]
   continueWatching ContinueWatching[]
-  
+
   @@map("series")
   @@index([popularity(sort: Desc)])
   @@index([firstAirDate(sort: Desc)])
@@ -628,10 +629,10 @@ model Series {
 model SeriesGenre {
   seriesId  Int    @map("series_id")
   genreId   Int    @map("genre_id")
-  
+
   series    Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   genre     Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
-  
+
   @@id([seriesId, genreId])
   @@map("series_genres")
   @@index([genreId])
@@ -640,10 +641,10 @@ model SeriesGenre {
 model SeriesKeyword {
   seriesId  Int     @map("series_id")
   keywordId Int     @map("keyword_id")
-  
+
   series    Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   keyword   Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
-  
+
   @@id([seriesId, keywordId])
   @@map("series_keywords")
   @@index([keywordId])
@@ -652,10 +653,10 @@ model SeriesKeyword {
 model SeriesNetwork {
   seriesId  Int     @map("series_id")
   networkId Int     @map("network_id")
-  
+
   series    Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   network   Network @relation(fields: [networkId], references: [id], onDelete: Cascade)
-  
+
   @@id([seriesId, networkId])
   @@map("series_networks")
   @@index([networkId])
@@ -664,10 +665,10 @@ model SeriesNetwork {
 model SeriesCompany {
   seriesId  Int               @map("series_id")
   companyId Int               @map("company_id")
-  
+
   series    Series            @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   company   ProductionCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+
   @@id([seriesId, companyId])
   @@map("series_companies")
   @@index([companyId])
@@ -677,10 +678,10 @@ model SeriesCountry {
   seriesId    Int         @map("series_id")
   countryCode String      @map("country_code")
   type        CountryType @default(ORIGIN) // Series only have ORIGIN type
-  
+
   series      Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   country     Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
-  
+
   @@id([seriesId, countryCode, type])
   @@index([countryCode, type]) // For "series from Korea" queries
   @@map("series_countries")
@@ -689,10 +690,10 @@ model SeriesCountry {
 model SeriesCreator {
   seriesId  Int    @map("series_id")
   personId  Int    @map("person_id")
-  
+
   series    Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   person    Person @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
+
   @@id([seriesId, personId])
   @@map("series_creators")
   @@index([personId])
@@ -703,10 +704,10 @@ model SeriesCertification {
   seriesId      Int     @map("series_id")
   countryCode   String  @map("country_code")
   certification String  // TV-Y, TV-Y7, TV-G, TV-PG, TV-14, TV-MA, etc.
-  
+
   series        Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   country       Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
-  
+
   @@map("series_certifications")
   @@unique([seriesId, countryCode])
   @@index([countryCode])
@@ -724,10 +725,10 @@ model SeriesCredit {
   creditType        CreditType @map("credit_type")
   isAggregate       Boolean    @default(false) @map("is_aggregate") // true = all-time cast across episodes
   totalEpisodeCount Int?       @map("total_episode_count") // Number of episodes (aggregate only)
-  
+
   series      Series     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   person      Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
+
   @@map("series_credits")
   @@index([seriesId])
   @@index([personId])
@@ -740,9 +741,9 @@ model SeriesExternalId {
   seriesId    Int     @map("series_id")
   source      String
   externalId  String  @map("external_id")
-  
+
   series      Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("series_external_ids")
   @@unique([seriesId, source])
   @@index([source, externalId])
@@ -756,10 +757,10 @@ model SeriesRating {
   voteCount   Int?         @map("vote_count")
   certified   Boolean?
   updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at")
-  
+
   series      Series       @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   source      RatingSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  
+
   @@map("series_ratings")
   @@unique([seriesId, sourceId])
   @@index([sourceId])
@@ -775,11 +776,11 @@ model SeriesWatchOption {
   price       String?
   quality     String?
   updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
-  
+
   series      Series            @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   provider    StreamingProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   country     Country           @relation(fields: [countryCode], references: [code], onDelete: Cascade)
-  
+
   @@map("series_watch_options")
   @@unique([seriesId, providerId, countryCode, type])
   @@index([providerId])
@@ -797,9 +798,9 @@ model SeriesVideo {
   official    Boolean   @default(false)
   size        Int?
   publishedAt DateTime? @map("published_at")
-  
+
   series      Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("series_videos")
   @@unique([seriesId, key])
   @@index([seriesId])
@@ -816,9 +817,9 @@ model SeriesImage {
   voteAverage Float?    @map("vote_average")
   voteCount   Int?      @map("vote_count")
   language    String?
-  
+
   series      Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("series_images")
   @@index([seriesId, type])
 }
@@ -833,9 +834,9 @@ model SeriesAiData {
   questions   String[]
   generatedAt DateTime? @map("generated_at")
   modelId     String?   @map("model_id")
-  
+
   series      Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("series_ai_data")
 }
 
@@ -849,10 +850,10 @@ model Season {
   posterPath    String?   @map("poster_path")
   airDate       DateTime? @map("air_date")
   episodeCount  Int?      @map("episode_count")
-  
+
   series        Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   episodes      Episode[]
-  
+
   @@map("seasons")
   @@unique([seriesId, seasonNumber])
   @@index([seriesId])
@@ -872,9 +873,9 @@ model Episode {
   voteCount     Int?      @map("vote_count")
   episodeType   String?   @map("episode_type") // standard, finale, mid_season_finale
   productionCode String?  @map("production_code")
-  
+
   season        Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  
+
   @@map("episodes")
   @@unique([seasonId, episodeNumber])
   @@index([seasonId])
@@ -1015,25 +1016,25 @@ model User {
   bio           String?
   isPublic      Boolean   @default(true) @map("is_public")
   preferredCountry String? @map("preferred_country")
-  
+
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   lastActiveAt  DateTime? @map("last_active_at")
-  
+
   movieWatchlist    MovieWatchlistItem[]
   seriesWatchlist   SeriesWatchlistItem[]
   watchedMovies     WatchedMovie[]
   ratings           UserRating[]
   recentItems       RecentItem[]
   continueWatching  ContinueWatching[]
-  
+
   sentFriendRequests     Friendship[] @relation("sentRequests")
   receivedFriendRequests Friendship[] @relation("receivedRequests")
   ownedCircles           Circle[]     @relation("circleOwner")
   circleMemberships      CircleMember[]
   followers              Follow[]     @relation("following")
   following              Follow[]     @relation("followers")
-  
+
   @@map("users")
 }
 
@@ -1042,10 +1043,10 @@ model MovieWatchlistItem {
   userId    Int      @map("user_id")
   movieId   Int      @map("movie_id")
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  
+
   @@map("movie_watchlist")
   @@unique([userId, movieId])
   @@index([userId, createdAt(sort: Desc)])
@@ -1056,10 +1057,10 @@ model SeriesWatchlistItem {
   userId    Int      @map("user_id")
   seriesId  Int      @map("series_id")
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   series    Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("series_watchlist")
   @@unique([userId, seriesId])
   @@index([userId, createdAt(sort: Desc)])
@@ -1070,10 +1071,10 @@ model WatchedMovie {
   userId    Int      @map("user_id")
   movieId   Int      @map("movie_id")
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  
+
   @@map("watched_movies")
   @@unique([userId, movieId])
   @@index([userId, createdAt(sort: Desc)])
@@ -1086,11 +1087,11 @@ model UserRating {
   seriesId  Int?     @map("series_id")
   rating    Int      // 1 = like, -1 = dislike
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series    Series?  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("user_ratings")
   @@unique([userId, movieId])
   @@unique([userId, seriesId])
@@ -1103,11 +1104,11 @@ model RecentItem {
   movieId   Int?     @map("movie_id")
   seriesId  Int?     @map("series_id")
   viewedAt  DateTime @default(now()) @map("viewed_at")
-  
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series    Series?  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("recent_items")
   @@unique([userId, movieId])
   @@unique([userId, seriesId])
@@ -1122,11 +1123,11 @@ model ContinueWatching {
   watchLink         String   @map("watch_link")
   watchProviderName String?  @map("watch_provider_name")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
-  
+
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie             Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series            Series?  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  
+
   @@map("continue_watching")
   @@unique([userId, movieId])
   @@unique([userId, seriesId])
@@ -1140,10 +1141,10 @@ model Friendship {
   status      FriendshipStatus @default(PENDING)
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
-  
+
   requester   User             @relation("sentRequests", fields: [requesterId], references: [id], onDelete: Cascade)
   addressee   User             @relation("receivedRequests", fields: [addresseeId], references: [id], onDelete: Cascade)
-  
+
   @@map("friendships")
   @@unique([requesterId, addresseeId])
   @@index([addresseeId, status])
@@ -1154,10 +1155,10 @@ model Follow {
   followerId  Int      @map("follower_id")
   followingId Int      @map("following_id")
   createdAt   DateTime @default(now()) @map("created_at")
-  
+
   follower    User     @relation("followers", fields: [followerId], references: [id], onDelete: Cascade)
   following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
-  
+
   @@map("follows")
   @@unique([followerId, followingId])
   @@index([followingId])
@@ -1171,10 +1172,10 @@ model Circle {
   isPublic    Boolean       @default(false) @map("is_public")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
-  
+
   owner       User          @relation("circleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     CircleMember[]
-  
+
   @@map("circles")
   @@index([ownerId])
 }
@@ -1185,10 +1186,10 @@ model CircleMember {
   userId    Int        @map("user_id")
   role      CircleRole @default(MEMBER)
   joinedAt  DateTime   @default(now()) @map("joined_at")
-  
+
   circle    Circle     @relation(fields: [circleId], references: [id], onDelete: Cascade)
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("circle_members")
   @@unique([circleId, userId])
   @@index([userId])
@@ -1297,7 +1298,7 @@ WHERE mr.movie_id = 550;
 SELECT m.* FROM movies m
 JOIN movie_watch_options mwo ON m.id = mwo.movie_id
 JOIN streaming_providers sp ON mwo.provider_id = sp.id
-WHERE sp.name = 'Netflix' 
+WHERE sp.name = 'Netflix'
   AND mwo.country_code = 'US'
   AND mwo.type = 'FLATRATE';
 ```
@@ -1306,7 +1307,7 @@ WHERE sp.name = 'Netflix'
 
 ```sql
 WITH ratings AS (
-  SELECT 
+  SELECT
     m.id,
     m.title,
     MAX(CASE WHEN rs.slug = 'rt_critic' THEN mr.score END) as critic,
@@ -1326,6 +1327,7 @@ WHERE ABS(audience - critic) > 30;
 ## Seed Script Changes for V2
 
 The seed scripts need to:
+
 1. First populate reference tables (genres, keywords, companies, providers, rating_sources)
 2. Then populate content tables (movies, series)
 3. Then populate junction tables (movie_genres, movie_ratings, etc.)
@@ -1336,26 +1338,26 @@ This is more work but gives you complete data independence.
 
 ## Comparison: V1 vs V2
 
-| Aspect | V1 (Denormalized) | V2 (Normalized) |
-|--------|-------------------|-----------------|
-| **Schema changes for new sources** | Required | Not required |
-| **Query complexity** | Simpler | More JOINs |
-| **Data integrity** | Lower | Higher (FK constraints) |
-| **Storage efficiency** | Lower (duplication) | Higher |
-| **Querying "movies with keyword X"** | Array contains | JOIN (faster with index) |
-| **Adding rating sources** | Schema change | Just data |
-| **TMDB sync** | Transform needed | Direct mapping |
-| **Flexibility** | Limited | Maximum |
+| Aspect                               | V1 (Denormalized)   | V2 (Normalized)          |
+| ------------------------------------ | ------------------- | ------------------------ |
+| **Schema changes for new sources**   | Required            | Not required             |
+| **Query complexity**                 | Simpler             | More JOINs               |
+| **Data integrity**                   | Lower               | Higher (FK constraints)  |
+| **Storage efficiency**               | Lower (duplication) | Higher                   |
+| **Querying "movies with keyword X"** | Array contains      | JOIN (faster with index) |
+| **Adding rating sources**            | Schema change       | Just data                |
+| **TMDB sync**                        | Transform needed    | Direct mapping           |
+| **Flexibility**                      | Limited             | Maximum                  |
 
 ---
 
 ## Recommendation
 
 **Go with V2 if you're building for the long term.** The upfront complexity pays off in:
+
 - Zero schema changes for new data sources
 - Better query performance at scale
 - Clean separation of concerns
 - Easier data pipelines for syncing external sources
 
 The seed scripts are more complex, but once built, adding new rating sources or providers is just data, not code.
-

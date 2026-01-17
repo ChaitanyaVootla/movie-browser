@@ -90,10 +90,7 @@ export function QuickInfoProvider({ children }: { children: React.ReactNode }) {
     if (!state.isOpen || !state.item || state.data) return;
 
     const fetchData = async () => {
-      const data = await getHoverCardData(
-        state.item!.id,
-        state.isMovie ? "movie" : "series"
-      );
+      const data = await getHoverCardData(state.item!.id, state.isMovie ? "movie" : "series");
       if (data) {
         setState((prev) => ({ ...prev, data, isLoading: false }));
       } else {
@@ -199,9 +196,7 @@ function CastMini({ cast }: { cast: HoverCardData["cast"][0] }) {
         <p className="text-sm font-medium text-white/90 truncate group-hover/cast:text-white transition-colors">
           {cast.name}
         </p>
-        {cast.character && (
-          <p className="text-xs text-white/50 truncate">{cast.character}</p>
-        )}
+        {cast.character && <p className="text-xs text-white/50 truncate">{cast.character}</p>}
       </div>
     </Link>
   );
@@ -302,9 +297,7 @@ function QuickInfoContent({
             fill
             className="object-cover"
             sizes="100vw"
-            onError={() =>
-              !useFallback && backdropSources.fallback && setUseFallback(true)
-            }
+            onError={() => !useFallback && backdropSources.fallback && setUseFallback(true)}
             unoptimized={!useFallback}
           />
         ) : (
@@ -331,9 +324,7 @@ function QuickInfoContent({
       <div className="p-4 space-y-4 bg-gradient-to-b from-black to-neutral-950">
         {/* Top Row: Year, Runtime/Seasons, Genres */}
         <div className="flex items-center gap-2 text-sm text-white/60 flex-wrap">
-          {data.year && (
-            <span className="text-white font-semibold">{data.year}</span>
-          )}
+          {data.year && <span className="text-white font-semibold">{data.year}</span>}
           {data.runtime && (
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
@@ -343,8 +334,7 @@ function QuickInfoContent({
           {data.number_of_seasons && (
             <span className="flex items-center gap-1">
               <Tv2 className="h-3.5 w-3.5" />
-              {data.number_of_seasons}{" "}
-              {data.number_of_seasons === 1 ? "Season" : "Seasons"}
+              {data.number_of_seasons} {data.number_of_seasons === 1 ? "Season" : "Seasons"}
             </span>
           )}
           {data.genres.slice(0, 2).map((genre, idx) => (
@@ -370,17 +360,12 @@ function QuickInfoContent({
               <Play className="h-3 w-3 fill-current" />
               <span>
                 Watch Now
-                {data.watch_options.isFromFallback &&
-                  ` (${data.watch_options.sourceCountry})`}
+                {data.watch_options.isFromFallback && ` (${data.watch_options.sourceCountry})`}
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {data.watch_options.options.map((option) => (
-                <WatchProviderButton
-                  key={option.key}
-                  option={option}
-                  itemTitle={data.title}
-                />
+                <WatchProviderButton key={option.key} option={option} itemTitle={data.title} />
               ))}
             </div>
           </div>
@@ -418,11 +403,7 @@ function QuickInfoContent({
                 onClick={handleWatchlistClick}
                 aria-label={inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
               >
-                {inWatchlist ? (
-                  <Check className="h-5 w-5" />
-                ) : (
-                  <Plus className="h-5 w-5" />
-                )}
+                {inWatchlist ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               </Button>
 
               {isMovie && (
@@ -437,11 +418,7 @@ function QuickInfoContent({
                   onClick={handleWatchedClick}
                   aria-label={watched ? "Mark as not watched" : "Mark as watched"}
                 >
-                  {watched ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {watched ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </Button>
               )}
             </>
@@ -506,17 +483,10 @@ function MobileQuickInfoDrawer() {
           {state.isLoading || !state.data ? (
             <QuickInfoSkeleton />
           ) : (
-            <QuickInfoContent
-              data={state.data}
-              isMovie={state.isMovie}
-              onClose={closeQuickInfo}
-            />
+            <QuickInfoContent data={state.data} isMovie={state.isMovie} onClose={closeQuickInfo} />
           )}
         </div>
       </DrawerContent>
     </Drawer>
   );
 }
-
-
-

@@ -7,7 +7,12 @@ import { Play, Loader2 } from "lucide-react";
 import { cn, getSlug } from "@/lib/utils";
 import { RatingsBar } from "@/components/features/media/ratings-bar";
 import type { ExternalRating } from "@/types";
-import type { ParsedRatingsTag, ParsedWatchTag, ParsedTrailerTag, ParsedPersonTag } from "@/lib/ai/parse-media-tags";
+import type {
+  ParsedRatingsTag,
+  ParsedWatchTag,
+  ParsedTrailerTag,
+  ParsedPersonTag,
+} from "@/lib/ai/parse-media-tags";
 
 // =============================================================================
 // Types
@@ -102,8 +107,12 @@ export function useTagData(
     const uncachedMovies = movieIds.filter((id) => !(id in tagDataCache.movies));
     const uncachedSeries = seriesIds.filter((id) => !(id in tagDataCache.series));
     const uncachedPersons = personIds.filter((id) => !(id in tagDataCache.persons));
-    const uncachedTrailerMovies = trailerMovieIds.filter((id) => !(`movie:${id}` in tagDataCache.trailers));
-    const uncachedTrailerSeries = trailerSeriesIds.filter((id) => !(`series:${id}` in tagDataCache.trailers));
+    const uncachedTrailerMovies = trailerMovieIds.filter(
+      (id) => !(`movie:${id}` in tagDataCache.trailers)
+    );
+    const uncachedTrailerSeries = trailerSeriesIds.filter(
+      (id) => !(`series:${id}` in tagDataCache.trailers)
+    );
 
     // Build trailer keys for this request
     const allTrailerKeys = [
@@ -116,8 +125,11 @@ export function useTagData(
       movies: Object.fromEntries(movieIds.map((id) => [id, tagDataCache.movies[id] ?? null])),
       series: Object.fromEntries(seriesIds.map((id) => [id, tagDataCache.series[id] ?? null])),
       persons: Object.fromEntries(personIds.map((id) => [id, tagDataCache.persons[id] ?? null])),
-      trailers: Object.fromEntries(allTrailerKeys.map((key) => [key, tagDataCache.trailers[key] ?? null])),
+      trailers: Object.fromEntries(
+        allTrailerKeys.map((key) => [key, tagDataCache.trailers[key] ?? null])
+      ),
     };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(cachedData);
 
     // If nothing to fetch, we're done
@@ -138,7 +150,9 @@ export function useTagData(
       ...uncachedPersons.map((id) => `p${id}`),
       ...uncachedTrailerMovies.map((id) => `tm${id}`),
       ...uncachedTrailerSeries.map((id) => `ts${id}`),
-    ].sort().join(",");
+    ]
+      .sort()
+      .join(",");
 
     // Check if already fetching this exact set
     if (pendingFetches.has(cacheKey)) {
@@ -147,8 +161,12 @@ export function useTagData(
         setData({
           movies: Object.fromEntries(movieIds.map((id) => [id, tagDataCache.movies[id] ?? null])),
           series: Object.fromEntries(seriesIds.map((id) => [id, tagDataCache.series[id] ?? null])),
-          persons: Object.fromEntries(personIds.map((id) => [id, tagDataCache.persons[id] ?? null])),
-          trailers: Object.fromEntries(allTrailerKeys.map((key) => [key, tagDataCache.trailers[key] ?? null])),
+          persons: Object.fromEntries(
+            personIds.map((id) => [id, tagDataCache.persons[id] ?? null])
+          ),
+          trailers: Object.fromEntries(
+            allTrailerKeys.map((key) => [key, tagDataCache.trailers[key] ?? null])
+          ),
         });
         setIsLoading(false);
       });
@@ -182,8 +200,12 @@ export function useTagData(
         setData({
           movies: Object.fromEntries(movieIds.map((id) => [id, tagDataCache.movies[id] ?? null])),
           series: Object.fromEntries(seriesIds.map((id) => [id, tagDataCache.series[id] ?? null])),
-          persons: Object.fromEntries(personIds.map((id) => [id, tagDataCache.persons[id] ?? null])),
-          trailers: Object.fromEntries(allTrailerKeys.map((key) => [key, tagDataCache.trailers[key] ?? null])),
+          persons: Object.fromEntries(
+            personIds.map((id) => [id, tagDataCache.persons[id] ?? null])
+          ),
+          trailers: Object.fromEntries(
+            allTrailerKeys.map((key) => [key, tagDataCache.trailers[key] ?? null])
+          ),
         });
       })
       .catch(console.error)
@@ -271,7 +293,12 @@ export const ChatRatings = memo(function ChatRatings({
 }: ChatRatingsProps) {
   if (isLoading) {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10",
+          className
+        )}
+      >
         <Loader2 className="w-3 h-3 animate-spin text-white/50" />
         <span className="text-[11px] text-white/50">Loading ratings...</span>
       </span>
@@ -289,14 +316,7 @@ export const ChatRatings = memo(function ChatRatings({
     return null;
   }
 
-  return (
-    <RatingsBar
-      ratings={externalRatings}
-      size="sm"
-      maxVisible={4}
-      className={className}
-    />
-  );
+  return <RatingsBar ratings={externalRatings} size="sm" maxVisible={4} className={className} />;
 });
 
 // =============================================================================
@@ -322,7 +342,12 @@ export const ChatWatchOptions = memo(function ChatWatchOptions({
 }: ChatWatchOptionsProps) {
   if (isLoading) {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10",
+          className
+        )}
+      >
         <Loader2 className="w-3 h-3 animate-spin text-white/50" />
         <span className="text-[11px] text-white/50">Loading watch options...</span>
       </span>
@@ -331,7 +356,12 @@ export const ChatWatchOptions = memo(function ChatWatchOptions({
 
   if (!data?.watchLinks || data.watchLinks.length === 0) {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10",
+          className
+        )}
+      >
         <span className="text-[11px] text-white/50">No streaming options</span>
       </span>
     );
@@ -354,7 +384,7 @@ export const ChatWatchOptions = memo(function ChatWatchOptions({
     >
       <Play className="w-3 h-3 text-white/60 fill-current" />
       <span className="text-[11px] text-white/60 pr-1 border-r border-white/15">Watch</span>
-      
+
       {visibleLinks.map((link) => (
         <a
           key={link.provider}
@@ -408,7 +438,12 @@ export const ChatTrailer = memo(function ChatTrailer({
 
   if (isLoading) {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10",
+          className
+        )}
+      >
         <Loader2 className="w-3 h-3 animate-spin text-white/50" />
         <span className="text-[11px] text-white/50">Loading trailer...</span>
       </span>
@@ -417,7 +452,12 @@ export const ChatTrailer = memo(function ChatTrailer({
 
   if (!trailerData?.youtubeKey) {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/10",
+          className
+        )}
+      >
         <span className="text-[11px] text-white/50">No trailer available</span>
       </span>
     );
@@ -516,20 +556,19 @@ export const PersonChip = memo(function PersonChip({
   className,
 }: PersonChipProps) {
   const [imgError, setImgError] = useState(false);
-  
+
   // Use tag name if data not loaded yet
   const name = data?.name || tag.name;
   const id = tag.id ?? data?.id;
-  
+
   // Build href - link to person page if we have ID, otherwise search for the person
   const href = id
     ? `/person/${id}/${getSlug(name)}`
     : `/browse?q=${encodeURIComponent(name)}&type=person`;
 
   // Profile image URL - use TMDB profile path from API data
-  const profileUrl = data?.profilePath && !imgError
-    ? `https://image.tmdb.org/t/p/w185${data.profilePath}`
-    : null;
+  const profileUrl =
+    data?.profilePath && !imgError ? `https://image.tmdb.org/t/p/w185${data.profilePath}` : null;
 
   return (
     <Link
@@ -564,9 +603,7 @@ export const PersonChip = memo(function PersonChip({
         )}
       </div>
       <span className="text-[11px] font-medium">{name}</span>
-      {isLoading && (
-        <Loader2 className="w-2.5 h-2.5 animate-spin text-white/40" />
-      )}
+      {isLoading && <Loader2 className="w-2.5 h-2.5 animate-spin text-white/40" />}
     </Link>
   );
 });
@@ -594,4 +631,3 @@ export function TagDataProvider({
   const { data, isLoading } = useTagData(movieIds, seriesIds, personIds);
   return <>{children({ data, isLoading })}</>;
 }
-

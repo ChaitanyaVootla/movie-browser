@@ -55,22 +55,22 @@
    * Hero Section Layout Variables
    * Easily tweak these values to adjust hero sizing
    * ======================================== */
-  
+
   /* Hero height (desktop): target 60vh, min 400px, max 750px */
   --hero-height-target: 60vh;
   --hero-height-min: 400px;
   --hero-height-max: 750px;
-  
+
   /* Hero content/info width (desktop): target 30vw, min 280px, max 480px */
   --hero-content-width-target: 30vw;
   --hero-content-min-width: 280px;
   --hero-content-max-width: 480px;
-  
+
   /* Mobile hero height: target 50vh, min 300px, max 480px */
   --hero-height-mobile-target: 50vh;
   --hero-height-mobile-min: 300px;
   --hero-height-mobile-max: 480px;
-  
+
   /* Mobile content width: target 85vw, min 260px, max 400px */
   --hero-content-mobile-width-target: 85vw;
   --hero-content-mobile-min-width: 260px;
@@ -216,11 +216,7 @@
   @media (min-width: 768px) {
     .hero-container {
       /* Desktop: Max 60vh, min 400px - content overlays image */
-      height: clamp(
-        var(--hero-height-min),
-        var(--hero-height-target),
-        var(--hero-height-max)
-      );
+      height: clamp(var(--hero-height-min), var(--hero-height-target), var(--hero-height-max));
       max-height: 60vh;
     }
   }
@@ -293,7 +289,10 @@
 
   /* AI Assistant idle button */
   .ai-idle-btn {
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
   }
   .ai-idle-btn:hover {
     transform: scale(1.05);

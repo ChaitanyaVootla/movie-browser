@@ -1,0 +1,315 @@
+---
+description: Discover/Browse/Topics architecture, URL params, and watch options
+globs: ["src/app/browse/**/*.tsx", "src/app/topics/**/*.tsx", "src/lib/discover.ts", "src/lib/topics/**/*.ts", "src/lib/watch-options.ts"]
+alwaysApply: false
+---
+
+# Movie Browser - Discover/Topics Rules
+
+## URL Parameter Serialization
+
+Filter state is synced with URL search params for shareability:
+
+```tsx
+// src/lib/discover.ts
+export function serializeDiscoverParams(params: DiscoverParams): string {
+  const searchParams = new URLSearchParams();
+  if (params.media_type !== "movie") searchParams.set("type", params.media_type);
+  if (params.with_genres?.length) searchParams.set("genres", params.with_genres.join(","));
+  if (params.without_genres?.length) searchParams.set("exclude", params.without_genres.join(","));
+  // ... more params
+  return searchParams.toString();
+}
+
+export function parseDiscoverParams(searchParams: URLSearchParams): Partial<DiscoverParams> {
+  return {
+    media_type: (searchParams.get("type") as "movie" | "tv") || "movie",
+    with_genres: searchParams.get("genres")?.split(",").map(Number).filter(Boolean),
+    // ... more parsing
+  };
+}
+```
+
+## Building Browse URLs (Back Links)
+
+Always use `buildBrowseUrl()` from `@/lib/discover` when linking to the browse page with filters:
+
+```tsx
+import { buildBrowseUrl } from "@/lib/discover";
+
+// Link to browse with genre filter
+buildBrowseUrl({ media_type: "movie", with_genres: [28] });
+// -> /browse?type=movie&genres=28
+
+// Link to browse with cast filter (from person page)
+buildBrowseUrl({ media_type: "movie", with_cast: [500] });
+// -> /browse?type=movie&cast=500
+
+// Link to browse with keyword filter
+buildBrowseUrl({ media_type: "tv", with_keywords: [12345] });
+// -> /browse?type=tv&keywords=12345
+
+// Combination filters
+buildBrowseUrl({
+  media_type: "movie",
+  with_genres: [28, 12],
+  with_original_language: "en",
+  sort_by: "popularity.desc",
+});
+// -> /browse?type=movie&genres=28,12&language=en&sort=popularity.desc
+```
+
+**URL Parameter Names** (readable, short):
+| Param | Maps to |
+|-------|---------|
+| `type` | `media_type` |
+| `genres` | `with_genres` |
+| `exclude` | `without_genres` |
+| `language` | `with_original_language` |
+| `country` | `with_origin_country` |
+| `cast` | `with_cast` |
+| `crew` | `with_crew` |
+| `keywords` | `with_keywords` |
+| `rating` | `vote_average.gte` |
+| `votes` | `vote_count.gte` |
+| `sort` | `sort_by` |
+
+## Scroller "View All" Links Pattern
+
+All scrollers support a uniform link pattern with `seeAllHref` prop:
+
+```tsx
+// MovieCarousel (homepage)
+<MovieCarousel
+  title="Trending Movies"
+  items={movies}
+  seeAllHref={buildBrowseUrl({ media_type: "movie", sort_by: "popularity.desc" })}
+  seeAllLabel="Browse All"
+/>
+
+// DiscoverScroller (topics)
+<DiscoverScroller
+  title="Action Movies"
+  params={{ media_type: "movie", with_genres: [28] }}
+  seeAllHref={`/topics/genre-action-movie`}  // Link to topic detail
+  seeAllLabel="View All"
+/>
+
+// MediaScroller (generic)
+<MediaScroller
+  title="Filmography"
+  seeAllHref={buildBrowseUrl({ media_type: "movie", with_cast: [personId] })}
+  seeAllLabel="Browse All"
+>
+  {/* children */}
+</MediaScroller>
+```
+
+The link styling is uniform across all scrollers:
+- Text color: `text-brand hover:text-brand/80`
+- Icon: `ArrowRight` (h-3.5 w-3.5)
+- Gap: `gap-1` between text and icon
+
+## Page Structure Pattern (Server + Client Split)
+
+Browse/Topics pages use server component for initial fetch, client for interactivity:
+
+```
+src/app/browse/
+├── page.tsx      # Server: fetchInitial, generateMetadata
+└── client.tsx    # Client: filter state, URL sync, infinite scroll
+```
+
+```tsx
+// page.tsx (Server)
+export default async function BrowsePage({ searchParams }) {
+  const params = parseDiscoverParams(new URLSearchParams(await searchParams));
+  const { results, total_pages, total_results } = await discoverBatch({ ...params });
+  return <BrowseClient initialResults={results} initialParams={params} />;
+}
+
+// client.tsx (Client)
+"use client";
+export function BrowseClient({ initialResults, initialParams }) {
+  const [params, setParams] = useState(initialParams);
+  // URL sync, filter changes, infinite scroll...
+}
+```
+
+## Topic Keys Format
+
+Topics use a standardized key format: `{type}-{slug}-{media}`
+
+```tsx
+// Examples:
+"genre-action-movie"      // Action movies
+"genre-comedy-tv"         // Comedy TV shows
+"theme-christmas-movie"   // Christmas movies
+"theme-space-tv"          // Space TV shows
+```
+
+```tsx
+// src/lib/topics/utils.ts
+export function getTopicKey(type: string, topic: string, mediaType: string): string {
+  return `${type}-${sanitiseTopic(topic)}-${mediaType}`;
+}
+
+export function parseTopicKey(key: string): { type: string; topic: string; media: string } | null {
+  const parts = key.split("-");
+  if (parts.length < 3) return null;
+  return {
+    type: parts[0],
+    topic: parts.slice(1, -1).join("-"),
+    media: parts[parts.length - 1],
+  };
+}
+```
+
+## ISR for Topics Pages
+
+Topics pages use Incremental Static Regeneration for optimal performance:
+
+```tsx
+// src/app/topics/page.tsx
+// Revalidate every 30 minutes (matches discover cache TTL)
+export const revalidate = 1800;
+
+// Preload only 6 topics to minimize initial API calls
+async function getTopicPreviews() {
+  const topicsToPreload = ALL_TOPICS.slice(0, 6);
+  // ...
+}
+
+// src/app/topics/[topic]/page.tsx
+export const revalidate = 1800;
+
+// Pre-render the first 50 topics at build time
+export async function generateStaticParams() {
+  return ALL_TOPICS.slice(0, 50).map((topic) => ({
+    topic: topic.key,
+  }));
+}
+```
+
+**Key points:**
+- ISR revalidation matches discover cache TTL (30 min)
+- Pre-render popular topics at build time
+- Limit preloaded topics to reduce initial server load
+
+## Fixed Sidebar Pattern
+
+Browse page sidebar should be fixed position to avoid scroll glitches:
+
+```tsx
+{/* Desktop Sidebar - Fixed position (288px/320px wide) */}
+<aside className="hidden md:block w-72 lg:w-80 fixed top-14 left-0 h-[calc(100vh-3.5rem)] overflow-y-auto border-r bg-muted/20">
+  <FilterSidebar params={params} onChange={handleChange} />
+</aside>
+
+{/* Main content with matching margin + bottom padding for footer clearance */}
+<main className="flex-1 md:ml-72 lg:ml-80 pb-32">
+  {/* Grid content */}
+</main>
+```
+
+## Watch Options Architecture
+
+### Data Sources
+
+Watch options come from two sources with priority:
+
+1. **Scraped Deep Links** (India only):
+   - MongoDB: `googleData.allWatchOptions`
+   - PostgreSQL: `scraped_watch_links` table
+   - Direct deep links to video players
+
+2. **TMDB Watch Providers** (90+ countries):
+   - MongoDB: `watchProviders` field
+   - PostgreSQL: `movie_watch_options` / `series_watch_options` tables
+   - JustWatch attribution links (not direct deep links)
+
+### Processing Flow
+
+```
+Server: movie.ts / series.ts action
+  1. Detect country from X-Country-Code header
+  2. Fetch TMDB data + MongoDB googleData in parallel
+  3. Process: getWatchOptionsForCountry()
+     - India: scraped data > TMDB India
+     - Other: TMDB for country > fallback countries
+  4. Optimize: getOptimizedWatchProviders()
+     - Filter to ~15 common countries for payload size
+
+Response includes:
+  - watch_options: ProcessedWatchOptions (for current country)
+  - optimized_watch_providers: Record<string, WatchProviderData>
+  - googleData: { allWatchOptions } (for client re-processing)
+
+Client: WatchOptions component
+  If countryOverride in user store:
+    Re-process with getWatchOptionsForCountry()
+  Else:
+    Use server-processed watch_options
+```
+
+### Key Types (`src/lib/watch-options.ts`)
+
+```typescript
+interface WatchOption {
+  name: string;           // Original provider name
+  displayName: string;    // Normalized display name
+  link: string;           // Watch URL
+  price: string;          // "flatrate", "rent", "buy"
+  image: string;          // Local or TMDB logo URL
+  key: string;            // Provider identifier
+  isJustWatch?: boolean;  // True if from TMDB (no direct links)
+}
+
+interface ProcessedWatchOptions {
+  options: WatchOption[];
+  sourceCountry: string;      // Country code for these options
+  isFromFallback: boolean;    // True if showing different country's options
+}
+```
+
+### Utility Functions
+
+```typescript
+import {
+  getWatchOptionsForCountry,
+  getOptimizedWatchProviders,
+  processScrapedWatchOptions,
+  normalizeTMDBWatchProviders,
+} from "@/lib/watch-options";
+
+// Main processing function
+const result = getWatchOptionsForCountry(
+  "US",                    // Target country
+  googleData,              // From MongoDB (India only)
+  watchProviders           // From TMDB API
+);
+// Returns: { options, sourceCountry, isFromFallback }
+
+// Server-side optimization (reduce payload)
+const optimized = getOptimizedWatchProviders("US", watchProviders);
+// Returns providers for US + 14 other common countries
+```
+
+### Fallback Priority
+
+When no watch options exist for the user's country:
+
+```typescript
+const FALLBACK_COUNTRIES = ["US", "GB", "FR", "DE", "IN", "JP", "KR"];
+```
+
+### OTT Provider Mapping
+
+Known providers mapped to local images (`/images/ott/`):
+
+```typescript
+// Netflix, YouTube, Amazon/Prime, Apple, Hotstar, SonyLIV,
+// Voot, Zee5, JioCinema, MUBI, MX Player, aha, Plex, Crunchyroll, Viki
+```
+
+For unmapped providers, TMDB logo is used: `https://image.tmdb.org/t/p/w92${logo_path}`

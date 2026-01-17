@@ -1,9 +1,9 @@
-import { getToken } from '#auth'
-import { JWT } from 'next-auth/jwt';
+import { getToken } from "#auth";
+import { JWT } from "next-auth/jwt";
 import { User } from "~/server/models";
-import { getLocationFromEvent } from '../api/onLoad';
+import { getLocationFromEvent } from "../api/onLoad";
 
-const ADMIN_EMAILS = ['speedblaze@gmail.com'];
+const ADMIN_EMAILS = ["speedblaze@gmail.com"];
 
 export default eventHandler(async (event) => {
   const userData = await getToken({ event });
@@ -14,7 +14,7 @@ export default eventHandler(async (event) => {
     }
     handleUserVisit(userData as JWT, getLocationFromEvent(event));
   }
-})
+});
 
 const handleUserVisit = async (userData: JWT, location: any) => {
   if (!userData.sub) {

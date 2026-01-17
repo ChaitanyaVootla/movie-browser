@@ -24,9 +24,9 @@ test.describe("Movie JSON-LD Schema", () => {
   test("has valid Movie schema structure", async ({ page }) => {
     // Find the JSON-LD script (may not have id attribute after hydration)
     const schemaScript = page.locator('script[type="application/ld+json"]').first();
-    const schemaText = await schemaScript.textContent();
+    const schemaText = schemaScript;
 
-    expect(schemaText).toBeTruthy();
+    await expect(schemaText).toHaveText();
     const schema = JSON.parse(schemaText!);
 
     // Required schema.org fields
@@ -118,9 +118,9 @@ test.describe("Series JSON-LD Schema", () => {
 
   test("has valid TVSeries schema structure", async ({ page }) => {
     const schemaScript = page.locator('script[type="application/ld+json"]');
-    const schemaText = await schemaScript.textContent();
+    const schemaText = schemaScript;
 
-    expect(schemaText).toBeTruthy();
+    await expect(schemaText).toHaveText();
     const schema = JSON.parse(schemaText!);
 
     // Required schema.org fields
@@ -212,9 +212,9 @@ test.describe("Person JSON-LD Schema", () => {
 
   test("has valid Person schema structure", async ({ page }) => {
     const schemaScript = page.locator('script[type="application/ld+json"]');
-    const schemaText = await schemaScript.textContent();
+    const schemaText = schemaScript;
 
-    expect(schemaText).toBeTruthy();
+    await expect(schemaText).toHaveText();
     const schema = JSON.parse(schemaText!);
 
     // Required schema.org fields

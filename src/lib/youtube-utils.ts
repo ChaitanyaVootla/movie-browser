@@ -1,6 +1,6 @@
 /**
  * YouTube utility functions
- * 
+ *
  * Shared formatting utilities for YouTube data display.
  * These are pure functions safe for both client and server use.
  */
@@ -64,4 +64,3 @@ export function formatRelativeTime(dateString: string): string {
   if (diffMinutes > 0) return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
   return "Just now";
 }
-

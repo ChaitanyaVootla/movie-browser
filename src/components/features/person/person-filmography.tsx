@@ -13,7 +13,11 @@ import { buildBrowseUrl } from "@/lib/discover";
 import { filterOutTalkShowsLight } from "@/lib/person-credits";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import type { MovieListItem, SeriesListItem } from "@/types";
-import type { LightPersonCastCredit, LightPersonCrewCredit, PersonFilmographyProps as PersonFilmographyData } from "@/types/client-props";
+import type {
+  LightPersonCastCredit,
+  LightPersonCrewCredit,
+  PersonFilmographyProps as PersonFilmographyData,
+} from "@/types/client-props";
 
 interface PersonFilmographyProps {
   person: PersonFilmographyData;
@@ -78,7 +82,10 @@ function creditToListItem(
 }
 
 // Get subtitle for a credit (character or job)
-function getSubtitle(credit: LightPersonCastCredit | LightPersonCrewCredit, isCast: boolean): string {
+function getSubtitle(
+  credit: LightPersonCastCredit | LightPersonCrewCredit,
+  isCast: boolean
+): string {
   if (isCast) {
     const castCredit = credit as LightPersonCastCredit;
     return castCredit.character || "";
@@ -89,9 +96,7 @@ function getSubtitle(credit: LightPersonCastCredit | LightPersonCrewCredit, isCa
 }
 
 // Group credits by decade
-function groupByDecade(
-  credits: CreditWithSubtitle[]
-): Map<string, CreditWithSubtitle[]> {
+function groupByDecade(credits: CreditWithSubtitle[]): Map<string, CreditWithSubtitle[]> {
   const groups = new Map<string, CreditWithSubtitle[]>();
 
   credits.forEach((item) => {
@@ -127,9 +132,7 @@ function groupByDecade(
 }
 
 // Deduplicate credits by ID (keep the one with most info)
-function deduplicateCredits(
-  credits: CreditWithSubtitle[]
-): CreditWithSubtitle[] {
+function deduplicateCredits(credits: CreditWithSubtitle[]): CreditWithSubtitle[] {
   const seen = new Map<number, CreditWithSubtitle>();
   credits.forEach((item) => {
     const existing = seen.get(item.credit.id);
@@ -154,37 +157,55 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
 
   // Get combined credits with subtitle info, filtering out talk shows
   const combinedCast = useMemo(
-    () => filterOutTalkShowsLight(person.combined_credits.cast).map((credit): CreditWithSubtitle => ({
-      credit,
-      subtitle: getSubtitle(credit, true),
-      isCast: true,
-    })),
+    () =>
+      filterOutTalkShowsLight(person.combined_credits.cast).map(
+        (credit): CreditWithSubtitle => ({
+          credit,
+          subtitle: getSubtitle(credit, true),
+          isCast: true,
+        })
+      ),
     [person.combined_credits.cast]
   );
   const combinedCrew = useMemo(
-    () => filterOutTalkShowsLight(person.combined_credits.crew).map((credit): CreditWithSubtitle => ({
-      credit,
-      subtitle: getSubtitle(credit, false),
-      isCast: false,
-    })),
+    () =>
+      filterOutTalkShowsLight(person.combined_credits.crew).map(
+        (credit): CreditWithSubtitle => ({
+          credit,
+          subtitle: getSubtitle(credit, false),
+          isCast: false,
+        })
+      ),
     [person.combined_credits.crew]
   );
 
   // Separate by media type
   const movieCast = useMemo(
-    () => deduplicateCredits(combinedCast.filter((c: CreditWithSubtitle) => c.credit.media_type === "movie")),
+    () =>
+      deduplicateCredits(
+        combinedCast.filter((c: CreditWithSubtitle) => c.credit.media_type === "movie")
+      ),
     [combinedCast]
   );
   const movieCrew = useMemo(
-    () => deduplicateCredits(combinedCrew.filter((c: CreditWithSubtitle) => c.credit.media_type === "movie")),
+    () =>
+      deduplicateCredits(
+        combinedCrew.filter((c: CreditWithSubtitle) => c.credit.media_type === "movie")
+      ),
     [combinedCrew]
   );
   const tvCast = useMemo(
-    () => deduplicateCredits(combinedCast.filter((c: CreditWithSubtitle) => c.credit.media_type === "tv")),
+    () =>
+      deduplicateCredits(
+        combinedCast.filter((c: CreditWithSubtitle) => c.credit.media_type === "tv")
+      ),
     [combinedCast]
   );
   const tvCrew = useMemo(
-    () => deduplicateCredits(combinedCrew.filter((c: CreditWithSubtitle) => c.credit.media_type === "tv")),
+    () =>
+      deduplicateCredits(
+        combinedCrew.filter((c: CreditWithSubtitle) => c.credit.media_type === "tv")
+      ),
     [combinedCrew]
   );
 
@@ -202,10 +223,7 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
   }, [filterBy, currentCast, currentCrew]);
 
   // Group by decade
-  const groupedCredits = useMemo(
-    () => groupByDecade(filteredCredits),
-    [filteredCredits]
-  );
+  const groupedCredits = useMemo(() => groupByDecade(filteredCredits), [filteredCredits]);
 
   // Counts
   const movieCount = new Set([...movieCast, ...movieCrew].map((c) => c.credit.id)).size;
@@ -270,9 +288,7 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
               >
                 Cast
                 {currentCastCount > 0 && (
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    {currentCastCount}
-                  </span>
+                  <span className="ml-1.5 text-xs text-muted-foreground">{currentCastCount}</span>
                 )}
               </button>
               <button
@@ -286,9 +302,7 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
               >
                 Crew
                 {currentCrewCount > 0 && (
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    {currentCrewCount}
-                  </span>
+                  <span className="ml-1.5 text-xs text-muted-foreground">{currentCrewCount}</span>
                 )}
               </button>
             </div>
@@ -350,11 +364,7 @@ function DecadeScrollers({
         if (filteredCredits.length === 0) return null;
 
         return (
-          <MediaScroller
-            key={decade}
-            title={decade}
-            showControls={filteredCredits.length > 5}
-          >
+          <MediaScroller key={decade} title={decade} showControls={filteredCredits.length > 5}>
             {filteredCredits.map((item) => (
               <MediaCard
                 key={item.credit.credit_id}

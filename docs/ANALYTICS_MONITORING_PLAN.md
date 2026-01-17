@@ -5,10 +5,12 @@
 **Stack Decision:** ClickHouse + Admin Dashboard (Grafana optional for advanced use)
 
 **Docker Image Versions (Jan 2026):**
+
 - ClickHouse: `25.12` (25.12.2.54)
 - Grafana: `12.3.1` (optional)
 
 **Implementation Notes:**
+
 - Docker Compose stack running (ClickHouse port 8123, Grafana port 3004)
 - ClickHouse schema created with all tables and materialized views
 - Analytics lib implemented (`src/lib/analytics/`)
@@ -20,6 +22,7 @@
 - **Admin Filtering:** Admin users are automatically excluded from analytics to prevent internal testing from polluting data. Uses `isAdminEmail()` from `@/lib/admin`.
 
 **What's Working:**
+
 - ✅ ClickHouse + Grafana infrastructure (Phase 1)
 - ✅ All database tables and materialized views
 - ✅ Page view tracking (`<PageViewTracker>` component) (Phase 2)
@@ -32,6 +35,7 @@
 - ✅ **Alert System** (Phase 8) - Real-time alerts surfaced in admin dashboard
 
 **Admin Dashboard Features:**
+
 - Traffic overview (page views, sessions, users, devices pie chart, geo pie chart)
 - **Daily traffic chart** with human vs bot comparison (toggleable series)
 - AI usage & costs (invocations, tokens, cost/user, query types pie chart)
@@ -42,6 +46,7 @@
 - **Automated alerts** for: AI cost spikes, error rate, performance degradation, cache issues, traffic anomalies
 
 **Item Analytics Modal (detail pages):**
+
 - Accessible from admin strip on movie/series detail pages
 - Database status (PostgreSQL sync, TMDB refresh timestamps)
 - Traffic trend chart (daily page views for that item)
@@ -152,14 +157,14 @@ This document outlines the comprehensive analytics, monitoring, and observabilit
 
 We leverage **MaxMind GeoIP2** via Nginx for geographic data. The following headers are available from Nginx:
 
-| Header | Source | Currently Used | Description |
-|--------|--------|----------------|-------------|
-| `X-Country-Code` | `$geoip2_data_country_code` | ✅ Yes | ISO 3166-1 alpha-2 (US, IN, GB) |
-| `X-City` | `$geoip2_data_city_name` | ❌ Add this | City name |
-| `X-Region` | `$geoip2_data_subdivision_name` | Optional | State/province |
-| `X-Real-IP` | `$remote_addr` | Standard | Client IP (for rate limiting only, not stored) |
-| `X-Request-ID` | `$request_id` | Add this | Unique request ID for tracing |
-| `X-Forwarded-For` | `$proxy_add_x_forwarded_for` | Standard | Proxy chain |
+| Header            | Source                          | Currently Used | Description                                    |
+| ----------------- | ------------------------------- | -------------- | ---------------------------------------------- |
+| `X-Country-Code`  | `$geoip2_data_country_code`     | ✅ Yes         | ISO 3166-1 alpha-2 (US, IN, GB)                |
+| `X-City`          | `$geoip2_data_city_name`        | ❌ Add this    | City name                                      |
+| `X-Region`        | `$geoip2_data_subdivision_name` | Optional       | State/province                                 |
+| `X-Real-IP`       | `$remote_addr`                  | Standard       | Client IP (for rate limiting only, not stored) |
+| `X-Request-ID`    | `$request_id`                   | Add this       | Unique request ID for tracing                  |
+| `X-Forwarded-For` | `$proxy_add_x_forwarded_for`    | Standard       | Proxy chain                                    |
 
 **Note:** GeoIP2 does **NOT** provide bot detection. Bot detection is handled by user-agent analysis in our application code.
 
@@ -170,17 +175,17 @@ We leverage **MaxMind GeoIP2** via Nginx for geographic data. The following head
 location / {
     # GeoIP2 headers (existing)
     proxy_set_header X-Country-Code $geoip2_data_country_code;
-    
+
     # Add these for analytics
     proxy_set_header X-City $geoip2_data_city_name;
     proxy_set_header X-Request-ID $request_id;
-    
+
     # Standard proxy headers
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
-    
+
     proxy_pass http://localhost:3002;
 }
 ```
@@ -190,31 +195,31 @@ location / {
 ```typescript
 interface BaseEvent {
   // Identification
-  event_id: string;           // UUID v4
-  timestamp: string;          // ISO 8601 with ms precision
-  
+  event_id: string; // UUID v4
+  timestamp: string; // ISO 8601 with ms precision
+
   // Session & User
-  session_id: string;         // SHA256 hash of fingerprint
-  user_id: string | null;     // Hashed user ID (null if anonymous)
+  session_id: string; // SHA256 hash of fingerprint
+  user_id: string | null; // Hashed user ID (null if anonymous)
   is_authenticated: boolean;
-  
+
   // Geographic (from Nginx GeoIP2 headers)
-  country: string;            // From X-Country-Code header
-  city: string | null;        // From X-City header (if configured)
-  
+  country: string; // From X-Country-Code header
+  city: string | null; // From X-City header (if configured)
+
   // Device & Client
-  user_agent: string;         // Full user agent string
+  user_agent: string; // Full user agent string
   device_type: "mobile" | "tablet" | "desktop";
-  browser: string;            // Chrome, Safari, Firefox, etc.
-  os: string;                 // Windows, macOS, iOS, Android, Linux
-  
+  browser: string; // Chrome, Safari, Firefox, etc.
+  os: string; // Windows, macOS, iOS, Android, Linux
+
   // Bot Detection (via user-agent analysis, NOT GeoIP2)
   is_bot: boolean;
-  bot_type: string | null;    // googlebot, bingbot, scraper, etc.
-  
+  bot_type: string | null; // googlebot, bingbot, scraper, etc.
+
   // Request Context
   referer: string | null;
-  request_id: string;         // From X-Request-ID header (for distributed tracing)
+  request_id: string; // From X-Request-ID header (for distributed tracing)
 }
 ```
 
@@ -223,38 +228,38 @@ interface BaseEvent {
 ```typescript
 interface PageViewEvent extends BaseEvent {
   event_type: "page_view";
-  
+
   // Page Info
-  path: string;               // /movie/550/fight-club
+  path: string; // /movie/550/fight-club
   page_type: PageType;
-  item_id: number | null;     // TMDB ID if applicable
-  item_title: string | null;  // For easier querying
+  item_id: number | null; // TMDB ID if applicable
+  item_title: string | null; // For easier querying
   item_media_type: "movie" | "series" | "person" | null;
-  
+
   // Navigation
   previous_path: string | null;
-  entry_page: boolean;        // First page of session
-  
+  entry_page: boolean; // First page of session
+
   // Performance (from client)
-  ttfb: number | null;        // Time to first byte (ms)
-  fcp: number | null;         // First contentful paint (ms)
-  lcp: number | null;         // Largest contentful paint (ms)
-  cls: number | null;         // Cumulative layout shift
-  fid: number | null;         // First input delay (ms)
-  load_time: number | null;   // Full page load (ms)
+  ttfb: number | null; // Time to first byte (ms)
+  fcp: number | null; // First contentful paint (ms)
+  lcp: number | null; // Largest contentful paint (ms)
+  cls: number | null; // Cumulative layout shift
+  fid: number | null; // First input delay (ms)
+  load_time: number | null; // Full page load (ms)
 }
 
-type PageType = 
-  | "home" 
-  | "movie" 
-  | "series" 
-  | "person" 
-  | "browse" 
-  | "topics" 
+type PageType =
+  | "home"
+  | "movie"
+  | "series"
+  | "person"
+  | "browse"
+  | "topics"
   | "topic_detail"
-  | "watchlist" 
-  | "ratings" 
-  | "watched" 
+  | "watchlist"
+  | "ratings"
+  | "watched"
   | "search"
   | "admin"
   | "other";
@@ -265,21 +270,21 @@ type PageType =
 ```typescript
 interface SessionEvent extends BaseEvent {
   event_type: "session_start" | "session_end";
-  
+
   // Session metrics (only on session_end)
   duration_seconds: number | null;
   page_count: number | null;
   actions_count: number | null;
-  
+
   // Entry/Exit
   entry_path: string;
   entry_page_type: PageType;
   exit_path: string | null;
   exit_page_type: PageType | null;
-  
+
   // Journey summary
-  pages_visited: string[];    // Array of page types in order
-  bounce: boolean;            // Single page session
+  pages_visited: string[]; // Array of page types in order
+  bounce: boolean; // Single page session
 }
 ```
 
@@ -288,45 +293,45 @@ interface SessionEvent extends BaseEvent {
 ```typescript
 interface AIUsageEvent extends BaseEvent {
   event_type: "ai_usage";
-  
+
   // Query
-  query: string;              // Truncated to 500 chars
+  query: string; // Truncated to 500 chars
   query_type: QueryType;
   has_page_context: boolean;
   page_context_type: PageType | null;
   page_context_id: number | null;
-  
+
   // Model & Tokens
   model_id: string;
   model_name: string;
   input_tokens: number;
   output_tokens: number;
   total_tokens: number;
-  
+
   // Cost (USD)
   input_cost: number;
   output_cost: number;
   total_cost: number;
-  
+
   // Execution
   turns: number;
-  tool_calls: string[];       // ["discover", "get_details"]
+  tool_calls: string[]; // ["discover", "get_details"]
   duration_ms: number;
-  
+
   // Response Quality
   had_tool_recovery: boolean; // Tool calls parsed from text
-  response_length: number;    // Chars in final response
+  response_length: number; // Chars in final response
 }
 
-type QueryType = 
-  | "discover"        // Genre/filter based search
-  | "streaming"       // Where to watch
-  | "ratings"         // Is X good?
-  | "recommendation"  // Similar to X
-  | "person"          // Actor/director queries
-  | "trending"        // What's popular
-  | "detail"          // Info about specific title
-  | "media"           // Trailers, clips
+type QueryType =
+  | "discover" // Genre/filter based search
+  | "streaming" // Where to watch
+  | "ratings" // Is X good?
+  | "recommendation" // Similar to X
+  | "person" // Actor/director queries
+  | "trending" // What's popular
+  | "detail" // Info about specific title
+  | "media" // Trailers, clips
   | "other";
 ```
 
@@ -335,19 +340,19 @@ type QueryType =
 ```typescript
 interface UserActionEvent extends BaseEvent {
   event_type: "user_action";
-  
+
   action: ActionType;
-  
+
   // Target
   media_type: "movie" | "series" | null;
   item_id: number | null;
   item_title: string | null;
-  
+
   // Action-specific metadata
   metadata: Record<string, unknown>;
 }
 
-type ActionType = 
+type ActionType =
   | "watchlist_add"
   | "watchlist_remove"
   | "rate_like"
@@ -355,7 +360,7 @@ type ActionType =
   | "rate_remove"
   | "mark_watched"
   | "unmark_watched"
-  | "watch_click"       // Clicked streaming link
+  | "watch_click" // Clicked streaming link
   | "trailer_play"
   | "search_submit"
   | "filter_apply"
@@ -370,24 +375,24 @@ type ActionType =
 ```typescript
 interface APICallEvent extends BaseEvent {
   event_type: "api_call";
-  
+
   // API Info
   service: "tmdb" | "youtube" | "mongodb";
-  endpoint: string;           // /movie/550, /channels.list
-  method: string;             // GET, POST
-  
+  endpoint: string; // /movie/550, /channels.list
+  method: string; // GET, POST
+
   // Response
   status_code: number;
   duration_ms: number;
-  response_size: number;      // Bytes
-  
+  response_size: number; // Bytes
+
   // Cache
   cached: boolean;
   cache_hit: "l1" | "l2" | "stale" | "miss" | null;
-  
+
   // Quota (YouTube)
   quota_cost: number | null;
-  
+
   // Error
   error_type: string | null;
   error_message: string | null;
@@ -399,20 +404,20 @@ interface APICallEvent extends BaseEvent {
 ```typescript
 interface ErrorEvent extends BaseEvent {
   event_type: "error";
-  
+
   // Error Classification
   error_source: "client" | "server" | "api" | "auth" | "render";
-  error_type: string;         // TypeError, NetworkError, etc.
+  error_type: string; // TypeError, NetworkError, etc.
   error_message: string;
   error_stack: string | null; // Truncated to 2000 chars
-  
+
   // Context
   route: string | null;
-  component: string | null;   // React component name
-  
+  component: string | null; // React component name
+
   // Additional Context
   context: Record<string, unknown>;
-  
+
   // Severity
   severity: "low" | "medium" | "high" | "critical";
 }
@@ -424,11 +429,11 @@ interface ErrorEvent extends BaseEvent {
 interface CacheMetricsEvent {
   event_type: "cache_metrics";
   timestamp: string;
-  
+
   // Hit Rates
-  l1_hit_rate: number;        // 0-1
-  l2_hit_rate: number;        // 0-1
-  
+  l1_hit_rate: number; // 0-1
+  l2_hit_rate: number; // 0-1
+
   // Counts (since last report)
   l1_hits: number;
   l1_misses: number;
@@ -436,21 +441,21 @@ interface CacheMetricsEvent {
   l2_misses: number;
   stale_hits: number;
   background_refreshes: number;
-  
+
   // Compression
   compression_savings_bytes: number;
   compressed_writes: number;
-  
+
   // Size by Namespace
   namespace_sizes: {
     namespace: string;
     files: number;
     size_bytes: number;
   }[];
-  
+
   // Memory
   memory_keys: number;
-  
+
   // Errors
   fetch_errors: number;
 }
@@ -461,10 +466,10 @@ interface CacheMetricsEvent {
 ```typescript
 interface PerformanceEvent extends BaseEvent {
   event_type: "performance";
-  
+
   path: string;
   page_type: PageType;
-  
+
   // Navigation Timing
   dns_lookup: number | null;
   tcp_connect: number | null;
@@ -472,21 +477,21 @@ interface PerformanceEvent extends BaseEvent {
   response_time: number | null;
   dom_interactive: number | null;
   dom_complete: number | null;
-  
+
   // Core Web Vitals
   ttfb: number;
   fcp: number;
   lcp: number;
   cls: number;
   fid: number | null;
-  inp: number | null;        // Interaction to Next Paint
-  
+  inp: number | null; // Interaction to Next Paint
+
   // Resource Timing
   resource_count: number;
   total_transfer_size: number;
-  
+
   // Connection
-  connection_type: string | null;  // 4g, 3g, wifi, etc.
+  connection_type: string | null; // 4g, 3g, wifi, etc.
   effective_bandwidth: number | null;
 }
 ```
@@ -528,7 +533,7 @@ CREATE TABLE page_views (
     bot_type Nullable(LowCardinality(String)),
     referer Nullable(String),
     request_id String,
-    
+
     -- Page fields
     path String,
     page_type LowCardinality(String),
@@ -537,7 +542,7 @@ CREATE TABLE page_views (
     item_media_type Nullable(LowCardinality(String)),
     previous_path Nullable(String),
     entry_page UInt8,
-    
+
     -- Performance
     ttfb Nullable(Float32),
     fcp Nullable(Float32),
@@ -566,12 +571,12 @@ CREATE TABLE sessions (
     browser LowCardinality(String),
     os LowCardinality(String),
     is_bot UInt8,
-    
+
     -- Session metrics
     duration_seconds Nullable(UInt32),
     page_count UInt16,
     actions_count UInt16,
-    
+
     -- Journey
     entry_path String,
     entry_page_type LowCardinality(String),
@@ -595,31 +600,31 @@ CREATE TABLE ai_usage (
     user_id Nullable(String),
     is_authenticated UInt8,
     country LowCardinality(String),
-    
+
     -- Query
     query String,
     query_type LowCardinality(String),
     has_page_context UInt8,
     page_context_type Nullable(LowCardinality(String)),
     page_context_id Nullable(UInt32),
-    
+
     -- Model
     model_id LowCardinality(String),
     model_name LowCardinality(String),
     input_tokens UInt32,
     output_tokens UInt32,
     total_tokens UInt32,
-    
+
     -- Cost (stored as micro-dollars for precision)
     input_cost_micro UInt64,
     output_cost_micro UInt64,
     total_cost_micro UInt64,
-    
+
     -- Execution
     turns UInt8,
     tool_calls Array(LowCardinality(String)),
     duration_ms UInt32,
-    
+
     -- Quality
     had_tool_recovery UInt8,
     response_length UInt32
@@ -640,12 +645,12 @@ CREATE TABLE user_actions (
     is_authenticated UInt8,
     country LowCardinality(String),
     is_bot UInt8,
-    
+
     action LowCardinality(String),
     media_type Nullable(LowCardinality(String)),
     item_id Nullable(UInt32),
     item_title Nullable(String),
-    
+
     metadata String  -- JSON string for flexibility
 )
 ENGINE = MergeTree()
@@ -660,20 +665,20 @@ CREATE TABLE api_calls (
     timestamp DateTime64(3),
     session_id String,
     request_id String,
-    
+
     service LowCardinality(String),
     endpoint String,
     method LowCardinality(String),
-    
+
     status_code UInt16,
     duration_ms UInt32,
     response_size UInt32,
-    
+
     cached UInt8,
     cache_hit Nullable(LowCardinality(String)),
-    
+
     quota_cost Nullable(UInt8),
-    
+
     error_type Nullable(String),
     error_message Nullable(String)
 )
@@ -692,15 +697,15 @@ CREATE TABLE errors (
     user_id Nullable(String),
     country LowCardinality(String),
     user_agent String,
-    
+
     error_source LowCardinality(String),
     error_type String,
     error_message String,
     error_stack Nullable(String),
-    
+
     route Nullable(String),
     component Nullable(String),
-    
+
     context String,  -- JSON string
     severity LowCardinality(String)
 )
@@ -714,23 +719,23 @@ TTL timestamp + INTERVAL 90 DAY;
 -- =============================================================================
 CREATE TABLE cache_metrics (
     timestamp DateTime64(3),
-    
+
     l1_hit_rate Float32,
     l2_hit_rate Float32,
-    
+
     l1_hits UInt32,
     l1_misses UInt32,
     l2_hits UInt32,
     l2_misses UInt32,
     stale_hits UInt32,
     background_refreshes UInt32,
-    
+
     compression_savings_bytes UInt64,
     compressed_writes UInt32,
-    
+
     memory_keys UInt32,
     fetch_errors UInt32,
-    
+
     -- Flattened namespace sizes (top namespaces)
     youtube_files UInt32,
     youtube_bytes UInt64,
@@ -757,28 +762,28 @@ TTL timestamp + INTERVAL 30 DAY;
 -- =============================================================================
 CREATE TABLE system_metrics (
     timestamp DateTime64(3) DEFAULT now64(3),
-    
+
     -- CPU
     cpu_usage Float32,           -- Normalized CPU load (1m avg / cores)
     cpu_cores UInt8,
     load_avg_1m Float32,
     load_avg_5m Float32,
     load_avg_15m Float32,
-    
+
     -- Memory (Process)
     memory_rss UInt64,           -- Resident Set Size
     memory_heap_total UInt64,    -- V8 heap total
     memory_heap_used UInt64,     -- V8 heap used
     memory_external UInt64,      -- V8 external
     memory_array_buffers UInt64, -- V8 array buffers
-    
+
     -- Memory (System)
     memory_total UInt64,         -- OS total memory
     memory_free UInt64,          -- OS free memory
-    
+
     -- Event Loop
     event_loop_lag Float32,      -- Event loop lag in ms
-    
+
     -- Process
     uptime UInt32                -- Process uptime in seconds
 )
@@ -797,17 +802,17 @@ CREATE TABLE performance (
     country LowCardinality(String),
     device_type LowCardinality(String),
     connection_type Nullable(LowCardinality(String)),
-    
+
     path String,
     page_type LowCardinality(String),
-    
+
     ttfb Float32,
     fcp Float32,
     lcp Float32,
     cls Float32,
     fid Nullable(Float32),
     inp Nullable(Float32),
-    
+
     resource_count UInt16,
     total_transfer_size UInt32
 )
@@ -832,14 +837,14 @@ AS SELECT
     page_type,
     country,
     device_type,
-    
+
     count() AS page_views,
     countIf(is_authenticated = 1) AS auth_views,
     countIf(is_bot = 1) AS bot_views,
     uniq(session_id) AS unique_sessions,
     uniqIf(user_id, user_id IS NOT NULL) AS unique_users,
     countIf(entry_page = 1) AS entries,
-    
+
     -- Performance aggregates
     avg(lcp) AS avg_lcp,
     quantile(0.75)(lcp) AS p75_lcp,
@@ -860,7 +865,7 @@ AS SELECT
     model_name,
     user_id,
     is_authenticated,
-    
+
     count() AS invocations,
     sum(input_tokens) AS total_input_tokens,
     sum(output_tokens) AS total_output_tokens,
@@ -883,7 +888,7 @@ AS SELECT
     item_media_type,
     item_id,
     any(item_title) AS item_title,
-    
+
     count() AS views,
     uniq(session_id) AS unique_visitors,
     countIf(entry_page = 1) AS direct_entries,
@@ -902,7 +907,7 @@ ORDER BY (hour, service)
 AS SELECT
     toStartOfHour(timestamp) AS hour,
     service,
-    
+
     count() AS total_calls,
     countIf(cached = 1) AS cached_calls,
     countIf(cached = 0) AS uncached_calls,
@@ -924,7 +929,7 @@ AS SELECT
     error_source,
     severity,
     error_type,
-    
+
     count() AS count,
     uniq(session_id) AS affected_sessions
 FROM errors
@@ -955,7 +960,7 @@ const BOT_PATTERNS: BotPattern[] = [
   { pattern: /duckduckbot/i, type: "duckduckgo", category: "search_engine" },
   { pattern: /slurp/i, type: "yahoo", category: "search_engine" },
   { pattern: /applebot/i, type: "apple", category: "search_engine" },
-  
+
   // Social Media
   { pattern: /facebookexternalhit/i, type: "facebook", category: "social" },
   { pattern: /twitterbot/i, type: "twitter", category: "social" },
@@ -965,7 +970,7 @@ const BOT_PATTERNS: BotPattern[] = [
   { pattern: /whatsapp/i, type: "whatsapp", category: "social" },
   { pattern: /discordbot/i, type: "discord", category: "social" },
   { pattern: /slackbot/i, type: "slack", category: "social" },
-  
+
   // Performance/SEO Tools
   { pattern: /lighthouse/i, type: "lighthouse", category: "tool" },
   { pattern: /pagespeed/i, type: "pagespeed", category: "tool" },
@@ -974,18 +979,18 @@ const BOT_PATTERNS: BotPattern[] = [
   { pattern: /ahrefsbot/i, type: "ahrefs", category: "tool" },
   { pattern: /semrushbot/i, type: "semrush", category: "tool" },
   { pattern: /mj12bot/i, type: "majestic", category: "tool" },
-  
+
   // Monitoring
   { pattern: /uptimerobot/i, type: "uptimerobot", category: "monitoring" },
   { pattern: /statuscake/i, type: "statuscake", category: "monitoring" },
   { pattern: /site24x7/i, type: "site24x7", category: "monitoring" },
-  
+
   // AI/LLM Crawlers
   { pattern: /gptbot/i, type: "openai", category: "ai" },
   { pattern: /claudebot/i, type: "anthropic", category: "ai" },
   { pattern: /ccbot/i, type: "common_crawl", category: "ai" },
   { pattern: /bytespider/i, type: "bytedance", category: "ai" },
-  
+
   // Generic Bot/Script Patterns
   { pattern: /bot[^a-z]/i, type: "generic_bot", category: "scraper" },
   { pattern: /crawler/i, type: "crawler", category: "scraper" },
@@ -1003,7 +1008,11 @@ const BOT_PATTERNS: BotPattern[] = [
   { pattern: /puppeteer/i, type: "puppeteer", category: "scraper" },
 ];
 
-export function detectBot(userAgent: string): { isBot: boolean; botType: string | null; botCategory: string | null } {
+export function detectBot(userAgent: string): {
+  isBot: boolean;
+  botType: string | null;
+  botCategory: string | null;
+} {
   if (!userAgent) {
     return { isBot: true, botType: "empty_ua", botCategory: "scraper" };
   }
@@ -1055,8 +1064,8 @@ services:
     image: clickhouse/clickhouse-server:24.3
     container_name: analytics-clickhouse
     ports:
-      - "8123:8123"   # HTTP interface
-      - "9000:9000"   # Native interface
+      - "8123:8123" # HTTP interface
+      - "9000:9000" # Native interface
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - clickhouse-logs:/var/log/clickhouse-server
@@ -1190,6 +1199,7 @@ datasources:
 - [ ] Create ClickHouse user with write permissions for app
 
 **Files to create:**
+
 ```
 analytics/
 ├── docker-compose.analytics.yml
@@ -1222,6 +1232,7 @@ analytics/
 - [x] Integrate into Providers component
 
 **Key files:**
+
 ```
 src/lib/analytics/
 ├── index.ts
@@ -1255,6 +1266,7 @@ src/app/api/analytics/
 - [ ] Verify data in ClickHouse
 
 **Changes to:**
+
 - `src/server/ai/agent.ts` - Add ClickHouse tracking
 - `src/lib/analytics/ai-tracker.ts` - New file for AI-specific tracking
 
@@ -1270,6 +1282,7 @@ src/app/api/analytics/
 - [ ] Track cache hits/misses (optional - can be done via Pino logs)
 
 **Files:**
+
 - `src/hooks/use-analytics.ts` - Client-side action tracking hook
 
 **Usage:** See "useAnalytics Hook" section above for examples.
@@ -1284,9 +1297,11 @@ src/app/api/analytics/
 - [x] Include component stack traces
 
 **Files:**
+
 - `src/components/analytics/analytics-error-boundary.tsx`
 
 **Usage:**
+
 ```tsx
 // Wrap specific components
 <AnalyticsErrorBoundary componentName="MovieCard">
@@ -1311,6 +1326,7 @@ src/app/api/analytics/
 **Note:** FID (First Input Delay) was removed in web-vitals v4+, replaced by INP (Interaction to Next Paint).
 
 **Files:**
+
 - `src/components/analytics/web-vitals-tracker.tsx`
 
 ### Phase 7: Grafana Dashboards (2-3 days)
@@ -1318,6 +1334,7 @@ src/app/api/analytics/
 **Goal:** Build all dashboards
 
 #### Dashboard 1: Traffic Overview
+
 - Total page views (with bot filter)
 - Unique sessions / unique users
 - Geographic map
@@ -1327,6 +1344,7 @@ src/app/api/analytics/
 - Bot traffic breakdown
 
 #### Dashboard 2: User Journey
+
 - Session duration distribution
 - Pages per session
 - Entry pages
@@ -1336,6 +1354,7 @@ src/app/api/analytics/
 - Retention cohorts (day 1/7/30)
 
 #### Dashboard 3: AI Economics
+
 - Daily/weekly/monthly AI cost
 - Cost per user (top 10)
 - Token usage (input vs output)
@@ -1345,6 +1364,7 @@ src/app/api/analytics/
 - Model comparison (if running multiple)
 
 #### Dashboard 4: System Health
+
 - Cache hit rates (L1/L2) over time
 - Cache size by namespace
 - API call volume (TMDB/YouTube)
@@ -1354,6 +1374,7 @@ src/app/api/analytics/
 - P50/P95/P99 latency
 
 #### Dashboard 5: Content Performance
+
 - Top movies by views
 - Top series by views
 - Top search queries
@@ -1376,18 +1397,20 @@ src/app/api/analytics/
 
 ## Resource Requirements
 
-| Service | RAM (min) | RAM (recommended) | Disk |
-|---------|-----------|-------------------|------|
-| ClickHouse | 512MB | 1-2GB | 10GB+ |
-| Grafana | 256MB | 512MB | 1GB |
-| **Total** | **768MB** | **2.5GB** | **11GB** |
+| Service    | RAM (min) | RAM (recommended) | Disk     |
+| ---------- | --------- | ----------------- | -------- |
+| ClickHouse | 512MB     | 1-2GB             | 10GB+    |
+| Grafana    | 256MB     | 512MB             | 1GB      |
+| **Total**  | **768MB** | **2.5GB**         | **11GB** |
 
 **Estimated event volume:**
+
 - Page views: ~10K-50K/day → ~1M-1.5M/month
 - AI usage: ~100-500/day → ~3K-15K/month
 - API calls: ~50K-200K/day → ~1.5M-6M/month
 
 **Storage estimate (with compression):**
+
 - Page views: ~50 bytes/event → ~50-75MB/month
 - AI usage: ~200 bytes/event → ~3-5MB/month
 - API calls: ~100 bytes/event → ~150-600MB/month
@@ -1439,53 +1462,54 @@ import { hashString } from "./utils";
 export async function getTrackingContext(): Promise<TrackingContext> {
   const headersList = await headers();
   const session = await auth();
-  
+
   // Get headers from Nginx
   const userAgent = headersList.get("user-agent") || "";
   const country = headersList.get("x-country-code") || "unknown";
   const city = headersList.get("x-city") || null;
   const requestId = headersList.get("x-request-id") || crypto.randomUUID();
   const referer = headersList.get("referer") || null;
-  const realIp = headersList.get("x-real-ip") || headersList.get("x-forwarded-for")?.split(",")[0] || "";
-  
+  const realIp =
+    headersList.get("x-real-ip") || headersList.get("x-forwarded-for")?.split(",")[0] || "";
+
   // Parse user agent for device/browser/OS
   const device = parseUserAgent(userAgent);
-  
+
   // Detect bots via user-agent (NOT from GeoIP2)
   const { isBot, botType } = detectBot(userAgent);
-  
+
   // Generate session ID from fingerprint (no cookies needed)
   // Hash of: IP + User-Agent + Accept-Language (anonymized)
   const fingerprint = `${realIp}|${userAgent}|${headersList.get("accept-language") || ""}`;
   const sessionId = hashString(fingerprint);
-  
+
   // User ID (hashed if authenticated)
   const userId = session?.user?.id ? hashString(session.user.id) : null;
-  
+
   return {
     // Request
     requestId,
     timestamp: new Date().toISOString(),
-    
+
     // User
     sessionId,
     userId,
     isAuthenticated: !!session?.user,
-    
+
     // Geo (from Nginx GeoIP2)
     country,
     city,
-    
+
     // Device
     userAgent,
     deviceType: device.type,
     browser: device.browser,
     os: device.os,
-    
+
     // Bot detection (via user-agent analysis)
     isBot,
     botType,
-    
+
     // Navigation
     referer,
   };
@@ -1537,7 +1561,7 @@ await trackAPICall({
 
 ```sql
 -- Daily page views (excluding bots)
-SELECT 
+SELECT
     toDate(timestamp) AS date,
     count() AS views,
     uniq(session_id) AS sessions,
@@ -1549,7 +1573,7 @@ ORDER BY date DESC
 LIMIT 30;
 
 -- Top pages today
-SELECT 
+SELECT
     path,
     page_type,
     count() AS views,
@@ -1561,7 +1585,7 @@ ORDER BY views DESC
 LIMIT 20;
 
 -- Geographic distribution
-SELECT 
+SELECT
     country,
     count() AS views,
     uniq(session_id) AS sessions
@@ -1576,7 +1600,7 @@ LIMIT 20;
 
 ```sql
 -- Daily AI costs
-SELECT 
+SELECT
     toDate(timestamp) AS date,
     count() AS invocations,
     sum(total_tokens) AS tokens,
@@ -1587,7 +1611,7 @@ ORDER BY date DESC
 LIMIT 30;
 
 -- Cost per user (top 10)
-SELECT 
+SELECT
     user_id,
     is_authenticated,
     count() AS invocations,
@@ -1599,7 +1623,7 @@ ORDER BY cost_usd DESC
 LIMIT 10;
 
 -- Query type distribution
-SELECT 
+SELECT
     query_type,
     count() AS count,
     avg(duration_ms) AS avg_duration,
@@ -1614,7 +1638,7 @@ ORDER BY count DESC;
 
 ```sql
 -- User journey funnel: Home → Movie → Watch Click
-WITH 
+WITH
     sessions_with_home AS (
         SELECT DISTINCT session_id
         FROM page_views
@@ -1652,7 +1676,7 @@ WHERE session_id IN (SELECT session_id FROM sessions_with_movie);
 
 ```sql
 -- Cache hit rates over time
-SELECT 
+SELECT
     toStartOfHour(timestamp) AS hour,
     avg(l1_hit_rate) AS l1_rate,
     avg(l2_hit_rate) AS l2_rate
@@ -1662,7 +1686,7 @@ GROUP BY hour
 ORDER BY hour;
 
 -- YouTube quota usage today
-SELECT 
+SELECT
     toStartOfHour(timestamp) AS hour,
     sum(quota_cost) AS quota_used
 FROM api_calls
@@ -1671,7 +1695,7 @@ GROUP BY hour
 ORDER BY hour;
 
 -- Error rate by hour
-SELECT 
+SELECT
     toStartOfHour(timestamp) AS hour,
     error_source,
     count() AS errors
@@ -1694,13 +1718,14 @@ ORDER BY hour, errors DESC;
 
 2. **Data Retention**
    - Page views: 90 days
-   - Sessions: 180 days  
+   - Sessions: 180 days
    - AI usage: 365 days
    - API calls: 30 days
    - Errors: 90 days
    - Cache metrics: 30 days
 
 3. **DNT Compliance**
+
    ```typescript
    // Check Do Not Track header
    if (request.headers.get("dnt") === "1") {
@@ -1725,13 +1750,13 @@ ORDER BY hour, errors DESC;
 
 ## Cost Estimate
 
-| Item | Cost | Notes |
-|------|------|-------|
-| ClickHouse | $0 | Self-hosted |
-| Grafana | $0 | Self-hosted |
-| EC2 RAM increase | ~$5-10/month | If needed for 2GB+ |
-| Disk storage | ~$1-2/month | EBS for 20GB |
-| **Total** | **~$5-12/month** | |
+| Item             | Cost             | Notes              |
+| ---------------- | ---------------- | ------------------ |
+| ClickHouse       | $0               | Self-hosted        |
+| Grafana          | $0               | Self-hosted        |
+| EC2 RAM increase | ~$5-10/month     | If needed for 2GB+ |
+| Disk storage     | ~$1-2/month      | EBS for 20GB       |
+| **Total**        | **~$5-12/month** |                    |
 
 ---
 
@@ -1740,6 +1765,7 @@ ORDER BY hour, errors DESC;
 After implementation, we should be able to answer:
 
 ### Traffic Questions
+
 - ✅ How many real users (not bots) visit per day/week/month?
 - ✅ What countries do visitors come from?
 - ✅ What devices are most popular (mobile vs desktop)?
@@ -1747,6 +1773,7 @@ After implementation, we should be able to answer:
 - ✅ Where does traffic come from (referrers)?
 
 ### User Journey Questions
+
 - ✅ What's the average session duration?
 - ✅ What's the bounce rate by page type?
 - ✅ What percentage of visitors become authenticated users?
@@ -1754,6 +1781,7 @@ After implementation, we should be able to answer:
 - ✅ What content drives the most engagement?
 
 ### AI Questions
+
 - ✅ How much are we spending on AI per day/month?
 - ✅ Who are the heaviest AI users?
 - ✅ What types of queries are most common?
@@ -1761,6 +1789,7 @@ After implementation, we should be able to answer:
 - ✅ Are we within budget?
 
 ### System Health Questions
+
 - ✅ Is the cache performing well?
 - ✅ Are we within YouTube quota limits?
 - ✅ What's our error rate?
@@ -1780,6 +1809,7 @@ After implementation, we should be able to answer:
 8. ~~**Phase 8**: Configure alerting (Admin dashboard alerts)~~ ✅
 
 **Future Enhancements (Optional):**
+
 - Email/Slack/Discord alert notifications (webhook integration)
 - Grafana dashboards for advanced ad-hoc queries
 - Long-term trend analysis and anomaly detection
@@ -1795,12 +1825,11 @@ Wrap your app to enable all tracking:
 // In src/components/providers/index.tsx
 import { AnalyticsProvider } from "@/components/analytics";
 
-<AnalyticsProvider>
-  {children}
-</AnalyticsProvider>
+<AnalyticsProvider>{children}</AnalyticsProvider>;
 ```
 
 Configuration options:
+
 - `enablePageViews` - Track page views (default: true)
 - `enableWebVitals` - Track Core Web Vitals (default: true)
 - `enableErrorTracking` - Track global errors (default: true)
@@ -1827,6 +1856,7 @@ function WatchlistButton({ movieId, title }: Props) {
 ```
 
 Available methods:
+
 - `trackAction(options)` - Generic action tracking
 - `trackWatchlistAdd/Remove(itemId, mediaType, title?)`
 - `trackRating(itemId, mediaType, "like"|"dislike"|"remove", title?)`
@@ -1853,16 +1883,17 @@ Analytics dashboards are integrated directly into the admin dashboard at `/admin
 
 ### Available Views
 
-| Tab | Metrics |
-|-----|---------|
-| **Traffic** | Page views, sessions, bounce rate, geo distribution, device breakdown, top pages |
-| **AI** | Total cost, invocations, tokens, cost/call, query type distribution, top users |
-| **Performance** | Core Web Vitals (LCP, FCP, TTFB, CLS, INP) with status indicators |
-| **System** | Cache hit rates (L1/L2), memory keys, compression savings, fetch errors |
+| Tab             | Metrics                                                                          |
+| --------------- | -------------------------------------------------------------------------------- |
+| **Traffic**     | Page views, sessions, bounce rate, geo distribution, device breakdown, top pages |
+| **AI**          | Total cost, invocations, tokens, cost/call, query type distribution, top users   |
+| **Performance** | Core Web Vitals (LCP, FCP, TTFB, CLS, INP) with status indicators                |
+| **System**      | Cache hit rates (L1/L2), memory keys, compression savings, fetch errors          |
 
 ### Time Range Selection
 
 All analytics support configurable time ranges:
+
 - Last 24 hours
 - Last 7 days (default)
 - Last 30 days
@@ -1896,13 +1927,13 @@ Alerts are automatically checked and displayed in the admin dashboard.
 
 ### Alert Categories
 
-| Category | Alerts |
-|----------|--------|
-| **AI** | Daily cost critical/warning, cost spike vs 7-day avg, expensive single calls |
-| **Errors** | Error rate critical/warning, critical error count, unique error types spike |
-| **Performance** | LCP/CLS/INP threshold violations |
-| **Cache** | L1/L2 hit rate warnings, fetch errors |
-| **Traffic** | Traffic drop vs expected, excessive bot traffic |
+| Category        | Alerts                                                                       |
+| --------------- | ---------------------------------------------------------------------------- |
+| **AI**          | Daily cost critical/warning, cost spike vs 7-day avg, expensive single calls |
+| **Errors**      | Error rate critical/warning, critical error count, unique error types spike  |
+| **Performance** | LCP/CLS/INP threshold violations                                             |
+| **Cache**       | L1/L2 hit rate warnings, fetch errors                                        |
+| **Traffic**     | Traffic drop vs expected, excessive bot traffic                              |
 
 ### Alert Thresholds
 
@@ -1910,35 +1941,35 @@ Alerts are automatically checked and displayed in the admin dashboard.
 // Configurable in src/lib/analytics/alerts.ts
 ALERT_THRESHOLDS = {
   ai: {
-    dailyCostSpikeMultiplier: 2,    // 2x 7-day average
-    dailyCostWarning: 5,            // $5/day
-    dailyCostCritical: 10,          // $10/day
-    singleInvocationWarning: 0.5,   // $0.50/call
+    dailyCostSpikeMultiplier: 2, // 2x 7-day average
+    dailyCostWarning: 5, // $5/day
+    dailyCostCritical: 10, // $10/day
+    singleInvocationWarning: 0.5, // $0.50/call
   },
   errors: {
-    errorRateWarning: 3,            // 3%
-    errorRateCritical: 5,           // 5%
-    criticalErrorsWarning: 5,       // count
-    criticalErrorsCritical: 10,     // count
+    errorRateWarning: 3, // 3%
+    errorRateCritical: 5, // 5%
+    criticalErrorsWarning: 5, // count
+    criticalErrorsCritical: 10, // count
   },
   performance: {
-    lcpWarning: 2500,               // 2.5s
-    lcpCritical: 4000,              // 4s
+    lcpWarning: 2500, // 2.5s
+    lcpCritical: 4000, // 4s
     clsWarning: 0.1,
     clsCritical: 0.25,
-    inpWarning: 200,                // 200ms
-    inpCritical: 500,               // 500ms
+    inpWarning: 200, // 200ms
+    inpCritical: 500, // 500ms
   },
   cache: {
-    l1HitRateWarning: 50,           // 50%
-    l1HitRateCritical: 30,          // 30%
+    l1HitRateWarning: 50, // 50%
+    l1HitRateCritical: 30, // 30%
   },
   traffic: {
-    trafficDropMultiplier: 0.5,     // <50% of expected
-    botTrafficWarning: 30,          // 30%
-    botTrafficCritical: 50,         // 50%
+    trafficDropMultiplier: 0.5, // <50% of expected
+    botTrafficWarning: 30, // 30%
+    botTrafficCritical: 50, // 50%
   },
-}
+};
 ```
 
 ### Future: External Notifications
@@ -1957,11 +1988,13 @@ async function sendToDiscord(alert: Alert) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      embeds: [{
-        title: `[${alert.severity.toUpperCase()}] ${alert.title}`,
-        description: alert.message,
-        color: alert.severity === "critical" ? 0xff0000 : 0xffa500,
-      }],
+      embeds: [
+        {
+          title: `[${alert.severity.toUpperCase()}] ${alert.title}`,
+          description: alert.message,
+          color: alert.severity === "critical" ? 0xff0000 : 0xffa500,
+        },
+      ],
     }),
   });
 }
@@ -1976,10 +2009,11 @@ async function sendToDiscord(alert: Alert) {
 2. **Country = "unknown" locally**: No GeoIP headers in local dev. In production, Nginx provides `X-Country-Code`.
 
 3. **Client-safe imports**: Client components must import from specific modules:
+
    ```typescript
    // ✅ Good
    import type { PageType } from "@/lib/analytics/types";
-   
+
    // ❌ Bad (imports server-only auth code)
    import { PageType } from "@/lib/analytics";
    ```

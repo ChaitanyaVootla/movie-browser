@@ -133,7 +133,7 @@ interface MovieWithDetails {
 function categorizeMovies(movies: MovieWithDetails[]) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   // 60 days ago for "new releases"
   const sixtyDaysAgo = new Date(today);
   sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
@@ -195,9 +195,7 @@ function categorizeMovies(movies: MovieWithDetails[]) {
       }
     }
   }
-  const allGenres = Array.from(genreMap.values()).sort((a, b) => 
-    a.name.localeCompare(b.name)
-  );
+  const allGenres = Array.from(genreMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     newAndUpcoming,
@@ -256,4 +254,3 @@ function categorizeSeries(series: SeriesWithDetails[]) {
     totalCount: series.length,
   };
 }
-

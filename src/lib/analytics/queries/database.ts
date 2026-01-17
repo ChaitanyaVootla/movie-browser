@@ -59,19 +59,21 @@ export async function getDatabaseCounts(): Promise<DatabaseCounts> {
 /**
  * Find the most recent TMDB daily export file for a given type
  */
-function findLatestExportFile(type: "movie" | "tv_series" | "person"): { path: string; date: string } | null {
+function findLatestExportFile(
+  type: "movie" | "tv_series" | "person"
+): { path: string; date: string } | null {
   const dataDir = join(process.cwd(), "data");
-  
+
   if (!existsSync(dataDir)) {
     return null;
   }
 
   try {
     const files = readdirSync(dataDir);
-    
+
     // Look for files matching pattern: movie_ids_MM_DD_YYYY.json or tv_series_ids_...
     const pattern = new RegExp(`^${type}_ids_(\\d{2}_\\d{2}_\\d{4})\\.json$`);
-    
+
     let latestFile: { path: string; date: string } | null = null;
     let latestDate: Date | null = null;
 
@@ -81,7 +83,7 @@ function findLatestExportFile(type: "movie" | "tv_series" | "person"): { path: s
         // Parse date from filename (MM_DD_YYYY)
         const [month, day, year] = match[1].split("_").map(Number);
         const fileDate = new Date(year, month - 1, day);
-        
+
         if (!latestDate || fileDate > latestDate) {
           latestDate = fileDate;
           latestFile = {
@@ -228,25 +230,21 @@ export async function getSeriesRefreshStats(): Promise<RefreshStats> {
  */
 export async function getEnrichmentStats(): Promise<EnrichmentStats> {
   try {
-    const [
-      moviesWithRatings,
-      seriesWithRatings,
-      moviesWithWatchLinks,
-      seriesWithWatchLinks,
-    ] = await Promise.all([
-      prisma.movie.count({
-        where: { ratingsScrapedAt: { not: null } },
-      }),
-      prisma.series.count({
-        where: { ratingsScrapedAt: { not: null } },
-      }),
-      prisma.movie.count({
-        where: { watchLinksScrapedAt: { not: null } },
-      }),
-      prisma.series.count({
-        where: { watchLinksScrapedAt: { not: null } },
-      }),
-    ]);
+    const [moviesWithRatings, seriesWithRatings, moviesWithWatchLinks, seriesWithWatchLinks] =
+      await Promise.all([
+        prisma.movie.count({
+          where: { ratingsScrapedAt: { not: null } },
+        }),
+        prisma.series.count({
+          where: { ratingsScrapedAt: { not: null } },
+        }),
+        prisma.movie.count({
+          where: { watchLinksScrapedAt: { not: null } },
+        }),
+        prisma.series.count({
+          where: { watchLinksScrapedAt: { not: null } },
+        }),
+      ]);
 
     return {
       moviesWithRatings,
@@ -276,29 +274,19 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
  * Get all database statistics in one call
  */
 export async function getDatabaseStats(): Promise<DatabaseStats> {
-  const [dbCounts, tmdbCounts, movieRefresh, seriesRefresh, enrichment] =
-    await Promise.all([
-      getDatabaseCounts(),
-      getTMDBAvailableCounts(),
-      getMovieRefreshStats(),
-      getSeriesRefreshStats(),
-      getEnrichmentStats(),
-    ]);
+  const [dbCounts, tmdbCounts, movieRefresh, seriesRefresh, enrichment] = await Promise.all([
+    getDatabaseCounts(),
+    getTMDBAvailableCounts(),
+    getMovieRefreshStats(),
+    getSeriesRefreshStats(),
+    getEnrichmentStats(),
+  ]);
 
   // Calculate coverage percentages
   const coverage = {
-    moviesPercent:
-      tmdbCounts.movies > 0
-        ? (dbCounts.movies / tmdbCounts.movies) * 100
-        : 0,
-    seriesPercent:
-      tmdbCounts.series > 0
-        ? (dbCounts.series / tmdbCounts.series) * 100
-        : 0,
-    personsPercent:
-      tmdbCounts.persons > 0
-        ? (dbCounts.persons / tmdbCounts.persons) * 100
-        : 0,
+    moviesPercent: tmdbCounts.movies > 0 ? (dbCounts.movies / tmdbCounts.movies) * 100 : 0,
+    seriesPercent: tmdbCounts.series > 0 ? (dbCounts.series / tmdbCounts.series) * 100 : 0,
+    personsPercent: tmdbCounts.persons > 0 ? (dbCounts.persons / tmdbCounts.persons) * 100 : 0,
   };
 
   return {

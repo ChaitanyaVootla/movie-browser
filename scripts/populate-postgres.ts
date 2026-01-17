@@ -80,45 +80,45 @@ const PRESETS = {
 };
 
 // Concurrency settings
-const DEFAULT_CONCURRENCY = 3;     // Full hydration (Lambda is slow)
-const FAST_CONCURRENCY = 10;       // TMDB-only (much faster)
+const DEFAULT_CONCURRENCY = 3; // Full hydration (Lambda is slow)
+const FAST_CONCURRENCY = 10; // TMDB-only (much faster)
 const DELAY_BETWEEN_BATCHES_MS = 200; // Rate limiting (TMDB allows ~40 req/s)
 
 // Popular movie/series IDs for quick testing
 const TEST_MOVIE_IDS = [
-  550,    // Fight Club
-  278,    // The Shawshank Redemption
-  238,    // The Godfather
-  680,    // Pulp Fiction
-  155,    // The Dark Knight
-  13,     // Forrest Gump
-  27205,  // Inception
+  550, // Fight Club
+  278, // The Shawshank Redemption
+  238, // The Godfather
+  680, // Pulp Fiction
+  155, // The Dark Knight
+  13, // Forrest Gump
+  27205, // Inception
   157336, // Interstellar
-  19995,  // Avatar
+  19995, // Avatar
   299534, // Avengers: Endgame
-  76600,  // Avatar: The Way of Water
-  424,    // Schindler's List
-  122,    // The Lord of the Rings: The Return of the King
-  11,     // Star Wars
-  120,    // The Lord of the Rings: The Fellowship of the Ring
-  807,    // Se7en
-  497,    // The Green Mile
-  603,    // The Matrix
-  769,    // GoodFellas
-  240,    // The Godfather Part II
+  76600, // Avatar: The Way of Water
+  424, // Schindler's List
+  122, // The Lord of the Rings: The Return of the King
+  11, // Star Wars
+  120, // The Lord of the Rings: The Fellowship of the Ring
+  807, // Se7en
+  497, // The Green Mile
+  603, // The Matrix
+  769, // GoodFellas
+  240, // The Godfather Part II
 ];
 
 const TEST_SERIES_IDS = [
-  1396,   // Breaking Bad
-  1399,   // Game of Thrones
-  66732,  // Stranger Things
-  84958,  // Loki
-  60735,  // The Flash
-  456,    // The Simpsons
-  1418,   // The Big Bang Theory
-  1668,   // Friends
-  94605,  // Arcane
-  71712,  // The Good Doctor
+  1396, // Breaking Bad
+  1399, // Game of Thrones
+  66732, // Stranger Things
+  84958, // Loki
+  60735, // The Flash
+  456, // The Simpsons
+  1418, // The Big Bang Theory
+  1668, // Friends
+  94605, // Arcane
+  71712, // The Good Doctor
 ];
 
 // ============================================
@@ -173,13 +173,19 @@ function parseArgs() {
   if (movieId) {
     specificMovieIds = [parseInt(movieId, 10)];
   } else if (idsArg) {
-    specificMovieIds = idsArg.split(",").map((id) => parseInt(id.trim(), 10)).filter((id) => !isNaN(id));
+    specificMovieIds = idsArg
+      .split(",")
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !isNaN(id));
   }
 
   if (seriesId) {
     specificSeriesIds = [parseInt(seriesId, 10)];
   } else if (seriesIdsArg) {
-    specificSeriesIds = seriesIdsArg.split(",").map((id) => parseInt(id.trim(), 10)).filter((id) => !isNaN(id));
+    specificSeriesIds = seriesIdsArg
+      .split(",")
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !isNaN(id));
   }
 
   // Counts
@@ -217,9 +223,11 @@ function parseArgs() {
   // Speed optimizations
   const fastMode = hasFlag("fast");
   const concurrencyArg = getArgValue("--concurrency");
-  const concurrency = concurrencyArg 
-    ? parseInt(concurrencyArg, 10) 
-    : (fastMode ? FAST_CONCURRENCY : DEFAULT_CONCURRENCY);
+  const concurrency = concurrencyArg
+    ? parseInt(concurrencyArg, 10)
+    : fastMode
+      ? FAST_CONCURRENCY
+      : DEFAULT_CONCURRENCY;
 
   // Skip Lambda by default for bulk population (use MongoDB only for enrichment)
   // Use --with-lambda to enable Lambda fallback
@@ -233,7 +241,8 @@ function parseArgs() {
     forceRefresh: hasFlag("force"),
     dryRun: hasFlag("dry-run"),
     resume: hasFlag("resume"),
-    useTestIds: hasFlag("test-ids") || (movieCount <= 20 && !specificMovieIds && !specificSeriesIds),
+    useTestIds:
+      hasFlag("test-ids") || (movieCount <= 20 && !specificMovieIds && !specificSeriesIds),
     // Speed optimizations
     fastMode,
     skipExisting: hasFlag("skip-existing"),
@@ -279,9 +288,7 @@ function loadMovieIds(count: number): number[] {
   }
   const entries: TMDBExportEntry[] = JSON.parse(readFileSync(TMDB_IDS_FILE, "utf-8"));
   // If count is Infinity (--all), return all entries
-  return count === Infinity 
-    ? entries.map((e) => e.id)
-    : entries.slice(0, count).map((e) => e.id);
+  return count === Infinity ? entries.map((e) => e.id) : entries.slice(0, count).map((e) => e.id);
 }
 
 function loadSeriesIds(count: number): number[] {
@@ -291,9 +298,7 @@ function loadSeriesIds(count: number): number[] {
   }
   const entries: TMDBExportEntry[] = JSON.parse(readFileSync(SERIES_IDS_FILE, "utf-8"));
   // If count is Infinity (--all), return all entries
-  return count === Infinity 
-    ? entries.map((e) => e.id)
-    : entries.slice(0, count).map((e) => e.id);
+  return count === Infinity ? entries.map((e) => e.id) : entries.slice(0, count).map((e) => e.id);
 }
 
 // ============================================
@@ -333,12 +338,8 @@ interface HydrationFunctions {
 
 // Dynamically import to avoid loading all the server code at parse time
 async function loadHydrationFunctions(): Promise<HydrationFunctions> {
-  const { 
-    hydrateMovie, 
-    hydrateSeries,
-    hydrateMoviePartial,
-    hydrateSeriesPartial 
-  } = await import("../src/server/services/hydration/index");
+  const { hydrateMovie, hydrateSeries, hydrateMoviePartial, hydrateSeriesPartial } =
+    await import("../src/server/services/hydration/index");
   return { hydrateMovie, hydrateSeries, hydrateMoviePartial, hydrateSeriesPartial };
 }
 
@@ -414,7 +415,7 @@ async function checkExistingMovies(ids: number[]): Promise<Set<number>> {
       where: { id: { in: ids } },
       select: { id: true },
     });
-    return new Set(existing.map(m => m.id));
+    return new Set(existing.map((m) => m.id));
   } finally {
     await prisma.$disconnect();
   }
@@ -428,34 +429,30 @@ async function checkExistingSeries(ids: number[]): Promise<Set<number>> {
       where: { id: { in: ids } },
       select: { id: true },
     });
-    return new Set(existing.map(s => s.id));
+    return new Set(existing.map((s) => s.id));
   } finally {
     await prisma.$disconnect();
   }
 }
 
 // Retry helper for deadlock errors
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  baseDelayMs = 100
-): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, baseDelayMs = 100): Promise<T> {
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      const isDeadlock = lastError.message.includes("deadlock") || 
-                         lastError.message.includes("40P01");
-      
+      const isDeadlock =
+        lastError.message.includes("deadlock") || lastError.message.includes("40P01");
+
       if (!isDeadlock || attempt === maxRetries) {
         throw lastError;
       }
-      
+
       // Exponential backoff with jitter for deadlocks
       const delay = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 100;
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
   throw lastError;
@@ -548,8 +545,11 @@ async function processBatch<T>(
     if (progress % 50 === 0 || progress === items.length || progress <= concurrency) {
       const elapsed = (Date.now() - startTime) / 1000;
       const rate = elapsed > 0 ? (successes / elapsed).toFixed(1) : "0";
-      const eta = successes > 0 ? ((items.length - progress) / (successes / elapsed)).toFixed(0) : "?";
-      log(`   📊 Progress: ${progress}/${items.length} (${successes} ok, ${failures} fail) | ${rate}/s | ETA: ${eta}s`);
+      const eta =
+        successes > 0 ? ((items.length - progress) / (successes / elapsed)).toFixed(0) : "?";
+      log(
+        `   📊 Progress: ${progress}/${items.length} (${successes} ok, ${failures} fail) | ${rate}/s | ETA: ${eta}s`
+      );
     }
 
     // Rate limiting
@@ -579,10 +579,14 @@ async function main() {
   } else {
     console.log(`  Movies: ${opts.movieCount === Infinity ? "ALL" : opts.movieCount}`);
     console.log(`  Series: ${opts.seriesCount === Infinity ? "ALL" : opts.seriesCount}`);
-    console.log(`  Source: ${opts.useTestIds ? "Test IDs (hardcoded popular titles)" : "TMDB Daily Export"}`);
+    console.log(
+      `  Source: ${opts.useTestIds ? "Test IDs (hardcoded popular titles)" : "TMDB Daily Export"}`
+    );
   }
   console.log(`  Fast Mode: ${opts.fastMode} ${opts.fastMode ? "(TMDB only, no enrichment)" : ""}`);
-  console.log(`  Skip Lambda: ${opts.skipLambda} ${opts.skipLambda ? "(TMDB + MongoDB only)" : "(will use Lambda fallback)"}`);
+  console.log(
+    `  Skip Lambda: ${opts.skipLambda} ${opts.skipLambda ? "(TMDB + MongoDB only)" : "(will use Lambda fallback)"}`
+  );
   console.log(`  Skip Existing: ${opts.skipExisting}`);
   console.log(`  Concurrency: ${opts.concurrency}`);
   console.log(`  Force Refresh: ${opts.forceRefresh}`);
@@ -614,25 +618,31 @@ async function main() {
     // For --all mode, pass Infinity to get all IDs
     movieIds = loadMovieIds(opts.movieCount);
     seriesIds = loadSeriesIds(opts.seriesCount);
-    log(`📋 Loaded ${movieIds.length} movie IDs and ${seriesIds.length} series IDs from TMDB exports\n`);
+    log(
+      `📋 Loaded ${movieIds.length} movie IDs and ${seriesIds.length} series IDs from TMDB exports\n`
+    );
   }
 
   // Skip existing items if --skip-existing is set
   if (opts.skipExisting && (movieIds.length > 0 || seriesIds.length > 0)) {
     log("🔍 Checking for existing items in PostgreSQL...\n");
-    
+
     if (movieIds.length > 0) {
       const existingMovies = await checkExistingMovies(movieIds);
       const originalCount = movieIds.length;
-      movieIds = movieIds.filter(id => !existingMovies.has(id));
-      log(`   Movies: ${existingMovies.size} already exist, ${movieIds.length} to process (skipped ${originalCount - movieIds.length})`);
+      movieIds = movieIds.filter((id) => !existingMovies.has(id));
+      log(
+        `   Movies: ${existingMovies.size} already exist, ${movieIds.length} to process (skipped ${originalCount - movieIds.length})`
+      );
     }
-    
+
     if (seriesIds.length > 0) {
       const existingSeries = await checkExistingSeries(seriesIds);
       const originalCount = seriesIds.length;
-      seriesIds = seriesIds.filter(id => !existingSeries.has(id));
-      log(`   Series: ${existingSeries.size} already exist, ${seriesIds.length} to process (skipped ${originalCount - seriesIds.length})`);
+      seriesIds = seriesIds.filter((id) => !existingSeries.has(id));
+      log(
+        `   Series: ${existingSeries.size} already exist, ${seriesIds.length} to process (skipped ${originalCount - seriesIds.length})`
+      );
     }
     log("");
   }
@@ -640,10 +650,14 @@ async function main() {
   if (opts.dryRun) {
     log("🔍 DRY RUN - Would process:\n");
     if (movieIds.length > 0) {
-      log(`   Movies (${movieIds.length}): ${movieIds.slice(0, 10).join(", ")}${movieIds.length > 10 ? "..." : ""}`);
+      log(
+        `   Movies (${movieIds.length}): ${movieIds.slice(0, 10).join(", ")}${movieIds.length > 10 ? "..." : ""}`
+      );
     }
     if (seriesIds.length > 0) {
-      log(`   Series (${seriesIds.length}): ${seriesIds.slice(0, 10).join(", ")}${seriesIds.length > 10 ? "..." : ""}`);
+      log(
+        `   Series (${seriesIds.length}): ${seriesIds.slice(0, 10).join(", ")}${seriesIds.length > 10 ? "..." : ""}`
+      );
     }
     log("\n   Run without --dry-run to execute.\n");
     return;
@@ -679,12 +693,17 @@ async function main() {
 
   // Process movies
   if (movieIds.length > 0) {
-    const mode = opts.fastMode ? "(TMDB only)" : opts.skipLambda ? "(TMDB + MongoDB)" : "(full w/ Lambda)";
+    const mode = opts.fastMode
+      ? "(TMDB only)"
+      : opts.skipLambda
+        ? "(TMDB + MongoDB)"
+        : "(full w/ Lambda)";
     log(`\n🎬 POPULATING ${movieIds.length} MOVIES ${mode}\n`);
 
     const movieResults = await processBatch(
       movieIds,
-      async (id) => populateMovie(id, hydrationFns, opts.forceRefresh, opts.fastMode, opts.skipLambda),
+      async (id) =>
+        populateMovie(id, hydrationFns, opts.forceRefresh, opts.fastMode, opts.skipLambda),
       "Movie",
       opts.concurrency
     );
@@ -697,12 +716,17 @@ async function main() {
 
   // Process series
   if (seriesIds.length > 0) {
-    const mode = opts.fastMode ? "(TMDB only)" : opts.skipLambda ? "(TMDB + MongoDB)" : "(full w/ Lambda)";
+    const mode = opts.fastMode
+      ? "(TMDB only)"
+      : opts.skipLambda
+        ? "(TMDB + MongoDB)"
+        : "(full w/ Lambda)";
     log(`\n📺 POPULATING ${seriesIds.length} SERIES ${mode}\n`);
 
     const seriesResults = await processBatch(
       seriesIds,
-      async (id) => populateSeries(id, hydrationFns, opts.forceRefresh, opts.fastMode, opts.skipLambda),
+      async (id) =>
+        populateSeries(id, hydrationFns, opts.forceRefresh, opts.fastMode, opts.skipLambda),
       "Series",
       opts.concurrency
     );
@@ -710,7 +734,9 @@ async function main() {
     totalSeriesSuccesses = seriesResults.successes;
     totalSeriesFailures = seriesResults.failures;
 
-    logSuccess(`Series complete: ${totalSeriesSuccesses} populated, ${totalSeriesFailures} failed\n`);
+    logSuccess(
+      `Series complete: ${totalSeriesSuccesses} populated, ${totalSeriesFailures} failed\n`
+    );
   }
 
   // Summary
@@ -734,11 +760,11 @@ async function main() {
 
   // Cleanup and exit
   await cleanup();
-  
+
   if (totalFailed > 0) {
     process.exit(1);
   }
-  
+
   process.exit(0);
 }
 
@@ -753,7 +779,7 @@ async function cleanup() {
   } catch {
     // Ignore - MongoDB may not have been loaded
   }
-  
+
   // Disconnect Prisma
   try {
     const { PrismaClient } = await import("@prisma/client");

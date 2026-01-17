@@ -1,0 +1,191 @@
+---
+description: RSC payload optimization, Light DTOs, and what NOT to trim
+globs: ["src/app/**/page.tsx", "src/types/client-props.ts", "src/server/actions/**/*.ts"]
+alwaysApply: false
+---
+
+# Movie Browser - RSC Optimization Rules
+
+## Overview
+
+React Server Components (RSC) serialize all data passed to client components as inline JSON in `<script>` tags. Without optimization, detail pages can grow to 800KB+ of RSC payload.
+
+**Current Status (Jan 2026):**
+| Page | HTML Size | RSC Payload | Notes |
+|------|-----------|-------------|-------|
+| Movie | ~885KB | ~680KB | Full videos/images/recommendations included |
+| Series | ~497KB | ~285KB | Episodes stay server-side |
+| Person | ~505KB | ~400KB | Light DTOs applied |
+| Homepage | ~534KB | N/A | Trending items stripped of overview |
+| Browse | ~190KB | N/A | Minimal, near ideal |
+
+## Light DTOs Pattern
+
+Create minimal DTOs containing only fields client components need. Defined in `src/types/client-props.ts`:
+
+```typescript
+// Instead of passing full Movie (100+ fields):
+interface MovieOverviewProps {
+  id: number;
+  title: string;
+  overview: string;
+  director?: MediaOverviewDirector;
+  topCast: MediaOverviewCast[];  // Only top 15, with minimal fields
+  keywords?: MediaOverviewKeyword[];
+  // ... only what MediaOverview actually uses
+}
+
+// Extraction function strips unused fields on server
+export function extractMovieOverviewProps(movie: Movie): MovieOverviewProps {
+  return {
+    id: movie.id,
+    title: movie.title,
+    overview: movie.overview,
+    director: movie.credits?.crew?.find(c => c.job === "Director")
+      ? { id, name, profile_path }  // Only 3 fields, not full CrewMember
+      : undefined,
+    topCast: movie.credits?.cast?.slice(0, 15).map(c => ({
+      id: c.id, name: c.name, character: c.character, profile_path: c.profile_path
+    })) || [],
+    // ...
+  };
+}
+```
+
+## Available Extraction Functions
+
+| Function | Input | Output | Savings |
+|----------|-------|--------|---------|
+| `extractMovieOverviewProps(movie)` | Movie | MovieOverviewProps | ~50KB |
+| `extractSeriesOverviewProps(series)` | Series | SeriesOverviewProps | ~50KB |
+| `extractWatchOptionsItem(item, isMovie)` | Movie/Series | WatchOptionsItem | ~10KB |
+| `extractTrailerData(videos)` | Videos | TrailerData | ~5KB |
+| `extractBadgeProps(item)` | Movie/Series | BadgeComputeProps | ~100KB |
+| `extractLightCollection(collection)` | Collection | LightCollection | ~10KB |
+| `extractLightGalleryImages(images, limit)` | Images | LightGalleryImage[] | ~1KB |
+| `extractPersonHeroProps(person)` | Person | PersonHeroProps | ~200KB |
+| `extractKnownForCredits(cast, limit)` | Credits | LightPersonCastCredit[] | ~100KB |
+| `extractFilmographyCredits(cast, crew)` | Credits | PersonCreditsLight | ~200KB |
+
+## Usage in Page Components
+
+```tsx
+// src/app/movie/[...params]/page.tsx
+import {
+  extractMovieOverviewProps,
+  extractWatchOptionsItem,
+  extractTrailerData,
+  extractBadgeProps,
+  extractLightCollection,
+} from "@/types/client-props";
+
+export default async function MoviePage({ params }: PageProps) {
+  const movie = await getMovie(movieId);
+
+  // Extract only what client components need
+  const overviewProps = extractMovieOverviewProps(movie);
+  const watchOptionsItem = extractWatchOptionsItem(movie, true);
+  const trailerData = extractTrailerData(movie.videos);
+  const badgeProps = extractBadgeProps(movie);
+
+  return (
+    <>
+      <MediaOverview {...overviewProps} mediaType="movie" />
+      <WatchOptions item={watchOptionsItem} mediaType="movie" />
+      <MediaActionBar trailerData={trailerData} />
+      <BadgeDisplay badges={getMediaBadges("movie", badgeProps)} />
+    </>
+  );
+}
+```
+
+## Stripping `overview` from List Items
+
+List items (recommendations, similar, trending) include `overview` fields that cards don't display. Strip them in server actions:
+
+```typescript
+// src/server/actions/trending.ts
+export async function getTrending(): Promise<TrendingData> {
+  const movies = await getTrendingMovies();
+
+  return {
+    // Strip overview from list items (saves ~200-500 bytes each x 20 items = 4-10KB)
+    movies: movies.map(({ overview: _o, ...rest }) => rest),
+    series: series.map(({ overview: _o, ...rest }) => rest),
+  };
+}
+```
+
+**Note:** Extraction functions like `extractLightMovieListItems()` are available but stripping is done at the server action level for trending/discover.
+
+## Lazy-Loading Watch Providers
+
+Watch providers are fetched on-demand when user changes country:
+
+```tsx
+// WatchOptions fetches via API when country changes
+// API: GET /api/watch-providers/[mediaType]/[id]?country=XX
+
+// Server sends only pre-processed watch_options for user's detected country
+// No more bundling 15+ countries in RSC payload
+```
+
+## What NOT to Trim
+
+Based on user feedback (Jan 2026), the following should NOT be limited to preserve user experience:
+
+- **Videos** - Keep all (was: limited to 20)
+- **Images/Backdrops** - Keep all (was: limited to 20)
+- **Recommendations** - Keep all (was: limited to 15)
+- **Similar** - Keep all (was: limited to 15)
+
+The small payload savings (~10-15KB) didn't justify reduced content richness.
+
+## Response Size Tests
+
+E2E tests guard against payload regressions:
+
+```bash
+# Run response size tests
+npx playwright test e2e/perf/response-size.spec.ts --project="Performance Tests" --workers=1
+
+# Current limits (catch 25% regression from baseline):
+# Movie: 1.5MB, Series: 1.6MB, Person: 1.1MB, Homepage: 850KB, Browse: 400KB
+```
+
+## Server vs Client Component Decision Tree
+
+```
+Does the component need:
+  - Event handlers (onClick, onChange)?      -> Client
+  - React hooks (useState, useEffect)?       -> Client
+  - Browser APIs (window, localStorage)?     -> Client
+  - Third-party client libraries?            -> Client
+  - Animation with user interaction?         -> Client
+  - NONE of the above?                       -> Server (default)
+```
+
+## Patterns to Avoid
+
+```tsx
+// BAD: Passing full entity to client component
+<MediaOverview movie={movie} />  // Serializes 100+ fields
+
+// GOOD: Extract only needed fields
+const overviewProps = extractMovieOverviewProps(movie);
+<MediaOverview {...overviewProps} />  // Only ~10 fields
+```
+
+```tsx
+// BAD: Nested data with redundant fields
+<CastList cast={movie.credits?.cast} />  // Each cast member has 20+ fields
+
+// GOOD: Extract minimal cast data
+const topCast = movie.credits?.cast?.slice(0, 15).map(c => ({
+  id: c.id,
+  name: c.name,
+  character: c.character,
+  profile_path: c.profile_path,
+}));
+<CastList cast={topCast} />  // Only 4 fields per person
+```

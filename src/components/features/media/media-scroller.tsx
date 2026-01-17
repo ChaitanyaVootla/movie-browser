@@ -26,15 +26,15 @@ interface MediaScrollerProps {
 
 /**
  * MediaScroller - Universal horizontal scroller with drag-to-scroll and arrow controls.
- * 
+ *
  * Use this component for full sections with headers:
  * - Movie/series carousels
- * - Person scrollers  
+ * - Person scrollers
  * - Episode scrollers
  * - Any other horizontal lists with titles
- * 
+ *
  * For simple horizontal scrolls without headers, use ScrollContainer directly.
- * 
+ *
  * Features:
  * - Drag to scroll with click detection (won't block clicks on items)
  * - Left/right arrow controls on desktop
@@ -62,13 +62,12 @@ export function MediaScroller({
           {/* Title */}
           <div className="flex items-center gap-2">
             {titleIcon}
-            {title && (
-              typeof title === "string" ? (
+            {title &&
+              (typeof title === "string" ? (
                 <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
               ) : (
                 title
-              )
-            )}
+              ))}
           </div>
 
           {/* Controls + See All */}

@@ -187,9 +187,7 @@ function truncate(text: string | undefined | null, maxLength: number): string {
 /**
  * Extract director from crew array
  */
-function extractDirector(
-  crew: Array<{ name: string; job: string }> | undefined
-): string | null {
+function extractDirector(crew: Array<{ name: string; job: string }> | undefined): string | null {
   if (!crew) return null;
   const director = crew.find((c) => c.job === "Director");
   return director?.name || null;
@@ -203,17 +201,13 @@ function extractTopCast(
   limit = 5
 ): string[] {
   if (!cast) return [];
-  return cast
-    .slice(0, limit)
-    .map((c) => c.name);
+  return cast.slice(0, limit).map((c) => c.name);
 }
 
 /**
  * Extract creators from series
  */
-function extractCreators(
-  createdBy: Array<{ name: string }> | undefined
-): string[] {
+function extractCreators(createdBy: Array<{ name: string }> | undefined): string[] {
   if (!createdBy) return [];
   return createdBy.map((c) => c.name);
 }
@@ -257,7 +251,12 @@ function processStreamingOptions(watchOptions: ProcessedWatchOptions): {
     // Scraped format uses "subscription", "free", actual prices like "₹99", or empty
     let watchType: "flatrate" | "rent" | "buy";
 
-    if (priceLower.includes("flatrate") || priceLower.includes("subscription") || priceLower === "free" || priceLower === "") {
+    if (
+      priceLower.includes("flatrate") ||
+      priceLower.includes("subscription") ||
+      priceLower === "free" ||
+      priceLower === ""
+    ) {
       // Subscription/free streaming
       watchType = "flatrate";
     } else if (priceLower.includes("rent")) {
@@ -293,9 +292,7 @@ function processStreamingOptions(watchOptions: ProcessedWatchOptions): {
 /**
  * Convert ProcessedRating array to simple rating object
  */
-function simplifyRatings(
-  ratings: ProcessedRating[]
-): LightMovieDetails["ratings"] {
+function simplifyRatings(ratings: ProcessedRating[]): LightMovieDetails["ratings"] {
   const result: LightMovieDetails["ratings"] = {};
 
   for (const r of ratings) {
@@ -322,12 +319,14 @@ function simplifyRatings(
  * Extract US certification from release_dates
  */
 function extractMovieCertification(
-  releaseDates: {
-    results?: Array<{
-      iso_3166_1: string;
-      release_dates: Array<{ certification: string; type: number }>;
-    }>;
-  } | undefined
+  releaseDates:
+    | {
+        results?: Array<{
+          iso_3166_1: string;
+          release_dates: Array<{ certification: string; type: number }>;
+        }>;
+      }
+    | undefined
 ): string | null {
   if (!releaseDates?.results) return null;
 
@@ -355,9 +354,11 @@ function extractMovieCertification(
  * Extract TV content rating
  */
 function extractSeriesCertification(
-  contentRatings: {
-    results?: Array<{ iso_3166_1: string; rating: string }>;
-  } | undefined
+  contentRatings:
+    | {
+        results?: Array<{ iso_3166_1: string; rating: string }>;
+      }
+    | undefined
 ): string | null {
   if (!contentRatings?.results) return null;
 
@@ -385,10 +386,7 @@ async function fetchMovieRatings(id: number) {
     return await getCachedMovieRatings(id);
   } catch (error) {
     // unstable_cache not available (e.g., running in test script)
-    if (
-      error instanceof Error &&
-      error.message.includes("incrementalCache missing")
-    ) {
+    if (error instanceof Error && error.message.includes("incrementalCache missing")) {
       return await getMovieRatingsDirect(id);
     }
     throw error;
@@ -403,10 +401,7 @@ async function fetchSeriesRatings(id: number) {
     return await getCachedSeriesRatings(id);
   } catch (error) {
     // unstable_cache not available (e.g., running in test script)
-    if (
-      error instanceof Error &&
-      error.message.includes("incrementalCache missing")
-    ) {
+    if (error instanceof Error && error.message.includes("incrementalCache missing")) {
       return await getSeriesRatingsDirect(id);
     }
     throw error;
@@ -460,9 +455,9 @@ export async function getLightMovieDetails(
     );
 
     // Get watch options with deep links
-    const tmdbWatchProviders = (
-      tmdbData["watch/providers"] as Record<string, unknown>
-    )?.results as Record<string, WatchProviderData> | undefined;
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)?.results as
+      | Record<string, WatchProviderData>
+      | undefined;
 
     const watchOptions = getWatchOptionsForCountry(
       country,
@@ -473,10 +468,12 @@ export async function getLightMovieDetails(
     const { streaming, watchLinks } = processStreamingOptions(watchOptions);
 
     // Extract credits
-    const credits = tmdbData.credits as {
-      cast?: Array<{ name: string; order?: number }>;
-      crew?: Array<{ name: string; job: string }>;
-    } | undefined;
+    const credits = tmdbData.credits as
+      | {
+          cast?: Array<{ name: string; order?: number }>;
+          crew?: Array<{ name: string; job: string }>;
+        }
+      | undefined;
 
     // Extract certification
     const certification = extractMovieCertification(
@@ -548,9 +545,9 @@ export async function getLightSeriesDetails(
       "tv"
     );
 
-    const tmdbWatchProviders = (
-      tmdbData["watch/providers"] as Record<string, unknown>
-    )?.results as Record<string, WatchProviderData> | undefined;
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)?.results as
+      | Record<string, WatchProviderData>
+      | undefined;
 
     const watchOptions = getWatchOptionsForCountry(
       country,
@@ -560,9 +557,11 @@ export async function getLightSeriesDetails(
 
     const { streaming, watchLinks } = processStreamingOptions(watchOptions);
 
-    const credits = tmdbData.credits as {
-      cast?: Array<{ name: string; order?: number }>;
-    } | undefined;
+    const credits = tmdbData.credits as
+      | {
+          cast?: Array<{ name: string; order?: number }>;
+        }
+      | undefined;
 
     const certification = extractSeriesCertification(
       tmdbData.content_ratings as {
@@ -600,9 +599,7 @@ export async function getLightSeriesDetails(
 /**
  * Fetch lightweight person details for AI agent
  */
-export async function getLightPersonDetails(
-  id: number
-): Promise<LightPersonDetails | null> {
+export async function getLightPersonDetails(id: number): Promise<LightPersonDetails | null> {
   try {
     const tmdbData = await fetchFromTMDB<Record<string, unknown>>(`/person/${id}`, {
       params: {
@@ -615,36 +612,47 @@ export async function getLightPersonDetails(
     if (!tmdbData?.id) return null;
 
     const knownFor = (tmdbData.known_for_department as string) || "Acting";
-    const combinedCredits = tmdbData.combined_credits as {
-      cast?: Array<{
-        id: number;
-        media_type: string;
-        title?: string;
-        name?: string;
-        release_date?: string;
-        first_air_date?: string;
-        character?: string;
-        popularity: number;
-      }>;
-      crew?: Array<{
-        id: number;
-        media_type: string;
-        title?: string;
-        name?: string;
-        release_date?: string;
-        first_air_date?: string;
-        job?: string;
-        department?: string;
-        popularity: number;
-      }>;
-    } | undefined;
+    const combinedCredits = tmdbData.combined_credits as
+      | {
+          cast?: Array<{
+            id: number;
+            media_type: string;
+            title?: string;
+            name?: string;
+            release_date?: string;
+            first_air_date?: string;
+            character?: string;
+            popularity: number;
+          }>;
+          crew?: Array<{
+            id: number;
+            media_type: string;
+            title?: string;
+            name?: string;
+            release_date?: string;
+            first_air_date?: string;
+            job?: string;
+            department?: string;
+            popularity: number;
+          }>;
+        }
+      | undefined;
 
     // Helper to get date from credit
     const getDateStr = (c: { release_date?: string; first_air_date?: string }) =>
       c.release_date || c.first_air_date || "";
 
     // Check if person is primarily behind-the-camera (director, writer, producer, etc.)
-    const isBehindCamera = ["Directing", "Writing", "Production", "Camera", "Editing", "Art", "Sound", "Crew"].includes(knownFor);
+    const isBehindCamera = [
+      "Directing",
+      "Writing",
+      "Production",
+      "Camera",
+      "Editing",
+      "Art",
+      "Sound",
+      "Crew",
+    ].includes(knownFor);
 
     // For behind-camera people, use crew credits; for actors, use cast credits
     // Also merge both for people who do multiple roles
@@ -783,9 +791,7 @@ export async function getLightPersonDetails(
 /**
  * Search for a person by name and return lightweight details
  */
-export async function searchPersonAndGetDetails(
-  name: string
-): Promise<LightPersonDetails | null> {
+export async function searchPersonAndGetDetails(name: string): Promise<LightPersonDetails | null> {
   try {
     const searchResult = await fetchFromTMDB<{
       results: Array<{ id: number; name: string; popularity: number }>;
@@ -801,9 +807,7 @@ export async function searchPersonAndGetDetails(
     if (!searchResult?.results?.length) return null;
 
     // Get the most popular match
-    const topMatch = searchResult.results.sort(
-      (a, b) => b.popularity - a.popularity
-    )[0];
+    const topMatch = searchResult.results.sort((a, b) => b.popularity - a.popularity)[0];
 
     return getLightPersonDetails(topMatch.id);
   } catch (error) {
@@ -814,4 +818,3 @@ export async function searchPersonAndGetDetails(
     return null;
   }
 }
-

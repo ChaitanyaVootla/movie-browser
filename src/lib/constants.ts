@@ -82,13 +82,14 @@ export const EXCLUDED_TV_GENRES = [
 export const LATEST_MONTHS = 24;
 
 // Cache durations (in seconds)
+// Note: These are used by TMDB service. cache-service.ts has its own L1/L2 config.
 export const CACHE_DURATIONS = {
-  trending: 900, // 15 minutes
+  trending: 14400, // 4 hours - high traffic, weekly aggregates
   movie: 3600, // 1 hour
   series: 3600, // 1 hour
   person: 86400, // 24 hours
   search: 300, // 5 minutes
-  discover: 1800, // 30 minutes
+  discover: 14400, // 4 hours - topic scrollers, frequently accessed
   images: 3600, // 1 hour
   watchProviders: 86400, // 24 hours
   youtube: 86400, // 24 hours - YouTube video stats/comments

@@ -6,13 +6,13 @@
 
 // Review types - stored as string in DB, validated at app level
 export const REVIEW_TYPES = [
-  "consensus",    // Aggregated summary (RT consensus, Metacritic summary)
-  "critic",       // Individual professional critic review
-  "user",         // Individual user review
-  "editorial",    // Editorial/site review (Common Sense Media, etc.)
-  "top_review",   // Featured/top review (IMDb top reviews)
-  "ai_summary",   // AI-generated summary
-  "ai_analysis",  // AI-generated analysis/themes
+  "consensus", // Aggregated summary (RT consensus, Metacritic summary)
+  "critic", // Individual professional critic review
+  "user", // Individual user review
+  "editorial", // Editorial/site review (Common Sense Media, etc.)
+  "top_review", // Featured/top review (IMDb top reviews)
+  "ai_summary", // AI-generated summary
+  "ai_analysis", // AI-generated analysis/themes
 ] as const;
 
 export type ReviewType = (typeof REVIEW_TYPES)[number];
@@ -21,8 +21,8 @@ export type ReviewType = (typeof REVIEW_TYPES)[number];
 export const DATA_SOURCE_SLUGS = [
   "tmdb",
   "imdb",
-  "rt",           // Rotten Tomatoes (critics)
-  "rt_audience",  // Rotten Tomatoes (audience)
+  "rt", // Rotten Tomatoes (critics)
+  "rt_audience", // Rotten Tomatoes (audience)
   "letterboxd",
   "metacritic",
   "google",
@@ -106,7 +106,7 @@ export interface WatchProvider {
 }
 
 export interface WatchProviderData {
-  link: string;
+  link?: string; // JustWatch link - may be undefined for some countries
   flatrate?: WatchProvider[];
   rent?: WatchProvider[];
   buy?: WatchProvider[];

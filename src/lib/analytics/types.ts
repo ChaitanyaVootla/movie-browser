@@ -475,4 +475,3 @@ export interface IngestResponse {
   processed: number;
   errors?: string[];
 }
-

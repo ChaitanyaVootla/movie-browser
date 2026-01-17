@@ -25,7 +25,15 @@ if (typeof window === "undefined" && process.env.NEXT_RUNTIME) {
   require("server-only");
 }
 
-import { existsSync, mkdirSync, readFileSync, writeFile, readdirSync, statSync, unlinkSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFile,
+  readdirSync,
+  statSync,
+  unlinkSync,
+} from "fs";
 import { join } from "path";
 import crypto from "crypto";
 import { gzipSync, gunzipSync } from "zlib";
@@ -88,58 +96,62 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
   //   Age-based TTL applied in youtube.ts: older videos (>30 days) get 7-day cache.
   // - Cache warming on startup loads L2->L1 to avoid API calls after restart.
   youtube: {
-    l1TTL: 3600,           // 1 hour in-memory
-    l2TTL: 86400,          // 24 hours on disk
+    l1TTL: 3600, // 1 hour in-memory
+    l2TTL: 86400, // 24 hours on disk
     persistToFile: true,
     staleGracePeriod: 3600, // Serve stale for 1 hour while refreshing
   },
   "youtube-channels": {
-    l1TTL: 3600,           // 1 hour in-memory
-    l2TTL: 172800,         // 48 hours on disk (channels upload infrequently)
+    l1TTL: 3600, // 1 hour in-memory
+    l2TTL: 172800, // 48 hours on disk (channels upload infrequently)
     persistToFile: true,
     staleGracePeriod: 21600, // 6 hours grace - maximize quota protection
   },
 
   // === MEDIUM FREQUENCY - Persist for warm starts ===
   person: {
-    l1TTL: 86400,          // 24 hours in-memory
-    l2TTL: 259200,         // 3 days on disk (person data rarely changes)
+    l1TTL: 86400, // 24 hours in-memory
+    l2TTL: 259200, // 3 days on disk (person data rarely changes)
     persistToFile: true,
     staleGracePeriod: 86400, // 1 day grace
   },
   search: {
-    l1TTL: 300,            // 5 minutes in-memory
-    l2TTL: 3600,           // 1 hour on disk (repeated searches)
+    l1TTL: 300, // 5 minutes in-memory
+    l2TTL: 3600, // 1 hour on disk (repeated searches)
     persistToFile: true,
   },
   discover: {
-    l1TTL: 1800,           // 30 minutes in-memory
-    l2TTL: 3600,           // 1 hour on disk
+    l1TTL: 14400, // 4 hours in-memory (primary cache for topic scrollers)
+    l2TTL: 21600, // 6 hours on disk (backup after restart)
     persistToFile: true,
+    staleGracePeriod: 7200, // 2 hour grace - serve stale while refreshing
   },
 
   // === STANDARD CACHING ===
   movie: {
-    l1TTL: 3600,           // 1 hour in-memory
-    l2TTL: 7200,           // 2 hours on disk
+    l1TTL: 3600, // 1 hour in-memory
+    l2TTL: 7200, // 2 hours on disk
     persistToFile: true,
   },
   series: {
-    l1TTL: 3600,           // 1 hour in-memory
-    l2TTL: 7200,           // 2 hours on disk
+    l1TTL: 3600, // 1 hour in-memory
+    l2TTL: 7200, // 2 hours on disk
     persistToFile: true,
   },
   images: {
-    l1TTL: 3600,           // 1 hour in-memory
-    l2TTL: 86400,          // 24 hours on disk (images rarely change)
+    l1TTL: 3600, // 1 hour in-memory
+    l2TTL: 86400, // 24 hours on disk (images rarely change)
     persistToFile: true,
   },
 
-  // === FRESH DATA NEEDED - In-memory only ===
+  // === TRENDING - Long L1 (primary), L2 as backup ===
+  // Trending data is weekly aggregates - doesn't change frequently.
+  // High traffic endpoint, should almost always hit L1 memory cache.
   trending: {
-    l1TTL: 900,            // 15 minutes in-memory
-    l2TTL: 0,              // No file persistence
-    persistToFile: false,  // Always want fresh trending data
+    l1TTL: 14400, // 4 hours in-memory (primary cache)
+    l2TTL: 21600, // 6 hours on disk (backup after restart)
+    persistToFile: true,
+    staleGracePeriod: 7200, // 2 hour grace - serve stale while refreshing in background
   },
 };
 
@@ -148,8 +160,8 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
 // =============================================================================
 
 const memoryCache = new NodeCache({
-  checkperiod: 60,    // Check for expired keys every 60 seconds
-  useClones: true,    // Use clones to prevent accidental mutations
+  checkperiod: 60, // Check for expired keys every 60 seconds
+  useClones: true, // Use clones to prevent accidental mutations
   deleteOnExpire: true,
 });
 
@@ -165,26 +177,29 @@ const cacheStats = {
   staleHits: 0,
   backgroundRefreshes: 0,
   compressionSavings: 0, // Total bytes saved by compression
-  compressedWrites: 0,   // Number of compressed writes
-  fetchErrors: 0,        // Number of fetch errors
+  compressedWrites: 0, // Number of compressed writes
+  fetchErrors: 0, // Number of fetch errors
   warmingComplete: false,
   startTime: Date.now(),
 };
 
 // Track per-namespace metrics
-const namespaceMetrics = new Map<CacheNamespace, {
-  hits: number;
-  misses: number;
-  latencySum: number;
-  latencyCount: number;
-}>();
+const namespaceMetrics = new Map<
+  CacheNamespace,
+  {
+    hits: number;
+    misses: number;
+    latencySum: number;
+    latencyCount: number;
+  }
+>();
 
 // =============================================================================
 // L2 Cache (File-Based)
 // =============================================================================
 
 interface FileCacheEntry<T> {
-  v: number;          // Cache version - for invalidating on structure changes
+  v: number; // Cache version - for invalidating on structure changes
   data: T;
   timestamp: number;
   expiresAt: number;
@@ -244,7 +259,8 @@ function readFromFile<T>(namespace: CacheNamespace, key: string): FileCacheEntry
         dataLogger.warn({
           event: "cache_decompress_error",
           namespace,
-          error: decompressError instanceof Error ? decompressError.message : String(decompressError),
+          error:
+            decompressError instanceof Error ? decompressError.message : String(decompressError),
         });
         return null;
       }
@@ -270,20 +286,20 @@ function writeToFile<T>(namespace: CacheNamespace, key: string, data: T, ttl: nu
   try {
     ensureCacheDir(namespace);
     const filePath = getFilePath(namespace, key);
-    
+
     // Serialize data to check size
     const jsonData = JSON.stringify(data);
     const originalSize = Buffer.byteLength(jsonData, "utf-8");
-    
+
     let entry: FileCacheEntry<T> | FileCacheEntry<string>;
-    
+
     // Compress if larger than threshold
     if (originalSize > COMPRESSION_THRESHOLD) {
       try {
         const compressed = gzipSync(jsonData);
         const compressedSize = compressed.length;
         const savings = originalSize - compressedSize;
-        
+
         // Only use compression if it actually saves space (>10% savings)
         if (savings > originalSize * 0.1) {
           entry = {
@@ -294,7 +310,7 @@ function writeToFile<T>(namespace: CacheNamespace, key: string, data: T, ttl: nu
             compressed: true,
             originalSize,
           };
-          
+
           cacheStats.compressionSavings += savings;
           cacheStats.compressedWrites++;
         } else {
@@ -323,7 +339,7 @@ function writeToFile<T>(namespace: CacheNamespace, key: string, data: T, ttl: nu
         expiresAt: Date.now() + ttl * 1000,
       };
     }
-    
+
     // Async write - non-blocking, fire-and-forget
     writeFile(filePath, JSON.stringify(entry), "utf-8", (err) => {
       if (err) {
@@ -460,7 +476,7 @@ export function cacheFlushNamespace(namespace: CacheNamespace): void {
 export function getCacheStats() {
   const l1Stats = memoryCache.getStats();
   const uptimeMs = Date.now() - cacheStats.startTime;
-  
+
   return {
     memory: l1Stats,
     custom: cacheStats,
@@ -506,76 +522,76 @@ function initNamespaceMetrics(namespace: CacheNamespace) {
 
 /**
  * Export metrics in Prometheus format
- * 
+ *
  * Usage: GET /api/metrics → returns plain text Prometheus metrics
  */
 export function getPrometheusMetrics(): string {
   const lines: string[] = [];
   const stats = getCacheStats();
-  
+
   // Cache hit/miss counters
   lines.push("# HELP cache_l1_hits_total Total L1 (memory) cache hits");
   lines.push("# TYPE cache_l1_hits_total counter");
   lines.push(`cache_l1_hits_total ${stats.custom.l1Hits}`);
-  
+
   lines.push("# HELP cache_l1_misses_total Total L1 (memory) cache misses");
   lines.push("# TYPE cache_l1_misses_total counter");
   lines.push(`cache_l1_misses_total ${stats.custom.l1Misses}`);
-  
+
   lines.push("# HELP cache_l2_hits_total Total L2 (file) cache hits");
   lines.push("# TYPE cache_l2_hits_total counter");
   lines.push(`cache_l2_hits_total ${stats.custom.l2Hits}`);
-  
+
   lines.push("# HELP cache_l2_misses_total Total L2 (file) cache misses");
   lines.push("# TYPE cache_l2_misses_total counter");
   lines.push(`cache_l2_misses_total ${stats.custom.l2Misses}`);
-  
+
   lines.push("# HELP cache_stale_hits_total Total stale-while-revalidate hits");
   lines.push("# TYPE cache_stale_hits_total counter");
   lines.push(`cache_stale_hits_total ${stats.custom.staleHits}`);
-  
+
   lines.push("# HELP cache_background_refreshes_total Total background refresh operations");
   lines.push("# TYPE cache_background_refreshes_total counter");
   lines.push(`cache_background_refreshes_total ${stats.custom.backgroundRefreshes}`);
-  
+
   // Compression metrics
   lines.push("# HELP cache_compression_savings_bytes Total bytes saved by compression");
   lines.push("# TYPE cache_compression_savings_bytes counter");
   lines.push(`cache_compression_savings_bytes ${stats.custom.compressionSavings}`);
-  
+
   lines.push("# HELP cache_compressed_writes_total Total compressed writes");
   lines.push("# TYPE cache_compressed_writes_total counter");
   lines.push(`cache_compressed_writes_total ${stats.custom.compressedWrites}`);
-  
+
   // Error metrics
   lines.push("# HELP cache_fetch_errors_total Total fetch errors");
   lines.push("# TYPE cache_fetch_errors_total counter");
   lines.push(`cache_fetch_errors_total ${stats.custom.fetchErrors}`);
-  
+
   // Hit rates (gauges)
   lines.push("# HELP cache_l1_hit_rate L1 cache hit rate (0-1)");
   lines.push("# TYPE cache_l1_hit_rate gauge");
   lines.push(`cache_l1_hit_rate ${stats.hitRates.l1.toFixed(4)}`);
-  
+
   lines.push("# HELP cache_l2_hit_rate L2 cache hit rate (0-1)");
   lines.push("# TYPE cache_l2_hit_rate gauge");
   lines.push(`cache_l2_hit_rate ${stats.hitRates.l2.toFixed(4)}`);
-  
+
   // Memory cache stats
   lines.push("# HELP cache_memory_keys Current number of keys in memory cache");
   lines.push("# TYPE cache_memory_keys gauge");
   lines.push(`cache_memory_keys ${stats.memory.keys}`);
-  
+
   // Uptime
   lines.push("# HELP cache_uptime_seconds Cache service uptime in seconds");
   lines.push("# TYPE cache_uptime_seconds counter");
   lines.push(`cache_uptime_seconds ${Math.floor(stats.uptime.ms / 1000)}`);
-  
+
   // Warming status
   lines.push("# HELP cache_warming_complete Whether initial cache warming is complete");
   lines.push("# TYPE cache_warming_complete gauge");
   lines.push(`cache_warming_complete ${stats.custom.warmingComplete ? 1 : 0}`);
-  
+
   // Per-namespace metrics
   const sizeStats = getCacheSizeStats();
   lines.push("# HELP cache_namespace_files Number of cache files per namespace");
@@ -583,13 +599,13 @@ export function getPrometheusMetrics(): string {
   for (const [ns, { files }] of Object.entries(sizeStats)) {
     lines.push(`cache_namespace_files{namespace="${ns}"} ${files}`);
   }
-  
+
   lines.push("# HELP cache_namespace_bytes Total cache size per namespace in bytes");
   lines.push("# TYPE cache_namespace_bytes gauge");
   for (const [ns, { sizeBytes }] of Object.entries(sizeStats)) {
     lines.push(`cache_namespace_bytes{namespace="${ns}"} ${sizeBytes}`);
   }
-  
+
   return lines.join("\n");
 }
 
@@ -842,37 +858,37 @@ export async function cachedFetch<T>(
 export function warmL1FromL2(namespace: CacheNamespace): { loaded: number; errors: number } {
   let loaded = 0;
   let errors = 0;
-  
+
   const config = CACHE_CONFIGS[namespace];
   if (!config.persistToFile) {
     return { loaded, errors };
   }
-  
+
   const dir = join(CACHE_ROOT, namespace);
   if (!existsSync(dir)) {
     return { loaded, errors };
   }
-  
+
   const files = readdirSync(dir);
   const now = Date.now();
-  
+
   for (const file of files) {
     try {
       const filePath = join(dir, file);
       const content = readFileSync(filePath, "utf-8");
       const entry = JSON.parse(content) as FileCacheEntry<unknown> & { data: unknown | string };
-      
+
       // Skip expired entries (beyond grace period)
       const graceMs = (config.staleGracePeriod ?? 0) * 1000;
       if (now > entry.expiresAt + graceMs) {
         continue;
       }
-      
+
       // Skip old version entries
       if (entry.v !== CACHE_VERSION) {
         continue;
       }
-      
+
       // Decompress if needed
       let data = entry.data;
       if (entry.compressed && typeof data === "string") {
@@ -880,15 +896,15 @@ export function warmL1FromL2(namespace: CacheNamespace): { loaded: number; error
         const decompressed = gunzipSync(compressed).toString("utf-8");
         data = JSON.parse(decompressed);
       }
-      
+
       // Extract the original key from filename (it's an MD5 hash, so we need to store differently)
       // Since we can't reverse the hash, we store with a sentinel key that includes the hash
       const keyHash = file.replace(".json", "");
       const fullKey = `${namespace}:__warm__:${keyHash}`;
-      
+
       // Calculate remaining TTL
       const remainingTTL = Math.max(0, Math.floor((entry.expiresAt - now) / 1000));
-      
+
       if (remainingTTL > 0) {
         memoryCache.set(fullKey, data, remainingTTL);
         loaded++;
@@ -897,7 +913,7 @@ export function warmL1FromL2(namespace: CacheNamespace): { loaded: number; error
       errors++;
     }
   }
-  
+
   return { loaded, errors };
 }
 
@@ -916,18 +932,18 @@ export interface CacheWarmingConfig {
 
 /**
  * Warm the cache on server startup
- * 
+ *
  * This function should be called from instrumentation.node.ts on server start.
  * It performs two types of warming:
- * 
+ *
  * 1. **L2 → L1 warming**: Loads existing file cache entries into memory
  * 2. **Fresh data warming**: Calls provided warmers to fetch fresh data
- * 
+ *
  * @example
  * ```typescript
  * // In instrumentation.node.ts
  * import { warmCache } from "@/lib/cache-service";
- * 
+ *
  * export async function register() {
  *   await warmCache({
  *     namespaces: ["youtube-channels", "trending"],
@@ -940,27 +956,23 @@ export interface CacheWarmingConfig {
  */
 export async function warmCache(config: CacheWarmingConfig = {}): Promise<void> {
   const startTime = Date.now();
-  
+
   dataLogger.info({
     event: "cache_warming_start",
   });
-  
+
   // Default namespaces to warm (quota-sensitive ones)
-  const namespacesToWarm = config.namespaces ?? [
-    "youtube-channels",
-    "youtube",
-    "person",
-  ];
-  
+  const namespacesToWarm = config.namespaces ?? ["youtube-channels", "youtube", "person"];
+
   // Phase 1: Warm L1 from L2 for specified namespaces
   let totalLoaded = 0;
   let totalErrors = 0;
-  
+
   for (const namespace of namespacesToWarm) {
     const { loaded, errors } = warmL1FromL2(namespace);
     totalLoaded += loaded;
     totalErrors += errors;
-    
+
     if (loaded > 0 || errors > 0) {
       dataLogger.debug({
         event: "cache_warming_namespace",
@@ -970,10 +982,10 @@ export async function warmCache(config: CacheWarmingConfig = {}): Promise<void> 
       });
     }
   }
-  
+
   // Phase 2: Run custom warmers (if provided)
   let warmerResults: Array<{ name: string; success: boolean; durationMs: number }> = [];
-  
+
   if (config.warmers && config.warmers.length > 0) {
     warmerResults = await Promise.all(
       config.warmers.map(async ({ name, warmer }) => {
@@ -992,10 +1004,10 @@ export async function warmCache(config: CacheWarmingConfig = {}): Promise<void> 
       })
     );
   }
-  
+
   cacheStats.warmingComplete = true;
   const totalDuration = Date.now() - startTime;
-  
+
   dataLogger.info({
     event: "cache_warming_complete",
     l2ToL1: { loaded: totalLoaded, errors: totalErrors },

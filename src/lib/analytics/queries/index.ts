@@ -69,18 +69,10 @@ export {
 } from "./item";
 
 // Content queries
-export {
-  getTopContent,
-  getUserActionSummary,
-  getCacheMetricsSnapshot,
-} from "./content";
+export { getTopContent, getUserActionSummary, getCacheMetricsSnapshot } from "./content";
 
 // Utility queries
-export {
-  hasAnalyticsData,
-  getTableCounts,
-  getDatabaseSize,
-} from "./utils";
+export { hasAnalyticsData, getTableCounts, getDatabaseSize } from "./utils";
 
 // System metrics queries
 export {

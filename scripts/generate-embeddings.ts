@@ -40,7 +40,12 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { generateMovieEmbeddings, generateSeriesEmbeddings, EMBEDDING_CONFIG, type EmbeddingStats } from "@/lib/embeddings";
+import {
+  generateMovieEmbeddings,
+  generateSeriesEmbeddings,
+  EMBEDDING_CONFIG,
+  type EmbeddingStats,
+} from "@/lib/embeddings";
 
 // =============================================================================
 // CLI Argument Parsing
@@ -212,7 +217,7 @@ async function main(): Promise<void> {
   }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-  const estimatedCost = (stats.tokensUsed * 0.00002 / 1000).toFixed(4);
+  const estimatedCost = ((stats.tokensUsed * 0.00002) / 1000).toFixed(4);
 
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗

@@ -31,11 +31,7 @@ export function hashString(input: string): string {
  * This provides stable session tracking without cookies while
  * still respecting privacy (the actual data is hashed).
  */
-export function generateSessionId(
-  ip: string,
-  userAgent: string,
-  acceptLanguage: string
-): string {
+export function generateSessionId(ip: string, userAgent: string, acceptLanguage: string): string {
   const fingerprint = `${ip}|${userAgent}|${acceptLanguage}`;
   return hashString(fingerprint);
 }
@@ -103,9 +99,7 @@ export function getSessionTimeoutMs(): number {
  * Extract client IP from various headers
  * Priority: X-Real-IP > X-Forwarded-For (first) > fallback
  */
-export function extractClientIP(headers: {
-  get: (name: string) => string | null;
-}): string {
+export function extractClientIP(headers: { get: (name: string) => string | null }): string {
   // X-Real-IP is typically set by Nginx
   const realIp = headers.get("x-real-ip");
   if (realIp) {
@@ -134,15 +128,13 @@ export function extractClientIP(headers: {
  */
 export function normalizeCountryCode(code: string | null | undefined): string {
   if (!code) return "unknown";
-  
+
   const normalized = code.trim().toUpperCase();
-  
+
   // Validate it looks like an ISO country code (2 letters)
   if (/^[A-Z]{2}$/.test(normalized)) {
     return normalized;
   }
-  
+
   return "unknown";
 }
-
-

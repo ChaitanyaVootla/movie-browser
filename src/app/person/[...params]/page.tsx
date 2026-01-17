@@ -1,7 +1,13 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPerson } from "@/server/actions/person";
-import { PersonHero, PersonFilmography, PersonImages, KnownForSection, UpcomingLatestSection } from "@/components/features/person";
+import {
+  PersonHero,
+  PersonFilmography,
+  PersonImages,
+  KnownForSection,
+  UpcomingLatestSection,
+} from "@/components/features/person";
 import { SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
 import {
   extractPersonHeroProps,
@@ -105,11 +111,7 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
 }
 
 // JSON-LD structured data for SEO
-function PersonSchema({
-  person,
-}: {
-  person: NonNullable<Awaited<ReturnType<typeof getPerson>>>;
-}) {
+function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeof getPerson>>> }) {
   // Get notable works
   const notableWorks = person.combined_credits?.cast
     ?.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
@@ -125,9 +127,7 @@ function PersonSchema({
     "@type": "Person",
     name: person.name,
     description: person.biography?.slice(0, 500),
-    image: person.profile_path
-      ? `${TMDB_IMAGE_BASE}/w500${person.profile_path}`
-      : undefined,
+    image: person.profile_path ? `${TMDB_IMAGE_BASE}/w500${person.profile_path}` : undefined,
     birthDate: person.birthday,
     deathDate: person.deathday || undefined,
     birthPlace: person.place_of_birth || undefined,
@@ -186,7 +186,7 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
     person.combined_credits?.cast,
     person.combined_credits?.crew,
     20, // cast limit
-    10  // crew limit
+    10 // crew limit
   );
   const filmographyData = {
     id: person.id,
@@ -194,7 +194,7 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
       person.combined_credits?.cast,
       person.combined_credits?.crew,
       100, // cast limit
-      50   // crew limit
+      50 // crew limit
     ),
   };
   const profileImages = extractPersonImages(person.images?.profiles, 12);
@@ -218,19 +218,12 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
 
         {/* Known For - Top credits */}
         {knownForCredits.length > 0 && (
-          <KnownForSection
-            credits={knownForCredits}
-            className="mt-8"
-          />
+          <KnownForSection credits={knownForCredits} className="mt-8" />
         )}
 
         {/* Photo Gallery */}
         {profileImages.length > 1 && (
-          <PersonImages
-            images={profileImages}
-            personName={person.name}
-            className="mt-8"
-          />
+          <PersonImages images={profileImages} personName={person.name} className="mt-8" />
         )}
 
         {/* Full Filmography */}
@@ -239,4 +232,3 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
     </>
   );
 }
-

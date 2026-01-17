@@ -56,9 +56,7 @@ export function AITab({ range }: AITabProps) {
           ) : data?.overview ? (
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-2xl font-bold">
-                  ${data.overview.totalCost.toFixed(2)}
-                </p>
+                <p className="text-2xl font-bold">${data.overview.totalCost.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">Total Cost</p>
               </div>
               <div>
@@ -68,15 +66,11 @@ export function AITab({ range }: AITabProps) {
                 <p className="text-xs text-muted-foreground">Invocations</p>
               </div>
               <div>
-                <p className="text-lg font-medium">
-                  {data.overview.totalTokens.toLocaleString()}
-                </p>
+                <p className="text-lg font-medium">{data.overview.totalTokens.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Tokens</p>
               </div>
               <div>
-                <p className="text-lg font-medium">
-                  {data.overview.avgResponseTime.toFixed(0)}ms
-                </p>
+                <p className="text-lg font-medium">{data.overview.avgResponseTime.toFixed(0)}ms</p>
                 <p className="text-xs text-muted-foreground">Avg Response</p>
               </div>
             </div>
@@ -149,12 +143,13 @@ interface TopAIUserRowProps {
 
 function TopAIUserRow({ user, rank }: TopAIUserRowProps) {
   // Determine display name - prefer userName if available
-  const displayName = user.userName && user.userName !== "Guest" 
-    ? user.userName 
-    : user.isAuthenticated 
-      ? "Unknown User" 
-      : "Guest";
-  
+  const displayName =
+    user.userName && user.userName !== "Guest"
+      ? user.userName
+      : user.isAuthenticated
+        ? "Unknown User"
+        : "Guest";
+
   // Only show copyable ID for authenticated users (guest IDs are session-based)
   const showCopyableId = user.isAuthenticated && user.userId !== "guest";
 
@@ -179,9 +174,7 @@ function TopAIUserRow({ user, rank }: TopAIUserRowProps) {
       </div>
       <div className="flex items-center gap-3 text-muted-foreground">
         <span>{user.invocations} calls</span>
-        <span className="font-medium text-foreground">
-          ${user.cost.toFixed(3)}
-        </span>
+        <span className="font-medium text-foreground">${user.cost.toFixed(3)}</span>
       </div>
     </div>
   );

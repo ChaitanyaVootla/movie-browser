@@ -1,14 +1,19 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Play, Check, Share2, ListPlus, ThumbsUp, ThumbsDown, Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  Play,
+  Check,
+  Share2,
+  ListPlus,
+  ThumbsUp,
+  ThumbsDown,
+  Eye,
+  EyeOff,
+  Loader2,
+} from "lucide-react";
 import { useUserLibrary } from "@/hooks/use-user-library";
 import type { MediaType } from "@/stores/user";
 import { useState } from "react";
@@ -232,15 +237,11 @@ export function MediaActions({
                   {isUpdating === "like" ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <ThumbsUp
-                      className={cn("h-3.5 w-3.5", isLiked && "fill-white")}
-                    />
+                    <ThumbsUp className={cn("h-3.5 w-3.5", isLiked && "fill-white")} />
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {isLiked ? "Remove Like" : "Like"}
-              </TooltipContent>
+              <TooltipContent side="bottom">{isLiked ? "Remove Like" : "Like"}</TooltipContent>
             </Tooltip>
 
             <div className="w-px h-4 bg-white/20" />
@@ -261,9 +262,7 @@ export function MediaActions({
                   {isUpdating === "dislike" ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <ThumbsDown
-                      className={cn("h-3.5 w-3.5", isDisliked && "fill-white")}
-                    />
+                    <ThumbsDown className={cn("h-3.5 w-3.5", isDisliked && "fill-white")} />
                   )}
                 </Button>
               </TooltipTrigger>

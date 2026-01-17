@@ -123,7 +123,9 @@ interface TMDBData {
   };
   recommendations: { results: Array<{ id: number; title: string; vote_average: number }> };
   similar: { results: Array<{ id: number; title: string; vote_average: number }> };
-  videos: { results: Array<{ key: string; site: string; type: string; name: string; official: boolean }> };
+  videos: {
+    results: Array<{ key: string; site: string; type: string; name: string; official: boolean }>;
+  };
 }
 
 interface WikidataData {
@@ -273,7 +275,11 @@ function log(message: string, data?: unknown) {
   }
 }
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3): Promise<Response> {
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  retries = 3
+): Promise<Response> {
   const headers = {
     "User-Agent": "MovieBrowser/1.0 (content-enrichment; contact@themoviebrowser.com)",
     ...options.headers,
@@ -363,7 +369,9 @@ async function fetchTMDB(tmdbId: number): Promise<TMDBData> {
   console.log(`   Title: ${data.title} (${data.release_date?.split("-")[0] || "Unknown"})`);
   console.log(`   Genres: ${data.genres?.map((g: { name: string }) => g.name).join(", ")}`);
   console.log(`   Keywords: ${data.keywords?.keywords?.length || 0}`);
-  console.log(`   Cast: ${data.credits?.cast?.length || 0}, Crew: ${data.credits?.crew?.length || 0}`);
+  console.log(
+    `   Cast: ${data.credits?.cast?.length || 0}, Crew: ${data.credits?.crew?.length || 0}`
+  );
   return data as TMDBData;
 }
 
@@ -373,14 +381,14 @@ async function fetchTMDB(tmdbId: number): Promise<TMDBData> {
 
 // Useful Wikidata properties for AI context
 const USEFUL_CLAIMS: Record<string, string> = {
-  P136: "genres",       // Genre
-  P921: "themes",       // Main subject
-  P166: "awards",       // Award received
+  P136: "genres", // Genre
+  P921: "themes", // Main subject
+  P166: "awards", // Award received
   P1411: "nominations", // Nominated for
-  P144: "basedOn",      // Based on
+  P144: "basedOn", // Based on
   P179: "partOfSeries", // Part of series
-  P155: "follows",      // Follows
-  P156: "followedBy",   // Followed by
+  P155: "follows", // Follows
+  P156: "followedBy", // Followed by
   P840: "narrativeLocation", // Narrative location
 };
 
@@ -428,7 +436,9 @@ async function fetchWikidata(tmdbId: number): Promise<WikidataData | null> {
   const sparqlUrl = `https://query.wikidata.org/sparql?query=${encodeURIComponent(query)}&format=json`;
 
   try {
-    const response = await fetchWithRetry(sparqlUrl, { headers: { Accept: "application/sparql-results+json" } });
+    const response = await fetchWithRetry(sparqlUrl, {
+      headers: { Accept: "application/sparql-results+json" },
+    });
     const data = await response.json();
     log("SPARQL response", data);
 
@@ -470,7 +480,7 @@ async function fetchWikidata(tmdbId: number): Promise<WikidataData | null> {
     for (const [prop, field] of Object.entries(USEFUL_CLAIMS)) {
       const claimData = entity.claims?.[prop];
       if (!claimData) continue;
-      
+
       const values: string[] = [];
       for (const claim of claimData) {
         const value = claim.mainsnak?.datavalue?.value;
@@ -483,7 +493,13 @@ async function fetchWikidata(tmdbId: number): Promise<WikidataData | null> {
         }
       }
       if (values.length > 0) {
-        if (field === "basedOn" || field === "partOfSeries" || field === "follows" || field === "followedBy" || field === "narrativeLocation") {
+        if (
+          field === "basedOn" ||
+          field === "partOfSeries" ||
+          field === "follows" ||
+          field === "followedBy" ||
+          field === "narrativeLocation"
+        ) {
           (claims as Record<string, string>)[field] = values[0];
         } else {
           (claims as Record<string, string[]>)[field] = values;
@@ -519,7 +535,7 @@ async function fetchWikidata(tmdbId: number): Promise<WikidataData | null> {
     };
 
     // Clean undefined values
-    Object.keys(externalIds).forEach(key => {
+    Object.keys(externalIds).forEach((key) => {
       if (externalIds[key] === undefined) delete externalIds[key];
     });
 
@@ -550,7 +566,7 @@ async function scrapeWikipedia(url: string): Promise<WikipediaData | null> {
 
   try {
     const title = decodeURIComponent(url.split("/wiki/").pop() || "");
-    
+
     const contentUrl = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
     const response = await fetchWithRetry(contentUrl);
     const html = await response.text();
@@ -574,9 +590,18 @@ async function scrapeWikipedia(url: string): Promise<WikipediaData | null> {
     $("section").each((_, section) => {
       const $section = $(section);
       const heading = $section.find("h2, h3").first().text().trim();
-      if (heading && !heading.match(/^(References|External links|See also|Notes|Further reading)$/i)) {
-        const paragraphs = $section.find("p").map((_, el) => $(el).text().trim()).get();
-        const lists = $section.find("ul li").map((_, el) => $(el).text().trim()).get();
+      if (
+        heading &&
+        !heading.match(/^(References|External links|See also|Notes|Further reading)$/i)
+      ) {
+        const paragraphs = $section
+          .find("p")
+          .map((_, el) => $(el).text().trim())
+          .get();
+        const lists = $section
+          .find("ul li")
+          .map((_, el) => $(el).text().trim())
+          .get();
         const content_text = [...paragraphs, ...lists].join("\n\n");
         if (content_text.length > 50) {
           content.sections[heading] = content_text;
@@ -601,7 +626,13 @@ async function scrapeWikipedia(url: string): Promise<WikipediaData | null> {
     if (pageId && pages[pageId]?.categories) {
       content.categories = pages[pageId].categories
         .map((c: { title: string }) => c.title.replace("Category:", ""))
-        .filter((c: string) => !c.includes("Articles") && !c.includes("Wikipedia") && !c.includes("Pages") && !c.includes("All "));
+        .filter(
+          (c: string) =>
+            !c.includes("Articles") &&
+            !c.includes("Wikipedia") &&
+            !c.includes("Pages") &&
+            !c.includes("All ")
+        );
     }
 
     console.log(`  ✅ Wikipedia scraped`);
@@ -620,15 +651,23 @@ async function scrapeWikipedia(url: string): Promise<WikipediaData | null> {
 // Fandom Scraper
 // =============================================================================
 
-async function scrapeFandom(fandomWiki: string | undefined, movieTitle: string): Promise<FandomData | null> {
+async function scrapeFandom(
+  fandomWiki: string | undefined,
+  movieTitle: string
+): Promise<FandomData | null> {
   console.log(`🎮 Searching Fandom wikis...`);
 
-  const possibleWikis = [fandomWiki, movieTitle.toLowerCase().replace(/[^a-z0-9]+/g, ""), "movies", "film"].filter(Boolean);
+  const possibleWikis = [
+    fandomWiki,
+    movieTitle.toLowerCase().replace(/[^a-z0-9]+/g, ""),
+    "movies",
+    "film",
+  ].filter(Boolean);
 
   for (const wiki of possibleWikis) {
     const url = `https://${wiki}.fandom.com/wiki/${encodeURIComponent(movieTitle.replace(/ /g, "_"))}`;
     log("Trying Fandom URL", url);
-    
+
     try {
       const response = await fetchWithRetry(url);
       const html = await response.text();
@@ -650,11 +689,14 @@ async function scrapeFandom(fandomWiki: string | undefined, movieTitle: string):
       $("h2, h3").each((_, heading) => {
         const $heading = $(heading);
         const sectionName = $heading.find(".mw-headline").text().trim() || $heading.text().trim();
-        
-        if (sectionName && !sectionName.match(/^(References|External links|See also|Navigation)$/i)) {
+
+        if (
+          sectionName &&
+          !sectionName.match(/^(References|External links|See also|Navigation)$/i)
+        ) {
           const paragraphs: string[] = [];
           const listItems: string[] = [];
-          
+
           let $next = $heading.next();
           while ($next.length && !$next.is("h2, h3")) {
             if ($next.is("p")) {
@@ -669,7 +711,7 @@ async function scrapeFandom(fandomWiki: string | undefined, movieTitle: string):
             }
             $next = $next.next();
           }
-          
+
           if (paragraphs.length > 0) content.sections[sectionName] = paragraphs.join("\n\n");
           if (listItems.length > 0) content.lists[sectionName] = listItems;
         }
@@ -734,7 +776,10 @@ async function scrapeIMDb(imdbId: string): Promise<IMDbData | null> {
 
   try {
     await scrapeSection("plotsummary", ($) => {
-      content.synopsis = $('[data-testid="sub-section-synopsis"] .ipc-html-content-inner-div').first().text().trim();
+      content.synopsis = $('[data-testid="sub-section-synopsis"] .ipc-html-content-inner-div')
+        .first()
+        .text()
+        .trim();
       $('[data-testid="sub-section-summaries"] .ipc-html-content-inner-div').each((_, el) => {
         content.summaries.push($(el).text().trim());
       });
@@ -772,10 +817,12 @@ async function scrapeIMDb(imdbId: string): Promise<IMDbData | null> {
       $('[data-testid="advisory-container"]').each((_, el) => {
         const category = $(el).find("h3, h4").first().text().trim();
         const items: string[] = [];
-        $(el).find('[data-testid="list-item"]').each((_, item) => {
-          const text = $(item).text().trim();
-          if (text) items.push(text);
-        });
+        $(el)
+          .find('[data-testid="list-item"]')
+          .each((_, item) => {
+            const text = $(item).text().trim();
+            if (text) items.push(text);
+          });
         if (category && items.length > 0) content.parentsGuide[category] = items;
       });
     });
@@ -798,24 +845,27 @@ async function scrapeIMDb(imdbId: string): Promise<IMDbData | null> {
 // =============================================================================
 
 function generateTMDBMarkdown(tmdb: TMDBData): string {
-  const director = tmdb.credits?.crew?.find(c => c.job === "Director")?.name;
-  const writers = tmdb.credits?.crew?.filter(c => c.department === "Writing").map(c => c.name).slice(0, 3);
+  const director = tmdb.credits?.crew?.find((c) => c.job === "Director")?.name;
+  const writers = tmdb.credits?.crew
+    ?.filter((c) => c.department === "Writing")
+    .map((c) => c.name)
+    .slice(0, 3);
   // Format cast as "Actor as Character" for better AI context
-  const topCast = tmdb.credits?.cast?.slice(0, 8).map(c => {
+  const topCast = tmdb.credits?.cast?.slice(0, 8).map((c) => {
     if (c.character) return `${c.name} as ${c.character}`;
     return c.name;
   });
-  const keywords = tmdb.keywords?.keywords?.map(k => k.name) || [];
+  const keywords = tmdb.keywords?.keywords?.map((k) => k.name) || [];
 
   let md = `# ${tmdb.title} (${tmdb.release_date?.split("-")[0]})\n\n`;
-  
+
   if (tmdb.tagline) md += `> ${tmdb.tagline}\n\n`;
-  
+
   md += `## Overview\n${tmdb.overview}\n\n`;
-  
+
   md += `## Details\n`;
   md += `- **Runtime:** ${tmdb.runtime} minutes\n`;
-  md += `- **Genres:** ${tmdb.genres?.map(g => g.name).join(", ")}\n`;
+  md += `- **Genres:** ${tmdb.genres?.map((g) => g.name).join(", ")}\n`;
   md += `- **Rating:** ${tmdb.vote_average}/10 (${tmdb.vote_count.toLocaleString()} votes)\n`;
   if (director) md += `- **Director:** ${director}\n`;
   if (writers?.length) md += `- **Writers:** ${writers.join(", ")}\n`;
@@ -825,7 +875,7 @@ function generateTMDBMarkdown(tmdb: TMDBData): string {
   md += "\n";
 
   if (topCast?.length) {
-    md += `## Cast\n${topCast.map(c => `- ${c}`).join("\n")}\n\n`;
+    md += `## Cast\n${topCast.map((c) => `- ${c}`).join("\n")}\n\n`;
   }
 
   if (keywords.length) {
@@ -841,7 +891,7 @@ function generateTMDBMarkdown(tmdb: TMDBData): string {
 
 function generateWikipediaMarkdown(wiki: WikipediaData): string {
   let md = `# ${wiki.title} (Wikipedia)\n\n`;
-  
+
   md += `## Summary\n${wiki.summary}\n\n`;
 
   // Prioritize plot-related sections
@@ -883,7 +933,7 @@ function generateIMDbMarkdown(imdb: IMDbData): string {
 
   if (imdb.trivia.length) {
     md += `## Trivia\n`;
-    imdb.trivia.slice(0, 10).forEach(t => {
+    imdb.trivia.slice(0, 10).forEach((t) => {
       md += `- ${truncate(t, 300)}\n`;
     });
     md += "\n";
@@ -891,7 +941,7 @@ function generateIMDbMarkdown(imdb: IMDbData): string {
 
   if (imdb.quotes.length) {
     md += `## Notable Quotes\n`;
-    imdb.quotes.slice(0, 5).forEach(q => {
+    imdb.quotes.slice(0, 5).forEach((q) => {
       md += `- ${truncate(q, 200)}\n`;
     });
     md += "\n";
@@ -899,7 +949,7 @@ function generateIMDbMarkdown(imdb: IMDbData): string {
 
   if (imdb.connections.length) {
     md += `## Movie Connections\n`;
-    imdb.connections.slice(0, 10).forEach(c => {
+    imdb.connections.slice(0, 10).forEach((c) => {
       md += `- ${truncate(c, 150)}\n`;
     });
     md += "\n";
@@ -910,7 +960,7 @@ function generateIMDbMarkdown(imdb: IMDbData): string {
     for (const [category, items] of Object.entries(imdb.parentsGuide)) {
       if (items.length > 0) {
         md += `### ${category}\n`;
-        items.slice(0, 3).forEach(item => {
+        items.slice(0, 3).forEach((item) => {
           md += `- ${truncate(item, 200)}\n`;
         });
       }
@@ -931,7 +981,7 @@ function generateFandomMarkdown(fandom: FandomData): string {
   for (const [section, items] of Object.entries(fandom.lists)) {
     if (items.length > 0) {
       md += `## ${section}\n`;
-      items.slice(0, 15).forEach(item => {
+      items.slice(0, 15).forEach((item) => {
         md += `- ${truncate(item, 200)}\n`;
       });
       md += "\n";
@@ -960,7 +1010,7 @@ function generateCombinedAIInput(content: EnrichedContent): string {
 
   // Genres: prefer MongoDB, fallback to TMDB
   const genres = mongo?.genres || tmdb?.genres;
-  if (genres?.length) md += `- **Genres:** ${genres.map(g => g.name).join(", ")}\n`;
+  if (genres?.length) md += `- **Genres:** ${genres.map((g) => g.name).join(", ")}\n`;
 
   // Runtime: prefer MongoDB, fallback to TMDB
   const runtime = mongo?.runtime || tmdb?.runtime;
@@ -973,15 +1023,19 @@ function generateCombinedAIInput(content: EnrichedContent): string {
   const tmdbRating = mongo?.vote_average || tmdb?.vote_average;
   const tmdbVotes = mongo?.vote_count || tmdb?.vote_count;
   if (tmdbRating && tmdbRating > 0) {
-    ratings.push(`TMDB ${tmdbRating.toFixed(1)}/10${tmdbVotes ? ` (${tmdbVotes.toLocaleString()} votes)` : ""}`);
+    ratings.push(
+      `TMDB ${tmdbRating.toFixed(1)}/10${tmdbVotes ? ` (${tmdbVotes.toLocaleString()} votes)` : ""}`
+    );
   }
 
   // IMDb rating from MongoDB (external_data or googleData)
   const imdbData = mongo?.external_data?.ratings?.imdb;
   if (imdbData?.rating) {
-    ratings.push(`IMDb ${imdbData.rating.toFixed(1)}/10${imdbData.ratingCount ? ` (${imdbData.ratingCount.toLocaleString()} votes)` : ""}`);
+    ratings.push(
+      `IMDb ${imdbData.rating.toFixed(1)}/10${imdbData.ratingCount ? ` (${imdbData.ratingCount.toLocaleString()} votes)` : ""}`
+    );
   } else if (mongo?.googleData?.ratings) {
-    const imdbGoogle = mongo.googleData.ratings.find(r => r.name.toLowerCase().includes("imdb"));
+    const imdbGoogle = mongo.googleData.ratings.find((r) => r.name.toLowerCase().includes("imdb"));
     if (imdbGoogle) {
       const score = parseFloat(imdbGoogle.rating.replace("%", ""));
       if (!isNaN(score)) ratings.push(`IMDb ${score}/10`);
@@ -1000,7 +1054,9 @@ function generateCombinedAIInput(content: EnrichedContent): string {
 
   // Google rating from googleData
   if (mongo?.googleData?.ratings) {
-    const googleRating = mongo.googleData.ratings.find(r => r.name.toLowerCase().includes("google"));
+    const googleRating = mongo.googleData.ratings.find((r) =>
+      r.name.toLowerCase().includes("google")
+    );
     if (googleRating) {
       ratings.push(`Google ${googleRating.rating}`);
     }
@@ -1012,18 +1068,20 @@ function generateCombinedAIInput(content: EnrichedContent): string {
 
   // Director: prefer MongoDB credits, fallback to TMDB
   const credits = mongo?.credits || tmdb?.credits;
-  const director = credits?.crew?.find(c => c.job === "Director")?.name;
+  const director = credits?.crew?.find((c) => c.job === "Director")?.name;
   if (director) md += `- **Director:** ${director}\n`;
 
   // Cast: Format as "Actor as Character" for better AI context
   const topCast = credits?.cast?.slice(0, 6);
   if (topCast?.length) {
-    const castList = topCast.map(c => {
-      if (c.character) {
-        return `${c.name} as ${c.character}`;
-      }
-      return c.name;
-    }).join(", ");
+    const castList = topCast
+      .map((c) => {
+        if (c.character) {
+          return `${c.name} as ${c.character}`;
+        }
+        return c.name;
+      })
+      .join(", ");
     md += `- **Cast:** ${castList}\n`;
   }
 
@@ -1036,7 +1094,7 @@ function generateCombinedAIInput(content: EnrichedContent): string {
   md += "\n";
 
   // Keywords (TMDB only - not in MongoDB)
-  const keywords = tmdb?.keywords?.keywords?.map(k => k.name) || [];
+  const keywords = tmdb?.keywords?.keywords?.map((k) => k.name) || [];
   if (keywords.length) {
     md += `## Keywords\n${keywords.join(", ")}\n\n`;
   }
@@ -1044,29 +1102,33 @@ function generateCombinedAIInput(content: EnrichedContent): string {
   // Wikipedia - Plot, reception, and context
   if (content.wikipedia) {
     const w = content.wikipedia;
-    
+
     md += `## Summary\n${w.summary}\n\n`;
-    
+
     if (w.sections["Plot"]) {
       md += `## Plot\n${w.sections["Plot"]}\n\n`;
     }
-    
+
     if (w.sections["Themes"]) {
       md += `## Themes\n${w.sections["Themes"]}\n\n`;
     }
-    
+
     // Reception gives critic/audience perspective
-    const reception = w.sections["Reception"] || w.sections["Critical response"] || w.sections["Critical reception"];
+    const reception =
+      w.sections["Reception"] ||
+      w.sections["Critical response"] ||
+      w.sections["Critical reception"];
     if (reception) {
       md += `## Critical Reception\n${truncate(reception, 1500)}\n\n`;
     }
-    
+
     // Legacy/influence shows cultural impact
-    const legacy = w.sections["Influence and legacy"] || w.sections["Legacy"] || w.sections["Cultural impact"];
+    const legacy =
+      w.sections["Influence and legacy"] || w.sections["Legacy"] || w.sections["Cultural impact"];
     if (legacy) {
       md += `## Legacy & Influence\n${truncate(legacy, 800)}\n\n`;
     }
-    
+
     // Categories are useful for classification
     if (w.categories.length) {
       md += `## Categories\n${w.categories.slice(0, 20).join(", ")}\n\n`;
@@ -1076,7 +1138,7 @@ function generateCombinedAIInput(content: EnrichedContent): string {
   // IMDb - User perspectives and content advisory
   if (content.imdb) {
     const i = content.imdb;
-    
+
     // Multiple summaries give different perspectives!
     const hasGoodPlot = (content.wikipedia?.sections?.["Plot"]?.length ?? 0) > 500;
     if (i.summaries.length > 0 && !hasGoodPlot) {
@@ -1089,27 +1151,30 @@ function generateCombinedAIInput(content: EnrichedContent): string {
       // Even with Wikipedia plot, include 1 alternate summary for different perspective
       md += `## Alternate Summary\n${truncate(i.summaries[0], 500)}\n\n`;
     }
-    
+
     // Trivia adds color and interesting facts
     if (i.trivia.length) {
       md += `## Trivia\n`;
-      i.trivia.slice(0, 5).forEach(t => md += `- ${truncate(t, 250)}\n`);
+      i.trivia.slice(0, 5).forEach((t) => (md += `- ${truncate(t, 250)}\n`));
       md += "\n";
     }
-    
+
     // Quotes capture the film's voice
     if (i.quotes.length) {
       md += `## Notable Quotes\n`;
-      i.quotes.slice(0, 3).forEach(q => md += `- ${truncate(q, 150)}\n`);
+      i.quotes.slice(0, 3).forEach((q) => (md += `- ${truncate(q, 150)}\n`));
       md += "\n";
     }
-    
+
     // Parents guide helps understand content intensity (violence, language, etc.)
     if (Object.keys(i.parentsGuide).length) {
       md += `## Content Advisory\n`;
       for (const [cat, items] of Object.entries(i.parentsGuide)) {
         if (items.length) {
-          md += `- **${cat}:** ${items.slice(0, 2).map(item => truncate(item, 100)).join("; ")}\n`;
+          md += `- **${cat}:** ${items
+            .slice(0, 2)
+            .map((item) => truncate(item, 100))
+            .join("; ")}\n`;
         }
       }
       md += "\n";
@@ -1119,24 +1184,27 @@ function generateCombinedAIInput(content: EnrichedContent): string {
   // Fandom - Critical response and extended content
   if (content.fandom && Object.keys(content.fandom.sections).length > 0) {
     const f = content.fandom;
-    
+
     // Fandom critical response (often different from Wikipedia)
-    const fandomReception = f.sections["Critical Response"] || f.sections["Reception"] || f.sections["Reviews"];
+    const fandomReception =
+      f.sections["Critical Response"] || f.sections["Reception"] || f.sections["Reviews"];
     if (fandomReception) {
       md += `## Fan Community Reception\n${truncate(fandomReception, 800)}\n\n`;
     }
-    
+
     // Other interesting sections (not plot rehash)
     const interestingSections = Object.entries(f.sections)
       .filter(([name]) => {
         const lower = name.toLowerCase();
-        return !lower.includes("plot") && 
-               !lower.includes("synopsis") && 
-               !lower.includes("critical") && 
-               !lower.includes("reception");
+        return (
+          !lower.includes("plot") &&
+          !lower.includes("synopsis") &&
+          !lower.includes("critical") &&
+          !lower.includes("reception")
+        );
       })
       .slice(0, 2);
-    
+
     if (interestingSections.length > 0) {
       md += `## Additional Context\n`;
       for (const [section, text] of interestingSections) {
@@ -1160,17 +1228,24 @@ function saveContent(content: EnrichedContent) {
   }
 
   // Save raw JSON files
-  if (content.tmdb) writeFileSync(join(dataDir, "tmdb.json"), JSON.stringify(content.tmdb, null, 2));
-  if (content.wikidata) writeFileSync(join(dataDir, "wikidata.json"), JSON.stringify(content.wikidata, null, 2));
-  if (content.wikipedia) writeFileSync(join(dataDir, "wikipedia.json"), JSON.stringify(content.wikipedia, null, 2));
-  if (content.fandom) writeFileSync(join(dataDir, "fandom.json"), JSON.stringify(content.fandom, null, 2));
-  if (content.imdb) writeFileSync(join(dataDir, "imdb.json"), JSON.stringify(content.imdb, null, 2));
+  if (content.tmdb)
+    writeFileSync(join(dataDir, "tmdb.json"), JSON.stringify(content.tmdb, null, 2));
+  if (content.wikidata)
+    writeFileSync(join(dataDir, "wikidata.json"), JSON.stringify(content.wikidata, null, 2));
+  if (content.wikipedia)
+    writeFileSync(join(dataDir, "wikipedia.json"), JSON.stringify(content.wikipedia, null, 2));
+  if (content.fandom)
+    writeFileSync(join(dataDir, "fandom.json"), JSON.stringify(content.fandom, null, 2));
+  if (content.imdb)
+    writeFileSync(join(dataDir, "imdb.json"), JSON.stringify(content.imdb, null, 2));
 
   // Save stripped markdown files
   if (content.tmdb) writeFileSync(join(dataDir, "tmdb.md"), generateTMDBMarkdown(content.tmdb));
-  if (content.wikipedia) writeFileSync(join(dataDir, "wikipedia.md"), generateWikipediaMarkdown(content.wikipedia));
+  if (content.wikipedia)
+    writeFileSync(join(dataDir, "wikipedia.md"), generateWikipediaMarkdown(content.wikipedia));
   if (content.imdb) writeFileSync(join(dataDir, "imdb.md"), generateIMDbMarkdown(content.imdb));
-  if (content.fandom) writeFileSync(join(dataDir, "fandom.md"), generateFandomMarkdown(content.fandom));
+  if (content.fandom)
+    writeFileSync(join(dataDir, "fandom.md"), generateFandomMarkdown(content.fandom));
 
   // Save combined AI-ready input
   const aiInput = generateCombinedAIInput(content);
@@ -1203,8 +1278,8 @@ function saveContent(content: EnrichedContent) {
       totalChars: aiInput.length,
       estimatedTokens: estimateTokens(aiInput),
       hasPlot: !!(content.wikipedia?.sections?.["Plot"] || content.imdb?.synopsis),
-      hasTrivia: !!(content.imdb?.trivia?.length),
-      hasCategories: !!(content.wikipedia?.categories?.length),
+      hasTrivia: !!content.imdb?.trivia?.length,
+      hasCategories: !!content.wikipedia?.categories?.length,
     },
   };
   writeFileSync(join(dataDir, "metadata.json"), JSON.stringify(metadata, null, 2));
@@ -1212,7 +1287,9 @@ function saveContent(content: EnrichedContent) {
   console.log(`\n📁 Saved to: ${dataDir}/`);
   console.log(`   Raw JSON: tmdb.json, wikidata.json, wikipedia.json, fandom.json, imdb.json`);
   console.log(`   Markdown: tmdb.md, wikipedia.md, imdb.md, fandom.md`);
-  console.log(`   AI Input: ai-input.md (${(aiInput.length / 1024).toFixed(1)}KB, ~${metadata.stats.estimatedTokens.toLocaleString()} tokens)`);
+  console.log(
+    `   AI Input: ai-input.md (${(aiInput.length / 1024).toFixed(1)}KB, ~${metadata.stats.estimatedTokens.toLocaleString()} tokens)`
+  );
   console.log(`   Metadata: metadata.json`);
 }
 
@@ -1293,7 +1370,10 @@ Data Sources:
   }
 
   // Support comma-separated IDs for batch mode
-  const tmdbIds = args[0].split(",").map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+  const tmdbIds = args[0]
+    .split(",")
+    .map((id) => parseInt(id.trim(), 10))
+    .filter((id) => !isNaN(id));
 
   if (tmdbIds.length === 0) {
     console.error(`❌ No valid TMDB IDs provided`);
@@ -1303,7 +1383,13 @@ Data Sources:
   // Connect to MongoDB for scraped ratings
   await connectMongoDB();
 
-  const results: { id: number; title: string; tokens: number; hasRatings: boolean; success: boolean }[] = [];
+  const results: {
+    id: number;
+    title: string;
+    tokens: number;
+    hasRatings: boolean;
+    success: boolean;
+  }[] = [];
 
   for (const tmdbId of tmdbIds) {
     try {
@@ -1332,7 +1418,9 @@ Data Sources:
       console.log(`   AI Input: ~${estimateTokens(aiInput).toLocaleString()} tokens`);
       console.log(`   MongoDB data: ${content.mongodb ? "✅" : "❌"}`);
       console.log(`   Multi-source ratings: ${hasRatings ? "✅" : "❌"}`);
-      console.log(`   Has plot: ${content.wikipedia?.sections?.["Plot"] || content.imdb?.synopsis ? "✅" : "❌"}`);
+      console.log(
+        `   Has plot: ${content.wikipedia?.sections?.["Plot"] || content.imdb?.synopsis ? "✅" : "❌"}`
+      );
       console.log(`   Has trivia: ${content.imdb?.trivia?.length ? "✅" : "❌"}`);
       console.log(`   Has categories: ${content.wikipedia?.categories?.length ? "✅" : "❌"}`);
 
@@ -1355,18 +1443,22 @@ Data Sources:
     console.log(`\n${"=".repeat(70)}`);
     console.log("📊 BATCH SUMMARY");
     console.log("=".repeat(70));
-    const successful = results.filter(r => r.success);
-    const withRatings = successful.filter(r => r.hasRatings);
+    const successful = results.filter((r) => r.success);
+    const withRatings = successful.filter((r) => r.hasRatings);
     const totalTokens = successful.reduce((sum, r) => sum + r.tokens, 0);
     console.log(`   Processed: ${successful.length}/${tmdbIds.length} movies`);
     console.log(`   With multi-source ratings: ${withRatings.length}/${successful.length}`);
     console.log(`   Total tokens: ~${totalTokens.toLocaleString()}`);
-    console.log(`   Average tokens: ~${Math.round(totalTokens / successful.length).toLocaleString()}`);
+    console.log(
+      `   Average tokens: ~${Math.round(totalTokens / successful.length).toLocaleString()}`
+    );
     console.log(`\nResults:`);
-    results.forEach(r => {
+    results.forEach((r) => {
       const status = r.success ? "✅" : "❌";
       const ratings = r.hasRatings ? "📊" : "";
-      console.log(`   ${status} ${r.id}: ${r.title} (~${r.tokens.toLocaleString()} tokens) ${ratings}`);
+      console.log(
+        `   ${status} ${r.id}: ${r.title} (~${r.tokens.toLocaleString()} tokens) ${ratings}`
+      );
     });
   }
 

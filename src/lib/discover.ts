@@ -376,27 +376,42 @@ export function parseDiscoverParams(searchParams: URLSearchParams): Partial<Disc
 
   const withGenres = searchParams.get("genres") || searchParams.get("with_genres");
   if (withGenres) {
-    params.with_genres = withGenres.split(",").map((n) => parseInt(n, 10)).filter(Boolean);
+    params.with_genres = withGenres
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter(Boolean);
   }
 
   const withoutGenres = searchParams.get("exclude_genres") || searchParams.get("without_genres");
   if (withoutGenres) {
-    params.without_genres = withoutGenres.split(",").map((n) => parseInt(n, 10)).filter(Boolean);
+    params.without_genres = withoutGenres
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter(Boolean);
   }
 
   const withKeywords = searchParams.get("keywords") || searchParams.get("with_keywords");
   if (withKeywords) {
-    params.with_keywords = withKeywords.split(",").map((n) => parseInt(n, 10)).filter(Boolean);
+    params.with_keywords = withKeywords
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter(Boolean);
   }
 
   const withCast = searchParams.get("cast") || searchParams.get("with_cast");
   if (withCast) {
-    params.with_cast = withCast.split(",").map((n) => parseInt(n, 10)).filter(Boolean);
+    params.with_cast = withCast
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter(Boolean);
   }
 
   const withCrew = searchParams.get("crew") || searchParams.get("with_crew");
   if (withCrew) {
-    params.with_crew = withCrew.split(",").map((n) => parseInt(n, 10)).filter(Boolean);
+    params.with_crew = withCrew
+      .split(",")
+      .map((n) => parseInt(n, 10))
+      .filter(Boolean);
   }
 
   const language = searchParams.get("language") || searchParams.get("with_original_language");
@@ -427,13 +442,16 @@ export function parseDiscoverParams(searchParams: URLSearchParams): Partial<Disc
   const watchRegion = searchParams.get("region") || searchParams.get("watch_region");
   if (watchRegion) params.watch_region = watchRegion;
 
-  const monetization = searchParams.get("availability") || searchParams.get("with_watch_monetization_types");
+  const monetization =
+    searchParams.get("availability") || searchParams.get("with_watch_monetization_types");
   if (monetization && ["flatrate", "free", "ads", "rent", "buy"].includes(monetization)) {
-    params.with_watch_monetization_types = monetization as DiscoverParams["with_watch_monetization_types"];
+    params.with_watch_monetization_types =
+      monetization as DiscoverParams["with_watch_monetization_types"];
   }
 
   // Date range filters
-  const releaseFrom = searchParams.get("release_from") || searchParams.get("primary_release_date.gte");
+  const releaseFrom =
+    searchParams.get("release_from") || searchParams.get("primary_release_date.gte");
   if (releaseFrom) params["primary_release_date.gte"] = releaseFrom;
 
   const releaseTo = searchParams.get("release_to") || searchParams.get("primary_release_date.lte");
@@ -483,4 +501,3 @@ export interface FilterMeta {
   crew?: { id: number; name: string }[];
   keywords?: { id: number; name: string }[];
 }
-

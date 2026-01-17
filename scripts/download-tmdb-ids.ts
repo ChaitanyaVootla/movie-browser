@@ -30,7 +30,10 @@ const OUTPUT_DIR = join(process.cwd(), "data", "tmdb-dump");
 // Media type configurations
 type MediaType = "movie" | "series" | "person";
 
-const MEDIA_CONFIGS: Record<MediaType, { exportName: string; outputFile: string; titleField: string }> = {
+const MEDIA_CONFIGS: Record<
+  MediaType,
+  { exportName: string; outputFile: string; titleField: string }
+> = {
   movie: {
     exportName: "movie_ids",
     outputFile: "movie_ids_latest.json",
@@ -49,16 +52,16 @@ const MEDIA_CONFIGS: Record<MediaType, { exportName: string; outputFile: string;
 };
 
 // Parse arguments
-const typeArg = process.argv.find(a => a.startsWith("--type="));
-const requestedType = typeArg ? typeArg.split("=")[1] as MediaType | "all" : "movie";
-const topArg = process.argv.find(a => a.startsWith("--top="));
+const typeArg = process.argv.find((a) => a.startsWith("--type="));
+const requestedType = typeArg ? (typeArg.split("=")[1] as MediaType | "all") : "movie";
+const topArg = process.argv.find((a) => a.startsWith("--top="));
 const topN = topArg ? parseInt(topArg.split("=")[1], 10) : 0;
 
 interface IdEntry {
   id: number;
-  original_title?: string;  // movies
-  original_name?: string;   // series
-  name?: string;            // persons
+  original_title?: string; // movies
+  original_name?: string; // series
+  name?: string; // persons
   popularity: number;
   adult?: boolean;
   video?: boolean;
@@ -111,11 +114,11 @@ async function decompress(gzBuffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     const gunzip = createGunzip();
-    
+
     gunzip.on("data", (chunk) => chunks.push(chunk));
     gunzip.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
     gunzip.on("error", reject);
-    
+
     gunzip.write(gzBuffer);
     gunzip.end();
   });
@@ -124,7 +127,7 @@ async function decompress(gzBuffer: Buffer): Promise<string> {
 function parseNDJSON(content: string): IdEntry[] {
   const lines = content.trim().split("\n");
   const entries: IdEntry[] = [];
-  
+
   for (const line of lines) {
     if (!line.trim()) continue;
     try {
@@ -133,60 +136,67 @@ function parseNDJSON(content: string): IdEntry[] {
       // Skip malformed lines
     }
   }
-  
+
   return entries;
 }
 
-async function downloadLatestExport(mediaType: MediaType): Promise<{ entries: IdEntry[]; sourceDate: string; sourceUrl: string } | null> {
+async function downloadLatestExport(
+  mediaType: MediaType
+): Promise<{ entries: IdEntry[]; sourceDate: string; sourceUrl: string } | null> {
   const config = MEDIA_CONFIGS[mediaType];
   console.log(`📥 Downloading TMDB ${mediaType} ID export...\n`);
-  
+
   const today = new Date();
   const maxDaysBack = 7; // Try up to 7 days back
-  
+
   for (let daysBack = 0; daysBack < maxDaysBack; daysBack++) {
     const date = new Date(today);
     date.setDate(date.getDate() - daysBack);
-    
+
     const url = getExportUrl(date, mediaType);
     const dateStr = formatDate(date);
-    
+
     console.log(`   Trying ${dateStr}...`);
-    
+
     const gzBuffer = await tryDownload(url);
     if (gzBuffer) {
       console.log(`   ✅ Found! Downloading and extracting...`);
-      
+
       const content = await decompress(gzBuffer);
       const entries = parseNDJSON(content);
-      
+
       console.log(`   📦 Downloaded ${(gzBuffer.length / 1024 / 1024).toFixed(2)} MB`);
       console.log(`   📄 Extracted ${entries.length.toLocaleString()} ${mediaType} entries\n`);
-      
+
       return { entries, sourceDate: dateStr, sourceUrl: url };
     }
   }
-  
+
   console.error(`❌ Could not find any ${mediaType} export in the last ${maxDaysBack} days`);
   return null;
 }
 
-function saveEntries(entries: IdEntry[], sourceDate: string, sourceUrl: string, mediaType: MediaType): void {
+function saveEntries(
+  entries: IdEntry[],
+  sourceDate: string,
+  sourceUrl: string,
+  mediaType: MediaType
+): void {
   // Ensure output directory exists
   if (!existsSync(OUTPUT_DIR)) {
     mkdirSync(OUTPUT_DIR, { recursive: true });
   }
-  
+
   // Filter out adult content (movies and persons have this field, series don't)
-  const filteredEntries = entries.filter(e => e.adult !== true);
+  const filteredEntries = entries.filter((e) => e.adult !== true);
   const sortedEntries = filteredEntries.sort((a, b) => b.popularity - a.popularity);
-  
+
   const outputFile = getOutputFile(mediaType);
   const metadataFile = getMetadataFile(mediaType);
-  
+
   // Save as proper JSON array (not NDJSON)
   writeFileSync(outputFile, JSON.stringify(sortedEntries, null, 2));
-  
+
   // Save metadata
   const metadata: DumpMetadata = {
     downloadedAt: new Date().toISOString(),
@@ -197,7 +207,7 @@ function saveEntries(entries: IdEntry[], sourceDate: string, sourceUrl: string, 
     mediaType,
   };
   writeFileSync(metadataFile, JSON.stringify(metadata, null, 2));
-  
+
   console.log(`💾 Saved to: ${outputFile}`);
   console.log(`   Total ${mediaType}: ${entries.length.toLocaleString()}`);
   console.log(`   Filtered (non-adult): ${sortedEntries.length.toLocaleString()}`);
@@ -207,77 +217,78 @@ function saveEntries(entries: IdEntry[], sourceDate: string, sourceUrl: string, 
 function printTopN(n: number, mediaType: MediaType): void {
   const outputFile = getOutputFile(mediaType);
   const config = MEDIA_CONFIGS[mediaType];
-  
+
   if (!existsSync(outputFile)) {
     console.error(`❌ No ${mediaType} IDs file found. Run without --top first.`);
     return;
   }
-  
+
   const entries: IdEntry[] = JSON.parse(readFileSync(outputFile, "utf-8"));
   const topEntries = entries.slice(0, n);
-  
+
   console.log(`\n🏆 Top ${n} ${mediaType} by Popularity:\n`);
   console.log("   Rank | ID      | Popularity | Name");
   console.log("   " + "-".repeat(60));
-  
+
   topEntries.forEach((entry, i) => {
     const rank = String(i + 1).padStart(4);
     const id = String(entry.id).padStart(7);
     const pop = entry.popularity.toFixed(1).padStart(10);
-    const name = (entry[config.titleField as keyof IdEntry] as string || "Unknown").slice(0, 35);
+    const name = ((entry[config.titleField as keyof IdEntry] as string) || "Unknown").slice(0, 35);
     console.log(`   ${rank} | ${id} | ${pop} | ${name}`);
   });
-  
+
   // Output comma-separated IDs for easy copy-paste
   console.log(`\n📋 IDs for enrichment (copy-paste ready):`);
-  console.log(`   ${topEntries.map(e => e.id).join(",")}`);
+  console.log(`   ${topEntries.map((e) => e.id).join(",")}`);
 }
 
 async function downloadMediaType(mediaType: MediaType): Promise<boolean> {
   const outputFile = getOutputFile(mediaType);
   const metadataFile = getMetadataFile(mediaType);
-  
+
   // Check if we can use cached data
   if (topN > 0 && existsSync(outputFile)) {
-    const metadata = existsSync(metadataFile) 
-      ? JSON.parse(readFileSync(metadataFile, "utf-8")) as DumpMetadata
+    const metadata = existsSync(metadataFile)
+      ? (JSON.parse(readFileSync(metadataFile, "utf-8")) as DumpMetadata)
       : null;
-    
+
     if (metadata) {
       const downloadedAt = new Date(metadata.downloadedAt);
       const hoursSinceDownload = (Date.now() - downloadedAt.getTime()) / (1000 * 60 * 60);
-      
+
       if (hoursSinceDownload < 24) {
-        console.log(`📂 Using cached ${mediaType} export from ${metadata.sourceDate} (${hoursSinceDownload.toFixed(1)}h ago)`);
+        console.log(
+          `📂 Using cached ${mediaType} export from ${metadata.sourceDate} (${hoursSinceDownload.toFixed(1)}h ago)`
+        );
         printTopN(topN, mediaType);
         return true;
       }
     }
   }
-  
+
   const result = await downloadLatestExport(mediaType);
   if (!result) {
     return false;
   }
-  
+
   saveEntries(result.entries, result.sourceDate, result.sourceUrl, mediaType);
-  
+
   if (topN > 0) {
     printTopN(topN, mediaType);
   }
-  
+
   return true;
 }
 
 async function main() {
   console.log("🎬 TMDB Daily ID Export Downloader\n");
-  
-  const mediaTypes: MediaType[] = requestedType === "all" 
-    ? ["movie", "series", "person"] 
-    : [requestedType as MediaType];
-  
+
+  const mediaTypes: MediaType[] =
+    requestedType === "all" ? ["movie", "series", "person"] : [requestedType as MediaType];
+
   let success = true;
-  
+
   for (const mediaType of mediaTypes) {
     console.log(`\n${"=".repeat(60)}`);
     const result = await downloadMediaType(mediaType);
@@ -288,16 +299,13 @@ async function main() {
       console.log(`✅ ${mediaType} IDs downloaded successfully`);
     }
   }
-  
+
   if (!success) {
     process.exit(1);
   }
-  
+
   console.log(`\n${"=".repeat(60)}`);
   console.log(`✅ All done!`);
 }
 
 main();
-
-
-

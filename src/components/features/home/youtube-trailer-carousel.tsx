@@ -39,8 +39,10 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
   return (
     <div className="flex items-center gap-1">
       <ThumbsUp className="h-3 w-3 text-muted-foreground" />
-      <span className="text-[11px] text-muted-foreground tabular-nums">{formatViewCount(likes)}</span>
-      
+      <span className="text-[11px] text-muted-foreground tabular-nums">
+        {formatViewCount(likes)}
+      </span>
+
       {/* Compact progress bar */}
       <div className="w-10 h-1 bg-muted rounded-full overflow-hidden">
         <div
@@ -48,8 +50,10 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
           style={{ width: `${likePercentage}%` }}
         />
       </div>
-      
-      <span className="text-[11px] text-muted-foreground tabular-nums">{formatViewCount(dislikes)}</span>
+
+      <span className="text-[11px] text-muted-foreground tabular-nums">
+        {formatViewCount(dislikes)}
+      </span>
       <ThumbsDown className="h-3 w-3 text-muted-foreground" />
     </div>
   );
@@ -58,28 +62,31 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
 /**
  * Channel avatar with fallback icon for missing/broken images
  */
-function ChannelAvatar({ 
-  src, 
-  alt, 
-  size = 16 
-}: { 
-  src: string | null; 
+function ChannelAvatar({
+  src,
+  alt,
+  size = 16,
+}: {
+  src: string | null;
   alt: string;
   size?: number;
 }) {
   const [hasError, setHasError] = useState(false);
-  
+
   if (!src || hasError) {
     return (
-      <div 
+      <div
         className="rounded-full bg-muted flex items-center justify-center shrink-0"
         style={{ width: size, height: size }}
       >
-        <User className="text-muted-foreground" style={{ width: size * 0.65, height: size * 0.65 }} />
+        <User
+          className="text-muted-foreground"
+          style={{ width: size * 0.65, height: size * 0.65 }}
+        />
       </div>
     );
   }
-  
+
   return (
     <Image
       src={src}
@@ -98,8 +105,8 @@ function ChannelAvatar({
  */
 function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCardProps) {
   // Use maxresdefault for highest quality, with fallback to hqdefault
-  const thumbnailUrl = trailer.thumbnail || 
-    `https://img.youtube.com/vi/${trailer.youtubeId}/hqdefault.jpg`;
+  const thumbnailUrl =
+    trailer.thumbnail || `https://img.youtube.com/vi/${trailer.youtubeId}/hqdefault.jpg`;
 
   // Use metadata if available (has dislikes), otherwise fall back to server data
   const viewCount = metadata?.viewCount ?? trailer.viewCount;
@@ -134,9 +141,7 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
 
       {/* Title and stats */}
       <div className="mt-2 space-y-1">
-        <h3 className="text-sm font-medium text-foreground line-clamp-1">
-          {trailer.title}
-        </h3>
+        <h3 className="text-sm font-medium text-foreground line-clamp-1">{trailer.title}</h3>
 
         {/* Stats row - matches TMDB trailer pattern: Views (left) | Like bar (right) */}
         <div className="flex items-center justify-between gap-2">
@@ -151,11 +156,7 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
 
         {/* Channel */}
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <ChannelAvatar 
-            src={trailer.channelThumbnail} 
-            alt={trailer.channelTitle}
-            size={16}
-          />
+          <ChannelAvatar src={trailer.channelThumbnail} alt={trailer.channelTitle} size={16} />
           <span className="text-[10px] truncate">{trailer.channelTitle}</span>
         </div>
       </div>
@@ -210,12 +211,12 @@ export function YouTubeTrailerCarousel({
   // This gets fresh data + dislike counts from Return YouTube Dislike API
   useEffect(() => {
     if (trailers.length === 0) return;
-    
-    const videoIds = trailers.map(t => t.youtubeId).join(",");
-    
+
+    const videoIds = trailers.map((t) => t.youtubeId).join(",");
+
     fetch(`/api/youtube?videoIds=${videoIds}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
         if (data?.videos) {
           const metadata = new Map<string, VideoMetadata>();
           for (const [id, video] of Object.entries(data.videos)) {
@@ -236,7 +237,7 @@ export function YouTubeTrailerCarousel({
 
   // Convert trailers to modal format with metadata
   const modalTrailers: TrailerModalData[] = useMemo(() => {
-    return trailers.map(trailer => {
+    return trailers.map((trailer) => {
       const metadata = videoMetadata.get(trailer.youtubeId);
       return youtubeToTrailerModalData(trailer, {
         dislikeCount: metadata?.dislikeCount,
@@ -250,12 +251,7 @@ export function YouTubeTrailerCarousel({
 
   return (
     <>
-      <MediaScroller
-        title={title}
-        titleIcon={icon}
-        className={cn(className)}
-        contentPadding=""
-      >
+      <MediaScroller title={title} titleIcon={icon} className={cn(className)} contentPadding="">
         {trailers.map((trailer, index) => (
           <YouTubeTrailerCard
             key={trailer.youtubeId}

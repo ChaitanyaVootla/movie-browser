@@ -20,5 +20,3 @@ datasources:
       queryTimeout: 60
     secureJsonData:
       password: ${CLICKHOUSE_PASSWORD}
-
-

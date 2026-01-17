@@ -109,8 +109,9 @@ async function getMovieHoverData(id: number, countryCode: string): Promise<Hover
     }));
 
     // Process watch options
-    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)
-      ?.results as Record<string, WatchProviderData> | undefined;
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)?.results as
+      | Record<string, WatchProviderData>
+      | undefined;
 
     const watchOptions = getWatchOptionsForCountry(
       countryCode,
@@ -204,8 +205,9 @@ async function getSeriesHoverData(id: number, countryCode: string): Promise<Hove
     }));
 
     // Process watch options
-    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)
-      ?.results as Record<string, WatchProviderData> | undefined;
+    const tmdbWatchProviders = (tmdbData["watch/providers"] as Record<string, unknown>)?.results as
+      | Record<string, WatchProviderData>
+      | undefined;
 
     const watchOptions = getWatchOptionsForCountry(
       countryCode,
@@ -307,4 +309,3 @@ export async function getHoverCardData(
     return null;
   }
 }
-

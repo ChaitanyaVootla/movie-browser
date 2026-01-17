@@ -12,16 +12,9 @@
  * - Configurable dimensions (256, 384, 1024)
  */
 
-import {
-  BedrockRuntimeClient,
-  InvokeModelCommand,
-} from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { prisma } from "@/server/db/postgres";
-import {
-  buildMovieEmbeddingText,
-  buildSeriesEmbeddingText,
-  estimateTokens,
-} from "./text-builder";
+import { buildMovieEmbeddingText, buildSeriesEmbeddingText, estimateTokens } from "./text-builder";
 import pino from "pino";
 import type { Credit, MovieGenre, MovieKeyword, Person, Genre, Keyword } from "@prisma/client";
 
@@ -171,7 +164,7 @@ export async function generateEmbeddingsBatch(
     while (nextIndex < texts.length) {
       const index = nextIndex++;
       if (index >= texts.length) break;
-      
+
       try {
         results[index] = await generateEmbedding(texts[index], dimensions);
       } catch (error) {
@@ -302,14 +295,12 @@ export async function generateMovieEmbeddings(
     const batchStartTime = Date.now();
 
     // Calculate ETA
-    const avgBatchTime = batchTimes.length > 0 
-      ? batchTimes.reduce((a, b) => a + b, 0) / batchTimes.length 
-      : 0;
+    const avgBatchTime =
+      batchTimes.length > 0 ? batchTimes.reduce((a, b) => a + b, 0) / batchTimes.length : 0;
     const remainingBatches = totalBatches - batchIndex;
     const etaSeconds = avgBatchTime > 0 ? Math.round((remainingBatches * avgBatchTime) / 1000) : 0;
-    const etaStr = etaSeconds > 60 
-      ? `${Math.floor(etaSeconds / 60)}m ${etaSeconds % 60}s` 
-      : `${etaSeconds}s`;
+    const etaStr =
+      etaSeconds > 60 ? `${Math.floor(etaSeconds / 60)}m ${etaSeconds % 60}s` : `${etaSeconds}s`;
 
     logger.info(
       {
@@ -347,11 +338,14 @@ export async function generateMovieEmbeddings(
 
   const totalTime = Math.round((Date.now() - startTime) / 1000);
   const rate = stats.processed > 0 ? Math.round(stats.processed / (totalTime || 1)) : 0;
-  logger.info({ 
-    ...stats, 
-    totalTimeSeconds: totalTime, 
-    itemsPerSecond: rate 
-  }, "Embedding generation complete");
+  logger.info(
+    {
+      ...stats,
+      totalTimeSeconds: totalTime,
+      itemsPerSecond: rate,
+    },
+    "Embedding generation complete"
+  );
   return stats;
 }
 
@@ -416,7 +410,8 @@ async function processBatch(
 
   const enrichedMovies = movies.map((movie) => {
     const genres = genresByMovie.get(movie.id) || [];
-    const keywords = (keywordsByMovie.get(movie.id) || []).slice(0, 20);
+    // Use ALL keywords (no limit) for better semantic matching
+    const keywords = keywordsByMovie.get(movie.id) || [];
     const credits = creditsByMovie.get(movie.id) || [];
     const aiData = aiDataByMovie.get(movie.id);
 
@@ -451,14 +446,14 @@ async function processBatch(
   const MIN_TEXT_LENGTH = 20;
   const validMovies = enrichedMovies.filter((m) => m.embeddingText.length >= MIN_TEXT_LENGTH);
   const skippedMovies = enrichedMovies.filter((m) => m.embeddingText.length < MIN_TEXT_LENGTH);
-  
+
   if (skippedMovies.length > 0) {
     logger.warn(
-      { 
-        skippedCount: skippedMovies.length, 
-        skippedIds: skippedMovies.map(m => m.id),
-        skippedTitles: skippedMovies.map(m => m.title),
-        reason: `text length < ${MIN_TEXT_LENGTH} chars`
+      {
+        skippedCount: skippedMovies.length,
+        skippedIds: skippedMovies.map((m) => m.id),
+        skippedTitles: skippedMovies.map((m) => m.title),
+        reason: `text length < ${MIN_TEXT_LENGTH} chars`,
       },
       "Skipping movies with insufficient embedding text"
     );
@@ -480,13 +475,12 @@ async function processBatch(
 
   // Generate embeddings with retry
   const texts = validMovies.map((m) => m.embeddingText);
-  const embeddings = await retryWithBackoff(() =>
-    generateEmbeddingsBatch(texts, dimensions)
-  );
+  const embeddings = await retryWithBackoff(() => generateEmbeddingsBatch(texts, dimensions));
 
   // Bulk update database using a single transaction
-  const updatePromises = validMovies.map((movie, idx) =>
-    prisma.$executeRaw`
+  const updatePromises = validMovies.map(
+    (movie, idx) =>
+      prisma.$executeRaw`
       UPDATE movies 
       SET embedding = ${JSON.stringify(embeddings[idx])}::vector
       WHERE id = ${movie.id}
@@ -569,14 +563,12 @@ export async function generateSeriesEmbeddings(
     const batchStartTime = Date.now();
 
     // Calculate ETA
-    const avgBatchTime = batchTimes.length > 0 
-      ? batchTimes.reduce((a, b) => a + b, 0) / batchTimes.length 
-      : 0;
+    const avgBatchTime =
+      batchTimes.length > 0 ? batchTimes.reduce((a, b) => a + b, 0) / batchTimes.length : 0;
     const remainingBatches = totalBatches - batchIndex;
     const etaSeconds = avgBatchTime > 0 ? Math.round((remainingBatches * avgBatchTime) / 1000) : 0;
-    const etaStr = etaSeconds > 60 
-      ? `${Math.floor(etaSeconds / 60)}m ${etaSeconds % 60}s` 
-      : `${etaSeconds}s`;
+    const etaStr =
+      etaSeconds > 60 ? `${Math.floor(etaSeconds / 60)}m ${etaSeconds % 60}s` : `${etaSeconds}s`;
 
     logger.info(
       {
@@ -614,11 +606,14 @@ export async function generateSeriesEmbeddings(
 
   const totalTime = Math.round((Date.now() - startTime) / 1000);
   const rate = stats.processed > 0 ? Math.round(stats.processed / (totalTime || 1)) : 0;
-  logger.info({ 
-    ...stats, 
-    totalTimeSeconds: totalTime, 
-    itemsPerSecond: rate 
-  }, "Series embedding generation complete");
+  logger.info(
+    {
+      ...stats,
+      totalTimeSeconds: totalTime,
+      itemsPerSecond: rate,
+    },
+    "Series embedding generation complete"
+  );
   return stats;
 }
 
@@ -689,7 +684,8 @@ async function processSeriesBatch(
   // Build embedding texts
   const enrichedSeries = seriesList.map((series) => {
     const genres = genresBySeries.get(series.id) || [];
-    const keywords = (keywordsBySeries.get(series.id) || []).slice(0, 20);
+    // Use ALL keywords (no limit) for better semantic matching
+    const keywords = keywordsBySeries.get(series.id) || [];
     const creators = creatorsBySeries.get(series.id) || [];
     const credits = creditsBySeries.get(series.id) || [];
     const aiData = aiDataBySeries.get(series.id);
@@ -725,14 +721,14 @@ async function processSeriesBatch(
   const MIN_TEXT_LENGTH = 20;
   const validSeries = enrichedSeries.filter((s) => s.embeddingText.length >= MIN_TEXT_LENGTH);
   const skippedSeries = enrichedSeries.filter((s) => s.embeddingText.length < MIN_TEXT_LENGTH);
-  
+
   if (skippedSeries.length > 0) {
     logger.warn(
-      { 
-        skippedCount: skippedSeries.length, 
-        skippedIds: skippedSeries.map(s => s.id),
-        skippedNames: skippedSeries.map(s => s.name),
-        reason: `text length < ${MIN_TEXT_LENGTH} chars`
+      {
+        skippedCount: skippedSeries.length,
+        skippedIds: skippedSeries.map((s) => s.id),
+        skippedNames: skippedSeries.map((s) => s.name),
+        reason: `text length < ${MIN_TEXT_LENGTH} chars`,
       },
       "Skipping series with insufficient embedding text"
     );
@@ -754,13 +750,12 @@ async function processSeriesBatch(
 
   // Generate embeddings with retry
   const texts = validSeries.map((s) => s.embeddingText);
-  const embeddings = await retryWithBackoff(() =>
-    generateEmbeddingsBatch(texts, dimensions)
-  );
+  const embeddings = await retryWithBackoff(() => generateEmbeddingsBatch(texts, dimensions));
 
   // Bulk update database
-  const updatePromises = validSeries.map((series, idx) =>
-    prisma.$executeRaw`
+  const updatePromises = validSeries.map(
+    (series, idx) =>
+      prisma.$executeRaw`
       UPDATE series 
       SET embedding = ${JSON.stringify(embeddings[idx])}::vector
       WHERE id = ${series.id}
@@ -956,8 +951,4 @@ export const EMBEDDING_CONFIG = {
 // Re-exports from text-builder
 // =============================================================================
 
-export {
-  buildMovieEmbeddingText,
-  buildSeriesEmbeddingText,
-  estimateTokens,
-} from "./text-builder";
+export { buildMovieEmbeddingText, buildSeriesEmbeddingText, estimateTokens } from "./text-builder";

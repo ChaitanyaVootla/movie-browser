@@ -45,17 +45,17 @@ interface GetSimilarItemsOptions {
 
 /**
  * Get similar items using embedding-based similarity with TMDB fallback.
- * 
+ *
  * Uses `smartDiscover` for embedding similarity which provides:
  * - Popularity-weighted ranking (slight preference for popular items)
  * - Minimum vote count filter (filters out obscure items)
  * - Collection exclusion (movies from same franchise)
  * - User exclusions (watched, watchlist)
- * 
+ *
  * @example
  * // Basic usage
  * const similar = await getSimilarItems(movieId, "movie");
- * 
+ *
  * // With collection exclusion
  * const similar = await getSimilarItems(movieId, "movie", {
  *   excludeCollectionId: 9485, // MCU collection ID
@@ -115,25 +115,34 @@ export async function getSimilarItems(
 
     // Transform smart discover results to list item format
     const embeddingSimilar = transformDiscoverResults(discoverResult.results, mediaType);
-    
+
     // Transform TMDB results - also filter out excluded IDs
-    let tmdbRecommendations = (tmdbRecs.results || []).slice(0, limit * 2) as (MovieListItem | SeriesListItem)[];
-    let tmdbSimilarItems = (tmdbSimilar.results || []).slice(0, limit * 2) as (MovieListItem | SeriesListItem)[];
-    
+    let tmdbRecommendations = (tmdbRecs.results || []).slice(0, limit * 2) as (
+      | MovieListItem
+      | SeriesListItem
+    )[];
+    let tmdbSimilarItems = (tmdbSimilar.results || []).slice(0, limit * 2) as (
+      | MovieListItem
+      | SeriesListItem
+    )[];
+
     // Filter TMDB results for exclusions
     const excludeSet = new Set([id, ...(excludeIds || [])]);
-    tmdbRecommendations = tmdbRecommendations.filter(item => !excludeSet.has(item.id));
-    tmdbSimilarItems = tmdbSimilarItems.filter(item => !excludeSet.has(item.id));
-    
+    tmdbRecommendations = tmdbRecommendations.filter((item) => !excludeSet.has(item.id));
+    tmdbSimilarItems = tmdbSimilarItems.filter((item) => !excludeSet.has(item.id));
+
     // Slice to final limit after filtering
     tmdbRecommendations = tmdbRecommendations.slice(0, limit);
     tmdbSimilarItems = tmdbSimilarItems.slice(0, limit);
 
     // Determine source
     const hasEmbeddingResults = embeddingSimilar.length >= 5;
-    const source: SimilarItemsResult["source"] = 
-      hasEmbeddingResults && tmdbRecommendations.length > 0 ? "hybrid" :
-      hasEmbeddingResults ? "embedding" : "tmdb";
+    const source: SimilarItemsResult["source"] =
+      hasEmbeddingResults && tmdbRecommendations.length > 0
+        ? "hybrid"
+        : hasEmbeddingResults
+          ? "embedding"
+          : "tmdb";
 
     dataLogger.info({
       event: "get_similar_items",

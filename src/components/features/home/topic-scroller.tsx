@@ -48,7 +48,7 @@ export function TopicScroller({
     return items.filter((item) => {
       // Only filter movies for watched (we don't track watched series)
       const isMovie = "title" in item;
-      
+
       // Filter out watched movies
       if (filterWatched && isMovie && watchedMovies.has(item.id)) {
         return false;
@@ -83,6 +83,3 @@ export function TopicScroller({
     />
   );
 }
-
-
-

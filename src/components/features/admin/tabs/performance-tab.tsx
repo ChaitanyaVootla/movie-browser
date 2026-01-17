@@ -113,8 +113,7 @@ export function PerformanceTab({ metrics, isLoading }: PerformanceTabProps) {
     <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
       {VITALS.map((vital) => {
         const value = metrics ? vital.getValue(metrics) : undefined;
-        const hasValue =
-          value !== undefined && value !== null && !isNaN(value);
+        const hasValue = value !== undefined && value !== null && !isNaN(value);
 
         return (
           <Card key={vital.key} className="p-3">
@@ -133,9 +132,7 @@ export function PerformanceTab({ metrics, isLoading }: PerformanceTabProps) {
                 >
                   {hasValue ? vital.format(value!) : "—"}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
-                  P75 · Target: {vital.target}
-                </p>
+                <p className="text-[10px] text-muted-foreground">P75 · Target: {vital.target}</p>
               </>
             )}
           </Card>

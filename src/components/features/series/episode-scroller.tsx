@@ -39,10 +39,7 @@ function EpisodeCard({ episode, onClick }: EpisodeCardProps) {
     : null;
 
   return (
-    <button
-      onClick={onClick}
-      className="group flex-shrink-0 w-[240px] md:w-[280px] text-left"
-    >
+    <button onClick={onClick} className="group flex-shrink-0 w-[240px] md:w-[280px] text-left">
       {/* Episode info header */}
       <div className="flex items-center justify-between mb-1.5 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
@@ -138,11 +135,7 @@ export function EpisodeScroller({
 
   return (
     <>
-      <MediaScroller
-        className={className}
-        showControls={episodes.length > 4}
-        title={title}
-      >
+      <MediaScroller className={className} showControls={episodes.length > 4} title={title}>
         {episodes.map((episode) => (
           <EpisodeCard
             key={episode.id}

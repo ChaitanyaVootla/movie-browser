@@ -119,10 +119,7 @@ export const analyticsLogger = logger.child({ module: "analytics" });
  * Create a request-scoped logger with trace ID
  * Useful for tracing requests through the system
  */
-export function createRequestLogger(
-  baseLogger: pino.Logger,
-  requestId?: string
-) {
+export function createRequestLogger(baseLogger: pino.Logger, requestId?: string) {
   return baseLogger.child({
     requestId: requestId || generateRequestId(),
   });

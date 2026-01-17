@@ -25,7 +25,7 @@ interface MediaCardProps {
 
 /**
  * MediaCard - Switches between poster and wide card based on user preference
- * 
+ *
  * Uses the preferences store to determine which card style to render.
  * The wideClassName prop allows different sizing for wide cards in carousels.
  * Includes hover card functionality for enhanced preview on desktop.
@@ -43,37 +43,34 @@ export function MediaCard({
 }: MediaCardProps) {
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 
-  const card = displayMode === "wide" ? (
-    <WideMovieCard
-      item={item}
-      className={wideClassName || className}
-      showRating={showRating}
-      showBadges={showBadges}
-      priority={priority}
-      subtitle={subtitle}
-      hideUserStatus={hideUserStatus}
-    />
-  ) : (
-    <MovieCard
-      item={item}
-      className={className}
-      showRating={showRating}
-      showBadges={showBadges}
-      priority={priority}
-      subtitle={subtitle}
-      hideUserStatus={hideUserStatus}
-    />
-  );
+  const card =
+    displayMode === "wide" ? (
+      <WideMovieCard
+        item={item}
+        className={wideClassName || className}
+        showRating={showRating}
+        showBadges={showBadges}
+        priority={priority}
+        subtitle={subtitle}
+        hideUserStatus={hideUserStatus}
+      />
+    ) : (
+      <MovieCard
+        item={item}
+        className={className}
+        showRating={showRating}
+        showBadges={showBadges}
+        priority={priority}
+        subtitle={subtitle}
+        hideUserStatus={hideUserStatus}
+      />
+    );
 
   if (!enableHover) {
     return card;
   }
 
-  return (
-    <HoverCardWrapper item={item}>
-      {card}
-    </HoverCardWrapper>
-  );
+  return <HoverCardWrapper item={item}>{card}</HoverCardWrapper>;
 }
 
 interface MediaCardSkeletonProps {
@@ -84,10 +81,7 @@ interface MediaCardSkeletonProps {
 /**
  * MediaCardSkeleton - Skeleton that matches the current display preference
  */
-export function MediaCardSkeleton({
-  className,
-  wideClassName,
-}: MediaCardSkeletonProps) {
+export function MediaCardSkeleton({ className, wideClassName }: MediaCardSkeletonProps) {
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 
   if (displayMode === "wide") {
@@ -96,4 +90,3 @@ export function MediaCardSkeleton({
 
   return <MovieCardSkeleton className={className} />;
 }
-

@@ -33,7 +33,11 @@ const BROWSER_PATTERNS: BrowserPattern[] = [
   // Order matters - more specific patterns first
   { name: "Edge", pattern: /Edg(?:e|A|iOS)?\//, versionPattern: /Edg(?:e|A|iOS)?\/(\d+[\d.]*)/ },
   { name: "Opera", pattern: /OPR\/|Opera/, versionPattern: /(?:OPR|Opera)[/ ](\d+[\d.]*)/ },
-  { name: "Samsung Internet", pattern: /SamsungBrowser\//, versionPattern: /SamsungBrowser\/(\d+[\d.]*)/ },
+  {
+    name: "Samsung Internet",
+    pattern: /SamsungBrowser\//,
+    versionPattern: /SamsungBrowser\/(\d+[\d.]*)/,
+  },
   { name: "UC Browser", pattern: /UCBrowser\//, versionPattern: /UCBrowser\/(\d+[\d.]*)/ },
   { name: "Firefox", pattern: /Firefox\//, versionPattern: /Firefox\/(\d+[\d.]*)/ },
   { name: "Safari", pattern: /Safari\//, versionPattern: /Version\/(\d+[\d.]*)/ },
@@ -82,15 +86,15 @@ function detectDeviceType(userAgent: string): DeviceType {
 
   // Mobile patterns
   if (
-    /mobile|iphone|ipod|android.*mobile|windows phone|blackberry|bb10|opera mini|opera mobi/i.test(ua)
+    /mobile|iphone|ipod|android.*mobile|windows phone|blackberry|bb10|opera mini|opera mobi/i.test(
+      ua
+    )
   ) {
     return "mobile";
   }
 
   // Tablet patterns
-  if (
-    /ipad|android(?!.*mobile)|tablet|kindle|silk|playbook/i.test(ua)
-  ) {
+  if (/ipad|android(?!.*mobile)|tablet|kindle|silk|playbook/i.test(ua)) {
     return "tablet";
   }
 
@@ -128,7 +132,7 @@ function detectOS(userAgent: string): { name: string; version: string } {
         const match = userAgent.match(versionPattern);
         if (match) {
           version = match[1].replace(/_/g, ".");
-          
+
           // Map Windows NT versions to marketing names
           if (name === "Windows" && WINDOWS_VERSIONS[version]) {
             version = WINDOWS_VERSIONS[version];
@@ -180,7 +184,7 @@ export function getSimpleBrowser(parsed: ParsedDevice): string {
   if (parsed.browser === "unknown") {
     return "unknown";
   }
-  
+
   const majorVersion = parsed.browserVersion.split(".")[0];
   return majorVersion ? `${parsed.browser} ${majorVersion}` : parsed.browser;
 }
@@ -192,14 +196,12 @@ export function getSimpleOS(parsed: ParsedDevice): string {
   if (parsed.os === "unknown") {
     return "unknown";
   }
-  
+
   // For some OSes, don't include version
   if (parsed.os === "Linux" || parsed.os === "Chrome OS") {
     return parsed.os;
   }
-  
+
   const majorVersion = parsed.osVersion.split(".")[0];
   return majorVersion ? `${parsed.os} ${majorVersion}` : parsed.os;
 }
-
-

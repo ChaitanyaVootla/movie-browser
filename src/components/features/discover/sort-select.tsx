@@ -17,12 +17,7 @@ interface SortSelectProps {
   className?: string;
 }
 
-export function SortSelect({
-  value,
-  onChange,
-  mediaType = "movie",
-  className,
-}: SortSelectProps) {
+export function SortSelect({ value, onChange, mediaType = "movie", className }: SortSelectProps) {
   const options = mediaType === "tv" ? TV_SORT_OPTIONS : SORT_OPTIONS;
 
   return (
@@ -40,5 +35,3 @@ export function SortSelect({
     </Select>
   );
 }
-
-

@@ -24,9 +24,7 @@ function validateAuthConfig() {
     if (isProduction) {
       errors.push("AUTH_SECRET is required in production");
     } else {
-      console.warn(
-        "⚠️  AUTH_SECRET not set - using insecure default for development"
-      );
+      console.warn("⚠️  AUTH_SECRET not set - using insecure default for development");
     }
   }
 
@@ -107,8 +105,8 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
       email: tokenInfo.email,
       image: tokenInfo.picture,
       picture: tokenInfo.picture, // Nuxt uses 'picture' field
-      id: tokenInfo.sub,          // Nuxt stores Google sub as 'id' (string)
-      sub: tokenInfo.sub,         // Also store as 'sub' for compatibility
+      id: tokenInfo.sub, // Nuxt stores Google sub as 'id' (string)
+      sub: tokenInfo.sub, // Also store as 'sub' for compatibility
       emailVerified: now,
       createdAt: now,
       updatedAt: now,
@@ -146,10 +144,7 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
     if (!user.id) updates.id = tokenInfo.sub;
     if (!user.sub) updates.sub = tokenInfo.sub;
 
-    await usersCollection.updateOne(
-      { _id: user._id },
-      { $set: updates }
-    );
+    await usersCollection.updateOne({ _id: user._id }, { $set: updates });
 
     const existingAccount = await accountsCollection.findOne({
       userId: user._id,
@@ -186,14 +181,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
 
   // Add database adapter pointing to 'test' database (same as Nuxt app)
-  adapter: clientPromise
-    ? MongoDBAdapter(clientPromise, { databaseName: "test" })
-    : undefined,
+  adapter: clientPromise ? MongoDBAdapter(clientPromise, { databaseName: "test" }) : undefined,
 
   // Define all providers here - Google OAuth + Google One Tap credentials
   providers: [
     googleProvider,
-    
+
     // Google One Tap - uses credential token instead of OAuth flow
     Credentials({
       id: "google-one-tap",
@@ -259,8 +252,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               { email: user.email },
               {
                 $set: {
-                  id: account.providerAccountId,    // Google sub as string
-                  sub: account.providerAccountId,   // For compatibility
+                  id: account.providerAccountId, // Google sub as string
+                  sub: account.providerAccountId, // For compatibility
                   picture: user.image,
                   lastVisited: new Date(),
                   updatedAt: new Date(),

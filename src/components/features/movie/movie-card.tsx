@@ -44,9 +44,7 @@ export function MovieCard({
   const itemIsMovie = isMovie(item);
   const title = itemIsMovie ? item.title : item.name;
   const mediaType = itemIsMovie ? "movie" : "series";
-  const year = itemIsMovie
-    ? item.release_date?.split("-")[0]
-    : item.first_air_date?.split("-")[0];
+  const year = itemIsMovie ? item.release_date?.split("-")[0] : item.first_air_date?.split("-")[0];
   const href = getMediaHref(item.id, itemIsMovie, title);
 
   // Check if user has watched this item (for grayscale effect)
@@ -85,7 +83,9 @@ export function MovieCard({
                   sizes="(max-width: 640px) 150px, (max-width: 1024px) 200px, 240px"
                   className={cn(
                     "object-cover transition-all duration-300 group-hover:scale-105",
-                    isWatched && !hideUserStatus && "grayscale brightness-75 group-hover:grayscale-0 group-hover:brightness-100"
+                    isWatched &&
+                      !hideUserStatus &&
+                      "grayscale brightness-75 group-hover:grayscale-0 group-hover:brightness-100"
                   )}
                   priority={priority}
                   onError={() => {
@@ -120,7 +120,7 @@ export function MovieCard({
                 isMovie={itemIsMovie}
                 className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               />
-              
+
               {/* Badge inside image at bottom-left with inverted corner */}
               {badge && (
                 <div className="absolute bottom-0 left-0 z-10 flex items-end">
@@ -158,9 +158,7 @@ export function MovieCard({
               {title}
             </h3>
             {subtitle && (
-              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                {subtitle}
-              </p>
+              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{subtitle}</p>
             )}
           </div>
         </CardContent>

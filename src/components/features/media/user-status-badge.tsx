@@ -12,7 +12,7 @@ interface UserStatusBadgeProps {
 
 /**
  * UserStatusBadge - Shows watchlist/watched status in the bottom-right corner of cards
- * 
+ *
  * Priority: watched > watchlist (only shows one)
  * Only renders for authenticated users with hydrated store
  */
@@ -26,9 +26,9 @@ export function UserStatusBadge({ itemId, mediaType, className }: UserStatusBadg
 
   // Priority: watched > watchlist
   // Only show one badge
-  const badge = isWatched 
+  const badge = isWatched
     ? createBadge("watched")
-    : isInWatchlist 
+    : isInWatchlist
       ? createBadge("watchlist")
       : null;
 
@@ -69,4 +69,3 @@ export function useIsWatched(itemId: number): boolean {
   const isWatched = useUserStore(selectIsWatched(itemId));
   return isHydrated && isWatched;
 }
-

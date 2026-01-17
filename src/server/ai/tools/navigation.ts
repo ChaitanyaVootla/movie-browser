@@ -12,10 +12,7 @@ const navigationSchema = z.object({
   type: z
     .enum(["movie", "series", "person", "browse", "topics", "home"])
     .describe("Type of page to navigate to"),
-  id: z
-    .number()
-    .optional()
-    .describe("ID of the movie/series/person (required for detail pages)"),
+  id: z.number().optional().describe("ID of the movie/series/person (required for detail pages)"),
 });
 
 type NavigationInput = z.infer<typeof navigationSchema>;

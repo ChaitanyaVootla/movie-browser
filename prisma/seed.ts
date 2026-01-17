@@ -64,7 +64,11 @@ async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchTMDB<T>(endpoint: string, params: Record<string, string> = {}, retries = 5): Promise<T> {
+async function fetchTMDB<T>(
+  endpoint: string,
+  params: Record<string, string> = {},
+  retries = 5
+): Promise<T> {
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
   url.searchParams.set("api_key", TMDB_API_KEY!);
   Object.entries(params).forEach(([key, value]) => {
@@ -321,7 +325,7 @@ async function seedStreamingProviders() {
     "Amazon Prime Video": 2,
     "Disney Plus": 3,
     "HBO Max": 4,
-    "Max": 4,
+    Max: 4,
     "Apple TV Plus": 5,
     "Apple TV": 5,
     Hulu: 6,
@@ -330,16 +334,16 @@ async function seedStreamingProviders() {
     Peacock: 8,
     "Amazon Video": 10,
     "Google Play Movies": 11,
-    "YouTube": 12,
-    "Vudu": 13,
+    YouTube: 12,
+    Vudu: 13,
     "Microsoft Store": 14,
     // India
-    "JioCinema": 15,
-    "Hotstar": 16,
+    JioCinema: 15,
+    Hotstar: 16,
     "Disney+ Hotstar": 16,
-    "SonyLIV": 17,
-    "Zee5": 18,
-    "Voot": 19,
+    SonyLIV: 17,
+    Zee5: 18,
+    Voot: 19,
     "MX Player": 20,
     "Amazon miniTV": 21,
   };
@@ -410,7 +414,12 @@ interface TMDBMovieDetails {
     backdrop_path?: string;
   };
   genres?: { id: number; name: string }[];
-  production_companies?: { id: number; name: string; logo_path?: string; origin_country?: string }[];
+  production_companies?: {
+    id: number;
+    name: string;
+    logo_path?: string;
+    origin_country?: string;
+  }[];
   spoken_languages?: { iso_639_1: string; name: string }[];
   keywords?: { keywords: { id: number; name: string }[] };
   credits?: {
@@ -443,9 +452,33 @@ interface TMDBMovieDetails {
     }[];
   };
   images?: {
-    backdrops: { file_path: string; aspect_ratio: number; width: number; height: number; vote_average: number; vote_count: number; iso_639_1?: string }[];
-    posters: { file_path: string; aspect_ratio: number; width: number; height: number; vote_average: number; vote_count: number; iso_639_1?: string }[];
-    logos: { file_path: string; aspect_ratio: number; width: number; height: number; vote_average: number; vote_count: number; iso_639_1?: string }[];
+    backdrops: {
+      file_path: string;
+      aspect_ratio: number;
+      width: number;
+      height: number;
+      vote_average: number;
+      vote_count: number;
+      iso_639_1?: string;
+    }[];
+    posters: {
+      file_path: string;
+      aspect_ratio: number;
+      width: number;
+      height: number;
+      vote_average: number;
+      vote_count: number;
+      iso_639_1?: string;
+    }[];
+    logos: {
+      file_path: string;
+      aspect_ratio: number;
+      width: number;
+      height: number;
+      vote_average: number;
+      vote_count: number;
+      iso_639_1?: string;
+    }[];
   };
   "watch/providers"?: {
     results: Record<
@@ -662,7 +695,12 @@ async function seedMovie(movieData: TMDBMovieDetails): Promise<void> {
 
     // Top 20 cast
     for (const cast of movieData.credits.cast.slice(0, 20)) {
-      const personId = await ensurePerson(cast.id, cast.name, cast.profile_path, cast.known_for_department);
+      const personId = await ensurePerson(
+        cast.id,
+        cast.name,
+        cast.profile_path,
+        cast.known_for_department
+      );
       credits.push({
         movieId: movieData.id,
         personId,
@@ -673,9 +711,25 @@ async function seedMovie(movieData: TMDBMovieDetails): Promise<void> {
     }
 
     // Key crew (directors, writers, composers, etc.)
-    const importantJobs = ["Director", "Writer", "Screenplay", "Story", "Original Music Composer", "Director of Photography", "Producer", "Executive Producer"];
-    for (const crew of movieData.credits.crew.filter((c) => importantJobs.includes(c.job)).slice(0, 20)) {
-      const personId = await ensurePerson(crew.id, crew.name, crew.profile_path, crew.known_for_department);
+    const importantJobs = [
+      "Director",
+      "Writer",
+      "Screenplay",
+      "Story",
+      "Original Music Composer",
+      "Director of Photography",
+      "Producer",
+      "Executive Producer",
+    ];
+    for (const crew of movieData.credits.crew
+      .filter((c) => importantJobs.includes(c.job))
+      .slice(0, 20)) {
+      const personId = await ensurePerson(
+        crew.id,
+        crew.name,
+        crew.profile_path,
+        crew.known_for_department
+      );
       credits.push({
         movieId: movieData.id,
         personId,
@@ -1005,7 +1059,12 @@ interface TMDBSeriesDetails {
   vote_count?: number;
   genres?: { id: number; name: string }[];
   networks?: { id: number; name: string; logo_path?: string; origin_country?: string }[];
-  production_companies?: { id: number; name: string; logo_path?: string; origin_country?: string }[];
+  production_companies?: {
+    id: number;
+    name: string;
+    logo_path?: string;
+    origin_country?: string;
+  }[];
   created_by?: { id: number; name: string; profile_path?: string }[];
   seasons?: {
     id: number;
@@ -1060,9 +1119,33 @@ interface TMDBSeriesDetails {
     }[];
   };
   images?: {
-    backdrops: { file_path: string; aspect_ratio: number; width: number; height: number; vote_average: number; vote_count: number; iso_639_1?: string }[];
-    posters: { file_path: string; aspect_ratio: number; width: number; height: number; vote_average: number; vote_count: number; iso_639_1?: string }[];
-    logos: { file_path: string; aspect_ratio: number; width: number; height: number; vote_average: number; vote_count: number; iso_639_1?: string }[];
+    backdrops: {
+      file_path: string;
+      aspect_ratio: number;
+      width: number;
+      height: number;
+      vote_average: number;
+      vote_count: number;
+      iso_639_1?: string;
+    }[];
+    posters: {
+      file_path: string;
+      aspect_ratio: number;
+      width: number;
+      height: number;
+      vote_average: number;
+      vote_count: number;
+      iso_639_1?: string;
+    }[];
+    logos: {
+      file_path: string;
+      aspect_ratio: number;
+      width: number;
+      height: number;
+      vote_average: number;
+      vote_count: number;
+      iso_639_1?: string;
+    }[];
   };
   keywords?: { results: { id: number; name: string }[] };
   "watch/providers"?: {
@@ -1226,7 +1309,12 @@ async function seedSeries(seriesData: TMDBSeriesDetails): Promise<void> {
     await prisma.seriesCreator.deleteMany({ where: { seriesId: seriesData.id } });
     const creatorConnections: { seriesId: number; personId: number }[] = [];
     for (const creator of seriesData.created_by) {
-      const personId = await ensurePerson(creator.id, creator.name, creator.profile_path, "Creating");
+      const personId = await ensurePerson(
+        creator.id,
+        creator.name,
+        creator.profile_path,
+        "Creating"
+      );
       creatorConnections.push({ seriesId: seriesData.id, personId });
     }
     if (creatorConnections.length) {
@@ -1253,7 +1341,12 @@ async function seedSeries(seriesData: TMDBSeriesDetails): Promise<void> {
 
     // Top 20 cast
     for (const cast of seriesData.credits.cast.slice(0, 20)) {
-      const personId = await ensurePerson(cast.id, cast.name, cast.profile_path, cast.known_for_department);
+      const personId = await ensurePerson(
+        cast.id,
+        cast.name,
+        cast.profile_path,
+        cast.known_for_department
+      );
       try {
         await prisma.seriesCredit.create({
           data: {
@@ -1270,9 +1363,22 @@ async function seedSeries(seriesData: TMDBSeriesDetails): Promise<void> {
     }
 
     // Key crew
-    const importantJobs = ["Executive Producer", "Creator", "Director", "Writer", "Original Music Composer"];
-    for (const crew of seriesData.credits.crew.filter((c) => importantJobs.includes(c.job)).slice(0, 20)) {
-      const personId = await ensurePerson(crew.id, crew.name, crew.profile_path, crew.known_for_department);
+    const importantJobs = [
+      "Executive Producer",
+      "Creator",
+      "Director",
+      "Writer",
+      "Original Music Composer",
+    ];
+    for (const crew of seriesData.credits.crew
+      .filter((c) => importantJobs.includes(c.job))
+      .slice(0, 20)) {
+      const personId = await ensurePerson(
+        crew.id,
+        crew.name,
+        crew.profile_path,
+        crew.known_for_department
+      );
       try {
         await prisma.seriesCredit.create({
           data: {
@@ -1534,7 +1640,8 @@ async function seedSeriesBatch(count: number) {
       try {
         // Fetch full series details
         const details = await fetchTMDB<TMDBSeriesDetails>(`/tv/${series.id}`, {
-          append_to_response: "credits,videos,images,keywords,watch/providers,external_ids,content_ratings",
+          append_to_response:
+            "credits,videos,images,keywords,watch/providers,external_ids,content_ratings",
           include_image_language: "en,null",
         });
 
@@ -1624,4 +1731,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

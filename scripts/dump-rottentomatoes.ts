@@ -27,8 +27,9 @@ config({ path: resolve(process.cwd(), ".env.local") });
 
 async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   const headers = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   };
 
   for (let i = 0; i < retries; i++) {
@@ -39,7 +40,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
       throw new Error(`HTTP ${response.status}`);
     } catch (error) {
       if (i === retries - 1) throw error;
-      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
     }
   }
   throw new Error("Failed after retries");
@@ -49,16 +50,16 @@ interface RTContent {
   title: string;
   url: string;
   year: string;
-  
+
   // Scores
   tomatometer: string;
   audienceScore: string;
   criticConsensus: string;
-  
+
   // Counts
   criticReviewCount: string;
   audienceReviewCount: string;
-  
+
   // Film info
   rating: string; // PG-13, R, etc.
   runtime: string;
@@ -66,17 +67,17 @@ interface RTContent {
   director: string[];
   producer: string[];
   writer: string[];
-  
+
   // Release info
   theaterRelease: string;
   streamingRelease: string;
-  
+
   // Description
   synopsis: string;
-  
+
   // Cast
   cast: Array<{ name: string; character: string }>;
-  
+
   // Reviews
   criticReviews: Array<{
     critic: string;
@@ -85,14 +86,14 @@ interface RTContent {
     quote: string;
     date: string;
   }>;
-  
+
   audienceReviews: Array<{
     author: string;
     rating: string;
     content: string;
     date: string;
   }>;
-  
+
   // Where to watch
   whereToWatch: string[];
 }
@@ -147,12 +148,14 @@ async function dumpRottenTomatoes(rtId: string) {
     content.audienceScore = scoreBoard.attr("audiencescore") || "";
 
     // Get critic consensus
-    content.criticConsensus = $('[data-qa="critics-consensus"]').text().trim() ||
-                              $('p[slot="criticsConsensus"]').text().trim();
+    content.criticConsensus =
+      $('[data-qa="critics-consensus"]').text().trim() ||
+      $('p[slot="criticsConsensus"]').text().trim();
 
     // Get synopsis
-    content.synopsis = $('[data-qa="movie-info-synopsis"]').text().trim() ||
-                       $('p[slot="movieSynopsis"]').text().trim();
+    content.synopsis =
+      $('[data-qa="movie-info-synopsis"]').text().trim() ||
+      $('p[slot="movieSynopsis"]').text().trim();
 
     // Get movie info from JSON-LD - this is the most reliable source!
     const ldJson = $('script[type="application/ld+json"]').html();
@@ -161,9 +164,11 @@ async function dumpRottenTomatoes(rtId: string) {
         const data = JSON.parse(ldJson);
         if (data["@type"] === "Movie") {
           content.title = content.title || data.name;
-          content.director = Array.isArray(data.director) 
-            ? data.director.map((d: { name: string }) => d.name) 
-            : data.director?.name ? [data.director.name] : [];
+          content.director = Array.isArray(data.director)
+            ? data.director.map((d: { name: string }) => d.name)
+            : data.director?.name
+              ? [data.director.name]
+              : [];
           content.producer = Array.isArray(data.producer)
             ? data.producer.map((p: { name: string }) => p.name)
             : [];
@@ -234,16 +239,21 @@ async function dumpRottenTomatoes(rtId: string) {
         if (i < 30) {
           const $review = $reviews(el);
           content.criticReviews.push({
-            critic: $review.find('[data-qa="review-critic-link"]').text().trim() ||
-                   $review.find(".critic-name").text().trim(),
-            publication: $review.find('[data-qa="review-publication"]').text().trim() ||
-                        $review.find(".publication").text().trim(),
-            score: $review.find('[data-qa="review-score"]').attr("value") ||
-                   ($review.find(".fresh").length > 0 ? "fresh" : "rotten"),
-            quote: $review.find('[data-qa="review-quote"]').text().trim() ||
-                   $review.find(".review-text").text().trim(),
-            date: $review.find('[data-qa="review-date"]').text().trim() ||
-                  $review.find(".review-date").text().trim(),
+            critic:
+              $review.find('[data-qa="review-critic-link"]').text().trim() ||
+              $review.find(".critic-name").text().trim(),
+            publication:
+              $review.find('[data-qa="review-publication"]').text().trim() ||
+              $review.find(".publication").text().trim(),
+            score:
+              $review.find('[data-qa="review-score"]').attr("value") ||
+              ($review.find(".fresh").length > 0 ? "fresh" : "rotten"),
+            quote:
+              $review.find('[data-qa="review-quote"]').text().trim() ||
+              $review.find(".review-text").text().trim(),
+            date:
+              $review.find('[data-qa="review-date"]').text().trim() ||
+              $review.find(".review-date").text().trim(),
           });
         }
       });
@@ -291,11 +301,20 @@ async function dumpRottenTomatoes(rtId: string) {
     writeFileSync(join(outputDir, "structure.json"), JSON.stringify(structure, null, 2));
 
     // Save reviews separately
-    writeFileSync(join(outputDir, "reviews.json"), JSON.stringify({
-      criticReviews: content.criticReviews,
-      audienceReviews: content.audienceReviews,
-    }, null, 2));
-    console.log(`   ✅ Saved ${content.criticReviews.length} critic + ${content.audienceReviews.length} audience reviews`);
+    writeFileSync(
+      join(outputDir, "reviews.json"),
+      JSON.stringify(
+        {
+          criticReviews: content.criticReviews,
+          audienceReviews: content.audienceReviews,
+        },
+        null,
+        2
+      )
+    );
+    console.log(
+      `   ✅ Saved ${content.criticReviews.length} critic + ${content.audienceReviews.length} audience reviews`
+    );
 
     // Save full content
     writeFileSync(join(outputDir, "full.json"), JSON.stringify(content, null, 2));
@@ -328,25 +347,38 @@ ${content.synopsis}
 
 ## Cast (Top 10)
 
-${content.cast.slice(0, 10).map(c => `- ${c.name} as ${c.character}`).join("\n")}
+${content.cast
+  .slice(0, 10)
+  .map((c) => `- ${c.name} as ${c.character}`)
+  .join("\n")}
 
 ## Critic Reviews (${content.criticReviews.length})
 
-${content.criticReviews.slice(0, 10).map(r => `
+${content.criticReviews
+  .slice(0, 10)
+  .map(
+    (r) => `
 ### ${r.critic} - ${r.publication} [${r.score}]
 *${r.date}*
 
 > ${r.quote}
-`).join("\n---\n")}
+`
+  )
+  .join("\n---\n")}
 
 ## Audience Reviews (${content.audienceReviews.length})
 
-${content.audienceReviews.slice(0, 5).map(r => `
+${content.audienceReviews
+  .slice(0, 5)
+  .map(
+    (r) => `
 ### ${r.author} - ${r.rating}
 *${r.date}*
 
 ${r.content.slice(0, 300)}${r.content.length > 300 ? "..." : ""}
-`).join("\n---\n")}
+`
+  )
+  .join("\n---\n")}
 `;
 
     writeFileSync(join(outputDir, "content.md"), markdown);
@@ -370,7 +402,7 @@ ${r.content.slice(0, 300)}${r.content.length > 300 ? "..." : ""}
 }
 
 async function main() {
-  const args = process.argv.slice(2).filter(a => !a.startsWith("-"));
+  const args = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 
   if (args.length === 0) {
     console.log(`
@@ -393,4 +425,3 @@ Get the ID from Wikidata (P1258) or search on rottentomatoes.com
 }
 
 main();
-

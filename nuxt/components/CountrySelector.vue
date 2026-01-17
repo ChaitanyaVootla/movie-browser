@@ -1,8 +1,17 @@
 <template>
-  <v-menu v-model="isOpen" :close-on-content-click="false" :aria-expanded="isOpen" aria-haspopup="menu">
+  <v-menu
+    v-model="isOpen"
+    :close-on-content-click="false"
+    :aria-expanded="isOpen"
+    aria-haspopup="menu"
+  >
     <template v-slot:activator="{ props }">
-      <div v-bind="props" class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2"
-        role="button" aria-label="Select a country">
+      <div
+        v-bind="props"
+        class="bg-neutral-800 px-3 py-2 flex items-center rounded-full cursor-pointer gap-2"
+        role="button"
+        aria-label="Select a country"
+      >
         <SeoImg
           :sources="flagSources"
           :alt="`Flag of ${selectedCountry.name}`"
@@ -30,7 +39,7 @@
           @click="selectCountry(country)"
         >
           <v-list-item-title>
-              {{ country }}
+            {{ country }}
           </v-list-item-title>
         </v-list-item>
       </v-list>
@@ -39,47 +48,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { getCode, getName, getNames } from 'country-list'
+import { ref, computed } from "vue";
+import { getCode, getName, getNames } from "country-list";
 
 interface Country {
   code: string;
   name: string;
 }
 
-const props = withDefaults(defineProps<{
-  modelValue?: string;
-}>(), {
-  modelValue: 'IN'
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string;
+  }>(),
+  {
+    modelValue: "IN",
+  }
+);
 
-const emit = defineEmits<(e: 'update:modelValue', value: string) => void>()
+const emit = defineEmits<(e: "update:modelValue", value: string) => void>();
 
-const isOpen = ref(false)
-const search = ref('')
-const selectedCountry = ref<Country>({ code: props.modelValue, name: getName(props.modelValue) || 'Unknown' })
-const countries = getNames()
+const isOpen = ref(false);
+const search = ref("");
+const selectedCountry = ref<Country>({
+  code: props.modelValue,
+  name: getName(props.modelValue) || "Unknown",
+});
+const countries = getNames();
 
 const flagSources = computed(() => {
-  const code = selectedCountry.value.code.toLowerCase()
+  const code = selectedCountry.value.code.toLowerCase();
   return [
     `https://flagcdn.com/${code}.svg`,
     `https://flagcdn.com/w40/${code}.png`, // Fallback to PNG
-  ].filter(Boolean)
-})
+  ].filter(Boolean);
+});
 
 const filteredCountries = computed(() => {
   if (!search.value) return countries;
-  const searchLower = search.value.toLowerCase()
-  return countries.filter(country => country.toLowerCase().includes(searchLower))
-})
+  const searchLower = search.value.toLowerCase();
+  return countries.filter((country) => country.toLowerCase().includes(searchLower));
+});
 
 const selectCountry = (country: string) => {
-    selectedCountry.value = {
-        code: getCode(country) || 'Unknown',
-        name: country
-    }
-    emit('update:modelValue', selectedCountry.value.code)
-    isOpen.value = false
-}
+  selectedCountry.value = {
+    code: getCode(country) || "Unknown",
+    name: country,
+  };
+  emit("update:modelValue", selectedCountry.value.code);
+  isOpen.value = false;
+};
 </script>

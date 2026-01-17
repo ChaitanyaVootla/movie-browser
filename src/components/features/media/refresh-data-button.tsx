@@ -6,11 +6,7 @@ import { RefreshCw, Loader2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RefreshDataButtonProps {
   tmdbId: number;
@@ -111,17 +107,14 @@ export function RefreshDataButton({ tmdbId, mediaType, className }: RefreshDataB
   );
 
   // Show tooltip with help text or error message
-  const tooltipContent = status === "error" && errorMessage 
-    ? errorMessage 
-    : "Force refresh from TMDB + MongoDB";
+  const tooltipContent =
+    status === "error" && errorMessage ? errorMessage : "Force refresh from TMDB + MongoDB";
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent side="top" className="max-w-[200px]">
-        <p className={cn("text-xs", status === "error" && "text-red-400")}>
-          {tooltipContent}
-        </p>
+        <p className={cn("text-xs", status === "error" && "text-red-400")}>{tooltipContent}</p>
       </TooltipContent>
     </Tooltip>
   );
