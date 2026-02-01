@@ -14,12 +14,11 @@ function isMovie(item: Movie | Series): item is Movie {
 }
 
 /**
- * Hero section with backdrop image and core info (logo, genres, ratings, watch options).
- * Action buttons are now rendered separately via MediaActionBar.
+ * Hero section with backdrop image and core info (logo, ratings, watch options).
+ * Genres are shown in MediaOverview. Action buttons are rendered separately via MediaActionBar.
  */
 export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
   const title = isMovie(item) ? item.title : item.name;
-  const genres = item.genres || [];
   const tmdbLogoPath = item.images?.logos?.find((l) => l.iso_639_1 === "en")?.file_path;
 
   return (
@@ -41,7 +40,6 @@ export function MediaHero({ item, mediaType, className }: MediaHeroProps) {
             itemId={item.id}
             title={title}
             mediaType={mediaType}
-            genres={genres}
             ratings={item.ratings}
             voteAverage={item.vote_average}
             tmdbLogoPath={tmdbLogoPath}

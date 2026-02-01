@@ -36,9 +36,6 @@ export function EnrichButton({
   // Only show to admins
   if (!isAdmin) return null;
 
-  // Only movies are supported for now
-  if (mediaType !== "movie") return null;
-
   const handleEnrich = async () => {
     setStatus("loading");
     setErrorMessage("");
@@ -47,7 +44,7 @@ export function EnrichButton({
       const response = await fetch("/api/admin/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tmdbId }),
+        body: JSON.stringify({ tmdbId, mediaType }),
       });
 
       const data = await response.json();

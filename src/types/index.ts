@@ -161,6 +161,8 @@ export interface AISummary {
     emotional: "light" | "medium" | "heavy";
   };
   aiQuestions: string[]; // 4-5 sassy questions for AI chat
+  watchContext?: string[]; // 1-3 viewing context suggestions
+  contentWarnings?: string[]; // 0-3 content warnings if applicable
   generatedAt?: string;
   modelId?: string;
 }

@@ -12,7 +12,7 @@ import {
   type ParsedMediaTag,
 } from "@/lib/ai/parse-media-tags";
 import { ChatRatings, ChatWatchOptions, PersonChip, useTagData } from "./chat-tags";
-import { GlowContainer, ThinkingIndicator, BottomGlow } from "./ai-animations";
+import { GlowContainer, PulsingSpark, BottomGlow } from "./ai-animations";
 import { PosterCardLarge } from "./poster-card-large";
 import { CARD_WIDTH, CARD_HEIGHT, TRANSITION_EASE, type MinimalViewProps } from "./types";
 
@@ -240,7 +240,7 @@ export function MinimalView({
                   value={input}
                   onChange={(e) => onInputChange(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about movies..."
+                  placeholder="Ask Cue about movies..."
                   disabled={isLoading}
                   data-testid="ai-chat-input"
                   className={cn(
@@ -299,7 +299,7 @@ export function MinimalView({
                 "rounded-2xl pointer-events-auto",
                 "bg-black backdrop-blur-md",
                 "border border-white/20",
-                "shadow-lg shadow-black/60",
+                "ai-container-shadow",
                 "overflow-x-auto scrollbar-hide",
                 "max-w-[90vw]"
               )}
@@ -331,7 +331,7 @@ export function MinimalView({
                       className="rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"
                       style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
                     >
-                      <ThinkingIndicator />
+                      <PulsingSpark size={24} />
                     </div>
                   </motion.div>
                 )}
@@ -350,7 +350,7 @@ export function MinimalView({
                 "bg-black backdrop-blur-md",
                 "border border-white/20",
                 "ai-container-shadow",
-                "w-[90vw] sm:w-auto sm:min-w-[400px]"
+                "w-[90vw] sm:w-fit sm:min-w-[400px] sm:max-w-[70vw]"
               )}
             >
               <div
@@ -362,7 +362,7 @@ export function MinimalView({
                   {lastAssistantMessage ? (
                     isWaitingForResponse ? (
                       <div className="flex items-center justify-center py-2">
-                        <ThinkingIndicator />
+                        <PulsingSpark size={24} />
                       </div>
                     ) : (
                       <>
@@ -427,7 +427,7 @@ export function MinimalView({
                     )
                   ) : isLoading ? (
                     <div className="flex items-center justify-center py-2">
-                      <ThinkingIndicator />
+                      <PulsingSpark size={24} />
                     </div>
                   ) : null}
 
@@ -457,7 +457,7 @@ export function MinimalView({
                       value={input}
                       onChange={(e) => onInputChange(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder="Ask something else..."
+                      placeholder="Ask Cue something else..."
                       disabled={isLoading}
                       data-testid="ai-chat-input"
                       className={cn(

@@ -379,9 +379,11 @@ model Series {
   lastEpisodeSeasonNum Int?      @map("last_episode_season_num")
   lastEpisodeNum       Int?      @map("last_episode_num")
   lastEpisodeAirDate   DateTime? @map("last_episode_air_date")
+  lastEpisodeData      Json?     @map("last_episode_data") // Full episode object from TMDB
   nextEpisodeSeasonNum Int?      @map("next_episode_season_num")
   nextEpisodeNum       Int?      @map("next_episode_num")
   nextEpisodeAirDate   DateTime? @map("next_episode_air_date")
+  nextEpisodeData      Json?     @map("next_episode_data") // Full episode object from TMDB
   homepage             String?
   originalLanguage     String?   @map("original_language")
   originCountry        String[]  @map("origin_country") // ISO 3166-1 codes
@@ -913,18 +915,36 @@ model AiData {
   seriesId Int? @unique @map("series_id")
 
   hook        String? // One-liner hook
-  quickTake   String[]  @map("quick_take")
-  themes      String[]
-  mood        Json? // { pacing, intensity, tone, emotional }
-  questions   String[] // AI-generated questions
+  rawInput    String?   @map("raw_input") @db.Text // Markdown input from AI
+  version     Int       @default(1) // Track regeneration
   generatedAt DateTime? @map("generated_at")
   modelId     String?   @map("model_id")
 
   // Relations
-  movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  movie    Movie?      @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series   Series?     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  insights AiInsight[]
 
   @@map("ai_data")
+}
+
+// Individual AI insights parsed from the summary
+model AiInsight {
+  id           Int             @id @default(autoincrement())
+  aiDataId     Int             @map("ai_data_id")
+  text         String
+  category     InsightCategory
+  subcategory  String?
+  spoilerLevel SpoilerLevel    @default(FREE) @map("spoiler_level")
+  priority     Int             @default(50)
+
+  aiData AiData @relation(fields: [aiDataId], references: [id], onDelete: Cascade)
+
+  @@index([aiDataId, category])
+  @@index([aiDataId, spoilerLevel])
+  @@index([category, subcategory])
+  @@index([category, text])
+  @@map("ai_insights")
 }
 
 // =============================================================================
@@ -1063,7 +1083,7 @@ model SavedFilter {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
   name      String
-  params    Json     // Discover filter parameters
+  params    Json // Discover filter parameters
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1167,8 +1187,8 @@ enum LanguageType {
 }
 
 enum CountryType {
-  ORIGIN      // Where the content originates from (TMDB origin_country)
-  PRODUCTION  // Where it was produced (TMDB production_countries)
+  ORIGIN // Where the content originates from (TMDB origin_country)
+  PRODUCTION // Where it was produced (TMDB production_countries)
 }
 
 enum WatchOptionType {
@@ -1189,4 +1209,21 @@ enum CircleRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum InsightCategory {
+  VIBE
+  THEME
+  MOOD
+  BEST_FOR
+  HIGHLIGHT
+  HEADS_UP
+  QUESTION
+  DEEP_DIVE
+}
+
+enum SpoilerLevel {
+  FREE
+  LIGHT
+  HEAVY
 }

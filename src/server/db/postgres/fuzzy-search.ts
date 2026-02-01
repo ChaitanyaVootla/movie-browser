@@ -12,6 +12,19 @@
  */
 
 import { prisma } from "./index";
+import { z } from "zod";
+
+// =============================================================================
+// Validation Schemas
+// =============================================================================
+
+const FuzzySearchFiltersSchema = z.object({
+  genres: z.array(z.number().int().positive()).optional(),
+  yearRange: z
+    .tuple([z.number().int().min(1800).max(2100), z.number().int().min(1800).max(2100)])
+    .optional(),
+  streamingService: z.string().min(1).max(100).optional(),
+});
 
 // =============================================================================
 // Types
@@ -25,6 +38,19 @@ export interface FuzzySearchResult {
   posterPath: string | null;
   year: string | null;
   popularity: number | null;
+  /** Vote average (rating 0-10), null for persons */
+  voteAverage: number | null;
+  /** Vote count, null for persons */
+  voteCount: number | null;
+}
+
+export interface FuzzySearchFilters {
+  /** Filter by genre IDs (matches ANY of the provided genres) */
+  genres?: number[];
+  /** Filter by year range [startYear, endYear] */
+  yearRange?: [number, number];
+  /** Filter by streaming service name (e.g., "Netflix", "Prime Video") */
+  streamingService?: string;
 }
 
 export interface FuzzySearchOptions {
@@ -36,6 +62,8 @@ export interface FuzzySearchOptions {
   mediaTypes?: ("movie" | "series" | "person")[];
   /** Boost popular items in ranking (default: true) */
   boostPopular?: boolean;
+  /** Structured filters (only applies to movies and series, not persons) */
+  filters?: FuzzySearchFilters;
 }
 
 // =============================================================================
@@ -67,7 +95,11 @@ export async function fuzzySearch(
     threshold = 0.2,
     mediaTypes = ["movie", "series", "person"],
     boostPopular = true,
+    filters,
   } = options;
+
+  // Validate filters if provided
+  const validatedFilters = filters ? FuzzySearchFiltersSchema.parse(filters) : undefined;
 
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return [];
@@ -76,69 +108,172 @@ export async function fuzzySearch(
   // Default is 0.3 which is too strict for typo-heavy queries
   await prisma.$executeRawUnsafe(`SELECT set_limit(${threshold})`);
 
+  // Check if any filters are active (affects query structure)
+  const hasFilters = validatedFilters && (
+    validatedFilters.genres?.length ||
+    validatedFilters.yearRange ||
+    validatedFilters.streamingService
+  );
+
   // Build UNION query for each media type
   const parts: string[] = [];
 
+  // Track if we need parameterized streaming service filter
+  const hasStreamingFilter = !!validatedFilters?.streamingService;
+
   if (mediaTypes.includes("movie")) {
+    // Build additional filter conditions for movies
+    const movieConditions: string[] = ["(m.title % $1 OR m.original_title % $1)"];
+
+    if (validatedFilters?.genres?.length) {
+      // Safe: genres validated as positive integers by Zod
+      const genreIds = validatedFilters.genres.map((id) => Number(id)).join(",");
+      movieConditions.push(`
+        EXISTS (
+          SELECT 1 FROM movie_genres mg
+          WHERE mg.movie_id = m.id AND mg.genre_id = ANY(ARRAY[${genreIds}])
+        )
+      `);
+    }
+
+    if (validatedFilters?.yearRange) {
+      // Safe: yearRange validated as [1800-2100, 1800-2100] by Zod
+      const [startYear, endYear] = validatedFilters.yearRange;
+      movieConditions.push(`
+        EXTRACT(YEAR FROM m.release_date) BETWEEN ${Number(startYear)} AND ${Number(endYear)}
+      `);
+    }
+
+    // Streaming service uses parameterized query ($4 when present)
+    if (hasStreamingFilter) {
+      movieConditions.push(`
+        EXISTS (
+          SELECT 1 FROM watch_options wo
+          JOIN streaming_providers sp ON sp.id = wo.provider_id
+          WHERE wo.movie_id = m.id AND LOWER(sp.name) = LOWER($4)
+        )
+      `);
+    }
+
     parts.push(`
-      SELECT 
-        id,
-        title,
+      SELECT
+        m.id,
+        m.title,
         'movie'::text as media_type,
         GREATEST(
-          similarity(LOWER(title), $1),
-          similarity(LOWER(COALESCE(original_title, '')), $1)
+          similarity(LOWER(m.title), $1),
+          similarity(LOWER(COALESCE(m.original_title, '')), $1)
         ) as similarity,
-        poster_path,
-        EXTRACT(YEAR FROM release_date)::text as year,
-        popularity
-      FROM movies
-      WHERE title % $1 OR original_title % $1
+        m.poster_path,
+        EXTRACT(YEAR FROM m.release_date)::text as year,
+        m.popularity,
+        r.score as vote_average,
+        r.vote_count
+      FROM movies m
+      LEFT JOIN LATERAL (
+        SELECT r.score, r.vote_count
+        FROM ratings r
+        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+        WHERE r.movie_id = m.id
+        LIMIT 1
+      ) r ON true
+      WHERE ${movieConditions.join(" AND ")}
     `);
   }
 
   if (mediaTypes.includes("series")) {
+    // Build additional filter conditions for series
+    const seriesConditions: string[] = ["(s.name % $1 OR s.original_name % $1)"];
+
+    if (validatedFilters?.genres?.length) {
+      // Safe: genres validated as positive integers by Zod
+      const genreIds = validatedFilters.genres.map((id) => Number(id)).join(",");
+      seriesConditions.push(`
+        EXISTS (
+          SELECT 1 FROM series_genres sg
+          WHERE sg.series_id = s.id AND sg.genre_id = ANY(ARRAY[${genreIds}])
+        )
+      `);
+    }
+
+    if (validatedFilters?.yearRange) {
+      // Safe: yearRange validated as [1800-2100, 1800-2100] by Zod
+      const [startYear, endYear] = validatedFilters.yearRange;
+      seriesConditions.push(`
+        EXTRACT(YEAR FROM s.first_air_date) BETWEEN ${Number(startYear)} AND ${Number(endYear)}
+      `);
+    }
+
+    // Streaming service uses parameterized query ($4 when present)
+    if (hasStreamingFilter) {
+      seriesConditions.push(`
+        EXISTS (
+          SELECT 1 FROM watch_options wo
+          JOIN streaming_providers sp ON sp.id = wo.provider_id
+          WHERE wo.series_id = s.id AND LOWER(sp.name) = LOWER($4)
+        )
+      `);
+    }
+
     parts.push(`
-      SELECT 
-        id,
-        name as title,
+      SELECT
+        s.id,
+        s.name as title,
         'series'::text as media_type,
         GREATEST(
-          similarity(LOWER(name), $1),
-          similarity(LOWER(COALESCE(original_name, '')), $1)
+          similarity(LOWER(s.name), $1),
+          similarity(LOWER(COALESCE(s.original_name, '')), $1)
         ) as similarity,
-        poster_path,
-        EXTRACT(YEAR FROM first_air_date)::text as year,
-        popularity
-      FROM series
-      WHERE name % $1 OR original_name % $1
+        s.poster_path,
+        EXTRACT(YEAR FROM s.first_air_date)::text as year,
+        s.popularity,
+        r.score as vote_average,
+        r.vote_count
+      FROM series s
+      LEFT JOIN LATERAL (
+        SELECT r.score, r.vote_count
+        FROM ratings r
+        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+        WHERE r.series_id = s.id
+        LIMIT 1
+      ) r ON true
+      WHERE ${seriesConditions.join(" AND ")}
     `);
   }
 
   if (mediaTypes.includes("person")) {
-    parts.push(`
-      SELECT 
-        p.id,
-        p.name as title,
-        'person'::text as media_type,
-        GREATEST(
-          similarity(LOWER(p.name), $1),
-          COALESCE(
-            (SELECT MAX(similarity(LOWER(alias), $1)) 
-             FROM person_aliases WHERE person_id = p.id AND alias % $1),
-            0
+    // Note: Filters do not apply to persons (no genres, year, or streaming for people)
+    // Person table uses internal id + separate tmdb_id, unlike Movie/Series where id IS the tmdb_id
+    // We return tmdb_id as 'id' so URLs work correctly with /person/[tmdbId]/[slug]
+    //
+    // Only include persons if no filters are active (filters only apply to movies/series)
+    if (!hasFilters) {
+      parts.push(`
+        SELECT
+          p.tmdb_id as id,
+          p.name as title,
+          'person'::text as media_type,
+          GREATEST(
+            similarity(LOWER(p.name), $1),
+            COALESCE(
+              (SELECT MAX(similarity(LOWER(alias), $1))
+               FROM person_aliases WHERE person_id = p.id AND alias % $1),
+              0
+            )
+          ) as similarity,
+          p.profile_path as poster_path,
+          NULL::text as year,
+          p.popularity,
+          NULL::float as vote_average,
+          NULL::int as vote_count
+        FROM persons p
+        WHERE p.name % $1
+          OR EXISTS (
+            SELECT 1 FROM person_aliases pa
+            WHERE pa.person_id = p.id AND pa.alias % $1
           )
-        ) as similarity,
-        p.profile_path as poster_path,
-        NULL::text as year,
-        p.popularity
-      FROM persons p
-      WHERE p.name % $1 
-        OR EXISTS (
-          SELECT 1 FROM person_aliases pa 
-          WHERE pa.person_id = p.id AND pa.alias % $1
-        )
-    `);
+      `);
+    }
   }
 
   if (parts.length === 0) return [];
@@ -154,26 +289,37 @@ export async function fuzzySearch(
     WITH ranked AS (
       ${parts.join(" UNION ALL ")}
     )
-    SELECT 
+    SELECT
       id,
       title,
       media_type as "mediaType",
       similarity,
       poster_path as "posterPath",
       year,
-      popularity
+      popularity,
+      vote_average as "voteAverage",
+      vote_count as "voteCount"
     FROM ranked
     WHERE similarity >= $2
     ORDER BY ${orderBy}
     LIMIT $3
   `;
 
-  const results = await prisma.$queryRawUnsafe<FuzzySearchResult[]>(
-    sql,
-    normalizedQuery,
-    threshold,
-    limit
-  );
+  // Execute with appropriate parameters
+  const results = hasStreamingFilter
+    ? await prisma.$queryRawUnsafe<FuzzySearchResult[]>(
+        sql,
+        normalizedQuery,
+        threshold,
+        limit,
+        validatedFilters!.streamingService
+      )
+    : await prisma.$queryRawUnsafe<FuzzySearchResult[]>(
+        sql,
+        normalizedQuery,
+        threshold,
+        limit
+      );
 
   return results;
 }
@@ -282,10 +428,10 @@ export async function findExactMatch(query: string): Promise<FuzzySearchResult |
 
   if (seriesMatch.length > 0) return seriesMatch[0];
 
-  // Check persons
+  // Check persons (return tmdb_id as id for URL compatibility)
   const personMatch = await prisma.$queryRaw<FuzzySearchResult[]>`
-    SELECT 
-      id,
+    SELECT
+      tmdb_id as id,
       name as title,
       'person'::text as "mediaType",
       1.0::float as similarity,

@@ -2,11 +2,13 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Play, Eye, ThumbsUp, ThumbsDown, Youtube, User } from "lucide-react";
+import Link from "next/link";
+import { Play, Eye, ThumbsUp, ThumbsDown, User, Film } from "lucide-react";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { TrailerModal, youtubeToTrailerModalData, type TrailerModalData } from "./trailer-modal";
 import { cn } from "@/lib/utils";
 import { formatViewCount } from "@/lib/youtube-utils";
+import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { YouTubeTrendingTrailer } from "@/server/actions/trending";
 
 interface YouTubeTrailerCarouselProps {
@@ -44,7 +46,7 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
       </span>
 
       {/* Compact progress bar */}
-      <div className="w-10 h-1 bg-muted rounded-full overflow-hidden">
+      <div className="w-10 h-1 bg-foreground/25 rounded-full overflow-hidden">
         <div
           className="h-full bg-foreground/70 rounded-full"
           style={{ width: `${likePercentage}%` }}
@@ -101,6 +103,27 @@ function ChannelAvatar({
 }
 
 /**
+ * Match indicator badge showing confidence level
+ */
+function MatchBadge({ confidence }: { confidence: number }) {
+  const isHighConfidence = confidence >= 0.85;
+
+  return (
+    <div
+      className={cn(
+        "absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium backdrop-blur-sm",
+        isHighConfidence
+          ? "bg-brand/90 text-white"
+          : "bg-white/80 text-black/80"
+      )}
+    >
+      <Film className="h-3 w-3" />
+      <span>{Math.round(confidence * 100)}%</span>
+    </div>
+  );
+}
+
+/**
  * YouTube trailer card with high-res thumbnail and engagement stats
  */
 function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCardProps) {
@@ -112,6 +135,16 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
   const viewCount = metadata?.viewCount ?? trailer.viewCount;
   const likeCount = metadata?.likeCount ?? trailer.likeCount;
   const dislikeCount = metadata?.dislikeCount ?? 0;
+
+  const match = trailer.match;
+  const hasHighConfidenceMatch = match && match.confidence >= 0.85;
+  const hasMediumConfidenceMatch = match && match.confidence >= 0.6 && match.confidence < 0.85;
+  const hasMatch = match && match.confidence >= 0.6;
+
+  // Link path to movie/series detail page
+  const detailPath = match
+    ? `/${match.mediaType === "series" ? "series" : "movie"}/${match.tmdbId}`
+    : null;
 
   return (
     <div className="group relative w-[280px] sm:w-[320px] md:w-[360px] flex-shrink-0">
@@ -131,6 +164,23 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
           unoptimized
         />
 
+        {/* Match confidence badge */}
+        {hasMediumConfidenceMatch && <MatchBadge confidence={match.confidence} />}
+
+        {/* Movie poster overlay for high-confidence matches */}
+        {hasHighConfidenceMatch && match.posterPath && (
+          <div className="absolute bottom-2 left-2 z-10 w-12 h-[72px] rounded overflow-hidden shadow-lg border border-white/20">
+            <Image
+              src={`${TMDB_IMAGE_BASE}/w92${match.posterPath}`}
+              alt={match.title}
+              fill
+              sizes="48px"
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+        )}
+
         {/* Play button overlay */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-all duration-300">
           <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300">
@@ -139,12 +189,25 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
         </div>
       </button>
 
-      {/* Title and stats */}
-      <div className="mt-2 space-y-1">
-        <h3 className="text-sm font-medium text-foreground line-clamp-1">{trailer.title}</h3>
+      {/* Title, hook, and stats */}
+      <div className="mt-2 space-y-0.5">
+        {/* Title - links to movie page if matched */}
+        {hasMatch && detailPath ? (
+          <Link
+            href={detailPath}
+            className="block text-sm font-medium text-foreground line-clamp-1 hover:text-brand transition-colors"
+          >
+            {trailer.title}
+            {match.year && (
+              <span className="text-muted-foreground ml-1">({match.year})</span>
+            )}
+          </Link>
+        ) : (
+          <h3 className="text-sm font-medium text-foreground line-clamp-1">{trailer.title}</h3>
+        )}
 
         {/* Stats row - matches TMDB trailer pattern: Views (left) | Like bar (right) */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 pt-0.5">
           <div className="flex items-center gap-1 text-muted-foreground">
             <Eye className="h-3 w-3" />
             <span className="text-[11px] tabular-nums">{formatViewCount(viewCount)} views</span>

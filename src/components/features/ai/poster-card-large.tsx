@@ -45,9 +45,9 @@ export const PosterCardLarge = memo(function PosterCardLarge({
         className={cn(
           "relative overflow-hidden rounded-xl",
           "bg-neutral-900",
-          "shadow-xl shadow-black/50",
+          "shadow-[0_4px_16px_rgba(0,0,0,0.5),0_8px_32px_rgba(0,0,0,0.4)]",
           "ring-1 ring-white/15",
-          "group-hover/card:shadow-2xl group-hover/card:shadow-black/70",
+          "group-hover/card:shadow-[0_6px_24px_rgba(0,0,0,0.6),0_12px_40px_rgba(0,0,0,0.5)]",
           "group-hover/card:ring-white/25",
           "transition-shadow duration-300"
         )}

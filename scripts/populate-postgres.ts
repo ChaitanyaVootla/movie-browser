@@ -31,6 +31,8 @@
  *   yarn populate --skip-existing  # Skip items already in PostgreSQL
  *   yarn populate --concurrency=10 # Higher parallelism (default: 3, fast: 10)
  *   yarn populate --with-lambda    # Enable Lambda fallback (slow, costs money)
+ *   yarn populate --retry-failed   # Retry only previously failed items
+ *   yarn populate --no-auto-retry  # Disable automatic retry of failed items at end
  *
  * Default behavior (no --fast):
  *   - Fetches TMDB data
@@ -248,6 +250,9 @@ function parseArgs() {
     skipExisting: hasFlag("skip-existing"),
     concurrency,
     skipLambda,
+    // Retry options
+    retryFailed: hasFlag("retry-failed"),
+    autoRetry: !hasFlag("no-auto-retry"), // Enabled by default
   };
 }
 
@@ -323,6 +328,30 @@ function clearProgress(): void {
     const fs = require("fs");
     fs.unlinkSync(PROGRESS_FILE);
   }
+}
+
+function loadFailedItems(): { movies: number[]; series: number[] } {
+  const progress = loadProgress();
+  if (!progress) return { movies: [], series: [] };
+  return {
+    movies: progress.failedMovies || [],
+    series: progress.failedSeries || [],
+  };
+}
+
+function saveFailedItems(movies: number[], series: number[]): void {
+  const existing = loadProgress() || {
+    lastMovieIndex: 0,
+    lastSeriesIndex: 0,
+    startedAt: new Date().toISOString(),
+    completedMovies: [],
+    completedSeries: [],
+    failedMovies: [],
+    failedSeries: [],
+  };
+  existing.failedMovies = movies;
+  existing.failedSeries = series;
+  saveProgress(existing);
 }
 
 // ============================================
@@ -590,6 +619,7 @@ async function main() {
   console.log(`  Skip Existing: ${opts.skipExisting}`);
   console.log(`  Concurrency: ${opts.concurrency}`);
   console.log(`  Force Refresh: ${opts.forceRefresh}`);
+  console.log(`  Auto-Retry Failed: ${opts.autoRetry}`);
   console.log(`  Dry Run: ${opts.dryRun}`);
   console.log("═══════════════════════════════════════════════════════════════\n");
 
@@ -603,7 +633,17 @@ async function main() {
   let movieIds: number[];
   let seriesIds: number[];
 
-  if (opts.specificMovieIds) {
+  // Check for --retry-failed mode
+  if (opts.retryFailed) {
+    const failed = loadFailedItems();
+    if (failed.movies.length === 0 && failed.series.length === 0) {
+      log("📋 No previously failed items to retry.\n");
+      process.exit(0);
+    }
+    movieIds = failed.movies;
+    seriesIds = failed.series;
+    log(`📋 Retrying ${movieIds.length} failed movies and ${seriesIds.length} failed series\n`);
+  } else if (opts.specificMovieIds) {
     movieIds = opts.specificMovieIds;
     seriesIds = opts.specificSeriesIds || [];
   } else if (opts.specificSeriesIds) {
@@ -690,6 +730,8 @@ async function main() {
   let totalMovieFailures = 0;
   let totalSeriesSuccesses = 0;
   let totalSeriesFailures = 0;
+  let failedMovieIds: number[] = [];
+  let failedSeriesIds: number[] = [];
 
   // Process movies
   if (movieIds.length > 0) {
@@ -710,6 +752,7 @@ async function main() {
 
     totalMovieSuccesses = movieResults.successes;
     totalMovieFailures = movieResults.failures;
+    failedMovieIds = movieResults.failedItems;
 
     logSuccess(`Movies complete: ${totalMovieSuccesses} populated, ${totalMovieFailures} failed\n`);
   }
@@ -733,27 +776,78 @@ async function main() {
 
     totalSeriesSuccesses = seriesResults.successes;
     totalSeriesFailures = seriesResults.failures;
+    failedSeriesIds = seriesResults.failedItems;
 
     logSuccess(
       `Series complete: ${totalSeriesSuccesses} populated, ${totalSeriesFailures} failed\n`
     );
   }
 
+  // Auto-retry failed items with lower concurrency
+  const hasFailures = failedMovieIds.length > 0 || failedSeriesIds.length > 0;
+  if (hasFailures && opts.autoRetry && !opts.retryFailed) {
+    log("\n🔄 AUTO-RETRY: Retrying failed items with concurrency=1...\n");
+
+    // Wait a bit before retrying (network cooldown)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    if (failedMovieIds.length > 0) {
+      log(`   Retrying ${failedMovieIds.length} failed movies...`);
+      const retryResults = await processBatch(
+        failedMovieIds,
+        async (id) =>
+          populateMovie(id, hydrationFns, opts.forceRefresh, opts.fastMode, opts.skipLambda),
+        "Movie",
+        1 // Single concurrency for retry
+      );
+      totalMovieSuccesses += retryResults.successes;
+      totalMovieFailures = retryResults.failures;
+      failedMovieIds = retryResults.failedItems;
+      log(`   Retry complete: ${retryResults.successes} recovered, ${retryResults.failures} still failing\n`);
+    }
+
+    if (failedSeriesIds.length > 0) {
+      log(`   Retrying ${failedSeriesIds.length} failed series...`);
+      const retryResults = await processBatch(
+        failedSeriesIds,
+        async (id) =>
+          populateSeries(id, hydrationFns, opts.forceRefresh, opts.fastMode, opts.skipLambda),
+        "Series",
+        1 // Single concurrency for retry
+      );
+      totalSeriesSuccesses += retryResults.successes;
+      totalSeriesFailures = retryResults.failures;
+      failedSeriesIds = retryResults.failedItems;
+      log(`   Retry complete: ${retryResults.successes} recovered, ${retryResults.failures} still failing\n`);
+    }
+  }
+
+  // Save failed items for later retry with --retry-failed
+  const finalFailures = failedMovieIds.length + failedSeriesIds.length;
+  if (finalFailures > 0) {
+    saveFailedItems(failedMovieIds, failedSeriesIds);
+    log(`💾 Saved ${finalFailures} failed items to ${PROGRESS_FILE}`);
+    log(`   Run 'yarn populate --retry-failed' to retry them later.\n`);
+  }
+
   // Summary
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   const totalSuccess = totalMovieSuccesses + totalSeriesSuccesses;
-  const totalFailed = totalMovieFailures + totalSeriesFailures;
+  const totalFailed = failedMovieIds.length + failedSeriesIds.length;
 
   console.log("\n═══════════════════════════════════════════════════════════════");
   console.log("  POPULATION COMPLETE");
   console.log("═══════════════════════════════════════════════════════════════");
-  console.log(`  Movies:  ${totalMovieSuccesses} success, ${totalMovieFailures} failed`);
-  console.log(`  Series:  ${totalSeriesSuccesses} success, ${totalSeriesFailures} failed`);
+  console.log(`  Movies:  ${totalMovieSuccesses} success, ${failedMovieIds.length} failed`);
+  console.log(`  Series:  ${totalSeriesSuccesses} success, ${failedSeriesIds.length} failed`);
   console.log(`  Total:   ${totalSuccess} success, ${totalFailed} failed`);
   console.log(`  Time:    ${elapsed}s`);
+  if (totalFailed > 0) {
+    console.log(`  Failed:  Saved to ${PROGRESS_FILE} (use --retry-failed to retry)`);
+  }
   console.log("═══════════════════════════════════════════════════════════════\n");
 
-  // Clean up progress file on success
+  // Clean up progress file only on complete success
   if (totalFailed === 0) {
     clearProgress();
   }

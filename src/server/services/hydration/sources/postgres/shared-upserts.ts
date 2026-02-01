@@ -750,6 +750,7 @@ export async function upsertCredits(
     name: string;
     profilePath: string | null;
     knownFor: string | null;
+    popularity: number | null;
     creditType: "CAST" | "CREW";
     character?: string;
     job?: string;
@@ -764,6 +765,7 @@ export async function upsertCredits(
       name: cast.name,
       profilePath: cast.profile_path,
       knownFor: cast.known_for_department,
+      popularity: cast.popularity ?? null,
       creditType: "CAST",
       character: cast.character,
       order: cast.order,
@@ -777,6 +779,7 @@ export async function upsertCredits(
       name: crew.name,
       profilePath: crew.profile_path,
       knownFor: crew.known_for_department,
+      popularity: crew.popularity ?? null,
       creditType: "CREW",
       job: crew.job,
       department: crew.department,
@@ -790,8 +793,8 @@ export async function upsertCredits(
       where: { tmdbId: credit.personId },
     });
 
-    // Only upsert if person doesn't exist
     if (!dbPerson) {
+      // Create new person
       dbPerson = await tx.person.upsert({
         where: { tmdbId: credit.personId },
         create: {
@@ -799,12 +802,20 @@ export async function upsertCredits(
           name: credit.name,
           profilePath: credit.profilePath,
           knownFor: credit.knownFor,
+          popularity: credit.popularity,
         },
         update: {
           name: credit.name,
           profilePath: credit.profilePath,
           knownFor: credit.knownFor,
+          popularity: credit.popularity,
         },
+      });
+    } else if (credit.popularity != null && (dbPerson.popularity == null || credit.popularity > dbPerson.popularity)) {
+      // Update popularity if we have a higher value (person popularity can vary by movie context)
+      await tx.person.update({
+        where: { id: dbPerson.id },
+        data: { popularity: credit.popularity },
       });
     }
 

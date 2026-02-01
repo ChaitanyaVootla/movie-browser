@@ -86,7 +86,7 @@ export function HeroBackdropShell({
     <div
       data-testid="hero-backdrop"
       className={cn(
-        "relative w-full overflow-hidden bg-black",
+        "relative w-full overflow-hidden bg-hero-base",
         // Mobile: flex column, image + content stacked
         // Desktop: fixed height with overlay
         "flex flex-col md:block md:h-full",
@@ -106,16 +106,17 @@ export function HeroBackdropShell({
               onError={handleError}
             />
             {/* Top gradient for navbar */}
-            <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-black/40 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-hero-base/40 to-transparent" />
             {/* Bottom gradient - fade to black for content below */}
             {overlay !== "none" && (
               <div
-                className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
+                className="absolute inset-x-0 bottom-0 h-28 pointer-events-none"
                 style={{
-                  background: `linear-gradient(to top, 
-                    rgb(0,0,0) 0%,
-                    rgba(0,0,0,0.9) 30%,
-                    rgba(0,0,0,0.5) 60%,
+                  background: `linear-gradient(to top,
+                    rgb(var(--hero-base-rgb)) 0%,
+                    rgb(var(--hero-base-rgb) / 0.95) 20%,
+                    rgb(var(--hero-base-rgb) / 0.7) 45%,
+                    rgb(var(--hero-base-rgb) / 0.3) 70%,
                     transparent 100%)`,
                 }}
               />
@@ -133,29 +134,35 @@ export function HeroBackdropShell({
                 className="h-full w-auto max-w-none"
                 onError={handleError}
               />
-              {/* Gradient overlay - positioned on the image, fades left edge quickly */}
+              {/* Gradient overlay - positioned on the image, fades left edge smoothly */}
               {overlay !== "none" && (
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
                     background:
                       overlay === "light"
-                        ? `linear-gradient(to right, 
-                          rgba(0,0,0,0.95) 0%,
-                          rgba(0,0,0,0.7) 5%,
-                          rgba(0,0,0,0.3) 12%,
-                          transparent 22%)`
+                        ? `linear-gradient(to right,
+                          rgb(var(--hero-base-rgb)) 0%,
+                          rgb(var(--hero-base-rgb) / 0.9) 3%,
+                          rgb(var(--hero-base-rgb) / 0.7) 8%,
+                          rgb(var(--hero-base-rgb) / 0.4) 15%,
+                          rgb(var(--hero-base-rgb) / 0.15) 25%,
+                          transparent 35%)`
                         : overlay === "medium"
-                          ? `linear-gradient(to right, 
-                          rgba(0,0,0,0.98) 0%,
-                          rgba(0,0,0,0.75) 8%,
-                          rgba(0,0,0,0.4) 18%,
-                          transparent 30%)`
-                          : `linear-gradient(to right, 
-                          black 0%,
-                          rgba(0,0,0,0.8) 10%,
-                          rgba(0,0,0,0.4) 22%,
-                          transparent 38%)`,
+                          ? `linear-gradient(to right,
+                          rgb(var(--hero-base-rgb)) 0%,
+                          rgb(var(--hero-base-rgb) / 0.95) 5%,
+                          rgb(var(--hero-base-rgb) / 0.75) 12%,
+                          rgb(var(--hero-base-rgb) / 0.4) 22%,
+                          rgb(var(--hero-base-rgb) / 0.15) 35%,
+                          transparent 45%)`
+                          : `linear-gradient(to right,
+                          rgb(var(--hero-base-rgb)) 0%,
+                          rgb(var(--hero-base-rgb) / 0.95) 8%,
+                          rgb(var(--hero-base-rgb) / 0.8) 15%,
+                          rgb(var(--hero-base-rgb) / 0.5) 28%,
+                          rgb(var(--hero-base-rgb) / 0.2) 42%,
+                          transparent 55%)`,
                   }}
                 />
               )}
@@ -184,7 +191,7 @@ export function HeroBackdropShell({
       {overlay !== "none" && (
         <>
           {/* Top gradient - for navbar readability */}
-          <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-black/25 to-transparent hidden md:block" />
+          <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-hero-base/25 to-transparent hidden md:block" />
           {/* Bottom gradient - subtle fade to background */}
           <div
             className={cn(
@@ -202,7 +209,7 @@ export function HeroBackdropShell({
         <div
           className={cn(
             // Mobile: pull content up into the gradient for tight spacing
-            "relative z-10 bg-black px-4 -mt-8 pb-6",
+            "relative z-10 bg-hero-base px-4 -mt-8 pb-6",
             // Desktop: absolute overlay at bottom
             "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"
           )}

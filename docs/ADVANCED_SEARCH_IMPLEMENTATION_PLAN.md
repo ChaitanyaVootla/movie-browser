@@ -195,6 +195,100 @@ yarn test:ai "mind-bending sci-fi" --debug
 yarn test:ai "more like inception" --debug
 ```
 
+### Phase 3.5 COMPLETE ✅ (Jan 2026)
+
+Search ranking enhancements and infrastructure improvements:
+
+**Ranking Boosts Added to `hybrid.ts`:**
+
+| Boost | Formula | Purpose |
+|-------|---------|---------|
+| **Trending** | `× 1.3` | 30% boost for items in TMDB daily trending |
+| **Quality** | `1 + (rating - 5) / 25 + log(votes + 1) / 30` | Rating + vote count signal |
+| **Recency** | `1 + 0.15 * (1 - yearDiff / 5)` | Up to 15% boost for content from last 5 years (non-title queries) |
+
+**Person Search Fixes:**
+
+- Fixed person navigation: fuzzy search now returns `tmdb_id` instead of internal `id`
+- Note: `persons` table uses internal `id` + separate `tmdb_id` (unlike movies/series where `id` IS the TMDB ID)
+
+**Trending Support:**
+
+- Added `getTrendingPeople()` to fetch trending persons from TMDB
+- Search action passes separate trending sets: `{ media: Set<number>, persons: Set<number> }`
+- Hybrid search handles both legacy single Set and new object format
+
+**Popularity Infrastructure:**
+
+- Credits hydration now extracts and stores person popularity from TMDB credits endpoint
+- Created `scripts/sync-popularity.ts` - downloads TMDB daily exports and batch updates popularity
+- PM2 cron job runs popularity sync at 3 AM UTC daily (before sitemap at 4 AM)
+
+**Files Modified:**
+
+- `src/lib/search/hybrid.ts` - Added trending/quality/recency boosts, updated trendingIds type
+- `src/server/actions/search.ts` - Added getTrendingIds() with media + persons support
+- `src/server/db/postgres/fuzzy-search.ts` - Person search returns tmdb_id as id
+- `src/server/services/hydration/sources/postgres/shared-upserts.ts` - Store person popularity
+- `scripts/sync-popularity.ts` - **NEW** Daily popularity sync job
+- `ecosystem.config.cjs` - Added popularity-sync PM2 cron job
+
+### Phase 5 COMPLETE ✅ (Jan 2026)
+
+**Advanced "Search Anything" System** - Major overhaul enabling seamless search like YouTube/Google.
+
+**New Components:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib/search/intent-embeddings.ts` | 3-tier classification (regex→embedding→LLM) |
+| `src/lib/search/query-expansion.ts` | Theme/mood synonyms, typo correction |
+| `src/lib/search/llm-query-parser.ts` | Kimi K2 fallback for complex NL |
+| `src/server/actions/autocomplete.ts` | Fast suggestions (<100ms) |
+
+**14+ Filter Types Extracted:**
+- Content: genres, keywords, similarTo, collection
+- Time: year, yearRange, decade, runtime
+- Person: cast, director
+- Location: language, country
+- Platform: streamingService, network
+- Quality: minRating
+- Preferences: contentWarnings, bestFor, mood, seriesStatus, seasonCount
+
+**3-Tier Classification (80% cost reduction):**
+
+| Tier | Method | Cost | Latency | % Queries |
+|------|--------|------|---------|-----------|
+| 1 | Regex | $0 | <5ms | ~70% |
+| 2 | Embedding | $0.00002 | ~100ms | ~25% |
+| 3 | LLM (Kimi K2) | $0.01 | 1-2s | ~5% |
+
+**Query Expansion:**
+- 30 theme expansions (redemption, revenge, identity, heist, time travel, etc.)
+- 20 mood expansions (feel-good, dark, intense, cozy, mind-bending, etc.)
+- 40+ country mappings (Korea→KR, Bollywood→IN, British→GB)
+- 30+ language mappings (Korean→ko, French→fr, Japanese→ja)
+- 45+ franchise mappings (Marvel, Star Wars, Harry Potter, Ghibli)
+- 50+ typo corrections
+
+**UI Enhancements:**
+- Query understanding with removable filter chips
+- Color-coded chips by category (content, time, person, location, platform, quality, warning)
+- Progressive fallback with relaxation messages
+- Fast autocomplete with categorized suggestions
+
+**Example Queries:**
+```
+"dark Korean thrillers from the 90s"
+→ { country: "KR", genres: ["Thriller"], yearRange: [1990,1999], mood: "dark" }
+
+"movies like Inception but darker"
+→ { similarTo: "Inception", mood: "dark" }
+
+"feel-good comedies with Tom Hanks on Netflix"
+→ { genres: ["Comedy"], cast: ["Tom Hanks"], streamingService: "Netflix", mood: "feel-good" }
+```
+
 ### Phase Summary
 
 | Phase         | Description                           | Status               |
@@ -202,9 +296,11 @@ yarn test:ai "more like inception" --debug
 | **Phase 1**   | Fuzzy Search (pg_trgm)                | ✅ Complete          |
 | **Phase 2**   | Semantic Search (pgvector)            | ✅ Complete          |
 | **Phase 3**   | Hybrid Search (RRF)                   | ✅ Complete          |
+| **Phase 3.5** | Ranking Enhancements                  | ✅ Complete (Jan 18) |
 | **Phase 4**   | AI Agent Integration                  | ✅ Complete          |
 | **Phase 4.2** | Tool Consolidation (`smart_discover`) | ✅ Complete (Jan 10) |
-| **Phase 5**   | Personalization                       | 📝 Planned           |
+| **Phase 5**   | Advanced "Search Anything" System     | ✅ Complete (Jan 18) |
+| **Phase 6**   | Personalization                       | 📝 Planned           |
 
 ---
 
@@ -216,8 +312,8 @@ yarn test:ai "more like inception" --debug
 4. [Phase 2: Semantic Search](#phase-2-semantic-search-with-pgvector)
 5. [Phase 3: Hybrid Search](#phase-3-hybrid-search-with-rrf)
 6. [Phase 4: AI Agent Integration](#phase-4-ai-agent-integration)
-7. [Phase 5: Advanced Features](#phase-5-advanced-features)
-8. [Phase 6: Future Enhancements](#phase-6-future-enhancements)
+7. [Phase 5: Advanced "Search Anything"](#phase-5-complete--jan-2026)
+8. [Phase 6: Personalization](#phase-6-future-enhancements) (Planned)
 9. [Cost Analysis](#cost-analysis)
 10. [Success Metrics](#success-metrics)
 11. [Risk Assessment](#risk-assessment)
@@ -2387,3 +2483,4 @@ BEDROCK_REGION=us-east-1        # ← Already in your .env.local (used by both)
 | Version | Date       | Author   | Changes                    |
 | ------- | ---------- | -------- | -------------------------- |
 | 1.0     | 2026-01-10 | AI Agent | Initial comprehensive plan |
+| 1.1     | 2026-01-18 | AI Agent | Added Phase 3.5 (ranking enhancements, person fixes, popularity sync) |

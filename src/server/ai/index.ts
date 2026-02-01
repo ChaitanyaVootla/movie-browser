@@ -46,8 +46,15 @@ export {
   getSeriesDetailsTool,
 } from "./tools";
 
-// Bedrock
+// Providers
+export { createChatModel, getAIProvider, getCurrentModelId as getProviderModelId } from "./provider";
+export type { AIProvider } from "./provider";
+
+// Bedrock (direct access if needed)
 export { createBedrockChat, createBedrockChatWithTools } from "./bedrock";
+
+// OpenRouter (direct access if needed)
+export { createOpenRouterChat, createOpenRouterChatWithTools, getOpenRouterModelId } from "./openrouter";
 
 // Prompts
 export { getSystemPrompt, SYSTEM_PROMPT } from "./prompts/system";

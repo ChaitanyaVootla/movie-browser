@@ -6,6 +6,7 @@ import { Calendar, Clock, Play, Timer, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Episode } from "@/types";
+import { EpisodeModal } from "./episode-modal";
 
 interface NextEpisodeCardProps {
   episode: Episode;
@@ -167,6 +168,7 @@ export function NextEpisodeCard({
 interface EpisodeInfoSectionProps {
   nextEpisode?: Episode | null;
   lastEpisode?: Episode | null;
+  seriesId: number;
   seriesName: string;
   className?: string;
 }
@@ -174,31 +176,56 @@ interface EpisodeInfoSectionProps {
 export function EpisodeInfoSection({
   nextEpisode,
   lastEpisode,
+  seriesId,
   seriesName,
   className,
 }: EpisodeInfoSectionProps) {
+  const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
+
   // Only show if we have at least one episode to display
   if (!nextEpisode && !lastEpisode) return null;
 
   // Prefer next episode if it's upcoming, otherwise show last
   const hasUpcomingNext = nextEpisode?.air_date && new Date(nextEpisode.air_date) > new Date();
+  const displayedEpisode = hasUpcomingNext && nextEpisode ? nextEpisode : lastEpisode;
 
   return (
-    <section className={cn("space-y-4", className)}>
-      <div className="px-4 md:px-8 lg:px-12">
-        <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-          <Timer className="h-5 w-5 text-muted-foreground" />
-          {hasUpcomingNext ? "Upcoming Episode" : "Latest Episode"}
-        </h2>
-      </div>
+    <>
+      <section className={cn("space-y-4", className)}>
+        <div className="px-4 md:px-8 lg:px-12">
+          <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+            <Timer className="h-5 w-5 text-muted-foreground" />
+            {hasUpcomingNext ? "Upcoming Episode" : "Latest Episode"}
+          </h2>
+        </div>
 
-      <div className="px-4 md:px-8 lg:px-12">
-        {hasUpcomingNext && nextEpisode ? (
-          <NextEpisodeCard episode={nextEpisode} type="next" seriesName={seriesName} />
-        ) : lastEpisode ? (
-          <NextEpisodeCard episode={lastEpisode} type="last" seriesName={seriesName} />
-        ) : null}
-      </div>
-    </section>
+        <div className="px-4 md:px-8 lg:px-12">
+          {hasUpcomingNext && nextEpisode ? (
+            <NextEpisodeCard
+              episode={nextEpisode}
+              type="next"
+              seriesName={seriesName}
+              onClick={() => setSelectedEpisode(nextEpisode)}
+            />
+          ) : lastEpisode ? (
+            <NextEpisodeCard
+              episode={lastEpisode}
+              type="last"
+              seriesName={seriesName}
+              onClick={() => setSelectedEpisode(lastEpisode)}
+            />
+          ) : null}
+        </div>
+      </section>
+
+      {/* Episode detail modal */}
+      <EpisodeModal
+        episode={selectedEpisode}
+        seriesId={seriesId}
+        seriesName={seriesName}
+        seasonNumber={displayedEpisode?.season_number ?? 1}
+        onClose={() => setSelectedEpisode(null)}
+      />
+    </>
   );
 }

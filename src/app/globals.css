@@ -39,6 +39,8 @@
   --color-card: var(--card);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-hero-base: var(--hero-base);
+  --color-surface: var(--surface);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -53,30 +55,23 @@
 
   /* ========================================
    * Hero Section Layout Variables
-   * Easily tweak these values to adjust hero sizing
    * ======================================== */
-
-  /* Hero height (desktop): target 60vh, min 400px, max 750px */
   --hero-height-target: 60vh;
   --hero-height-min: 400px;
   --hero-height-max: 750px;
-
-  /* Hero content/info width (desktop): target 30vw, min 280px, max 480px */
   --hero-content-width-target: 30vw;
   --hero-content-min-width: 280px;
   --hero-content-max-width: 480px;
-
-  /* Mobile hero height: target 50vh, min 300px, max 480px */
   --hero-height-mobile-target: 50vh;
   --hero-height-mobile-min: 300px;
   --hero-height-mobile-max: 480px;
-
-  /* Mobile content width: target 85vw, min 260px, max 400px */
   --hero-content-mobile-width-target: 85vw;
   --hero-content-mobile-min-width: 260px;
   --hero-content-mobile-max-width: 400px;
 
-  /* Light theme - Clean, modern, minimal */
+  /* ========================================
+   * Light Mode - Clean, minimal
+   * ======================================== */
   --background: oklch(0.99 0 0);
   --foreground: oklch(0.13 0 0);
   --card: oklch(1 0 0);
@@ -95,17 +90,23 @@
   --border: oklch(0.91 0 0);
   --input: oklch(0.91 0 0);
   --ring: oklch(0.65 0 0);
+  --surface: oklch(0.97 0 0);
 
-  /* Brand color - Cinematic red/amber accent */
-  --brand: oklch(0.65 0.2 25);
+  /* Hero gradient base - light mode uses subtle dark for readability */
+  --hero-base: oklch(0.15 0 0);
+  --hero-base-rgb: 28 28 28;
+
+  /* Brand color - Cinematic accent */
+  --brand: oklch(0.55 0.2 25);
   --brand-foreground: oklch(0.99 0 0);
+  --brand-rgb: 180 60 50;
 
   /* Chart colors */
-  --chart-1: oklch(0.65 0.2 25);
-  --chart-2: oklch(0.55 0.15 220);
-  --chart-3: oklch(0.6 0.18 150);
-  --chart-4: oklch(0.7 0.15 80);
-  --chart-5: oklch(0.6 0.2 300);
+  --chart-1: oklch(0.55 0.2 25);
+  --chart-2: oklch(0.5 0.15 220);
+  --chart-3: oklch(0.55 0.18 150);
+  --chart-4: oklch(0.6 0.15 80);
+  --chart-5: oklch(0.55 0.2 300);
 
   /* Sidebar */
   --sidebar: oklch(0.98 0 0);
@@ -118,30 +119,38 @@
   --sidebar-ring: oklch(0.65 0 0);
 }
 
+/* ========================================
+ * Dark Mode - Cinematic, immersive (Pure Black default)
+ * ======================================== */
 .dark {
-  /* Dark theme - Cinematic, immersive */
-  --background: oklch(0.1 0 0);
+  --background: oklch(0 0 0);
   --foreground: oklch(0.95 0 0);
-  --card: oklch(0.14 0 0);
+  --card: oklch(0.12 0 0);
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.14 0 0);
+  --popover: oklch(0.12 0 0);
   --popover-foreground: oklch(0.95 0 0);
   --primary: oklch(0.95 0 0);
-  --primary-foreground: oklch(0.1 0 0);
-  --secondary: oklch(0.2 0 0);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.15 0 0);
   --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.2 0 0);
+  --muted: oklch(0.15 0 0);
   --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.2 0 0);
+  --accent: oklch(0.15 0 0);
   --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.6 0.22 25);
-  --border: oklch(1 0 0 / 8%);
+  --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.5 0 0);
+  --surface: oklch(0.08 0 0);
+
+  /* Hero gradient base - pure black (matches --background) */
+  --hero-base: oklch(0 0 0);
+  --hero-base-rgb: 0 0 0;
 
   /* Brand color - Warmer in dark mode */
   --brand: oklch(0.7 0.22 30);
   --brand-foreground: oklch(0.1 0 0);
+  --brand-rgb: 230 100 70;
 
   /* Chart colors - Brighter for dark mode */
   --chart-1: oklch(0.7 0.22 30);
@@ -161,21 +170,272 @@
   --sidebar-ring: oklch(0.5 0 0);
 }
 
-/* Additional theme presets - easily switchable */
-.theme-midnight {
-  --background: oklch(0.12 0.02 260);
-  --foreground: oklch(0.93 0.01 260);
-  --card: oklch(0.16 0.025 260);
-  --brand: oklch(0.65 0.2 260);
+/* ========================================
+ * BACKGROUND STYLE VARIANTS
+ * Controls the overall aesthetic/vibe
+ * Applied as .style-* class alongside .dark
+ * ======================================== */
+
+/* Charcoal - Softer dark, easier on eyes */
+.style-charcoal {
+  --background: oklch(0.16 0 0);
+  --card: oklch(0.2 0 0);
+  --popover: oklch(0.2 0 0);
+  --secondary: oklch(0.24 0 0);
+  --muted: oklch(0.24 0 0);
+  --accent: oklch(0.24 0 0);
+  --surface: oklch(0.18 0 0);
+  --hero-base: oklch(0.16 0 0);
+  --hero-base-rgb: 36 36 36;
+  --sidebar: oklch(0.18 0 0);
+  --sidebar-accent: oklch(0.24 0 0);
 }
 
-.theme-forest {
-  --background: oklch(0.12 0.02 150);
-  --foreground: oklch(0.93 0.01 150);
-  --card: oklch(0.16 0.025 150);
-  --brand: oklch(0.6 0.18 150);
+/* Slate - Even softer, premium feel */
+.style-slate {
+  --background: oklch(0.18 0.006 260);
+  --card: oklch(0.22 0.008 260);
+  --popover: oklch(0.22 0.008 260);
+  --secondary: oklch(0.26 0.01 260);
+  --muted: oklch(0.26 0.01 260);
+  --accent: oklch(0.26 0.01 260);
+  --surface: oklch(0.2 0.006 260);
+  --hero-base: oklch(0.18 0.006 260);
+  --hero-base-rgb: 40 40 48;
+  --sidebar: oklch(0.2 0.006 260);
+  --sidebar-accent: oklch(0.26 0.01 260);
+  --border: oklch(1 0 0 / 10%);
 }
 
+/* Dim - Very subtle, OLED-adjacent */
+.style-dim {
+  --background: oklch(0.08 0 0);
+  --card: oklch(0.12 0 0);
+  --popover: oklch(0.12 0 0);
+  --secondary: oklch(0.16 0 0);
+  --muted: oklch(0.16 0 0);
+  --accent: oklch(0.16 0 0);
+  --surface: oklch(0.1 0 0);
+  --hero-base: oklch(0.08 0 0);
+  --hero-base-rgb: 16 16 16;
+  --sidebar: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.16 0 0);
+}
+
+/* Warm Dark - Cozy, sepia-tinted */
+.style-warm {
+  --background: oklch(0.12 0.015 60);
+  --foreground: oklch(0.93 0.02 70);
+  --card: oklch(0.16 0.02 60);
+  --card-foreground: oklch(0.93 0.02 70);
+  --popover: oklch(0.16 0.02 60);
+  --popover-foreground: oklch(0.93 0.02 70);
+  --secondary: oklch(0.2 0.02 60);
+  --muted: oklch(0.2 0.02 60);
+  --muted-foreground: oklch(0.6 0.02 70);
+  --accent: oklch(0.2 0.02 60);
+  --surface: oklch(0.14 0.018 60);
+  --hero-base: oklch(0.12 0.015 60);
+  --hero-base-rgb: 28 24 18;
+  --sidebar: oklch(0.14 0.018 60);
+  --sidebar-foreground: oklch(0.93 0.02 70);
+  --sidebar-accent: oklch(0.2 0.02 60);
+  --border: oklch(1 0.02 70 / 10%);
+}
+
+/* Cool Dark - Blue-tinted, modern tech */
+.style-cool {
+  --background: oklch(0.12 0.015 250);
+  --foreground: oklch(0.93 0.01 250);
+  --card: oklch(0.16 0.02 250);
+  --card-foreground: oklch(0.93 0.01 250);
+  --popover: oklch(0.16 0.02 250);
+  --popover-foreground: oklch(0.93 0.01 250);
+  --secondary: oklch(0.2 0.02 250);
+  --muted: oklch(0.2 0.02 250);
+  --muted-foreground: oklch(0.6 0.01 250);
+  --accent: oklch(0.2 0.02 250);
+  --surface: oklch(0.14 0.018 250);
+  --hero-base: oklch(0.12 0.015 250);
+  --hero-base-rgb: 22 26 34;
+  --sidebar: oklch(0.14 0.018 250);
+  --sidebar-foreground: oklch(0.93 0.01 250);
+  --sidebar-accent: oklch(0.2 0.02 250);
+  --border: oklch(1 0.01 250 / 10%);
+}
+
+/* Light mode styles */
+/* Cream - Warm white, easier on eyes */
+.style-cream {
+  --background: oklch(0.97 0.01 85);
+  --foreground: oklch(0.2 0.02 60);
+  --card: oklch(0.99 0.008 85);
+  --card-foreground: oklch(0.2 0.02 60);
+  --popover: oklch(0.99 0.008 85);
+  --popover-foreground: oklch(0.2 0.02 60);
+  --secondary: oklch(0.94 0.015 85);
+  --muted: oklch(0.94 0.015 85);
+  --muted-foreground: oklch(0.45 0.02 60);
+  --accent: oklch(0.94 0.015 85);
+  --surface: oklch(0.96 0.012 85);
+  /* Light mode hero still uses dark for contrast with images */
+  --hero-base: oklch(0.15 0.01 60);
+  --hero-base-rgb: 32 28 24;
+  --sidebar: oklch(0.96 0.012 85);
+  --sidebar-foreground: oklch(0.2 0.02 60);
+  --sidebar-accent: oklch(0.94 0.015 85);
+  --border: oklch(0.88 0.015 85);
+}
+
+/* ========================================
+ * ACCENT COLOR PALETTES
+ * Only override brand/accent colors
+ * Can be combined with any mode + style
+ * ======================================== */
+
+/* Midnight Blue - Electric, energetic blue */
+.accent-midnight {
+  --brand: oklch(0.65 0.22 255);
+  --brand-foreground: oklch(0.98 0 0);
+  --brand-rgb: 60 120 220;
+  --ring: oklch(0.6 0.2 255);
+  --chart-1: oklch(0.7 0.24 255);
+  --chart-2: oklch(0.65 0.22 235);
+  --chart-3: oklch(0.75 0.18 275);
+  --chart-4: oklch(0.72 0.16 245);
+  --chart-5: oklch(0.6 0.24 290);
+}
+.dark .accent-midnight {
+  --brand: oklch(0.72 0.24 255);
+  --brand-foreground: oklch(0.1 0.02 255);
+  --brand-rgb: 90 150 255;
+  --sidebar-primary: oklch(0.72 0.24 255);
+  --sidebar-primary-foreground: oklch(0.1 0.02 255);
+}
+
+/* Forest Green - Fresh, spring-like green */
+.accent-forest {
+  --brand: oklch(0.7 0.22 145);
+  --brand-foreground: oklch(0.15 0 0);
+  --brand-rgb: 50 190 100;
+  --ring: oklch(0.65 0.2 145);
+  --chart-1: oklch(0.72 0.24 145);
+  --chart-2: oklch(0.68 0.22 130);
+  --chart-3: oklch(0.75 0.2 160);
+  --chart-4: oklch(0.78 0.18 140);
+  --chart-5: oklch(0.65 0.24 155);
+}
+.dark .accent-forest {
+  --brand: oklch(0.75 0.26 145);
+  --brand-foreground: oklch(0.1 0.02 145);
+  --brand-rgb: 70 220 120;
+  --sidebar-primary: oklch(0.75 0.26 145);
+  --sidebar-primary-foreground: oklch(0.1 0.02 145);
+}
+
+/* Golden - Bright, sunny yellow */
+.accent-golden {
+  --brand: oklch(0.88 0.2 95);
+  --brand-foreground: oklch(0.15 0.02 85);
+  --brand-rgb: 255 210 50;
+  --ring: oklch(0.85 0.18 95);
+  --chart-1: oklch(0.9 0.22 95);
+  --chart-2: oklch(0.85 0.2 80);
+  --chart-3: oklch(0.82 0.18 110);
+  --chart-4: oklch(0.92 0.16 90);
+  --chart-5: oklch(0.8 0.22 100);
+}
+.dark .accent-golden {
+  --brand: oklch(0.92 0.22 95);
+  --brand-foreground: oklch(0.1 0.02 85);
+  --brand-rgb: 255 225 60;
+  --sidebar-primary: oklch(0.92 0.22 95);
+  --sidebar-primary-foreground: oklch(0.1 0.02 85);
+}
+
+/* Ocean - Bright tropical cyan */
+.accent-ocean {
+  --brand: oklch(0.78 0.15 195);
+  --brand-foreground: oklch(0.1 0 0);
+  --brand-rgb: 50 210 220;
+  --ring: oklch(0.75 0.14 195);
+  --chart-1: oklch(0.8 0.16 195);
+  --chart-2: oklch(0.76 0.15 180);
+  --chart-3: oklch(0.82 0.14 210);
+  --chart-4: oklch(0.85 0.12 190);
+  --chart-5: oklch(0.72 0.16 205);
+}
+.dark .accent-ocean {
+  --brand: oklch(0.82 0.17 195);
+  --brand-foreground: oklch(0.1 0.02 195);
+  --brand-rgb: 70 230 240;
+  --sidebar-primary: oklch(0.82 0.17 195);
+  --sidebar-primary-foreground: oklch(0.1 0.02 195);
+}
+
+/* Sunset - Warm, vibrant orange */
+.accent-sunset {
+  --brand: oklch(0.75 0.2 50);
+  --brand-foreground: oklch(0.1 0 0);
+  --brand-rgb: 255 150 60;
+  --ring: oklch(0.72 0.18 50);
+  --chart-1: oklch(0.78 0.22 50);
+  --chart-2: oklch(0.74 0.2 35);
+  --chart-3: oklch(0.8 0.18 65);
+  --chart-4: oklch(0.82 0.16 55);
+  --chart-5: oklch(0.7 0.22 45);
+}
+.dark .accent-sunset {
+  --brand: oklch(0.8 0.24 50);
+  --brand-foreground: oklch(0.1 0.02 50);
+  --brand-rgb: 255 170 80;
+  --sidebar-primary: oklch(0.8 0.24 50);
+  --sidebar-primary-foreground: oklch(0.1 0.02 50);
+}
+
+/* Violet - Bright, playful purple */
+.accent-violet {
+  --brand: oklch(0.68 0.26 295);
+  --brand-foreground: oklch(0.98 0 0);
+  --brand-rgb: 170 100 240;
+  --ring: oklch(0.65 0.24 295);
+  --chart-1: oklch(0.72 0.28 295);
+  --chart-2: oklch(0.68 0.26 280);
+  --chart-3: oklch(0.75 0.24 310);
+  --chart-4: oklch(0.78 0.2 290);
+  --chart-5: oklch(0.62 0.28 305);
+}
+.dark .accent-violet {
+  --brand: oklch(0.75 0.28 295);
+  --brand-foreground: oklch(0.1 0.025 295);
+  --brand-rgb: 200 130 255;
+  --sidebar-primary: oklch(0.75 0.28 295);
+  --sidebar-primary-foreground: oklch(0.1 0.025 295);
+}
+
+/* Rose - Bright, fun pink */
+.accent-rose {
+  --brand: oklch(0.72 0.24 350);
+  --brand-foreground: oklch(0.1 0 0);
+  --brand-rgb: 255 100 160;
+  --ring: oklch(0.68 0.22 350);
+  --chart-1: oklch(0.75 0.26 350);
+  --chart-2: oklch(0.72 0.24 335);
+  --chart-3: oklch(0.78 0.22 5);
+  --chart-4: oklch(0.8 0.2 348);
+  --chart-5: oklch(0.68 0.26 355);
+}
+.dark .accent-rose {
+  --brand: oklch(0.78 0.26 350);
+  --brand-foreground: oklch(0.1 0.025 350);
+  --brand-rgb: 255 130 180;
+  --sidebar-primary: oklch(0.78 0.26 350);
+  --sidebar-primary-foreground: oklch(0.1 0.025 350);
+}
+
+/* ========================================
+ * Base Styles
+ * ======================================== */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -187,43 +447,36 @@
       "calt" 1;
   }
 
-  /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
   }
 
-  /* Better focus styles */
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;
   }
 
-  /* Selection color */
   ::selection {
     @apply bg-brand/30 text-foreground;
   }
 }
 
-/* Hero section responsive sizing
-   Mobile: Auto height - image (16:9) + content flow naturally
-   Desktop: Fixed height constraint (max 60vh) with overlay content */
+/* ========================================
+ * Hero Section Components
+ * ======================================== */
 @layer components {
   .hero-container {
-    /* Mobile: auto height, let image + content stack naturally */
     width: 100%;
     height: auto;
   }
 
   @media (min-width: 768px) {
     .hero-container {
-      /* Desktop: Max 60vh, min 400px - content overlays image */
       height: clamp(var(--hero-height-min), var(--hero-height-target), var(--hero-height-max));
       max-height: 60vh;
     }
   }
 
-  /* Hero content width constraints using CSS variables */
   .hero-content-width {
-    /* Mobile: responsive width */
     width: clamp(
       var(--hero-content-mobile-min-width),
       var(--hero-content-mobile-width-target),
@@ -234,7 +487,6 @@
 
   @media (min-width: 768px) {
     .hero-content-width {
-      /* Desktop: 30vw target with min/max bounds */
       width: clamp(
         var(--hero-content-min-width),
         var(--hero-content-width-target),
@@ -242,9 +494,16 @@
       );
     }
   }
+
+  /* Hero background utility - uses theme-aware color */
+  .bg-hero-base {
+    background-color: rgb(var(--hero-base-rgb));
+  }
 }
 
-/* Custom scrollbar for webkit browsers */
+/* ========================================
+ * Utility Classes
+ * ======================================== */
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
@@ -269,25 +528,23 @@
     background: oklch(var(--muted-foreground));
   }
 
-  /* Hide scrollbar completely */
   .scrollbar-hide {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
   .scrollbar-hide::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
+    display: none;
   }
 
-  /* AI Assistant container shadow - creates floating effect with depth */
   .ai-container-shadow {
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.08),
-      0 8px 30px rgba(0, 0, 0, 0.6),
-      0 20px 50px rgba(0, 0, 0, 0.4);
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 4px 12px rgba(0, 0, 0, 0.4),
+      0 12px 40px rgba(0, 0, 0, 0.6),
+      0 24px 60px rgba(0, 0, 0, 0.5);
   }
 
-  /* AI Assistant idle button */
   .ai-idle-btn {
     transition:
       transform 0.2s ease,

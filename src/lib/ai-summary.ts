@@ -1,48 +1,32 @@
 /**
- * AI Summary File Reader
+ * AI Summary Reader
  *
- * Reads AI-generated movie summaries from the enriched data files.
- * This is a file-system based approach for the in-progress AI enrichment feature.
- * Gracefully returns null if the file doesn't exist.
+ * Reads AI-generated movie/series summaries from PostgreSQL.
+ * PostgreSQL is the source of truth (migrated from file system Jan 2026).
  */
 
 import { readFile } from "fs/promises";
 import { join } from "path";
 import type { AISummary } from "@/types";
+import { getAIDataLegacy } from "@/server/services/ai-data-service";
 
 const ENRICHED_DIR = join(process.cwd(), "data", "enriched");
 
 /**
- * Get AI summary for a movie by TMDB ID
- * Reads from data/enriched/<tmdb_id>/ai-summary.json
+ * Get AI summary for a movie or series from PostgreSQL
  *
- * @param tmdbId - The TMDB movie ID
- * @returns The AI summary or null if not found/invalid
+ * Returns data in legacy AISummary format for backward compatibility.
+ * New code should use getAIData() from ai-data-service for the structured format.
+ *
+ * @param tmdbId - The TMDB movie/series ID
+ * @param mediaType - "movie" or "series" (defaults to "movie" for backwards compatibility)
+ * @returns The AI summary or null if not found
  */
-export async function getAISummary(tmdbId: number): Promise<AISummary | null> {
-  const filePath = join(ENRICHED_DIR, String(tmdbId), "ai-summary.json");
-
-  try {
-    const content = await readFile(filePath, "utf-8");
-    const parsed = JSON.parse(content);
-
-    // Basic validation - ensure required fields exist
-    if (
-      typeof parsed.hook !== "string" ||
-      !Array.isArray(parsed.quickTake) ||
-      !Array.isArray(parsed.themes) ||
-      !parsed.mood ||
-      !Array.isArray(parsed.aiQuestions)
-    ) {
-      console.warn(`[AI Summary] Invalid structure for movie ${tmdbId}`);
-      return null;
-    }
-
-    return parsed as AISummary;
-  } catch {
-    // File doesn't exist or couldn't be read - this is expected for most movies
-    return null;
-  }
+export async function getAISummary(
+  tmdbId: number,
+  mediaType: "movie" | "series" = "movie"
+): Promise<AISummary | null> {
+  return getAIDataLegacy(tmdbId, mediaType);
 }
 
 /**

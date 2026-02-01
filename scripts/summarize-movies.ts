@@ -23,6 +23,15 @@ import { resolve, join } from "path";
 import { existsSync, readFileSync, writeFileSync, readdirSync } from "fs";
 import { ChatBedrockConverse } from "@langchain/aws";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { Prisma, PrismaClient } from "@prisma/client";
+import {
+  parseAndValidateAIOutput,
+  type RawAIOutput,
+  type ValidatedInsight,
+  INSIGHT_SCHEMA,
+} from "../src/types/ai-insights";
+
+const prisma = new PrismaClient();
 
 // Load env from .env.local
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -43,15 +52,17 @@ const dryRun = args.includes("--dry-run");
 const topArg = args.find((a) => a.startsWith("--top="));
 const skipArg = args.find((a) => a.startsWith("--skip="));
 const parallelArg = args.find((a) => a.startsWith("--parallel="));
+const mediaTypeArg = args.find((a) => a.startsWith("--media-type="));
 const topN = topArg ? parseInt(topArg.split("=")[1], 10) : Infinity;
 const skipN = skipArg ? parseInt(skipArg.split("=")[1], 10) : 0;
 const parallelN = parallelArg ? parseInt(parallelArg.split("=")[1], 10) : 5; // Default 5 concurrent
+const explicitMediaType = mediaTypeArg?.split("=")[1] as "movie" | "series" | undefined;
 const singleId = args.find((a) => /^\d+$/.test(a));
 
 // Types
 interface AISummary {
   hook: string;
-  quickTake: string[];
+  vibes: string[];
   themes: string[];
   mood: {
     pacing: "slow" | "steady" | "fast";
@@ -59,7 +70,14 @@ interface AISummary {
     tone: "dark" | "light" | "mixed";
     emotional: "light" | "medium" | "heavy";
   };
-  aiQuestions: string[];
+  bestFor: Array<{ subcategory: string; text: string }>;
+  highlights: Array<{ subcategory: string; text: string }>;
+  headsUp: Array<{ subcategory: string; text: string }>;
+  questions: {
+    preWatch: string[];
+    postWatch: string[];
+  };
+  deepDive: Array<{ subcategory: string; text: string; spoilerLevel: string }>;
   generatedAt: string;
   modelId: string;
   inputTokens: number;
@@ -99,46 +117,50 @@ const SYSTEM_PROMPT = `You are a sassy, opinionated movie expert who helps users
 Analyze the movie data provided and generate a JSON response with these fields:
 
 1. **hook** (string, <80 chars): A punchy one-liner that makes people curious. No spoilers. Be creative, provocative, or intriguing.
-   Examples: "The movie that made grown men cry in theaters", "What if your imaginary friend was a 7-foot tall rabbit?", "Two hours of pure anxiety disguised as art"
 
-2. **quickTake** (array of 2-4 strings): Instant decision helpers. Short labels that tell you what you're getting into.
-   Examples: ["Emotionally devastating", "Cult classic"], ["Blockbuster action", "Turn off your brain"], ["Slow burn", "Art house vibes", "Not for everyone"]
+2. **vibes** (array of 2-4 strings): Quick take labels that tell you what you're getting into. Short, punchy descriptors.
 
-3. **themes** (array of 2-4 strings): Meaningful thematic elements. NOT just genre synonyms - actual themes explored.
-   Examples: ["Identity crisis", "Corporate dystopia"], ["Father-son redemption", "Sacrifice"], ["Toxic masculinity", "Consumer culture"]
+3. **themes** (array of 2-4 strings): Meaningful thematic elements explored. NOT just genre synonyms - actual themes.
 
-4. **mood** (object): Objective assessment of the viewing experience:
-   - pacing: "slow" | "steady" | "fast"
-   - intensity: "low" | "medium" | "high"
-   - tone: "dark" | "light" | "mixed"
-   - emotional: "light" | "medium" | "heavy" (how emotionally taxing)
+4. **mood** (object): Objective assessment of the viewing experience. ALL four fields are required:
+   - pacing: MUST be exactly one of: "slow", "steady", "fast"
+   - intensity: MUST be exactly one of: "low", "medium", "high"
+   - tone: MUST be exactly one of: "dark", "light", "mixed"
+   - emotional: MUST be exactly one of: "light", "medium", "heavy"
 
-5. **aiQuestions** (array of 4-5 strings): Fun, sassy questions to spark conversation. These should be irresistible - make users WANT to click and argue/discuss/ask. Channel chaotic energy.
-   
-   Good examples:
-   - "Is this actually good or just meme-worthy?"
-   - "Will I need therapy after watching this?"
-   - "Hot take: is this overrated?"
-   - "Can I watch this on a first date without ruining everything?"
-   - "Be honest - is the hype deserved?"
-   - "Why does everyone cry at this? Fight me."
-   - "Is the ending gonna piss me off?"
-   - "Should I watch this drunk or sober?"
-   - "Will this ruin my week emotionally?"
-   - "What's the deal with all the discourse around this?"
-   
-   Bad examples (too boring/generic):
-   - "What is this movie about?"
-   - "Who directed this film?"
-   - "What are the main themes?"
+5. **bestFor** (array of 1-4 objects): When/how to watch this. Each object has:
+   - subcategory: MUST be exactly one of: "theatre", "streaming", "date_night", "solo", "friends", "family", "kids", "rewatch", "background", "binge"
+   - text: A short explanation (1 sentence)
 
-IMPORTANT RULES:
+6. **highlights** (array of 1-4 objects): What makes this movie special. Each object has:
+   - subcategory: MUST be exactly one of: "acting", "direction", "cinematography", "score", "sound", "vfx", "practical", "writing", "editing", "production", "costume", "stunt"
+   - text: A short explanation (1 sentence)
+
+7. **headsUp** (array of 0-3 objects): Content warnings. ONLY include if genuinely applicable - many movies need none! Each object has:
+   - subcategory: MUST be exactly one of: "violence", "gore", "disturbing", "triggers", "sad", "jumpscares", "language", "sexual", "drugs"
+   - text: A specific explanation (not generic warnings)
+
+8. **questions** (object with two arrays):
+   - preWatch (array of 3-5 strings): Sassy questions to spark conversation BEFORE watching. These should be irresistible - make users WANT to click and argue/discuss. Channel chaotic energy. No spoilers here!
+   - postWatch (array of 3-5 strings): Questions for AFTER watching. These CAN and SHOULD include spoilers since users have seen it. Reference specific plot points, twists, character deaths, endings. These are discussion starters.
+
+9. **deepDive** (array of 2-4 objects): Trivia, insights, and cultural context. Each object has:
+   - subcategory: MUST be exactly one of: "trivia", "insight", "memorable", "cultural"
+   - text: The content (can be 1-3 sentences)
+   - spoilerLevel: MUST be exactly one of: "FREE" (no spoilers), "LIGHT" (mild reveals), "HEAVY" (major spoilers)
+
+   For deepDive, you CAN include spoilers - that's the point! Mark them appropriately with spoilerLevel.
+
+CRITICAL RULES:
+- subcategory values must EXACTLY match the allowed values listed above (case-sensitive, use underscores not spaces)
 - Be specific to THIS movie. Generic responses are useless.
-- No spoilers anywhere. Ever.
-- The aiQuestions should feel like a chaotic friend baiting you into a conversation.
-- If it's a classic/cult film, lean into the cultural significance.
-- If it's divisive, acknowledge the controversy.
-- Match the energy to the movie's vibe.
+- No spoilers in hook, vibes, themes, mood, bestFor, highlights, or preWatch questions
+- headsUp only if genuinely applicable - don't include generic warnings
+- postWatch questions and deepDive CAN have spoilers - use spoilerLevel to mark them
+- The preWatch questions should feel like a chaotic friend baiting you into a conversation
+- If it's a classic/cult film, lean into the cultural significance
+- If it's divisive, acknowledge the controversy
+- Match the energy to the movie's vibe
 
 Respond with ONLY valid JSON. No markdown code blocks, no explanations.`;
 
@@ -159,7 +181,7 @@ function createClient(): ChatBedrockConverse {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
-    maxTokens: 4096, // Kimi K2 includes reasoning tokens in output count
+    maxTokens: 16384, // Kimi K2 includes reasoning tokens in output count - needs plenty of room
     temperature: 0.8, // Slightly higher for creative responses
   });
 }
@@ -207,9 +229,49 @@ function extractTitle(content: string): string {
 }
 
 /**
+ * Determine if a TMDB ID is a movie or series
+ *
+ * Priority:
+ * 1. Explicit media type passed via --media-type argument
+ * 2. Auto-detect from PostgreSQL database
+ *
+ * The explicit argument is important because:
+ * - Series might not be in PostgreSQL yet (only hydrated on first page visit)
+ * - The enrich API knows the media type from the request
+ */
+async function determineMediaType(
+  tmdbId: number,
+  explicit?: "movie" | "series"
+): Promise<"movie" | "series" | null> {
+  // If explicit type provided, use it (trust the caller)
+  if (explicit) {
+    console.log(`[Summarize] Using explicit media type: ${explicit}`);
+    return explicit;
+  }
+
+  // Auto-detect from database
+  const movie = await prisma.movie.findUnique({
+    where: { id: tmdbId },
+    select: { id: true },
+  });
+  if (movie) return "movie";
+
+  const series = await prisma.series.findUnique({
+    where: { id: tmdbId },
+    select: { id: true },
+  });
+  if (series) return "series";
+
+  console.warn(
+    `[Summarize] Could not determine media type for ${tmdbId} - not found in movie or series table`
+  );
+  return null;
+}
+
+/**
  * Parse and validate the AI response
  */
-function parseResponse(responseText: string): AISummary | null {
+function parseResponse(responseText: string): { summary: AISummary; raw: RawAIOutput } | null {
   try {
     // Clean up response - remove potential markdown code blocks
     let cleaned = responseText.trim();
@@ -223,49 +285,103 @@ function parseResponse(responseText: string): AISummary | null {
     }
     cleaned = cleaned.trim();
 
-    const parsed = JSON.parse(cleaned);
+    // Check for truncated JSON (common symptom of max_tokens being hit)
+    if (!cleaned.endsWith("}")) {
+      const lastBrace = cleaned.lastIndexOf("}");
+      console.error(
+        `Response appears truncated (${cleaned.length} chars, ends with: "${cleaned.slice(-50)}")`
+      );
+      // Try to salvage by finding last complete object
+      if (lastBrace > cleaned.length * 0.5) {
+        console.warn("Attempting to parse partial response...");
+        cleaned = cleaned.slice(0, lastBrace + 1);
+      }
+    }
+
+    const parsed = JSON.parse(cleaned) as RawAIOutput;
 
     // Validate required fields
     if (
       typeof parsed.hook !== "string" ||
-      !Array.isArray(parsed.quickTake) ||
+      !Array.isArray(parsed.vibes) ||
       !Array.isArray(parsed.themes) ||
       !parsed.mood ||
-      !Array.isArray(parsed.aiQuestions)
+      !parsed.questions ||
+      !Array.isArray(parsed.questions.preWatch)
     ) {
       console.error("Missing required fields in response");
       return null;
     }
 
-    // Validate mood structure
-    const validPacing = ["slow", "steady", "fast"];
-    const validIntensity = ["low", "medium", "high"];
-    const validTone = ["dark", "light", "mixed"];
-    const validEmotional = ["light", "medium", "heavy"];
+    // Validate mood structure using schema values
+    const validPacing = INSIGHT_SCHEMA.MOOD.textConstraint.pacing;
+    const validIntensity = INSIGHT_SCHEMA.MOOD.textConstraint.intensity;
+    const validTone = INSIGHT_SCHEMA.MOOD.textConstraint.tone;
+    const validEmotional = INSIGHT_SCHEMA.MOOD.textConstraint.emotional;
 
     if (
-      !validPacing.includes(parsed.mood.pacing) ||
-      !validIntensity.includes(parsed.mood.intensity) ||
-      !validTone.includes(parsed.mood.tone) ||
-      !validEmotional.includes(parsed.mood.emotional)
+      !validPacing.includes(parsed.mood.pacing as typeof validPacing[number]) ||
+      !validIntensity.includes(parsed.mood.intensity as typeof validIntensity[number]) ||
+      !validTone.includes(parsed.mood.tone as typeof validTone[number]) ||
+      !validEmotional.includes(parsed.mood.emotional as typeof validEmotional[number])
     ) {
-      console.error("Invalid mood values in response");
+      console.error("Invalid mood values in response:", parsed.mood);
       return null;
     }
 
-    return parsed as AISummary;
+    // Return both the summary and raw output for validation
+    return {
+      summary: parsed as AISummary,
+      raw: parsed,
+    };
   } catch (e) {
     console.error("Failed to parse response:", e);
+    // Show the raw response for debugging (truncated)
+    const preview = responseText.length > 500
+      ? responseText.slice(0, 250) + "\n...[truncated]...\n" + responseText.slice(-250)
+      : responseText;
+    console.error("Raw response preview:\n", preview);
     return null;
   }
 }
 
 /**
+ * Map SpoilerLevel from ai-insights to Prisma enum
+ */
+function mapSpoilerLevel(level: string): "FREE" | "LIGHT" | "HEAVY" {
+  const normalized = level.toUpperCase();
+  if (normalized === "FREE" || normalized === "NONE") return "FREE";
+  if (normalized === "LIGHT" || normalized === "MILD") return "LIGHT";
+  if (normalized === "HEAVY" || normalized === "MODERATE") return "HEAVY";
+  return "FREE";
+}
+
+/**
+ * Convert validated insights to Prisma createMany format
+ */
+function convertInsightsToPrismaFormat(
+  insights: ValidatedInsight[]
+): Prisma.AiInsightCreateManyAiDataInput[] {
+  return insights.map((insight) => ({
+    category: insight.category,
+    subcategory: insight.subcategory,
+    text: insight.text,
+    spoilerLevel: mapSpoilerLevel(insight.spoilerLevel),
+    priority: insight.priority,
+  }));
+}
+
+/**
  * Summarize a single movie
+ *
+ * @param movieId - TMDB ID of the movie/series
+ * @param client - Bedrock chat client
+ * @param mediaTypeOverride - Optional explicit media type (overrides auto-detection)
  */
 async function summarizeMovie(
   movieId: number,
-  client: ChatBedrockConverse
+  client: ChatBedrockConverse,
+  mediaTypeOverride?: "movie" | "series"
 ): Promise<{
   success: boolean;
   title: string;
@@ -302,8 +418,8 @@ async function summarizeMovie(
           : "";
 
     // Parse response
-    const summary = parseResponse(responseText);
-    if (!summary) {
+    const parseResult = parseResponse(responseText);
+    if (!parseResult) {
       return {
         success: false,
         title,
@@ -313,15 +429,83 @@ async function summarizeMovie(
       };
     }
 
+    const { summary, raw } = parseResult;
+
     // Add metadata
     summary.generatedAt = new Date().toISOString();
     summary.modelId = MODEL_ID;
     summary.inputTokens = inputTokens;
     summary.outputTokens = outputTokens;
 
-    // Save summary
+    // Save summary to file
     const outputPath = join(ENRICHED_DIR, String(movieId), "ai-summary.json");
     writeFileSync(outputPath, JSON.stringify(summary, null, 2));
+
+    // Validate and convert insights using the ai-insights module
+    const { insights: validatedInsights, errors: validationErrors } = parseAndValidateAIOutput(raw);
+
+    if (validationErrors.length > 0) {
+      console.warn(`Validation warnings for ${movieId}:`, validationErrors.slice(0, 3));
+    }
+
+    // Save to PostgreSQL with transaction
+    try {
+      const mediaType = await determineMediaType(movieId, mediaTypeOverride);
+      if (mediaType) {
+        const prismaInsights = convertInsightsToPrismaFormat(validatedInsights);
+
+        // Check if AiData already exists
+        const existingAiData = await prisma.aiData.findFirst({
+          where: mediaType === "movie" ? { movieId } : { seriesId: movieId },
+          select: { id: true, version: true },
+        });
+
+        if (existingAiData) {
+          // Update existing: delete old insights, update aiData, create new insights
+          await prisma.$transaction([
+            prisma.aiInsight.deleteMany({ where: { aiDataId: existingAiData.id } }),
+            prisma.aiData.update({
+              where: { id: existingAiData.id },
+              data: {
+                hook: summary.hook,
+                rawInput: aiInput,
+                generatedAt: new Date(summary.generatedAt),
+                modelId: summary.modelId,
+                version: (existingAiData.version || 1) + 1,
+                insights: {
+                  createMany: { data: prismaInsights },
+                },
+              },
+            }),
+          ]);
+        } else {
+          // Create new AiData with insights
+          const createData = {
+            hook: summary.hook,
+            rawInput: aiInput,
+            generatedAt: new Date(summary.generatedAt),
+            modelId: summary.modelId,
+            version: 1,
+            insights: {
+              createMany: { data: prismaInsights },
+            },
+          };
+
+          if (mediaType === "movie") {
+            await prisma.aiData.create({
+              data: { movieId, ...createData },
+            });
+          } else {
+            await prisma.aiData.create({
+              data: { seriesId: movieId, ...createData },
+            });
+          }
+        }
+      }
+    } catch (dbError) {
+      console.warn(`DB upsert failed for ${movieId}:`, dbError);
+      // Continue - file was saved successfully
+    }
 
     return { success: true, title, inputTokens, outputTokens };
   } catch (e) {
@@ -495,7 +679,8 @@ async function runSingle(movieId: number): Promise<void> {
   console.log("=".repeat(70));
   console.log("🎬 AI MOVIE SUMMARIZATION - SINGLE MODE");
   console.log("=".repeat(70));
-  console.log(`   Movie ID: ${movieId}`);
+  console.log(`   TMDB ID: ${movieId}`);
+  console.log(`   Media Type: ${explicitMediaType || "(auto-detect)"}`);
   console.log(`   Model: ${MODEL_ID}`);
   console.log("");
 
@@ -518,15 +703,17 @@ async function runSingle(movieId: number): Promise<void> {
     );
     console.log(`\nExisting summary:`);
     console.log(`   Hook: ${existing.hook}`);
-    console.log(`   Quick Take: ${existing.quickTake.join(", ")}`);
-    console.log(`   Themes: ${existing.themes.join(", ")}`);
+    // Handle both old format (quickTake) and new format (vibes)
+    const vibes = existing.vibes || existing.quickTake || [];
+    console.log(`   Vibes: ${vibes.join(", ")}`);
+    console.log(`   Themes: ${existing.themes?.join(", ") || "N/A"}`);
     return;
   }
 
   // Create client and process
   const client = createClient();
   const startTime = Date.now();
-  const result = await summarizeMovie(movieId, client);
+  const result = await summarizeMovie(movieId, client, explicitMediaType);
   const duration = Date.now() - startTime;
 
   console.log(`\n${"─".repeat(50)}`);
@@ -540,31 +727,48 @@ async function runSingle(movieId: number): Promise<void> {
 
     console.log(`\n📋 Generated Summary:`);
     console.log(`   Hook: ${summary.hook}`);
-    console.log(`   Quick Take: ${summary.quickTake.join(" | ")}`);
+    console.log(`   Vibes: ${summary.vibes.join(" | ")}`);
     console.log(`   Themes: ${summary.themes.join(", ")}`);
     console.log(
       `   Mood: ${summary.mood.pacing} pacing, ${summary.mood.intensity} intensity, ${summary.mood.tone} tone`
     );
-    console.log(`\n   AI Questions:`);
-    summary.aiQuestions.forEach((q, i) => {
+    console.log(`\n   Pre-Watch Questions:`);
+    summary.questions.preWatch.forEach((q, i) => {
       console.log(`     ${i + 1}. "${q}"`);
     });
+    if (summary.highlights.length > 0) {
+      console.log(`\n   Highlights:`);
+      summary.highlights.forEach((h) => {
+        console.log(`     - [${h.subcategory}] ${h.text}`);
+      });
+    }
+    if (summary.bestFor.length > 0) {
+      console.log(`\n   Best For:`);
+      summary.bestFor.forEach((b) => {
+        console.log(`     - [${b.subcategory}] ${b.text}`);
+      });
+    }
   }
 }
 
 // Main
 async function main() {
-  if (isBatch) {
-    await runBatch();
-  } else if (singleId) {
-    await runSingle(parseInt(singleId, 10));
-  } else {
-    console.log("Usage:");
-    console.log("  yarn summarize <tmdb_id>      # Single movie");
-    console.log("  yarn summarize:batch          # Batch (all enriched)");
-    console.log("  yarn summarize:batch --force  # Regenerate all");
-    console.log("  yarn summarize:batch --dry-run");
-    console.log("  yarn summarize:batch --top=50 --skip=10");
+  try {
+    if (isBatch) {
+      await runBatch();
+    } else if (singleId) {
+      await runSingle(parseInt(singleId, 10));
+    } else {
+      console.log("Usage:");
+      console.log("  yarn summarize <tmdb_id>                    # Single (auto-detect type)");
+      console.log("  yarn summarize <tmdb_id> --media-type=series  # Force series type");
+      console.log("  yarn summarize:batch                        # Batch (all enriched)");
+      console.log("  yarn summarize:batch --force                # Regenerate all");
+      console.log("  yarn summarize:batch --dry-run");
+      console.log("  yarn summarize:batch --top=50 --skip=10");
+    }
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

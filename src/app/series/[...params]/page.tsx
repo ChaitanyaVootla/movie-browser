@@ -6,6 +6,8 @@ import { getSeries as getSeriesBase } from "@/server/actions/series";
 // Deduplicate getSeries calls within the same request
 // generateMetadata, HeroContentAsync, SeriesContentAsync all use the same cached result
 const getSeries = cache(getSeriesBase);
+import { getAISummary } from "@/lib/ai-summary";
+import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
 import {
   MediaActionBar,
   MediaOverview,
@@ -18,10 +20,12 @@ import {
   HeroLogoShell,
   HeroMediaProvider,
   HeroMediaUpdater,
-  GenreList,
   RatingsBar,
   WatchOptions,
   DetailBadges,
+  AIQuestionsSection,
+  DeepDiveSection,
+  MediaContextUpdater,
 } from "@/components/features/media";
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
@@ -142,13 +146,6 @@ function HeroContentSkeleton() {
         <Skeleton className="h-6 w-28 rounded-full bg-white/10" />
       </div>
 
-      {/* Genres skeleton */}
-      <div className="flex gap-2">
-        <Skeleton className="h-6 w-20 rounded-full bg-white/10" />
-        <Skeleton className="h-6 w-24 rounded-full bg-white/10" />
-        <Skeleton className="h-6 w-16 rounded-full bg-white/10" />
-      </div>
-
       {/* Ratings skeleton */}
       <Skeleton className="h-8 w-52 rounded-full bg-white/10" />
 
@@ -244,12 +241,18 @@ function PageContentSkeleton() {
   );
 }
 
-// Async hero content - fetches data and renders badges, genres, ratings, watch options
+// Async hero content - fetches data and renders badges, genres, ratings, watch options, hook
 async function HeroContentAsync({ seriesId }: { seriesId: number }) {
-  const series = await getSeries(seriesId);
+  // Fetch series and AI data in parallel
+  const [series, aiData] = await Promise.all([
+    getSeries(seriesId),
+    getAIData(seriesId, "series"),
+  ]);
   if (!series) return null;
 
-  const genres = series.genres || [];
+  // Convert to legacy format for components that still use it
+  const aiSummary = aiData ? aiDataResponseToSummary(aiData) : null;
+
   const displayRatings = series.ratings?.length
     ? series.ratings
     : series.vote_average && series.vote_average > 0
@@ -272,13 +275,15 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
         title={series.name}
       />
 
+      {/* AI Hook - tagline above content */}
+      {aiSummary?.hook && (
+        <blockquote className="border-l-2 border-brand/50 pl-3 text-sm md:text-base text-foreground/90 italic font-medium text-left max-w-md leading-relaxed">
+          {aiSummary.hook}
+        </blockquote>
+      )}
+
       {/* Status badges (trending, new season, currently airing, etc.) */}
       {badges.length > 0 && <DetailBadges badges={badges} className="drop-shadow-md" />}
-
-      {/* Genres */}
-      {genres.length > 0 && (
-        <GenreList genres={genres} mediaType="series" size="sm" maxVisible={4} />
-      )}
 
       {/* Ratings */}
       {displayRatings.length > 0 && (
@@ -299,8 +304,15 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
 
 // Async page content - action bar, seasons, overview, galleries, recommendations
 async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
-  const series = await getSeries(seriesId);
+  // Fetch series data and AI data in parallel
+  const [series, aiData] = await Promise.all([
+    getSeries(seriesId),
+    getAIData(seriesId, "series"),
+  ]);
   if (!series) return null;
+
+  // Convert to legacy format for components that still use it
+  const aiSummary = aiData ? aiDataResponseToSummary(aiData) : null;
 
   // Filter YouTube videos and sort by priority (Trailer > Teaser > etc.) + date
   const youtubeVideos = sortVideos(
@@ -322,13 +334,28 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         backdrop_path={series.backdrop_path}
       />
 
-      {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share */}
+      {/* Update global media context for AI chat prompts */}
+      <MediaContextUpdater
+        mediaType="series"
+        itemId={series.id}
+        title={series.name}
+        year={series.first_air_date?.split("-")[0]}
+        rating={series.vote_average}
+        voteCount={series.vote_count}
+        genres={series.genres?.map((g) => g.name)}
+        aiQuestions={aiSummary?.aiQuestions}
+        seasonCount={series.number_of_seasons}
+        status={series.status}
+      />
+
+      {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills */}
       {/* Pass only trailer data instead of full videos array */}
       <MediaActionBar
         itemId={series.id}
         mediaType="series"
         title={series.name}
         trailer={extractTrailerData(series.videos)}
+        quickTake={aiSummary?.quickTake}
         className="mt-2 md:mt-3"
       />
 
@@ -346,12 +373,39 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
       <EpisodeInfoSection
         nextEpisode={series.next_episode_to_air}
         lastEpisode={series.last_episode_to_air}
+        seriesId={series.id}
         seriesName={series.name}
         className="mt-6 md:mt-8"
       />
 
       {/* Overview, cast, and details - using light props to reduce RSC payload by ~80% */}
-      <MediaOverview item={extractSeriesOverviewProps(series)} mediaType="series" />
+      <MediaOverview
+        item={extractSeriesOverviewProps(series)}
+        mediaType="series"
+        aiSummary={aiSummary}
+        aiInsights={aiData?.insights}
+      />
+
+      {/* AI Questions - clickable prompts that trigger AI chat */}
+      {aiSummary?.aiQuestions && aiSummary.aiQuestions.length > 0 && (
+        <AIQuestionsSection
+          questions={aiSummary.aiQuestions}
+          title={series.name}
+          year={series.first_air_date?.split("-")[0]}
+          tmdbId={series.id}
+          className="mt-4"
+        />
+      )}
+
+      {/* Deep Dive - trivia, insights, behind the scenes with spoiler gating */}
+      {aiData?.insights?.spoilerContent?.deepDive &&
+        aiData.insights.spoilerContent.deepDive.length > 0 && (
+          <DeepDiveSection
+            items={aiData.insights.spoilerContent.deepDive}
+            className="mt-6"
+            maxCollapsedItems={3}
+          />
+        )}
 
       {/* Video Gallery */}
       {youtubeVideos.length > 0 && (

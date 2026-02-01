@@ -24,7 +24,7 @@ export function IdleCircle({
       onClick={() => onExpand(isAwake ? prompt : undefined)}
       data-testid="ai-assistant-trigger"
       role="button"
-      aria-label={isAwake && prompt ? prompt.text : "Open AI Assistant"}
+      aria-label={isAwake && prompt ? prompt.text : "Open Cue"}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onExpand(isAwake ? prompt : undefined);
       }}
@@ -49,7 +49,9 @@ export function IdleCircle({
         "border border-border/50",
         "shadow-lg shadow-black/10",
         "hover:shadow-xl hover:shadow-black/15",
-        "hover:border-brand/30"
+        "hover:border-brand/30",
+        // Allow wider expansion for longer AI-enriched questions
+        "max-w-[85vw] sm:max-w-[60vw] md:max-w-[50vw]"
       )}
     >
       {/* Awake state glow ring */}
@@ -123,8 +125,9 @@ export function IdleCircle({
             }}
             className="flex items-center gap-2 overflow-hidden"
           >
+            {/* Use prompt.message (full text) instead of prompt.text (truncated to 25 chars) */}
             <span className="text-sm font-medium text-foreground whitespace-nowrap pl-2">
-              {prompt.text}
+              {prompt.message}
             </span>
             <motion.div
               initial={{ opacity: 0, x: -8 }}

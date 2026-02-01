@@ -762,70 +762,96 @@ async function scrapeIMDb(imdbId: string): Promise<IMDbData | null> {
     parentsGuide: {},
   };
 
-  const scrapeSection = async (section: string, extractor: ($: cheerio.CheerioAPI) => void) => {
+  // Helper to scrape a single section
+  const scrapeSection = async (
+    section: string
+  ): Promise<{ section: string; $: cheerio.CheerioAPI } | null> => {
     try {
       const url = `https://www.imdb.com/title/${imdbId}/${section}`;
       const response = await fetchWithRetry(url);
       const html = await response.text();
       const $ = cheerio.load(html);
-      extractor($);
+      return { section, $ };
     } catch {
       log(`IMDb section ${section} not available`);
+      return null;
     }
   };
 
   try {
-    await scrapeSection("plotsummary", ($) => {
-      content.synopsis = $('[data-testid="sub-section-synopsis"] .ipc-html-content-inner-div')
-        .first()
-        .text()
-        .trim();
-      $('[data-testid="sub-section-summaries"] .ipc-html-content-inner-div').each((_, el) => {
-        content.summaries.push($(el).text().trim());
-      });
-    });
+    // Parallelize all IMDb section fetches
+    const sections = [
+      "plotsummary",
+      "trivia",
+      "goofs",
+      "quotes",
+      "movieconnections",
+      "parentalguide",
+    ];
 
-    await scrapeSection("trivia", ($) => {
-      $('[data-testid="list-item"] .ipc-html-content-inner-div').each((_, el) => {
-        const text = $(el).text().trim();
-        if (text && text.length > 20) content.trivia.push(text);
-      });
-    });
+    const results = await Promise.all(
+      sections.map((section) => scrapeSection(section).catch(() => null))
+    );
 
-    await scrapeSection("goofs", ($) => {
-      $('[data-testid="list-item"] .ipc-html-content-inner-div').each((_, el) => {
-        const text = $(el).text().trim();
-        if (text && text.length > 20) content.goofs.push(text);
-      });
-    });
+    // Process results based on section type
+    for (const result of results) {
+      if (!result) continue;
+      const { section, $ } = result;
 
-    await scrapeSection("quotes", ($) => {
-      $('[data-testid="list-item"]').each((_, el) => {
-        const text = $(el).text().trim();
-        if (text && text.length > 20) content.quotes.push(text);
-      });
-    });
-
-    await scrapeSection("movieconnections", ($) => {
-      $('[data-testid="list-item"]').each((_, el) => {
-        const text = $(el).text().trim();
-        if (text) content.connections.push(text);
-      });
-    });
-
-    await scrapeSection("parentalguide", ($) => {
-      $('[data-testid="advisory-container"]').each((_, el) => {
-        const category = $(el).find("h3, h4").first().text().trim();
-        const items: string[] = [];
-        $(el)
-          .find('[data-testid="list-item"]')
-          .each((_, item) => {
-            const text = $(item).text().trim();
-            if (text) items.push(text);
+      switch (section) {
+        case "plotsummary":
+          content.synopsis = $('[data-testid="sub-section-synopsis"] .ipc-html-content-inner-div')
+            .first()
+            .text()
+            .trim();
+          $('[data-testid="sub-section-summaries"] .ipc-html-content-inner-div').each((_, el) => {
+            content.summaries.push($(el).text().trim());
           });
-        if (category && items.length > 0) content.parentsGuide[category] = items;
-      });
-    });
+          break;
+
+        case "trivia":
+          $('[data-testid="list-item"] .ipc-html-content-inner-div').each((_, el) => {
+            const text = $(el).text().trim();
+            if (text && text.length > 20) content.trivia.push(text);
+          });
+          break;
+
+        case "goofs":
+          $('[data-testid="list-item"] .ipc-html-content-inner-div').each((_, el) => {
+            const text = $(el).text().trim();
+            if (text && text.length > 20) content.goofs.push(text);
+          });
+          break;
+
+        case "quotes":
+          $('[data-testid="list-item"]').each((_, el) => {
+            const text = $(el).text().trim();
+            if (text && text.length > 20) content.quotes.push(text);
+          });
+          break;
+
+        case "movieconnections":
+          $('[data-testid="list-item"]').each((_, el) => {
+            const text = $(el).text().trim();
+            if (text) content.connections.push(text);
+          });
+          break;
+
+        case "parentalguide":
+          $('[data-testid="advisory-container"]').each((_, el) => {
+            const category = $(el).find("h3, h4").first().text().trim();
+            const items: string[] = [];
+            $(el)
+              .find('[data-testid="list-item"]')
+              .each((_, item) => {
+                const text = $(item).text().trim();
+                if (text) items.push(text);
+              });
+            if (category && items.length > 0) content.parentsGuide[category] = items;
+          });
+          break;
+      }
+    }
 
     console.log(`  ✅ IMDb scraped`);
     console.log(`     Synopsis: ${content.synopsis.length} chars`);
@@ -1302,30 +1328,32 @@ async function enrichMovie(tmdbId: number): Promise<EnrichedContent> {
   console.log(`🎬 CONTENT ENRICHMENT: TMDB ID ${tmdbId}`);
   console.log("=".repeat(70));
 
-  // Fetch from MongoDB first (has scraped ratings + existing data)
-  const mongodb = await fetchFromMongoDB(tmdbId);
+  // === TIER 1: Parallel fetch (no dependencies) ===
+  console.log(`\n📡 Tier 1: Fetching MongoDB, TMDB, and Wikidata in parallel...`);
+  const [mongodb, tmdb, wikidata] = await Promise.all([
+    fetchFromMongoDB(tmdbId),
+    fetchTMDB(tmdbId),
+    fetchWikidata(tmdbId),
+  ]);
 
-  // Always fetch fresh TMDB data for keywords, videos, etc.
-  const tmdb = await fetchTMDB(tmdbId);
+  // === TIER 2: Parallel fetch (depends on Tier 1 results) ===
+  console.log(`\n📡 Tier 2: Fetching Wikipedia, Fandom, and IMDb in parallel...`);
 
-  const wikidata = await fetchWikidata(tmdbId);
-
-  let wikipedia: WikipediaData | null = null;
-  if (wikidata?.sitelinks?.enwiki?.url) {
-    await sleep(500);
-    wikipedia = await scrapeWikipedia(wikidata.sitelinks.enwiki.url);
-  }
-
-  let fandom: FandomData | null = null;
-  await sleep(500);
-  fandom = await scrapeFandom(wikidata?.externalIds?.fandom_wiki, tmdb.title);
-
-  let imdb: IMDbData | null = null;
+  // Get IMDb ID from wikidata or TMDB
   const imdbId = wikidata?.externalIds?.imdb_id || tmdb.external_ids?.imdb_id;
-  if (imdbId) {
-    await sleep(500);
-    imdb = await scrapeIMDb(imdbId);
-  }
+  const wikipediaUrl = wikidata?.sitelinks?.enwiki?.url;
+
+  const [wikipedia, fandom, imdb] = await Promise.all([
+    // Wikipedia: only if we have a URL
+    wikipediaUrl ? scrapeWikipedia(wikipediaUrl) : Promise.resolve(null),
+    // Fandom: small delay (200ms) for multiple wiki attempts
+    (async () => {
+      await sleep(200);
+      return scrapeFandom(wikidata?.externalIds?.fandom_wiki, tmdb.title);
+    })(),
+    // IMDb: only if we have an ID
+    imdbId ? scrapeIMDb(imdbId) : Promise.resolve(null),
+  ]);
 
   // Use MongoDB title/year if available (with TMDB fallback)
   const title = mongodb?.title || tmdb.title;

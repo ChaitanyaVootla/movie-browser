@@ -9,6 +9,7 @@ const getMovie = cache(getMovieBase);
 import { getMovieCollection } from "@/server/services/tmdb";
 import { getCollectionFromPostgres } from "@/server/db/postgres";
 import { getAISummary } from "@/lib/ai-summary";
+import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
 import {
   MediaActionBar,
   MediaOverview,
@@ -22,11 +23,12 @@ import {
   HeroLogoShell,
   HeroMediaProvider,
   HeroMediaUpdater,
-  GenreList,
   RatingsBar,
   WatchOptions,
   DetailBadges,
   AIQuestionsSection,
+  DeepDiveSection,
+  MediaContextUpdater,
 } from "@/components/features/media";
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
@@ -147,13 +149,6 @@ function HeroContentSkeleton() {
         <Skeleton className="h-6 w-28 rounded-full bg-white/10" />
       </div>
 
-      {/* Genres skeleton */}
-      <div className="flex gap-2">
-        <Skeleton className="h-6 w-20 rounded-full bg-white/10" />
-        <Skeleton className="h-6 w-24 rounded-full bg-white/10" />
-        <Skeleton className="h-6 w-16 rounded-full bg-white/10" />
-      </div>
-
       {/* Ratings skeleton */}
       <Skeleton className="h-8 w-52 rounded-full bg-white/10" />
 
@@ -245,12 +240,18 @@ function PageContentSkeleton() {
   );
 }
 
-// Async hero content - fetches data and renders badges, genres, ratings, watch options
+// Async hero content - fetches data and renders badges, genres, ratings, watch options, hook
 async function HeroContentAsync({ movieId }: { movieId: number }) {
-  const movie = await getMovie(movieId);
+  // Fetch movie and AI data in parallel
+  const [movie, aiData] = await Promise.all([
+    getMovie(movieId),
+    getAIData(movieId, "movie"),
+  ]);
   if (!movie) return null;
 
-  const genres = movie.genres || [];
+  // Convert to legacy format for components that still use it
+  const aiSummary = aiData ? aiDataResponseToSummary(aiData) : null;
+
   const displayRatings = movie.ratings?.length
     ? movie.ratings
     : movie.vote_average && movie.vote_average > 0
@@ -273,13 +274,15 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
         title={movie.title}
       />
 
+      {/* AI Hook - tagline above content */}
+      {aiSummary?.hook && (
+        <blockquote className="border-l-2 border-brand/50 pl-3 text-sm md:text-base text-foreground/90 italic font-medium text-left max-w-md leading-relaxed">
+          {aiSummary.hook}
+        </blockquote>
+      )}
+
       {/* Status badges (trending, new, critically acclaimed, etc.) */}
       {badges.length > 0 && <DetailBadges badges={badges} className="drop-shadow-md" />}
-
-      {/* Genres */}
-      {genres.length > 0 && (
-        <GenreList genres={genres} mediaType="movie" size="sm" maxVisible={4} />
-      )}
 
       {/* Ratings */}
       {displayRatings.length > 0 && (
@@ -300,9 +303,15 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
 
 // Async page content - action bar, overview, galleries, recommendations
 async function MovieContentAsync({ movieId }: { movieId: number }) {
-  // Fetch movie data and AI summary in parallel
-  const [movie, aiSummary] = await Promise.all([getMovie(movieId), getAISummary(movieId)]);
+  // Fetch movie data and AI data in parallel
+  const [movie, aiData] = await Promise.all([
+    getMovie(movieId),
+    getAIData(movieId, "movie"),
+  ]);
   if (!movie) return null;
+
+  // Convert to legacy format for components that still use it
+  const aiSummary = aiData ? aiDataResponseToSummary(aiData) : null;
 
   // Filter YouTube videos and sort by priority (Trailer > Teaser > etc.) + date
   const youtubeVideos = sortVideos(
@@ -323,6 +332,19 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         backdrop_path={movie.backdrop_path}
       />
 
+      {/* Update global media context for AI chat prompts */}
+      <MediaContextUpdater
+        mediaType="movie"
+        itemId={movie.id}
+        title={movie.title}
+        year={movie.release_date?.split("-")[0]}
+        runtime={movie.runtime}
+        rating={movie.vote_average}
+        voteCount={movie.vote_count}
+        genres={movie.genres?.map((g) => g.name)}
+        aiQuestions={aiSummary?.aiQuestions}
+      />
+
       {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills */}
       {/* Pass only trailer data instead of full videos array */}
       <MediaActionBar
@@ -339,6 +361,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         item={extractMovieOverviewProps(movie)}
         mediaType="movie"
         aiSummary={aiSummary}
+        aiInsights={aiData?.insights}
       />
 
       {/* AI Questions - clickable prompts that trigger AI chat */}
@@ -351,6 +374,16 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
           className="mt-4"
         />
       )}
+
+      {/* Deep Dive - trivia, insights, behind the scenes with spoiler gating */}
+      {aiData?.insights?.spoilerContent?.deepDive &&
+        aiData.insights.spoilerContent.deepDive.length > 0 && (
+          <DeepDiveSection
+            items={aiData.insights.spoilerContent.deepDive}
+            className="mt-6"
+            maxCollapsedItems={3}
+          />
+        )}
 
       {/* Collection/Franchise - Deferred with Suspense */}
       {movie.belongs_to_collection && (

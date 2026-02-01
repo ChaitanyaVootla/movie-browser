@@ -43,9 +43,11 @@ interface PostgresSeriesWithRelations {
   lastEpisodeSeasonNum: number | null;
   lastEpisodeNum: number | null;
   lastEpisodeAirDate: Date | null;
+  lastEpisodeData: unknown | null;
   nextEpisodeSeasonNum: number | null;
   nextEpisodeNum: number | null;
   nextEpisodeAirDate: Date | null;
+  nextEpisodeData: unknown | null;
   genres: {
     genre: {
       id: number;
@@ -241,9 +243,11 @@ export async function getLightSeriesFromPostgres(seriesId: number) {
       nextEpisodeSeasonNum: true,
       nextEpisodeNum: true,
       nextEpisodeAirDate: true,
+      nextEpisodeData: true,
       lastEpisodeSeasonNum: true,
       lastEpisodeNum: true,
       lastEpisodeAirDate: true,
+      lastEpisodeData: true,
       genres: {
         include: { genre: true },
       },
@@ -280,20 +284,25 @@ export async function getLightSeriesFromPostgres(seriesId: number) {
     genres: series.genres.map((g) => ({ id: g.genre.tmdbId, name: g.genre.name })),
     vote_average: series.ratings[0]?.score,
     vote_count: series.ratings[0]?.voteCount,
-    next_episode_to_air: series.nextEpisodeSeasonNum
-      ? {
-          season_number: series.nextEpisodeSeasonNum,
-          episode_number: series.nextEpisodeNum || 0,
-          air_date: series.nextEpisodeAirDate?.toISOString().split("T")[0],
-        }
-      : undefined,
-    last_episode_to_air: series.lastEpisodeSeasonNum
-      ? {
-          season_number: series.lastEpisodeSeasonNum,
-          episode_number: series.lastEpisodeNum || 0,
-          air_date: series.lastEpisodeAirDate?.toISOString().split("T")[0],
-        }
-      : undefined,
+    // Use full episode data from JSON if available, otherwise fall back to minimal reconstruction
+    next_episode_to_air: series.nextEpisodeData
+      ? (series.nextEpisodeData as unknown as TMDBSeries["next_episode_to_air"])
+      : series.nextEpisodeSeasonNum
+        ? {
+            season_number: series.nextEpisodeSeasonNum,
+            episode_number: series.nextEpisodeNum || 0,
+            air_date: series.nextEpisodeAirDate?.toISOString().split("T")[0],
+          }
+        : undefined,
+    last_episode_to_air: series.lastEpisodeData
+      ? (series.lastEpisodeData as unknown as TMDBSeries["last_episode_to_air"])
+      : series.lastEpisodeSeasonNum
+        ? {
+            season_number: series.lastEpisodeSeasonNum,
+            episode_number: series.lastEpisodeNum || 0,
+            air_date: series.lastEpisodeAirDate?.toISOString().split("T")[0],
+          }
+        : undefined,
     images: series.images.length
       ? { logos: [{ file_path: series.images[0].filePath }] }
       : undefined,
@@ -598,24 +607,29 @@ function transformPostgresSeriesToTMDBFormat(series: PostgresSeriesWithRelations
       imdb_id: imdbId,
       tvdb_id: tvdbId ? parseInt(tvdbId, 10) : undefined,
     },
-    next_episode_to_air: series.nextEpisodeSeasonNum
-      ? {
-          id: 0,
-          episode_number: series.nextEpisodeNum || 0,
-          season_number: series.nextEpisodeSeasonNum,
-          name: "",
-          air_date: series.nextEpisodeAirDate?.toISOString().split("T")[0],
-        }
-      : undefined,
-    last_episode_to_air: series.lastEpisodeSeasonNum
-      ? {
-          id: 0,
-          episode_number: series.lastEpisodeNum || 0,
-          season_number: series.lastEpisodeSeasonNum,
-          name: "",
-          air_date: series.lastEpisodeAirDate?.toISOString().split("T")[0],
-        }
-      : undefined,
+    // Use full episode data from JSON if available, otherwise fall back to minimal reconstruction
+    next_episode_to_air: series.nextEpisodeData
+      ? (series.nextEpisodeData as unknown as TMDBSeries["next_episode_to_air"])
+      : series.nextEpisodeSeasonNum
+        ? {
+            id: 0,
+            episode_number: series.nextEpisodeNum || 0,
+            season_number: series.nextEpisodeSeasonNum,
+            name: "",
+            air_date: series.nextEpisodeAirDate?.toISOString().split("T")[0],
+          }
+        : undefined,
+    last_episode_to_air: series.lastEpisodeData
+      ? (series.lastEpisodeData as unknown as TMDBSeries["last_episode_to_air"])
+      : series.lastEpisodeSeasonNum
+        ? {
+            id: 0,
+            episode_number: series.lastEpisodeNum || 0,
+            season_number: series.lastEpisodeSeasonNum,
+            name: "",
+            air_date: series.lastEpisodeAirDate?.toISOString().split("T")[0],
+          }
+        : undefined,
     keywords: {
       results: series.keywords.map((k) => ({ id: k.keyword.tmdbId, name: k.keyword.name })),
     },

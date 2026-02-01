@@ -22,9 +22,10 @@ test.describe("Person Page SEO - Actor", () => {
 
   test("has meaningful meta description", async ({ page }) => {
     const description = page.locator('meta[name="description"]');
-    const content = description;
+    await expect(description).toHaveAttribute("content");
 
-    await expect(content).toHaveAttribute("content");
+    const content = await description.getAttribute("content");
+    expect(content).toBeTruthy();
     expect(content!.length).toBeGreaterThan(30);
     // Should mention the person's profession or works
     expect(content!.toLowerCase()).toMatch(/actor|actress|filmography|known for/i);
@@ -79,8 +80,8 @@ test.describe("Person Page SEO - Actor", () => {
   // NOTE: JSON-LD schema tests moved to e2e/content/json-ld.spec.ts
 
   test("renders main content without JavaScript (SSR)", async ({ page }) => {
-    // Main article should exist
-    const article = page.locator("article");
+    // Main article should exist (may have multiple due to streaming SSR including loading skeleton)
+    const article = page.locator("article").first();
     await expect(article).toBeAttached();
 
     // Person name should be present somewhere

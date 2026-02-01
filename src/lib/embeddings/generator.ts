@@ -16,7 +16,50 @@ import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedroc
 import { prisma } from "@/server/db/postgres";
 import { buildMovieEmbeddingText, buildSeriesEmbeddingText, estimateTokens } from "./text-builder";
 import pino from "pino";
-import type { Credit, MovieGenre, MovieKeyword, Person, Genre, Keyword } from "@prisma/client";
+import type { Credit, MovieGenre, MovieKeyword, Person, Genre, Keyword, AiInsight, AiData } from "@prisma/client";
+
+// =============================================================================
+// AI Data Helpers (for new insights-based schema)
+// =============================================================================
+
+/** AiData record with related insights */
+type AiDataWithInsights = AiData & { insights: AiInsight[] };
+
+/**
+ * Extract themes from insights (THEME category)
+ */
+function extractThemesFromInsights(insights: AiInsight[]): string[] | undefined {
+  const themes = insights
+    .filter((i) => i.category === "THEME" && i.spoilerLevel === "FREE")
+    .map((i) => i.text);
+  return themes.length > 0 ? themes : undefined;
+}
+
+/**
+ * Extract mood from insights (MOOD category)
+ */
+function extractMoodFromInsights(insights: AiInsight[]): Record<string, string> | undefined {
+  const moodInsights = insights.filter((i) => i.category === "MOOD");
+  if (moodInsights.length === 0) return undefined;
+
+  const mood: Record<string, string> = {};
+  for (const insight of moodInsights) {
+    if (insight.subcategory) {
+      mood[insight.subcategory] = insight.text;
+    }
+  }
+  return Object.keys(mood).length > 0 ? mood : undefined;
+}
+
+/**
+ * Extract vibes/quickTake from insights (VIBE category)
+ */
+function extractVibesFromInsights(insights: AiInsight[]): string[] | undefined {
+  const vibes = insights
+    .filter((i) => i.category === "VIBE" && i.spoilerLevel === "FREE")
+    .map((i) => i.text);
+  return vibes.length > 0 ? vibes : undefined;
+}
 
 const logger = pino({ name: "embeddings" });
 
@@ -373,6 +416,7 @@ async function processBatch(
     }),
     prisma.aiData.findMany({
       where: { movieId: { in: movieIds } },
+      include: { insights: true },
     }),
   ]);
 
@@ -380,7 +424,7 @@ async function processBatch(
   const genresByMovie = new Map<number, typeof allGenres>();
   const keywordsByMovie = new Map<number, typeof allKeywords>();
   const creditsByMovie = new Map<number, typeof allCredits>();
-  const aiDataByMovie = new Map<number, (typeof allAiData)[0]>();
+  const aiDataByMovie = new Map<number, AiDataWithInsights>();
 
   for (const g of allGenres) {
     const list = genresByMovie.get(g.movieId) || [];
@@ -421,6 +465,9 @@ async function processBatch(
       .slice(0, 5)
       .map((c) => c.person.name);
 
+    // Extract AI data from insights
+    const insights = aiData?.insights || [];
+
     const embeddingText = buildMovieEmbeddingText({
       title: movie.title,
       overview: movie.overview,
@@ -429,9 +476,9 @@ async function processBatch(
       keywords: (keywords as MovieKeywordWithKeyword[]).map((k) => k.keyword.name),
       director,
       topCast,
-      themes: aiData?.themes || undefined,
-      mood: (aiData?.mood as Record<string, string>) || undefined,
-      quickTake: aiData?.quickTake || undefined,
+      themes: extractThemesFromInsights(insights),
+      mood: extractMoodFromInsights(insights),
+      quickTake: extractVibesFromInsights(insights),
     });
 
     return {
@@ -645,6 +692,7 @@ async function processSeriesBatch(
     }),
     prisma.aiData.findMany({
       where: { seriesId: { in: seriesIds } },
+      include: { insights: true },
     }),
   ]);
 
@@ -653,7 +701,7 @@ async function processSeriesBatch(
   const keywordsBySeries = new Map<number, typeof allKeywords>();
   const creatorsBySeries = new Map<number, typeof allCreators>();
   const creditsBySeries = new Map<number, typeof allCredits>();
-  const aiDataBySeries = new Map<number, (typeof allAiData)[0]>();
+  const aiDataBySeries = new Map<number, AiDataWithInsights>();
 
   for (const g of allGenres) {
     const list = genresBySeries.get(g.seriesId) || [];
@@ -696,6 +744,9 @@ async function processSeriesBatch(
       .slice(0, 5)
       .map((c) => c.person.name);
 
+    // Extract AI data from insights
+    const insights = aiData?.insights || [];
+
     const embeddingText = buildSeriesEmbeddingText({
       name: series.name,
       overview: series.overview,
@@ -704,9 +755,9 @@ async function processSeriesBatch(
       keywords: keywords.map((k) => k.keyword.name),
       creators: creatorNames,
       topCast,
-      themes: aiData?.themes || undefined,
-      mood: (aiData?.mood as Record<string, string>) || undefined,
-      quickTake: aiData?.quickTake || undefined,
+      themes: extractThemesFromInsights(insights),
+      mood: extractMoodFromInsights(insights),
+      quickTake: extractVibesFromInsights(insights),
     });
 
     return {
@@ -781,7 +832,7 @@ export async function updateMovieEmbedding(movieId: number): Promise<boolean> {
       genres: { include: { genre: true } },
       keywords: { include: { keyword: true }, take: 20 },
       credits: { include: { person: true }, take: 10 },
-      aiData: true,
+      aiData: { include: { insights: true } },
     },
   });
 
@@ -796,6 +847,9 @@ export async function updateMovieEmbedding(movieId: number): Promise<boolean> {
     .slice(0, 5)
     .map((c) => c.person.name);
 
+  // Extract AI data from insights
+  const insights = movie.aiData?.insights || [];
+
   const embeddingText = buildMovieEmbeddingText({
     title: movie.title,
     overview: movie.overview,
@@ -804,9 +858,9 @@ export async function updateMovieEmbedding(movieId: number): Promise<boolean> {
     keywords: movie.keywords.map((k) => k.keyword.name),
     director,
     topCast,
-    themes: movie.aiData?.themes || undefined,
-    mood: (movie.aiData?.mood as Record<string, string>) || undefined,
-    quickTake: movie.aiData?.quickTake || undefined,
+    themes: extractThemesFromInsights(insights),
+    mood: extractMoodFromInsights(insights),
+    quickTake: extractVibesFromInsights(insights),
   });
 
   if (embeddingText.length < 50) {
@@ -848,7 +902,7 @@ export async function updateSeriesEmbedding(seriesId: number): Promise<boolean> 
       keywords: { include: { keyword: true }, take: 20 },
       creators: { include: { person: true } },
       credits: { include: { person: true }, take: 10 },
-      aiData: true,
+      aiData: { include: { insights: true } },
     },
   });
 
@@ -863,6 +917,9 @@ export async function updateSeriesEmbedding(seriesId: number): Promise<boolean> 
     .slice(0, 5)
     .map((c) => c.person.name);
 
+  // Extract AI data from insights
+  const insights = series.aiData?.insights || [];
+
   const embeddingText = buildSeriesEmbeddingText({
     name: series.name,
     overview: series.overview,
@@ -871,9 +928,9 @@ export async function updateSeriesEmbedding(seriesId: number): Promise<boolean> 
     keywords: series.keywords.map((k) => k.keyword.name),
     creators,
     topCast,
-    themes: series.aiData?.themes || undefined,
-    mood: (series.aiData?.mood as Record<string, string>) || undefined,
-    quickTake: series.aiData?.quickTake || undefined,
+    themes: extractThemesFromInsights(insights),
+    mood: extractMoodFromInsights(insights),
+    quickTake: extractVibesFromInsights(insights),
   });
 
   if (embeddingText.length < 50) {

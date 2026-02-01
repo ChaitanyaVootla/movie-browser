@@ -15,6 +15,27 @@ module.exports = {
         PORT: "3002",
       },
     },
+    // Popularity Sync - runs daily at 3 AM UTC
+    // Downloads TMDB daily exports and updates popularity for movies, series, persons
+    {
+      name: "popularity-sync",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "npx",
+      args: "tsx scripts/sync-popularity.ts",
+      cron_restart: "0 3 * * *", // 3 AM daily (before sitemap at 4 AM)
+      autorestart: false,
+      restart_delay: 5000,
+      max_restarts: 2,
+      min_uptime: "1s",
+      watch: false,
+      max_memory_restart: "500M",
+      error_file: "./logs/popularity-sync-error.log",
+      out_file: "./logs/popularity-sync-out.log",
+      log_file: "./logs/popularity-sync-combined.log",
+      time: true,
+      env: { NODE_ENV: "production" },
+      kill_timeout: 600000, // 10 minutes - downloads large files
+    },
     // Sitemap Generator - runs daily at 4 AM UTC
     // Downloads TMDB daily exports and generates sitemaps to public/
     {

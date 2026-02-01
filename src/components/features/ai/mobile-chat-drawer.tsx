@@ -18,7 +18,7 @@ import {
 } from "@/lib/ai/parse-media-tags";
 import type { useChatStream } from "@/hooks/use-chat-stream";
 import { ChatRatings, ChatWatchOptions, PersonChip, useTagData } from "./chat-tags";
-import { ThinkingIndicator } from "./ai-animations";
+import { PulsingSpark } from "./ai-animations";
 
 // =============================================================================
 // Types & Config
@@ -67,7 +67,7 @@ function MobilePosterCard({ tag, onNavigate }: { tag: ParsedMediaTag; onNavigate
         className={cn(
           "relative overflow-hidden rounded-lg",
           "bg-neutral-900",
-          "shadow-lg shadow-black/40",
+          "shadow-[0_4px_16px_rgba(0,0,0,0.5),0_8px_24px_rgba(0,0,0,0.4)]",
           "ring-1 ring-white/10"
         )}
         style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
@@ -226,7 +226,7 @@ export function MobileChatDrawer({
           <div className="flex items-center gap-2">
             <AISparkIcon size={18} className="text-brand" />
             <DrawerTitle className="text-base font-semibold text-white">
-              Movie Assistant
+              Cue
             </DrawerTitle>
           </div>
           {hasConversation && (
@@ -314,7 +314,7 @@ export function MobileChatDrawer({
                         className="shrink-0 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center"
                         style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
                       >
-                        <ThinkingIndicator />
+                        <PulsingSpark size={24} />
                       </div>
                     )}
                   </div>
@@ -325,7 +325,7 @@ export function MobileChatDrawer({
               {lastAssistantMessage ? (
                 isWaitingForResponse ? (
                   <div className="flex items-center justify-center py-4">
-                    <ThinkingIndicator />
+                    <PulsingSpark size={24} />
                   </div>
                 ) : (
                   <>
@@ -389,7 +389,7 @@ export function MobileChatDrawer({
                 )
               ) : isLoading ? (
                 <div className="flex items-center justify-center py-4">
-                  <ThinkingIndicator />
+                  <PulsingSpark size={24} />
                 </div>
               ) : null}
 
@@ -425,7 +425,7 @@ export function MobileChatDrawer({
               value={input}
               onChange={(e) => onInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={hasConversation ? "Ask something else..." : "Ask about movies..."}
+              placeholder={hasConversation ? "Ask Cue something else..." : "Ask Cue about movies..."}
               disabled={isLoading}
               className={cn(
                 "flex-1 px-4 py-3 text-base rounded-full",

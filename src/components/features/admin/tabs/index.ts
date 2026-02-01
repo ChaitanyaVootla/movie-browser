@@ -12,3 +12,5 @@ export { PerformanceTab } from "./performance-tab";
 export { SystemTab } from "./system-tab";
 export { UsersTab } from "./users-tab";
 export { DatabaseTab } from "./database-tab";
+export { QueryTab } from "./query-tab";
+export { InspectTab } from "./inspect-tab";

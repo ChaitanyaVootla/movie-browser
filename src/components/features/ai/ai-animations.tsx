@@ -2,9 +2,100 @@
 
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { AISparkIcon } from "./ai-icon";
 
 // =============================================================================
-// Thinking Indicator (wave bars)
+// Orbiting Dots - Clean thinking animation
+// =============================================================================
+
+interface OrbitingDotsProps {
+  className?: string;
+  size?: "sm" | "md" | "lg";
+}
+
+export function OrbitingDots({ className, size = "md" }: OrbitingDotsProps) {
+  const sizeConfig = {
+    sm: { container: 24, dotSize: 4, orbit: 8 },
+    md: { container: 32, dotSize: 5, orbit: 11 },
+    lg: { container: 40, dotSize: 6, orbit: 14 },
+  };
+  const config = sizeConfig[size];
+  const center = config.container / 2;
+
+  return (
+    <div
+      className={cn("relative", className)}
+      style={{ width: config.container, height: config.container }}
+    >
+      {/* Rotating container with dots */}
+      <motion.div
+        className="absolute inset-0"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+      >
+        {[0, 1, 2].map((i) => {
+          const angle = (i * 120 * Math.PI) / 180;
+          const x = center + Math.cos(angle) * config.orbit - config.dotSize / 2;
+          const y = center + Math.sin(angle) * config.orbit - config.dotSize / 2;
+          return (
+            <motion.div
+              key={i}
+              className="absolute rounded-full bg-brand"
+              style={{
+                width: config.dotSize,
+                height: config.dotSize,
+                left: x,
+                top: y,
+              }}
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{
+                duration: 1,
+                repeat: Infinity,
+                delay: i * 0.33,
+                ease: "easeInOut",
+              }}
+            />
+          );
+        })}
+      </motion.div>
+
+      {/* Center dot */}
+      <div
+        className="absolute rounded-full bg-brand/60"
+        style={{
+          width: config.dotSize,
+          height: config.dotSize,
+          left: center - config.dotSize / 2,
+          top: center - config.dotSize / 2,
+        }}
+      />
+    </div>
+  );
+}
+
+// =============================================================================
+// Pulsing Spark - Simple icon-based thinking animation
+// =============================================================================
+
+interface PulsingSparkProps {
+  className?: string;
+  size?: number;
+}
+
+export function PulsingSpark({ className, size = 20 }: PulsingSparkProps) {
+  return (
+    <motion.div
+      className={className}
+      animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <AISparkIcon size={size} className="text-brand" />
+    </motion.div>
+  );
+}
+
+// =============================================================================
+// ThinkingIndicator (wave bars) - kept as primary loading indicator
 // =============================================================================
 
 interface ThinkingIndicatorProps {

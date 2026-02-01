@@ -218,6 +218,14 @@ export interface TmdbSeriesData {
     episode_number: number;
     air_date: string;
     name: string;
+    overview?: string;
+    still_path?: string | null;
+    vote_average?: number;
+    vote_count?: number;
+    runtime?: number;
+    episode_type?: string;
+    production_code?: string;
+    show_id?: number;
   } | null;
   last_episode_to_air: {
     id: number;
@@ -225,6 +233,14 @@ export interface TmdbSeriesData {
     episode_number: number;
     air_date: string;
     name: string;
+    overview?: string;
+    still_path?: string | null;
+    vote_average?: number;
+    vote_count?: number;
+    runtime?: number;
+    episode_type?: string;
+    production_code?: string;
+    show_id?: number;
   } | null;
   credits: TmdbMovieData["credits"];
   // aggregate_credits has ALL cast/crew across all episodes (much more complete than credits)

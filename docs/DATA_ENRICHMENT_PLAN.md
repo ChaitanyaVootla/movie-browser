@@ -1,110 +1,79 @@
 # Data Enrichment & Lambda Integration Plan
 
-> **Status**: Planning Phase  
-> **Created**: January 8, 2026  
-> **Last Updated**: January 8, 2026
+> **Status**: ✅ Core Implementation Complete
+> **Created**: January 8, 2026
+> **Last Updated**: January 17, 2026
 
 ## Overview
 
-This document outlines the plan to:
+This document tracks the Lambda integration for data enrichment.
 
-1. **Consolidate duplicate tables** - Unify movie/series tables using polymorphic pattern
-2. Migrate enriched data (ratings, watch links) from MongoDB to PostgreSQL
-3. Track data freshness with timestamps
-4. Integrate Lambda scrapers for ongoing data refresh
-5. Track Lambda costs and usage via ClickHouse (no PostgreSQL history tables)
-6. Eventually retire MongoDB dependency
+### Completed ✅
+1. ~~Migrate enriched data (ratings, watch links) from MongoDB to PostgreSQL~~ - Done via hydration service
+2. ~~Track data freshness with timestamps~~ - `tmdbUpdatedAt`, staleness checks implemented
+3. ~~Integrate Lambda scrapers for ongoing data refresh~~ - Both Lambdas connected
+4. ~~Track Lambda costs and usage via ClickHouse~~ - `trackLambdaCall()` implemented
+5. ~~Admin force refresh~~ - `/api/admin/refresh-data` endpoint live
 
----
+### Deferred (Not Planned)
+1. **Schema consolidation** - Keeping Movie/Series tables separate (mirrors TMDB structure)
 
-## Schema Consolidation Summary
-
-The current Prisma schema has significant duplication with separate Movie* and Series* tables that are structurally identical. We're consolidating to unified polymorphic tables:
-
-| Before (Duplicated)                                         | After (Unified)        | Tables Removed      |
-| ----------------------------------------------------------- | ---------------------- | ------------------- |
-| `MovieRating` + `SeriesRating`                              | `Rating`               | 1                   |
-| `MovieExternalId` + `SeriesExternalId` + `PersonExternalId` | `ExternalId`           | 2                   |
-| `MovieVideo` + `SeriesVideo`                                | `Video`                | 1                   |
-| `MovieImage` + `SeriesImage`                                | `Image`                | 1                   |
-| `MovieAiData` + `SeriesAiData`                              | `AiData`               | 1                   |
-| `MovieCredit` + `SeriesCredit`                              | `Credit`               | 1                   |
-| `MovieWatchOption` + `SeriesWatchOption`                    | `WatchOption`          | 1                   |
-| `MovieWatchlistItem` + `SeriesWatchlistItem`                | `WatchlistItem`        | 1                   |
-| `RatingSource`                                              | `DataSource` (unified) | —                   |
-| **Total**                                                   |                        | **~9 fewer tables** |
-
-### Tables to Keep Separate
-
-| Table                                        | Reason                                         |
-| -------------------------------------------- | ---------------------------------------------- |
-| `MovieCertification` / `SeriesCertification` | Different fields (movie has releaseType, note) |
-| `MovieGenre` / `SeriesGenre`                 | Junction tables, minimal benefit               |
-| `MovieKeyword` / `SeriesKeyword`             | Junction tables                                |
-| `MovieCompany` / `SeriesCompany`             | Junction tables                                |
+### Pending
+1. **MongoDB retirement** - Waiting for user data migration (see `USER_DATA_MIGRATION.md`)
 
 ---
 
-## Current Architecture
+## Schema Decision
+
+**Decision**: Keep Movie/Series tables separate (not consolidating).
+
+**Rationale**:
+- TMDB API treats movies and series as fundamentally different entities
+- Series have seasons/episodes, movies don't
+- Certifications differ (movie has `releaseType`, series doesn't)
+- Current schema mirrors TMDB well, making sync straightforward
+- Video table is already unified (only exception needed)
+
+---
+
+## Current Architecture (Implemented)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ CURRENT STATE                                                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  User Request → Next.js App                                                 │
-│                    │                                                        │
-│                    ├──▶ PostgreSQL (if USE_POSTGRES_DATA=true)             │
-│                    │         └── TMDB data + ratings + watch links          │
-│                    │                                                        │
-│                    └──▶ TMDB API + MongoDB (fallback)                       │
-│                              │                                              │
-│                              ├── TMDB API: Core movie/series data           │
-│                              └── MongoDB: Enriched ratings + watch links    │
-│                                                                             │
-│  Lambda Functions (NOT connected to Next.js):                               │
-│  ├── movie-ratings-scraper: IMDb + RT via Wikidata                         │
-│  └── puppeteer-node14: Google scraping (legacy)                            │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Target Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ TARGET STATE                                                                │
+│ LIVE ARCHITECTURE (Jan 2026)                                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  User Request → Next.js App                                                 │
 │                    │                                                        │
 │                    ▼                                                        │
-│              PostgreSQL (Primary)                                           │
-│              [Consolidated Schema]                                          │
+│              Hydration Service                                              │
+│              (src/server/services/hydration/)                               │
 │                    │                                                        │
-│                    ├── Check freshness (ratingsScrapedAt)                   │
+│                    ├── Check PostgreSQL (isPostgresFresh)                   │
 │                    │                                                        │
-│                    ├── Fresh? → Return cached data                          │
+│                    ├── Fresh? → Return from PostgreSQL                      │
 │                    │                                                        │
-│                    └── Stale? → Return cached + Queue Lambda refresh        │
+│                    └── Stale? → Fetch TMDB + Call Lambda                    │
 │                                        │                                    │
 │                                        ▼                                    │
-│                              Lambda Functions                               │
-│                              (movie-ratings-scraper)                        │
+│                         ┌──────────────────────────────┐                    │
+│                         │  Lambda Functions (Parallel) │                    │
+│                         │  ├── movie-ratings-scraper   │                    │
+│                         │  └── puppeteer-node14        │                    │
+│                         └──────────────────────────────┘                    │
 │                                        │                                    │
 │                                        ▼                                    │
 │                              ┌─────────────────┐                            │
 │                              │   PostgreSQL    │                            │
-│                              │   (Update)      │                            │
+│                              │   (Upsert)      │                            │
 │                              └─────────────────┘                            │
 │                                        │                                    │
-│                                        ▼                                    │
 │                              ┌─────────────────┐                            │
 │                              │   ClickHouse    │                            │
-│                              │   (Analytics)   │                            │
+│                              │ (Lambda costs)  │                            │
 │                              └─────────────────┘                            │
+│                                                                             │
+│  Admin Force Refresh: POST /api/admin/refresh-data                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -649,7 +618,9 @@ model WatchOption {
 }
 ```
 
-### I. Unified AiData Table
+### I. AiData + AiInsight Tables (Tag-Based Architecture)
+
+AI insights use a flexible tag-based architecture with 8 categories and enforced subcategories:
 
 ```prisma
 model AiData {
@@ -659,20 +630,59 @@ model AiData {
   movieId     Int?      @unique @map("movie_id")
   seriesId    Int?      @unique @map("series_id")
 
-  hook        String?   // One-liner hook
-  quickTake   String[]  @map("quick_take")
-  themes      String[]
-  mood        Json?     // { pacing, intensity, tone, emotional }
-  questions   String[]  // AI-generated questions
+  hook        String?   // One-liner hook (<80 chars)
+  rawInput    String?   @map("raw_input")  // Full enriched markdown for AI chat context
+  version     Int       @default(1)
   generatedAt DateTime? @map("generated_at")
   modelId     String?   @map("model_id")
+
+  // Relation to insights
+  insights    AiInsight[]
 
   movie   Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series  Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
   @@map("ai_data")
 }
+
+model AiInsight {
+  id           Int             @id @default(autoincrement())
+  aiDataId     Int             @map("ai_data_id")
+  category     InsightCategory
+  subcategory  String?         // Enforced per category in app code
+  text         String
+  spoilerLevel SpoilerLevel    @default(FREE) @map("spoiler_level")
+  priority     Int             @default(50)
+
+  aiData       AiData          @relation(fields: [aiDataId], references: [id], onDelete: Cascade)
+
+  @@index([aiDataId, category])
+  @@map("ai_insights")
+}
+
+enum InsightCategory {
+  VIBE        // Quick take pills (no subcategory)
+  THEME       // Thematic elements (no subcategory)
+  MOOD        // pacing, intensity, tone, emotional (constrained values)
+  BEST_FOR    // theatre, streaming, date_night, solo, friends, family, kids, rewatch, background, binge
+  HIGHLIGHT   // acting, direction, cinematography, score, sound, vfx, practical, writing, editing, production, costume, stunt
+  HEADS_UP    // violence, gore, disturbing, triggers, sad, jumpscares, language, sexual, drugs
+  QUESTION    // pre_watch, post_watch
+  DEEP_DIVE   // trivia, insight, memorable, cultural
+}
+
+enum SpoilerLevel {
+  FREE   // No spoilers
+  LIGHT  // Minor reveals
+  HEAVY  // Major spoilers
+}
 ```
+
+**Summarization Script**: `yarn summarize <tmdb_id>` uses Kimi K2 with `maxTokens: 16384` to generate structured JSON.
+
+**Validation**: `src/types/ai-insights.ts` enforces subcategory values per category.
+
+**UI Components**: See `src/components/features/media/` for `StandoutBadges`, `StandoutAspects`, `BestForSection`, `HeadsUpSection`, `DeepDiveSection`.
 
 ### J. Unified WatchlistItem Table
 
@@ -932,155 +942,77 @@ function shouldRefresh(movie: Movie): boolean {
 
 ---
 
-## Implementation Phases
+## Implementation Status
 
-### Phase 1: Schema Consolidation 🔄 (Current)
+### Phase 1: Schema ✅ Complete (Deferred Consolidation)
 
-**1.1 Unified Tables:**
+**Decision**: Keep Movie/Series tables separate. Only `Video` table unified.
 
-- [ ] Create `DataSource` table (replaces RatingSource)
-- [ ] Create unified `Rating` table (replaces MovieRating + SeriesRating)
-- [ ] Create unified `Review` table
-- [ ] Create unified `Video` table with engagement metrics
-- [ ] Create unified `Image` table
-- [ ] Create unified `ExternalId` table
-- [ ] Create unified `Credit` table
-- [ ] Create unified `WatchOption` table
-- [ ] Create unified `WatchlistItem` table
-- [ ] Create unified `AiData` table
-- [ ] Add check constraints via raw SQL migration
-- [ ] Add freshness fields to Movie/Series
-- [ ] Migrate data from old tables to new unified tables
-- [ ] Drop old duplicated tables
-- [ ] Run Prisma migration
+- [x] Video table is polymorphic (`movieId`/`seriesId`)
+- [x] `tmdbUpdatedAt` field added to Movie/Series for staleness tracking
+- [x] RatingSource table exists for external ratings
 
-**1.2 Seed Script Updates:**
+### Phase 2: Data Freshness ✅ Complete
 
-- [ ] Update to use unified `DataSource` table
-- [ ] Update to use unified `Rating` table
-- [ ] Capture RT consensus in `Review` table
-- [ ] Capture MongoDB `updatedAt` → `ratingsScrapedAt`
-- [ ] Set `enrichmentSource = "mongodb_seed"`
+**Implemented in**: `src/server/services/hydration/sources/postgres/`
 
-### Phase 2: Data Freshness Logic
+- [x] `isPostgresFresh()` - Checks TMDB data staleness
+- [x] `isPostgresEnrichedFresh()` - Checks enrichment data staleness
+- [x] Staleness thresholds based on release date (newer = shorter TTL)
+- [x] Integrated into hydration service
 
-**2.1 Staleness Calculation:**
+### Phase 3: Lambda Integration ✅ Complete
 
-- [ ] Create `src/lib/data-freshness.ts`
-- [ ] Port `movieUpdateInterval()` logic from Nuxt
-- [ ] Add configurable thresholds via env vars
+**Implemented in**: `src/server/services/hydration/sources/lambda.ts`
 
-**2.2 Integration:**
+- [x] AWS SDK installed (`@aws-sdk/client-lambda`)
+- [x] Both Lambdas called in parallel:
+  - `movie-ratings-scraper` - IMDb/RT via Wikidata
+  - `puppeteer-node14` - Google scraping for deep links
+- [x] Response parsing and transformation
+- [x] Error handling with graceful degradation
+- [x] Preserves existing ratings if Lambda returns empty
 
-- [ ] Add `shouldRefreshRatings(movie)` function
-- [ ] Add `shouldRefreshWatchLinks(movie)` function
-- [ ] Expose via server actions
+### Phase 4: Refresh System ✅ Complete
 
-### Phase 3: Lambda Integration Service
+**Implemented in**: `src/server/services/hydration/index.ts`
 
-**3.1 AWS SDK Setup:**
+- [x] Staleness check in `hydrateMovie()` / `hydrateSeries()`
+- [x] Stale data triggers TMDB fetch + Lambda enrichment
+- [x] PostgreSQL upsert with fresh data
+- [x] `forceRefresh` option bypasses staleness checks
 
-- [ ] Install `@aws-sdk/client-lambda`
-- [ ] Create `src/server/services/enrichment-lambda.ts`
-- [ ] Add Lambda ARN to environment config
+**Admin Endpoint**: `POST /api/admin/refresh-data`
+- [x] Force refresh individual movie/series
+- [x] Requires admin authentication
 
-**3.2 Lambda Response Handling:**
+### Phase 5: Video Engagement ⏳ Future
 
-- [ ] Parse Lambda response
-- [ ] Transform to PostgreSQL format
-- [ ] Handle errors gracefully
-- [ ] Add retry logic (3 attempts)
+Not yet implemented. Would add YouTube stats (views, likes, comments) to trailers.
 
-### Phase 4: Background Refresh System
+### Phase 6: Lambda Analytics ✅ Complete
 
-**4.1 Non-Blocking Refresh:**
+**Implemented in**: `src/server/services/hydration/sources/lambda.ts`
 
-- [ ] Add staleness check to `getMovie()` action
-- [ ] If stale: return cached data + queue refresh
-- [ ] Use `Promise.all()` for non-blocking async
-- [ ] Add `ENABLE_LAMBDA_REFRESH` env flag
+- [x] `trackLambdaCall()` logs to ClickHouse via `trackAPICall()`
+- [x] Tracks: function name, duration, status, errors
+- [x] Visible in Admin Dashboard API tab
 
-**4.2 Data Updates:**
+### Phase 7: Admin Controls ✅ Partial
 
-- [ ] Update Rating records after Lambda
-- [ ] Update ScrapedWatchLink records
-- [ ] Update Movie.ratingsScrapedAt timestamp
-- [ ] Track changes in ClickHouse (not PostgreSQL)
+- [x] Force refresh endpoint (`/api/admin/refresh-data`)
+- [ ] List stale items endpoint (not needed yet)
+- [ ] Bulk refresh endpoint (not needed yet)
+- [ ] Lambda cost chart in dashboard (uses API calls chart)
 
-### Phase 5: Video Engagement Tracking
+### Phase 8: MongoDB Retirement ⏳ Pending
 
-**5.1 YouTube API Integration:**
+**Blocker**: User data migration (see `USER_DATA_MIGRATION.md`)
 
-- [ ] Create `src/server/services/youtube-engagement.ts`
-- [ ] Fetch video stats (views, likes, comments)
-- [ ] Integrate Return YouTube Dislike API for dislikes
-- [ ] Fetch top comments (top 10 by likes)
-
-**5.2 Refresh Strategy:**
-
-- [ ] Fresh content videos: daily refresh
-- [ ] Popular trailers (>1M views): weekly refresh
-- [ ] Older videos: monthly refresh
-
-### Phase 6: Lambda Analytics (ClickHouse)
-
-**6.1 Schema:**
-
-- [ ] Create `lambda_invocations` table
-- [ ] Create `rating_changes` table (optional)
-- [ ] Create `lambda_daily_costs` materialized view
-- [ ] Add to ClickHouse init scripts
-
-**6.2 Tracking:**
-
-- [ ] Create `src/lib/analytics/lambda-tracking.ts`
-- [ ] Track each invocation with full context
-- [ ] Calculate costs using Lambda pricing
-
-**6.3 Grafana Dashboard:**
-
-- [ ] Daily invocation counts
-- [ ] Cost breakdown by trigger type
-- [ ] Success/failure rates
-- [ ] Data yield (% with IMDb, RT, etc.)
-
-### Phase 7: Admin Controls
-
-**7.1 Admin API:**
-
-- [ ] `POST /api/admin/refresh/:type/:id` - Force refresh
-- [ ] `GET /api/admin/stale-content` - List stale items
-- [ ] `POST /api/admin/refresh/batch` - Bulk refresh
-
-**7.2 Admin Dashboard:**
-
-- [ ] Stale content overview widget
-- [ ] Recent Lambda invocations table
-- [ ] Manual refresh button per movie
-- [ ] Lambda cost chart
-
-### Phase 8: MongoDB Retirement
-
-**8.1 Verification:**
-
-- [ ] Audit: All ratings migrated correctly
-- [ ] Audit: All watch links migrated
-- [ ] Audit: All external IDs migrated
-- [ ] Run parallel comparison tests
-
-**8.2 Cutover:**
-
-- [ ] Set `USE_POSTGRES_DATA=true` permanently
-- [ ] Remove MongoDB queries from server actions
-- [ ] Remove `src/server/db/cached-queries.ts`
-- [ ] Update AI agent tools to use PostgreSQL
-
-**8.3 Cleanup:**
-
-- [ ] Remove MongoDB connection code
-- [ ] Remove Mongoose models
-- [ ] Archive MongoDB data to S3
-- [ ] Document final migration
+- [x] Media data (movies/series) uses PostgreSQL
+- [ ] User data still uses MongoDB
+- [ ] Auth.js still uses MongoDBAdapter
+- [ ] After user migration, MongoDB can be fully retired
 
 ---
 
@@ -1108,26 +1040,40 @@ function shouldRefresh(movie: Movie): boolean {
 
 ## Success Metrics
 
-1. **Schema Simplicity**: ~9 fewer tables, single source of truth
-2. **Data Freshness**: 95% of new releases have ratings within 24h
-3. **Lambda Success Rate**: > 99% successful invocations
-4. **Cost Efficiency**: < $5/month for enrichment
-5. **Query Performance**: No regression from MongoDB → PostgreSQL
-6. **Video Engagement**: Top trailers have engagement data
+| Metric | Target | Status |
+|--------|--------|--------|
+| PostgreSQL as source of truth | 100% for media | ✅ Achieved |
+| Lambda integration | Connected | ✅ Achieved |
+| Staleness detection | Automatic | ✅ Achieved |
+| Admin refresh capability | Available | ✅ Achieved |
+| Lambda cost tracking | ClickHouse | ✅ Achieved |
+| MongoDB retirement | User data migrated | ⏳ Pending |
+| Video engagement | YouTube stats | ⏳ Future |
 
 ---
 
-## Files to Create/Update
+## Key Implementation Files
 
-### New Files
+### Hydration Service (Core)
 
-| File                                             | Purpose                                |
-| ------------------------------------------------ | -------------------------------------- |
-| `src/lib/data-freshness.ts`                      | Staleness calculation logic            |
-| `src/server/services/enrichment-lambda.ts`       | AWS Lambda invocation wrapper          |
-| `src/server/services/youtube-engagement.ts`      | YouTube stats + comments fetcher       |
-| `src/lib/analytics/lambda-tracking.ts`           | ClickHouse tracking for Lambda costs   |
-| `analytics/clickhouse/init/04_lambda_tables.sql` | ClickHouse schema for Lambda analytics |
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/server/services/hydration/index.ts` | Main hydration logic | ✅ Live |
+| `src/server/services/hydration/integration.ts` | Type transformation | ✅ Live |
+| `src/server/services/hydration/sources/lambda.ts` | Lambda invocation | ✅ Live |
+| `src/server/services/hydration/sources/postgres/` | PostgreSQL operations | ✅ Live |
+
+### Admin API
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/app/api/admin/refresh-data/route.ts` | Force refresh endpoint | ✅ Live |
+
+### Future (Not Yet Created)
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/server/services/youtube-engagement.ts` | YouTube stats fetcher | ⏳ Future |
 
 ### Files to Update
 

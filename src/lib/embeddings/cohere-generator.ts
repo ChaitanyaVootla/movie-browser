@@ -462,14 +462,14 @@ export async function generateMovieEmbeddings(
       const genres = movie.genres.map((g) => g.genre.name);
       const keywords = movie.keywords.map((k) => k.keyword.name);
 
-      // Find director from crew
+      // Find director from crew (movie credits don't need mediaType check - they're from movie.credits)
       const director = movie.credits.find(
-        (c) => c.mediaType === "movie" && c.creditType === "crew" && c.job === "Director"
+        (c) => c.creditType === "CREW" && c.job === "Director"
       )?.person.name || null;
 
       // Get top cast
       const topCast = movie.credits
-        .filter((c) => c.mediaType === "movie" && c.creditType === "cast")
+        .filter((c) => c.creditType === "CAST")
         .slice(0, 10)
         .map((c) => c.person.name);
 
@@ -646,8 +646,9 @@ export async function generateSeriesEmbeddings(
       const keywords = s.keywords.map((k) => k.keyword.name);
       const creators = s.creators.map((c) => c.person.name);
 
+      // Series credits don't need mediaType check - they're from series.credits
       const topCast = s.credits
-        .filter((c) => c.mediaType === "series" && c.creditType === "cast")
+        .filter((c) => c.creditType === "CAST")
         .slice(0, 10)
         .map((c) => c.person.name);
 

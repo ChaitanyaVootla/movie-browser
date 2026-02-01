@@ -13,6 +13,15 @@ import {
   History,
   Sparkles,
   AlertCircle,
+  Smile,
+  Brain,
+  Zap,
+  Moon,
+  Coffee,
+  Mountain,
+  Heart,
+  PartyPopper,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Dialog,
@@ -39,6 +48,7 @@ import {
   TMDB_PROFILE_SIZES,
 } from "@/lib/constants";
 import { quickSearch } from "@/server/actions/search";
+import { getAutocompleteSuggestions, type AutocompleteSuggestion } from "@/server/actions/autocomplete";
 import { getPopularTopics, searchTopics } from "@/lib/topics";
 import { useUserStore, selectRecents } from "@/stores/user";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -50,12 +60,14 @@ import type {
   QuickSearchResponse,
 } from "@/server/actions/search";
 import type { PopularTopicItem } from "@/lib/topics";
+import { MOOD_FILTERS } from "@/lib/search/moods";
 
 // =============================================================================
 // Constants
 // =============================================================================
 
 const SEARCH_DEBOUNCE_MS = 250;
+const AUTOCOMPLETE_DEBOUNCE_MS = 150;
 const MIN_SEARCH_LENGTH = 2;
 const MAX_TOPIC_MATCHES = 4;
 const MAX_RECENT_ITEMS = 5;
@@ -65,6 +77,18 @@ const CLOSE_ANIMATION_DELAY_MS = 300;
 
 // Popular topics (computed once at module load)
 const popularTopics = getPopularTopics();
+
+// Mood icon mapping
+const MOOD_ICONS: Record<string, React.ElementType> = {
+  Smile,
+  Brain,
+  Zap,
+  Moon,
+  Coffee,
+  Mountain,
+  Heart,
+  PartyPopper,
+};
 
 // =============================================================================
 // Types
@@ -219,6 +243,128 @@ const TopicPills = React.memo(function TopicPills({
   );
 });
 
+interface MoodPillsProps {
+  onSelectMood: (query: string) => void;
+}
+
+/** Mood-based quick filter pills for semantic search */
+const MoodPills = React.memo(function MoodPills({ onSelectMood }: MoodPillsProps) {
+  return (
+    <div className="flex flex-wrap gap-1.5 px-2 py-2" role="group" aria-label="Search by mood">
+      {MOOD_FILTERS.map((mood) => {
+        const Icon = MOOD_ICONS[mood.icon] || Sparkles;
+        return (
+          <button
+            key={mood.key}
+            onClick={() => onSelectMood(mood.query)}
+            className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-xs transition-colors hover:bg-muted hover:border-foreground/20"
+            title={mood.description}
+          >
+            <Icon className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+            <span>{mood.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+interface AutocompleteSuggestionItemProps {
+  suggestion: AutocompleteSuggestion;
+  query: string;
+  onSelect: (suggestion: AutocompleteSuggestion) => void;
+}
+
+/** Highlight matching text in a suggestion label */
+function highlightMatch(text: string, query: string): React.ReactNode {
+  if (!query.trim()) return text;
+
+  const normalizedQuery = query.toLowerCase().trim();
+  const normalizedText = text.toLowerCase();
+  const matchIndex = normalizedText.indexOf(normalizedQuery);
+
+  if (matchIndex === -1) return text;
+
+  const before = text.slice(0, matchIndex);
+  const match = text.slice(matchIndex, matchIndex + query.length);
+  const after = text.slice(matchIndex + query.length);
+
+  return (
+    <>
+      {before}
+      <span className="font-semibold text-foreground">{match}</span>
+      {after}
+    </>
+  );
+}
+
+/** Get icon for autocomplete suggestion type */
+function getSuggestionIcon(suggestion: AutocompleteSuggestion): React.ReactNode {
+  switch (suggestion.type) {
+    case "title":
+      return suggestion.mediaType === "movie" ? (
+        <Film className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      ) : (
+        <Tv className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      );
+    case "person":
+      return <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+    case "filter":
+      return <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+    case "mood":
+      return <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+  }
+}
+
+/** Single autocomplete suggestion item */
+const AutocompleteSuggestionItem = React.memo(function AutocompleteSuggestionItem({
+  suggestion,
+  query,
+  onSelect,
+}: AutocompleteSuggestionItemProps) {
+  const isPerson = suggestion.type === "person";
+  const isTitle = suggestion.type === "title";
+
+  return (
+    <CommandItem
+      value={`autocomplete-${suggestion.type}-${suggestion.id || suggestion.label}`}
+      onSelect={() => onSelect(suggestion)}
+      className="gap-2.5 py-2"
+    >
+      {/* Show thumbnail for titles and people */}
+      {(isTitle || isPerson) && suggestion.posterPath && (
+        <MediaThumbnail
+          posterPath={suggestion.posterPath}
+          profilePath={isPerson ? suggestion.posterPath : undefined}
+          alt={suggestion.label}
+          type={isPerson ? "person" : suggestion.mediaType === "movie" ? "movie" : "tv"}
+          className={isPerson ? "h-9 w-9" : "h-9 w-16"}
+        />
+      )}
+      {/* Fallback icon for items without poster */}
+      {(isTitle || isPerson) && !suggestion.posterPath && (
+        <div className={cn(
+          "flex items-center justify-center bg-muted rounded",
+          isPerson ? "h-9 w-9 rounded-full" : "h-9 w-16"
+        )}>
+          {getSuggestionIcon(suggestion)}
+        </div>
+      )}
+      {/* Icon only for filters and moods */}
+      {!isTitle && !isPerson && getSuggestionIcon(suggestion)}
+
+      <span className="flex-1 truncate text-sm text-muted-foreground">
+        {highlightMatch(suggestion.label, query)}
+      </span>
+
+      {/* Type indicator icon on the right */}
+      <span className="text-muted-foreground/50">
+        {getSuggestionIcon(suggestion)}
+      </span>
+    </CommandItem>
+  );
+});
+
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
@@ -228,11 +374,17 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     results: [],
   });
 
+  // Autocomplete state (fast, 150ms debounce)
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = React.useState<AutocompleteSuggestion[]>([]);
+  const [isAutocompleteLoading, setIsAutocompleteLoading] = React.useState(false);
+
   // Get recent visits from user store
   const recents = useUserStore(selectRecents);
 
   const requestIdRef = React.useRef(0);
+  const autocompleteRequestIdRef = React.useRef(0);
   const debouncedQuery = useDebounce(query, SEARCH_DEBOUNCE_MS);
+  const debouncedAutocompleteQuery = useDebounce(query, AUTOCOMPLETE_DEBOUNCE_MS);
 
   // Memoize recent items slice
   const recentItems = React.useMemo(
@@ -263,6 +415,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
       const timer = setTimeout(() => {
         setQuery("");
         setResults({ results: [] });
+        setAutocompleteSuggestions([]);
         setHasError(false);
       }, CLOSE_ANIMATION_DELAY_MS);
       return () => clearTimeout(timer);
@@ -284,6 +437,34 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
       window.removeEventListener("popstate", handlePopState);
     };
   }, [open, onOpenChange]);
+
+  // Fetch autocomplete suggestions on quick debounce (150ms)
+  React.useEffect(() => {
+    const trimmedQuery = debouncedAutocompleteQuery.trim();
+
+    if (!trimmedQuery || trimmedQuery.length < MIN_SEARCH_LENGTH) {
+      setAutocompleteSuggestions([]);
+      setIsAutocompleteLoading(false);
+      return;
+    }
+
+    const currentRequestId = ++autocompleteRequestIdRef.current;
+    setIsAutocompleteLoading(true);
+
+    getAutocompleteSuggestions(trimmedQuery)
+      .then((data) => {
+        if (currentRequestId === autocompleteRequestIdRef.current) {
+          setAutocompleteSuggestions(data.suggestions);
+          setIsAutocompleteLoading(false);
+        }
+      })
+      .catch(() => {
+        if (currentRequestId === autocompleteRequestIdRef.current) {
+          setAutocompleteSuggestions([]);
+          setIsAutocompleteLoading(false);
+        }
+      });
+  }, [debouncedAutocompleteQuery]);
 
   // Fetch API results on debounced query change
   React.useEffect(() => {
@@ -326,8 +507,43 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
 
   const hasApiResults = results.results.length > 0;
   const hasTopics = matchingTopics.length > 0;
+  const hasAutocompleteSuggestions = autocompleteSuggestions.length > 0;
+
+  // Group autocomplete suggestions by type
+  const groupedSuggestions = React.useMemo(() => {
+    const groups: {
+      movies: AutocompleteSuggestion[];
+      series: AutocompleteSuggestion[];
+      people: AutocompleteSuggestion[];
+      filters: AutocompleteSuggestion[];
+      moods: AutocompleteSuggestion[];
+    } = {
+      movies: [],
+      series: [],
+      people: [],
+      filters: [],
+      moods: [],
+    };
+
+    for (const suggestion of autocompleteSuggestions) {
+      if (suggestion.type === "title" && suggestion.mediaType === "movie") {
+        groups.movies.push(suggestion);
+      } else if (suggestion.type === "title" && suggestion.mediaType === "series") {
+        groups.series.push(suggestion);
+      } else if (suggestion.type === "person") {
+        groups.people.push(suggestion);
+      } else if (suggestion.type === "filter") {
+        groups.filters.push(suggestion);
+      } else if (suggestion.type === "mood") {
+        groups.moods.push(suggestion);
+      }
+    }
+
+    return groups;
+  }, [autocompleteSuggestions]);
+
   const showEmptyState =
-    debouncedQuery.trim() && !isLoading && !hasApiResults && !hasTopics && !hasError;
+    debouncedQuery.trim() && !isLoading && !isAutocompleteLoading && !hasApiResults && !hasTopics && !hasAutocompleteSuggestions && !hasError;
   const showErrorState = debouncedQuery.trim() && !isLoading && hasError;
   const showInitialState = !query.trim() && !isLoading;
 
@@ -359,6 +575,31 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     onOpenChange(false);
     router.push(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [query, onOpenChange, router]);
+
+  const handleSelectMood = React.useCallback(
+    (moodQuery: string) => {
+      onOpenChange(false);
+      router.push(`/search?q=${encodeURIComponent(moodQuery)}`);
+    },
+    [onOpenChange, router]
+  );
+
+  const handleSelectAutocompleteSuggestion = React.useCallback(
+    (suggestion: AutocompleteSuggestion) => {
+      if (suggestion.type === "title" || suggestion.type === "person") {
+        if (suggestion.id && suggestion.mediaType) {
+          if (suggestion.mediaType === "person") {
+            handleSelectMedia("person", suggestion.id, suggestion.value);
+          } else {
+            handleSelectMedia(suggestion.mediaType === "movie" ? "movie" : "series", suggestion.id, suggestion.value);
+          }
+        }
+      } else if (suggestion.type === "filter" || suggestion.type === "mood") {
+        handleSelectMood(suggestion.value);
+      }
+    },
+    [handleSelectMedia, handleSelectMood]
+  );
 
   // Retry search after error
   const handleRetry = React.useCallback(() => {
@@ -583,10 +824,21 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   </CommandGroup>
                 )}
 
+                {/* Mood filters - always show for quick semantic search */}
+                <>
+                  {recentItems.length > 0 && <CommandSeparator />}
+                  <div className="px-2 py-1.5">
+                    <p className="px-2 text-xs font-medium text-muted-foreground">
+                      Search by Mood
+                    </p>
+                  </div>
+                  <MoodPills onSelectMood={handleSelectMood} />
+                </>
+
                 {/* Popular topics - show when not enough recents */}
                 {showPopularTopics && (
                   <>
-                    {recentItems.length > 0 && <CommandSeparator />}
+                    <CommandSeparator />
                     <div className="px-2 py-1.5">
                       <p className="px-2 text-xs font-medium text-muted-foreground">
                         Popular Topics
@@ -601,7 +853,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 )}
 
                 {/* Empty fallback if no recents and somehow no popular topics */}
-                {recentItems.length === 0 && !showPopularTopics && (
+                {recentItems.length === 0 && !showPopularTopics && MOOD_FILTERS.length === 0 && (
                   <div
                     className="flex flex-col items-center justify-center gap-2"
                     style={{ minHeight: CONTENT_MIN_HEIGHT }}
@@ -616,7 +868,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
               </div>
             )}
 
-            {/* Active Search State - Show topics immediately + API results when loaded */}
+            {/* Active Search State - Show autocomplete suggestions with categorized groups */}
             {!showInitialState && !showEmptyState && (
               <>
                 {/* Search all - first item so Enter goes here by default */}
@@ -630,6 +882,108 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   </CommandGroup>
                 )}
 
+                {/* Autocomplete Suggestions - Show fast results from fuzzy search */}
+                {(hasAutocompleteSuggestions || isAutocompleteLoading) && (
+                  <>
+                    {/* Movies */}
+                    {groupedSuggestions.movies.length > 0 && (
+                      <>
+                        <CommandSeparator />
+                        <CommandGroup heading="Movies">
+                          {groupedSuggestions.movies.map((suggestion) => (
+                            <AutocompleteSuggestionItem
+                              key={`movie-${suggestion.id}`}
+                              suggestion={suggestion}
+                              query={query}
+                              onSelect={handleSelectAutocompleteSuggestion}
+                            />
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+
+                    {/* Series */}
+                    {groupedSuggestions.series.length > 0 && (
+                      <>
+                        <CommandSeparator />
+                        <CommandGroup heading="Series">
+                          {groupedSuggestions.series.map((suggestion) => (
+                            <AutocompleteSuggestionItem
+                              key={`series-${suggestion.id}`}
+                              suggestion={suggestion}
+                              query={query}
+                              onSelect={handleSelectAutocompleteSuggestion}
+                            />
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+
+                    {/* People */}
+                    {groupedSuggestions.people.length > 0 && (
+                      <>
+                        <CommandSeparator />
+                        <CommandGroup heading="People">
+                          {groupedSuggestions.people.map((suggestion) => (
+                            <AutocompleteSuggestionItem
+                              key={`person-${suggestion.id}`}
+                              suggestion={suggestion}
+                              query={query}
+                              onSelect={handleSelectAutocompleteSuggestion}
+                            />
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+
+                    {/* Filters */}
+                    {groupedSuggestions.filters.length > 0 && (
+                      <>
+                        <CommandSeparator />
+                        <CommandGroup heading="Filters">
+                          {groupedSuggestions.filters.map((suggestion, idx) => (
+                            <AutocompleteSuggestionItem
+                              key={`filter-${idx}-${suggestion.label}`}
+                              suggestion={suggestion}
+                              query={query}
+                              onSelect={handleSelectAutocompleteSuggestion}
+                            />
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+
+                    {/* Moods */}
+                    {groupedSuggestions.moods.length > 0 && (
+                      <>
+                        <CommandSeparator />
+                        <CommandGroup heading="Moods">
+                          {groupedSuggestions.moods.map((suggestion, idx) => (
+                            <AutocompleteSuggestionItem
+                              key={`mood-${idx}-${suggestion.label}`}
+                              suggestion={suggestion}
+                              query={query}
+                              onSelect={handleSelectAutocompleteSuggestion}
+                            />
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+
+                    {/* Loading indicator for autocomplete */}
+                    {isAutocompleteLoading && !hasAutocompleteSuggestions && (
+                      <div
+                        className="flex items-center justify-center py-6"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+                        <span className="sr-only">Loading suggestions...</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {/* Matching Topics - show instantly as compact pills */}
                 {hasTopics && (
                   <>
@@ -641,25 +995,29 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   </>
                 )}
 
-                {/* API Results or Loading */}
-                {isLoading ? (
-                  <div
-                    className="flex items-center justify-center py-8"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
-                    <span className="sr-only">Loading search results...</span>
-                  </div>
-                ) : (
-                  hasApiResults && (
-                    <>
-                      <CommandSeparator />
-                      <CommandGroup heading="Results">
-                        {results.results.map((result, index) => renderMediaResult(result, index))}
-                      </CommandGroup>
-                    </>
-                  )
+                {/* Full API Results - show when autocomplete has no results but full search does */}
+                {!hasAutocompleteSuggestions && !isAutocompleteLoading && (
+                  <>
+                    {isLoading ? (
+                      <div
+                        className="flex items-center justify-center py-8"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                        <span className="sr-only">Loading search results...</span>
+                      </div>
+                    ) : (
+                      hasApiResults && (
+                        <>
+                          <CommandSeparator />
+                          <CommandGroup heading="Results">
+                            {results.results.map((result, index) => renderMediaResult(result, index))}
+                          </CommandGroup>
+                        </>
+                      )
+                    )}
+                  </>
                 )}
               </>
             )}

@@ -1,6 +1,7 @@
 ---
 paths:
   - "src/server/services/hydration/**/*.ts"
+  - "src/server/services/ai-data-service.ts"
   - "src/server/db/postgres/**/*.ts"
   - "prisma/**/*.ts"
 ---
@@ -95,3 +96,180 @@ npx tsx scripts/verify/test-hydration-complete.ts
 await hydrateMovie(550, { forceRefresh: true });
 await hydrateSeries(1396, { forceRefresh: true });
 ```
+
+## AI Enrichment Data
+
+AI summaries are stored in PostgreSQL `ai_data` table (not file-based).
+
+### Service: `ai-data-service.ts`
+
+```typescript
+import { getAIData, upsertAIData } from "@/server/services/ai-data-service";
+
+// Fetch - NO CACHING (direct DB ~5ms)
+const summary = await getAIData(tmdbId, "movie"); // or "series"
+
+// Upsert after AI summarization
+await upsertAIData(tmdbId, "movie", summaryData);
+```
+
+### Why No Caching?
+
+Next.js dev mode uses multiple workers with isolated L1 memory caches. Cache invalidation in one worker doesn't affect others, causing stale data. PostgreSQL queries are fast enough (~5ms) that caching provides no meaningful benefit.
+
+### Schema Fields
+
+```typescript
+interface AISummary {
+  hook: string;           // One-liner for above overview
+  quickTake: string[];    // Labels for quick decision
+  themes: string[];       // Thematic elements
+  mood: { pacing, intensity, tone, emotional };
+  aiQuestions: string[];  // Fun questions for AI chat
+  watchContext: string[]; // "Best For" - viewing contexts
+  contentWarnings: string[]; // "Heads Up" - content advisory
+  generatedAt: string;
+  modelId: string;
+}
+```
+
+### Enrichment Commands
+
+```bash
+yarn enrich <tmdb_id>         # Movie content enrichment
+yarn enrich:series <tmdb_id>  # Series content enrichment
+yarn summarize <tmdb_id>      # AI summarization → PostgreSQL
+yarn summarize <id> --force   # Regenerate existing summary
+```
+
+## Popularity Sync Job
+
+Daily cron job (`scripts/sync-popularity.ts`) downloads TMDB daily exports and updates popularity scores.
+
+### Features
+
+- Multi-day fallback (7-day lookback for missing files)
+- Batch SQL updates for performance (~1000 items/batch)
+- Supports selective sync by media type
+- Dry-run mode for preview
+
+### Commands
+
+```bash
+yarn popularity:sync              # All types (movies, series, persons)
+yarn popularity:sync --type=movie # Movies only
+yarn popularity:sync --dry-run    # Preview without updating
+```
+
+### Person ID Note
+
+Persons table uses internal `id` + separate `tmdb_id`. Popularity lookup uses `tmdbId`:
+
+```typescript
+const newPopularity = popularityMap.get(person.tmdbId);
+```
+
+See `ecosystem.config.cjs` for PM2 cron schedule (3 AM UTC daily).
+
+## Bulk Population (GA Migration)
+
+### Script: `scripts/populate-postgres.ts`
+
+Batch-populates PostgreSQL from TMDB + MongoDB. Does NOT call Lambda by default.
+
+### Data Sources
+
+```
+TMDB API → core data (title, overview, credits, genres, etc.)
+     ↓
+MongoDB → enrichment (IMDb/RT/Google ratings, scraped watch links)
+     ↓
+PostgreSQL → final storage
+```
+
+**Critical**: MongoDB contains expensive Lambda-sourced data. Always use `--skip-lambda` (default) to preserve MongoDB enrichment.
+
+### TMDB Export Counts (Jan 2026)
+
+| Content | Total | Notes |
+|---------|-------|-------|
+| Movies | ~1.15M | Non-adult only |
+| Series | ~212k | Non-adult only |
+
+Files: `data/tmdb-dump/movie_ids_latest.json`, `series_ids_latest.json`
+
+### Commands
+
+```bash
+# Test (20 movies, 10 series)
+yarn populate --test
+
+# Medium batch (200 movies, 100 series)
+yarn populate --medium --skip-existing
+
+# All movies (sorted by popularity)
+yarn populate --all --skip-existing
+
+# Specific IDs
+yarn populate --ids=550,278,238 --series-ids=1396,1399
+
+# Retry previously failed items
+yarn populate --retry-failed
+
+# Disable auto-retry at end
+yarn populate --medium --no-auto-retry
+```
+
+### Performance (concurrency=3, TMDB+MongoDB)
+
+| Metric | Value |
+|--------|-------|
+| Rate | ~1.28 items/s |
+| Per item | ~780ms |
+| Network | Major bottleneck |
+
+### ETA for Full Population
+
+| Content | Time |
+|---------|------|
+| 1.15M Movies | ~10 days |
+| 212k Series | ~4 days |
+| **Total** | **~14 days** |
+
+### Recommended: Run on EC2
+
+Run populate script directly on EC2 (where MongoDB lives) to eliminate network latency:
+
+```bash
+# SSH to EC2
+ssh -i ./movie-browser-ec2-key.pem ubuntu@98.130.30.197
+
+# Run in tmux/screen for persistence
+tmux new -s populate
+
+# Phase 1: Top 100k movies (~22 hours)
+nohup yarn populate --movies=100000 --skip-existing > populate-p1.log 2>&1 &
+
+# Phase 2: All movies (~9 days)
+nohup yarn populate --all --skip-existing > populate-movies.log 2>&1 &
+
+# Phase 3: All series (~4 days, can run in parallel)
+nohup yarn populate --series=300000 --skip-existing > populate-series.log 2>&1 &
+
+# Check progress
+tail -f populate-movies.log
+```
+
+### Failure Handling
+
+- Auto-retry: Failed items retried at end with concurrency=1
+- Progress saved: Failed IDs in `.populate-progress.json`
+- Manual retry: `yarn populate --retry-failed`
+
+### Bug Fix (Jan 2026)
+
+Fixed: Stale MongoDB data was being discarded. Now uses stale data when `skipLambda=true`:
+```
+[Hydration] movie X: MongoDB stale but using it anyway (skipLambda=true)
+```
+File: `src/server/services/hydration/index.ts:530-541`

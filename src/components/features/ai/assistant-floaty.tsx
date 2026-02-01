@@ -4,8 +4,9 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useChatStream, type PageContext } from "@/hooks/use-chat-stream";
+import { useChatStream } from "@/hooks/use-chat-stream";
 import { useMobile } from "@/hooks/use-mobile";
+import { useMediaContextState } from "@/stores/media-context";
 import { MobileChatDrawer } from "./mobile-chat-drawer";
 
 // Import extracted components and types
@@ -13,59 +14,13 @@ import { IdleCircle } from "./idle-circle";
 import { MinimalView } from "./minimal-view";
 import { ExpandedChat } from "./expanded-chat";
 import { getContextualPrompts, IDLE_PROMPTS } from "./prompts";
-import {
-  type FloatyState,
-  type PromptConfig,
-  type ExtendedPageContext,
-  type AssistantFloatyProps,
-  TRANSITION_EASE,
-} from "./types";
-
-// =============================================================================
-// Page Context Hook
-// =============================================================================
-
-function usePageContext(
-  itemContext?: AssistantFloatyProps["itemContext"]
-): ExtendedPageContext | null {
-  const pathname = usePathname();
-
-  return useMemo(() => {
-    if (!pathname) return null;
-
-    const pathParts = pathname.split("/").filter(Boolean);
-    const pageType = pathParts[0];
-
-    if (itemContext) {
-      return {
-        path: pathname,
-        mediaType: itemContext.mediaType,
-        itemId: itemContext.itemId,
-        itemTitle: itemContext.itemTitle,
-        aiQuestions: itemContext.aiQuestions,
-      };
-    }
-
-    if (pageType === "movie" || pageType === "series" || pageType === "person") {
-      const id = parseInt(pathParts[1], 10);
-      if (!isNaN(id)) {
-        return {
-          path: pathname,
-          mediaType: pageType as "movie" | "series" | "person",
-          itemId: id,
-        };
-      }
-    }
-
-    return { path: pathname };
-  }, [pathname, itemContext]);
-}
+import { type FloatyState, type PromptConfig, TRANSITION_EASE } from "./types";
 
 // =============================================================================
 // Main Component
 // =============================================================================
 
-export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps) {
+export function AssistantFloaty({ className }: { className?: string }) {
   const [state, setState] = useState<FloatyState>("idle");
   const [input, setInput] = useState("");
   const [showIdlePrompt, setShowIdlePrompt] = useState(false);
@@ -74,8 +29,25 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   const isMobile = useMobile();
-  const pageContext = usePageContext(itemContext);
-  const contextualPrompts = useMemo(() => getContextualPrompts(pageContext), [pageContext]);
+  const pathname = usePathname();
+  const mediaContext = useMediaContextState();
+
+  // Generate contextual prompts based on page and media context
+  const contextualPrompts = useMemo(
+    () => getContextualPrompts(pathname, mediaContext),
+    [pathname, mediaContext]
+  );
+
+  // Build page context for chat stream (for AI agent context)
+  const pageContext = useMemo(() => {
+    if (!pathname) return null;
+    return {
+      path: pathname,
+      mediaType: mediaContext.mediaType || undefined,
+      itemId: mediaContext.itemId || undefined,
+      itemTitle: mediaContext.title || undefined,
+    };
+  }, [pathname, mediaContext]);
 
   const { messages, isLoading, pendingNavigation, sendMessage, executeNavigation, clearMessages } =
     useChatStream({ pageContext });
@@ -96,7 +68,15 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
     };
   }, [sendMessage]);
 
-  // Idle prompt cycling
+  // Reset prompt index when prompts change (e.g., navigating to different page)
+  const promptCount = contextualPrompts.length || IDLE_PROMPTS.length;
+  useEffect(() => {
+    // Defer state update to avoid cascading renders
+    const timer = setTimeout(() => setIdlePromptIndex(0), 0);
+    return () => clearTimeout(timer);
+  }, [promptCount]);
+
+  // Idle prompt cycling - uses contextual prompts (page-aware)
   useEffect(() => {
     if (state !== "idle") return;
 
@@ -105,7 +85,7 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
     const cycleInterval = setInterval(() => {
       setShowIdlePrompt(false);
       setTimeout(() => {
-        setIdlePromptIndex((i) => (i + 1) % IDLE_PROMPTS.length);
+        setIdlePromptIndex((i) => (i + 1) % promptCount);
         setShowIdlePrompt(true);
       }, 300);
     }, 10000);
@@ -119,7 +99,7 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
       clearInterval(cycleInterval);
       clearInterval(hideInterval);
     };
-  }, [state]);
+  }, [state, promptCount]);
 
   const handleSend = useCallback(() => {
     if (!input.trim() || isLoading) return;
@@ -200,7 +180,7 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
               <IdleCircle
                 onExpand={handleMobileExpand}
                 showPrompt={showIdlePrompt}
-                prompt={IDLE_PROMPTS[idlePromptIndex]}
+                prompt={contextualPrompts[idlePromptIndex % contextualPrompts.length] || IDLE_PROMPTS[0]}
                 hasActiveConversation={messages.length > 0}
               />
             </motion.div>
@@ -251,7 +231,7 @@ export function AssistantFloaty({ className, itemContext }: AssistantFloatyProps
               setState("active");
             }}
             showPrompt={showIdlePrompt}
-            prompt={IDLE_PROMPTS[idlePromptIndex]}
+            prompt={contextualPrompts[idlePromptIndex % contextualPrompts.length] || IDLE_PROMPTS[0]}
             hasActiveConversation={messages.length > 0}
           />
         </motion.div>

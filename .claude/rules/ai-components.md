@@ -8,15 +8,29 @@ paths:
 
 ## Modular Structure
 
-`src/components/features/ai/`:
+`src/components/features/ai/` (14 files):
 
+**Core:**
 - `assistant-floaty.tsx` - Main orchestrator (state, mobile drawer)
 - `types.ts` - Shared types (FloatyState, PromptConfig, etc.)
 - `prompts.ts` - Prompt generation functions
+- `index.ts` - Re-exports
+
+**Views:**
 - `idle-circle.tsx` - Floating bubble (idle state)
 - `minimal-view.tsx` - Collapsed chat with prompt pills
 - `expanded-chat.tsx` - Full chat view
+- `mobile-chat-drawer.tsx` - Vaul drawer for mobile
+
+**Chat UI:**
+- `chat-tags.tsx` - Tag-based message UI
+- `rich-message-content.tsx` - Rich content rendering
 - `poster-card-large.tsx` - Large poster cards in chat
+- `media-chip.tsx` - Compact media chips
+
+**Utilities:**
+- `ai-icon.tsx` - Animated AI icon component
+- `ai-animations.tsx` - Animation variants
 
 ## State Flow
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { ThemeProvider } from "./theme-provider";
+import { ColorPaletteProvider } from "./color-palette-provider";
 import { QueryProvider } from "./query-provider";
 import { AuthProvider } from "./auth-provider";
 import { UserStoreProvider } from "./user-store-provider";
@@ -30,7 +31,8 @@ export function Providers({ children }: ProvidersProps) {
     <AuthProvider>
       <UserStoreProvider>
         <ThemeProvider>
-          <QueryProvider>
+          <ColorPaletteProvider>
+            <QueryProvider>
             <AnalyticsProvider>
               <SearchProvider>
                 <HoverCardProvider>
@@ -40,7 +42,7 @@ export function Providers({ children }: ProvidersProps) {
                     <Toaster position="bottom-right" />
                     {/* Google One Tap - shows login prompt for unauthenticated users */}
                     <GoogleOneTap delay={2000} />
-                    {/* AI Assistant floating chat */}
+                    {/* Cue - AI chat assistant */}
                     <AssistantFloaty />
                     {/* Search dialog - single instance */}
                     <SearchDialogRenderer />
@@ -48,7 +50,8 @@ export function Providers({ children }: ProvidersProps) {
                 </HoverCardProvider>
               </SearchProvider>
             </AnalyticsProvider>
-          </QueryProvider>
+            </QueryProvider>
+          </ColorPaletteProvider>
         </ThemeProvider>
       </UserStoreProvider>
     </AuthProvider>

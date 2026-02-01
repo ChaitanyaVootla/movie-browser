@@ -142,7 +142,7 @@ export function MoodCards({ className }: MoodCardsProps) {
                 {mood.label}
               </span>
               {mood.sublabel && (
-                <span className="text-[10px] sm:text-xs text-white/50 text-center">
+                <span className="text-xs text-white/70 text-center">
                   {mood.sublabel}
                 </span>
               )}

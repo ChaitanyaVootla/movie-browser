@@ -1,8 +1,9 @@
 # PostgreSQL Migration Plan
 
-> **Status**: Phase 5.5 Complete ✅ (Hybrid Mode + YouTube Engagement Cache)  
-> **Schema Version**: V2 (Fully Normalized)  
-> **Last Updated**: January 9, 2026
+> **Status**: ✅ Complete for Media Data (Movies/Series)
+> **Remaining**: User data migration (see `USER_DATA_MIGRATION.md`)
+> **Schema Version**: V2 (Fully Normalized)
+> **Last Updated**: January 17, 2026
 
 ## Overview
 
@@ -34,11 +35,14 @@ Migrate from MongoDB to PostgreSQL with:
 | 2         | Prisma schema + migrations      | 1-2 days        | ✅ Complete               |
 | 3         | Reference data seeding          | 0.5 day         | ✅ Complete               |
 | 4         | Content seeding (MongoDB-first) | 2-3 days        | ✅ Complete               |
-| 5         | API layer migration             | 3-4 days        | ✅ Complete (Hybrid mode) |
-| 6         | User data migration             | 1 day           | 🔜 Next                   |
-| 7         | Testing + validation            | 1-2 days        | Pending                   |
-| 8         | EC2 deployment                  | 1 day           | Pending                   |
+| 5         | API layer migration             | 3-4 days        | ✅ Complete               |
+| 5.5       | Lambda integration              | 2 days          | ✅ Complete               |
+| 6         | User data migration             | 1 day           | 🔜 Ready (script done)    |
+| 7         | Testing + validation            | 1-2 days        | ⏳ With user migration    |
+| 8         | EC2 deployment                  | 1 day           | ⏳ After user migration   |
 | **Total** |                                 | **~10-14 days** |
+
+**Note**: Media data (movies/series) is fully on PostgreSQL. User data migration is the final step before GA.
 
 ---
 

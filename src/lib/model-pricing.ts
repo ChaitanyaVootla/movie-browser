@@ -58,14 +58,32 @@ export interface UsageStats extends TokenUsage, UsageCost {
  */
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   // ==========================================================================
-  // Kimi (Moonshot AI) Models
+  // Kimi (Moonshot AI) Models via Bedrock
   // ==========================================================================
   "moonshot.kimi-k2-thinking": {
     name: "Kimi K2 Thinking",
     inputCostPer1k: 0.0006, // $0.00060 per 1K input tokens
     outputCostPer1k: 0.0025, // $0.00250 per 1K output tokens
     provider: "moonshot",
-    notes: "Reasoning model with thinking capabilities",
+    notes: "Reasoning model via AWS Bedrock",
+  },
+
+  // ==========================================================================
+  // Kimi (Moonshot AI) Models via OpenRouter
+  // ==========================================================================
+  "moonshotai/kimi-k2.5": {
+    name: "Kimi K2.5",
+    inputCostPer1k: 0.0006, // $0.60 per 1M input = $0.0006 per 1K
+    outputCostPer1k: 0.0025, // $2.50 per 1M output = $0.0025 per 1K
+    provider: "openrouter",
+    notes: "Latest Kimi model via OpenRouter",
+  },
+  "moonshotai/kimi-k2": {
+    name: "Kimi K2",
+    inputCostPer1k: 0.0006,
+    outputCostPer1k: 0.0025,
+    provider: "openrouter",
+    notes: "Kimi K2 via OpenRouter",
   },
 
   // ==========================================================================
@@ -227,9 +245,15 @@ export function formatCost(cost: number): string {
 
 /**
  * Get the currently configured model ID
+ * Checks AI_PROVIDER to determine which model ID to return
  */
 export function getCurrentModelId(): string {
-  return process.env.BEDROCK_MODEL_ID || "moonshot.kimi-k2-thinking";
+  const provider = process.env.AI_PROVIDER?.toLowerCase();
+  if (provider === "bedrock") {
+    return process.env.BEDROCK_MODEL_ID || "moonshot.kimi-k2-thinking";
+  }
+  // Default to openrouter
+  return process.env.OPENROUTER_MODEL_ID || "moonshotai/kimi-k2.5";
 }
 
 /**

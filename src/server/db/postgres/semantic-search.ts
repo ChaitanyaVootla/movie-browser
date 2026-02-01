@@ -27,6 +27,7 @@ const SearchFiltersSchema = z.object({
     .tuple([z.number().int().min(1800).max(2100), z.number().int().min(1800).max(2100)])
     .optional(),
   minRating: z.number().min(0).max(10).optional(),
+  streamingService: z.string().min(1).max(100).optional(),
 });
 
 const SemanticSearchOptionsSchema = z.object({
@@ -58,6 +59,10 @@ export interface SemanticSearchResult {
   year: string | null;
   overview: string | null;
   genres: string[];
+  /** Vote average (rating 0-10) */
+  voteAverage: number | null;
+  /** Vote count */
+  voteCount: number | null;
 }
 
 export interface SemanticSearchOptions {
@@ -72,6 +77,8 @@ export interface SemanticSearchOptions {
     genres?: number[];
     yearRange?: [number, number];
     minRating?: number;
+    /** Filter by streaming service name (e.g., "Netflix", "Prime Video") */
+    streamingService?: string;
   };
 }
 
@@ -293,25 +300,36 @@ async function searchMoviesByEmbedding(
 
   if (filters?.minRating) {
     // Safe: minRating validated as 0-10 by Zod
-    conditions.push(`vote_average >= ${Number(filters.minRating)}`);
+    // Use subquery to filter by rating from ratings table
+    conditions.push(`
+      EXISTS (
+        SELECT 1 FROM ratings r
+        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+        WHERE r.movie_id = m.id AND r.score >= ${Number(filters.minRating)}
+      )
+    `);
   }
+
+  // Streaming service filter handled via parameterized query below
+  // We'll use a placeholder that gets replaced with a subquery when needed
+  const hasStreamingFilter = !!filters?.streamingService;
 
   const whereClause = conditions.length > 0 ? conditions.join(" AND ") : "embedding IS NOT NULL";
 
   // Note: 1 - (embedding <=> query) = cosine similarity
   // <=> is cosine distance, so subtract from 1 to get similarity
-  const results = await prisma.$queryRawUnsafe<
-    Array<{
-      id: number;
-      title: string;
-      score: number;
-      poster_path: string | null;
-      year: string | null;
-      overview: string | null;
-      genres: string[];
-    }>
-  >(`
-    SELECT 
+
+  // Build the streaming service condition if needed
+  const streamingCondition = hasStreamingFilter
+    ? `AND EXISTS (
+        SELECT 1 FROM watch_options wo
+        JOIN streaming_providers sp ON sp.id = wo.provider_id
+        WHERE wo.movie_id = m.id AND LOWER(sp.name) = LOWER($1)
+      )`
+    : "";
+
+  const sql = `
+    SELECT
       m.id,
       m.title,
       1 - (m.embedding <=> '${embeddingStr}'::vector) as score,
@@ -325,12 +343,51 @@ async function searchMoviesByEmbedding(
           WHERE mg.movie_id = m.id
         ),
         '{}'
-      ) as genres
+      ) as genres,
+      rt.score as vote_average,
+      rt.vote_count
     FROM movies m
+    LEFT JOIN LATERAL (
+      SELECT r.score, r.vote_count
+      FROM ratings r
+      JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+      WHERE r.movie_id = m.id
+      LIMIT 1
+    ) rt ON true
     WHERE ${whereClause}
+    ${streamingCondition}
     ORDER BY m.embedding <=> '${embeddingStr}'::vector
     LIMIT ${limit * 2}
-  `);
+  `;
+
+  // Use parameterized query when streaming filter is present
+  const results = hasStreamingFilter
+    ? await prisma.$queryRawUnsafe<
+        Array<{
+          id: number;
+          title: string;
+          score: number;
+          poster_path: string | null;
+          year: string | null;
+          overview: string | null;
+          genres: string[];
+          vote_average: number | null;
+          vote_count: number | null;
+        }>
+      >(sql, filters!.streamingService)
+    : await prisma.$queryRawUnsafe<
+        Array<{
+          id: number;
+          title: string;
+          score: number;
+          poster_path: string | null;
+          year: string | null;
+          overview: string | null;
+          genres: string[];
+          vote_average: number | null;
+          vote_count: number | null;
+        }>
+      >(sql);
 
   return results
     .filter((r) => r.score >= minScore)
@@ -344,6 +401,8 @@ async function searchMoviesByEmbedding(
       year: r.year,
       overview: r.overview,
       genres: r.genres || [],
+      voteAverage: r.vote_average,
+      voteCount: r.vote_count,
     }));
 }
 
@@ -382,23 +441,32 @@ async function searchSeriesByEmbedding(
 
   if (filters?.minRating) {
     // Safe: minRating validated as 0-10 by Zod
-    conditions.push(`vote_average >= ${Number(filters.minRating)}`);
+    // Use subquery to filter by rating from ratings table
+    conditions.push(`
+      EXISTS (
+        SELECT 1 FROM ratings r
+        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+        WHERE r.series_id = s.id AND r.score >= ${Number(filters.minRating)}
+      )
+    `);
   }
+
+  // Streaming service filter handled via parameterized query below
+  const hasStreamingFilter = !!filters?.streamingService;
 
   const whereClause = conditions.length > 0 ? conditions.join(" AND ") : "embedding IS NOT NULL";
 
-  const results = await prisma.$queryRawUnsafe<
-    Array<{
-      id: number;
-      name: string;
-      score: number;
-      poster_path: string | null;
-      year: string | null;
-      overview: string | null;
-      genres: string[];
-    }>
-  >(`
-    SELECT 
+  // Build the streaming service condition if needed
+  const streamingCondition = hasStreamingFilter
+    ? `AND EXISTS (
+        SELECT 1 FROM watch_options wo
+        JOIN streaming_providers sp ON sp.id = wo.provider_id
+        WHERE wo.series_id = s.id AND LOWER(sp.name) = LOWER($1)
+      )`
+    : "";
+
+  const sql = `
+    SELECT
       s.id,
       s.name,
       1 - (s.embedding <=> '${embeddingStr}'::vector) as score,
@@ -412,12 +480,51 @@ async function searchSeriesByEmbedding(
           WHERE sg.series_id = s.id
         ),
         '{}'
-      ) as genres
+      ) as genres,
+      rt.score as vote_average,
+      rt.vote_count
     FROM series s
+    LEFT JOIN LATERAL (
+      SELECT r.score, r.vote_count
+      FROM ratings r
+      JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+      WHERE r.series_id = s.id
+      LIMIT 1
+    ) rt ON true
     WHERE ${whereClause}
+    ${streamingCondition}
     ORDER BY s.embedding <=> '${embeddingStr}'::vector
     LIMIT ${limit * 2}
-  `);
+  `;
+
+  // Use parameterized query when streaming filter is present
+  const results = hasStreamingFilter
+    ? await prisma.$queryRawUnsafe<
+        Array<{
+          id: number;
+          name: string;
+          score: number;
+          poster_path: string | null;
+          year: string | null;
+          overview: string | null;
+          genres: string[];
+          vote_average: number | null;
+          vote_count: number | null;
+        }>
+      >(sql, filters!.streamingService)
+    : await prisma.$queryRawUnsafe<
+        Array<{
+          id: number;
+          name: string;
+          score: number;
+          poster_path: string | null;
+          year: string | null;
+          overview: string | null;
+          genres: string[];
+          vote_average: number | null;
+          vote_count: number | null;
+        }>
+      >(sql);
 
   return results
     .filter((r) => r.score >= minScore)
@@ -431,6 +538,8 @@ async function searchSeriesByEmbedding(
       year: r.year,
       overview: r.overview,
       genres: r.genres || [],
+      voteAverage: r.vote_average,
+      voteCount: r.vote_count,
     }));
 }
 
@@ -490,19 +599,30 @@ async function findSimilarMovies(
       poster_path: string | null;
       year: string | null;
       overview: string | null;
+      vote_average: number | null;
+      vote_count: number | null;
     }>
   >(`
     WITH source AS (
       SELECT embedding FROM movies WHERE id = ${safeMovieId}
     )
-    SELECT 
+    SELECT
       t.id,
       t.title,
       1 - (t.embedding <=> source.embedding) as score,
       t.poster_path,
       EXTRACT(YEAR FROM t.release_date)::text as year,
-      LEFT(t.overview, 300) as overview
+      LEFT(t.overview, 300) as overview,
+      rt.score as vote_average,
+      rt.vote_count
     FROM movies t, source
+    LEFT JOIN LATERAL (
+      SELECT r.score, r.vote_count
+      FROM ratings r
+      JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+      WHERE r.movie_id = t.id
+      LIMIT 1
+    ) rt ON true
     WHERE ${whereClause}
     ORDER BY t.embedding <=> source.embedding
     LIMIT ${limit * 2}
@@ -520,6 +640,8 @@ async function findSimilarMovies(
       year: r.year,
       overview: r.overview,
       genres: [],
+      voteAverage: r.vote_average,
+      voteCount: r.vote_count,
     }));
 }
 
@@ -569,19 +691,30 @@ async function findSimilarSeries(
       poster_path: string | null;
       year: string | null;
       overview: string | null;
+      vote_average: number | null;
+      vote_count: number | null;
     }>
   >(`
     WITH source AS (
       SELECT embedding FROM series WHERE id = ${safeSeriesId}
     )
-    SELECT 
+    SELECT
       t.id,
       t.name,
       1 - (t.embedding <=> source.embedding) as score,
       t.poster_path,
       EXTRACT(YEAR FROM t.first_air_date)::text as year,
-      LEFT(t.overview, 300) as overview
+      LEFT(t.overview, 300) as overview,
+      rt.score as vote_average,
+      rt.vote_count
     FROM series t, source
+    LEFT JOIN LATERAL (
+      SELECT r.score, r.vote_count
+      FROM ratings r
+      JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+      WHERE r.series_id = t.id
+      LIMIT 1
+    ) rt ON true
     WHERE ${whereClause}
     ORDER BY t.embedding <=> source.embedding
     LIMIT ${limit * 2}
@@ -599,6 +732,8 @@ async function findSimilarSeries(
       year: r.year,
       overview: r.overview,
       genres: [],
+      voteAverage: r.vote_average,
+      voteCount: r.vote_count,
     }));
 }
 

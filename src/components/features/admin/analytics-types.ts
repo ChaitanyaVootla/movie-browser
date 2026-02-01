@@ -336,7 +336,7 @@ export type StatVariant = "default" | "destructive" | "warning";
 /**
  * Analytics sub-tab identifiers for URL deep linking
  */
-export type AnalyticsSubTab = "traffic" | "ai" | "lambda" | "performance" | "system" | "database";
+export type AnalyticsSubTab = "traffic" | "ai" | "lambda" | "performance" | "system" | "database" | "query";
 
 // =============================================================================
 // Database Stats Types

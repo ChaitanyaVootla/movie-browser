@@ -135,6 +135,7 @@ import {
   type HybridSearchResult,
   type HybridSearchResponse,
   type IntentAnalysis,
+  type QueryUnderstanding,
 } from "@/lib/search";
 
 export interface EnhancedSearchResponse {
@@ -152,15 +153,62 @@ export interface EnhancedSearchResponse {
     tmdbResultCount: number;
     durationMs: number;
   };
+  /** Query understanding for UI display (filter chips, summary) */
+  understanding?: QueryUnderstanding;
+  /** True if filters were relaxed due to few results */
+  relaxedFilters?: boolean;
+  /** Message explaining filter relaxation (e.g., "Expanded year range to find more results") */
+  relaxationMessage?: string;
+}
+
+import { getTrendingMovies, getTrendingTV, getTrendingPeople } from "@/server/services/tmdb";
+
+interface TrendingIds {
+  /** Movie and series TMDB IDs */
+  media: Set<number>;
+  /** Person TMDB IDs (separate because person IDs use tmdb_id field) */
+  persons: Set<number>;
+}
+
+/**
+ * Fetch trending IDs for search ranking boost.
+ * Returns Sets of TMDB IDs that are currently trending.
+ */
+async function getTrendingIds(): Promise<TrendingIds> {
+  try {
+    const [movies, tv, people] = await Promise.all([
+      getTrendingMovies("day").catch(() => ({ results: [] })),
+      getTrendingTV("day").catch(() => ({ results: [] })),
+      getTrendingPeople("day").catch(() => ({ results: [] })),
+    ]);
+
+    const media = new Set<number>();
+    const persons = new Set<number>();
+
+    for (const item of movies.results as Array<{ id: number }>) {
+      media.add(item.id);
+    }
+    for (const item of tv.results as Array<{ id: number }>) {
+      media.add(item.id);
+    }
+    for (const item of people.results as Array<{ id: number }>) {
+      persons.add(item.id);
+    }
+
+    return { media, persons };
+  } catch {
+    return { media: new Set(), persons: new Set() };
+  }
 }
 
 /**
  * Enhanced search combining PostgreSQL hybrid search with TMDB fallback.
  *
  * Flow:
- * 1. Run hybrid search (fuzzy + semantic in PostgreSQL)
- * 2. If limited results, supplement with TMDB search
- * 3. Deduplicate and merge
+ * 1. Fetch trending IDs for ranking boost
+ * 2. Run hybrid search (fuzzy + semantic in PostgreSQL)
+ * 3. If limited results, supplement with TMDB search
+ * 4. Deduplicate and merge
  *
  * @example
  * const results = await enhancedSearch({ query: "Incepton" }); // Handles typos
@@ -172,14 +220,18 @@ export async function enhancedSearch(
   const startTime = Date.now();
   const { query, page } = SearchQuerySchema.parse(input);
 
-  // Run hybrid search (PostgreSQL)
+  // Fetch trending IDs first (cached by TMDB service, very fast)
+  const trendingIds = await getTrendingIds();
+
+  // Run hybrid search with trending boost
   const hybridResponse = await hybridSearch(query, {
     limit: 20,
     boostPopular: true,
     mediaTypes: ["movie", "series", "person"],
-  });
-
-  const hybridResults = hybridResponse.results;
+    trendingIds,
+    boostQuality: true,
+    boostRecency: true,
+  });  const hybridResults = hybridResponse.results;
   let tmdbFallback: SearchResult[] | undefined;
 
   // If hybrid search has limited results, supplement with TMDB
@@ -213,6 +265,9 @@ export async function enhancedSearch(
       tmdbResultCount: tmdbFallback?.length ?? 0,
       durationMs: Date.now() - startTime,
     },
+    understanding: hybridResponse.understanding,
+    relaxedFilters: hybridResponse.relaxedFilters,
+    relaxationMessage: hybridResponse.relaxationMessage,
   };
 }
 

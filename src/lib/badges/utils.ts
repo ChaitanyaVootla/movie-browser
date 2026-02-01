@@ -76,48 +76,53 @@ export function hasKeyword(
 
 /**
  * Badge background color map for the scooped corner box-shadow effect.
- * Maps Tailwind color names to rgba values with 70% opacity (matching /70 in className).
+ * Maps Tailwind color names to oklch values with 70% opacity (matching /70 in className).
  *
  * Used in card badges to create seamless "inverse border radius" corners.
- * Uses rgba for maximum browser compatibility.
+ * Uses oklch for better color consistency across themes and improved perceptual uniformity.
+ *
+ * oklch format: oklch(lightness chroma hue / alpha)
+ * - Lightness: 0-1 (0 = black, 1 = white)
+ * - Chroma: 0-0.4 (0 = gray, higher = more saturated)
+ * - Hue: 0-360 degrees (color wheel position)
  */
 const BADGE_SCOOP_COLORS: Record<string, string> = {
-  // Recency badges
-  emerald: "rgba(5, 150, 105, 0.7)", // emerald-600
-  // Coming soon / anticipated
-  blue: "rgba(37, 99, 235, 0.7)", // blue-600
-  amber: "rgba(217, 119, 6, 0.7)", // amber-600
-  // Popularity badges
-  pink: "rgba(219, 39, 119, 0.7)", // pink-600
-  orange: "rgba(234, 88, 12, 0.7)", // orange-600
-  purple: "rgba(147, 51, 234, 0.7)", // purple-600
-  // Quality badges
-  yellow: "rgba(202, 138, 4, 0.7)", // yellow-600
-  violet: "rgba(124, 58, 237, 0.7)", // violet-600
-  red: "rgba(220, 38, 38, 0.7)", // red-600
-  // Series badges
-  green: "rgba(22, 163, 74, 0.7)", // green-600
-  sky: "rgba(2, 132, 199, 0.7)", // sky-600
-  indigo: "rgba(79, 70, 229, 0.7)", // indigo-600
-  teal: "rgba(13, 148, 136, 0.7)", // teal-600
-  // User status badges
-  cyan: "rgba(8, 145, 178, 0.7)", // cyan-600
-  slate: "rgba(71, 85, 105, 0.7)", // slate-600
-  neutral: "rgba(38, 38, 38, 0.8)", // neutral-800
+  // Recency badges (green hues ~145-160)
+  emerald: "oklch(0.6 0.17 160 / 0.7)", // emerald-600
+  // Coming soon / anticipated (blue ~240, amber ~85)
+  blue: "oklch(0.55 0.2 260 / 0.7)", // blue-600
+  amber: "oklch(0.65 0.18 75 / 0.7)", // amber-600
+  // Popularity badges (pink ~350, orange ~45, purple ~300)
+  pink: "oklch(0.55 0.22 350 / 0.7)", // pink-600
+  orange: "oklch(0.65 0.2 45 / 0.7)", // orange-600
+  purple: "oklch(0.52 0.22 300 / 0.7)", // purple-600
+  // Quality badges (yellow ~95, violet ~290, red ~25)
+  yellow: "oklch(0.68 0.18 90 / 0.7)", // yellow-600
+  violet: "oklch(0.52 0.24 290 / 0.7)", // violet-600
+  red: "oklch(0.55 0.22 25 / 0.7)", // red-600
+  // Series badges (green ~145, sky ~210, indigo ~270, teal ~180)
+  green: "oklch(0.6 0.18 145 / 0.7)", // green-600
+  sky: "oklch(0.58 0.16 220 / 0.7)", // sky-600
+  indigo: "oklch(0.5 0.2 270 / 0.7)", // indigo-600
+  teal: "oklch(0.55 0.14 180 / 0.7)", // teal-600
+  // User status badges (neutral tones)
+  cyan: "oklch(0.55 0.15 200 / 0.7)", // cyan-600
+  slate: "oklch(0.45 0.02 260 / 0.7)", // slate-600
+  neutral: "oklch(0.25 0 0 / 0.8)", // neutral-800
 };
 
 /**
  * Get the CSS color value for a badge's scooped corner box-shadow.
- * Extracts the color from a badge className like "bg-emerald-600/30"
- * and returns the corresponding rgba color value.
+ * Extracts the color from a badge className like "bg-emerald-600/70"
+ * and returns the corresponding oklch color value.
  *
  * @param className - Badge className containing bg-{color} pattern
- * @returns rgba color string for box-shadow, or transparent if not found
+ * @returns oklch color string for box-shadow, or transparent if not found
  *
  * @example
  * ```tsx
- * getBadgeScoopColor("bg-emerald-600/30 text-emerald-100")
- * // Returns: "rgba(5, 150, 105, 0.3)"
+ * getBadgeScoopColor("bg-emerald-600/70 text-emerald-50")
+ * // Returns: "oklch(0.6 0.17 160 / 0.7)"
  * ```
  */
 export function getBadgeScoopColor(className: string): string {

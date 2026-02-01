@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,11 +17,23 @@ import {
   MessageCircle,
   Heart,
   User,
+  Film,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatViewCount, formatRelativeTime } from "@/lib/youtube-utils";
 import type { TrendingTrailer, YouTubeTrendingTrailer } from "@/server/actions/trending";
 import type { YouTubeComment } from "@/types";
+
+// Match data for YouTube trailers linked to database movies/series
+export interface TrailerMatchData {
+  tmdbId: number;
+  mediaType: "movie" | "series";
+  title: string;
+  posterPath: string | null;
+  year: string | null;
+  confidence: number;
+  matchMethod: "exact" | "fuzzy" | "semantic";
+}
 
 // Unified trailer type for the modal
 export interface TrailerModalData {
@@ -36,6 +49,8 @@ export interface TrailerModalData {
   viewCount?: number;
   likeCount?: number;
   dislikeCount?: number;
+  // Match data for YouTube trailers linked to database movies/series
+  match?: TrailerMatchData;
 }
 
 interface TrailerModalProps {
@@ -528,18 +543,38 @@ export function TrailerModal({
                   )}
                 </div>
 
-                {/* Watch on YouTube button */}
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 gap-2 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white"
-                >
-                  <a href={youtubeUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4" />
-                    <span className="hidden sm:inline">Watch on</span> YouTube
-                  </a>
-                </Button>
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* View Movie Details button - only for YouTube trailers with match */}
+                  {currentTrailer.match && currentTrailer.match.confidence >= 0.6 && (
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-white/20 hover:bg-white/10"
+                    >
+                      <Link
+                        href={`/${currentTrailer.match.mediaType === "series" ? "series" : "movie"}/${currentTrailer.match.tmdbId}`}
+                      >
+                        <Film className="h-4 w-4" />
+                        <span className="hidden sm:inline">View</span> Details
+                      </Link>
+                    </Button>
+                  )}
+
+                  {/* Watch on YouTube button */}
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white"
+                  >
+                    <a href={youtubeUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="hidden sm:inline">Watch on</span> YouTube
+                    </a>
+                  </Button>
+                </div>
               </div>
 
               {/* Stats Row */}
@@ -664,5 +699,7 @@ export function youtubeToTrailerModalData(
     viewCount: trailer.viewCount,
     likeCount: trailer.likeCount,
     dislikeCount: additionalMetadata?.dislikeCount,
+    // Pass through match data for YouTube trailers linked to movies/series
+    match: trailer.match,
   };
 }

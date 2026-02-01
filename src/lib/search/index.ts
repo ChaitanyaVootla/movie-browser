@@ -19,6 +19,8 @@ export {
   type HybridSearchOptions,
   type HybridSearchResponse,
   type MatchSource,
+  type QueryUnderstanding,
+  type QueryUnderstandingFilter,
 } from "./hybrid";
 
 // =============================================================================
@@ -33,3 +35,17 @@ export {
   type IntentAnalysis,
   type ExtractedFilters,
 } from "./intent";
+
+// =============================================================================
+// Embedding-Based Intent Classification (Hybrid)
+// =============================================================================
+
+export {
+  classifyQueryIntentHybrid,
+  classifyIntentViaEmbedding,
+  initializeIntentEmbeddings,
+  areIntentEmbeddingsReady,
+  logClassificationMetrics,
+  type EmbeddingIntentResult,
+  type HybridIntentResult,
+} from "./intent-embeddings";

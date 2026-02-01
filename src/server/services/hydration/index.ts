@@ -529,10 +529,16 @@ async function getEnrichedData(
 
       // 3c. MongoDB stale → Fall through to Lambda (unless skipLambda)
       if (skipLambda) {
+        // IMPORTANT: For bulk migration, use stale MongoDB data rather than nothing!
+        // Stale data is still valuable (ratings, watch links) - better than empty.
         console.log(
-          `[Hydration] ${mediaType} ${id}: MongoDB stale, skipping Lambda (skipLambda=true)`
+          `[Hydration] ${mediaType} ${id}: MongoDB stale but using it anyway (skipLambda=true)`
         );
-        return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: true };
+        return {
+          enriched: mongoResult.enriched,
+          enrichedSource: "mongodb",
+          mongoDocExists: true,
+        };
       }
       console.log(
         `[Hydration] ${mediaType} ${id}: MongoDB stale (${mongoResult.updatedAt?.toISOString()}), calling Lambda`

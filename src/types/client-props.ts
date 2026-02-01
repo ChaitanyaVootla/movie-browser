@@ -40,6 +40,11 @@ export interface MediaOverviewKeyword {
   name: string;
 }
 
+export interface MediaOverviewGenre {
+  id: number;
+  name: string;
+}
+
 export interface MediaOverviewCast {
   id: number;
   name: string;
@@ -52,6 +57,7 @@ export interface MovieOverviewProps {
   id: number;
   title: string;
   overview: string;
+  genres?: MediaOverviewGenre[];
   director?: MediaOverviewDirector;
   topCast: MediaOverviewCast[];
   keywords?: MediaOverviewKeyword[];
@@ -71,6 +77,7 @@ export interface SeriesOverviewProps {
   id: number;
   name: string;
   overview: string;
+  genres?: MediaOverviewGenre[];
   creators?: MediaOverviewCreator[];
   topCast: MediaOverviewCast[];
   keywords?: MediaOverviewKeyword[];
@@ -130,6 +137,7 @@ export function extractMovieOverviewProps(movie: Movie): MovieOverviewProps {
     id: movie.id,
     title: movie.title,
     overview: movie.overview,
+    genres: movie.genres?.map((g) => ({ id: g.id, name: g.name })),
     director: director
       ? { id: director.id, name: director.name, profile_path: director.profile_path }
       : undefined,
@@ -179,6 +187,7 @@ export function extractSeriesOverviewProps(series: Series): SeriesOverviewProps 
     id: series.id,
     name: series.name,
     overview: series.overview,
+    genres: series.genres?.map((g) => ({ id: g.id, name: g.name })),
     creators: creators?.length ? creators : undefined,
     topCast:
       series.credits?.cast?.slice(0, 15).map((c) => ({

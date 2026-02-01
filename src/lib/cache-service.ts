@@ -66,7 +66,8 @@ export type CacheNamespace =
   | "discover"
   | "images"
   | "youtube"
-  | "youtube-channels";
+  | "youtube-channels"
+  | "trailer-matches";
 
 interface CacheConfig {
   /** In-memory cache TTL (seconds) */
@@ -106,6 +107,13 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
     l2TTL: 172800, // 48 hours on disk (channels upload infrequently)
     persistToFile: true,
     staleGracePeriod: 21600, // 6 hours grace - maximize quota protection
+  },
+  // Trailer matching cache - long TTL since movie titles don't change
+  "trailer-matches": {
+    l1TTL: 3600, // 1 hour in-memory
+    l2TTL: 172800, // 48 hours on disk (matches YouTube channel cache)
+    persistToFile: true,
+    staleGracePeriod: 21600, // 6 hours grace
   },
 
   // === MEDIUM FREQUENCY - Persist for warm starts ===
@@ -440,10 +448,20 @@ export function cacheSet<T>(
 /**
  * Delete a value from cache (L1 + L2)
  */
-export function cacheDel(namespace: CacheNamespace, key: string): void {
+export function cacheDel(namespace: CacheNamespace, key: string): boolean {
   const fullKey = buildFullKey(namespace, key);
-  memoryCache.del(fullKey);
+  const l1Deleted = memoryCache.del(fullKey);
   deleteFromFile(namespace, key);
+
+  dataLogger.info({
+    cache: "del",
+    namespace,
+    key,
+    fullKey,
+    l1Deleted,
+  });
+
+  return l1Deleted > 0;
 }
 
 /**

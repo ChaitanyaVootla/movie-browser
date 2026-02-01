@@ -6,7 +6,7 @@ import { X, ArrowUp, ArrowRight, Minimize2, RotateCcw } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
 import { cn } from "@/lib/utils";
 import { RichMessageContent, collectMediaTags } from "./rich-message-content";
-import { ThinkingIndicator } from "./ai-animations";
+import { PulsingSpark } from "./ai-animations";
 import { TRANSITION_EASE, type ExpandedChatProps } from "./types";
 
 // =============================================================================
@@ -98,7 +98,7 @@ export function ExpandedChat({
           "w-[calc(100vw-32px)] max-w-[600px]",
           "bg-background/95 backdrop-blur-xl",
           "border border-border/50 rounded-2xl",
-          "shadow-2xl shadow-black/20",
+          "shadow-[0_8px_30px_rgba(0,0,0,0.5),0_16px_50px_rgba(0,0,0,0.4),0_24px_70px_rgba(0,0,0,0.3)]",
           "flex flex-col overflow-hidden"
         )}
         style={
@@ -115,7 +115,7 @@ export function ExpandedChat({
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
           <div className="flex items-center gap-2">
             <AISparkIcon size={20} className="text-brand" />
-            <span className="font-medium text-foreground">Movie Assistant</span>
+            <span className="font-medium text-foreground">Cue</span>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -183,7 +183,7 @@ export function ExpandedChat({
                   {msg.role === "assistant" ? (
                     msg.isStreaming && !msg.content ? (
                       <span className="flex items-center gap-2 py-1">
-                        <ThinkingIndicator />
+                        <PulsingSpark size={18} />
                       </span>
                     ) : (
                       <RichMessageContent content={msg.content} showPosterRow />
@@ -227,7 +227,7 @@ export function ExpandedChat({
               value={input}
               onChange={(e) => onInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask me anything about movies..."
+              placeholder="Ask Cue anything about movies..."
               disabled={isLoading}
               className={cn(
                 "flex-1 px-4 py-3 text-sm rounded-xl",

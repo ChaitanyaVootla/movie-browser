@@ -47,6 +47,10 @@ export { RecentTracker } from "./recent-tracker";
 
 // AI-generated content components
 export { AIQuestionsSection } from "./ai-questions-section";
+export { StandoutBadges } from "./standout-badges";
+export { StandoutAspects } from "./standout-aspects";
+export { BestForSection, HeadsUpSection } from "./insight-sections";
+export { DeepDiveSection } from "./deep-dive-section";
 
 // User status badge (watchlist/watched indicator)
 export { UserStatusBadge, useIsWatched } from "./user-status-badge";
@@ -54,3 +58,6 @@ export { UserStatusBadge, useIsWatched } from "./user-status-badge";
 // Admin tools
 export { EnrichButton } from "./enrich-button";
 export { RefreshDataButton } from "./refresh-data-button";
+
+// Context updater for AI chat prompts
+export { MediaContextUpdater } from "./media-context-updater";

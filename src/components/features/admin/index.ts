@@ -4,6 +4,7 @@ export { AnalyticsDashboard } from "./analytics-dashboard";
 // Standalone panels
 export { AlertsPanel } from "./alerts-panel";
 export { ItemAnalyticsModal } from "./item-analytics-modal";
+export { AIDataModal } from "./ai-data-modal";
 export { ErrorDetailSheet } from "./error-detail-sheet";
 
 // Charts

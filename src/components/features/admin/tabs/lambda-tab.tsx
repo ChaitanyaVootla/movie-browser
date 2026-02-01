@@ -183,31 +183,34 @@ function LambdaTimeSeriesChart({
           <XAxis
             dataKey="date"
             tickFormatter={formatChartDate}
-            tick={{ fontSize: 10, fill: "#71717a" }}
+            tick={{ fontSize: 10 }}
             axisLine={false}
             tickLine={false}
+            className="fill-muted-foreground"
           />
           <YAxis
             yAxisId="invocations"
-            tick={{ fontSize: 10, fill: "#71717a" }}
+            tick={{ fontSize: 10 }}
             axisLine={false}
             tickLine={false}
+            className="fill-muted-foreground"
           />
           <YAxis
             yAxisId="duration"
             orientation="right"
-            tick={{ fontSize: 10, fill: "#a1a1aa" }}
+            tick={{ fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => `${v}ms`}
+            className="fill-muted-foreground/70"
           />
           <RechartsTooltip
             contentStyle={{
-              backgroundColor: "#18181b",
-              border: "1px solid #3f3f46",
+              backgroundColor: "oklch(var(--popover))",
+              border: "1px solid oklch(var(--border))",
               borderRadius: "8px",
               fontSize: "12px",
-              color: "#e4e4e7",
+              color: "oklch(var(--popover-foreground))",
             }}
             labelFormatter={formatChartDate}
             formatter={(value, name) => {
@@ -221,7 +224,7 @@ function LambdaTimeSeriesChart({
             yAxisId="invocations"
             type="monotone"
             dataKey="invocations"
-            stroke="#e4e4e7"
+            stroke="oklch(0.9 0 0)"
             strokeWidth={2}
             dot={false}
           />
@@ -229,7 +232,7 @@ function LambdaTimeSeriesChart({
             yAxisId="duration"
             type="monotone"
             dataKey="avgDurationMs"
-            stroke="#71717a"
+            stroke="oklch(0.55 0 0)"
             strokeWidth={2}
             strokeDasharray="4 2"
             dot={false}
@@ -238,12 +241,12 @@ function LambdaTimeSeriesChart({
       </ResponsiveContainer>
       <div className="flex justify-center gap-6 mt-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 bg-zinc-200 rounded" /> Invocations
+          <span className="w-4 h-0.5 bg-foreground/80 rounded" /> Invocations
         </span>
         <span className="flex items-center gap-1.5">
           <span
-            className="w-4 h-0.5 bg-zinc-500 rounded border-dashed"
-            style={{ borderTop: "2px dashed #71717a", height: 0 }}
+            className="w-4 h-0.5 rounded border-dashed"
+            style={{ borderTop: "2px dashed oklch(0.55 0 0)", height: 0 }}
           />{" "}
           Avg Duration
         </span>

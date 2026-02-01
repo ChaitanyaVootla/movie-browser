@@ -15,6 +15,8 @@ interface HeroItemEnhancedData {
   watchOptions: ProcessedWatchOptions;
   /** Light item data for continue watching (pre-extracted) */
   item: WatchOptionsItem;
+  /** AI-generated one-liner hook */
+  hook?: string;
 }
 
 interface HeroCarouselProps {
@@ -136,9 +138,6 @@ export function HeroCarousel({
 
   const href = getMediaHref(currentItem.id, isMovie, title);
   const mediaType = isMovie ? "movie" : "series";
-
-  // Genre and rating from currentItem
-  const genres = currentItem.genres || [];
   const rating = currentItem.vote_average || 0;
 
   // Navigate to details page (for clickable area)
@@ -208,10 +207,10 @@ export function HeroCarousel({
                 itemId={currentItem.id}
                 title={title}
                 mediaType={mediaType}
-                genres={genres}
                 ratings={enhancedData?.ratings}
                 voteAverage={rating}
                 watchOptions={enhancedData?.watchOptions}
+                hook={enhancedData?.hook}
                 item={
                   enhancedData?.item || {
                     id: currentItem.id,

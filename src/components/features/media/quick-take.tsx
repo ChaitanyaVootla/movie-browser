@@ -1,7 +1,8 @@
 /**
  * QuickTake Pills
  *
- * Displays AI-generated quick take labels as small pills.
+ * Displays AI-generated quick take labels as bold, action-oriented pills.
+ * These are "decision helpers" - visually distinct from Themes (contemplative).
  * Shown in the action bar row, right-aligned.
  */
 
@@ -26,9 +27,12 @@ export function QuickTake({ items, className, maxVisible = 4 }: QuickTakeProps) 
           className={cn(
             "inline-flex items-center",
             "px-2.5 py-1 rounded-full",
-            "text-[11px] font-medium",
-            "bg-white/5 text-foreground/70 border border-brand/30",
-            "whitespace-nowrap"
+            "text-xs font-medium",
+            "bg-brand/15 text-foreground/85",
+            "border border-brand/30",
+            "whitespace-nowrap",
+            "transition-all duration-200",
+            "hover:bg-brand/25 hover:border-brand/50"
           )}
         >
           {item}

@@ -1,12 +1,13 @@
-# Analytics Stack: ClickHouse + Grafana
+# Analytics Stack: ClickHouse
 #
 # Deploy alongside existing services on EC2:
 #   docker-compose -f analytics/docker-compose.analytics.yml up -d
 #
 # Access:
-#   - Grafana: http://localhost:3004 (proxied via Nginx to analytics.themoviebrowser.com)
 #   - ClickHouse HTTP: http://localhost:8123
 #   - ClickHouse Native: localhost:9000
+#
+# Note: Grafana removed Jan 2026 - SQL queries now available via /admin dashboard
 
 services:
   # ===========================================================================
@@ -39,44 +40,9 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # ===========================================================================
-  # Grafana - Visualization & Dashboards
-  # ===========================================================================
-  grafana:
-    image: grafana/grafana:12.3.1
-    container_name: analytics-grafana
-    ports:
-      - "3004:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-grafana_secret_123}
-      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3004}
-      # Alerting
-      - GF_ALERTING_ENABLED=true
-      - GF_UNIFIED_ALERTING_ENABLED=true
-      # Performance
-      - GF_DATABASE_WAL=true
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    healthcheck:
-      test: wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-
 volumes:
   clickhouse-data:
   clickhouse-logs:
-  grafana-data:
 
 networks:
   default:

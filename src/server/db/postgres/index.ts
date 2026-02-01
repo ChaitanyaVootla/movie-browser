@@ -4,7 +4,10 @@
  * Exports the Prisma client and data access functions.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
+
+// Re-export Prisma namespace for JSON handling in other files
+export { Prisma };
 
 declare global {
   var prisma: PrismaClient | undefined;

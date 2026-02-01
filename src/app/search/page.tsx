@@ -1,13 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { SearchClient } from "./client";
-import { search } from "@/server/actions/search";
 import { SITE_NAME } from "@/lib/constants";
 
 interface SearchPageProps {
   searchParams: Promise<{
     q?: string;
-    page?: string;
     type?: string;
   }>;
 }
@@ -50,29 +48,12 @@ function SearchSkeleton() {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = params.q?.trim() || "";
-  const page = parseInt(params.page || "1", 10);
-  const type = params.type as "all" | "movie" | "tv" | "person" | undefined;
-
-  // Fetch initial results if query exists
-  let initialResults = null;
-  if (query) {
-    try {
-      initialResults = await search({ query, page });
-    } catch (error) {
-      console.error("Search error:", error);
-    }
-  }
 
   return (
     <main className="min-h-screen pt-20 pb-16">
       <div className="px-4 md:px-8 lg:px-12 max-w-7xl mx-auto">
         <Suspense fallback={<SearchSkeleton />}>
-          <SearchClient
-            initialQuery={query}
-            initialResults={initialResults}
-            initialPage={page}
-            initialType={type || "all"}
-          />
+          <SearchClient initialQuery={query} />
         </Suspense>
       </div>
     </main>

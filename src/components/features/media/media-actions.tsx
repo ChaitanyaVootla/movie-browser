@@ -3,20 +3,28 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 import {
   Play,
   Check,
   Share2,
-  ListPlus,
+  Plus,
   ThumbsUp,
   ThumbsDown,
   Eye,
-  EyeOff,
   Loader2,
 } from "lucide-react";
 import { useUserLibrary } from "@/hooks/use-user-library";
 import type { MediaType } from "@/stores/user";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import {
+  PulseRings,
+  GlowBurst,
+  ParticleBurst,
+  ShineSweep,
+  SuccessRing,
+  ShakeContainer,
+} from "./action-animations";
 
 interface MediaActionsProps {
   itemId: number;
@@ -26,10 +34,37 @@ interface MediaActionsProps {
   onPlayTrailer?: () => void;
   className?: string;
   variant?: "hero" | "compact";
-  /**
-   * Show the watched toggle (only for movies)
-   */
   showWatched?: boolean;
+}
+
+// Animated icon wrapper with bounce and rotation
+function AnimatedIcon({
+  children,
+  animate,
+  variant,
+}: {
+  children: React.ReactNode;
+  animate: boolean;
+  variant: "like" | "watchlist" | "watched" | "dislike";
+}) {
+  const bounceConfig = {
+    like: { scale: [1, 1.4, 0.9, 1.1, 1], rotate: [0, -15, 15, -5, 0] },
+    watchlist: { scale: [1, 1.25, 0.95, 1.05, 1], rotate: [0, 0, 0, 0, 0] },
+    watched: { scale: [1, 1.2, 0.95, 1.05, 1], rotate: [0, 5, -5, 0, 0] },
+    dislike: { scale: [1, 1.1, 1], rotate: [0, 0, 0] },
+  };
+
+  return (
+    <motion.div
+      animate={animate ? bounceConfig[variant] : {}}
+      transition={{
+        duration: variant === "like" ? 0.5 : 0.4,
+        ease: [0.34, 1.56, 0.64, 1],
+      }}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 export function MediaActions({
@@ -54,38 +89,61 @@ export function MediaActions({
   } = useUserLibrary(itemId, mediaType);
 
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [animating, setAnimating] = useState<string | null>(null);
+
+  const triggerAnimation = useCallback((key: string, duration = 600) => {
+    setAnimating(key);
+    setTimeout(() => setAnimating(null), duration);
+  }, []);
 
   const handleWatchlistToggle = async () => {
+    const wasInWatchlist = isInWatchlist;
     setIsUpdating("watchlist");
     try {
       await toggleWatchlist();
+      // Only animate when adding, not removing
+      if (!wasInWatchlist) {
+        triggerAnimation("watchlist", 700);
+      }
     } finally {
       setIsUpdating(null);
     }
   };
 
   const handleWatchedToggle = async () => {
+    const wasWatched = isWatched;
     setIsUpdating("watched");
     try {
       await toggleWatched();
+      if (!wasWatched) {
+        triggerAnimation("watched", 700);
+      }
     } finally {
       setIsUpdating(null);
     }
   };
 
   const handleLike = async () => {
+    const wasLiked = isLiked;
     setIsUpdating("like");
     try {
       await like();
+      if (!wasLiked) {
+        triggerAnimation("like", 800);
+      }
     } finally {
       setIsUpdating(null);
     }
   };
 
   const handleDislike = async () => {
+    const wasDisliked = isDisliked;
     setIsUpdating("dislike");
     try {
       await dislike();
+      if (!wasDisliked) {
+        triggerAnimation("dislike", 500);
+      }
     } finally {
       setIsUpdating(null);
     }
@@ -95,16 +153,12 @@ export function MediaActions({
     const url = `${window.location.origin}/${mediaType}/${itemId}`;
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: title,
-          url: url,
-        });
+        await navigator.share({ title, url });
       } catch {
-        // User cancelled or error
+        // User cancelled
       }
     } else {
       await navigator.clipboard.writeText(url);
-      // Toast will show from the hook
     }
   };
 
@@ -118,23 +172,31 @@ export function MediaActions({
                 size="icon"
                 variant="secondary"
                 className={cn(
-                  "h-9 w-9 rounded-full bg-white/10 hover:bg-white/20",
-                  isInWatchlist && "bg-white/20"
+                  "h-9 w-9 rounded-full transition-all relative overflow-visible",
+                  isInWatchlist
+                    ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_10px_rgba(var(--brand-rgb),0.25)]"
+                    : "bg-white/10 hover:bg-white/20 border border-white/20"
                 )}
                 onClick={handleWatchlistToggle}
                 disabled={isUpdating === "watchlist"}
               >
-                {isUpdating === "watchlist" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isInWatchlist ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <ListPlus className="h-4 w-4" />
-                )}
+                <div className="relative">
+                  <PulseRings isActive={animating === "watchlist"} />
+                  <SuccessRing isActive={animating === "watchlist"} />
+                  <AnimatedIcon animate={animating === "watchlist"} variant="watchlist">
+                    {isUpdating === "watchlist" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isInWatchlist ? (
+                      <Check className="h-4 w-4 stroke-[2.5]" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                  </AnimatedIcon>
+                </div>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
+              {isInWatchlist ? "In Watchlist" : "Add to Watchlist"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -148,39 +210,51 @@ export function MediaActions({
       {hasTrailer && onPlayTrailer && (
         <Button
           size="sm"
-          className="gap-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white font-medium border border-white/20 transition-all hover:scale-105"
+          className="gap-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white font-medium border border-white/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           onClick={onPlayTrailer}
         >
           <Play className="h-3.5 w-3.5 fill-current" />
-          Trailer
+          <span className="text-[13px]">Trailer</span>
         </Button>
       )}
 
-      {/* Secondary actions - grouped logically */}
       <TooltipProvider>
         <div className="flex items-center gap-1.5">
           {/* Watchlist */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="icon-sm"
+                size="sm"
                 variant="secondary"
                 className={cn(
-                  "rounded-full transition-all hover:scale-105",
-                  "bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10",
-                  isInWatchlist && "bg-white/20 border-white/30"
+                  "gap-1.5 rounded-full transition-all backdrop-blur-sm relative overflow-visible",
+                  isInWatchlist
+                    ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]"
+                    : "bg-white/10 hover:bg-white/20 border border-white/20 text-white/80 hover:text-white"
                 )}
                 onClick={handleWatchlistToggle}
                 disabled={isUpdating === "watchlist"}
                 aria-label={isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
               >
-                {isUpdating === "watchlist" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : isInWatchlist ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <ListPlus className="h-3.5 w-3.5" />
-                )}
+                {/* Animation layers */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <PulseRings isActive={animating === "watchlist"} ringCount={2} />
+                  <GlowBurst isActive={animating === "watchlist"} />
+                </div>
+                <ShineSweep isActive={animating === "watchlist"} />
+
+                <AnimatedIcon animate={animating === "watchlist"} variant="watchlist">
+                  {isUpdating === "watchlist" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : isInWatchlist ? (
+                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
+                </AnimatedIcon>
+                <span className="text-[13px] font-semibold">
+                  {isInWatchlist ? "Listed" : "Watchlist"}
+                </span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
@@ -193,24 +267,35 @@ export function MediaActions({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  size="icon-sm"
+                  size="sm"
                   variant="secondary"
                   className={cn(
-                    "rounded-full transition-all hover:scale-105",
-                    "bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10",
-                    isWatched && "bg-white/20 border-white/30"
+                    "gap-1.5 rounded-full transition-all backdrop-blur-sm relative overflow-visible",
+                    isWatched
+                      ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]"
+                      : "bg-white/10 hover:bg-white/20 border border-white/20 text-white/80 hover:text-white"
                   )}
                   onClick={handleWatchedToggle}
                   disabled={isUpdating === "watched"}
                   aria-label={isWatched ? "Mark as Unwatched" : "Mark as Watched"}
                 >
-                  {isUpdating === "watched" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : isWatched ? (
-                    <Eye className="h-3.5 w-3.5" />
-                  ) : (
-                    <EyeOff className="h-3.5 w-3.5" />
-                  )}
+                  {/* Animation layers */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <PulseRings isActive={animating === "watched"} ringCount={2} />
+                    <GlowBurst isActive={animating === "watched"} />
+                  </div>
+                  <ShineSweep isActive={animating === "watched"} />
+
+                  <AnimatedIcon animate={animating === "watched"} variant="watched">
+                    {isUpdating === "watched" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Eye className={cn("h-3.5 w-3.5", isWatched && "fill-current stroke-[2.5]")} />
+                    )}
+                  </AnimatedIcon>
+                  <span className="text-[13px] font-semibold">
+                    {isWatched ? "Watched" : "Seen it?"}
+                  </span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
@@ -219,58 +304,72 @@ export function MediaActions({
             </Tooltip>
           )}
 
-          {/* Like/Dislike grouped in a pill */}
-          <div className="flex items-center rounded-full bg-white/10 backdrop-blur-sm border border-white/10 overflow-hidden">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className={cn(
-                    "rounded-none hover:bg-white/15 transition-colors",
-                    isLiked && "bg-white/20"
-                  )}
-                  onClick={handleLike}
-                  disabled={isUpdating === "like"}
-                  aria-label={isLiked ? "Remove Like" : "Like"}
-                >
+          {/* Like */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="secondary"
+                className={cn(
+                  "rounded-full backdrop-blur-sm transition-all relative overflow-visible",
+                  isLiked
+                    ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]"
+                    : "bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 hover:text-white"
+                )}
+                onClick={handleLike}
+                disabled={isUpdating === "like"}
+                aria-label={isLiked ? "Remove Like" : "Like"}
+              >
+                {/* Like animation layers */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <PulseRings isActive={animating === "like"} ringCount={3} />
+                  <GlowBurst isActive={animating === "like"} />
+                  <ParticleBurst isActive={animating === "like"} particleCount={10} />
+                </div>
+
+                <AnimatedIcon animate={animating === "like"} variant="like">
                   {isUpdating === "like" ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <ThumbsUp className={cn("h-3.5 w-3.5", isLiked && "fill-white")} />
+                    <ThumbsUp className={cn("h-3.5 w-3.5", isLiked && "fill-current")} />
                   )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{isLiked ? "Remove Like" : "Like"}</TooltipContent>
-            </Tooltip>
+                </AnimatedIcon>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{isLiked ? "Liked" : "Like"}</TooltipContent>
+          </Tooltip>
 
-            <div className="w-px h-4 bg-white/20" />
-
-            <Tooltip>
-              <TooltipTrigger asChild>
+          {/* Dislike */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ShakeContainer isShaking={animating === "dislike"}>
                 <Button
                   size="icon-sm"
-                  variant="ghost"
+                  variant="secondary"
                   className={cn(
-                    "rounded-none hover:bg-white/15 transition-colors",
-                    isDisliked && "bg-white/20"
+                    "rounded-full backdrop-blur-sm transition-all",
+                    isDisliked
+                      ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]"
+                      : "bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 hover:text-white"
                   )}
                   onClick={handleDislike}
                   disabled={isUpdating === "dislike"}
                   aria-label={isDisliked ? "Remove Dislike" : "Dislike"}
                 >
-                  {isUpdating === "dislike" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ThumbsDown className={cn("h-3.5 w-3.5", isDisliked && "fill-white")} />
-                  )}
+                  <AnimatedIcon animate={animating === "dislike"} variant="dislike">
+                    {isUpdating === "dislike" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ThumbsDown className={cn("h-3.5 w-3.5", isDisliked && "fill-current")} />
+                    )}
+                  </AnimatedIcon>
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {isDisliked ? "Remove Dislike" : "Dislike"}
-              </TooltipContent>
-            </Tooltip>
-          </div>
+              </ShakeContainer>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {isDisliked ? "Disliked" : "Dislike"}
+            </TooltipContent>
+          </Tooltip>
 
           {/* Share */}
           <Tooltip>
@@ -278,7 +377,7 @@ export function MediaActions({
               <Button
                 size="icon-sm"
                 variant="secondary"
-                className="rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 transition-all hover:scale-105"
+                className="rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
                 onClick={handleShare}
                 aria-label="Share"
               >

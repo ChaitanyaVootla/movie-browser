@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -19,32 +20,120 @@ import {
 import { cn } from "@/lib/utils";
 
 // =============================================================================
-// Color Palettes - Neutral grays that work in dark mode
+// CSS Variable Color Hook - Reads computed colors from CSS variables
 // =============================================================================
 
+interface ChartColors {
+  chart1: string;
+  chart2: string;
+  chart3: string;
+  chart4: string;
+  chart5: string;
+  muted: string;
+  mutedForeground: string;
+  popover: string;
+  popoverForeground: string;
+  border: string;
+  destructive: string;
+}
+
+// Fallback colors (dark theme defaults) for SSR and initial render
+const FALLBACK_COLORS: ChartColors = {
+  chart1: "oklch(0.7 0.22 30)",
+  chart2: "oklch(0.65 0.18 220)",
+  chart3: "oklch(0.7 0.2 150)",
+  chart4: "oklch(0.75 0.18 80)",
+  chart5: "oklch(0.7 0.22 300)",
+  muted: "oklch(0.2 0 0)",
+  mutedForeground: "oklch(0.65 0 0)",
+  popover: "oklch(0.14 0 0)",
+  popoverForeground: "oklch(0.95 0 0)",
+  border: "oklch(1 0 0 / 8%)",
+  destructive: "oklch(0.6 0.22 25)",
+};
+
+function getCSSVariableValue(variable: string): string {
+  if (typeof window === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+}
+
+function useChartColors(): ChartColors {
+  const [colors, setColors] = useState<ChartColors>(FALLBACK_COLORS);
+
+  useEffect(() => {
+    const updateColors = () => {
+      setColors({
+        chart1: getCSSVariableValue("--chart-1") || FALLBACK_COLORS.chart1,
+        chart2: getCSSVariableValue("--chart-2") || FALLBACK_COLORS.chart2,
+        chart3: getCSSVariableValue("--chart-3") || FALLBACK_COLORS.chart3,
+        chart4: getCSSVariableValue("--chart-4") || FALLBACK_COLORS.chart4,
+        chart5: getCSSVariableValue("--chart-5") || FALLBACK_COLORS.chart5,
+        muted: getCSSVariableValue("--muted") || FALLBACK_COLORS.muted,
+        mutedForeground: getCSSVariableValue("--muted-foreground") || FALLBACK_COLORS.mutedForeground,
+        popover: getCSSVariableValue("--popover") || FALLBACK_COLORS.popover,
+        popoverForeground: getCSSVariableValue("--popover-foreground") || FALLBACK_COLORS.popoverForeground,
+        border: getCSSVariableValue("--border") || FALLBACK_COLORS.border,
+        destructive: getCSSVariableValue("--destructive") || FALLBACK_COLORS.destructive,
+      });
+    };
+
+    updateColors();
+
+    // Listen for theme changes (class changes on html/body)
+    const observer = new MutationObserver(updateColors);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return colors;
+}
+
+// Helper to convert CSS variable to oklch() format for use in styles
+function oklch(value: string): string {
+  // If already in oklch format, return as-is
+  if (value.startsWith("oklch")) return value;
+  // Otherwise wrap it
+  return `oklch(${value})`;
+}
+
+// =============================================================================
+// Semantic Colors (keep these as constants for clarity)
+// =============================================================================
+
+const SEMANTIC_COLORS = {
+  success: "oklch(0.7 0.2 150)", // emerald/green
+  warning: "oklch(0.75 0.18 80)", // amber
+};
+
+// =============================================================================
+// Exported Color Constants (backwards compatibility)
+// =============================================================================
+
+// Re-export CHART_COLORS for backwards compatibility
+// These are fallback values; components now use CSS variables via useChartColors()
 export const CHART_COLORS = {
-  // Neutral grays visible in dark mode
-  primary: "#a1a1aa", // zinc-400 - good contrast on dark
-  secondary: "#71717a", // zinc-500
-  muted: "#3f3f46", // zinc-700
-  // Semantic colors - use only where meaning matters
-  success: "#22c55e",
-  warning: "#f59e0b",
-  destructive: "#ef4444",
-  // Device colors - visible grayscale
-  desktop: "#d4d4d8", // zinc-300
-  mobile: "#a1a1aa", // zinc-400
-  tablet: "#71717a", // zinc-500
-  // Neutral palette for pie charts - zinc scale
+  primary: FALLBACK_COLORS.chart1,
+  secondary: FALLBACK_COLORS.mutedForeground,
+  muted: FALLBACK_COLORS.muted,
+  success: SEMANTIC_COLORS.success,
+  warning: SEMANTIC_COLORS.warning,
+  destructive: FALLBACK_COLORS.destructive,
+  desktop: FALLBACK_COLORS.chart1,
+  mobile: FALLBACK_COLORS.chart3,
+  tablet: FALLBACK_COLORS.chart5,
   palette: [
-    "#e4e4e7", // zinc-200
-    "#a1a1aa", // zinc-400
-    "#71717a", // zinc-500
-    "#52525b", // zinc-600
-    "#3f3f46", // zinc-700
-    "#27272a", // zinc-800
+    FALLBACK_COLORS.chart1,
+    FALLBACK_COLORS.chart3,
+    FALLBACK_COLORS.chart5,
+    FALLBACK_COLORS.chart2,
+    FALLBACK_COLORS.chart4,
+    FALLBACK_COLORS.mutedForeground,
   ],
 };
+
+// Export the hook for use in other admin components
+export { useChartColors };
 
 // =============================================================================
 // Device Pie Chart
@@ -67,7 +156,9 @@ export function DevicePieChart({
   showLegend = true,
   className,
 }: DevicePieChartProps) {
+  const colors = useChartColors();
   const total = data.desktop + data.mobile + data.tablet;
+
   if (total === 0) {
     return (
       <div
@@ -79,11 +170,11 @@ export function DevicePieChart({
     );
   }
 
-  // Neutral grayscale palette - visible in dark mode
+  // Use chart colors from CSS variables
   const chartData = [
-    { name: "Desktop", value: data.desktop, color: CHART_COLORS.desktop },
-    { name: "Mobile", value: data.mobile, color: CHART_COLORS.mobile },
-    { name: "Tablet", value: data.tablet, color: CHART_COLORS.tablet },
+    { name: "Desktop", value: data.desktop, color: oklch(colors.chart1) },
+    { name: "Mobile", value: data.mobile, color: oklch(colors.chart3) },
+    { name: "Tablet", value: data.tablet, color: oklch(colors.chart5) },
   ].filter((d) => d.value > 0);
 
   return (
@@ -111,10 +202,12 @@ export function DevicePieChart({
                 const item = payload[0].payload;
                 const pct = ((item.value / total) * 100).toFixed(1);
                 return (
-                  <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-lg">
-                    <p className="text-sm font-medium text-zinc-100">{item.name}</p>
-                    <p className="text-xs text-zinc-400">
-                      {item.value.toLocaleString()} ({pct}%)
+                  <div className="bg-popover/95 border border-border rounded-xl px-4 py-3 shadow-2xl backdrop-blur-sm">
+                    <p className="text-sm font-medium text-popover-foreground">{item.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="font-mono text-popover-foreground">{item.value.toLocaleString()}</span>
+                      <span className="mx-1">·</span>
+                      <span className="text-chart-1">{pct}%</span>
                     </p>
                   </div>
                 );
@@ -159,7 +252,9 @@ export function DistributionPieChart({
   maxItems = 6,
   className,
 }: DistributionPieChartProps) {
+  const colors = useChartColors();
   const total = data.reduce((acc, d) => acc + d.value, 0);
+
   if (total === 0 || data.length === 0) {
     return (
       <div
@@ -171,6 +266,16 @@ export function DistributionPieChart({
     );
   }
 
+  // Chart color palette from CSS variables
+  const palette = [
+    oklch(colors.chart1),
+    oklch(colors.chart3),
+    oklch(colors.chart5),
+    oklch(colors.chart2),
+    oklch(colors.chart4),
+    oklch(colors.mutedForeground),
+  ];
+
   // Take top items and group rest as "Other"
   const sortedData = [...data].sort((a, b) => b.value - a.value);
   const chartData: Array<{ name: string; value: number; color: string }> = [];
@@ -181,7 +286,7 @@ export function DistributionPieChart({
       chartData.push({
         name: item.name,
         value: item.value,
-        color: CHART_COLORS.palette[idx % CHART_COLORS.palette.length],
+        color: palette[idx % palette.length],
       });
     } else {
       otherValue += item.value;
@@ -192,7 +297,7 @@ export function DistributionPieChart({
     chartData.push({
       name: "Other",
       value: otherValue,
-      color: CHART_COLORS.secondary,
+      color: oklch(colors.mutedForeground),
     });
   }
 
@@ -221,10 +326,12 @@ export function DistributionPieChart({
                 const item = payload[0].payload;
                 const pct = ((item.value / total) * 100).toFixed(1);
                 return (
-                  <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-lg">
-                    <p className="text-sm font-medium text-zinc-100 capitalize">{item.name}</p>
-                    <p className="text-xs text-zinc-400">
-                      {item.value.toLocaleString()} ({pct}%)
+                  <div className="bg-popover/95 border border-border rounded-xl px-4 py-3 shadow-2xl backdrop-blur-sm">
+                    <p className="text-sm font-medium text-popover-foreground capitalize">{item.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="font-mono text-popover-foreground">{item.value.toLocaleString()}</span>
+                      <span className="mx-1">·</span>
+                      <span className="text-chart-1">{pct}%</span>
                     </p>
                   </div>
                 );
@@ -274,7 +381,9 @@ export function DonutChart({
   showValue = true,
   className,
 }: DonutChartProps) {
+  const colors = useChartColors();
   const clampedValue = Math.max(0, Math.min(100, value));
+
   // Use semantic colors for success-rate/hit-rate type metrics
   const labelLower = label?.toLowerCase() ?? "";
   const isRateMetric =
@@ -282,19 +391,20 @@ export function DonutChart({
     labelLower.includes("hit") ||
     labelLower.includes("l1") ||
     labelLower.includes("l2");
+
   const chartColor =
     color ??
     (isRateMetric
       ? clampedValue >= 95
-        ? CHART_COLORS.success
+        ? SEMANTIC_COLORS.success
         : clampedValue >= 80
-          ? CHART_COLORS.warning
-          : CHART_COLORS.destructive
-      : CHART_COLORS.primary);
+          ? SEMANTIC_COLORS.warning
+          : oklch(colors.destructive)
+      : oklch(colors.chart1));
 
   const chartData = [
     { name: "Value", value: clampedValue, fill: chartColor },
-    { name: "Remainder", value: 100 - clampedValue, fill: CHART_COLORS.muted },
+    { name: "Remainder", value: 100 - clampedValue, fill: oklch(colors.muted) },
   ];
 
   return (
@@ -350,13 +460,15 @@ export function TrendChart({
   data,
   dataKey = "value",
   height = 200,
-  color = "#a1a1aa", // zinc-400
+  color,
   showAxis = true,
   className,
   areaOpacity = 0.2,
   formatValue = (v) => v.toLocaleString(),
   formatDate = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
 }: TrendChartProps) {
+  const colors = useChartColors();
+
   if (!data.length) {
     return (
       <div
@@ -368,6 +480,8 @@ export function TrendChart({
     );
   }
 
+  const chartColor = color ?? oklch(colors.chart1);
+  const axisColor = oklch(colors.mutedForeground);
   const gradientId = `trend-gradient-${Math.random().toString(36).slice(2, 9)}`;
 
   return (
@@ -376,8 +490,8 @@ export function TrendChart({
         <AreaChart data={data} margin={{ top: 5, right: 5, left: showAxis ? -20 : 0, bottom: 5 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={areaOpacity} />
-              <stop offset="95%" stopColor={color} stopOpacity={0} />
+              <stop offset="5%" stopColor={chartColor} stopOpacity={areaOpacity} />
+              <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
             </linearGradient>
           </defs>
           {showAxis && (
@@ -385,12 +499,12 @@ export function TrendChart({
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDate}
-                tick={{ fontSize: 10, fill: "#71717a" }}
+                tick={{ fontSize: 10, fill: axisColor }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "#71717a" }}
+                tick={{ fontSize: 10, fill: axisColor }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={formatValue}
@@ -399,11 +513,14 @@ export function TrendChart({
           )}
           <RechartsTooltip
             contentStyle={{
-              backgroundColor: "#18181b",
-              border: "1px solid #3f3f46",
-              borderRadius: "8px",
+              backgroundColor: `color-mix(in oklch, ${oklch(colors.popover)} 95%, transparent)`,
+              border: `1px solid ${oklch(colors.border)}`,
+              borderRadius: "12px",
               fontSize: "12px",
-              color: "#e4e4e7",
+              color: oklch(colors.popoverForeground),
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              backdropFilter: "blur(8px)",
+              padding: "12px 16px",
             }}
             labelFormatter={formatDate}
             formatter={(value) => [formatValue(value as number), dataKey]}
@@ -411,7 +528,7 @@ export function TrendChart({
           <Area
             type="monotone"
             dataKey={dataKey}
-            stroke={color}
+            stroke={chartColor}
             fillOpacity={1}
             fill={`url(#${gradientId})`}
             strokeWidth={2}
@@ -438,11 +555,12 @@ interface HorizontalBarChartProps {
 export function HorizontalBarChart({
   data,
   height = 200,
-  color = "#71717a", // zinc-500
+  color,
   maxItems = 5,
   className,
   formatValue = (v) => v.toLocaleString(),
 }: HorizontalBarChartProps) {
+  const colors = useChartColors();
   const chartData = data.slice(0, maxItems);
 
   if (!chartData.length) {
@@ -456,6 +574,9 @@ export function HorizontalBarChart({
     );
   }
 
+  const barColor = color ?? oklch(colors.chart1);
+  const axisColor = oklch(colors.mutedForeground);
+
   return (
     <div className={className} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -468,28 +589,31 @@ export function HorizontalBarChart({
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fontSize: 11, fill: "#a1a1aa" }}
+            tick={{ fontSize: 11, fill: axisColor }}
             axisLine={false}
             tickLine={false}
             width={80}
           />
           <RechartsTooltip
             contentStyle={{
-              backgroundColor: "#18181b",
-              border: "1px solid #3f3f46",
-              borderRadius: "8px",
+              backgroundColor: `color-mix(in oklch, ${oklch(colors.popover)} 95%, transparent)`,
+              border: `1px solid ${oklch(colors.border)}`,
+              borderRadius: "12px",
               fontSize: "12px",
-              color: "#e4e4e7",
+              color: oklch(colors.popoverForeground),
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              backdropFilter: "blur(8px)",
+              padding: "12px 16px",
             }}
             formatter={(value) => [formatValue(value as number), "Count"]}
           />
           <Bar
             dataKey="value"
-            fill={color}
+            fill={barColor}
             radius={[0, 4, 4, 0]}
             label={{
               position: "right",
-              fill: "#a1a1aa",
+              fill: axisColor,
               fontSize: 10,
               formatter: (v: unknown) => formatValue(v as number),
             }}
@@ -523,6 +647,8 @@ export function MultiSeriesChart({
   formatValue = (v) => v.toLocaleString(),
   formatDate = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
 }: MultiSeriesChartProps) {
+  const colors = useChartColors();
+
   if (!data.length) {
     return (
       <div
@@ -533,6 +659,8 @@ export function MultiSeriesChart({
       </div>
     );
   }
+
+  const axisColor = oklch(colors.mutedForeground);
 
   return (
     <div className={className} style={{ height }}>
@@ -551,12 +679,12 @@ export function MultiSeriesChart({
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDate}
-                tick={{ fontSize: 10, fill: "#71717a" }}
+                tick={{ fontSize: 10, fill: axisColor }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "#71717a" }}
+                tick={{ fontSize: 10, fill: axisColor }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={formatValue}
@@ -565,18 +693,21 @@ export function MultiSeriesChart({
           )}
           <RechartsTooltip
             contentStyle={{
-              backgroundColor: "#18181b",
-              border: "1px solid #3f3f46",
-              borderRadius: "8px",
+              backgroundColor: `color-mix(in oklch, ${oklch(colors.popover)} 95%, transparent)`,
+              border: `1px solid ${oklch(colors.border)}`,
+              borderRadius: "12px",
               fontSize: "12px",
-              color: "#e4e4e7",
+              color: oklch(colors.popoverForeground),
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              backdropFilter: "blur(8px)",
+              padding: "12px 16px",
             }}
             labelFormatter={formatDate}
           />
           <Legend
             verticalAlign="top"
             height={24}
-            formatter={(value) => <span className="text-xs text-zinc-400">{value}</span>}
+            formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
           />
           {series.map((s) => (
             <Area
@@ -624,6 +755,8 @@ export function MultiLineChart({
   },
   dualAxis = false,
 }: MultiLineChartProps) {
+  const colors = useChartColors();
+
   if (!data.length) {
     return (
       <div
@@ -634,6 +767,8 @@ export function MultiLineChart({
       </div>
     );
   }
+
+  const axisColor = oklch(colors.mutedForeground);
 
   return (
     <div className={className} style={{ height }}>
@@ -647,13 +782,13 @@ export function MultiLineChart({
               <XAxis
                 dataKey="timestamp"
                 tickFormatter={formatTimestamp}
-                tick={{ fontSize: 10, fill: "#71717a" }}
+                tick={{ fontSize: 10, fill: axisColor }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 yAxisId="left"
-                tick={{ fontSize: 10, fill: "#71717a" }}
+                tick={{ fontSize: 10, fill: axisColor }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={formatValue}
@@ -662,7 +797,7 @@ export function MultiLineChart({
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  tick={{ fontSize: 10, fill: "#71717a" }}
+                  tick={{ fontSize: 10, fill: axisColor }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={formatValue}
@@ -672,11 +807,14 @@ export function MultiLineChart({
           )}
           <RechartsTooltip
             contentStyle={{
-              backgroundColor: "#18181b",
-              border: "1px solid #3f3f46",
-              borderRadius: "8px",
+              backgroundColor: `color-mix(in oklch, ${oklch(colors.popover)} 95%, transparent)`,
+              border: `1px solid ${oklch(colors.border)}`,
+              borderRadius: "12px",
               fontSize: "12px",
-              color: "#e4e4e7",
+              color: oklch(colors.popoverForeground),
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              backdropFilter: "blur(8px)",
+              padding: "12px 16px",
             }}
             labelFormatter={formatTimestamp}
             formatter={(value, name) => [formatValue(value as number), name]}
@@ -684,7 +822,7 @@ export function MultiLineChart({
           <Legend
             verticalAlign="top"
             height={24}
-            formatter={(value) => <span className="text-xs text-zinc-400">{value}</span>}
+            formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
           />
           {lines.map((line) => (
             <Line
@@ -731,16 +869,17 @@ export function SystemMetricsChart({
   showMemory = true,
   showEventLoop = false,
 }: SystemMetricsChartProps) {
+  const colors = useChartColors();
   const lines: Array<{ key: string; name: string; color: string }> = [];
 
   if (showCPU) {
-    lines.push({ key: "cpuLoad", name: "CPU Load", color: "#f59e0b" }); // amber
+    lines.push({ key: "cpuLoad", name: "CPU Load", color: SEMANTIC_COLORS.warning }); // amber
   }
   if (showMemory) {
-    lines.push({ key: "memoryUsedPct", name: "Memory %", color: "#22c55e" }); // green
+    lines.push({ key: "memoryUsedPct", name: "Memory %", color: SEMANTIC_COLORS.success }); // green
   }
   if (showEventLoop) {
-    lines.push({ key: "eventLoopLag", name: "Event Loop Lag (ms)", color: "#ef4444" }); // red
+    lines.push({ key: "eventLoopLag", name: "Event Loop Lag (ms)", color: oklch(colors.destructive) }); // red
   }
 
   return (
@@ -785,12 +924,14 @@ export function TrafficHistoryChart({
   className,
   showBots = true,
 }: TrafficHistoryChartProps) {
+  const colors = useChartColors();
+
   const lines: Array<{ key: string; name: string; color: string }> = [
-    { key: "humanViews", name: "Human Views", color: "#a1a1aa" }, // zinc-400
+    { key: "humanViews", name: "Human Views", color: oklch(colors.chart1) },
   ];
 
   if (showBots) {
-    lines.push({ key: "botViews", name: "Bot Views", color: "#71717a" }); // zinc-500
+    lines.push({ key: "botViews", name: "Bot Views", color: oklch(colors.mutedForeground) });
   }
 
   // Normalize data to have timestamp field

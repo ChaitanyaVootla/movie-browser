@@ -378,7 +378,7 @@ function TrafficComparisonChart({
             className="h-3 w-3"
           />
           <Label htmlFor="show-human" className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <span className="w-2 h-2 rounded-full bg-zinc-200" />
+            <span className="w-2 h-2 rounded-full bg-foreground/80" />
             Human
             <span className="text-muted-foreground">({totalHuman.toLocaleString()})</span>
           </Label>
@@ -391,7 +391,7 @@ function TrafficComparisonChart({
             className="h-3 w-3"
           />
           <Label htmlFor="show-bot" className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <span className="w-2 h-2 rounded-full bg-zinc-500" />
+            <span className="w-2 h-2 rounded-full bg-muted-foreground" />
             Bot
             <span className="text-muted-foreground">({totalBot.toLocaleString()})</span>
           </Label>
@@ -455,29 +455,35 @@ function TrafficAreaChart({
       <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
         <defs>
           <linearGradient id="humanGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#e4e4e7" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#e4e4e7" stopOpacity={0} />
+            <stop offset="5%" stopColor="oklch(0.9 0 0)" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="oklch(0.9 0 0)" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="botGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#71717a" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#71717a" stopOpacity={0} />
+            <stop offset="5%" stopColor="oklch(0.55 0 0)" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="oklch(0.55 0 0)" stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
           dataKey="date"
           tickFormatter={formatDate}
-          tick={{ fontSize: 10, fill: "#71717a" }}
+          tick={{ fontSize: 10 }}
           axisLine={false}
           tickLine={false}
+          className="fill-muted-foreground"
         />
-        <YAxis tick={{ fontSize: 10, fill: "#71717a" }} axisLine={false} tickLine={false} />
+        <YAxis
+          tick={{ fontSize: 10 }}
+          axisLine={false}
+          tickLine={false}
+          className="fill-muted-foreground"
+        />
         <RechartsTooltip
           contentStyle={{
-            backgroundColor: "#18181b",
-            border: "1px solid #3f3f46",
+            backgroundColor: "oklch(var(--popover))",
+            border: "1px solid oklch(var(--border))",
             borderRadius: "8px",
             fontSize: "12px",
-            color: "#e4e4e7",
+            color: "oklch(var(--popover-foreground))",
           }}
           labelFormatter={formatTooltipDate}
           formatter={(value, name) => {
@@ -490,7 +496,7 @@ function TrafficAreaChart({
             type="monotone"
             dataKey="human"
             name="human"
-            stroke="#e4e4e7"
+            stroke="oklch(0.9 0 0)"
             fillOpacity={1}
             fill="url(#humanGradient)"
             strokeWidth={2}
@@ -502,7 +508,7 @@ function TrafficAreaChart({
             type="monotone"
             dataKey="bot"
             name="bot"
-            stroke="#71717a"
+            stroke="oklch(0.55 0 0)"
             fillOpacity={1}
             fill="url(#botGradient)"
             strokeWidth={2}

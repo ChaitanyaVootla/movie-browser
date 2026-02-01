@@ -22,7 +22,7 @@ import {
   UserRating,
 } from "@/server/db/models/user-library";
 import { getMovieDetails, getSeriesDetails } from "@/server/services/tmdb";
-import { getAIInputMarkdown } from "@/lib/ai-summary";
+import { getRawAIInput } from "@/server/services/ai-data-service";
 import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -217,14 +217,6 @@ export const getDetailsTool = tool(
         if (Object.keys(movie.ratings).length > 0) {
           response.ratings = movie.ratings;
         }
-
-        // Include enriched AI summary if available
-        // TODO: Strip down to single summary/synopsis to reduce token usage.
-        // Currently includes full enriched markdown with plot, themes, reception, etc.
-        const aiSummary = await getAIInputMarkdown(input.id);
-        if (aiSummary) {
-          response.aiSummary = aiSummary;
-        }
       } else {
         const series = details as Awaited<ReturnType<typeof getLightSeriesDetails>>;
         if (!series) {
@@ -250,6 +242,13 @@ export const getDetailsTool = tool(
         if (Object.keys(series.ratings).length > 0) {
           response.ratings = series.ratings;
         }
+      }
+
+      // Include enriched AI context if available (for both movies and series)
+      // Contains plot details, themes, reception, etc. from PostgreSQL
+      const rawAIInput = await getRawAIInput(input.id, input.mediaType);
+      if (rawAIInput) {
+        response.aiContext = rawAIInput;
       }
 
       // Add user context if logged in

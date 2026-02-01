@@ -10,7 +10,7 @@
  * - Aggregate credits
  */
 
-import { prisma } from "@/server/db/postgres";
+import { prisma, Prisma } from "@/server/db/postgres";
 import type { EnrichedData } from "../../types";
 import type { TmdbSeriesData } from "../tmdb";
 import type { PrismaTx, SeasonWithEpisodes } from "./types";
@@ -70,11 +70,17 @@ export async function upsertSeriesToPostgres(
             lastEpisodeAirDate: tmdb.last_episode_to_air?.air_date
               ? new Date(tmdb.last_episode_to_air.air_date)
               : null,
+            lastEpisodeData: tmdb.last_episode_to_air
+              ? (tmdb.last_episode_to_air as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
             nextEpisodeSeasonNum: tmdb.next_episode_to_air?.season_number ?? null,
             nextEpisodeNum: tmdb.next_episode_to_air?.episode_number ?? null,
             nextEpisodeAirDate: tmdb.next_episode_to_air?.air_date
               ? new Date(tmdb.next_episode_to_air.air_date)
               : null,
+            nextEpisodeData: tmdb.next_episode_to_air
+              ? (tmdb.next_episode_to_air as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
           },
           update: {
             name: tmdb.name,
@@ -101,11 +107,17 @@ export async function upsertSeriesToPostgres(
             lastEpisodeAirDate: tmdb.last_episode_to_air?.air_date
               ? new Date(tmdb.last_episode_to_air.air_date)
               : null,
+            lastEpisodeData: tmdb.last_episode_to_air
+              ? (tmdb.last_episode_to_air as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
             nextEpisodeSeasonNum: tmdb.next_episode_to_air?.season_number ?? null,
             nextEpisodeNum: tmdb.next_episode_to_air?.episode_number ?? null,
             nextEpisodeAirDate: tmdb.next_episode_to_air?.air_date
               ? new Date(tmdb.next_episode_to_air.air_date)
               : null,
+            nextEpisodeData: tmdb.next_episode_to_air
+              ? (tmdb.next_episode_to_air as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
             updatedAt: new Date(),
           },
         });

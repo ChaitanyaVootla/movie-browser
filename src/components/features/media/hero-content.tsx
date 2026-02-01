@@ -3,10 +3,9 @@
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MediaLogo } from "@/components/features/movie/media-logo";
-import { GenreList } from "./genre-badge";
 import { RatingsBar } from "./ratings-bar";
 import { WatchOptions } from "./watch-options";
-import type { Genre, Rating, ProcessedWatchOptions } from "@/types";
+import type { Rating, ProcessedWatchOptions } from "@/types";
 import type { WatchOptionsItem } from "@/types/client-props";
 
 // Animation variants - shared across all hero sections
@@ -46,8 +45,6 @@ interface HeroContentProps {
   title: string;
   /** Media type for routing and image URLs */
   mediaType: "movie" | "series";
-  /** Genre list */
-  genres?: Genre[];
   /** Ratings from various sources */
   ratings?: Rating[];
   /** TMDB vote average (0-10) - used as fallback if no ratings provided */
@@ -66,13 +63,14 @@ interface HeroContentProps {
   watchOptions?: ProcessedWatchOptions;
   /** Item data for continue watching tracking (light version) */
   item?: WatchOptionsItem;
+  /** AI-generated one-liner hook */
+  hook?: string;
 }
 
 export function HeroContent({
   itemId,
   title,
   mediaType,
-  genres = [],
   ratings,
   voteAverage,
   tmdbLogoPath,
@@ -82,6 +80,7 @@ export function HeroContent({
   priority = false,
   watchOptions,
   item,
+  hook,
 }: HeroContentProps) {
   // Build ratings array - use provided ratings or fall back to TMDB vote
   const displayRatings = ratings?.length
@@ -95,7 +94,7 @@ export function HeroContent({
       {/* Logo - responsive constraints for tall/wide logos
           Mobile: smaller, centered
           Desktop: larger, left-aligned */}
-      <motion.div variants={heroItemVariants} className="mb-3 md:mb-6 lg:mb-8 drop-shadow-lg">
+      <motion.div variants={heroItemVariants} className="mb-4 md:mb-6 lg:mb-8 drop-shadow-lg">
         <MediaLogo
           item={{
             id: itemId,
@@ -114,11 +113,14 @@ export function HeroContent({
 
       {/* Info section - centered on mobile, left-aligned on desktop */}
       <div className="flex flex-col items-center md:items-start gap-2 md:gap-3">
-        {/* Genres */}
-        {genres.length > 0 && (
-          <motion.div variants={heroItemVariants}>
-            <GenreList genres={genres} mediaType={mediaType} size="sm" maxVisible={4} />
-          </motion.div>
+        {/* AI Hook - tagline above content */}
+        {hook && (
+          <motion.blockquote
+            variants={heroItemVariants}
+            className="border-l-2 border-brand/50 pl-3 text-sm md:text-base text-foreground/90 italic font-medium text-left max-w-md leading-relaxed"
+          >
+            {hook}
+          </motion.blockquote>
         )}
 
         {/* Ratings */}

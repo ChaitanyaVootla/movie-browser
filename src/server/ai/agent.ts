@@ -15,11 +15,11 @@ import {
 } from "@langchain/core/messages";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentState, type AgentStateType } from "./state";
-import { createBedrockChat } from "./bedrock";
+import { createChatModel, getCurrentModelId as getProviderModelId } from "./provider";
 import { allTools } from "./tools";
 import { getSystemPrompt } from "./prompts/system";
 import { aiLogger, usageLogger, aiToolLogger } from "@/lib/logger";
-import { calculateUsageStats, getCurrentModelId, type UsageStats } from "@/lib/model-pricing";
+import { calculateUsageStats, type UsageStats } from "@/lib/model-pricing";
 import { trackAIUsage } from "@/lib/analytics/track";
 import type { QueryType } from "@/lib/analytics/types";
 
@@ -205,7 +205,7 @@ export function resetAgentLogs() {
  * Agent node - the LLM decides what to do next
  */
 async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
-  const model = createBedrockChat().bindTools(allTools);
+  const model = createChatModel().bindTools(allTools);
 
   // Build messages with system prompt including user context
   const isAuthenticated = !!state.userId;
@@ -551,7 +551,7 @@ export async function invokeAgent(
   // Calculate total token usage across all turns
   const totalInputTokens = turnUsages.reduce((sum, u) => sum + u.inputTokens, 0);
   const totalOutputTokens = turnUsages.reduce((sum, u) => sum + u.outputTokens, 0);
-  const modelId = getCurrentModelId();
+  const modelId = getProviderModelId();
   const usageStats = calculateUsageStats(modelId, totalInputTokens, totalOutputTokens);
 
   // Update stats with final timing

@@ -12,6 +12,7 @@ import {
   getCachedSeriesRatingsBatch,
 } from "@/server/db/cached-queries";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
+import { getAIDataBatch } from "@/server/services/ai-data-service";
 import { getWatchOptionsForCountry, type ProcessedWatchOptions } from "@/lib/watch-options";
 import { getCountryCode } from "@/server/utils";
 import { MOVIE_GENRES, TV_GENRES, CACHE_DURATIONS } from "@/lib/constants";
@@ -115,6 +116,8 @@ export interface HeroItemEnhancedData {
   watchOptions: ProcessedWatchOptions;
   /** Light item data for continue watching (pre-extracted) */
   item: WatchOptionsItem;
+  /** AI-generated one-liner hook */
+  hook?: string;
 }
 
 export interface TrendingData {
@@ -202,11 +205,14 @@ export async function getTrending(): Promise<TrendingData> {
       .map((item) => item.id);
     const heroTVIds = allItems.filter((item) => item.media_type === "tv").map((item) => item.id);
 
-    // Fetch MongoDB ratings and TMDB watch providers in parallel
-    const [movieRatings, seriesRatings, ...watchProvidersResults] = await Promise.all([
+    // Fetch MongoDB ratings, TMDB watch providers, and AI hooks in parallel
+    const [movieRatings, seriesRatings, movieAIData, seriesAIData, ...watchProvidersResults] = await Promise.all([
       // Batch fetch MongoDB ratings
       heroMovieIds.length > 0 ? getCachedMovieRatingsBatch(heroMovieIds) : Promise.resolve([]),
       heroTVIds.length > 0 ? getCachedSeriesRatingsBatch(heroTVIds) : Promise.resolve([]),
+      // Batch fetch AI hooks
+      heroMovieIds.length > 0 ? getAIDataBatch(heroMovieIds, "movie") : Promise.resolve(new Map()),
+      heroTVIds.length > 0 ? getAIDataBatch(heroTVIds, "series") : Promise.resolve(new Map()),
       // Fetch watch providers for each hero item (parallel)
       ...allItems.map((item) =>
         fetchWatchProviders(item.id, item.media_type === "movie" ? "movie" : "tv")
@@ -258,11 +264,17 @@ export async function getTrending(): Promise<TrendingData> {
         // WatchOptions falls back to backdrop_path when not provided
       };
 
+      // Get AI hook if available
+      const aiDataMap = isMovie ? movieAIData : seriesAIData;
+      const aiData = aiDataMap.get(item.id);
+      const hook = aiData?.hook ?? undefined;
+
       // Note: watchProviders/googleData no longer included - WatchOptions lazy-loads on country change
       heroEnhancedData[key] = {
         ratings,
         watchOptions,
         item: watchOptionsItem,
+        hook,
       };
     });
 
@@ -437,6 +449,22 @@ export async function getNowPlaying(): Promise<MovieListItem[]> {
 // =============================================================================
 
 import { getYouTubeChannelTrailers } from "@/server/services/youtube-channels";
+import { enrichTrailersWithMatches } from "@/server/services/trailer-matching";
+
+/**
+ * Match data when a YouTube trailer is linked to a movie/series in the database
+ */
+export interface YouTubeTrailerMatch {
+  tmdbId: number;
+  mediaType: "movie" | "series";
+  title: string;
+  posterPath: string | null;
+  year: string | null;
+  confidence: number;
+  matchMethod: "exact" | "fuzzy" | "semantic";
+  /** AI-generated one-liner hook for the matched movie/series */
+  hook?: string;
+}
 
 /**
  * YouTube trailer item for display
@@ -453,6 +481,8 @@ export interface YouTubeTrendingTrailer {
   viewCount: number;
   likeCount: number;
   thumbnail: string;
+  /** Optional match data when linked to a movie/series in the database */
+  match?: YouTubeTrailerMatch;
 }
 
 /**
@@ -460,6 +490,9 @@ export interface YouTubeTrendingTrailer {
  *
  * This discovers viral trailers by monitoring official studio channels directly.
  * Unlike TMDB-based trailers, these don't have TMDB IDs but show real engagement.
+ *
+ * Trailers are enriched with match data that links them to movies/series in the database
+ * using fuzzy and semantic search.
  */
 export async function getYouTubeTrendingTrailers(
   limit: number = 12
@@ -471,19 +504,11 @@ export async function getYouTubeTrendingTrailers(
       minViews: 50000, // Higher threshold for home page
     });
 
-    return trailers.map((t) => ({
-      youtubeId: t.id,
-      title: t.extractedTitle,
-      trailerTitle: t.title,
-      channelTitle: t.channelTitle,
-      channelThumbnail: t.channelThumbnail,
-      channelCategory: t.channelCategory,
-      publishedAt: t.publishedAt,
-      viewCount: t.viewCount,
-      likeCount: t.likeCount,
-      thumbnail: t.thumbnail,
-    }));
-  } catch (error) {
+    // Enrich trailers with movie/series match data
+    const enrichedTrailers = await enrichTrailersWithMatches(trailers);
+
+    return enrichedTrailers;
+  } catch (error: unknown) {
     dataLogger.error({
       event: "fetch_youtube_trending_trailers_error",
       error: error instanceof Error ? error.message : String(error),

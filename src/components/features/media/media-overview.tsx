@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Zap, Flame, Moon, Heart } from "lucide-react";
+import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   AISummary,
@@ -13,12 +13,42 @@ import Link from "next/link";
 import { KeywordsList } from "./keywords-list";
 import { CountryLanguageBadges } from "./country-language-badges";
 import { ContentWarningLink } from "./content-warning-link";
+import { GenreList } from "./genre-badge";
 import { MediaScroller } from "./media-scroller";
 import { EnrichButton } from "./enrich-button";
 import { RefreshDataButton } from "./refresh-data-button";
-import { ItemAnalyticsModal } from "@/components/features/admin";
+import { ItemAnalyticsModal, AIDataModal } from "@/components/features/admin";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { WatchNotes } from "./insight-sections";
+import { StandoutAspects } from "./standout-aspects";
+
+/** Structured insight item from AI data service */
+interface InsightItem {
+  subcategory: string;
+  text: string;
+}
+
+/** Deep dive item with spoiler level */
+interface DeepDiveItem extends InsightItem {
+  spoilerLevel: string;
+}
+
+/** Structured AI insights from the new data format */
+interface AIInsights {
+  spoilerFree: {
+    vibes: string[];
+    themes: string[];
+    bestFor: InsightItem[];
+    highlights: InsightItem[];
+    headsUp: InsightItem[];
+    questions: string[];
+  };
+  spoilerContent: {
+    questions: string[];
+    deepDive: DeepDiveItem[];
+  };
+}
 
 /**
  * Light prop types for RSC serialization optimization.
@@ -28,6 +58,8 @@ interface MediaOverviewProps {
   item: MovieOverviewProps | SeriesOverviewProps;
   mediaType: "movie" | "series";
   aiSummary?: AISummary | null;
+  /** New structured AI insights with icons */
+  aiInsights?: AIInsights | null;
   className?: string;
 }
 
@@ -75,10 +107,10 @@ function CastCard({ cast }: { cast: MediaOverviewCast }) {
           sizes="110px"
         />
       </div>
-      <p className="text-xs font-medium group-hover:text-brand transition-colors">
+      <p className="text-[13px] font-medium group-hover:text-brand transition-colors leading-tight">
         {cast.name}
       </p>
-      <p className="text-[11px] text-muted-foreground">{cast.character}</p>
+      <p className="text-xs text-muted-foreground/80 leading-tight">{cast.character}</p>
     </Link>
   );
 }
@@ -95,125 +127,113 @@ function InfoItem({
 }) {
   if (!value) return null;
 
-  const content = <span className="text-foreground">{value}</span>;
-
   return (
     <div className="flex items-baseline gap-2">
-      <span className="text-muted-foreground text-xs shrink-0">{label}</span>
+      <span className="text-xs text-foreground/70 shrink-0">{label}</span>
       {href ? (
-        <Link href={href} className="text-xs hover:text-brand transition-colors truncate">
-          {content}
+        <Link href={href} className="text-xs font-semibold hover:text-brand transition-colors truncate">
+          {value}
         </Link>
       ) : (
-        <span className="text-xs truncate">{content}</span>
+        <span className="text-xs font-semibold truncate">{value}</span>
       )}
     </div>
   );
 }
 
-// Mood indicators - 2-line cards with label on top and value below
-// Colors based on values for visual meaning
-// Tooltips explain what each value means
+// Mood indicators - "Vibe" section with clean 2x2 grid
+// Subtle color hints for extreme values
 function MoodIndicators({ mood }: { mood: AISummary["mood"] }) {
-  const getColorClasses = (type: string, value: string) => {
-    switch (type) {
-      case "pacing":
-        return value === "fast"
-          ? "border-yellow-500/40 text-yellow-400"
-          : value === "slow"
-            ? "border-blue-500/40 text-blue-400"
-            : "border-gray-500/40 text-gray-400";
-      case "intensity":
-        return value === "high"
-          ? "border-orange-500/40 text-orange-400"
-          : value === "low"
-            ? "border-cyan-500/40 text-cyan-400"
-            : "border-gray-500/40 text-gray-400";
-      case "tone":
-        return value === "dark"
-          ? "border-purple-500/40 text-purple-400"
-          : value === "light"
-            ? "border-amber-500/40 text-amber-400"
-            : "border-gray-500/40 text-gray-400";
-      case "emotional":
-        return value === "heavy"
-          ? "border-rose-500/40 text-rose-400"
-          : value === "light"
-            ? "border-emerald-500/40 text-emerald-400"
-            : "border-gray-500/40 text-gray-400";
-      default:
-        return "border-white/20 text-muted-foreground";
-    }
-  };
-
   // Tooltip descriptions for each mood type and value
   const getTooltip = (type: string, value: string): string => {
     const tooltips: Record<string, Record<string, string>> = {
       pacing: {
-        fast: "Quick cuts, lots of action, keeps you on the edge of your seat",
-        steady: "Balanced rhythm with room to breathe between key moments",
-        slow: "Deliberate, contemplative storytelling that takes its time",
+        fast: "Quick cuts, lots of action, keeps you on the edge",
+        steady: "Balanced rhythm with room to breathe",
+        slow: "Deliberate, contemplative storytelling",
       },
       intensity: {
-        high: "Gripping and tense throughout, emotionally or physically demanding",
-        medium: "Engaging with peaks of tension but not relentless",
-        low: "Relaxed and easygoing, minimal stress or conflict",
+        high: "Gripping and tense throughout",
+        medium: "Engaging with peaks of tension",
+        low: "Relaxed and easygoing",
       },
       tone: {
-        dark: "Serious, grim, or bleak themes and atmosphere",
-        light: "Upbeat, optimistic, or comedic in nature",
-        mixed: "Balances lighter and heavier moments throughout",
+        dark: "Serious, grim themes and atmosphere",
+        light: "Upbeat, optimistic, or comedic",
+        mixed: "Balances lighter and heavier moments",
       },
       emotional: {
-        heavy: "Emotionally intense, may leave you thinking or feeling deeply",
-        medium: "Emotionally engaging without being overwhelming",
-        light: "Easy watch, won't weigh on you emotionally",
+        heavy: "Emotionally intense, may leave you thinking",
+        medium: "Emotionally engaging without overwhelming",
+        light: "Easy watch, won't weigh on you",
       },
     };
     return tooltips[type]?.[value] || "";
   };
 
+  // Subtle color accents for extreme values only
+  const getColorClasses = (type: string, value: string): string => {
+    const base = "bg-white/[0.03] border-white/5";
+    switch (type) {
+      case "pacing":
+        if (value === "fast") return "bg-amber-500/[0.06] border-amber-500/20 text-amber-200";
+        if (value === "slow") return "bg-blue-500/[0.06] border-blue-500/20 text-blue-200";
+        return base;
+      case "intensity":
+        if (value === "high") return "bg-orange-500/[0.06] border-orange-500/20 text-orange-200";
+        if (value === "low") return "bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-200";
+        return base;
+      case "tone":
+        if (value === "dark") return "bg-purple-500/[0.06] border-purple-500/20 text-purple-200";
+        if (value === "light") return "bg-yellow-500/[0.06] border-yellow-500/20 text-yellow-200";
+        return base;
+      case "emotional":
+        if (value === "heavy") return "bg-rose-500/[0.06] border-rose-500/20 text-rose-200";
+        if (value === "light") return "bg-cyan-500/[0.06] border-cyan-500/20 text-cyan-200";
+        return base;
+      default:
+        return base;
+    }
+  };
+
   const indicators = [
-    { key: "pacing", label: "Pace", value: mood.pacing, icon: Zap },
-    { key: "intensity", label: "Intensity", value: mood.intensity, icon: Flame },
-    { key: "tone", label: "Tone", value: mood.tone, icon: Moon },
-    { key: "emotional", label: "Feel", value: mood.emotional, icon: Heart },
+    { key: "pacing", label: "Pace", value: mood.pacing },
+    { key: "intensity", label: "Intensity", value: mood.intensity },
+    { key: "tone", label: "Tone", value: mood.tone },
+    { key: "emotional", label: "Feel", value: mood.emotional },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-1.5 pt-2 mt-2 border-t border-white/5">
-      {indicators.map(({ key, label, value, icon: Icon }) => {
-        const colorClasses = getColorClasses(key, value);
-        const tooltip = getTooltip(key, value);
-        return (
-          <Tooltip key={key}>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  "flex flex-col items-center px-2 py-1.5 rounded bg-white/5 border cursor-help",
-                  colorClasses.split(" ")[0] // border color only
-                )}
-              >
-                <div className="flex items-center gap-1 text-[9px] text-muted-foreground uppercase tracking-wide">
-                  <Icon className={cn("h-2.5 w-2.5", colorClasses.split(" ")[1])} />
-                  <span>{label}</span>
+    <div className="pt-3 mt-3 border-t border-white/10">
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Vibe</h4>
+      <div className="grid grid-cols-2 gap-1.5">
+        {indicators.map(({ key, label, value }) => {
+          const tooltip = getTooltip(key, value);
+          const colorClasses = getColorClasses(key, value);
+          return (
+            <Tooltip key={key}>
+              <TooltipTrigger asChild>
+                <div className={cn(
+                  "flex flex-col px-2.5 py-1.5 rounded-md border cursor-help transition-colors",
+                  colorClasses
+                )}>
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
+                  <span className="text-xs font-semibold capitalize">{value}</span>
                 </div>
-                <span className="text-[11px] font-medium text-foreground/80 capitalize">
-                  {value}
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[200px] text-center">
-              <p className="text-xs">{tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        );
-      })}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[180px] text-center">
+                <p>{tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// Themes list - displayed above keywords
+
+// Themes list - clean tags for thematic content
 function ThemesList({ themes }: { themes: string[] }) {
   if (!themes?.length) return null;
 
@@ -222,7 +242,14 @@ function ThemesList({ themes }: { themes: string[] }) {
       {themes.map((theme, index) => (
         <span
           key={index}
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-white/5 text-foreground/70 border border-brand/30"
+          className={cn(
+            "inline-flex items-center",
+            "px-2.5 py-1 rounded-md",
+            "text-xs font-medium",
+            "bg-white/5 text-foreground/80",
+            "border border-white/10",
+            "transition-colors hover:bg-white/10 hover:text-foreground"
+          )}
         >
           {theme}
         </span>
@@ -303,11 +330,11 @@ function SeriesStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium",
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold",
         config.color
       )}
     >
-      {config.icon && <span className="animate-pulse text-[6px]">{config.icon}</span>}
+      {config.icon && <span className="animate-pulse text-[10px]">{config.icon}</span>}
       {config.label}
     </span>
   );
@@ -331,13 +358,14 @@ function AdminToolsFooter({
   return (
     <div className="flex justify-end items-center gap-2 px-4 py-2 border-t border-white/5">
       <ItemAnalyticsModal tmdbId={tmdbId} mediaType={mediaType} />
+      <AIDataModal tmdbId={tmdbId} mediaType={mediaType} />
       <RefreshDataButton tmdbId={tmdbId} mediaType={mediaType} />
       <EnrichButton tmdbId={tmdbId} mediaType={mediaType} />
     </div>
   );
 }
 
-export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOverviewProps) {
+export function MediaOverview({ item, mediaType, aiSummary, aiInsights, className }: MediaOverviewProps) {
   // Props are now pre-extracted - no more digging into nested objects
   const director = isMovie(item) ? item.director : undefined;
   const creators = !isMovie(item) ? item.creators : undefined;
@@ -375,16 +403,16 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
             <div className="p-4 md:p-5 space-y-3">
               {item.overview && (
                 <div>
-                  <h2 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
-                    Overview
-                  </h2>
-                  {/* AI Hook - engaging one-liner with blockquote style */}
-                  {aiSummary?.hook && (
-                    <blockquote className="border-l-2 border-brand/50 pl-3 mb-2">
-                      <p className="text-sm italic text-muted-foreground leading-relaxed">
-                        {aiSummary.hook}
-                      </p>
-                    </blockquote>
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Overview</h2>
+                  {/* Genres - under overview heading */}
+                  {item.genres && item.genres.length > 0 && (
+                    <GenreList
+                      genres={item.genres}
+                      mediaType={mediaType}
+                      size="sm"
+                      maxVisible={5}
+                      className="mb-2"
+                    />
                   )}
                   <p className="text-sm text-foreground/90 leading-relaxed">{item.overview}</p>
                 </div>
@@ -401,15 +429,26 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                 <ContentWarningLink imdbId={imdbId} size="xs" />
               </div>
 
-              {/* AI Themes - above keywords */}
-              {aiSummary?.themes && aiSummary.themes.length > 0 && (
-                <ThemesList themes={aiSummary.themes} />
-              )}
-
               {/* Keywords */}
               {keywords && keywords.length > 0 && (
                 <KeywordsList keywords={keywords} mediaType={mediaType} maxVisible={10} />
               )}
+
+              {/* AI Themes - below keywords */}
+              {aiSummary?.themes && aiSummary.themes.length > 0 && (
+                <ThemesList themes={aiSummary.themes} />
+              )}
+
+              {/* Standout Aspects - clean text-based design */}
+              {aiInsights?.spoilerFree?.highlights && aiInsights.spoilerFree.highlights.length > 0 && (
+                <StandoutAspects highlights={aiInsights.spoilerFree.highlights} maxItems={3} />
+              )}
+
+              {/* Watch Notes - unified Best For + Heads Up section */}
+              <WatchNotes
+                bestFor={aiInsights?.spoilerFree?.bestFor}
+                headsUp={aiInsights?.spoilerFree?.headsUp}
+              />
             </div>
 
             {/* Vertical separator - hidden on mobile */}
@@ -439,10 +478,8 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                      Director
-                    </p>
-                    <p className="text-xs font-medium truncate group-hover:text-brand transition-colors">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Director</p>
+                    <p className="text-sm font-semibold truncate group-hover:text-brand transition-colors">
                       {director.name}
                     </p>
                   </div>
@@ -474,10 +511,10 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                     ))}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       {creators.length > 1 ? "Creators" : "Creator"}
                     </p>
-                    <p className="text-xs font-medium truncate">
+                    <p className="text-sm font-semibold truncate">
                       {creators.map((c) => c.name).join(", ")}
                     </p>
                   </div>
@@ -501,7 +538,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                 {/* Series status with badge */}
                 {!isMovie(item) && item.status && (
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-xs">Status</span>
+                    <span className="text-xs text-foreground/70">Status</span>
                     <SeriesStatusBadge
                       status={item.status}
                       inProduction={item.in_production}
@@ -511,26 +548,25 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                 )}
                 {isMovie(item) && <InfoItem label="Status" value={item.status} />}
 
+                {/* AI Mood indicators - prominent position for decision-making */}
+                {aiSummary?.mood && <MoodIndicators mood={aiSummary.mood} />}
+
                 {/* Budget & Revenue - Combined on one row */}
                 {isMovie(item) && (item.budget || item.revenue) && (
                   <div className="flex items-baseline gap-2 flex-wrap">
                     {item.budget ? (
                       <>
-                        <span className="text-muted-foreground text-xs">Budget</span>
-                        <span className="text-xs text-foreground">
-                          {formatCurrency(item.budget)}
-                        </span>
+                        <span className="text-xs text-foreground/70">Budget</span>
+                        <span className="text-xs font-semibold">{formatCurrency(item.budget)}</span>
                       </>
                     ) : null}
                     {item.budget && item.revenue ? (
-                      <span className="text-muted-foreground text-xs">·</span>
+                      <span className="text-xs text-foreground/70">·</span>
                     ) : null}
                     {item.revenue ? (
                       <>
-                        <span className="text-muted-foreground text-xs">Revenue</span>
-                        <span className="text-xs text-foreground">
-                          {formatCurrency(item.revenue)}
-                        </span>
+                        <span className="text-xs text-foreground/70">Revenue</span>
+                        <span className="text-xs font-semibold">{formatCurrency(item.revenue)}</span>
                       </>
                     ) : null}
                   </div>
@@ -541,17 +577,17 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                   <div className="flex items-baseline gap-2 flex-wrap">
                     {item.number_of_seasons ? (
                       <>
-                        <span className="text-muted-foreground text-xs">Seasons</span>
-                        <span className="text-xs text-foreground">{item.number_of_seasons}</span>
+                        <span className="text-xs text-foreground/70">Seasons</span>
+                        <span className="text-xs font-semibold">{item.number_of_seasons}</span>
                       </>
                     ) : null}
                     {item.number_of_seasons && item.number_of_episodes ? (
-                      <span className="text-muted-foreground text-xs">·</span>
+                      <span className="text-xs text-foreground/70">·</span>
                     ) : null}
                     {item.number_of_episodes ? (
                       <>
-                        <span className="text-muted-foreground text-xs">Episodes</span>
-                        <span className="text-xs text-foreground">{item.number_of_episodes}</span>
+                        <span className="text-xs text-foreground/70">Episodes</span>
+                        <span className="text-xs font-semibold">{item.number_of_episodes}</span>
                       </>
                     ) : null}
                   </div>
@@ -576,7 +612,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                             unoptimized
                           />
                         ) : (
-                          <span className="text-[9px] font-medium text-muted-foreground">
+                          <span className="text-xs font-medium text-muted-foreground">
                             {network.name}
                           </span>
                         )}
@@ -604,7 +640,7 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                             unoptimized
                           />
                         ) : (
-                          <span className="text-[9px] font-medium text-muted-foreground">
+                          <span className="text-xs font-medium text-muted-foreground">
                             {company.name}
                           </span>
                         )}
@@ -612,9 +648,6 @@ export function MediaOverview({ item, mediaType, aiSummary, className }: MediaOv
                     ))}
                   </div>
                 )}
-
-                {/* AI Mood indicators - at bottom of details */}
-                {aiSummary?.mood && <MoodIndicators mood={aiSummary.mood} />}
               </div>
             </div>
           </div>

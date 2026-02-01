@@ -78,3 +78,37 @@ Status codes:
 - 403: Not authorized (admin required)
 - 404: Resource not found
 - 500: Internal server error
+
+## Admin Query Endpoint
+
+The `/api/admin/query` endpoint allows safe SQL execution against ClickHouse:
+
+```typescript
+// Safety constraints
+const QUERY_TIMEOUT_MS = 30000;
+const MAX_ROWS = 10000;
+
+// SELECT-only validation (no mutations allowed)
+function isSelectOnly(sql: string): boolean {
+  const normalized = sql.trim().toUpperCase();
+  const forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE"];
+  return normalized.startsWith("SELECT") && !forbidden.some((kw) => normalized.includes(kw));
+}
+```
+
+**Request/Response:**
+```typescript
+// Request
+{ sql: string }
+
+// Success Response
+{ data: Record<string, unknown>[], rowCount: number, executionTimeMs: number, truncated?: boolean }
+
+// Error Response
+{ error: string, details?: unknown }
+```
+
+**Key Files:**
+- `src/app/api/admin/query/route.ts` - Endpoint implementation
+- `src/components/features/admin/tabs/query-tab.tsx` - Query UI
+- `src/components/features/admin/query/` - Results table, schema browser, saved queries
