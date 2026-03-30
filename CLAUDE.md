@@ -33,7 +33,7 @@ yarn db:studio        # Prisma Studio GUI
 # AI Enrichment
 yarn enrich <tmdb_id>         # Enrich movie content
 yarn enrich:series <tmdb_id>  # Enrich series content
-yarn summarize <tmdb_id>      # Generate AI summary (--force to regenerate)
+yarn summarize <tmdb_id>      # Generate AI summary (--force to regenerate, --flex for Flex pricing)
 yarn popularity:sync          # Sync TMDB popularity (daily cron)
 
 # Embeddings
@@ -73,7 +73,8 @@ src/
 │   ├── ai/                 # LangGraph agent + tools
 │   ├── services/
 │   │   ├── hydration/sources/postgres/  # Modular (6 files)
-│   │   └── ai-data-service.ts           # AI enrichment (PostgreSQL, no caching)
+│   │   ├── enrichment/                  # Progressive AI enrichment (Bedrock Flex, dedup, SSE)
+│   │   └── ai-data-service.ts           # AI data storage (PostgreSQL, no caching)
 │   └── db/postgres/        # PostgreSQL queries
 ├── lib/                    # Utilities
 └── types/                  # TypeScript types
@@ -97,6 +98,8 @@ src/
 
 **AI Agent (Cue)**: LangGraph agent with MemorySaver checkpointer. 8 consolidated tools, Kimi K2.5 (knowledge cutoff: June 2025). Thread-based conversation persistence — frontend sends `threadId`, server restores full state (messages + tool calls + results). Per-invocation logging isolated via `invocationId` Map. Recursion limit: 25. See `.claude/rules/ai-agent.md`.
 
+**Progressive Enrichment**: Automatic AI enrichment triggered by page visits. When hydration fetches fresh data (Lambda or MongoDB source), `triggerProgressiveEnrichment()` fires in the background — no manual intervention needed. Pipeline: check existing AI data → generate TMDB-only embedding if missing → call Kimi K2.5 via Bedrock Flex (50% off) → parse + store AI insights → regenerate embedding with AI themes/mood/hook. Dedup via in-memory Map (concurrent requests for same item share one Promise). Concurrency capped at 5 LLM calls via `p-limit`. SSE endpoint (`GET /api/[mediaType]/[id]/enrich`) polls PG for state changes and streams ratings/AI updates to the client. Detail pages use `EnrichmentProvider` + `useEnrichmentStream` for live in-place updates (ratings swap, AI sections fade in). Cost: ~$210-250 for full 184K catalog (pop >= 1) via Flex pricing + tighter prompt (~500 output tokens). Key files: `src/server/services/enrichment/progressive.ts`, `src/server/services/enrichment/bedrock-flex.ts`, `src/server/services/enrichment/prompts.ts`, `src/server/services/enrichment/ai-input-builder.ts`, `src/hooks/use-enrichment-stream.ts`, `src/components/features/media/enrichment-provider.tsx`.
+
 ## Analytics & Cost Tracking
 
 **Infrastructure**: ClickHouse (self-hosted on EC2, port 8123) stores all analytics events. Admin dashboard at `/admin` with tabs for traffic, AI, Lambda, costs, performance, system, database, and query analytics.
@@ -113,6 +116,7 @@ src/
 - **Embedding calls**: `cohere-generator.ts` tracks all Cohere Embed v4 calls via `trackEmbeddingCall()` → ClickHouse `api_calls` table with `service='embedding'` and token counts. Batch operations send one aggregate event.
 - **LLM search parsing**: `llm-query-parser.ts` tracks Tier 3 classification via `trackSearchLLMUsage()` → ClickHouse `ai_usage` table with `query_type='search_llm_parsing'`.
 - **AI chat**: Agent tracks full invocations (tokens, cost, tools) via `trackAIUsage()`.
+- **Progressive enrichment**: `progressive.ts` tracks LLM costs via `trackAIUsage()` with `query_type='progressive_enrichment'` and embedding costs via `generateAndStoreEmbedding(skipTracking=false)`.
 
 **Cost Tracking**: Unified cost dashboard (`/admin` → Costs tab) aggregates across 4 services: LLM chat, LLM search parsing, embeddings (Cohere), Lambda. Query-time aggregation via `getUnifiedCostBreakdown()` in `src/lib/analytics/queries/costs.ts`. Pricing in `src/lib/model-pricing.ts`.
 

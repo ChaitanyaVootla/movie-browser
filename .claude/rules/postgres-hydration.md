@@ -2,6 +2,7 @@
 paths:
   - "src/server/services/hydration/**/*.ts"
   - "src/server/services/ai-data-service.ts"
+  - "src/server/services/enrichment/**/*.ts"
   - "src/server/db/postgres/**/*.ts"
   - "src/server/db/user-data.ts"
   - "prisma/**/*.ts"
@@ -14,8 +15,10 @@ paths:
 PostgreSQL is the **source of truth** for movies/series. Flow:
 
 ```
-Check PG → TMDB API if stale → MongoDB enrichment → Upsert to PG → Return PG data
+Check PG → TMDB API if stale → MongoDB enrichment → Upsert to PG → Progressive AI enrichment (fire-and-forget) → Return PG data
 ```
+
+After the PG upsert, if the data was freshly fetched (from Lambda or MongoDB — not the PG fast path), `triggerProgressiveEnrichment()` fires in the background. This is a fire-and-forget call: errors are logged and swallowed, never blocking the response. See `src/server/services/hydration/index.ts` lines 142-146 (movies) and 274-278 (series).
 
 ## Freshness Tracking
 
@@ -139,6 +142,29 @@ yarn enrich:series <tmdb_id>  # Series content enrichment
 yarn summarize <tmdb_id>      # AI summarization → PostgreSQL
 yarn summarize <id> --force   # Regenerate existing summary
 ```
+
+### Progressive Enrichment (Automatic)
+
+AI enrichment fires automatically when a page visit triggers a hydration refresh. No manual intervention needed.
+
+**Trigger**: `hydrateMovie()` / `hydrateSeries()` calls `triggerProgressiveEnrichment()` as fire-and-forget after PG upsert, only when `enrichedSource` is `"lambda"` or `"mongodb"` (i.e., fresh data was just fetched — not the PG fast path).
+
+**Pipeline** (`src/server/services/enrichment/progressive.ts`):
+1. Check if AI data exists and overview unchanged → skip if so
+2. Generate TMDB-only embedding if none exists
+3. Build AI input from TMDB data (~150 tokens)
+4. Call Kimi K2.5 via Bedrock Flex tier (50% off standard pricing)
+5. Parse and validate all 9 insight categories
+6. Store in `ai_data` + `ai_insights` tables
+7. Regenerate embedding with AI themes/mood/hook included
+
+**Dedup**: In-memory Map prevents duplicate LLM calls for concurrent visitors to the same page. Second caller awaits the first caller's Promise.
+
+**Concurrency**: `p-limit(5)` caps concurrent Bedrock calls across all enrichments.
+
+**Cost**: ~$210-250 for full 184K catalog (pop >= 1 non-adult items) via Flex pricing + tighter prompt (~500 output tokens).
+
+**SSE Updates**: `GET /api/[mediaType]/[id]/enrich` polls PG for state changes (ratings, AI data) and streams updates to the client via `useEnrichmentStream` hook. Detail pages render live updates (ratings swap in-place, AI sections fade in).
 
 ## Popularity Sync Job
 

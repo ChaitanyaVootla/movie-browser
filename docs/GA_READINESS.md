@@ -27,6 +27,7 @@
 | 17c | Analytics: LLM parser cost tracking | `llm-query-parser.ts`, `track.ts` | Tier 3 search classification tracked in `ai_usage` with `query_type='search_llm_parsing'`. |
 | 17d | Analytics: Unified cost dashboard | `costs-tab.tsx`, `costs.ts`, `embedding.ts` | Admin dashboard "Costs" tab with 4-service breakdown (LLM chat, search parsing, embeddings, Lambda), daily trends, pie chart. |
 | 17e | Analytics: Model pricing & types | `model-pricing.ts`, `types.ts` | Cohere Embed v4 pricing, 8 new ActionTypes, 3 new QueryTypes, `trackEmbeddingCall()`, `trackSearchLLMUsage()`. |
+| 18 | Progressive AI enrichment pipeline | `enrichment/progressive.ts`, `bedrock-flex.ts`, `prompts.ts`, `ai-input-builder.ts`, `use-enrichment-stream.ts`, `enrichment-provider.tsx`, `hydration/index.ts` | Automatic AI enrichment on page visit via hydration hook. Kimi K2.5 on Bedrock Flex (50% off). TMDB-only input (~150 tokens), tighter prompt (~500 output tokens). In-memory dedup + p-limit(5) concurrency. SSE streaming for live UI updates. ~$210-250 for full 184K catalog. |
 
 ### MongoDB -> PostgreSQL User Data: Ready to Switch
 
@@ -184,9 +185,12 @@ At 25 concurrent Bedrock calls, ~7k items takes a few minutes. Scale up after bu
 | Phase 1: Priority seed (100k movies + 212k series) | ~5 days | ~$3 |
 | Phase 2: Long tail (~1M movies, TMDB-only) | ~10 days | ~$3 |
 | Phase 3: Cohere embeddings | ~30 min per 7k items | ~$5 Bedrock |
-| **Total** | ~15 days | **~$11** |
+| Phase 4: AI enrichment (progressive, automated) | Organic via page visits/bots | ~$210-250 Bedrock Flex |
+| **Total** | ~15 days + organic | **~$221-261** |
 
 **Do NOT use `--with-lambda` for bulk** — that would turn an $11 job into $1,000+.
+
+**AI enrichment** is automated via the progressive enrichment pipeline — no manual batch needed. Bot crawls of the sitemap (184K items with pop >= 1) trigger enrichment organically. Uses Kimi K2.5 on Bedrock Flex tier (50% off). Embeddings auto-regenerate with AI themes after enrichment.
 
 #### Fallbacks
 
@@ -207,6 +211,8 @@ Once bulk population is done, daily traffic mostly hits the PG fast path:
 | PG stale, MongoDB fresh | ~15% | 0 | ~300ms |
 | Both stale (Lambda) | ~5% | 2 parallel | ~5-10s |
 | **Estimated daily (500 page views)** | | ~50 Lambda calls | **~$0.10/day** |
+
+Note: The ~5% stale path also triggers progressive AI enrichment in the background (fire-and-forget). This is a one-time cost per item — once AI data exists, subsequent visits skip enrichment.
 
 Freshness thresholds (from `src/lib/data-freshness.ts`):
 

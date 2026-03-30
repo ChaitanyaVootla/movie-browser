@@ -66,15 +66,33 @@
       "reviewFindings": null,
       "parallelGroup": null,
       "worktreePath": null
+    },
+    {
+      "num": 4,
+      "label": "Hydration Integration & Detail Pages",
+      "costUsd": 5.29,
+      "durationMs": 680850,
+      "numTurns": 87,
+      "inputTokens": 7290295,
+      "outputTokens": 36043,
+      "cacheReadTokens": 7160126,
+      "isError": false,
+      "gitCommit": "89c0a30",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
     }
   ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 3,
-    "costUsd": 7.81,
-    "durationMs": 1014011,
-    "inputTokens": 10129388,
-    "outputTokens": 46800,
-    "cacheReadTokens": 9853906
+    "sessions": 4,
+    "costUsd": 13.10,
+    "durationMs": 1694861,
+    "inputTokens": 17419683,
+    "outputTokens": 82843,
+    "cacheReadTokens": 17014032
   }
 }
