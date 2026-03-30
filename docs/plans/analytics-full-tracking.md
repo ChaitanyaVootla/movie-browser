@@ -71,7 +71,7 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 | 3 | Wire Core User Actions | medium | Session 1 | A | **Complete** | All 4 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 4a | Wire Search & Filters | medium | Session 1 | A | **Complete** | All 3 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 4b | Wire AI Chat & Trailers | medium | Session 1 | A | **Complete** | All 4 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
-| 5 | Wire Discovery, Navigation & Settings | medium | Session 1 | A | Pending | topics, carousels, galleries, settings |
+| 5 | Wire Discovery, Navigation & Settings | medium | Session 1 | A | **Complete** | All 6 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 6 | Unified Cost Dashboard & Analytics Queries | medium | Sessions 1, 2, 3-5 | - | Pending | Admin dashboard cost breakdown |
 | 7 | Audit & Hardening | medium | All | - | Pending | End-to-end verification, docs update |
 
@@ -207,12 +207,12 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 **Goal:** Complete the remaining user interaction tracking for topics, carousels, galleries, settings, and external links.
 
 **Scope:**
-- [ ] Wire tracking in `src/components/features/home/topic-pills.tsx` — since these are Next.js `Link` components, wrap them or add an `onClick` handler that calls `trackAction({ action: 'topic_select', metadata: { topicKey, topicName } })` before navigation.
-- [ ] Wire tracking in `src/components/features/home/mood-cards.tsx` — add `onClick` to mood card links: `trackAction({ action: 'mood_select', metadata: { moodId, moodLabel } })`.
-- [ ] Wire tracking in `src/components/features/media/media-scroller.tsx` — track carousel arrow clicks: `trackAction({ action: 'carousel_nav', metadata: { direction: 'prev' | 'next', sectionTitle } })`.
-- [ ] Wire tracking in `src/components/features/media/image-gallery.tsx` — track `gallery_open` when lightbox opens and `gallery_nav` on prev/next navigation with image count in metadata.
-- [ ] Wire tracking in `src/components/features/auth/settings-menu.tsx` — track `settings_change` when theme, card display mode, background style, or accent color changes: `trackAction({ action: 'settings_change', metadata: { setting, value } })`.
-- [ ] Wire tracking in `src/components/features/person/person-hero.tsx` — track `external_link` clicks on social media links (Instagram, Twitter, TMDB) with source in metadata.
+- [x] Wire tracking in `src/components/features/home/topic-pills.tsx` — Added `trackAction` from `useAnalytics`. `onClick` handler on each topic `Link` fires `topic_select` with `topicKey` and `topicName` in metadata before navigation.
+- [x] Wire tracking in `src/components/features/home/mood-cards.tsx` — Added `trackAction` from `useAnalytics`. `onClick` handler on each mood `Link` fires `mood_select` with `moodId` and `moodLabel` in metadata.
+- [x] Wire tracking in `src/components/features/media/media-scroller.tsx` — Added `trackAction` from `useAnalytics`. Created `handleScrollClick()` callback that fires `carousel_nav` with `direction` ('prev'|'next') and `sectionTitle` (extracted from string `title` prop), then calls `scroll()`. Wired to both arrow buttons.
+- [x] Wire tracking in `src/components/features/media/image-gallery.tsx` — Added `trackAction` from `useAnalytics`. Created `handleOpen()` callback that fires `gallery_open` with `imageIndex` and `totalImages`, used by thumbnail clicks and "+N more" button. Added `gallery_nav` tracking inside `goToPrevious()` and `goToNext()` with `direction` and `totalImages` — fires on arrow clicks, keyboard nav, and touch swipe.
+- [x] Wire tracking in `src/components/features/auth/settings-menu.tsx` — Added `trackAction` from `useAnalytics`. Each `DropdownMenuItem` `onClick` now also fires `settings_change` with `setting` name ('cardDisplayMode', 'theme', 'backgroundStyle', 'accentColor') and selected `value`.
+- [x] Wire tracking in `src/components/features/person/person-hero.tsx` — Added `trackExternalLink` from `useAnalytics`. `onClick` handler on each social link fires `external_link` with full URL and source ('instagram', 'twitter', 'facebook', 'youtube', 'imdb', 'website').
 
 **Key files:** `src/components/features/home/topic-pills.tsx`, `src/components/features/home/mood-cards.tsx`, `src/components/features/media/media-scroller.tsx`, `src/components/features/media/image-gallery.tsx`, `src/components/features/auth/settings-menu.tsx`, `src/components/features/person/person-hero.tsx`
 
@@ -354,7 +354,7 @@ graph TD
 
 ## Progress
 
-[#####...] 62% (5/8 sessions)
+[######..] 75% (6/8 sessions)
 
 ## Acceptance Criteria
 

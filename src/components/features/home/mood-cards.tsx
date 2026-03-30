@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { buildBrowseUrl, type DiscoverParams } from "@/lib/discover";
 
 export interface MoodOption {
@@ -107,6 +108,8 @@ interface MoodCardsProps {
 }
 
 export function MoodCards({ className }: MoodCardsProps) {
+  const { trackAction } = useAnalytics();
+
   return (
     <div className={cn("w-full", className)}>
       {/* Section header */}
@@ -121,6 +124,12 @@ export function MoodCards({ className }: MoodCardsProps) {
           <Link
             key={mood.id}
             href={buildBrowseUrl(mood.filters)}
+            onClick={() =>
+              trackAction({
+                action: "mood_select",
+                metadata: { moodId: mood.id, moodLabel: mood.label },
+              })
+            }
             className={cn(
               "relative flex flex-col items-center justify-center",
               "min-w-[120px] h-[100px] sm:min-w-[140px] sm:h-[110px]",

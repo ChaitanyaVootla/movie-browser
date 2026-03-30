@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import { useAnalytics } from "@/hooks/use-analytics";
 import {
   Calendar,
   MapPin,
@@ -98,6 +99,7 @@ function _getGenderLabel(gender: number): string {
 
 export function PersonHero({ person, className }: PersonHeroProps) {
   const [isBioExpanded, setIsBioExpanded] = useState(false);
+  const { trackExternalLink } = useAnalytics();
   const age = calculateAge(person.birthday, person.deathday);
   const formattedBirthday = formatDate(person.birthday);
   const formattedDeathday = formatDate(person.deathday);
@@ -214,6 +216,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                       href={`https://instagram.com/${externalIds.instagram_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackExternalLink(`https://instagram.com/${externalIds.instagram_id}`, "instagram")}
                     >
                       <Instagram className="h-4 w-4 mr-1.5" />
                       Instagram
@@ -226,6 +229,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                       href={`https://twitter.com/${externalIds.twitter_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackExternalLink(`https://twitter.com/${externalIds.twitter_id}`, "twitter")}
                     >
                       <Twitter className="h-4 w-4 mr-1.5" />
                       Twitter
@@ -238,6 +242,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                       href={`https://facebook.com/${externalIds.facebook_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackExternalLink(`https://facebook.com/${externalIds.facebook_id}`, "facebook")}
                     >
                       <Facebook className="h-4 w-4 mr-1.5" />
                       Facebook
@@ -250,6 +255,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                       href={`https://youtube.com/${externalIds.youtube_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackExternalLink(`https://youtube.com/${externalIds.youtube_id}`, "youtube")}
                     >
                       <Youtube className="h-4 w-4 mr-1.5" />
                       YouTube
@@ -262,6 +268,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                       href={`https://imdb.com/name/${person.imdb_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackExternalLink(`https://imdb.com/name/${person.imdb_id}`, "imdb")}
                     >
                       <ExternalLink className="h-4 w-4 mr-1.5" />
                       IMDb
@@ -270,7 +277,12 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                 )}
                 {person.homepage && (
                   <Button variant="outline" size="sm" asChild className="h-9">
-                    <Link href={person.homepage} target="_blank" rel="noopener noreferrer">
+                    <Link
+                      href={person.homepage}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackExternalLink(person.homepage!, "website")}
+                    >
                       <ExternalLink className="h-4 w-4 mr-1.5" />
                       Website
                     </Link>

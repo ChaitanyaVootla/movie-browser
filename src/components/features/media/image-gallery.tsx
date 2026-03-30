@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, X, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { MediaScroller } from "./media-scroller";
 
 /** Minimal image type for gallery (supports both full TMDBImage and light PersonProfileImage) */
@@ -35,6 +36,18 @@ export function ImageGallery({
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const { trackAction } = useAnalytics();
+
+  const handleOpen = useCallback(
+    (index: number) => {
+      setSelectedIndex(index);
+      trackAction({
+        action: "gallery_open",
+        metadata: { imageIndex: index, totalImages: images.length },
+      });
+    },
+    [images.length, trackAction]
+  );
 
   const visibleImages = images.slice(0, maxVisible);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] : null;
@@ -43,12 +56,20 @@ export function ImageGallery({
   const goToPrevious = useCallback(() => {
     if (selectedIndex === null) return;
     setSelectedIndex(selectedIndex === 0 ? images.length - 1 : selectedIndex - 1);
-  }, [selectedIndex, images.length]);
+    trackAction({
+      action: "gallery_nav",
+      metadata: { direction: "prev", totalImages: images.length },
+    });
+  }, [selectedIndex, images.length, trackAction]);
 
   const goToNext = useCallback(() => {
     if (selectedIndex === null) return;
     setSelectedIndex(selectedIndex === images.length - 1 ? 0 : selectedIndex + 1);
-  }, [selectedIndex, images.length]);
+    trackAction({
+      action: "gallery_nav",
+      metadata: { direction: "next", totalImages: images.length },
+    });
+  }, [selectedIndex, images.length, trackAction]);
 
   const handleClose = useCallback(() => {
     setSelectedIndex(null);
@@ -152,7 +173,7 @@ export function ImageGallery({
           return (
             <button
               key={image.file_path}
-              onClick={() => setSelectedIndex(index)}
+              onClick={() => handleOpen(index)}
               className="group relative flex-shrink-0 rounded-lg cursor-pointer transition-all duration-200 hover:z-10"
             >
               <div
@@ -173,7 +194,7 @@ export function ImageGallery({
         })}
         {images.length > maxVisible && (
           <button
-            onClick={() => setSelectedIndex(maxVisible)}
+            onClick={() => handleOpen(maxVisible)}
             className="flex-shrink-0 flex items-center justify-center rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
             style={{ height: "160px", width: "160px" }}
           >

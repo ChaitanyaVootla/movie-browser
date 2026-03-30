@@ -1,10 +1,11 @@
 "use client";
 
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { ScrollContainer, useScrollDrag } from "./scroll-container";
 
 interface MediaScrollerProps {
@@ -53,6 +54,20 @@ export function MediaScroller({
 }: MediaScrollerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { scroll } = useScrollDrag({ externalRef: scrollContainerRef });
+  const { trackAction } = useAnalytics();
+
+  const sectionTitle = typeof title === "string" ? title : undefined;
+
+  const handleScrollClick = useCallback(
+    (direction: "prev" | "next") => {
+      trackAction({
+        action: "carousel_nav",
+        metadata: { direction, sectionTitle },
+      });
+      scroll(direction === "prev" ? "left" : "right");
+    },
+    [trackAction, sectionTitle, scroll]
+  );
 
   return (
     <section className={cn("space-y-4", className)}>
@@ -79,7 +94,7 @@ export function MediaScroller({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => scroll("left")}
+                  onClick={() => handleScrollClick("prev")}
                   aria-label="Scroll left"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -88,7 +103,7 @@ export function MediaScroller({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => scroll("right")}
+                  onClick={() => handleScrollClick("next")}
                   aria-label="Scroll right"
                 >
                   <ChevronRight className="h-4 w-4" />

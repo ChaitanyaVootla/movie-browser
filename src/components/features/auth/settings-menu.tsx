@@ -12,6 +12,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { useMounted } from "@/hooks/use-mounted";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { cn } from "@/lib/utils";
 import {
   usePreferencesStore,
@@ -68,6 +69,7 @@ export function SettingsMenu({ className }: SettingsMenuProps) {
   const accentColor = usePreferencesStore(selectAccentColor);
   const setAccentColor = usePreferencesStore((state) => state.setAccentColor);
   const mounted = useMounted();
+  const { trackAction } = useAnalytics();
 
   const isDark = resolvedTheme === "dark";
 
@@ -100,7 +102,7 @@ export function SettingsMenu({ className }: SettingsMenuProps) {
           Card Display
         </DropdownMenuLabel>
         {cardDisplayModes.map(({ value, label, icon: Icon }) => (
-          <DropdownMenuItem key={value} onClick={() => setCardDisplayMode(value)} className="gap-2">
+          <DropdownMenuItem key={value} onClick={() => { setCardDisplayMode(value); trackAction({ action: "settings_change", metadata: { setting: "cardDisplayMode", value } }); }} className="gap-2">
             <Icon className="h-4 w-4" />
             {label}
             {cardDisplayMode === value && <span className="ml-auto text-brand">✓</span>}
@@ -113,7 +115,7 @@ export function SettingsMenu({ className }: SettingsMenuProps) {
           Mode
         </DropdownMenuLabel>
         {themes.map(({ value, label, icon: Icon }) => (
-          <DropdownMenuItem key={value} onClick={() => setTheme(value)} className="gap-2">
+          <DropdownMenuItem key={value} onClick={() => { setTheme(value); trackAction({ action: "settings_change", metadata: { setting: "theme", value } }); }} className="gap-2">
             <Icon className="h-4 w-4" />
             {label}
             {theme === value && <span className="ml-auto text-brand">✓</span>}
@@ -126,7 +128,7 @@ export function SettingsMenu({ className }: SettingsMenuProps) {
           Style
         </DropdownMenuLabel>
         {availableStyles.map(({ value, label }) => (
-          <DropdownMenuItem key={value} onClick={() => setBackgroundStyle(value)} className="gap-2">
+          <DropdownMenuItem key={value} onClick={() => { setBackgroundStyle(value); trackAction({ action: "settings_change", metadata: { setting: "backgroundStyle", value } }); }} className="gap-2">
             <span className="h-3 w-3 rounded-full bg-muted-foreground/30" />
             {label}
             {backgroundStyle === value && <span className="ml-auto text-brand">✓</span>}
@@ -139,7 +141,7 @@ export function SettingsMenu({ className }: SettingsMenuProps) {
           Accent
         </DropdownMenuLabel>
         {accentColors.map(({ value, label, color }) => (
-          <DropdownMenuItem key={value} onClick={() => setAccentColor(value)} className="gap-2">
+          <DropdownMenuItem key={value} onClick={() => { setAccentColor(value); trackAction({ action: "settings_change", metadata: { setting: "accentColor", value } }); }} className="gap-2">
             <span className={`h-3 w-3 rounded-full ${color}`} />
             {label}
             {accentColor === value && <span className="ml-auto text-brand">✓</span>}

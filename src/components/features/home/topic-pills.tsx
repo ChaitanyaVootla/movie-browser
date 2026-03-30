@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import type { PopularTopicItem } from "@/lib/topics";
 
 // Emoji mappings for topics
@@ -59,6 +60,8 @@ interface TopicPillsProps {
 }
 
 export function TopicPills({ topics, className }: TopicPillsProps) {
+  const { trackAction } = useAnalytics();
+
   if (topics.length === 0) return null;
 
   return (
@@ -68,6 +71,12 @@ export function TopicPills({ topics, className }: TopicPillsProps) {
           <Link
             key={topic.key}
             href={`/topics/${topic.key}`}
+            onClick={() =>
+              trackAction({
+                action: "topic_select",
+                metadata: { topicKey: topic.key, topicName: topic.name },
+              })
+            }
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full",
               "bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20",
