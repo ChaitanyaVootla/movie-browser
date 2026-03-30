@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { X, ArrowUp, ArrowRight, Minimize2, RotateCcw } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { RichMessageContent, collectMediaTags } from "./rich-message-content";
 import { PulsingSpark } from "./ai-animations";
 import { TRANSITION_EASE, type ExpandedChatProps } from "./types";
@@ -25,6 +26,7 @@ export function ExpandedChat({
   pendingNavigation,
   onNavigate,
 }: ExpandedChatProps) {
+  const { trackAIChatSubmit } = useAnalytics();
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -32,6 +34,7 @@ export function ExpandedChat({
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (input.trim()) trackAIChatSubmit(input);
       onSend();
     }
     if (e.key === "Escape") onCollapse();
@@ -239,7 +242,10 @@ export function ExpandedChat({
             />
             {!isLoading && (
               <button
-                onClick={onSend}
+                onClick={() => {
+                  if (input.trim()) trackAIChatSubmit(input);
+                  onSend();
+                }}
                 disabled={!input.trim()}
                 className={cn(
                   "p-3 rounded-xl",

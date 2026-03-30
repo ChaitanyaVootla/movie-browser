@@ -70,7 +70,7 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 | 2 | Backend Instrumentation — Embeddings & LLM Parser | medium | Session 1 | - | **Complete** | All embedding + LLM parser tracking instrumented. `yarn typecheck` passes. |
 | 3 | Wire Core User Actions | medium | Session 1 | A | **Complete** | All 4 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 4a | Wire Search & Filters | medium | Session 1 | A | **Complete** | All 3 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
-| 4b | Wire AI Chat & Trailers | medium | Session 1 | A | Pending | AI chat components, trailer-carousel |
+| 4b | Wire AI Chat & Trailers | medium | Session 1 | A | **Complete** | All 4 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 5 | Wire Discovery, Navigation & Settings | medium | Session 1 | A | Pending | topics, carousels, galleries, settings |
 | 6 | Unified Cost Dashboard & Analytics Queries | medium | Sessions 1, 2, 3-5 | - | Pending | Admin dashboard cost breakdown |
 | 7 | Audit & Hardening | medium | All | - | Pending | End-to-end verification, docs update |
@@ -183,10 +183,10 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 **Goal:** Wire `useAnalytics` into AI chat components and trailer carousel for engagement tracking.
 
 **Scope:**
-- [ ] Wire `useAnalytics` in `src/components/features/ai/idle-circle.tsx` (145 lines) — this is the floating bubble that opens the chat. Call `trackAIChatOpen()` in the `onExpand` handler (called on click and keyboard Enter/Space). The `onExpand` prop is passed from the parent `assistant-floaty.tsx`.
-- [ ] Wire `useAnalytics` in `src/components/features/ai/expanded-chat.tsx` (259 lines) — this is the full chat panel. Call `trackAIChatSubmit(input)` in the `onSend` handler when the user submits a message.
-- [ ] Wire `useAnalytics` in `src/components/features/ai/minimal-view.tsx` (520 lines) — this is the compact chat view. If it has its own `onSend` handler (separate from expanded-chat), call `trackAIChatSubmit(input)` there too. If `onSend` is passed as a prop from the parent, track at the source component level.
-- [ ] Wire `useAnalytics` in `src/components/features/home/trailer-carousel.tsx` (212 lines) — call `trackTrailerPlay` in `handlePlay(index)` with the trailer's TMDB ID and title.
+- [x] Wire `useAnalytics` in `src/components/features/ai/idle-circle.tsx` (145 lines) — Added `trackAIChatOpen()` in both the `onClick` handler and `onKeyDown` (Enter/Space) handler, firing before `onExpand()`. Tracks user intent to open the AI chat from the floating bubble.
+- [x] Wire `useAnalytics` in `src/components/features/ai/expanded-chat.tsx` (259 lines) — Added `trackAIChatSubmit(input)` in `handleKeyDown` (Enter key) and the send button's `onClick`. Tracking fires before `onSend()` with `input.trim()` guard to avoid empty submissions.
+- [x] Wire `useAnalytics` in `src/components/features/ai/minimal-view.tsx` (520 lines) — Added `trackAIChatSubmit(input)` in `handleKeyDown` (Enter key) and both send button `onClick` handlers (empty state and conversation state). Same `input.trim()` guard. MinimalView and ExpandedChat are mutually exclusive (only one active at a time), so no double-tracking.
+- [x] Wire `useAnalytics` in `src/components/features/home/trailer-carousel.tsx` (212 lines) — Added `trackTrailerPlay(trailer.tmdbId, 'movie', trailer.title)` in `handlePlay(index)` with bounds check on `trailers[index]`. Updated `useCallback` deps to include `trailers` and `trackTrailerPlay`.
 
 **Key files:** `src/components/features/ai/idle-circle.tsx`, `src/components/features/ai/expanded-chat.tsx`, `src/components/features/ai/minimal-view.tsx`, `src/components/features/home/trailer-carousel.tsx`
 
@@ -354,7 +354,7 @@ graph TD
 
 ## Progress
 
-[####....] 50% (4/8 sessions)
+[#####...] 62% (5/8 sessions)
 
 ## Acceptance Criteria
 

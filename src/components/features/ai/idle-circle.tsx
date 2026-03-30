@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import type { IdleCircleProps } from "./types";
 
 // =============================================================================
@@ -16,17 +17,25 @@ export function IdleCircle({
   prompt,
   hasActiveConversation,
 }: IdleCircleProps) {
+  const { trackAIChatOpen } = useAnalytics();
+
   // If there's an active conversation, clicking should restore it (no prompt)
   const isAwake = showPrompt && prompt && !hasActiveConversation;
 
   return (
     <motion.button
-      onClick={() => onExpand(isAwake ? prompt : undefined)}
+      onClick={() => {
+        trackAIChatOpen();
+        onExpand(isAwake ? prompt : undefined);
+      }}
       data-testid="ai-assistant-trigger"
       role="button"
       aria-label={isAwake && prompt ? prompt.text : "Open Cue"}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onExpand(isAwake ? prompt : undefined);
+        if (e.key === "Enter" || e.key === " ") {
+          trackAIChatOpen();
+          onExpand(isAwake ? prompt : undefined);
+        }
       }}
       layout
       initial={false}

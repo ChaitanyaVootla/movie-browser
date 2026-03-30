@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, type KeyboardEvent } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowUp, ArrowRight, Maximize2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import {
   parseContent,
   parseMediaTags,
@@ -48,6 +49,7 @@ export function MinimalView({
   pendingNavigation,
   onNavigate,
 }: MinimalViewProps) {
+  const { trackAIChatSubmit } = useAnalytics();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const lastAssistantMessage = useMemo(() => {
@@ -118,6 +120,7 @@ export function MinimalView({
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (input.trim()) trackAIChatSubmit(input);
       onSend();
     }
     if (e.key === "Escape") onClose();
@@ -253,7 +256,10 @@ export function MinimalView({
                 />
                 {!isLoading && (
                   <button
-                    onClick={onSend}
+                    onClick={() => {
+                      if (input.trim()) trackAIChatSubmit(input);
+                      onSend();
+                    }}
                     disabled={!input.trim()}
                     data-testid="ai-send-btn"
                     className={cn(
@@ -470,7 +476,10 @@ export function MinimalView({
                     />
                     {!isLoading && (
                       <button
-                        onClick={onSend}
+                        onClick={() => {
+                          if (input.trim()) trackAIChatSubmit(input);
+                          onSend();
+                        }}
                         disabled={!input.trim()}
                         data-testid="ai-send-btn"
                         className={cn(

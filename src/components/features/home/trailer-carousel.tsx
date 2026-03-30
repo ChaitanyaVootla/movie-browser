@@ -7,6 +7,7 @@ import { Play, Eye, ThumbsUp, ThumbsDown } from "lucide-react";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { TrailerModal, toTrailerModalData, type TrailerModalData } from "./trailer-modal";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { formatViewCount } from "@/lib/youtube-utils";
 import type { TrendingTrailer } from "@/server/actions/trending";
 
@@ -140,12 +141,20 @@ export function TrailerCardSkeleton() {
  * Carousel for displaying trending trailers with play functionality
  */
 export function TrailerCarousel({ title, trailers, icon, className }: TrailerCarouselProps) {
+  const { trackTrailerPlay } = useAnalytics();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [videoMetadata, setVideoMetadata] = useState<Map<string, VideoMetadata>>(new Map());
 
-  const handlePlay = useCallback((index: number) => {
-    setActiveIndex(index);
-  }, []);
+  const handlePlay = useCallback(
+    (index: number) => {
+      const trailer = trailers[index];
+      if (trailer) {
+        trackTrailerPlay(trailer.tmdbId, "movie", trailer.title);
+      }
+      setActiveIndex(index);
+    },
+    [trailers, trackTrailerPlay]
+  );
 
   const handleClose = useCallback(() => {
     setActiveIndex(null);
