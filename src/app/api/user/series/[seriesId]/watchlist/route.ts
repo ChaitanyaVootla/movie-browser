@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { SeriesWatchlist } from "@/server/db/models/user-library";
+import { addSeriesToWatchlist, removeSeriesFromWatchlist } from "@/server/db/user-data";
 import { requireUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 
@@ -22,14 +21,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Invalid series ID" }, { status: 400 });
     }
 
-    await connectDB();
-
-    // Upsert to handle potential duplicates gracefully
-    await SeriesWatchlist.findOneAndUpdate(
-      { userId, seriesId: seriesIdNum },
-      { userId, seriesId: seriesIdNum, createdAt: new Date() },
-      { upsert: true, new: true }
-    );
+    await addSeriesToWatchlist(userId, seriesIdNum);
 
     return NextResponse.json({ success: true, seriesId: seriesIdNum });
   } catch (error) {
@@ -59,9 +51,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Invalid series ID" }, { status: 400 });
     }
 
-    await connectDB();
-
-    await SeriesWatchlist.deleteOne({ userId, seriesId: seriesIdNum });
+    await removeSeriesFromWatchlist(userId, seriesIdNum);
 
     return NextResponse.json({ success: true, seriesId: seriesIdNum });
   } catch (error) {

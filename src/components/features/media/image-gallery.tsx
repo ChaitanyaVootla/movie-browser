@@ -239,6 +239,14 @@ export function ImageGallery({
                   className="max-w-full max-h-full object-contain select-none pointer-events-none"
                   style={{ maxHeight: "calc(100vh - 160px)" }}
                   draggable={false}
+                  onError={(e) => {
+                    // Fallback to w780 quality if original fails
+                    const img = e.currentTarget;
+                    const fallback = `${TMDB_IMAGE_BASE}/w780${selectedImage.file_path}`;
+                    if (img.src !== fallback) {
+                      img.src = fallback;
+                    }
+                  }}
                 />
               )}
             </div>

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { forwardRef, useImperativeHandle, useState, useCallback } from "react";
+import { forwardRef, useImperativeHandle, useState, useCallback, useMemo } from "react";
 
 // =============================================================================
 // Radiating Pulse Rings - emanate outward on activation
@@ -167,14 +167,17 @@ interface ParticleBurstProps {
 }
 
 export function ParticleBurst({ isActive, particleCount = 8, color = "brand" }: ParticleBurstProps) {
-  const particles = Array.from({ length: particleCount }).map((_, i) => {
-    const angle = (i / particleCount) * 360;
-    const distance = 24 + Math.random() * 12;
-    const size = 3 + Math.random() * 2;
-    const delay = Math.random() * 0.1;
-
-    return { angle, distance, size, delay, id: i };
-  });
+  const particles = useMemo(
+    () =>
+      Array.from({ length: particleCount }).map((_, i) => {
+        const angle = (i / particleCount) * 360;
+        const distance = 24 + Math.random() * 12;
+        const size = 3 + Math.random() * 2;
+        const delay = Math.random() * 0.1;
+        return { angle, distance, size, delay, id: i };
+      }),
+    [particleCount]
+  );
 
   return (
     <AnimatePresence>

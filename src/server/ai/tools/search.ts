@@ -78,7 +78,7 @@ export const searchTool = tool(
     description: `Find movies, TV shows, or people by name.
 
 Use when: User mentions a specific title or person by name.
-Don't use when: User wants to filter by criteria (use discover instead).
+Don't use when: User wants to filter by criteria (use smart_discover instead).
 
 Returns: Up to 8 results with id, title, year, rating, overview.
 Use the returned id for [RATINGS], [WATCH], [TRAILER] tags or get_details calls.`,

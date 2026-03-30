@@ -33,6 +33,8 @@ interface ChatRequest {
   history?: ChatMessage[];
   stream?: boolean;
   pageContext?: PageContext;
+  /** Thread ID for conversation persistence via checkpointer */
+  threadId?: string;
 }
 
 /**
@@ -96,12 +98,15 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as ChatRequest;
     const { message, history = [], stream = true, pageContext } = body;
 
+    // Generate or reuse thread ID for checkpointer-backed conversation persistence
+    const threadId = body.threadId || crypto.randomUUID();
+
     if (!message?.trim()) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
-    // Convert history to LangChain messages
-    const conversationHistory = convertHistory(history);
+    // Convert history to LangChain messages (only used as fallback when no threadId from client)
+    const conversationHistory = body.threadId ? [] : convertHistory(history);
 
     // Non-streaming response
     if (!stream) {
@@ -110,7 +115,8 @@ export async function POST(request: NextRequest) {
         userId,
         conversationHistory,
         pageContext,
-        userContext
+        userContext,
+        threadId
       );
       let responseText = getAgentResponse(result);
       const navigation = extractNavigation(result);
@@ -121,6 +127,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         message: responseText,
         navigation,
+        threadId,
       });
     }
 
@@ -144,7 +151,8 @@ export async function POST(request: NextRequest) {
             userId,
             conversationHistory,
             pageContext,
-            userContext
+            userContext,
+            threadId
           );
           let responseText = getAgentResponse(result);
           const navigation = extractNavigation(result);
@@ -162,6 +170,7 @@ export async function POST(request: NextRequest) {
                 type: "done",
                 message: responseText,
                 navigation,
+                threadId,
               })}\n\n`
             )
           );

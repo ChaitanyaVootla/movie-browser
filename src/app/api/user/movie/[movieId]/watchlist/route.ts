@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { MoviesWatchlist } from "@/server/db/models/user-library";
+import { addMovieToWatchlist, removeMovieFromWatchlist } from "@/server/db/user-data";
 import { requireUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 
@@ -22,14 +21,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Invalid movie ID" }, { status: 400 });
     }
 
-    await connectDB();
-
-    // Upsert to handle potential duplicates gracefully
-    await MoviesWatchlist.findOneAndUpdate(
-      { userId, movieId: movieIdNum },
-      { userId, movieId: movieIdNum, createdAt: new Date() },
-      { upsert: true, new: true }
-    );
+    await addMovieToWatchlist(userId, movieIdNum);
 
     return NextResponse.json({ success: true, movieId: movieIdNum });
   } catch (error) {
@@ -59,9 +51,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Invalid movie ID" }, { status: 400 });
     }
 
-    await connectDB();
-
-    await MoviesWatchlist.deleteOne({ userId, movieId: movieIdNum });
+    await removeMovieFromWatchlist(userId, movieIdNum);
 
     return NextResponse.json({ success: true, movieId: movieIdNum });
   } catch (error) {

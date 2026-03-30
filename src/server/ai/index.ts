@@ -18,8 +18,7 @@ export {
   streamAgent,
   getAgentResponse,
   extractNavigation,
-  getAgentLogs,
-  resetAgentLogs,
+  clearThread,
 } from "./agent";
 export type { StreamEvent, AgentLogs, UserContextInput } from "./agent";
 

@@ -42,7 +42,7 @@ module.exports = {
       name: "sitemap-generator",
       cwd: "/home/ubuntu/movie-browser-next",
       script: "node",
-      args: "--max-old-space-size=2048 --expose-gc --optimize-for-size scripts/generate-sitemap.js",
+      args: "--max-old-space-size=1024 --optimize-for-size scripts/generate-sitemap.js",
       cron_restart: "0 4 * * *", // 4 AM daily
       autorestart: false,
       restart_delay: 5000,

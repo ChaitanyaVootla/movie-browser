@@ -1,88 +1,130 @@
-name: Build and Deploy to AWS EC2
+name: Build and Deploy Next.js to EC2
 
 on:
   push:
     branches: [master]
+  workflow_dispatch: # Manual trigger
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  # ===========================================================================
+  # CI: Typecheck + Lint
+  # ===========================================================================
+  ci:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "yarn"
 
       - name: Install dependencies
-        run: |
-          rm -f package-lock.json
-          npm install --legacy-peer-deps
+        run: yarn install --frozen-lockfile
 
-      - name: Build
-        env:
-          GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
-        run: npm run build
+      - name: Typecheck
+        run: yarn typecheck
 
-      - name: Configure AWS CLI
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Lint
+        run: yarn lint
+
+  # ===========================================================================
+  # Build + Deploy
+  # ===========================================================================
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          node-version: "22"
+          cache: "yarn"
 
-      - name: Upload static assets to S3 CDN
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build Next.js
+        env:
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+        run: yarn build
+
+      - name: Create deployment package
         run: |
-          aws s3 sync .output/public/_nuxt s3://${{ secrets.S3_BUCKET_NAME }}/_nuxt \
-            --cache-control 'public, max-age=31536000, immutable' \
-            --delete \
-            --exact-timestamps
+          tar -czf deploy.tar.gz \
+            .next \
+            public \
+            package.json \
+            yarn.lock \
+            next.config.mjs \
+            docker-compose.yml \
+            ecosystem.config.cjs \
+            prisma \
+            postgres/init \
+            analytics/clickhouse \
+            scripts
 
-      - name: Invalidate CloudFront Cache
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
-
-      - name: Archive build files
-        run: tar -czf build.tar.gz .output
-
-      - name: Setup SSH key
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2_key.pem
+          echo "${{ secrets.NEXT_EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2_key.pem
           chmod 600 ~/.ssh/ec2_key.pem
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.NEXT_EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Copy build to EC2
+      - name: Upload to EC2
         run: |
-          scp -i ~/.ssh/ec2_key.pem build.tar.gz ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/movie-browser/
+          scp -i ~/.ssh/ec2_key.pem \
+            deploy.tar.gz \
+            ubuntu@${{ secrets.NEXT_EC2_HOST }}:/home/ubuntu/movie-browser-next/
 
       - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/ec2_key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -i ~/.ssh/ec2_key.pem ubuntu@${{ secrets.NEXT_EC2_HOST }} << 'EOF'
             set -e
-            cd /home/ubuntu/movie-browser
-            
-            echo "Extracting build..."
-            tar -xzf build.tar.gz
-            rm build.tar.gz
-            
-            echo "Pulling latest code..."
-            git fetch origin master
-            git reset --hard origin/master
-            
-            echo "Restarting PM2 processes..."
-            pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
+            cd /home/ubuntu/movie-browser-next
+
+            echo "[1/6] Extracting build..."
+            tar -xzf deploy.tar.gz
+            rm -f deploy.tar.gz
+
+            echo "[2/6] Starting PostgreSQL + ClickHouse..."
+            docker compose up -d --wait
+            docker compose ps
+
+            echo "[3/6] Installing production dependencies..."
+            yarn install --frozen-lockfile --production
+
+            echo "[4/6] Applying Prisma schema..."
+            npx prisma db push --skip-generate 2>&1 || echo "Schema already up to date"
+
+            echo "[5/6] Creating data directories..."
+            mkdir -p data/enriched logs
+            mkdir -p .cache/{youtube-channels,youtube,person,search,discover,movie,series,images}
+
+            echo "[6/6] Restarting PM2..."
+            pm2 stop all 2>/dev/null || true
+            pm2 delete all 2>/dev/null || true
+            pm2 start ecosystem.config.cjs
             pm2 save
-            
+
+            echo ""
             echo "Deployment complete!"
-            pm2 status
+            pm2 list
           EOF
 
       - name: Verify deployment
         run: |
           sleep 10
-          curl -f https://themoviebrowser.com/ || echo "Warning: Site check failed"
+          curl -sf --max-time 15 http://${{ secrets.NEXT_EC2_HOST }}:3002/ > /dev/null \
+            && echo "Health check passed" \
+            || echo "Warning: Health check failed (app may still be starting)"

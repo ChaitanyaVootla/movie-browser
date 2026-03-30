@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { WatchedMovie } from "@/server/db/models/user-library";
-import { Movie } from "@/server/db/models/movie";
+import { getWatchedMovieIdsWithDates, getMovieDetails } from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 
@@ -19,13 +17,8 @@ export async function GET() {
       return NextResponse.json({ movies: [], totalCount: 0, allGenres: [] }, { status: 200 });
     }
 
-    await connectDB();
-
     // Get all watched movie IDs sorted by most recent
-    const watchedItems = await WatchedMovie.find({ userId })
-      .select("movieId createdAt -_id")
-      .sort({ createdAt: -1 })
-      .lean();
+    const watchedItems = await getWatchedMovieIdsWithDates(userId);
 
     const movieIds = watchedItems.map((w) => w.movieId);
 
@@ -37,9 +30,7 @@ export async function GET() {
     const watchedDates = new Map(watchedItems.map((w) => [w.movieId, w.createdAt]));
 
     // Fetch full movie details
-    const movies = await Movie.find({ id: { $in: movieIds } })
-      .select("id title poster_path backdrop_path vote_average release_date genres runtime")
-      .lean();
+    const movies = await getMovieDetails(movieIds);
 
     // Create movie map for lookup
     const movieMap = new Map(movies.map((m) => [m.id, m]));
@@ -51,7 +42,7 @@ export async function GET() {
         if (!movie) return null;
         return {
           ...movie,
-          watchedAt: item.createdAt,
+          watchedAt: watchedDates.get(item.movieId),
         };
       })
       .filter(Boolean);

@@ -5,8 +5,8 @@
  * via the AI_PROVIDER environment variable.
  *
  * Providers:
- * - "bedrock": AWS Bedrock with Kimi K2 Thinking
- * - "openrouter" (default): OpenRouter with Kimi K2.5
+ * - "bedrock" (default for GA): AWS Bedrock with Kimi K2.5 in ap-south-1
+ * - "openrouter": OpenRouter with Kimi K2.5 (fallback)
  *
  * Environment variables:
  * - AI_PROVIDER: "bedrock" | "openrouter" (defaults to "openrouter")
@@ -26,9 +26,9 @@ export type AIProvider = "bedrock" | "openrouter";
  */
 export function getAIProvider(): AIProvider {
   const provider = process.env.AI_PROVIDER?.toLowerCase();
-  if (provider === "bedrock") return "bedrock";
-  // Default to openrouter since that's what we're switching to
-  return "openrouter";
+  if (provider === "openrouter") return "openrouter";
+  // Default to bedrock for GA — Kimi K2.5 in ap-south-1 (Mumbai)
+  return "bedrock";
 }
 
 /**
@@ -58,7 +58,7 @@ export function getCurrentModelId(): string {
 
   switch (provider) {
     case "bedrock":
-      return process.env.BEDROCK_MODEL_ID || "moonshot.kimi-k2-thinking";
+      return process.env.BEDROCK_MODEL_ID || "moonshotai.kimi-k2.5";
     case "openrouter":
       return getOpenRouterModelId();
     default:

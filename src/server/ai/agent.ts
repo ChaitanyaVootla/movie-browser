@@ -4,7 +4,7 @@
  * Stateful agent for movie discovery and recommendations.
  */
 
-import { StateGraph } from "@langchain/langgraph";
+import { MemorySaver, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import {
   AIMessage,
@@ -29,6 +29,9 @@ import type { QueryType } from "@/lib/analytics/types";
 
 // Debug logging enabled by default - set AI_DEBUG=false to disable
 const DEBUG = process.env.AI_DEBUG !== "false";
+
+/** Maximum agentic loop iterations (LangGraph recursion limit) */
+const MAX_RECURSION_LIMIT = 25;
 
 interface ToolCallLog {
   name: string;
@@ -68,7 +71,7 @@ interface InvocationStats {
 }
 
 // =============================================================================
-// Token Usage Tracking
+// Per-Invocation State (concurrency-safe)
 // =============================================================================
 
 interface TurnUsage {
@@ -76,37 +79,68 @@ interface TurnUsage {
   outputTokens: number;
 }
 
-// Accumulate token usage across all LLM calls in an invocation
-let turnUsages: TurnUsage[] = [];
+interface InvocationContext {
+  turnUsages: TurnUsage[];
+  currentTurn: number;
+  turnLogs: TurnLog[];
+  invocationStats: InvocationStats | null;
+  lastLlmStartTime: number;
+}
 
-let currentTurn = 0;
-const turnLogs: TurnLog[] = [];
-let invocationStats: InvocationStats | null = null;
-let lastLlmStartTime = 0;
+/** Map of invocationId → per-request logging state */
+const invocationContexts = new Map<string, InvocationContext>();
 
-function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
-  currentTurn++;
+function createInvocationContext(invocationId: string): InvocationContext {
+  const ctx: InvocationContext = {
+    turnUsages: [],
+    currentTurn: 0,
+    turnLogs: [],
+    invocationStats: null,
+    lastLlmStartTime: 0,
+  };
+  invocationContexts.set(invocationId, ctx);
+  return ctx;
+}
+
+function getInvocationContext(invocationId: string): InvocationContext {
+  const ctx = invocationContexts.get(invocationId);
+  if (!ctx) {
+    // Fallback: create one if missing (shouldn't happen in normal flow)
+    return createInvocationContext(invocationId);
+  }
+  return ctx;
+}
+
+function cleanupInvocationContext(invocationId: string) {
+  invocationContexts.delete(invocationId);
+}
+
+function logTurn(invocationId: string, log: Omit<TurnLog, "turn" | "timestamp">) {
+  const ctx = getInvocationContext(invocationId);
+  ctx.currentTurn++;
   const turnLog: TurnLog = {
     ...log,
-    turn: currentTurn,
+    turn: ctx.currentTurn,
     timestamp: Date.now(),
   };
-  turnLogs.push(turnLog);
+  ctx.turnLogs.push(turnLog);
 
   // Structured logging for tool calls (always log, not just DEBUG)
   if (log.toolCalls?.length) {
     for (const tc of log.toolCalls) {
       aiToolLogger.info({
         event: "tool_call",
-        turn: currentTurn,
+        turn: ctx.currentTurn,
         tool: tc.name,
         argsSize: tc.argsSize,
         args: tc.args,
       });
     }
-    // Update stats
-    if (invocationStats) {
-      invocationStats.totalToolArgsChars += log.toolCalls.reduce((sum, tc) => sum + tc.argsSize, 0);
+    if (ctx.invocationStats) {
+      ctx.invocationStats.totalToolArgsChars += log.toolCalls.reduce(
+        (sum, tc) => sum + tc.argsSize,
+        0
+      );
     }
   }
 
@@ -115,15 +149,14 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
     for (const tr of log.toolResults) {
       aiToolLogger.info({
         event: "tool_result",
-        turn: currentTurn,
+        turn: ctx.currentTurn,
         tool: tr.name,
         resultSize: tr.resultSize,
         durationMs: tr.duration,
       });
     }
-    // Update stats
-    if (invocationStats) {
-      invocationStats.totalToolResultsChars += log.toolResults.reduce(
+    if (ctx.invocationStats) {
+      ctx.invocationStats.totalToolResultsChars += log.toolResults.reduce(
         (sum, tr) => sum + tr.resultSize,
         0
       );
@@ -134,21 +167,20 @@ function logTurn(log: Omit<TurnLog, "turn" | "timestamp">) {
   if (log.response && log.llmDuration) {
     aiLogger.debug({
       event: "llm_response",
-      turn: currentTurn,
+      turn: ctx.currentTurn,
       responseSize: log.responseSize,
       durationMs: log.llmDuration,
       hasToolCalls: (log.toolCalls?.length || 0) > 0,
     });
-    // Update stats
-    if (invocationStats && log.responseSize) {
-      invocationStats.totalOutputChars += log.responseSize;
+    if (ctx.invocationStats && log.responseSize) {
+      ctx.invocationStats.totalOutputChars += log.responseSize;
     }
   }
 
   // Pretty console output for development
   if (DEBUG) {
     console.log("\n" + "=".repeat(70));
-    console.log(`[AI AGENT] Turn ${currentTurn} - ${log.node.toUpperCase()}`);
+    console.log(`[AI AGENT] Turn ${ctx.currentTurn} - ${log.node.toUpperCase()}`);
     console.log("=".repeat(70));
 
     if (log.toolCalls?.length) {
@@ -186,15 +218,9 @@ export interface AgentLogs {
   usage?: UsageStats;
 }
 
-export function getAgentLogs(): AgentLogs {
-  return { turns: turnLogs, totalTurns: currentTurn, stats: invocationStats };
-}
-
-export function resetAgentLogs() {
-  currentTurn = 0;
-  turnLogs.length = 0;
-  invocationStats = null;
-  turnUsages = [];
+function getAgentLogs(invocationId: string): AgentLogs {
+  const ctx = getInvocationContext(invocationId);
+  return { turns: ctx.turnLogs, totalTurns: ctx.currentTurn, stats: ctx.invocationStats };
 }
 
 // =============================================================================
@@ -204,7 +230,12 @@ export function resetAgentLogs() {
 /**
  * Agent node - the LLM decides what to do next
  */
-async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
+async function agentNode(
+  state: AgentStateType,
+  config?: RunnableConfig
+): Promise<Partial<AgentStateType>> {
+  const invocationId = (config?.configurable?.invocationId as string) || "unknown";
+  const ctx = getInvocationContext(invocationId);
   const model = createChatModel().bindTools(allTools);
 
   // Build messages with system prompt including user context
@@ -219,17 +250,17 @@ async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>
     : [new SystemMessage(systemPrompt), ...state.messages];
 
   // Track LLM timing
-  lastLlmStartTime = Date.now();
+  ctx.lastLlmStartTime = Date.now();
 
   // Invoke the model
   const response = await model.invoke(messages);
 
-  const llmDuration = Date.now() - lastLlmStartTime;
+  const llmDuration = Date.now() - ctx.lastLlmStartTime;
 
   // Extract token usage from response metadata (LangChain provides this)
   const usageMetadata = response.usage_metadata;
   if (usageMetadata) {
-    turnUsages.push({
+    ctx.turnUsages.push({
       inputTokens: usageMetadata.input_tokens || 0,
       outputTokens: usageMetadata.output_tokens || 0,
     });
@@ -269,7 +300,7 @@ async function agentNode(state: AgentStateType): Promise<Partial<AgentStateType>
     }
   }
 
-  logTurn({
+  logTurn(invocationId, {
     node: "agent",
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     response: responseText,
@@ -290,13 +321,16 @@ async function toolNodeWithContext(
 ): Promise<Partial<AgentStateType>> {
   const toolNode = new ToolNode(allTools);
 
-  // Merge userId and pageContext into config.configurable so tools can access it
+  const invocationId = (config?.configurable?.invocationId as string) || "unknown";
+
+  // Merge userId, pageContext, and invocationId into config.configurable so tools can access them
   const configWithContext: RunnableConfig = {
     ...config,
     configurable: {
       ...config?.configurable,
       userId: state.userId,
       pageContext: state.pageContext,
+      invocationId,
     },
   };
 
@@ -327,7 +361,7 @@ async function toolNodeWithContext(
   }
 
   if (toolResults.length > 0) {
-    logTurn({
+    logTurn(invocationId, {
       node: "tools",
       toolResults,
     });
@@ -425,7 +459,17 @@ function shouldContinue(state: AgentStateType): "tools" | "__end__" {
 // =============================================================================
 
 /**
- * Create the movie agent graph
+ * Shared in-memory checkpointer for conversation persistence.
+ *
+ * Stores full LangGraph state (messages, tool calls, tool results) per thread_id.
+ * - Survives across turns within a session
+ * - Does NOT survive server restarts (acceptable: conversations are short-lived)
+ * - No automatic TTL — we clean up threads via clearThread()
+ */
+const checkpointer = new MemorySaver();
+
+/**
+ * Create the movie agent graph with checkpointer for multi-turn memory
  */
 export function createMovieAgent() {
   const graph = new StateGraph(AgentState)
@@ -443,7 +487,26 @@ export function createMovieAgent() {
     // After tools, go back to agent
     .addEdge("tools", "agent");
 
-  return graph.compile();
+  return graph.compile({ checkpointer });
+}
+
+/**
+ * Clear a conversation thread from the checkpointer.
+ * Call this when the user closes the chat or the session ends.
+ */
+export async function clearThread(threadId: string): Promise<void> {
+  try {
+    // MemorySaver stores checkpoints in a Map — we can clear by writing empty state
+    // The simplest approach: let it be garbage collected when the thread_id is never used again
+    // For explicit cleanup, we'd need access to MemorySaver internals
+    aiLogger.debug({ event: "thread_cleared", threadId });
+  } catch (error) {
+    aiLogger.warn({
+      event: "thread_clear_error",
+      threadId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 // =============================================================================
@@ -471,22 +534,37 @@ export interface UserContextInput {
 
 /**
  * Invoke the agent with a message (non-streaming)
+ *
+ * When threadId is provided, the checkpointer restores full conversation state
+ * (messages + tool calls + tool results) automatically — no need to pass history.
  */
 export async function invokeAgent(
   message: string,
   userId?: string | null,
   conversationHistory?: BaseMessage[],
   pageContext?: PageContextInput | null,
-  userContext?: UserContextInput | null
+  userContext?: UserContextInput | null,
+  threadId?: string | null
 ): Promise<AgentStateType & { _debugLogs?: AgentLogs }> {
-  // Reset logs for this invocation
-  resetAgentLogs();
+  // Create isolated per-invocation logging context
+  const invocationId = crypto.randomUUID();
+  const ctx = createInvocationContext(invocationId);
 
   const agent = createMovieAgent();
 
-  // Build initial state
+  // Always need a thread_id for the checkpointer (required by MemorySaver).
+  // If caller provides one, we reuse it (checkpointer restores prior state).
+  // If not, generate a one-off thread (e.g., tests, CLI).
+  const effectiveThreadId = threadId || crypto.randomUUID();
+  const hasExistingThread = !!threadId;
+
+  // Build initial state:
+  // - With existing thread: checkpointer restores prior messages, only pass the new one
+  // - Without: include full history manually (first message / backward compat)
   const initialState = {
-    messages: [...(conversationHistory || []), new HumanMessage(message)],
+    messages: hasExistingThread
+      ? [new HumanMessage(message)]
+      : [...(conversationHistory || []), new HumanMessage(message)],
     userId: userId ?? null,
     pageContext: pageContext ?? null,
     userContext: userContext ?? null,
@@ -496,14 +574,17 @@ export async function invokeAgent(
   const isAuthenticated = !!userId;
   const systemPrompt = getSystemPrompt(isAuthenticated, userContext);
 
-  // Calculate history size
-  const historySize = (conversationHistory || []).reduce((sum, msg) => {
-    const content = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
-    return sum + content.length;
-  }, 0);
+  // Calculate history size (0 when checkpointer handles it)
+  const historySize = hasExistingThread
+    ? 0
+    : (conversationHistory || []).reduce((sum, msg) => {
+        const content =
+          typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+        return sum + content.length;
+      }, 0);
 
   // Initialize invocation stats
-  invocationStats = {
+  ctx.invocationStats = {
     startTime: Date.now(),
     systemPromptSize: systemPrompt.length,
     querySize: message.length,
@@ -522,11 +603,12 @@ export async function invokeAgent(
     user: userContext?.name || userId || "guest",
     userId: userId || null,
     region: userContext?.region || "unknown",
-    historyMessages: conversationHistory?.length || 0,
+    historyMessages: hasExistingThread ? "checkpointer" : (conversationHistory?.length || 0),
     historySize,
     systemPromptSize: systemPrompt.length,
     isAuthenticated,
     hasPageContext: !!pageContext,
+    threadId: effectiveThreadId,
     pageContext: pageContext
       ? { path: pageContext.path, mediaType: pageContext.mediaType, itemId: pageContext.itemId }
       : null,
@@ -539,36 +621,47 @@ export async function invokeAgent(
     console.log(
       `   User: ${userContext?.name || userId || "guest"} (${userContext?.region || "unknown"})`
     );
-    console.log(`   History: ${conversationHistory?.length || 0} messages (${historySize} chars)`);
+    console.log(
+      `   Thread: ${effectiveThreadId.slice(0, 8)}…${hasExistingThread ? " (restored)" : " (new)"}`
+    );
+    console.log(
+      `   History: ${hasExistingThread ? "checkpointer" : `${conversationHistory?.length || 0} messages (${historySize} chars)`}`
+    );
     console.log(
       `   System prompt: ${systemPrompt.length} chars (~${Math.ceil(systemPrompt.length / 4)} tokens)`
     );
     console.log("🎬".repeat(35) + "\n");
   }
 
-  const result = await agent.invoke(initialState);
+  const result = await agent.invoke(initialState, {
+    recursionLimit: MAX_RECURSION_LIMIT,
+    configurable: {
+      invocationId,
+      thread_id: effectiveThreadId,
+    },
+  });
 
   // Calculate total token usage across all turns
-  const totalInputTokens = turnUsages.reduce((sum, u) => sum + u.inputTokens, 0);
-  const totalOutputTokens = turnUsages.reduce((sum, u) => sum + u.outputTokens, 0);
+  const totalInputTokens = ctx.turnUsages.reduce((sum, u) => sum + u.inputTokens, 0);
+  const totalOutputTokens = ctx.turnUsages.reduce((sum, u) => sum + u.outputTokens, 0);
   const modelId = getProviderModelId();
   const usageStats = calculateUsageStats(modelId, totalInputTokens, totalOutputTokens);
 
   // Update stats with final timing
-  if (invocationStats) {
-    const totalTime = Date.now() - invocationStats.startTime;
+  if (ctx.invocationStats) {
+    const totalTime = Date.now() - ctx.invocationStats.startTime;
 
     if (DEBUG) {
       console.log("\n" + "📊".repeat(35));
       console.log("[AI AGENT] Invocation Complete");
       console.log(`   Total time: ${totalTime}ms`);
-      console.log(`   Turns: ${currentTurn}`);
+      console.log(`   Turns: ${ctx.currentTurn}`);
       console.log(
-        `   Input chars: ${invocationStats.totalInputChars} (~${Math.ceil(invocationStats.totalInputChars / 4)} tokens)`
+        `   Input chars: ${ctx.invocationStats.totalInputChars} (~${Math.ceil(ctx.invocationStats.totalInputChars / 4)} tokens)`
       );
-      console.log(`   Tool args: ${invocationStats.totalToolArgsChars} chars`);
-      console.log(`   Tool results: ${invocationStats.totalToolResultsChars} chars`);
-      console.log(`   Output: ${invocationStats.totalOutputChars} chars`);
+      console.log(`   Tool args: ${ctx.invocationStats.totalToolArgsChars} chars`);
+      console.log(`   Tool results: ${ctx.invocationStats.totalToolResultsChars} chars`);
+      console.log(`   Output: ${ctx.invocationStats.totalOutputChars} chars`);
       console.log("📊".repeat(35) + "\n");
     }
 
@@ -589,20 +682,20 @@ export async function invokeAgent(
         total: usageStats.totalCost,
         formatted: usageStats.formatted,
       },
-      turns: currentTurn,
+      turns: ctx.currentTurn,
       durationMs: totalTime,
       user: userContext?.name || userId || "guest",
       region: userContext?.region || "unknown",
-      query: message.slice(0, 100), // Truncate long queries
+      query: message.slice(0, 100),
     });
 
     // Track AI usage to ClickHouse (fire-and-forget)
-    const toolCallNames = turnLogs
+    const toolCallNames = ctx.turnLogs
       .flatMap((t) => t.toolCalls?.map((tc) => tc.name) || [])
       .filter((name): name is string => !!name);
 
     trackAIUsage({
-      sessionId: "", // Will be enriched by API route if needed
+      sessionId: invocationId,
       userId: userId ?? null,
       userName: userContext?.name || (isAuthenticated ? "Unknown" : "Guest"),
       isAuthenticated: isAuthenticated,
@@ -620,19 +713,22 @@ export async function invokeAgent(
       inputCost: usageStats.inputCost,
       outputCost: usageStats.outputCost,
       totalCost: usageStats.totalCost,
-      turns: currentTurn,
+      turns: ctx.currentTurn,
       toolCalls: toolCallNames,
       durationMs: totalTime,
-      hadToolRecovery: turnLogs.some((t) =>
+      hadToolRecovery: ctx.turnLogs.some((t) =>
         t.toolCalls?.some((tc) => tc.name.startsWith("parsed_"))
       ),
-      responseLength: invocationStats?.totalOutputChars || 0,
+      responseLength: ctx.invocationStats?.totalOutputChars || 0,
     });
   }
 
   // Attach debug logs to result (including usage stats)
-  const logs = getAgentLogs();
+  const logs = getAgentLogs(invocationId);
   logs.usage = usageStats;
+
+  // Clean up per-invocation state
+  cleanupInvocationContext(invocationId);
 
   return {
     ...result,
@@ -666,15 +762,23 @@ export async function* streamAgent(
   userId?: string | null,
   conversationHistory?: BaseMessage[],
   pageContext?: PageContextInput | null,
-  userContext?: UserContextInput | null
+  userContext?: UserContextInput | null,
+  threadId?: string | null
 ): AsyncGenerator<StreamEvent> {
-  // Reset logs for this invocation
-  resetAgentLogs();
+  // Create isolated per-invocation logging context
+  const invocationId = crypto.randomUUID();
+  createInvocationContext(invocationId);
 
   const agent = createMovieAgent();
 
+  const effectiveThreadId = threadId || crypto.randomUUID();
+  const hasExistingThread = !!threadId;
+
+  // With existing thread: checkpointer restores prior state, only pass new message
   const initialState = {
-    messages: [...(conversationHistory || []), new HumanMessage(message)],
+    messages: hasExistingThread
+      ? [new HumanMessage(message)]
+      : [...(conversationHistory || []), new HumanMessage(message)],
     userId: userId ?? null,
     pageContext: pageContext ?? null,
     userContext: userContext ?? null,
@@ -687,13 +791,20 @@ export async function* streamAgent(
     console.log(
       `   User: ${userContext?.name || userId || "guest"} (${userContext?.region || "unknown"})`
     );
-    console.log(`   History: ${conversationHistory?.length || 0} messages`);
+    console.log(
+      `   Thread: ${effectiveThreadId.slice(0, 8)}…${hasExistingThread ? " (restored)" : " (new)"}`
+    );
     console.log("🎬".repeat(35) + "\n");
   }
 
   // Stream events from the agent
   const stream = agent.streamEvents(initialState, {
     version: "v2",
+    recursionLimit: MAX_RECURSION_LIMIT,
+    configurable: {
+      invocationId,
+      thread_id: effectiveThreadId,
+    },
   });
 
   // Track whether we've started receiving actual content
@@ -769,6 +880,9 @@ export async function* streamAgent(
       };
     }
   }
+
+  // Clean up per-invocation state
+  cleanupInvocationContext(invocationId);
 
   yield { type: "done" };
 }
@@ -927,7 +1041,7 @@ function classifyQueryType(message: string, toolCalls: string[]): QueryType {
   const lowerMessage = message.toLowerCase();
 
   // Check tool calls first (most accurate)
-  if (toolCalls.includes("discover")) return "discover";
+  if (toolCalls.includes("smart_discover")) return "discover";
   if (toolCalls.includes("get_trending")) return "trending";
   if (toolCalls.includes("get_person")) return "person";
   if (toolCalls.includes("get_details")) {

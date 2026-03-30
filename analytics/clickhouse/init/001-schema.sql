@@ -163,26 +163,30 @@ TTL toDateTime(timestamp) + INTERVAL 180 DAY;
 
 -- =============================================================================
 -- API CALLS
--- External API call tracking (TMDB, YouTube)
+-- External API call tracking (TMDB, YouTube, Lambda, Embedding)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS analytics.api_calls (
     timestamp DateTime64(3) DEFAULT now64(3),
     session_id String DEFAULT '',
     request_id String DEFAULT '',
-    
+
+    -- service: 'tmdb' | 'youtube' | 'mongodb' | 'lambda' | 'embedding'
     service LowCardinality(String),
     endpoint String DEFAULT '',
     method LowCardinality(String) DEFAULT 'GET',
-    
+
     status_code UInt16 DEFAULT 0,
     duration_ms UInt32 DEFAULT 0,
     response_size UInt32 DEFAULT 0,
-    
+
     cached UInt8 DEFAULT 0,
     cache_hit LowCardinality(String) DEFAULT '',
-    
+
     quota_cost Nullable(UInt8),
-    
+
+    -- Token count for embedding calls (Cohere Embed v4)
+    tokens UInt32 DEFAULT 0,
+
     error_type Nullable(String),
     error_message Nullable(String)
 )
@@ -442,4 +446,7 @@ TTL toDateTime(timestamp) + INTERVAL 7 DAY;  -- 7 days retention for granular da
 
 -- Migration: Add system_metrics table (2026-01-09)
 -- Run the CREATE TABLE statement above if upgrading
+
+-- Migration: Add tokens column to api_calls for embedding tracking (2026-03-30)
+-- ALTER TABLE analytics.api_calls ADD COLUMN IF NOT EXISTS tokens UInt32 DEFAULT 0;
 

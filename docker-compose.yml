@@ -1,16 +1,99 @@
-version: "3.7"
+# =============================================================================
+# Movie Browser — Production Services (EC2)
+# =============================================================================
+#
+# Starts PostgreSQL (pgvector) + ClickHouse on EC2.
+# MongoDB is NOT included — connects to remote MongoDB temporarily until GA.
+#
+# Usage:
+#   docker compose up -d                    # Start all services
+#   docker compose logs -f postgres         # Tail PG logs
+#   docker compose down                     # Stop all
+#   docker compose down -v                  # Stop + delete data (DESTRUCTIVE)
+#
+# After first start:
+#   yarn db:push                            # Apply Prisma schema (creates tables)
+#   yarn db:indexes                         # Apply search indexes (trigram + vector)
+#
+# =============================================================================
+
 services:
-  mongodb_container:
-    image: mongo:5.0.12
+  # ===========================================================================
+  # PostgreSQL 17 + pgvector + pg_trgm
+  # ===========================================================================
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: movie-browser-postgres
+    restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: "${VARIABLE:-$DB_USER}"
-      MONGO_INITDB_ROOT_PASSWORD: "${VARIABLE:-$DB_PASSWORD}"
+      POSTGRES_USER: moviebrowser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev123}
+      POSTGRES_DB: moviebrowser
     ports:
-      - 27017:27017
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
-      - movie-browser_mongodb:/data/db
-    restart: always
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init/01-extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moviebrowser -d moviebrowser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Production tuning for t4g.large (8GB shared with Next.js + ClickHouse)
+    # PG budget: ~2.5GB (1GB shared_buffers + working memory + OS cache)
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=1GB"
+      - "-c"
+      - "effective_cache_size=3GB"
+      - "-c"
+      - "work_mem=64MB"
+      - "-c"
+      - "maintenance_work_mem=256MB"
+      - "-c"
+      - "max_parallel_workers_per_gather=2"
+      - "-c"
+      - "max_connections=50"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+
+  # ===========================================================================
+  # ClickHouse — Analytics Database
+  # ===========================================================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.12
+    container_name: analytics-clickhouse
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8123:8123"   # HTTP — localhost only
+      - "127.0.0.1:9000:9000"   # Native — localhost only
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+      - ./analytics/clickhouse/init:/docker-entrypoint-initdb.d:ro
+      - ./analytics/clickhouse/config:/etc/clickhouse-server/config.d:ro
+    environment:
+      - CLICKHOUSE_DB=analytics
+      - CLICKHOUSE_USER=analytics
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-analytics_secret_123}
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  movie-browser_mongodb:
-    external: true
+  postgres_data:
+    name: movie-browser-postgres-data
+  clickhouse_data:
+    name: movie-browser-clickhouse-data
+  clickhouse_logs:
+    name: movie-browser-clickhouse-logs

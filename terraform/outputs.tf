@@ -24,21 +24,10 @@ output "ssh_connection_string" {
   value       = "ssh -i ${var.key_name}.pem ubuntu@${aws_eip.main.public_ip}"
 }
 
-output "ssh_key_path" {
-  description = "Path to the SSH private key"
-  value       = "${path.module}/${var.key_name}.pem"
-}
-
-# MongoDB Connection Outputs
-output "mongodb_connection_string" {
-  description = "MongoDB connection string (from local machine)"
-  value       = "mongodb://root:${var.mongodb_root_password}@${aws_eip.main.public_ip}:${var.mongodb_port}"
-  sensitive   = true
-}
-
-output "mongodb_connection_string_internal" {
-  description = "MongoDB connection string (from EC2 instance)"
-  value       = "mongodb://root:${var.mongodb_root_password}@localhost:${var.mongodb_port}"
+# PostgreSQL Connection Outputs
+output "postgres_connection_string" {
+  description = "PostgreSQL connection string (from EC2 instance)"
+  value       = "postgresql://moviebrowser:${var.postgres_password}@localhost:5433/moviebrowser?schema=public"
   sensitive   = true
 }
 
@@ -71,58 +60,59 @@ output "security_group_id" {
 
 # IAM Role Outputs
 output "ec2_iam_role_arn" {
-  description = "ARN of the EC2 IAM role"
+  description = "ARN of the EC2 IAM role (has Bedrock, Lambda, S3, CloudWatch permissions)"
   value       = aws_iam_role.ec2_role.arn
 }
 
-# Quick Setup Instructions
+# Setup Instructions
 output "next_steps" {
   description = "Next steps after Terraform apply"
   value = <<-EOT
-    
+
     ========================================
-    AWS EC2 Migration - Next Steps
+    Movie Browser — New EC2 Setup
     ========================================
-    
+
     1. SSH into the instance:
        ${join(" ", ["ssh", "-i", "${var.key_name}.pem", "ubuntu@${aws_eip.main.public_ip}"])}
-    
+
     2. Verify setup completion:
-       cat /var/log/user-data.log
        cat /var/log/user-data-complete
-    
+
     3. Clone repository:
-       cd /home/ubuntu
-       git clone <your-repo-url> movie-browser
-       cd movie-browser
-    
-    4. Create .env file with configuration
-    
-    5. Install dependencies:
-       npm install
-    
-    6. Build application:
-       npm run build
-    
-    7. Setup VectorDB:
-       cd VectorDB
-       python3 -m venv vector
-       source vector/bin/activate
-       pip install -r requirements.txt
-       deactivate
-    
-    8. Restore MongoDB data (run from local machine):
-       ./scripts/restore-to-ec2.sh
-    
-    9. Start PM2 processes:
-       pm2 start ecosystem.config.cjs
-       pm2 save
-    
-    10. Update DNS records:
-        themoviebrowser.com -> ${aws_eip.main.public_ip}
-        api.themoviebrowser.com -> ${aws_eip.main.public_ip}
-    
+       git clone <your-repo-url> /home/ubuntu/movie-browser-next
+       cd /home/ubuntu/movie-browser-next
+
+    4. Create .env.local (copy from template.env, fill in secrets)
+
+    5. Start PostgreSQL + ClickHouse:
+       docker compose up -d
+       docker compose ps   # verify both healthy
+
+    6. Apply Prisma schema:
+       yarn install
+       yarn db:push
+
+    7. Apply search indexes (after tables exist):
+       docker exec -i movie-browser-postgres psql -U moviebrowser -d moviebrowser \
+         < postgres/init/02-search-indexes.sql
+
+    8. Deploy from local machine:
+       yarn deploy
+
+    9. Update DNS records:
+       themoviebrowser.com -> ${aws_eip.main.public_ip}
+       api.themoviebrowser.com -> ${aws_eip.main.public_ip}
+
+    IAM Permissions on this instance:
+    - Bedrock: InvokeModel (Kimi K2.5, Cohere Embed v4)
+    - Lambda: InvokeFunction (movie-ratings-scraper)
+    - S3: Get/Put/List (migration buckets)
+    - CloudWatch: Agent server policy
+
+    MongoDB: NOT local. Set MONGO_IP in .env.local to
+    the old EC2 IP for temporary remote access.
+
     ========================================
   EOT
 }
-

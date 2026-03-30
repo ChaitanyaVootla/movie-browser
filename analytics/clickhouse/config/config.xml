@@ -8,8 +8,8 @@
         <count>3</count>
     </logger>
 
-    <!-- Memory limits (conservative for EC2) -->
-    <max_server_memory_usage_to_ram_ratio>0.8</max_server_memory_usage_to_ram_ratio>
+    <!-- Cap ClickHouse to ~1GB on shared EC2 (default 0.8 = 6.4GB on 8GB box) -->
+    <max_server_memory_usage>1073741824</max_server_memory_usage>
 
     <!-- Compression (zstd level 3 is a good balance) -->
     <compression>

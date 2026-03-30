@@ -3,9 +3,9 @@
 -- Phase 1: Trigram (fuzzy) + Phase 2: Vector (semantic)
 -- =============================================================================
 --
--- Embedding Model: Amazon Titan Text Embeddings V2
--- Dimensions: 1024 (optimal balance of quality vs. storage)
--- Model ID: amazon.titan-embed-text-v2:0
+-- Embedding Model: Cohere Embed v4 via AWS Bedrock
+-- Dimensions: 1024 (output_dimension parameter, default is 1536)
+-- Model ID: global.cohere.embed-v4:0
 -- =============================================================================
 
 -- =============================================================================

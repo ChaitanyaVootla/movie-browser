@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { UserRating } from "@/server/db/models/user-library";
+import { upsertRating, deleteRating } from "@/server/db/user-data";
 import { requireUserIdForDb } from "@/lib/user-id";
 import { z } from "zod";
 import { userApiLogger } from "@/lib/logger";
@@ -30,14 +29,7 @@ export async function POST(request: NextRequest) {
 
     const { itemId, itemType, rating } = parsed.data;
 
-    await connectDB();
-
-    // Upsert the rating
-    await UserRating.findOneAndUpdate(
-      { userId, itemId, itemType },
-      { userId, itemId, itemType, rating, createdAt: new Date() },
-      { upsert: true, new: true }
-    );
+    await upsertRating(userId, itemId, itemType, rating);
 
     return NextResponse.json({ success: true, itemId, itemType, rating });
   } catch (error) {
@@ -69,9 +61,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Invalid itemId or itemType" }, { status: 400 });
     }
 
-    await connectDB();
-
-    await UserRating.deleteOne({ userId, itemId, itemType });
+    await deleteRating(userId, itemId, itemType as "movie" | "series");
 
     return NextResponse.json({ success: true, itemId, itemType });
   } catch (error) {

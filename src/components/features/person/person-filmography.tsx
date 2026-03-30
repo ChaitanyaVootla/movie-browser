@@ -10,7 +10,7 @@ import { MediaCard } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { cn } from "@/lib/utils";
 import { buildBrowseUrl } from "@/lib/discover";
-import { filterOutTalkShowsLight } from "@/lib/person-credits";
+import { filterOutTalkShows } from "@/lib/person-credits";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import type { MovieListItem, SeriesListItem } from "@/types";
 import type {
@@ -158,7 +158,7 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
   // Get combined credits with subtitle info, filtering out talk shows
   const combinedCast = useMemo(
     () =>
-      filterOutTalkShowsLight(person.combined_credits.cast).map(
+      filterOutTalkShows(person.combined_credits.cast).map(
         (credit): CreditWithSubtitle => ({
           credit,
           subtitle: getSubtitle(credit, true),
@@ -169,7 +169,7 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
   );
   const combinedCrew = useMemo(
     () =>
-      filterOutTalkShowsLight(person.combined_credits.crew).map(
+      filterOutTalkShows(person.combined_credits.crew).map(
         (credit): CreditWithSubtitle => ({
           credit,
           subtitle: getSubtitle(credit, false),

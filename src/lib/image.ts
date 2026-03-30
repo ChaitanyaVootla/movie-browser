@@ -28,14 +28,14 @@ interface ImageItem {
 /**
  * Determines if item is a movie (has title) or series (has name)
  */
-export function getMediaType(item: ImageItem): MediaType {
+function getMediaType(item: ImageItem): MediaType {
   return "title" in item && item.title ? "movie" : "series";
 }
 
 /**
  * Get CDN image URL for a media item
  */
-export function getCdnImageUrl(
+function getCdnImageUrl(
   item: ImageItem,
   imageType: ImageType,
   mediaType?: MediaType
@@ -51,7 +51,7 @@ export function getCdnImageUrl(
 /**
  * Get TMDB fallback URL for a media item
  */
-export function getTmdbImageUrl(item: ImageItem, imageType: ImageType, size?: string): string {
+function getTmdbImageUrl(item: ImageItem, imageType: ImageType, size?: string): string {
   switch (imageType) {
     case ImageType.POSTER:
       return item.poster_path ? `${TMDB_IMAGE_BASE}/${size || "w500"}${item.poster_path}` : "";
@@ -80,7 +80,7 @@ export interface ImageSources {
 /**
  * Get image sources with CDN as primary and TMDB as fallback
  */
-export function getImageSources(
+function getImageSources(
   item: ImageItem,
   imageType: ImageType,
   mediaType?: MediaType,

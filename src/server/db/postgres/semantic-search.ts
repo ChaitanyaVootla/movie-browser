@@ -8,7 +8,7 @@
  * search in a single query. This file provides lower-level primitives.
  *
  * @see src/server/db/postgres/smart-discover.ts - Unified filter + semantic search
- * @see src/lib/embeddings/generator.ts - for embedding generation
+ * @see src/lib/embeddings/cohere-generator.ts - Cohere Embed v4 generation
  * @see docs/ADVANCED_SEARCH_IMPLEMENTATION_PLAN.md - for full plan
  */
 

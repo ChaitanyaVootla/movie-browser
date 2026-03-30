@@ -37,6 +37,8 @@ interface StreamEvent {
     id?: number;
     type?: string;
   };
+  /** Thread ID returned by server for conversation persistence */
+  threadId?: string;
   error?: string;
 }
 
@@ -116,6 +118,8 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   const router = useRouter();
   const abortControllerRef = useRef<AbortController | null>(null);
   const messageIdRef = useRef(0);
+  /** Server-assigned thread ID for checkpointer-backed conversation persistence */
+  const threadIdRef = useRef<string | null>(null);
 
   // Store page context in ref so it can be updated without re-creating sendMessage
   const pageContextRef = useRef<PageContext | null>(options.pageContext ?? null);
@@ -168,18 +172,22 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
       ]);
 
       try {
-        // Build history for context (excluding the streaming message we just added)
-        const history = messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        }));
+        // When we have a threadId, the server's checkpointer handles conversation history
+        // (including full tool call/result context). Only send history as fallback for first message.
+        const hasThread = !!threadIdRef.current;
+        const history = hasThread
+          ? []
+          : messages.map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+            }));
 
         const response = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: content.trim(),
-            history,
+            ...(hasThread ? { threadId: threadIdRef.current } : { history }),
             stream: true,
             pageContext: pageContextRef.current,
           }),
@@ -271,6 +279,11 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
                   break;
 
                 case "done":
+                  // Capture thread ID from server for subsequent messages
+                  if (event.threadId) {
+                    threadIdRef.current = event.threadId;
+                  }
+
                   // Finalize the message with resolved content from server
                   const finalContent = filterInternalTags(event.message || assistantContent);
                   setMessages((prev) =>
@@ -371,6 +384,8 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
     setIsLoading(false);
     setActiveTools([]);
     setPendingNavigation(null);
+    // Reset thread — next message starts a fresh conversation
+    threadIdRef.current = null;
   }, []);
 
   /**

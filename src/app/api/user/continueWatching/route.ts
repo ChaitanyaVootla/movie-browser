@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { ContinueWatching } from "@/server/db/models/user-library";
+import {
+  getContinueWatchingItems,
+  upsertContinueWatchingItem,
+  deleteContinueWatchingItem,
+} from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
-
-const MAX_CONTINUE_WATCHING = 10;
 
 // GET /api/user/continueWatching - Fetch user's continue watching items
 export async function GET() {
@@ -15,13 +16,7 @@ export async function GET() {
       return NextResponse.json({ items: [] });
     }
 
-    await connectDB();
-
-    const items = await ContinueWatching.find({ userId })
-      .select("-__v -userId")
-      .sort({ updatedAt: -1 })
-      .limit(MAX_CONTINUE_WATCHING)
-      .lean();
+    const items = await getContinueWatchingItems(userId);
 
     const formattedItems = items.map((item) => ({
       id: item.itemId,
@@ -72,35 +67,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    await connectDB();
-
-    // Delete existing entry if exists
-    await ContinueWatching.deleteOne({ userId, itemId, isMovie });
-
-    // Create new entry
-    await ContinueWatching.create({
-      userId,
+    await upsertContinueWatchingItem(userId, {
       itemId,
       isMovie,
+      watchLink,
+      watchProviderName,
       poster_path,
       backdrop_path,
       title,
       name,
-      watchLink,
-      watchProviderName,
-      updatedAt: new Date(),
     });
-
-    // Clean up old items (keep only MAX_CONTINUE_WATCHING)
-    const allItems = await ContinueWatching.find({ userId })
-      .sort({ updatedAt: -1 })
-      .select("_id")
-      .lean();
-
-    if (allItems.length > MAX_CONTINUE_WATCHING) {
-      const idsToDelete = allItems.slice(MAX_CONTINUE_WATCHING).map((item) => item._id);
-      await ContinueWatching.deleteMany({ _id: { $in: idsToDelete } });
-    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -130,8 +106,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Missing itemId" }, { status: 400 });
     }
 
-    await connectDB();
-    await ContinueWatching.deleteOne({ userId, itemId: parseInt(itemId, 10), isMovie });
+    await deleteContinueWatchingItem(userId, parseInt(itemId, 10), isMovie);
 
     return NextResponse.json({ success: true });
   } catch (error) {

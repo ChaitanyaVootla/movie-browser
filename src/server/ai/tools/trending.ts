@@ -79,7 +79,17 @@ export const getTrendingTool = tool(
   },
   {
     name: "get_trending",
-    description: `What's popular/trending right now. Use when: "What's hot?", "Popular movies?"`,
+    description: `What's popular/trending right now on TMDB (real-time data, not from your knowledge).
+
+Use when: "What's hot?", "Popular movies?", "What's everyone watching?", "Trending shows"
+Don't use when: User wants filtered discovery (use smart_discover with sortBy: "popularity" instead).
+
+Parameters:
+- mediaType: "movie", "tv", or "all" (default: "all" — returns both)
+- timeWindow: "day" (today's trends) or "week" (this week's trends, default)
+
+Returns: Up to 10 trending items with id, title, year, rating, overview.
+Use the returned IDs for [MOVIE]/[SERIES]/[RATINGS]/[WATCH] tags.`,
     schema: trendingSchema,
   }
 );

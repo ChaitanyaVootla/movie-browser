@@ -1,13 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import {
-  WatchedMovie,
-  MoviesWatchlist,
-  SeriesWatchlist,
-  UserRating,
-  RecentItem,
-  ContinueWatching,
-} from "@/server/db/models/user-library";
+import { getLibraryData } from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 
@@ -35,45 +27,27 @@ export async function GET() {
       );
     }
 
-    await connectDB();
-
-    const [watchedMovies, watchlistMovies, watchlistSeries, ratings, recents, continueWatching] =
-      await Promise.all([
-        WatchedMovie.find({ userId }).select("movieId -_id").lean(),
-        MoviesWatchlist.find({ userId }).select("movieId -_id").lean(),
-        SeriesWatchlist.find({ userId }).select("seriesId -_id").lean(),
-        UserRating.find({ userId }).select("itemId itemType rating -_id").lean(),
-        RecentItem.find({ userId }).select("-__v -userId").sort({ updatedAt: -1 }).limit(20).lean(),
-        ContinueWatching.find({ userId })
-          .select("-__v -userId")
-          .sort({ updatedAt: -1 })
-          .limit(10)
-          .lean(),
-      ]);
+    const data = await getLibraryData(userId);
 
     return NextResponse.json({
-      watchedMovies: watchedMovies.map((m) => m.movieId),
-      watchlistMovies: watchlistMovies.map((m) => m.movieId),
-      watchlistSeries: watchlistSeries.map((s) => s.seriesId),
-      ratings: ratings.map((r) => ({
-        itemId: r.itemId,
-        itemType: r.itemType,
-        rating: r.rating,
-      })),
-      recents: recents.map((r) => ({
+      watchedMovies: data.watchedMovieIds,
+      watchlistMovies: data.watchlistMovieIds,
+      watchlistSeries: data.watchlistSeriesIds,
+      ratings: data.ratings,
+      recents: data.recentItems.map((r) => ({
         id: r.itemId,
         itemId: r.itemId,
-        isMovie: Boolean(r.isMovie),
+        isMovie: r.isMovie,
         poster_path: r.poster_path,
         backdrop_path: r.backdrop_path,
         title: r.title,
         name: r.name,
-        viewedAt: r.updatedAt,
+        viewedAt: r.viewedAt,
       })),
-      continueWatching: continueWatching.map((item) => ({
+      continueWatching: data.continueWatchingItems.map((item) => ({
         id: item.itemId,
         itemId: item.itemId,
-        isMovie: Boolean(item.isMovie),
+        isMovie: item.isMovie,
         poster_path: item.poster_path,
         backdrop_path: item.backdrop_path,
         title: item.title,

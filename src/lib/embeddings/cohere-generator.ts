@@ -2,8 +2,8 @@
  * Cohere Embed v4 Generator
  *
  * Generates vector embeddings using AWS Bedrock's Cohere Embed v4 model.
- * This model offers superior semantic understanding compared to Titan,
- * with less positional bias and support for input_type specification.
+ * Superior semantic understanding with asymmetric input_type selection
+ * (search_document vs search_query) for better retrieval quality.
  *
  * Key Features:
  * - Configurable dimensions (256-1536, we use 1024)
@@ -30,13 +30,14 @@ const logger = pino({ name: "cohere-embeddings" });
 
 /**
  * Cohere Embed v4 Configuration
- * - Dimensions: 256-1536 (we use 1024 for quality/performance balance)
- * - Max input: ~128k tokens (much larger than Titan's 8,192)
- * - Cost: Similar to Titan for float embeddings
- * - Model ID: cohere.embed-v4:0
+ * - Dimensions: 256-1536 (we use 1024)
+ * - Max input: ~128k tokens
+ * - Model ID: global.cohere.embed-v4:0 (cross-region inference)
  */
-const COHERE_MODEL_ID = "cohere.embed-v4:0";
-const COHERE_DIMENSIONS = 1024; // Match Titan for drop-in replacement
+// Use global cross-region inference profile for fastest routing from ap-south-1 (Mumbai)
+// This routes to the nearest Cohere-available region (us-east-1, eu-west-1, or ap-northeast-1)
+const COHERE_MODEL_ID = process.env.COHERE_EMBED_MODEL_ID || "global.cohere.embed-v4:0";
+const COHERE_DIMENSIONS = 1024;
 const COHERE_EMBEDDING_TYPE = "float" as const; // float, int8, uint8, binary, ubinary
 
 const BATCH_SIZE = 100; // Process 100 items at a time
@@ -45,7 +46,8 @@ const RATE_LIMIT_DELAY_MS = 50; // Small delay between batches
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
-const AWS_REGION = process.env.BEDROCK_REGION || "us-east-1";
+// ap-south-1 (Mumbai) — closest to Hyderabad EC2, global inference profile handles routing
+const AWS_REGION = process.env.BEDROCK_REGION || "ap-south-1";
 
 // =============================================================================
 // Types
@@ -99,8 +101,16 @@ interface CohereEmbedRequest {
    */
   embedding_types: ("float" | "int8" | "uint8" | "binary" | "ubinary")[];
 
-  /** How to truncate if text exceeds limit (default: END) */
-  truncate?: "END" | "START" | "NONE";
+  /** How to truncate if text exceeds limit (default: RIGHT) */
+  truncate?: "NONE" | "LEFT" | "RIGHT";
+
+  /**
+   * Output dimension for dimensionality reduction.
+   * Cohere Embed v4 defaults to 1536 if omitted.
+   * Supported: 256, 512, 1024, 1536.
+   * We use 1024 to match the DB column vector(1024).
+   */
+  output_dimension?: number;
 }
 
 interface CohereEmbedResponse {
@@ -130,26 +140,30 @@ interface CohereEmbedResponse {
 let bedrockClient: BedrockRuntimeClient | null = null;
 
 /**
- * Get or create a Bedrock client using credentials from .env.local
+ * Get or create a Bedrock client.
+ * Uses explicit credentials from env vars (local dev) or falls back
+ * to EC2 instance profile credentials automatically.
  */
 function getBedrockClient(): BedrockRuntimeClient {
   if (!bedrockClient) {
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-      throw new Error(
-        "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env.local"
-      );
-    }
+    // If explicit credentials are set, use them (local dev).
+    // Otherwise, omit — the AWS SDK resolves credentials from the
+    // EC2 instance profile automatically.
+    const credentials =
+      process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+        ? {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          }
+        : undefined;
 
     bedrockClient = new BedrockRuntimeClient({
       region: AWS_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      },
+      ...(credentials && { credentials }),
     });
 
     logger.info(
-      { region: AWS_REGION, model: COHERE_MODEL_ID },
+      { region: AWS_REGION, model: COHERE_MODEL_ID, usingInstanceProfile: !credentials },
       "Initialized Cohere Bedrock client"
     );
   }
@@ -175,7 +189,8 @@ export async function generateDocumentEmbedding(
     texts: [text],
     input_type: "search_document", // For storing in vector DB
     embedding_types: [COHERE_EMBEDDING_TYPE],
-    truncate: "END",
+    truncate: "RIGHT",
+    output_dimension: dimensions,
   };
 
   const command = new InvokeModelCommand({
@@ -242,7 +257,8 @@ export async function generateQueryEmbeddingDetailed(
     texts: [query],
     input_type: "search_query", // For user queries
     embedding_types: [COHERE_EMBEDDING_TYPE],
-    truncate: "END",
+    truncate: "RIGHT",
+    output_dimension: dimensions,
   };
 
   const command = new InvokeModelCommand({
@@ -314,7 +330,8 @@ async function generateBatchEmbeddings(
     texts,
     input_type: "search_document",
     embedding_types: [COHERE_EMBEDDING_TYPE],
-    truncate: "END",
+    truncate: "RIGHT",
+    output_dimension: dimensions,
   };
 
   const command = new InvokeModelCommand({

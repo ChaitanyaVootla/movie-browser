@@ -202,11 +202,6 @@ export function getGenreById(id: number, mediaType: "movie" | "tv"): Genre | und
   return name ? { id, name } : undefined;
 }
 
-export function getGenreByName(name: string, mediaType: "movie" | "tv"): Genre | undefined {
-  const list = mediaType === "movie" ? MOVIE_GENRE_LIST : TV_GENRE_LIST;
-  return list.find((g) => g.name.toLowerCase() === name.toLowerCase());
-}
-
 // Popular genres for quick filters and topic variations
 export const POPULAR_MOVIE_GENRES: Genre[] = [
   { id: 28, name: "Action" },

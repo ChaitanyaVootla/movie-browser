@@ -100,14 +100,14 @@ function measureEventLoopLag() {
 // Start event loop monitoring
 let eventLoopInterval: NodeJS.Timeout | null = null;
 
-export function startEventLoopMonitoring() {
+function startEventLoopMonitoring() {
   if (eventLoopInterval) return;
   eventLoopInterval = setInterval(measureEventLoopLag, 1000);
   // Don't prevent process exit
   eventLoopInterval.unref();
 }
 
-export function stopEventLoopMonitoring() {
+function stopEventLoopMonitoring() {
   if (eventLoopInterval) {
     clearInterval(eventLoopInterval);
     eventLoopInterval = null;
@@ -126,7 +126,7 @@ if (process.env.NODE_ENV === "production") {
 /**
  * Get current CPU metrics
  */
-export function getCPUMetrics(): CPUMetrics {
+function getCPUMetrics(): CPUMetrics {
   const loadAvg = os.loadavg() as [number, number, number];
   const cores = os.cpus().length;
 
@@ -143,7 +143,7 @@ export function getCPUMetrics(): CPUMetrics {
 /**
  * Get current process memory metrics
  */
-export function getProcessMemoryMetrics(): MemoryMetrics {
+function getProcessMemoryMetrics(): MemoryMetrics {
   const mem = process.memoryUsage();
 
   return {
@@ -159,7 +159,7 @@ export function getProcessMemoryMetrics(): MemoryMetrics {
 /**
  * Get system-wide memory metrics
  */
-export function getSystemMemoryMetrics(): SystemMemoryMetrics {
+function getSystemMemoryMetrics(): SystemMemoryMetrics {
   const total = os.totalmem();
   const free = os.freemem();
   const used = total - free;
@@ -175,7 +175,7 @@ export function getSystemMemoryMetrics(): SystemMemoryMetrics {
 /**
  * Get event loop metrics
  */
-export function getEventLoopMetrics(): EventLoopMetrics {
+function getEventLoopMetrics(): EventLoopMetrics {
   return {
     lagMs: eventLoopLag,
     isHealthy: eventLoopLag < 100,
@@ -185,7 +185,7 @@ export function getEventLoopMetrics(): EventLoopMetrics {
 /**
  * Get process info
  */
-export function getProcessMetrics(): ProcessMetrics {
+function getProcessMetrics(): ProcessMetrics {
   return {
     uptime: process.uptime(),
     pid: process.pid,
@@ -290,70 +290,3 @@ export function getSystemHealth(metrics: SystemMetrics): {
   return { status, issues };
 }
 
-// =============================================================================
-// Background Metrics Collector
-// =============================================================================
-
-let metricsCollectorInterval: NodeJS.Timeout | null = null;
-
-/**
- * Collect and send metrics to ClickHouse
- * This is called periodically by the background collector
- */
-async function collectAndStoreMetrics(): Promise<void> {
-  try {
-    // Dynamic import to avoid circular dependencies and only load when needed
-    const { trackSystemMetrics } = await import("./analytics/track");
-    const metrics = getSystemMetrics();
-
-    trackSystemMetrics({
-      cpuUsage: metrics.cpu.loadAvg1m * 100, // Convert to percentage
-      cpuCores: metrics.cpu.cores,
-      loadAvg1m: metrics.cpu.loadAvgRaw[0],
-      loadAvg5m: metrics.cpu.loadAvgRaw[1],
-      loadAvg15m: metrics.cpu.loadAvgRaw[2],
-      memoryRss: metrics.processMemory.rss,
-      memoryHeapTotal: metrics.processMemory.heapTotal,
-      memoryHeapUsed: metrics.processMemory.heapUsed,
-      memoryExternal: metrics.processMemory.external,
-      memoryArrayBuffers: metrics.processMemory.arrayBuffers,
-      memoryTotal: metrics.systemMemory.total,
-      memoryFree: metrics.systemMemory.free,
-      eventLoopLag: metrics.eventLoop.lagMs,
-      uptime: metrics.process.uptime,
-    });
-  } catch {
-    // Silently fail - don't crash the app if analytics is down
-  }
-}
-
-/**
- * Start the background metrics collector
- * Collects metrics every intervalMs (default: 60 seconds)
- */
-export function startMetricsCollector(intervalMs: number = 60_000): void {
-  if (metricsCollectorInterval) return;
-
-  // Start event loop monitoring if not already started
-  startEventLoopMonitoring();
-
-  // Collect immediately, then on interval
-  collectAndStoreMetrics();
-
-  metricsCollectorInterval = setInterval(collectAndStoreMetrics, intervalMs);
-  // Don't prevent process exit
-  metricsCollectorInterval.unref();
-
-  console.log(`[SYSTEM METRICS] Background collector started (interval: ${intervalMs / 1000}s)`);
-}
-
-/**
- * Stop the background metrics collector
- */
-export function stopMetricsCollector(): void {
-  if (metricsCollectorInterval) {
-    clearInterval(metricsCollectorInterval);
-    metricsCollectorInterval = null;
-    console.log("[SYSTEM METRICS] Background collector stopped");
-  }
-}

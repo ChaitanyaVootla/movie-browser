@@ -1,8 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import { MongoClient, ObjectId } from "mongodb";
 import { authConfig, googleProvider } from "./auth.config";
+import { prisma } from "@/server/db/postgres";
 
 /**
  * Full Auth.js configuration with database adapter.
@@ -43,6 +45,9 @@ function validateAuthConfig() {
 
 validateAuthConfig();
 
+// Read directly (not from user-id.ts) to avoid circular dependency
+const usePostgres = process.env.USER_DATA_SOURCE === "postgres";
+
 // =============================================================================
 // MongoDB Connection
 // =============================================================================
@@ -81,6 +86,47 @@ interface GoogleTokenInfo {
 }
 
 async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
+  // PostgreSQL path: use Prisma directly
+  if (usePostgres) {
+    let user = await prisma.user.findUnique({ where: { email: tokenInfo.email } });
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          googleId: tokenInfo.sub,
+          email: tokenInfo.email,
+          name: tokenInfo.name,
+          image: tokenInfo.picture,
+          emailVerified: new Date(),
+        },
+      });
+      // Create account link
+      await prisma.account.create({
+        data: {
+          userId: user.id,
+          type: "oauth",
+          provider: "google",
+          providerAccountId: tokenInfo.sub,
+          token_type: "bearer",
+          scope: "openid email profile",
+        },
+      });
+    } else {
+      // Update last active
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastActiveAt: new Date(), image: tokenInfo.picture || user.image },
+      });
+    }
+    return {
+      id: user.id.toString(),
+      name: user.name,
+      email: user.email,
+      image: user.image || tokenInfo.picture,
+      googleId: tokenInfo.sub,
+    };
+  }
+
+  // MongoDB path (existing)
   if (!clientPromise) {
     return {
       id: tokenInfo.sub,
@@ -180,8 +226,12 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
 
-  // Add database adapter pointing to 'test' database (same as Nuxt app)
-  adapter: clientPromise ? MongoDBAdapter(clientPromise, { databaseName: "test" }) : undefined,
+  // Add database adapter - Prisma (PostgreSQL) or MongoDB based on feature flag
+  adapter: usePostgres
+    ? PrismaAdapter(prisma)
+    : clientPromise
+      ? MongoDBAdapter(clientPromise, { databaseName: "test" })
+      : undefined,
 
   // Define all providers here - Google OAuth + Google One Tap credentials
   providers: [
@@ -242,9 +292,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
     async signIn({ user, account }) {
       if (account?.provider === "google" || account?.provider === "google-one-tap") {
-        // For regular Google OAuth (not One Tap), ensure Nuxt-compatible fields are set
+        // PostgreSQL path: upsert user on sign-in
+        if (usePostgres && account?.provider === "google" && account.providerAccountId) {
+          try {
+            await prisma.user.upsert({
+              where: { email: user.email! },
+              update: { lastActiveAt: new Date(), image: user.image },
+              create: {
+                googleId: account.providerAccountId,
+                email: user.email!,
+                name: user.name,
+                image: user.image,
+              },
+            });
+          } catch (error: unknown) {
+            console.error("Error updating user in PostgreSQL:", error instanceof Error ? error.message : String(error));
+          }
+        }
+        // MongoDB path: ensure Nuxt-compatible fields are set
         // One Tap is already handled by getOrCreateGoogleUser
-        if (account?.provider === "google" && account.providerAccountId && clientPromise) {
+        if (!usePostgres && account?.provider === "google" && account.providerAccountId && clientPromise) {
           try {
             const client = await clientPromise;
             const db = client.db("test");

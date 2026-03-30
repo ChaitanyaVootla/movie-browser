@@ -7,28 +7,30 @@ variable "aws_region" {
 
 # EC2 Instance Configuration
 variable "instance_type" {
-  description = "EC2 instance type"
+  description = "EC2 instance type. t4g.large (8GB) minimum for PG+ClickHouse+Next.js. Use t4g.xlarge (16GB) during bulk population."
   type        = string
-  default     = "t4g.medium"
+  default     = "t4g.large"
 }
 
 variable "root_volume_size" {
-  description = "Size of the root EBS volume in GB"
+  description = "Size of the root EBS volume in GB. 80GB supports ~1M movies in PostgreSQL with embeddings."
   type        = number
-  default     = 60
+  default     = 80
 }
 
-# MongoDB Configuration
-variable "mongodb_root_password" {
-  description = "MongoDB root password"
+# PostgreSQL Configuration
+variable "postgres_password" {
+  description = "PostgreSQL password for the moviebrowser user"
   type        = string
   sensitive   = true
 }
 
-variable "mongodb_port" {
-  description = "MongoDB port"
-  type        = number
-  default     = 27018
+# ClickHouse Configuration
+variable "clickhouse_password" {
+  description = "ClickHouse analytics database password"
+  type        = string
+  sensitive   = true
+  default     = "analytics_secret_123"
 }
 
 # Project Configuration
@@ -51,10 +53,9 @@ variable "key_name" {
   default     = "movie-browser-ec2-key"
 }
 
-# Lambda Configuration (moved from lambda/terraform.tf)
+# Lambda Configuration
 variable "lambda_function_name" {
   description = "Name of the Lambda function"
   type        = string
   default     = "movie-ratings-scraper"
 }
-

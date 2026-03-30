@@ -29,13 +29,8 @@ import {
   type SmartDiscoverFilters,
 } from "@/server/db/postgres/smart-discover";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
-import { connectDB } from "@/server/db";
-import {
-  WatchedMovie,
-  MoviesWatchlist,
-  SeriesWatchlist,
-  UserRating,
-} from "@/server/db/models/user-library";
+import { getUserExclusions } from "@/server/db/user-data";
+import { getUserIdFromConfig } from "../utils";
 import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -52,52 +47,6 @@ const QUALITY_PRESETS: Record<string, { minRating: number; minVotes: number }> =
   great: { minRating: 7.5, minVotes: 500 },
   masterpiece: { minRating: 8, minVotes: 1000 },
 };
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-function parseGoogleSubToUserId(sub: string | undefined | null): number | null {
-  if (!sub) return null;
-  const parsed = parseInt(sub, 10);
-  return isNaN(parsed) ? null : parsed;
-}
-
-function getUserIdFromConfig(config?: RunnableConfig): number | null {
-  const userId = config?.configurable?.userId as string | undefined;
-  return parseGoogleSubToUserId(userId);
-}
-
-async function fetchUserExclusions(
-  userId: number,
-  mediaType: "movie" | "series"
-): Promise<{
-  watchedIds: number[];
-  watchlistIds: number[];
-  dislikedIds: number[];
-}> {
-  await connectDB();
-
-  const itemType = mediaType === "movie" ? "movie" : "series";
-
-  const [watched, watchlist, ratings] = await Promise.all([
-    mediaType === "movie"
-      ? WatchedMovie.find({ userId }).select("movieId").lean()
-      : Promise.resolve([]),
-    mediaType === "movie"
-      ? MoviesWatchlist.find({ userId }).select("movieId").lean()
-      : SeriesWatchlist.find({ userId }).select("seriesId").lean(),
-    UserRating.find({ userId, itemType, rating: -1 }).select("itemId").lean(),
-  ]);
-
-  return {
-    watchedIds: (watched as Array<{ movieId: number }>).map((w) => w.movieId),
-    watchlistIds: (watchlist as Array<{ movieId?: number; seriesId?: number }>).map(
-      (w) => w.movieId ?? w.seriesId ?? 0
-    ),
-    dislikedIds: (ratings as Array<{ itemId: number }>).map((r) => r.itemId),
-  };
-}
 
 function getDateFromRelative(relative: string): string | null {
   const now = new Date();
@@ -467,7 +416,7 @@ export const smartDiscoverTool = tool(
         (input.hideWatched || input.hideDisliked || input.hideInWatchlist || input.fromWatchlist);
 
       if (needsUserData) {
-        const exclusions = await fetchUserExclusions(userId, mediaType);
+        const exclusions = await getUserExclusions(userId, mediaType);
 
         if (input.fromWatchlist) {
           // INCLUDE mode: only return watchlist items

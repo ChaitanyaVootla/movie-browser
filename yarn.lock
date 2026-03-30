@@ -78,6 +78,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@auth/prisma-adapter@npm:^2.11.1":
+  version: 2.11.1
+  resolution: "@auth/prisma-adapter@npm:2.11.1"
+  dependencies:
+    "@auth/core": "npm:0.41.1"
+  peerDependencies:
+    "@prisma/client": ">=2.26.0 || >=3 || >=4 || >=5 || >=6"
+  checksum: 10c0/c2d05d63e495ee7ece7bf65cc8352fadd9df348ecca4ea33e85830468f9fe4848703ab4441ace85d912b68071fd7534e013e60a97ce564f53dbb9870643765e5
+  languageName: node
+  linkType: hard
+
 "@aws-crypto/crc32@npm:5.2.0":
   version: 5.2.0
   resolution: "@aws-crypto/crc32@npm:5.2.0"
@@ -8868,6 +8879,7 @@ __metadata:
   resolution: "movie-browser-next@workspace:."
   dependencies:
     "@auth/mongodb-adapter": "npm:^3.11.1"
+    "@auth/prisma-adapter": "npm:^2.11.1"
     "@aws-sdk/client-bedrock-runtime": "npm:^3.958.0"
     "@aws-sdk/client-lambda": "npm:^3.965.0"
     "@langchain/aws": "npm:^1.1.0"

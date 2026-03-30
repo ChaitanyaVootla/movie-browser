@@ -1,10 +1,17 @@
 import { auth } from "./auth";
 
 /**
- * Get the numeric user ID for database operations.
+ * Feature flag: when true, user data is read/written from PostgreSQL via Prisma.
+ * Set USER_DATA_SOURCE=postgres in .env.local to enable.
+ * Default: mongodb (current production behavior).
+ */
+export const usePostgresUserData = process.env.USER_DATA_SOURCE === "postgres";
+
+/**
+ * Get the user ID for database operations.
  *
- * The Nuxt app stores userId as a number (Google OAuth sub parsed as integer).
- * We need to match this format for compatibility with existing data.
+ * - MongoDB mode: returns the Google OAuth sub parsed as integer (Nuxt-era format).
+ * - Postgres mode: returns the Prisma User.id (auto-increment) looked up by googleId.
  */
 export async function getUserIdForDb(): Promise<number | null> {
   const session = await auth();
@@ -13,8 +20,11 @@ export async function getUserIdForDb(): Promise<number | null> {
     return null;
   }
 
-  // Try googleId first (explicitly captured), then fall back to id
-  // The id field often contains the Google sub when using Google OAuth
+  if (usePostgresUserData) {
+    return getPostgresUserId(session.user.googleId || session.user.id);
+  }
+
+  // MongoDB mode: parse Google sub as integer
   const googleId = session.user.googleId || session.user.id;
 
   if (googleId) {
@@ -41,11 +51,36 @@ export async function requireUserIdForDb(): Promise<number> {
 }
 
 /**
- * Parse a Google sub to numeric userId.
- * Used when we have the sub directly (e.g., from token).
+ * Parse a Google sub to numeric userId (MongoDB mode only).
  */
 export function parseGoogleSub(sub: string | undefined | null): number | null {
   if (!sub) return null;
   const parsed = parseInt(sub, 10);
   return isNaN(parsed) ? null : parsed;
+}
+
+// ---------------------------------------------------------------------------
+// Postgres user ID resolution (cached per request via module-level Map)
+// ---------------------------------------------------------------------------
+
+const userIdCache = new Map<string, number>();
+
+async function getPostgresUserId(googleId: string | undefined): Promise<number | null> {
+  if (!googleId) return null;
+
+  // Check module-level cache (lives for the duration of the serverless invocation)
+  const cached = userIdCache.get(googleId);
+  if (cached !== undefined) return cached;
+
+  // Dynamic import to avoid loading Prisma when in MongoDB mode
+  const { prisma } = await import("@/server/db/postgres");
+  const user = await prisma.user.findUnique({
+    where: { googleId },
+    select: { id: true },
+  });
+
+  if (!user) return null;
+
+  userIdCache.set(googleId, user.id);
+  return user.id;
 }

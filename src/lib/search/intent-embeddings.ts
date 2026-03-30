@@ -17,7 +17,7 @@
  * @see docs/ADVANCED_SEARCH_IMPLEMENTATION_PLAN.md
  */
 
-import { generateQueryEmbedding } from "@/lib/embeddings/generator";
+import { generateQueryEmbedding } from "@/lib/embeddings";
 import { cacheGet, cacheSet } from "@/lib/cache-service";
 import { classifyQueryIntent, type IntentAnalysis, type QueryIntent } from "./intent";
 import { parseQueryWithLlm, type LlmParsedQuery } from "./llm-query-parser";

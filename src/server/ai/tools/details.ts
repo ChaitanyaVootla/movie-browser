@@ -12,17 +12,12 @@
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { RunnableConfig } from "@langchain/core/runnables";
+import type { RunnableConfig } from "@langchain/core/runnables";
 import { getLightMovieDetails, getLightSeriesDetails, getCountryCode } from "@/server/utils";
-import { connectDB } from "@/server/db";
-import {
-  WatchedMovie,
-  MoviesWatchlist,
-  SeriesWatchlist,
-  UserRating,
-} from "@/server/db/models/user-library";
+import { getUserItemStatus } from "@/server/db/user-data";
 import { getMovieDetails, getSeriesDetails } from "@/server/services/tmdb";
 import { getRawAIInput } from "@/server/services/ai-data-service";
+import { getUserIdFromConfig } from "../utils";
 import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -42,63 +37,6 @@ interface MediaItem {
 
 interface RelatedResults {
   results: MediaItem[];
-}
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/**
- * Parse a Google sub string to numeric userId.
- */
-function parseGoogleSubToUserId(sub: string | undefined | null): number | null {
-  if (!sub) return null;
-  const parsed = parseInt(sub, 10);
-  return isNaN(parsed) ? null : parsed;
-}
-
-/**
- * Extract numeric userId from RunnableConfig
- */
-function getUserIdFromConfig(config?: RunnableConfig): number | null {
-  const userId = config?.configurable?.userId as string | undefined;
-  return parseGoogleSubToUserId(userId);
-}
-
-/**
- * Get user's relationship to a specific item
- */
-async function getUserItemStatus(
-  userId: number | null,
-  itemId: number,
-  mediaType: "movie" | "series"
-): Promise<{
-  inWatchlist: boolean;
-  isWatched: boolean;
-  userRating: number | null; // 1=liked, -1=disliked, null=not rated
-}> {
-  if (!userId) {
-    return { inWatchlist: false, isWatched: false, userRating: null };
-  }
-
-  await connectDB();
-  const itemType = mediaType === "movie" ? "movie" : "series";
-
-  const [watchlist, watched, rating] = await Promise.all([
-    mediaType === "movie"
-      ? MoviesWatchlist.findOne({ userId, movieId: itemId }).lean()
-      : SeriesWatchlist.findOne({ userId, seriesId: itemId }).lean(),
-    mediaType === "movie"
-      ? WatchedMovie.findOne({ userId, movieId: itemId }).lean()
-      : Promise.resolve(null), // No watched tracking for series
-    UserRating.findOne({ userId, itemId, itemType }).lean(),
-  ]);
-
-  return {
-    inWatchlist: !!watchlist,
-    isWatched: !!watched,
-    userRating: rating?.rating ?? null,
-  };
 }
 
 /**
@@ -174,11 +112,14 @@ export const getDetailsTool = tool(
       const isMovie = input.mediaType === "movie";
 
       // Fetch base details and user status in parallel
+      const defaultStatus = { inWatchlist: false, isWatched: false, userRating: null };
       const [details, userStatus] = await Promise.all([
         isMovie
           ? getLightMovieDetails(input.id, countryCode)
           : getLightSeriesDetails(input.id, countryCode),
-        getUserItemStatus(userId, input.id, input.mediaType),
+        userId
+          ? getUserItemStatus(userId, input.id, input.mediaType)
+          : Promise.resolve(defaultStatus),
       ]);
 
       if (!details) {

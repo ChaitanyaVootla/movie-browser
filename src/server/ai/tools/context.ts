@@ -24,7 +24,9 @@ export interface PageContext {
 // Tool Definition
 // =============================================================================
 
-const pageContextSchema = z.object({});
+const pageContextSchema = z
+  .object({})
+  .describe("No parameters needed — page context is automatically injected from the user's current page.");
 
 /**
  * Get information about the current page the user is viewing.
@@ -67,11 +69,14 @@ export const getPageContextTool = tool(
     } else if (pageType === "browse") {
       response.hint = "User is browsing with filters. Ask what they're looking for.";
     } else if (pageType === "watchlist") {
-      response.hint = "On their watchlist. Use get_user_data(include: ['watchlist']) to see it.";
+      response.hint =
+        "On their watchlist page. Use smart_discover({ fromWatchlist: true }) to see their saved items with full details.";
     } else if (pageType === "ratings") {
-      response.hint = "Viewing their ratings. Use get_user_data(include: ['ratings']) to see them.";
+      response.hint =
+        "Viewing their ratings page. You can suggest content based on what they've rated highly.";
     } else if (pageType === "watched") {
-      response.hint = "Viewing watched history. Use get_user_data(include: ['watched']) to see it.";
+      response.hint =
+        "Viewing their watched history. You can suggest similar content or use smart_discover with hideWatched: true to find fresh picks.";
     } else {
       response.hint = `On the ${pageType || "home"} page.`;
     }

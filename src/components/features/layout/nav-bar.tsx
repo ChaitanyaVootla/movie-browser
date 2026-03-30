@@ -45,17 +45,17 @@ export function NavBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset scroll state on navigation, then track scroll position
   useEffect(() => {
+    setIsScrolled(window.scrollY > 20);
+
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
 
-    // Check initial scroll position
-    handleScroll();
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [pathname]);
 
   return (
     <>

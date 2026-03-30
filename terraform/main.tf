@@ -6,14 +6,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
-    local = {
-      source  = "hashicorp/local"
-      version = "~> 2.0"
-    }
   }
 }
 
@@ -43,28 +35,10 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# Generate SSH Key Pair
-resource "tls_private_key" "ec2_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "ec2_key" {
-  key_name   = var.key_name
-  public_key = tls_private_key.ec2_key.public_key_openssh
-
-  tags = {
-    Name        = "${var.project_name}-key"
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-  }
-}
-
-# Save private key locally
-resource "local_file" "private_key" {
-  content         = tls_private_key.ec2_key.private_key_pem
-  filename        = "${path.module}/${var.key_name}.pem"
-  file_permission = "0400"
+# SSH Key — reuse existing key pair already in AWS
+# The .pem file is already on your local machine from the original Terraform run.
+data "aws_key_pair" "existing" {
+  key_name = var.key_name
 }
 
 # Security Group
@@ -79,11 +53,11 @@ resource "aws_security_group" "main" {
   }
 }
 
-# SSH Access (port 22) - Public
+# SSH Access (port 22)
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
   security_group_id = aws_security_group.main.id
   description       = "SSH access from anywhere"
-  
+
   from_port   = 22
   to_port     = 22
   ip_protocol = "tcp"
@@ -94,11 +68,11 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
   }
 }
 
-# HTTP Access (port 80) - Public
+# HTTP Access (port 80)
 resource "aws_vpc_security_group_ingress_rule" "http" {
   security_group_id = aws_security_group.main.id
   description       = "HTTP access from anywhere"
-  
+
   from_port   = 80
   to_port     = 80
   ip_protocol = "tcp"
@@ -109,11 +83,11 @@ resource "aws_vpc_security_group_ingress_rule" "http" {
   }
 }
 
-# HTTPS Access (port 443) - Public
+# HTTPS Access (port 443)
 resource "aws_vpc_security_group_ingress_rule" "https" {
   security_group_id = aws_security_group.main.id
   description       = "HTTPS access from anywhere"
-  
+
   from_port   = 443
   to_port     = 443
   ip_protocol = "tcp"
@@ -124,26 +98,11 @@ resource "aws_vpc_security_group_ingress_rule" "https" {
   }
 }
 
-# Nuxt Application (port 3001) - Public for testing
-resource "aws_vpc_security_group_ingress_rule" "nuxt" {
-  security_group_id = aws_security_group.main.id
-  description       = "Nuxt application access"
-  
-  from_port   = 3001
-  to_port     = 3001
-  ip_protocol = "tcp"
-  cidr_ipv4   = "0.0.0.0/0"
-
-  tags = {
-    Name = "nuxt-ingress"
-  }
-}
-
-# Next.js Application (port 3002) - Public for testing
+# Next.js Application (port 3002)
 resource "aws_vpc_security_group_ingress_rule" "nextjs" {
   security_group_id = aws_security_group.main.id
   description       = "Next.js application access"
-  
+
   from_port   = 3002
   to_port     = 3002
   ip_protocol = "tcp"
@@ -154,26 +113,12 @@ resource "aws_vpc_security_group_ingress_rule" "nextjs" {
   }
 }
 
-# MongoDB Access (port 27018) - Public for remote debugging
-resource "aws_vpc_security_group_ingress_rule" "mongodb" {
-  security_group_id = aws_security_group.main.id
-  description       = "MongoDB access for debugging"
-  
-  from_port   = var.mongodb_port
-  to_port     = var.mongodb_port
-  ip_protocol = "tcp"
-  cidr_ipv4   = "0.0.0.0/0"
-
-  tags = {
-    Name = "mongodb-ingress"
-  }
-}
-
 # Egress rule - Allow all outbound traffic
+# Required for: TMDB API, Bedrock, remote MongoDB, npm, Docker Hub, etc.
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.main.id
   description       = "Allow all outbound traffic"
-  
+
   ip_protocol = "-1"
   cidr_ipv4   = "0.0.0.0/0"
 
@@ -182,7 +127,10 @@ resource "aws_vpc_security_group_egress_rule" "all" {
   }
 }
 
+# =============================================================================
 # IAM Role for EC2
+# =============================================================================
+
 resource "aws_iam_role" "ec2_role" {
   name = "${var.project_name}-ec2-role"
 
@@ -206,7 +154,35 @@ resource "aws_iam_role" "ec2_role" {
   }
 }
 
-# IAM Policy for Lambda invocation
+# IAM Policy: Bedrock — AI Agent (Kimi K2.5) + Embeddings (Cohere Embed v4)
+resource "aws_iam_role_policy" "bedrock_invoke" {
+  name = "${var.project_name}-bedrock-invoke"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "BedrockInvokeModels"
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = [
+          # Kimi K2.5 in ap-south-1
+          "arn:aws:bedrock:ap-south-1::foundation-model/moonshotai.kimi-k2.5",
+          # Cohere Embed v4 — global cross-region inference profile
+          "arn:aws:bedrock:*::foundation-model/cohere.embed-v4*",
+          # Cross-region inference profiles (used by global.cohere.embed-v4:0)
+          "arn:aws:bedrock:*:*:inference-profile/*"
+        ]
+      }
+    ]
+  })
+}
+
+# IAM Policy: Lambda invocation (movie-ratings-scraper)
 resource "aws_iam_role_policy" "lambda_invoke" {
   name = "${var.project_name}-lambda-invoke"
   role = aws_iam_role.ec2_role.id
@@ -225,13 +201,13 @@ resource "aws_iam_role_policy" "lambda_invoke" {
   })
 }
 
-# IAM Policy for CloudWatch Logs
+# IAM Policy: CloudWatch Logs
 resource "aws_iam_role_policy_attachment" "cloudwatch_logs" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# IAM Policy for S3 access (for backups)
+# IAM Policy: S3 access (for backups)
 resource "aws_iam_role_policy" "s3_backup_access" {
   name = "${var.project_name}-s3-backup"
   role = aws_iam_role.ec2_role.id
@@ -267,11 +243,14 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   }
 }
 
+# =============================================================================
 # EC2 Instance
+# =============================================================================
+
 resource "aws_instance" "main" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
-  key_name              = aws_key_pair.ec2_key.key_name
+  key_name              = data.aws_key_pair.existing.key_name
   vpc_security_group_ids = [aws_security_group.main.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
@@ -289,13 +268,14 @@ resource "aws_instance" "main" {
   }
 
   user_data = templatefile("${path.module}/user-data.sh", {
-    mongodb_root_password = var.mongodb_root_password
-    mongodb_port         = var.mongodb_port
+    postgres_password    = var.postgres_password
+    clickhouse_password  = var.clickhouse_password
     project_name         = var.project_name
   })
 
-  # Enable detailed monitoring
-  monitoring = true
+  # Basic monitoring (free) — detailed monitoring adds $3.50/mo for 1-min intervals
+  # Enable if you need sub-5-min CloudWatch metrics: monitoring = true
+  monitoring = false
 
   tags = {
     Name        = "${var.project_name}-ec2"
@@ -304,7 +284,6 @@ resource "aws_instance" "main" {
     Application = "movie-browser"
   }
 
-  # Ensure the instance has enough time to initialize
   lifecycle {
     ignore_changes = [user_data]
   }
@@ -323,4 +302,3 @@ resource "aws_eip" "main" {
 
   depends_on = [aws_instance.main]
 }
-

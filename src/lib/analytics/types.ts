@@ -43,7 +43,15 @@ export type ActionType =
   | "ai_chat_open"
   | "ai_chat_submit"
   | "share_click"
-  | "external_link";
+  | "external_link"
+  | "search_result_click"
+  | "topic_select"
+  | "mood_select"
+  | "carousel_nav"
+  | "gallery_open"
+  | "gallery_nav"
+  | "settings_change"
+  | "continue_watching_click";
 
 // =============================================================================
 // Query Types (AI)
@@ -58,7 +66,10 @@ export type QueryType =
   | "trending"
   | "detail"
   | "media"
-  | "other";
+  | "other"
+  | "search_llm_parsing"
+  | "embedding_query"
+  | "embedding_document";
 
 // =============================================================================
 // Error Severity
@@ -273,8 +284,8 @@ export interface APICallEvent {
   session_id: string;
   /** Request ID */
   request_id: string;
-  /** Service name (tmdb, youtube, mongodb, lambda) */
-  service: "tmdb" | "youtube" | "mongodb" | "lambda";
+  /** Service name (tmdb, youtube, mongodb, lambda, embedding) */
+  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding";
   /** API endpoint */
   endpoint: string;
   /** HTTP method */

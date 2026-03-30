@@ -40,8 +40,8 @@ export function createOpenRouterChat() {
         "X-Title": "Movie Browser",
       },
     },
-    // Optimize for conversational responses
-    maxTokens: 1024,
+    // Budget for text + multiple [MOVIE:id:title|desc] tags + interactive tags
+    maxTokens: 1536,
     temperature: 0.7,
   });
 }

@@ -77,7 +77,13 @@ export const navigateTool = tool(
   },
   {
     name: "navigate_to",
-    description: `Take user to a detail page. Tell them where you're sending them!`,
+    description: `Navigate the user to a specific page in the app.
+
+Use when: User explicitly asks to GO somewhere — "take me to Inception", "open the browse page", "go to Breaking Bad's page".
+Don't use when: User just asks ABOUT something — "tell me about Inception" (use get_details instead), "recommend thrillers" (use smart_discover).
+
+This returns a navigation intent — the client handles the actual routing.
+Always tell the user where you're sending them in your text response before navigating.`,
     schema: navigationSchema,
   }
 );

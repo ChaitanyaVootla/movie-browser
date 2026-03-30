@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +30,7 @@ function isMovie(item: MovieListItem | SeriesListItem): item is MovieListItem {
   return "title" in item;
 }
 
-export function MovieCard({
+export const MovieCard = memo(function MovieCard({
   item,
   className,
   showRating = true,
@@ -165,7 +165,7 @@ export function MovieCard({
       </Card>
     </Link>
   );
-}
+});
 
 // Skeleton loader
 export function MovieCardSkeleton({ className }: { className?: string }) {

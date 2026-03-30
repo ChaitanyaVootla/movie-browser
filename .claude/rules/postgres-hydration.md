@@ -3,6 +3,7 @@ paths:
   - "src/server/services/hydration/**/*.ts"
   - "src/server/services/ai-data-service.ts"
   - "src/server/db/postgres/**/*.ts"
+  - "src/server/db/user-data.ts"
   - "prisma/**/*.ts"
 ---
 
@@ -88,11 +89,8 @@ Series upsert now includes:
 
 ## Testing Hydration
 
-```bash
-# Test with specific IDs
-npx tsx scripts/verify/test-hydration-complete.ts
-
-# Or use the hydration functions directly
+```typescript
+// Test hydration functions directly
 await hydrateMovie(550, { forceRefresh: true });
 await hydrateSeries(1396, { forceRefresh: true });
 ```

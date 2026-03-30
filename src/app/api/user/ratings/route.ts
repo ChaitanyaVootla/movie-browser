@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { UserRating } from "@/server/db/models/user-library";
-import { Movie } from "@/server/db/models/movie";
-import { Series } from "@/server/db/models/series";
+import { getUserRatings, getMovieDetails, getSeriesDetails } from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 
@@ -28,13 +25,8 @@ export async function GET() {
       );
     }
 
-    await connectDB();
-
     // Get all ratings sorted by most recent
-    const ratings = await UserRating.find({ userId })
-      .select("itemId itemType rating createdAt -_id")
-      .sort({ createdAt: -1 })
-      .lean();
+    const ratings = await getUserRatings(userId);
 
     // Separate by type and rating
     const likedMovieIds: number[] = [];
@@ -62,23 +54,13 @@ export async function GET() {
       }
     }
 
-    // Fetch all movie details in parallel
+    // Fetch all movie/series details in parallel
     const allMovieIds = [...likedMovieIds, ...dislikedMovieIds];
     const allSeriesIds = [...likedSeriesIds, ...dislikedSeriesIds];
 
     const [allMovies, allSeries] = await Promise.all([
-      allMovieIds.length > 0
-        ? Movie.find({ id: { $in: allMovieIds } })
-            .select("id title poster_path backdrop_path vote_average release_date genres")
-            .lean()
-        : [],
-      allSeriesIds.length > 0
-        ? Series.find({ id: { $in: allSeriesIds } })
-            .select(
-              "id name poster_path backdrop_path vote_average first_air_date genres number_of_seasons status"
-            )
-            .lean()
-        : [],
+      getMovieDetails(allMovieIds),
+      getSeriesDetails(allSeriesIds),
     ]);
 
     // Create lookup maps

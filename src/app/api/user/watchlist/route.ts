@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { MoviesWatchlist, SeriesWatchlist } from "@/server/db/models/user-library";
-import { Movie } from "@/server/db/models/movie";
-import { Series } from "@/server/db/models/series";
+import {
+  getMovieWatchlistWithDates,
+  getSeriesWatchlistWithDates,
+  getMovieDetails,
+  getSeriesDetails,
+} from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 
@@ -20,18 +22,10 @@ export async function GET() {
       return NextResponse.json({ movies: [], series: [] }, { status: 200 });
     }
 
-    await connectDB();
-
-    // Get watchlist IDs
+    // Get watchlist IDs with dates
     const [movieWatchlist, seriesWatchlist] = await Promise.all([
-      MoviesWatchlist.find({ userId })
-        .select("movieId createdAt -_id")
-        .sort({ createdAt: -1 })
-        .lean(),
-      SeriesWatchlist.find({ userId })
-        .select("seriesId createdAt -_id")
-        .sort({ createdAt: -1 })
-        .lean(),
+      getMovieWatchlistWithDates(userId),
+      getSeriesWatchlistWithDates(userId),
     ]);
 
     const movieIds = movieWatchlist.map((m) => m.movieId);
@@ -39,20 +33,8 @@ export async function GET() {
 
     // Fetch full movie/series details
     const [movies, series] = await Promise.all([
-      movieIds.length > 0
-        ? Movie.find({ id: { $in: movieIds } })
-            .select(
-              "id title poster_path backdrop_path genres vote_average overview release_date runtime"
-            )
-            .lean()
-        : [],
-      seriesIds.length > 0
-        ? Series.find({ id: { $in: seriesIds } })
-            .select(
-              "id name poster_path backdrop_path genres vote_average overview first_air_date status number_of_seasons next_episode_to_air last_episode_to_air"
-            )
-            .lean()
-        : [],
+      getMovieDetails(movieIds),
+      getSeriesDetails(seriesIds),
     ]);
 
     // Create lookup maps
@@ -66,7 +48,7 @@ export async function GET() {
         if (!movie) return null;
         return {
           ...movie,
-          addedAt: item.createdAt,
+          addedAt: item.addedAt,
         };
       })
       .filter(Boolean);
@@ -77,7 +59,7 @@ export async function GET() {
         if (!seriesItem) return null;
         return {
           ...seriesItem,
-          addedAt: item.createdAt,
+          addedAt: item.addedAt,
         };
       })
       .filter(Boolean);
@@ -107,13 +89,12 @@ interface SeriesWithDetails {
   name: string;
   poster_path: string | null;
   backdrop_path: string | null;
-  status: string;
-  number_of_seasons: number;
-  next_episode_to_air?: { air_date: string; episode_number: number; season_number: number } | null;
-  last_episode_to_air?: { air_date: string; episode_number: number; season_number: number } | null;
+  status: string | null;
+  number_of_seasons: number | null;
+  next_episode_to_air?: unknown;
+  last_episode_to_air?: unknown;
   addedAt: Date;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface MovieWithDetails {
@@ -121,13 +102,12 @@ interface MovieWithDetails {
   title: string;
   poster_path: string | null;
   backdrop_path: string | null;
-  release_date?: string;
-  vote_average: number;
-  runtime?: number;
+  release_date?: string | null;
+  vote_average: number | null;
+  runtime?: number | null;
   genres?: { id: number; name: string }[];
   addedAt: Date;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 function categorizeMovies(movies: MovieWithDetails[]) {
@@ -211,7 +191,8 @@ function categorizeSeries(series: SeriesWithDetails[]) {
   const completed: SeriesWithDetails[] = [];
 
   for (const s of series) {
-    const hasUpcoming = s.next_episode_to_air?.air_date;
+    const nextEp = s.next_episode_to_air as { air_date?: string } | null | undefined;
+    const hasUpcoming = nextEp?.air_date;
 
     if (hasUpcoming) {
       currentlyAiring.push(s);
@@ -228,22 +209,28 @@ function categorizeSeries(series: SeriesWithDetails[]) {
 
   // Sort Currently Airing by next episode date (soonest first)
   currentlyAiring.sort((a, b) => {
-    const dateA = a.next_episode_to_air?.air_date || "";
-    const dateB = b.next_episode_to_air?.air_date || "";
+    const nextA = a.next_episode_to_air as { air_date?: string } | null | undefined;
+    const nextB = b.next_episode_to_air as { air_date?: string } | null | undefined;
+    const dateA = nextA?.air_date || "";
+    const dateB = nextB?.air_date || "";
     return dateA.localeCompare(dateB);
   });
 
   // Sort Returning by last air date (most recent first)
   returning.sort((a, b) => {
-    const dateA = a.last_episode_to_air?.air_date || "";
-    const dateB = b.last_episode_to_air?.air_date || "";
+    const lastA = a.last_episode_to_air as { air_date?: string } | null | undefined;
+    const lastB = b.last_episode_to_air as { air_date?: string } | null | undefined;
+    const dateA = lastA?.air_date || "";
+    const dateB = lastB?.air_date || "";
     return dateB.localeCompare(dateA);
   });
 
   // Sort Completed by last air date (most recent first)
   completed.sort((a, b) => {
-    const dateA = a.last_episode_to_air?.air_date || "";
-    const dateB = b.last_episode_to_air?.air_date || "";
+    const lastA = a.last_episode_to_air as { air_date?: string } | null | undefined;
+    const lastB = b.last_episode_to_air as { air_date?: string } | null | undefined;
+    const dateA = lastA?.air_date || "";
+    const dateB = lastB?.air_date || "";
     return dateB.localeCompare(dateA);
   });
 

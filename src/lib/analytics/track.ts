@@ -320,7 +320,7 @@ export function trackUserAction(options: TrackUserActionOptions): void {
 interface TrackAPICallOptions {
   sessionId?: string;
   requestId?: string;
-  service: "tmdb" | "youtube" | "mongodb" | "lambda";
+  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding";
   endpoint: string;
   method?: string;
   statusCode: number;
@@ -331,6 +331,8 @@ interface TrackAPICallOptions {
   quotaCost?: number | null;
   errorType?: string | null;
   errorMessage?: string | null;
+  /** Token count for embedding calls */
+  tokens?: number;
 }
 
 /**
@@ -340,7 +342,7 @@ interface TrackAPICallOptions {
  * Other API calls are batched for efficiency.
  */
 export function trackAPICall(options: TrackAPICallOptions): void {
-  const event: Partial<APICallEvent> = {
+  const event: Record<string, unknown> = {
     event_type: "api_call",
     timestamp: toClickHouseTimestamp(),
     session_id: options.sessionId ?? "",
@@ -356,15 +358,101 @@ export function trackAPICall(options: TrackAPICallOptions): void {
     quota_cost: options.quotaCost ?? null,
     error_type: options.errorType ?? null,
     error_message: options.errorMessage ?? null,
+    tokens: options.tokens ?? 0,
   };
 
-  // Lambda calls: insert immediately (low volume, important for item analytics)
+  // Lambda and embedding calls: insert immediately (low volume, important for cost tracking)
   // Other API calls: batch for efficiency
-  if (options.service === "lambda") {
+  if (options.service === "lambda" || options.service === "embedding") {
     insertAnalyticsEvent("api_calls", event);
   } else {
-    queueEvent("api_calls", event as Record<string, unknown>);
+    queueEvent("api_calls", event);
   }
+}
+
+// =============================================================================
+// Embedding Call Tracking
+// =============================================================================
+
+interface TrackEmbeddingCallOptions {
+  endpoint: string;
+  inputType: "search_query" | "search_document";
+  tokens: number;
+  durationMs: number;
+  statusCode: number;
+  errorType?: string;
+}
+
+/**
+ * Track an embedding API call (Cohere Embed v4 via Bedrock).
+ * Convenience wrapper over trackAPICall with embedding-specific defaults.
+ */
+export function trackEmbeddingCall(options: TrackEmbeddingCallOptions): void {
+  trackAPICall({
+    service: "embedding",
+    endpoint: options.endpoint,
+    method: "POST",
+    statusCode: options.statusCode,
+    durationMs: options.durationMs,
+    tokens: options.tokens,
+    errorType: options.errorType ?? null,
+  });
+}
+
+// =============================================================================
+// Search LLM Usage Tracking
+// =============================================================================
+
+interface TrackSearchLLMUsageOptions {
+  sessionId?: string;
+  userId?: string | null;
+  userName?: string;
+  isAuthenticated?: boolean;
+  country?: string;
+  query: string;
+  modelId: string;
+  modelName: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  inputCost: number;
+  outputCost: number;
+  totalCost: number;
+  durationMs: number;
+  responseLength?: number;
+}
+
+/**
+ * Track LLM usage for search query parsing (Tier 3 classification).
+ * Sends to ai_usage with queryType='search_llm_parsing' and sensible defaults
+ * for non-chat fields.
+ */
+export function trackSearchLLMUsage(options: TrackSearchLLMUsageOptions): void {
+  trackAIUsage({
+    sessionId: options.sessionId ?? "",
+    userId: options.userId ?? null,
+    userName: options.userName,
+    isAuthenticated: options.isAuthenticated ?? false,
+    country: options.country ?? "unknown",
+    query: options.query,
+    queryType: "search_llm_parsing",
+    hasPageContext: false,
+    pageContextType: null,
+    pageContextId: null,
+    modelId: options.modelId,
+    modelName: options.modelName,
+    inputTokens: options.inputTokens,
+    outputTokens: options.outputTokens,
+    totalTokens: options.totalTokens,
+    inputCost: options.inputCost,
+    outputCost: options.outputCost,
+    totalCost: options.totalCost,
+    turns: 1,
+    toolCalls: [],
+    durationMs: options.durationMs,
+    hadToolRecovery: false,
+    responseLength: options.responseLength ?? 0,
+  });
 }
 
 // =============================================================================

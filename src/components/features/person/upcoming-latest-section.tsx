@@ -6,9 +6,9 @@ import { MediaCard } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import {
-  categorizeCreditsLight,
-  deduplicateCreditsLight,
-  getCreditDateLight,
+  categorizeCredits,
+  deduplicateCredits,
+  getCreditDate,
 } from "@/lib/person-credits";
 import type { MovieListItem, SeriesListItem } from "@/types";
 import type { LightPersonCastCredit, LightPersonCrewCredit } from "@/types/client-props";
@@ -70,7 +70,7 @@ function getSubtitle(credit: Credit): string {
 
 // Format date for display
 function formatReleaseDate(credit: Credit, isUpcoming: boolean): string {
-  const date = getCreditDateLight(credit);
+  const date = getCreditDate(credit);
   if (!date) return "";
 
   // For upcoming items, show relative time
@@ -116,8 +116,8 @@ export function UpcomingLatestSection({
   const combinedCredits = useMemo(() => {
     // Merge cast and crew credits
     const allCredits = [...castCredits, ...crewCredits];
-    const deduplicated = deduplicateCreditsLight(allCredits);
-    const { upcoming, latest } = categorizeCreditsLight(deduplicated);
+    const deduplicated = deduplicateCredits(allCredits);
+    const { upcoming, latest } = categorizeCredits(deduplicated);
 
     // Filter by display mode (poster or backdrop available)
     const filterByMode = (c: Credit) => (displayMode === "wide" ? c.backdrop_path : c.poster_path);

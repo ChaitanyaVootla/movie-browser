@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/server/db";
-import { RecentItem } from "@/server/db/models/user-library";
+import { getRecentItems, upsertRecentItem } from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
-
-const MAX_RECENTS = 20;
 
 // GET /api/user/recents - Fetch user's recent items
 export async function GET() {
@@ -15,23 +12,17 @@ export async function GET() {
       return NextResponse.json({ items: [] });
     }
 
-    await connectDB();
+    const recents = await getRecentItems(userId);
 
-    const recents = await RecentItem.find({ userId })
-      .select("-__v -userId")
-      .sort({ updatedAt: -1 })
-      .limit(MAX_RECENTS)
-      .lean();
-
-    const items = recents.map((recent) => ({
-      id: recent.itemId,
-      itemId: recent.itemId,
-      isMovie: Boolean(recent.isMovie),
-      poster_path: recent.poster_path,
-      backdrop_path: recent.backdrop_path,
-      title: recent.title,
-      name: recent.name,
-      viewedAt: recent.updatedAt,
+    const items = recents.map((r) => ({
+      id: r.itemId,
+      itemId: r.itemId,
+      isMovie: r.isMovie,
+      poster_path: r.poster_path,
+      backdrop_path: r.backdrop_path,
+      title: r.title,
+      name: r.name,
+      viewedAt: r.viewedAt,
     }));
 
     return NextResponse.json({ items });
@@ -61,34 +52,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    await connectDB();
-
-    // Upsert the recent item
-    await RecentItem.findOneAndUpdate(
-      { userId, itemId, isMovie },
-      {
-        userId,
-        itemId,
-        isMovie,
-        poster_path,
-        backdrop_path,
-        title,
-        name,
-        updatedAt: new Date(),
-      },
-      { upsert: true, new: true }
-    );
-
-    // Clean up old recents (keep only MAX_RECENTS)
-    const allRecents = await RecentItem.find({ userId })
-      .sort({ updatedAt: -1 })
-      .select("_id")
-      .lean();
-
-    if (allRecents.length > MAX_RECENTS) {
-      const idsToDelete = allRecents.slice(MAX_RECENTS).map((r) => r._id);
-      await RecentItem.deleteMany({ _id: { $in: idsToDelete } });
-    }
+    await upsertRecentItem(userId, {
+      itemId,
+      isMovie,
+      poster_path,
+      backdrop_path,
+      title,
+      name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

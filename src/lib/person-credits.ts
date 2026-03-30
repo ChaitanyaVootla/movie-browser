@@ -25,11 +25,6 @@ interface BaseCredit {
 }
 
 /**
- * Union type for all supported credit types
- */
-type AnyCredit = Credit | LightCredit;
-
-/**
  * Check if a credit is a talk show or news program (should be excluded)
  */
 export function isTalkShowOrNews<T extends BaseCredit>(credit: T): boolean {
@@ -142,42 +137,3 @@ export function deduplicateCredits<T extends BaseCredit>(credits: T[]): T[] {
   return Array.from(seen.values());
 }
 
-// =============================================================================
-// Backward compatibility aliases for "Light" function names
-// These are deprecated - use the generic versions above instead
-// =============================================================================
-
-/**
- * @deprecated Use isTalkShowOrNews() instead - it works with both Credit and LightCredit types
- */
-export const isTalkShowOrNewsLight = isTalkShowOrNews;
-
-/**
- * @deprecated Use filterOutTalkShows() instead - it works with both Credit and LightCredit types
- */
-export const filterOutTalkShowsLight = filterOutTalkShows;
-
-/**
- * @deprecated Use getCreditDate() instead - it works with both Credit and LightCredit types
- */
-export const getCreditDateLight = getCreditDate;
-
-/**
- * @deprecated Use isUpcoming() instead - it works with both Credit and LightCredit types
- */
-export const isUpcomingLight = isUpcoming;
-
-/**
- * @deprecated Use isLatest() instead - it works with both Credit and LightCredit types
- */
-export const isLatestLight = isLatest;
-
-/**
- * @deprecated Use categorizeCredits() instead - it works with both Credit and LightCredit types
- */
-export const categorizeCreditsLight = categorizeCredits;
-
-/**
- * @deprecated Use deduplicateCredits() instead - it works with both Credit and LightCredit types
- */
-export const deduplicateCreditsLight = deduplicateCredits;

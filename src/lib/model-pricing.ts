@@ -153,6 +153,24 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     provider: "anthropic",
     notes: "Most capable Claude model",
   },
+
+  // ==========================================================================
+  // Cohere Embedding Models (via Bedrock)
+  // ==========================================================================
+  "cohere.embed-v4:0": {
+    name: "Cohere Embed v4",
+    inputCostPer1k: 0.001, // $0.001 per 1K input tokens (search_document)
+    outputCostPer1k: 0, // Embedding models don't produce output tokens
+    provider: "cohere",
+    notes: "1024-dim embeddings via AWS Bedrock. Same rate for search_query and search_document.",
+  },
+  "global.cohere.embed-v4:0": {
+    name: "Cohere Embed v4 (Global)",
+    inputCostPer1k: 0.001,
+    outputCostPer1k: 0,
+    provider: "cohere",
+    notes: "Global inference profile for Cohere Embed v4",
+  },
 };
 
 // =============================================================================
@@ -261,4 +279,40 @@ export function getCurrentModelId(): string {
  */
 export function getCurrentModelPricing(): ModelPricing {
   return getModelPricing(getCurrentModelId());
+}
+
+// =============================================================================
+// Embedding Pricing
+// =============================================================================
+
+export interface EmbeddingPricing {
+  /** Cost per 1,000 input tokens in USD */
+  costPer1kTokens: number;
+  /** Model name for display */
+  modelName: string;
+  /** Input type (search_query or search_document) */
+  inputType: string;
+}
+
+/**
+ * Get embedding pricing for Cohere Embed v4 cost calculation.
+ * Bedrock charges ~$0.001/1K tokens for both search_query and search_document.
+ */
+export function getEmbeddingPricing(inputType: string): EmbeddingPricing {
+  const modelId = "cohere.embed-v4:0";
+  const pricing = getModelPricing(modelId);
+
+  return {
+    costPer1kTokens: pricing.inputCostPer1k,
+    modelName: pricing.name,
+    inputType,
+  };
+}
+
+/**
+ * Calculate embedding cost from token count
+ */
+export function calculateEmbeddingCost(tokens: number, inputType: string): number {
+  const pricing = getEmbeddingPricing(inputType);
+  return (tokens / 1000) * pricing.costPer1kTokens;
 }

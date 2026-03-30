@@ -161,7 +161,8 @@ create_package() {
     # - scripts/ (admin tools like enrich)
     
     FILES_TO_INCLUDE=".next public package.json next.config.mjs scripts"
-    
+    FILES_TO_INCLUDE="$FILES_TO_INCLUDE docker-compose.yml postgres/init analytics/clickhouse ecosystem.config.cjs prisma"
+
     # Add .env.local if it exists
     if [ -f ".env.local" ]; then
         FILES_TO_INCLUDE="$FILES_TO_INCLUDE .env.local"
@@ -201,7 +202,7 @@ echo "[1/5] Extracting package..."
 tar -xzf $ZIP_FILE
 rm -f $ZIP_FILE
 
-echo "[2/5] Creating data directories..."
+echo "[2/7] Creating data directories..."
 mkdir -p data/enriched
 mkdir -p .cache/youtube-channels
 mkdir -p .cache/youtube
@@ -211,15 +212,24 @@ mkdir -p .cache/discover
 mkdir -p .cache/movie
 mkdir -p .cache/series
 mkdir -p .cache/images
+mkdir -p logs
 
-echo "[3/5] Installing dependencies..."
+echo "[3/7] Ensuring PostgreSQL + ClickHouse are running..."
+docker compose up -d
+sleep 3
+docker compose ps
+
+echo "[4/7] Installing dependencies..."
 npm install --omit=dev --legacy-peer-deps --ignore-scripts
 
-echo "[4/5] Stopping existing process (if running)..."
+echo "[5/7] Applying Prisma schema..."
+npx prisma db push --skip-generate 2>/dev/null || echo "Prisma schema already up to date"
+
+echo "[6/7] Stopping existing process (if running)..."
 pm2 stop $PM2_APP_NAME 2>/dev/null || true
 pm2 delete $PM2_APP_NAME 2>/dev/null || true
 
-echo "[5/5] Starting Next.js on port $NEXT_PORT..."
+echo "[7/7] Starting Next.js on port $NEXT_PORT..."
 PORT=$NEXT_PORT pm2 start npm --name $PM2_APP_NAME -- start
 pm2 save
 

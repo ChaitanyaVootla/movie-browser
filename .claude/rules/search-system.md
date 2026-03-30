@@ -22,10 +22,10 @@ The search system uses a sophisticated multi-tier approach to handle any query t
 | Intent Classification | `src/lib/search/intent.ts` | Extracts 14+ filter types from natural language |
 | Embedding Classification | `src/lib/search/intent-embeddings.ts` | 3-tier classification (regex→embedding→LLM) |
 | Query Expansion | `src/lib/search/query-expansion.ts` | Theme/mood synonyms, typo correction |
-| LLM Parser | `src/lib/search/llm-query-parser.ts` | Kimi K2 fallback for complex NL queries |
+| LLM Parser | `src/lib/search/llm-query-parser.ts` | Kimi K2.5 fallback for complex NL queries |
 | Hybrid Search | `src/lib/search/hybrid.ts` | RRF combining fuzzy + semantic results |
 | Fuzzy Search | `src/server/db/postgres/fuzzy-search.ts` | pg_trgm trigram matching |
-| Semantic Search | `src/server/db/postgres/semantic-search.ts` | pgvector 1024-dim embeddings |
+| Semantic Search | `src/server/db/postgres/semantic-search.ts` | pgvector 1024-dim Cohere Embed v4 embeddings |
 | Autocomplete | `src/server/actions/autocomplete.ts` | Fast suggestions (<100ms) |
 | Search Action | `src/server/actions/search.ts` | Server action with trending boost |
 

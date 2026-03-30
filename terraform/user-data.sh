@@ -10,21 +10,18 @@ echo "Started at: $(date)"
 echo "=================================="
 
 # Update system packages
-echo "[1/8] Updating system packages..."
+echo "[1/7] Updating system packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get upgrade -y
 
 # Install core tools
-echo "[2/8] Installing core tools..."
+echo "[2/7] Installing core tools..."
 apt-get install -y \
     git \
     curl \
     wget \
     build-essential \
-    python3-pip \
-    python3-venv \
-    python3-dev \
     ca-certificates \
     gnupg \
     lsb-release \
@@ -34,7 +31,7 @@ apt-get install -y \
     vim
 
 # Install Docker
-echo "[3/8] Installing Docker..."
+echo "[3/7] Installing Docker..."
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
@@ -55,7 +52,7 @@ systemctl enable docker
 usermod -aG docker ubuntu
 
 # Install Node.js 22
-echo "[4/8] Installing Node.js 22..."
+echo "[4/7] Installing Node.js 22..."
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 
@@ -63,52 +60,28 @@ apt-get install -y nodejs
 node --version
 npm --version
 
-# Install PM2 globally
-echo "[5/8] Installing PM2..."
-npm install -g pm2
+# Install Yarn and PM2 globally
+echo "[5/7] Installing Yarn and PM2..."
+npm install -g yarn pm2
 
 # Setup PM2 startup script for ubuntu user
 env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu
 
 # Install AWS CLI v2
-echo "[6/8] Installing AWS CLI..."
+echo "[6/7] Installing AWS CLI..."
 cd /tmp
 curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip
 ./aws/install
 rm -rf awscliv2.zip aws/
 
-# Setup MongoDB 8.x Docker container
-echo "[7/8] Setting up MongoDB 8.x in Docker..."
-
-# Create MongoDB data directory
-mkdir -p /data/mongodb
-chown -R ubuntu:ubuntu /data/mongodb
-
-# Pull MongoDB 8.0 image
-docker pull mongo:8.0
-
-# Create MongoDB container
-docker run -d \
-  --name mongodb \
-  --restart always \
-  -p ${mongodb_port}:27017 \
-  -v /data/mongodb:/data/db \
-  -e MONGO_INITDB_ROOT_USERNAME=root \
-  -e MONGO_INITDB_ROOT_PASSWORD='${mongodb_root_password}' \
-  mongo:8.0
-
-# Wait for MongoDB to be ready
-echo "Waiting for MongoDB to be ready..."
-sleep 10
-
-# Verify MongoDB is running
-docker ps | grep mongodb && echo "MongoDB is running successfully" || echo "WARNING: MongoDB may not be running"
-
-# Setup application directory
-echo "[8/8] Setting up application directories..."
-mkdir -p /home/ubuntu/movie-browser
-chown -R ubuntu:ubuntu /home/ubuntu/movie-browser
+# Setup application directories
+echo "[7/7] Setting up directories..."
+mkdir -p /home/ubuntu/movie-browser-next
+mkdir -p /data/postgres
+mkdir -p /data/clickhouse
+chown -R ubuntu:ubuntu /home/ubuntu/movie-browser-next
+chown -R ubuntu:ubuntu /data
 
 # Create a setup completion marker
 touch /var/log/user-data-complete
@@ -121,12 +94,8 @@ echo "=================================="
 echo ""
 echo "Next steps:"
 echo "1. SSH into the instance: ssh -i ${project_name}-ec2-key.pem ubuntu@<elastic-ip>"
-echo "2. Clone the repository: git clone <repo-url> /home/ubuntu/movie-browser"
-echo "3. Setup environment variables in .env file"
-echo "4. Install dependencies: npm install"
-echo "5. Build application: npm run build"
-echo "6. Setup VectorDB: cd VectorDB && python3 -m venv vector && source vector/bin/activate && pip install -r requirements.txt"
-echo "7. Restore MongoDB data from backup"
-echo "8. Start PM2: pm2 start ecosystem.config.cjs"
+echo "2. Clone the repository"
+echo "3. Start services: docker compose up -d"
+echo "4. Apply schema: yarn db:push"
+echo "5. Deploy the app: yarn deploy (from local machine)"
 echo ""
-

@@ -338,26 +338,15 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
     const todayStr = today.toISOString().split("T")[0];
 
     // Use discover API - more reliable than /movie/upcoming which is region-specific
-    // Fetch multiple pages sorted by popularity to get quality upcoming content
-    const [page1, page2] = await Promise.all([
-      discoverMovies({
-        "primary_release_date.gte": todayStr,
-        sort_by: "popularity.desc",
-        "vote_count.gte": "0", // Include movies without votes yet
-        page: "1",
-      }),
-      discoverMovies({
-        "primary_release_date.gte": todayStr,
-        sort_by: "popularity.desc",
-        "vote_count.gte": "0",
-        page: "2",
-      }),
-    ]);
+    // Single page returns 20 results which is sufficient (we display max 20)
+    const page1 = await discoverMovies({
+      "primary_release_date.gte": todayStr,
+      sort_by: "popularity.desc",
+      "vote_count.gte": "0", // Include movies without votes yet
+      page: "1",
+    });
 
-    const allMovies = [
-      ...(page1.results as Record<string, unknown>[]),
-      ...(page2.results as Record<string, unknown>[]),
-    ];
+    const allMovies = page1.results as Record<string, unknown>[];
 
     // Map and format release dates
     const moviesWithInfo: MovieWithReleaseInfo[] = allMovies
@@ -410,15 +399,10 @@ export async function getNowPlaying(): Promise<MovieListItem[]> {
 
     const { getNowPlayingMovies } = await import("@/server/services/tmdb");
 
-    const [page1, page2] = await Promise.all([
-      getNowPlayingMovies(1, countryCode),
-      getNowPlayingMovies(2, countryCode),
-    ]);
+    // Single page returns 20 results which is sufficient
+    const page1 = await getNowPlayingMovies(1, countryCode);
 
-    const allMovies = [
-      ...(page1.results as Record<string, unknown>[]),
-      ...(page2.results as Record<string, unknown>[]),
-    ];
+    const allMovies = page1.results as Record<string, unknown>[];
 
     // Map and filter for quality
     const movies: MovieListItem[] = allMovies
