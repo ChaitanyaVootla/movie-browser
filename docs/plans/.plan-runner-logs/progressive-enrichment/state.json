@@ -48,15 +48,33 @@
       "reviewFindings": null,
       "parallelGroup": null,
       "worktreePath": null
+    },
+    {
+      "num": 3,
+      "label": "SSE Enrichment Endpoint & Client Hook",
+      "costUsd": 1.46,
+      "durationMs": 223197,
+      "numTurns": 39,
+      "inputTokens": 1625191,
+      "outputTokens": 10454,
+      "cacheReadTokens": 1557688,
+      "isError": false,
+      "gitCommit": "403f123",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
     }
   ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 2,
-    "costUsd": 6.35,
-    "durationMs": 790814,
-    "inputTokens": 8504197,
-    "outputTokens": 36346,
-    "cacheReadTokens": 8296218
+    "sessions": 3,
+    "costUsd": 7.81,
+    "durationMs": 1014011,
+    "inputTokens": 10129388,
+    "outputTokens": 46800,
+    "cacheReadTokens": 9853906
   }
 }

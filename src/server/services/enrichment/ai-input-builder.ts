@@ -10,13 +10,17 @@
  */
 
 import type { Movie, Series } from "@/types";
+import type { TmdbMovieData } from "@/server/services/hydration/sources/tmdb";
+import type { TmdbSeriesData } from "@/server/services/hydration/sources/tmdb";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-/** Unified input for building AI markdown from either movie or series data */
-export type TMDBData = Movie | Series;
+/** Unified input for building AI markdown from either movie or series data.
+ *  Accepts both the app types (Movie/Series) and raw TMDB hydration types
+ *  so the progressive enrichment service can pass data from the hydration pipeline. */
+export type TMDBData = Movie | Series | TmdbMovieData | TmdbSeriesData;
 
 // =============================================================================
 // Helpers

@@ -75,7 +75,7 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 | 1 | Summarizer & AI Input Modernization | medium | None | - | Done | Model switch, Flex, tighter prompt, TMDB-only builder. Typecheck + lint clean. |
 | 2 | Progressive Enrichment Service | medium | Session 1 | A | Done | Core service with dedup Map, p-limit(5), 7-stage orchestration, generateAndStoreEmbedding helper, analytics tracking. Typecheck + lint clean. |
 | 3 | SSE Enrichment Endpoint & Client Hook | medium | None | A | Done | SSE GET endpoint with PG polling (3s interval, 120s max), useEnrichmentStream hook with EventSource. Typecheck + lint clean. |
-| 4 | Hydration Integration & Detail Pages | medium | Sessions 2, 3 | - | Pending | Hook into hydration, wire SSE into pages, refresh indicator |
+| 4 | Hydration Integration & Detail Pages | medium | Sessions 2, 3 | - | Done | Hydration hook, EnrichmentProvider, LiveRatings/LiveAIHook/LiveAISections, refresh indicator. Typecheck + lint clean. |
 | 5 | Audit & Hardening | medium | All | - | Pending | E2E verification, edge cases, doc updates |
 
 ---
@@ -183,29 +183,31 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 **Goal:** Hook progressive enrichment into the hydration pipeline and wire SSE into movie/series detail pages for live updates.
 
 **Scope:**
-- [ ] Hook `triggerProgressiveEnrichment()` into `hydrateMovie()` (after PG upsert, ~line 139) and `hydrateSeries()` (~line 265) as fire-and-forget: `triggerProgressiveEnrichment(mediaType, id, tmdbData).catch(() => {})`. Only trigger when `enrichedSource` is `"lambda"` or `"mongodb"` (indicates fresh data was just fetched — not the PG fast path).
-- [ ] Create a thin `EnrichmentProvider` client component that wraps the detail page content. It receives initial server-rendered data as props and connects `useEnrichmentStream` to patch in live updates.
-- [ ] When `latestRatings` arrives from SSE: update ratings display in-place (replace values, no skeleton)
-- [ ] When `latestAI` arrives: render the AI insights section (vibes, highlights, bestFor, etc.) with a subtle fade-in via Framer Motion (already in the project)
-- [ ] Show a small refresh indicator when `isRefreshing` is true — a subtle pulsing dot or small "Updating" text. No skeleton, no placeholder for slow stages.
-- [ ] Apply to both movie (`src/app/movie/[...params]/page.tsx`) and series detail pages
-- [ ] Ensure SSE connection opens once via `useRef` gate, closes on unmount
+- [x] Hook `triggerProgressiveEnrichment()` into `hydrateMovie()` (after PG upsert, ~line 139) and `hydrateSeries()` (~line 271) as fire-and-forget: `triggerProgressiveEnrichment(mediaType, id, tmdbData).catch(() => {})`. Only trigger when `enrichedSource` is `"lambda"` or `"mongodb"` (indicates fresh data was just fetched — not the PG fast path). — Added import and two fire-and-forget calls in `src/server/services/hydration/index.ts`. Updated `TMDBData` type in `ai-input-builder.ts` to accept `TmdbMovieData | TmdbSeriesData` from the hydration pipeline for type safety.
+- [x] Create a thin `EnrichmentProvider` client component that wraps the detail page content. It connects `useEnrichmentStream` to open the SSE connection and provides `EnrichmentStreamState` via React context. — Created `src/components/features/media/enrichment-provider.tsx` with `EnrichmentProvider`, `useEnrichment()` hook, and live update components. SSE connection reuses the `useRef` gate from `useEnrichmentStream` (Session 3).
+- [x] When `latestRatings` arrives from SSE: update ratings display in-place (replace values, no skeleton) — Created `LiveRatings` component that uses `useEnrichment()` context. Converts SSE `RatingData[]` to `ExternalRating[]` following the same whitelist/normalization as `buildRatingsArray()` in `integration.ts` (TMDB, IMDb, RT Critic, RT Audience, Google — skips Metacritic/Letterboxd). Renders `RatingsBar` with swapped data.
+- [x] When `latestAI` arrives: render the AI insights section (vibes, highlights, bestFor, etc.) with a subtle fade-in via Framer Motion (already in the project) — Created `LiveAIHook` (hero hook tagline with `AnimatePresence` + `motion.blockquote` fade-in) and `LiveAISections` (renders `AIQuestionsSection` + `DeepDiveSection` from SSE data with `motion.div` fade-in). `LiveAISections` only renders when server had no AI data (`{!aiData && <LiveAISections ... />}`), preventing duplicate sections.
+- [x] Show a small refresh indicator when `isRefreshing` is true — a subtle pulsing dot or small "Updating" text. No skeleton, no placeholder for slow stages. — Created `EnrichmentRefreshIndicator` with pulsing dot (Tailwind `animate-ping`) and "Updating" text. Uses `animate-in fade-in` for subtle appearance. Placed in hero section after ratings on both pages.
+- [x] Apply to both movie (`src/app/movie/[...params]/page.tsx`) and series detail pages — Both pages wrap content with `<EnrichmentProvider mediaType=... mediaId=...>` inside `HeroMediaProvider`. Hero sections use `LiveAIHook`, `LiveRatings`, `EnrichmentRefreshIndicator`. Body sections include `LiveAISections` conditionally.
+- [x] Ensure SSE connection opens once via `useRef` gate, closes on unmount — Handled by `useEnrichmentStream` hook (Session 3) which uses `connectedRef` gate. `EnrichmentProvider` simply passes `mediaType` and `mediaId` to the hook. Cleanup via `useEffect` return in the hook.
 
-**Key files:** `src/server/services/hydration/index.ts` (modify — add hook), `src/app/movie/[...params]/page.tsx` (modify), `src/app/series/[...params]/page.tsx` (modify), `src/components/features/media/enrichment-provider.tsx` (new)
+**Key files:** `src/server/services/hydration/index.ts` (modified — added import + 2 fire-and-forget calls), `src/server/services/enrichment/ai-input-builder.ts` (modified — widened `TMDBData` type), `src/app/movie/[...params]/page.tsx` (modified — EnrichmentProvider wrapper, live components), `src/app/series/[...params]/page.tsx` (modified — same pattern), `src/components/features/media/enrichment-provider.tsx` (new — provider + 5 components), `src/components/features/media/index.ts` (modified — barrel exports)
 
 **Acceptance Criteria:**
-- GIVEN a movie with stale data WHEN a user visits the page THEN the page renders immediately with existing data, a subtle refresh indicator appears, and SSE connection opens
-- GIVEN Lambda enrichment completes WHEN SSE sends ratings event THEN ratings update in-place without page reload or skeleton flash
-- GIVEN AI enrichment completes WHEN SSE sends ai event THEN AI insights section fades in smoothly
-- GIVEN a movie with fully fresh data WHEN a user visits THEN no refresh indicator, SSE sends `done` immediately
-- GIVEN a bot crawls the page WHEN Server Component renders THEN hydration fires, progressive enrichment triggers in background, PG is populated for next visitor
+- GIVEN a movie with stale data WHEN a user visits the page THEN the page renders immediately with existing data, a subtle refresh indicator appears, and SSE connection opens — ✅ `EnrichmentProvider` opens SSE, `EnrichmentRefreshIndicator` shows pulsing dot
+- GIVEN Lambda enrichment completes WHEN SSE sends ratings event THEN ratings update in-place without page reload or skeleton flash — ✅ `LiveRatings` swaps to SSE data via `convertSSERatingsToExternalRatings()`
+- GIVEN AI enrichment completes WHEN SSE sends ai event THEN AI insights section fades in smoothly — ✅ `LiveAIHook` fades in hook, `LiveAISections` fades in questions + deep dive
+- GIVEN a movie with fully fresh data WHEN a user visits THEN no refresh indicator, SSE sends `done` immediately — ✅ SSE endpoint sends `done` with `refreshing: false`, `EnrichmentRefreshIndicator` returns null
+- GIVEN a bot crawls the page WHEN Server Component renders THEN hydration fires, progressive enrichment triggers in background, PG is populated for next visitor — ✅ `triggerProgressiveEnrichment()` fires after PG upsert when `enrichedSource` is `"lambda"` or `"mongodb"`
 
-**Verification Command:** `yarn typecheck && yarn lint`
+**Verification Command:** `yarn typecheck && yarn lint` — ✅ both pass (0 errors in modified files; 2 pre-existing unused import warnings in pages)
 
 **Notes:**
-- The Server Component renders initial data. The `EnrichmentProvider` client component handles live updates via context. Child components read from context when available, fall back to server-rendered props.
-- Don't show skeletons or placeholders for AI content that doesn't exist and will take 30+ seconds. Just don't render the section. When data arrives via SSE, it appears with a fade-in.
+- The Server Component renders initial data. The `EnrichmentProvider` client component handles live updates via React context. `LiveRatings` and `LiveAIHook` read from context and override server-rendered props when SSE data arrives.
+- `LiveAISections` is only rendered when `!aiData` (server had no AI data). It reads from the enrichment context and renders `AIQuestionsSection` + `DeepDiveSection` from SSE data with a Framer Motion fade-in. This avoids duplicate sections.
+- No skeletons or placeholders — AI content simply doesn't render until data arrives. The `EnrichmentRefreshIndicator` provides a minimal visual cue.
 - The existing Suspense boundaries render server data — they don't interfere with SSE client-side updates.
+- React Compiler handles memoization — manual `useMemo` was removed to avoid conflicts with the compiler's auto-memoization.
 
 ---
 
@@ -276,17 +278,17 @@ Sessions 2 and 3 can run in parallel (Parallel Group A) — they share no files 
 
 ## Progress
 
-[######....] 60% (3/5 sessions)
+[########..] 80% (4/5 sessions)
 
 ## Acceptance Criteria
 
 - [x] The summarize script uses Kimi K2.5 non-thinking in ap-south-1 with Flex tier support
-- [ ] Progressive enrichment fires automatically when a page is visited and data is refreshed via Lambda
-- [ ] AI data (hook, insights across all 9 categories) is generated and stored in PostgreSQL
-- [ ] Embeddings are auto-regenerated with AI themes/mood/hook after enrichment
+- [x] Progressive enrichment fires automatically when a page is visited and data is refreshed via Lambda
+- [x] AI data (hook, insights across all 9 categories) is generated and stored in PostgreSQL
+- [x] Embeddings are auto-regenerated with AI themes/mood/hook after enrichment
 - [x] SSE streams enrichment progress to the detail page UI
-- [ ] Ratings and AI insights update in-place without page reload
-- [ ] Concurrent requests for the same item are deduplicated (single LLM call)
+- [x] Ratings and AI insights update in-place without page reload
+- [x] Concurrent requests for the same item are deduplicated (single LLM call)
 - [ ] Estimated cost for full 184K catalog: ~$210-250 via Flex pricing + tighter prompt
 - [ ] CLAUDE.md and rules files reflect the new progressive enrichment architecture
 

@@ -61,3 +61,13 @@ export { RefreshDataButton } from "./refresh-data-button";
 
 // Context updater for AI chat prompts
 export { MediaContextUpdater } from "./media-context-updater";
+
+// Progressive enrichment (SSE live updates)
+export {
+  EnrichmentProvider,
+  EnrichmentRefreshIndicator,
+  LiveRatings,
+  LiveAIHook,
+  LiveAISections,
+  useEnrichment,
+} from "./enrichment-provider";

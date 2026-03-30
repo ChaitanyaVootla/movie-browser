@@ -23,12 +23,16 @@ import {
   HeroLogoShell,
   HeroMediaProvider,
   HeroMediaUpdater,
-  RatingsBar,
   WatchOptions,
   DetailBadges,
   AIQuestionsSection,
   DeepDiveSection,
   MediaContextUpdater,
+  EnrichmentProvider,
+  EnrichmentRefreshIndicator,
+  LiveRatings,
+  LiveAIHook,
+  LiveAISections,
 } from "@/components/features/media";
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
@@ -274,20 +278,23 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
         title={movie.title}
       />
 
-      {/* AI Hook - tagline above content */}
-      {aiSummary?.hook && (
-        <blockquote className="border-l-2 border-brand/50 pl-3 text-sm md:text-base text-foreground/90 italic font-medium text-left max-w-md leading-relaxed">
-          {aiSummary.hook}
-        </blockquote>
-      )}
+      {/* AI Hook - tagline above content (live-updated via SSE) */}
+      <LiveAIHook initialHook={aiSummary?.hook ?? null} />
 
       {/* Status badges (trending, new, critically acclaimed, etc.) */}
       {badges.length > 0 && <DetailBadges badges={badges} className="drop-shadow-md" />}
 
-      {/* Ratings */}
-      {displayRatings.length > 0 && (
-        <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
-      )}
+      {/* Ratings (live-updated via SSE when Lambda scrapes fresh data) */}
+      <LiveRatings
+        initialRatings={displayRatings}
+        size="md"
+        maxVisible={5}
+        mediaType="movie"
+        tmdbId={movie.id}
+      />
+
+      {/* Refresh indicator — subtle pulsing dot when enrichment is in progress */}
+      <EnrichmentRefreshIndicator />
 
       {/* Watch Options - using light item props to reduce RSC payload */}
       {movie.watch_options?.options?.length ? (
@@ -384,6 +391,15 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
             maxCollapsedItems={3}
           />
         )}
+
+      {/* Live AI sections — when server had no AI data, SSE delivers it with fade-in */}
+      {!aiData && (
+        <LiveAISections
+          title={movie.title}
+          year={movie.release_date?.split("-")[0]}
+          tmdbId={movie.id}
+        />
+      )}
 
       {/* Collection/Franchise - Deferred with Suspense */}
       {movie.belongs_to_collection && (
@@ -551,40 +567,42 @@ export default async function MoviePage({ params, searchParams }: MoviePageProps
       <ImagePreloader movieId={id} />
 
       <HeroMediaProvider>
-        <article className="pb-12">
-          {/* Hero section - backdrop & logo render IMMEDIATELY with just ID
-              Mobile: Image with aspect ratio, content below (centered)
-              Desktop: Image fills container, content overlays at bottom */}
-          <section className="relative">
-            <div className="hero-container relative w-full overflow-hidden">
-              <HeroBackdropShell mediaId={id} mediaType="movie" overlay="light">
-                {/* Content container
-                    Mobile: centered, normal document flow (below image)
-                    Desktop: absolute positioned overlay at bottom */}
-                <div className="flex flex-col items-center text-center md:items-start md:text-left md:absolute md:inset-0 md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
-                  {/* Logo renders immediately with just ID */}
-                  <div className="mb-3 md:mb-6 lg:mb-8">
-                    <HeroLogoShell
-                      mediaId={id}
-                      mediaType="movie"
-                      className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
-                    />
+        <EnrichmentProvider mediaType="movie" mediaId={id}>
+          <article className="pb-12">
+            {/* Hero section - backdrop & logo render IMMEDIATELY with just ID
+                Mobile: Image with aspect ratio, content below (centered)
+                Desktop: Image fills container, content overlays at bottom */}
+            <section className="relative">
+              <div className="hero-container relative w-full overflow-hidden">
+                <HeroBackdropShell mediaId={id} mediaType="movie" overlay="light">
+                  {/* Content container
+                      Mobile: centered, normal document flow (below image)
+                      Desktop: absolute positioned overlay at bottom */}
+                  <div className="flex flex-col items-center text-center md:items-start md:text-left md:absolute md:inset-0 md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
+                    {/* Logo renders immediately with just ID */}
+                    <div className="mb-3 md:mb-6 lg:mb-8">
+                      <HeroLogoShell
+                        mediaId={id}
+                        mediaType="movie"
+                        className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
+                      />
+                    </div>
+
+                    {/* Genres, ratings, watch options load via Suspense */}
+                    <Suspense fallback={<HeroContentSkeleton />}>
+                      <HeroContentAsync movieId={id} />
+                    </Suspense>
                   </div>
+                </HeroBackdropShell>
+              </div>
+            </section>
 
-                  {/* Genres, ratings, watch options load via Suspense */}
-                  <Suspense fallback={<HeroContentSkeleton />}>
-                    <HeroContentAsync movieId={id} />
-                  </Suspense>
-                </div>
-              </HeroBackdropShell>
-            </div>
-          </section>
-
-          {/* Rest of page content loads via Suspense */}
-          <Suspense fallback={<PageContentSkeleton />}>
-            <MovieContentAsync movieId={id} />
-          </Suspense>
-        </article>
+            {/* Rest of page content loads via Suspense */}
+            <Suspense fallback={<PageContentSkeleton />}>
+              <MovieContentAsync movieId={id} />
+            </Suspense>
+          </article>
+        </EnrichmentProvider>
       </HeroMediaProvider>
     </>
   );

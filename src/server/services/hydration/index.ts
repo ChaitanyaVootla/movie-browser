@@ -47,6 +47,7 @@ import {
 import { getMovieFromPostgres } from "@/server/db/postgres/movies";
 import { getSeriesFromPostgres } from "@/server/db/postgres/series";
 import type { EnrichedData, HydrationResult, MediaType } from "./types";
+import { triggerProgressiveEnrichment } from "@/server/services/enrichment/progressive";
 
 // Re-export types
 export * from "./types";
@@ -137,6 +138,12 @@ export async function hydrateMovie(
   try {
     await upsertMovieToPostgres(tmdbData, enriched);
     console.log(`[Hydration] Movie ${movieId}: PostgreSQL upsert complete`);
+
+    // Trigger progressive AI enrichment in background (fire-and-forget)
+    // Only when fresh enriched data was fetched (Lambda or MongoDB) — not the PG fast path
+    if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
+      triggerProgressiveEnrichment("movie", movieId, tmdbData).catch(() => {});
+    }
 
     // Mark MongoDB as migrated after successful upsert
     if (mongoDocExists) {
@@ -263,6 +270,12 @@ export async function hydrateSeries(
     const tmdbDataWithEpisodes = { ...tmdbData, seasons: seasonsWithEpisodes };
     await upsertSeriesToPostgres(tmdbDataWithEpisodes, enriched);
     console.log(`[Hydration] Series ${seriesId}: PostgreSQL upsert complete`);
+
+    // Trigger progressive AI enrichment in background (fire-and-forget)
+    // Only when fresh enriched data was fetched (Lambda or MongoDB) — not the PG fast path
+    if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
+      triggerProgressiveEnrichment("series", seriesId, tmdbData).catch(() => {});
+    }
 
     // Mark MongoDB as migrated after successful upsert
     if (mongoDocExists) {

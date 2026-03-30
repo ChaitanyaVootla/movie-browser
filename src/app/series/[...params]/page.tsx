@@ -20,12 +20,16 @@ import {
   HeroLogoShell,
   HeroMediaProvider,
   HeroMediaUpdater,
-  RatingsBar,
   WatchOptions,
   DetailBadges,
   AIQuestionsSection,
   DeepDiveSection,
   MediaContextUpdater,
+  EnrichmentProvider,
+  EnrichmentRefreshIndicator,
+  LiveRatings,
+  LiveAIHook,
+  LiveAISections,
 } from "@/components/features/media";
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
@@ -275,20 +279,23 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
         title={series.name}
       />
 
-      {/* AI Hook - tagline above content */}
-      {aiSummary?.hook && (
-        <blockquote className="border-l-2 border-brand/50 pl-3 text-sm md:text-base text-foreground/90 italic font-medium text-left max-w-md leading-relaxed">
-          {aiSummary.hook}
-        </blockquote>
-      )}
+      {/* AI Hook - tagline above content (live-updated via SSE) */}
+      <LiveAIHook initialHook={aiSummary?.hook ?? null} />
 
       {/* Status badges (trending, new season, currently airing, etc.) */}
       {badges.length > 0 && <DetailBadges badges={badges} className="drop-shadow-md" />}
 
-      {/* Ratings */}
-      {displayRatings.length > 0 && (
-        <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
-      )}
+      {/* Ratings (live-updated via SSE when Lambda scrapes fresh data) */}
+      <LiveRatings
+        initialRatings={displayRatings}
+        size="md"
+        maxVisible={5}
+        mediaType="series"
+        tmdbId={series.id}
+      />
+
+      {/* Refresh indicator — subtle pulsing dot when enrichment is in progress */}
+      <EnrichmentRefreshIndicator />
 
       {/* Watch Options - using light item props to reduce RSC payload */}
       {series.watch_options?.options?.length ? (
@@ -407,6 +414,15 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           />
         )}
 
+      {/* Live AI sections — when server had no AI data, SSE delivers it with fade-in */}
+      {!aiData && (
+        <LiveAISections
+          title={series.name}
+          year={series.first_air_date?.split("-")[0]}
+          tmdbId={series.id}
+        />
+      )}
+
       {/* Video Gallery */}
       {youtubeVideos.length > 0 && (
         <VideoGallery
@@ -518,40 +534,42 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
       <ImagePreloader seriesId={id} />
 
       <HeroMediaProvider>
-        <article className="pb-12">
-          {/* Hero section - backdrop & logo render IMMEDIATELY with just ID
-              Mobile: Image with aspect ratio, content below (centered)
-              Desktop: Image fills container, content overlays at bottom */}
-          <section className="relative">
-            <div className="hero-container relative w-full overflow-hidden">
-              <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
-                {/* Content container
-                    Mobile: centered, normal document flow (below image)
-                    Desktop: absolute positioned overlay at bottom */}
-                <div className="flex flex-col items-center text-center md:items-start md:text-left md:absolute md:inset-0 md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
-                  {/* Logo renders immediately with just ID */}
-                  <div className="mb-3 md:mb-6 lg:mb-8">
-                    <HeroLogoShell
-                      mediaId={id}
-                      mediaType="series"
-                      className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
-                    />
+        <EnrichmentProvider mediaType="series" mediaId={id}>
+          <article className="pb-12">
+            {/* Hero section - backdrop & logo render IMMEDIATELY with just ID
+                Mobile: Image with aspect ratio, content below (centered)
+                Desktop: Image fills container, content overlays at bottom */}
+            <section className="relative">
+              <div className="hero-container relative w-full overflow-hidden">
+                <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
+                  {/* Content container
+                      Mobile: centered, normal document flow (below image)
+                      Desktop: absolute positioned overlay at bottom */}
+                  <div className="flex flex-col items-center text-center md:items-start md:text-left md:absolute md:inset-0 md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
+                    {/* Logo renders immediately with just ID */}
+                    <div className="mb-3 md:mb-6 lg:mb-8">
+                      <HeroLogoShell
+                        mediaId={id}
+                        mediaType="series"
+                        className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
+                      />
+                    </div>
+
+                    {/* Genres, ratings, watch options load via Suspense */}
+                    <Suspense fallback={<HeroContentSkeleton />}>
+                      <HeroContentAsync seriesId={id} />
+                    </Suspense>
                   </div>
+                </HeroBackdropShell>
+              </div>
+            </section>
 
-                  {/* Genres, ratings, watch options load via Suspense */}
-                  <Suspense fallback={<HeroContentSkeleton />}>
-                    <HeroContentAsync seriesId={id} />
-                  </Suspense>
-                </div>
-              </HeroBackdropShell>
-            </div>
-          </section>
-
-          {/* Rest of page content loads via Suspense */}
-          <Suspense fallback={<PageContentSkeleton />}>
-            <SeriesContentAsync seriesId={id} />
-          </Suspense>
-        </article>
+            {/* Rest of page content loads via Suspense */}
+            <Suspense fallback={<PageContentSkeleton />}>
+              <SeriesContentAsync seriesId={id} />
+            </Suspense>
+          </article>
+        </EnrichmentProvider>
       </HeroMediaProvider>
     </>
   );
