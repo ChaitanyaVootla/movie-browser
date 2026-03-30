@@ -26,6 +26,8 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { aiLogger, usageLogger } from "@/lib/logger";
 import { cacheGet, cacheSet } from "@/lib/cache-service";
+import { trackSearchLLMUsage } from "@/lib/analytics/track";
+import { calculateCost, getModelPricing } from "@/lib/model-pricing";
 
 // =============================================================================
 // Types
@@ -260,6 +262,27 @@ export async function parseQueryWithLlm(query: string): Promise<LlmParsedQuery |
       hasSimilarTo: Boolean(result.similarTo),
       hasStreamingService: Boolean(result.streamingService),
     });
+
+    // Track to ClickHouse for cost dashboard
+    try {
+      const pricing = getModelPricing(MODEL_ID);
+      const cost = calculateCost(MODEL_ID, inputTokens, outputTokens);
+      trackSearchLLMUsage({
+        query: query.slice(0, 500),
+        modelId: MODEL_ID,
+        modelName: pricing.name,
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        inputCost: cost.inputCost,
+        outputCost: cost.outputCost,
+        totalCost: cost.totalCost,
+        durationMs,
+        responseLength: responseText.length,
+      });
+    } catch {
+      // Fire-and-forget: tracking errors must never break search
+    }
 
     aiLogger.info({
       event: "llm_query_parser_success",

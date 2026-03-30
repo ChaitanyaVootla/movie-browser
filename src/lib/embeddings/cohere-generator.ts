@@ -19,6 +19,7 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { prisma } from "@/server/db/postgres";
 import { buildMovieEmbeddingText, buildSeriesEmbeddingText, estimateTokens } from "./text-builder";
+import { trackEmbeddingCall } from "@/lib/analytics/track";
 import pino from "pino";
 import type { Credit, MovieGenre, MovieKeyword, Person, Genre, Keyword } from "@prisma/client";
 
@@ -178,12 +179,16 @@ function getBedrockClient(): BedrockRuntimeClient {
 /**
  * Generate embedding for document storage (corpus)
  * Uses input_type: "search_document"
+ *
+ * @param skipTracking - When true, skip analytics tracking (used by batch functions that track aggregates)
  */
 export async function generateDocumentEmbedding(
   text: string,
-  dimensions: number = COHERE_DIMENSIONS
+  dimensions: number = COHERE_DIMENSIONS,
+  skipTracking: boolean = false
 ): Promise<{ embedding: number[]; tokenCount: number }> {
   const client = getBedrockClient();
+  const startTime = Date.now();
 
   const request: CohereEmbedRequest = {
     texts: [text],
@@ -225,11 +230,41 @@ export async function generateDocumentEmbedding(
       // Estimate token count (Cohere doesn't return this, so we estimate)
       const tokenCount = estimateTokens(text);
 
+      // Track individual embedding call (skip when called from batch functions)
+      if (!skipTracking) {
+        try {
+          trackEmbeddingCall({
+            endpoint: COHERE_MODEL_ID,
+            inputType: "search_document",
+            tokens: tokenCount,
+            durationMs: Date.now() - startTime,
+            statusCode: 200,
+          });
+        } catch {
+          // Fire-and-forget: tracking errors must never break embedding generation
+        }
+      }
+
       return { embedding, tokenCount };
     } catch (error: unknown) {
       attempt++;
       if (attempt >= MAX_RETRIES) {
         logger.error({ error, attempt }, "Failed to generate Cohere embedding after retries");
+        // Track failed embedding call
+        if (!skipTracking) {
+          try {
+            trackEmbeddingCall({
+              endpoint: COHERE_MODEL_ID,
+              inputType: "search_document",
+              tokens: 0,
+              durationMs: Date.now() - startTime,
+              statusCode: 500,
+              errorType: error instanceof Error ? error.name : "UnknownError",
+            });
+          } catch {
+            // Fire-and-forget
+          }
+        }
         throw error;
       }
 
@@ -308,8 +343,40 @@ export async function generateQueryEmbedding(
   query: string,
   dimensions: number = COHERE_DIMENSIONS
 ): Promise<number[]> {
-  const { embedding } = await generateQueryEmbeddingDetailed(query, dimensions);
-  return embedding;
+  const startTime = Date.now();
+  try {
+    const { embedding, tokenCount } = await generateQueryEmbeddingDetailed(query, dimensions);
+
+    // Track successful query embedding call
+    try {
+      trackEmbeddingCall({
+        endpoint: COHERE_MODEL_ID,
+        inputType: "search_query",
+        tokens: tokenCount,
+        durationMs: Date.now() - startTime,
+        statusCode: 200,
+      });
+    } catch {
+      // Fire-and-forget: tracking errors must never break search
+    }
+
+    return embedding;
+  } catch (error: unknown) {
+    // Track failed query embedding call
+    try {
+      trackEmbeddingCall({
+        endpoint: COHERE_MODEL_ID,
+        inputType: "search_query",
+        tokens: 0,
+        durationMs: Date.now() - startTime,
+        statusCode: 500,
+        errorType: error instanceof Error ? error.name : "UnknownError",
+      });
+    } catch {
+      // Fire-and-forget
+    }
+    throw error;
+  }
 }
 
 /**
@@ -505,10 +572,11 @@ export async function generateMovieEmbeddings(
 
     try {
       // Generate embeddings in parallel with controlled concurrency
+      // skipTracking=true: batch tracks aggregate at completion
       const results = await Promise.all(
         textsWithIds.map(async ({ id, text }) => {
           try {
-            const { embedding, tokenCount } = await generateDocumentEmbedding(text, dimensions);
+            const { embedding, tokenCount } = await generateDocumentEmbedding(text, dimensions, true);
             stats.tokensUsed += tokenCount;
             return { id, embedding, error: null };
           } catch (error: unknown) {
@@ -552,6 +620,21 @@ export async function generateMovieEmbeddings(
     },
     "Cohere embedding generation complete"
   );
+
+  // Track aggregate batch embedding call
+  if (stats.processed > 0) {
+    try {
+      trackEmbeddingCall({
+        endpoint: `${COHERE_MODEL_ID}:batch:${stats.processed}`,
+        inputType: "search_document",
+        tokens: stats.tokensUsed,
+        durationMs: Math.round(totalTimeSeconds * 1000),
+        statusCode: stats.errors > 0 ? 207 : 200,
+      });
+    } catch {
+      // Fire-and-forget: tracking errors must never break batch operations
+    }
+  }
 
   return stats;
 }
@@ -683,10 +766,11 @@ export async function generateSeriesEmbeddings(
     });
 
     try {
+      // skipTracking=true: batch tracks aggregate at completion
       const results = await Promise.all(
         textsWithIds.map(async ({ id, text }) => {
           try {
-            const { embedding, tokenCount } = await generateDocumentEmbedding(text, dimensions);
+            const { embedding, tokenCount } = await generateDocumentEmbedding(text, dimensions, true);
             stats.tokensUsed += tokenCount;
             return { id, embedding, error: null };
           } catch (error: unknown) {
@@ -729,6 +813,21 @@ export async function generateSeriesEmbeddings(
     },
     "Cohere series embedding generation complete"
   );
+
+  // Track aggregate batch embedding call
+  if (stats.processed > 0) {
+    try {
+      trackEmbeddingCall({
+        endpoint: `${COHERE_MODEL_ID}:batch:${stats.processed}`,
+        inputType: "search_document",
+        tokens: stats.tokensUsed,
+        durationMs: Math.round(totalTimeSeconds * 1000),
+        statusCode: stats.errors > 0 ? 207 : 200,
+      });
+    } catch {
+      // Fire-and-forget: tracking errors must never break batch operations
+    }
+  }
 
   return stats;
 }

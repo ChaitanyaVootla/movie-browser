@@ -67,7 +67,7 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 | Session | Title | Size | Dependencies | Parallel Group | Status | Notes |
 |---------|-------|------|--------------|----------------|--------|-------|
 | 1 | Foundation — Pricing, Types, Schema, Tracking Functions | medium | None | - | **Complete** | All types, pricing, schema, and tracking functions implemented. `yarn typecheck` passes. |
-| 2 | Backend Instrumentation — Embeddings & LLM Parser | medium | Session 1 | - | Pending | Server-side only, no UI changes |
+| 2 | Backend Instrumentation — Embeddings & LLM Parser | medium | Session 1 | - | **Complete** | All embedding + LLM parser tracking instrumented. `yarn typecheck` passes. |
 | 3 | Wire Core User Actions | medium | Session 1 | A | Pending | media-actions, watch-options, card actions |
 | 4a | Wire Search & Filters | medium | Session 1 | A | Pending | search-command, filter-sidebar, video-gallery |
 | 4b | Wire AI Chat & Trailers | medium | Session 1 | A | Pending | AI chat components, trailer-carousel |
@@ -109,11 +109,11 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 **Goal:** Instrument all server-side embedding generation and LLM parser calls to send tracking events to ClickHouse.
 
 **Scope:**
-- [ ] Instrument `generateQueryEmbedding()` in `src/lib/embeddings/cohere-generator.ts` — after each Bedrock call, call `trackEmbeddingCall()` with estimated tokens (from `estimateTokens()`), duration, status. Use `inputType: 'search_query'`
-- [ ] Instrument `generateDocumentEmbedding()` in `src/lib/embeddings/cohere-generator.ts` — same pattern with `inputType: 'search_document'`. Only track when called individually (not inside batch — batch has its own tracking)
-- [ ] Instrument batch embedding functions (`generateMovieEmbeddings`, `generateSeriesEmbeddings`) — add a single `trackEmbeddingCall()` at batch completion with total tokens, total duration, and `endpoint` including batch count (e.g., `cohere.embed-v4:0:batch:150`)
-- [ ] Instrument `parseQueryWithLlm()` in `src/lib/search/llm-query-parser.ts` — after successful parse, call `trackSearchLLMUsage()` with input_tokens, output_tokens from the Bedrock response `usage` field, cost calculated via `calculateCost()`, and query text. Wrap in try-catch so tracking errors never break search.
-- [ ] Add cost calculation to AI summarization in `scripts/summarize-movies.ts` — after each summary generation, log cost using `calculateCost()` from model-pricing.ts. This is a CLI script so use `usageLogger` not ClickHouse tracking.
+- [x] Instrument `generateQueryEmbedding()` in `src/lib/embeddings/cohere-generator.ts` — Wrapped with timing. On success, calls `trackEmbeddingCall()` with `inputType: 'search_query'`, estimated tokens, duration, status 200. On failure, tracks with status 500 and error type. All tracking wrapped in try-catch (fire-and-forget).
+- [x] Instrument `generateDocumentEmbedding()` in `src/lib/embeddings/cohere-generator.ts` — Added `skipTracking` boolean parameter (default false). When `skipTracking=false`, tracks on success (status 200) and failure (status 500) with `inputType: 'search_document'`. Batch callers pass `skipTracking=true`.
+- [x] Instrument batch embedding functions (`generateMovieEmbeddings`, `generateSeriesEmbeddings`) — Inner `generateDocumentEmbedding` calls pass `skipTracking=true`. At batch completion, a single `trackEmbeddingCall()` is sent with `endpoint: '${COHERE_MODEL_ID}:batch:${count}'`, aggregate tokens, total duration. Uses status 207 for partial failures.
+- [x] Instrument `parseQueryWithLlm()` in `src/lib/search/llm-query-parser.ts` — After successful parse (before cache set), calls `trackSearchLLMUsage()` with input/output tokens from Bedrock response `usage` field, cost calculated via `calculateCost()`, model name from `getModelPricing()`, query text (truncated to 500 chars), and response length. Wrapped in try-catch.
+- [x] Add cost calculation to AI summarization in `scripts/summarize-movies.ts` — Added `calculateCost()` + `formatCost()` imports. After each summary, logs per-item cost with token breakdown. In batch mode, logs total cost in the summary report. Uses console.log (CLI script, not ClickHouse).
 
 **Key files:** `src/lib/embeddings/cohere-generator.ts`, `src/lib/search/llm-query-parser.ts`, `scripts/summarize-movies.ts`
 
@@ -354,7 +354,7 @@ graph TD
 
 ## Progress
 
-[#.......] 12% (1/8 sessions)
+[##......] 25% (2/8 sessions)
 
 ## Acceptance Criteria
 

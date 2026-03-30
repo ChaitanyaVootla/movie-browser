@@ -12,14 +12,33 @@
   "parallel": false,
   "maxParallel": 3,
   "status": "running",
-  "sessions": [],
+  "sessions": [
+    {
+      "num": 1,
+      "label": "Foundation — Pricing, Types, Schema, Tracking Functions",
+      "costUsd": 1.08,
+      "durationMs": 167350,
+      "numTurns": 22,
+      "inputTokens": 20,
+      "outputTokens": 8246,
+      "cacheReadTokens": 1048591,
+      "isError": false,
+      "gitCommit": "41a6733",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": true,
+      "reviewFindings": "warn - CLI auth issue, no actual findings",
+      "parallelGroup": null,
+      "worktreePath": null
+    }
+  ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 0,
-    "costUsd": 0,
-    "durationMs": 0,
-    "inputTokens": 0,
-    "outputTokens": 0,
-    "cacheReadTokens": 0
+    "sessions": 1,
+    "costUsd": 1.08,
+    "durationMs": 167350,
+    "inputTokens": 20,
+    "outputTokens": 8246,
+    "cacheReadTokens": 1048591
   }
 }

@@ -30,6 +30,7 @@ import {
   type ValidatedInsight,
   INSIGHT_SCHEMA,
 } from "../src/types/ai-insights";
+import { calculateCost, formatCost } from "../src/lib/model-pricing";
 
 const prisma = new PrismaClient();
 
@@ -437,6 +438,12 @@ async function summarizeMovie(
     summary.inputTokens = inputTokens;
     summary.outputTokens = outputTokens;
 
+    // Log cost for this summary
+    const cost = calculateCost(MODEL_ID, inputTokens, outputTokens);
+    console.log(
+      `   💰 Cost: ${formatCost(cost.totalCost)} (${inputTokens} in / ${outputTokens} out)`
+    );
+
     // Save summary to file
     const outputPath = join(ENRICHED_DIR, String(movieId), "ai-summary.json");
     writeFileSync(outputPath, JSON.stringify(summary, null, 2));
@@ -659,6 +666,8 @@ async function runBatch(): Promise<void> {
   console.log(`   Skipped (existing): ${alreadySummarized.length}`);
   console.log(`   Total input tokens: ${totalInputTokens.toLocaleString()}`);
   console.log(`   Total output tokens: ${totalOutputTokens.toLocaleString()}`);
+  const batchCost = calculateCost(MODEL_ID, totalInputTokens, totalOutputTokens);
+  console.log(`   Total cost: ${formatCost(batchCost.totalCost)}`);
   console.log(`   Total time: ${(totalDuration / 1000 / 60).toFixed(1)} minutes`);
 
   if (failed.length > 0) {
