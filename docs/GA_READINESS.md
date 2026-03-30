@@ -22,6 +22,11 @@
 | 14 | Fix Cohere Embed v4 dimensions | `cohere-generator.ts` | Added `output_dimension: 1024` to all requests. Default is 1536 — was causing dimension mismatch with `vector(1024)` column. Fixed `truncate` values to `RIGHT` (was `END`). |
 | 15 | Update template.env | `template.env` | All env vars: AI_PROVIDER, Kimi K2.5, Cohere, ClickHouse, USER_DATA_SOURCE, remote MongoDB, instance profile notes. |
 | 16 | Memory budget optimization | `docker-compose.yml`, `ecosystem.config.cjs`, ClickHouse config | PG shared_buffers=1GB, ClickHouse capped to 1GB, sitemap heap 2GB->1GB. Total headroom ~3.4GB on 8GB instance. |
+| 17a | Analytics: User action tracking | `use-analytics.ts`, 15 components | `useAnalytics` hook wired into all user-facing components. Batched events, DNT respect, fire-and-forget. |
+| 17b | Analytics: Embedding cost tracking | `cohere-generator.ts`, `track.ts`, `001-schema.sql` | Cohere Embed v4 calls tracked in `api_calls` with `service='embedding'` and token counts. Batch + per-query. |
+| 17c | Analytics: LLM parser cost tracking | `llm-query-parser.ts`, `track.ts` | Tier 3 search classification tracked in `ai_usage` with `query_type='search_llm_parsing'`. |
+| 17d | Analytics: Unified cost dashboard | `costs-tab.tsx`, `costs.ts`, `embedding.ts` | Admin dashboard "Costs" tab with 4-service breakdown (LLM chat, search parsing, embeddings, Lambda), daily trends, pie chart. |
+| 17e | Analytics: Model pricing & types | `model-pricing.ts`, `types.ts` | Cohere Embed v4 pricing, 8 new ActionTypes, 3 new QueryTypes, `trackEmbeddingCall()`, `trackSearchLLMUsage()`. |
 
 ### MongoDB -> PostgreSQL User Data: Ready to Switch
 

@@ -97,6 +97,33 @@ src/
 
 **AI Agent (Cue)**: LangGraph agent with MemorySaver checkpointer. 8 consolidated tools, Kimi K2.5 (knowledge cutoff: June 2025). Thread-based conversation persistence — frontend sends `threadId`, server restores full state (messages + tool calls + results). Per-invocation logging isolated via `invocationId` Map. Recursion limit: 25. See `.claude/rules/ai-agent.md`.
 
+## Analytics & Cost Tracking
+
+**Infrastructure**: ClickHouse (self-hosted on EC2, port 8123) stores all analytics events. Admin dashboard at `/admin` with tabs for traffic, AI, Lambda, costs, performance, system, database, and query analytics.
+
+**Client-Side Tracking**: The `useAnalytics` hook (`src/hooks/use-analytics.ts`) provides 13 convenience methods for tracking user actions. Events are batched (10 events or 5s interval), flushed on unmount/visibility-change, sent to `/api/analytics/ingest`. Respects DNT (`navigator.doNotTrack === '1'`).
+
+**Instrumented Components** (15 total):
+- **Core actions**: `media-actions.tsx` (watchlist, rating, watched, share), `watch-options.tsx` (OTT clicks), `movie-card-actions.tsx` (quick watchlist/watched), `wide-card.tsx` (continue watching)
+- **Search & filters**: `search-command.tsx` (search submit, result clicks, topic/mood select), `filter-sidebar.tsx` (filter apply with 1s debounce), `video-gallery.tsx` (trailer play)
+- **AI chat**: `idle-circle.tsx` (chat open), `expanded-chat.tsx` + `minimal-view.tsx` (chat submit), `trailer-carousel.tsx` (trailer play)
+- **Discovery & nav**: `topic-pills.tsx`, `mood-cards.tsx`, `media-scroller.tsx` (carousel nav), `image-gallery.tsx` (gallery open/nav), `settings-menu.tsx` (settings change), `person-hero.tsx` (external links)
+
+**Server-Side Tracking**:
+- **Embedding calls**: `cohere-generator.ts` tracks all Cohere Embed v4 calls via `trackEmbeddingCall()` → ClickHouse `api_calls` table with `service='embedding'` and token counts. Batch operations send one aggregate event.
+- **LLM search parsing**: `llm-query-parser.ts` tracks Tier 3 classification via `trackSearchLLMUsage()` → ClickHouse `ai_usage` table with `query_type='search_llm_parsing'`.
+- **AI chat**: Agent tracks full invocations (tokens, cost, tools) via `trackAIUsage()`.
+
+**Cost Tracking**: Unified cost dashboard (`/admin` → Costs tab) aggregates across 4 services: LLM chat, LLM search parsing, embeddings (Cohere), Lambda. Query-time aggregation via `getUnifiedCostBreakdown()` in `src/lib/analytics/queries/costs.ts`. Pricing in `src/lib/model-pricing.ts`.
+
+**Adding Tracking to New Components**:
+1. Import `useAnalytics` from `@/hooks/use-analytics`
+2. Destructure the needed convenience method (e.g., `const { trackAction } = useAnalytics()`)
+3. Call in event handlers — never `await`, tracking is fire-and-forget
+4. For new action types, add to `ActionType` union in `src/lib/analytics/types.ts`
+
+**Key files**: `src/hooks/use-analytics.ts` (hook), `src/lib/analytics/track.ts` (server tracking), `src/lib/analytics/types.ts` (event types), `src/lib/analytics/queries/` (ClickHouse queries), `analytics/clickhouse/init/001-schema.sql` (schema)
+
 ## GA Roadmap
 
 See `docs/GA_READINESS.md` for full tracker with completed items and switch procedure.
