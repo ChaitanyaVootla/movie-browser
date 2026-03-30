@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Play, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserStore, selectCountryOverride } from "@/stores/user";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { type WatchOption, type ProcessedWatchOptions } from "@/lib/watch-options";
 import type { ProcessedWatchOptions as WatchOptionsType, WatchOptionsItem } from "@/types";
 
@@ -56,6 +57,7 @@ export function WatchOptions({
   const [fetchedOptions, setFetchedOptions] = useState<ProcessedWatchOptions | null>(null);
   const countryOverride = useUserStore(selectCountryOverride);
   const addToContinueWatching = useUserStore((s) => s.addToContinueWatching);
+  const { trackWatchClick } = useAnalytics();
 
   // Track the country we fetched for to avoid re-fetching
   const lastFetchedCountry = useRef<string | null>(null);
@@ -134,6 +136,9 @@ export function WatchOptions({
    * Handle watch link click - track continue watching
    */
   const handleWatchClick = (option: WatchOption) => {
+    // Track watch click before navigation
+    trackWatchClick(item.id, isMovie ? "movie" : "series", option.displayName, item.title || item.name);
+
     // For JustWatch links (TMDB), open Google search instead
     if (option.isJustWatch) {
       const title = item.title || item.name || "";

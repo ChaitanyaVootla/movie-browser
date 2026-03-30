@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useUserStore, type MediaType } from "@/stores/user";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
+import { useAnalytics } from "@/hooks/use-analytics";
 
 interface MovieCardActionsProps {
   itemId: number;
@@ -15,6 +16,7 @@ interface MovieCardActionsProps {
 export function MovieCardActions({ itemId, isMovie, className }: MovieCardActionsProps) {
   const { data: session } = useSession();
   const { isWatched, isInWatchlist, toggleWatched, toggleWatchlist } = useUserStore();
+  const { trackWatchlistAdd, trackWatchlistRemove, trackWatched } = useAnalytics();
 
   // Only show actions for movies and authenticated users
   if (!isMovie || !session) {
@@ -29,12 +31,18 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
     e.preventDefault();
     e.stopPropagation();
     toggleWatchlist(itemId, mediaType);
+    if (inWatchlist) {
+      trackWatchlistRemove(itemId, mediaType);
+    } else {
+      trackWatchlistAdd(itemId, mediaType);
+    }
   };
 
   const handleWatchedClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggleWatched(itemId);
+    trackWatched(itemId, mediaType, !watched);
   };
 
   return (

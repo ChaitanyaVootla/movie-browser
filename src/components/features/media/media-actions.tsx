@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useUserLibrary } from "@/hooks/use-user-library";
+import { useAnalytics } from "@/hooks/use-analytics";
 import type { MediaType } from "@/stores/user";
 import { useState, useCallback } from "react";
 import {
@@ -87,6 +88,8 @@ export function MediaActions({
     like,
     dislike,
   } = useUserLibrary(itemId, mediaType);
+  const { trackWatchlistAdd, trackWatchlistRemove, trackRating, trackWatched, trackShareClick } =
+    useAnalytics();
 
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [animating, setAnimating] = useState<string | null>(null);
@@ -104,6 +107,9 @@ export function MediaActions({
       // Only animate when adding, not removing
       if (!wasInWatchlist) {
         triggerAnimation("watchlist", 700);
+        trackWatchlistAdd(itemId, mediaType, title);
+      } else {
+        trackWatchlistRemove(itemId, mediaType, title);
       }
     } finally {
       setIsUpdating(null);
@@ -118,6 +124,7 @@ export function MediaActions({
       if (!wasWatched) {
         triggerAnimation("watched", 700);
       }
+      trackWatched(itemId, mediaType, !wasWatched, title);
     } finally {
       setIsUpdating(null);
     }
@@ -131,6 +138,7 @@ export function MediaActions({
       if (!wasLiked) {
         triggerAnimation("like", 800);
       }
+      trackRating(itemId, mediaType, wasLiked ? "remove" : "like", title);
     } finally {
       setIsUpdating(null);
     }
@@ -144,6 +152,7 @@ export function MediaActions({
       if (!wasDisliked) {
         triggerAnimation("dislike", 500);
       }
+      trackRating(itemId, mediaType, wasDisliked ? "remove" : "dislike", title);
     } finally {
       setIsUpdating(null);
     }
@@ -154,11 +163,13 @@ export function MediaActions({
     if (navigator.share) {
       try {
         await navigator.share({ title, url });
+        trackShareClick(itemId, mediaType, "native_share", title);
       } catch {
         // User cancelled
       }
     } else {
       await navigator.clipboard.writeText(url);
+      trackShareClick(itemId, mediaType, "clipboard", title);
     }
   };
 

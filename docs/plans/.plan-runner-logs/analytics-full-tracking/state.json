@@ -30,15 +30,33 @@
       "reviewFindings": "warn - CLI auth issue, no actual findings",
       "parallelGroup": null,
       "worktreePath": null
+    },
+    {
+      "num": 2,
+      "label": "Backend Instrumentation — Embeddings & LLM Parser",
+      "costUsd": 1.49,
+      "durationMs": 219790,
+      "numTurns": 27,
+      "inputTokens": 3936,
+      "outputTokens": 11985,
+      "cacheReadTokens": 1404826,
+      "isError": false,
+      "gitCommit": "f15ff01",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
     }
   ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 1,
-    "costUsd": 1.08,
-    "durationMs": 167350,
-    "inputTokens": 20,
-    "outputTokens": 8246,
-    "cacheReadTokens": 1048591
+    "sessions": 2,
+    "costUsd": 2.57,
+    "durationMs": 387140,
+    "inputTokens": 3956,
+    "outputTokens": 20231,
+    "cacheReadTokens": 2453417
   }
 }

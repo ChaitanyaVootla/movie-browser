@@ -7,6 +7,7 @@ import { ExternalLink } from "lucide-react";
 import { cn, isMovieItem, getDisplayTitle, getMediaHrefFromItem } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RecentItem, ContinueWatchingItem } from "@/stores/user";
+import { useAnalytics } from "@/hooks/use-analytics";
 
 // CDN and TMDB image URLs
 const CDN_BASE = "https://image.themoviebrowser.com";
@@ -33,6 +34,7 @@ interface WideCardProps {
 
 export function WideCard({ item, className, showWatchLink = false }: WideCardProps) {
   const [useFallback, setUseFallback] = useState(false);
+  const { trackAction, trackWatchClick } = useAnalytics();
 
   // Derive movie/series from item properties (title = movie, name = series)
   // This is more reliable than the isMovie field which may be stale in DB
@@ -57,6 +59,19 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
       <Link
         href={showWatchLink && watchLink ? watchLink : detailHref}
         target={showWatchLink && watchLink ? "_blank" : undefined}
+        onClick={
+          showWatchLink && watchLink
+            ? () => {
+                trackAction({
+                  action: "continue_watching_click",
+                  mediaType,
+                  itemId: item.itemId,
+                  itemTitle: title,
+                  metadata: { provider: watchProviderName },
+                });
+              }
+            : undefined
+        }
       >
         <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
           {imageSrc ? (

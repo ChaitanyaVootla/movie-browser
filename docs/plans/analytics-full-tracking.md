@@ -68,7 +68,7 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 |---------|-------|------|--------------|----------------|--------|-------|
 | 1 | Foundation — Pricing, Types, Schema, Tracking Functions | medium | None | - | **Complete** | All types, pricing, schema, and tracking functions implemented. `yarn typecheck` passes. |
 | 2 | Backend Instrumentation — Embeddings & LLM Parser | medium | Session 1 | - | **Complete** | All embedding + LLM parser tracking instrumented. `yarn typecheck` passes. |
-| 3 | Wire Core User Actions | medium | Session 1 | A | Pending | media-actions, watch-options, card actions |
+| 3 | Wire Core User Actions | medium | Session 1 | A | **Complete** | All 4 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 4a | Wire Search & Filters | medium | Session 1 | A | Pending | search-command, filter-sidebar, video-gallery |
 | 4b | Wire AI Chat & Trailers | medium | Session 1 | A | Pending | AI chat components, trailer-carousel |
 | 5 | Wire Discovery, Navigation & Settings | medium | Session 1 | A | Pending | topics, carousels, galleries, settings |
@@ -135,10 +135,10 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 **Goal:** Wire `useAnalytics` into the core interaction components so watchlist, rating, watched, watch clicks, and share actions are tracked.
 
 **Scope:**
-- [ ] Wire `useAnalytics` in `src/components/features/media/media-actions.tsx` — call `trackWatchlistAdd`/`trackWatchlistRemove` in `handleWatchlistToggle()`, `trackRating` in `handleLike()`/`handleDislike()`, `trackWatched` in `handleWatchedToggle()`, `trackShareClick` in `handleShare()`. Pass `itemId`, `mediaType`, `title` from component props.
-- [ ] Wire `useAnalytics` in `src/components/features/media/watch-options.tsx` — call `trackWatchClick` in `handleWatchClick()` with `itemId`, `mediaType`, provider `displayName`. For continue watching links, use `trackAction({ action: 'continue_watching_click', ... })`.
-- [ ] Wire `useAnalytics` in `src/components/features/movie/movie-card-actions.tsx` — call `trackWatchlistAdd`/`trackWatchlistRemove` and `trackWatched` in the inline card action handlers. Derive mediaType from `isMovie` prop.
-- [ ] Wire `useAnalytics` in `src/components/features/media/wide-card.tsx` — track `watch_click` when external watch links are clicked, track `continue_watching_click` for continue watching items.
+- [x] Wire `useAnalytics` in `src/components/features/media/media-actions.tsx` — Added `trackWatchlistAdd`/`trackWatchlistRemove` in `handleWatchlistToggle()` (tracks add when `!wasInWatchlist`, remove otherwise), `trackRating` in `handleLike()`/`handleDislike()` (tracks like/dislike or remove based on previous state), `trackWatched` in `handleWatchedToggle()`, `trackShareClick` in `handleShare()` (distinguishes `native_share` vs `clipboard` platform). All tracking fires after the optimistic UI update succeeds.
+- [x] Wire `useAnalytics` in `src/components/features/media/watch-options.tsx` — Added `trackWatchClick` call at the top of `handleWatchClick()` before `window.open`, passing `item.id`, derived `mediaType`, `option.displayName`, and item title.
+- [x] Wire `useAnalytics` in `src/components/features/movie/movie-card-actions.tsx` — Added `trackWatchlistAdd`/`trackWatchlistRemove` in `handleWatchlistClick()` (checks `inWatchlist` state before toggle) and `trackWatched` in `handleWatchedClick()`. MediaType derived from `isMovie` prop (hardcoded to `"movie"` since component only renders for movies).
+- [x] Wire `useAnalytics` in `src/components/features/media/wide-card.tsx` — Added `trackAction` with `continue_watching_click` action on the main image Link's `onClick` handler when `showWatchLink && watchLink`. Passes `mediaType`, `itemId`, `title`, and `provider` in metadata.
 
 **Key files:** `src/components/features/media/media-actions.tsx`, `src/components/features/media/watch-options.tsx`, `src/components/features/movie/movie-card-actions.tsx`, `src/components/features/media/wide-card.tsx`
 
@@ -354,7 +354,7 @@ graph TD
 
 ## Progress
 
-[##......] 25% (2/8 sessions)
+[###.....] 37% (3/8 sessions)
 
 ## Acceptance Criteria
 
