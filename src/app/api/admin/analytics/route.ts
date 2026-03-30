@@ -46,6 +46,10 @@ import {
   getLambdaUsageOverview,
   getLambdaByFunction,
   getDailyLambdaUsage,
+  // Embedding
+  getEmbeddingUsageOverview,
+  // Costs
+  getUnifiedCostBreakdown,
   // System
   getSystemMetricsHistory,
   getCPUHistory,
@@ -119,12 +123,13 @@ export async function GET(request: NextRequest) {
       // Overview (all metrics for dashboard)
       // =======================================================================
       case "overview": {
-        const [traffic, aiUsage, performance, errors, lambda, alerts] = await Promise.all([
+        const [traffic, aiUsage, performance, errors, lambda, embedding, alerts] = await Promise.all([
           getTrafficOverview(range).catch(() => null),
           getAIUsageOverview(range).catch(() => null),
           getPerformanceMetrics(range).catch(() => null),
           getErrorOverview(range).catch(() => null),
           getLambdaUsageOverview(range).catch(() => null),
+          getEmbeddingUsageOverview(range).catch(() => null),
           checkAllAlerts().catch(() => ({
             alerts: [],
             checkedAt: new Date().toISOString(),
@@ -141,6 +146,7 @@ export async function GET(request: NextRequest) {
           performance,
           errors,
           lambda,
+          embedding,
           cache,
           alerts: alerts.alerts,
           checkedAt: alerts.checkedAt,
@@ -360,6 +366,14 @@ export async function GET(request: NextRequest) {
         const granularity = (searchParams.get("granularity") || "5min") as Granularity;
         const data = await getMemoryHistory(range, granularity);
         return NextResponse.json({ data, granularity });
+      }
+
+      // =======================================================================
+      // Unified Costs Dashboard
+      // =======================================================================
+      case "costs": {
+        const costBreakdown = await getUnifiedCostBreakdown(range);
+        return NextResponse.json(costBreakdown);
       }
 
       // =======================================================================

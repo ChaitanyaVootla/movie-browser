@@ -10,6 +10,7 @@ import {
   type TimeRange,
   type ContentPerformance,
   type UserActionSummary,
+  type DailyUserAction,
   type CacheMetricsSnapshot,
 } from "./types";
 
@@ -90,6 +91,56 @@ export async function getUserActionSummary(range: TimeRange): Promise<UserAction
     action: row.action,
     count: parseInt(row.count, 10),
     uniqueUsers: parseInt(row.unique_users, 10),
+  }));
+}
+
+// =============================================================================
+// Daily User Actions (trending actions over time)
+// =============================================================================
+
+/**
+ * Get daily user action counts broken down by action type.
+ * Useful for trending which actions are growing or declining.
+ */
+export async function getDailyUserActions(
+  range: TimeRange,
+  limit = 10
+): Promise<DailyUserAction[]> {
+  const timeCondition = getTimeRangeCondition(range);
+
+  // First get top N actions to avoid returning sparse data for all action types
+  const topActions = await query<{ action: string }>(`
+    SELECT action
+    FROM user_actions
+    WHERE is_bot = 0 AND ${timeCondition}
+    GROUP BY action
+    ORDER BY count() DESC
+    LIMIT ${limit}
+  `);
+
+  if (topActions.length === 0) return [];
+
+  const actionList = topActions.map((r) => `'${r.action}'`).join(", ");
+
+  const rows = await query<{
+    date: string;
+    action: string;
+    count: string;
+  }>(`
+    SELECT
+      toDate(timestamp) AS date,
+      action,
+      count() AS count
+    FROM user_actions
+    WHERE is_bot = 0 AND action IN (${actionList}) AND ${timeCondition}
+    GROUP BY date, action
+    ORDER BY date, action
+  `);
+
+  return rows.map((row) => ({
+    date: row.date,
+    action: row.action,
+    count: parseInt(row.count, 10),
   }));
 }
 

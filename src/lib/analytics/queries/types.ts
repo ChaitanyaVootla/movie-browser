@@ -266,6 +266,41 @@ export interface UserActionSummary {
   uniqueUsers: number;
 }
 
+export interface DailyUserAction {
+  date: string;
+  action: string;
+  count: number;
+}
+
+// =============================================================================
+// Embedding Types
+// =============================================================================
+
+export interface EmbeddingUsageOverview {
+  totalCalls: number;
+  totalTokens: number;
+  estimatedCost: number;
+  avgDurationMs: number;
+  successfulCalls: number;
+  failedCalls: number;
+}
+
+export interface DailyEmbeddingUsage {
+  date: string;
+  calls: number;
+  tokens: number;
+  estimatedCost: number;
+  avgDurationMs: number;
+}
+
+export interface EmbeddingByType {
+  inputType: string;
+  calls: number;
+  tokens: number;
+  estimatedCost: number;
+  percentage: number;
+}
+
 // =============================================================================
 // Item-Specific Types
 // =============================================================================

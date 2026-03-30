@@ -18,6 +18,7 @@ import {
   Zap,
   XCircle,
   Terminal,
+  DollarSign,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 
 // Tabs
-import { TrafficTab, AITab, LambdaTab, PerformanceTab, SystemTab, DatabaseTab, QueryTab } from "./tabs";
+import { TrafficTab, AITab, LambdaTab, CostsTab, PerformanceTab, SystemTab, DatabaseTab, QueryTab } from "./tabs";
 
 // Shared components
 import { getTimeAgo, formatAlertValue } from "./analytics-shared";
@@ -167,6 +168,13 @@ export function AnalyticsDashboard({
               <span className="hidden sm:inline">Lambda</span>
             </TabsTrigger>
             <TabsTrigger
+              value="costs"
+              className="gap-1.5 px-3 h-7 text-xs rounded-md data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <DollarSign className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Costs</span>
+            </TabsTrigger>
+            <TabsTrigger
               value="performance"
               className="gap-1.5 px-3 h-7 text-xs rounded-md data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 hover:text-zinc-300 transition-colors"
             >
@@ -212,6 +220,10 @@ export function AnalyticsDashboard({
 
         <TabsContent value="lambda">
           <LambdaTab range={timeRange} overview={data?.lambda} isLoading={isLoading} />
+        </TabsContent>
+
+        <TabsContent value="costs">
+          <CostsTab range={timeRange} />
         </TabsContent>
 
         <TabsContent value="performance">
@@ -324,7 +336,7 @@ function MetricsGrid({ data, isLoading, excludeBots }: MetricsGridProps) {
     : (data?.traffic?.pageViews ?? 0) + (data?.traffic?.botViews ?? 0);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       {/* Page Views */}
       <MetricCard
         icon={Eye}
@@ -374,6 +386,17 @@ function MetricsGrid({ data, isLoading, excludeBots }: MetricsGridProps) {
         suffix={data?.lambda?.totalInvocations ? `${data.lambda.totalInvocations} calls` : undefined}
         isLoading={isLoading}
         accentColor="amber"
+        format="currency"
+      />
+
+      {/* Embeddings */}
+      <MetricCard
+        icon={Database}
+        label="Embeddings"
+        value={data?.embedding?.estimatedCost}
+        suffix={data?.embedding?.totalCalls ? `${data.embedding.totalCalls} calls` : undefined}
+        isLoading={isLoading}
+        accentColor="violet"
         format="currency"
       />
 

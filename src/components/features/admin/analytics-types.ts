@@ -12,6 +12,7 @@ export interface AnalyticsOverview {
   traffic: TrafficMetrics | null;
   aiUsage: AIUsageMetrics | null;
   lambda: LambdaMetrics | null;
+  embedding: EmbeddingMetrics | null;
   performance: PerformanceMetrics | null;
   errors: ErrorMetrics | null;
   cache: CacheMetrics | null;
@@ -336,7 +337,44 @@ export type StatVariant = "default" | "destructive" | "warning";
 /**
  * Analytics sub-tab identifiers for URL deep linking
  */
-export type AnalyticsSubTab = "traffic" | "ai" | "lambda" | "performance" | "system" | "database" | "query";
+export type AnalyticsSubTab = "traffic" | "ai" | "lambda" | "costs" | "performance" | "system" | "database" | "query";
+
+// =============================================================================
+// Costs Types
+// =============================================================================
+
+export interface CostServiceBreakdown {
+  cost: number;
+  calls: number;
+}
+
+export interface DailyCostEntry {
+  date: string;
+  llmChat: number;
+  llmSearchParsing: number;
+  embedding: number;
+  lambda: number;
+  total: number;
+}
+
+export interface CostsData {
+  llmChat: CostServiceBreakdown;
+  llmSearchParsing: CostServiceBreakdown;
+  embedding: CostServiceBreakdown;
+  lambda: CostServiceBreakdown;
+  total: number;
+  daily: DailyCostEntry[];
+}
+
+// =============================================================================
+// Embedding Types (for overview)
+// =============================================================================
+
+export interface EmbeddingMetrics {
+  totalCalls: number;
+  totalTokens: number;
+  estimatedCost: number;
+}
 
 // =============================================================================
 // Database Stats Types

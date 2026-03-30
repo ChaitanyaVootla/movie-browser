@@ -69,7 +69,22 @@ export {
 } from "./item";
 
 // Content queries
-export { getTopContent, getUserActionSummary, getCacheMetricsSnapshot } from "./content";
+export { getTopContent, getUserActionSummary, getDailyUserActions, getCacheMetricsSnapshot } from "./content";
+
+// Embedding queries
+export {
+  getEmbeddingUsageOverview,
+  getDailyEmbeddingUsage,
+  getEmbeddingByType,
+} from "./embedding";
+
+// Cost queries
+export {
+  getUnifiedCostBreakdown,
+  type ServiceCost,
+  type DailyCostBreakdown,
+  type UnifiedCostBreakdown,
+} from "./costs";
 
 // Utility queries
 export { hasAnalyticsData, getTableCounts, getDatabaseSize } from "./utils";

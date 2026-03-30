@@ -72,7 +72,7 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 | 4a | Wire Search & Filters | medium | Session 1 | A | **Complete** | All 3 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 4b | Wire AI Chat & Trailers | medium | Session 1 | A | **Complete** | All 4 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 5 | Wire Discovery, Navigation & Settings | medium | Session 1 | A | **Complete** | All 6 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
-| 6 | Unified Cost Dashboard & Analytics Queries | medium | Sessions 1, 2, 3-5 | - | Pending | Admin dashboard cost breakdown |
+| 6 | Unified Cost Dashboard & Analytics Queries | medium | Sessions 1, 2, 3-5 | - | **Complete** | All embedding queries, unified cost breakdown, costs tab, and content enhancement implemented. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 7 | Audit & Hardening | medium | All | - | Pending | End-to-end verification, docs update |
 
 ---
@@ -235,13 +235,13 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 **Goal:** Add embedding cost queries, unified cost breakdown, and an enhanced admin dashboard view showing total spend across all services.
 
 **Scope:**
-- [ ] Create `src/lib/analytics/queries/embedding.ts` — add `getEmbeddingUsageOverview(range)` (total calls, tokens, estimated cost from pricing), `getDailyEmbeddingUsage(range)`, `getEmbeddingByType(range)` (search_query vs search_document breakdown). Query `api_calls WHERE service='embedding'`, calculate cost using Cohere pricing from model-pricing.ts.
-- [ ] Create `getUnifiedCostBreakdown(range)` query function in a new `src/lib/analytics/queries/costs.ts` — aggregates: LLM chat costs (from `ai_usage WHERE query_type != 'search_llm_parsing'`), LLM search parsing costs (from `ai_usage WHERE query_type = 'search_llm_parsing'`), embedding costs (from `api_calls WHERE service='embedding'`), Lambda costs (reuse `estimateLambdaCost` pattern from `api_calls WHERE service='lambda'`). Returns `{ llmChat, llmSearchParsing, embedding, lambda, total }` with daily breakdown.
-- [ ] Add `costs` query type to admin analytics API in `src/app/api/admin/analytics/route.ts` — returns unified cost breakdown
-- [ ] Create cost overview component in `src/components/features/admin/tabs/costs-tab.tsx` — show total daily/weekly/monthly spend, breakdown by service (pie chart), daily cost trend (line chart), top cost drivers. Follow the existing tab pattern from `ai-tab.tsx`.
-- [ ] Add "Costs" tab to the analytics dashboard tab list in `src/components/features/admin/analytics-dashboard.tsx`
-- [ ] Enhance `getUserActionSummary` in `src/lib/analytics/queries/content.ts` — now that user actions are populated, add per-action-type breakdown and trending actions over time
-- [ ] Add `embedding` to the admin analytics `overview` response so the main dashboard shows embedding call count alongside other metrics
+- [x] Create `src/lib/analytics/queries/embedding.ts` — Added `getEmbeddingUsageOverview(range)` (total calls, tokens, estimated cost via `calculateEmbeddingCost`), `getDailyEmbeddingUsage(range)`, `getEmbeddingByType(range)` (search_query vs search_document vs batch breakdown using `multiIf` on endpoint field). All query `api_calls WHERE service='embedding'`. Types added to `queries/types.ts`: `EmbeddingUsageOverview`, `DailyEmbeddingUsage`, `EmbeddingByType`.
+- [x] Create `getUnifiedCostBreakdown(range)` in `src/lib/analytics/queries/costs.ts` — Runs 5 parallel queries: LLM chat (ai_usage excluding search_llm_parsing), LLM search parsing (ai_usage with search_llm_parsing), embedding (api_calls service=embedding → `calculateEmbeddingCost`), Lambda (api_calls service=lambda → `estimateLambdaCost`), plus daily breakdown. Daily uses a date map merge approach to combine data from 3 parallel queries (ai daily split by query_type, embedding daily, lambda daily). Returns `UnifiedCostBreakdown` with `{ llmChat, llmSearchParsing, embedding, lambda, total, daily }`.
+- [x] Add `costs` query type to admin analytics API — Added `case "costs"` in route.ts that calls `getUnifiedCostBreakdown(range)` and returns the result directly.
+- [x] Create cost overview component in `src/components/features/admin/tabs/costs-tab.tsx` — Follows ai-tab.tsx pattern exactly: `useQuery` fetch, 2-column grid layout. Cards: Total Spend (4 service metrics), Cost Breakdown (DistributionPieChart), Daily Cost Trend (TrendChart with `$` formatting), Top Cost Drivers (sorted list with percentage). All using existing chart components from analytics-charts.tsx.
+- [x] Add "Costs" tab to analytics dashboard — Added `CostsTab` import, `DollarSign` icon from lucide-react, tab trigger after Lambda, `TabsContent` with `<CostsTab range={timeRange} />`. Updated `AnalyticsSubTab` type to include `"costs"`. Also exported `CostsTab` from tabs/index.ts.
+- [x] Enhance `getUserActionSummary` in content.ts — Added `getDailyUserActions(range, limit)` function that first queries top N action types, then retrieves daily counts for those actions. Returns `DailyUserAction[]` with date, action, count. Added `DailyUserAction` type to queries/types.ts. Exported from queries/index.ts.
+- [x] Add `embedding` to admin analytics `overview` response — Added `getEmbeddingUsageOverview(range)` to the parallel Promise.all in the overview case. Added `embedding` field to the JSON response. Added `EmbeddingMetrics` type to analytics-types.ts and `embedding` to `AnalyticsOverview` interface. Added an "Embeddings" MetricCard to the MetricsGrid (expanded grid from 6→7 columns).
 
 **Key files:** `src/lib/analytics/queries/embedding.ts` (new), `src/lib/analytics/queries/costs.ts` (new), `src/app/api/admin/analytics/route.ts`, `src/components/features/admin/tabs/costs-tab.tsx` (new), `src/components/features/admin/analytics-dashboard.tsx`, `src/lib/analytics/queries/content.ts`
 
@@ -354,7 +354,7 @@ graph TD
 
 ## Progress
 
-[######..] 75% (6/8 sessions)
+[#######.] 87% (7/8 sessions)
 
 ## Acceptance Criteria
 
