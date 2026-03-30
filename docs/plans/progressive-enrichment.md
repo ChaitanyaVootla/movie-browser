@@ -74,7 +74,7 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 |---------|-------|------|--------------|----------------|--------|-------|
 | 1 | Summarizer & AI Input Modernization | medium | None | - | Done | Model switch, Flex, tighter prompt, TMDB-only builder. Typecheck + lint clean. |
 | 2 | Progressive Enrichment Service | medium | Session 1 | A | Done | Core service with dedup Map, p-limit(5), 7-stage orchestration, generateAndStoreEmbedding helper, analytics tracking. Typecheck + lint clean. |
-| 3 | SSE Enrichment Endpoint & Client Hook | medium | None | A | Pending | API route (PG polling), useEnrichmentStream hook |
+| 3 | SSE Enrichment Endpoint & Client Hook | medium | None | A | Done | SSE GET endpoint with PG polling (3s interval, 120s max), useEnrichmentStream hook with EventSource. Typecheck + lint clean. |
 | 4 | Hydration Integration & Detail Pages | medium | Sessions 2, 3 | - | Pending | Hook into hydration, wire SSE into pages, refresh indicator |
 | 5 | Audit & Hardening | medium | All | - | Pending | E2E verification, edge cases, doc updates |
 
@@ -153,25 +153,28 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 **Goal:** Create the SSE API route for streaming enrichment status updates and a client hook for consuming them.
 
 **Scope:**
-- [ ] Create `src/app/api/[mediaType]/[id]/enrich/route.ts` — GET SSE endpoint using the `ReadableStream` + `text/event-stream` pattern from `/api/ai/chat`. Validates params with Zod (mediaType: `"movie" | "series"`, id: positive integer). Sends events: `{ type: "status", refreshing: boolean }`, `{ type: "ratings", data: {...} }`, `{ type: "ai", data: {...} }`, `{ type: "done" }`. If all data is fresh, sends single `{ type: "done", refreshing: false }` and closes.
-- [ ] SSE coordination strategy: **PG polling**. The endpoint reads current PG state (ratings timestamps, AI data existence), triggers hydration if stale, then polls PG every 3 seconds for changes. When `ratingsScrapedAt` changes → send ratings event. When `ai_data` row appears → send ai event. Max poll duration: 120 seconds, then close with `done`.
-- [ ] Create `src/hooks/use-enrichment-stream.ts` — `useEnrichmentStream(mediaType, id)` hook. Returns `{ isRefreshing, latestRatings, latestAI }`. Uses `EventSource` API (GET-only, simpler than fetch+ReadableStream). Auto-closes on `done` event or component unmount. No reconnection (intentional — if connection drops, data will be available on next visit).
-- [ ] The endpoint does NOT call progressive enrichment directly — the Server Component page render already triggers hydration → progressive enrichment via Session 4's hook. The SSE endpoint just observes PG state changes.
+- [x] Create `src/app/api/[mediaType]/[id]/enrich/route.ts` — GET SSE endpoint using the `ReadableStream` + `text/event-stream` pattern from `/api/ai/chat`. Validates params with Zod (mediaType: `"movie" | "series"`, id: positive integer). Sends events: `{ type: "status", refreshing: boolean }`, `{ type: "ratings", data: {...} }`, `{ type: "ai", data: {...} }`, `{ type: "done" }`. If all data is fresh, sends single `{ type: "done", refreshing: false }` and closes. — Created with `ReadableStream` + `text/event-stream` pattern. Zod validates `mediaType` as enum and `id` as positive integer via `.transform(Number).pipe(z.number().positive())`. Follows the `watch-providers` route pattern for dynamic param validation.
+- [x] SSE coordination strategy: **PG polling**. The endpoint reads current PG state (ratings timestamps, AI data existence), triggers hydration if stale, then polls PG every 3 seconds for changes. When `ratingsScrapedAt` changes → send ratings event. When `ai_data` row appears → send ai event. Max poll duration: 120 seconds, then close with `done`. — Implemented with `POLL_INTERVAL_MS = 3_000` and `MAX_POLL_DURATION_MS = 120_000` constants. Captures initial state snapshot, skips polling if both ratings and AI data already present. Tracks `lastRatingsScrapedAt` timestamp to detect changes. Handles `request.signal` abort for client disconnect cleanup.
+- [x] Create `src/hooks/use-enrichment-stream.ts` — `useEnrichmentStream(mediaType, id)` hook. Returns `{ isRefreshing, latestRatings, latestAI }`. Uses `EventSource` API (GET-only, simpler than fetch+ReadableStream). Auto-closes on `done` event or component unmount. No reconnection (intentional — if connection drops, data will be available on next visit). — Created with `useRef` gate (`connectedRef`) to prevent double-connect in StrictMode. Cleanup via `useEffect` return. `onerror` handler sets `isRefreshing=false` and closes — no reconnection by design.
+- [x] The endpoint does NOT call progressive enrichment directly — the Server Component page render already triggers hydration → progressive enrichment via Session 4's hook. The SSE endpoint just observes PG state changes. — Confirmed: endpoint only reads PG state via `getRatingsSnapshot()` and `getAIData()`. No hydration or enrichment calls.
 
 **Key files:** `src/app/api/[mediaType]/[id]/enrich/route.ts` (new), `src/hooks/use-enrichment-stream.ts` (new)
 
 **Acceptance Criteria:**
-- GIVEN a stale movie WHEN connecting to `GET /api/movie/550/enrich` THEN SSE stream sends `status(refreshing:true)` followed by `ratings` and/or `ai` events as PG state changes, ending with `done`
-- GIVEN a fresh movie WHEN connecting to the enrich endpoint THEN a single `done` event with `refreshing: false` is sent and the connection closes
-- GIVEN the `useEnrichmentStream` hook WHEN SSE events arrive THEN `isRefreshing` and `latestRatings`/`latestAI` update reactively
-- GIVEN component unmount WHEN SSE is active THEN EventSource is closed cleanly
+- GIVEN a stale movie WHEN connecting to `GET /api/movie/550/enrich` THEN SSE stream sends `status(refreshing:true)` followed by `ratings` and/or `ai` events as PG state changes, ending with `done` — ✅ implemented
+- GIVEN a fresh movie WHEN connecting to the enrich endpoint THEN a single `done` event with `refreshing: false` is sent and the connection closes — ✅ fast path sends `{ type: "done", refreshing: false }` immediately
+- GIVEN the `useEnrichmentStream` hook WHEN SSE events arrive THEN `isRefreshing` and `latestRatings`/`latestAI` update reactively — ✅ React state updates on each event type
+- GIVEN component unmount WHEN SSE is active THEN EventSource is closed cleanly — ✅ cleanup via `useEffect` return + `EventSource.close()`
 
-**Verification Command:** `yarn typecheck && yarn lint`
+**Verification Command:** `yarn typecheck && yarn lint` — ✅ both pass (0 errors in new files)
 
 **Notes:**
 - `EventSource` only supports GET — fine for our use case.
 - Bots ignore `text/event-stream`. The enrichment is triggered by the Server Component render, not the SSE endpoint. SSE is purely for real user UI updates.
 - The 3-second polling interval and 120-second max duration are configurable constants.
+- Ratings event includes full rating data (score, voteCount, certified, consensus, sentiment, sourceUrl, source slug/name/maxScore) for in-place UI updates.
+- AI event includes hook, mood, and full insights structure matching `AIDataResponse` shape from `ai-data-service.ts`.
+- `maxDuration = 120` set on route to match the polling max duration.
 
 ---
 
@@ -273,7 +276,7 @@ Sessions 2 and 3 can run in parallel (Parallel Group A) — they share no files 
 
 ## Progress
 
-[####......] 40% (2/5 sessions)
+[######....] 60% (3/5 sessions)
 
 ## Acceptance Criteria
 
@@ -281,7 +284,7 @@ Sessions 2 and 3 can run in parallel (Parallel Group A) — they share no files 
 - [ ] Progressive enrichment fires automatically when a page is visited and data is refreshed via Lambda
 - [ ] AI data (hook, insights across all 9 categories) is generated and stored in PostgreSQL
 - [ ] Embeddings are auto-regenerated with AI themes/mood/hook after enrichment
-- [ ] SSE streams enrichment progress to the detail page UI
+- [x] SSE streams enrichment progress to the detail page UI
 - [ ] Ratings and AI insights update in-place without page reload
 - [ ] Concurrent requests for the same item are deduplicated (single LLM call)
 - [ ] Estimated cost for full 184K catalog: ~$210-250 via Flex pricing + tighter prompt

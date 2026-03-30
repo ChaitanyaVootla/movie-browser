@@ -30,15 +30,33 @@
       "reviewFindings": null,
       "parallelGroup": null,
       "worktreePath": null
+    },
+    {
+      "num": 2,
+      "label": "Progressive Enrichment Service",
+      "costUsd": 2.41,
+      "durationMs": 318500,
+      "numTurns": 48,
+      "inputTokens": 3015249,
+      "outputTokens": 13697,
+      "cacheReadTokens": 2916230,
+      "isError": false,
+      "gitCommit": "a85517e",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
     }
   ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 1,
-    "costUsd": 3.94,
-    "durationMs": 472314,
-    "inputTokens": 5488948,
-    "outputTokens": 22649,
-    "cacheReadTokens": 5379988
+    "sessions": 2,
+    "costUsd": 6.35,
+    "durationMs": 790814,
+    "inputTokens": 8504197,
+    "outputTokens": 36346,
+    "cacheReadTokens": 8296218
   }
 }
