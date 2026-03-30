@@ -69,7 +69,8 @@ export type QueryType =
   | "other"
   | "search_llm_parsing"
   | "embedding_query"
-  | "embedding_document";
+  | "embedding_document"
+  | "progressive_enrichment";
 
 // =============================================================================
 // Error Severity

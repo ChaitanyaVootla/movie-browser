@@ -439,6 +439,59 @@ async function generateBatchEmbeddings(
 }
 
 // =============================================================================
+// Single-Item Embedding Storage
+// =============================================================================
+
+/**
+ * Generate an embedding and store it in the database for a single item.
+ *
+ * Extracts the raw SQL update pattern used by the batch flows into a
+ * reusable helper for progressive enrichment and other single-item use cases.
+ *
+ * @param mediaType - "movie" or "series"
+ * @param id - TMDB ID of the movie or series
+ * @param embeddingText - Pre-built embedding text (from buildMovieEmbeddingText/buildSeriesEmbeddingText)
+ * @param skipTracking - When true, skip analytics tracking (batch callers track aggregates)
+ * @returns Token count used for the embedding, or null if generation failed
+ */
+export async function generateAndStoreEmbedding(
+  mediaType: "movie" | "series",
+  id: number,
+  embeddingText: string,
+  skipTracking: boolean = false
+): Promise<{ tokenCount: number } | null> {
+  try {
+    const { embedding, tokenCount } = await generateDocumentEmbedding(
+      embeddingText,
+      COHERE_DIMENSIONS,
+      skipTracking
+    );
+
+    const embeddingStr = `[${embedding.join(",")}]`;
+    const table = mediaType === "movie" ? "movies" : "series";
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE ${table} SET embedding = $1::vector WHERE id = $2`,
+      embeddingStr,
+      id
+    );
+
+    logger.info(
+      { mediaType, id, tokenCount },
+      "Embedding generated and stored"
+    );
+
+    return { tokenCount };
+  } catch (error: unknown) {
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), mediaType, id },
+      "Failed to generate and store embedding"
+    );
+    return null;
+  }
+}
+
+// =============================================================================
 // Movie Embeddings
 // =============================================================================
 

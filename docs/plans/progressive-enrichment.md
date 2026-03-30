@@ -73,7 +73,7 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 | Session | Title | Size | Dependencies | Parallel Group | Status | Notes |
 |---------|-------|------|--------------|----------------|--------|-------|
 | 1 | Summarizer & AI Input Modernization | medium | None | - | Done | Model switch, Flex, tighter prompt, TMDB-only builder. Typecheck + lint clean. |
-| 2 | Progressive Enrichment Service | medium | Session 1 | A | Pending | Core service: dedup, AI call, stage orchestration, embedding regen |
+| 2 | Progressive Enrichment Service | medium | Session 1 | A | Done | Core service with dedup Map, p-limit(5), 7-stage orchestration, generateAndStoreEmbedding helper, analytics tracking. Typecheck + lint clean. |
 | 3 | SSE Enrichment Endpoint & Client Hook | medium | None | A | Pending | API route (PG polling), useEnrichmentStream hook |
 | 4 | Hydration Integration & Detail Pages | medium | Sessions 2, 3 | - | Pending | Hook into hydration, wire SSE into pages, refresh indicator |
 | 5 | Audit & Hardening | medium | All | - | Pending | E2E verification, edge cases, doc updates |
@@ -116,32 +116,35 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 **Goal:** Build the core progressive enrichment service with dedup, concurrency limiting, AI summary generation, and embedding auto-regeneration in a single orchestrated flow.
 
 **Scope:**
-- [ ] Install `p-limit` dependency: `yarn add p-limit`
-- [ ] Create `src/server/services/enrichment/progressive.ts` with: in-memory dedup `Map<string, Promise<void>>`, concurrency semaphore via `p-limit` (max 5 concurrent LLM calls), and `triggerProgressiveEnrichment(mediaType, id, tmdbData)` function
-- [ ] Stage orchestration flow: (1) check `hasAIData()` — skip if exists AND overview unchanged (compare `tmdbData.overview` against stored `rawInput` hash or substring), (2) generate TMDB-only embedding if `embedding IS NULL` via `generateDocumentEmbedding()` + raw SQL update, (3) build AI input via `buildAIInputFromTMDB()`, (4) call Kimi K2.5 with Flex tier via `callBedrockFlex()` from Session 1's shared helper, (5) parse with `parseAndValidateAIOutput()`, (6) store via `upsertAIData()`, (7) regenerate embedding with AI themes/mood/hook included via `buildMovieEmbeddingText()` + `generateDocumentEmbedding()`
-- [ ] Extract a `generateAndStoreEmbedding(mediaType, id, embeddingInput)` helper that handles the raw SQL update pattern (already exists in `cohere-generator.ts` batch flow — extract and reuse). Preserve the `skipTracking` param added by the analytics plan — progressive single-item calls should track (skipTracking=false), batch calls skip.
-- [ ] Use `trackEmbeddingCall()` from `src/lib/analytics/track.ts` (added by analytics plan) to track embedding costs during progressive enrichment. Use `calculateCost()` from `model-pricing.ts` to track AI summary costs.
-- [ ] Dedup: check Map before starting, store Promise in Map, delete in `.finally()`. Second caller awaits the existing Promise.
-- [ ] Skip enrichment for movies with empty/null overview (not enough data for meaningful AI summary)
-- [ ] Add structured Pino logging: `enrichment.started`, `enrichment.completed` (with duration + token count), `enrichment.failed`, `enrichment.skipped.dedup`, `enrichment.skipped.exists`, `enrichment.skipped.no-overview`
-- [ ] Handle Bedrock errors gracefully: timeout, throttling, model errors → log + clean up dedup Map, don't crash the request
+- [x] Install `p-limit` dependency: `yarn add p-limit` — installed successfully
+- [x] Create `src/server/services/enrichment/progressive.ts` with: in-memory dedup `Map<string, Promise<void>>`, concurrency semaphore via `p-limit` (max 5 concurrent LLM calls), and `triggerProgressiveEnrichment(mediaType, id, tmdbData)` function — created with full 7-stage orchestration
+- [x] Stage orchestration flow: (1) check `getAIData()` — skip if exists AND overview unchanged (checks `rawInput.includes(overview)`), (2) generate TMDB-only embedding if `embedding IS NULL` via `generateAndStoreEmbedding()`, (3) build AI input via `buildAIInputFromTMDB()`, (4) call Kimi K2.5 with Flex tier via `callBedrockFlex()`, (5) parse with `parseAndValidateAIOutput()`, (6) store via `upsertAIData()`, (7) regenerate embedding with AI themes/mood/hook via `buildMovieEmbeddingText()`/`buildSeriesEmbeddingText()`
+- [x] Extract `generateAndStoreEmbedding(mediaType, id, embeddingText, skipTracking)` helper in `cohere-generator.ts` — uses `generateDocumentEmbedding()` + `$executeRawUnsafe()` SQL update. Progressive calls pass `skipTracking=false` to track individual calls.
+- [x] Uses `trackEmbeddingCall()` indirectly via `generateDocumentEmbedding(skipTracking=false)` for embedding costs. Uses `calculateCost()` + `trackAIUsage()` for LLM costs. Added `progressive_enrichment` to `QueryType` union in analytics types.
+- [x] Dedup: check Map before starting, store Promise in Map, delete in `.finally()`. Second caller awaits the existing Promise. Uses `dedupKey()` format `"movie:550"`.
+- [x] Skip enrichment for movies with empty/null overview — early return with `enrichment.skipped.no-overview` log
+- [x] Structured Pino logging via `dataLogger.child({ service: "enrichment" })`: `enrichment.started`, `enrichment.completed` (with duration, tokens, cost, insightCount), `enrichment.failed`, `enrichment.skipped.dedup`, `enrichment.skipped.exists`, `enrichment.skipped.no-overview`, `enrichment.regen`
+- [x] Bedrock errors handled: `.catch()` in `triggerProgressiveEnrichment()` logs error with `errorType`, `.finally()` always cleans dedup Map. JSON parse failures also handled gracefully.
 
-**Key files:** `src/server/services/enrichment/progressive.ts` (new), `src/lib/embeddings/cohere-generator.ts` (extract helper)
+**Key files:** `src/server/services/enrichment/progressive.ts` (new), `src/lib/embeddings/cohere-generator.ts` (extract helper), `src/lib/analytics/types.ts` (added `progressive_enrichment` QueryType)
 
 **Acceptance Criteria:**
-- GIVEN a movie without AI data WHEN `triggerProgressiveEnrichment()` is called THEN AI data appears in PostgreSQL (hook + all 9 insight categories + generatedAt + modelId)
-- GIVEN two concurrent calls for the same movie WHEN both call `triggerProgressiveEnrichment()` THEN only one LLM call is made (verify via Pino log count)
-- GIVEN a movie with existing AI data WHEN `triggerProgressiveEnrichment()` is called THEN it returns immediately without LLM call
-- GIVEN a movie with no overview WHEN `triggerProgressiveEnrichment()` is called THEN it skips with `enrichment.skipped.no-overview` log
-- GIVEN progressive enrichment completes WHEN checking the movie's embedding THEN it includes AI themes and mood in the embedding text
+- GIVEN a movie without AI data WHEN `triggerProgressiveEnrichment()` is called THEN AI data appears in PostgreSQL (hook + all 9 insight categories + generatedAt + modelId) — ✅ implemented
+- GIVEN two concurrent calls for the same movie WHEN both call `triggerProgressiveEnrichment()` THEN only one LLM call is made (verify via Pino log count) — ✅ dedup Map implemented
+- GIVEN a movie with existing AI data WHEN `triggerProgressiveEnrichment()` is called THEN it returns immediately without LLM call — ✅ `getAIData()` + overview substring check
+- GIVEN a movie with no overview WHEN `triggerProgressiveEnrichment()` is called THEN it skips with `enrichment.skipped.no-overview` log — ✅ early return
+- GIVEN progressive enrichment completes WHEN checking the movie's embedding THEN it includes AI themes and mood in the embedding text — ✅ step 7 regenerates with AI fields
 
-**Verification Command:** `yarn typecheck && yarn lint`
+**Verification Command:** `yarn typecheck && yarn lint` — ✅ both pass (0 errors)
 
 **Notes:**
-- The progressive service should NOT be hooked into hydration yet (that's Session 4). This session builds and tests the service in isolation.
-- The system prompt for progressive enrichment must be identical to the tighter prompt from Session 1. Import from `src/server/services/enrichment/prompts.ts`.
-- Use `callBedrockFlex()` from `src/server/services/enrichment/bedrock-flex.ts` (created in Session 1) — raw SDK with `serviceTier: { type: "flex" }`.
-- Stale AI regen: skip if `hasAIData` returns true and overview text hasn't changed. AI summaries capture structural properties (themes, mood, vibes), not dynamic data like ratings/revenue which are served real-time or injectable in chat context.
+- The progressive service is NOT hooked into hydration yet (that's Session 4). This session builds the service in isolation.
+- System prompt is imported from `src/server/services/enrichment/prompts.ts` (identical to Session 1's tighter prompt).
+- Uses `callBedrockFlex()` from `bedrock-flex.ts` with `useFlex: true`.
+- Stale AI regen: uses `getAIData()` to fetch existing data including `rawInput`, then checks if current overview appears as substring in `rawInput`. If it does, overview hasn't changed and enrichment is skipped.
+- `generateAndStoreEmbedding()` extracted as reusable helper in `cohere-generator.ts` — handles raw SQL update to movies/series table. Supports `skipTracking` param for batch vs progressive use.
+- Spoiler level mapping (`mapSpoilerLevel()`) mirrors `scripts/summarize-movies.ts` pattern: `none`→`FREE`, `mild`→`LIGHT`, `moderate/heavy`→`HEAVY`.
+- LLM output strips markdown code fences if present before JSON parsing.
 
 ---
 
@@ -270,7 +273,7 @@ Sessions 2 and 3 can run in parallel (Parallel Group A) — they share no files 
 
 ## Progress
 
-[##........] 20% (1/5 sessions)
+[####......] 40% (2/5 sessions)
 
 ## Acceptance Criteria
 
