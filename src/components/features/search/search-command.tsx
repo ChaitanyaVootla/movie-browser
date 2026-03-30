@@ -52,6 +52,7 @@ import { getAutocompleteSuggestions, type AutocompleteSuggestion } from "@/serve
 import { getPopularTopics, searchTopics } from "@/lib/topics";
 import { useUserStore, selectRecents } from "@/stores/user";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useAnalytics } from "@/hooks/use-analytics";
 import type {
   SearchResult,
   SearchMovieResult,
@@ -367,6 +368,7 @@ const AutocompleteSuggestionItem = React.memo(function AutocompleteSuggestionIte
 
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const router = useRouter();
+  const { trackSearch, trackAction } = useAnalytics();
   const [query, setQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
@@ -486,6 +488,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         const data = await quickSearch(trimmedQuery);
         if (currentRequestId === requestIdRef.current) {
           setResults(data);
+          trackSearch(trimmedQuery, data.results.length);
         }
       } catch (error: unknown) {
         // Log error details for debugging (client-side, console is acceptable)
@@ -503,7 +506,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     };
 
     fetchResults();
-  }, [debouncedQuery]);
+  }, [debouncedQuery, trackSearch]);
 
   const hasApiResults = results.results.length > 0;
   const hasTopics = matchingTopics.length > 0;
@@ -552,6 +555,16 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
 
   const handleSelectMedia = React.useCallback(
     (type: "movie" | "series" | "person", id: number, name: string) => {
+      trackAction({
+        action: "search_result_click",
+        mediaType: type === "person" ? undefined : type,
+        itemId: id,
+        itemTitle: name,
+        metadata: {
+          query: debouncedQuery,
+          resultPosition: results.results.findIndex((r) => r.id === id),
+        },
+      });
       const path =
         type === "person"
           ? `/person/${id}/${getSlug(name)}`
@@ -559,15 +572,16 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
       onOpenChange(false);
       router.push(path);
     },
-    [onOpenChange, router]
+    [onOpenChange, router, trackAction, debouncedQuery, results.results]
   );
 
   const handleSelectTopic = React.useCallback(
     (topicKey: string) => {
+      trackAction({ action: "topic_select", metadata: { topic: topicKey } });
       onOpenChange(false);
       router.push(`/topics/${topicKey}`);
     },
-    [onOpenChange, router]
+    [onOpenChange, router, trackAction]
   );
 
   const handleViewAll = React.useCallback(() => {
@@ -578,14 +592,24 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
 
   const handleSelectMood = React.useCallback(
     (moodQuery: string) => {
+      trackAction({ action: "mood_select", metadata: { mood: moodQuery } });
       onOpenChange(false);
       router.push(`/search?q=${encodeURIComponent(moodQuery)}`);
     },
-    [onOpenChange, router]
+    [onOpenChange, router, trackAction]
   );
 
   const handleSelectAutocompleteSuggestion = React.useCallback(
     (suggestion: AutocompleteSuggestion) => {
+      trackAction({
+        action: "search_result_click",
+        metadata: {
+          query: debouncedQuery,
+          source: "autocomplete",
+          suggestionType: suggestion.type,
+          suggestionLabel: suggestion.label,
+        },
+      });
       if (suggestion.type === "title" || suggestion.type === "person") {
         if (suggestion.id && suggestion.mediaType) {
           if (suggestion.mediaType === "person") {
@@ -598,7 +622,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         handleSelectMood(suggestion.value);
       }
     },
-    [handleSelectMedia, handleSelectMood]
+    [handleSelectMedia, handleSelectMood, trackAction, debouncedQuery]
   );
 
   // Retry search after error

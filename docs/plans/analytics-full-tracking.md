@@ -69,7 +69,7 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 | 1 | Foundation — Pricing, Types, Schema, Tracking Functions | medium | None | - | **Complete** | All types, pricing, schema, and tracking functions implemented. `yarn typecheck` passes. |
 | 2 | Backend Instrumentation — Embeddings & LLM Parser | medium | Session 1 | - | **Complete** | All embedding + LLM parser tracking instrumented. `yarn typecheck` passes. |
 | 3 | Wire Core User Actions | medium | Session 1 | A | **Complete** | All 4 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
-| 4a | Wire Search & Filters | medium | Session 1 | A | Pending | search-command, filter-sidebar, video-gallery |
+| 4a | Wire Search & Filters | medium | Session 1 | A | **Complete** | All 3 components wired with `useAnalytics`. `yarn typecheck && yarn lint` passes (4 pre-existing errors in unrelated files). |
 | 4b | Wire AI Chat & Trailers | medium | Session 1 | A | Pending | AI chat components, trailer-carousel |
 | 5 | Wire Discovery, Navigation & Settings | medium | Session 1 | A | Pending | topics, carousels, galleries, settings |
 | 6 | Unified Cost Dashboard & Analytics Queries | medium | Sessions 1, 2, 3-5 | - | Pending | Admin dashboard cost breakdown |
@@ -160,9 +160,9 @@ The analytics infrastructure (ClickHouse, admin dashboard, ingest pipeline, bot 
 **Goal:** Wire `useAnalytics` into search command and filter sidebar for complete discovery behavior tracking.
 
 **Scope:**
-- [ ] Wire `useAnalytics` in `src/components/features/search/search-command.tsx` (1049 lines — be surgical). Key handlers to instrument: `handleSelectMedia()` (~line 553) for result clicks, `handleSelectTopic()` (~line 565) for topic clicks, `handleSelectMood()` (~line 579) for mood clicks, `handleSelectAutocompleteSuggestion()` (~line 587) for autocomplete. Call `trackSearch(debouncedQuery, resultCount)` when results are fetched. Call `trackAction({ action: 'search_result_click', itemId, mediaType, metadata: { query, resultPosition } })` in `handleSelectMedia`. Call `trackAction({ action: 'topic_select', metadata: { topic } })` in `handleSelectTopic`.
-- [ ] Wire `useAnalytics` in `src/components/features/discover/filter-sidebar.tsx` (705 lines). The component has an `onChange` prop that fires on filter changes. Add a debounced tracking wrapper: use a `useRef<NodeJS.Timeout>` to debounce `trackFilterApply` calls by 1 second after the last filter change. Include full filter values in metadata: `{ media_type, genres, rating_gte, vote_count_gte, with_watch_providers, year, primary_release_year_gte/lte, with_cast, with_crew, with_original_language, certification, with_runtime_gte/lte, hide_watched, hide_watchlist, hide_disliked }` — track everything that's set (omit undefined values).
-- [ ] Wire `useAnalytics` in `src/components/features/media/video-gallery.tsx` — call `trackTrailerPlay` when a video thumbnail is clicked for playback, passing the TMDB item ID and video name.
+- [x] Wire `useAnalytics` in `src/components/features/search/search-command.tsx` — Added `trackSearch` + `trackAction` destructured from hook. `trackSearch(trimmedQuery, data.results.length)` fires on successful quickSearch fetch. `trackAction({ action: 'search_result_click', ... })` fires in `handleSelectMedia` with query, resultPosition, itemId, mediaType, itemTitle. `trackAction({ action: 'topic_select', metadata: { topic } })` fires in `handleSelectTopic`. `trackAction({ action: 'mood_select', metadata: { mood } })` fires in `handleSelectMood`. `trackAction({ action: 'search_result_click', ... })` also fires in `handleSelectAutocompleteSuggestion` with source='autocomplete' and suggestion metadata.
+- [x] Wire `useAnalytics` in `src/components/features/discover/filter-sidebar.tsx` — Added `trackFilterApply` from hook with 1-second debounce via `useRef<NodeJS.Timeout>`. Created `scheduleFilterTracking()` helper that strips undefined/empty values and calls `trackFilterApply` with full filter params. Wired into all change paths: `updateParam()`, `resetFilters()`, media type toggle, decade select, runtime select, monetization select, and streaming providers select. Cleanup on unmount via `useEffect`.
+- [x] Wire `useAnalytics` in `src/components/features/media/video-gallery.tsx` — Added `trackTrailerPlay` from hook. Fires in `handleVideoSelect()` when user clicks a video thumbnail, passing `mediaId`, `mediaType`, and `video.name`. Only tracks when `mediaId` and `mediaType` are provided (they're optional props from parent).
 
 **Key files:** `src/components/features/search/search-command.tsx`, `src/components/features/discover/filter-sidebar.tsx`, `src/components/features/media/video-gallery.tsx`
 
@@ -354,7 +354,7 @@ graph TD
 
 ## Progress
 
-[###.....] 37% (3/8 sessions)
+[####....] 50% (4/8 sessions)
 
 ## Acceptance Criteria
 

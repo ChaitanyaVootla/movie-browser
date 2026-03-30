@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Filter, X, ChevronDown, Eye, EyeOff, Heart, List, ThumbsDown } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { MediaTypeToggle } from "./media-type-toggle";
 import { GenreFilterCompact } from "./genre-filter";
 import { SortSelect } from "./sort-select";
@@ -63,6 +64,15 @@ export function FilterSidebar({
 }: FilterSidebarProps) {
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
+  const { trackFilterApply } = useAnalytics();
+  const filterDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // Debounced filter tracking — fires 1s after last filter change
+  useEffect(() => {
+    return () => {
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+    };
+  }, []);
 
   const [libraryOpen, setLibraryOpen] = useState(
     params.hideWatched || params.hideWatchlist || params.hideDisliked
@@ -147,6 +157,19 @@ export function FilterSidebar({
       ? [params.without_genres]
       : [];
 
+  const scheduleFilterTracking = (newParams: Partial<DiscoverParams> & { media_type: "movie" | "tv" }) => {
+    clearTimeout(filterDebounceRef.current);
+    filterDebounceRef.current = setTimeout(() => {
+      const filters: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(newParams)) {
+        if (value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0)) {
+          filters[key] = value;
+        }
+      }
+      trackFilterApply(filters);
+    }, 1000);
+  };
+
   const updateParam = <K extends keyof DiscoverParams>(
     key: K,
     value: DiscoverParams[K] | undefined
@@ -158,13 +181,16 @@ export function FilterSidebar({
       newParams[key] = value;
     }
     onChange(newParams);
+    scheduleFilterTracking(newParams);
   };
 
   const resetFilters = () => {
-    onChange({
-      media_type: params.media_type,
-      sort_by: "popularity.desc",
-    });
+    const newParams = {
+      media_type: params.media_type as "movie" | "tv",
+      sort_by: "popularity.desc" as const,
+    };
+    onChange(newParams);
+    scheduleFilterTracking(newParams);
   };
 
   const hasActiveFilters =
@@ -203,7 +229,11 @@ export function FilterSidebar({
               <div className="flex justify-center">
                 <MediaTypeToggle
                   value={params.media_type}
-                  onChange={(value) => onChange({ ...params, media_type: value, with_genres: [] })}
+                  onChange={(value) => {
+                    const newParams = { ...params, media_type: value, with_genres: [] as number[] };
+                    onChange(newParams);
+                    scheduleFilterTracking(newParams);
+                  }}
                 />
               </div>
               <Separator />
@@ -358,6 +388,7 @@ export function FilterSidebar({
                       delete newParams.year_gte;
                       delete newParams.year_lte;
                       onChange(newParams);
+                      scheduleFilterTracking(newParams);
                     } else {
                       const decade = DECADE_OPTIONS.find((d) => d.value === v);
                       if (decade && decade.value !== "any") {
@@ -366,6 +397,7 @@ export function FilterSidebar({
                         newParams.year_gte = decade.gte;
                         newParams.year_lte = decade.lte;
                         onChange(newParams);
+                        scheduleFilterTracking(newParams);
                       }
                     }
                   }}
@@ -460,6 +492,7 @@ export function FilterSidebar({
                         delete newParams["with_runtime.gte"];
                         delete newParams["with_runtime.lte"];
                         onChange(newParams);
+                        scheduleFilterTracking(newParams);
                       } else {
                         const [min, max] = v.split("-").map(Number);
                         const newParams = { ...params };
@@ -468,6 +501,7 @@ export function FilterSidebar({
                         if (max < 999) newParams["with_runtime.lte"] = max;
                         else delete newParams["with_runtime.lte"];
                         onChange(newParams);
+                        scheduleFilterTracking(newParams);
                       }
                     }}
                   >
@@ -564,6 +598,7 @@ export function FilterSidebar({
                       }
                     }
                     onChange(newParams);
+                    scheduleFilterTracking(newParams);
                   }}
                 >
                   <SelectTrigger className="w-full">
@@ -601,6 +636,7 @@ export function FilterSidebar({
                       }
                     }
                     onChange(newParams);
+                    scheduleFilterTracking(newParams);
                   }}
                   placeholder="Select streaming services..."
                   searchPlaceholder="Search services..."

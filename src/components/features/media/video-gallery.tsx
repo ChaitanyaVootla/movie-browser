@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { formatViewCount, formatDuration, formatRelativeTime } from "@/lib/youtube-utils";
 import { VideoStats, VideoStatsSkeleton } from "./video-stats";
 import { VideoComments } from "./video-comments";
@@ -133,6 +134,7 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
 }
 
 export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGalleryProps) {
+  const { trackTrailerPlay } = useAnalytics();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [filter, setFilter] = useState("All");
@@ -243,6 +245,9 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
   if (!youtubeVideos.length) return null;
 
   const handleVideoSelect = (video: Video) => {
+    if (mediaId && mediaType) {
+      trackTrailerPlay(mediaId, mediaType, video.name);
+    }
     setCurrentVideo(video);
     setIsPlaying(true); // Autoplay when user explicitly selects a video
     setActiveVideoData(null);
