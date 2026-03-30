@@ -160,5 +160,5 @@ const { insights, errors } = parseAndValidateAIOutput(rawAIOutput);
 1. Update `INSIGHT_SCHEMA` in `src/types/ai-insights.ts`
 2. Add Prisma enum value if needed (`InsightCategory`)
 3. Add icon mapping in relevant component
-4. Update `SYSTEM_PROMPT` in `scripts/summarize-movies.ts`
+4. Update `ENRICHMENT_SYSTEM_PROMPT` in `src/server/services/enrichment/prompts.ts`
 5. Re-run `yarn summarize --force` for affected items

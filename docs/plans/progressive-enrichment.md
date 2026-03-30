@@ -299,4 +299,47 @@ Sessions 2 and 3 can run in parallel (Parallel Group A) — they share no files 
 - ~~**Bedrock Flex API integration**~~: **Resolved.** Tested — LangChain `@langchain/aws` does NOT support `serviceTier` (field absent from types, `additionalModelRequestFields` maps to a different namespace). Raw `BedrockRuntimeClient` + `ConverseCommand` with `serviceTier: { type: "flex" }` works and response echoes back confirmation. Using raw SDK via shared `bedrock-flex.ts` helper.
 - ~~**Stale AI data regeneration**~~: **Resolved.** Skip regen if `hasAIData` and overview unchanged. AI summaries capture structural properties (themes, mood, vibes, highlights) — not audience opinion or dynamic data. Ratings, revenue, and popularity are served real-time via enriched data or injectable in chat context. Only overview/genre changes warrant regen (rare post-release). Keeps 184K enrichment as one-time ~$210-250 cost.
 
+## Final Audit Summary
+
+**Audit Date:** 2026-03-30
+**Auditor:** Claude Opus 4.6 (final pass)
+
+### Verification Results
+
+| Check | Result |
+|-------|--------|
+| `yarn typecheck` | ✅ Clean (0 errors) |
+| `yarn lint` | ✅ 4 pre-existing errors (analytics-shared.tsx, action-animations.tsx) — none from this plan |
+| No `any` types | ✅ All enrichment code uses `unknown` with type guards |
+| No `console.log` | ✅ All logging via Pino (`dataLogger`, `apiLogger`) |
+| No TODOs/FIXMEs | ✅ None in any new files |
+| File sizes < 800 lines | ✅ Largest: progressive.ts (447 lines) |
+| Barrel exports | ✅ enrichment-provider.tsx exported from media/index.ts |
+| Analytics type registered | ✅ `progressive_enrichment` in QueryType union |
+| Model pricing entry | ✅ `moonshotai.kimi-k2.5` in model-pricing.ts |
+| p-limit dependency | ✅ In package.json (^7.3.0) |
+| Shared prompt | ✅ Both summarize script and progressive service import from prompts.ts |
+| Hydration integration | ✅ Fire-and-forget calls in hydrateMovie (line 145) and hydrateSeries (line 277) |
+| SSE endpoint | ✅ Zod validation, abort handling, max duration, PG polling |
+| Client hook | ✅ StrictMode-safe (connectedRef gate), cleanup on unmount/done/error |
+| Detail pages | ✅ Both movie and series pages wrap with EnrichmentProvider, use Live* components |
+| CLAUDE.md | ✅ Progressive Enrichment section in Architecture Patterns, enrichment/ in dir structure |
+| postgres-hydration.md | ✅ Flow diagram updated, enrichment paths added, new subsection added |
+| GA_READINESS.md | ✅ Task #18 added, cost summary updated |
+
+### Minor Documentation Issue
+
+- `.claude/rules/ai-insights.md` line 163 still references `SYSTEM_PROMPT` in `scripts/summarize-movies.ts` — should reference `ENRICHMENT_SYSTEM_PROMPT` in `src/server/services/enrichment/prompts.ts`. File is permission-protected; update manually.
+
+### Code Quality Assessment
+
+All 7 new files follow project conventions:
+- **progressive.ts** (447 lines): Clean 7-stage pipeline, proper dedup Map with .finally() cleanup, p-limit concurrency, structured Pino logging, fire-and-forget analytics tracking
+- **bedrock-flex.ts** (148 lines): Minimal helper, lazy client cache per region, proper EC2 instance profile credential resolution
+- **prompts.ts** (68 lines): Clean extraction, shared between script and service
+- **ai-input-builder.ts** (158 lines): Handles Movie/Series/TmdbMovieData/TmdbSeriesData union cleanly
+- **enrich/route.ts** (294 lines): Proper SSE pattern, Zod validation, abort signal handling, closed-flag guard against double-close
+- **use-enrichment-stream.ts** (156 lines): StrictMode-safe, EventSource with no reconnection by design
+- **enrichment-provider.tsx** (294 lines): React Context pattern, 5 exported components, Framer Motion animations, proper ExternalRating conversion
+
 <!-- ALL_COMPLETE -->
