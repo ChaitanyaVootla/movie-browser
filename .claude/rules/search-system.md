@@ -264,6 +264,21 @@ WHERE similarity(name, $1) > 0.3
    - `KNOWN_FRANCHISES` for franchises
 2. Test with `expandQuery()` function
 
+## Cost Tracking
+
+Search operations that incur external API costs are tracked to ClickHouse:
+
+| Operation | Table | Tracking Function | Trigger |
+|-----------|-------|-------------------|---------|
+| Tier 2 embedding classification | `api_calls` (service=embedding) | `trackEmbeddingCall()` | Every `generateQueryEmbedding()` call |
+| Tier 3 LLM parsing | `ai_usage` (query_type=search_llm_parsing) | `trackSearchLLMUsage()` | Every `parseQueryWithLlm()` call |
+| Semantic search embedding | `api_calls` (service=embedding) | `trackEmbeddingCall()` | Every semantic/smart-discover query |
+| Batch embedding generation | `api_calls` (service=embedding) | `trackEmbeddingCall()` | Aggregate per batch run |
+
+All tracking is fire-and-forget (no `await`, wrapped in try-catch) — never blocks the search hot path.
+
+Costs flow into the unified cost dashboard at `/admin` → Costs tab via `getUnifiedCostBreakdown()`.
+
 ## Testing
 
 ```bash

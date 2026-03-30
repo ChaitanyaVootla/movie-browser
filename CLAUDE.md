@@ -122,7 +122,7 @@ src/
 3. Call in event handlers — never `await`, tracking is fire-and-forget
 4. For new action types, add to `ActionType` union in `src/lib/analytics/types.ts`
 
-**Key files**: `src/hooks/use-analytics.ts` (hook), `src/lib/analytics/track.ts` (server tracking), `src/lib/analytics/types.ts` (event types), `src/lib/analytics/queries/` (ClickHouse queries), `analytics/clickhouse/init/001-schema.sql` (schema)
+**Key files**: `src/hooks/use-analytics.ts` (hook), `src/lib/analytics/track.ts` (server tracking), `src/lib/analytics/types.ts` (event types), `src/lib/analytics/queries/` (ClickHouse queries), `analytics/clickhouse/init/001-schema.sql` (schema). See `.claude/rules/analytics-system.md`.
 
 ## GA Roadmap
 
@@ -176,6 +176,7 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 | `theming.md` | `globals.css`, `preferences.ts` | Mode/style/accent theming, hero gradients |
 | `type-safety.md` | `**/*.ts`, `**/*.tsx` | No `any`, type guards, Zod |
 | `infrastructure.md` | `terraform/**`, `docker-compose.yml`, `deploy-next.sh`, workflows | EC2, Docker, CI/CD, IAM, memory budget |
+| `analytics-system.md` | `analytics/**`, `use-analytics.ts`, `api/analytics/**`, `admin/analytics/**` | Event tracking, cost tracking, ClickHouse queries, dashboard |
 
 Cursor IDE also has separate rules in `.cursor/rules/*.mdc` — those are independent from these.
 

@@ -5,14 +5,16 @@
  * Processes enriched movie data (ai-input.md) to generate structured AI summaries
  * including hooks, quick takes, themes, mood indicators, and sassy questions.
  *
- * Uses Kimi K2 via AWS Bedrock (same as main AI agent).
+ * Uses Kimi K2.5 via AWS Bedrock in ap-south-1 with optional Flex tier pricing.
  *
  * Usage:
- *   yarn summarize 475557          # Single movie by TMDB ID
- *   yarn summarize:batch           # All enriched movies (skips existing)
- *   yarn summarize:batch --force   # Regenerate all (ignores existing)
- *   yarn summarize:batch --top=50  # Process top 50 enriched movies
- *   yarn summarize:batch --dry-run # Show what would be processed
+ *   yarn summarize 475557                    # Single movie by TMDB ID
+ *   yarn summarize 475557 --flex             # Use Flex tier (50% off, higher latency)
+ *   yarn summarize 475557 --model=moonshot.kimi-k2-thinking  # Override model
+ *   yarn summarize:batch                     # All enriched movies (skips existing)
+ *   yarn summarize:batch --force             # Regenerate all (ignores existing)
+ *   yarn summarize:batch --top=50            # Process top 50 enriched movies
+ *   yarn summarize:batch --dry-run           # Show what would be processed
  *
  * Output:
  *   data/enriched/<tmdb_id>/ai-summary.json
@@ -21,8 +23,6 @@
 import { config } from "dotenv";
 import { resolve, join } from "path";
 import { existsSync, readFileSync, writeFileSync, readdirSync } from "fs";
-import { ChatBedrockConverse } from "@langchain/aws";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { Prisma, PrismaClient } from "@prisma/client";
 import {
   parseAndValidateAIOutput,
@@ -31,6 +31,8 @@ import {
   INSIGHT_SCHEMA,
 } from "../src/types/ai-insights";
 import { calculateCost, formatCost } from "../src/lib/model-pricing";
+import { callBedrockFlex } from "../src/server/services/enrichment/bedrock-flex";
+import { ENRICHMENT_SYSTEM_PROMPT } from "../src/server/services/enrichment/prompts";
 
 const prisma = new PrismaClient();
 
@@ -39,11 +41,6 @@ config({ path: resolve(process.cwd(), ".env.local") });
 
 const ENRICHED_DIR = join(process.cwd(), "data", "enriched");
 const REPORT_FILE = join(ENRICHED_DIR, "summary-batch-report.json");
-
-// Model configuration (same as main app)
-// IMPORTANT: Kimi K2 is only available in us-east-1
-const MODEL_ID = process.env.BEDROCK_MODEL_ID || "moonshot.kimi-k2-thinking";
-const REGION = process.env.BEDROCK_REGION || "us-east-1";
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -54,11 +51,17 @@ const topArg = args.find((a) => a.startsWith("--top="));
 const skipArg = args.find((a) => a.startsWith("--skip="));
 const parallelArg = args.find((a) => a.startsWith("--parallel="));
 const mediaTypeArg = args.find((a) => a.startsWith("--media-type="));
+const modelArg = args.find((a) => a.startsWith("--model="));
 const topN = topArg ? parseInt(topArg.split("=")[1], 10) : Infinity;
 const skipN = skipArg ? parseInt(skipArg.split("=")[1], 10) : 0;
 const parallelN = parallelArg ? parseInt(parallelArg.split("=")[1], 10) : 5; // Default 5 concurrent
 const explicitMediaType = mediaTypeArg?.split("=")[1] as "movie" | "series" | undefined;
 const singleId = args.find((a) => /^\d+$/.test(a));
+
+// Model configuration — Kimi K2.5 non-thinking in ap-south-1 (Mumbai)
+const MODEL_ID = modelArg?.split("=")[1] || process.env.BEDROCK_MODEL_ID || "moonshotai.kimi-k2.5";
+const REGION = process.env.BEDROCK_REGION || "ap-south-1";
+const useFlex = args.includes("--flex") || isBatch; // Flex on by default for batch
 
 // Types
 interface AISummary {
@@ -112,80 +115,8 @@ interface BatchReport {
   };
 }
 
-// System prompt for summarization
-const SYSTEM_PROMPT = `You are a sassy, opinionated movie expert who helps users decide what to watch. Your tone is fun, chaotic, and irresistibly engaging - like a friend who's way too into movies.
-
-Analyze the movie data provided and generate a JSON response with these fields:
-
-1. **hook** (string, <80 chars): A punchy one-liner that makes people curious. No spoilers. Be creative, provocative, or intriguing.
-
-2. **vibes** (array of 2-4 strings): Quick take labels that tell you what you're getting into. Short, punchy descriptors.
-
-3. **themes** (array of 2-4 strings): Meaningful thematic elements explored. NOT just genre synonyms - actual themes.
-
-4. **mood** (object): Objective assessment of the viewing experience. ALL four fields are required:
-   - pacing: MUST be exactly one of: "slow", "steady", "fast"
-   - intensity: MUST be exactly one of: "low", "medium", "high"
-   - tone: MUST be exactly one of: "dark", "light", "mixed"
-   - emotional: MUST be exactly one of: "light", "medium", "heavy"
-
-5. **bestFor** (array of 1-4 objects): When/how to watch this. Each object has:
-   - subcategory: MUST be exactly one of: "theatre", "streaming", "date_night", "solo", "friends", "family", "kids", "rewatch", "background", "binge"
-   - text: A short explanation (1 sentence)
-
-6. **highlights** (array of 1-4 objects): What makes this movie special. Each object has:
-   - subcategory: MUST be exactly one of: "acting", "direction", "cinematography", "score", "sound", "vfx", "practical", "writing", "editing", "production", "costume", "stunt"
-   - text: A short explanation (1 sentence)
-
-7. **headsUp** (array of 0-3 objects): Content warnings. ONLY include if genuinely applicable - many movies need none! Each object has:
-   - subcategory: MUST be exactly one of: "violence", "gore", "disturbing", "triggers", "sad", "jumpscares", "language", "sexual", "drugs"
-   - text: A specific explanation (not generic warnings)
-
-8. **questions** (object with two arrays):
-   - preWatch (array of 3-5 strings): Sassy questions to spark conversation BEFORE watching. These should be irresistible - make users WANT to click and argue/discuss. Channel chaotic energy. No spoilers here!
-   - postWatch (array of 3-5 strings): Questions for AFTER watching. These CAN and SHOULD include spoilers since users have seen it. Reference specific plot points, twists, character deaths, endings. These are discussion starters.
-
-9. **deepDive** (array of 2-4 objects): Trivia, insights, and cultural context. Each object has:
-   - subcategory: MUST be exactly one of: "trivia", "insight", "memorable", "cultural"
-   - text: The content (can be 1-3 sentences)
-   - spoilerLevel: MUST be exactly one of: "FREE" (no spoilers), "LIGHT" (mild reveals), "HEAVY" (major spoilers)
-
-   For deepDive, you CAN include spoilers - that's the point! Mark them appropriately with spoilerLevel.
-
-CRITICAL RULES:
-- subcategory values must EXACTLY match the allowed values listed above (case-sensitive, use underscores not spaces)
-- Be specific to THIS movie. Generic responses are useless.
-- No spoilers in hook, vibes, themes, mood, bestFor, highlights, or preWatch questions
-- headsUp only if genuinely applicable - don't include generic warnings
-- postWatch questions and deepDive CAN have spoilers - use spoilerLevel to mark them
-- The preWatch questions should feel like a chaotic friend baiting you into a conversation
-- If it's a classic/cult film, lean into the cultural significance
-- If it's divisive, acknowledge the controversy
-- Match the energy to the movie's vibe
-
-Respond with ONLY valid JSON. No markdown code blocks, no explanations.`;
-
-/**
- * Create Bedrock chat client
- */
-function createClient(): ChatBedrockConverse {
-  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-    throw new Error(
-      "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env.local"
-    );
-  }
-
-  return new ChatBedrockConverse({
-    model: MODEL_ID,
-    region: REGION,
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-    maxTokens: 16384, // Kimi K2 includes reasoning tokens in output count - needs plenty of room
-    temperature: 0.8, // Slightly higher for creative responses
-  });
-}
+// System prompt — imported from shared prompts module
+const SYSTEM_PROMPT = ENRICHMENT_SYSTEM_PROMPT;
 
 /**
  * Get list of enriched movie IDs
@@ -376,12 +307,10 @@ function convertInsightsToPrismaFormat(
  * Summarize a single movie
  *
  * @param movieId - TMDB ID of the movie/series
- * @param client - Bedrock chat client
  * @param mediaTypeOverride - Optional explicit media type (overrides auto-detection)
  */
 async function summarizeMovie(
   movieId: number,
-  client: ChatBedrockConverse,
   mediaTypeOverride?: "movie" | "series"
 ): Promise<{
   success: boolean;
@@ -398,25 +327,21 @@ async function summarizeMovie(
   const title = extractTitle(aiInput);
 
   try {
-    const response = await client.invoke([
-      new SystemMessage(SYSTEM_PROMPT),
-      new HumanMessage(`Analyze this movie and generate the JSON summary:\n\n${aiInput}`),
-    ]);
+    const result = await callBedrockFlex({
+      messages: [
+        { role: "user", text: `Analyze this movie and generate the JSON summary:\n\n${aiInput}` },
+      ],
+      systemPrompt: SYSTEM_PROMPT,
+      maxTokens: 2048,
+      temperature: 0.7,
+      useFlex,
+      modelId: MODEL_ID,
+      region: REGION,
+    });
 
-    // Extract token usage from response metadata
-    const usageMetadata = response.usage_metadata;
-    const inputTokens = usageMetadata?.input_tokens || 0;
-    const outputTokens = usageMetadata?.output_tokens || 0;
-
-    // Get response text (Kimi K2 outputs reasoning_content first, then text)
-    const responseText =
-      typeof response.content === "string"
-        ? response.content
-        : Array.isArray(response.content)
-          ? response.content
-              .map((c) => (typeof c === "string" ? c : c.type === "text" ? c.text : ""))
-              .join("")
-          : "";
+    const inputTokens = result.inputTokens;
+    const outputTokens = result.outputTokens;
+    const responseText = result.output;
 
     // Parse response
     const parseResult = parseResponse(responseText);
@@ -529,6 +454,8 @@ async function runBatch(): Promise<void> {
   console.log("🎬 AI MOVIE SUMMARIZATION - BATCH MODE");
   console.log("=".repeat(70));
   console.log(`   Model: ${MODEL_ID}`);
+  console.log(`   Region: ${REGION}`);
+  console.log(`   Flex tier: ${useFlex ? "ON (50% off)" : "OFF"}`);
   console.log(`   Force regenerate: ${forceRegenerate}`);
   console.log(`   Dry run: ${dryRun}`);
   console.log(`   Top: ${topN === Infinity ? "all" : topN}`);
@@ -587,9 +514,6 @@ async function runBatch(): Promise<void> {
     return;
   }
 
-  // Create client
-  const client = createClient();
-
   // Process movies in parallel
   const results: BatchResult[] = [];
   const startedAt = new Date().toISOString();
@@ -602,7 +526,7 @@ async function runBatch(): Promise<void> {
   // Process in chunks for parallel execution
   async function processMovie(movieId: number): Promise<BatchResult> {
     const startTime = Date.now();
-    const result = await summarizeMovie(movieId, client);
+    const result = await summarizeMovie(movieId);
     const duration = Date.now() - startTime;
 
     completed++;
@@ -691,6 +615,8 @@ async function runSingle(movieId: number): Promise<void> {
   console.log(`   TMDB ID: ${movieId}`);
   console.log(`   Media Type: ${explicitMediaType || "(auto-detect)"}`);
   console.log(`   Model: ${MODEL_ID}`);
+  console.log(`   Region: ${REGION}`);
+  console.log(`   Flex tier: ${useFlex ? "ON (50% off)" : "OFF"}`);
   console.log("");
 
   // Check if enriched
@@ -719,10 +645,9 @@ async function runSingle(movieId: number): Promise<void> {
     return;
   }
 
-  // Create client and process
-  const client = createClient();
+  // Process
   const startTime = Date.now();
-  const result = await summarizeMovie(movieId, client, explicitMediaType);
+  const result = await summarizeMovie(movieId, explicitMediaType);
   const duration = Date.now() - startTime;
 
   console.log(`\n${"─".repeat(50)}`);
@@ -769,10 +694,12 @@ async function main() {
       await runSingle(parseInt(singleId, 10));
     } else {
       console.log("Usage:");
-      console.log("  yarn summarize <tmdb_id>                    # Single (auto-detect type)");
+      console.log("  yarn summarize <tmdb_id>                      # Single (auto-detect type)");
       console.log("  yarn summarize <tmdb_id> --media-type=series  # Force series type");
-      console.log("  yarn summarize:batch                        # Batch (all enriched)");
-      console.log("  yarn summarize:batch --force                # Regenerate all");
+      console.log("  yarn summarize <tmdb_id> --flex               # Use Flex tier (50% off)");
+      console.log("  yarn summarize <tmdb_id> --model=<model_id>   # Override model");
+      console.log("  yarn summarize:batch                          # Batch (Flex on by default)");
+      console.log("  yarn summarize:batch --force                  # Regenerate all");
       console.log("  yarn summarize:batch --dry-run");
       console.log("  yarn summarize:batch --top=50 --skip=10");
     }

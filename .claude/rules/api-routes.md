@@ -112,3 +112,25 @@ function isSelectOnly(sql: string): boolean {
 - `src/app/api/admin/query/route.ts` - Endpoint implementation
 - `src/components/features/admin/tabs/query-tab.tsx` - Query UI
 - `src/components/features/admin/query/` - Results table, schema browser, saved queries
+
+## Analytics Endpoints
+
+**Ingest** (`POST /api/analytics/ingest`): Client-side event batching endpoint. Accepts `{ events: [...] }` array. Auto-enriches with timestamp, session_id, user_agent, country, device_type. Validates origin, rate-limits, excludes admin traffic by default.
+
+**Admin Analytics** (`GET /api/admin/analytics`): Unified dashboard data. Requires `await requireAdmin()`.
+
+```typescript
+// Query params: type + range (days)
+/api/admin/analytics?type=overview&range=7
+/api/admin/analytics?type=costs&range=30
+/api/admin/analytics?type=ai&range=7
+
+// type values: overview | traffic | ai | lambda | performance | errors | content | costs | database
+```
+
+The `costs` type returns unified cost breakdown: `{ llmChat, llmSearchParsing, embedding, lambda, total }` with daily breakdown.
+
+**Key files:**
+- `src/app/api/analytics/ingest/route.ts` — Event ingestion
+- `src/app/api/admin/analytics/route.ts` — Dashboard queries
+- `src/lib/analytics/queries/costs.ts` — Unified cost aggregation

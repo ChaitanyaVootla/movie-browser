@@ -58,6 +58,20 @@ const idlePrompt = pickRandom(IDLE_PROMPTS);
 - Auto-closes when clicking poster cards for navigation
 - Virtual keyboard handling via visualViewport API
 
+## Analytics Integration
+
+AI components track user intent via `useAnalytics` hook (client-side):
+
+| Component | Event | When |
+|-----------|-------|------|
+| `idle-circle.tsx` | `ai_chat_open` | User clicks/taps the floating bubble |
+| `expanded-chat.tsx` | `ai_chat_submit` | User sends a message (Enter or button) |
+| `minimal-view.tsx` | `ai_chat_submit` | User sends a message in compact view |
+
+This is separate from server-side `trackAIUsage()` (which tracks tokens/cost per invocation). Client tracking captures user *intent to chat* before server processing.
+
+Pattern: import `useAnalytics`, destructure the convenience method, call it inside the existing handler *before* the action (non-blocking).
+
 ## Adding New Prompts
 
 Edit `prompts.ts`:

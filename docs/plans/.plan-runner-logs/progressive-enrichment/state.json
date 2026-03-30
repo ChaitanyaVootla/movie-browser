@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "doc": "/Users/chaitanya/dev/movie-browser/docs/plans/progressive-enrichment.md",
+  "startedAt": "2026-03-30T14:53:17Z",
+  "completedAt": null,
+  "model": "opus",
+  "tier": "Complex",
+  "maxSessionBudgetUsd": 20,
+  "totalBudgetUsd": 200,
+  "baseBranch": null,
+  "featureBranch": "next",
+  "parallel": false,
+  "maxParallel": 3,
+  "status": "running",
+  "sessions": [
+    {
+      "num": 1,
+      "label": "Summarizer & AI Input Modernization",
+      "costUsd": 3.94,
+      "durationMs": 472314,
+      "numTurns": 78,
+      "inputTokens": 5488948,
+      "outputTokens": 22649,
+      "cacheReadTokens": 5379988,
+      "isError": false,
+      "gitCommit": null,
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
+    }
+  ],
+  "parallelGroups": {},
+  "totals": {
+    "sessions": 1,
+    "costUsd": 3.94,
+    "durationMs": 472314,
+    "inputTokens": 5488948,
+    "outputTokens": 22649,
+    "cacheReadTokens": 5379988
+  }
+}

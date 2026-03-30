@@ -63,6 +63,21 @@ Will be fully severed post-GA.
 | PM2 cron jobs | 1GB peak |
 | Headroom | ~3.4GB |
 
+## ClickHouse Schema
+
+Schema in `analytics/clickhouse/init/001-schema.sql` — runs on `docker compose up` (fresh init).
+
+Key tables:
+- `page_views` — Traffic (90-day TTL)
+- `user_actions` — Watchlist, ratings, clicks, search, filters (90-day TTL)
+- `ai_usage` — LLM invocations with tokens + USD cost (365-day TTL)
+- `api_calls` — External API calls: TMDB, Lambda, embedding (90-day TTL). Has `tokens UInt32` column and `service` enum including `'embedding'`
+- `errors`, `system_metrics`, `sessions`, `performance`
+
+Materialized views: `daily_stats`, `hourly_ai_costs`, `content_performance`, `hourly_api_quotas`.
+
+No migrations — schema SQL is authoritative. Re-deploy recreates containers. Pre-GA data loss is acceptable.
+
 ## PM2 Jobs
 
 | Job | Schedule | Heap Limit |

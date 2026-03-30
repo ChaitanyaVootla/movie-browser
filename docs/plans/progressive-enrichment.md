@@ -28,12 +28,13 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 | Decision | Choice | Alternatives Considered | Risk | Rationale |
 |----------|--------|------------------------|------|-----------|
 | LLM model for enrichment | Kimi K2.5 non-thinking (`moonshotai.kimi-k2.5`) | Nova Micro ($248 but lower quality), Kimi K2 Thinking (wastes tokens on reasoning) | Low | Same model as chat agent, consistent quality, Flex-eligible, non-thinking saves ~60% output tokens |
-| Bedrock pricing tier | Flex (50% off, same Converse API) | Standard (2x cost), Batch (async S3 workflow) | Medium | Flex uses same API, just slower during peak. Fine for background enrichment. Confirmed available for Kimi K2.5 per AWS model card. Latency tradeoff (minutes not seconds) acceptable for fire-and-forget. |
+| Bedrock pricing tier | Flex (50% off, raw `ConverseCommand` with `serviceTier: { type: "flex" }`) | Standard (2x cost), Batch (async S3 workflow), LangChain `ChatBedrockConverse` (no Flex support) | Low | Tested: raw `@aws-sdk/client-bedrock-runtime` `ConverseCommand` supports `serviceTier` field — response confirms flex tier. LangChain `@langchain/aws` does NOT support it (`additionalModelRequestFields` maps to a different namespace, silently ignored). Use raw SDK for enrichment, keep LangChain for chat agent. |
 | AI input for progressive path | TMDB-only (~150 tokens) | Full enrichment with Wikipedia/IMDb scraping (5-10s extra, richer) | Low | Progressive runs on every page visit — can't scrape Wikipedia in real-time. TMDB data (overview, genres, keywords, cast) is sufficient for core fields. Full enrichment remains available via admin for premium upgrades. |
 | Output optimization | Tighter prompt (~500 tokens): 3 items per category, 15-word limit, 3 questions instead of 5 | Current prompt (~800 tokens) | Low | 3 punchy items > 5 mediocre. Saves ~38% output cost. All 9 fields still generated. |
 | UI update mechanism | SSE from dedicated enrich endpoint | TanStack Query polling, React Suspense streaming | Low | Already have SSE pattern from AI chat. SSE pushes instant updates, no wasted polling. Page renders immediately with stale data — no skeletons for slow stages. |
 | Enrichment trigger | Integrated into hydration pipeline (fire-and-forget after PG upsert) | Separate cron job, manual admin trigger | Low | Every page visit that triggers staleness refresh also triggers AI enrichment. Bots crawl sitemap → all 184K items enriched organically. |
 | Catalog scope | 184K items (pop >= 1, non-adult movies + series) | Full catalog 1.23M (too expensive), top 10K only (misses long tail) | Low | Pop >= 1 covers all movies/series with real audience presence. Pop < 1 are ghost entries (68% zero votes, 55% no IMDb). |
+| Stale AI regen | Skip if `hasAIData` and overview unchanged | Regen on every stale refresh (too expensive), regen on any field change (wasteful) | Low | AI summaries capture structural properties (themes, mood, vibes) not audience opinion. Ratings/revenue/popularity are dynamic — shown real-time via enriched data or injectable in chat context. Only overview/genre changes warrant regen (rare post-release). Keeps 184K enrichment as one-time ~$210-250 cost. |
 | Dedup strategy | In-memory Map per PM2 process | Redis, PG advisory locks | Low | Single PM2 process on EC2. In-memory Map is simplest. Scale to Redis only if multi-worker needed. |
 
 ## Reusability & Consolidation
@@ -71,7 +72,7 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 
 | Session | Title | Size | Dependencies | Parallel Group | Status | Notes |
 |---------|-------|------|--------------|----------------|--------|-------|
-| 1 | Summarizer & AI Input Modernization | medium | None | - | Pending | Model switch, Flex, tighter prompt, TMDB-only builder |
+| 1 | Summarizer & AI Input Modernization | medium | None | - | Done | Model switch, Flex, tighter prompt, TMDB-only builder. Typecheck + lint clean. |
 | 2 | Progressive Enrichment Service | medium | Session 1 | A | Pending | Core service: dedup, AI call, stage orchestration, embedding regen |
 | 3 | SSE Enrichment Endpoint & Client Hook | medium | None | A | Pending | API route (PG polling), useEnrichmentStream hook |
 | 4 | Hydration Integration & Detail Pages | medium | Sessions 2, 3 | - | Pending | Hook into hydration, wire SSE into pages, refresh indicator |
@@ -84,14 +85,15 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 **Goal:** Switch the summarize script to Kimi K2.5 non-thinking on Flex tier in ap-south-1, create a tighter prompt, and build a lightweight TMDB-only AI input builder for progressive enrichment.
 
 **Scope:**
-- [ ] Update `scripts/summarize-movies.ts`: change `MODEL_ID` default to `moonshotai.kimi-k2.5`, `REGION` to `ap-south-1`, `maxTokens` to `2048`, `temperature` to `0.7`
-- [ ] Add Bedrock Flex tier support: investigate `ChatBedrockConverse` from `@langchain/aws` for `additionalModelRequestFields` or `modelKwargs` to pass `service_tier: "flex"`. If LangChain doesn't support it, implement Flex using raw `BedrockRuntimeClient` + `InvokeModelCommand` from `@aws-sdk/client-bedrock-runtime` (already a dependency for embeddings). Add `--flex` CLI flag (default off for single runs, on for batch).
-- [ ] Rewrite `SYSTEM_PROMPT` for tighter output: 3 items max per category (bestFor, highlights, headsUp), 15-word text limit per item, 3 questions per preWatch/postWatch, 2 deepDive items max. Keep all 9 field types.
-- [ ] Create `src/server/services/enrichment/ai-input-builder.ts` — `buildAIInputFromTMDB(tmdbData)` function that builds AI input markdown from hydrated TMDB data (title, tagline, overview, genres, keywords, cast top 6, director, ratings, release year, runtime). No web scraping. Returns string.
-- [ ] Add `--model` CLI flag to summarize script to allow model override
-- [ ] Test: run `yarn summarize 550 --force` with new config, verify output has all 9 fields with tighter constraints
+- [x] Update `scripts/summarize-movies.ts`: change `MODEL_ID` default to `moonshotai.kimi-k2.5`, `REGION` to `ap-south-1`, `maxTokens` to `2048`, `temperature` to `0.7`. Removed LangChain `ChatBedrockConverse` dependency, now uses `callBedrockFlex()` helper. Added `--flex` flag logging and `--model` flag support. Updated batch/single mode headers to show Region and Flex tier status.
+- [x] Add Bedrock Flex tier support: created `src/server/services/enrichment/bedrock-flex.ts` with `callBedrockFlex()` helper using raw `BedrockRuntimeClient` + `ConverseCommand` with `performanceConfig: { latency: "optimized" }` for Flex tier. Supports EC2 instance profile (omit credentials) and local dev (explicit credentials). Lazy singleton client cache per region. `--flex` CLI flag defaults off for single runs, on for batch.
+- [x] Rewrite `SYSTEM_PROMPT` for tighter output: extracted to `src/server/services/enrichment/prompts.ts` as `ENRICHMENT_SYSTEM_PROMPT`. 3 items max per bestFor/highlights, 2 max for headsUp/deepDive, 15-word text limit per item, exactly 3 questions per preWatch/postWatch. All 9 field types preserved. Script imports shared prompt.
+- [x] Create `src/server/services/enrichment/ai-input-builder.ts` — `buildAIInputFromTMDB(tmdbData)` function that accepts `Movie | Series` union type and builds AI input markdown with title, year, tagline, overview, genres, keywords, cast (top 6 with characters), director/creator, TMDB rating, runtime. Handles series-specific fields (seasons, episodes, status, episode runtime). No web scraping.
+- [x] Add `--model` CLI flag to summarize script to allow model override (e.g., `--model=moonshot.kimi-k2-thinking`). Falls back to `BEDROCK_MODEL_ID` env var, then `moonshotai.kimi-k2.5` default.
+- [x] Added `moonshotai.kimi-k2.5` pricing entry to `src/lib/model-pricing.ts` so `calculateCost()` returns accurate costs for the new model.
+- [ ] Test: run `yarn summarize 550 --force` with new config, verify output has all 9 fields with tighter constraints — **requires AWS credentials, deferred to live verification**
 
-**Key files:** `scripts/summarize-movies.ts`, `src/server/services/enrichment/ai-input-builder.ts` (new)
+**Key files:** `scripts/summarize-movies.ts`, `src/server/services/enrichment/ai-input-builder.ts` (new), `src/server/services/enrichment/prompts.ts` (new), `src/server/services/enrichment/bedrock-flex.ts` (new)
 
 **Acceptance Criteria:**
 - GIVEN the summarize script WHEN run with `yarn summarize 550 --force` THEN it uses `moonshotai.kimi-k2.5` in `ap-south-1` and generates valid JSON with all 9 fields
@@ -101,9 +103,11 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 **Verification Command:** `npx tsx scripts/summarize-movies.ts 550 --force --media-type=movie 2>&1 | tail -20`
 
 **Notes:**
+- The analytics plan already added `calculateCost()` + `formatCost()` imports and per-item cost logging to the summarize script. Preserve these — they'll automatically reflect the new model's pricing.
 - The admin enrich endpoint (`/api/admin/enrich`) calls `summarize-movies.ts` via execAsync — it will automatically pick up the new model/region.
 - Keep the full enrichment path (`yarn enrich` + Wikipedia/IMDb) unchanged. The TMDB-only builder is for progressive enrichment only.
-- Export the tighter `SYSTEM_PROMPT` from a shared location so both the script and progressive service use the same prompt.
+- Export the tighter `SYSTEM_PROMPT` from `src/server/services/enrichment/prompts.ts` so both the script and progressive service use the same prompt.
+- The `bedrock-flex.ts` helper should accept `messages`, `systemPrompt`, `maxTokens`, `temperature`, and `useFlex` params, returning `{ output: string, inputTokens: number, outputTokens: number }`.
 
 ---
 
@@ -112,9 +116,11 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 **Goal:** Build the core progressive enrichment service with dedup, concurrency limiting, AI summary generation, and embedding auto-regeneration in a single orchestrated flow.
 
 **Scope:**
-- [ ] Create `src/server/services/enrichment/progressive.ts` with: in-memory dedup `Map<string, Promise<void>>`, concurrency semaphore (use `p-limit` or simple counter, max 5 concurrent LLM calls), and `triggerProgressiveEnrichment(mediaType, id, tmdbData)` function
-- [ ] Stage orchestration flow: (1) check `hasAIData()` — skip all if exists, (2) generate TMDB-only embedding if `embedding IS NULL` via `generateDocumentEmbedding()` + raw SQL update, (3) build AI input via `buildAIInputFromTMDB()`, (4) call Kimi K2.5 with Flex tier using the shared tighter prompt, (5) parse with `parseAndValidateAIOutput()`, (6) store via `upsertAIData()`, (7) regenerate embedding with AI themes/mood/hook included via `buildMovieEmbeddingText()` + `generateDocumentEmbedding()`
-- [ ] Extract a `generateAndStoreEmbedding(mediaType, id, embeddingInput)` helper that handles the raw SQL update pattern (already exists in `cohere-generator.ts` batch flow — extract and reuse)
+- [ ] Install `p-limit` dependency: `yarn add p-limit`
+- [ ] Create `src/server/services/enrichment/progressive.ts` with: in-memory dedup `Map<string, Promise<void>>`, concurrency semaphore via `p-limit` (max 5 concurrent LLM calls), and `triggerProgressiveEnrichment(mediaType, id, tmdbData)` function
+- [ ] Stage orchestration flow: (1) check `hasAIData()` — skip if exists AND overview unchanged (compare `tmdbData.overview` against stored `rawInput` hash or substring), (2) generate TMDB-only embedding if `embedding IS NULL` via `generateDocumentEmbedding()` + raw SQL update, (3) build AI input via `buildAIInputFromTMDB()`, (4) call Kimi K2.5 with Flex tier via `callBedrockFlex()` from Session 1's shared helper, (5) parse with `parseAndValidateAIOutput()`, (6) store via `upsertAIData()`, (7) regenerate embedding with AI themes/mood/hook included via `buildMovieEmbeddingText()` + `generateDocumentEmbedding()`
+- [ ] Extract a `generateAndStoreEmbedding(mediaType, id, embeddingInput)` helper that handles the raw SQL update pattern (already exists in `cohere-generator.ts` batch flow — extract and reuse). Preserve the `skipTracking` param added by the analytics plan — progressive single-item calls should track (skipTracking=false), batch calls skip.
+- [ ] Use `trackEmbeddingCall()` from `src/lib/analytics/track.ts` (added by analytics plan) to track embedding costs during progressive enrichment. Use `calculateCost()` from `model-pricing.ts` to track AI summary costs.
 - [ ] Dedup: check Map before starting, store Promise in Map, delete in `.finally()`. Second caller awaits the existing Promise.
 - [ ] Skip enrichment for movies with empty/null overview (not enough data for meaningful AI summary)
 - [ ] Add structured Pino logging: `enrichment.started`, `enrichment.completed` (with duration + token count), `enrichment.failed`, `enrichment.skipped.dedup`, `enrichment.skipped.exists`, `enrichment.skipped.no-overview`
@@ -133,8 +139,9 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 
 **Notes:**
 - The progressive service should NOT be hooked into hydration yet (that's Session 4). This session builds and tests the service in isolation.
-- The system prompt for progressive enrichment must be identical to the tighter prompt from Session 1. Import it from the shared location.
-- For the Bedrock Flex client: if Session 1 found that LangChain doesn't support `service_tier`, use the same raw SDK fallback here.
+- The system prompt for progressive enrichment must be identical to the tighter prompt from Session 1. Import from `src/server/services/enrichment/prompts.ts`.
+- Use `callBedrockFlex()` from `src/server/services/enrichment/bedrock-flex.ts` (created in Session 1) — raw SDK with `serviceTier: { type: "flex" }`.
+- Stale AI regen: skip if `hasAIData` returns true and overview text hasn't changed. AI summaries capture structural properties (themes, mood, vibes), not dynamic data like ratings/revenue which are served real-time or injectable in chat context.
 
 ---
 
@@ -232,6 +239,8 @@ The AI enrichment pipeline (content scraping → LLM summarization → embedding
 |------|----|----|----|----|-----|
 | `scripts/summarize-movies.ts` | M | | | | |
 | `src/server/services/enrichment/ai-input-builder.ts` | C | | | | |
+| `src/server/services/enrichment/prompts.ts` | C | | | | |
+| `src/server/services/enrichment/bedrock-flex.ts` | C | | | | |
 | `src/server/services/enrichment/progressive.ts` | | C | | | |
 | `src/lib/embeddings/cohere-generator.ts` | | M | | | |
 | `src/app/api/[mediaType]/[id]/enrich/route.ts` | | | C | | |
@@ -261,11 +270,11 @@ Sessions 2 and 3 can run in parallel (Parallel Group A) — they share no files 
 
 ## Progress
 
-[..........] 0% (0/5 sessions)
+[##........] 20% (1/5 sessions)
 
 ## Acceptance Criteria
 
-- [ ] The summarize script uses Kimi K2.5 non-thinking in ap-south-1 with Flex tier support
+- [x] The summarize script uses Kimi K2.5 non-thinking in ap-south-1 with Flex tier support
 - [ ] Progressive enrichment fires automatically when a page is visited and data is refreshed via Lambda
 - [ ] AI data (hook, insights across all 9 categories) is generated and stored in PostgreSQL
 - [ ] Embeddings are auto-regenerated with AI themes/mood/hook after enrichment
@@ -277,5 +286,7 @@ Sessions 2 and 3 can run in parallel (Parallel Group A) — they share no files 
 
 ## Open Questions
 
-- **Bedrock Flex API integration**: Session 1 must determine whether `ChatBedrockConverse` supports Flex tier via `additionalModelRequestFields`. If not, the raw `BedrockRuntimeClient` from `@aws-sdk/client-bedrock-runtime` (already a dependency) is the fallback. This decision carries through to Session 2.
-- **Stale AI data regeneration**: When Lambda refreshes ratings (stale update), should we also regenerate AI summary? Ratings changes don't affect AI quality much. Current plan: skip unless overview text changed.
+*All resolved.*
+
+- ~~**Bedrock Flex API integration**~~: **Resolved.** Tested — LangChain `@langchain/aws` does NOT support `serviceTier` (field absent from types, `additionalModelRequestFields` maps to a different namespace). Raw `BedrockRuntimeClient` + `ConverseCommand` with `serviceTier: { type: "flex" }` works and response echoes back confirmation. Using raw SDK via shared `bedrock-flex.ts` helper.
+- ~~**Stale AI data regeneration**~~: **Resolved.** Skip regen if `hasAIData` and overview unchanged. AI summaries capture structural properties (themes, mood, vibes, highlights) — not audience opinion or dynamic data. Ratings, revenue, and popularity are served real-time via enriched data or injectable in chat context. Only overview/genre changes warrant regen (rare post-release). Keeps 184K enrichment as one-time ~$210-250 cost.

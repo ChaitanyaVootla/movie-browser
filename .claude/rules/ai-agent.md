@@ -57,6 +57,17 @@ Each API call gets a unique `invocationId` (UUID) scoped in a `Map<string, Invoc
 - Authenticated users get `hideWatched`, `hideDisliked`, `fromWatchlist` flags
 - `maxTokens: 1536` — budget for text + multiple media tags + interactive tags
 
+## Cost Tracking
+
+Every agent invocation tracks token usage and cost to ClickHouse (`ai_usage` table):
+
+- Per-turn token counts (input/output) accumulated in `InvocationContext`
+- Final cost calculated via `calculateCost()` from `model-pricing.ts`
+- Sent to ClickHouse via `trackAIUsage()` with `queryType: 'chat'`
+- Pricing: Kimi K2.5 — $0.0006/1K input, $0.0025/1K output
+
+The unified cost dashboard (`/admin` → Costs tab) aggregates agent costs alongside embeddings, LLM parsing, and Lambda.
+
 ## Adding/Modifying Tools
 
 1. Create tool in `tools/` using `tool()` from `@langchain/core/tools` with Zod schema
