@@ -28,6 +28,18 @@
 | 17d | Analytics: Unified cost dashboard | `costs-tab.tsx`, `costs.ts`, `embedding.ts` | Admin dashboard "Costs" tab with 4-service breakdown (LLM chat, search parsing, embeddings, Lambda), daily trends, pie chart. |
 | 17e | Analytics: Model pricing & types | `model-pricing.ts`, `types.ts` | Cohere Embed v4 pricing, 8 new ActionTypes, 3 new QueryTypes, `trackEmbeddingCall()`, `trackSearchLLMUsage()`. |
 | 18 | Progressive AI enrichment pipeline | `enrichment/progressive.ts`, `bedrock-flex.ts`, `prompts.ts`, `ai-input-builder.ts`, `use-enrichment-stream.ts`, `enrichment-provider.tsx`, `hydration/index.ts` | Automatic AI enrichment on page visit via hydration hook. Kimi K2.5 on Bedrock Flex (50% off). TMDB-only input (~150 tokens), tighter prompt (~500 output tokens). In-memory dedup + p-limit(5) concurrency. SSE streaming for live UI updates. ~$210-250 for full 184K catalog. |
+| 19 | Beta deployment pipeline | `deploy-ec2.yml`, `docker-compose.yml`, `Caddyfile`, `terraform/` | Separate beta EC2 (`movie-browser-beta`, EIP `16.112.156.196`). Caddy for HTTPS. GH Actions deploys `next` branch to `beta` environment. Separate TF state (`beta/terraform.tfstate`). Lambda: `movie-ratings-scraper-beta` (configurable via `LAMBDA_FUNCTION_NAME`). Corepack for Yarn 4. Build-time dummy env placeholders. |
+| 20 | AI agent: Tavily web tools | `server/ai/tools/`, `use-chat-stream.ts`, `agent.ts` | Web search + extract via Tavily, user profile tool, thread-based conversations, citation/image tags, cost tracking. |
+
+### Beta Deployment (Live)
+
+**URL**: `https://beta.themoviebrowser.com`
+**EC2**: `16.112.156.196` (t4g.large, ap-south-2)
+**Branch**: `next` → auto-deploys via GitHub Actions
+**Status**: Running. All services operational — PG, ClickHouse, Caddy (HTTPS), MongoDB (remote), Bedrock (Kimi K2.5 + Cohere), Lambda (beta).
+**Enrichment**: Organic — ~1,000 items enriched in first hour at ~$1.03/1000 items (~$190 projected for 184K full catalog, under the $210-250 estimate).
+
+**GA cutover from beta**: Update `Caddyfile` domain → `themoviebrowser.com`, DNS A record → same EIP, workflow trigger → `master`, environment → `production`, flip `USER_DATA_SOURCE=postgres`.
 
 ### MongoDB -> PostgreSQL User Data: Ready to Switch
 

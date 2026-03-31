@@ -42,23 +42,30 @@ npx tsx scripts/generate-cohere-embeddings.ts --type both --xlarge --force
 
 ## Infrastructure
 
-**EC2**: `t4g.large` (8GB ARM) in `ap-south-2` (Hyderabad). Managed by Terraform (`terraform/`).
+**Beta EC2**: `t4g.large` (8GB ARM) in `ap-south-2` (Hyderabad). EIP `16.112.156.196` → `beta.themoviebrowser.com`. Managed by Terraform (`terraform/`, state key `beta/terraform.tfstate`, project name `movie-browser-beta`).
 
-**Services on EC2** (via `docker-compose.yml`):
+**Production EC2**: `98.130.30.197` → `themoviebrowser.com` (legacy Nuxt + MongoDB). Separate TF state (`production/terraform.tfstate`).
+
+**Services on Beta EC2** (via `docker-compose.yml`):
 - PostgreSQL 17 + pgvector + pg_trgm (port 5433)
 - ClickHouse (port 8123, localhost only)
+- Caddy reverse proxy (HTTPS, auto Let's Encrypt) — config in `Caddyfile`
 - Next.js via PM2 (port 3002)
 
-**CI/CD**: GitHub Actions (`.github/workflows/deploy-ec2.yml`). Push to `master` → typecheck + lint → build → deploy to EC2. Secrets prefixed `NEXT_EC2_*` to avoid collision with legacy Nuxt secrets.
+**CI/CD**: GitHub Actions (`.github/workflows/deploy-ec2.yml`). Push to `next` → typecheck + lint → build → deploy to beta EC2. Environment: `beta`. Requires `corepack enable` for Yarn 4. Build step needs dummy env placeholders (`MONGO_IP`, `DATABASE_URL`, etc.) for Next.js module evaluation. Secrets prefixed `NEXT_EC2_*`.
 
-**AWS IAM** (via EC2 instance profile):
+**AWS IAM** (via EC2 instance profile `movie-browser-beta-ec2-role`):
 - `bedrock:InvokeModel` — Kimi K2.5 (ap-south-1) + Cohere Embed v4 (global)
-- `lambda:InvokeFunction` — movie-ratings-scraper
+- `lambda:InvokeFunction` — `movie-ratings-scraper-beta` + `puppeteer-node14`
 - S3 backup access, CloudWatch logs
 
-**AWS credentials**: On EC2, omit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` — the instance profile provides Bedrock access. Set them only for local dev.
+**Lambda**: Beta uses `movie-ratings-scraper-beta` (configurable via `LAMBDA_FUNCTION_NAME` env var, defaults to `movie-ratings-scraper`).
 
-**MongoDB**: Remote on legacy EC2 (temporary). Connected via `MONGO_IP` env var. Will be severed at GA when `USER_DATA_SOURCE=postgres`.
+**AWS credentials**: On EC2, omit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` — the instance profile provides Bedrock access. Set them only for local dev. Use project IAM user `moviebrowser` (account `620733889764`), never default machine creds.
+
+**MongoDB**: Remote on legacy EC2 (`98.130.30.197`, temporary). Connected via `MONGO_IP` env var. Will be severed at GA when `USER_DATA_SOURCE=postgres`.
+
+**Local PG Access**: `ssh -i movie-browser-ec2-key.pem -L 5433:localhost:5433 ubuntu@16.112.156.196 -N` then use `yarn db:studio`.
 
 ## Directory Structure
 
