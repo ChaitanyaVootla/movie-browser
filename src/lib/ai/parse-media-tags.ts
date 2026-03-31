@@ -29,7 +29,7 @@
  */
 
 export type MediaType = "movie" | "series";
-export type TagKind = "media" | "ratings" | "watch" | "trailer" | "person";
+export type TagKind = "media" | "ratings" | "watch" | "trailer" | "person" | "source" | "webimage";
 
 // =============================================================================
 // Parsed Tag Types
@@ -90,12 +90,32 @@ export interface ParsedPersonTag {
   needsResolution: boolean;
 }
 
+export interface ParsedSourceTag {
+  kind: "source";
+  url: string;
+  title: string;
+  raw: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+export interface ParsedWebImageTag {
+  kind: "webimage";
+  url: string;
+  description: string;
+  raw: string;
+  startIndex: number;
+  endIndex: number;
+}
+
 export type ParsedTag =
   | ParsedMediaTag
   | ParsedRatingsTag
   | ParsedWatchTag
   | ParsedTrailerTag
-  | ParsedPersonTag;
+  | ParsedPersonTag
+  | ParsedSourceTag
+  | ParsedWebImageTag;
 
 // =============================================================================
 // Content Segments (for inline rendering)
@@ -118,7 +138,9 @@ export type ContentSegment =
   | { type: "ratings"; tag: ParsedRatingsTag }
   | { type: "watch"; tag: ParsedWatchTag }
   | { type: "trailer"; tag: ParsedTrailerTag }
-  | { type: "person"; tag: ParsedPersonTag };
+  | { type: "person"; tag: ParsedPersonTag }
+  | { type: "source"; tag: ParsedSourceTag }
+  | { type: "webimage"; tag: ParsedWebImageTag };
 
 // =============================================================================
 // Tag Regexes
@@ -150,9 +172,19 @@ const TRAILER_TAG_REGEX = /\[TRAILER:(movie|series):(\d+)\]/gi;
 const PERSON_TAG_REGEX = /\[PERSON:(?:(\d+):)?:?([^\]]+)\]/gi;
 
 /**
+ * Source citation tags: [SOURCE:https://variety.com/article|Variety]
+ */
+const SOURCE_TAG_REGEX = /\[SOURCE:([^|]+)\|([^\]]+)\]/gi;
+
+/**
+ * Web image tags: [WEB_IMAGE:https://example.com/photo.jpg|Description]
+ */
+const WEB_IMAGE_TAG_REGEX = /\[WEB_IMAGE:([^|]+)\|([^\]]+)\]/gi;
+
+/**
  * Combined regex for stripping all tags
  */
-const ALL_TAGS_REGEX = /\[(MOVIE|SERIES|RATINGS|WATCH|TRAILER|PERSON):[^\]]+\]/gi;
+const ALL_TAGS_REGEX = /\[(MOVIE|SERIES|RATINGS|WATCH|TRAILER|PERSON|SOURCE|WEB_IMAGE):[^\]]+\]/gi;
 
 // =============================================================================
 // Parse Functions
@@ -242,6 +274,36 @@ function parsePersonMatch(match: RegExpExecArray): ParsedPersonTag {
 }
 
 /**
+ * Parse a single source citation tag match
+ */
+function parseSourceMatch(match: RegExpExecArray): ParsedSourceTag {
+  const [raw, url, title] = match;
+  return {
+    kind: "source",
+    url: url.trim(),
+    title: title.trim(),
+    raw,
+    startIndex: match.index,
+    endIndex: match.index + raw.length,
+  };
+}
+
+/**
+ * Parse a single web image tag match
+ */
+function parseWebImageMatch(match: RegExpExecArray): ParsedWebImageTag {
+  const [raw, url, description] = match;
+  return {
+    kind: "webimage",
+    url: url.trim(),
+    description: description.trim(),
+    raw,
+    startIndex: match.index,
+    endIndex: match.index + raw.length,
+  };
+}
+
+/**
  * Parse all media tags from a string (MOVIE/SERIES only)
  */
 export function parseMediaTags(content: string): ParsedMediaTag[] {
@@ -293,6 +355,18 @@ export function parseAllTags(content: string): ParsedTag[] {
   const personRegex = new RegExp(PERSON_TAG_REGEX.source, "gi");
   while ((match = personRegex.exec(content)) !== null) {
     tags.push(parsePersonMatch(match));
+  }
+
+  // Source citation tags
+  const sourceRegex = new RegExp(SOURCE_TAG_REGEX.source, "gi");
+  while ((match = sourceRegex.exec(content)) !== null) {
+    tags.push(parseSourceMatch(match));
+  }
+
+  // Web image tags
+  const webImageRegex = new RegExp(WEB_IMAGE_TAG_REGEX.source, "gi");
+  while ((match = webImageRegex.exec(content)) !== null) {
+    tags.push(parseWebImageMatch(match));
   }
 
   // Sort by start index for proper ordering
@@ -350,6 +424,12 @@ export function parseContent(content: string): ParsedContent {
         break;
       case "person":
         segments.push({ type: "person", tag });
+        break;
+      case "source":
+        segments.push({ type: "source", tag });
+        break;
+      case "webimage":
+        segments.push({ type: "webimage", tag });
         break;
     }
 

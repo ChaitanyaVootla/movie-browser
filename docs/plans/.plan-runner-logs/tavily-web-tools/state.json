@@ -12,14 +12,33 @@
   "parallel": false,
   "maxParallel": 3,
   "status": "running",
-  "sessions": [],
+  "sessions": [
+    {
+      "num": 1,
+      "label": "Tavily Client + Web Tools",
+      "costUsd": 1.76,
+      "durationMs": 357207,
+      "numTurns": 39,
+      "inputTokens": 35,
+      "outputTokens": 16268,
+      "cacheReadTokens": 1822421,
+      "isError": false,
+      "gitCommit": "4327d1f",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
+    }
+  ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 0,
-    "costUsd": 0,
-    "durationMs": 0,
-    "inputTokens": 0,
-    "outputTokens": 0,
-    "cacheReadTokens": 0
+    "sessions": 1,
+    "costUsd": 1.76,
+    "durationMs": 357207,
+    "inputTokens": 35,
+    "outputTokens": 16268,
+    "cacheReadTokens": 1822421
   }
 }

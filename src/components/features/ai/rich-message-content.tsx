@@ -6,9 +6,12 @@ import {
   stripAllTags,
   getDataFetchIds,
   type ParsedMediaTag,
+  type ParsedWebImageTag,
 } from "@/lib/ai/parse-media-tags";
 import { MediaChip, PosterRow } from "./media-chip";
 import { ChatRatings, ChatWatchOptions, ChatTrailer, PersonChip, useTagData } from "./chat-tags";
+import { SourceChip } from "./source-chip";
+import { WebImageCard } from "./web-image-card";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -73,14 +76,22 @@ export const RichMessageContent = memo(function RichMessageContent({
       .trim();
   }, [content, showPosterRow, parsed.allTags.length]);
 
-  // Check for inline tags (ratings, watch, trailer, person)
+  // Check for inline tags (ratings, watch, trailer, person, source)
   const inlineTags = useMemo(() => {
     return parsed.allTags.filter(
       (tag) =>
         tag.kind === "ratings" ||
         tag.kind === "watch" ||
         tag.kind === "trailer" ||
-        tag.kind === "person"
+        tag.kind === "person" ||
+        tag.kind === "source"
+    );
+  }, [parsed.allTags]);
+
+  // Extract web image tags for their own row
+  const webImageTags = useMemo(() => {
+    return parsed.allTags.filter(
+      (tag): tag is ParsedWebImageTag => tag.kind === "webimage"
     );
   }, [parsed.allTags]);
 
@@ -149,8 +160,25 @@ export const RichMessageContent = memo(function RichMessageContent({
                   />
                 );
               }
+              if (tag.kind === "source") {
+                return (
+                  <SourceChip
+                    key={`source-${tag.url}-${idx}`}
+                    tag={tag}
+                  />
+                );
+              }
               return null;
             })}
+          </div>
+        )}
+
+        {/* Web image cards */}
+        {webImageTags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {webImageTags.map((tag, idx) => (
+              <WebImageCard key={`webimg-${tag.url}-${idx}`} tag={tag} />
+            ))}
           </div>
         )}
 
@@ -230,6 +258,24 @@ export const RichMessageContent = memo(function RichMessageContent({
                 tag={segment.tag}
                 data={data}
                 isLoading={isTagDataLoading && !!segment.tag.id}
+              />
+            );
+          }
+
+          if (segment.type === "source") {
+            return (
+              <SourceChip
+                key={`source-${segment.tag.url}-${i}`}
+                tag={segment.tag}
+              />
+            );
+          }
+
+          if (segment.type === "webimage") {
+            return (
+              <WebImageCard
+                key={`webimg-${segment.tag.url}-${i}`}
+                tag={segment.tag}
               />
             );
           }

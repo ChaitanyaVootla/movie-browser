@@ -70,7 +70,7 @@ The AI agent (Cue) currently has 8 tools — all focused on TMDB data (movies, s
 | Session | Phase | Size | Dependencies | Parallel Group | Status | Notes |
 |---------|-------|------|--------------|----------------|--------|-------|
 | 1 | Tavily Client + Web Search & Extract Tools | large | None | - | Complete | Backend: package, client, both tools, env vars, system prompt with TMDB-first + tag format |
-| 2 | Tag Parsing + Citation & Image UI Components | medium | Session 1 | - | Pending | Frontend: new tag types, parsing, SourceChip, WebImageCard, RichMessageContent updates |
+| 2 | Tag Parsing + Citation & Image UI Components | medium | Session 1 | - | Complete | Frontend: new tag types, parsing, SourceChip, WebImageCard, RichMessageContent updates |
 | 3 | Analytics, Cost Tracking & Dashboard | medium | Session 1 | A | Pending | Observability: tracking, cost queries, dashboard, rules/docs updates |
 | 4 | Audit & Hardening | medium | All | - | Pending | Verification, edge cases, integration testing |
 
@@ -121,40 +121,10 @@ The AI agent (Cue) currently has 8 tools — all focused on TMDB data (movies, s
 **Goal:** Extend the tag parsing system with SOURCE and WEB_IMAGE tag types, create UI components to render them, and wire into RichMessageContent — making web search results visually rich in the chat.
 
 **Scope:**
-- [ ] Update `src/lib/ai/parse-media-tags.ts`:
-  - Add `"source" | "webimage"` to `TagKind` union type
-  - Add `ParsedSourceTag` interface: `{ kind: "source", url: string, title: string, raw, startIndex, endIndex }`
-  - Add `ParsedWebImageTag` interface: `{ kind: "webimage", url: string, description: string, raw, startIndex, endIndex }`
-  - Add both to `ParsedTag` union type
-  - Add `{ type: "source"; tag: ParsedSourceTag }` and `{ type: "webimage"; tag: ParsedWebImageTag }` to `ContentSegment` union
-  - Add `SOURCE_TAG_REGEX`: `/\[SOURCE:([^|]+)\|([^\]]+)\]/gi` — captures URL and title
-  - Add `WEB_IMAGE_TAG_REGEX`: `/\[WEB_IMAGE:([^|]+)\|([^\]]+)\]/gi` — captures URL and description
-  - Add parse functions: `parseSourceMatch()`, `parseWebImageMatch()`
-  - Add both to `parseAllTags()` with regex exec loops (same pattern as existing tags)
-  - Update `ALL_TAGS_REGEX` to include `SOURCE|WEB_IMAGE` in the alternation group
-  - Add `case "source"` and `case "webimage"` to the switch in `parseContent()`
-- [ ] Create `src/components/features/ai/source-chip.tsx` — `SourceChip` component:
-  - Renders as a small pill/chip in the chips row (same area as RATINGS/WATCH/PERSON)
-  - Shows: favicon image (from `https://www.google.com/s2/favicons?domain={domain}&sz=16`) + source title text + external link icon
-  - Clickable → opens URL in new tab with `target="_blank" rel="noopener noreferrer"`
-  - Styled similar to PersonChip but with subtle blue/link color
-  - Memo'd with `memo()` for performance
-  - Favicon with `onError` fallback (show generic globe icon if favicon fails to load)
-- [ ] Create `src/components/features/ai/web-image-card.tsx` — `WebImageCard` component:
-  - Renders as a compact image card (thumbnail + description caption below)
-  - Appears in a new row between the chips row and the poster row
-  - Image uses plain `<img>` (NOT `next/image` — external domains aren't in `next.config.mjs` remotePatterns) with `loading="lazy"`, aspect-ratio constraint, rounded corners
-  - Description text below in small muted font, truncated to 2 lines
-  - Clickable → opens full image in new tab
-  - Handles image load errors (hides card if image fails)
-  - Memo'd with `memo()` for performance
-- [ ] Update `src/components/features/ai/rich-message-content.tsx`:
-  - Import `SourceChip` and `WebImageCard`
-  - Add source tags to the `inlineTags` filter (alongside ratings, watch, trailer, person)
-  - Render `SourceChip` in the chips `<div>` when `tag.kind === "source"`
-  - Extract webimage tags from `parsed.allTags` into a separate `webImageTags` array
-  - Render `WebImageCard` components in a new flex row between chips and poster row (only if webImageTags.length > 0)
-  - Also handle both tag types in the non-poster-row (inline) rendering path
+- [x] Update `src/lib/ai/parse-media-tags.ts` — Added `"source" | "webimage"` to `TagKind`, created `ParsedSourceTag` and `ParsedWebImageTag` interfaces, added to `ParsedTag` and `ContentSegment` unions, added `SOURCE_TAG_REGEX` and `WEB_IMAGE_TAG_REGEX`, implemented `parseSourceMatch()` and `parseWebImageMatch()`, added exec loops in `parseAllTags()`, updated `ALL_TAGS_REGEX` alternation, added switch cases in `parseContent()`
+- [x] Create `src/components/features/ai/source-chip.tsx` — `SourceChip` component: memo'd pill with favicon (Google S2 service, Globe fallback on error), title text (truncated 120px), ExternalLink icon. Blue-tinted styling (`bg-blue-500/10`, `border-blue-400/20`) distinct from other chips. `target="_blank" rel="noopener noreferrer"`. Domain extracted via `new URL()`.
+- [x] Create `src/components/features/ai/web-image-card.tsx` — `WebImageCard` component: memo'd 140px-wide card with 16:10 aspect ratio thumbnail, `loading="lazy"`, 2-line clamped description. Returns `null` on image error (hides completely). Plain `<img>` for external domains. Hover scale effect on image.
+- [x] Update `src/components/features/ai/rich-message-content.tsx` — Imported `SourceChip` and `WebImageCard`, added `"source"` to `inlineTags` filter, extracted `webImageTags` array, renders `SourceChip` in chips row, `WebImageCard` in new flex row between chips and poster row, handles both types in inline rendering path. Rendering order: text → chips (RATINGS/WATCH/TRAILER/PERSON/SOURCE) → web images → poster cards.
 
 **Key files:** `src/lib/ai/parse-media-tags.ts` (M), `src/components/features/ai/source-chip.tsx` (C), `src/components/features/ai/web-image-card.tsx` (C), `src/components/features/ai/rich-message-content.tsx` (M)
 
@@ -285,7 +255,7 @@ graph TD
 
 ## Progress
 
-[███.........] 25% (1/4 sessions)
+[██████......] 50% (2/4 sessions)
 
 ## Acceptance Criteria
 
