@@ -167,17 +167,18 @@ interface ParticleBurstProps {
 }
 
 export function ParticleBurst({ isActive, particleCount = 8, color = "brand" }: ParticleBurstProps) {
-  const particles = useMemo(
-    () =>
-      Array.from({ length: particleCount }).map((_, i) => {
-        const angle = (i / particleCount) * 360;
-        const distance = 24 + Math.random() * 12;
-        const size = 3 + Math.random() * 2;
-        const delay = Math.random() * 0.1;
-        return { angle, distance, size, delay, id: i };
-      }),
-    [particleCount]
-  );
+  const particles = useMemo(() => {
+    // Deterministic pseudo-random values per particle index
+    const seed = [0.72, 0.34, 0.91, 0.15, 0.58, 0.43, 0.87, 0.26, 0.65, 0.11, 0.79, 0.52];
+    return Array.from({ length: particleCount }).map((_, i) => {
+      const s = seed[i % seed.length];
+      const angle = (i / particleCount) * 360;
+      const distance = 24 + s * 12;
+      const size = 3 + s * 2;
+      const delay = s * 0.1;
+      return { angle, distance, size, delay, id: i };
+    });
+  }, [particleCount]);
 
   return (
     <AnimatePresence>

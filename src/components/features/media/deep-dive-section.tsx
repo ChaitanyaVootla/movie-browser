@@ -13,7 +13,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { useUserStore } from "@/stores/user";
 import {
   Lightbulb,
@@ -202,7 +202,7 @@ export function DeepDiveSection({
 
   // Auto-expand when user marks as watched
   useEffect(() => {
-    if (isWatched) setIsExpanded(true);
+    if (isWatched) startTransition(() => setIsExpanded(true));
   }, [isWatched]);
 
   if (!items?.length) return null;

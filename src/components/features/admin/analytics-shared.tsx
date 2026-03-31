@@ -192,12 +192,12 @@ export function PremiumSkeleton({ className, variant = "card" }: PremiumSkeleton
       return (
         <div className={cn("space-y-3", className)}>
           <div className="flex items-end gap-1 h-32">
-            {Array.from({ length: 12 }).map((_, i) => (
+            {[65, 42, 88, 35, 72, 51, 93, 38, 77, 45, 82, 56].map((h, i) => (
               <div
                 key={i}
                 className="flex-1 bg-zinc-800/50 rounded-t animate-pulse"
                 style={{
-                  height: `${30 + Math.random() * 70}%`,
+                  height: `${h}%`,
                   animationDelay: `${i * 50}ms`,
                 }}
               />
