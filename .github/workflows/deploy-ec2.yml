@@ -118,7 +118,7 @@ jobs:
             docker compose ps
 
             echo "[3/6] Installing production dependencies..."
-            corepack enable
+            sudo corepack enable
             yarn install --immutable
 
             echo "[4/6] Applying Prisma schema..."
