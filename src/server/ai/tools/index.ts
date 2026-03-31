@@ -3,7 +3,7 @@
  *
  * Export all tools for the movie recommendation agent.
  *
- * Consolidated tool set (8 tools total):
+ * Consolidated tool set (10 tools total):
  * 1. search - Find movies/series/people by name (TMDB multi-search)
  * 2. smart_discover - Unified discovery with filters + semantic search + user library (PostgreSQL)
  * 3. get_trending - What's popular right now
@@ -12,6 +12,8 @@
  * 6. get_upcoming - Upcoming/now playing content
  * 7. get_page_context - Current page the user is viewing
  * 8. navigate_to - Navigation intent
+ * 9. web_search - Search the live web (Tavily) for news, box office, awards, reviews
+ * 10. web_extract - Extract full content from URLs found via web_search
  *
  * NOTE: get_user_data was removed - use smart_discover with fromWatchlist=true instead.
  * This returns watchlist items WITH full details (title, year, rating, genres) rather than
@@ -36,6 +38,10 @@ export { getUpcomingTool, upcomingTools } from "./upcoming";
 // Context tool
 export { getPageContextTool, type PageContext } from "./context";
 
+// Web tools (Tavily)
+export { webSearchTool } from "./web-search";
+export { webExtractTool } from "./web-extract";
+
 // =============================================================================
 // All Tools Array
 // =============================================================================
@@ -48,9 +54,11 @@ import { getDetailsTool } from "./details";
 import { getPersonTool } from "./person";
 import { getUpcomingTool } from "./upcoming";
 import { getPageContextTool } from "./context";
+import { webSearchTool } from "./web-search";
+import { webExtractTool } from "./web-extract";
 
 /**
- * All available tools for the movie agent (8 tools)
+ * All available tools for the movie agent (10 tools)
  *
  * Tool consolidation summary (Jan 2026):
  * - smart_discover: Unified tool combining discover + semantic_search + find_similar + user library
@@ -78,6 +86,10 @@ export const allTools = [
   // Context & Navigation
   getPageContextTool, // What page user is on
   navigateTool, // Navigate to pages
+
+  // Web tools (Tavily)
+  webSearchTool, // Search live web for news, awards, box office, reviews
+  webExtractTool, // Extract full content from URLs
 ];
 
 // =============================================================================

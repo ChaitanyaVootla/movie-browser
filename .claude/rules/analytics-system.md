@@ -55,7 +55,7 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 
 | Function | ClickHouse Table | Use Case |
 |----------|-----------------|----------|
-| `trackAIUsage()` | `ai_usage` | Agent chat invocations (tokens, cost, tools) |
+| `trackAIUsage()` | `ai_usage` | Agent chat invocations (tokens, cost, tools) + progressive enrichment (query_type=progressive_enrichment) |
 | `trackSearchLLMUsage()` | `ai_usage` | Tier 3 LLM query parsing (query_type=search_llm_parsing) |
 | `trackEmbeddingCall()` | `api_calls` | Cohere embedding calls (service=embedding, tokens field) |
 | `trackAPICall()` | `api_calls` | TMDB, Lambda, embedding API calls |

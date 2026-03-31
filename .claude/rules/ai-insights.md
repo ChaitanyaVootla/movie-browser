@@ -142,7 +142,7 @@ yarn summarize <id> --force      # Regenerate existing
 yarn summarize:batch             # Batch process popular items
 ```
 
-**Important**: Uses `maxTokens: 16384` for Kimi K2 since reasoning tokens count toward output limit.
+**Model**: Kimi K2.5 non-thinking (`moonshotai.kimi-k2.5`) in `ap-south-1`. `maxTokens: 2048`, `temperature: 0.7`. Supports `--flex` flag for Bedrock Flex pricing (50% off). Prompt shared from `src/server/services/enrichment/prompts.ts`.
 
 ## Validation
 

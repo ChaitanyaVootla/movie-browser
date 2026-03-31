@@ -80,6 +80,7 @@ services:
       - CLICKHOUSE_USER=analytics
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-analytics_secret_123}
       - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    mem_limit: 2g
     ulimits:
       nofile:
         soft: 262144

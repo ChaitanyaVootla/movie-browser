@@ -351,6 +351,10 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         voteCount={series.vote_count}
         genres={series.genres?.map((g) => g.name)}
         aiQuestions={aiSummary?.aiQuestions}
+        postWatchQuestions={aiData?.insights?.spoilerContent?.questions}
+        trivia={aiData?.insights?.spoilerContent?.deepDive
+          ?.filter((d) => d.subcategory === "trivia" || d.subcategory === "insight")
+          .map((d) => d.text)}
         seasonCount={series.number_of_seasons}
         status={series.status}
       />
@@ -411,6 +415,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
             items={aiData.insights.spoilerContent.deepDive}
             className="mt-6"
             maxCollapsedItems={3}
+            mediaId={series.id}
           />
         )}
 

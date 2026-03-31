@@ -130,6 +130,17 @@ function isSelectOnly(sql: string): boolean {
 
 The `costs` type returns unified cost breakdown: `{ llmChat, llmSearchParsing, embedding, lambda, total }` with daily breakdown.
 
+## SSE Enrichment Endpoint
+
+`GET /api/[mediaType]/[id]/enrich` — Server-Sent Events endpoint for streaming enrichment status updates to detail pages.
+
+- Validates `mediaType` (`movie` | `series`) and `id` (positive integer) with Zod
+- **Fast path**: If ratings and AI data both exist, sends `{ type: "done", refreshing: false }` immediately
+- **Slow path**: Sends `{ type: "status", refreshing: true }`, polls PG every 3 seconds for changes (ratings, AI data), streams updates, closes after `done` or 120 second max
+- Events: `status`, `ratings`, `ai`, `done`
+- Client: `useEnrichmentStream` hook (`src/hooks/use-enrichment-stream.ts`) uses `EventSource` API
+- Does NOT trigger enrichment directly — the Server Component render triggers hydration → progressive enrichment. SSE just observes PG state.
+
 **Key files:**
 - `src/app/api/analytics/ingest/route.ts` — Event ingestion
 - `src/app/api/admin/analytics/route.ts` — Dashboard queries

@@ -3,7 +3,10 @@
  *
  * Shared helper for calling AWS Bedrock with optional Flex pricing (50% off).
  * Uses raw `BedrockRuntimeClient` + `ConverseCommand` since LangChain's
- * `@langchain/aws` does NOT support the `serviceTier` field.
+ * `@langchain/aws` does NOT expose the `serviceTier` field.
+ *
+ * Flex tier uses `serviceTier: { type: "flex" }` (NOT performanceConfig.latency
+ * which is a separate latency optimization feature).
  *
  * Used by both the summarize script and the progressive enrichment service.
  */
@@ -99,7 +102,6 @@ export async function callBedrockFlex(
     systemPrompt,
     maxTokens,
     temperature,
-    useFlex = false,
     modelId = DEFAULT_MODEL_ID,
     region = DEFAULT_REGION,
   } = params;
@@ -120,9 +122,9 @@ export async function callBedrockFlex(
       maxTokens,
       temperature,
     },
-    ...(useFlex && {
-      performanceConfig: {
-        latency: "optimized",
+    ...(params.useFlex && {
+      serviceTier: {
+        type: "flex",
       },
     }),
   });

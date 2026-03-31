@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 // =============================================================================
 // Types
@@ -91,6 +92,7 @@ export function useEnrichmentStream(
   mediaType: "movie" | "series",
   id: number
 ): EnrichmentStreamState {
+  const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [latestRatings, setLatestRatings] = useState<RatingsEventData | null>(null);
   const [latestAI, setLatestAI] = useState<AIEventData | null>(null);
@@ -128,6 +130,10 @@ export function useEnrichmentStream(
 
           case "ai":
             setLatestAI(parsed.data as AIEventData);
+            // Re-render server components so all AI sections appear
+            // (only LiveAIHook + LiveAISections update via state;
+            // themes, mood, bestFor, highlights etc. are server-rendered)
+            router.refresh();
             break;
 
           case "done":

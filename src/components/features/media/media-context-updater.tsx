@@ -13,6 +13,8 @@ interface MediaContextUpdaterProps {
   voteCount?: number | null;
   genres?: string[] | null;
   aiQuestions?: string[] | null;
+  postWatchQuestions?: string[] | null;
+  trivia?: string[] | null;
   seasonCount?: number | null;
   status?: string | null;
 }
@@ -32,6 +34,8 @@ export function MediaContextUpdater({
   voteCount,
   genres,
   aiQuestions,
+  postWatchQuestions,
+  trivia,
   seasonCount,
   status,
 }: MediaContextUpdaterProps) {
@@ -49,6 +53,8 @@ export function MediaContextUpdater({
       voteCount: voteCount || null,
       genres: genres || null,
       aiQuestions: aiQuestions || null,
+      postWatchQuestions: postWatchQuestions || null,
+      trivia: trivia || null,
       seasonCount: seasonCount || null,
       status: status || null,
     });
@@ -67,6 +73,8 @@ export function MediaContextUpdater({
     voteCount,
     genres,
     aiQuestions,
+    postWatchQuestions,
+    trivia,
     seasonCount,
     status,
     setMediaContext,

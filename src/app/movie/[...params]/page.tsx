@@ -350,6 +350,10 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         voteCount={movie.vote_count}
         genres={movie.genres?.map((g) => g.name)}
         aiQuestions={aiSummary?.aiQuestions}
+        postWatchQuestions={aiData?.insights?.spoilerContent?.questions}
+        trivia={aiData?.insights?.spoilerContent?.deepDive
+          ?.filter((d) => d.subcategory === "trivia" || d.subcategory === "insight")
+          .map((d) => d.text)}
       />
 
       {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills */}
@@ -389,6 +393,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
             items={aiData.insights.spoilerContent.deepDive}
             className="mt-6"
             maxCollapsedItems={3}
+            mediaId={movie.id}
           />
         )}
 

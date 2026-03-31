@@ -123,6 +123,14 @@ export function MediaActions({
       await toggleWatched();
       if (!wasWatched) {
         triggerAnimation("watched", 700);
+        // Nudge the AI agent to surface post-watch discussion
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("ai-post-watch", {
+              detail: { tmdbId: itemId, mediaType, title },
+            })
+          );
+        }, 800); // After watched animation completes
       }
       trackWatched(itemId, mediaType, !wasWatched, title);
     } finally {

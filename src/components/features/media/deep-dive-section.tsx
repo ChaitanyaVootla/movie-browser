@@ -13,7 +13,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useUserStore } from "@/stores/user";
 import {
   Lightbulb,
   Target,
@@ -88,10 +89,14 @@ interface DeepDiveSectionProps {
   className?: string;
   defaultExpanded?: boolean;
   maxCollapsedItems?: number;
+  /** When true, show all items expanded with spoilers revealed (user marked as watched) */
+  isWatched?: boolean;
+  /** TMDB ID — used to auto-detect watched status from user store if isWatched not passed */
+  mediaId?: number;
 }
 
-function SpoilerGatedItem({ item }: { item: DeepDiveItem }) {
-  const [revealed, setRevealed] = useState(false);
+function SpoilerGatedItem({ item, autoReveal = false }: { item: DeepDiveItem; autoReveal?: boolean }) {
+  const [revealed, setRevealed] = useState(autoReveal);
 
   const config = DEEP_DIVE_CONFIG[item.subcategory];
   const Icon = config?.icon ?? Lightbulb;
@@ -188,8 +193,17 @@ export function DeepDiveSection({
   className,
   defaultExpanded = false,
   maxCollapsedItems = 3,
+  isWatched: isWatchedProp,
+  mediaId,
 }: DeepDiveSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const storeWatched = useUserStore((s) => mediaId ? s.isWatched(mediaId) : false);
+  const isWatched = isWatchedProp ?? storeWatched;
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded || isWatched);
+
+  // Auto-expand when user marks as watched
+  useEffect(() => {
+    if (isWatched) setIsExpanded(true);
+  }, [isWatched]);
 
   if (!items?.length) return null;
 
@@ -266,6 +280,7 @@ export function DeepDiveSection({
             <SpoilerGatedItem
               key={`${item.subcategory}-${index}`}
               item={item}
+              autoReveal={isWatched}
             />
           ))}
         </div>

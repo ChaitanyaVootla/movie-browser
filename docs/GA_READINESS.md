@@ -227,13 +227,13 @@ Freshness thresholds (from `src/lib/data-freshness.ts`):
 
 | # | Task | Priority | Effort | Notes |
 |---|------|----------|--------|-------|
-| 17 | Add rate limiting to API routes | **High** | Medium | No rate limiting on any endpoint. Consider `@upstash/ratelimit`. |
-| 18 | Slim down watchlist API payload | Medium | Low | Returns full movie objects. Return minimal fields for 30-50% reduction. |
-| 19 | Add composite database indexes | Medium | Low | Missing: `credits(creditType)` partial index. |
-| 20 | Fix trailer modal redundant YouTube fetch | Medium | Low | Modal re-fetches stats already in carousel. Use TanStack Query cache key matching. |
-| 21 | Fix IdleCircle keyboard accessibility | Low | Low | `motion.button` with manual `onKeyDown` — use native `<button>` wrapped in motion. |
-| 22 | Regenerate embeddings with Cohere | **High** | Low | Existing Titan vectors incompatible with Cohere query vectors. Run `--force`. |
-| 23 | Open PG port for bulk populate (temporary) | **High** | Low | Add SG rule or use SSH tunnel so old EC2 can write to new PG. Remove after. |
+| 19 | Add rate limiting to API routes | **High** | Medium | No rate limiting on any endpoint. Consider `@upstash/ratelimit`. |
+| 20 | Slim down watchlist API payload | Medium | Low | Returns full movie objects. Return minimal fields for 30-50% reduction. |
+| 21 | Add composite database indexes | Medium | Low | Missing: `credits(creditType)` partial index. |
+| 22 | Fix trailer modal redundant YouTube fetch | Medium | Low | Modal re-fetches stats already in carousel. Use TanStack Query cache key matching. |
+| 23 | Fix IdleCircle keyboard accessibility | Low | Low | `motion.button` with manual `onKeyDown` — use native `<button>` wrapped in motion. |
+| 24 | Regenerate existing embeddings with Cohere | **High** | Low | Existing Titan vectors incompatible with Cohere query vectors. Run `--force`. Progressive enrichment auto-regenerates embeddings for newly enriched items, but pre-existing items still need the manual pass. |
+| 25 | Open PG port for bulk populate (temporary) | **High** | Low | Add SG rule or use SSH tunnel so old EC2 can write to new PG. Remove after. |
 
 ### Bedrock Setup Notes
 
@@ -243,6 +243,12 @@ Freshness thresholds (from `src/lib/data-freshness.ts`):
 - Provider default switched from OpenRouter to Bedrock
 - Set `AI_PROVIDER=openrouter` to fall back to OpenRouter if needed
 - Enable model access in [Bedrock Console](https://ap-south-1.console.aws.amazon.com/bedrock/home?region=ap-south-1#/modelaccess)
+
+**Bedrock Flex Tier** (progressive enrichment):
+- Used by `src/server/services/enrichment/bedrock-flex.ts` via raw `BedrockRuntimeClient` + `ConverseCommand`
+- Enabled with `performanceConfig: { latency: "optimized" }` — 50% off standard pricing
+- LangChain `@langchain/aws` does NOT support Flex (`additionalModelRequestFields` maps to a different namespace) — must use raw SDK
+- Applied to progressive AI enrichment only (not chat agent, which uses LangChain)
 
 **Embeddings (Cohere Embed v4)**:
 - Model ID: `global.cohere.embed-v4:0` (global cross-region inference profile)

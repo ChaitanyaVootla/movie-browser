@@ -38,11 +38,25 @@ export interface AssistantFloatyProps {
   };
 }
 
+export interface PostWatchContext {
+  title: string;
+  tmdbId: number;
+  mediaType: "movie" | "series";
+  questions: string[];
+  trivia: string[];
+}
+
 export interface IdleCircleProps {
   onExpand: (clickedPrompt?: PromptConfig) => void;
   showPrompt: boolean;
   prompt: PromptConfig | null;
   hasActiveConversation?: boolean;
+  /** Post-watch mode: show movie-specific discussion prompts */
+  postWatch?: PostWatchContext | null;
+  /** Callback when a post-watch question is clicked */
+  onPostWatchQuestion?: (message: string) => void;
+  /** Callback to dismiss the post-watch bubble */
+  onPostWatchDismiss?: () => void;
 }
 
 export interface MinimalViewProps {

@@ -180,12 +180,13 @@ export async function GET(request: NextRequest) {
       // AI Dashboard
       // =======================================================================
       case "ai": {
-        const [overview, daily, topUsers, queryTypes] = await Promise.all([
-          getAIUsageOverview(range),
-          getDailyAICosts(range),
-          getTopAIUsers(range, 10),
-          getQueryTypeDistribution(range),
-        ]);
+        // Run sequentially to avoid exceeding ClickHouse server memory limit (1 GiB).
+        // Overview and daily use the pre-aggregated hourly_ai_costs MV (lightweight).
+        // TopUsers and queryTypes scan the raw table (heavier).
+        const overview = await getAIUsageOverview(range);
+        const daily = await getDailyAICosts(range);
+        const topUsers = await getTopAIUsers(range, 10);
+        const queryTypes = await getQueryTypeDistribution(range);
 
         return NextResponse.json({
           overview,

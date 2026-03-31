@@ -96,6 +96,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.90.12",
+    "@tavily/core": "^0.7.2",
     "@testing-library/dom": "^10.4.1",
     "cheerio": "^1.1.2",
     "class-variance-authority": "^0.7.1",

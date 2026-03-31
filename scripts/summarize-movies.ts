@@ -363,10 +363,11 @@ async function summarizeMovie(
     summary.inputTokens = inputTokens;
     summary.outputTokens = outputTokens;
 
-    // Log cost for this summary
+    // Log cost for this summary (Flex tier = 50% off)
     const cost = calculateCost(MODEL_ID, inputTokens, outputTokens);
+    const actualCost = useFlex ? cost.totalCost * 0.5 : cost.totalCost;
     console.log(
-      `   💰 Cost: ${formatCost(cost.totalCost)} (${inputTokens} in / ${outputTokens} out)`
+      `   💰 Cost: ${formatCost(actualCost)} (${inputTokens} in / ${outputTokens} out)${useFlex ? " [Flex]" : ""}`
     );
 
     // Save summary to file
@@ -591,7 +592,8 @@ async function runBatch(): Promise<void> {
   console.log(`   Total input tokens: ${totalInputTokens.toLocaleString()}`);
   console.log(`   Total output tokens: ${totalOutputTokens.toLocaleString()}`);
   const batchCost = calculateCost(MODEL_ID, totalInputTokens, totalOutputTokens);
-  console.log(`   Total cost: ${formatCost(batchCost.totalCost)}`);
+  const actualBatchCost = useFlex ? batchCost.totalCost * 0.5 : batchCost.totalCost;
+  console.log(`   Total cost: ${formatCost(actualBatchCost)}${useFlex ? " [Flex 50% off]" : ""}`);
   console.log(`   Total time: ${(totalDuration / 1000 / 60).toFixed(1)} minutes`);
 
   if (failed.length > 0) {

@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "doc": "/Users/chaitanya/dev/movie-browser/docs/plans/tavily-web-tools.md",
+  "startedAt": "2026-03-31T00:00:00Z",
+  "completedAt": null,
+  "model": "opus",
+  "tier": "Standard",
+  "maxSessionBudgetUsd": 20,
+  "totalBudgetUsd": 200,
+  "baseBranch": null,
+  "featureBranch": "next",
+  "parallel": false,
+  "maxParallel": 3,
+  "status": "running",
+  "sessions": [],
+  "parallelGroups": {},
+  "totals": {
+    "sessions": 0,
+    "costUsd": 0,
+    "durationMs": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "cacheReadTokens": 0
+  }
+}

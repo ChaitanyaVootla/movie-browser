@@ -339,9 +339,16 @@ async function runEnrichment(
     await generateAndStoreEmbedding(mediaType, id, enrichedText, false);
   }
 
-  // Track costs
+  // Track costs (Flex tier = 50% off standard pricing)
   const durationMs = Date.now() - startTime;
-  const cost = calculateCost(MODEL_ID, result.inputTokens, result.outputTokens);
+  const standardCost = calculateCost(MODEL_ID, result.inputTokens, result.outputTokens);
+  const FLEX_DISCOUNT = 0.5;
+  const cost = {
+    inputCost: standardCost.inputCost * FLEX_DISCOUNT,
+    outputCost: standardCost.outputCost * FLEX_DISCOUNT,
+    totalCost: standardCost.totalCost * FLEX_DISCOUNT,
+    formatted: `$${(standardCost.totalCost * FLEX_DISCOUNT).toFixed(6)}`,
+  };
 
   log.info(
     {

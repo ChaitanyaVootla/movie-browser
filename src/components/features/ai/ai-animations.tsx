@@ -182,6 +182,131 @@ interface GlowContainerProps {
   borderRadius?: number;
 }
 
+// =============================================================================
+// Wake-Up Border (cascading glow from top → bottom on viewport edges)
+// =============================================================================
+
+interface WakeUpBorderProps {
+  isActive: boolean;
+  /** Called when the cascade animation completes */
+  onComplete?: () => void;
+}
+
+/**
+ * Symmetric glowing lines that start at top center and cascade down both
+ * viewport edges, drawing the user's eye to the agent bubble at the bottom.
+ *
+ * Each side has:
+ * - A moving highlight segment (~20vh tall) that traces top→bottom
+ * - A trailing glow that fades in behind it
+ * - The whole thing fades out after the trace completes
+ */
+export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
+  return (
+    <AnimatePresence>
+      {isActive && (
+        <motion.div
+          className="fixed inset-0 z-[60] pointer-events-none"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.5, delay: 0.3 } }}
+        >
+          {/* Left edge — trailing glow (revealed top to bottom) */}
+          <motion.div
+            className="absolute top-0 left-0 w-[2px] h-full"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--color-brand) 0%, transparent 100%)",
+            }}
+            initial={{ clipPath: "inset(0 0 100% 0)" }}
+            animate={{ clipPath: "inset(0 0 0% 0)" }}
+            transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
+          />
+          {/* Left edge — soft glow */}
+          <motion.div
+            className="absolute top-0 left-0 w-[6px] h-full"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--color-brand) 0%, transparent 100%)",
+              opacity: 0.15,
+              filter: "blur(4px)",
+            }}
+            initial={{ clipPath: "inset(0 0 100% 0)" }}
+            animate={{ clipPath: "inset(0 0 0% 0)" }}
+            transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
+          />
+
+          {/* Right edge — trailing glow */}
+          <motion.div
+            className="absolute top-0 right-0 w-[2px] h-full"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--color-brand) 0%, transparent 100%)",
+            }}
+            initial={{ clipPath: "inset(0 0 100% 0)" }}
+            animate={{ clipPath: "inset(0 0 0% 0)" }}
+            transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
+          />
+          {/* Right edge — soft glow */}
+          <motion.div
+            className="absolute top-0 right-0 w-[6px] h-full"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--color-brand) 0%, transparent 100%)",
+              opacity: 0.15,
+              filter: "blur(4px)",
+            }}
+            initial={{ clipPath: "inset(0 0 100% 0)" }}
+            animate={{ clipPath: "inset(0 0 0% 0)" }}
+            transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
+          />
+
+          {/* Left — moving highlight segment */}
+          <motion.div
+            className="absolute left-0 w-[2px]"
+            style={{
+              height: "20vh",
+              background:
+                "linear-gradient(to bottom, transparent, var(--color-brand), transparent)",
+              boxShadow: "0 0 12px 2px var(--color-brand)",
+            }}
+            initial={{ top: "-20vh" }}
+            animate={{ top: "100vh" }}
+            transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
+          />
+
+          {/* Right — moving highlight segment */}
+          <motion.div
+            className="absolute right-0 w-[2px]"
+            style={{
+              height: "20vh",
+              background:
+                "linear-gradient(to bottom, transparent, var(--color-brand), transparent)",
+              boxShadow: "0 0 12px 2px var(--color-brand)",
+            }}
+            initial={{ top: "-20vh" }}
+            animate={{ top: "100vh" }}
+            transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
+            onAnimationComplete={onComplete}
+          />
+
+          {/* Bottom convergence flash — brief glow where lines reach the agent */}
+          <motion.div
+            className="absolute bottom-0 left-0 right-0 h-16"
+            style={{
+              background:
+                "radial-gradient(ellipse at bottom center, var(--color-brand), transparent 70%)",
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.3, 0] }}
+            transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export function GlowContainer({
   isActive,
   children,

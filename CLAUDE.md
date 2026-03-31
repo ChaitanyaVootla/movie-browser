@@ -169,7 +169,7 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 
 | File | Scope | Description |
 |------|-------|-------------|
-| `postgres-hydration.md` | `hydration/**`, `postgres/**`, `user-data.ts` | Hydration service, freshness, bulk population |
+| `postgres-hydration.md` | `hydration/**`, `enrichment/**`, `postgres/**`, `user-data.ts` | Hydration service, progressive enrichment, freshness, bulk population |
 | `search-system.md` | `search/**`, `fuzzy-search.ts`, `embeddings/**` | Hybrid search, RRF ranking, Cohere embeddings |
 | `ai-insights.md` | `standout-*.tsx`, `ai-insights.ts` | Tag-based insights, spoiler levels |
 | `ai-agent.md` | `server/ai/**`, `use-chat-stream.ts`, `api/ai/chat/**` | Agent architecture, checkpointer, tools, thread lifecycle |

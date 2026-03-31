@@ -2,7 +2,7 @@
   "version": 2,
   "doc": "/Users/chaitanya/dev/movie-browser/docs/plans/progressive-enrichment.md",
   "startedAt": "2026-03-30T14:53:17Z",
-  "completedAt": null,
+  "completedAt": "2026-03-30T16:15:00Z",
   "model": "opus",
   "tier": "Complex",
   "maxSessionBudgetUsd": 20,
@@ -11,7 +11,7 @@
   "featureBranch": "next",
   "parallel": false,
   "maxParallel": 3,
-  "status": "running",
+  "status": "completed",
   "sessions": [
     {
       "num": 1,
@@ -84,15 +84,51 @@
       "reviewFindings": null,
       "parallelGroup": null,
       "worktreePath": null
+    },
+    {
+      "num": 5,
+      "label": "Audit & Hardening",
+      "costUsd": 3.52,
+      "durationMs": 551007,
+      "numTurns": 61,
+      "inputTokens": 4582593,
+      "outputTokens": 25043,
+      "cacheReadTokens": 4476649,
+      "isError": false,
+      "gitCommit": "ad6078f",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
+    },
+    {
+      "num": 6,
+      "label": "Audit Pass",
+      "costUsd": 1.30,
+      "durationMs": 187762,
+      "numTurns": 53,
+      "inputTokens": 1304988,
+      "outputTokens": 8196,
+      "cacheReadTokens": 1227393,
+      "isError": false,
+      "gitCommit": "d7c9b30",
+      "retryCount": 0,
+      "verificationPassed": null,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
     }
   ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 4,
-    "costUsd": 13.10,
-    "durationMs": 1694861,
-    "inputTokens": 17419683,
-    "outputTokens": 82843,
-    "cacheReadTokens": 17014032
+    "sessions": 6,
+    "costUsd": 17.92,
+    "durationMs": 2433630,
+    "inputTokens": 23307264,
+    "outputTokens": 116082,
+    "cacheReadTokens": 22638074
   }
 }

@@ -20,33 +20,42 @@ import {
 
 /**
  * Get AI usage overview
+ * Uses hourly_ai_costs materialized view for aggregates + raw table only for unique_users
  */
 export async function getAIUsageOverview(range: TimeRange): Promise<AIUsageOverview> {
+  const timeConditionHour = getTimeRangeCondition(range, "hour");
   const timeCondition = getTimeRangeCondition(range);
 
-  const [result] = await query<{
+  // Aggregates from pre-aggregated MV (tiny scan)
+  const [agg] = await query<{
     total_invocations: string;
     total_cost: string;
     total_tokens: string;
     avg_response_time: string;
-    unique_users: string;
   }>(`
-    SELECT 
-      count() AS total_invocations,
+    SELECT
+      sum(invocations) AS total_invocations,
       sum(total_cost) AS total_cost,
       sum(total_tokens) AS total_tokens,
-      avg(duration_ms) AS avg_response_time,
+      avgMerge(avg_duration_ms_state) AS avg_response_time
+    FROM hourly_ai_costs
+    WHERE ${timeConditionHour}
+  `);
+
+  // Unique users still needs raw table, but this is a lightweight uniq scan
+  const [users] = await query<{ unique_users: string }>(`
+    SELECT
       uniqIf(user_id, user_id IS NOT NULL) + countIf(user_id IS NULL) AS unique_users
     FROM ai_usage
     WHERE ${timeCondition}
   `);
 
   return {
-    totalInvocations: parseInt(result?.total_invocations || "0", 10),
-    totalCost: parseFloat(result?.total_cost || "0"),
-    totalTokens: parseInt(result?.total_tokens || "0", 10),
-    avgResponseTime: parseFloat(result?.avg_response_time || "0"),
-    uniqueUsers: parseInt(result?.unique_users || "0", 10),
+    totalInvocations: parseInt(agg?.total_invocations || "0", 10),
+    totalCost: parseFloat(agg?.total_cost || "0"),
+    totalTokens: parseInt(agg?.total_tokens || "0", 10),
+    avgResponseTime: parseFloat(agg?.avg_response_time || "0"),
+    uniqueUsers: parseInt(users?.unique_users || "0", 10),
   };
 }
 
@@ -56,9 +65,10 @@ export async function getAIUsageOverview(range: TimeRange): Promise<AIUsageOverv
 
 /**
  * Get daily AI costs over time
+ * Uses hourly_ai_costs materialized view instead of scanning raw table
  */
 export async function getDailyAICosts(range: TimeRange): Promise<DailyAICost[]> {
-  const timeCondition = getTimeRangeCondition(range);
+  const timeCondition = getTimeRangeCondition(range, "hour");
 
   const rows = await query<{
     date: string;
@@ -66,12 +76,12 @@ export async function getDailyAICosts(range: TimeRange): Promise<DailyAICost[]> 
     tokens: string;
     cost: string;
   }>(`
-    SELECT 
-      toDate(timestamp) AS date,
-      count() AS invocations,
+    SELECT
+      toDate(hour) AS date,
+      sum(invocations) AS invocations,
       sum(total_tokens) AS tokens,
       sum(total_cost) AS cost
-    FROM ai_usage
+    FROM hourly_ai_costs
     WHERE ${timeCondition}
     GROUP BY date
     ORDER BY date

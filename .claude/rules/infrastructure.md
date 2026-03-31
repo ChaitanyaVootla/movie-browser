@@ -21,7 +21,7 @@ paths:
 
 Root `docker-compose.yml` runs on EC2:
 - **PostgreSQL 17** (`pgvector/pgvector:pg17`) — port 5433, 1GB shared_buffers
-- **ClickHouse** (`clickhouse/clickhouse-server:25.12`) — port 8123 localhost only, 1GB cap
+- **ClickHouse** (`clickhouse/clickhouse-server:25.12`) — port 8123 localhost only, 1.5GB server cap, 2GB Docker limit
 
 PG init: only `postgres/init/01-extensions.sql` runs on container start (extensions + shadow DB).
 Search indexes (`02-search-indexes.sql`) must run **after** `yarn db:push` creates tables.
@@ -59,9 +59,9 @@ Will be fully severed post-GA.
 | OS + Docker | ~500MB |
 | Next.js (PM2) | 600MB |
 | PostgreSQL | ~1.5GB |
-| ClickHouse | 1GB (hard cap) |
+| ClickHouse | 1.5GB server cap, 2GB Docker limit, 750MB/query |
 | PM2 cron jobs | 1GB peak |
-| Headroom | ~3.4GB |
+| Headroom | ~2.9GB |
 
 ## ClickHouse Schema
 

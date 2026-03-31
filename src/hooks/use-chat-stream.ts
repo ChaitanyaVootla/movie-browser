@@ -100,9 +100,14 @@ function filterInternalTags(content: string): string {
 // Hook
 // =============================================================================
 
+/** Max messages anonymous users can send before login is required */
+const ANON_MESSAGE_LIMIT = 3;
+
 interface UseChatStreamOptions {
   /** Page context for contextual recommendations */
   pageContext?: PageContext | null;
+  /** Whether the user is authenticated (controls message limit) */
+  isAuthenticated?: boolean;
 }
 
 /**
@@ -115,6 +120,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   const [pendingNavigation, setPendingNavigation] = useState<StreamEvent["navigation"] | null>(
     null
   );
+  const [requiresLogin, setRequiresLogin] = useState(false);
   const router = useRouter();
   const abortControllerRef = useRef<AbortController | null>(null);
   const messageIdRef = useRef(0);
@@ -124,6 +130,10 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   // Store page context in ref so it can be updated without re-creating sendMessage
   const pageContextRef = useRef<PageContext | null>(options.pageContext ?? null);
   pageContextRef.current = options.pageContext ?? null;
+
+  // Track auth in ref so sendMessage callback doesn't need it in deps
+  const isAuthenticatedRef = useRef(options.isAuthenticated ?? false);
+  isAuthenticatedRef.current = options.isAuthenticated ?? false;
 
   /**
    * Generate unique message ID
@@ -139,6 +149,15 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() || isLoading) return;
+
+      // Check anonymous message limit
+      if (!isAuthenticatedRef.current) {
+        const userMessageCount = messages.filter((m) => m.role === "user").length;
+        if (userMessageCount >= ANON_MESSAGE_LIMIT) {
+          setRequiresLogin(true);
+          return;
+        }
+      }
 
       // Abort any existing request
       abortControllerRef.current?.abort();
@@ -384,6 +403,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
     setIsLoading(false);
     setActiveTools([]);
     setPendingNavigation(null);
+    setRequiresLogin(false);
     // Reset thread — next message starts a fresh conversation
     threadIdRef.current = null;
   }, []);
@@ -400,6 +420,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
     isLoading,
     activeTools,
     pendingNavigation,
+    requiresLogin,
     sendMessage,
     executeNavigation,
     clearMessages,

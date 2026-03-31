@@ -24,6 +24,10 @@ export interface MediaContextState {
   genres: string[] | null;
   /** AI-generated questions from enrichment */
   aiQuestions: string[] | null;
+  /** Post-watch discussion questions (may contain spoilers) */
+  postWatchQuestions: string[] | null;
+  /** Spoiler-free trivia/insights from deep dive */
+  trivia: string[] | null;
   /** Number of seasons (series only) */
   seasonCount: number | null;
   /** Series status (series only) */
@@ -53,6 +57,8 @@ const initialState: MediaContextState = {
   voteCount: null,
   genres: null,
   aiQuestions: null,
+  postWatchQuestions: null,
+  trivia: null,
   seasonCount: null,
   status: null,
 };
@@ -93,6 +99,8 @@ export function useMediaContextState(): MediaContextState {
       voteCount: state.voteCount,
       genres: state.genres,
       aiQuestions: state.aiQuestions,
+      postWatchQuestions: state.postWatchQuestions,
+      trivia: state.trivia,
       seasonCount: state.seasonCount,
       status: state.status,
     }))

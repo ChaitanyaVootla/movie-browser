@@ -287,6 +287,7 @@ export function LiveAISections({
           items={deepDiveItems}
           className="mt-6"
           maxCollapsedItems={3}
+          mediaId={tmdbId}
         />
       )}
     </motion.div>

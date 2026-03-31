@@ -4,17 +4,20 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import { useMobile } from "@/hooks/use-mobile";
 import { useMediaContextState } from "@/stores/media-context";
+import { useLoginDialog, LoginDialog } from "@/components/features/auth/login-dialog";
 import { MobileChatDrawer } from "./mobile-chat-drawer";
+import { WakeUpBorder } from "./ai-animations";
 
 // Import extracted components and types
 import { IdleCircle } from "./idle-circle";
 import { MinimalView } from "./minimal-view";
 import { ExpandedChat } from "./expanded-chat";
 import { getContextualPrompts, IDLE_PROMPTS } from "./prompts";
-import { type FloatyState, type PromptConfig, TRANSITION_EASE } from "./types";
+import { type FloatyState, type PromptConfig, type PostWatchContext, TRANSITION_EASE } from "./types";
 
 // =============================================================================
 // Main Component
@@ -27,10 +30,15 @@ export function AssistantFloaty({ className }: { className?: string }) {
   const [idlePromptIndex, setIdlePromptIndex] = useState(0);
   const [featuredPrompt, setFeaturedPrompt] = useState<PromptConfig | null>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [postWatch, setPostWatch] = useState<PostWatchContext | null>(null);
+  const [showWakeUpBorder, setShowWakeUpBorder] = useState(false);
 
   const isMobile = useMobile();
   const pathname = usePathname();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
   const mediaContext = useMediaContextState();
+  const { isOpen: loginOpen, message: loginMessage, openLoginDialog, setIsOpen: setLoginOpen } = useLoginDialog();
 
   // Generate contextual prompts based on page and media context
   const contextualPrompts = useMemo(
@@ -49,8 +57,8 @@ export function AssistantFloaty({ className }: { className?: string }) {
     };
   }, [pathname, mediaContext]);
 
-  const { messages, isLoading, pendingNavigation, sendMessage, executeNavigation, clearMessages } =
-    useChatStream({ pageContext });
+  const { messages, isLoading, pendingNavigation, requiresLogin, sendMessage, executeNavigation, clearMessages } =
+    useChatStream({ pageContext, isAuthenticated });
 
   // Listen for external chat trigger events (from AIQuestionsSection)
   useEffect(() => {
@@ -67,6 +75,49 @@ export function AssistantFloaty({ className }: { className?: string }) {
       window.removeEventListener("ai-chat-trigger", handleChatTrigger as EventListener);
     };
   }, [sendMessage]);
+
+  // Show login dialog when anonymous message limit is hit
+  useEffect(() => {
+    if (requiresLogin) {
+      openLoginDialog("Sign in to keep chatting with Cue");
+    }
+  }, [requiresLogin, openLoginDialog]);
+
+  // Listen for post-watch engagement events
+  useEffect(() => {
+    const handlePostWatch = (
+      event: CustomEvent<{ tmdbId: number; mediaType: "movie" | "series"; title: string }>
+    ) => {
+      const { tmdbId, mediaType: mType, title: mTitle } = event.detail;
+      // Only trigger when agent is idle and not already in post-watch
+      if (state !== "idle" || postWatch) return;
+
+      // Use post-watch questions from media context, fall back to generic prompts
+      const questions = mediaContext.postWatchQuestions?.length
+        ? mediaContext.postWatchQuestions
+        : [
+            `What did you think of ${mTitle}?`,
+            `What themes stood out in ${mTitle}?`,
+            `Would you recommend ${mTitle}?`,
+          ];
+
+      const trivia = mediaContext.trivia ?? [];
+
+      // Play the cascading border animation first
+      setShowWakeUpBorder(true);
+      // After cascade reaches bottom, show the post-watch bubble
+      setTimeout(() => {
+        setShowIdlePrompt(false);
+        setPostWatch({ title: mTitle, tmdbId, mediaType: mType, questions, trivia });
+      }, 700);
+
+};
+
+    window.addEventListener("ai-post-watch", handlePostWatch as EventListener);
+    return () => {
+      window.removeEventListener("ai-post-watch", handlePostWatch as EventListener);
+    };
+  }, [state, postWatch, mediaContext.postWatchQuestions]);
 
   // Reset prompt index when prompts change (e.g., navigating to different page)
   const promptCount = contextualPrompts.length || IDLE_PROMPTS.length;
@@ -115,6 +166,21 @@ export function AssistantFloaty({ className }: { className?: string }) {
     [sendMessage]
   );
 
+  const handlePostWatchQuestion = useCallback(
+    (message: string) => {
+      setPostWatch(null);
+      setShowWakeUpBorder(false);
+      sendMessage(message);
+      setState("active");
+    },
+    [sendMessage]
+  );
+
+  const handlePostWatchDismiss = useCallback(() => {
+    setPostWatch(null);
+    setShowWakeUpBorder(false);
+  }, []);
+
   const handleMinimize = useCallback(() => {
     setState("idle");
     // Don't clear messages - preserve the conversation
@@ -162,6 +228,12 @@ export function AssistantFloaty({ className }: { className?: string }) {
   if (isMobile) {
     return (
       <>
+        {/* Wake-up border animation (post-watch engagement) */}
+        <WakeUpBorder
+          isActive={showWakeUpBorder}
+          onComplete={() => setShowWakeUpBorder(false)}
+        />
+
         {/* Idle bubble - always visible when drawer is closed */}
         <AnimatePresence>
           {!mobileDrawerOpen && (
@@ -182,6 +254,9 @@ export function AssistantFloaty({ className }: { className?: string }) {
                 showPrompt={showIdlePrompt}
                 prompt={contextualPrompts[idlePromptIndex % contextualPrompts.length] || IDLE_PROMPTS[0]}
                 hasActiveConversation={messages.length > 0}
+                postWatch={postWatch}
+                onPostWatchQuestion={handlePostWatchQuestion}
+                onPostWatchDismiss={handlePostWatchDismiss}
               />
             </motion.div>
           )}
@@ -204,38 +279,51 @@ export function AssistantFloaty({ className }: { className?: string }) {
           pendingNavigation={pendingNavigation}
           onNavigate={handleMobileNavigate}
         />
+
+        <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} message={loginMessage} />
       </>
     );
   }
 
   // Desktop: Use floating UI
   return (
-    <AnimatePresence mode="wait">
-      {/* Idle state */}
-      {state === "idle" && (
-        <motion.div
-          key="idle"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 0.2, ease: TRANSITION_EASE }}
-          className={cn("fixed left-1/2 -translate-x-1/2 z-50 bottom-6", className)}
-        >
-          <IdleCircle
-            onExpand={(clickedPrompt) => {
-              setShowIdlePrompt(false);
-              // Only set featured prompt if no active conversation
-              if (messages.length === 0) {
-                setFeaturedPrompt(clickedPrompt || null);
-              }
-              setState("active");
-            }}
-            showPrompt={showIdlePrompt}
-            prompt={contextualPrompts[idlePromptIndex % contextualPrompts.length] || IDLE_PROMPTS[0]}
-            hasActiveConversation={messages.length > 0}
-          />
-        </motion.div>
-      )}
+    <>
+      {/* Wake-up border animation (post-watch engagement) */}
+      <WakeUpBorder
+        isActive={showWakeUpBorder}
+        onComplete={() => setShowWakeUpBorder(false)}
+      />
+
+      <AnimatePresence mode="wait">
+        {/* Idle state */}
+        {state === "idle" && (
+          <motion.div
+            key="idle"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2, ease: TRANSITION_EASE }}
+            className={cn("fixed left-1/2 -translate-x-1/2 z-50 bottom-6", className)}
+          >
+            <IdleCircle
+              onExpand={(clickedPrompt) => {
+                setShowIdlePrompt(false);
+                setPostWatch(null);
+                // Only set featured prompt if no active conversation
+                if (messages.length === 0) {
+                  setFeaturedPrompt(clickedPrompt || null);
+                }
+                setState("active");
+              }}
+              showPrompt={showIdlePrompt}
+              prompt={contextualPrompts[idlePromptIndex % contextualPrompts.length] || IDLE_PROMPTS[0]}
+              hasActiveConversation={messages.length > 0}
+              postWatch={postWatch}
+              onPostWatchQuestion={handlePostWatchQuestion}
+              onPostWatchDismiss={handlePostWatchDismiss}
+            />
+          </motion.div>
+        )}
 
       {state === "active" && (
         <MinimalView
@@ -271,6 +359,9 @@ export function AssistantFloaty({ className }: { className?: string }) {
           onNavigate={handleNavigate}
         />
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+
+      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} message={loginMessage} />
+    </>
   );
 }
