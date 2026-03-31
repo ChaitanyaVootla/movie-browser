@@ -4,10 +4,9 @@
  * App-level GeoIP using geoip-lite (bundles MaxMind GeoLite2).
  * Replaces the Nginx GeoIP2 module for setting x-country-code / x-city headers.
  *
- * Returns country (ISO 3166-1 alpha-2), city, region, timezone, and coordinates.
+ * IMPORTANT: geoip-lite reads .dat files eagerly on require().
+ * We lazy-load it to avoid build-time failures during Next.js page data collection.
  */
-
-import geoip from "geoip-lite";
 
 export interface GeoResult {
   country: string;
@@ -25,6 +24,20 @@ const FALLBACK: GeoResult = {
   ll: null,
 };
 
+/** Lazy-loaded geoip-lite module */
+let geoip: typeof import("geoip-lite") | null = null;
+
+function getGeoIP(): typeof import("geoip-lite") | null {
+  if (geoip) return geoip;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    geoip = require("geoip-lite") as typeof import("geoip-lite");
+    return geoip;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Look up geographic info from an IP address.
  * Returns country code (e.g. "US", "IN"), city, region, timezone.
@@ -34,10 +47,11 @@ export function lookupIP(ip: string): GeoResult {
     return FALLBACK;
   }
 
-  const result = geoip.lookup(ip);
-  if (!result) {
-    return FALLBACK;
-  }
+  const geo = getGeoIP();
+  if (!geo) return FALLBACK;
+
+  const result = geo.lookup(ip);
+  if (!result) return FALLBACK;
 
   return {
     country: result.country || "unknown",
@@ -59,7 +73,6 @@ export function lookupIP(ip: string): GeoResult {
 export function resolveCountry(headers: {
   get: (name: string) => string | null;
 }): string {
-  // Check proxy header first
   const headerCountry = headers.get("x-country-code");
   if (headerCountry) {
     const normalized = headerCountry.trim().toUpperCase();
@@ -68,24 +81,9 @@ export function resolveCountry(headers: {
     }
   }
 
-  // Fall back to GeoIP from client IP
   const ip = extractIP(headers);
   const geo = lookupIP(ip);
   return geo.country;
-}
-
-/**
- * Resolve city from request headers, with GeoIP fallback.
- */
-export function resolveCity(headers: {
-  get: (name: string) => string | null;
-}): string | null {
-  const headerCity = headers.get("x-city");
-  if (headerCity) return headerCity;
-
-  const ip = extractIP(headers);
-  const geo = lookupIP(ip);
-  return geo.city;
 }
 
 /**
@@ -94,7 +92,6 @@ export function resolveCity(headers: {
 export function resolveGeo(headers: {
   get: (name: string) => string | null;
 }): { country: string; city: string | null } {
-  // Check proxy headers first
   const headerCountry = headers.get("x-country-code");
   const headerCity = headers.get("x-city");
 
@@ -105,7 +102,6 @@ export function resolveGeo(headers: {
     }
   }
 
-  // GeoIP fallback
   const ip = extractIP(headers);
   const geo = lookupIP(ip);
   return { country: geo.country, city: headerCity || geo.city };
