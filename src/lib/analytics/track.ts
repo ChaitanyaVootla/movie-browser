@@ -81,7 +81,7 @@ export function trackPageView(context: TrackingContext, options: TrackPageViewOp
 
   const event: Partial<PageViewEvent> = {
     event_type: "page_view",
-    timestamp: context.timestamp,
+    timestamp: toClickHouseTimestamp(),
     session_id: context.session_id,
     user_id: context.user_id,
     is_authenticated: context.is_authenticated,
