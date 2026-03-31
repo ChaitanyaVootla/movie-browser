@@ -320,7 +320,7 @@ export function trackUserAction(options: TrackUserActionOptions): void {
 interface TrackAPICallOptions {
   sessionId?: string;
   requestId?: string;
-  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding";
+  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding" | "tavily";
   endpoint: string;
   method?: string;
   statusCode: number;
@@ -361,9 +361,9 @@ export function trackAPICall(options: TrackAPICallOptions): void {
     tokens: options.tokens ?? 0,
   };
 
-  // Lambda and embedding calls: insert immediately (low volume, important for cost tracking)
+  // Lambda, embedding, and Tavily calls: insert immediately (low volume, important for cost tracking)
   // Other API calls: batch for efficiency
-  if (options.service === "lambda" || options.service === "embedding") {
+  if (options.service === "lambda" || options.service === "embedding" || options.service === "tavily") {
     insertAnalyticsEvent("api_calls", event);
   } else {
     queueEvent("api_calls", event);

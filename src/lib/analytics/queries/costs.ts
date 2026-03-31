@@ -6,7 +6,7 @@
  */
 
 import { query } from "../client";
-import { calculateEmbeddingCost } from "@/lib/model-pricing";
+import { calculateEmbeddingCost, estimateTavilyCost } from "@/lib/model-pricing";
 import { estimateLambdaCost } from "./lambda";
 import { getTimeRangeCondition, type TimeRange } from "./types";
 
@@ -27,6 +27,7 @@ export interface DailyCostBreakdown {
   llmSearchParsing: number;
   embedding: number;
   lambda: number;
+  tavily: number;
   total: number;
 }
 
@@ -35,6 +36,7 @@ export interface UnifiedCostBreakdown {
   llmSearchParsing: ServiceCost;
   embedding: ServiceCost;
   lambda: ServiceCost;
+  tavily: ServiceCost & { credits: number };
   total: number;
   daily: DailyCostBreakdown[];
 }
@@ -51,7 +53,7 @@ export async function getUnifiedCostBreakdown(range: TimeRange): Promise<Unified
   const timeCondition = getTimeRangeCondition(range);
 
   // Run all queries in parallel
-  const [llmChat, llmSearchParsing, embedding, lambda, daily] = await Promise.all([
+  const [llmChat, llmSearchParsing, embedding, lambda, tavilyResult, daily] = await Promise.all([
     // LLM chat costs (ai_usage excluding search_llm_parsing)
     query<{ cost: string; calls: string }>(`
       SELECT
@@ -88,7 +90,16 @@ export async function getUnifiedCostBreakdown(range: TimeRange): Promise<Unified
       WHERE service = 'lambda' AND ${timeCondition}
     `),
 
-    // Daily breakdown — union of all four sources
+    // Tavily costs (from api_calls, quota_cost = credits)
+    query<{ credits: string; calls: string }>(`
+      SELECT
+        sum(quota_cost) AS credits,
+        count() AS calls
+      FROM api_calls
+      WHERE service = 'tavily' AND ${timeCondition}
+    `),
+
+    // Daily breakdown — union of all five sources
     getDailyCostBreakdown(range),
   ]);
 
@@ -96,6 +107,7 @@ export async function getUnifiedCostBreakdown(range: TimeRange): Promise<Unified
   const llmSearchResult = llmSearchParsing[0];
   const embeddingResult = embedding[0];
   const lambdaResult = lambda[0];
+  const tavilyRow = tavilyResult[0];
 
   const embeddingTokens = parseInt(embeddingResult?.tokens || "0", 10);
   const embeddingCost = calculateEmbeddingCost(embeddingTokens, "search_query");
@@ -106,6 +118,9 @@ export async function getUnifiedCostBreakdown(range: TimeRange): Promise<Unified
 
   const llmChatCost = parseFloat(llmChatResult?.cost || "0");
   const llmSearchCost = parseFloat(llmSearchResult?.cost || "0");
+
+  const tavilyCredits = parseFloat(tavilyRow?.credits || "0");
+  const tavilyCost = estimateTavilyCost(tavilyCredits);
 
   return {
     llmChat: {
@@ -124,7 +139,12 @@ export async function getUnifiedCostBreakdown(range: TimeRange): Promise<Unified
       cost: lambdaCost,
       calls: lambdaCalls,
     },
-    total: llmChatCost + llmSearchCost + embeddingCost + lambdaCost,
+    tavily: {
+      cost: tavilyCost,
+      calls: parseInt(tavilyRow?.calls || "0", 10),
+      credits: tavilyCredits,
+    },
+    total: llmChatCost + llmSearchCost + embeddingCost + lambdaCost + tavilyCost,
     daily,
   };
 }
@@ -137,7 +157,7 @@ async function getDailyCostBreakdown(range: TimeRange): Promise<DailyCostBreakdo
   const timeCondition = getTimeRangeCondition(range);
 
   // Fetch daily data from each source in parallel
-  const [aiDaily, embeddingDaily, lambdaDaily] = await Promise.all([
+  const [aiDaily, embeddingDaily, lambdaDaily, tavilyDaily] = await Promise.all([
     // AI daily (split by query_type)
     query<{
       date: string;
@@ -183,6 +203,20 @@ async function getDailyCostBreakdown(range: TimeRange): Promise<DailyCostBreakdo
       GROUP BY date
       ORDER BY date
     `),
+
+    // Tavily daily (credits from quota_cost)
+    query<{
+      date: string;
+      credits: string;
+    }>(`
+      SELECT
+        toDate(timestamp) AS date,
+        sum(quota_cost) AS credits
+      FROM api_calls
+      WHERE service = 'tavily' AND ${timeCondition}
+      GROUP BY date
+      ORDER BY date
+    `),
   ]);
 
   // Merge all daily data into a single map
@@ -191,7 +225,7 @@ async function getDailyCostBreakdown(range: TimeRange): Promise<DailyCostBreakdo
   const getOrCreate = (date: string): DailyCostBreakdown => {
     let entry = dateMap.get(date);
     if (!entry) {
-      entry = { date, llmChat: 0, llmSearchParsing: 0, embedding: 0, lambda: 0, total: 0 };
+      entry = { date, llmChat: 0, llmSearchParsing: 0, embedding: 0, lambda: 0, tavily: 0, total: 0 };
       dateMap.set(date, entry);
     }
     return entry;
@@ -216,10 +250,15 @@ async function getDailyCostBreakdown(range: TimeRange): Promise<DailyCostBreakdo
     );
   }
 
+  for (const row of tavilyDaily) {
+    const entry = getOrCreate(row.date);
+    entry.tavily = estimateTavilyCost(parseFloat(row.credits));
+  }
+
   // Calculate totals and sort by date
   const result = Array.from(dateMap.values());
   for (const entry of result) {
-    entry.total = entry.llmChat + entry.llmSearchParsing + entry.embedding + entry.lambda;
+    entry.total = entry.llmChat + entry.llmSearchParsing + entry.embedding + entry.lambda + entry.tavily;
   }
 
   return result.sort((a, b) => a.date.localeCompare(b.date));

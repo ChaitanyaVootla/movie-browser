@@ -323,3 +323,19 @@ export function calculateEmbeddingCost(tokens: number, inputType: string): numbe
   const pricing = getEmbeddingPricing(inputType);
   return (tokens / 1000) * pricing.costPer1kTokens;
 }
+
+// =============================================================================
+// Tavily Pricing
+// =============================================================================
+
+/** Tavily cost per credit on the paid tier ($0.008/credit). Free tier = $0. */
+export const TAVILY_COST_PER_CREDIT = 0.008;
+
+/**
+ * Estimate Tavily cost from credit usage.
+ * Free tier (1,000 credits/month) = $0 actual cost.
+ * Shows estimated cost as if on paid tier for budget planning.
+ */
+export function estimateTavilyCost(credits: number): number {
+  return credits * TAVILY_COST_PER_CREDIT;
+}

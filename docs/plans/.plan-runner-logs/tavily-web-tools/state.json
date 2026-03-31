@@ -30,15 +30,33 @@
       "reviewFindings": null,
       "parallelGroup": null,
       "worktreePath": null
+    },
+    {
+      "num": 2,
+      "label": "Tag Parsing + UI Components",
+      "costUsd": 1.37,
+      "durationMs": 247452,
+      "numTurns": 31,
+      "inputTokens": 29,
+      "outputTokens": 10271,
+      "cacheReadTokens": 1510424,
+      "isError": false,
+      "gitCommit": "f93c3a4",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
     }
   ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 1,
-    "costUsd": 1.76,
-    "durationMs": 357207,
-    "inputTokens": 35,
-    "outputTokens": 16268,
-    "cacheReadTokens": 1822421
+    "sessions": 2,
+    "costUsd": 3.13,
+    "durationMs": 604659,
+    "inputTokens": 64,
+    "outputTokens": 26539,
+    "cacheReadTokens": 3332845
   }
 }

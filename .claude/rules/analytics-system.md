@@ -14,14 +14,14 @@ paths:
 ## Architecture
 
 ```
-Client (useAnalytics hook) → POST /api/analytics/ingest → ClickHouse
-Server (track*.ts functions) → direct insert → ClickHouse
-Admin dashboard → GET /api/admin/analytics → ClickHouse queries → React Query → Charts
+Client (useAnalytics hook) -> POST /api/analytics/ingest -> ClickHouse
+Server (track*.ts functions) -> direct insert -> ClickHouse
+Admin dashboard -> GET /api/admin/analytics -> ClickHouse queries -> React Query -> Charts
 ```
 
 ## Client-Side: useAnalytics Hook
 
-`src/hooks/use-analytics.ts` — 14 convenience methods. Import in any `"use client"` component.
+`src/hooks/use-analytics.ts` -- 14 convenience methods. Import in any `"use client"` component.
 
 ```typescript
 const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
@@ -51,18 +51,18 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 
 ## Server-Side Tracking
 
-`src/lib/analytics/track.ts` — functions for server-side events. All fire-and-forget.
+`src/lib/analytics/track.ts` -- functions for server-side events. All fire-and-forget.
 
 | Function | ClickHouse Table | Use Case |
 |----------|-----------------|----------|
 | `trackAIUsage()` | `ai_usage` | Agent chat invocations (tokens, cost, tools) + progressive enrichment (query_type=progressive_enrichment) |
 | `trackSearchLLMUsage()` | `ai_usage` | Tier 3 LLM query parsing (query_type=search_llm_parsing) |
 | `trackEmbeddingCall()` | `api_calls` | Cohere embedding calls (service=embedding, tokens field) |
-| `trackAPICall()` | `api_calls` | TMDB, Lambda, embedding API calls |
+| `trackAPICall()` | `api_calls` | TMDB, Lambda, embedding, Tavily API calls |
 | `trackPageView()` | `page_views` | SSR page views |
 | `trackError()` | `errors` | Application errors |
 
-**Critical rule**: All tracking calls must be fire-and-forget — no `await`, wrapped in try-catch. Analytics must never break the application.
+**Critical rule**: All tracking calls must be fire-and-forget -- no `await`, wrapped in try-catch. Analytics must never break the application.
 
 ## Cost Tracking
 
@@ -74,16 +74,17 @@ Pricing in `src/lib/model-pricing.ts`:
 | Kimi K2 (search parser) | $0.0006/1K input, $0.0025/1K output | `ai_usage` |
 | Cohere Embed v4 | $0.001/1K tokens | `api_calls` (service=embedding) |
 | Lambda (ratings scraper) | Estimated from invocation count | `api_calls` (service=lambda) |
+| Tavily (web search/extract) | $0.008/credit (free tier: $0, 1000 credits/month) | `api_calls` (service=tavily, quota_cost=credits) |
 
-Unified view: `getUnifiedCostBreakdown(range)` in `queries/costs.ts` aggregates all four.
+Unified view: `getUnifiedCostBreakdown(range)` in `queries/costs.ts` aggregates all five services.
 
 ## Query Functions
 
-`src/lib/analytics/queries/` — 14 query files for the admin dashboard:
+`src/lib/analytics/queries/` -- 14 query files for the admin dashboard:
 
 | File | Key Functions |
 |------|--------------|
-| `costs.ts` | `getUnifiedCostBreakdown()` — 4-service aggregation with daily breakdown |
+| `costs.ts` | `getUnifiedCostBreakdown()` -- 5-service aggregation with daily breakdown |
 | `embedding.ts` | `getEmbeddingUsageOverview()`, `getDailyEmbeddingUsage()`, `getEmbeddingByType()` |
 | `ai.ts` | AI chat usage, token consumption, tool frequency |
 | `content.ts` | User action summary, per-action-type breakdown |
@@ -95,7 +96,7 @@ Unified view: `getUnifiedCostBreakdown(range)` in `queries/costs.ts` aggregates 
 1. Add `"use client"` if not already
 2. `import { useAnalytics } from "@/hooks/use-analytics"`
 3. Destructure the relevant method (or use `trackAction` for custom events)
-4. Call inside the existing event handler — after the UI action, before any navigation
+4. Call inside the existing event handler -- after the UI action, before any navigation
 5. If you need a new `ActionType`, add it to `src/lib/analytics/types.ts`
 
 ## Adding a New Server-Side Tracking Point

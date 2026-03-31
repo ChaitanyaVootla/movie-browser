@@ -12,6 +12,7 @@
 
 import { tavily, type TavilySearchOptions, type TavilyExtractOptions } from "@tavily/core";
 import { aiToolLogger } from "@/lib/logger";
+import { trackAPICall } from "@/lib/analytics/track";
 
 type TavilyClient = ReturnType<typeof tavily>;
 
@@ -134,6 +135,8 @@ export async function tavilySearch(params: TavilySearchParams): Promise<SearchRe
     const response = await client.search(params.query, options);
     const durationMs = Date.now() - startTime;
 
+    const credits = options.searchDepth === "advanced" ? 2 : 1;
+
     aiToolLogger.info({
       event: "tavily_search_complete",
       query: params.query,
@@ -141,8 +144,21 @@ export async function tavilySearch(params: TavilySearchParams): Promise<SearchRe
       resultCount: response.results?.length ?? 0,
       hasAnswer: !!response.answer,
       durationMs,
-      credits: options.searchDepth === "advanced" ? 2 : 1,
+      credits,
     });
+
+    try {
+      trackAPICall({
+        service: "tavily",
+        endpoint: "/search",
+        method: "POST",
+        statusCode: 200,
+        durationMs,
+        quotaCost: credits,
+      });
+    } catch {
+      // Analytics must never break the application
+    }
 
     return {
       answer: response.answer,
@@ -159,6 +175,24 @@ export async function tavilySearch(params: TavilySearchParams): Promise<SearchRe
     };
   } catch (error: unknown) {
     const durationMs = Date.now() - startTime;
+    const message = error instanceof Error ? error.message : String(error);
+    const isRateLimit = message.includes("429") || message.toLowerCase().includes("rate limit");
+
+    try {
+      trackAPICall({
+        service: "tavily",
+        endpoint: "/search",
+        method: "POST",
+        statusCode: isRateLimit ? 429 : 500,
+        durationMs,
+        quotaCost: 0,
+        errorType: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: message.slice(0, 500),
+      });
+    } catch {
+      // Analytics must never break the application
+    }
+
     handleTavilyError(error, "search", params.query, durationMs);
     throw error;
   }
@@ -191,13 +225,30 @@ export async function tavilyExtract(params: TavilyExtractParams): Promise<Extrac
     const response = await client.extract(params.urls, options);
     const durationMs = Date.now() - startTime;
 
+    // Extract credits: 1 credit per 5 URLs (0.2 per URL), basic depth
+    const credits = Math.ceil(params.urls.length / 5);
+
     aiToolLogger.info({
       event: "tavily_extract_complete",
       urlCount: params.urls.length,
       successCount: response.results?.length ?? 0,
       failedCount: response.failedResults?.length ?? 0,
       durationMs,
+      credits,
     });
+
+    try {
+      trackAPICall({
+        service: "tavily",
+        endpoint: "/extract",
+        method: "POST",
+        statusCode: 200,
+        durationMs,
+        quotaCost: credits,
+      });
+    } catch {
+      // Analytics must never break the application
+    }
 
     return {
       results: (response.results || []).map((r) => ({
@@ -210,6 +261,24 @@ export async function tavilyExtract(params: TavilyExtractParams): Promise<Extrac
     };
   } catch (error: unknown) {
     const durationMs = Date.now() - startTime;
+    const message = error instanceof Error ? error.message : String(error);
+    const isRateLimit = message.includes("429") || message.toLowerCase().includes("rate limit");
+
+    try {
+      trackAPICall({
+        service: "tavily",
+        endpoint: "/extract",
+        method: "POST",
+        statusCode: isRateLimit ? 429 : 500,
+        durationMs,
+        quotaCost: 0,
+        errorType: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: message.slice(0, 500),
+      });
+    } catch {
+      // Analytics must never break the application
+    }
+
     handleTavilyError(error, "extract", params.urls.join(", "), durationMs);
     throw error;
   }

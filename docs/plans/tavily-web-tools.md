@@ -71,7 +71,7 @@ The AI agent (Cue) currently has 8 tools — all focused on TMDB data (movies, s
 |---------|-------|------|--------------|----------------|--------|-------|
 | 1 | Tavily Client + Web Search & Extract Tools | large | None | - | Complete | Backend: package, client, both tools, env vars, system prompt with TMDB-first + tag format |
 | 2 | Tag Parsing + Citation & Image UI Components | medium | Session 1 | - | Complete | Frontend: new tag types, parsing, SourceChip, WebImageCard, RichMessageContent updates |
-| 3 | Analytics, Cost Tracking & Dashboard | medium | Session 1 | A | Pending | Observability: tracking, cost queries, dashboard, rules/docs updates |
+| 3 | Analytics, Cost Tracking & Dashboard | medium | Session 1 | A | Complete | Observability: tracking, cost queries, dashboard, rules/docs updates |
 | 4 | Audit & Hardening | medium | All | - | Pending | Verification, edge cases, integration testing |
 
 ---
@@ -151,16 +151,16 @@ The AI agent (Cue) currently has 8 tools — all focused on TMDB data (movies, s
 **Goal:** Add Tavily as a tracked service in the analytics system — credit usage monitoring, cost dashboard integration, and documentation updates.
 
 **Scope:**
-- [ ] Add `"tavily"` to `TrackAPICallOptions.service` union in `src/lib/analytics/track.ts`
-- [ ] Add `trackAPICall()` calls in `tavily-client.ts` for both search and extract: track `service: "tavily"`, `endpoint: "/search"` or `"/extract"`, `statusCode`, `durationMs`, `quotaCost` (credits consumed: 1 for basic, 2 for advanced), error details on failure
-- [ ] Add Tavily pricing to `src/lib/model-pricing.ts` — credit-based pricing entry and `estimateTavilyCost()` function that calculates cost from credits (free tier = $0, paid = $0.008/credit)
-- [ ] Add `tavily` service to `getUnifiedCostBreakdown()` in `src/lib/analytics/queries/costs.ts` — query `api_calls WHERE service = 'tavily'`, aggregate `quota_cost` for credit count, calculate cost via `estimateTavilyCost()`
-- [ ] Add `tavily` to `DailyCostBreakdown` and `UnifiedCostBreakdown` interfaces in `costs.ts`, update daily breakdown query
-- [ ] Add `tavily` to `CostsData` interface in `src/components/features/admin/analytics-types.ts`
-- [ ] Add `tavily: "Tavily Web Search"` to `SERVICE_LABELS` in `costs-tab.tsx`, add to `CostDriversList` services array
-- [ ] Update `.claude/rules/ai-agent.md` — add web_search and web_extract to tool list (10 tools), document credit budget, add SOURCE/WEB_IMAGE tags, document TMDB-first strategy
-- [ ] Update `.claude/rules/analytics-system.md` — add Tavily to cost tracking table, update service list
-- [ ] Update `CLAUDE.md` — add Tavily to tech stack, update tool count (8 → 10), mention SOURCE/WEB_IMAGE tags, add `TAVILY_API_KEY` to env vars section
+- [x] Add `"tavily"` to `TrackAPICallOptions.service` union in `src/lib/analytics/track.ts` — added to union, also added Tavily to immediate-insert branch (alongside lambda/embedding) for low-volume cost-critical tracking
+- [x] Add `trackAPICall()` calls in `tavily-client.ts` for both search and extract — added tracking in both success and error paths for `tavilySearch()` and `tavilyExtract()`. Success: statusCode 200, quotaCost = credits (1 basic, 2 advanced for search; ceil(urls/5) for extract). Error: statusCode 429 for rate limits, 500 for other errors, quotaCost 0. All wrapped in try-catch per analytics-must-never-break rule.
+- [x] Add Tavily pricing to `src/lib/model-pricing.ts` — added `TAVILY_COST_PER_CREDIT = 0.008` constant and `estimateTavilyCost(credits)` function. Shows estimated paid-tier cost for budget planning even though free tier is $0.
+- [x] Add `tavily` service to `getUnifiedCostBreakdown()` in `src/lib/analytics/queries/costs.ts` — added 5th parallel query for `api_calls WHERE service = 'tavily'`, aggregates `quota_cost` as credits, calculates cost via `estimateTavilyCost()`. Returns `tavily: { cost, calls, credits }`.
+- [x] Add `tavily` to `DailyCostBreakdown` and `UnifiedCostBreakdown` interfaces in `costs.ts` — `DailyCostBreakdown` gets `tavily: number`, `UnifiedCostBreakdown` gets `tavily: ServiceCost & { credits: number }`. Daily breakdown query added with credit-based aggregation. Totals updated in both aggregate and daily.
+- [x] Add `tavily` to `CostsData` and `DailyCostEntry` interfaces in `src/components/features/admin/analytics-types.ts` — mirrors the query types exactly
+- [x] Add `tavily: "Tavily Web Search"` to `SERVICE_LABELS` in `costs-tab.tsx` — added to SERVICE_LABELS, pie chart data (maxItems 5), CostDriversList services array, and Total Spend card with new ServiceMetric showing credits count. Grid changed to 3-col for 5 services. ServiceMetric extended with optional `extra` prop for credits display.
+- [x] Update `.claude/rules/ai-agent.md` — updated tool count 8→10, added web_search/web_extract to tool list, added tavily-client.ts to key files, new "Web Search Credit Budget" section, TMDB-first strategy in Tool Rules, SOURCE/WEB_IMAGE web tags in System Prompt, Tavily tracking details in Cost Tracking
+- [x] Update `.claude/rules/analytics-system.md` — added Tavily to cost tracking table ($0.008/credit, service=tavily, quota_cost=credits), updated service count 4→5, updated trackAPICall description to include Tavily
+- [x] Update `CLAUDE.md` — added Tavily to tech stack line, updated AI Agent section (10 tools, TMDB-first strategy, SOURCE/WEB_IMAGE tags, TAVILY_API_KEY), updated Cost Tracking (5 services)
 
 **Key files:** `src/lib/analytics/track.ts` (M), `src/lib/model-pricing.ts` (M), `src/lib/analytics/queries/costs.ts` (M), `src/components/features/admin/analytics-types.ts` (M), `src/components/features/admin/tabs/costs-tab.tsx` (M), `.claude/rules/ai-agent.md` (M), `.claude/rules/analytics-system.md` (M), `CLAUDE.md` (M), `src/server/ai/tools/tavily-client.ts` (M)
 
@@ -255,7 +255,7 @@ graph TD
 
 ## Progress
 
-[██████......] 50% (2/4 sessions)
+[█████████...] 75% (3/4 sessions)
 
 ## Acceptance Criteria
 

@@ -354,6 +354,7 @@ export interface DailyCostEntry {
   llmSearchParsing: number;
   embedding: number;
   lambda: number;
+  tavily: number;
   total: number;
 }
 
@@ -362,6 +363,7 @@ export interface CostsData {
   llmSearchParsing: CostServiceBreakdown;
   embedding: CostServiceBreakdown;
   lambda: CostServiceBreakdown;
+  tavily: CostServiceBreakdown & { credits: number };
   total: number;
   daily: DailyCostEntry[];
 }

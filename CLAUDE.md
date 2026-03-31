@@ -5,7 +5,7 @@ AI-first movie/TV discovery platform built with Next.js 15, React 19, TypeScript
 ## Tech Stack
 
 - **Framework**: Next.js 15 (App Router) + React 19 + TypeScript (strict)
-- **AI Agent**: LangGraph.js + MemorySaver checkpointer + AWS Bedrock (Kimi K2.5, default) or OpenRouter (fallback)
+- **AI Agent**: LangGraph.js + MemorySaver checkpointer + AWS Bedrock (Kimi K2.5, default) or OpenRouter (fallback) + Tavily (web search/extract, 1000 credits/month free tier)
 - **Database**: PostgreSQL (Prisma 6.x) + pgvector + MongoDB (remote, temporary — user data until GA)
 - **Embeddings**: Cohere Embed v4 via Bedrock (`global.cohere.embed-v4:0`, 1024 dims)
 - **State**: Zustand (client) + TanStack Query (server)
@@ -96,7 +96,7 @@ src/
 
 **Theming**: 3-tier system (mode/style/accent), OKLch color space, hero gradients. See `.claude/rules/theming.md`.
 
-**AI Agent (Cue)**: LangGraph agent with MemorySaver checkpointer. 8 consolidated tools, Kimi K2.5 (knowledge cutoff: June 2025). Thread-based conversation persistence — frontend sends `threadId`, server restores full state (messages + tool calls + results). Per-invocation logging isolated via `invocationId` Map. Recursion limit: 25. See `.claude/rules/ai-agent.md`.
+**AI Agent (Cue)**: LangGraph agent with MemorySaver checkpointer. 10 consolidated tools (8 TMDB + `web_search` + `web_extract` via Tavily), Kimi K2.5 (knowledge cutoff: June 2025). TMDB-first strategy — agent prefers free TMDB tools, web search only for current events/news/box office/reviews. Agent outputs `[SOURCE:url|title]` citation tags and `[WEB_IMAGE:url|description]` image tags for web results. Thread-based conversation persistence — frontend sends `threadId`, server restores full state (messages + tool calls + results). Per-invocation logging isolated via `invocationId` Map. Recursion limit: 25. `TAVILY_API_KEY` required for web tools. See `.claude/rules/ai-agent.md`.
 
 **Progressive Enrichment**: Automatic AI enrichment triggered by page visits. When hydration fetches fresh data (Lambda or MongoDB source), `triggerProgressiveEnrichment()` fires in the background — no manual intervention needed. Pipeline: check existing AI data → generate TMDB-only embedding if missing → call Kimi K2.5 via Bedrock Flex (50% off) → parse + store AI insights → regenerate embedding with AI themes/mood/hook. Dedup via in-memory Map (concurrent requests for same item share one Promise). Concurrency capped at 5 LLM calls via `p-limit`. SSE endpoint (`GET /api/[mediaType]/[id]/enrich`) polls PG for state changes and streams ratings/AI updates to the client. Detail pages use `EnrichmentProvider` + `useEnrichmentStream` for live in-place updates (ratings swap, AI sections fade in). Cost: ~$210-250 for full 184K catalog (pop >= 1) via Flex pricing + tighter prompt (~500 output tokens). Key files: `src/server/services/enrichment/progressive.ts`, `src/server/services/enrichment/bedrock-flex.ts`, `src/server/services/enrichment/prompts.ts`, `src/server/services/enrichment/ai-input-builder.ts`, `src/hooks/use-enrichment-stream.ts`, `src/components/features/media/enrichment-provider.tsx`.
 
@@ -118,7 +118,7 @@ src/
 - **AI chat**: Agent tracks full invocations (tokens, cost, tools) via `trackAIUsage()`.
 - **Progressive enrichment**: `progressive.ts` tracks LLM costs via `trackAIUsage()` with `query_type='progressive_enrichment'` and embedding costs via `generateAndStoreEmbedding(skipTracking=false)`.
 
-**Cost Tracking**: Unified cost dashboard (`/admin` → Costs tab) aggregates across 4 services: LLM chat, LLM search parsing, embeddings (Cohere), Lambda. Query-time aggregation via `getUnifiedCostBreakdown()` in `src/lib/analytics/queries/costs.ts`. Pricing in `src/lib/model-pricing.ts`.
+**Cost Tracking**: Unified cost dashboard (`/admin` → Costs tab) aggregates across 5 services: LLM chat, LLM search parsing, embeddings (Cohere), Lambda, Tavily (web search/extract credits). Query-time aggregation via `getUnifiedCostBreakdown()` in `src/lib/analytics/queries/costs.ts`. Pricing in `src/lib/model-pricing.ts`.
 
 **Adding Tracking to New Components**:
 1. Import `useAnalytics` from `@/hooks/use-analytics`

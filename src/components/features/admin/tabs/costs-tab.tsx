@@ -26,6 +26,7 @@ const SERVICE_LABELS: Record<string, string> = {
   llmSearchParsing: "LLM Search Parsing",
   embedding: "Embeddings",
   lambda: "Lambda",
+  tavily: "Tavily Web Search",
 };
 
 // =============================================================================
@@ -66,7 +67,7 @@ export function CostsTab({ range }: CostsTabProps) {
           ) : data ? (
             <div className="space-y-3">
               <p className="text-3xl font-bold">${data.total.toFixed(4)}</p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-3 text-sm">
                 <ServiceMetric
                   label="LLM Chat"
                   cost={data.llmChat.cost}
@@ -86,6 +87,12 @@ export function CostsTab({ range }: CostsTabProps) {
                   label="Lambda"
                   cost={data.lambda.cost}
                   calls={data.lambda.calls}
+                />
+                <ServiceMetric
+                  label="Tavily"
+                  cost={data.tavily.cost}
+                  calls={data.tavily.calls}
+                  extra={`${data.tavily.credits} credits`}
                 />
               </div>
             </div>
@@ -110,9 +117,10 @@ export function CostsTab({ range }: CostsTabProps) {
                 { name: SERVICE_LABELS.llmSearchParsing, value: data.llmSearchParsing.cost },
                 { name: SERVICE_LABELS.embedding, value: data.embedding.cost },
                 { name: SERVICE_LABELS.lambda, value: data.lambda.cost },
+                { name: SERVICE_LABELS.tavily, value: data.tavily.cost },
               ].filter((d) => d.value > 0)}
               size={160}
-              maxItems={4}
+              maxItems={5}
             />
           ) : (
             <EmptyState message="No cost data" height={160} />
@@ -172,14 +180,15 @@ interface ServiceMetricProps {
   label: string;
   cost: number;
   calls: number;
+  extra?: string;
 }
 
-function ServiceMetric({ label, cost, calls }: ServiceMetricProps) {
+function ServiceMetric({ label, cost, calls, extra }: ServiceMetricProps) {
   return (
     <div>
       <p className="text-lg font-medium">${cost.toFixed(4)}</p>
       <p className="text-xs text-muted-foreground">
-        {label} <span className="text-zinc-600">({calls} calls)</span>
+        {label} <span className="text-zinc-600">({calls} calls{extra ? `, ${extra}` : ""})</span>
       </p>
     </div>
   );
@@ -199,6 +208,7 @@ function CostDriversList({ data }: CostDriversListProps) {
     { name: "LLM Search Parsing", ...data.llmSearchParsing },
     { name: "Embeddings", ...data.embedding },
     { name: "Lambda", ...data.lambda },
+    { name: "Tavily Web Search", ...data.tavily },
   ].sort((a, b) => b.cost - a.cost);
 
   if (data.total === 0) {
