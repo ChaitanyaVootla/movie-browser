@@ -66,6 +66,11 @@ jobs:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           GOOGLE_AUTH_CLIENT_ID: ${{ secrets.GOOGLE_AUTH_CLIENT_ID }}
           GOOGLE_AUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_AUTH_CLIENT_SECRET }}
+          # Dummy values for build-time module evaluation (not used at runtime)
+          MONGO_IP: build-placeholder
+          MONGO_PASS: build-placeholder
+          DATABASE_URL: postgresql://x:x@localhost:5432/x
+          TMDB_API_KEY: build-placeholder
         run: yarn build
 
       - name: Create deployment package
