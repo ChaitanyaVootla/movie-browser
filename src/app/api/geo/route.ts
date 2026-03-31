@@ -9,17 +9,31 @@
  */
 
 import { NextResponse } from "next/server";
-import { resolveGeo } from "@/lib/geoip";
+import { resolveGeo, lookupIP } from "@/lib/geoip";
 
 export async function GET(request: Request): Promise<NextResponse> {
+  const realIp = request.headers.get("x-real-ip");
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const ip = realIp || forwardedFor?.split(",")[0]?.trim() || "unknown";
+
   const { country, city } = resolveGeo(request.headers);
+  const geoDetail = lookupIP(ip);
 
   return NextResponse.json(
-    { country, city },
+    {
+      country,
+      city,
+      // Debug — remove after confirming it works
+      _debug: {
+        ip,
+        realIp,
+        forwardedFor,
+        geoResult: geoDetail,
+      },
+    },
     {
       headers: {
-        // Cache for 1 hour per client — country doesn't change often
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "no-cache",
       },
     }
   );
