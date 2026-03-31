@@ -122,6 +122,7 @@ jobs:
             yarn install --immutable
 
             echo "[4/6] Applying Prisma schema..."
+            set -a; source .env; set +a
             npx prisma db push --skip-generate 2>&1 || echo "Schema already up to date"
 
             echo "[5/6] Creating data directories..."

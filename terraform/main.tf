@@ -195,7 +195,10 @@ resource "aws_iam_role_policy" "lambda_invoke" {
         Action = [
           "lambda:InvokeFunction"
         ]
-        Resource = "arn:aws:lambda:${var.aws_region}:*:function:${var.lambda_function_name}"
+        Resource = [
+              "arn:aws:lambda:${var.aws_region}:*:function:${var.lambda_function_name}",
+              "arn:aws:lambda:${var.aws_region}:*:function:puppeteer-node14"
+            ]
       }
     ]
   })
