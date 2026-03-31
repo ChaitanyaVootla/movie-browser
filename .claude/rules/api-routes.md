@@ -128,7 +128,7 @@ function isSelectOnly(sql: string): boolean {
 // type values: overview | traffic | ai | lambda | performance | errors | content | costs | database
 ```
 
-The `costs` type returns unified cost breakdown: `{ llmChat, llmSearchParsing, embedding, lambda, total }` with daily breakdown.
+The `costs` type returns unified cost breakdown: `{ llmChat, llmSearchParsing, embedding, lambda, tavily, total }` with daily breakdown.
 
 ## SSE Enrichment Endpoint
 
