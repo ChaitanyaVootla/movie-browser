@@ -20,8 +20,8 @@ import {
   generateRequestId,
   hashUserId,
   extractClientIP,
-  normalizeCountryCode,
 } from "./session";
+import { resolveGeo } from "@/lib/geoip";
 import type { TrackingContext, PageType } from "./types";
 
 // =============================================================================
@@ -41,10 +41,9 @@ export async function getTrackingContext(): Promise<TrackingContext> {
   const headersList = await headers();
   const session = await auth();
 
-  // Get headers from Nginx
+  // Get headers — GeoIP fallback when proxy headers missing
   const userAgent = headersList.get("user-agent") || "";
-  const country = normalizeCountryCode(headersList.get("x-country-code"));
-  const city = headersList.get("x-city") || null;
+  const { country, city } = resolveGeo(headersList);
   const requestId = headersList.get("x-request-id") || generateRequestId();
   const referer = headersList.get("referer") || null;
   const acceptLanguage = headersList.get("accept-language") || "";
@@ -102,7 +101,7 @@ export async function getMinimalContext(): Promise<{
   const session = await auth();
 
   const userAgent = headersList.get("user-agent") || "";
-  const country = normalizeCountryCode(headersList.get("x-country-code"));
+  const { country } = resolveGeo(headersList);
   const acceptLanguage = headersList.get("accept-language") || "";
   const realIp = extractClientIP(headersList);
 

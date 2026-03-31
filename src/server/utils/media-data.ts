@@ -149,12 +149,14 @@ export interface LightPersonDetails {
 // =============================================================================
 
 /**
- * Get country code from request headers
+ * Get country code from request headers with GeoIP fallback
  */
 export async function getCountryCode(): Promise<string> {
   try {
     const headersList = await headers();
-    return headersList.get("x-country-code") || "IN";
+    const { resolveCountry } = await import("@/lib/geoip");
+    const country = resolveCountry(headersList);
+    return country !== "unknown" ? country : "IN";
   } catch {
     return "IN";
   }

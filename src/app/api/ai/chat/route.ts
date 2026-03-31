@@ -90,9 +90,11 @@ export async function POST(request: NextRequest) {
     // Get user session for name
     const session = await auth();
 
-    // Get country from headers
+    // Get country from headers with GeoIP fallback
     const headersList = await headers();
-    const region = headersList.get("x-country-code") || "US";
+    const { resolveCountry } = await import("@/lib/geoip");
+    const resolvedCountry = resolveCountry(headersList);
+    const region = resolvedCountry !== "unknown" ? resolvedCountry : "US";
 
     // Parse request body
     const body = (await request.json()) as ChatRequest;

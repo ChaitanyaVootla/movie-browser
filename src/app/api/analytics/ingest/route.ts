@@ -23,7 +23,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { insertEvents } from "@/lib/analytics/client";
 import { detectBot } from "@/lib/analytics/bot-detection";
-import { generateSessionId, normalizeCountryCode, extractClientIP } from "@/lib/analytics/session";
+import { generateSessionId, extractClientIP } from "@/lib/analytics/session";
+import { resolveGeo } from "@/lib/geoip";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { apiLogger } from "@/lib/logger";
@@ -164,8 +165,7 @@ export async function POST(request: NextRequest) {
 
     // Extract context from request
     const userAgent = request.headers.get("user-agent") || "";
-    const country = normalizeCountryCode(request.headers.get("x-country-code"));
-    const city = request.headers.get("x-city") || null;
+    const { country, city } = resolveGeo(request.headers);
     const requestId = request.headers.get("x-request-id") || "";
     const referer = request.headers.get("referer") || null;
     const acceptLanguage = request.headers.get("accept-language") || "";
