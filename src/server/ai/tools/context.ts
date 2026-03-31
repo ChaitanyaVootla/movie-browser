@@ -2,23 +2,17 @@
  * Page Context Tool
  *
  * Provides context about the current page the user is viewing.
- * This enables contextual recommendations based on what they're looking at.
+ * Includes media metadata (genres, rating, year) and user status (watched, watchlisted, rated).
  */
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
+import { getUserItemStatus } from "@/server/db/user-data";
+import { getUserIdFromConfig } from "../utils";
+import type { PageContext } from "../state";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface PageContext {
-  path: string;
-  mediaType?: "movie" | "series" | "person";
-  itemId?: number;
-  itemTitle?: string;
-}
+export type { PageContext };
 
 // =============================================================================
 // Tool Definition
@@ -30,7 +24,7 @@ const pageContextSchema = z
 
 /**
  * Get information about the current page the user is viewing.
- * This is populated by the client and injected via config.
+ * Includes media metadata and user status for the current item.
  */
 export const getPageContextTool = tool(
   async (_input: z.infer<typeof pageContextSchema>, config?: RunnableConfig) => {
@@ -55,17 +49,43 @@ export const getPageContextTool = tool(
     };
 
     if (pageContext.mediaType && pageContext.itemId) {
-      response.currentItem = {
+      const item: Record<string, unknown> = {
         type: pageContext.mediaType,
         id: pageContext.itemId,
         title: pageContext.itemTitle || null,
       };
-      // If title is available, include it. Otherwise, tell agent they have the ID and can proceed.
-      if (pageContext.itemTitle) {
-        response.hint = `User is viewing "${pageContext.itemTitle}" (${pageContext.mediaType}). ID: ${pageContext.itemId}.`;
-      } else {
-        response.hint = `User is on a ${pageContext.mediaType} page. ID: ${pageContext.itemId}. You can use this ID directly with get_details or in tags like [MOVIE:${pageContext.itemId}:Title].`;
+
+      // Include media metadata from frontend if available
+      if (pageContext.genres?.length) item.genres = pageContext.genres;
+      if (pageContext.rating) item.rating = pageContext.rating;
+      if (pageContext.year) item.year = pageContext.year;
+      if (pageContext.status) item.status = pageContext.status;
+
+      response.currentItem = item;
+
+      // Fetch user status if logged in
+      const userId = getUserIdFromConfig(config);
+      if (userId && (pageContext.mediaType === "movie" || pageContext.mediaType === "series")) {
+        const userStatus = await getUserItemStatus(userId, pageContext.itemId, pageContext.mediaType);
+        response.userStatus = {
+          isWatched: userStatus.isWatched,
+          inWatchlist: userStatus.inWatchlist,
+          userRating: userStatus.userRating,
+        };
       }
+
+      // Build a rich hint
+      const parts: string[] = [];
+      if (pageContext.itemTitle) {
+        parts.push(`User is viewing "${pageContext.itemTitle}" (${pageContext.mediaType})`);
+      } else {
+        parts.push(`User is on a ${pageContext.mediaType} page`);
+      }
+      parts.push(`ID: ${pageContext.itemId}`);
+      if (pageContext.genres?.length) parts.push(`Genres: ${pageContext.genres.join(", ")}`);
+      if (pageContext.rating) parts.push(`Rating: ${pageContext.rating}/10`);
+
+      response.hint = parts.join(". ") + ".";
     } else if (pageType === "browse") {
       response.hint = "User is browsing with filters. Ask what they're looking for.";
     } else if (pageType === "watchlist") {
@@ -85,7 +105,7 @@ export const getPageContextTool = tool(
   },
   {
     name: "get_page_context",
-    description: `Understand what page the user is currently viewing.
+    description: `Understand what page the user is currently viewing, including their relationship with it.
 
 CALL THIS when user says:
 - "this movie", "this show", "the one I'm looking at"
@@ -93,8 +113,8 @@ CALL THIS when user says:
 - "what about this one"
 - Any implicit reference to current context
 
-Returns: page type, current item (id, title, type) if on a detail page.
-If they're on a movie/series page, you'll get the ID to use with get_details.`,
+Returns: page type, current item (id, title, type, genres, rating), and user status (watched, watchlisted, rating).
+Use the returned context to tailor your response — acknowledge if they've seen it, reference their rating, etc.`,
     schema: pageContextSchema,
   }
 );

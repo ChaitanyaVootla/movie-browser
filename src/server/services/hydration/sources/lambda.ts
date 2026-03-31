@@ -58,7 +58,7 @@ function getErrorMessage(error: unknown): string {
 const GOOGLE_LAMBDA_FN = "puppeteer-node14";
 
 /** Ratings scraping lambda - detailed IMDb/RT via Wikidata */
-const RATINGS_LAMBDA_FN = "movie-ratings-scraper";
+const RATINGS_LAMBDA_FN = process.env.LAMBDA_FUNCTION_NAME || "movie-ratings-scraper";
 
 /** AWS region where lambdas are deployed */
 const AWS_REGION = "ap-south-2";

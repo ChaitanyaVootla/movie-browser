@@ -33,7 +33,7 @@
 terraform {
   backend "s3" {
     bucket         = "movie-browser-terraform-state"
-    key            = "production/terraform.tfstate"
+    key            = "beta/terraform.tfstate"
     region         = "ap-south-2"
     encrypt        = true
     dynamodb_table = "movie-browser-terraform-locks"

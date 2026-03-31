@@ -37,13 +37,23 @@ export interface NavigationAction {
 }
 
 /**
- * Page context for contextual recommendations
+ * Page context for contextual recommendations.
+ * Core fields (path, mediaType, itemId, itemTitle) are always sent.
+ * Extended fields (genres, rating, year, etc.) sent when on a detail page.
  */
 export interface PageContext {
   path: string;
   mediaType?: "movie" | "series" | "person";
   itemId?: number;
   itemTitle?: string;
+  /** Genre names of the current item */
+  genres?: string[];
+  /** TMDB rating (0-10) */
+  rating?: number;
+  /** Release year */
+  year?: string;
+  /** Series status: "Returning Series", "Ended", "Canceled", etc. */
+  status?: string;
 }
 
 /**
@@ -53,6 +63,8 @@ export interface UserContext {
   name?: string;
   region?: string;
   currentTime: string;
+  /** IANA timezone from client (e.g. "Asia/Kolkata") */
+  timezone?: string;
 }
 
 // =============================================================================

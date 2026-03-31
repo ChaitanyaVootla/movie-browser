@@ -30,7 +30,7 @@ import {
 } from "@/server/db/postgres/smart-discover";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/constants";
 import { getUserExclusions } from "@/server/db/user-data";
-import { getUserIdFromConfig } from "../utils";
+import { getUserIdFromConfig, getRegionFromConfig } from "../utils";
 import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -407,7 +407,9 @@ export const smartDiscoverTool = tool(
         // We'll need to handle this - for now, note it
         warnings.push("streamingAnywhere not yet implemented - use specific providers");
       }
-      filters.watchRegion = input.watchRegion || "US";
+      // Prefer user's actual region over schema default ("US")
+      const userRegion = getRegionFromConfig(config);
+      filters.watchRegion = input.watchRegion !== "US" ? input.watchRegion : userRegion;
 
       // ===== User Library Filters =====
       const userId = getUserIdFromConfig(config);

@@ -26,6 +26,10 @@ interface PageContext {
   mediaType?: "movie" | "series" | "person";
   itemId?: number;
   itemTitle?: string;
+  genres?: string[];
+  rating?: number;
+  year?: string;
+  status?: string;
 }
 
 interface ChatRequest {
@@ -35,6 +39,8 @@ interface ChatRequest {
   pageContext?: PageContext;
   /** Thread ID for conversation persistence via checkpointer */
   threadId?: string;
+  /** IANA timezone from client (e.g. "Asia/Kolkata") */
+  timezone?: string;
 }
 
 /**
@@ -44,6 +50,7 @@ export interface UserContext {
   name?: string;
   region?: string;
   currentTime: string;
+  timezone?: string;
 }
 
 /**
@@ -87,16 +94,17 @@ export async function POST(request: NextRequest) {
     const headersList = await headers();
     const region = headersList.get("x-country-code") || "US";
 
-    // Build user context
+    // Parse request body
+    const body = (await request.json()) as ChatRequest;
+    const { message, history = [], stream = true, pageContext } = body;
+
+    // Build user context (needs body for timezone)
     const userContext: UserContext = {
       name: session?.user?.name || undefined,
       region,
       currentTime: new Date().toISOString(),
+      timezone: body.timezone || undefined,
     };
-
-    // Parse request body
-    const body = (await request.json()) as ChatRequest;
-    const { message, history = [], stream = true, pageContext } = body;
 
     // Generate or reuse thread ID for checkpointer-backed conversation persistence
     const threadId = body.threadId || crypto.randomUUID();

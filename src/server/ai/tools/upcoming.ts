@@ -14,20 +14,8 @@ import {
   getOnTheAirTV,
   getAiringTodayTV,
 } from "@/server/services/tmdb";
+import { getRegionFromConfig } from "../utils";
 import { aiToolLogger } from "@/lib/logger";
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/**
- * Get user's region from config or default to US
- */
-function getRegionFromConfig(config?: RunnableConfig): string {
-  // Try to get region from user context
-  const userContext = config?.configurable?.userContext as { region?: string } | undefined;
-  return userContext?.region || "US";
-}
 
 /**
  * Summarize movie results

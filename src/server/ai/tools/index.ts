@@ -3,21 +3,18 @@
  *
  * Export all tools for the movie recommendation agent.
  *
- * Consolidated tool set (10 tools total):
+ * Consolidated tool set (11 tools total):
  * 1. search - Find movies/series/people by name (TMDB multi-search)
  * 2. smart_discover - Unified discovery with filters + semantic search + user library (PostgreSQL)
  * 3. get_trending - What's popular right now
  * 4. get_details - Movie/series info + optional videos + optional related
  * 5. get_person - Actor/director info and filmography
  * 6. get_upcoming - Upcoming/now playing content
- * 7. get_page_context - Current page the user is viewing
+ * 7. get_page_context - Current page the user is viewing (with user status)
  * 8. navigate_to - Navigation intent
  * 9. web_search - Search the live web (Tavily) for news, box office, awards, reviews
  * 10. web_extract - Extract full content from URLs found via web_search
- *
- * NOTE: get_user_data was removed - use smart_discover with fromWatchlist=true instead.
- * This returns watchlist items WITH full details (title, year, rating, genres) rather than
- * just IDs which required additional tool calls to be useful.
+ * 11. get_user_profile - Compact taste profile for personalized recommendations
  */
 
 // Core tools
@@ -35,8 +32,9 @@ export { getPersonTool, personTools } from "./person";
 // Upcoming tool
 export { getUpcomingTool, upcomingTools } from "./upcoming";
 
-// Context tool
+// Context & User tools
 export { getPageContextTool, type PageContext } from "./context";
+export { getUserProfileTool } from "./user-profile";
 
 // Web tools (Tavily)
 export { webSearchTool } from "./web-search";
@@ -54,23 +52,12 @@ import { getDetailsTool } from "./details";
 import { getPersonTool } from "./person";
 import { getUpcomingTool } from "./upcoming";
 import { getPageContextTool } from "./context";
+import { getUserProfileTool } from "./user-profile";
 import { webSearchTool } from "./web-search";
 import { webExtractTool } from "./web-extract";
 
 /**
- * All available tools for the movie agent (10 tools)
- *
- * Tool consolidation summary (Jan 2026):
- * - smart_discover: Unified tool combining discover + semantic_search + find_similar + user library
- *   - PostgreSQL-first with pgvector for semantic ranking
- *   - Filters + semantic query in ONE call
- *   - "More like X" via similarTo parameter
- *   - User watchlist via fromWatchlist=true (returns full details, not just IDs)
- * - get_details: Movie/series info + optional videos + related
- * - search: TMDB multi-search for exact title/person lookup
- *
- * REMOVED: get_user_data - was inefficient (returned IDs without titles)
- * → Use smart_discover({ fromWatchlist: true }) for watchlist with full details
+ * All available tools for the movie agent (11 tools)
  */
 export const allTools = [
   // Search & Discovery
@@ -83,8 +70,9 @@ export const allTools = [
   getPersonTool, // Person info + filmography
   getUpcomingTool, // Upcoming releases
 
-  // Context & Navigation
-  getPageContextTool, // What page user is on
+  // Context & User
+  getPageContextTool, // What page user is on (with user status + media metadata)
+  getUserProfileTool, // Compact taste profile (top genres, recent watches, counts)
   navigateTool, // Navigate to pages
 
   // Web tools (Tavily)

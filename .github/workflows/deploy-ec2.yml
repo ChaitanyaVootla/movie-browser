@@ -2,11 +2,11 @@ name: Build and Deploy Next.js to EC2
 
 on:
   push:
-    branches: [master]
+    branches: [next]
   workflow_dispatch: # Manual trigger
 
 concurrency:
-  group: deploy-production
+  group: deploy-beta
   cancel-in-progress: false
 
 jobs:
@@ -39,7 +39,7 @@ jobs:
   deploy:
     needs: ci
     runs-on: ubuntu-latest
-    environment: production
+    environment: beta
 
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +68,7 @@ jobs:
             yarn.lock \
             next.config.mjs \
             docker-compose.yml \
+            Caddyfile \
             ecosystem.config.cjs \
             prisma \
             postgres/init \

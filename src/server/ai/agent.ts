@@ -323,13 +323,14 @@ async function toolNodeWithContext(
 
   const invocationId = (config?.configurable?.invocationId as string) || "unknown";
 
-  // Merge userId, pageContext, and invocationId into config.configurable so tools can access them
+  // Merge userId, pageContext, userContext, and invocationId into config.configurable so tools can access them
   const configWithContext: RunnableConfig = {
     ...config,
     configurable: {
       ...config?.configurable,
       userId: state.userId,
       pageContext: state.pageContext,
+      userContext: state.userContext,
       invocationId,
     },
   };

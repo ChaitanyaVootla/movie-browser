@@ -70,7 +70,7 @@ output "next_steps" {
   value = <<-EOT
 
     ========================================
-    Movie Browser — New EC2 Setup
+    Movie Browser — Beta EC2 Setup
     ========================================
 
     1. SSH into the instance:
@@ -79,32 +79,33 @@ output "next_steps" {
     2. Verify setup completion:
        cat /var/log/user-data-complete
 
-    3. Clone repository:
-       git clone <your-repo-url> /home/ubuntu/movie-browser-next
-       cd /home/ubuntu/movie-browser-next
+    3. DNS: beta.themoviebrowser.com A -> ${aws_eip.main.public_ip}
 
-    4. Create .env.local (copy from template.env, fill in secrets)
+    4. GitHub: Create 'beta' environment with secrets:
+       NEXT_EC2_SSH_PRIVATE_KEY, NEXT_EC2_HOST=${aws_eip.main.public_ip},
+       NEXT_PUBLIC_GOOGLE_CLIENT_ID, NEXT_PUBLIC_SITE_URL=https://beta.themoviebrowser.com
 
-    5. Start PostgreSQL + ClickHouse:
-       docker compose up -d
-       docker compose ps   # verify both healthy
+    5. SSH in and create .env.local (from template.env):
+       - Set MONGO_IP to old EC2 IP for remote MongoDB
+       - Set POSTGRES_PASSWORD to match terraform.tfvars
+       - Omit AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (instance profile)
 
-    6. Apply Prisma schema:
-       yarn install
-       yarn db:push
+    6. Push to 'next' branch -> GitHub Actions deploys automatically
+       (starts PG + ClickHouse + Caddy, applies Prisma schema, starts PM2)
 
-    7. Apply search indexes (after tables exist):
+    7. Apply search indexes (one-time, after first deploy):
        docker exec -i movie-browser-postgres psql -U moviebrowser -d moviebrowser \
          < postgres/init/02-search-indexes.sql
 
-    8. Deploy from local machine:
-       yarn deploy
+    8. Google OAuth: Add redirect URI:
+       https://beta.themoviebrowser.com/api/auth/callback/google
 
-    9. Update DNS records:
-       themoviebrowser.com -> ${aws_eip.main.public_ip}
-       api.themoviebrowser.com -> ${aws_eip.main.public_ip}
+    Local PostgreSQL access (SSH tunnel):
+       ssh -i ${var.key_name}.pem -L 5433:localhost:5433 ubuntu@${aws_eip.main.public_ip} -N
+       Then locally: DATABASE_URL=postgresql://moviebrowser:PASS@localhost:5433/moviebrowser
+       Works with: yarn db:studio, yarn db:push, prisma CLI
 
-    IAM Permissions on this instance:
+    IAM Permissions:
     - Bedrock: InvokeModel (Kimi K2.5, Cohere Embed v4)
     - Lambda: InvokeFunction (movie-ratings-scraper)
     - S3: Get/Put/List (migration buckets)

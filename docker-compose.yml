@@ -91,6 +91,19 @@ services:
       timeout: 10s
       retries: 3
 
+  # ===========================================================================
+  # Caddy — HTTPS Reverse Proxy (auto Let's Encrypt)
+  # ===========================================================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: movie-browser-caddy
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   postgres_data:
     name: movie-browser-postgres-data
@@ -98,3 +111,7 @@ volumes:
     name: movie-browser-clickhouse-data
   clickhouse_logs:
     name: movie-browser-clickhouse-logs
+  caddy_data:
+    name: movie-browser-caddy-data
+  caddy_config:
+    name: movie-browser-caddy-config

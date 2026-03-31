@@ -1,0 +1,3 @@
+beta.themoviebrowser.com {
+	reverse_proxy localhost:3002
+}

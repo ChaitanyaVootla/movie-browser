@@ -24,6 +24,10 @@ export interface PageContext {
   mediaType?: "movie" | "series" | "person";
   itemId?: number;
   itemTitle?: string;
+  genres?: string[];
+  rating?: number;
+  year?: string;
+  status?: string;
 }
 
 interface StreamEvent {
@@ -209,6 +213,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
             ...(hasThread ? { threadId: threadIdRef.current } : { history }),
             stream: true,
             pageContext: pageContextRef.current,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           }),
           signal: abortControllerRef.current.signal,
         });

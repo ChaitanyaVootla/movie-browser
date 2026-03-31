@@ -47,6 +47,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
   );
 
   // Build page context for chat stream (for AI agent context)
+  // Includes media metadata so the agent has context without needing a tool call
   const pageContext = useMemo(() => {
     if (!pathname) return null;
     return {
@@ -54,6 +55,10 @@ export function AssistantFloaty({ className }: { className?: string }) {
       mediaType: mediaContext.mediaType || undefined,
       itemId: mediaContext.itemId || undefined,
       itemTitle: mediaContext.title || undefined,
+      genres: mediaContext.genres || undefined,
+      rating: mediaContext.rating || undefined,
+      year: mediaContext.year || undefined,
+      status: mediaContext.status || undefined,
     };
   }, [pathname, mediaContext]);
 

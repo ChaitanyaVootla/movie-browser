@@ -223,7 +223,7 @@ export const getDetailsTool = tool(
   },
   {
     name: "get_details",
-    description: `Get movie/series info: ratings, cast, streaming, similar content.
+    description: `Get movie/series info: ratings, cast, streaming, similar content, and user status.
 
 Use when: "Is X good?", "Who's in X?", "Where to watch?", "Similar to X"
 NOT for trailers: Just output [TRAILER:movie:id] tag instead - UI renders it.
@@ -233,8 +233,12 @@ Parameters:
 - mediaType: "movie" or "series"
 - includeRelated: true for "similar to X" requests
 
-Returns: title, year, ratings (IMDb/RT/TMDB), cast, director, streaming, user status.
-Use the id for [RATINGS], [WATCH], [TRAILER] tags in your response.`,
+Returns: title, year, ratings (IMDb/RT/TMDB), cast, director, streaming, user status (inWatchlist, isWatched, userRating).
+Use the id for [RATINGS], [WATCH], [TRAILER] tags in your response.
+
+IMPORTANT: If user status shows isWatched=true or userRating exists, acknowledge it!
+- "You've already seen this one!" or "You rated this 👍"
+- Offer post-watch discussion or similar recommendations instead of "should you watch it"`,
     schema: z.object({
       id: z.number().describe("TMDB movie or series ID"),
       mediaType: z.enum(["movie", "series"]).describe("Content type: 'movie' or 'series'"),

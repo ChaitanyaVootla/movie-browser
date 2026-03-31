@@ -2,7 +2,7 @@
   "version": 2,
   "doc": "/Users/chaitanya/dev/movie-browser/docs/plans/tavily-web-tools.md",
   "startedAt": "2026-03-31T00:00:00Z",
-  "completedAt": null,
+  "completedAt": "2026-03-31T01:30:00Z",
   "model": "opus",
   "tier": "Standard",
   "maxSessionBudgetUsd": 20,
@@ -11,7 +11,7 @@
   "featureBranch": "next",
   "parallel": false,
   "maxParallel": 3,
-  "status": "running",
+  "status": "completed",
   "sessions": [
     {
       "num": 1,
@@ -66,15 +66,51 @@
       "reviewFindings": null,
       "parallelGroup": null,
       "worktreePath": null
+    },
+    {
+      "num": 4,
+      "label": "Audit & Hardening",
+      "costUsd": 2.62,
+      "durationMs": 352405,
+      "numTurns": 55,
+      "inputTokens": 40,
+      "outputTokens": 13267,
+      "cacheReadTokens": 3389998,
+      "isError": false,
+      "gitCommit": "8bf3475",
+      "retryCount": 0,
+      "verificationPassed": true,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
+    },
+    {
+      "num": 5,
+      "label": "Audit pass",
+      "costUsd": 1.00,
+      "durationMs": 141912,
+      "numTurns": 34,
+      "inputTokens": 13,
+      "outputTokens": 5764,
+      "cacheReadTokens": 766482,
+      "isError": false,
+      "gitCommit": "5a95651",
+      "retryCount": 0,
+      "verificationPassed": null,
+      "reviewPassed": null,
+      "reviewFindings": null,
+      "parallelGroup": null,
+      "worktreePath": null
     }
   ],
   "parallelGroups": {},
   "totals": {
-    "sessions": 3,
-    "costUsd": 6.47,
-    "durationMs": 1115409,
-    "inputTokens": 120,
-    "outputTokens": 56125,
-    "cacheReadTokens": 7423648
+    "sessions": 5,
+    "costUsd": 10.09,
+    "durationMs": 1609726,
+    "inputTokens": 173,
+    "outputTokens": 75156,
+    "cacheReadTokens": 11580128
   }
 }
