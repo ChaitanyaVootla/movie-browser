@@ -193,7 +193,7 @@ export function HeroCarousel({
         </AnimatePresence>
 
         {/* Content - stacked below image on mobile, overlay on desktop */}
-        <div className="relative z-10 bg-black px-4 -mt-8 pb-10 md:absolute md:inset-0 md:mt-0 md:pb-0 md:bg-transparent md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
+        <div className="relative z-10 bg-black px-4 -mt-8 pb-10 min-h-[160px] md:min-h-0 md:absolute md:inset-0 md:mt-0 md:pb-0 md:bg-transparent md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}

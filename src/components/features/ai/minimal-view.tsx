@@ -188,7 +188,7 @@ export function MinimalView({
               "ai-container-shadow"
             )}
           >
-            <div className="w-[45vw] min-w-[300px] max-w-[550px] flex flex-col gap-3">
+            <div className="w-[50vw] min-w-[340px] max-w-[550px] flex flex-col gap-3">
               {/* Featured prompt */}
               {featuredPrompt && (
                 <div className="flex justify-center">
@@ -222,7 +222,7 @@ export function MinimalView({
                       disabled={isLoading}
                       data-testid={`ai-prompt-${idx}`}
                       className={cn(
-                        "px-3.5 py-1.5 text-xs rounded-full",
+                        "flex-1 min-w-fit px-3.5 py-1.5 text-xs rounded-full",
                         "bg-white/10 hover:bg-white/20",
                         "text-white/90 hover:text-white",
                         "border border-white/15 hover:border-white/25",

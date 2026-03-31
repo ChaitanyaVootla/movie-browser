@@ -117,7 +117,7 @@ export function HeroContent({
         {hook && (
           <motion.blockquote
             variants={heroItemVariants}
-            className="border-l-2 border-brand/50 pl-3 text-sm md:text-base text-foreground/90 italic font-medium text-left max-w-md leading-relaxed"
+            className="border-l-2 border-brand/50 pl-3 text-xs md:text-sm text-foreground/90 italic font-medium text-left max-w-md leading-relaxed line-clamp-2"
           >
             {hook}
           </motion.blockquote>
