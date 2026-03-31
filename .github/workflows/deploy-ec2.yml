@@ -18,6 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,7 +28,7 @@ jobs:
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Typecheck
         run: yarn typecheck
@@ -44,6 +47,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -51,7 +57,7 @@ jobs:
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Build Next.js
         env:
@@ -66,6 +72,7 @@ jobs:
             public \
             package.json \
             yarn.lock \
+            .yarnrc.yml \
             next.config.mjs \
             docker-compose.yml \
             Caddyfile \
@@ -98,12 +105,13 @@ jobs:
             tar -xzf deploy.tar.gz
             rm -f deploy.tar.gz
 
-            echo "[2/6] Starting PostgreSQL + ClickHouse..."
+            echo "[2/6] Starting PostgreSQL + ClickHouse + Caddy..."
             docker compose up -d --wait
             docker compose ps
 
             echo "[3/6] Installing production dependencies..."
-            yarn install --frozen-lockfile --production
+            corepack enable
+            yarn install --immutable
 
             echo "[4/6] Applying Prisma schema..."
             npx prisma db push --skip-generate 2>&1 || echo "Schema already up to date"
