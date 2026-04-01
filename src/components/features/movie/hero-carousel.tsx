@@ -149,16 +149,16 @@ export function HeroCarousel({
   };
 
   return (
-    <section
+    <div
       className={cn("relative cursor-pointer touch-pan-y", className)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
-      aria-label={`View ${title || "featured content"}`}
-      role="button"
+      role="link"
       tabIndex={0}
+      aria-label={`View ${title || "featured content"}`}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -271,6 +271,6 @@ export function HeroCarousel({
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
