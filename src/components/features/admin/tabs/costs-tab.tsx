@@ -188,7 +188,7 @@ function ServiceMetric({ label, cost, calls, extra }: ServiceMetricProps) {
     <div>
       <p className="text-lg font-medium">${cost.toFixed(4)}</p>
       <p className="text-xs text-muted-foreground">
-        {label} <span className="text-zinc-600">({calls} calls{extra ? `, ${extra}` : ""})</span>
+        {label} <span className="text-muted-foreground">({calls} calls{extra ? `, ${extra}` : ""})</span>
       </p>
     </div>
   );
@@ -230,7 +230,7 @@ function CostDriversList({ data }: CostDriversListProps) {
             </div>
             <div className="flex items-center gap-3 text-muted-foreground">
               <span>{service.calls} calls</span>
-              <span className="text-zinc-600">{pct.toFixed(1)}%</span>
+              <span className="text-muted-foreground">{pct.toFixed(1)}%</span>
               <span className="font-medium text-foreground">${service.cost.toFixed(4)}</span>
             </div>
           </div>

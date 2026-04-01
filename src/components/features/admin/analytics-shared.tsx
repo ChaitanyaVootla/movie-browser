@@ -101,7 +101,7 @@ export function EmptyState({
     >
       {Icon && (
         <div className="p-3 rounded-xl bg-zinc-800/30 mb-3">
-          <Icon className="h-5 w-5 text-zinc-600" />
+          <Icon className="h-5 w-5 text-zinc-500" />
         </div>
       )}
       <p className="text-sm">{message}</p>
@@ -172,7 +172,7 @@ export function CompactStat({
           {value !== null && value !== undefined ? formatValue(value) : "—"}
         </span>
       )}
-      {suffix && <span className="text-[10px] text-zinc-600">{suffix}</span>}
+      {suffix && <span className="text-[10px] text-zinc-500">{suffix}</span>}
     </div>
   );
 }

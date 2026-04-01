@@ -312,7 +312,7 @@ function DashboardHeader({
 
       {/* Last Updated */}
       {checkedAt && (
-        <span className="text-[10px] text-zinc-600">
+        <span className="text-[10px] text-zinc-500">
           Updated {new Date(checkedAt).toLocaleTimeString()}
         </span>
       )}
@@ -481,7 +481,7 @@ function MetricCard({
           </p>
           <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">{label}</p>
           {suffix && (
-            <p className="text-[9px] text-zinc-600">{suffix}</p>
+            <p className="text-[9px] text-zinc-500">{suffix}</p>
           )}
         </>
       )}
@@ -528,7 +528,7 @@ function AlertsBar({ alerts, isLoading, onErrorClick }: AlertsBarProps) {
             )}
             <span className="text-xs">
               {criticalCount > 0 && <span className="text-red-400">{criticalCount} critical</span>}
-              {criticalCount > 0 && warningCount > 0 && <span className="text-zinc-600 mx-1">·</span>}
+              {criticalCount > 0 && warningCount > 0 && <span className="text-zinc-500 mx-1">·</span>}
               {warningCount > 0 && <span className="text-amber-400">{warningCount} warning</span>}
             </span>
           </div>
@@ -596,12 +596,12 @@ function AlertRow({ alert, onErrorClick }: AlertRowProps) {
           <Badge variant="outline" className="text-[9px] h-4 px-1 border-zinc-700 text-zinc-500">
             {alert.category}
           </Badge>
-          {isClickable && <span className="text-[9px] text-zinc-600">(click for details)</span>}
+          {isClickable && <span className="text-[9px] text-zinc-500">(click for details)</span>}
         </div>
-        <span className="text-zinc-600">{getTimeAgo(alert.detectedAt)}</span>
+        <span className="text-zinc-500">{getTimeAgo(alert.detectedAt)}</span>
       </div>
       <p className="text-zinc-500 mt-0.5">{alert.message}</p>
-      <div className="flex gap-3 mt-1 text-[10px] text-zinc-600">
+      <div className="flex gap-3 mt-1 text-[10px] text-zinc-500">
         <span>Value: <span className="text-zinc-400">{formatAlertValue(alert.value)}</span></span>
         <span>Threshold: <span className="text-zinc-400">{formatAlertValue(alert.threshold)}</span></span>
       </div>
