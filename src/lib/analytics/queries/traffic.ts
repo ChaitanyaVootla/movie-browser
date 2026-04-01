@@ -332,3 +332,39 @@ export async function getDeviceBreakdown(range: TimeRange): Promise<DeviceBreakd
     percentage: total > 0 ? (parseInt(row.count, 10) / total) * 100 : 0,
   }));
 }
+
+// =============================================================================
+// Top Bot Sources
+// =============================================================================
+
+export interface BotSource {
+  botType: string;
+  views: number;
+  percentage: number;
+}
+
+export async function getTopBotSources(range: TimeRange, limit = 10): Promise<BotSource[]> {
+  const timeCondition = getTimeRangeCondition(range);
+
+  const rows = await query<{
+    bot_type: string;
+    views: string;
+  }>(`
+    SELECT
+      bot_type,
+      count() AS views
+    FROM page_views
+    WHERE ${timeCondition} AND is_bot = 1 AND bot_type != ''
+    GROUP BY bot_type
+    ORDER BY views DESC
+    LIMIT ${limit}
+  `);
+
+  const total = rows.reduce((acc, r) => acc + parseInt(r.views, 10), 0);
+
+  return rows.map((row) => ({
+    botType: row.bot_type,
+    views: parseInt(row.views, 10),
+    percentage: total > 0 ? parseInt(row.views, 10) / total : 0,
+  }));
+}

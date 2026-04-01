@@ -86,6 +86,7 @@ export interface TrafficData {
   topPages: TopPage[];
   geo: GeoData[];
   devices: DeviceData[];
+  topBots?: Array<{ botType: string; views: number; percentage: number }>;
 }
 
 // =============================================================================

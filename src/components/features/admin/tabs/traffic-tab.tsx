@@ -11,7 +11,7 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, Globe, BarChart3, ExternalLink } from "lucide-react";
+import { TrendingUp, Globe, BarChart3, ExternalLink, Bot } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +81,7 @@ export function TrafficTab({
   isLoading: overviewLoading,
   excludeBots,
 }: TrafficTabProps) {
-  const [topPagesExcludeBots, setTopPagesExcludeBots] = useState(true);
+  // Top pages uses the global excludeBots toggle
   const [granularity, setGranularity] = useState<TrafficGranularity>("hour");
 
   const { data, isLoading } = useQuery({
@@ -229,16 +229,7 @@ export function TrafficTab({
               </div>
             </div>
           ) : data?.geo && data.geo.length > 0 ? (
-            <DistributionPieChart
-              data={
-                data.geo.map((g) => ({
-                  name: g.country.toUpperCase(),
-                  value: g.views,
-                })) ?? []
-              }
-              size={120}
-              maxItems={6}
-            />
+            <GeoDistribution data={data.geo} />
           ) : (
             <EmptyState message="No geographic data" height={120} />
           )}
@@ -248,26 +239,10 @@ export function TrafficTab({
       {/* Top Pages with Bot Filter */}
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Top Pages
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="top-pages-no-bots"
-                checked={topPagesExcludeBots}
-                onCheckedChange={(c) => setTopPagesExcludeBots(c === true)}
-                className="h-3 w-3"
-              />
-              <Label
-                htmlFor="top-pages-no-bots"
-                className="text-[10px] text-muted-foreground cursor-pointer"
-              >
-                Humans only
-              </Label>
-            </div>
-          </div>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Top Pages
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -279,11 +254,32 @@ export function TrafficTab({
           ) : data?.topPages && data.topPages.length > 0 ? (
             <div className="space-y-1.5">
               {data.topPages.slice(0, 5).map((page) => (
-                <TopPageRow key={page.path} page={page} excludeBots={topPagesExcludeBots} />
+                <TopPageRow key={page.path} page={page} excludeBots={excludeBots} />
               ))}
             </div>
           ) : (
             <EmptyState message="No page data" height={100} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Top Bot Sources */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            Top Bot Sources
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-4 w-full" />
+              ))}
+            </div>
+          ) : (
+            <TopBotSources data={data?.topBots} />
           )}
         </CardContent>
       </Card>
@@ -336,6 +332,74 @@ function TopPageRow({ page, excludeBots }: { page: TopPage; excludeBots: boolean
   }
 
   return content;
+}
+
+// =============================================================================
+// Geo Distribution with Flags
+// =============================================================================
+
+function GeoDistribution({ data }: { data: Array<{ country: string; views: number; percentage: number }> }) {
+  const total = data.reduce((acc, d) => acc + d.views, 0);
+
+  return (
+    <div className="space-y-2">
+      {data.slice(0, 6).map((item) => {
+        const code = item.country.toLowerCase();
+        const pct = total > 0 ? ((item.views / total) * 100).toFixed(1) : "0";
+        return (
+          <div key={item.country} className="flex items-center gap-2 text-xs">
+            {code !== "unknown" ? (
+              <img
+                src={`https://flagcdn.com/w40/${code}.png`}
+                alt={item.country}
+                className="w-5 h-3.5 object-cover rounded-sm shrink-0"
+              />
+            ) : (
+              <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+            )}
+            <span className="text-muted-foreground uppercase">{item.country}</span>
+            <div className="flex-1 mx-2">
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-brand"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+            <span className="font-medium shrink-0 tabular-nums">{pct}%</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// =============================================================================
+// Top Bot Sources
+// =============================================================================
+
+function TopBotSources({ data }: { data?: Array<{ botType: string; views: number; percentage: number }> }) {
+  if (!data || data.length === 0) {
+    return <EmptyState message="No bot traffic" height={80} />;
+  }
+
+  const total = data.reduce((acc, d) => acc + d.views, 0);
+
+  return (
+    <div className="space-y-1.5">
+      {data.slice(0, 5).map((bot) => (
+        <div key={bot.botType} className="flex items-center justify-between text-xs py-0.5">
+          <span className="text-muted-foreground capitalize">{bot.botType}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-medium tabular-nums">{bot.views}</span>
+            <span className="text-muted-foreground/60 tabular-nums w-10 text-right">
+              {total > 0 ? ((bot.views / total) * 100).toFixed(0) : 0}%
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // =============================================================================

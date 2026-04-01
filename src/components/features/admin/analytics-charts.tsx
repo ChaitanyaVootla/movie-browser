@@ -222,7 +222,7 @@ export function DevicePieChart({
             <div key={item.name} className="flex items-center gap-2 text-sm">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
               <span className="text-muted-foreground">{item.name}</span>
-              <span className="font-medium ml-auto">
+              <span className="font-medium ml-auto text-foreground">
                 {((item.value / total) * 100).toFixed(1)}%
               </span>
             </div>
@@ -349,7 +349,7 @@ export function DistributionPieChart({
                 style={{ backgroundColor: item.color }}
               />
               <span className="text-muted-foreground truncate capitalize">{item.name}</span>
-              <span className="font-medium ml-auto shrink-0">
+              <span className="font-medium ml-auto shrink-0 text-foreground">
                 {((item.value / total) * 100).toFixed(0)}%
               </span>
             </div>

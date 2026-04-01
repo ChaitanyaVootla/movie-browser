@@ -13,12 +13,13 @@ const VALID_SUBTABS: AnalyticsSubTab[] = [
   "traffic",
   "ai",
   "lambda",
+  "costs",
   "performance",
   "system",
   "database",
   "query",
 ];
-const DEFAULT_TAB = "analytics";
+const DEFAULT_TAB = "users";
 const DEFAULT_SUBTAB: AnalyticsSubTab = "traffic";
 const DEFAULT_RANGE: TimeRange = 7;
 

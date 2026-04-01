@@ -23,6 +23,7 @@ import {
   getTopPages,
   getGeoDistribution,
   getDeviceBreakdown,
+  getTopBotSources,
   // AI
   getAIUsageOverview,
   getDailyAICosts,
@@ -157,13 +158,14 @@ export async function GET(request: NextRequest) {
       // Traffic Dashboard
       // =======================================================================
       case "traffic": {
-        const [overview, daily, dailyWithBots, topPages, geo, devices] = await Promise.all([
+        const [overview, daily, dailyWithBots, topPages, geo, devices, topBots] = await Promise.all([
           getTrafficOverview(range),
           getDailyTraffic(range),
           getDailyTrafficWithBots(range),
           getTopPages(range, 15),
           getGeoDistribution(range, 10),
           getDeviceBreakdown(range),
+          getTopBotSources(range),
         ]);
 
         return NextResponse.json({
@@ -173,6 +175,7 @@ export async function GET(request: NextRequest) {
           topPages,
           geo,
           devices,
+          topBots,
         });
       }
 

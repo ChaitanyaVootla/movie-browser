@@ -20,9 +20,11 @@ export {
   getTopPages,
   getGeoDistribution,
   getDeviceBreakdown,
+  getTopBotSources,
   type TrafficGranularity,
   type HourlyTraffic,
   type HourlyTrafficWithBots,
+  type BotSource,
 } from "./traffic";
 
 // AI usage queries
