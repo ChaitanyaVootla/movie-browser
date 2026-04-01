@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatViewCount, formatRelativeTime } from "@/lib/youtube-utils";
+import { useWakeLock } from "@/hooks/use-wake-lock";
 import type { TrendingTrailer, YouTubeTrendingTrailer } from "@/server/actions/trending";
 import type { YouTubeComment } from "@/types";
 
@@ -390,9 +391,20 @@ export function TrailerModal({
     channelThumbnail?: string;
   } | null>(null);
 
+  const wakeLock = useWakeLock();
+
   const currentTrailer = trailers[currentIndex];
   const prevTrailer = currentIndex > 0 ? trailers[currentIndex - 1] : null;
   const nextTrailer = currentIndex < trailers.length - 1 ? trailers[currentIndex + 1] : null;
+
+  // Keep screen on during trailer playback
+  useEffect(() => {
+    if (isOpen) {
+      wakeLock.request();
+    } else {
+      wakeLock.release();
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch comments and fresh stats when video changes
   useEffect(() => {

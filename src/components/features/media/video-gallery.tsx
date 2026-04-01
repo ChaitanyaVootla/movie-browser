@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useWakeLock } from "@/hooks/use-wake-lock";
 import { formatViewCount, formatDuration, formatRelativeTime } from "@/lib/youtube-utils";
 import { VideoStats, VideoStatsSkeleton } from "./video-stats";
 import { VideoComments } from "./video-comments";
@@ -135,6 +136,7 @@ function VideoThumbnail({ video, isActive, onClick, metadata }: VideoThumbnailPr
 
 export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGalleryProps) {
   const { trackTrailerPlay } = useAnalytics();
+  const wakeLock = useWakeLock();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [filter, setFilter] = useState("All");
@@ -158,6 +160,15 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
   );
 
   const videoTypes = useMemo(() => getVideoTypes(youtubeVideos), [youtubeVideos]);
+
+  // Keep screen on during video playback
+  useEffect(() => {
+    if (isPlaying) {
+      wakeLock.request();
+    } else {
+      wakeLock.release();
+    }
+  }, [isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize with first video
   const activeVideo = currentVideo || filteredVideos[0];

@@ -17,6 +17,7 @@ import {
   Sun,
   ChevronRight,
   Bookmark,
+  Download,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { signOut } from "next-auth/react";
@@ -28,6 +29,7 @@ import { useSearch } from "@/components/features/search";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 // =============================================================================
 // Types
@@ -54,6 +56,7 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
   const { theme, setTheme } = useTheme();
   const { openLoginDialog } = useLoginDialog();
   const mounted = useMounted();
+  const { canPrompt, isInstalled, promptInstall } = useInstallPrompt();
 
   const user = session?.user;
   const isAuthenticated = status === "authenticated";
@@ -164,6 +167,24 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
                   )}
                 />
               </div>
+            </button>
+          )}
+
+          {/* Install App - only show when installable and not already installed */}
+          {canPrompt && !isInstalled && (
+            <button
+              onClick={() => {
+                promptInstall();
+                onOpenChange(false);
+              }}
+              className={cn(
+                "flex items-center gap-4 px-6 py-3.5 w-full text-left",
+                "text-brand hover:bg-brand/10",
+                "active:bg-brand/20 transition-colors"
+              )}
+            >
+              <Download className="h-5 w-5" />
+              <span className="font-medium">Install App</span>
             </button>
           )}
 

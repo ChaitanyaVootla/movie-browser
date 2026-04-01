@@ -15,6 +15,11 @@ import {
 import { AssistantFloaty } from "@/components/features/ai";
 import { SearchProvider, SearchCommand, useSearch } from "@/components/features/search";
 import { AnalyticsProvider } from "@/components/analytics";
+import {
+  ServiceWorkerRegister,
+  InstallBanner,
+  BadgeManager,
+} from "@/components/features/pwa";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -46,6 +51,10 @@ export function Providers({ children }: ProvidersProps) {
                     <AssistantFloaty />
                     {/* Search dialog - single instance */}
                     <SearchDialogRenderer />
+                    {/* PWA: service worker, install prompt, badge */}
+                    <ServiceWorkerRegister />
+                    <InstallBanner />
+                    <BadgeManager />
                   </QuickInfoProvider>
                 </HoverCardProvider>
               </SearchProvider>

@@ -51,7 +51,8 @@ export type ActionType =
   | "gallery_open"
   | "gallery_nav"
   | "settings_change"
-  | "continue_watching_click";
+  | "continue_watching_click"
+  | "pwa_install";
 
 // =============================================================================
 // Query Types (AI)

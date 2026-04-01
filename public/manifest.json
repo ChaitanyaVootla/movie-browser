@@ -27,6 +27,15 @@
       "purpose": "maskable"
     }
   ],
+  "share_target": {
+    "action": "/browse",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "shortcuts": [
     {
       "name": "Trending Movies",

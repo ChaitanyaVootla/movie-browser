@@ -82,6 +82,9 @@ nginx-logs/
 # Generated files
 # =============================================================================
 sitemap*.xml
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
 
 # TMDB daily exports (downloaded by sitemap generator)
 data/movie_ids_*.json

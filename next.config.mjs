@@ -1,3 +1,5 @@
+import { withSerwist } from "@serwist/turbopack";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // geoip-lite reads .dat files from node_modules at runtime — must not be bundled
@@ -47,4 +49,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);
