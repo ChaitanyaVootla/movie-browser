@@ -1,11 +1,14 @@
 {
+  "id": "/",
   "name": "Movie Browser",
   "short_name": "MovieBrowser",
   "description": "Track, discover and find where to watch TV shows and movies",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#171717",
   "theme_color": "#171717",
+  "categories": ["entertainment", "lifestyle"],
   "icons": [
     {
       "src": "/images/android-chrome-192x192.png",
@@ -16,6 +19,32 @@
       "src": "/images/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/images/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Trending Movies",
+      "short_name": "Trending",
+      "url": "/browse?sort=trending",
+      "description": "See what's trending right now"
+    },
+    {
+      "name": "My Watchlist",
+      "short_name": "Watchlist",
+      "url": "/watchlist",
+      "description": "View your watchlist"
+    },
+    {
+      "name": "Browse",
+      "short_name": "Browse",
+      "url": "/browse",
+      "description": "Discover movies and TV shows"
     }
   ]
 }

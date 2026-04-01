@@ -52,7 +52,7 @@ export function IdleCircle({
       }}
       data-testid="ai-assistant-trigger"
       role="button"
-      aria-label={isAwake && prompt ? prompt.text : "Open Cue"}
+      aria-label="Open Cue AI assistant"
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           trackAIChatOpen();

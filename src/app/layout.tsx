@@ -24,6 +24,7 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
     { media: "(prefers-color-scheme: dark)", color: "#171717" },
@@ -96,6 +97,11 @@ export const metadata: Metadata = {
     apple: "/images/apple-touch-icon.png",
   },
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Movie Browser",
+  },
 };
 
 export default function RootLayout({
@@ -107,6 +113,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://image.tmdb.org" />
+        <link rel="preconnect" href="https://accounts.google.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://api.themoviedb.org" />
       </head>
       <body
@@ -116,7 +123,7 @@ export default function RootLayout({
         <Providers>
           <ScrollToTop />
           <NavBar />
-          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0">{children}</main>
           <Footer className="hidden md:block" />
           <MobileBottomNav />
         </Providers>

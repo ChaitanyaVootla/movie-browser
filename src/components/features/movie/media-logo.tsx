@@ -91,6 +91,7 @@ function MediaLogoInner({
   // Image fills the container while maintaining aspect ratio
   return (
     <div className={cn("relative", className)}>
+      <h1 className="sr-only">{fallbackText}</h1>
       <Image
         src={currentSrc}
         alt={`${fallbackText} logo`}

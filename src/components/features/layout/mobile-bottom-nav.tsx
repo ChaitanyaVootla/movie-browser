@@ -219,13 +219,13 @@ function NavItemButton({ item, isActive }: NavItemButtonProps) {
       <Icon
         className={cn(
           "h-5 w-5 transition-colors",
-          isActive ? "text-brand" : "text-muted-foreground/70"
+          isActive ? "text-brand" : "text-muted-foreground"
         )}
       />
       <span
         className={cn(
-          "text-[10px] font-medium transition-colors leading-none",
-          isActive ? "text-brand" : "text-muted-foreground/70"
+          "text-[11px] font-medium transition-colors leading-none",
+          isActive ? "text-brand" : "text-muted-foreground"
         )}
       >
         {item.label}
@@ -296,9 +296,9 @@ export function MobileBottomNav() {
         )}
       >
         {/* Background bar */}
-        <div className="absolute inset-x-0 bottom-0 h-14 bg-background/95 backdrop-blur-xl border-t border-border/30 pointer-events-none" />
-        {/* Nav items - z-10 ensures above background */}
-        <div className="relative z-10 flex items-end justify-around h-14 px-1">
+        <div className="absolute inset-x-0 bottom-0 h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-xl border-t border-border/30 pointer-events-none" />
+        {/* Nav items - z-10 ensures above background, pb for home indicator */}
+        <div className="relative z-10 flex items-end justify-around h-14 pb-[env(safe-area-inset-bottom,0px)] px-1">
           {navItems.map((item) => (
             <NavItemButton
               key={item.label}
@@ -332,7 +332,7 @@ export function MobileBottomNav() {
               ) : (
                 <User className="h-5 w-5 text-muted-foreground/70" />
               )}
-              <span className="text-[10px] font-medium text-muted-foreground/70 leading-none">
+              <span className="text-[11px] font-medium text-muted-foreground leading-none">
                 {isAuthenticated ? "You" : "Menu"}
               </span>
             </div>

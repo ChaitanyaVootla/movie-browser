@@ -156,8 +156,8 @@ export function HeroCarousel({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
-      aria-label="Featured content carousel"
-      role="link"
+      aria-label={`View ${title || "featured content"}`}
+      role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -229,7 +229,7 @@ export function HeroCarousel({
 
         {/* Progress dots - centered below content on mobile, right-aligned on desktop */}
         <div className="relative z-20 flex justify-center pb-4 bg-black md:bg-transparent md:absolute md:bottom-6 md:pb-0 md:right-8 lg:right-12">
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-0 items-center">
             {items.map((_, index) => (
               <button
                 key={index}
@@ -237,31 +237,35 @@ export function HeroCarousel({
                   e.stopPropagation();
                   goToSlide(index);
                 }}
-                className={cn(
-                  "h-2.5 rounded-full transition-all duration-300 relative overflow-hidden cursor-default",
-                  index === currentIndex
-                    ? "w-10 bg-white/30"
-                    : "w-2.5 bg-white/25 hover:bg-white/50"
-                )}
+                className="p-2 cursor-default"
                 aria-label={`Go to slide ${index + 1}`}
               >
-                {/* Progress fill - neutral white */}
-                {index === currentIndex && isAutoPlaying && (
-                  <motion.span
-                    key={animationKey}
-                    className="absolute inset-y-0 left-0 bg-white/70 rounded-full"
-                    initial={{ width: "0%" }}
-                    animate={{ width: "100%" }}
-                    transition={{
-                      duration: slideDuration / 1000,
-                      ease: "linear",
-                    }}
-                  />
-                )}
-                {/* Static fill when paused */}
-                {index === currentIndex && !isAutoPlaying && (
-                  <span className="absolute inset-y-0 left-0 bg-white/70 rounded-full w-1/2" />
-                )}
+                <span
+                  className={cn(
+                    "block h-2.5 rounded-full transition-all duration-300 relative overflow-hidden",
+                    index === currentIndex
+                      ? "w-10 bg-white/30"
+                      : "w-2.5 bg-white/25 hover:bg-white/50"
+                  )}
+                >
+                  {/* Progress fill - neutral white */}
+                  {index === currentIndex && isAutoPlaying && (
+                    <motion.span
+                      key={animationKey}
+                      className="absolute inset-y-0 left-0 bg-white/70 rounded-full"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{
+                        duration: slideDuration / 1000,
+                        ease: "linear",
+                      }}
+                    />
+                  )}
+                  {/* Static fill when paused */}
+                  {index === currentIndex && !isAutoPlaying && (
+                    <span className="absolute inset-y-0 left-0 bg-white/70 rounded-full w-1/2" />
+                  )}
+                </span>
               </button>
             ))}
           </div>

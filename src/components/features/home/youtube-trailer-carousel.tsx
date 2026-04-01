@@ -161,6 +161,7 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
           sizes="(max-width: 640px) 280px, (max-width: 768px) 320px, 360px"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           priority={priority}
+          fetchPriority={priority ? "high" : undefined}
           unoptimized
         />
 

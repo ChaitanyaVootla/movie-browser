@@ -27,6 +27,7 @@ interface MediaBackdropProps {
 export function MediaBackdrop({
   item,
   mediaType,
+  priority,
   className,
   children,
   overlay = "light",
@@ -68,6 +69,7 @@ export function MediaBackdrop({
               src={backdropSrc}
               alt={`${title} backdrop`}
               className="w-full h-full object-cover object-[center_20%]"
+              fetchPriority={priority ? "high" : undefined}
               onError={handleImageError}
             />
             {/* Top gradient for navbar */}
@@ -97,6 +99,7 @@ export function MediaBackdrop({
                 src={backdropSrc}
                 alt={`${title} backdrop`}
                 className="h-full w-auto max-w-none"
+                fetchPriority={priority ? "high" : undefined}
                 onError={handleImageError}
               />
               {/* Gradient overlay - positioned on the image, fades left edge smoothly */}

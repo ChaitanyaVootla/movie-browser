@@ -99,8 +99,29 @@ export default async function HomePage() {
   // Get all popular topics for pills
   const popularTopics = getPopularTopics();
 
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Movie Browser",
+    url: "https://themoviebrowser.com",
+    description:
+      "Track, discover and find where to watch TV shows and movies. Browse trending content, create watchlists, and get personalized recommendations.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: "https://themoviebrowser.com/browse?q={search_term_string}",
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <div className="min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
       {/* Hero Section */}
       {trending.allItems.length > 0 && (
         <HeroCarousel
