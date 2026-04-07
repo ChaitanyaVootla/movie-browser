@@ -37,6 +37,9 @@ import { prisma } from "@/server/db/postgres";
 /** Max concurrent LLM calls across all progressive enrichment */
 const MAX_CONCURRENT_LLM = 5;
 
+/** Minimum TMDB popularity score required for AI enrichment */
+const MIN_POPULARITY_FOR_ENRICHMENT = 10;
+
 /** Model ID for enrichment (Kimi K2.5 non-thinking) */
 const MODEL_ID = "moonshotai.kimi-k2.5";
 
@@ -421,6 +424,16 @@ export async function triggerProgressiveEnrichment(
     log.info(
       { mediaType, id, event: "enrichment.skipped.no-overview" },
       "No overview available — skipping enrichment"
+    );
+    return;
+  }
+
+  // Skip low-popularity items to control enrichment costs
+  const popularity = tmdbData.popularity ?? 0;
+  if (popularity < MIN_POPULARITY_FOR_ENRICHMENT) {
+    log.info(
+      { mediaType, id, popularity, event: "enrichment.skipped.low-popularity" },
+      `Popularity ${popularity} below threshold ${MIN_POPULARITY_FOR_ENRICHMENT} — skipping enrichment`
     );
     return;
   }

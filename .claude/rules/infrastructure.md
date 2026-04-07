@@ -35,7 +35,7 @@ paths:
 
 Root `docker-compose.yml` runs on EC2:
 - **PostgreSQL 17** (`pgvector/pgvector:pg17`) — port 5433, 1GB shared_buffers
-- **ClickHouse** (`clickhouse/clickhouse-server:25.12`) — port 8123 localhost only, 1.5GB server cap, 2GB Docker limit
+- **ClickHouse** (`clickhouse/clickhouse-server:25.12`) — port 8123 localhost only, 2.5GB server cap, 3GB Docker limit
 - **Caddy** (`caddy:2-alpine`) — HTTPS reverse proxy, `network_mode: host`, auto Let's Encrypt. Config in `Caddyfile`.
 
 Docker Compose reads `.env` on EC2 for `POSTGRES_PASSWORD`, `CLICKHOUSE_PASSWORD`, `DATABASE_URL`.
@@ -99,7 +99,7 @@ ssh -i movie-browser-ec2-key.pem -L 5433:localhost:5433 ubuntu@16.112.156.196 -N
 | OS + Docker | ~500MB |
 | Next.js (PM2) | 600MB |
 | PostgreSQL | ~1.5GB |
-| ClickHouse | 1.5GB server cap, 2GB Docker limit, 750MB/query |
+| ClickHouse | 2.5GB server cap, 3GB Docker limit, 1GB/query |
 | PM2 cron jobs | 1GB peak |
 | Headroom | ~2.9GB |
 

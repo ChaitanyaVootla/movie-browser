@@ -4,7 +4,7 @@
             <!-- Query limits — per-query cap below server total so concurrent queries share safely -->
             <max_execution_time>30</max_execution_time>
             <max_rows_to_read>100000000</max_rows_to_read>
-            <max_memory_usage>750000000</max_memory_usage>
+            <max_memory_usage>1073741824</max_memory_usage>
             
             <!-- Asynchronous insert settings for better batch performance -->
             <async_insert>1</async_insert>
