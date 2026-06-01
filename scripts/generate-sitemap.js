@@ -210,6 +210,38 @@ function sleep(ms) {
 }
 
 /**
+ * Prune stale TMDB ID dumps from DATA_DIR.
+ *
+ * Each daily run downloads a new dated export (e.g. movie_ids_05_31_2026.json,
+ * ~450MB/set) but the extracted .json was never removed, so dumps accumulated
+ * indefinitely and filled the disk. Keep only the current run's date; delete
+ * any older dated dumps (both .json and leftover .json.gz).
+ */
+function pruneOldTmdbDumps() {
+  const keepDate = getSafeDate();
+  // Matches "<type>_ids_MM_DD_YYYY.json" and the gz variant
+  const datedDump = /_ids_(\d{2}_\d{2}_\d{4})\.json(\.gz)?$/;
+
+  if (!fs.existsSync(DATA_DIR)) return;
+
+  let removed = 0;
+  for (const file of fs.readdirSync(DATA_DIR)) {
+    const match = file.match(datedDump);
+    if (!match || match[1] === keepDate) continue;
+    try {
+      fs.unlinkSync(path.join(DATA_DIR, file));
+      removed++;
+    } catch (err) {
+      console.warn(`⚠️ Failed to prune old dump ${file}: ${err.message}`);
+    }
+  }
+
+  if (removed > 0) {
+    console.log(`🧹 Pruned ${removed} stale TMDB dump file(s), keeping ${keepDate}`);
+  }
+}
+
+/**
  * Download and extract TMDB data file with retry logic
  */
 async function downloadTMDBFile(type, retryCount = 0) {
@@ -727,6 +759,10 @@ async function main() {
   const startTime = Date.now();
 
   try {
+    // Remove stale dated dumps from previous runs before downloading today's
+    // (prevents unbounded accumulation in data/ that previously filled the disk).
+    pruneOldTmdbDumps();
+
     // Ensure sitemaps directory exists
     if (!fs.existsSync(SITEMAPS_DIR)) {
       fs.mkdirSync(SITEMAPS_DIR, { recursive: true });

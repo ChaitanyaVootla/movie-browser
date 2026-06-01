@@ -17,6 +17,16 @@
 #
 # =============================================================================
 
+# Default container log rotation — caps each container's stdout/stderr log so a
+# crash/error loop (e.g. ClickHouse) can't fill the disk. Docker's json-file
+# driver does NOT rotate by default, which previously let a ClickHouse restart
+# loop balloon its log to 2.1GB and fill the root volume.
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   # ===========================================================================
   # PostgreSQL 17 + pgvector + pg_trgm
@@ -25,6 +35,7 @@ services:
     image: pgvector/pgvector:pg17
     container_name: movie-browser-postgres
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: moviebrowser
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev123}
@@ -67,6 +78,7 @@ services:
     image: clickhouse/clickhouse-server:25.12
     container_name: analytics-clickhouse
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "127.0.0.1:8123:8123"   # HTTP — localhost only
       - "127.0.0.1:9000:9000"   # Native — localhost only
@@ -99,6 +111,7 @@ services:
     image: caddy:2-alpine
     container_name: movie-browser-caddy
     restart: unless-stopped
+    logging: *default-logging
     network_mode: host
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

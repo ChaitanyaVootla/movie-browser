@@ -19,6 +19,12 @@ export async function register() {
   warmCacheOnStartup().catch((err) => {
     console.error("[startup] Cache warming error:", err);
   });
+
+  // Start the L2 cache janitor: sweeps expired entries + enforces size caps
+  // so the on-disk .cache/ can't grow unbounded (previously hit 22GB).
+  const { startCacheJanitor } = await import("@/lib/cache-service");
+  startCacheJanitor();
+  console.log("[startup] Cache janitor started");
 }
 
 /**

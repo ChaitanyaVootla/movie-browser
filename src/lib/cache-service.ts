@@ -56,6 +56,19 @@ const CACHE_VERSION = 1;
  */
 const COMPRESSION_THRESHOLD = 10 * 1024; // 10KB
 
+/**
+ * Default max total bytes per namespace on disk before LRU eviction kicks in.
+ * The L2 file cache is otherwise unbounded — every distinct movie/person/series
+ * lookup writes a file and nothing reclaims them, which previously let .cache/
+ * grow to 22GB and fill the disk. Per-namespace overrides live in CacheConfig.
+ */
+const DEFAULT_MAX_NAMESPACE_BYTES = 200 * 1024 * 1024; // 200MB
+
+/**
+ * How often the background janitor sweeps expired entries and enforces size caps.
+ */
+const CACHE_JANITOR_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+
 /** Cache namespace types */
 export type CacheNamespace =
   | "trending"
@@ -78,6 +91,8 @@ interface CacheConfig {
   persistToFile: boolean;
   /** Grace period for stale-while-revalidate (seconds) */
   staleGracePeriod?: number;
+  /** Max total bytes for this namespace's L2 dir before LRU eviction (default DEFAULT_MAX_NAMESPACE_BYTES) */
+  maxBytes?: number;
 }
 
 /**
@@ -122,6 +137,7 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
     l2TTL: 259200, // 3 days on disk (person data rarely changes)
     persistToFile: true,
     staleGracePeriod: 86400, // 1 day grace
+    maxBytes: 500 * 1024 * 1024, // 500MB — large payloads, many people
   },
   search: {
     l1TTL: 300, // 5 minutes in-memory
@@ -133,6 +149,7 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
     l2TTL: 21600, // 6 hours on disk (backup after restart)
     persistToFile: true,
     staleGracePeriod: 7200, // 2 hour grace - serve stale while refreshing
+    maxBytes: 300 * 1024 * 1024, // 300MB
   },
 
   // === STANDARD CACHING ===
@@ -140,11 +157,13 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
     l1TTL: 3600, // 1 hour in-memory
     l2TTL: 7200, // 2 hours on disk
     persistToFile: true,
+    maxBytes: 800 * 1024 * 1024, // 800MB — highest-volume namespace
   },
   series: {
     l1TTL: 3600, // 1 hour in-memory
     l2TTL: 7200, // 2 hours on disk
     persistToFile: true,
+    maxBytes: 500 * 1024 * 1024, // 500MB
   },
   images: {
     l1TTL: 3600, // 1 hour in-memory
@@ -812,6 +831,104 @@ export function cleanupExpiredCache(): { deleted: number; errors: number } {
   });
 
   return { deleted, errors };
+}
+
+/**
+ * Enforce per-namespace L2 size caps via LRU (oldest-mtime-first) eviction.
+ *
+ * cleanupExpiredCache only removes entries past their TTL+grace. Under steady
+ * traffic the cache can still accumulate many still-valid entries (e.g. every
+ * distinct movie lookup), so this caps the on-disk footprint regardless of TTL.
+ */
+export function enforceNamespaceSizeLimits(): { evicted: number; errors: number } {
+  let evicted = 0;
+  let errors = 0;
+
+  const namespaces = Object.keys(CACHE_CONFIGS) as CacheNamespace[];
+
+  for (const namespace of namespaces) {
+    const config = CACHE_CONFIGS[namespace];
+    if (!config.persistToFile) continue;
+
+    const dir = join(CACHE_ROOT, namespace);
+    if (!existsSync(dir)) continue;
+
+    const maxBytes = config.maxBytes ?? DEFAULT_MAX_NAMESPACE_BYTES;
+
+    // Collect files with size + mtime
+    const entries: Array<{ path: string; size: number; mtimeMs: number }> = [];
+    let totalBytes = 0;
+    for (const file of readdirSync(dir)) {
+      try {
+        const filePath = join(dir, file);
+        const st = statSync(filePath);
+        if (!st.isFile()) continue;
+        entries.push({ path: filePath, size: st.size, mtimeMs: st.mtimeMs });
+        totalBytes += st.size;
+      } catch {
+        errors++;
+      }
+    }
+
+    if (totalBytes <= maxBytes) continue;
+
+    // Evict oldest first until under cap
+    entries.sort((a, b) => a.mtimeMs - b.mtimeMs);
+    for (const entry of entries) {
+      if (totalBytes <= maxBytes) break;
+      try {
+        unlinkSync(entry.path);
+        totalBytes -= entry.size;
+        evicted++;
+      } catch {
+        errors++;
+      }
+    }
+
+    dataLogger.info({
+      event: "cache_size_eviction",
+      namespace,
+      maxBytes,
+      evicted,
+    });
+  }
+
+  return { evicted, errors };
+}
+
+let janitorTimer: NodeJS.Timeout | null = null;
+
+/**
+ * Start the background cache janitor: periodically sweeps expired entries and
+ * enforces per-namespace size caps. Idempotent. The interval is unref'd so it
+ * never keeps the process alive on its own.
+ *
+ * Call once on server startup (see instrumentation.node.ts).
+ */
+export function startCacheJanitor(intervalMs: number = CACHE_JANITOR_INTERVAL_MS): void {
+  if (janitorTimer) return;
+
+  const sweep = () => {
+    try {
+      const { deleted } = cleanupExpiredCache();
+      const { evicted } = enforceNamespaceSizeLimits();
+      if (deleted > 0 || evicted > 0) {
+        dataLogger.info({ event: "cache_janitor_sweep", deleted, evicted });
+      }
+    } catch (error) {
+      dataLogger.warn({
+        event: "cache_janitor_error",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  // Run once shortly after startup, then on the interval.
+  setTimeout(sweep, 30_000).unref?.();
+  janitorTimer = setInterval(sweep, intervalMs);
+  janitorTimer.unref?.();
+
+  dataLogger.info({ event: "cache_janitor_started", intervalMs });
 }
 
 /**
