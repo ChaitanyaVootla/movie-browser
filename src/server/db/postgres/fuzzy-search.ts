@@ -81,6 +81,12 @@ export interface FuzzySearchOptions {
   boostPopular?: boolean;
   /** Structured filters (only applies to movies and series, not persons) */
   filters?: FuzzySearchFilters;
+  /**
+   * Include TMDB vote_average/vote_count via a per-row LATERAL ratings join
+   * (default: true). Set false for autocomplete, which doesn't display ratings —
+   * skipping the join measurably cuts query time on large result sets.
+   */
+  includeRatings?: boolean;
 }
 
 // =============================================================================
@@ -113,7 +119,32 @@ export async function fuzzySearch(
     mediaTypes = ["movie", "series", "person"],
     boostPopular = true,
     filters,
+    includeRatings = true,
   } = options;
+
+  // Rating columns + the per-row LATERAL join are only emitted when the caller
+  // needs ratings. Autocomplete doesn't, so it skips the join entirely.
+  const ratingCols = includeRatings
+    ? "r.score as vote_average, r.vote_count"
+    : "NULL::float as vote_average, NULL::int as vote_count";
+  const movieRatingJoin = includeRatings
+    ? `LEFT JOIN LATERAL (
+        SELECT r.score, r.vote_count
+        FROM ratings r
+        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+        WHERE r.movie_id = m.id
+        LIMIT 1
+      ) r ON true`
+    : "";
+  const seriesRatingJoin = includeRatings
+    ? `LEFT JOIN LATERAL (
+        SELECT r.score, r.vote_count
+        FROM ratings r
+        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
+        WHERE r.series_id = s.id
+        LIMIT 1
+      ) r ON true`
+    : "";
 
   // Validate filters if provided
   const validatedFilters = filters ? FuzzySearchFiltersSchema.parse(filters) : undefined;
@@ -180,16 +211,9 @@ export async function fuzzySearch(
         m.poster_path,
         EXTRACT(YEAR FROM m.release_date)::text as year,
         m.popularity,
-        r.score as vote_average,
-        r.vote_count
+        ${ratingCols}
       FROM movies m
-      LEFT JOIN LATERAL (
-        SELECT r.score, r.vote_count
-        FROM ratings r
-        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
-        WHERE r.movie_id = m.id
-        LIMIT 1
-      ) r ON true
+      ${movieRatingJoin}
       WHERE ${movieConditions.join(" AND ")}
     `);
   }
@@ -240,16 +264,9 @@ export async function fuzzySearch(
         s.poster_path,
         EXTRACT(YEAR FROM s.first_air_date)::text as year,
         s.popularity,
-        r.score as vote_average,
-        r.vote_count
+        ${ratingCols}
       FROM series s
-      LEFT JOIN LATERAL (
-        SELECT r.score, r.vote_count
-        FROM ratings r
-        JOIN data_sources ds ON ds.id = r.source_id AND ds.slug = 'tmdb'
-        WHERE r.series_id = s.id
-        LIMIT 1
-      ) r ON true
+      ${seriesRatingJoin}
       WHERE ${seriesConditions.join(" AND ")}
     `);
   }

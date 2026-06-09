@@ -134,12 +134,14 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
         threshold: 0.3,
         mediaTypes: ["movie", "series"],
         boostPopular: true,
+        includeRatings: false, // autocomplete suggestions don't show ratings
       }),
       fuzzySearch(normalizedQuery, {
         limit: 2,
         threshold: 0.3,
         mediaTypes: ["person"],
         boostPopular: true,
+        includeRatings: false,
       }),
     ]);
 
