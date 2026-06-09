@@ -11,11 +11,15 @@
     <!-- Cap ClickHouse to ~2.5GB on shared EC2 (default 0.8 = 6.4GB on 8GB box) -->
     <max_server_memory_usage>2684354560</max_server_memory_usage>
 
-    <!-- CPU containment is enforced purely by the docker-compose `cpus: 0.9`
-         cgroup cap — a hard ceiling that doesn't touch ClickHouse's own config.
-         Server-level thread-pool overrides were tried here but ClickHouse 25.12
-         crash-looped on one of them at startup, so this stays at defaults. -->
-    <!-- (cgroup cpu cap is the backstop; see docker-compose.yml) -->
+    <!-- CPU containment. Makes ClickHouse aware of its ~1-core budget so it
+         self-limits query parallelism instead of spawning a thread per core and
+         fighting Next.js/Postgres. SOFT limit: large queries still run (validated
+         against a 100M-row aggregation in a clickhouse:25.12 container), they just
+         use fewer threads. The docker-compose `cpus: 0.9` cgroup cap is the hard
+         backstop. (Background-merge pool sizes are intentionally left at defaults
+         — lowering background_pool_size below ~10 violates ClickHouse's mutation
+         pool invariant and crash-loops startup with code 36.) -->
+    <concurrent_threads_soft_limit_num>2</concurrent_threads_soft_limit_num>
 
     <!-- Compression (zstd level 3 is a good balance) -->
     <compression>

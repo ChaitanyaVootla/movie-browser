@@ -114,7 +114,18 @@ jobs:
             rm -f deploy.tar.gz
 
             echo "[2/6] Starting PostgreSQL + ClickHouse + Caddy..."
-            docker compose up -d --wait
+            # Start all services but only BLOCK on Postgres readiness — the app
+            # depends on Postgres, not ClickHouse. ClickHouse (best-effort
+            # analytics) being slow/unhealthy must never fail the deploy, which
+            # `docker compose up --wait` previously did.
+            docker compose up -d
+            echo "Waiting for PostgreSQL to accept connections..."
+            for i in $(seq 1 45); do
+              if docker compose exec -T postgres pg_isready -U moviebrowser -d moviebrowser >/dev/null 2>&1; then
+                echo "PostgreSQL ready"; break
+              fi
+              sleep 2
+            done
             docker compose ps
 
             echo "[3/6] Installing production dependencies..."
