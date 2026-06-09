@@ -64,6 +64,76 @@ export interface HydrationOptions {
   skipLambda?: boolean;
 }
 
+// In-flight background refreshes, deduped per id, so concurrent visitors to the
+// same title trigger at most one Lambda scrape + upsert.
+const inFlightMovieRefresh = new Set<number>();
+const inFlightSeriesRefresh = new Set<number>();
+
+/**
+ * Background (fire-and-forget) enriched-data refresh for a movie: scrape via
+ * Lambda/MongoDB, upsert to PostgreSQL, trigger progressive AI enrichment. The
+ * SSE enrich endpoint polls PostgreSQL and streams the result to the client, so
+ * the page never blocks on this. Deduped per id.
+ */
+function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData): void {
+  if (inFlightMovieRefresh.has(movieId)) return;
+  inFlightMovieRefresh.add(movieId);
+  void (async () => {
+    try {
+      const { enriched, enrichedSource, mongoDocExists } = await getEnrichedData(
+        "movie",
+        movieId,
+        tmdbData.release_date,
+        tmdbData,
+        {}
+      );
+      await upsertMovieToPostgres(tmdbData, enriched);
+      if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
+        triggerProgressiveEnrichment("movie", movieId, tmdbData).catch(() => {});
+      }
+      if (mongoDocExists) markMongoAsMigrated("movie", movieId).catch(() => {});
+    } catch (e) {
+      console.error(`[Hydration] Background movie refresh ${movieId} failed:`, e);
+    } finally {
+      inFlightMovieRefresh.delete(movieId);
+    }
+  })();
+}
+
+/**
+ * Background enriched-data refresh for a series. `seasonsWithEpisodes` is passed
+ * when fresh episode data was fetched so the upsert persists it; otherwise the
+ * existing tmdbData.seasons are used.
+ */
+function backgroundRefreshSeries(
+  seriesId: number,
+  tmdbData: TmdbSeriesData,
+  seasonsWithEpisodes: TmdbSeriesData["seasons"]
+): void {
+  if (inFlightSeriesRefresh.has(seriesId)) return;
+  inFlightSeriesRefresh.add(seriesId);
+  void (async () => {
+    try {
+      const { enriched, enrichedSource, mongoDocExists } = await getEnrichedData(
+        "series",
+        seriesId,
+        tmdbData.first_air_date,
+        tmdbData,
+        {}
+      );
+      await upsertSeriesToPostgres({ ...tmdbData, seasons: seasonsWithEpisodes }, enriched);
+      if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
+        triggerProgressiveEnrichment("series", seriesId, tmdbData).catch(() => {});
+      }
+      if (mongoDocExists) markMongoAsMigrated("series", seriesId).catch(() => {});
+    } catch (e) {
+      console.error(`[Hydration] Background series refresh ${seriesId} failed:`, e);
+    } finally {
+      inFlightSeriesRefresh.delete(seriesId);
+    }
+  })();
+}
+
 /**
  * Hydrate movie data from TMDB + MongoDB/Lambda → PostgreSQL
  * Always returns TmdbMovieData format for consistency
@@ -105,7 +175,33 @@ export async function hydrateMovie(
     tmdbData = await fetchMovieFromTmdb(movieId);
   }
 
-  // 3. Get enriched data following the deprecation strategy:
+  // 3. NON-BLOCKING PATH (normal page visits): never block the response on the
+  // Lambda scrape. Return PG/TMDB data immediately and refresh enriched data
+  // (ratings, watch links) in the background — the SSE enrich endpoint streams it
+  // into the page when ready. This is what keeps detail-page load fast even on
+  // first or stale visits (a synchronous Lambda scrape added seconds per visit).
+  // Force refresh (admin) and bulk populate (skipLambda) keep the synchronous
+  // path below.
+  if (!forceRefresh && !skipLambda) {
+    const enrichedFresh = !!pgRaw && isPostgresEnrichedFresh(pgRaw, tmdbData.release_date);
+    const enriched = pgRaw ? transformPostgresRatingsToEnriched(pgRaw) : emptyEnriched();
+
+    if (pgFresh && enrichedFresh) {
+      return { data: tmdbData, enriched, source: "postgres_fresh", enrichedSource: "postgres" };
+    }
+
+    // Stale/missing core or enriched data → serve what we have now, refresh in
+    // the background (deduped per id). SSE picks up the new ratings/AI.
+    backgroundRefreshMovie(movieId, tmdbData);
+    return {
+      data: tmdbData,
+      enriched,
+      source: pgFresh ? "postgres_fresh" : "hydrated_lambda",
+      enrichedSource: pgRaw ? "postgres" : null,
+    };
+  }
+
+  // 3b. SYNCHRONOUS PATH (force refresh / bulk populate): fetch enriched inline.
   // - Force refresh → Lambda directly (unless skipLambda)
   // - PostgreSQL fresh → Use PostgreSQL
   // - Migrated after cutoff → Lambda (MongoDB is dead)
@@ -235,7 +331,20 @@ export async function hydrateSeries(
     seasonsWithEpisodes = await fetchAllSeasonEpisodes(seriesId, tmdbData.seasons);
   }
 
-  // 3. Get enriched data following the deprecation strategy:
+  // 3. NON-BLOCKING PATH (normal revisit with fresh PG core + episodes): serve
+  // from PostgreSQL immediately and refresh enriched data (ratings) in the
+  // background — SSE streams it in. First visits (needsEpisodeFetch) stay on the
+  // synchronous path so the episode list is fully populated on initial render.
+  if (!forceRefresh && !skipLambda && pgFresh && !needsEpisodeFetch) {
+    const enrichedFresh = !!pgRaw && isPostgresEnrichedFresh(pgRaw, tmdbData.first_air_date);
+    const enriched = pgRaw ? transformPostgresRatingsToEnriched(pgRaw) : emptyEnriched();
+    if (!enrichedFresh) {
+      backgroundRefreshSeries(seriesId, tmdbData, seasonsWithEpisodes);
+    }
+    return { data: tmdbData, enriched, source: "postgres_fresh", enrichedSource: "postgres" };
+  }
+
+  // 3b. SYNCHRONOUS PATH (first visit / force refresh / bulk populate):
   // - Force refresh → Lambda directly (unless skipLambda)
   // - PostgreSQL fresh → Use PostgreSQL
   // - Migrated after cutoff → Lambda (MongoDB is dead)
