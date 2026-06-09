@@ -155,34 +155,30 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
       popularity: r.popularity,
     });
 
-    if (titleResults.length < 4) {
-      const fuzzy = await fuzzySearch(normalizedQuery, {
-        limit: 4,
-        threshold: 0.3,
-        mediaTypes: ["movie", "series"],
-        boostPopular: true,
-        includeRatings: false, // autocomplete suggestions don't show ratings
-      });
-      const seen = new Set(titleResults.map((r) => `${r.mediaType}:${r.id}`));
-      titleResults = [
-        ...titleResults,
-        ...fuzzy.filter((r) => !seen.has(`${r.mediaType}:${r.id}`)).map(toFts),
-      ].slice(0, 4);
-    }
-
-    if (personResults.length < 2) {
-      const fuzzyPeople = await fuzzySearch(normalizedQuery, {
-        limit: 2,
-        threshold: 0.3,
-        mediaTypes: ["person"],
-        boostPopular: true,
-        includeRatings: false,
-      });
-      const seen = new Set(personResults.map((r) => r.id));
-      personResults = [
-        ...personResults,
-        ...fuzzyPeople.filter((r) => !seen.has(r.id)).map(toFts),
-      ].slice(0, 2);
+    // Only fall back to trigram when FTS found NOTHING at all — that signals a
+    // probable misspelling, which is distinctive enough that trigram stays fast.
+    // If FTS matched real words (e.g. "the matrix"), we skip trigram entirely;
+    // running it per-type would re-introduce the slow common-word person scan
+    // (trigram "the …" over ~3M persons takes seconds).
+    if (titleResults.length === 0 && personResults.length === 0) {
+      const [fuzzyTitles, fuzzyPeople] = await Promise.all([
+        fuzzySearch(normalizedQuery, {
+          limit: 4,
+          threshold: 0.3,
+          mediaTypes: ["movie", "series"],
+          boostPopular: true,
+          includeRatings: false, // autocomplete suggestions don't show ratings
+        }),
+        fuzzySearch(normalizedQuery, {
+          limit: 2,
+          threshold: 0.3,
+          mediaTypes: ["person"],
+          boostPopular: true,
+          includeRatings: false,
+        }),
+      ]);
+      titleResults = fuzzyTitles.map(toFts);
+      personResults = fuzzyPeople.map(toFts);
     }
 
     // Get filter and mood suggestions (synchronous, fast)
