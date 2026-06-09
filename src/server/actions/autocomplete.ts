@@ -131,10 +131,14 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
     // (stop-words are dropped, lexemes hit the FTS GIN indexes).
     let titleResults: FtsResult[] = [];
     let personResults: FtsResult[] = [];
-    [titleResults, personResults] = await Promise.all([
+    // allSettled (not all): a slow/failed person query must not wipe out title
+    // results (and vice versa) — each branch degrades independently.
+    const [titleRes, personRes] = await Promise.allSettled([
       ftsSearchTitles(normalizedQuery, 4),
       ftsSearchPeople(normalizedQuery, 2),
     ]);
+    titleResults = titleRes.status === "fulfilled" ? titleRes.value : [];
+    personResults = personRes.status === "fulfilled" ? personRes.value : [];
 
     // Typo fallback: FTS can't match a misspelling (no matching lexeme), but
     // trigram can — and a misspelling is distinctive enough that trigram stays

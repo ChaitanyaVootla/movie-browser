@@ -86,13 +86,15 @@ export async function ftsSearchPeople(query: string, limit = 2): Promise<FtsResu
   const q = query.trim();
   if (!q) return [];
 
+  // Match the NAME only (not biography). Matching biography would, for a common
+  // word like "matrix", hit thousands of bios across the ~3M-person table and
+  // blow the timeout. Name-only uses idx_persons_name_fts and returns people who
+  // are actually NAMED that — relevant and fast.
   const sql = `
     SELECT p.tmdb_id AS id, p.name AS title, 'person'::text AS "mediaType",
            p.profile_path AS "posterPath", NULL::text AS year, p.popularity
     FROM persons p
-    WHERE to_tsvector('english',
-            COALESCE(p.name, '') || ' ' || COALESCE(p.biography, '')
-          ) @@ websearch_to_tsquery('english', $1)
+    WHERE to_tsvector('english', COALESCE(p.name, '')) @@ websearch_to_tsquery('english', $1)
     ORDER BY
       ts_rank(to_tsvector('english', COALESCE(p.name, '')), websearch_to_tsquery('english', $1)) DESC,
       p.popularity DESC NULLS LAST

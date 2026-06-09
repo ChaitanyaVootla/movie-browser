@@ -39,3 +39,9 @@ USING GIN (to_tsvector('english',
   COALESCE(name, '') || ' ' ||
   COALESCE(biography, '')
 ));
+
+-- Name-only persons FTS — used by autocomplete person search. Matching the full
+-- name+biography vector is too broad for the ~3M-person table (a common word
+-- like "matrix" hits thousands of bios); name-only stays fast and relevant.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_persons_name_fts ON persons
+USING GIN (to_tsvector('english', COALESCE(name, '')));
