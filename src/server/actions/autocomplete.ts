@@ -10,6 +10,7 @@
  */
 
 import { fuzzySearch } from "@/server/db/postgres/fuzzy-search";
+import { ftsSearchTitles, ftsSearchPeople, type FtsResult } from "@/server/db/postgres/fts-search";
 import { MOOD_FILTERS } from "@/lib/search/moods";
 import { dataLogger } from "@/lib/logger";
 
@@ -125,25 +126,64 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
   const normalizedQuery = query.trim();
 
   try {
-    // Run title and person searches in parallel. Threshold 0.3 keeps each fuzzy
-    // query fast on the large movies/persons tables (fuzzySearch also enforces a
-    // 0.3 floor, so lower values would be clamped anyway).
-    const [titleResults, personResults] = await Promise.all([
-      fuzzySearch(normalizedQuery, {
+    // Primary: full-text search. Fast for real words — including common
+    // multi-word queries like "the matrix" that make pure-trigram search explode
+    // (stop-words are dropped, lexemes hit the FTS GIN indexes).
+    let titleResults: FtsResult[] = [];
+    let personResults: FtsResult[] = [];
+    [titleResults, personResults] = await Promise.all([
+      ftsSearchTitles(normalizedQuery, 4),
+      ftsSearchPeople(normalizedQuery, 2),
+    ]);
+
+    // Typo fallback: FTS can't match a misspelling (no matching lexeme), but
+    // trigram can — and a misspelling is distinctive enough that trigram stays
+    // fast. Only runs when FTS came up short.
+    const toFts = (r: {
+      id: number;
+      title: string;
+      mediaType: "movie" | "series" | "person";
+      posterPath: string | null;
+      year: string | null;
+      popularity: number | null;
+    }): FtsResult => ({
+      id: r.id,
+      title: r.title,
+      mediaType: r.mediaType,
+      posterPath: r.posterPath,
+      year: r.year,
+      popularity: r.popularity,
+    });
+
+    if (titleResults.length < 4) {
+      const fuzzy = await fuzzySearch(normalizedQuery, {
         limit: 4,
         threshold: 0.3,
         mediaTypes: ["movie", "series"],
         boostPopular: true,
         includeRatings: false, // autocomplete suggestions don't show ratings
-      }),
-      fuzzySearch(normalizedQuery, {
+      });
+      const seen = new Set(titleResults.map((r) => `${r.mediaType}:${r.id}`));
+      titleResults = [
+        ...titleResults,
+        ...fuzzy.filter((r) => !seen.has(`${r.mediaType}:${r.id}`)).map(toFts),
+      ].slice(0, 4);
+    }
+
+    if (personResults.length < 2) {
+      const fuzzyPeople = await fuzzySearch(normalizedQuery, {
         limit: 2,
         threshold: 0.3,
         mediaTypes: ["person"],
         boostPopular: true,
         includeRatings: false,
-      }),
-    ]);
+      });
+      const seen = new Set(personResults.map((r) => r.id));
+      personResults = [
+        ...personResults,
+        ...fuzzyPeople.filter((r) => !seen.has(r.id)).map(toFts),
+      ].slice(0, 2);
+    }
 
     // Get filter and mood suggestions (synchronous, fast)
     const filterSuggestions = getFilterSuggestions(normalizedQuery, 2);
