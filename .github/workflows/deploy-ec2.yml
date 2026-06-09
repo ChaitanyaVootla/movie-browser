@@ -119,14 +119,20 @@ jobs:
             # analytics) being slow/unhealthy must never fail the deploy, which
             # `docker compose up --wait` previously did.
             docker compose up -d
+            # Pick up any clickhouse config.d changes (mounted file edits don't
+            # trigger a recreate, so config wouldn't reload otherwise).
+            docker compose up -d --force-recreate --no-deps clickhouse </dev/null || true
             echo "Waiting for PostgreSQL to accept connections..."
+            # NOTE: `</dev/null` is REQUIRED — `docker compose exec` reads stdin,
+            # and without it the exec swallows the rest of this heredoc script
+            # (it previously ate steps 3-6, so PM2 never restarted).
             for i in $(seq 1 45); do
-              if docker compose exec -T postgres pg_isready -U moviebrowser -d moviebrowser >/dev/null 2>&1; then
+              if docker compose exec -T postgres pg_isready -U moviebrowser -d moviebrowser </dev/null >/dev/null 2>&1; then
                 echo "PostgreSQL ready"; break
               fi
               sleep 2
             done
-            docker compose ps
+            docker compose ps </dev/null
 
             echo "[3/6] Installing production dependencies..."
             sudo corepack enable
