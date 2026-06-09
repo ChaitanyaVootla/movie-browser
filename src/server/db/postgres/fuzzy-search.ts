@@ -22,12 +22,14 @@ import { z } from "zod";
 const FUZZY_SEARCH_TIMEOUT_MS = 4000;
 
 /**
- * Minimum trigram `%` threshold when the (~3M row) persons table is searched.
- * Below this, a query matches tens of thousands of weak candidates and the heap
- * recheck takes seconds. 0.3 is the pg_trgm default and keeps person search fast
- * (~150ms) while still tolerant of typos in names.
+ * Minimum trigram `%` threshold for similarity search. The movies (~500K) and
+ * persons (~3M) tables are large enough that a permissive threshold (0.15-0.2)
+ * matches tens of thousands of weak trigram candidates whose heap recheck takes
+ * 0.5-3s. 0.3 (the pg_trgm default) keeps every fuzzy search fast (~150-200ms)
+ * while still resolving real typos (e.g. "intersteller" -> "Interstellar"). The
+ * full-text/TMDB result paths cover as-you-type prefixes that trigram misses.
  */
-const PERSON_TRGM_THRESHOLD_FLOOR = 0.3;
+const TRGM_THRESHOLD_FLOOR = 0.3;
 
 // =============================================================================
 // Validation Schemas
@@ -338,14 +340,11 @@ export async function fuzzySearch(
   //     many seconds and, because autocomplete fires on every keystroke, pile up
   //     and exhaust the connection pool — surfacing as a search box that spins
   //     forever. A timeout makes it fail fast; callers degrade to empty results.
-  // Guard: the persons table (~3M rows) dwarfs movies/series. A low % threshold
-  // there matches tens of thousands of weak trigram candidates whose heap recheck
-  // takes seconds. Enforce a floor on the % operator's threshold whenever persons
-  // are searched — regardless of the caller's threshold — so no caller can trigger
-  // the pathological scan. Movies/series-only searches keep the requested threshold.
-  const trgmThreshold = mediaTypes.includes("person")
-    ? Math.max(threshold, PERSON_TRGM_THRESHOLD_FLOOR)
-    : threshold;
+  // Clamp the % operator's threshold to a safe floor so no caller can trigger a
+  // pathological scan that matches tens of thousands of weak candidates on the
+  // large movies/persons tables. The outer `WHERE similarity >= $2` still uses the
+  // caller's (possibly lower) threshold for final ranking inclusion.
+  const trgmThreshold = Math.max(threshold, TRGM_THRESHOLD_FLOOR);
 
   const results = await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${FUZZY_SEARCH_TIMEOUT_MS}`);
