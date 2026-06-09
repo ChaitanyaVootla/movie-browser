@@ -11,6 +11,19 @@
     <!-- Cap ClickHouse to ~2.5GB on shared EC2 (default 0.8 = 6.4GB on 8GB box) -->
     <max_server_memory_usage>2684354560</max_server_memory_usage>
 
+    <!-- CPU containment on the shared 2-vCPU box. ClickHouse defaults assume it
+         owns the machine and spawn many background-merge/query threads, which
+         pushed it to ~1.5 cores and starved Next.js/Postgres (load avg ~20).
+         These cap thread parallelism at the source; the docker-compose `cpus`
+         ceiling is the hard backstop. Analytics is best-effort, so trading some
+         ingest/merge throughput for foreground responsiveness is the right call. -->
+    <concurrent_threads_soft_limit_num>2</concurrent_threads_soft_limit_num>
+    <background_pool_size>3</background_pool_size>
+    <background_schedule_pool_size>3</background_schedule_pool_size>
+    <background_common_pool_size>3</background_common_pool_size>
+    <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
+    <max_concurrent_queries>6</max_concurrent_queries>
+
     <!-- Compression (zstd level 3 is a good balance) -->
     <compression>
         <case>

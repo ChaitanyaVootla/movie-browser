@@ -94,6 +94,12 @@ services:
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-analytics_secret_123}
       - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
     mem_limit: 3g
+    # Hard CPU ceiling: analytics is best-effort and must never starve the app.
+    # On the 2-vCPU box ClickHouse was consuming ~1.5 cores (load avg ~20),
+    # making SSR (Next.js) and Postgres CPU-starved. Cap it to ~0.9 core and
+    # give it the lowest scheduling weight so foreground requests win contention.
+    cpus: "0.9"
+    cpu_shares: 256
     ulimits:
       nofile:
         soft: 262144
