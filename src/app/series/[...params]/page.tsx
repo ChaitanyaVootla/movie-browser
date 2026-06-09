@@ -6,6 +6,10 @@ import { getSeries as getSeriesBase } from "@/server/actions/series";
 // Deduplicate getSeries calls within the same request
 // generateMetadata, HeroContentAsync, SeriesContentAsync all use the same cached result
 const getSeries = cache(getSeriesBase);
+
+// ISR: cache the rendered page for 1h (see movie page for rationale) — cuts SSR
+// CPU under crawler/repeat traffic; live ratings still stream via SSE per load.
+export const revalidate = 3600;
 import { getAISummary } from "@/lib/ai-summary";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
 import {

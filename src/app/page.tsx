@@ -141,6 +141,12 @@ export default async function HomePage() {
         />
       )}
 
+      {/* Single semantic H1 for SEO (visually hidden — the hero carousel is the
+          visual headline). Gives crawlers a clear page topic. */}
+      <h1 className="sr-only">
+        The Movie Browser — Discover trending movies and TV shows
+      </h1>
+
       {/* Content Sections */}
       <div className="px-4 md:px-8 lg:px-12 pb-16 space-y-10">
         {/* Continue Watching - Top priority for logged-in users */}

@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPerson } from "@/server/actions/person";
+
+// ISR: cache the rendered person page for 24h (person/filmography data is very
+// stable). Cuts SSR CPU under crawler traffic; TMDB person cache is 24h anyway.
+export const revalidate = 86400;
 import {
   PersonHero,
   PersonFilmography,

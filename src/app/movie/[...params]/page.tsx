@@ -6,6 +6,12 @@ import { getMovie as getMovieBase } from "@/server/actions/movie";
 // Deduplicate getMovie calls within the same request
 // generateMetadata, HeroContentAsync, MovieContentAsync all use the same cached result
 const getMovie = cache(getMovieBase);
+
+// ISR: cache the rendered page for 1h instead of full SSR on every request. The
+// SSR HTML is user-agnostic (user state hydrates client-side; ratings stream via
+// SSE), so caching it massively cuts CPU under crawler/repeat traffic. Live
+// ratings still arrive via the enrichment SSE stream on each client load.
+export const revalidate = 3600;
 import { getMovieCollection } from "@/server/services/tmdb";
 import { getCollectionFromPostgres } from "@/server/db/postgres";
 import { getAISummary } from "@/lib/ai-summary";
