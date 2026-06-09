@@ -1,127 +1,73 @@
 -- =============================================================================
--- Search Indexes for Movie Browser
--- Phase 1: Trigram (fuzzy) + Phase 2: Vector (semantic)
+-- Trigram (fuzzy) + Full-Text Search Indexes for Movie Browser
 -- =============================================================================
 --
--- Embedding Model: Cohere Embed v4 via AWS Bedrock
--- Dimensions: 1024 (output_dimension parameter, default is 1536)
--- Model ID: global.cohere.embed-v4:0
+-- IMPORTANT: These indexes CANNOT be created at container init time — the tables
+-- don't exist until `prisma db push` runs. They are applied by the deploy
+-- pipeline (.github/workflows/deploy-ec2.yml) immediately AFTER `prisma db push`,
+-- and can be re-applied manually at any time:
+--
+--   docker compose exec -T postgres \
+--     psql -U moviebrowser -d moviebrowser < postgres/init/02-search-indexes.sql
+--
+-- Without these indexes, fuzzySearch()/autocomplete fall back to full-table
+-- similarity scans that grow unbounded with the catalog and hang the search box.
+--
+-- All statements use CREATE INDEX CONCURRENTLY IF NOT EXISTS so they are
+-- idempotent and never lock the tables (safe to run against the live DB).
+-- (Vector/HNSW indexes for semantic search live in 03-vector-indexes.sql — they
+-- are heavier to build and are applied separately, not on every deploy.)
 -- =============================================================================
 
--- =============================================================================
--- PHASE 1: Trigram Indexes for Fuzzy Search (pg_trgm)
--- =============================================================================
-
--- Movies - title fuzzy search
-CREATE INDEX IF NOT EXISTS idx_movies_title_trgm 
+-- Movies — title fuzzy search
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_movies_title_trgm
 ON movies USING GIN (title gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS idx_movies_original_title_trgm 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_movies_original_title_trgm
 ON movies USING GIN (original_title gin_trgm_ops);
 
--- Series - name fuzzy search
-CREATE INDEX IF NOT EXISTS idx_series_name_trgm 
+-- Series — name fuzzy search
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_series_name_trgm
 ON series USING GIN (name gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS idx_series_original_name_trgm 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_series_original_name_trgm
 ON series USING GIN (original_name gin_trgm_ops);
 
--- Persons - name fuzzy search (actors, directors)
-CREATE INDEX IF NOT EXISTS idx_persons_name_trgm 
+-- Persons — name fuzzy search (actors, directors)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_persons_name_trgm
 ON persons USING GIN (name gin_trgm_ops);
 
--- Person aliases - for nickname/alternate name matching
-CREATE INDEX IF NOT EXISTS idx_person_aliases_trgm 
+-- Person aliases — nickname/alternate name matching
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_person_aliases_trgm
 ON person_aliases USING GIN (alias gin_trgm_ops);
 
--- Keywords - for semantic tag matching
-CREATE INDEX IF NOT EXISTS idx_keywords_name_trgm 
+-- Keywords — semantic tag matching
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_keywords_name_trgm
 ON keywords USING GIN (name gin_trgm_ops);
 
--- Genres - for genre name matching
-CREATE INDEX IF NOT EXISTS idx_genres_name_trgm 
+-- Genres — genre name matching
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_genres_name_trgm
 ON genres USING GIN (name gin_trgm_ops);
 
 -- =============================================================================
 -- Full-Text Search Indexes (complementary to trigram)
 -- =============================================================================
 
--- Movies - weighted full-text search
-CREATE INDEX IF NOT EXISTS idx_movies_fts ON movies 
-USING GIN (to_tsvector('english', 
-  COALESCE(title, '') || ' ' || 
-  COALESCE(overview, '') || ' ' || 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_movies_fts ON movies
+USING GIN (to_tsvector('english',
+  COALESCE(title, '') || ' ' ||
+  COALESCE(overview, '') || ' ' ||
   COALESCE(tagline, '')
 ));
 
--- Series - full-text search
-CREATE INDEX IF NOT EXISTS idx_series_fts ON series 
-USING GIN (to_tsvector('english', 
-  COALESCE(name, '') || ' ' || 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_series_fts ON series
+USING GIN (to_tsvector('english',
+  COALESCE(name, '') || ' ' ||
   COALESCE(overview, '')
 ));
 
--- Persons - full-text search on biography
-CREATE INDEX IF NOT EXISTS idx_persons_fts ON persons 
-USING GIN (to_tsvector('english', 
-  COALESCE(name, '') || ' ' || 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_persons_fts ON persons
+USING GIN (to_tsvector('english',
+  COALESCE(name, '') || ' ' ||
   COALESCE(biography, '')
 ));
-
--- =============================================================================
--- PHASE 2: Vector Indexes for Semantic Search (pgvector)
--- =============================================================================
-
--- HNSW (Hierarchical Navigable Small World) indexes for approximate nearest neighbor
--- Use cosine distance (best for text embeddings)
-
--- Movies embedding index
--- Parameters:
---   m = 16: max connections per node (default, good balance)
---   ef_construction = 64: build-time search depth (higher = better recall, slower build)
-CREATE INDEX IF NOT EXISTS idx_movies_embedding_hnsw 
-ON movies USING hnsw (embedding vector_cosine_ops)
-WITH (m = 16, ef_construction = 64);
-
--- Series embedding index
-CREATE INDEX IF NOT EXISTS idx_series_embedding_hnsw 
-ON series USING hnsw (embedding vector_cosine_ops)
-WITH (m = 16, ef_construction = 64);
-
--- =============================================================================
--- Query-time settings (set per connection or globally)
--- =============================================================================
-
--- ef_search: controls accuracy/speed tradeoff at query time
--- Higher = more accurate but slower
--- Default: 40, Recommended: 100 for production, 200 for high accuracy
-
--- Example session setting:
--- SET hnsw.ef_search = 100;
-
--- =============================================================================
--- Utility queries for monitoring
--- =============================================================================
-
--- Check embedding coverage
--- SELECT 
---   COUNT(*) FILTER (WHERE embedding IS NOT NULL) as with_embedding,
---   COUNT(*) as total,
---   ROUND(100.0 * COUNT(*) FILTER (WHERE embedding IS NOT NULL) / COUNT(*), 2) as coverage_pct
--- FROM movies;
-
--- Check index usage
--- SELECT 
---   schemaname, tablename, indexname, idx_scan, idx_tup_read
--- FROM pg_stat_user_indexes
--- WHERE indexname LIKE '%embedding%' OR indexname LIKE '%trgm%';
-
--- Test trigram similarity
--- SELECT title, similarity(title, 'Incepton') as sim
--- FROM movies
--- WHERE title % 'Incepton'
--- ORDER BY sim DESC
--- LIMIT 10;
-
--- Log completion (works in psql)
-DO $$ BEGIN RAISE NOTICE 'Search indexes created successfully'; END $$;

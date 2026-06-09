@@ -14,6 +14,13 @@
 import { prisma } from "./index";
 import { z } from "zod";
 
+/**
+ * Per-query timeout (ms) for trigram similarity searches. Keeps a missing-index
+ * or oversized-table scan from hanging the request and exhausting the pool.
+ * Well above a healthy indexed query (~5-30ms) but low enough to fail fast.
+ */
+const FUZZY_SEARCH_TIMEOUT_MS = 4000;
+
 // =============================================================================
 // Validation Schemas
 // =============================================================================
@@ -103,10 +110,6 @@ export async function fuzzySearch(
 
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return [];
-
-  // Set the similarity threshold for the % operator
-  // Default is 0.3 which is too strict for typo-heavy queries
-  await prisma.$executeRawUnsafe(`SELECT set_limit(${threshold})`);
 
   // Check if any filters are active (affects query structure)
   const hasFilters = validatedFilters && (
@@ -305,21 +308,29 @@ export async function fuzzySearch(
     LIMIT $3
   `;
 
-  // Execute with appropriate parameters
-  const results = hasStreamingFilter
-    ? await prisma.$queryRawUnsafe<FuzzySearchResult[]>(
-        sql,
-        normalizedQuery,
-        threshold,
-        limit,
-        validatedFilters!.streamingService
-      )
-    : await prisma.$queryRawUnsafe<FuzzySearchResult[]>(
-        sql,
-        normalizedQuery,
-        threshold,
-        limit
-      );
+  // Execute inside a single transaction so that:
+  //  1. set_limit() (which tunes the % trigram operator) runs on the SAME
+  //     connection as the query — a bare prisma call can land on a different
+  //     pooled connection, leaving the threshold unset.
+  //  2. statement_timeout bounds the query. If the pg_trgm GIN indexes are
+  //     missing (or the table is huge), a similarity scan can otherwise run for
+  //     many seconds and, because autocomplete fires on every keystroke, pile up
+  //     and exhaust the connection pool — surfacing as a search box that spins
+  //     forever. A timeout makes it fail fast; callers degrade to empty results.
+  const results = await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${FUZZY_SEARCH_TIMEOUT_MS}`);
+    // Default % threshold is 0.3 which is too strict for typo-heavy queries
+    await tx.$executeRawUnsafe(`SELECT set_limit(${threshold})`);
+    return hasStreamingFilter
+      ? tx.$queryRawUnsafe<FuzzySearchResult[]>(
+          sql,
+          normalizedQuery,
+          threshold,
+          limit,
+          validatedFilters!.streamingService
+        )
+      : tx.$queryRawUnsafe<FuzzySearchResult[]>(sql, normalizedQuery, threshold, limit);
+  });
 
   return results;
 }

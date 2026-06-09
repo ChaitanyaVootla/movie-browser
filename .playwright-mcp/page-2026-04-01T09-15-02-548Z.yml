@@ -1,0 +1,1551 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - link "TMB TMB" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "TMB" [ref=e6]
+          - generic [ref=e7]: TMB
+        - navigation [ref=e8]:
+          - link "Browse" [ref=e9] [cursor=pointer]:
+            - /url: /browse
+            - button "Browse" [ref=e10]:
+              - img
+              - text: Browse
+          - link "Topics" [ref=e11] [cursor=pointer]:
+            - /url: /topics
+            - button "Topics" [ref=e12]:
+              - img
+              - text: Topics
+      - generic [ref=e13]:
+        - button "⌘K" [ref=e14]:
+          - img [ref=e15]
+          - generic [ref=e18]: ⌘K
+        - button "India" [ref=e19]:
+          - img "India" [ref=e20]
+        - button "Settings" [ref=e21]:
+          - img
+          - generic [ref=e22]: Settings
+        - button "Sign In" [ref=e23]
+  - main [ref=e24]:
+    - generic [ref=e25]:
+      - link "Featured content carousel" [ref=e26] [cursor=pointer]:
+        - generic [ref=e27]:
+          - 'img "Avatar: Fire and Ash backdrop" [ref=e32]'
+          - generic [ref=e38]:
+            - 'img "Avatar: Fire and Ash logo" [ref=e41]'
+            - generic [ref=e42]:
+              - blockquote [ref=e43]: James Cameron made you wait 13 years for blue people drama again. Was it worth it? Debatable.
+              - generic [ref=e45]:
+                - 'link "TMDB: 73" [ref=e46]':
+                  - /url: https://www.themoviedb.org/movie/83533
+                  - generic [ref=e47]:
+                    - img "TMDB" [ref=e49]
+                    - generic [ref=e50]: "73"
+                - 'link "Rotten Tomatoes: 66" [ref=e51]':
+                  - /url: https://www.rottentomatoes.com/m/avatar_fire_and_ash
+                  - generic [ref=e52]:
+                    - img "Rotten Tomatoes" [ref=e54]
+                    - generic [ref=e55]: "66"
+                - 'link "IMDb: 74" [ref=e56]':
+                  - /url: https://www.imdb.com/title/tt1757678/
+                  - generic [ref=e57]:
+                    - img "IMDb" [ref=e59]
+                    - generic [ref=e60]: "74"
+                - 'link "Google: 92" [ref=e61]':
+                  - /url: https://www.google.com/search?q=Avatar:%20Fire%20and%20Ash%202025%20movie&sei=EMaIaZ_2FfiOseMP8I2g2QI
+                  - generic [ref=e62]:
+                    - img "Google" [ref=e64]
+                    - generic [ref=e65]: "92"
+              - generic [ref=e68]:
+                - generic [ref=e69]:
+                  - img [ref=e70]
+                  - generic [ref=e72]: Watch
+                  - generic [ref=e73]: (DE)
+                - img [ref=e75]
+          - generic [ref=e78]:
+            - button "Go to slide 1" [ref=e79]
+            - button "Go to slide 2" [ref=e81]
+            - button "Go to slide 3" [ref=e82]
+            - button "Go to slide 4" [ref=e83]
+            - button "Go to slide 5" [ref=e84]
+            - button "Go to slide 6" [ref=e85]
+            - button "Go to slide 7" [ref=e86]
+            - button "Go to slide 8" [ref=e87]
+            - button "Go to slide 9" [ref=e88]
+            - button "Go to slide 10" [ref=e89]
+      - generic [ref=e90]:
+        - generic [ref=e92]:
+          - link "🎬 Action" [ref=e93] [cursor=pointer]:
+            - /url: /topics/genre-action-movie
+            - generic [ref=e94]: 🎬
+            - generic [ref=e95]: Action
+          - link "😂 Comedy" [ref=e96] [cursor=pointer]:
+            - /url: /topics/genre-comedy-movie
+            - generic [ref=e97]: 😂
+            - generic [ref=e98]: Comedy
+          - link "👻 Horror" [ref=e99] [cursor=pointer]:
+            - /url: /topics/genre-horror-movie
+            - generic [ref=e100]: 👻
+            - generic [ref=e101]: Horror
+          - link "🦸 Superhero" [ref=e102] [cursor=pointer]:
+            - /url: /topics/theme-superhero-movie
+            - generic [ref=e103]: 🦸
+            - generic [ref=e104]: Superhero
+          - link "📺 Drama" [ref=e105] [cursor=pointer]:
+            - /url: /topics/genre-drama-tv
+            - generic [ref=e106]: 📺
+            - generic [ref=e107]: Drama
+          - link "🚀 Sci-Fi" [ref=e108] [cursor=pointer]:
+            - /url: /topics/genre-sci-fi-fantasy-tv
+            - generic [ref=e109]: 🚀
+            - generic [ref=e110]: Sci-Fi
+          - link "📖 True Story" [ref=e111] [cursor=pointer]:
+            - /url: /topics/theme-true-story-movie
+            - generic [ref=e112]: 📖
+            - generic [ref=e113]: True Story
+          - link "🌌 Space" [ref=e114] [cursor=pointer]:
+            - /url: /topics/theme-space-movie
+            - generic [ref=e115]: 🌌
+            - generic [ref=e116]: Space
+          - link "More →" [ref=e117] [cursor=pointer]:
+            - /url: /topics
+            - generic [ref=e118]: More →
+        - generic [ref=e119]:
+          - generic [ref=e120]:
+            - generic [ref=e121]:
+              - img [ref=e122]
+              - heading "Trending Trailers" [level=2] [ref=e124]
+            - generic [ref=e126]:
+              - button "Scroll left" [ref=e127]:
+                - img
+              - button "Scroll right" [ref=e128]:
+                - img
+          - generic [ref=e130]:
+            - generic [ref=e131]:
+              - button "Play THE BREADWINNER trailer" [ref=e132]:
+                - img "THE BREADWINNER - Official Trailer (HD)" [ref=e133]
+                - img [ref=e136]
+              - generic [ref=e138]:
+                - heading "THE BREADWINNER" [level=3] [ref=e139]
+                - generic [ref=e140]:
+                  - generic [ref=e141]:
+                    - img [ref=e142]
+                    - generic [ref=e145]: 38.7M views
+                  - generic [ref=e146]:
+                    - img [ref=e147]
+                    - generic [ref=e149]: 5.3K
+                    - generic [ref=e152]: 3.3K
+                    - img [ref=e153]
+                - generic [ref=e155]:
+                  - img "Sony Pictures Entertainment" [ref=e156]
+                  - generic [ref=e157]: Sony Pictures Entertainment
+            - generic [ref=e158]:
+              - 'button "Play Dune: Part Three trailer" [ref=e159]':
+                - 'img "Dune: Part Three | Official Teaser Trailer" [ref=e160]'
+                - img [ref=e163]
+              - generic [ref=e165]:
+                - 'heading "Dune: Part Three" [level=3] [ref=e166]'
+                - generic [ref=e167]:
+                  - generic [ref=e168]:
+                    - img [ref=e169]
+                    - generic [ref=e172]: 35.5M views
+                  - generic [ref=e173]:
+                    - img [ref=e174]
+                    - generic [ref=e176]: 606.2K
+                    - generic [ref=e179]: 5.7K
+                    - img [ref=e180]
+                - generic [ref=e182]:
+                  - img "Warner Bros." [ref=e183]
+                  - generic [ref=e184]: Warner Bros.
+            - generic [ref=e185]:
+              - button "Play GOAT trailer" [ref=e186]:
+                - img "GOAT – New Trailer (HD)" [ref=e187]
+                - img [ref=e190]
+              - generic [ref=e192]:
+                - heading "GOAT" [level=3] [ref=e193]
+                - generic [ref=e194]:
+                  - generic [ref=e195]:
+                    - img [ref=e196]
+                    - generic [ref=e199]: 33M views
+                  - generic [ref=e200]:
+                    - img [ref=e201]
+                    - generic [ref=e203]: 64.2K
+                    - generic [ref=e206]: 1.4K
+                    - img [ref=e207]
+                - generic [ref=e209]:
+                  - img "Sony Pictures Entertainment" [ref=e210]
+                  - generic [ref=e211]: Sony Pictures Entertainment
+            - generic [ref=e212]:
+              - button "Play Disclosure Day trailer" [ref=e213]:
+                - img "Disclosure Day | Official Trailer" [ref=e214]
+                - img [ref=e217]
+              - generic [ref=e219]:
+                - heading "Disclosure Day" [level=3] [ref=e220]
+                - generic [ref=e221]:
+                  - generic [ref=e222]:
+                    - img [ref=e223]
+                    - generic [ref=e226]: 29.2M views
+                  - generic [ref=e227]:
+                    - img [ref=e228]
+                    - generic [ref=e230]: 66.4K
+                    - generic [ref=e233]: 1.1K
+                    - img [ref=e234]
+                - generic [ref=e236]:
+                  - img "Universal Pictures" [ref=e237]
+                  - generic [ref=e238]: Universal Pictures
+            - generic [ref=e239]:
+              - button "Play The End of Oak Street trailer" [ref=e240]:
+                - img "The End of Oak Street | Official Teaser Trailer" [ref=e241]
+                - img [ref=e244]
+              - generic [ref=e246]:
+                - heading "The End of Oak Street" [level=3] [ref=e247]
+                - generic [ref=e248]:
+                  - generic [ref=e249]:
+                    - img [ref=e250]
+                    - generic [ref=e253]: 24.2M views
+                  - generic [ref=e254]:
+                    - img [ref=e255]
+                    - generic [ref=e257]: 51.5K
+                    - generic [ref=e260]: 1.1K
+                    - img [ref=e261]
+                - generic [ref=e263]:
+                  - img "Warner Bros." [ref=e264]
+                  - generic [ref=e265]: Warner Bros.
+            - generic [ref=e266]:
+              - button "Play Minions & Monsters trailer" [ref=e267]:
+                - img "Minions & Monsters | Official Trailer" [ref=e268]
+                - img [ref=e271]
+              - generic [ref=e273]:
+                - heading "Minions & Monsters" [level=3] [ref=e274]
+                - generic [ref=e275]:
+                  - generic [ref=e276]:
+                    - img [ref=e277]
+                    - generic [ref=e280]: 18.2M views
+                  - generic [ref=e281]:
+                    - img [ref=e282]
+                    - generic [ref=e284]: 50.9K
+                    - generic [ref=e287]: 2K
+                    - img [ref=e288]
+                - generic [ref=e290]:
+                  - img "Illumination" [ref=e291]
+                  - generic [ref=e292]: Illumination
+            - generic [ref=e293]:
+              - button "Play The Drama trailer" [ref=e294]:
+                - img "The Drama | Official Trailer HD | A24" [ref=e295]
+                - img [ref=e298]
+              - generic [ref=e300]:
+                - heading "The Drama" [level=3] [ref=e301]
+                - generic [ref=e302]:
+                  - generic [ref=e303]:
+                    - img [ref=e304]
+                    - generic [ref=e307]: 18.3M views
+                  - generic [ref=e308]:
+                    - img [ref=e309]
+                    - generic [ref=e311]: 128.9K
+                    - generic [ref=e314]: 2K
+                    - img [ref=e315]
+                - generic [ref=e317]:
+                  - img "A24" [ref=e318]
+                  - generic [ref=e319]: A24
+            - generic [ref=e320]:
+              - button "Play The Super Mario Galaxy Movie trailer" [ref=e321]:
+                - img "The Super Mario Galaxy Movie | Official Trailer" [ref=e322]
+                - img [ref=e325]
+              - generic [ref=e327]:
+                - heading "The Super Mario Galaxy Movie" [level=3] [ref=e328]
+                - generic [ref=e329]:
+                  - generic [ref=e330]:
+                    - img [ref=e331]
+                    - generic [ref=e334]: 18.2M views
+                  - generic [ref=e335]:
+                    - img [ref=e336]
+                    - generic [ref=e338]: 59.4K
+                    - generic [ref=e341]: 1.5K
+                    - img [ref=e342]
+                - generic [ref=e344]:
+                  - img "Illumination" [ref=e345]
+                  - generic [ref=e346]: Illumination
+            - generic [ref=e347]:
+              - button "Play undertone trailer" [ref=e348]:
+                - img "undertone | Official Trailer 2 HD | A24" [ref=e349]
+                - img [ref=e352]
+              - generic [ref=e354]:
+                - heading "undertone" [level=3] [ref=e355]
+                - generic [ref=e356]:
+                  - generic [ref=e357]:
+                    - img [ref=e358]
+                    - generic [ref=e361]: 16.4M views
+                  - generic [ref=e362]:
+                    - img [ref=e363]
+                    - generic [ref=e365]: 13.9K
+                    - generic [ref=e368]: "147"
+                    - img [ref=e369]
+                - generic [ref=e371]:
+                  - img "A24" [ref=e372]
+                  - generic [ref=e373]: A24
+            - generic [ref=e374]:
+              - button "Play PRESSURE trailer" [ref=e375]:
+                - img "PRESSURE - Official Trailer [HD] - Only In Theaters May 29" [ref=e376]
+                - img [ref=e379]
+              - generic [ref=e381]:
+                - heading "PRESSURE" [level=3] [ref=e382]
+                - generic [ref=e383]:
+                  - generic [ref=e384]:
+                    - img [ref=e385]
+                    - generic [ref=e388]: 16.3M views
+                  - generic [ref=e389]:
+                    - img [ref=e390]
+                    - generic [ref=e392]: 24.1K
+                    - generic [ref=e395]: "346"
+                    - img [ref=e396]
+                - generic [ref=e398]:
+                  - img "Focus Features" [ref=e399]
+                  - generic [ref=e400]: Focus Features
+            - generic [ref=e401]:
+              - button "Play FORGOTTEN ISLAND trailer" [ref=e402]:
+                - img "FORGOTTEN ISLAND | Official Trailer" [ref=e403]
+                - img [ref=e406]
+              - generic [ref=e408]:
+                - heading "FORGOTTEN ISLAND" [level=3] [ref=e409]
+                - generic [ref=e410]:
+                  - generic [ref=e411]:
+                    - img [ref=e412]
+                    - generic [ref=e415]: 17.5M views
+                  - generic [ref=e416]:
+                    - img [ref=e417]
+                    - generic [ref=e419]: 114.2K
+                    - generic [ref=e422]: 2.7K
+                    - img [ref=e423]
+                - generic [ref=e425]:
+                  - img "Universal Pictures" [ref=e426]
+                  - generic [ref=e427]: Universal Pictures
+            - generic [ref=e428]:
+              - button "Play OBSESSION trailer" [ref=e429]:
+                - img "OBSESSION - Official Trailer - Only In Theaters May 15" [ref=e430]
+                - img [ref=e433]
+              - generic [ref=e435]:
+                - heading "OBSESSION" [level=3] [ref=e436]
+                - generic [ref=e437]:
+                  - generic [ref=e438]:
+                    - img [ref=e439]
+                    - generic [ref=e442]: 14.7M views
+                  - generic [ref=e443]:
+                    - img [ref=e444]
+                    - generic [ref=e446]: 30.4K
+                    - generic [ref=e449]: "259"
+                    - img [ref=e450]
+                - generic [ref=e452]:
+                  - img "Focus Features" [ref=e453]
+                  - generic [ref=e454]: Focus Features
+        - generic [ref=e455]:
+          - generic [ref=e456]:
+            - generic [ref=e457]:
+              - img [ref=e458]
+              - heading "Trending Movies" [level=2] [ref=e460]
+            - generic [ref=e461]:
+              - generic [ref=e462]:
+                - button "Scroll left" [ref=e463]:
+                  - img
+                - button "Scroll right" [ref=e464]:
+                  - img
+              - link "Browse All" [ref=e465] [cursor=pointer]:
+                - /url: /browse
+                - text: Browse All
+                - img [ref=e466]
+          - generic [ref=e469]:
+            - 'link "Avatar: Fire and Ash movie poster (2025) 7.3 Popular Avatar: Fire and Ash" [ref=e471] [cursor=pointer]':
+              - /url: /movie/83533/avatar-fire-and-ash
+              - generic [ref=e473]:
+                - generic [ref=e475]:
+                  - 'img "Avatar: Fire and Ash movie poster (2025)" [ref=e476]'
+                  - generic [ref=e478]: "7.3"
+                  - generic [ref=e480]: Popular
+                - 'heading "Avatar: Fire and Ash" [level=3] [ref=e483]'
+            - link "Project Hail Mary movie poster (2026) 8.2 New Project Hail Mary" [ref=e485] [cursor=pointer]:
+              - /url: /movie/687163/project-hail-mary
+              - generic [ref=e487]:
+                - generic [ref=e489]:
+                  - img "Project Hail Mary movie poster (2026)" [ref=e490]
+                  - generic [ref=e492]: "8.2"
+                  - generic [ref=e494]: New
+                - heading "Project Hail Mary" [level=3] [ref=e497]
+            - link "Scream 7 movie poster (2026) 5.8 Trending Scream 7" [ref=e499] [cursor=pointer]:
+              - /url: /movie/1159559/scream-7
+              - generic [ref=e501]:
+                - generic [ref=e503]:
+                  - img "Scream 7 movie poster (2026)" [ref=e504]
+                  - generic [ref=e506]: "5.8"
+                  - generic [ref=e508]: Trending
+                - heading "Scream 7" [level=3] [ref=e511]
+            - link "GOAT movie poster (2026) 7.7 Trending GOAT" [ref=e513] [cursor=pointer]:
+              - /url: /movie/1297842/goat
+              - generic [ref=e515]:
+                - generic [ref=e517]:
+                  - img "GOAT movie poster (2026)" [ref=e518]
+                  - generic [ref=e520]: "7.7"
+                  - generic [ref=e522]: Trending
+                - heading "GOAT" [level=3] [ref=e525]
+            - link "Send Help movie poster (2026) 7.1 Trending Send Help" [ref=e527] [cursor=pointer]:
+              - /url: /movie/1198994/send-help
+              - generic [ref=e529]:
+                - generic [ref=e531]:
+                  - img "Send Help movie poster (2026)" [ref=e532]
+                  - generic [ref=e534]: "7.1"
+                  - generic [ref=e536]: Trending
+                - heading "Send Help" [level=3] [ref=e539]
+            - link "The Super Mario Galaxy Movie movie poster (2026) 7.5 New The Super Mario Galaxy Movie" [ref=e541] [cursor=pointer]:
+              - /url: /movie/1226863/the-super-mario-galaxy-movie
+              - generic [ref=e543]:
+                - generic [ref=e545]:
+                  - img "The Super Mario Galaxy Movie movie poster (2026)" [ref=e546]
+                  - generic [ref=e548]: "7.5"
+                  - generic [ref=e550]: New
+                - heading "The Super Mario Galaxy Movie" [level=3] [ref=e553]
+            - link "Humint movie poster (2026) 6.8 Humint" [ref=e555] [cursor=pointer]:
+              - /url: /movie/1268127/humint
+              - generic [ref=e557]:
+                - generic [ref=e559]:
+                  - img "Humint movie poster (2026)" [ref=e560]
+                  - generic [ref=e562]: "6.8"
+                - heading "Humint" [level=3] [ref=e564]
+            - link "Hoppers movie poster (2026) 7.6 New Hoppers" [ref=e566] [cursor=pointer]:
+              - /url: /movie/1327819/hoppers
+              - generic [ref=e568]:
+                - generic [ref=e570]:
+                  - img "Hoppers movie poster (2026)" [ref=e571]
+                  - generic [ref=e573]: "7.6"
+                  - generic [ref=e575]: New
+                - heading "Hoppers" [level=3] [ref=e578]
+            - link "Pretty Lethal movie poster (2026) 6.7 New Pretty Lethal" [ref=e580] [cursor=pointer]:
+              - /url: /movie/1084187/pretty-lethal
+              - generic [ref=e582]:
+                - generic [ref=e584]:
+                  - img "Pretty Lethal movie poster (2026)" [ref=e585]
+                  - generic [ref=e587]: "6.7"
+                  - generic [ref=e589]: New
+                - heading "Pretty Lethal" [level=3] [ref=e592]
+            - link "\"Wuthering Heights\" movie poster (2026) 6.4 Trending \"Wuthering Heights\"" [ref=e594] [cursor=pointer]:
+              - /url: /movie/1316092/wuthering-heights
+              - generic [ref=e596]:
+                - generic [ref=e598]:
+                  - img "\"Wuthering Heights\" movie poster (2026)" [ref=e599]
+                  - generic [ref=e601]: "6.4"
+                  - generic [ref=e603]: Trending
+                - heading "\"Wuthering Heights\"" [level=3] [ref=e606]
+            - link "Mike & Nick & Nick & Alice movie poster (2026) 6.7 New Mike & Nick & Nick & Alice" [ref=e608] [cursor=pointer]:
+              - /url: /movie/1115544/mike-nick-nick-alice
+              - generic [ref=e610]:
+                - generic [ref=e612]:
+                  - img "Mike & Nick & Nick & Alice movie poster (2026)" [ref=e613]
+                  - generic [ref=e615]: "6.7"
+                  - generic [ref=e617]: New
+                - heading "Mike & Nick & Nick & Alice" [level=3] [ref=e620]
+            - link "The Drama movie poster (2026) 5.3 New The Drama" [ref=e622] [cursor=pointer]:
+              - /url: /movie/1325734/the-drama
+              - generic [ref=e624]:
+                - generic [ref=e626]:
+                  - img "The Drama movie poster (2026)" [ref=e627]
+                  - generic [ref=e629]: "5.3"
+                  - generic [ref=e631]: New
+                - heading "The Drama" [level=3] [ref=e634]
+            - link "How to Make a Killing movie poster (2026) 7.1 How to Make a Killing" [ref=e636] [cursor=pointer]:
+              - /url: /movie/467905/how-to-make-a-killing
+              - generic [ref=e638]:
+                - generic [ref=e640]:
+                  - img "How to Make a Killing movie poster (2026)" [ref=e641]
+                  - generic [ref=e643]: "7.1"
+                - heading "How to Make a Killing" [level=3] [ref=e645]
+            - link "Your Heart Will Be Broken movie poster (2026) 6.9 New Your Heart Will Be Broken" [ref=e647] [cursor=pointer]:
+              - /url: /movie/1523145/your-heart-will-be-broken
+              - generic [ref=e649]:
+                - generic [ref=e651]:
+                  - img "Your Heart Will Be Broken movie poster (2026)" [ref=e652]
+                  - generic [ref=e654]: "6.9"
+                  - generic [ref=e656]: New
+                - heading "Your Heart Will Be Broken" [level=3] [ref=e659]
+            - link "They Will Kill You movie poster (2026) 6.6 New They Will Kill You" [ref=e661] [cursor=pointer]:
+              - /url: /movie/1292695/they-will-kill-you
+              - generic [ref=e663]:
+                - generic [ref=e665]:
+                  - img "They Will Kill You movie poster (2026)" [ref=e666]
+                  - generic [ref=e668]: "6.6"
+                  - generic [ref=e670]: New
+                - heading "They Will Kill You" [level=3] [ref=e673]
+            - 'link "Ready or Not: Here I Come movie poster (2026) 7.4 New Ready or Not: Here I Come" [ref=e675] [cursor=pointer]':
+              - /url: /movie/1266127/ready-or-not-here-i-come
+              - generic [ref=e677]:
+                - generic [ref=e679]:
+                  - 'img "Ready or Not: Here I Come movie poster (2026)" [ref=e680]'
+                  - generic [ref=e682]: "7.4"
+                  - generic [ref=e684]: New
+                - 'heading "Ready or Not: Here I Come" [level=3] [ref=e687]'
+            - link "Zootopia 2 movie poster (2025) 7.6 Zootopia 2" [ref=e689] [cursor=pointer]:
+              - /url: /movie/1084242/zootopia-2
+              - generic [ref=e691]:
+                - generic [ref=e693]:
+                  - img "Zootopia 2 movie poster (2025)" [ref=e694]
+                  - generic [ref=e696]: "7.6"
+                - heading "Zootopia 2" [level=3] [ref=e698]
+            - link "War Machine movie poster (2026) 7.3 Trending War Machine" [ref=e700] [cursor=pointer]:
+              - /url: /movie/1265609/war-machine
+              - generic [ref=e702]:
+                - generic [ref=e704]:
+                  - img "War Machine movie poster (2026)" [ref=e705]
+                  - generic [ref=e707]: "7.3"
+                  - generic [ref=e709]: Trending
+                - heading "War Machine" [level=3] [ref=e712]
+            - link "Shelter movie poster (2026) 6.8 Popular Shelter" [ref=e714] [cursor=pointer]:
+              - /url: /movie/1290821/shelter
+              - generic [ref=e716]:
+                - generic [ref=e718]:
+                  - img "Shelter movie poster (2026)" [ref=e719]
+                  - generic [ref=e721]: "6.8"
+                  - generic [ref=e723]: Popular
+                - heading "Shelter" [level=3] [ref=e726]
+            - link "The Red Line movie poster (2026) 6.6 New The Red Line" [ref=e728] [cursor=pointer]:
+              - /url: /movie/1630433/the-red-line
+              - generic [ref=e730]:
+                - generic [ref=e732]:
+                  - img "The Red Line movie poster (2026)" [ref=e733]
+                  - generic [ref=e735]: "6.6"
+                  - generic [ref=e737]: New
+                - heading "The Red Line" [level=3] [ref=e740]
+        - generic [ref=e741]:
+          - generic [ref=e742]:
+            - generic [ref=e743]:
+              - img [ref=e744]
+              - heading "Trending TV Shows" [level=2] [ref=e747]
+            - generic [ref=e748]:
+              - generic [ref=e749]:
+                - button "Scroll left" [ref=e750]:
+                  - img
+                - button "Scroll right" [ref=e751]:
+                  - img
+              - link "Browse All" [ref=e752] [cursor=pointer]:
+                - /url: /browse?type=tv
+                - text: Browse All
+                - img [ref=e753]
+          - generic [ref=e756]:
+            - 'link "Daredevil: Born Again series poster (2025) 8.0 Trending Daredevil: Born Again" [ref=e758] [cursor=pointer]':
+              - /url: /series/202555/daredevil-born-again
+              - generic [ref=e760]:
+                - generic [ref=e762]:
+                  - 'img "Daredevil: Born Again series poster (2025)" [ref=e763]'
+                  - generic [ref=e765]: "8.0"
+                  - generic [ref=e767]: Trending
+                - 'heading "Daredevil: Born Again" [level=3] [ref=e770]'
+            - link "JUJUTSU KAISEN series poster (2020) 8.6 Trending JUJUTSU KAISEN" [ref=e772] [cursor=pointer]:
+              - /url: /series/95479/jujutsu-kaisen
+              - generic [ref=e774]:
+                - generic [ref=e776]:
+                  - img "JUJUTSU KAISEN series poster (2020)" [ref=e777]
+                  - generic [ref=e779]: "8.6"
+                  - generic [ref=e781]: Trending
+                - heading "JUJUTSU KAISEN" [level=3] [ref=e784]
+            - 'link "Frieren: Beyond Journey''s End series poster (2023) 8.8 Trending Frieren: Beyond Journey''s End" [ref=e786] [cursor=pointer]':
+              - /url: /series/209867/frieren-beyond-journey-s-end
+              - generic [ref=e788]:
+                - generic [ref=e790]:
+                  - 'img "Frieren: Beyond Journey''s End series poster (2023)" [ref=e791]'
+                  - generic [ref=e793]: "8.8"
+                  - generic [ref=e795]: Trending
+                - 'heading "Frieren: Beyond Journey''s End" [level=3] [ref=e798]'
+            - link "Detective Hole series poster (2026) 7.8 New Detective Hole" [ref=e800] [cursor=pointer]:
+              - /url: /series/249597/detective-hole
+              - generic [ref=e802]:
+                - generic [ref=e804]:
+                  - img "Detective Hole series poster (2026)" [ref=e805]
+                  - generic [ref=e807]: "7.8"
+                  - generic [ref=e809]: New
+                - heading "Detective Hole" [level=3] [ref=e812]
+            - link "Paradise series poster (2025) 7.4 Paradise" [ref=e814] [cursor=pointer]:
+              - /url: /series/245927/paradise
+              - generic [ref=e816]:
+                - generic [ref=e818]:
+                  - img "Paradise series poster (2025)" [ref=e819]
+                  - generic [ref=e821]: "7.4"
+                - heading "Paradise" [level=3] [ref=e823]
+            - link "Something Very Bad Is Going to Happen series poster (2026) 6.7 New Something Very Bad Is Going to Happen" [ref=e825] [cursor=pointer]:
+              - /url: /series/259265/something-very-bad-is-going-to-happen
+              - generic [ref=e827]:
+                - generic [ref=e829]:
+                  - img "Something Very Bad Is Going to Happen series poster (2026)" [ref=e830]
+                  - generic [ref=e832]: "6.7"
+                  - generic [ref=e834]: New
+                - heading "Something Very Bad Is Going to Happen" [level=3] [ref=e837]
+            - link "One Piece series poster (1999) 8.7 Acclaimed One Piece" [ref=e839] [cursor=pointer]:
+              - /url: /series/37854/one-piece
+              - generic [ref=e841]:
+                - generic [ref=e843]:
+                  - img "One Piece series poster (1999)" [ref=e844]
+                  - generic [ref=e846]: "8.7"
+                  - generic [ref=e848]: Acclaimed
+                - heading "One Piece" [level=3] [ref=e851]
+            - link "Invincible series poster (2021) 8.6 Trending Invincible" [ref=e853] [cursor=pointer]:
+              - /url: /series/95557/invincible
+              - generic [ref=e855]:
+                - generic [ref=e857]:
+                  - img "Invincible series poster (2021)" [ref=e858]
+                  - generic [ref=e860]: "8.6"
+                  - generic [ref=e862]: Trending
+                - heading "Invincible" [level=3] [ref=e865]
+            - link "ONE PIECE series poster (2023) 8.1 Trending ONE PIECE" [ref=e867] [cursor=pointer]:
+              - /url: /series/111110/one-piece
+              - generic [ref=e869]:
+                - generic [ref=e871]:
+                  - img "ONE PIECE series poster (2023)" [ref=e872]
+                  - generic [ref=e874]: "8.1"
+                  - generic [ref=e876]: Trending
+                - heading "ONE PIECE" [level=3] [ref=e879]
+            - link "For All Mankind series poster (2019) 7.7 For All Mankind" [ref=e881] [cursor=pointer]:
+              - /url: /series/87917/for-all-mankind
+              - generic [ref=e883]:
+                - generic [ref=e885]:
+                  - img "For All Mankind series poster (2019)" [ref=e886]
+                  - generic [ref=e888]: "7.7"
+                - heading "For All Mankind" [level=3] [ref=e890]
+            - link "Scrubs series poster (2026) 8.1 Scrubs" [ref=e892] [cursor=pointer]:
+              - /url: /series/295778/scrubs
+              - generic [ref=e894]:
+                - generic [ref=e896]:
+                  - img "Scrubs series poster (2026)" [ref=e897]
+                  - generic [ref=e899]: "8.1"
+                - heading "Scrubs" [level=3] [ref=e901]
+            - link "JoJo's Bizarre Adventure series poster (2012) 8.6 JoJo's Bizarre Adventure" [ref=e903] [cursor=pointer]:
+              - /url: /series/45790/jojo-s-bizarre-adventure
+              - generic [ref=e905]:
+                - generic [ref=e907]:
+                  - img "JoJo's Bizarre Adventure series poster (2012)" [ref=e908]
+                  - generic [ref=e910]: "8.6"
+                - heading "JoJo's Bizarre Adventure" [level=3] [ref=e912]
+            - link "The Pitt series poster (2025) 8.7 Trending The Pitt" [ref=e914] [cursor=pointer]:
+              - /url: /series/250307/the-pitt
+              - generic [ref=e916]:
+                - generic [ref=e918]:
+                  - img "The Pitt series poster (2025)" [ref=e919]
+                  - generic [ref=e921]: "8.7"
+                  - generic [ref=e923]: Trending
+                - heading "The Pitt" [level=3] [ref=e926]
+            - link "Love Beyond the Grave series poster (2026) 8.2 New Love Beyond the Grave" [ref=e928] [cursor=pointer]:
+              - /url: /series/258865/love-beyond-the-grave
+              - generic [ref=e930]:
+                - generic [ref=e932]:
+                  - img "Love Beyond the Grave series poster (2026)" [ref=e933]
+                  - generic [ref=e935]: "8.2"
+                  - generic [ref=e937]: New
+                - heading "Love Beyond the Grave" [level=3] [ref=e940]
+            - link "Pursuit of Jade series poster (2026) 8.0 New Pursuit of Jade" [ref=e942] [cursor=pointer]:
+              - /url: /series/279388/pursuit-of-jade
+              - generic [ref=e944]:
+                - generic [ref=e946]:
+                  - img "Pursuit of Jade series poster (2026)" [ref=e947]
+                  - generic [ref=e949]: "8.0"
+                  - generic [ref=e951]: New
+                - heading "Pursuit of Jade" [level=3] [ref=e954]
+            - link "If It's Tuesday... It's Murder series poster (2026) 7.5 New If It's Tuesday... It's Murder" [ref=e956] [cursor=pointer]:
+              - /url: /series/255522/if-it-s-tuesday-it-s-murder
+              - generic [ref=e958]:
+                - generic [ref=e960]:
+                  - img "If It's Tuesday... It's Murder series poster (2026)" [ref=e961]
+                  - generic [ref=e963]: "7.5"
+                  - generic [ref=e965]: New
+                - heading "If It's Tuesday... It's Murder" [level=3] [ref=e968]
+            - link "The Boys series poster (2019) 8.4 Trending The Boys" [ref=e970] [cursor=pointer]:
+              - /url: /series/76479/the-boys
+              - generic [ref=e972]:
+                - generic [ref=e974]:
+                  - img "The Boys series poster (2019)" [ref=e975]
+                  - generic [ref=e977]: "8.4"
+                  - generic [ref=e979]: Trending
+                - heading "The Boys" [level=3] [ref=e982]
+            - link "【OSHI NO KO】 series poster (2023) 8.3 【OSHI NO KO】" [ref=e984] [cursor=pointer]:
+              - /url: /series/203737/oshi-no-ko
+              - generic [ref=e986]:
+                - generic [ref=e988]:
+                  - img "【OSHI NO KO】 series poster (2023)" [ref=e989]
+                  - generic [ref=e991]: "8.3"
+                - heading "【OSHI NO KO】" [level=3] [ref=e993]
+            - link "Hell's Paradise series poster (2023) 8.2 Hell's Paradise" [ref=e995] [cursor=pointer]:
+              - /url: /series/117465/hell-s-paradise
+              - generic [ref=e997]:
+                - generic [ref=e999]:
+                  - img "Hell's Paradise series poster (2023)" [ref=e1000]
+                  - generic [ref=e1002]: "8.2"
+                - heading "Hell's Paradise" [level=3] [ref=e1004]
+            - 'link "Monarch: Legacy of Monsters series poster (2023) 7.7 Monarch: Legacy of Monsters" [ref=e1006] [cursor=pointer]':
+              - /url: /series/202411/monarch-legacy-of-monsters
+              - generic [ref=e1008]:
+                - generic [ref=e1010]:
+                  - 'img "Monarch: Legacy of Monsters series poster (2023)" [ref=e1011]'
+                  - generic [ref=e1013]: "7.7"
+                - 'heading "Monarch: Legacy of Monsters" [level=3] [ref=e1015]'
+        - generic [ref=e1016]:
+          - generic [ref=e1017]:
+            - generic [ref=e1018]: 🎭
+            - heading "What's Your Mood?" [level=2] [ref=e1019]
+          - generic [ref=e1020]:
+            - link "😂 Make Me Laugh Comedy picks" [ref=e1021] [cursor=pointer]:
+              - /url: /browse?genres=35&min_rating=6.5&min_votes=500
+              - generic [ref=e1023]:
+                - generic [ref=e1024]: 😂
+                - generic [ref=e1025]: Make Me Laugh
+                - generic [ref=e1026]: Comedy picks
+            - link "😰 On The Edge Thrillers & Action" [ref=e1027] [cursor=pointer]:
+              - /url: /browse?genres=53%2C28&min_rating=6.5&min_votes=500
+              - generic [ref=e1029]:
+                - generic [ref=e1030]: 😰
+                - generic [ref=e1031]: On The Edge
+                - generic [ref=e1032]: Thrillers & Action
+            - link "🥺 In My Feels Drama & Romance" [ref=e1033] [cursor=pointer]:
+              - /url: /browse?sort=vote_average.desc&genres=18%2C10749&min_rating=7&min_votes=500
+              - generic [ref=e1035]:
+                - generic [ref=e1036]: 🥺
+                - generic [ref=e1037]: In My Feels
+                - generic [ref=e1038]: Drama & Romance
+            - link "🧠 Blow My Mind Sci-Fi & Mystery" [ref=e1039] [cursor=pointer]:
+              - /url: /browse?sort=vote_average.desc&genres=878%2C9648&min_rating=7&min_votes=500
+              - generic [ref=e1041]:
+                - generic [ref=e1042]: 🧠
+                - generic [ref=e1043]: Blow My Mind
+                - generic [ref=e1044]: Sci-Fi & Mystery
+            - link "👨‍👩‍👧‍👦 Family Night All ages welcome" [ref=e1045] [cursor=pointer]:
+              - /url: /browse?genres=16%2C10751&min_rating=6.5&min_votes=500
+              - generic [ref=e1047]:
+                - generic [ref=e1048]: 👨‍👩‍👧‍👦
+                - generic [ref=e1049]: Family Night
+                - generic [ref=e1050]: All ages welcome
+            - link "🌙 Scare Me Horror picks" [ref=e1051] [cursor=pointer]:
+              - /url: /browse?genres=27&min_rating=6&min_votes=300
+              - generic [ref=e1053]:
+                - generic [ref=e1054]: 🌙
+                - generic [ref=e1055]: Scare Me
+                - generic [ref=e1056]: Horror picks
+        - generic [ref=e1057]:
+          - generic [ref=e1058]:
+            - generic [ref=e1059]:
+              - img [ref=e1060]
+              - heading "In Theaters Now" [level=2] [ref=e1065]
+            - generic [ref=e1066]:
+              - generic [ref=e1067]:
+                - button "Scroll left" [ref=e1068]:
+                  - img
+                - button "Scroll right" [ref=e1069]:
+                  - img
+              - link "Browse All" [ref=e1070] [cursor=pointer]:
+                - /url: /browse?release_from=2026-01-31&release_to=2026-04-01
+                - text: Browse All
+                - img [ref=e1071]
+          - generic [ref=e1074]:
+            - link "Project Hail Mary movie poster (2026) 8.2 New Project Hail Mary" [ref=e1076] [cursor=pointer]:
+              - /url: /movie/687163/project-hail-mary
+              - generic [ref=e1078]:
+                - generic [ref=e1080]:
+                  - img "Project Hail Mary movie poster (2026)" [ref=e1081]
+                  - generic [ref=e1083]: "8.2"
+                  - generic [ref=e1085]: New
+                - heading "Project Hail Mary" [level=3] [ref=e1088]
+            - link "Hoppers movie poster (2026) 7.6 New Hoppers" [ref=e1090] [cursor=pointer]:
+              - /url: /movie/1327819/hoppers
+              - generic [ref=e1092]:
+                - generic [ref=e1094]:
+                  - img "Hoppers movie poster (2026)" [ref=e1095]
+                  - generic [ref=e1097]: "7.6"
+                  - generic [ref=e1099]: New
+                - heading "Hoppers" [level=3] [ref=e1102]
+            - 'link "Dhurandhar: The Revenge movie poster (2026) 7.5 New Dhurandhar: The Revenge" [ref=e1104] [cursor=pointer]':
+              - /url: /movie/1582770/dhurandhar-the-revenge
+              - generic [ref=e1106]:
+                - generic [ref=e1108]:
+                  - 'img "Dhurandhar: The Revenge movie poster (2026)" [ref=e1109]'
+                  - generic [ref=e1111]: "7.5"
+                  - generic [ref=e1113]: New
+                - 'heading "Dhurandhar: The Revenge" [level=3] [ref=e1116]'
+            - link "They Will Kill You movie poster (2026) 6.6 New They Will Kill You" [ref=e1118] [cursor=pointer]:
+              - /url: /movie/1292695/they-will-kill-you
+              - generic [ref=e1120]:
+                - generic [ref=e1122]:
+                  - img "They Will Kill You movie poster (2026)" [ref=e1123]
+                  - generic [ref=e1125]: "6.6"
+                  - generic [ref=e1127]: New
+                - heading "They Will Kill You" [level=3] [ref=e1130]
+            - link "Hamnet movie poster (2026) 7.7 Gem Hamnet" [ref=e1132] [cursor=pointer]:
+              - /url: /movie/858024/hamnet
+              - generic [ref=e1134]:
+                - generic [ref=e1136]:
+                  - img "Hamnet movie poster (2026)" [ref=e1137]
+                  - generic [ref=e1139]: "7.7"
+                  - generic [ref=e1141]: Gem
+                - heading "Hamnet" [level=3] [ref=e1144]
+            - link "The Bride! movie poster (2026) 6.3 New The Bride!" [ref=e1146] [cursor=pointer]:
+              - /url: /movie/1159831/the-bride
+              - generic [ref=e1148]:
+                - generic [ref=e1150]:
+                  - img "The Bride! movie poster (2026)" [ref=e1151]
+                  - generic [ref=e1153]: "6.3"
+                  - generic [ref=e1155]: New
+                - heading "The Bride!" [level=3] [ref=e1158]
+            - link "The Secret Agent movie poster (2026) 7.3 The Secret Agent" [ref=e1160] [cursor=pointer]:
+              - /url: /movie/1220564/the-secret-agent
+              - generic [ref=e1162]:
+                - generic [ref=e1164]:
+                  - img "The Secret Agent movie poster (2026)" [ref=e1165]
+                  - generic [ref=e1167]: "7.3"
+                - heading "The Secret Agent" [level=3] [ref=e1169]
+            - link "Ishqa'n De Lekhe movie poster (2026) 10.0 New Ishqa'n De Lekhe" [ref=e1171] [cursor=pointer]:
+              - /url: /movie/1643729/ishqa-n-de-lekhe
+              - generic [ref=e1173]:
+                - generic [ref=e1175]:
+                  - img "Ishqa'n De Lekhe movie poster (2026)" [ref=e1176]
+                  - generic [ref=e1178]: "10.0"
+                  - generic [ref=e1180]: New
+                - heading "Ishqa'n De Lekhe" [level=3] [ref=e1183]
+            - link "Iron Lung movie poster (2026) 7.3 New Iron Lung" [ref=e1185] [cursor=pointer]:
+              - /url: /movie/1116201/iron-lung
+              - generic [ref=e1187]:
+                - generic [ref=e1189]:
+                  - img "Iron Lung movie poster (2026)" [ref=e1190]
+                  - generic [ref=e1192]: "7.3"
+                  - generic [ref=e1194]: New
+                - heading "Iron Lung" [level=3] [ref=e1197]
+            - 'link "EPiC: Elvis Presley in Concert movie poster (2026) 8.3 EPiC: Elvis Presley in Concert" [ref=e1199] [cursor=pointer]':
+              - /url: /movie/1445363/epic-elvis-presley-in-concert
+              - generic [ref=e1201]:
+                - generic [ref=e1203]:
+                  - 'img "EPiC: Elvis Presley in Concert movie poster (2026)" [ref=e1204]'
+                  - generic [ref=e1206]: "8.3"
+                - 'heading "EPiC: Elvis Presley in Concert" [level=3] [ref=e1208]'
+        - generic [ref=e1209]:
+          - generic [ref=e1210]:
+            - heading "Comedy Movies" [level=2] [ref=e1212]
+            - generic [ref=e1213]:
+              - generic [ref=e1214]:
+                - button "Scroll left" [ref=e1215]:
+                  - img
+                - button "Scroll right" [ref=e1216]:
+                  - img
+              - link "View All" [ref=e1217] [cursor=pointer]:
+                - /url: /topics/genre-comedy-movie
+                - text: View All
+                - img [ref=e1218]
+          - generic [ref=e1221]:
+            - link "Mike & Nick & Nick & Alice movie poster (2026) 6.7 New Mike & Nick & Nick & Alice" [ref=e1223] [cursor=pointer]:
+              - /url: /movie/1115544/mike-nick-nick-alice
+              - generic [ref=e1225]:
+                - generic [ref=e1227]:
+                  - img "Mike & Nick & Nick & Alice movie poster (2026)" [ref=e1228]
+                  - generic [ref=e1230]: "6.7"
+                  - generic [ref=e1232]: New
+                - heading "Mike & Nick & Nick & Alice" [level=3] [ref=e1235]
+            - link "GOAT movie poster (2026) 7.7 Trending GOAT" [ref=e1237] [cursor=pointer]:
+              - /url: /movie/1297842/goat
+              - generic [ref=e1239]:
+                - generic [ref=e1241]:
+                  - img "GOAT movie poster (2026)" [ref=e1242]
+                  - generic [ref=e1244]: "7.7"
+                  - generic [ref=e1246]: Trending
+                - heading "GOAT" [level=3] [ref=e1249]
+            - link "Send Help movie poster (2026) 7.1 Trending Send Help" [ref=e1251] [cursor=pointer]:
+              - /url: /movie/1198994/send-help
+              - generic [ref=e1253]:
+                - generic [ref=e1255]:
+                  - img "Send Help movie poster (2026)" [ref=e1256]
+                  - generic [ref=e1258]: "7.1"
+                  - generic [ref=e1260]: Trending
+                - heading "Send Help" [level=3] [ref=e1263]
+            - link "Zootopia 2 movie poster (2025) 7.6 Zootopia 2" [ref=e1265] [cursor=pointer]:
+              - /url: /movie/1084242/zootopia-2
+              - generic [ref=e1267]:
+                - generic [ref=e1269]:
+                  - img "Zootopia 2 movie poster (2025)" [ref=e1270]
+                  - generic [ref=e1272]: "7.6"
+                - heading "Zootopia 2" [level=3] [ref=e1274]
+            - link "Hoppers movie poster (2026) 7.6 New Hoppers" [ref=e1276] [cursor=pointer]:
+              - /url: /movie/1327819/hoppers
+              - generic [ref=e1278]:
+                - generic [ref=e1280]:
+                  - img "Hoppers movie poster (2026)" [ref=e1281]
+                  - generic [ref=e1283]: "7.6"
+                  - generic [ref=e1285]: New
+                - heading "Hoppers" [level=3] [ref=e1288]
+            - link "How to Make a Killing movie poster (2026) 7.1 How to Make a Killing" [ref=e1290] [cursor=pointer]:
+              - /url: /movie/467905/how-to-make-a-killing
+              - generic [ref=e1292]:
+                - generic [ref=e1294]:
+                  - img "How to Make a Killing movie poster (2026)" [ref=e1295]
+                  - generic [ref=e1297]: "7.1"
+                - heading "How to Make a Killing" [level=3] [ref=e1299]
+            - link "The Wrecking Crew movie poster (2026) 6.9 The Wrecking Crew" [ref=e1301] [cursor=pointer]:
+              - /url: /movie/1168190/the-wrecking-crew
+              - generic [ref=e1303]:
+                - generic [ref=e1305]:
+                  - img "The Wrecking Crew movie poster (2026)" [ref=e1306]
+                  - generic [ref=e1308]: "6.9"
+                - heading "The Wrecking Crew" [level=3] [ref=e1310]
+            - link "The Super Mario Bros. Movie movie poster (2023) 7.6 The Super Mario Bros. Movie" [ref=e1312] [cursor=pointer]:
+              - /url: /movie/502356/the-super-mario-bros-movie
+              - generic [ref=e1314]:
+                - generic [ref=e1316]:
+                  - img "The Super Mario Bros. Movie movie poster (2023)" [ref=e1317]
+                  - generic [ref=e1319]: "7.6"
+                - heading "The Super Mario Bros. Movie" [level=3] [ref=e1321]
+            - link "One Battle After Another movie poster (2025) 7.4 One Battle After Another" [ref=e1323] [cursor=pointer]:
+              - /url: /movie/1054867/one-battle-after-another
+              - generic [ref=e1325]:
+                - generic [ref=e1327]:
+                  - img "One Battle After Another movie poster (2025)" [ref=e1328]
+                  - generic [ref=e1330]: "7.4"
+                - heading "One Battle After Another" [level=3] [ref=e1332]
+            - link "KPop Demon Hunters movie poster (2025) 8.0 Gem KPop Demon Hunters" [ref=e1334] [cursor=pointer]:
+              - /url: /movie/803796/kpop-demon-hunters
+              - generic [ref=e1336]:
+                - generic [ref=e1338]:
+                  - img "KPop Demon Hunters movie poster (2025)" [ref=e1339]
+                  - generic [ref=e1341]: "8.0"
+                  - generic [ref=e1343]: Gem
+                - heading "KPop Demon Hunters" [level=3] [ref=e1346]
+            - 'link "The SpongeBob Movie: Search for SquarePants movie poster (2025) 6.7 The SpongeBob Movie: Search for SquarePants" [ref=e1348] [cursor=pointer]':
+              - /url: /movie/991494/the-spongebob-movie-search-for-squarepants
+              - generic [ref=e1350]:
+                - generic [ref=e1352]:
+                  - 'img "The SpongeBob Movie: Search for SquarePants movie poster (2025)" [ref=e1353]'
+                  - generic [ref=e1355]: "6.7"
+                - 'heading "The SpongeBob Movie: Search for SquarePants" [level=3] [ref=e1357]'
+            - link "Buffaloed movie poster (2020) 6.7 Buffaloed" [ref=e1359] [cursor=pointer]:
+              - /url: /movie/547012/buffaloed
+              - generic [ref=e1361]:
+                - generic [ref=e1363]:
+                  - img "Buffaloed movie poster (2020)" [ref=e1364]
+                  - generic [ref=e1366]: "6.7"
+                - heading "Buffaloed" [level=3] [ref=e1368]
+            - link "Parasite movie poster (2019) 8.5 Classic Parasite" [ref=e1370] [cursor=pointer]:
+              - /url: /movie/496243/parasite
+              - generic [ref=e1372]:
+                - generic [ref=e1374]:
+                  - img "Parasite movie poster (2019)" [ref=e1375]
+                  - generic [ref=e1377]: "8.5"
+                  - generic [ref=e1379]: Classic
+                - heading "Parasite" [level=3] [ref=e1382]
+            - link "Cold Storage movie poster (2026) 6.7 Cold Storage" [ref=e1384] [cursor=pointer]:
+              - /url: /movie/696393/cold-storage
+              - generic [ref=e1386]:
+                - generic [ref=e1388]:
+                  - img "Cold Storage movie poster (2026)" [ref=e1389]
+                  - generic [ref=e1391]: "6.7"
+                - heading "Cold Storage" [level=3] [ref=e1393]
+            - link "Pulp Fiction movie poster (1994) 8.5 Classic Pulp Fiction" [ref=e1395] [cursor=pointer]:
+              - /url: /movie/680/pulp-fiction
+              - generic [ref=e1397]:
+                - generic [ref=e1399]:
+                  - img "Pulp Fiction movie poster (1994)" [ref=e1400]
+                  - generic [ref=e1402]: "8.5"
+                  - generic [ref=e1404]: Classic
+                - heading "Pulp Fiction" [level=3] [ref=e1407]
+            - link "Good Luck, Have Fun, Don't Die movie poster (2026) 7.0 Good Luck, Have Fun, Don't Die" [ref=e1409] [cursor=pointer]:
+              - /url: /movie/1119449/good-luck-have-fun-don-t-die
+              - generic [ref=e1411]:
+                - generic [ref=e1413]:
+                  - img "Good Luck, Have Fun, Don't Die movie poster (2026)" [ref=e1414]
+                  - generic [ref=e1416]: "7.0"
+                - heading "Good Luck, Have Fun, Don't Die" [level=3] [ref=e1418]
+            - link "The Devil Wears Prada movie poster (2006) 7.4 The Devil Wears Prada" [ref=e1420] [cursor=pointer]:
+              - /url: /movie/350/the-devil-wears-prada
+              - generic [ref=e1422]:
+                - generic [ref=e1424]:
+                  - img "The Devil Wears Prada movie poster (2006)" [ref=e1425]
+                  - generic [ref=e1427]: "7.4"
+                - heading "The Devil Wears Prada" [level=3] [ref=e1429]
+            - link "The Family Plan 2 movie poster (2025) 6.5 The Family Plan 2" [ref=e1431] [cursor=pointer]:
+              - /url: /movie/1363123/the-family-plan-2
+              - generic [ref=e1433]:
+                - generic [ref=e1435]:
+                  - img "The Family Plan 2 movie poster (2025)" [ref=e1436]
+                  - generic [ref=e1438]: "6.5"
+                - heading "The Family Plan 2" [level=3] [ref=e1440]
+            - link "Deadpool & Wolverine movie poster (2024) 7.6 Deadpool & Wolverine" [ref=e1442] [cursor=pointer]:
+              - /url: /movie/533535/deadpool-wolverine
+              - generic [ref=e1444]:
+                - generic [ref=e1446]:
+                  - img "Deadpool & Wolverine movie poster (2024)" [ref=e1447]
+                  - generic [ref=e1449]: "7.6"
+                - heading "Deadpool & Wolverine" [level=3] [ref=e1451]
+            - link "Forrest Gump movie poster (1994) 8.5 Classic Forrest Gump" [ref=e1453] [cursor=pointer]:
+              - /url: /movie/13/forrest-gump
+              - generic [ref=e1455]:
+                - generic [ref=e1457]:
+                  - img "Forrest Gump movie poster (1994)" [ref=e1458]
+                  - generic [ref=e1460]: "8.5"
+                  - generic [ref=e1462]: Classic
+                - heading "Forrest Gump" [level=3] [ref=e1465]
+        - generic [ref=e1466]:
+          - generic [ref=e1467]:
+            - heading "Horror Movies" [level=2] [ref=e1469]
+            - generic [ref=e1470]:
+              - generic [ref=e1471]:
+                - button "Scroll left" [ref=e1472]:
+                  - img
+                - button "Scroll right" [ref=e1473]:
+                  - img
+              - link "View All" [ref=e1474] [cursor=pointer]:
+                - /url: /topics/genre-horror-movie
+                - text: View All
+                - img [ref=e1475]
+          - generic [ref=e1478]:
+            - link "Send Help movie poster (2026) 7.1 Trending Send Help" [ref=e1480] [cursor=pointer]:
+              - /url: /movie/1198994/send-help
+              - generic [ref=e1482]:
+                - generic [ref=e1484]:
+                  - img "Send Help movie poster (2026)" [ref=e1485]
+                  - generic [ref=e1487]: "7.1"
+                  - generic [ref=e1489]: Trending
+                - heading "Send Help" [level=3] [ref=e1492]
+            - 'link "28 Years Later: The Bone Temple movie poster (2026) 7.2 28 Years Later: The Bone Temple" [ref=e1494] [cursor=pointer]':
+              - /url: /movie/1272837/28-years-later-the-bone-temple
+              - generic [ref=e1496]:
+                - generic [ref=e1498]:
+                  - 'img "28 Years Later: The Bone Temple movie poster (2026)" [ref=e1499]'
+                  - generic [ref=e1501]: "7.2"
+                - 'heading "28 Years Later: The Bone Temple" [level=3] [ref=e1503]'
+            - link "Sinners movie poster (2025) 7.5 Sinners" [ref=e1505] [cursor=pointer]:
+              - /url: /movie/1233413/sinners
+              - generic [ref=e1507]:
+                - generic [ref=e1509]:
+                  - img "Sinners movie poster (2025)" [ref=e1510]
+                  - generic [ref=e1512]: "7.5"
+                - heading "Sinners" [level=3] [ref=e1514]
+            - link "Dracula movie poster (2025) 7.1 Dracula" [ref=e1516] [cursor=pointer]:
+              - /url: /movie/1246049/dracula
+              - generic [ref=e1518]:
+                - generic [ref=e1520]:
+                  - img "Dracula movie poster (2025)" [ref=e1521]
+                  - generic [ref=e1523]: "7.1"
+                - heading "Dracula" [level=3] [ref=e1525]
+            - link "Cold Storage movie poster (2026) 6.7 Cold Storage" [ref=e1527] [cursor=pointer]:
+              - /url: /movie/696393/cold-storage
+              - generic [ref=e1529]:
+                - generic [ref=e1531]:
+                  - img "Cold Storage movie poster (2026)" [ref=e1532]
+                  - generic [ref=e1534]: "6.7"
+                - heading "Cold Storage" [level=3] [ref=e1536]
+            - link "Frenzy movie poster (1972) 7.1 Frenzy" [ref=e1538] [cursor=pointer]:
+              - /url: /movie/573/frenzy
+              - generic [ref=e1540]:
+                - generic [ref=e1542]:
+                  - img "Frenzy movie poster (1972)" [ref=e1543]
+                  - generic [ref=e1545]: "7.1"
+                - heading "Frenzy" [level=3] [ref=e1547]
+            - link "Frankenstein movie poster (2025) 7.7 Gem Frankenstein" [ref=e1549] [cursor=pointer]:
+              - /url: /movie/1062722/frankenstein
+              - generic [ref=e1551]:
+                - generic [ref=e1553]:
+                  - img "Frankenstein movie poster (2025)" [ref=e1554]
+                  - generic [ref=e1556]: "7.7"
+                  - generic [ref=e1558]: Gem
+                - heading "Frankenstein" [level=3] [ref=e1561]
+            - link "Five Nights at Freddy's 2 movie poster (2025) 6.7 Five Nights at Freddy's 2" [ref=e1563] [cursor=pointer]:
+              - /url: /movie/1228246/five-nights-at-freddy-s-2
+              - generic [ref=e1565]:
+                - generic [ref=e1567]:
+                  - img "Five Nights at Freddy's 2 movie poster (2025)" [ref=e1568]
+                  - generic [ref=e1570]: "6.7"
+                - heading "Five Nights at Freddy's 2" [level=3] [ref=e1572]
+            - link "Ready or Not movie poster (2019) 7.0 Ready or Not" [ref=e1574] [cursor=pointer]:
+              - /url: /movie/567609/ready-or-not
+              - generic [ref=e1576]:
+                - generic [ref=e1578]:
+                  - img "Ready or Not movie poster (2019)" [ref=e1579]
+                  - generic [ref=e1581]: "7.0"
+                - heading "Ready or Not" [level=3] [ref=e1583]
+            - link "Primate movie poster (2026) 6.5 Primate" [ref=e1585] [cursor=pointer]:
+              - /url: /movie/1315303/primate
+              - generic [ref=e1587]:
+                - generic [ref=e1589]:
+                  - img "Primate movie poster (2026)" [ref=e1590]
+                  - generic [ref=e1592]: "6.5"
+                - heading "Primate" [level=3] [ref=e1594]
+            - link "Weapons movie poster (2025) 7.3 Weapons" [ref=e1596] [cursor=pointer]:
+              - /url: /movie/1078605/weapons
+              - generic [ref=e1598]:
+                - generic [ref=e1600]:
+                  - img "Weapons movie poster (2025)" [ref=e1601]
+                  - generic [ref=e1603]: "7.3"
+                - heading "Weapons" [level=3] [ref=e1605]
+            - link "Alien movie poster (1979) 8.2 Classic Alien" [ref=e1607] [cursor=pointer]:
+              - /url: /movie/348/alien
+              - generic [ref=e1609]:
+                - generic [ref=e1611]:
+                  - img "Alien movie poster (1979)" [ref=e1612]
+                  - generic [ref=e1614]: "8.2"
+                  - generic [ref=e1616]: Classic
+                - heading "Alien" [level=3] [ref=e1619]
+            - 'link "The Conjuring: Last Rites movie poster (2025) 6.9 The Conjuring: Last Rites" [ref=e1621] [cursor=pointer]':
+              - /url: /movie/1038392/the-conjuring-last-rites
+              - generic [ref=e1623]:
+                - generic [ref=e1625]:
+                  - 'img "The Conjuring: Last Rites movie poster (2025)" [ref=e1626]'
+                  - generic [ref=e1628]: "6.9"
+                - 'heading "The Conjuring: Last Rites" [level=3] [ref=e1630]'
+            - link "Scream movie poster (1996) 7.4 Scream" [ref=e1632] [cursor=pointer]:
+              - /url: /movie/4232/scream
+              - generic [ref=e1634]:
+                - generic [ref=e1636]:
+                  - img "Scream movie poster (1996)" [ref=e1637]
+                  - generic [ref=e1639]: "7.4"
+                - heading "Scream" [level=3] [ref=e1641]
+            - link "Final Destination Bloodlines movie poster (2025) 7.1 Final Destination Bloodlines" [ref=e1643] [cursor=pointer]:
+              - /url: /movie/574475/final-destination-bloodlines
+              - generic [ref=e1645]:
+                - generic [ref=e1647]:
+                  - img "Final Destination Bloodlines movie poster (2025)" [ref=e1648]
+                  - generic [ref=e1650]: "7.1"
+                - heading "Final Destination Bloodlines" [level=3] [ref=e1652]
+            - link "The Bride! movie poster (2026) 6.3 New The Bride!" [ref=e1654] [cursor=pointer]:
+              - /url: /movie/1159831/the-bride
+              - generic [ref=e1656]:
+                - generic [ref=e1658]:
+                  - img "The Bride! movie poster (2026)" [ref=e1659]
+                  - generic [ref=e1661]: "6.3"
+                  - generic [ref=e1663]: New
+                - heading "The Bride!" [level=3] [ref=e1666]
+            - link "The Ugly Stepsister movie poster (2025) 7.3 The Ugly Stepsister" [ref=e1668] [cursor=pointer]:
+              - /url: /movie/1284120/the-ugly-stepsister
+              - generic [ref=e1670]:
+                - generic [ref=e1672]:
+                  - img "The Ugly Stepsister movie poster (2025)" [ref=e1673]
+                  - generic [ref=e1675]: "7.3"
+                - heading "The Ugly Stepsister" [level=3] [ref=e1677]
+            - link "Scream VI movie poster (2023) 7.0 Scream VI" [ref=e1679] [cursor=pointer]:
+              - /url: /movie/934433/scream-vi
+              - generic [ref=e1681]:
+                - generic [ref=e1683]:
+                  - img "Scream VI movie poster (2023)" [ref=e1684]
+                  - generic [ref=e1686]: "7.0"
+                - heading "Scream VI" [level=3] [ref=e1688]
+            - link "The Substance movie poster (2024) 7.1 The Substance" [ref=e1690] [cursor=pointer]:
+              - /url: /movie/933260/the-substance
+              - generic [ref=e1692]:
+                - generic [ref=e1694]:
+                  - img "The Substance movie poster (2024)" [ref=e1695]
+                  - generic [ref=e1697]: "7.1"
+                - heading "The Substance" [level=3] [ref=e1699]
+            - link "Train to Busan movie poster (2016) 7.7 Train to Busan" [ref=e1701] [cursor=pointer]:
+              - /url: /movie/396535/train-to-busan
+              - generic [ref=e1703]:
+                - generic [ref=e1705]:
+                  - img "Train to Busan movie poster (2016)" [ref=e1706]
+                  - generic [ref=e1708]: "7.7"
+                - heading "Train to Busan" [level=3] [ref=e1710]
+        - generic [ref=e1711]:
+          - generic [ref=e1712]:
+            - heading "Superhero Movies" [level=2] [ref=e1714]
+            - generic [ref=e1715]:
+              - generic [ref=e1716]:
+                - button "Scroll left" [ref=e1717]:
+                  - img
+                - button "Scroll right" [ref=e1718]:
+                  - img
+              - link "View All" [ref=e1719] [cursor=pointer]:
+                - /url: /topics/theme-superhero-movie
+                - text: View All
+                - img [ref=e1720]
+          - generic [ref=e1723]:
+            - 'link "Spider-Man: No Way Home movie poster (2021) 7.9 Spider-Man: No Way Home" [ref=e1725] [cursor=pointer]':
+              - /url: /movie/634649/spider-man-no-way-home
+              - generic [ref=e1727]:
+                - generic [ref=e1729]:
+                  - 'img "Spider-Man: No Way Home movie poster (2021)" [ref=e1730]'
+                  - generic [ref=e1732]: "7.9"
+                - 'heading "Spider-Man: No Way Home" [level=3] [ref=e1734]'
+            - link "The Avengers movie poster (2012) 8.0 The Avengers" [ref=e1736] [cursor=pointer]:
+              - /url: /movie/24428/the-avengers
+              - generic [ref=e1738]:
+                - generic [ref=e1740]:
+                  - img "The Avengers movie poster (2012)" [ref=e1741]
+                  - generic [ref=e1743]: "8.0"
+                - heading "The Avengers" [level=3] [ref=e1745]
+            - 'link "Avengers: Infinity War movie poster (2018) 8.2 Classic Avengers: Infinity War" [ref=e1747] [cursor=pointer]':
+              - /url: /movie/299536/avengers-infinity-war
+              - generic [ref=e1749]:
+                - generic [ref=e1751]:
+                  - 'img "Avengers: Infinity War movie poster (2018)" [ref=e1752]'
+                  - generic [ref=e1754]: "8.2"
+                  - generic [ref=e1756]: Classic
+                - 'heading "Avengers: Infinity War" [level=3] [ref=e1759]'
+            - link "The Dark Knight movie poster (2008) 8.5 Classic The Dark Knight" [ref=e1761] [cursor=pointer]:
+              - /url: /movie/155/the-dark-knight
+              - generic [ref=e1763]:
+                - generic [ref=e1765]:
+                  - img "The Dark Knight movie poster (2008)" [ref=e1766]
+                  - generic [ref=e1768]: "8.5"
+                  - generic [ref=e1770]: Classic
+                - heading "The Dark Knight" [level=3] [ref=e1773]
+            - 'link "Spider-Man: Homecoming movie poster (2017) 7.3 Spider-Man: Homecoming" [ref=e1775] [cursor=pointer]':
+              - /url: /movie/315635/spider-man-homecoming
+              - generic [ref=e1777]:
+                - generic [ref=e1779]:
+                  - 'img "Spider-Man: Homecoming movie poster (2017)" [ref=e1780]'
+                  - generic [ref=e1782]: "7.3"
+                - 'heading "Spider-Man: Homecoming" [level=3] [ref=e1784]'
+            - link "Superman movie poster (2025) 7.3 Superman" [ref=e1786] [cursor=pointer]:
+              - /url: /movie/1061474/superman
+              - generic [ref=e1788]:
+                - generic [ref=e1790]:
+                  - img "Superman movie poster (2025)" [ref=e1791]
+                  - generic [ref=e1793]: "7.3"
+                - heading "Superman" [level=3] [ref=e1795]
+            - 'link "Avengers: Endgame movie poster (2019) 8.2 Classic Avengers: Endgame" [ref=e1797] [cursor=pointer]':
+              - /url: /movie/299534/avengers-endgame
+              - generic [ref=e1799]:
+                - generic [ref=e1801]:
+                  - 'img "Avengers: Endgame movie poster (2019)" [ref=e1802]'
+                  - generic [ref=e1804]: "8.2"
+                  - generic [ref=e1806]: Classic
+                - 'heading "Avengers: Endgame" [level=3] [ref=e1809]'
+            - link "Deadpool & Wolverine movie poster (2024) 7.6 Deadpool & Wolverine" [ref=e1811] [cursor=pointer]:
+              - /url: /movie/533535/deadpool-wolverine
+              - generic [ref=e1813]:
+                - generic [ref=e1815]:
+                  - img "Deadpool & Wolverine movie poster (2024)" [ref=e1816]
+                  - generic [ref=e1818]: "7.6"
+                - heading "Deadpool & Wolverine" [level=3] [ref=e1820]
+            - 'link "Spider-Man: Far From Home movie poster (2019) 7.4 Spider-Man: Far From Home" [ref=e1822] [cursor=pointer]':
+              - /url: /movie/429617/spider-man-far-from-home
+              - generic [ref=e1824]:
+                - generic [ref=e1826]:
+                  - 'img "Spider-Man: Far From Home movie poster (2019)" [ref=e1827]'
+                  - generic [ref=e1829]: "7.4"
+                - 'heading "Spider-Man: Far From Home" [level=3] [ref=e1831]'
+            - 'link "Spider-Man: Across the Spider-Verse movie poster (2023) 8.3 Spider-Man: Across the Spider-Verse" [ref=e1833] [cursor=pointer]':
+              - /url: /movie/569094/spider-man-across-the-spider-verse
+              - generic [ref=e1835]:
+                - generic [ref=e1837]:
+                  - 'img "Spider-Man: Across the Spider-Verse movie poster (2023)" [ref=e1838]'
+                  - generic [ref=e1840]: "8.3"
+                - 'heading "Spider-Man: Across the Spider-Verse" [level=3] [ref=e1842]'
+            - link "Spider-Man movie poster (2002) 7.3 Spider-Man" [ref=e1844] [cursor=pointer]:
+              - /url: /movie/557/spider-man
+              - generic [ref=e1846]:
+                - generic [ref=e1848]:
+                  - img "Spider-Man movie poster (2002)" [ref=e1849]
+                  - generic [ref=e1851]: "7.3"
+                - heading "Spider-Man" [level=3] [ref=e1853]
+            - 'link "The Fantastic 4: First Steps movie poster (2025) 7.0 The Fantastic 4: First Steps" [ref=e1855] [cursor=pointer]':
+              - /url: /movie/617126/the-fantastic-4-first-steps
+              - generic [ref=e1857]:
+                - generic [ref=e1859]:
+                  - 'img "The Fantastic 4: First Steps movie poster (2025)" [ref=e1860]'
+                  - generic [ref=e1862]: "7.0"
+                - 'heading "The Fantastic 4: First Steps" [level=3] [ref=e1864]'
+            - 'link "Spider-Man: Into the Spider-Verse movie poster (2018) 8.4 Classic Spider-Man: Into the Spider-Verse" [ref=e1866] [cursor=pointer]':
+              - /url: /movie/324857/spider-man-into-the-spider-verse
+              - generic [ref=e1868]:
+                - generic [ref=e1870]:
+                  - 'img "Spider-Man: Into the Spider-Verse movie poster (2018)" [ref=e1871]'
+                  - generic [ref=e1873]: "8.4"
+                  - generic [ref=e1875]: Classic
+                - 'heading "Spider-Man: Into the Spider-Verse" [level=3] [ref=e1878]'
+            - link "Guardians of the Galaxy Vol. 3 movie poster (2023) 7.9 Guardians of the Galaxy Vol. 3" [ref=e1880] [cursor=pointer]:
+              - /url: /movie/447365/guardians-of-the-galaxy-vol-3
+              - generic [ref=e1882]:
+                - generic [ref=e1884]:
+                  - img "Guardians of the Galaxy Vol. 3 movie poster (2023)" [ref=e1885]
+                  - generic [ref=e1887]: "7.9"
+                - heading "Guardians of the Galaxy Vol. 3" [level=3] [ref=e1889]
+            - link "The Amazing Spider-Man 2 movie poster (2014) 6.5 The Amazing Spider-Man 2" [ref=e1891] [cursor=pointer]:
+              - /url: /movie/102382/the-amazing-spider-man-2
+              - generic [ref=e1893]:
+                - generic [ref=e1895]:
+                  - img "The Amazing Spider-Man 2 movie poster (2014)" [ref=e1896]
+                  - generic [ref=e1898]: "6.5"
+                - heading "The Amazing Spider-Man 2" [level=3] [ref=e1900]
+            - link "Despicable Me 4 movie poster (2024) 7.0 Despicable Me 4" [ref=e1902] [cursor=pointer]:
+              - /url: /movie/519182/despicable-me-4
+              - generic [ref=e1904]:
+                - generic [ref=e1906]:
+                  - img "Despicable Me 4 movie poster (2024)" [ref=e1907]
+                  - generic [ref=e1909]: "7.0"
+                - heading "Despicable Me 4" [level=3] [ref=e1911]
+            - link "Spider-Man 3 movie poster (2007) 6.5 Spider-Man 3" [ref=e1913] [cursor=pointer]:
+              - /url: /movie/559/spider-man-3
+              - generic [ref=e1915]:
+                - generic [ref=e1917]:
+                  - img "Spider-Man 3 movie poster (2007)" [ref=e1918]
+                  - generic [ref=e1920]: "6.5"
+                - heading "Spider-Man 3" [level=3] [ref=e1922]
+            - link "The Amazing Spider-Man movie poster (2012) 6.7 The Amazing Spider-Man" [ref=e1924] [cursor=pointer]:
+              - /url: /movie/1930/the-amazing-spider-man
+              - generic [ref=e1926]:
+                - generic [ref=e1928]:
+                  - img "The Amazing Spider-Man movie poster (2012)" [ref=e1929]
+                  - generic [ref=e1931]: "6.7"
+                - heading "The Amazing Spider-Man" [level=3] [ref=e1933]
+            - link "Iron Man 2 movie poster (2010) 6.8 Iron Man 2" [ref=e1935] [cursor=pointer]:
+              - /url: /movie/10138/iron-man-2
+              - generic [ref=e1937]:
+                - generic [ref=e1939]:
+                  - img "Iron Man 2 movie poster (2010)" [ref=e1940]
+                  - generic [ref=e1942]: "6.8"
+                - heading "Iron Man 2" [level=3] [ref=e1944]
+            - link "Iron Man movie poster (2008) 7.7 Iron Man" [ref=e1946] [cursor=pointer]:
+              - /url: /movie/1726/iron-man
+              - generic [ref=e1948]:
+                - generic [ref=e1950]:
+                  - img "Iron Man movie poster (2008)" [ref=e1951]
+                  - generic [ref=e1953]: "7.7"
+                - heading "Iron Man" [level=3] [ref=e1955]
+        - generic [ref=e1956]:
+          - generic [ref=e1957]:
+            - generic [ref=e1958]:
+              - img [ref=e1959]
+              - heading "Coming Soon" [level=2] [ref=e1961]
+            - generic [ref=e1962]:
+              - generic [ref=e1963]:
+                - button "Scroll left" [ref=e1964]:
+                  - img
+                - button "Scroll right" [ref=e1965]:
+                  - img
+              - link "Browse All" [ref=e1966] [cursor=pointer]:
+                - /url: /browse?sort=primary_release_date.asc&release_from=2026-04-01
+                - text: Browse All
+                - img [ref=e1967]
+          - generic [ref=e1970]:
+            - link "The Super Mario Galaxy Movie movie poster (2026) 7.5 New The Super Mario Galaxy Movie Apr 1" [ref=e1972] [cursor=pointer]:
+              - /url: /movie/1226863/the-super-mario-galaxy-movie
+              - generic [ref=e1974]:
+                - generic [ref=e1976]:
+                  - img "The Super Mario Galaxy Movie movie poster (2026)" [ref=e1977]
+                  - generic [ref=e1979]: "7.5"
+                  - generic [ref=e1981]: New
+                - generic [ref=e1983]:
+                  - heading "The Super Mario Galaxy Movie" [level=3] [ref=e1984]
+                  - paragraph [ref=e1985]: Apr 1
+            - link "The Drama movie poster (2026) 5.3 New The Drama Apr 1" [ref=e1987] [cursor=pointer]:
+              - /url: /movie/1325734/the-drama
+              - generic [ref=e1989]:
+                - generic [ref=e1991]:
+                  - img "The Drama movie poster (2026)" [ref=e1992]
+                  - generic [ref=e1994]: "5.3"
+                  - generic [ref=e1996]: New
+                - generic [ref=e1998]:
+                  - heading "The Drama" [level=3] [ref=e1999]
+                  - paragraph [ref=e2000]: Apr 1
+            - link "Lee Cronin's The Mummy movie poster (2026) Soon Lee Cronin's The Mummy Apr 15" [ref=e2002] [cursor=pointer]:
+              - /url: /movie/1304313/lee-cronin-s-the-mummy
+              - generic [ref=e2004]:
+                - generic [ref=e2006]:
+                  - img "Lee Cronin's The Mummy movie poster (2026)" [ref=e2007]
+                  - generic [ref=e2010]: Soon
+                - generic [ref=e2012]:
+                  - heading "Lee Cronin's The Mummy" [level=3] [ref=e2013]
+                  - paragraph [ref=e2014]: Apr 15
+            - link "Michael movie poster (2026) Soon Michael Apr 22" [ref=e2016] [cursor=pointer]:
+              - /url: /movie/936075/michael
+              - generic [ref=e2018]:
+                - generic [ref=e2020]:
+                  - img "Michael movie poster (2026)" [ref=e2021]
+                  - generic [ref=e2024]: Soon
+                - generic [ref=e2026]:
+                  - heading "Michael" [level=3] [ref=e2027]
+                  - paragraph [ref=e2028]: Apr 22
+            - link "The Devil Wears Prada 2 movie poster (2026) Soon The Devil Wears Prada 2 Apr 29" [ref=e2030] [cursor=pointer]:
+              - /url: /movie/1314481/the-devil-wears-prada-2
+              - generic [ref=e2032]:
+                - generic [ref=e2034]:
+                  - img "The Devil Wears Prada 2 movie poster (2026)" [ref=e2035]
+                  - generic [ref=e2038]: Soon
+                - generic [ref=e2040]:
+                  - heading "The Devil Wears Prada 2" [level=3] [ref=e2041]
+                  - paragraph [ref=e2042]: Apr 29
+            - link "森中有林 movie poster (2026) Soon 森中有林 May 1" [ref=e2044] [cursor=pointer]:
+              - /url: /movie/1443374
+              - generic [ref=e2046]:
+                - generic [ref=e2048]:
+                  - img "森中有林 movie poster (2026)" [ref=e2049]
+                  - generic [ref=e2052]: Soon
+                - generic [ref=e2054]:
+                  - heading "森中有林" [level=3] [ref=e2055]
+                  - paragraph [ref=e2056]: May 1
+            - link "The Furious movie poster (2026) Soon The Furious May 29" [ref=e2058] [cursor=pointer]:
+              - /url: /movie/1280738/the-furious
+              - generic [ref=e2060]:
+                - generic [ref=e2062]:
+                  - img "The Furious movie poster (2026)" [ref=e2063]
+                  - generic [ref=e2066]: Soon
+                - generic [ref=e2068]:
+                  - heading "The Furious" [level=3] [ref=e2069]
+                  - paragraph [ref=e2070]: May 29
+            - link "Scary Movie movie poster (2026) Soon Scary Movie Jun 3" [ref=e2072] [cursor=pointer]:
+              - /url: /movie/1273221/scary-movie
+              - generic [ref=e2074]:
+                - generic [ref=e2076]:
+                  - img "Scary Movie movie poster (2026)" [ref=e2077]
+                  - generic [ref=e2080]: Soon
+                - generic [ref=e2082]:
+                  - heading "Scary Movie" [level=3] [ref=e2083]
+                  - paragraph [ref=e2084]: Jun 3
+            - link "Toy Story 5 movie poster (2026) Soon Toy Story 5 Jun 17" [ref=e2086] [cursor=pointer]:
+              - /url: /movie/1084244/toy-story-5
+              - generic [ref=e2088]:
+                - generic [ref=e2090]:
+                  - img "Toy Story 5 movie poster (2026)" [ref=e2091]
+                  - generic [ref=e2094]: Soon
+                - generic [ref=e2096]:
+                  - heading "Toy Story 5" [level=3] [ref=e2097]
+                  - paragraph [ref=e2098]: Jun 17
+            - link "Grizzly Night movie poster (2026) Soon Grizzly Night Jul 2" [ref=e2100] [cursor=pointer]:
+              - /url: /movie/1249508/grizzly-night
+              - generic [ref=e2102]:
+                - generic [ref=e2104]:
+                  - img "Grizzly Night movie poster (2026)" [ref=e2105]
+                  - generic [ref=e2108]: Soon
+                - generic [ref=e2110]:
+                  - heading "Grizzly Night" [level=3] [ref=e2111]
+                  - paragraph [ref=e2112]: Jul 2
+            - link "Moana movie poster (2026) Soon Moana Jul 8" [ref=e2114] [cursor=pointer]:
+              - /url: /movie/1108427/moana
+              - generic [ref=e2116]:
+                - generic [ref=e2118]:
+                  - img "Moana movie poster (2026)" [ref=e2119]
+                  - generic [ref=e2122]: Soon
+                - generic [ref=e2124]:
+                  - heading "Moana" [level=3] [ref=e2125]
+                  - paragraph [ref=e2126]: Jul 8
+            - link "The Odyssey movie poster (2026) Soon The Odyssey Jul 15" [ref=e2128] [cursor=pointer]:
+              - /url: /movie/1368337/the-odyssey
+              - generic [ref=e2130]:
+                - generic [ref=e2132]:
+                  - img "The Odyssey movie poster (2026)" [ref=e2133]
+                  - generic [ref=e2136]: Soon
+                - generic [ref=e2138]:
+                  - heading "The Odyssey" [level=3] [ref=e2139]
+                  - paragraph [ref=e2140]: Jul 15
+            - 'link "Spider-Man: Brand New Day movie poster (2026) Soon Spider-Man: Brand New Day Jul 29" [ref=e2142] [cursor=pointer]':
+              - /url: /movie/969681/spider-man-brand-new-day
+              - generic [ref=e2144]:
+                - generic [ref=e2146]:
+                  - 'img "Spider-Man: Brand New Day movie poster (2026)" [ref=e2147]'
+                  - generic [ref=e2150]: Soon
+                - generic [ref=e2152]:
+                  - 'heading "Spider-Man: Brand New Day" [level=3] [ref=e2153]'
+                  - paragraph [ref=e2154]: Jul 29
+            - 'link "PAW Patrol: The Dino Movie movie poster (2026) Soon PAW Patrol: The Dino Movie Aug 5" [ref=e2156] [cursor=pointer]':
+              - /url: /movie/1185806/paw-patrol-the-dino-movie
+              - generic [ref=e2158]:
+                - generic [ref=e2160]:
+                  - 'img "PAW Patrol: The Dino Movie movie poster (2026)" [ref=e2161]'
+                  - generic [ref=e2164]: Soon
+                - generic [ref=e2166]:
+                  - 'heading "PAW Patrol: The Dino Movie" [level=3] [ref=e2167]'
+                  - paragraph [ref=e2168]: Aug 5
+            - link "The End of Oak Street movie poster (2026) Soon The End of Oak Street Aug 12" [ref=e2170] [cursor=pointer]:
+              - /url: /movie/1101383/the-end-of-oak-street
+              - generic [ref=e2172]:
+                - generic [ref=e2174]:
+                  - img "The End of Oak Street movie poster (2026)" [ref=e2175]
+                  - generic [ref=e2178]: Soon
+                - generic [ref=e2180]:
+                  - heading "The End of Oak Street" [level=3] [ref=e2181]
+                  - paragraph [ref=e2182]: Aug 12
+            - link "Forgotten Island movie poster (2026) Soon Forgotten Island Sep 23" [ref=e2184] [cursor=pointer]:
+              - /url: /movie/1465063/forgotten-island
+              - generic [ref=e2186]:
+                - generic [ref=e2188]:
+                  - img "Forgotten Island movie poster (2026)" [ref=e2189]
+                  - generic [ref=e2192]: Soon
+                - generic [ref=e2194]:
+                  - heading "Forgotten Island" [level=3] [ref=e2195]
+                  - paragraph [ref=e2196]: Sep 23
+            - 'link "Avengers: Doomsday movie poster (2026) Soon Avengers: Doomsday Dec 16" [ref=e2198] [cursor=pointer]':
+              - /url: /movie/1003596/avengers-doomsday
+              - generic [ref=e2200]:
+                - generic [ref=e2202]:
+                  - 'img "Avengers: Doomsday movie poster (2026)" [ref=e2203]'
+                  - generic [ref=e2206]: Soon
+                - generic [ref=e2208]:
+                  - 'heading "Avengers: Doomsday" [level=3] [ref=e2209]'
+                  - paragraph [ref=e2210]: Dec 16
+            - 'link "Dune: Part Three movie poster (2026) Soon Dune: Part Three Dec 16" [ref=e2212] [cursor=pointer]':
+              - /url: /movie/1170608/dune-part-three
+              - generic [ref=e2214]:
+                - generic [ref=e2216]:
+                  - 'img "Dune: Part Three movie poster (2026)" [ref=e2217]'
+                  - generic [ref=e2220]: Soon
+                - generic [ref=e2222]:
+                  - 'heading "Dune: Part Three" [level=3] [ref=e2223]'
+                  - paragraph [ref=e2224]: Dec 16
+            - link "From the Ashes movie poster (2027) Soon From the Ashes Jun 1, 2027" [ref=e2226] [cursor=pointer]:
+              - /url: /movie/1191876/from-the-ashes
+              - generic [ref=e2228]:
+                - generic [ref=e2230]:
+                  - img "From the Ashes movie poster (2027)" [ref=e2231]
+                  - generic [ref=e2234]: Soon
+                - generic [ref=e2236]:
+                  - heading "From the Ashes" [level=3] [ref=e2237]
+                  - paragraph [ref=e2238]: Jun 1, 2027
+            - link "Fast Forever movie poster (2028) Soon Fast Forever Mar 17, 2028" [ref=e2240] [cursor=pointer]:
+              - /url: /movie/755679/fast-forever
+              - generic [ref=e2242]:
+                - generic [ref=e2244]:
+                  - img "Fast Forever movie poster (2028)" [ref=e2245]
+                  - generic [ref=e2248]: Soon
+                - generic [ref=e2250]:
+                  - heading "Fast Forever" [level=3] [ref=e2251]
+                  - paragraph [ref=e2252]: Mar 17, 2028
+  - contentinfo [ref=e2253]:
+    - generic [ref=e2254]:
+      - generic [ref=e2255]:
+        - generic [ref=e2256]:
+          - link "TMB TMB" [ref=e2257] [cursor=pointer]:
+            - /url: /
+            - img "TMB" [ref=e2258]
+            - generic [ref=e2259]: TMB
+          - paragraph [ref=e2260]: Track, discover and find where to watch TV shows and movies.
+        - generic [ref=e2261]:
+          - heading "Discover" [level=3] [ref=e2262]
+          - list [ref=e2263]:
+            - listitem [ref=e2264]:
+              - link "Movies" [ref=e2265] [cursor=pointer]:
+                - /url: /movie
+            - listitem [ref=e2266]:
+              - link "TV Shows" [ref=e2267] [cursor=pointer]:
+                - /url: /series
+            - listitem [ref=e2268]:
+              - link "Browse" [ref=e2269] [cursor=pointer]:
+                - /url: /browse
+            - listitem [ref=e2270]:
+              - link "Topics" [ref=e2271] [cursor=pointer]:
+                - /url: /topics
+        - generic [ref=e2272]:
+          - heading "Account" [level=3] [ref=e2273]
+          - list [ref=e2274]:
+            - listitem [ref=e2275]:
+              - link "Watchlist" [ref=e2276] [cursor=pointer]:
+                - /url: /watchlist
+            - listitem [ref=e2277]:
+              - link "Watched" [ref=e2278] [cursor=pointer]:
+                - /url: /watched
+            - listitem [ref=e2279]:
+              - link "Ratings" [ref=e2280] [cursor=pointer]:
+                - /url: /ratings
+            - listitem [ref=e2281]:
+              - link "Profile" [ref=e2282] [cursor=pointer]:
+                - /url: /profile
+        - generic [ref=e2283]:
+          - heading "Legal" [level=3] [ref=e2284]
+          - list [ref=e2285]:
+            - listitem [ref=e2286]:
+              - link "Privacy Policy" [ref=e2287] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e2288]:
+              - link "Terms of Service" [ref=e2289] [cursor=pointer]:
+                - /url: /terms
+      - generic [ref=e2290]:
+        - paragraph [ref=e2291]: © 2026 Movie Browser. All rights reserved.
+        - paragraph [ref=e2292]:
+          - text: Data provided by
+          - link "TMDB" [ref=e2293] [cursor=pointer]:
+            - /url: https://www.themoviedb.org
+  - region "Notifications alt+T"
+  - button "Open Cue" [ref=e2295] [cursor=pointer]:
+    - img [ref=e2298]
+  - alert [ref=e2308]
