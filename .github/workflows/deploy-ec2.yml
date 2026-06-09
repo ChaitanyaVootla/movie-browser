@@ -119,9 +119,11 @@ jobs:
             # analytics) being slow/unhealthy must never fail the deploy, which
             # `docker compose up --wait` previously did.
             docker compose up -d
-            # Pick up any clickhouse config.d changes (mounted file edits don't
-            # trigger a recreate, so config wouldn't reload otherwise).
-            docker compose up -d --force-recreate --no-deps clickhouse </dev/null || true
+            # NOTE: deliberately NO `--force-recreate clickhouse`. Restarting
+            # ClickHouse every deploy makes it re-merge its part backlog, spiking
+            # CPU for minutes and slowing search/SSR right after each deploy. It
+            # already has its config; config.d edits are rare and can be applied
+            # with a one-off `docker compose up -d --force-recreate clickhouse`.
             echo "Waiting for PostgreSQL to accept connections..."
             # NOTE: `</dev/null` is REQUIRED — `docker compose exec` reads stdin,
             # and without it the exec swallows the rest of this heredoc script

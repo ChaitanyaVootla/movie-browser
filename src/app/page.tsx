@@ -65,29 +65,39 @@ export default async function HomePage() {
     .map((key) => getTopicByKey(key))
     .filter((t): t is NonNullable<typeof t> => t !== null);
 
-  // Fetch trending first (to share trending movies with trailers)
-  const trending = await getTrending();
+  // Kick off all fetches that do NOT depend on trending data immediately, so they
+  // run concurrently with getTrending() instead of waiting for it to resolve.
+  // Only getTrendingTrailers reuses trending.movies, so it alone must await trending.
+  const trendingPromise = getTrending();
+  const upcomingPromise = getUpcoming();
+  const nowPlayingPromise = getNowPlaying();
+  const youtubeTrailersPromise = getYouTubeTrendingTrailers(12);
+  const topicPromises = selectedTopics.map((topic) =>
+    discoverBatch(
+      {
+        media_type: topic.filterParams.media_type || "movie", // Ensure media_type is set
+        ...topic.filterParams,
+        sort_by: "popularity.desc",
+        "vote_average.gte": 6,
+        "vote_count.gte": 100,
+      },
+      1 // Single page for scrollers
+    )
+  );
 
-  // Fetch remaining data in parallel, passing trending movies to avoid duplicate API calls
-  const [upcoming, nowPlaying, trendingTrailers, youtubeTrailers, ...topicResults] =
+  // Await trending once, then start the only trending-dependent fetch (trailers reuse
+  // trending.movies to avoid a duplicate TMDB call). Everything else is already in flight.
+  const trending = await trendingPromise;
+  const trendingTrailersPromise = getTrendingTrailers(10, trending.movies);
+
+  // Join all the in-flight work.
+  const [upcoming, nowPlaying, youtubeTrailers, trendingTrailers, topicResults] =
     await Promise.all([
-      getUpcoming(),
-      getNowPlaying(),
-      getTrendingTrailers(10, trending.movies), // Reuse trending movies data
-      getYouTubeTrendingTrailers(12),
-      // Fetch topic scrollers
-      ...selectedTopics.map((topic) =>
-        discoverBatch(
-          {
-            media_type: topic.filterParams.media_type || "movie", // Ensure media_type is set
-            ...topic.filterParams,
-            sort_by: "popularity.desc",
-            "vote_average.gte": 6,
-            "vote_count.gte": 100,
-          },
-          1 // Single page for scrollers
-        )
-      ),
+      upcomingPromise,
+      nowPlayingPromise,
+      youtubeTrailersPromise,
+      trendingTrailersPromise,
+      Promise.all(topicPromises),
     ]);
 
   // Prepare topic scroller data

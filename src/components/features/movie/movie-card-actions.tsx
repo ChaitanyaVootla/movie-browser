@@ -2,10 +2,17 @@
 
 import { Plus, Check, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useUserStore, type MediaType } from "@/stores/user";
+import {
+  useUserStore,
+  selectIsWatched,
+  selectIsInWatchlist,
+  type MediaType,
+} from "@/stores/user";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { useAnalytics } from "@/hooks/use-analytics";
+
+const MEDIA_TYPE: MediaType = "movie"; // Only movies for now
 
 interface MovieCardActionsProps {
   itemId: number;
@@ -15,7 +22,12 @@ interface MovieCardActionsProps {
 
 export function MovieCardActions({ itemId, isMovie, className }: MovieCardActionsProps) {
   const { data: session } = useSession();
-  const { isWatched, isInWatchlist, toggleWatched, toggleWatchlist } = useUserStore();
+  // Granular subscriptions: only re-render when THIS item's watched/watchlist
+  // state changes, not on every store mutation. Action fns are stable references.
+  const watched = useUserStore(selectIsWatched(itemId));
+  const inWatchlist = useUserStore(selectIsInWatchlist(itemId, MEDIA_TYPE));
+  const toggleWatched = useUserStore((s) => s.toggleWatched);
+  const toggleWatchlist = useUserStore((s) => s.toggleWatchlist);
   const { trackWatchlistAdd, trackWatchlistRemove, trackWatched } = useAnalytics();
 
   // Only show actions for movies and authenticated users
@@ -23,9 +35,7 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
     return null;
   }
 
-  const mediaType: MediaType = "movie"; // Only movies for now
-  const watched = isWatched(itemId);
-  const inWatchlist = isInWatchlist(itemId, mediaType);
+  const mediaType = MEDIA_TYPE;
 
   const handleWatchlistClick = (e: React.MouseEvent) => {
     e.preventDefault();

@@ -12,6 +12,7 @@ import { getMediaBadges, getBadgeScoopColor } from "@/lib/badges";
 import type { MovieListItem, SeriesListItem } from "@/types";
 import { MovieCardActions } from "./movie-card-actions";
 import { UserStatusBadge, useIsWatched } from "@/components/features/media/user-status-badge";
+import { useMounted } from "@/hooks/use-mounted";
 
 interface WideMovieCardProps {
   item: MovieListItem | SeriesListItem;
@@ -50,10 +51,16 @@ export function WideMovieCard({
   // Check if user has watched this item (for grayscale effect)
   const isWatched = useIsWatched(item.id);
 
-  // Compute badges (memoized to avoid recalculation on re-renders)
+  // Badges are derived from the current date (e.g. "New", "Just Released") via
+  // getMediaBadges(). Under ISR the server HTML is cached for hours, so computing
+  // badges during SSR/first client render can produce a text mismatch (React #418)
+  // once a date threshold is crossed. Gate badge rendering on mount so the server
+  // and first client render agree (no badge), then reveal after hydration. The
+  // badge is an absolutely-positioned overlay, so this introduces no layout shift.
+  const mounted = useMounted();
   const badges = useMemo(
-    () => (showBadges ? getMediaBadges(item, { maxBadges: 2 }) : []),
-    [item, showBadges]
+    () => (mounted && showBadges ? getMediaBadges(item, { maxBadges: 2 }) : []),
+    [mounted, item, showBadges]
   );
 
   // Get wide poster sources (CDN widePoster -> TMDB backdrop fallback)
