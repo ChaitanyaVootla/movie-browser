@@ -172,12 +172,19 @@ export async function upsertMovieToPostgres(
         const hasScrapedWatchLinks =
           enriched.scrapedWatchLinks && enriched.scrapedWatchLinks.length > 0;
 
+        // Record the scrape time on every real enrichment ATTEMPT, not only when
+        // ratings were found. Lambda/Mongo set `enriched.scrapedAt` even with zero
+        // ratings; the empty/partial-hydration path leaves it null. Stamping the
+        // attempt lets isPostgresEnrichedFresh serve repeat visits from PG instead
+        // of re-invoking Lambda (which blocks render) on every page load.
+        const scrapeAttempted = !!enriched.scrapedAt || hasEnrichedRatings;
+
         await tx.movie.update({
           where: { id: tmdb.id },
           data: {
             tmdbUpdatedAt: new Date(), // Track when TMDB data was last fetched
             enrichmentSource: enriched.source || null,
-            ...(hasEnrichedRatings && { ratingsScrapedAt: new Date() }),
+            ...(scrapeAttempted && { ratingsScrapedAt: enriched.scrapedAt ?? new Date() }),
             ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
           },
         });

@@ -909,8 +909,10 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 {/* Autocomplete Suggestions - Show fast results from fuzzy search */}
                 {(hasAutocompleteSuggestions || isAutocompleteLoading) && (
                   <>
-                    {/* Movies */}
-                    {groupedSuggestions.movies.length > 0 && (
+                    {/* Movies — instant fuzzy matches. Hidden once the canonical
+                        server "Results" arrive below, to avoid listing the same
+                        title twice. */}
+                    {groupedSuggestions.movies.length > 0 && !hasApiResults && (
                       <>
                         <CommandSeparator />
                         <CommandGroup heading="Movies">
@@ -926,8 +928,9 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                       </>
                     )}
 
-                    {/* Series */}
-                    {groupedSuggestions.series.length > 0 && (
+                    {/* Series — instant fuzzy matches. Hidden once the canonical
+                        server "Results" arrive below (same de-dup as Movies). */}
+                    {groupedSuggestions.series.length > 0 && !hasApiResults && (
                       <>
                         <CommandSeparator />
                         <CommandGroup heading="Series">
@@ -1019,29 +1022,31 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   </>
                 )}
 
-                {/* Full API Results - show when autocomplete has no results but full search does */}
-                {!hasAutocompleteSuggestions && !isAutocompleteLoading && (
+                {/* Full server "Results" — the canonical media list. Rendered
+                    whenever results exist, independent of autocomplete state, so
+                    they never flash in and disappear when the (separately debounced)
+                    autocomplete request resolves. The loading spinner only shows
+                    when there is nothing else on screen yet. */}
+                {hasApiResults ? (
                   <>
-                    {isLoading ? (
-                      <div
-                        className="flex items-center justify-center py-8"
-                        role="status"
-                        aria-live="polite"
-                      >
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
-                        <span className="sr-only">Loading search results...</span>
-                      </div>
-                    ) : (
-                      hasApiResults && (
-                        <>
-                          <CommandSeparator />
-                          <CommandGroup heading="Results">
-                            {results.results.map((result, index) => renderMediaResult(result, index))}
-                          </CommandGroup>
-                        </>
-                      )
-                    )}
+                    <CommandSeparator />
+                    <CommandGroup heading="Results">
+                      {results.results.map((result, index) => renderMediaResult(result, index))}
+                    </CommandGroup>
                   </>
+                ) : (
+                  isLoading &&
+                  !hasAutocompleteSuggestions &&
+                  !isAutocompleteLoading && (
+                    <div
+                      className="flex items-center justify-center py-8"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                      <span className="sr-only">Loading search results...</span>
+                    </div>
+                  )
                 )}
               </>
             )}

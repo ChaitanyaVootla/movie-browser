@@ -43,6 +43,8 @@ async function warmCacheOnStartup() {
       "person", // Large payloads, rarely change
       "movie", // Movie details
       "series", // Series details
+      "trending", // Home page hero + carousels — avoids cold TMDB fetch after restart
+      "discover", // Home page topic scrollers — same
     ],
   });
 

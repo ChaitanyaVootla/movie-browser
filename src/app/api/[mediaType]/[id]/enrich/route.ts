@@ -141,11 +141,15 @@ export async function GET(
   const initialRatings = await getRatingsSnapshot(mediaType, id);
   const initialAI = await checkAIData(mediaType, id);
 
-  // If data is already fresh (has ratings AND AI data), send done immediately
-  const hasRatings = initialRatings.ratingsScrapedAt !== null && initialRatings.ratings.length > 0;
+  // Ratings are "settled" once a scrape has been ATTEMPTED (ratingsScrapedAt set),
+  // even if it returned zero ratings — many titles legitimately have none, and no
+  // further ratings will appear without a new hydration cycle. Keying on the
+  // timestamp (not ratings.length) avoids polling a pointless 120s and holding the
+  // page in a "refreshing" state on every revisit to a no-ratings title.
+  const ratingsSettled = initialRatings.ratingsScrapedAt !== null;
   const hasAI = initialAI !== null;
 
-  if (hasRatings && hasAI) {
+  if (ratingsSettled && hasAI) {
     log.debug({ mediaType, id }, "All data fresh, sending done immediately");
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -198,7 +202,7 @@ export async function GET(
       send({ type: "status", refreshing: true });
 
       // Track what we've already sent
-      let sentRatings = hasRatings;
+      let sentRatings = ratingsSettled;
       let sentAI = hasAI;
       let lastRatingsScrapedAt = initialRatings.ratingsScrapedAt?.getTime() ?? 0;
 

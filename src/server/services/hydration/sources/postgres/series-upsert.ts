@@ -205,12 +205,17 @@ export async function upsertSeriesToPostgres(
         const hasScrapedWatchLinks =
           enriched.scrapedWatchLinks && enriched.scrapedWatchLinks.length > 0;
 
+        // Record the scrape time on every real enrichment ATTEMPT, not only when
+        // ratings were found (see movie-upsert.ts for rationale). Prevents a
+        // synchronous Lambda re-scrape on every series detail-page revisit.
+        const scrapeAttempted = !!enriched.scrapedAt || hasEnrichedRatings;
+
         await tx.series.update({
           where: { id: tmdb.id },
           data: {
             tmdbUpdatedAt: new Date(), // Track when TMDB data was last fetched
             enrichmentSource: enriched.source || null,
-            ...(hasEnrichedRatings && { ratingsScrapedAt: new Date() }),
+            ...(scrapeAttempted && { ratingsScrapedAt: enriched.scrapedAt ?? new Date() }),
             ...(hasScrapedWatchLinks && { watchLinksScrapedAt: new Date() }),
           },
         });

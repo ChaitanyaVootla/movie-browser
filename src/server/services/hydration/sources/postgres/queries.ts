@@ -156,10 +156,19 @@ export function isPostgresFresh(
 }
 
 /**
- * Check if PostgreSQL has fresh enriched data (ratings, watch links)
- * Returns true if:
- * - Has ratings AND ratingsScrapedAt is fresh
- * - OR has scraped watch links AND watchLinksScrapedAt is fresh
+ * Check if PostgreSQL has fresh enriched data (ratings, watch links).
+ *
+ * Freshness is keyed on `ratingsScrapedAt` — the timestamp of the last scrape
+ * ATTEMPT — NOT on whether ratings were actually found. Many catalog items have
+ * no external ratings (IMDb/RT/etc.), and previously they kept `ratingsScrapedAt`
+ * null forever, so `isPostgresEnrichedFresh` always returned false. That forced a
+ * synchronous Lambda re-scrape on EVERY detail-page visit (Lambda blocks the hero
+ * render). By trusting a recent scrape attempt — even one that returned zero
+ * ratings — we re-scrape an item at most once per freshness TTL and serve repeat
+ * visits straight from PostgreSQL.
+ *
+ * See `src/server/services/hydration/sources/postgres/movie-upsert.ts` /
+ * `series-upsert.ts`, which now persist `ratingsScrapedAt` on every attempt.
  */
 export function isPostgresEnrichedFresh(
   pgData: {
@@ -174,17 +183,9 @@ export function isPostgresEnrichedFresh(
 
   const releaseDateObj = parseDate(releaseDate);
 
-  // Check ratings freshness
-  const hasRatings = pgData.ratings.length > 0;
+  // Fresh if we attempted a scrape recently, regardless of whether ratings were
+  // found. A null timestamp means we've never scraped this item (e.g. bulk-populated
+  // with skipLambda) and should attempt enrichment.
   const ratingsScrapedAt = pgData.ratingsScrapedAt;
-  const ratingsFresh =
-    hasRatings && ratingsScrapedAt && !isDataStale(ratingsScrapedAt, releaseDateObj);
-
-  // Check watch links freshness (optional - not all content has watch links)
-  // const hasWatchLinks = pgData.scrapedWatchLinks.length > 0;
-  // const watchLinksFresh = hasWatchLinks && pgData.watchLinksScrapedAt && !isDataStale(pgData.watchLinksScrapedAt, releaseDateObj);
-
-  // Consider enriched data fresh if ratings are fresh
-  // Watch links are less critical - they're also provided by TMDB
-  return !!ratingsFresh;
+  return !!ratingsScrapedAt && !isDataStale(ratingsScrapedAt, releaseDateObj);
 }
