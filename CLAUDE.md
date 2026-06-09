@@ -188,8 +188,28 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 | `type-safety.md` | `**/*.ts`, `**/*.tsx` | No `any`, type guards, Zod |
 | `infrastructure.md` | `terraform/**`, `docker-compose.yml`, `deploy-next.sh`, workflows | EC2, Docker, CI/CD, IAM, memory budget |
 | `analytics-system.md` | `analytics/**`, `use-analytics.ts`, `api/analytics/**`, `admin/analytics/**` | Event tracking, cost tracking, ClickHouse queries, dashboard |
+| `performance.md` | `app/**`, `server/**`, `hydration/**`, `search/**`, `docker-compose.yml`, workflows | Diagnosing/fixing/testing perf: measure-first playbook, ISR, non-blocking hydration, ClickHouse CPU cap, deploy gotchas |
 
 Cursor IDE also has separate rules in `.cursor/rules/*.mdc` — those are independent from these.
+
+### Self-curation mandate (this repo is AI-maintained)
+
+You maintain this repo. Treat the rules and skills as a living knowledge base you
+own — keep them accurate and useful for your future self:
+
+- **When you learn something durable** (a non-obvious gotcha, a root cause, a
+  validated pattern, a "this burned hours" lesson), capture it: add it to the most
+  relevant existing rule, or create a new `.claude/rules/*.md` rule if it's a new
+  domain. Don't let hard-won knowledge evaporate at end of session.
+- **Keep this table in sync** — every rule file must have a row here with an
+  accurate scope and one-line description. Add a row when you add a rule.
+- **Correct or prune** rules that turn out wrong or stale; a misleading rule is
+  worse than none. Verify file/function/flag references still exist before relying
+  on a rule.
+- **Cross-link** related rules (see-also lines) so one entry point leads to others.
+- This complements (does not replace) the file-based memory at
+  `~/.claude/.../memory/` — memory is for cross-session operational state and
+  incident history; rules are for durable, codebase-scoped engineering guidance.
 
 ## AI Agent Workflow
 

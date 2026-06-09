@@ -1,0 +1,81 @@
+# Performance: Diagnosing, Fixing & Testing
+
+How to make this app fast and **prove** it. Distilled from a June 2026 perf pass
+that took beta from a 10× CPU-oversubscribed box (home TTFB 2.1s, movie page 10.4s,
+search hanging) to home ~0.6s / movie ~1s / search ~150ms.
+
+## Golden rule: measure first, on beta, with real numbers
+
+Never guess. The code path is usually fast (a Postgres query is ~90ms); slowness
+is almost always **CPU contention** on the shared box, a **blocking call on the
+render path**, or a **missing index**. Distinguish them before fixing.
+
+### Measure server render time (TTFB / streamed response)
+Playwright from the **project dir** (so `@playwright/test` resolves), headless:
+```js
+import { chromium } from '@playwright/test';
+const p = await (await chromium.launch()).newPage();
+await p.goto(url, { waitUntil: 'domcontentloaded' });
+const n = await p.evaluate(() => { const x = performance.getEntriesByType('navigation')[0];
+  return { ttfb: Math.round(x.responseStart - x.requestStart), resp: Math.round(x.responseEnd - x.requestStart) }; });
+```
+- `ttfb` = server time to first byte (shell). `resp` = full streamed response (incl. Suspense content). For a streaming page a fast `ttfb` + slow `resp` means a slow Suspense boundary, not slow TTFB.
+- Compare beta vs the legacy site (`themoviebrowser.com`) for a baseline.
+
+### Measure a server action's real latency (ground truth)
+Capture the POST to the page route (server actions POST to the current URL with a
+`next-action` header — there is **no `/api/...` request**, which is why "no search
+API call" is expected, not a bug):
+```js
+p.on('requestfinished', r => { if (r.method()==='POST' && new URL(r.url()).pathname==='/') {
+  const t = r.timing(); console.log(r.headers()['next-action']?.slice(0,8), Math.round(t.responseEnd - t.requestStart)); } });
+```
+If the DB query is 90ms but the POST is 1–4s, it's **server CPU contention**, not the query.
+
+### Measure the box itself (SSH)
+```
+ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.196 \
+  'uptime; top -bn1 | grep "%Cpu"; ps aux --sort=-%cpu | head -6'
+```
+- `%Cpu(s) ... 0.0 id` = CPU-saturated. High `wa` = disk I/O bound. Load avg ≫ vCPU count = oversubscribed (beta = **2 vCPUs**).
+- Beta shares 2 cores across Postgres + ClickHouse + Next (PM2) + background enrichment. CPU is the scarce resource.
+
+### Playwright measurement gotchas (these burned hours)
+- Run the script from `/Users/chaitanya/dev/movie-browser` (not `/tmp`) or `@playwright/test` won't resolve. The `clickhouse/...` and chromium images are already pulled locally.
+- The search dialog's "Search all for X" is an **always-present `cmdk-item`** — don't treat `items>=1` as "results loaded"; wait for a `[cmdk-group-heading]` (Movies/Series/Results).
+- Results from a **previous query persist** while a new one loads → open a fresh dialog per query, or you'll measure stale state.
+- Per-keystroke typing fires many debounced actions that queue; use `fill()` for a single clean action when measuring server time.
+
+## High-impact fixes (in rough ROI order)
+
+1. **ISR-cache user-agnostic pages.** Detail pages (`movie`/`series`/`person`) had no `revalidate` → full SSR every request → the main CPU driver under crawler traffic. They use **no per-request dynamic functions** (user state hydrates client-side; ratings stream via SSE), so `export const revalidate = 3600` (movie/series) / `86400` (person) is safe and serves most hits from cache. **Check first:** `grep -n "cookies()\|headers()\|getCountryCode\|auth(\|force-dynamic" <page>` — any hit makes the route dynamic and `revalidate` a no-op.
+2. **Never block the render path on a scrape/LLM/Lambda.** Detail-page hydration returns PG/TMDB immediately and refreshes ratings in a **deduped background task**; the SSE enrich endpoint streams them in. See `.claude/rules/postgres-hydration.md`. A synchronous Lambda scrape added seconds per first/stale visit.
+3. **Cap ClickHouse CPU** (it ate 1.5 of 2 cores). `docker-compose.yml`: `cpus: "0.9"` + low `cpu_shares`, and `concurrent_threads_soft_limit_num` in `analytics/clickhouse/config/config.xml`. **GOTCHA:** do NOT set `background_pool_size` low — `background_pool_size * background_merges_mutations_concurrency_ratio` must be ≥ `number_of_free_entries_in_pool_to_execute_mutation` (default 20) or ClickHouse exits 36 in a crash loop. **Always validate CH config in a throwaway local container before deploying** (see Testing below). A mounted `config.d` edit does NOT recreate the container — but DON'T force-recreate every deploy either (re-merging the part backlog spikes CPU for minutes; recreate once, manually, when config changes).
+4. **Parallelize independent server fetches.** A page that does `await getA(); await Promise.all([getB, getC])` where B/C don't need A should start B/C as in-flight promises before awaiting A.
+5. **Search/trigram specifics** — see `.claude/rules/search-system.md`. Trigram indexes MUST live in `prisma/schema.prisma` (`@@index(type: Gin, ops: raw("gin_trgm_ops"))`) or `prisma db push` drops them as drift. Trigram is pathological for common multi-word queries ("the matrix" → 9s); use FTS (`to_tsvector`) for those, trigram only as a typo fallback. Enforce a 0.3 `%` threshold floor on the large (movies/persons) tables.
+
+## Testing a fix
+
+- **App perf:** re-run the Playwright TTFB / POST-timing scripts above against beta after deploy; compare before/after. Confirm load average dropped via SSH.
+- **ClickHouse config:** validate locally before shipping —
+  ```
+  docker run -d --name ch-test --cpus 0.9 -v <cfg>:/etc/clickhouse-server/config.d:ro clickhouse/clickhouse-server:25.12
+  docker logs ch-test            # must NOT exit 36 / crash-loop
+  docker exec ch-test clickhouse-client --query "SELECT getServerSetting('concurrent_threads_soft_limit_num')"
+  docker exec ch-test clickhouse-client --query "SELECT count() FROM numbers(200000000)"  # large query still completes
+  ```
+- **EXPLAIN before trusting an index:** `docker exec movie-browser-postgres psql ... -c "EXPLAIN ANALYZE <query>"` — confirm Bitmap Index Scan, not Seq Scan, and check the actual row/time.
+- **Always verify on beta, not assumptions** (see `superpowers:verification-before-completion`).
+
+## Deploy pipeline gotchas (cost real time — see `.github/workflows/deploy-ec2.yml`)
+
+- `docker compose exec` reads stdin **even with `-T`**. Inside the deploy's `ssh <<'EOF'` heredoc it will **swallow the rest of the script** (steps after it silently don't run, deploy still exits 0 → "successful" deploys that never restarted PM2). Always `</dev/null` on in-heredoc `docker compose exec/ps`.
+- Don't `docker compose up --wait` on ClickHouse — it fails the whole deploy when CH is unhealthy, but the **app only needs Postgres**. Wait on `pg_isready` instead.
+- **git push stalls on HTTP/2** from this environment — `git config http.version HTTP/1.1` (already set). If a push hangs with no output, that's it.
+
+## Don't over-trust audit/agent suggestions — temper with context
+- Don't `dynamic(..., { ssr:false })` the hero/LCP element (kills LCP + SEO).
+- Don't remove `unoptimized` from images — Next's optimizer runs `sharp` on the CPU-starved EC2, making it worse. CDN already serves WebP.
+- An `h632` profile image is correct for 2× retina (256px container) — not "2.6× oversize"; audits often assume 1× DPR.
+
+See also: `.claude/rules/infrastructure.md` (memory/CPU budget), `.claude/rules/postgres-hydration.md`, `.claude/rules/search-system.md`, `.claude/rules/analytics-system.md`.
