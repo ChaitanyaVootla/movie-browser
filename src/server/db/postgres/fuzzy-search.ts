@@ -21,6 +21,14 @@ import { z } from "zod";
  */
 const FUZZY_SEARCH_TIMEOUT_MS = 4000;
 
+/**
+ * Minimum trigram `%` threshold when the (~3M row) persons table is searched.
+ * Below this, a query matches tens of thousands of weak candidates and the heap
+ * recheck takes seconds. 0.3 is the pg_trgm default and keeps person search fast
+ * (~150ms) while still tolerant of typos in names.
+ */
+const PERSON_TRGM_THRESHOLD_FLOOR = 0.3;
+
 // =============================================================================
 // Validation Schemas
 // =============================================================================
@@ -251,30 +259,43 @@ export async function fuzzySearch(
     //
     // Only include persons if no filters are active (filters only apply to movies/series)
     if (!hasFilters) {
+      // Name and alias matches are UNIONed (not `name % $1 OR EXISTS(alias…)`).
+      // The OR-with-correlated-subquery form forces a sequential scan over the
+      // entire persons table (~3M rows) — fast only when matches are found early,
+      // catastrophic (multi-second) for queries that match no person. Splitting
+      // into two branches lets each use its own GIN trigram index
+      // (idx_persons_name_trgm / idx_person_aliases_trgm), then a PK join. The
+      // outer GROUP BY de-dupes a person matched by both, keeping the best score.
       parts.push(`
         SELECT
-          p.tmdb_id as id,
-          p.name as title,
+          id,
+          title,
           'person'::text as media_type,
-          GREATEST(
-            similarity(LOWER(p.name), $1),
-            COALESCE(
-              (SELECT MAX(similarity(LOWER(alias), $1))
-               FROM person_aliases WHERE person_id = p.id AND alias % $1),
-              0
-            )
-          ) as similarity,
-          p.profile_path as poster_path,
+          MAX(similarity) as similarity,
+          poster_path,
           NULL::text as year,
-          p.popularity,
+          popularity,
           NULL::float as vote_average,
           NULL::int as vote_count
-        FROM persons p
-        WHERE p.name % $1
-          OR EXISTS (
-            SELECT 1 FROM person_aliases pa
-            WHERE pa.person_id = p.id AND pa.alias % $1
-          )
+        FROM (
+          SELECT p.tmdb_id as id, p.name as title,
+                 similarity(LOWER(p.name), $1) as similarity,
+                 p.profile_path as poster_path, p.popularity
+          FROM persons p
+          WHERE p.name % $1
+          UNION ALL
+          SELECT p.tmdb_id as id, p.name as title,
+                 am.sim as similarity,
+                 p.profile_path as poster_path, p.popularity
+          FROM (
+            SELECT pa.person_id, MAX(similarity(LOWER(pa.alias), $1)) as sim
+            FROM person_aliases pa
+            WHERE pa.alias % $1
+            GROUP BY pa.person_id
+          ) am
+          JOIN persons p ON p.id = am.person_id
+        ) person_matches
+        GROUP BY id, title, poster_path, popularity
       `);
     }
   }
@@ -317,10 +338,19 @@ export async function fuzzySearch(
   //     many seconds and, because autocomplete fires on every keystroke, pile up
   //     and exhaust the connection pool — surfacing as a search box that spins
   //     forever. A timeout makes it fail fast; callers degrade to empty results.
+  // Guard: the persons table (~3M rows) dwarfs movies/series. A low % threshold
+  // there matches tens of thousands of weak trigram candidates whose heap recheck
+  // takes seconds. Enforce a floor on the % operator's threshold whenever persons
+  // are searched — regardless of the caller's threshold — so no caller can trigger
+  // the pathological scan. Movies/series-only searches keep the requested threshold.
+  const trgmThreshold = mediaTypes.includes("person")
+    ? Math.max(threshold, PERSON_TRGM_THRESHOLD_FLOOR)
+    : threshold;
+
   const results = await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${FUZZY_SEARCH_TIMEOUT_MS}`);
-    // Default % threshold is 0.3 which is too strict for typo-heavy queries
-    await tx.$executeRawUnsafe(`SELECT set_limit(${threshold})`);
+    // set_limit tunes the % operator's match threshold (pg_trgm default 0.3).
+    await tx.$executeRawUnsafe(`SELECT set_limit(${trgmThreshold})`);
     return hasStreamingFilter
       ? tx.$queryRawUnsafe<FuzzySearchResult[]>(
           sql,

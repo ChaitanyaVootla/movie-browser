@@ -125,15 +125,15 @@ jobs:
             set -a; source .env; set +a
             npx prisma db push --skip-generate 2>&1 || echo "Schema already up to date"
 
-            echo "[4.5/6] Applying search indexes (trigram + FTS, idempotent)..."
-            # Must run AFTER db push creates the tables. CONCURRENTLY + IF NOT
-            # EXISTS makes this safe and a no-op once the indexes exist. Without
-            # these, fuzzy autocomplete does full-table scans and the search box
-            # hangs. Non-fatal so a transient index error never blocks a deploy.
+            echo "[4.5/6] Applying FTS indexes (idempotent)..."
+            # Trigram (fuzzy) indexes are now schema-managed (prisma db push, step
+            # above). This applies only the to_tsvector() FTS indexes, which Prisma
+            # can't express. CONCURRENTLY + IF NOT EXISTS = safe no-op once they
+            # exist. Non-fatal so a transient index error never blocks a deploy.
             docker compose exec -T postgres \
               psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=0 \
               < postgres/init/02-search-indexes.sql 2>&1 | tail -8 \
-              || echo "Search index step warning (non-fatal)"
+              || echo "FTS index step warning (non-fatal)"
 
             echo "[5/6] Creating data directories..."
             mkdir -p data/enriched logs

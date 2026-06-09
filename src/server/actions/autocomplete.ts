@@ -125,17 +125,22 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
   const normalizedQuery = query.trim();
 
   try {
-    // Run title and person searches in parallel
+    // Run title and person searches in parallel.
+    // Thresholds are tuned per entity by table size: the persons table is ~3M
+    // rows, so a permissive 0.15 trigram threshold matches tens of thousands of
+    // weak candidates and the heap recheck takes seconds. 0.3 keeps person
+    // autocomplete fast (~150ms) and more relevant while titles (smaller tables)
+    // stay typo-tolerant at 0.2.
     const [titleResults, personResults] = await Promise.all([
       fuzzySearch(normalizedQuery, {
         limit: 4,
-        threshold: 0.15,
+        threshold: 0.2,
         mediaTypes: ["movie", "series"],
         boostPopular: true,
       }),
       fuzzySearch(normalizedQuery, {
         limit: 2,
-        threshold: 0.15,
+        threshold: 0.3,
         mediaTypes: ["person"],
         boostPopular: true,
       }),

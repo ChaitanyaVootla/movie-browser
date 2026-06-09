@@ -41,6 +41,10 @@ model Genre {
   series SeriesGenre[]
 
   @@index([name])
+  // Trigram (pg_trgm) GIN index for fuzzy/typo-tolerant search. Declared in the
+  // schema so `prisma db push` CREATES and PRESERVES it — a raw-SQL index would
+  // be dropped as drift on the next push (which is exactly what broke search).
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_genres_name_trgm")
   @@map("genres")
 }
 
@@ -53,6 +57,7 @@ model Keyword {
   series SeriesKeyword[]
 
   @@index([name])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_keywords_name_trgm")
   @@map("keywords")
 }
 
@@ -104,6 +109,7 @@ model Person {
   seriesCreated SeriesCreator[]
 
   @@index([name])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_persons_name_trgm")
   @@map("persons")
 }
 
@@ -115,6 +121,7 @@ model PersonAlias {
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([personId])
+  @@index([alias(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_person_aliases_trgm")
   @@map("person_aliases")
 }
 
@@ -263,6 +270,10 @@ model Movie {
   @@index([releaseDate(sort: Desc)])
   @@index([title])
   @@index([collectionId])
+  // Trigram (pg_trgm) GIN indexes for fuzzy title search — schema-managed so
+  // `prisma db push` preserves them instead of dropping them as drift.
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_movies_title_trgm")
+  @@index([originalTitle(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_movies_original_title_trgm")
   @@map("movies")
 }
 
@@ -433,6 +444,9 @@ model Series {
   @@index([popularity(sort: Desc)])
   @@index([firstAirDate(sort: Desc)])
   @@index([name])
+  // Trigram (pg_trgm) GIN indexes for fuzzy name search — schema-managed.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_series_name_trgm")
+  @@index([originalName(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_series_original_name_trgm")
   @@map("series")
 }
 
