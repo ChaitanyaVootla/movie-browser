@@ -143,10 +143,11 @@ See `docs/GA_READINESS.md` for full tracker with completed items and switch proc
 
 | Data | Source | Status |
 |------|--------|--------|
-| Movies/Series core | PostgreSQL | ✅ ~5k movies, ~2k series |
-| Movies/Series enrichment | MongoDB → PostgreSQL | ⏳ Bulk population needed (~1.15M movies, ~212k series) |
-| User data (watchlist, ratings, etc.) | Dual-mode (`USER_DATA_SOURCE` env) | ✅ Code ready, flip to `postgres` at GA |
-| Auth (users, sessions) | Dual-mode (`MongoDBAdapter` ↔ `PrismaAdapter`) | ✅ Code ready, switches with `USER_DATA_SOURCE` |
+| Movies/Series core | PostgreSQL | ✅ ~504k movies, ~68k series |
+| Movies/Series enrichment | MongoDB → PostgreSQL | ⏳ Gap-fill plan approved: ~436k enriched movies + ~75k series only (62% of Mongo corpus has no enrichment — skip it) |
+| User data (watchlist, ratings, etc.) | **PostgreSQL (flipped 2026-06-10)** | ✅ Synced (3,183 rows, 560 users) + `USER_DATA_SOURCE=postgres` live on beta. Re-run `migrate-user-data.ts` for the delta right before DNS cutover. |
+| Auth (users, sessions) | **PrismaAdapter (flipped 2026-06-10)** | ✅ JWT sessions survive the flip; `accounts` rows regenerate on login |
+| Mongo read path (ratings/watch links) | **PostgreSQL** | ✅ `cached-queries.ts` reads PG; `ENABLE_MONGODB_ENRICHMENT=false` on beta — app runs fully without Mongo |
 | AI provider | Bedrock (Kimi K2.5) | ✅ Default provider, OpenRouter fallback |
 | Embeddings | Cohere Embed v4 (1024 dims) | ✅ Switched from Titan, regenerate existing with `--force` |
 | Infrastructure | Terraform + Docker Compose + GitHub Actions CI/CD | ✅ New standalone EC2, Bedrock IAM, PG + ClickHouse |

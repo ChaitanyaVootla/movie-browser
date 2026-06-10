@@ -224,6 +224,34 @@ const userIdMap = new Map<number, number>();
 const existingMovieIds = new Set<number>();
 const existingSeriesIds = new Set<number>();
 
+/**
+ * Classify a recents/continue-watching item as movie or series.
+ *
+ * The legacy `isMovie` flag is unreliable (655 of 735 recents say
+ * isMovie:false, including obvious movies like 19995/Avatar), so it is only
+ * the last tiebreaker. Primary signal: which PG catalog the id exists in.
+ * Secondary (id exists in both catalogs): the legacy doc convention — movies
+ * carry `title`, series carry `name`. Returns null when the id exists in
+ * neither catalog (dead/unmigratable reference → caller skips).
+ */
+function classifyItem(item: {
+  itemId: number;
+  isMovie?: boolean;
+  title?: string;
+  name?: string;
+}): "movie" | "series" | null {
+  const inMovies = existingMovieIds.has(item.itemId);
+  const inSeries = existingSeriesIds.has(item.itemId);
+  if (inMovies && !inSeries) return "movie";
+  if (inSeries && !inMovies) return "series";
+  if (inMovies && inSeries) {
+    if (item.title && !item.name) return "movie";
+    if (item.name && !item.title) return "series";
+    return item.isMovie === false ? "series" : "movie";
+  }
+  return null;
+}
+
 // ============================================
 // Pre-load existing content IDs
 // ============================================
@@ -644,11 +672,9 @@ async function migrateRecents(db: mongoose.mongo.Db) {
       continue;
     }
 
-    const contentExists = item.isMovie
-      ? existingMovieIds.has(item.itemId)
-      : existingSeriesIds.has(item.itemId);
+    const kind = classifyItem(item);
 
-    if (!contentExists) {
+    if (!kind) {
       stats.recents.skipped++;
       continue;
     }
@@ -659,7 +685,7 @@ async function migrateRecents(db: mongoose.mongo.Db) {
     }
 
     try {
-      if (item.isMovie) {
+      if (kind === "movie") {
         await prisma.recentItem.upsert({
           where: {
             userId_movieId: { userId: pgUserId, movieId: item.itemId },
@@ -727,11 +753,9 @@ async function migrateContinueWatching(db: mongoose.mongo.Db) {
       continue;
     }
 
-    const contentExists = item.isMovie
-      ? existingMovieIds.has(item.itemId)
-      : existingSeriesIds.has(item.itemId);
+    const kind = classifyItem(item);
 
-    if (!contentExists) {
+    if (!kind) {
       stats.continueWatching.skipped++;
       continue;
     }
@@ -747,7 +771,7 @@ async function migrateContinueWatching(db: mongoose.mongo.Db) {
     }
 
     try {
-      if (item.isMovie) {
+      if (kind === "movie") {
         await prisma.continueWatching.upsert({
           where: {
             userId_movieId: { userId: pgUserId, movieId: item.itemId },
