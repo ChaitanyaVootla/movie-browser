@@ -1,14 +1,25 @@
-# GA cutover (2026-06-10): the apex + www now serve the Next.js app alongside
-# beta. Caddy auto-issues Let's Encrypt certs per site; the apex/www certs can
-# only be obtained once DNS points here, so expect ACME retries in the logs
-# between the Caddy reload and the Route 53 flip — harmless.
+# GA cutover (2026-06-10): the apex + www serve the Next.js app. Caddy
+# auto-issues Let's Encrypt certs per site.
+#
+# NOTE: this file is bind-mounted into the caddy container — a `caddy reload`
+# can read a STALE inode after deploy replaces the file (see
+# .claude/rules/infrastructure.md). Apply changes with:
+#   docker compose up -d --force-recreate caddy
 
-themoviebrowser.com, beta.themoviebrowser.com {
+themoviebrowser.com {
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	encode zstd gzip
 	reverse_proxy localhost:3002 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 	}
+}
+
+# Post-GA: the beta host is the same app — 301 to the apex so search engines
+# never index a duplicate site (it served identical 200s until 2026-06-10).
+beta.themoviebrowser.com {
+	redir https://themoviebrowser.com{uri} permanent
 }
 
 www.themoviebrowser.com {

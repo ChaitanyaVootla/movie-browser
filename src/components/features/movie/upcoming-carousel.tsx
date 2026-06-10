@@ -53,7 +53,7 @@ export function UpcomingCarousel({
               item={item}
               className={posterCardClass}
               wideClassName={wideCardClass}
-              priority={index < 4}
+              priority={false}
               subtitle={item.releaseLabel}
             />
           ))}

@@ -320,7 +320,7 @@ export function YouTubeTrailerCarousel({
           <YouTubeTrailerCard
             key={trailer.youtubeId}
             trailer={trailer}
-            priority={index < 3}
+            priority={false}
             onPlay={() => handlePlay(index)}
             metadata={videoMetadata.get(trailer.youtubeId)}
           />

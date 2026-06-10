@@ -201,7 +201,7 @@ export function TrailerCarousel({ title, trailers, icon, className }: TrailerCar
           <TrailerCard
             key={`${trailer.tmdbId}-${trailer.youtubeKey}`}
             trailer={trailer}
-            priority={index < 3}
+            priority={false}
             onPlay={() => handlePlay(index)}
             metadata={videoMetadata.get(trailer.youtubeKey)}
           />

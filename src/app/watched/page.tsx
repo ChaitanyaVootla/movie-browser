@@ -5,6 +5,9 @@ import { PageMain } from "@/components/features/layout/page-main";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
+  // Private user pages: robots.txt disallows these, but belt-and-braces —
+  // robots.txt is advisory while the meta tag is authoritative for indexing.
+  robots: { index: false, follow: false },
   title: "Watched Movies - The Movie Browser",
   description: "Movies you've marked as watched.",
   openGraph: {

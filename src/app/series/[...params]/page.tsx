@@ -3,7 +3,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getSeries as getSeriesBase } from "@/server/actions/series";
 import { seriesExists } from "@/server/services/media-exists";
-import { getMediaPath } from "@/lib/utils";
+import { getMediaPath, truncateAtWord } from "@/lib/utils";
+import { breadcrumbList, trailerVideoObject, omitEmpty } from "@/lib/seo/jsonld";
 
 // Deduplicate getSeries calls within the same request
 // generateMetadata, HeroContentAsync, SeriesContentAsync all use the same cached result
@@ -50,7 +51,7 @@ import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { SeasonSelector, EpisodeInfoSection } from "@/components/features/series";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
+import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
 import {
   extractSeriesOverviewProps,
@@ -99,9 +100,9 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
 
   const year = series.first_air_date?.split("-")[0];
   const title = year ? `${series.name} (${year})` : series.name;
-  const description =
-    series.overview?.slice(0, 160) ||
-    `Watch ${series.name} - details, cast, ratings and where to stream.`;
+  const description = series.overview
+    ? truncateAtWord(series.overview, 160)
+    : `Watch ${series.name} - details, cast, ratings and where to stream.`;
   const backdropUrl = series.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${series.backdrop_path}`
     : undefined;
@@ -121,6 +122,8 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
     ].filter(Boolean) as string[],
     openGraph: {
       type: "video.tv_show",
+      siteName: SITE_NAME,
+      locale: "en_US",
       title: series.name,
       description: series.overview,
       url: `${SITE_URL}${canonicalPath}`,
@@ -359,6 +362,12 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
   return (
     <>
       {/* JSON-LD Schema */}
+      {/* Single semantic H1 (visually hidden) — see movie page */}
+      <h1 className="sr-only">
+        {series.name}
+        {series.first_air_date ? ` (${series.first_air_date.split("-")[0]})` : ""}
+      </h1>
+
       <SeriesSchema series={series} />
 
       {/* Track this page view for recents */}
@@ -492,13 +501,19 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
 
 // JSON-LD structured data for SEO
 function SeriesSchema({ series }: { series: Series }) {
+  // TMDB "created_by" maps to crew job "Creator"; fall back to created_by-less
   const creators = series.credits?.crew?.filter((c) => c.job === "Creator") || [];
   const actors = series.credits?.cast?.slice(0, 5) || [];
+  const canonicalPath = getMediaPath("series", series.id, series.name);
+  // Exclude season 0 ("Specials"): its inflated episode counts made
+  // numberOfEpisodes contradict the containsSeason sum (e.g. The Boys 40 vs 115)
+  const regularSeasons = series.seasons?.filter((s) => s.season_number > 0);
 
-  const schema = {
+  const schema = omitEmpty({
     "@context": "https://schema.org",
     "@type": "TVSeries",
     name: series.name,
+    url: `${SITE_URL}${canonicalPath}`,
     description: series.overview,
     datePublished: series.first_air_date,
     image: series.poster_path ? `${TMDB_IMAGE_BASE}/w500${series.poster_path}` : undefined,
@@ -506,14 +521,15 @@ function SeriesSchema({ series }: { series: Series }) {
       series.vote_average && series.vote_count
         ? {
             "@type": "AggregateRating",
-            ratingValue: series.vote_average.toFixed(1),
+            // Number, not string — Google's documented type for ratingValue
+            ratingValue: Number(series.vote_average.toFixed(1)),
             ratingCount: series.vote_count,
             bestRating: 10,
             worstRating: 0,
           }
         : undefined,
     genre: series.genres?.map((g) => g.name),
-    numberOfSeasons: series.number_of_seasons,
+    numberOfSeasons: regularSeasons?.length || series.number_of_seasons,
     numberOfEpisodes: series.number_of_episodes,
     creator: creators.map((c) => ({
       "@type": "Person",
@@ -527,19 +543,32 @@ function SeriesSchema({ series }: { series: Series }) {
       "@type": "Organization",
       name: c.name,
     })),
-    containsSeason: series.seasons?.map((s) => ({
+    containsSeason: regularSeasons?.map((s) => ({
       "@type": "TVSeason",
       seasonNumber: s.season_number,
       numberOfEpisodes: s.episode_count,
       name: s.name,
     })),
-  };
+    trailer: trailerVideoObject(series.videos?.results, series.name),
+  });
+
+  const breadcrumbs = breadcrumbList([
+    { name: "Home", path: "/" },
+    { name: "TV Series", path: "/browse" },
+    { name: series.name },
+  ]);
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
+    </>
   );
 }
 

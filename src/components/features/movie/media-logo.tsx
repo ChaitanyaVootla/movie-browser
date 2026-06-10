@@ -76,14 +76,14 @@ function MediaLogoInner({
   // Text fallback
   if (loadState === "text" || imageError || !currentSrc) {
     return (
-      <h1
+      <h2
         className={cn(
           "text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white drop-shadow-lg line-clamp-2",
           className
         )}
       >
         {fallbackText}
-      </h1>
+      </h2>
     );
   }
 
@@ -91,7 +91,7 @@ function MediaLogoInner({
   // Image fills the container while maintaining aspect ratio
   return (
     <div className={cn("relative", className)}>
-      <h1 className="sr-only">{fallbackText}</h1>
+      <h2 className="sr-only">{fallbackText}</h2>
       <Image
         src={currentSrc}
         alt={`${fallbackText} logo`}

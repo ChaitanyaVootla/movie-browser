@@ -55,7 +55,9 @@ export function MovieCarousel({
               item={item}
               className={posterCardClass}
               wideClassName={wideCardClass}
-              priority={index < 4}
+              // No priority: carousel rows sit below the hero (the LCP); preloading
+              // their posters added ~28 head preloads competing with the hero image
+              priority={false}
             />
           ))}
     </MediaScroller>

@@ -70,7 +70,11 @@ jobs:
           MONGO_IP: build-placeholder
           MONGO_PASS: build-placeholder
           DATABASE_URL: postgresql://x:x@localhost:5432/x
-          TMDB_API_KEY: build-placeholder
+          # Real key when the TMDB_API_KEY secret exists — '/' and '/topics' are
+          # prerendered AT BUILD TIME, and a placeholder key bakes EMPTY trending
+          # sections into the deployed HTML (the post-deploy revalidation step
+          # below is the backstop that re-renders them on the box).
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY || 'build-placeholder' }}
           # PG-only mode at build time: prevents auth.ts module evaluation from
           # constructing a MongoDB client against the placeholder host, and keeps
           # builds working after MONGO_* vars are removed post-GA. Runtime mode
@@ -169,6 +173,15 @@ jobs:
             pm2 delete all 2>/dev/null || true
             pm2 start ecosystem.config.cjs
             pm2 save
+
+            echo ""
+            echo "[7/7] Revalidating build-prerendered pages (/ and /topics)..."
+            # Build-time prerenders use placeholder env; re-render with box env.
+            sleep 8
+            RSECRET=$(grep -E "^AUTH_SECRET=" .env.local | head -1 | cut -d= -f2- | tr -d '"')
+            curl -fsS --max-time 60 -X POST -H "x-revalidate-secret: $RSECRET" \
+              http://localhost:3002/api/revalidate </dev/null \
+              && echo "Revalidation OK" || echo "Warning: revalidation failed"
 
             echo ""
             echo "Deployment complete!"

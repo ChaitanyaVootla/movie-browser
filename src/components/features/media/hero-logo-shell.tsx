@@ -111,7 +111,10 @@ export function HeroLogoShell({
       );
     }
     return (
-      <h1
+      // <p>, not a heading: the detail pages render their own sr-only <h1>
+      // (with the full title) in the server HTML; a heading here would create
+      // a duplicate/competing h1 only in the rare image-fallback state.
+      <p
         data-testid="hero-logo"
         className={cn(
           "text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white drop-shadow-lg line-clamp-2",
@@ -119,7 +122,7 @@ export function HeroLogoShell({
         )}
       >
         {fallbackText}
-      </h1>
+      </p>
     );
   }
 

@@ -2,7 +2,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getPerson } from "@/server/actions/person";
 import { personExists } from "@/server/services/media-exists";
-import { getMediaPath } from "@/lib/utils";
+import { getMediaPath, truncateAtWord } from "@/lib/utils";
+import { breadcrumbList } from "@/lib/seo/jsonld";
 
 // ISR: cache the rendered person page for 24h (person/filmography data is very
 // stable). Cuts SSR CPU under crawler traffic; TMDB person cache is 24h anyway.
@@ -23,7 +24,7 @@ import {
   KnownForSection,
   UpcomingLatestSection,
 } from "@/components/features/person";
-import { SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
+import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
 import {
   extractPersonHeroProps,
   extractKnownForCredits,
@@ -72,7 +73,7 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
   }
 
   // Build description from biography or known works
-  let description = person.biography?.slice(0, 160);
+  let description = person.biography ? truncateAtWord(person.biography, 160) : undefined;
   if (!description && person.known_for_department) {
     const knownFor = person.combined_credits?.cast?.slice(0, 3) || [];
     const titles = knownFor.map((c) => c.title || c.name).filter(Boolean);
@@ -111,6 +112,8 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
     keywords: [...new Set(keywords)],
     openGraph: {
       type: "profile",
+      siteName: SITE_NAME,
+      locale: "en_US",
       title: person.name,
       description,
       url: `${SITE_URL}${canonicalPath}`,
@@ -139,6 +142,19 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
   };
 }
 
+const DEPARTMENT_TO_JOB: Record<string, string> = {
+  Acting: "Actor",
+  Directing: "Director",
+  Writing: "Writer",
+  Production: "Producer",
+  Camera: "Cinematographer",
+  Editing: "Editor",
+  Sound: "Sound Engineer",
+  Art: "Art Director",
+  "Costume & Make-Up": "Costume Designer",
+  "Visual Effects": "Visual Effects Artist",
+};
+
 // JSON-LD structured data for SEO
 function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeof getPerson>>> }) {
   const canonicalPath = getMediaPath("person", person.id, person.name);
@@ -156,12 +172,13 @@ function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeo
     "@context": "https://schema.org",
     "@type": "Person",
     name: person.name,
-    description: person.biography?.slice(0, 500),
+    description: person.biography ? truncateAtWord(person.biography, 500) : undefined,
     image: person.profile_path ? `${TMDB_IMAGE_BASE}/w500${person.profile_path}` : undefined,
     birthDate: person.birthday,
     deathDate: person.deathday || undefined,
     birthPlace: person.place_of_birth || undefined,
-    jobTitle: person.known_for_department,
+    // Map TMDB department names to human job titles ("Acting" -> "Actor")
+    jobTitle: DEPARTMENT_TO_JOB[person.known_for_department] ?? person.known_for_department,
     url: `${SITE_URL}${canonicalPath}`,
     sameAs: [
       person.imdb_id && `https://www.imdb.com/name/${person.imdb_id}`,
@@ -178,11 +195,19 @@ function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeo
     performerIn: notableWorks,
   };
 
+  const breadcrumbs = breadcrumbList([{ name: "Home", path: "/" }, { name: person.name }]);
+
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
+    </>
   );
 }
 

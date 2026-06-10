@@ -23,7 +23,8 @@ export async function generateStaticParams(): Promise<{ params: string[] }[]> {
 }
 import { getMovieCollection } from "@/server/services/tmdb";
 import { movieExists } from "@/server/services/media-exists";
-import { getMediaPath } from "@/lib/utils";
+import { getMediaPath, truncateAtWord } from "@/lib/utils";
+import { breadcrumbList, trailerVideoObject, omitEmpty } from "@/lib/seo/jsonld";
 import { getCollectionFromPostgres } from "@/server/db/postgres";
 import { getAISummary } from "@/lib/ai-summary";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
@@ -54,7 +55,7 @@ import {
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
+import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Collection, Movie } from "@/types";
 import {
   extractMovieOverviewProps,
@@ -106,9 +107,9 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
 
   const year = movie.release_date?.split("-")[0];
   const title = year ? `${movie.title} (${year})` : movie.title;
-  const description =
-    movie.overview?.slice(0, 160) ||
-    `Watch ${movie.title} - details, cast, ratings and where to stream.`;
+  const description = movie.overview
+    ? truncateAtWord(movie.overview, 160)
+    : `Watch ${movie.title} - details, cast, ratings and where to stream.`;
   const backdropUrl = movie.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${movie.backdrop_path}`
     : undefined;
@@ -127,6 +128,8 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
     ].filter(Boolean) as string[],
     openGraph: {
       type: "video.movie",
+      siteName: SITE_NAME,
+      locale: "en_US",
       title: movie.title,
       description: movie.overview,
       url: `${SITE_URL}${canonicalPath}`,
@@ -360,6 +363,13 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
 
   return (
     <>
+      {/* Single semantic H1 (visually hidden — the hero logo image is the
+          visual headline). Movie/series pages previously had NO h1 at all. */}
+      <h1 className="sr-only">
+        {movie.title}
+        {movie.release_date ? ` (${movie.release_date.split("-")[0]})` : ""}
+      </h1>
+
       {/* JSON-LD Schema */}
       <MovieSchema movie={movie} />
 
@@ -488,11 +498,13 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
 function MovieSchema({ movie }: { movie: Movie }) {
   const director = movie.credits?.crew?.find((c) => c.job === "Director");
   const actors = movie.credits?.cast?.slice(0, 5) || [];
+  const canonicalPath = getMediaPath("movie", movie.id, movie.title);
 
-  const schema = {
+  const schema = omitEmpty({
     "@context": "https://schema.org",
     "@type": "Movie",
     name: movie.title,
+    url: `${SITE_URL}${canonicalPath}`,
     description: movie.overview,
     datePublished: movie.release_date,
     image: movie.poster_path ? `${TMDB_IMAGE_BASE}/w500${movie.poster_path}` : undefined,
@@ -500,7 +512,8 @@ function MovieSchema({ movie }: { movie: Movie }) {
       movie.vote_average && movie.vote_count
         ? {
             "@type": "AggregateRating",
-            ratingValue: movie.vote_average.toFixed(1),
+            // Number, not string — Google's documented type for ratingValue
+            ratingValue: Number(movie.vote_average.toFixed(1)),
             ratingCount: movie.vote_count,
             bestRating: 10,
             worstRating: 0,
@@ -522,13 +535,26 @@ function MovieSchema({ movie }: { movie: Movie }) {
       "@type": "Organization",
       name: c.name,
     })),
-  };
+    trailer: trailerVideoObject(movie.videos?.results, movie.title),
+  });
+
+  const breadcrumbs = breadcrumbList([
+    { name: "Home", path: "/" },
+    { name: "Movies", path: "/browse" },
+    { name: movie.title },
+  ]);
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
+    </>
   );
 }
 

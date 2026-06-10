@@ -6,6 +6,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Truncate at a word boundary with an ellipsis. Meta descriptions and JSON-LD
+ * text previously hard-cut mid-word ("...to defeat the dark rul").
+ */
+export function truncateAtWord(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const cut = text.slice(0, maxLength - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  // Never chop more than ~25 chars hunting for a space (pathological inputs)
+  const end = lastSpace > maxLength - 26 ? lastSpace : cut.length;
+  return `${cut.slice(0, end).replace(/[\s,;:.!-]+$/, "")}\u2026`;
+}
+
+/**
  * Generate URL-safe slug from a title/name.
  * Used for SEO-friendly URLs.
  */

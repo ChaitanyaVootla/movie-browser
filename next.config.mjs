@@ -2,6 +2,7 @@ import { withSerwist } from "@serwist/turbopack";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  poweredByHeader: false,
   // geoip-lite reads .dat files from node_modules at runtime — must not be bundled
   serverExternalPackages: ["geoip-lite"],
 
