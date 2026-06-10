@@ -39,11 +39,11 @@
 **Status**: Running. All services operational — PG, ClickHouse, Caddy (HTTPS), MongoDB (remote), Bedrock (Kimi K2.5 + Cohere), Lambda (beta).
 **Enrichment**: Organic — ~1,000 items enriched in first hour at ~$1.03/1000 items (~$190 projected for 184K full catalog, under the $210-250 estimate).
 
-**GA cutover from beta**: Update `Caddyfile` domain → `themoviebrowser.com`, DNS A record → same EIP, workflow trigger → `master`, environment → `production`, flip `USER_DATA_SOURCE=postgres`.
+**GA cutover: COMPLETED 2026-06-10.** Caddy serves apex+www+beta on `16.112.156.196`, Route 53 apex+www flipped (change C01507963JF4H8BFHHB1N), `USER_DATA_SOURCE=postgres` + `ENABLE_MONGODB_ENRICHMENT=false` live, `NEXT_PUBLIC_SITE_URL`/`NEXTAUTH_URL` on apex, user data + enrichment corpus fully migrated. Remaining: workflow trigger → `master` (still deploys from `next`), legacy box decommission (see CLAUDE.md Post-GA Cleanup).
 
 ### MongoDB -> PostgreSQL User Data: Ready to Switch
 
-**Status**: Dual-mode implemented. Set `USER_DATA_SOURCE=postgres` to switch.
+**Status**: SWITCHED — `USER_DATA_SOURCE=postgres` live in production since 2026-06-10.
 
 #### Architecture
 

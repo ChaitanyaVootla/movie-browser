@@ -20,6 +20,39 @@ Check PG → TMDB API if stale → MongoDB enrichment → Upsert to PG → Progr
 
 After the PG upsert, if the data was freshly fetched (from Lambda or MongoDB — not the PG fast path), `triggerProgressiveEnrichment()` fires in the background. This is a fire-and-forget call: errors are logged and swallowed, never blocking the response. See `src/server/services/hydration/index.ts` lines 142-146 (movies) and 274-278 (series).
 
+## Diff-Based Upserts (June 2026 — do not regress to delete+reinsert)
+
+Every child-table upsert (seasons+episodes, credits, images, videos, external_ids,
+watch_options, reviews, certifications, junctions) compares a canonical projection
+of existing vs incoming rows (`sources/postgres/upsert-diff.ts`) and **skips the
+delete+reinsert when identical** — the common case. Rewrites are debug-logged
+("hydration: child rows changed, rewriting"). The old always-rewrite pattern
+bloated tables to 60x live size and starved autovacuum. When adding a field to a
+`createMany`, ADD IT to the matching comparator in `upsert-diff.ts` too, or real
+changes will be silently skipped. Helper files split out for the 800-line limit:
+`rating-upserts.ts`, `series-junction-upserts.ts`.
+
+## Background Refresh Cap
+
+`backgroundRefreshMovie/Series` are deduped per id AND capped globally at
+`MAX_BACKGROUND_REFRESH` concurrent (default 3, env-tunable, 0 disables). Beyond
+the cap an item simply stays stale; a later visit retries. Removing this cap let
+GA-day crawler traffic queue unbounded in-process Lambda+LLM work (Node 2GB RSS,
+19s TTFB). PM2 also has a 1.5GB `max_memory_restart` guardrail on `next`.
+
+## Bulk Enrichment Migration (completed 2026-06-10)
+
+`scripts/migrate-mongo-enrichment.ts` moved the legacy Mongo corpus into PG
+(534k enriched docs → 229k movie + 43k series parents created from cached TMDB
+payloads, rest gap-filled; 0 errors). Two modes: parent-missing → full upsert
+path with `transformMongoToEnriched`; parent-exists → `createMany skipDuplicates`
++ COALESCE-only freshness stamps (physically cannot overwrite newer data).
+**Born-stale policy**: migrated timestamps carry the original doc `updatedAt`, so
+the freshness machinery refreshes items on real visits. Created series have
+seasons WITHOUT episodes (legacy docs had none nested) — episodes backfill on
+first visit. Re-runnable: `--resume` + checkpoint file; source = legacy Mongo or
+the S3 archive restored into a temp container.
+
 ## Freshness Tracking
 
 | Field | Purpose |
@@ -28,6 +61,10 @@ After the PG upsert, if the data was freshly fetched (from Lambda or MongoDB —
 | `ratingsScrapedAt` | When ratings were last scraped (Lambda) |
 | `watchLinksScrapedAt` | When watch links were last scraped |
 | `updatedAt` | Prisma auto-updated on any change |
+
+Thresholds (`src/lib/data-freshness.ts`): <14d release → 1d, <30d → 4d, <90d → 7d,
+<3y → 30d, **>3y → 90d (`VERY_MATURE`, June 2026 — cuts crawler-driven Lambda
+scrapes ~50-65%)**.
 
 ## Modular Structure
 

@@ -6,7 +6,7 @@ AI-first movie/TV discovery platform built with Next.js 15, React 19, TypeScript
 
 - **Framework**: Next.js 15 (App Router) + React 19 + TypeScript (strict)
 - **AI Agent**: LangGraph.js + MemorySaver checkpointer + AWS Bedrock (Kimi K2.5, default) or OpenRouter (fallback) + Tavily (web search/extract, 1000 credits/month free tier)
-- **Database**: PostgreSQL (Prisma 6.x) + pgvector + MongoDB (remote, temporary — user data until GA)
+- **Database**: PostgreSQL (Prisma 6.x) + pgvector — sole datastore since GA (2026-06-10). Legacy MongoDB archived to S3; code paths flag-gated off, deletion pending (see Post-GA Cleanup)
 - **Embeddings**: Cohere Embed v4 via Bedrock (`global.cohere.embed-v4:0`, 1024 dims)
 - **State**: Zustand (client) + TanStack Query (server)
 - **UI**: shadcn/ui + Tailwind CSS v4 + Framer Motion
@@ -42,9 +42,9 @@ npx tsx scripts/generate-cohere-embeddings.ts --type both --xlarge --force
 
 ## Infrastructure
 
-**Beta EC2**: `t4g.large` (8GB ARM) in `ap-south-2` (Hyderabad). EIP `16.112.156.196` → `beta.themoviebrowser.com`. Managed by Terraform (`terraform/`, state key `beta/terraform.tfstate`, project name `movie-browser-beta`).
+**Main EC2 (production since GA 2026-06-10)**: `t4g.large` (8GB ARM) in `ap-south-2` (Hyderabad). EIP `16.112.156.196` serves `themoviebrowser.com` + `www` (301→apex) + `beta.themoviebrowser.com` via Caddy. Managed by Terraform (`terraform/`, state key `beta/terraform.tfstate`, project name `movie-browser-beta`).
 
-**Production EC2**: `98.130.30.197` → `themoviebrowser.com` (legacy Nuxt + MongoDB). Separate TF state (`production/terraform.tfstate`).
+**Legacy EC2** (pending decommission): `98.130.30.197` — old Nuxt + MongoDB box. `themoviebrowser.com` now points at the main box (GA cutover 2026-06-10); legacy serves nothing. Separate TF state (`production/terraform.tfstate`). Decommission steps in memory `ga-cutover-state`.
 
 **Services on Beta EC2** (via `docker-compose.yml`):
 - PostgreSQL 17 + pgvector + pg_trgm (port 5433)
@@ -63,7 +63,7 @@ npx tsx scripts/generate-cohere-embeddings.ts --type both --xlarge --force
 
 **AWS credentials**: On EC2, omit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` — the instance profile provides Bedrock access. Set them only for local dev. Use project IAM user `moviebrowser` (account `620733889764`), never default machine creds.
 
-**MongoDB**: Remote on legacy EC2 (`98.130.30.197`, temporary). Connected via `MONGO_IP` env var. Will be severed at GA when `USER_DATA_SOURCE=postgres`.
+**MongoDB**: SEVERED at GA (2026-06-10): `USER_DATA_SOURCE=postgres` + `ENABLE_MONGODB_ENRICHMENT=false` on the box; the app makes zero Mongo connections. Enrichment corpus bulk-migrated to PG (534k docs, 0 errors); full mongodump pinned in S3 (`backups/mongo/`). Legacy box pending decommission.
 
 **Local PG Access**: `ssh -i movie-browser-ec2-key.pem -L 5433:localhost:5433 ubuntu@16.112.156.196 -N` then use `yarn db:studio`.
 
@@ -107,7 +107,7 @@ src/
 
 **AI Agent (Cue)**: LangGraph agent with MemorySaver checkpointer. 11 tools (8 TMDB + `get_user_profile` + `web_search` + `web_extract` via Tavily), Kimi K2.5 (knowledge cutoff: June 2025). TMDB-first strategy — agent prefers free TMDB tools, web search only for current events/news/box office/reviews. Agent outputs `[SOURCE:url|title]` citation tags and `[WEB_IMAGE:url|description]` image tags for web results. Thread-based conversation persistence — frontend sends `threadId`, server restores full state (messages + tool calls + results). Tools receive `userId`, `pageContext`, and `userContext` (name, region, timezone) via `config.configurable`. `get_page_context` returns media metadata + user status (watched/watchlisted/rated). `get_user_profile` returns compact taste profile (top genres, recent watches, counts). Per-invocation logging isolated via `invocationId` Map. Recursion limit: 25. `TAVILY_API_KEY` required for web tools. See `.claude/rules/ai-agent.md`.
 
-**Progressive Enrichment**: Automatic AI enrichment triggered by page visits. When hydration fetches fresh data (Lambda or MongoDB source), `triggerProgressiveEnrichment()` fires in the background — no manual intervention needed. Pipeline: check existing AI data → generate TMDB-only embedding if missing → call Kimi K2.5 via Bedrock Flex (50% off) → parse + store AI insights → regenerate embedding with AI themes/mood/hook. Dedup via in-memory Map (concurrent requests for same item share one Promise). Concurrency capped at 5 LLM calls via `p-limit`. SSE endpoint (`GET /api/[mediaType]/[id]/enrich`) polls PG for state changes and streams ratings/AI updates to the client. Detail pages use `EnrichmentProvider` + `useEnrichmentStream` for live in-place updates (ratings swap, AI sections fade in). Cost: ~$210-250 for full 184K catalog (pop >= 1) via Flex pricing + tighter prompt (~500 output tokens). Key files: `src/server/services/enrichment/progressive.ts`, `src/server/services/enrichment/bedrock-flex.ts`, `src/server/services/enrichment/prompts.ts`, `src/server/services/enrichment/ai-input-builder.ts`, `src/hooks/use-enrichment-stream.ts`, `src/components/features/media/enrichment-provider.tsx`.
+**Progressive Enrichment**: Automatic AI enrichment triggered by page visits. When hydration fetches fresh data (Lambda or MongoDB source), `triggerProgressiveEnrichment()` fires in the background — no manual intervention needed. Pipeline: check existing AI data → generate TMDB-only embedding if missing → call Kimi K2.5 via Bedrock Flex (50% off) → parse + store AI insights → regenerate embedding with AI themes/mood/hook. Dedup via in-memory Map (concurrent requests for same item share one Promise). Concurrency capped at 5 LLM calls via `p-limit`, and upstream background refreshes (which trigger enrichment) capped globally at `MAX_BACKGROUND_REFRESH` (default 3, 0 disables) — without that cap, crawler traffic over a large stale catalog queued unbounded in-process work (GA day: Node RSS 1.4→2GB in minutes, 19s TTFB). SSE endpoint (`GET /api/[mediaType]/[id]/enrich`) polls PG for state changes and streams ratings/AI updates to the client. Detail pages use `EnrichmentProvider` + `useEnrichmentStream` for live in-place updates (ratings swap, AI sections fade in). Cost: ~$210-250 for full 184K catalog (pop >= 1) via Flex pricing + tighter prompt (~500 output tokens). Key files: `src/server/services/enrichment/progressive.ts`, `src/server/services/enrichment/bedrock-flex.ts`, `src/server/services/enrichment/prompts.ts`, `src/server/services/enrichment/ai-input-builder.ts`, `src/hooks/use-enrichment-stream.ts`, `src/components/features/media/enrichment-provider.tsx`.
 
 ## Analytics & Cost Tracking
 
@@ -154,24 +154,28 @@ See `docs/GA_READINESS.md` for full tracker with completed items and switch proc
 | Embeddings | Cohere Embed v4 (1024 dims) | ✅ Switched from Titan, regenerate existing with `--force` |
 | Infrastructure | Terraform + Docker Compose + GitHub Actions CI/CD | ✅ New standalone EC2, Bedrock IAM, PG + ClickHouse |
 
-### GA Switch Procedure
+### GA — COMPLETED 2026-06-10
 
-```bash
-# 1. Push auth schema (Account, Session, VerificationToken tables)
-yarn db:push
-# 2. Migrate user data from remote MongoDB
-npx tsx scripts/migrate-user-data.ts --verbose
-# 3. Flip the switch
-echo 'USER_DATA_SOURCE=postgres' >> .env.local
-# 4. Restart — all user data now flows through Prisma
-pm2 restart all
-```
+Cutover executed: user data synced (561 users / 3.2k rows, 0 errors; final delta
+sync ran post-DNS-flip), `USER_DATA_SOURCE=postgres` + `ENABLE_MONGODB_ENRICHMENT=false`
+live, Route 53 apex+www → `16.112.156.196`, Caddy serving apex with LE certs,
+`NEXT_PUBLIC_SITE_URL`/`NEXTAUTH_URL` on apex, enrichment corpus bulk-migrated
+(PG: ~807k movies, ~112k series, 1.1M rating rows, 50k IN watch links).
+Re-run `scripts/migrate-user-data.ts` (idempotent) only if stale-DNS stragglers
+hit the legacy site before it's stopped.
 
-### Post-GA Cleanup (after verifying Postgres mode)
+### Post-GA Cleanup (pending)
 
-Delete: `src/server/db/mongo/`, `src/server/services/hydration/sources/mongo.ts`, Mongoose models.
-Remove packages: `mongoose`, `mongodb`, `@auth/mongodb-adapter`.
-Remove: `MONGO_*` env vars from `.env.local`.
+1. Decommission legacy EC2 `98.130.30.197` (stop → watch a week → terminate;
+   termination protection must be disabled first; release EIP; remove its
+   CloudWatch alarms/disk cron; delete dead `api.themoviebrowser.com` +
+   `proxyimage` CloudFront leftovers).
+2. Delete Mongo code: `src/server/db/mongo/`, `src/server/services/hydration/sources/mongo.ts`
+   (keep `transformMongoToEnriched` consumers in mind — `scripts/migrate-mongo-enrichment.ts`
+   imports it; archive the script alongside), Mongoose models, mongodb branches in
+   `user-data.ts`/`user-id.ts`/`auth.ts`.
+3. Remove packages: `mongoose`, `mongodb`, `@auth/mongodb-adapter`. Remove `MONGO_*` env vars.
+4. Keep the S3 mongodump (`backups/mongo/`, 9GB) pinned until cleanup is long verified.
 
 ## Claude Code Rules
 
@@ -240,6 +244,14 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 |-----|----------|---------|
 | `popularity-sync` | 3 AM UTC | TMDB daily exports → update popularity |
 | `sitemap-generator` | 4 AM UTC | Generate sitemaps from TMDB exports |
+
+⚠️ Both jobs were `pm2 stop`ped during the GA-day load spike (2026-06-10) — a
+stopped job does NOT run at its cron time. Re-arm with `pm2 start <name>` in a
+quiet window (NOTE: starting runs the job immediately). The post-migration
+catalog is ~807k movies, so both jobs run much longer than they used to.
+
+Gotcha: a deploy (`pm2 delete all` + `pm2 start ecosystem.config.cjs`) starts
+cron jobs IMMEDIATELY regardless of schedule — this caused the GA-day CPU spike.
 
 ## File Size Guidelines
 

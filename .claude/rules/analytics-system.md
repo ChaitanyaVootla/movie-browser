@@ -64,6 +64,35 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 
 **Critical rule**: All tracking calls must be fire-and-forget -- no `await`, wrapped in try-catch. Analytics must never break the application.
 
+## Bot Detection (4 layers — June 2026 rework)
+
+Post-GA, 97% of "human visitors" were scrapers. Detection now layers (see
+`src/lib/analytics/bot-detection.ts`):
+
+1. **UA patterns** (`detectBot`) — honest crawlers, HTTP libs, Puppeteer
+   device-emulation preset strings (`SM-G900P/LRX21T`, `Pixel 2/OPD3.170816.012`,
+   `iPhone OS 13_2_3`), and stale Chrome majors ≤109 (real usage in 2026 ≈ 0).
+2. **Client signal** — the hook sends `x-analytics-wd: navigator.webdriver ? 1 : 0`;
+   ingest marks `webdriver` bots (Puppeteer/Playwright/Selenium running JS).
+3. **Client hints** (`detectBotFromRequest`, used by BOTH the ingest route and the
+   SSR `getTrackingContext`) — `sec-ch-ua` containing "Headless", and the killer:
+   a modern-Chrome UA with NO `sec-ch-ua` header is a JS-less HTTP client in a
+   browser costume (real Chromium ≥89 always sends hints over HTTPS; iOS
+   CriOS/EdgiOS excluded — WebKit sends none).
+4. **Engagement** (`engagedSessions` in `getTrafficOverview`) — the ceiling-breaker
+   for scrapers that forge UA *and* client hints: they surf rotating IPs at exactly
+   1.0 views/session with zero mobile devices. Engaged = 2+ pageviews OR any
+   user_action OR authenticated. **Use engagedSessions for human-growth metrics.**
+
+Schema quirks: `user_actions` has `is_bot` but NO `user_agent` column (can't be
+UA-backfilled); the live `performance` table predates `is_bot` entirely (schema
+file says otherwise — drift from the no-migrations era). Backfills are ClickHouse
+`ALTER TABLE ... UPDATE` mutations — deterministic UA patterns only; behavioral
+backfills of production data need explicit user sign-off.
+
+Diagnostic signature of a scraper fleet: `uniq(session_id) ≈ count()` (1.0
+views/session), no mobile devices, ancient or preset UA strings.
+
 ## Cost Tracking
 
 Pricing in `src/lib/model-pricing.ts`:
