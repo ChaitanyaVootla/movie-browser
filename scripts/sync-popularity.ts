@@ -145,15 +145,24 @@ const BATCH_PAUSE_MS = 250;
 async function syncMoviePopularity(popularityMap: Map<number, number>): Promise<number> {
   console.log(`\n🎬 Syncing movie popularity...`);
 
-  // Get all movie IDs we have
-  const movies = await prisma.movie.findMany({
-    select: { id: true, popularity: true },
-  });
-
-  console.log(`   Found ${movies.length.toLocaleString()} movies in database`);
-
+  // Keyset-paginated read: persons alone are 3.8M rows — findMany of the
+  // whole table held ~3.7GB RSS. Stream the table in id-ordered chunks.
   let updated = 0;
+  let scanned = 0;
   const batchSize = 1000;
+  const readChunk = 100_000;
+  let cursor = 0;
+
+  while (true) {
+    const movies = await prisma.movie.findMany({
+      where: { id: { gt: cursor } },
+      orderBy: { id: "asc" },
+      take: readChunk,
+      select: { id: true, popularity: true },
+    });
+    if (movies.length === 0) break;
+    cursor = movies[movies.length - 1].id;
+    scanned += movies.length;
 
   for (let i = 0; i < movies.length; i += batchSize) {
     const batch = movies.slice(i, i + batchSize);
@@ -182,9 +191,9 @@ async function syncMoviePopularity(popularityMap: Map<number, number>): Promise<
       await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS));
     }
 
-    if ((i + batchSize) % 10000 === 0 || i + batchSize >= movies.length) {
-      console.log(`   Processed ${Math.min(i + batchSize, movies.length).toLocaleString()}/${movies.length.toLocaleString()}`);
-    }
+  }
+
+    console.log(`   Scanned ${scanned.toLocaleString()} movies, ${updated.toLocaleString()} updated so far`);
   }
 
   return updated;
@@ -193,14 +202,22 @@ async function syncMoviePopularity(popularityMap: Map<number, number>): Promise<
 async function syncSeriesPopularity(popularityMap: Map<number, number>): Promise<number> {
   console.log(`\n📺 Syncing series popularity...`);
 
-  const series = await prisma.series.findMany({
-    select: { id: true, popularity: true },
-  });
-
-  console.log(`   Found ${series.length.toLocaleString()} series in database`);
-
   let updated = 0;
+  let scanned = 0;
   const batchSize = 1000;
+  const readChunk = 100_000;
+  let cursor = 0;
+
+  while (true) {
+    const series = await prisma.series.findMany({
+      where: { id: { gt: cursor } },
+      orderBy: { id: "asc" },
+      take: readChunk,
+      select: { id: true, popularity: true },
+    });
+    if (series.length === 0) break;
+    cursor = series[series.length - 1].id;
+    scanned += series.length;
 
   for (let i = 0; i < series.length; i += batchSize) {
     const batch = series.slice(i, i + batchSize);
@@ -229,6 +246,9 @@ async function syncSeriesPopularity(popularityMap: Map<number, number>): Promise
     }
   }
 
+    console.log(`   Scanned ${scanned.toLocaleString()} series, ${updated.toLocaleString()} updated so far`);
+  }
+
   return updated;
 }
 
@@ -236,14 +256,22 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
   console.log(`\n👤 Syncing person popularity...`);
 
   // Persons use tmdbId, not id
-  const persons = await prisma.person.findMany({
-    select: { id: true, tmdbId: true, popularity: true },
-  });
-
-  console.log(`   Found ${persons.length.toLocaleString()} persons in database`);
-
   let updated = 0;
+  let scanned = 0;
   const batchSize = 1000;
+  const readChunk = 100_000;
+  let cursor = 0;
+
+  while (true) {
+    const persons = await prisma.person.findMany({
+      where: { id: { gt: cursor } },
+      orderBy: { id: "asc" },
+      take: readChunk,
+      select: { id: true, tmdbId: true, popularity: true },
+    });
+    if (persons.length === 0) break;
+    cursor = persons[persons.length - 1].id;
+    scanned += persons.length;
 
   for (let i = 0; i < persons.length; i += batchSize) {
     const batch = persons.slice(i, i + batchSize);
@@ -271,9 +299,9 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
       await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS));
     }
 
-    if ((i + batchSize) % 10000 === 0 || i + batchSize >= persons.length) {
-      console.log(`   Processed ${Math.min(i + batchSize, persons.length).toLocaleString()}/${persons.length.toLocaleString()}`);
-    }
+  }
+
+    console.log(`   Scanned ${scanned.toLocaleString()} persons, ${updated.toLocaleString()} updated so far`);
   }
 
   return updated;
