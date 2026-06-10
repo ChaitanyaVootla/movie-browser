@@ -627,7 +627,31 @@ export async function getUserExclusions(
 // Admin
 // =============================================================================
 
+/**
+ * Extract the location object stored at metadata.profile.location (written by
+ * the user-data migration and by profile updates). The admin UI expects it at
+ * the top level of each user row, matching the legacy MongoDB response shape.
+ */
+function extractLocation(metadata: unknown): Record<string, unknown> | null {
+  if (typeof metadata !== "object" || metadata === null) return null;
+  const profile = (metadata as Record<string, unknown>).profile;
+  if (typeof profile !== "object" || profile === null) return null;
+  const location = (profile as Record<string, unknown>).location;
+  if (typeof location !== "object" || location === null) return null;
+  return location as Record<string, unknown>;
+}
+
 export async function getAdminUsersWithActivity() {
+  // Split watchlist counts by type (the single _count above can't express two
+  // differently-filtered counts of the same relation) — legacy shape reports
+  // MoviesWatchList and SeriesList separately.
+  const seriesListCounts = await prisma.watchlistItem.groupBy({
+    by: ["userId"],
+    where: { seriesId: { not: null } },
+    _count: { _all: true },
+  });
+  const seriesListByUser = new Map(seriesListCounts.map((c) => [c.userId, c._count._all]));
+
   const users = await prisma.user.findMany({
     select: {
       id: true,
@@ -665,10 +689,11 @@ export async function getAdminUsersWithActivity() {
     preferredCountry: u.preferredCountry,
     role: u.role,
     WatchedMovies: u._count.watchedMovies,
-    MoviesWatchList: u._count.watchlistItems,
+    MoviesWatchList: u._count.watchlistItems - (seriesListByUser.get(u.id) ?? 0),
     recent: u._count.recentItems,
     ContinueWatching: u._count.continueWatching,
-    SeriesList: 0, // Derived from watchlistItems with seriesId - separate query if needed
+    SeriesList: seriesListByUser.get(u.id) ?? 0,
+    location: extractLocation(u.metadata),
     metadata: u.metadata,
   }));
 }
