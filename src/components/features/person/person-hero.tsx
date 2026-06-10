@@ -141,7 +141,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
-                  <span className="text-6xl font-light text-muted-foreground/50">
+                  <span className="text-5xl sm:text-6xl font-light text-muted-foreground/50">
                     {person.name.charAt(0)}
                   </span>
                 </div>
@@ -154,7 +154,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
             {/* Name */}
             <motion.h1
               variants={itemVariants}
-              className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-center md:text-left"
+              className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-center md:text-left"
             >
               {person.name}
             </motion.h1>

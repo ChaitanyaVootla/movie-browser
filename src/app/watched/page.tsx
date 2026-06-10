@@ -36,7 +36,7 @@ function WatchedSkeleton() {
 
 export default function WatchedPage() {
   return (
-    <main className="min-h-screen pt-16 pb-12 px-4 md:px-6 lg:px-8">
+    <main className="min-h-screen pt-4 md:pt-20 pb-12 px-4 md:px-8 lg:px-12">
       <Suspense fallback={<WatchedSkeleton />}>
         <WatchedClient />
       </Suspense>

@@ -554,7 +554,7 @@ export function HoverCardOverlay() {
             left: position.left,
             top: position.top,
             width: HOVER_CARD_WIDTH,
-            maxHeight: `calc(100vh - ${EDGE_PADDING * 2}px)`,
+            maxHeight: `calc(100dvh - ${EDGE_PADDING * 2}px)`,
             transformOrigin: `${position.originX}% ${position.originY}%`,
             zIndex: 9999,
           }}

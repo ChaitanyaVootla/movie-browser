@@ -31,7 +31,7 @@ export function TopicDetailClient({
   };
 
   return (
-    <div className="min-h-screen pt-14">
+    <div className="min-h-screen pt-4 md:pt-20">
       {/* Header */}
       <header className="px-4 md:px-8 lg:px-12 py-4 border-b bg-muted/10">
         {/* Breadcrumb */}

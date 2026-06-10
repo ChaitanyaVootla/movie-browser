@@ -82,7 +82,7 @@ export function IdleCircle({
         "hover:shadow-xl hover:shadow-black/15",
         "hover:border-brand/30",
         // Allow wider expansion for longer AI-enriched questions
-        "max-w-[85vw] sm:max-w-[60vw] md:max-w-[50vw]"
+        "max-w-[280px] sm:max-w-[360px] md:max-w-[50vw]"
       )}
     >
       {/* Awake state glow ring */}

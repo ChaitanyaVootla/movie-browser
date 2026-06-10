@@ -122,7 +122,7 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
           {/* Episode skeletons */}
           <div className="flex gap-4 px-4 md:px-8 lg:px-12 overflow-hidden">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex-shrink-0 w-[260px] space-y-2">
+              <div key={i} className="flex-shrink-0 w-[240px] md:w-[280px] space-y-2">
                 <Skeleton className="aspect-video rounded-lg" />
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-3 w-1/2" />

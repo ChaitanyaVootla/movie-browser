@@ -467,7 +467,7 @@ function MobileQuickInfoDrawer() {
 
   return (
     <Drawer open={state.isOpen} onOpenChange={(open) => !open && closeQuickInfo()}>
-      <DrawerContent className="max-h-[90vh] bg-black border-white/10">
+      <DrawerContent className="max-h-[90dvh] bg-black border-white/10">
         <DrawerHeader className="sr-only">
           <DrawerTitle>Quick Info</DrawerTitle>
         </DrawerHeader>

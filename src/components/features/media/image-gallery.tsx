@@ -258,7 +258,7 @@ export function ImageGallery({
                   src={`${TMDB_IMAGE_BASE}/original${selectedImage.file_path}`}
                   alt={`Gallery image ${selectedIndex + 1}`}
                   className="max-w-full max-h-full object-contain select-none pointer-events-none"
-                  style={{ maxHeight: "calc(100vh - 160px)" }}
+                  style={{ maxHeight: "calc(100dvh - 160px)" }}
                   draggable={false}
                   onError={(e) => {
                     // Fallback to w780 quality if original fails

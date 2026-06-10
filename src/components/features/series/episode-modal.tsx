@@ -291,7 +291,7 @@ function EpisodeImageCarousel({
           <img
             src={`https://image.tmdb.org/t/p/original${currentStill.file_path}`}
             alt={`${episodeName} still ${currentIndex + 1}`}
-            className="max-w-[90vw] max-h-[90vh] object-contain select-none pointer-events-none"
+            className="max-w-[90vw] max-h-[90dvh] object-contain select-none pointer-events-none"
             draggable={false}
           />
 
@@ -663,7 +663,7 @@ export function EpisodeModal({
   if (isMobile) {
     return (
       <Drawer open={!!episode} onOpenChange={(open) => !open && onClose()}>
-        <DrawerContent className="max-h-[90vh] bg-background">
+        <DrawerContent className="max-h-[90dvh] bg-background">
           {/* Close button */}
           <DrawerClose asChild>
             <button
@@ -690,7 +690,7 @@ export function EpisodeModal({
   return (
     <Dialog open={!!episode} onOpenChange={() => onClose()}>
       <DialogContent
-        className="sm:max-w-[95vw] md:max-w-[85vw] lg:max-w-4xl w-full p-0 overflow-hidden max-h-[85vh] gap-0 flex flex-col"
+        className="sm:max-w-[95vw] md:max-w-[85vw] lg:max-w-4xl w-full p-0 overflow-hidden max-h-[85dvh] gap-0 flex flex-col"
         showCloseButton={false}
       >
         {/* Close button - fixed position */}

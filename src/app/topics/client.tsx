@@ -59,7 +59,7 @@ export function TopicsClient({
   const quickLinkTopics = filteredTopics.slice(0, MAX_QUICK_LINKS);
 
   return (
-    <div className="min-h-screen pt-14 pb-8">
+    <div className="min-h-screen pt-4 md:pt-20 pb-8">
       <div className="px-4 md:px-8 lg:px-12">
         {/* Compact Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">

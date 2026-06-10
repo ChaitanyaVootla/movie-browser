@@ -50,7 +50,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const query = params.q?.trim() || "";
 
   return (
-    <main className="min-h-screen pt-20 pb-16">
+    <main className="min-h-screen pt-4 md:pt-20 pb-16">
       <div className="px-4 md:px-8 lg:px-12 max-w-7xl mx-auto">
         <Suspense fallback={<SearchSkeleton />}>
           <SearchClient initialQuery={query} />

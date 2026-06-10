@@ -115,7 +115,7 @@ export function MoodCards({ className }: MoodCardsProps) {
       {/* Section header */}
       <div className="flex items-center gap-2 mb-4">
         <span className="text-lg">🎭</span>
-        <h2 className="text-lg font-semibold text-white">What&apos;s Your Mood?</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">What&apos;s Your Mood?</h2>
       </div>
 
       {/* Horizontal scrollable cards */}

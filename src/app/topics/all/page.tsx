@@ -30,7 +30,7 @@ export default function AllTopicsPage() {
   const tvThemes = THEME_TOPICS.filter((t) => t.filterParams.media_type === "tv");
 
   return (
-    <div className="min-h-screen pt-14 px-4 md:px-8 lg:px-12 py-6">
+    <div className="min-h-screen pt-4 md:pt-20 px-4 md:px-8 lg:px-12 pb-6">
       {/* Header */}
       <div className="mb-8">
         <Link

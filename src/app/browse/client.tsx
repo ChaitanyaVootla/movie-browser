@@ -426,9 +426,9 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
   };
 
   return (
-    <div className="min-h-screen pt-14">
+    <div className="min-h-screen pt-0 md:pt-16">
       {/* Mobile Header */}
-      <div className="md:hidden sticky top-14 z-40 bg-background/95 backdrop-blur-sm border-b px-4 py-2">
+      <div className="md:hidden sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b px-4 py-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
         <div className="flex items-center justify-between gap-3">
           <MediaTypeToggle
             value={params.media_type}
@@ -455,7 +455,7 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
                 {hasActiveFilters && <span className="ml-2 h-2 w-2 rounded-full bg-brand" />}
               </Button>
             </DrawerTrigger>
-            <DrawerContent className="max-h-[85vh]">
+            <DrawerContent className="max-h-[85dvh]">
               <DrawerHeader className="border-b pb-3">
                 <DrawerTitle className="flex items-center gap-2">
                   <SlidersHorizontal className="h-5 w-5" />
@@ -479,7 +479,7 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-r bg-muted/20 fixed top-14 left-0 h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-r bg-muted/20 fixed top-16 left-0 h-[calc(100dvh-4rem)] overflow-y-auto">
           <FilterSidebar
             params={params}
             onChange={handleParamsChange}

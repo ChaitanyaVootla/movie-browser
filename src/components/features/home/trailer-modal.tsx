@@ -504,7 +504,7 @@ export function TrailerModal({
           // Size: Override the default sm:max-w-lg - VERY large
           "w-[calc(100vw-1rem)] sm:max-w-[98vw] md:max-w-[95vw] lg:max-w-[1600px]",
           // Height: nearly full screen
-          "h-[calc(100vh-2rem)] sm:h-[95vh] max-h-[1000px]",
+          "h-[calc(100dvh-2rem)] sm:h-[95dvh] max-h-[1000px]",
           // Mobile: at top of screen, desktop: centered
           "top-4 translate-y-0 sm:top-[50%] sm:translate-y-[-50%]",
           // Rounded corners

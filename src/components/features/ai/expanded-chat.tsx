@@ -97,7 +97,7 @@ export function ExpandedChat({
         className={cn(
           "fixed left-1/2 -translate-x-1/2 z-50",
           keyboardHeight === 0 && "bottom-20 md:bottom-6", // Above bottom nav on mobile (when no keyboard)
-          keyboardHeight === 0 && "h-[70vh] md:h-[80vh] max-h-[800px]", // Normal height when no keyboard
+          keyboardHeight === 0 && "h-[70dvh] md:h-[80dvh] max-h-[800px]", // Normal height when no keyboard
           "w-[calc(100vw-32px)] max-w-[600px]",
           "bg-background/95 backdrop-blur-xl",
           "border border-border/50 rounded-2xl",
@@ -109,7 +109,7 @@ export function ExpandedChat({
             ? {
                 bottom: bottomPosition,
                 // Adjust height when keyboard is open - take available space minus some padding
-                height: `calc(100vh - ${keyboardHeight + 16}px - 60px)`, // 60px for top padding
+                height: `calc(100dvh - ${keyboardHeight + 16}px - 60px)`, // 60px for top padding
               }
             : undefined
         }
