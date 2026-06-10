@@ -436,6 +436,47 @@ function createSitemapIndex(entries) {
 /**
  * Main execution function
  */
+// ---------------------------------------------------------------------------
+// IndexNow — ports src/server/services/indexnow.ts (keep key/endpoint in sync).
+// Pings Bing/Yandex/Seznam/Naver with URLs whose lastmod falls in the last 2
+// days. Fire-and-forget: failures are logged, never fail the sitemap run.
+// ---------------------------------------------------------------------------
+const INDEXNOW_KEY = "666170ce7734064c2d3dbe589dc9cdfb";
+const INDEXNOW_MAX_URLS = 10000;
+
+async function pingIndexNow(urls) {
+  if (process.env.INDEXNOW_DISABLED === "1") return;
+  const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+  const urlList = urls
+    .filter((u) => u.lastmod && u.lastmod >= cutoff)
+    .slice(0, INDEXNOW_MAX_URLS)
+    .map((u) => BASE_URL + u.url);
+  if (urlList.length === 0) {
+    console.log("📭 IndexNow: no recently-updated URLs to ping");
+    return;
+  }
+  try {
+    const res = await fetch("https://api.indexnow.org/indexnow", {
+      method: "POST",
+      headers: { "content-type": "application/json; charset=utf-8" },
+      body: JSON.stringify({
+        host: new URL(BASE_URL).host,
+        key: INDEXNOW_KEY,
+        keyLocation: `${BASE_URL}/${INDEXNOW_KEY}.txt`,
+        urlList,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    console.log(
+      `📣 IndexNow: pinged ${urlList.length} recently-updated URLs (HTTP ${res.status})`
+    );
+  } catch (error) {
+    console.warn(`⚠️ IndexNow ping failed (non-fatal): ${error.message}`);
+  }
+}
+
 async function main() {
   console.log("🚀 Starting PG-driven sitemap generation...");
   console.log("⏰ Timestamp:", new Date().toISOString());
@@ -465,6 +506,7 @@ async function main() {
 
     // 2-4. Media sitemaps from PG. Any failure aborts BEFORE overwriting the
     // existing media files, so the previous run's sitemaps keep serving.
+    let mediaUrls = [];
     const prisma = await createPrisma();
     try {
       console.log("\n🎬 Step 2/4: Generating movie sitemap...");
@@ -485,12 +527,17 @@ async function main() {
       indexEntries.push(...writeSitemapChunks(movieUrls, "sitemap_movies"));
       indexEntries.push(...writeSitemapChunks(seriesUrls, "sitemap_series"));
       indexEntries.push(...writeSitemapChunks(personUrls, "sitemap_persons"));
+      mediaUrls = [...movieUrls, ...seriesUrls];
     } finally {
       await prisma.$disconnect();
     }
 
     // 5. Sitemap index listing every file written this run
     createSitemapIndex(indexEntries);
+
+    // 6. IndexNow: push URLs whose content changed in the last 2 days to
+    // Bing/Yandex/Seznam/Naver (Google ignores IndexNow — it reads lastmod).
+    await pingIndexNow(mediaUrls);
 
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log("\n🎯 SITEMAP GENERATION COMPLETED");

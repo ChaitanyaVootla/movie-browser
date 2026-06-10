@@ -27,6 +27,8 @@ import { generateAndStoreEmbedding } from "@/lib/embeddings/cohere-generator";
 import { buildMovieEmbeddingText, buildSeriesEmbeddingText } from "@/lib/embeddings/text-builder";
 import { calculateCost } from "@/lib/model-pricing";
 import { trackAIUsage } from "@/lib/analytics/track";
+import { pingIndexNow } from "@/server/services/indexnow";
+import { getMediaPath } from "@/lib/utils";
 import type { InsightCategory, SpoilerLevel } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 
@@ -396,6 +398,10 @@ async function runEnrichment(
   } catch {
     // Fire-and-forget: tracking errors must never break enrichment
   }
+
+  // Tell IndexNow engines the page gained fresh AI content (fire-and-forget)
+  const title = "title" in tmdbData ? tmdbData.title : tmdbData.name;
+  void pingIndexNow([getMediaPath(mediaType, id, title)]);
 }
 
 // =============================================================================

@@ -119,6 +119,7 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder files (images, etc.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|sitemap|serwist|api).*)",
+    // 666170ce… = IndexNow key file; its verifier must never hit the scraper 429
+    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|sitemap|serwist|api|666170ce7734064c2d3dbe589dc9cdfb.txt).*)",
   ],
 };
