@@ -47,7 +47,16 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
   return response;
 });
 
-const BLOCKED_BOT_TYPES = new Set(["webdriver", "headless_hint", "missing_client_hints"]);
+// Live ClickHouse data (GA day): missing_client_hints 4,016 req/10min +
+// stale_chrome 2,858 req/10min vs ~650 human requests — these two classes
+// ARE the fleet. stale_chrome = Chrome major <= 109 baked into scraper
+// configs; real 2026 usage of those versions is ~0 (see bot-detection.ts).
+const BLOCKED_BOT_TYPES = new Set([
+  "webdriver",
+  "headless_hint",
+  "missing_client_hints",
+  "stale_chrome",
+]);
 
 function isBlockedScraper(req: NextRequest): boolean {
   try {
