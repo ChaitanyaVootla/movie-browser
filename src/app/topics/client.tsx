@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DiscoverScroller } from "@/components/features/discover";
+import { PageMain } from "@/components/features/layout/page-main";
 import { cn } from "@/lib/utils";
 import type { TopicMeta } from "@/lib/topics";
 import type { MediaItem } from "@/types";
@@ -59,7 +60,7 @@ export function TopicsClient({
   const quickLinkTopics = filteredTopics.slice(0, MAX_QUICK_LINKS);
 
   return (
-    <div className="min-h-screen pt-4 md:pt-20 pb-8">
+    <PageMain className="px-0 md:px-0 lg:px-0">
       <div className="px-4 md:px-8 lg:px-12">
         {/* Compact Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -182,6 +183,6 @@ export function TopicsClient({
           </div>
         )}
       </div>
-    </div>
+    </PageMain>
   );
 }

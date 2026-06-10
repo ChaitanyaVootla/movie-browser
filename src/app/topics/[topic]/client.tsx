@@ -5,6 +5,7 @@ import { ChevronLeft, Film, Tv, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DiscoverGrid, DiscoverScroller } from "@/components/features/discover";
+import { PageMain } from "@/components/features/layout/page-main";
 import { cn } from "@/lib/utils";
 import { buildBrowseUrl, type DiscoverParams } from "@/lib/discover";
 import type { TopicMeta } from "@/lib/topics";
@@ -31,7 +32,7 @@ export function TopicDetailClient({
   };
 
   return (
-    <div className="min-h-screen pt-4 md:pt-20">
+    <PageMain className="px-0 md:px-0 lg:px-0">
       {/* Header */}
       <header className="px-4 md:px-8 lg:px-12 py-4 border-b bg-muted/10">
         {/* Breadcrumb */}
@@ -107,6 +108,6 @@ export function TopicDetailClient({
           infiniteScroll
         />
       </section>
-    </div>
+    </PageMain>
   );
 }

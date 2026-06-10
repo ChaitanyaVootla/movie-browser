@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Calendar, Clock, Play, Timer, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/features/layout/section-heading";
 import type { Episode } from "@/types";
 import { EpisodeModal } from "./episode-modal";
 
@@ -193,10 +194,9 @@ export function EpisodeInfoSection({
     <>
       <section className={cn("space-y-4", className)}>
         <div className="px-4 md:px-8 lg:px-12">
-          <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-            <Timer className="h-5 w-5 text-muted-foreground" />
+          <SectionHeading icon={<Timer className="h-5 w-5 text-muted-foreground" />}>
             {hasUpcomingNext ? "Upcoming Episode" : "Latest Episode"}
-          </h2>
+          </SectionHeading>
         </div>
 
         <div className="px-4 md:px-8 lg:px-12">

@@ -2,6 +2,7 @@
 
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OVERLINE } from "@/lib/design";
 import type {
   AISummary,
   MovieOverviewProps,
@@ -205,7 +206,7 @@ function MoodIndicators({ mood }: { mood: AISummary["mood"] }) {
 
   return (
     <div className="pt-3 mt-3 border-t border-white/10">
-      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Vibe</h4>
+      <h4 className={cn(OVERLINE, "mb-2")}>Vibe</h4>
       <div className="grid grid-cols-2 gap-1.5">
         {indicators.map(({ key, label, value }) => {
           const tooltip = getTooltip(key, value);
@@ -403,7 +404,7 @@ export function MediaOverview({ item, mediaType, aiSummary, aiInsights, classNam
             <div className="p-4 md:p-5 space-y-3">
               {item.overview && (
                 <div>
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Overview</h2>
+                  <h2 className={cn(OVERLINE, "mb-2")}>Overview</h2>
                   {/* Genres - under overview heading */}
                   {item.genres && item.genres.length > 0 && (
                     <GenreList

@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/features/layout/section-heading";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { useUserStore } from "@/stores/user";
 import type { MediaItem } from "@/types";
@@ -174,7 +175,7 @@ export function DiscoverGrid({
       {/* Header */}
       {(title || showCount) && (
         <div className="flex items-center justify-between">
-          {title && <h2 className="text-xl font-semibold tracking-tight">{title}</h2>}
+          {title && <SectionHeading>{title}</SectionHeading>}
           {showCount && totalResults > 0 && (
             <p className="text-sm text-muted-foreground">{formatNumber(totalResults)} results</p>
           )}
@@ -273,7 +274,7 @@ export function DiscoverGridServer({
     <div className={cn("space-y-6", className)}>
       {(title || showCount) && (
         <div className="flex items-center justify-between">
-          {title && <h2 className="text-xl font-semibold tracking-tight">{title}</h2>}
+          {title && <SectionHeading>{title}</SectionHeading>}
           {showCount && totalResults > 0 && (
             <p className="text-sm text-muted-foreground">{formatNumber(totalResults)} results</p>
           )}

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { WatchedClient } from "./client";
+import { PageMain } from "@/components/features/layout/page-main";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
@@ -36,10 +37,10 @@ function WatchedSkeleton() {
 
 export default function WatchedPage() {
   return (
-    <main className="min-h-screen pt-4 md:pt-20 pb-12 px-4 md:px-8 lg:px-12">
+    <PageMain>
       <Suspense fallback={<WatchedSkeleton />}>
         <WatchedClient />
       </Suspense>
-    </main>
+    </PageMain>
   );
 }

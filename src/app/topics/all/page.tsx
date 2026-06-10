@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { Film, Tv, ArrowLeft } from "lucide-react";
+import { PageMain } from "@/components/features/layout/page-main";
+import { SectionHeading } from "@/components/features/layout/section-heading";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { ALL_TOPICS, GENRE_TOPICS, THEME_TOPICS } from "@/lib/topics";
 import { cn } from "@/lib/utils";
@@ -30,7 +32,7 @@ export default function AllTopicsPage() {
   const tvThemes = THEME_TOPICS.filter((t) => t.filterParams.media_type === "tv");
 
   return (
-    <div className="min-h-screen pt-4 md:pt-20 px-4 md:px-8 lg:px-12 pb-6">
+    <PageMain>
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -46,10 +48,9 @@ export default function AllTopicsPage() {
 
       {/* Movie Genres */}
       <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Film className="h-5 w-5 text-amber-500" />
+        <SectionHeading icon={<Film className="h-5 w-5 text-amber-500" />} className="mb-4">
           Movie Genres
-        </h2>
+        </SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {movieGenres.map((topic) => (
             <TopicCard key={topic.key} topic={topic} />
@@ -59,10 +60,9 @@ export default function AllTopicsPage() {
 
       {/* TV Genres */}
       <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Tv className="h-5 w-5 text-blue-500" />
+        <SectionHeading icon={<Tv className="h-5 w-5 text-blue-500" />} className="mb-4">
           TV Show Genres
-        </h2>
+        </SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {tvGenres.map((topic) => (
             <TopicCard key={topic.key} topic={topic} />
@@ -72,10 +72,9 @@ export default function AllTopicsPage() {
 
       {/* Movie Themes */}
       <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Film className="h-5 w-5 text-amber-500" />
+        <SectionHeading icon={<Film className="h-5 w-5 text-amber-500" />} className="mb-4">
           Movie Themes
-        </h2>
+        </SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {movieThemes.map((topic) => (
             <TopicCard key={topic.key} topic={topic} />
@@ -85,17 +84,16 @@ export default function AllTopicsPage() {
 
       {/* TV Themes */}
       <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Tv className="h-5 w-5 text-blue-500" />
+        <SectionHeading icon={<Tv className="h-5 w-5 text-blue-500" />} className="mb-4">
           TV Show Themes
-        </h2>
+        </SectionHeading>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {tvThemes.map((topic) => (
             <TopicCard key={topic.key} topic={topic} />
           ))}
         </div>
       </section>
-    </div>
+    </PageMain>
   );
 }
 

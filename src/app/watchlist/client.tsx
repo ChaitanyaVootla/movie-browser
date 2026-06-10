@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
+import { SectionHeading } from "@/components/features/layout/section-heading";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 
 interface WatchlistMovie {
@@ -557,7 +558,7 @@ function MoviesTabContent({
           {/* Header with Search & Filter */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold">Your Collection</h2>
+              <SectionHeading>Your Collection</SectionHeading>
               <Badge variant="outline" className="text-muted-foreground">
                 {hasFilters
                   ? `${filteredCollection.length} of ${watchlist.movies.collection.length}`

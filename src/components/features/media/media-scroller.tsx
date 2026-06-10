@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/features/layout/section-heading";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { ScrollContainer, useScrollDrag } from "./scroll-container";
 
@@ -79,7 +80,7 @@ export function MediaScroller({
             {titleIcon}
             {title &&
               (typeof title === "string" ? (
-                <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+                <SectionHeading>{title}</SectionHeading>
               ) : (
                 title
               ))}

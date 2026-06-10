@@ -32,6 +32,7 @@ import {
   type DiscoverParams,
 } from "@/lib/discover";
 import { POPULAR_LANGUAGES, POPULAR_COUNTRIES } from "@/lib/topics";
+import { STICKY_BAR, STICKY_BAR_SAFE_AREA } from "@/lib/design";
 import { cn } from "@/lib/utils";
 import type { MediaItem } from "@/types";
 import { discover } from "@/server/actions/discover";
@@ -428,7 +429,7 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
   return (
     <div className="min-h-screen pt-0 md:pt-16">
       {/* Mobile Header */}
-      <div className="md:hidden sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b px-4 py-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]">
+      <div className={cn("md:hidden", STICKY_BAR, "px-4 py-2", STICKY_BAR_SAFE_AREA)}>
         <div className="flex items-center justify-between gap-3">
           <MediaTypeToggle
             value={params.media_type}
@@ -479,7 +480,7 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-r bg-muted/20 fixed top-16 left-0 h-[calc(100dvh-4rem)] overflow-y-auto">
+        <aside className="hidden md:block md:w-64 lg:w-80 shrink-0 border-r bg-muted/20 fixed top-16 left-0 h-[calc(100dvh-4rem)] overflow-y-auto">
           <FilterSidebar
             params={params}
             onChange={handleParamsChange}
@@ -491,7 +492,7 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 md:ml-72 lg:ml-80 pb-32">
+        <main className="flex-1 min-w-0 md:ml-64 lg:ml-80 pb-32">
           <div className="px-4 md:px-6 lg:px-8 py-4">
             {/* Header Row with Sort */}
             <div className="flex items-center justify-between gap-4 mb-3">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/features/layout/section-heading";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { buildBrowseUrl, type DiscoverParams } from "@/lib/discover";
 
@@ -113,10 +114,9 @@ export function MoodCards({ className }: MoodCardsProps) {
   return (
     <div className={cn("w-full", className)}>
       {/* Section header */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-lg">🎭</span>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">What&apos;s Your Mood?</h2>
-      </div>
+      <SectionHeading icon={<span className="text-lg">🎭</span>} className="mb-4">
+        What&apos;s Your Mood?
+      </SectionHeading>
 
       {/* Horizontal scrollable cards */}
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide touch-manipulation -mx-4 px-4 md:mx-0 md:px-0">

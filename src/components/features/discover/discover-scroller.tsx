@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/features/layout/section-heading";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { useScrollDrag } from "@/hooks/use-scroll-drag";
 import type { MediaItem } from "@/types";
@@ -120,7 +121,7 @@ export function DiscoverScroller({
       {/* Header */}
       <div className={cn("flex items-center justify-between", contentPadding)}>
         <div className="flex items-center gap-3">
-          <h2 className="text-lg md:text-xl font-semibold tracking-tight">{title}</h2>
+          <SectionHeading>{title}</SectionHeading>
           {seeAllHref && (
             <Link
               href={seeAllHref}
@@ -233,7 +234,7 @@ export function DiscoverScrollerServer({
     <section className={cn("space-y-4", className)}>
       <div className={cn("flex items-center justify-between", contentPadding)}>
         <div className="flex items-center gap-3">
-          <h2 className="text-lg md:text-xl font-semibold tracking-tight">{title}</h2>
+          <SectionHeading>{title}</SectionHeading>
           {seeAllHref && (
             <Link
               href={seeAllHref}

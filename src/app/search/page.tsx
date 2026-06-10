@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { SearchClient } from "./client";
+import { PageMain } from "@/components/features/layout/page-main";
 import { SITE_NAME } from "@/lib/constants";
 
 interface SearchPageProps {
@@ -50,12 +51,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const query = params.q?.trim() || "";
 
   return (
-    <main className="min-h-screen pt-4 md:pt-20 pb-16">
-      <div className="px-4 md:px-8 lg:px-12 max-w-7xl mx-auto">
+    <PageMain>
+      <div className="max-w-7xl mx-auto">
         <Suspense fallback={<SearchSkeleton />}>
           <SearchClient initialQuery={query} />
         </Suspense>
       </div>
-    </main>
+    </PageMain>
   );
 }

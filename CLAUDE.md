@@ -187,6 +187,7 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 | `server-actions.md` | `server/actions/**` | Zod validation, error handling |
 | `server-components.md` | `app/**`, `components/**` | RSC patterns, instant loading with CDN images |
 | `api-routes.md` | `app/api/**` | API routes, auth, admin query endpoint |
+| `design-system.md` | `DESIGN.md`, `app/**/*.tsx`, `components/**/*.tsx`, `lib/design.ts`, `globals.css` | DESIGN.md enforcement: tokens/recipes, primitives (`PageMain`, `SectionHeading`, `@/lib/design`), layout facts, UI verification |
 | `theming.md` | `globals.css`, `preferences.ts` | Mode/style/accent theming, hero gradients |
 | `type-safety.md` | `**/*.ts`, `**/*.tsx` | No `any`, type guards, Zod |
 | `infrastructure.md` | `terraform/**`, `docker-compose.yml`, `deploy-next.sh`, workflows | EC2, Docker, CI/CD, IAM, memory budget |

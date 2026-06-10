@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { HERO_TAGLINE } from "@/lib/design";
 import { MediaLogo } from "@/components/features/movie/media-logo";
 import { RatingsBar } from "./ratings-bar";
 import { WatchOptions } from "./watch-options";
@@ -117,7 +118,7 @@ export function HeroContent({
         {hook && (
           <motion.blockquote
             variants={heroItemVariants}
-            className="border-l-2 border-brand/50 pl-3 text-xs md:text-sm text-foreground/90 italic font-medium text-left max-w-full leading-relaxed line-clamp-2"
+            className={HERO_TAGLINE}
           >
             {hook}
           </motion.blockquote>

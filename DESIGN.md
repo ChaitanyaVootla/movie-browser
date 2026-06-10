@@ -236,6 +236,20 @@ poster/backdrop images use `rounded-lg`; pills, chips, badges, and avatars are
   `scrollbar-hide`, edge-fade, and arrow buttons hidden on touch devices.
 - **shadcn/ui primitives in `src/components/ui/` are read-only** — wrap, don't edit.
 
+### Code mapping
+
+The recipes above have canonical implementations — **import them, never retype the
+class strings**:
+
+| Recipe | Import |
+|--------|--------|
+| Page shell (non-hero pages) | `<PageMain>` — `@/components/features/layout/page-main` |
+| Section heading + header row | `<SectionHeading>` — `@/components/features/layout/section-heading` |
+| Sticky bar, hero tagline, overline label, page padding constants | `@/lib/design` |
+
+When a recipe changes here, change its canonical implementation in the same commit
+(and vice versa). `.claude/rules/design-system.md` is the enforcement rule.
+
 ## Do's and Don'ts
 
 - **Do** derive every offset from the navbar facts (mobile: none / desktop: 64px).
