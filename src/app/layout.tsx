@@ -82,6 +82,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@ChaitanyaVootla",
     creator: "@ChaitanyaVootla",
     title: "Movie Browser",
     description: "Track, discover and find where to watch TV shows and movies.",

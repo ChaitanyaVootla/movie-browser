@@ -60,6 +60,40 @@ export function trailerVideoObject(
   };
 }
 
+interface WatchOptionLike {
+  link: string;
+}
+
+/**
+ * WatchAction potentialAction entries from processed watch options (top 5
+ * providers with valid deep links). Feeds Google's where-to-watch rich results.
+ * Returns undefined when there are no usable links.
+ */
+export function watchActions(
+  options: WatchOptionLike[] | undefined,
+): Record<string, unknown>[] | undefined {
+  const actions = (options || [])
+    .filter((o) => typeof o.link === "string" && o.link.startsWith("http"))
+    .slice(0, 5)
+    .map((o) => ({
+      "@type": "WatchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: o.link,
+        actionPlatform: [
+          "http://schema.org/DesktopWebPlatform",
+          "http://schema.org/MobileWebPlatform",
+        ],
+      },
+    }));
+  return actions.length > 0 ? actions : undefined;
+}
+
+/** sameAs links (IMDb) for Knowledge Graph entity reconciliation. */
+export function titleSameAs(imdbId: string | null | undefined): string[] | undefined {
+  return imdbId ? [`https://www.imdb.com/title/${imdbId}/`] : undefined;
+}
+
 /** Strip undefined values and empty arrays so they never appear in output. */
 export function omitEmpty<T extends Record<string, unknown>>(schema: T): Record<string, unknown> {
   return Object.fromEntries(

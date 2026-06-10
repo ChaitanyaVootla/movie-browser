@@ -84,6 +84,27 @@ interface DeepDiveItem {
   spoilerLevel: string;
 }
 
+/**
+ * Items arrive with DB enum levels (FREE/LIGHT/HEAVY) from both the RSC and
+ * the SSE stream; map them to the UI vocabulary. Unknown values are treated
+ * as spoilers (gated) rather than leaking text.
+ */
+function normalizeSpoilerLevel(level: string): "none" | "mild" | "moderate" | "heavy" {
+  switch (level?.toLowerCase()) {
+    case "":
+    case "none":
+    case "free":
+      return "none";
+    case "mild":
+    case "light":
+      return "mild";
+    case "moderate":
+      return "moderate";
+    default:
+      return "heavy";
+  }
+}
+
 interface DeepDiveSectionProps {
   items: DeepDiveItem[];
   className?: string;
@@ -104,8 +125,9 @@ function SpoilerGatedItem({ item, autoReveal = false }: { item: DeepDiveItem; au
   const colorClass =
     config?.color ?? "text-brand bg-brand/10 border-brand/30";
 
-  const spoilerConfig = SPOILER_CONFIG[item.spoilerLevel] ?? SPOILER_CONFIG.none;
-  const hasSpoiler = item.spoilerLevel && item.spoilerLevel !== "none";
+  const spoilerLevel = normalizeSpoilerLevel(item.spoilerLevel);
+  const spoilerConfig = SPOILER_CONFIG[spoilerLevel];
+  const hasSpoiler = spoilerLevel !== "none";
 
   return (
     <div
@@ -209,10 +231,10 @@ export function DeepDiveSection({
 
   // Separate spoiler-free and spoiler items
   const spoilerFreeItems = items.filter(
-    (item) => !item.spoilerLevel || item.spoilerLevel === "none"
+    (item) => normalizeSpoilerLevel(item.spoilerLevel) === "none"
   );
   const spoilerItems = items.filter(
-    (item) => item.spoilerLevel && item.spoilerLevel !== "none"
+    (item) => normalizeSpoilerLevel(item.spoilerLevel) !== "none"
   );
 
   // In collapsed state, show only spoiler-free items up to max

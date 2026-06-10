@@ -179,6 +179,9 @@ export function StandoutBadges({
             >
               <badge.Icon className="h-3 w-3" />
               <span>{badge.label}</span>
+              {/* Tooltip content isn't in the DOM until hover — keep the
+                  AI text crawlable/readable via visually-hidden copy */}
+              <span className="sr-only">: {badge.text}</span>
             </div>
           </TooltipTrigger>
           <TooltipContent

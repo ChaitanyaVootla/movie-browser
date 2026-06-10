@@ -8,7 +8,8 @@ import { ALL_TOPICS, GENRE_TOPICS, THEME_TOPICS } from "@/lib/topics";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: `All Topics | ${SITE_NAME}`,
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "All Topics",
   description:
     "Browse all movie and TV show topics. Find content by genre, theme, language, and more.",
   openGraph: {

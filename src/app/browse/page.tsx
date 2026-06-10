@@ -5,7 +5,8 @@ import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { parseDiscoverParams } from "@/lib/discover";
 
 export const metadata: Metadata = {
-  title: `Browse Movies & TV Shows | ${SITE_NAME}`,
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "Browse Movies & TV Shows",
   description:
     "Discover movies and TV shows with advanced filters. Filter by genre, rating, language, country, cast, crew and more.",
   openGraph: {

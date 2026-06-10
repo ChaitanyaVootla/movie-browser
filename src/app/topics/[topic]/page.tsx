@@ -38,14 +38,15 @@ export async function generateMetadata({ params }: TopicPageProps): Promise<Meta
 
   if (!topic) {
     return {
-      title: `Topic Not Found | ${SITE_NAME}`,
+      title: "Topic Not Found",
     };
   }
 
   const description = `Discover the best ${topic.name.toLowerCase()}. Browse and filter through our curated collection.`;
 
   return {
-    title: `${topic.name} | ${SITE_NAME}`,
+    // Layout template appends "- Movie Browser" — no brand suffix here
+    title: topic.name,
     description,
     openGraph: {
       title: `${topic.name} | ${SITE_NAME}`,

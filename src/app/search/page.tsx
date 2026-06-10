@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { SearchClient } from "./client";
 import { PageMain } from "@/components/features/layout/page-main";
-import { SITE_NAME } from "@/lib/constants";
 
 interface SearchPageProps {
   searchParams: Promise<{
@@ -17,13 +16,14 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
 
   if (!query) {
     return {
-      title: `Search | ${SITE_NAME}`,
+      title: "Search",
       description: "Search for movies, TV shows, and people.",
     };
   }
 
   return {
-    title: `"${query}" - Search Results | ${SITE_NAME}`,
+    // Layout template appends "- Movie Browser" — no brand suffix here
+    title: `"${query}" - Search Results`,
     description: `Search results for "${query}" - Find movies, TV shows, and people.`,
     robots: { index: false }, // Don't index search pages
   };

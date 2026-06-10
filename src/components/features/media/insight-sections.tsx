@@ -105,6 +105,9 @@ export function WatchNotes({ bestFor, headsUp, className }: WatchNotesProps) {
                   <span className="inline-flex items-center gap-1 text-foreground/80 hover:text-foreground cursor-help">
                     {Icon && <Icon className="h-3 w-3 opacity-70" />}
                     <span>{label}</span>
+                    {/* Tooltip content isn't in the DOM until hover — keep the
+                        AI text crawlable/readable via visually-hidden copy */}
+                    <span className="sr-only">: {item.text}</span>
                     {index < Math.min(bestFor.length, 4) - 1 && (
                       <span className="text-muted-foreground/40 mx-0.5">·</span>
                     )}
@@ -137,6 +140,9 @@ export function WatchNotes({ bestFor, headsUp, className }: WatchNotesProps) {
                   <span className="inline-flex items-center gap-1 text-amber-400/80 hover:text-amber-400 cursor-help">
                     {Icon && <Icon className="h-3 w-3 opacity-70" />}
                     <span>{label}</span>
+                    {/* Tooltip content isn't in the DOM until hover — keep the
+                        AI text crawlable/readable via visually-hidden copy */}
+                    <span className="sr-only">: {item.text}</span>
                     {index < Math.min(headsUp.length, 4) - 1 && (
                       <span className="text-muted-foreground/40 mx-0.5">·</span>
                     )}

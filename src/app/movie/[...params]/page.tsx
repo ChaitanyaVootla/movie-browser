@@ -24,7 +24,13 @@ export async function generateStaticParams(): Promise<{ params: string[] }[]> {
 import { getMovieCollection } from "@/server/services/tmdb";
 import { movieExists } from "@/server/services/media-exists";
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
-import { breadcrumbList, trailerVideoObject, omitEmpty } from "@/lib/seo/jsonld";
+import {
+  breadcrumbList,
+  trailerVideoObject,
+  watchActions,
+  titleSameAs,
+  omitEmpty,
+} from "@/lib/seo/jsonld";
 import { getCollectionFromPostgres } from "@/server/db/postgres";
 import { getAISummary } from "@/lib/ai-summary";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
@@ -106,17 +112,26 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
   }
 
   const year = movie.release_date?.split("-")[0];
-  const title = year ? `${movie.title} (${year})` : movie.title;
+  const titleBase = year ? `${movie.title} (${year})` : movie.title;
+  // "where to watch X" is the #1 query class for this site — bake the intent
+  // into the SERP title unless the name itself is already long.
+  const title =
+    movie.title.length <= 35
+      ? `${titleBase} — Where to Watch, Ratings & Cast | ${SITE_NAME}`
+      : `${titleBase} | ${SITE_NAME}`;
+  const watchIntro = `Where to watch ${titleBase} — streaming options, ratings, cast & reviews.`;
   const description = movie.overview
-    ? truncateAtWord(movie.overview, 160)
-    : `Watch ${movie.title} - details, cast, ratings and where to stream.`;
+    ? truncateAtWord(`${watchIntro} ${movie.overview}`, 160)
+    : watchIntro;
   const backdropUrl = movie.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${movie.backdrop_path}`
     : undefined;
   const posterUrl = movie.poster_path ? `${TMDB_IMAGE_BASE}/w500${movie.poster_path}` : undefined;
 
   return {
-    title,
+    // absolute: opt out of the layout's "%s - Movie Browser" template — the
+    // brand is already in the watch-intent title.
+    title: { absolute: title },
     description,
     keywords: [
       movie.title,
@@ -156,7 +171,7 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: titleBase,
       description,
       images: backdropUrl ? [backdropUrl] : posterUrl ? [posterUrl] : [],
     },
@@ -536,6 +551,8 @@ function MovieSchema({ movie }: { movie: Movie }) {
       name: c.name,
     })),
     trailer: trailerVideoObject(movie.videos?.results, movie.title),
+    sameAs: titleSameAs(movie.imdb_id),
+    potentialAction: watchActions(movie.watch_options?.options),
   });
 
   const breadcrumbs = breadcrumbList([

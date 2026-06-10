@@ -4,7 +4,13 @@ import type { Metadata } from "next";
 import { getSeries as getSeriesBase } from "@/server/actions/series";
 import { seriesExists } from "@/server/services/media-exists";
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
-import { breadcrumbList, trailerVideoObject, omitEmpty } from "@/lib/seo/jsonld";
+import {
+  breadcrumbList,
+  trailerVideoObject,
+  watchActions,
+  titleSameAs,
+  omitEmpty,
+} from "@/lib/seo/jsonld";
 
 // Deduplicate getSeries calls within the same request
 // generateMetadata, HeroContentAsync, SeriesContentAsync all use the same cached result
@@ -99,17 +105,26 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   }
 
   const year = series.first_air_date?.split("-")[0];
-  const title = year ? `${series.name} (${year})` : series.name;
+  const titleBase = year ? `${series.name} (${year})` : series.name;
+  // "where to watch X" is the #1 query class for this site — bake the intent
+  // into the SERP title unless the name itself is already long.
+  const title =
+    series.name.length <= 35
+      ? `${titleBase} — Where to Watch, Ratings & Cast | ${SITE_NAME}`
+      : `${titleBase} | ${SITE_NAME}`;
+  const watchIntro = `Where to watch ${titleBase} — streaming options, ratings, cast & episodes.`;
   const description = series.overview
-    ? truncateAtWord(series.overview, 160)
-    : `Watch ${series.name} - details, cast, ratings and where to stream.`;
+    ? truncateAtWord(`${watchIntro} ${series.overview}`, 160)
+    : watchIntro;
   const backdropUrl = series.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${series.backdrop_path}`
     : undefined;
   const posterUrl = series.poster_path ? `${TMDB_IMAGE_BASE}/w500${series.poster_path}` : undefined;
 
   return {
-    title,
+    // absolute: opt out of the layout's "%s - Movie Browser" template — the
+    // brand is already in the watch-intent title.
+    title: { absolute: title },
     description,
     keywords: [
       series.name,
@@ -149,7 +164,7 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: titleBase,
       description,
       images: backdropUrl ? [backdropUrl] : posterUrl ? [posterUrl] : [],
     },
@@ -550,6 +565,8 @@ function SeriesSchema({ series }: { series: Series }) {
       name: s.name,
     })),
     trailer: trailerVideoObject(series.videos?.results, series.name),
+    sameAs: titleSameAs(series.external_ids?.imdb_id),
+    potentialAction: watchActions(series.watch_options?.options),
   });
 
   const breadcrumbs = breadcrumbList([

@@ -243,7 +243,7 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
 | `popularity-sync` | 21:00 UTC (02:30 IST) | TMDB daily exports → update popularity (streaming, diff-only) |
-| `sitemap-generator` | 22:00 UTC (03:30 IST) | Generate sitemaps from TMDB exports |
+| `sitemap-generator` | 22:00 UTC (03:30 IST) | Generate sitemaps from PG (quality-gated top 50k movies / 25k series / 25k persons via `SITEMAP_*_LIMIT` envs, honest `lastmod` from `updated_at`, 50k-URL file chunking) |
 
 Both run under `nice -n 19` and carry a **cron-window guard** (`CRON_HOUR_UTC`
 env, checked in the scripts): PM2 re-runs cron jobs once on every `pm2 start`

@@ -3,17 +3,27 @@
 /**
  * Standalone Sitemap Generator
  *
- * Generates optimized sitemaps for The Movie Browser without relying on database.
- * Uses TMDB daily export to get top content by popularity.
+ * Generates sitemaps for The Movie Browser from PostgreSQL (the catalog
+ * source of truth since GA 2026-06-10). Selection is quality-gated (poster +
+ * overview required) and ordered by popularity, with per-type limits
+ * configurable via env for a staged rollout (5k → 50k → 150k) that protects
+ * the 2-vCPU box from crawl spikes.
+ *
+ * lastmod policy: emitted ONLY when we have a real change signal (the PG
+ * row's updated_at). Google ignores lastmod site-wide once it catches a site
+ * lying (the old generator stamped every URL with the generation date), so
+ * URLs without a reliable date omit the element entirely. changefreq and
+ * priority are not emitted — Google ignores both.
+ *
+ * Files are chunked at the sitemap-protocol cap of 50,000 URLs per file:
+ * sitemap_movies.xml, sitemap_movies_2.xml, ... and all chunks are listed in
+ * the sitemap.xml index.
  */
 
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import https from "https";
-import zlib from "zlib";
-import { createReadStream, createWriteStream } from "fs";
-import { createInterface } from "readline";
+import { createWriteStream } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,14 +95,25 @@ const DATA_DIR = path.resolve(__dirname, "../data");
 // Output directly to public/ for Next.js static serving
 const SITEMAPS_DIR = path.resolve(__dirname, "../public");
 
-// Configuration - Simplified: Just pick top entries by popularity
+function intEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return fallback;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    console.warn(`⚠️ Ignoring invalid ${name}=${raw}, using ${fallback}`);
+    return fallback;
+  }
+  return n;
+}
+
+// Staged-rollout limits: stage 1 = 50k/25k/25k. Raise via env (no code
+// change) once GSC crawl stats and box load look healthy.
 const CONFIG = {
-  MOVIES_LIMIT: 5000, // Top 5K movies by popularity
-  SERIES_LIMIT: 5000, // Top 5K series by popularity
-  PERSONS_LIMIT: 5000, // Top 5K persons by popularity (increased from 2K)
-  CHUNK_SIZE: 1000, // Process items in chunks to manage memory
-  MAX_RETRIES: 3, // Maximum retry attempts for downloads
-  RETRY_DELAY: 5000, // Delay between retries in milliseconds
+  MOVIES_LIMIT: intEnv("SITEMAP_MOVIES_LIMIT", 50000),
+  SERIES_LIMIT: intEnv("SITEMAP_SERIES_LIMIT", 25000),
+  PERSONS_LIMIT: intEnv("SITEMAP_PERSONS_LIMIT", 25000),
+  MAX_URLS_PER_FILE: 50000, // sitemap protocol cap (also 50MB/file — we stay ~5MB)
+  WRITE_CHUNK_SIZE: 1000, // URLs per write-stream flush
 };
 
 // PM2 re-runs cron_restart jobs once on EVERY `pm2 start` — i.e. on every
@@ -126,115 +147,62 @@ function getTopicKey(prefix, name, media) {
   return `${prefix}-${sanitized}-${media}`;
 }
 
-function getUrlSlugFromKey(key) {
-  // Topic key IS the URL slug in Next.js
-  return key;
-}
-
 /**
  * Generate all available topic routes
  */
 function generateAllTopicRoutes() {
   const topics = [];
 
-  // 1. Movie genres - Premium priorities for traffic drivers
-  const topGenreNames = ["Action", "Comedy", "Drama", "Horror"];
-  const popularGenreNames = ["Romance", "Thriller", "Adventure", "Crime", "Science Fiction"];
-
+  // 1. Movie genres
   Object.values(movieGenres).forEach((genreName) => {
-    const genreKey = getTopicKey("genre", genreName, "movie");
-    const isTopGenre = topGenreNames.includes(genreName);
-    const isPopular = popularGenreNames.includes(genreName);
-
-    topics.push({
-      url: `/topics/${genreKey}`,
-      priority: isTopGenre ? "1.0" : isPopular ? "0.9" : "0.8",
-      changefreq: "daily",
-    });
+    topics.push({ url: `/topics/${getTopicKey("genre", genreName, "movie")}` });
   });
 
-  // 2. TV genres
-  const topTVGenreNames = ["Drama", "Comedy", "Crime"];
+  // 2. TV genres (skip low-value genres)
   Object.values(seriesGenres).forEach((genreName) => {
-    // Skip low-value genres for TV
     if (["News", "Talk", "Soap"].includes(genreName)) return;
-
-    const genreKey = getTopicKey("genre", genreName, "tv");
-    const isTopGenre = topTVGenreNames.includes(genreName);
-
-    topics.push({
-      url: `/topics/${genreKey}`,
-      priority: isTopGenre ? "0.9" : "0.8",
-      changefreq: "daily",
-    });
+    topics.push({ url: `/topics/${getTopicKey("genre", genreName, "tv")}` });
   });
 
-  // 3. Theme-based topics - Premium themes only
-  const topThemeNames = ["Zombie", "Superhero", "Space", "Time Travel"];
-  const popularThemeNames = ["Heist", "Mafia", "Spy", "True Story"];
-
+  // 3. Theme-based topics (movie + tv variants)
   themes.forEach((theme) => {
-    const isTopTheme = topThemeNames.includes(theme.name);
-    const isPopular = popularThemeNames.includes(theme.name);
-
-    // Movie themes
-    const movieThemeKey = getTopicKey("theme", theme.name, "movie");
-    topics.push({
-      url: `/topics/${movieThemeKey}`,
-      priority: isTopTheme ? "1.0" : isPopular ? "0.8" : "0.7",
-      changefreq: "daily",
-    });
-
-    // TV themes
-    const tvThemeKey = getTopicKey("theme", theme.name, "tv");
-    topics.push({
-      url: `/topics/${tvThemeKey}`,
-      priority: isTopTheme ? "0.9" : isPopular ? "0.7" : "0.6",
-      changefreq: "daily",
-    });
+    topics.push({ url: `/topics/${getTopicKey("theme", theme.name, "movie")}` });
+    topics.push({ url: `/topics/${getTopicKey("theme", theme.name, "tv")}` });
   });
 
   return topics;
 }
 
-// Static routes to include in sitemap - Premium SEO priorities
-const STATIC_ROUTES = [
-  { url: "/", priority: "1.0", changefreq: "daily" }, // Homepage - absolute priority
-  { url: "/browse", priority: "1.0", changefreq: "daily" }, // Main discovery engine - priority 1.0
-  { url: "/topics", priority: "1.0", changefreq: "daily" }, // Topics hub - priority 1.0 (major traffic driver)
-  { url: "/topics/all", priority: "0.9", changefreq: "daily" }, // All topics listing - very high
-  // NOTE: /movie and /series listing pages do NOT exist in the Next.js app
-  // (they 404) — do not add them back here unless the routes are built.
-];
+function todayISO() {
+  return new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+}
 
-/**
- * Get safe date for TMDB files
- */
-function getSafeDate() {
-  const date = new Date();
-  date.setDate(date.getDate() - 1);
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${month}_${day}_${date.getFullYear()}`;
+// Static routes. Only /, /browse and /topics genuinely change daily
+// (trending rotation) — they get an honest lastmod of today. Topic pages and
+// the rest omit lastmod rather than fake one.
+function staticRoutes() {
+  const today = todayISO();
+  return [
+    { url: "/", lastmod: today },
+    { url: "/browse", lastmod: today },
+    { url: "/topics", lastmod: today },
+    { url: "/topics/all" },
+    // NOTE: /movie and /series listing pages do NOT exist in the Next.js app
+    // (they 404) — do not add them back here unless the routes are built.
+    ...generateAllTopicRoutes(),
+  ];
 }
 
 /**
- * Sleep function for retry delays
- */
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Prune stale TMDB ID dumps from DATA_DIR.
+ * Prune leftover TMDB ID dumps from DATA_DIR.
  *
- * Each daily run downloads a new dated export (e.g. movie_ids_05_31_2026.json,
- * ~450MB/set) but the extracted .json was never removed, so dumps accumulated
- * indefinitely and filled the disk. Keep only the current run's date; delete
- * any older dated dumps (both .json and leftover .json.gz).
+ * The pre-GA generator downloaded dated TMDB exports (~450MB/set) here and an
+ * earlier bug let them accumulate until the disk filled. The generator is now
+ * PG-driven and downloads nothing, but boxes may still carry old dumps —
+ * delete any that remain (sync-popularity streams its export in memory and
+ * never writes dumps).
  */
 function pruneOldTmdbDumps() {
-  const keepDate = getSafeDate();
   // Matches "<type>_ids_MM_DD_YYYY.json" and the gz variant
   const datedDump = /_ids_(\d{2}_\d{2}_\d{4})\.json(\.gz)?$/;
 
@@ -242,8 +210,7 @@ function pruneOldTmdbDumps() {
 
   let removed = 0;
   for (const file of fs.readdirSync(DATA_DIR)) {
-    const match = file.match(datedDump);
-    if (!match || match[1] === keepDate) continue;
+    if (!datedDump.test(file)) continue;
     try {
       fs.unlinkSync(path.join(DATA_DIR, file));
       removed++;
@@ -253,219 +220,8 @@ function pruneOldTmdbDumps() {
   }
 
   if (removed > 0) {
-    console.log(`🧹 Pruned ${removed} stale TMDB dump file(s), keeping ${keepDate}`);
+    console.log(`🧹 Pruned ${removed} leftover TMDB dump file(s)`);
   }
-}
-
-/**
- * Download and extract TMDB data file with retry logic
- */
-async function downloadTMDBFile(type, retryCount = 0) {
-  const date = getSafeDate();
-  const fileName = `${type}_ids_${date}.json.gz`;
-  const url = `https://files.tmdb.org/p/exports/${fileName}`;
-  const outputPath = path.join(DATA_DIR, fileName);
-  const extractedPath = path.join(DATA_DIR, `${type}_ids_${date}.json`);
-
-  console.log(
-    `📥 Downloading ${type} data: ${fileName} (attempt ${retryCount + 1}/${CONFIG.MAX_RETRIES + 1})`
-  );
-
-  // Create data directory if it doesn't exist
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  // Skip if already exists
-  if (fs.existsSync(extractedPath)) {
-    console.log(`✅ ${type} data already exists, skipping download`);
-    return extractedPath;
-  }
-
-  return new Promise((resolve, reject) => {
-    const file = createWriteStream(outputPath);
-
-    const request = https.get(url, (response) => {
-      if (response.statusCode !== 200) {
-        file.destroy();
-
-        // Cleanup partial file
-        if (fs.existsSync(outputPath)) {
-          fs.unlinkSync(outputPath);
-        }
-
-        const error = new Error(`Failed to download ${fileName}: ${response.statusCode}`);
-
-        // Retry logic
-        if (retryCount < CONFIG.MAX_RETRIES) {
-          console.log(`⚠️ Download failed, retrying in ${CONFIG.RETRY_DELAY / 1000}s...`);
-          sleep(CONFIG.RETRY_DELAY).then(() => {
-            downloadTMDBFile(type, retryCount + 1)
-              .then(resolve)
-              .catch(reject);
-          });
-        } else {
-          reject(error);
-        }
-        return;
-      }
-
-      response.pipe(file);
-
-      file.on("finish", () => {
-        file.close();
-        console.log(`📦 Extracting ${fileName}`);
-
-        try {
-          // Extract the gzipped file with streaming
-          const readStream = createReadStream(outputPath);
-          const writeStream = createWriteStream(extractedPath);
-          const gunzip = zlib.createGunzip();
-
-          readStream.pipe(gunzip).pipe(writeStream);
-
-          writeStream.on("finish", () => {
-            try {
-              fs.unlinkSync(outputPath); // Remove compressed file
-              console.log(`✅ Extracted ${type} data`);
-              resolve(extractedPath);
-            } catch (cleanupError) {
-              console.warn(`⚠️ Failed to cleanup compressed file: ${cleanupError.message}`);
-              resolve(extractedPath); // Still resolve as extraction succeeded
-            }
-          });
-
-          writeStream.on("error", (error) => {
-            // Cleanup on extraction error
-            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-            if (fs.existsSync(extractedPath)) fs.unlinkSync(extractedPath);
-
-            if (retryCount < CONFIG.MAX_RETRIES) {
-              console.log(`⚠️ Extraction failed, retrying in ${CONFIG.RETRY_DELAY / 1000}s...`);
-              sleep(CONFIG.RETRY_DELAY).then(() => {
-                downloadTMDBFile(type, retryCount + 1)
-                  .then(resolve)
-                  .catch(reject);
-              });
-            } else {
-              reject(error);
-            }
-          });
-        } catch (error) {
-          reject(error);
-        }
-      });
-
-      file.on("error", (error) => {
-        // Cleanup on download error
-        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-
-        if (retryCount < CONFIG.MAX_RETRIES) {
-          console.log(`⚠️ Download error, retrying in ${CONFIG.RETRY_DELAY / 1000}s...`);
-          sleep(CONFIG.RETRY_DELAY).then(() => {
-            downloadTMDBFile(type, retryCount + 1)
-              .then(resolve)
-              .catch(reject);
-          });
-        } else {
-          reject(error);
-        }
-      });
-    });
-
-    request.on("error", (error) => {
-      // Cleanup on request error
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-
-      if (retryCount < CONFIG.MAX_RETRIES) {
-        console.log(`⚠️ Request error, retrying in ${CONFIG.RETRY_DELAY / 1000}s...`);
-        sleep(CONFIG.RETRY_DELAY).then(() => {
-          downloadTMDBFile(type, retryCount + 1)
-            .then(resolve)
-            .catch(reject);
-        });
-      } else {
-        reject(error);
-      }
-    });
-
-    // Set timeout for the request
-    request.setTimeout(300000, () => {
-      // 5 minutes timeout
-      request.destroy();
-
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-
-      if (retryCount < CONFIG.MAX_RETRIES) {
-        console.log(`⚠️ Download timeout, retrying in ${CONFIG.RETRY_DELAY / 1000}s...`);
-        sleep(CONFIG.RETRY_DELAY).then(() => {
-          downloadTMDBFile(type, retryCount + 1)
-            .then(resolve)
-            .catch(reject);
-        });
-      } else {
-        reject(new Error(`Download timeout after ${CONFIG.MAX_RETRIES + 1} attempts`));
-      }
-    });
-  });
-}
-
-/**
- * Stream and parse TMDB data file with memory optimization
- */
-async function streamTMDBData(filePath, filterFn, limit) {
-  console.log(`📖 Streaming data from ${filePath}`);
-
-  return new Promise((resolve, reject) => {
-    const results = [];
-    let lineCount = 0;
-
-    const fileStream = createReadStream(filePath);
-    const rl = createInterface({
-      input: fileStream,
-      crlfDelay: Infinity, // Handle Windows line endings
-    });
-
-    rl.on("line", (line) => {
-      lineCount++;
-
-      try {
-        const item = JSON.parse(line.trim());
-
-        // Apply filter and collect all valid entries
-        if (item && filterFn(item)) {
-          results.push(item);
-          // Process entire file since TMDB files are sorted by ID, not popularity
-        }
-
-        // Log progress for large datasets
-        if (lineCount % 50000 === 0) {
-          console.log(`   Progress: ${lineCount} lines read, ${results.length} valid entries`);
-        }
-      } catch (e) {
-        // Skip invalid lines silently for performance
-      }
-    });
-
-    rl.on("close", () => {
-      console.log(
-        `✅ Stream completed: ${lineCount} lines processed, ${results.length} valid entries`
-      );
-
-      // Sort by popularity and take top entries
-      const sortedResults = results
-        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-        .slice(0, limit);
-
-      console.log(`📊 Returning top ${sortedResults.length} entries by popularity`);
-      resolve(sortedResults);
-    });
-
-    rl.on("error", (error) => {
-      console.error(`❌ Error streaming TMDB data from ${filePath}:`, error.message);
-      reject(error);
-    });
-  });
 }
 
 /**
@@ -487,136 +243,190 @@ function getUrlSlug(title) {
  * slugged when the title yields a usable slug, plain `/{type}/{id}` otherwise
  * (never a trailing slash or a bare "-" slug).
  *
- * KNOWN LIMITATION: TMDB daily exports only carry original_title/original_name,
- * while page canonicals slug the localized title from PG/TMDB. For titles where
- * those differ (foreign-language originals) the sitemap URL 308s to the
- * canonical — acceptable, but fixing it properly means sourcing titles from PG.
+ * Titles come straight from PG (the same localized title/name the pages slug),
+ * so sitemap URLs match page canonicals exactly — no 308s.
  */
 function mediaPath(type, id, title) {
   const slug = getUrlSlug(title);
   return slug ? `/${type}/${id}/${slug}` : `/${type}/${id}`;
 }
 
-/**
- * Fetch localized titles from Postgres for the selected IDs so sitemap slugs
- * match page canonicals EXACTLY (pages slug the localized title; TMDB exports
- * only carry original_title/original_name — foreign titles diverged and the
- * sitemap listed 308-redirecting URLs). Graceful: returns an empty map when
- * the DB is unreachable, falling back to export titles.
- *
- * model: "movie" (id = TMDB id, field title), "series" (id = TMDB id, field
- * name), "person" (tmdbId = TMDB id, field name).
- */
-async function fetchTitlesFromPG(mediaType, ids) {
-  const titles = new Map();
-  try {
-    const { config } = await import("dotenv");
-    config({ path: ".env.local" });
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-    try {
-      const chunk = 1000;
-      for (let i = 0; i < ids.length; i += chunk) {
-        const slice = ids.slice(i, i + chunk);
-        if (mediaType === "movie") {
-          const rows = await prisma.movie.findMany({
-            where: { id: { in: slice } },
-            select: { id: true, title: true },
-          });
-          for (const r of rows) if (r.title) titles.set(r.id, r.title);
-        } else if (mediaType === "series") {
-          const rows = await prisma.series.findMany({
-            where: { id: { in: slice } },
-            select: { id: true, name: true },
-          });
-          for (const r of rows) if (r.name) titles.set(r.id, r.name);
-        } else {
-          const rows = await prisma.person.findMany({
-            where: { tmdbId: { in: slice } },
-            select: { tmdbId: true, name: true },
-          });
-          for (const r of rows) if (r.name) titles.set(r.tmdbId, r.name);
-        }
-      }
-    } finally {
-      await prisma.$disconnect();
-    }
-    console.log(`   🐘 PG titles resolved for ${titles.size}/${ids.length} ${mediaType}s`);
-  } catch (err) {
-    console.warn(`   ⚠️ PG title lookup failed (${err.message}) — using export titles`);
-  }
-  return titles;
+/** Format a PG timestamp as YYYY-MM-DD, or undefined when absent/invalid. */
+function toLastmod(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString().split("T")[0];
+}
+
+/** Minimal XML escaping for <loc> values (slugs are [a-z0-9-] but be safe). */
+function escapeXml(s) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 /**
- * Create XML sitemap with streaming/chunked generation
+ * Open one PrismaClient for the whole run. PG is the only URL source now —
+ * if it's unreachable we fail the run WITHOUT touching the existing media
+ * sitemap files in public/, so yesterday's sitemaps keep being served.
  */
-function createSitemap(urls, filename) {
-  console.log(`📝 Creating sitemap: ${filename} with ${urls.length} URLs`);
+async function createPrisma() {
+  const { config } = await import("dotenv");
+  config({ path: ".env.local" });
+  const { PrismaClient } = await import("@prisma/client");
+  return new PrismaClient();
+}
 
-  const currentDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+/**
+ * Quality-gated movie selection: poster + non-empty overview + non-adult,
+ * top N by popularity (popularity DESC is indexed). updated_at (@updatedAt,
+ * bumped by hydration refreshes) is the lastmod signal.
+ */
+async function fetchMovieUrls(prisma) {
+  const limit = CONFIG.MOVIES_LIMIT;
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT id, title, updated_at
+     FROM movies
+     WHERE adult = false
+       AND poster_path IS NOT NULL
+       AND overview IS NOT NULL AND overview <> ''
+       AND popularity > 0
+     ORDER BY popularity DESC
+     LIMIT ${limit}`
+  );
+  return rows.map((r) => ({
+    url: mediaPath("movie", r.id, r.title),
+    lastmod: toLastmod(r.updated_at),
+  }));
+}
+
+/** Same quality gate for series. */
+async function fetchSeriesUrls(prisma) {
+  const limit = CONFIG.SERIES_LIMIT;
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT id, name, updated_at
+     FROM series
+     WHERE adult = false
+       AND poster_path IS NOT NULL
+       AND overview IS NOT NULL AND overview <> ''
+       AND popularity > 0
+     ORDER BY popularity DESC
+     LIMIT ${limit}`
+  );
+  return rows.map((r) => ({
+    url: mediaPath("series", r.id, r.name),
+    lastmod: toLastmod(r.updated_at),
+  }));
+}
+
+/**
+ * Persons: gate on having a profile photo. The persons table has no adult
+ * column (adult performers are filtered at ingestion) and no updated_at, so
+ * lastmod is omitted for all person URLs.
+ */
+async function fetchPersonUrls(prisma) {
+  const limit = CONFIG.PERSONS_LIMIT;
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT tmdb_id, name
+     FROM persons
+     WHERE profile_path IS NOT NULL
+       AND popularity > 0
+     ORDER BY popularity DESC
+     LIMIT ${limit}`
+  );
+  return rows.map((r) => ({
+    url: mediaPath("person", r.tmdb_id, r.name),
+  }));
+}
+
+/** Write one urlset file (streamed in chunks). Returns max lastmod or undefined. */
+function writeUrlsetFile(urls, filename) {
   const filePath = path.join(SITEMAPS_DIR, filename);
   const writeStream = createWriteStream(filePath);
+  let maxLastmod;
 
-  // Write XML header
   writeStream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
   writeStream.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
 
-  // Process URLs in chunks to manage memory
-  const chunkSize = CONFIG.CHUNK_SIZE;
-  for (let i = 0; i < urls.length; i += chunkSize) {
-    const chunk = urls.slice(i, i + chunkSize);
-
-    let chunkXml = "";
-    chunk.forEach(({ url, priority = "0.5", changefreq = "daily", lastmod }) => {
-      chunkXml += "  <url>\n";
-      chunkXml += `    <loc>${BASE_URL}${url}</loc>\n`;
-      chunkXml += `    <lastmod>${lastmod || currentDate}</lastmod>\n`;
-      chunkXml += `    <changefreq>${changefreq}</changefreq>\n`;
-      chunkXml += `    <priority>${priority}</priority>\n`;
-      chunkXml += "  </url>\n";
-    });
-
-    writeStream.write(chunkXml);
-
-    // Clear chunk from memory
-    chunkXml = null;
-
-    // Log progress for large sitemaps
-    if ((i + chunkSize) % (chunkSize * 10) === 0) {
-      console.log(
-        `   Progress: ${Math.min(i + chunkSize, urls.length)}/${urls.length} URLs written`
-      );
+  for (let i = 0; i < urls.length; i += CONFIG.WRITE_CHUNK_SIZE) {
+    const chunk = urls.slice(i, i + CONFIG.WRITE_CHUNK_SIZE);
+    let xml = "";
+    for (const { url, lastmod } of chunk) {
+      xml += "  <url>\n";
+      xml += `    <loc>${escapeXml(BASE_URL + url)}</loc>\n`;
+      if (lastmod) {
+        xml += `    <lastmod>${lastmod}</lastmod>\n`;
+        if (!maxLastmod || lastmod > maxLastmod) maxLastmod = lastmod;
+      }
+      xml += "  </url>\n";
     }
+    writeStream.write(xml);
   }
 
-  // Write closing tag
-  writeStream.write("</urlset>");
+  writeStream.write("</urlset>\n");
   writeStream.end();
-
-  console.log(`✅ Created ${filename}`);
-  return filePath;
+  console.log(`✅ Created ${filename} (${urls.length} URLs)`);
+  return maxLastmod;
 }
 
 /**
- * Create sitemap index
+ * Write a URL set as one or more files chunked at MAX_URLS_PER_FILE.
+ * The first chunk keeps the legacy unnumbered filename (already submitted to
+ * search consoles); extras are `${base}_2.xml`, `${base}_3.xml`, ...
+ * Stale numbered chunks from earlier (larger) runs are deleted so they don't
+ * keep being served after the index stops listing them.
+ *
+ * Returns index entries: [{ filename, lastmod? }]
+ */
+function writeSitemapChunks(urls, base) {
+  const entries = [];
+  const chunkCount = Math.max(1, Math.ceil(urls.length / CONFIG.MAX_URLS_PER_FILE));
+
+  for (let c = 0; c < chunkCount; c++) {
+    const filename = c === 0 ? `${base}.xml` : `${base}_${c + 1}.xml`;
+    const chunk = urls.slice(c * CONFIG.MAX_URLS_PER_FILE, (c + 1) * CONFIG.MAX_URLS_PER_FILE);
+    const lastmod = writeUrlsetFile(chunk, filename);
+    entries.push({ filename, lastmod });
+  }
+
+  // Remove numbered chunks beyond what this run produced
+  const staleChunk = new RegExp(`^${base}_(\\d+)\\.xml$`);
+  for (const file of fs.readdirSync(SITEMAPS_DIR)) {
+    const m = file.match(staleChunk);
+    if (m && Number(m[1]) > chunkCount) {
+      try {
+        fs.unlinkSync(path.join(SITEMAPS_DIR, file));
+        console.log(`🧹 Removed stale chunk ${file}`);
+      } catch (err) {
+        console.warn(`⚠️ Failed to remove stale chunk ${file}: ${err.message}`);
+      }
+    }
+  }
+
+  return entries;
+}
+
+/**
+ * Create sitemap index. Each entry's lastmod is the max lastmod of the URLs
+ * in that file (omitted when the file has no dated URLs).
  * Note: sitemap files are served from root (e.g., /sitemap_movies.xml)
  */
-function createSitemapIndex(sitemapFiles) {
-  console.log(`📋 Creating sitemap index with ${sitemapFiles.length} sitemaps`);
+function createSitemapIndex(entries) {
+  console.log(`📋 Creating sitemap index with ${entries.length} sitemaps`);
 
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
-  sitemapFiles.forEach((filename) => {
+  entries.forEach(({ filename, lastmod }) => {
     xml += "  <sitemap>\n";
-    // Files are served from root of public/
     xml += `    <loc>${BASE_URL}/${filename}</loc>\n`;
-    xml += `    <lastmod>${new Date().toISOString().split("T")[0]}</lastmod>\n`;
+    if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += "  </sitemap>\n";
   });
 
-  xml += "</sitemapindex>";
+  xml += "</sitemapindex>\n";
 
   const indexPath = path.join(SITEMAPS_DIR, "sitemap.xml");
   fs.writeFileSync(indexPath, xml);
@@ -624,232 +434,21 @@ function createSitemapIndex(sitemapFiles) {
 }
 
 /**
- * Generate movie sitemap with memory optimization
- */
-async function generateMovieSitemap() {
-  console.log("🎬 Generating movie sitemap...");
-
-  try {
-    const filePath = await downloadTMDBFile("movie");
-
-    // Simplified filter: just basic validation + no adult content
-    const filterFn = (movie) =>
-      movie.popularity > 0 && // Has popularity score
-      movie.adult === false && // No adult content
-      (movie.title || movie.original_title) && // Has title
-      movie.id; // Has valid ID
-
-    const topMovies = await streamTMDBData(filePath, filterFn, CONFIG.MOVIES_LIMIT);
-
-    console.log(`📊 Processing ${topMovies.length} top movies`);
-
-    const pgTitles = await fetchTitlesFromPG("movie", topMovies.map((m) => m.id));
-
-    // Process movies in chunks to manage memory
-    const movieUrls = [];
-    const chunkSize = CONFIG.CHUNK_SIZE;
-
-    for (let i = 0; i < topMovies.length; i += chunkSize) {
-      const chunk = topMovies.slice(i, i + chunkSize);
-
-      const chunkUrls = chunk.map((movie) => ({
-        url: mediaPath("movie", movie.id, pgTitles.get(movie.id) || movie.title || movie.original_title),
-        priority:
-          movie.popularity > 100
-            ? "1.0" // Top tier blockbusters
-            : movie.popularity > 50
-              ? "0.9" // Very popular movies
-              : movie.popularity > 20
-                ? "0.8" // Popular movies
-                : movie.popularity > 10
-                  ? "0.7" // Well-known movies
-                  : "0.6", // Standard movies
-        changefreq: "daily",
-      }));
-
-      movieUrls.push(...chunkUrls);
-
-      // Clear chunk references
-      chunk.length = 0;
-    }
-
-    // Clear movie data from memory
-    topMovies.length = 0;
-
-    const result = createSitemap(movieUrls, "sitemap_movies.xml");
-
-    // Clear URL data from memory
-    movieUrls.length = 0;
-
-    return result;
-  } catch (error) {
-    console.error("❌ Error generating movie sitemap:", error.message);
-    throw error;
-  }
-}
-
-/**
- * Generate series sitemap with memory optimization
- */
-async function generateSeriesSitemap() {
-  console.log("📺 Generating series sitemap...");
-
-  try {
-    const filePath = await downloadTMDBFile("tv_series");
-
-    // Simplified filter: just basic validation (TV series don't have adult field)
-    const filterFn = (show) =>
-      show.popularity > 0 && // Has popularity score
-      (show.original_name || show.name) && // Has name
-      show.id; // Has valid ID
-
-    const topSeries = await streamTMDBData(filePath, filterFn, CONFIG.SERIES_LIMIT);
-
-    console.log(`📊 Processing ${topSeries.length} top series`);
-
-    const pgTitles = await fetchTitlesFromPG("series", topSeries.map((x) => x.id));
-
-    // Process series in chunks to manage memory
-    const seriesUrls = [];
-    const chunkSize = CONFIG.CHUNK_SIZE;
-
-    for (let i = 0; i < topSeries.length; i += chunkSize) {
-      const chunk = topSeries.slice(i, i + chunkSize);
-
-      const chunkUrls = chunk.map((show) => ({
-        url: mediaPath("series", show.id, pgTitles.get(show.id) || show.name || show.original_name),
-        priority:
-          show.popularity > 80
-            ? "1.0" // Top tier shows (Netflix/HBO hits)
-            : show.popularity > 40
-              ? "0.9" // Very popular shows
-              : show.popularity > 20
-                ? "0.8" // Popular shows
-                : show.popularity > 10
-                  ? "0.7" // Well-known shows
-                  : "0.6", // Standard shows
-        changefreq: "daily",
-      }));
-
-      seriesUrls.push(...chunkUrls);
-
-      // Clear chunk references
-      chunk.length = 0;
-    }
-
-    // Clear series data from memory
-    topSeries.length = 0;
-
-    const result = createSitemap(seriesUrls, "sitemap_series.xml");
-
-    // Clear URL data from memory
-    seriesUrls.length = 0;
-
-    return result;
-  } catch (error) {
-    console.error("❌ Error generating series sitemap:", error.message);
-    throw error;
-  }
-}
-
-/**
- * Generate person sitemap with memory optimization
- */
-async function generatePersonSitemap() {
-  console.log("👤 Generating person sitemap...");
-
-  try {
-    const filePath = await downloadTMDBFile("person");
-
-    // Simplified filter: just basic validation + no adult performers
-    const filterFn = (person) =>
-      person.popularity > 0 && // Has popularity score
-      person.adult === false && // No adult performers
-      person.name && // Has name
-      person.id; // Has valid ID
-
-    const topPersons = await streamTMDBData(filePath, filterFn, CONFIG.PERSONS_LIMIT);
-
-    console.log(`📊 Processing ${topPersons.length} top persons`);
-
-    const pgTitles = await fetchTitlesFromPG("person", topPersons.map((p) => p.id));
-
-    // Process persons in chunks to manage memory
-    const personUrls = [];
-    const chunkSize = CONFIG.CHUNK_SIZE;
-
-    for (let i = 0; i < topPersons.length; i += chunkSize) {
-      const chunk = topPersons.slice(i, i + chunkSize);
-
-      const chunkUrls = chunk.map((person) => ({
-        url: mediaPath("person", person.id, pgTitles.get(person.id) || person.name),
-        priority:
-          person.popularity > 50
-            ? "0.9" // A-list celebrities
-            : person.popularity > 25
-              ? "0.8" // Very famous people
-              : person.popularity > 15
-                ? "0.7" // Well-known people
-                : person.popularity > 10
-                  ? "0.6" // Recognized people
-                  : "0.5", // Standard people
-        changefreq: "daily",
-      }));
-
-      personUrls.push(...chunkUrls);
-
-      // Clear chunk references
-      chunk.length = 0;
-    }
-
-    // Clear person data from memory
-    topPersons.length = 0;
-
-    const result = createSitemap(personUrls, "sitemap_persons.xml");
-
-    // Clear URL data from memory
-    personUrls.length = 0;
-
-    return result;
-  } catch (error) {
-    console.error("❌ Error generating person sitemap:", error.message);
-    throw error;
-  }
-}
-
-/**
- * Generate static pages sitemap
- */
-function generateStaticSitemap() {
-  console.log("📄 Generating static pages sitemap...");
-
-  // Generate all available topic routes dynamically
-  const dynamicTopicRoutes = generateAllTopicRoutes();
-  console.log(`📊 Generated ${dynamicTopicRoutes.length} topic routes`);
-
-  const allStaticUrls = [...STATIC_ROUTES, ...dynamicTopicRoutes];
-
-  return createSitemap(allStaticUrls, "sitemap_static.xml");
-}
-
-/**
- * Main execution function with enhanced memory management
+ * Main execution function
  */
 async function main() {
-  console.log("🚀 Starting memory-optimized sitemap generation...");
+  console.log("🚀 Starting PG-driven sitemap generation...");
   console.log("⏰ Timestamp:", new Date().toISOString());
-  console.log("🔧 Configuration (Simplified - Top by Popularity):");
-  console.log(`   - Movies: Top ${CONFIG.MOVIES_LIMIT} by popularity`);
-  console.log(`   - Series: Top ${CONFIG.SERIES_LIMIT} by popularity`);
-  console.log(`   - Persons: Top ${CONFIG.PERSONS_LIMIT} by popularity`);
-  console.log(`   - Chunk size: ${CONFIG.CHUNK_SIZE}`);
-  console.log(`   - Max retries: ${CONFIG.MAX_RETRIES}`);
+  console.log("🔧 Configuration (quality-gated, top by popularity):");
+  console.log(`   - Movies:  top ${CONFIG.MOVIES_LIMIT} (SITEMAP_MOVIES_LIMIT)`);
+  console.log(`   - Series:  top ${CONFIG.SERIES_LIMIT} (SITEMAP_SERIES_LIMIT)`);
+  console.log(`   - Persons: top ${CONFIG.PERSONS_LIMIT} (SITEMAP_PERSONS_LIMIT)`);
+  console.log(`   - Max URLs per file: ${CONFIG.MAX_URLS_PER_FILE}`);
 
   const startTime = Date.now();
 
   try {
-    // Remove stale dated dumps from previous runs before downloading today's
-    // (prevents unbounded accumulation in data/ that previously filled the disk).
+    // Clean any leftover TMDB dumps from the pre-PG generator (disk-fill guard)
     pruneOldTmdbDumps();
 
     // Ensure sitemaps directory exists
@@ -857,88 +456,51 @@ async function main() {
       fs.mkdirSync(SITEMAPS_DIR, { recursive: true });
     }
 
-    // Generate sitemaps sequentially to optimize memory usage
-    console.log("\n🔄 Running sitemap generation sequentially for memory efficiency...");
-
-    // 1. Static sitemap (lightweight)
+    // 1. Static + topics sitemap (no DB needed)
     console.log("\n📄 Step 1/4: Generating static sitemap...");
-    const staticSitemap = generateStaticSitemap();
-    console.log("✅ Static sitemap completed");
-
-    // 2. Movie sitemap
-    console.log("\n🎬 Step 2/4: Generating movie sitemap...");
-    const movieSitemap = await generateMovieSitemap();
-    console.log("✅ Movie sitemap completed");
-
-    // Force memory cleanup
-    if (global.gc) {
-      console.log("🧹 Running garbage collection...");
-      global.gc();
-    }
-
-    // 3. Series sitemap
-    console.log("\n📺 Step 3/4: Generating series sitemap...");
-    const seriesSitemap = await generateSeriesSitemap();
-    console.log("✅ Series sitemap completed");
-
-    // Force memory cleanup
-    if (global.gc) {
-      console.log("🧹 Running garbage collection...");
-      global.gc();
-    }
-
-    // 4. Person sitemap
-    console.log("\n👤 Step 4/4: Generating person sitemap...");
-    const personSitemap = await generatePersonSitemap();
-    console.log("✅ Person sitemap completed");
-
-    // 5. Create sitemap index
-    console.log("\n📋 Creating sitemap index...");
-    const sitemapFiles = [
-      "sitemap_static.xml",
-      "sitemap_movies.xml",
-      "sitemap_series.xml",
-      "sitemap_persons.xml",
+    const statics = staticRoutes();
+    const indexEntries = [
+      { filename: "sitemap_static.xml", lastmod: writeUrlsetFile(statics, "sitemap_static.xml") },
     ];
 
-    createSitemapIndex(sitemapFiles);
+    // 2-4. Media sitemaps from PG. Any failure aborts BEFORE overwriting the
+    // existing media files, so the previous run's sitemaps keep serving.
+    const prisma = await createPrisma();
+    try {
+      console.log("\n🎬 Step 2/4: Generating movie sitemap...");
+      const movieUrls = await fetchMovieUrls(prisma);
+      if (movieUrls.length === 0) throw new Error("movie query returned 0 rows — aborting");
+      console.log(`   🐘 ${movieUrls.length} movies selected`);
 
-    const endTime = Date.now();
-    const duration = Math.round((endTime - startTime) / 1000);
+      console.log("\n📺 Step 3/4: Generating series sitemap...");
+      const seriesUrls = await fetchSeriesUrls(prisma);
+      if (seriesUrls.length === 0) throw new Error("series query returned 0 rows — aborting");
+      console.log(`   🐘 ${seriesUrls.length} series selected`);
 
-    console.log("\n🎯 MEMORY-OPTIMIZED SEO SITEMAP GENERATION COMPLETED! 🎯");
+      console.log("\n👤 Step 4/4: Generating person sitemap...");
+      const personUrls = await fetchPersonUrls(prisma);
+      if (personUrls.length === 0) throw new Error("person query returned 0 rows — aborting");
+      console.log(`   🐘 ${personUrls.length} persons selected`);
+
+      indexEntries.push(...writeSitemapChunks(movieUrls, "sitemap_movies"));
+      indexEntries.push(...writeSitemapChunks(seriesUrls, "sitemap_series"));
+      indexEntries.push(...writeSitemapChunks(personUrls, "sitemap_persons"));
+    } finally {
+      await prisma.$disconnect();
+    }
+
+    // 5. Sitemap index listing every file written this run
+    createSitemapIndex(indexEntries);
+
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    console.log("\n🎯 SITEMAP GENERATION COMPLETED");
     console.log(`⏱️ Total duration: ${duration}s`);
-    console.log("📊 Final Structure:");
-    console.log(
-      `   - Static pages: ${STATIC_ROUTES.length} base pages (3 at priority 1.0, 3 at 0.9)`
-    );
-    console.log(`   - Topic pages: Generated from app logic (8 at priority 1.0, rest 0.7-0.9)`);
-    console.log(`   - Movies: Up to ${CONFIG.MOVIES_LIMIT} quality URLs (priorities 0.6-1.0)`);
-    console.log(`   - Series: Up to ${CONFIG.SERIES_LIMIT} quality URLs (priorities 0.6-1.0)`);
-    console.log(`   - Persons: Up to ${CONFIG.PERSONS_LIMIT} quality URLs (priorities 0.5-0.9)`);
-    console.log(`   - Total sitemaps: ${sitemapFiles.length + 1} files`);
-    console.log("🚀 PERFORMANCE OPTIMIZATIONS:");
-    console.log(`   - ✅ Streaming file processing (no full file loading)`);
-    console.log(`   - ✅ Chunked XML generation (${CONFIG.CHUNK_SIZE} URLs per chunk)`);
-    console.log(`   - ✅ Automatic memory cleanup and GC calls`);
-    console.log(`   - ✅ Retry logic with ${CONFIG.MAX_RETRIES} attempts`);
-    console.log(`   - ✅ Simplified selection: pure top-by-popularity approach`);
-    console.log("🏆 PRIORITY 1.0 DISTRIBUTION:");
-    console.log(`   - ✅ 3 Essential hubs (/, /browse, /topics)`);
-    console.log(`   - ✅ 4 Top genre categories (Action, Comedy, Drama, Horror)`);
-    console.log(`   - ✅ 8 Top theme categories (4 themes × 2 media types)`);
-    console.log(`   - ✅ ~20-30 blockbuster movies (popularity > 100)`);
-    console.log(`   - ✅ ~15-25 trending series (popularity > 80)`);
+    console.log(`📊 Files: ${indexEntries.length + 1} (index + ${indexEntries.length} sitemaps)`);
+    console.log(`   - Static/topic URLs: ${statics.length}`);
+    console.log("   - lastmod: PG updated_at for movies/series; omitted where unknown");
   } catch (error) {
     console.error("\n💥 Fatal error during sitemap generation:", error);
     console.error("Stack trace:", error.stack);
-
-    // Cleanup on error
-    console.log("🧹 Performing cleanup...");
-    if (global.gc) {
-      global.gc();
-    }
-
     process.exit(1);
   }
 }

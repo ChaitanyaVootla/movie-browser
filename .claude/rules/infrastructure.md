@@ -152,5 +152,5 @@ No migrations — schema SQL is authoritative. Re-deploy recreates containers. P
 | Job | Schedule | Heap Limit |
 |-----|----------|------------|
 | `next` | Always | 600MB |
-| `popularity-sync` | 3 AM UTC | 500MB |
-| `sitemap-generator` | 4 AM UTC | 1024MB |
+| `popularity-sync` | 21:00 UTC | 500MB |
+| `sitemap-generator` | 22:00 UTC | 1024MB |
