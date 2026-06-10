@@ -652,6 +652,34 @@ export async function getAdminUsersWithActivity() {
   });
   const seriesListByUser = new Map(seriesListCounts.map((c) => [c.userId, c._count._all]));
 
+  // Legacy shape also carries the 10 most recent items per user with display
+  // titles ("recent-items") — the admin UI's expanded card renders them.
+  // Window function keeps this a single bounded query regardless of table size.
+  const recentRows = await prisma.$queryRaw<
+    Array<{ user_id: number; item_id: number; title: string | null; name: string | null }>
+  >`
+    SELECT r.user_id, COALESCE(r.movie_id, r.series_id) AS item_id, m.title, s.name
+    FROM (
+      SELECT user_id, movie_id, series_id, viewed_at,
+             ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY viewed_at DESC) AS rn
+      FROM recent_items
+    ) r
+    LEFT JOIN movies m ON m.id = r.movie_id
+    LEFT JOIN series s ON s.id = r.series_id
+    WHERE r.rn <= 10
+    ORDER BY r.user_id, r.rn
+  `;
+  const recentItemsByUser = new Map<number, Array<{ itemId: number; title?: string; name?: string }>>();
+  for (const row of recentRows) {
+    const list = recentItemsByUser.get(row.user_id) ?? [];
+    list.push(
+      row.title !== null
+        ? { itemId: row.item_id, title: row.title }
+        : { itemId: row.item_id, name: row.name ?? undefined }
+    );
+    recentItemsByUser.set(row.user_id, list);
+  }
+
   const users = await prisma.user.findMany({
     select: {
       id: true,
@@ -691,6 +719,7 @@ export async function getAdminUsersWithActivity() {
     WatchedMovies: u._count.watchedMovies,
     MoviesWatchList: u._count.watchlistItems - (seriesListByUser.get(u.id) ?? 0),
     recent: u._count.recentItems,
+    "recent-items": recentItemsByUser.get(u.id) ?? [],
     ContinueWatching: u._count.continueWatching,
     SeriesList: seriesListByUser.get(u.id) ?? 0,
     location: extractLocation(u.metadata),
