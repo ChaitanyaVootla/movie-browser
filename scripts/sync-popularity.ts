@@ -124,13 +124,18 @@ async function downloadLatestExport(mediaType: MediaType): Promise<Map<number, n
  * the float daily for nearly every title, so an exact-equality diff rewrites
  * ~the whole table: each write is a full MVCC row copy PLUS a B-tree
  * delete/insert in the popularity(desc) index, x 800k rows — that's why a
- * "simple popularity upsert" pegged the box. Ordering/sitemap consumers
- * don't care about jitter below ~5%.
+ * "simple popularity upsert" pegged the box. Batching can't help: B-tree
+ * maintenance and row rewrites are per-row costs, not per-statement.
+ *
+ * Threshold is 1% relative (0.01 absolute floor): skips pure float jitter
+ * while real movement updates same-day. Error is BOUNDED, not cumulative —
+ * each night compares TMDB's value against the STORED value, so the stored
+ * value is always within 1% of truth.
  */
 function isSignificantChange(oldPop: number | null, newPop: number): boolean {
   if (oldPop == null) return true;
   const delta = Math.abs(newPop - oldPop);
-  return delta >= Math.max(0.05, oldPop * 0.05);
+  return delta >= Math.max(0.01, oldPop * 0.01);
 }
 
 /** Round stored popularity so future diffs stay stable. */
