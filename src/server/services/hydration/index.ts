@@ -69,6 +69,19 @@ export interface HydrationOptions {
 const inFlightMovieRefresh = new Set<number>();
 const inFlightSeriesRefresh = new Set<number>();
 
+// Global ceiling on concurrent background refreshes. Without it, crawler
+// traffic over a large stale catalog (e.g. right after the June 2026 bulk
+// migration landed 350k born-stale items) queues unbounded Lambda scrapes +
+// enrichment inside this process — Node memory ballooned 1.4→2GB in minutes
+// and TTFB hit 19s while Postgres sat idle. Refreshes beyond the cap are
+// simply skipped; the item stays stale and a later visit retries. Tune via
+// MAX_BACKGROUND_REFRESH (set 0 to disable background refreshes entirely).
+const MAX_BACKGROUND_REFRESH = Number(process.env.MAX_BACKGROUND_REFRESH ?? 3);
+
+function backgroundRefreshSlotsFull(): boolean {
+  return inFlightMovieRefresh.size + inFlightSeriesRefresh.size >= MAX_BACKGROUND_REFRESH;
+}
+
 /**
  * Background (fire-and-forget) enriched-data refresh for a movie: scrape via
  * Lambda/MongoDB, upsert to PostgreSQL, trigger progressive AI enrichment. The
@@ -77,6 +90,7 @@ const inFlightSeriesRefresh = new Set<number>();
  */
 function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData): void {
   if (inFlightMovieRefresh.has(movieId)) return;
+  if (backgroundRefreshSlotsFull()) return;
   inFlightMovieRefresh.add(movieId);
   void (async () => {
     try {
@@ -111,6 +125,7 @@ function backgroundRefreshSeries(
   seasonsWithEpisodes: TmdbSeriesData["seasons"]
 ): void {
   if (inFlightSeriesRefresh.has(seriesId)) return;
+  if (backgroundRefreshSlotsFull()) return;
   inFlightSeriesRefresh.add(seriesId);
   void (async () => {
     try {
