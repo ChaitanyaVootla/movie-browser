@@ -113,6 +113,19 @@ const BOT_PATTERNS: BotPattern[] = [
   { pattern: /undici/i, type: "undici", category: "scraper" },
   { pattern: /^okhttp/i, type: "okhttp", category: "scraper" },
   { pattern: /libwww-perl/i, type: "perl", category: "scraper" },
+
+  // Headless-automation fingerprints behind otherwise-clean browser UAs.
+  // June 2026 (post-GA): a stealth scraper fleet appeared as ~3.4k "human"
+  // sessions/12h — 98% single-pageview, exactly 1.0 views/session. Their UAs
+  // were Puppeteer/Playwright DEVICE-EMULATION PRESETS (ancient strings
+  // shipped with the libraries) and years-stale Chrome versions.
+  { pattern: /SM-G900P Build\/LRX21T/i, type: "headless_preset", category: "scraper" },
+  { pattern: /Pixel 2 Build\/OPD3\.170816\.012/i, type: "headless_preset", category: "scraper" },
+  { pattern: /iPhone OS 13_2_3/i, type: "headless_preset", category: "scraper" },
+  // Chrome major <= 109 in 2026: auto-update makes real usage ~zero; these
+  // are stale UA strings baked into scraper configs. Matches "Chrome/NN.d"
+  // for majors 10-109 only (110+ never matches: "11x." fails both branches).
+  { pattern: /chrome\/(?:[1-9]\d|10[0-9])\.\d/i, type: "stale_chrome", category: "scraper" },
 ];
 
 // =============================================================================
@@ -148,6 +161,28 @@ export function detectBot(userAgent: string): BotDetectionResult {
     botType: null,
     botCategory: null,
   };
+}
+
+/**
+ * Request-level bot detection: combines the UA patterns with signals a spoofed
+ * user agent cannot hide as easily —
+ * - `sec-ch-ua` client hints: headless Chrome ≥110 reports "HeadlessChrome"
+ *   as its brand even when the UA string is overridden.
+ * - `navigator.webdriver`: true under Puppeteer/Playwright/Selenium unless
+ *   deliberately evaded; the client sends it as the `x-analytics-wd` header.
+ */
+export function detectBotFromRequest(
+  userAgent: string,
+  secChUa: string | null,
+  webdriverHeader: string | null
+): BotDetectionResult {
+  if (webdriverHeader === "1") {
+    return { isBot: true, botType: "webdriver", botCategory: "scraper" };
+  }
+  if (secChUa && /headless/i.test(secChUa)) {
+    return { isBot: true, botType: "headless_hint", botCategory: "scraper" };
+  }
+  return detectBot(userAgent);
 }
 
 // =============================================================================

@@ -61,6 +61,10 @@ async function sendBatch(events: UserActionEvent[]): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Automation signal: navigator.webdriver is true under Puppeteer/
+        // Playwright/Selenium. Ingest marks such traffic as bot — UA strings
+        // alone can't catch stealth headless browsers.
+        "x-analytics-wd": typeof navigator !== "undefined" && navigator.webdriver ? "1" : "0",
       },
       body: JSON.stringify({ events }),
       keepalive: true,

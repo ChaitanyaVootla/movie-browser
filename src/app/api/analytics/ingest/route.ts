@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { insertEvents } from "@/lib/analytics/client";
-import { detectBot } from "@/lib/analytics/bot-detection";
+import { detectBotFromRequest } from "@/lib/analytics/bot-detection";
 import { generateSessionId, extractClientIP } from "@/lib/analytics/session";
 import { resolveGeo } from "@/lib/geoip";
 import { auth } from "@/lib/auth";
@@ -171,7 +171,9 @@ export async function POST(request: NextRequest) {
     const acceptLanguage = request.headers.get("accept-language") || "";
     const clientIP = extractClientIP(request.headers);
 
-    const { isBot, botType } = detectBot(userAgent);
+    const secChUa = request.headers.get("sec-ch-ua");
+    const webdriverHeader = request.headers.get("x-analytics-wd");
+    const { isBot, botType } = detectBotFromRequest(userAgent, secChUa, webdriverHeader);
     const sessionId = generateSessionId(clientIP, userAgent, acceptLanguage);
 
     // Parse device info from user agent (simplified)
