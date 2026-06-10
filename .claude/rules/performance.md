@@ -115,6 +115,26 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 7. **Parallelize independent server fetches.** A page that does `await getA(); await Promise.all([getB, getC])` where B/C don't need A should start B/C as in-flight promises before awaiting A.
 8. **Search/trigram specifics** — see `.claude/rules/search-system.md`. Trigram indexes MUST live in `prisma/schema.prisma` (`@@index(type: Gin, ops: raw("gin_trgm_ops"))`) or `prisma db push` drops them as drift. Trigram is pathological for common multi-word queries ("the matrix" → 9s); use FTS (`to_tsvector`) for those, trigram only as a typo fallback. Enforce a 0.3 `%` threshold floor on the large (movies/persons) tables.
 
+9. **PM2 cron jobs: guard, nice, schedule, and threshold writes.** `pm2 start`
+   (= every deploy) runs `cron_restart` jobs ONCE immediately — both heavy jobs
+   used to launch at peak and 502 the box (GA day). Scripts now exit unless
+   `getUTCHours() === CRON_HOUR_UTC` (`FORCE_RUN=1` to override); jobs run under
+   `nice -n 19` at 21:00/22:00 UTC. **Why a "simple popularity upsert" pegged
+   the CPU:** popularity is an indexed(desc) column on wide rows, and TMDB
+   re-jitters the float daily for ~every title — exact-equality diffing rewrote
+   the whole 807k-row table nightly (MVCC row copy + index churn + WAL per
+   row). Fixed with a significance threshold (skip < max(0.05, 5%)), 3-decimal
+   rounding, 250ms inter-batch pauses, and streaming the export parse (was
+   3.7GB RSS buffering the decompressed dump).
+10. **Scraper fleet = the load, not the users.** Post-GA, ~87% of requests were
+   two scraper classes (ClickHouse: `missing_client_hints` + `stale_chrome`,
+   ~7k req/10min vs ~650 human). `src/proxy.ts` 429s them pre-render (plus
+   webdriver/headless hints and `Accept: text/markdown` LLM scrapers). When the
+   box melts under "organic" traffic, FIRST check
+   `page_views GROUP BY bot_type` for the last 10 min — and remember every
+   deploy wipes the ISR cache, so post-deploy there's a cold-render window
+   where blocked-class gaps re-jam the event loop fast.
+
 ## Testing a fix
 
 - **App perf:** re-run the Playwright TTFB / POST-timing scripts above against beta after deploy; compare before/after. Confirm load average dropped via SSH.

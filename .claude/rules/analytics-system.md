@@ -59,7 +59,7 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 | `trackSearchLLMUsage()` | `ai_usage` | Tier 3 LLM query parsing (query_type=search_llm_parsing) |
 | `trackEmbeddingCall()` | `api_calls` | Cohere embedding calls (service=embedding, tokens field) |
 | `trackAPICall()` | `api_calls` | TMDB, Lambda, embedding, Tavily API calls |
-| `trackPageView()` | `page_views` | SSR page views |
+| `trackPageView()` | `page_views` | Page views — fired from `src/proxy.ts` (NOT a layout component: layout `headers()` killed ISR, and cached serves never re-render the layout anyway). Document GETs only (`rsc`/`next-router-prefetch` excluded). Blocked scrapers (429 in proxy) are still tracked with `is_bot=1`. |
 | `trackError()` | `errors` | Application errors |
 
 **Critical rule**: All tracking calls must be fire-and-forget -- no `await`, wrapped in try-catch. Analytics must never break the application.
