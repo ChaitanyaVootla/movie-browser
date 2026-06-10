@@ -6,15 +6,19 @@ import { MediaScroller } from "@/components/features/media/media-scroller";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { filterOutTalkShows } from "@/lib/person-credits";
 import type { MovieListItem, SeriesListItem } from "@/types";
-import type { LightPersonCastCredit } from "@/types/client-props";
+import type { LightPersonCastCredit, LightPersonCrewCredit } from "@/types/client-props";
+
+// Cast credits (subtitle = character) or crew credits (subtitle = job) — a
+// director's Known For row shows their directed films, not acting cameos.
+type KnownForCredit = LightPersonCastCredit | LightPersonCrewCredit;
 
 interface KnownForSectionProps {
-  credits: LightPersonCastCredit[];
+  credits: KnownForCredit[];
   className?: string;
 }
 
 // Convert credit to list item format (light version - no overview)
-function creditToListItem(credit: LightPersonCastCredit): MovieListItem | SeriesListItem {
+function creditToListItem(credit: KnownForCredit): MovieListItem | SeriesListItem {
   if (credit.media_type === "movie") {
     return {
       id: credit.id,
@@ -59,10 +63,11 @@ export function KnownForSection({ credits, className }: KnownForSectionProps) {
   const posterCardClass = "w-[130px] sm:w-[145px] md:w-[160px] flex-shrink-0";
   const wideCardClass = "w-[220px] sm:w-[260px] md:w-[300px] flex-shrink-0";
 
-  // Filter out talk shows/news, then get top credits sorted by popularity
+  // Server already excludes self/awards appearances and ranks by weighted
+  // popularity (extractKnownForCredits) — preserve that order, only drop
+  // entries missing the image the current display mode needs.
   const topCredits = filterOutTalkShows(credits)
     .filter((c) => (displayMode === "wide" ? c.backdrop_path : c.poster_path))
-    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
     .slice(0, 12);
 
   if (topCredits.length === 0) return null;
@@ -80,7 +85,7 @@ export function KnownForSection({ credits, className }: KnownForSectionProps) {
           className={posterCardClass}
           wideClassName={wideCardClass}
           showRating
-          subtitle={credit.character || undefined}
+          subtitle={("job" in credit ? credit.job : credit.character) || undefined}
         />
       ))}
     </MediaScroller>

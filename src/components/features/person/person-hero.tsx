@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,6 +27,15 @@ interface PersonHeroProps {
   person: PersonHeroData;
   className?: string;
 }
+
+// Entrance animation must NOT hide already-painted content: framer serializes
+// `initial="hidden"` (opacity: 0) into the SSR HTML, so on a full page load the
+// fully server-rendered hero stayed invisible until hydration ran — seconds of
+// blank black first paint (June 2026 visual audit). Track hydration with a
+// module-level flag: false during SSR and the very first client render (content
+// renders visible immediately), true afterwards (client-side navigations get
+// the entrance animation).
+let hasHydrated = false;
 
 // Animation variants
 const containerVariants = {
@@ -99,6 +108,12 @@ function _getGenderLabel(gender: number): string {
 
 export function PersonHero({ person, className }: PersonHeroProps) {
   const [isBioExpanded, setIsBioExpanded] = useState(false);
+  // Captured once on mount: false on first load (SSR HTML already painted —
+  // skip the animation), true on client-side navigations (animate in).
+  const [animateEntrance] = useState(() => hasHydrated);
+  useEffect(() => {
+    hasHydrated = true;
+  }, []);
   const { trackExternalLink } = useAnalytics();
   const age = calculateAge(person.birthday, person.deathday);
   const formattedBirthday = formatDate(person.birthday);
@@ -123,7 +138,7 @@ export function PersonHero({ person, className }: PersonHeroProps) {
         <motion.div
           className="flex flex-col md:flex-row gap-8 md:gap-12"
           variants={containerVariants}
-          initial="hidden"
+          initial={animateEntrance ? "hidden" : false}
           animate="visible"
         >
           {/* Profile Image */}

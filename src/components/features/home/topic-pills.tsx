@@ -79,8 +79,8 @@ export function TopicPills({ topics, className }: TopicPillsProps) {
             }
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full",
-              "bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20",
-              "text-sm font-medium text-white/80 hover:text-white",
+              "bg-muted/60 hover:bg-muted border border-border hover:border-foreground/20",
+              "text-sm font-medium text-foreground/80 hover:text-foreground",
               "whitespace-nowrap transition-all duration-200",
               "flex-shrink-0"
             )}

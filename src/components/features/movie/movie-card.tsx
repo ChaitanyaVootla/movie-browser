@@ -161,7 +161,9 @@ export const MovieCard = memo(function MovieCard({
 
           {/* Title & Subtitle - consistent height regardless of badge */}
           <div className="mt-5">
-            <h3 className="text-sm font-medium line-clamp-1 group-hover:text-brand transition-colors">
+            {/* line-clamp-2 with min-h-10 (2 lines x 1.25rem text-sm leading) so
+                grid/carousel rows stay aligned whether the title is 1 or 2 lines */}
+            <h3 className="text-sm font-medium leading-5 line-clamp-2 min-h-10 group-hover:text-brand transition-colors">
               {title}
             </h3>
             {subtitle && (

@@ -154,10 +154,12 @@ export function IdleCircle({
               width: { duration: 0.35, ease: TRANSITION_EASE },
               opacity: { duration: 0.2, delay: 0.1 },
             }}
-            className="flex items-center gap-2 overflow-hidden"
+            className="flex items-center gap-2 overflow-hidden min-w-0"
           >
-            {/* Use prompt.message (full text) instead of prompt.text (truncated to 25 chars) */}
-            <span className="text-sm font-medium text-foreground whitespace-nowrap pl-2">
+            {/* Use prompt.message (full text) instead of prompt.text (truncated to 25 chars).
+                `truncate` + `min-w-0` ellipsize long prompts cleanly instead of hard-clipping
+                mid-glyph; the arrow lives outside the truncating span (shrink-0) so it always renders. */}
+            <span className="text-sm font-medium text-foreground truncate min-w-0 pl-2">
               {prompt.message}
             </span>
             <motion.div
@@ -165,6 +167,7 @@ export function IdleCircle({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.2, delay: 0.15 }}
+              className="shrink-0"
             >
               <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             </motion.div>

@@ -1,7 +1,12 @@
+import { Suspense, cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getPerson } from "@/server/actions/person";
+import { getPerson as getPersonBase } from "@/server/actions/person";
 import { personExists } from "@/server/services/media-exists";
+
+// Deduplicate getPerson calls within the same request
+// (generateMetadata + PersonContentAsync share the same cached result)
+const getPerson = cache(getPersonBase);
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
 import { breadcrumbList } from "@/lib/seo/jsonld";
 
@@ -24,6 +29,8 @@ import {
   KnownForSection,
   UpcomingLatestSection,
 } from "@/components/features/person";
+import { MediaContextUpdater } from "@/components/features/media";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
 import {
   extractPersonHeroProps,
@@ -211,25 +218,60 @@ function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeo
   );
 }
 
-export default async function PersonPage({ params, searchParams }: PersonPageProps) {
-  const { params: routeParams } = await params;
-  const personId = routeParams[0];
-  const id = parseInt(personId, 10);
+// Streaming skeleton shown while PersonContentAsync resolves. Mirrors the
+// settled PersonHero layout (same paddings, profile-photo block, name bar, bio
+// lines) so the swap-in causes minimal layout shift, plus a card-row
+// placeholder where the first credits scroller lands.
+function PersonPageSkeleton() {
+  return (
+    <article className="pb-12">
+      <section className="relative bg-gradient-to-b from-background/50 to-background">
+        <div className="px-4 md:px-8 lg:px-12 pt-16 md:pt-20 pb-8 md:pb-12">
+          <div className="flex flex-col md:flex-row gap-8 md:gap-12">
+            {/* Profile photo block (w-48 h-72 / md:w-64 md:h-96 in PersonHero) */}
+            <div className="flex-shrink-0 mx-auto md:mx-0">
+              <Skeleton className="w-48 h-72 md:w-64 md:h-96 rounded-2xl" />
+            </div>
 
-  if (isNaN(id)) {
-    notFound();
-  }
+            {/* Name, department badge, meta row, bio lines */}
+            <div className="flex-1 min-w-0 flex flex-col items-center md:items-start">
+              <Skeleton className="h-9 lg:h-12 w-64 max-w-full" />
+              <Skeleton className="mt-3 h-6 w-20 rounded-full" />
+              <Skeleton className="mt-5 h-4 w-72 max-w-full" />
+              <div className="mt-7 w-full space-y-2.5">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  // E2E test trigger: throw an error to test error boundary.
-  // The NODE_ENV gate must wrap the `await searchParams` itself — unwrapping
-  // searchParams opts the route out of ISR, so production must never touch it.
-  if (process.env.NODE_ENV !== "production") {
-    const { __e2e_error } = await searchParams;
-    if (__e2e_error === "true") {
-      throw new Error("E2E Test Error: Simulated error for error boundary testing");
-    }
-  }
+      {/* First credits scroller placeholder */}
+      <section className="mt-8 space-y-4">
+        <div className="px-4 md:px-8 lg:px-12">
+          <Skeleton className="h-6 w-40" />
+        </div>
+        <div className="flex gap-3 px-4 md:px-8 lg:px-12 overflow-hidden">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex-shrink-0 w-[130px] sm:w-[145px] md:w-[160px]">
+              <Skeleton className="aspect-[2/3] rounded-lg mb-2" />
+              <Skeleton className="h-3 w-full mb-1" />
+              <Skeleton className="h-2.5 w-1/2" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </article>
+  );
+}
 
+// Async page content - everything below depends on getPerson, so it streams in
+// behind the Suspense boundary while the skeleton shows.
+async function PersonContentAsync({ id }: { id: number }) {
   const person = await getPerson(id);
 
   if (!person) {
@@ -239,7 +281,12 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
   // Extract only the fields needed by each client component (RSC payload optimization)
   // This reduces ~857KB → ~350KB by removing unused fields like overview from credits
   const heroProps = extractPersonHeroProps(person);
-  const knownForCredits = extractKnownForCredits(person.combined_credits?.cast, 15);
+  const knownForCredits = extractKnownForCredits(
+    person.combined_credits?.cast,
+    person.combined_credits?.crew,
+    person.known_for_department,
+    15
+  );
   const upcomingLatestCredits = extractUpcomingLatestCredits(
     person.combined_credits?.cast,
     person.combined_credits?.crew,
@@ -248,6 +295,7 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
   );
   const filmographyData = {
     id: person.id,
+    known_for_department: person.known_for_department,
     combined_credits: extractFilmographyCredits(
       person.combined_credits?.cast,
       person.combined_credits?.crew,
@@ -260,6 +308,10 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
   return (
     <>
       <PersonSchema person={person} />
+
+      {/* Update global media context so AI chat prompts use the person's name
+          (otherwise the floating pill falls back to "this person") */}
+      <MediaContextUpdater mediaType="person" itemId={person.id} title={person.name} />
 
       <article className="pb-12">
         {/* Hero section with profile image, bio, and external links */}
@@ -288,5 +340,35 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
         <PersonFilmography person={filmographyData} className="mt-8" />
       </article>
     </>
+  );
+}
+
+export default async function PersonPage({ params, searchParams }: PersonPageProps) {
+  const { params: routeParams } = await params;
+  const personId = routeParams[0];
+  const id = parseInt(personId, 10);
+
+  if (isNaN(id)) {
+    notFound();
+  }
+
+  // E2E test trigger: throw an error to test error boundary.
+  // The NODE_ENV gate must wrap the `await searchParams` itself — unwrapping
+  // searchParams opts the route out of ISR, so production must never touch it.
+  if (process.env.NODE_ENV !== "production") {
+    const { __e2e_error } = await searchParams;
+    if (__e2e_error === "true") {
+      throw new Error("E2E Test Error: Simulated error for error boundary testing");
+    }
+  }
+
+  // In-page Suspense (NOT loading.tsx — that would lock the response to HTTP
+  // 200 and break the 404/308 thrown from generateMetadata, see
+  // .claude/rules/performance.md): on ISR cache misses the shell + skeleton
+  // flush immediately while getPerson resolves.
+  return (
+    <Suspense fallback={<PersonPageSkeleton />}>
+      <PersonContentAsync id={id} />
+    </Suspense>
   );
 }

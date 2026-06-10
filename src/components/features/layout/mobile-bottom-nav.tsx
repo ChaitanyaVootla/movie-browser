@@ -24,7 +24,6 @@ import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useSearch } from "@/components/features/search";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
@@ -334,25 +333,31 @@ export function MobileBottomNav() {
             className="flex-1 flex justify-center py-2 active:opacity-70"
             type="button"
           >
-            <div className="flex flex-col items-center gap-0.5">
-              {isLoading ? (
-                <Skeleton className="h-5 w-5 rounded-full" />
-              ) : isAuthenticated ? (
-                <Avatar className="h-5 w-5 ring-1 ring-border/40">
-                  {user?.image && (
-                    <AvatarImage
-                      src={user.image}
-                      alt={user.name || "User"}
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                  <AvatarFallback className="text-[8px] bg-primary/10 text-primary font-medium">
-                    {getInitials(user?.name || "U")}
-                  </AvatarFallback>
-                </Avatar>
-              ) : (
-                <User className="h-5 w-5 text-muted-foreground/70" />
-              )}
+            {/* Same structure/metrics as NavItemButton (py-1 + gap-0.5 + fixed
+                h-5 w-5 icon slot) so the avatar/icon swap never shifts the
+                icon or label baseline relative to the other nav items */}
+            <div className="flex flex-col items-center gap-0.5 relative py-1">
+              <span className="flex h-5 w-5 items-center justify-center">
+                {isLoading ? (
+                  // Pre-hydration/loading placeholder: person glyph, not a blank circle
+                  <User className="h-5 w-5 text-muted-foreground/50" />
+                ) : isAuthenticated ? (
+                  <Avatar className="h-5 w-5 ring-1 ring-border/40">
+                    {user?.image && (
+                      <AvatarImage
+                        src={user.image}
+                        alt={user.name || "User"}
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                    <AvatarFallback className="text-[8px] bg-primary/10 text-primary font-medium">
+                      {getInitials(user?.name || "U")}
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <User className="h-5 w-5 text-muted-foreground" />
+                )}
+              </span>
               <span className="text-[11px] font-medium text-muted-foreground leading-none">
                 {isAuthenticated ? "You" : "Menu"}
               </span>

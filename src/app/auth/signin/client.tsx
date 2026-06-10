@@ -42,7 +42,11 @@ export function SignInClient({ callbackUrl, error }: SignInClientProps) {
   const errorMessage = error ? errorMessages[error] || errorMessages.Default : null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16">
+    // Mobile bottom padding clears the fixed bottom UI stack: bottom nav + AI
+    // bubble + PWA install banner (banner bottom edge sits at 8rem + safe-area,
+    // card ~4.5rem tall), so the Terms/Privacy line stays visible. On md+ the
+    // banner docks bottom-right and the bottom nav disappears.
+    <div className="min-h-dvh flex items-center justify-center px-4 pt-16 pb-[calc(13rem+env(safe-area-inset-bottom,0px))] md:pb-16">
       <div className="w-full max-w-md">
         {/* Back link */}
         <Link

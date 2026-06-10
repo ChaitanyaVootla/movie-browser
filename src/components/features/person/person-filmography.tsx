@@ -81,6 +81,63 @@ function creditToListItem(
   }
 }
 
+// Jobs that best represent each TMDB department — used to pick the person's
+// primary credit when a title carries several crew credits for them (e.g.
+// Nolan's films list Director + Screenplay + Producer; show "Director").
+const DEPARTMENT_PRIMARY_JOBS: Record<string, string[]> = {
+  Directing: ["Director"],
+  Writing: ["Writer", "Screenplay", "Story"],
+  Production: ["Producer", "Executive Producer"],
+  Camera: ["Director of Photography", "Cinematographer"],
+  Editing: ["Editor"],
+  Sound: ["Original Music Composer", "Music"],
+};
+
+// Sensible cross-department fallback order when nothing matches their
+// known_for_department: Director > Writer/Screenplay > Producer.
+const FALLBACK_JOB_PRIORITY = [
+  "Director",
+  "Writer",
+  "Screenplay",
+  "Story",
+  "Producer",
+  "Executive Producer",
+];
+
+// Lower rank = more primary. Jobs matching the person's known_for_department
+// win, then the global fallback order, then anything else.
+function crewJobRank(credit: LightPersonCrewCredit, knownForDepartment?: string): number {
+  const primaryJobs = knownForDepartment ? DEPARTMENT_PRIMARY_JOBS[knownForDepartment] : undefined;
+  const primaryIdx = primaryJobs?.indexOf(credit.job) ?? -1;
+  if (primaryIdx !== -1) return primaryIdx;
+  if (knownForDepartment && credit.department === knownForDepartment) return 50;
+  const fallbackIdx = FALLBACK_JOB_PRIORITY.indexOf(credit.job);
+  if (fallbackIdx !== -1) return 100 + fallbackIdx;
+  return 999;
+}
+
+// Collapse multiple crew credits for the same title into the single credit
+// whose job best matches the person's known_for_department, so the card
+// subtitle shows their primary role.
+function selectPrimaryCrewCredits(
+  crew: LightPersonCrewCredit[],
+  knownForDepartment?: string
+): LightPersonCrewCredit[] {
+  const best = new Map<string, LightPersonCrewCredit>();
+  crew.forEach((credit) => {
+    const key = `${credit.media_type}-${credit.id}`;
+    const existing = best.get(key);
+    if (
+      !existing ||
+      crewJobRank(credit, knownForDepartment) < crewJobRank(existing, knownForDepartment)
+    ) {
+      best.set(key, credit);
+    }
+  });
+  // Filter (not Map values) to preserve the original credit order
+  return crew.filter((credit) => best.get(`${credit.media_type}-${credit.id}`) === credit);
+}
+
 // Get subtitle for a credit (character or job)
 function getSubtitle(
   credit: LightPersonCastCredit | LightPersonCrewCredit,
@@ -169,14 +226,17 @@ export function PersonFilmography({ person, className }: PersonFilmographyProps)
   );
   const combinedCrew = useMemo(
     () =>
-      filterOutTalkShows(person.combined_credits.crew).map(
+      selectPrimaryCrewCredits(
+        filterOutTalkShows(person.combined_credits.crew),
+        person.known_for_department
+      ).map(
         (credit): CreditWithSubtitle => ({
           credit,
           subtitle: getSubtitle(credit, false),
           isCast: false,
         })
       ),
-    [person.combined_credits.crew]
+    [person.combined_credits.crew, person.known_for_department]
   );
 
   // Separate by media type

@@ -9,7 +9,9 @@ interface FooterProps {
 export function Footer({ className }: FooterProps) {
   return (
     <footer className={cn("border-t border-border/40 bg-muted/30", className)}>
-      <div className="px-4 md:px-8 lg:px-12 py-12">
+      {/* pb-24 (not py-12): the AI assistant pill is fixed at bottom-6 with h-10
+          (24–64px viewport band) — the copyright row needs to clear it at full scroll */}
+      <div className="px-4 md:px-8 lg:px-12 pt-12 pb-24">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
@@ -66,11 +68,6 @@ export function Footer({ className }: FooterProps) {
               <li>
                 <Link href="/ratings" className="hover:text-foreground transition-colors">
                   Ratings
-                </Link>
-              </li>
-              <li>
-                <Link href="/profile" className="hover:text-foreground transition-colors">
-                  Profile
                 </Link>
               </li>
             </ul>

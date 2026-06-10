@@ -115,7 +115,15 @@ export function DiscoverGrid({
           setResults(result.results);
           setIsInitialLoad(false);
         } else {
-          setResults((prev) => [...prev, ...result.results]);
+          // Dedupe by (media_type, id): items can shift across page boundaries
+          // between requests, so the same title may appear on two pages.
+          setResults((prev) => {
+            const seen = new Set(prev.map((item) => `${item.media_type}-${item.id}`));
+            const fresh = result.results.filter(
+              (item) => !seen.has(`${item.media_type}-${item.id}`)
+            );
+            return [...prev, ...fresh];
+          });
         }
         setPage(nextPage);
         setTotalPages(result.totalPages);
@@ -202,7 +210,7 @@ export function DiscoverGrid({
       ) : (
         <div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
           {filteredResults.map((item, index) => (
-            <MediaCard key={`${item.id}-${index}`} item={item} priority={index < 7} />
+            <MediaCard key={`${item.media_type}-${item.id}`} item={item} priority={index < 7} />
           ))}
         </div>
       )}
@@ -288,7 +296,7 @@ export function DiscoverGridServer({
       ) : (
         <div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
           {results.map((item, index) => (
-            <MediaCard key={item.id} item={item} priority={index < 7} />
+            <MediaCard key={`${item.media_type}-${item.id}`} item={item} priority={index < 7} />
           ))}
         </div>
       )}

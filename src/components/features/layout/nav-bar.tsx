@@ -30,6 +30,23 @@ export function NavBar() {
   const isLoading = status === "loading";
   const isAdmin = session?.user?.role === "admin";
 
+  // Only home + movie/series detail pages render dark imagery under the
+  // transparent navbar (person hero is a themed gradient). White text is only
+  // correct while transparent over that imagery; everywhere else (including the
+  // scrolled bg-background/95 state) text must follow the theme.
+  const isHeroRoute =
+    pathname === "/" || pathname?.startsWith("/movie/") || pathname?.startsWith("/series/");
+  const overHero = !isScrolled && Boolean(isHeroRoute);
+
+  const navLinkClass = (active: boolean) =>
+    cn(
+      "gap-2 cursor-pointer",
+      overHero
+        ? "text-white/90 hover:text-white hover:bg-white/10"
+        : "text-foreground/80 hover:text-foreground",
+      active && (overHero ? "text-white bg-white/10" : "text-foreground bg-accent")
+    );
+
   // Detect OS for keyboard shortcut display (client-side only)
   const [isMac, setIsMac] = useState(() => {
     // Default to true for SSR, will be corrected on client
@@ -86,7 +103,12 @@ export function NavBar() {
                 height={28}
                 className="group-hover:rotate-6 group-hover:scale-110 transition-all duration-200"
               />
-              <span className="hidden sm:inline-block tracking-wider font-extrabold text-white drop-shadow-md">
+              <span
+                className={cn(
+                  "hidden sm:inline-block tracking-wider font-extrabold",
+                  overHero ? "text-white drop-shadow-md" : "text-foreground"
+                )}
+              >
                 TMB
               </span>
             </Link>
@@ -97,14 +119,7 @@ export function NavBar() {
                 <Link key={href} href={href} data-testid={`nav-${label.toLowerCase()}`}>
                   <Button
                     variant="ghost"
-                    className={cn(
-                      "gap-2 hover:bg-white/10 cursor-pointer",
-                      isScrolled
-                        ? "text-foreground/80 hover:text-foreground"
-                        : "text-white/90 hover:text-white",
-                      pathname?.startsWith(href) &&
-                        (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
-                    )}
+                    className={navLinkClass(Boolean(pathname?.startsWith(href)))}
                   >
                     <Icon className="h-4 w-4" />
                     {label}
@@ -117,14 +132,7 @@ export function NavBar() {
                   <Link key={href} href={href} data-testid={`nav-${label.toLowerCase()}`}>
                     <Button
                       variant="ghost"
-                      className={cn(
-                        "gap-2 hover:bg-white/10 cursor-pointer",
-                        isScrolled
-                          ? "text-foreground/80 hover:text-foreground"
-                          : "text-white/90 hover:text-white",
-                        pathname?.startsWith(href) &&
-                          (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
-                      )}
+                      className={navLinkClass(Boolean(pathname?.startsWith(href)))}
                     >
                       <Icon className="h-4 w-4" />
                       {label}
@@ -136,14 +144,7 @@ export function NavBar() {
                 <Link href="/admin" data-testid="nav-admin">
                   <Button
                     variant="ghost"
-                    className={cn(
-                      "gap-2 hover:bg-white/10 cursor-pointer",
-                      isScrolled
-                        ? "text-foreground/80 hover:text-foreground"
-                        : "text-white/90 hover:text-white",
-                      pathname?.startsWith("/admin") &&
-                        (isScrolled ? "text-foreground bg-accent" : "text-white bg-white/10")
-                    )}
+                    className={navLinkClass(Boolean(pathname?.startsWith("/admin")))}
                   >
                     <Shield className="h-4 w-4" />
                     Admin
@@ -161,18 +162,18 @@ export function NavBar() {
               onClick={() => setSearchOpen(true)}
               className={cn(
                 "hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-sm transition-colors",
-                isScrolled
-                  ? "bg-muted/50 hover:bg-muted text-muted-foreground"
-                  : "bg-white/10 hover:bg-white/15 text-white/70"
+                overHero
+                  ? "bg-white/10 hover:bg-white/15 text-white/70"
+                  : "bg-muted/50 hover:bg-muted text-muted-foreground"
               )}
             >
               <Search className="h-3.5 w-3.5" />
               <kbd
                 className={cn(
                   "inline-flex h-5 items-center gap-0.5 rounded border px-1.5 font-mono text-[10px]",
-                  isScrolled
-                    ? "border-border bg-background text-muted-foreground"
-                    : "border-white/20 bg-white/10 text-white/60"
+                  overHero
+                    ? "border-white/20 bg-white/10 text-white/60"
+                    : "border-border bg-background text-muted-foreground"
                 )}
               >
                 {isMac ? "⌘" : "Ctrl"}K

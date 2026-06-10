@@ -4,7 +4,6 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
-  User,
   LogOut,
   Eye,
   List,
@@ -145,13 +144,6 @@ export function UserMenu({ className }: UserMenuProps) {
         <DropdownMenuSeparator />
 
         {/* Profile Actions */}
-        <DropdownMenuItem asChild>
-          <Link href="/profile" className="cursor-pointer">
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
-          </Link>
-        </DropdownMenuItem>
-
         <DropdownMenuItem asChild>
           <Link href="/watchlist" className="cursor-pointer">
             <List className="mr-2 h-4 w-4" />

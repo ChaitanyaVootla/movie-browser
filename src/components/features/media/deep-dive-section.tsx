@@ -307,16 +307,40 @@ export function DeepDiveSection({
           ))}
         </div>
 
-        {/* Spoiler warning when collapsed */}
-        {!isExpanded && spoilerItems.length > 0 && (
-          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-500/70" />
-            <span className="text-[11px] text-amber-500/80">
-              {spoilerItems.length} item{spoilerItems.length > 1 ? "s" : ""} hidden
-              due to spoilers
-            </span>
-          </div>
-        )}
+        {/* Collapsed spoiler handling:
+            - All items gated (nothing visible) → actionable reveal button, otherwise
+              the section is just a heading + banner and reads as broken.
+            - Some items visible → passive warning banner (header button expands). */}
+        {!isExpanded &&
+          spoilerItems.length > 0 &&
+          (displayItems.length === 0 ? (
+            <button
+              onClick={() => setIsExpanded(true)}
+              className={cn(
+                "flex w-full items-center justify-center gap-2",
+                "px-3 py-3 rounded-lg",
+                "text-xs font-medium",
+                "bg-white/5 hover:bg-white/10",
+                "border border-white/10 hover:border-white/20",
+                "text-muted-foreground hover:text-foreground",
+                "transition-all duration-200"
+              )}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>
+                Show {spoilerItems.length} item{spoilerItems.length > 1 ? "s" : ""}{" "}
+                (includes spoilers)
+              </span>
+            </button>
+          ) : (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500/70" />
+              <span className="text-[11px] text-amber-500/80">
+                {spoilerItems.length} item{spoilerItems.length > 1 ? "s" : ""} hidden
+                due to spoilers
+              </span>
+            </div>
+          ))}
       </div>
     </section>
   );

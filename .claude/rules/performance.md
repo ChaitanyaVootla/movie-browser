@@ -134,6 +134,14 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    `page_views GROUP BY bot_type` for the last 10 min — and remember every
    deploy wipes the ISR cache, so post-deploy there's a cold-render window
    where blocked-class gaps re-jam the event loop fast.
+11. **Don't run parallel Playwright audits against prod.** Jun 10 2026: four
+   concurrent visual-audit agents scroll-loading ~80 pages (incl. uncached sparse
+   titles and garbage IDs → cold renders + enrichment triggers) on top of the
+   crawler baseline tipped the 2-vCPU box into timeouts (monitor DOWN ~1 min,
+   self-recovered). Sequence audit agents or point them at a local `next start`
+   build; reserve prod for single-page spot checks. Same incident's traffic mix:
+   ByteSpider (`bytedance`) was the top *served* (not 429'd) crawler at ~315
+   req/min — first throttle/block candidate in `src/proxy.ts` if the box is hot.
 
 ## Testing a fix
 

@@ -244,15 +244,20 @@ function getSeriesFallbackPrompts(title: string): PromptConfig[] {
   ];
 }
 
-function getPersonFallbackPrompts(name: string): PromptConfig[] {
+function getPersonFallbackPrompts(name?: string): PromptConfig[] {
+  // Templates must stay grammatical without a name: `ref` sits in subject/object
+  // position ("Is this person overrated?") and `poss` in possessive position
+  // ("this person's best performance") — never bare "them"/"they" as subject.
+  const ref = name || "this person";
+  const poss = name ? `${name}'s` : "this person's";
   return [
-    { text: "What're they up to?", message: `What is ${name} working on now?` },
-    { text: "Best performance?", message: `What's ${name}'s best performance?` },
-    { text: "Hidden gems?", message: `Any underrated ${name} movies I should watch?` },
-    { text: "Hot take?", message: `What's your hot take on ${name}?` },
-    { text: "Career peak?", message: `Has ${name} peaked or is their best work ahead?` },
-    { text: "Overrated?", message: `Is ${name} overrated or genuinely talented?` },
-    { text: "Range check", message: `Does ${name} have range or do they play the same character?` },
+    { text: "What're they up to?", message: `What is ${ref} working on now?` },
+    { text: "Best performance?", message: `What's ${poss} best performance?` },
+    { text: "Hidden gems?", message: `Any underrated movies by ${ref} I should watch?` },
+    { text: "Hot take?", message: `What's your hot take on ${ref}?` },
+    { text: "Career peak?", message: `Has ${ref} peaked or is their best work ahead?` },
+    { text: "Overrated?", message: `Is ${ref} overrated or genuinely talented?` },
+    { text: "Range check", message: `Does ${ref} have range or do they play the same character?` },
   ];
 }
 
@@ -351,8 +356,7 @@ export function getSeriesDetailPrompts(
  * Person-specific prompts when on a person detail page
  */
 export function getPersonDetailPrompts(name?: string): PromptConfig[] {
-  const personRef = name || "them";
-  return pickRandom(getPersonFallbackPrompts(personRef), 4);
+  return pickRandom(getPersonFallbackPrompts(name), 4);
 }
 
 /**
@@ -426,9 +430,13 @@ export function getContextualPrompts(
     );
   }
 
-  // Person detail page
+  // Person detail page — only trust the title if the context is actually a
+  // person (a stale movie/series context during navigation would otherwise
+  // produce "What is Inception working on now?")
   if (pageType === "person") {
-    return getPersonDetailPrompts(mediaContext?.title || undefined);
+    return getPersonDetailPrompts(
+      mediaContext?.mediaType === "person" ? mediaContext.title || undefined : undefined
+    );
   }
 
   // Search page

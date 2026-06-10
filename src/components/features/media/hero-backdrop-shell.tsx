@@ -50,13 +50,22 @@ export function HeroBackdropShell({
   // TMDB fallback needs the path
   const tmdbUrl = tmdbBackdropPath ? `${TMDB_IMAGE_BASE}/w1280${tmdbBackdropPath}` : null;
 
-  // When context provides TMDB path and we're in pending state, try TMDB
+  // Async content has reported in (context data set) — even if it has no backdrop path
+  const contextResolved = Boolean(heroContext?.data);
+
+  // When context provides TMDB path and we're in pending state, try TMDB.
+  // If the async content arrived WITHOUT a backdrop path, there is no art at all —
+  // resolve to "failed" so the hero collapses to its compact (no-backdrop) layout
+  // instead of showing a giant empty skeleton forever.
   useEffect(() => {
-    if (loadState === "pending" && tmdbUrl) {
+    if (loadState !== "pending") return;
+    if (tmdbUrl) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadState("tmdb");
+    } else if (contextResolved) {
+      setLoadState("failed");
     }
-  }, [loadState, tmdbUrl]);
+  }, [loadState, tmdbUrl, contextResolved]);
 
   const handleError = () => {
     if (loadState === "cdn") {
@@ -82,9 +91,15 @@ export function HeroBackdropShell({
   // Show backdrop image when we have a source and not in failed/pending state
   const showBackdrop = loadState !== "failed" && loadState !== "pending";
 
+  // No backdrop art exists at all (CDN + TMDB both missing) — render the compact
+  // hero: no image void, content flows at natural height. `.hero-container` height
+  // collapses via the [data-backdrop-state="failed"] hook in globals.css.
+  const backdropFailed = loadState === "failed";
+
   return (
     <div
       data-testid="hero-backdrop"
+      data-backdrop-state={loadState}
       className={cn(
         "relative w-full overflow-hidden bg-hero-base",
         // Mobile: flex column, image + content stacked
@@ -180,11 +195,9 @@ export function HeroBackdropShell({
           </div>
         </>
       ) : (
-        // Gradient fallback when all sources fail
-        <>
-          <div className="relative w-full aspect-video md:hidden flex-shrink-0 bg-linear-to-b from-muted to-background" />
-          <div className="absolute inset-0 hidden md:block bg-linear-to-b from-muted to-background" />
-        </>
+        // No art at all (compact hero): skip the mobile image block entirely —
+        // no 16:9 void — and keep only a subtle desktop gradient wash behind content.
+        <div className="absolute inset-0 hidden md:block bg-linear-to-b from-muted to-background" />
       )}
 
       {/* Desktop-only: Top/bottom gradients for nav and content readability */}
@@ -204,14 +217,17 @@ export function HeroBackdropShell({
         </>
       )}
 
-      {/* Content - mobile: normal flow below image, desktop: overlay */}
+      {/* Content - mobile: normal flow below image, desktop: overlay.
+          Compact (no backdrop): normal flow on both, desktop clears the 64px navbar. */}
       {children && (
         <div
           className={cn(
-            // Mobile: pull content up into the gradient for tight spacing
-            "relative z-10 bg-hero-base px-4 -mt-8 pb-6",
-            // Desktop: absolute overlay at bottom
-            "md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"
+            "relative z-10 bg-hero-base px-4",
+            backdropFailed
+              ? // Compact: nothing to overlay — natural flow with breathing room
+                "pt-10 pb-6 md:bg-transparent md:px-0 md:pt-20 md:pb-0"
+              : // Mobile: pull content up into the gradient; desktop: bottom overlay
+                "-mt-8 pb-6 md:absolute md:inset-0 md:bg-transparent md:p-0 md:mt-0"
           )}
         >
           {children}

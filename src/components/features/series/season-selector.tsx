@@ -37,6 +37,12 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState(defaultSeasonNumber);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [isPending, startTransition] = useTransition();
+  // True once the initial mount fetch has resolved. Without this, the first render
+  // flashed the "No episodes" empty state before episodes streamed in (isPending
+  // isn't set yet on initial mount) and everything shifted when they arrived.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  const isLoading = isPending || !hasLoadedOnce;
 
   // Get the currently selected season object for display
   const selectedSeason =
@@ -48,8 +54,11 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
 
     startTransition(async () => {
       const seasonData = await getSeason(seriesId, defaultSeasonNumber);
-      if (!cancelled && seasonData?.episodes) {
-        setEpisodes(seasonData.episodes);
+      if (!cancelled) {
+        if (seasonData?.episodes) {
+          setEpisodes(seasonData.episodes);
+        }
+        setHasLoadedOnce(true);
       }
     });
 
@@ -81,7 +90,12 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
         <SelectTrigger className="w-[140px] sm:w-[180px]">
           <SelectValue placeholder="Select Season" />
         </SelectTrigger>
-        <SelectContent>
+        {/* popper + max-h: long season lists (e.g. 38 seasons) must scroll internally
+            below the trigger instead of opening full-viewport over the navbar */}
+        <SelectContent
+          position="popper"
+          className="max-h-[min(60dvh,var(--radix-select-content-available-height))]"
+        >
           {seasons.map((season) => (
             <SelectItem key={season.id} value={season.season_number.toString()}>
               {season.name}
@@ -110,8 +124,13 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
 
   return (
     <div className={className}>
-      {/* Episodes with integrated season selector */}
-      {isPending ? (
+      {/* Episodes with integrated season selector.
+          Skeleton covers BOTH the initial mount fetch and season changes; the
+          empty state only renders once a load has actually completed with zero
+          episodes. Skeleton dimensions mirror EpisodeScroller cards
+          (w-[240px] md:w-[280px], aspect-video + two text lines) so content
+          below doesn't jump when episodes arrive. */}
+      {isLoading ? (
         <div className="space-y-4">
           {/* Header skeleton */}
           <div className="flex items-center gap-3 px-4 md:px-8 lg:px-12">

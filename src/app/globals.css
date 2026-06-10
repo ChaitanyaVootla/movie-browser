@@ -482,6 +482,15 @@ body {
       height: clamp(var(--hero-height-min), var(--hero-height-target), var(--hero-height-max));
       max-height: 60vh;
     }
+
+    /* Compact hero when a title has no backdrop art at all (CDN + TMDB both
+       missing). HeroBackdropShell marks itself data-backdrop-state="failed";
+       collapse the fixed clamp height so the title block sits compactly
+       (the shell's content wrapper adds md:pt-20 to clear the 64px navbar). */
+    .hero-container:has([data-backdrop-state="failed"]) {
+      height: auto;
+      max-height: none;
+    }
   }
 
   .hero-content-width {

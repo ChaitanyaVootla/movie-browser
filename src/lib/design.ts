@@ -22,6 +22,11 @@ export const STICKY_BAR = "sticky top-0 md:top-16 z-40 bg-background/95 backdrop
 /** Safe-area top padding for mobile sticky bars (PWA notch). */
 export const STICKY_BAR_SAFE_AREA = "pt-[calc(env(safe-area-inset-top,0px)+0.5rem)]";
 
-/** Hero AI tagline blockquote — capped at 2 lines so it can never push the logo into the navbar. */
+/**
+ * Hero AI tagline blockquote — capped at 2 lines so it can never push the logo into
+ * the navbar, and capped at `max-w-xl` (576px ≈ the hero logo block, 500–600px) so it
+ * never runs across the right-side backdrop art. Explicit `text-white/90` (not a theme
+ * token): the hero base is always dark, even in light mode (see DESIGN.md Typography).
+ */
 export const HERO_TAGLINE =
-  "border-l-2 border-brand/50 pl-3 text-xs md:text-sm text-foreground/90 italic font-medium text-left max-w-full leading-relaxed line-clamp-2";
+  "border-l-2 border-brand/50 pl-3 text-xs md:text-sm text-white/90 italic font-medium text-left max-w-xl leading-relaxed line-clamp-2";

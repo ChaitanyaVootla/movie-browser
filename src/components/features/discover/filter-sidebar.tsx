@@ -445,10 +445,10 @@ export function FilterSidebar({
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Any rating" />
+                    <SelectValue placeholder="Any score" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="any">Any rating</SelectItem>
+                    <SelectItem value="any">Any score</SelectItem>
                     {RATING_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value.toString()}>
                         {opt.label}

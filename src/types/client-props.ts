@@ -484,6 +484,8 @@ export interface PersonCreditsLight {
 /** Light props for PersonFilmography component */
 export interface PersonFilmographyProps {
   id: number;
+  /** Used to pick the person's primary job when a title has multiple crew credits */
+  known_for_department?: string;
   combined_credits: PersonCreditsLight;
 }
 
@@ -500,6 +502,7 @@ export interface PersonProfileImage {
 // =============================================================================
 
 import type { Person, PersonCombinedCastCredit, PersonCombinedCrewCredit, Image } from "./index";
+import { EXCLUDED_TV_GENRES } from "@/lib/constants";
 
 /** Extract only the fields needed for PersonHero */
 export function extractPersonHeroProps(person: Person): PersonHeroProps {
@@ -572,21 +575,75 @@ function extractLightCrewCredit(credit: PersonCombinedCrewCredit): LightPersonCr
   };
 }
 
+// "Self" appearances (award shows, ceremonies, documentaries about them,
+// archive footage, uncredited cameos) are not what a person is known for.
+const SELF_APPEARANCE_RE =
+  /(^|[^a-z])(self|himself|herself|themselves)([^a-z]|$)|archive footage|uncredited/i;
+
+function isSelfAppearance(character?: string): boolean {
+  return character ? SELF_APPEARANCE_RE.test(character) : false;
+}
+
+// TV talk/news/awards-show genres (mirrors lib/person-credits, which imports
+// types from this file — re-implemented here to avoid an import cycle).
+function hasExcludedTvGenre(credit: { media_type: "movie" | "tv"; genre_ids?: number[] }): boolean {
+  if (credit.media_type !== "tv") return false;
+  return (credit.genre_ids || []).some((genreId) =>
+    EXCLUDED_TV_GENRES.includes(genreId as (typeof EXCLUDED_TV_GENRES)[number])
+  );
+}
+
+// Popularity weighted by vote count, so a briefly-trending awards broadcast
+// can't outrank an enduringly-rated film.
+function knownForScore(credit: { popularity?: number; vote_count?: number }): number {
+  return (credit.popularity || 0) * Math.log10((credit.vote_count || 0) + 10);
+}
+
 /**
  * Extract light credits for KnownFor section.
- * Sorted by popularity, limited to top entries.
+ *
+ * Prefers credits from the person's known_for_department (acting credits for
+ * actors, e.g. Directing crew credits for directors), excludes "Self" /
+ * talk- and awards-show appearances, and ranks by popularity weighted by vote
+ * count. Remaining slots are filled from their other credits.
  */
 export function extractKnownForCredits(
   cast: PersonCombinedCastCredit[] | undefined,
+  crew: PersonCombinedCrewCredit[] | undefined,
+  knownForDepartment?: string,
   limit = 15
-): LightPersonCastCredit[] {
-  if (!cast || cast.length === 0) return [];
+): (LightPersonCastCredit | LightPersonCrewCredit)[] {
+  const eligibleCast = (cast || []).filter(
+    (c) => c.poster_path && !isSelfAppearance(c.character) && !hasExcludedTvGenre(c)
+  );
+  const eligibleCrew = (crew || []).filter((c) => c.poster_path && !hasExcludedTvGenre(c));
 
-  return cast
-    .filter((c) => c.poster_path) // Need poster for cards
-    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-    .slice(0, limit)
-    .map(extractLightCastCredit);
+  const actsPrimarily = !knownForDepartment || knownForDepartment === "Acting";
+  const primary: (PersonCombinedCastCredit | PersonCombinedCrewCredit)[] = actsPrimarily
+    ? eligibleCast
+    : eligibleCrew.filter((c) => c.department === knownForDepartment);
+  const secondary: (PersonCombinedCastCredit | PersonCombinedCrewCredit)[] = actsPrimarily
+    ? eligibleCrew
+    : [...eligibleCast, ...eligibleCrew.filter((c) => c.department !== knownForDepartment)];
+
+  const byScoreDesc = (
+    a: PersonCombinedCastCredit | PersonCombinedCrewCredit,
+    b: PersonCombinedCastCredit | PersonCombinedCrewCredit
+  ) => knownForScore(b) - knownForScore(a);
+
+  const seen = new Set<string>();
+  const picked: (PersonCombinedCastCredit | PersonCombinedCrewCredit)[] = [];
+  for (const credit of [...[...primary].sort(byScoreDesc), ...[...secondary].sort(byScoreDesc)]) {
+    const key = `${credit.media_type}-${credit.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    picked.push(credit);
+    if (picked.length >= limit) break;
+  }
+
+  return picked.map((c) =>
+    "job" in c ? extractLightCrewCredit(c) : extractLightCastCredit(c)
+  );
 }
 
 /**

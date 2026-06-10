@@ -627,8 +627,10 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
                 <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
                   {/* Content container
                       Mobile: centered, normal document flow (below image)
-                      Desktop: absolute positioned overlay at bottom */}
-                  <div className="flex flex-col items-center text-center md:items-start md:text-left md:absolute md:inset-0 md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
+                      Desktop: fills the shell's overlay wrapper, bottom-anchored.
+                      md:h-full (not md:absolute): when the shell collapses to its
+                      compact no-backdrop layout, this must flow at natural height. */}
+                  <div className="flex flex-col items-center text-center md:items-start md:text-left md:h-full md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
                     {/* Logo renders immediately with just ID */}
                     <div className="mb-3 md:mb-6 lg:mb-8">
                       <HeroLogoShell

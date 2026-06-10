@@ -95,28 +95,30 @@ export function TopicsClient({
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-          <TabsList className="h-9">
-            <TabsTrigger value="all" className="gap-1.5 text-xs px-3">
-              <Layers className="h-3.5 w-3.5" />
-              All
-            </TabsTrigger>
-            <TabsTrigger value="genres" className="gap-1.5 text-xs px-3">
-              <Sparkles className="h-3.5 w-3.5" />
-              Genres
-            </TabsTrigger>
-            <TabsTrigger value="themes" className="gap-1.5 text-xs px-3">
-              <Sparkles className="h-3.5 w-3.5" />
-              Themes
-            </TabsTrigger>
-            <TabsTrigger value="movies" className="gap-1.5 text-xs px-3">
-              <Film className="h-3.5 w-3.5" />
-              Movies
-            </TabsTrigger>
-            <TabsTrigger value="tv" className="gap-1.5 text-xs px-3">
-              <Tv className="h-3.5 w-3.5" />
-              TV
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+            <TabsList className="h-9 w-max">
+              <TabsTrigger value="all" className="gap-1.5 text-xs px-3">
+                <Layers className="h-3.5 w-3.5" />
+                All
+              </TabsTrigger>
+              <TabsTrigger value="genres" className="gap-1.5 text-xs px-3">
+                <Sparkles className="h-3.5 w-3.5" />
+                Genres
+              </TabsTrigger>
+              <TabsTrigger value="themes" className="gap-1.5 text-xs px-3">
+                <Sparkles className="h-3.5 w-3.5" />
+                Themes
+              </TabsTrigger>
+              <TabsTrigger value="movies" className="gap-1.5 text-xs px-3">
+                <Film className="h-3.5 w-3.5" />
+                Movies
+              </TabsTrigger>
+              <TabsTrigger value="tv" className="gap-1.5 text-xs px-3">
+                <Tv className="h-3.5 w-3.5" />
+                TV
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </Tabs>
 
         {/* Quick Links - Limited */}

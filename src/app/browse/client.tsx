@@ -480,7 +480,7 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block md:w-64 lg:w-80 shrink-0 border-r bg-muted/20 fixed top-16 left-0 h-[calc(100dvh-4rem)] overflow-y-auto">
+        <aside className="hidden md:block md:w-64 lg:w-80 shrink-0 border-r bg-muted/20 sticky top-16 self-start h-[calc(100dvh-4rem)] overflow-y-auto">
           <FilterSidebar
             params={params}
             onChange={handleParamsChange}
@@ -492,7 +492,7 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 md:ml-64 lg:ml-80 pb-32">
+        <main className="flex-1 min-w-0 pb-32">
           <div className="px-4 md:px-6 lg:px-8 py-4">
             {/* Header Row with Sort */}
             <div className="flex items-center justify-between gap-4 mb-3">

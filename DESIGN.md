@@ -161,7 +161,7 @@ because text competes with artwork.
 | Body copy | {typography.body-md} | `text-sm text-foreground` (long-form: `leading-relaxed`) |
 | Metadata/captions | {typography.body-sm} | `text-xs font-medium text-muted-foreground` |
 | Buttons/labels | {typography.label-md} | shadcn defaults (`text-sm font-medium`) |
-| Hero tagline (AI one-liner) | {typography.tagline} | `text-xs md:text-sm italic font-medium leading-relaxed line-clamp-2 border-l-2 border-brand/50 pl-3` |
+| Hero tagline (AI one-liner) | {typography.tagline} | `text-xs md:text-sm text-white/90 italic font-medium leading-relaxed line-clamp-2 max-w-xl border-l-2 border-brand/50 pl-3` |
 
 Rules:
 
@@ -169,8 +169,13 @@ Rules:
   `text-2xl` section headings.
 - Display sizes (`text-4xl`+) must always carry smaller `sm:`-first variants so they
   scale down on ≤400px phones.
-- The hero tagline is capped at **2 lines** (`line-clamp-2`) and must never exceed its
-  parent `hero-content-width` column (no fixed `max-w-*` wider than the column).
+- The hero tagline is capped at **2 lines** (`line-clamp-2`) and carries its own
+  width cap (`max-w-xl` ≈ the hero logo block, 500–600px) so it can never run across
+  the right-side backdrop art, regardless of what its parent column does.
+- The hero tagline uses explicit `text-white/90`, not `text-foreground`: the hero
+  base is **always dark — even in light mode** (`--hero-base` ≈ oklch 0.15, see
+  `globals.css`), so theme tokens go near-black over the backdrop. This is the
+  standard "content over imagery" exception (see Colors).
 
 ## Layout
 
@@ -194,6 +199,12 @@ and the content column uses `.hero-content-width` (`clamp`-based, see `globals.c
 Nothing inside the hero may force the column taller than the hero: cap every text
 block (`line-clamp-*`) and keep the stack order logo → tagline → badges → ratings →
 watch options.
+
+Sparse titles with **no backdrop art at all** (CDN and TMDB both missing) get a
+compact hero instead of an empty void: `HeroBackdropShell` marks itself
+`data-backdrop-state="failed"`, `.hero-container:has(...)` in `globals.css` collapses
+the fixed clamp height to `auto`, and the content flows at natural height (`md:pt-20`
+to clear the navbar; mobile `pt-10`). The with-backdrop layout is unchanged.
 
 Viewport rules: use `dvh`/`svh`, never `vh`, for anything full-height (mobile Safari).
 Respect `env(safe-area-inset-*)` on fixed/sticky top and bottom elements. Touch
