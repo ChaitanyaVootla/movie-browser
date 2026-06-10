@@ -51,11 +51,16 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
 // stale_chrome 2,858 req/10min vs ~650 human requests — these two classes
 // ARE the fleet. stale_chrome = Chrome major <= 109 baked into scraper
 // configs; real 2026 usage of those versions is ~0 (see bot-detection.ts).
+// bytedance (ByteSpider): top *served* crawler at ~420 req/10–15min sustained
+// (Jun 10 2026: 6.3k req/15min, >40% of all traffic) — its cold-render burn
+// after each deploy's ISR wipe drove three brief outages in one evening. It
+// ignores robots.txt crawl-delay and brings no referral traffic; 429 it.
 const BLOCKED_BOT_TYPES = new Set([
   "webdriver",
   "headless_hint",
   "missing_client_hints",
   "stale_chrome",
+  "bytedance",
 ]);
 
 function isBlockedScraper(req: NextRequest): boolean {
