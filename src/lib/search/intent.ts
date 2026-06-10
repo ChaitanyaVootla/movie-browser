@@ -1753,6 +1753,37 @@ function extractSeasonCount(query: string): {
  * classifyQueryIntent("movies about time travel")
  * // → { extractedFilters: { keywords: ["time travel"] }, cleanedQuery: "movies about" }
  */
+/**
+ * Words that carry no search signal on their own. A post-extraction residual
+ * made up entirely of these (e.g. "the" after stripping "lord of the rings",
+ * or "movies" after stripping "marvel") must not be used as the search text.
+ */
+const GENERIC_RESIDUAL_WORDS = new Set([
+  "the",
+  "a",
+  "an",
+  "of",
+  "and",
+  "or",
+  "in",
+  "on",
+  "movie",
+  "movies",
+  "film",
+  "films",
+  "show",
+  "shows",
+  "series",
+  "tv",
+]);
+
+/** True if the residual is empty or contains only generic/stopword tokens. */
+function isGenericResidual(residual: string): boolean {
+  if (!residual) return true;
+  const words = residual.toLowerCase().split(/\s+/).filter(Boolean);
+  return words.every((w) => GENERIC_RESIDUAL_WORDS.has(w));
+}
+
 export function classifyQueryIntent(query: string): IntentAnalysis {
   const normalized = query.trim().toLowerCase();
   const words = normalized.split(/\s+/).filter(Boolean);
@@ -1965,7 +1996,20 @@ export function classifyQueryIntent(query: string): IntentAnalysis {
   }
 
   result.extractedFilters = extractedFilters;
-  result.cleanedQuery = cleanedQuery.replace(/\s+/g, " ").trim() || query.trim();
+  let finalCleanedQuery = cleanedQuery.replace(/\s+/g, " ").trim();
+
+  // If a collection/franchise was extracted and stripping it left only
+  // stopwords/generic media words, search the collection NAME, never the
+  // residual. June 2026: "the lord of the rings" → collection extracted,
+  // cleanedQuery became literally "the" → the semantic leg searched "the" and
+  // returned generic popular "The …" titles. The collection filter is display-
+  // only downstream (not applied by semantic/fuzzy search), so cleanedQuery is
+  // the only relevance signal for these queries.
+  if (extractedFilters.collection && isGenericResidual(finalCleanedQuery)) {
+    finalCleanedQuery = extractedFilters.collection;
+  }
+
+  result.cleanedQuery = finalCleanedQuery || query.trim();
 
   // Re-tokenize cleaned query for intent analysis
   const cleanedWords = result.cleanedQuery.toLowerCase().split(/\s+/).filter(Boolean);

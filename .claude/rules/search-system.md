@@ -314,6 +314,29 @@ Guards now in `hybrid.ts` (keep them when refactoring):
 Regression tests: `src/lib/search/hybrid.test.ts` (all deps mocked; 6/7 fail on
 the pre-fix code). Run: `yarn vitest run src/lib/search/hybrid.test.ts`.
 
+## Filter extraction must never leave a stopword residual as the search text
+
+Follow-up relevance bug the error-isolation fix exposed (it was pre-existing —
+pre-fix those searches died on the fuzzy throw before users saw the results):
+"the lord of the rings" matched `COLLECTION_MAP["lord of the rings"]`,
+`extractCollection` stripped the phrase, and `cleanedQuery` became literally
+`"the"` → the semantic leg searched "the" (prod log signature:
+`semantic_search query:"the"`) → top-20 was generic popular "The …" titles with
+zero LOTR films, and the UI showed `Searching for: "the"`.
+
+Rules:
+- The `collection` filter is **display-only** (chips); semantic/fuzzy search do
+  NOT apply it (semantic-search.ts only has `excludeCollectionId`, a different
+  feature). So for franchise queries, `cleanedQuery` is the only relevance
+  signal.
+- `classifyQueryIntent` now substitutes the collection NAME for the residual
+  when the residual is empty or only generic tokens (see
+  `GENERIC_RESIDUAL_WORDS` / `isGenericResidual` in `intent.ts`). Any new
+  extractor that strips phrases from the query must apply the same principle:
+  search the extracted entity or the full original query — never a stopword
+  residual.
+- Regression tests: `src/lib/search/intent.test.ts` (3/5 fail on pre-fix code).
+
 ## Testing
 
 ```bash
