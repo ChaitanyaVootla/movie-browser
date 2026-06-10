@@ -110,7 +110,7 @@ interface UserAIStats {
   };
 }
 
-type SortField = "name" | "lastVisited" | "watched" | "watchlist" | "aiCost";
+type SortField = "name" | "lastVisited" | "watched" | "watchlist" | "recents" | "aiCost";
 type SortDirection = "asc" | "desc";
 type ActivityFilter = "all" | "today" | "week" | "month" | "inactive";
 
@@ -286,6 +286,9 @@ export function UsersTab({ range }: UsersTabProps) {
             (a.MoviesWatchList || 0) +
             (a.SeriesList || 0) -
             ((b.MoviesWatchList || 0) + (b.SeriesList || 0));
+          break;
+        case "recents":
+          comparison = (a.recent || 0) - (b.recent || 0);
           break;
         case "aiCost":
           // Match by name (primary) or email (fallback)
@@ -490,6 +493,16 @@ export function UsersTab({ range }: UsersTabProps) {
                 </TableHead>
                 <TableHead className="text-center">
                   <SortableHeader
+                    label="Recents"
+                    field="recents"
+                    currentField={sortField}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    centered
+                  />
+                </TableHead>
+                <TableHead className="text-center">
+                  <SortableHeader
                     label="AI Cost"
                     field="aiCost"
                     currentField={sortField}
@@ -515,7 +528,7 @@ export function UsersTab({ range }: UsersTabProps) {
                 <TableSkeleton />
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     {searchQuery || activityFilter !== "all"
                       ? "No users match your filters"
                       : "No users found"}
@@ -535,7 +548,7 @@ export function UsersTab({ range }: UsersTabProps) {
                       />
                       {expandedRows.has(user.id) && (
                         <TableRow className="bg-muted/30 hover:bg-muted/30">
-                          <TableCell colSpan={8} className="p-4">
+                          <TableCell colSpan={9} className="p-4">
                             <ExpandedUserDetails user={user} aiStats={userAiStats} />
                           </TableCell>
                         </TableRow>
@@ -650,6 +663,7 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
           </Tooltip>
         </TooltipProvider>
       </TableCell>
+      <TableCell className="text-center font-medium">{user.recent || 0}</TableCell>
       <TableCell className="text-center">
         {aiStats ? (
           <TooltipProvider>
@@ -873,6 +887,9 @@ function ExpandedUserDetails({ user, aiStats }: ExpandedUserDetailsProps) {
           <span>
             <strong className="text-foreground">{user.ContinueWatching || 0}</strong> continue
           </span>
+          <span>
+            <strong className="text-foreground">{user.recent || 0}</strong> recents
+          </span>
         </div>
       </div>
     </div>
@@ -972,6 +989,9 @@ function TableSkeleton() {
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-20" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-8 mx-auto" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-8 mx-auto" />
