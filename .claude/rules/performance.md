@@ -51,8 +51,38 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 1. **ISR-cache user-agnostic pages.** Detail pages (`movie`/`series`/`person`) had no `revalidate` → full SSR every request → the main CPU driver under crawler traffic. They use **no per-request dynamic functions** (user state hydrates client-side; ratings stream via SSE), so `export const revalidate = 3600` (movie/series) / `86400` (person) is safe and serves most hits from cache. **Check first:** `grep -n "cookies()\|headers()\|getCountryCode\|auth(\|force-dynamic" <page>` — any hit makes the route dynamic and `revalidate` a no-op.
 2. **Never block the render path on a scrape/LLM/Lambda.** Detail-page hydration returns PG/TMDB immediately and refreshes ratings in a **deduped background task**; the SSE enrich endpoint streams them in. See `.claude/rules/postgres-hydration.md`. A synchronous Lambda scrape added seconds per first/stale visit.
 3. **Cap ClickHouse CPU** (it ate 1.5 of 2 cores). `docker-compose.yml`: `cpus: "0.9"` + low `cpu_shares`, and `concurrent_threads_soft_limit_num` in `analytics/clickhouse/config/config.xml`. **GOTCHA:** do NOT set `background_pool_size` low — `background_pool_size * background_merges_mutations_concurrency_ratio` must be ≥ `number_of_free_entries_in_pool_to_execute_mutation` (default 20) or ClickHouse exits 36 in a crash loop. **Always validate CH config in a throwaway local container before deploying** (see Testing below). A mounted `config.d` edit does NOT recreate the container — but DON'T force-recreate every deploy either (re-merging the part backlog spikes CPU for minutes; recreate once, manually, when config changes).
-4. **Parallelize independent server fetches.** A page that does `await getA(); await Promise.all([getB, getC])` where B/C don't need A should start B/C as in-flight promises before awaiting A.
-5. **Search/trigram specifics** — see `.claude/rules/search-system.md`. Trigram indexes MUST live in `prisma/schema.prisma` (`@@index(type: Gin, ops: raw("gin_trgm_ops"))`) or `prisma db push` drops them as drift. Trigram is pathological for common multi-word queries ("the matrix" → 9s); use FTS (`to_tsvector`) for those, trigram only as a typo fallback. Enforce a 0.3 `%` threshold floor on the large (movies/persons) tables.
+4. **ClickHouse system logs are disabled — keep them that way.** June 2026: the
+   `system.*` introspection logs (never TTL'd by default) silently grew to **22.5GB
+   (trace_log alone 18GB) vs ~130MB of real analytics data**. Their background merges
+   couldn't fit the memory cap → cgroup OOM-kill **crash loop for 9 days** (387 kernel
+   kills, "Up N seconds" forever, admin dashboard down, ~1 core burned). All
+   `<X_log remove="1"/>` entries now in `analytics/clickhouse/config/config.xml`; also
+   `max_server_memory_usage` = 2.2GB because CH's tracker under-counts RSS by ~0.5GB
+   (allocator/thread stacks) and must stay below the 3GB Docker `mem_limit` or the
+   kernel kills it instead of queries failing gracefully. If a log table is ever
+   re-enabled for debugging, give it a `<ttl>` and re-disable after. Diagnosis
+   signature: `dmesg | grep "Killed process"` + err.log `MEMORY_LIMIT_EXCEEDED` inside
+   `MergeTask::execute` naming `system.*` parts. Safe cleanup with server stopped:
+   delete the `store/<uuid>` target of `data/system/<table>` symlink + the symlink +
+   `metadata/system/<table>.sql` (system logs hold no app data).
+5. **Every FK with `onDelete: Cascade` needs an index on the referencing column.**
+   June 2026: `images.season_id`/`images.episode_id` had no index, so each cascaded
+   row from `DELETE FROM seasons WHERE series_id=$1` (series re-hydration) seq-scanned
+   the bloated 600MB images table → **42-minute DELETEs** at 30% CPU, all day, every
+   day (a top-2 driver of the box's chronic 100% CPU + ~$45/mo t4g surplus credits).
+   With indexes: worst series (21k episodes) deletes in 2.7s. Audit query: see the FK
+   `has_leading_index` query pattern (pg_constraint × pg_index). Known remaining
+   unindexed FKs (acceptable — only hit on rare `series` row deletes, not hydration):
+   `watchlist/user_ratings/recent_items/continue_watching.series_id`.
+6. **Hydration delete+reinsert churn bloats PG and starves autovacuum.** Upserts
+   rewrite all child rows (credits/images/watch_options/episodes…) on every freshness
+   refresh; at crawler scale this produced 387k deletes on an 8k-row table,
+   `autovacuum_count=0` (never completed), and 5GB/2.9GB tables holding ~50MB of live
+   data. If bloat reappears (`n_dead_tup ≫ n_live_tup`, table size ≫ live rows):
+   manual `VACUUM (ANALYZE)` with `SET vacuum_cost_delay=0`. Durable fix (open, see
+   memory): diff-based upserts instead of delete+reinsert.
+7. **Parallelize independent server fetches.** A page that does `await getA(); await Promise.all([getB, getC])` where B/C don't need A should start B/C as in-flight promises before awaiting A.
+8. **Search/trigram specifics** — see `.claude/rules/search-system.md`. Trigram indexes MUST live in `prisma/schema.prisma` (`@@index(type: Gin, ops: raw("gin_trgm_ops"))`) or `prisma db push` drops them as drift. Trigram is pathological for common multi-word queries ("the matrix" → 9s); use FTS (`to_tsvector`) for those, trigram only as a typo fallback. Enforce a 0.3 `%` threshold floor on the large (movies/persons) tables.
 
 ## Testing a fix
 

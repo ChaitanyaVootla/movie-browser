@@ -803,6 +803,10 @@ model Image {
   @@index([movieId, type])
   @@index([seriesId, type])
   @@index([personId, type])
+  // FK-cascade support: DELETE FROM seasons/episodes (series re-hydration)
+  // seq-scanned images per deleted row without these (42-min deletes, Jun 2026)
+  @@index([seasonId, type])
+  @@index([episodeId, type])
   @@map("images")
 }
 

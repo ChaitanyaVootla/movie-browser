@@ -8,8 +8,39 @@
         <count>3</count>
     </logger>
 
-    <!-- Cap ClickHouse to ~2.5GB on shared EC2 (default 0.8 = 6.4GB on 8GB box) -->
-    <max_server_memory_usage>2684354560</max_server_memory_usage>
+    <!-- Cap ClickHouse to ~2.2GB on shared EC2 (default 0.8 = 6.4GB on 8GB box).
+         Must sit well below the docker-compose mem_limit (3GB): ClickHouse's own
+         tracker misses ~0.5GB (allocator fragmentation, thread stacks), and when
+         RSS crosses the cgroup limit the kernel OOM-kills the server instead of
+         queries failing gracefully. 2.2GB tracked + ~0.5GB untracked < 3GB. -->
+    <max_server_memory_usage>2362232012</max_server_memory_usage>
+
+    <!-- Disable ALL system introspection logs. June 2026: these tables (never
+         TTL'd) silently grew to 22.5GB — trace_log alone 18GB vs ~130MB of actual
+         analytics data — and their background merges could not fit in the memory
+         cap, putting the server in a cgroup OOM-kill crash loop for 9 days (387
+         kills). Nothing in the app reads system.* logs. Re-enable selectively
+         (with a TTL!) only when actively debugging ClickHouse itself. -->
+    <query_log remove="1"/>
+    <query_thread_log remove="1"/>
+    <trace_log remove="1"/>
+    <metric_log remove="1"/>
+    <latency_log remove="1"/>
+    <query_metric_log remove="1"/>
+    <asynchronous_metric_log remove="1"/>
+    <part_log remove="1"/>
+    <text_log remove="1"/>
+    <opentelemetry_span_log remove="1"/>
+    <processors_profile_log remove="1"/>
+    <query_views_log remove="1"/>
+    <asynchronous_insert_log remove="1"/>
+    <backup_log remove="1"/>
+    <blob_storage_log remove="1"/>
+    <error_log remove="1"/>
+    <s3queue_log remove="1"/>
+    <dead_letter_queue remove="1"/>
+    <background_schedule_pool_log remove="1"/>
+    <zookeeper_connection_log remove="1"/>
 
     <!-- CPU containment. Makes ClickHouse aware of its ~1-core budget so it
          self-limits query parallelism instead of spawning a thread per core and
