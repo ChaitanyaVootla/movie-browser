@@ -17,6 +17,22 @@ export function getSlug(text: string): string {
 }
 
 /**
+ * Canonical path for a media detail page: `/{type}/{id}/{slug}`, or the
+ * slugless `/{type}/{id}` when the title yields no usable slug (e.g.
+ * non-Latin titles). This is THE single URL form — canonical tags, og:url,
+ * internal links, the sitemap generator (scripts/generate-sitemap.js ports
+ * this logic), and the wrong-slug 308 redirect all must agree with it.
+ */
+export function getMediaPath(
+  type: "movie" | "series" | "person",
+  id: number,
+  name?: string | null,
+): string {
+  const slug = name ? getSlug(name) : "";
+  return slug ? `/${type}/${id}/${slug}` : `/${type}/${id}`;
+}
+
+/**
  * Determines if an item is a movie based on its properties.
  * Movies have `title`, series have `name`.
  *

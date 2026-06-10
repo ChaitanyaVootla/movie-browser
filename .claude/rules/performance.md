@@ -48,7 +48,38 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 
 ## High-impact fixes (in rough ROI order)
 
-1. **ISR-cache user-agnostic pages.** Detail pages (`movie`/`series`/`person`) had no `revalidate` → full SSR every request → the main CPU driver under crawler traffic. They use **no per-request dynamic functions** (user state hydrates client-side; ratings stream via SSE), so `export const revalidate = 3600` (movie/series) / `86400` (person) is safe and serves most hits from cache. **Check first:** `grep -n "cookies()\|headers()\|getCountryCode\|auth(\|force-dynamic" <page>` — any hit makes the route dynamic and `revalidate` a no-op. **Check the ROOT LAYOUT and everything it renders too, not just the page**: June 2026, `<ServerPageTracker />` in `app/layout.tsx` awaited `headers()` and silently disabled ISR site-wide right after the `revalidate` exports shipped (symptom: `cache-control: private, no-store` on pages, no `x-nextjs-cache` header ever, while `/_next/image` does emit MISS→HIT — that contrast is the tell). **Verify after deploy:** second `curl -sI` of a detail page must show `x-nextjs-cache: HIT`.
+1. **ISR-cache user-agnostic pages — the FULL recipe (every item is load-bearing;
+   June 2026: each one was independently missing and each alone kept ISR dead).**
+   Detail pages (`movie`/`series`/`person`) are user-agnostic (user state hydrates
+   client-side; ratings stream via SSE), so they're ISR-cacheable. ALL of:
+   1. `export const revalidate = 3600` (movie/series) / `86400` (person).
+   2. **`export async function generateStaticParams() { return []; }` — REQUIRED.**
+      A dynamic route WITHOUT generateStaticParams is rendered per-request no
+      matter what `revalidate` says (it won't appear in
+      `.next/prerender-manifest.json` `dynamicRoutes`, and no route-cache entries
+      are ever written). Empty array = prerender nothing, cache on demand.
+   3. **No dynamic APIs anywhere in the render tree** — page, layout, AND every
+      server function the render calls. Burned us thrice: `<ServerPageTracker />`
+      awaiting `headers()` in `app/layout.tsx` (tracking now lives in
+      `src/proxy.ts`); `await searchParams` for the `__e2e_error` E2E hook (now
+      gated behind `NODE_ENV !== "production"`); `getCountryCode()` (→ `headers()`)
+      inside hydration/actions (render paths use `SSR_RENDER_COUNTRY = "IN"`;
+      clients correct via `/api/geo` + watch-providers API).
+   4. **No explicit `cache: "no-store"` on fetches in the render path.** Next 15+
+      default fetch is already uncached but route-static; an EXPLICIT no-store
+      additionally opts the route out (tmdb.ts had one "to avoid double caching").
+   - **Status codes:** detail pages must NOT have `loading.tsx` — a streamed
+     response is locked to HTTP 200, so `notFound()`/`permanentRedirect()` can
+     never emit 404/308 (this caused soft-404s on garbage IDs at crawler scale).
+     They throw from `generateMetadata` (pre-flush), and
+     `htmlLimitedBots: /.*/` in next.config keeps metadata blocking/in-`<head>`
+     for all UAs. In-page Suspense shells still stream content fine.
+   - **Verify after deploy:** repeat `curl` of the same detail URL must drop to
+     ~ms; route-cache files appear under `.next/server/app/movie/<id>/...html`;
+     `curl -o /dev/null -w '%{http_code}'` on a garbage ID = 404, wrong slug = 308.
+   - **Verify locally before pushing:** `lsof -ti :3111` first — a half-killed
+     old `next-server` (pkill pattern "next start" does NOT match it) serves
+     stale code and silently invalidates the whole test matrix.
 2. **Never block the render path on a scrape/LLM/Lambda.** Detail-page hydration returns PG/TMDB immediately and refreshes ratings in a **deduped background task**; the SSE enrich endpoint streams them in. See `.claude/rules/postgres-hydration.md`. A synchronous Lambda scrape added seconds per first/stale visit.
 3. **Cap ClickHouse CPU** (it ate 1.5 of 2 cores). `docker-compose.yml`: `cpus: "0.9"` + low `cpu_shares`, and `concurrent_threads_soft_limit_num` in `analytics/clickhouse/config/config.xml`. **GOTCHA:** do NOT set `background_pool_size` low — `background_pool_size * background_merges_mutations_concurrency_ratio` must be ≥ `number_of_free_entries_in_pool_to_execute_mutation` (default 20) or ClickHouse exits 36 in a crash loop. **Always validate CH config in a throwaway local container before deploying** (see Testing below). A mounted `config.d` edit does NOT recreate the container — but DON'T force-recreate every deploy either (re-merging the part backlog spikes CPU for minutes; recreate once, manually, when config changes).
 4. **ClickHouse system logs are disabled — keep them that way.** June 2026: the

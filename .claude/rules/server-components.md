@@ -62,51 +62,23 @@ export function WatchlistButton({ movieId }) {
 
 ## Instant Loading with CDN Images
 
-Detail pages use `loading.tsx` with **real CDN images** instead of skeletons for instant perceived navigation.
-
-### Why This Pattern
+Detail pages render **real CDN images** instead of skeletons for instant perceived
+navigation, via shell components inside `page.tsx`:
 
 - CDN URLs are deterministic: `https://image.themoviebrowser.com/{movie|series}/{id}/backdrop.webp`
 - Same URLs used in home carousel, so images are already cached
-- User sees actual images immediately on navigation, not shimmer skeletons
+- `HeroBackdropShell` / `HeroLogoShell` need only the route ID — they render
+  immediately while data-dependent content streams in via in-page Suspense.
 
-### Implementation
+### Detail pages must NOT have `loading.tsx` (June 2026)
 
-```tsx
-// loading.tsx (Client component to access URL params)
-"use client";
-import { useParams } from "next/navigation";
-
-export default function Loading() {
-  const params = useParams();
-  const id = parseInt(params?.params?.[0] as string, 10);
-
-  if (!id || isNaN(id)) return <FullSkeleton />;
-
-  // Render actual CDN images with onError fallback
-  return (
-    <article>
-      <img
-        src={`${CDN_IMAGE_BASE}/movie/${id}/backdrop.webp`}
-        onError={() => setFailed(true)}
-      />
-      {/* Skeletons only for dynamic content (ratings, cast, etc.) */}
-    </article>
-  );
-}
-```
-
-### Key Files
-
-- `src/app/movie/[...params]/loading.tsx` - Movie instant loading
-- `src/app/series/[...params]/loading.tsx` - Series instant loading
-- `src/app/person/[...params]/loading.tsx` - Person skeleton (no CDN images for persons)
-
-### Contrast with Shell Components
-
-| Component | When Used | Purpose |
-|-----------|-----------|---------|
-| `loading.tsx` | During navigation (before page renders) | Show cached CDN images instantly |
-| `HeroBackdropShell` | In page.tsx (SSR/streaming) | Immediate render with TMDB fallback |
-
-Both use the same CDN URLs, ensuring consistent caching.
+The movie/series/person routes previously used `loading.tsx` for the instant
+shell. **Deliberately removed — do not add it back**: a route with `loading.tsx`
+streams every response, and a streamed response is locked to HTTP **200** before
+the page runs, which made `notFound()` (garbage IDs → soft-404s at crawler
+scale) and `permanentRedirect()` (wrong-slug canonicalization) silently
+impossible. Status-affecting checks live in `generateMetadata` (runs pre-flush;
+`htmlLimitedBots: /.*/` in next.config keeps metadata blocking). With ISR
+serving most hits from cache (see `.claude/rules/performance.md` item 1), the
+streamed shell bought nothing on cache hits, and in-page Suspense still streams
+below-the-fold content on cache misses.

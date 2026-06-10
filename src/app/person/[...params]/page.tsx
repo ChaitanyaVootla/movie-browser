@@ -1,10 +1,21 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getPerson } from "@/server/actions/person";
+import { personExists } from "@/server/services/media-exists";
+import { getMediaPath } from "@/lib/utils";
 
 // ISR: cache the rendered person page for 24h (person/filmography data is very
 // stable). Cuts SSR CPU under crawler traffic; TMDB person cache is 24h anyway.
 export const revalidate = 86400;
+
+// REQUIRED for ISR: without generateStaticParams, a dynamic route is rendered
+// per-request and `revalidate` above is a no-op (verified: no route-cache
+// entries ever written). Empty array = prerender nothing at build time, but
+// cache every on-demand render for the revalidate window (dynamicParams
+// defaults to true).
+export async function generateStaticParams(): Promise<{ params: string[] }[]> {
+  return [];
+}
 import {
   PersonHero,
   PersonFilmography,
@@ -36,14 +47,28 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
   const personId = routeParams[0];
   const id = parseInt(personId, 10);
 
+  // notFound() must be thrown HERE, not in the page body: loading.tsx streams
+  // a 200 shell as soon as metadata resolves, so the page body can no longer
+  // change the status code. This is the only place a real 404 can happen.
   if (isNaN(id)) {
-    return { title: "Person Not Found" };
+    notFound();
   }
 
   const person = await getPerson(id);
 
   if (!person) {
+    // Distinguish "definitively missing" (real 404, ISR-cacheable) from a
+    // transient fetch failure (keep today's graceful 200 shell render).
+    if (!(await personExists(id))) {
+      notFound();
+    }
     return { title: "Person Not Found" };
+  }
+
+  // Single canonical URL form (slugged) — see movie page generateMetadata.
+  const canonicalPath = getMediaPath("person", person.id, person.name);
+  if (`/person/${routeParams.join("/")}` !== canonicalPath) {
+    permanentRedirect(canonicalPath);
   }
 
   // Build description from biography or known works
@@ -88,7 +113,7 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
       type: "profile",
       title: person.name,
       description,
-      url: `${SITE_URL}/person/${person.id}`,
+      url: `${SITE_URL}${canonicalPath}`,
       images: profileUrl
         ? [
             {
@@ -109,13 +134,14 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
       images: profileUrl ? [profileUrl] : [],
     },
     alternates: {
-      canonical: `${SITE_URL}/person/${person.id}`,
+      canonical: `${SITE_URL}${canonicalPath}`,
     },
   };
 }
 
 // JSON-LD structured data for SEO
 function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeof getPerson>>> }) {
+  const canonicalPath = getMediaPath("person", person.id, person.name);
   // Get notable works
   const notableWorks = person.combined_credits?.cast
     ?.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
@@ -123,7 +149,7 @@ function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeo
     .map((c) => ({
       "@type": c.media_type === "movie" ? "Movie" : "TVSeries",
       name: c.title || c.name,
-      url: `${SITE_URL}/${c.media_type === "movie" ? "movie" : "series"}/${c.id}`,
+      url: `${SITE_URL}${getMediaPath(c.media_type === "movie" ? "movie" : "series", c.id, c.title || c.name)}`,
     }));
 
   const schema = {
@@ -136,7 +162,7 @@ function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeo
     deathDate: person.deathday || undefined,
     birthPlace: person.place_of_birth || undefined,
     jobTitle: person.known_for_department,
-    url: `${SITE_URL}/person/${person.id}`,
+    url: `${SITE_URL}${canonicalPath}`,
     sameAs: [
       person.imdb_id && `https://www.imdb.com/name/${person.imdb_id}`,
       person.external_ids?.instagram_id &&

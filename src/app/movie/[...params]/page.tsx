@@ -1,5 +1,5 @@
 import { Suspense, cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getMovie as getMovieBase } from "@/server/actions/movie";
 
@@ -12,7 +12,18 @@ const getMovie = cache(getMovieBase);
 // SSE), so caching it massively cuts CPU under crawler/repeat traffic. Live
 // ratings still arrive via the enrichment SSE stream on each client load.
 export const revalidate = 3600;
+
+// REQUIRED for ISR: without generateStaticParams, a dynamic route is rendered
+// per-request and `revalidate` above is a no-op (verified: no route-cache
+// entries ever written). Empty array = prerender nothing at build time, but
+// cache every on-demand render for the revalidate window (dynamicParams
+// defaults to true).
+export async function generateStaticParams(): Promise<{ params: string[] }[]> {
+  return [];
+}
 import { getMovieCollection } from "@/server/services/tmdb";
+import { movieExists } from "@/server/services/media-exists";
+import { getMediaPath } from "@/lib/utils";
 import { getCollectionFromPostgres } from "@/server/db/postgres";
 import { getAISummary } from "@/lib/ai-summary";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
@@ -67,14 +78,30 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
   const movieId = routeParams[0];
   const id = parseInt(movieId, 10);
 
+  // notFound() must be thrown HERE, not in the page body: loading.tsx streams
+  // a 200 shell as soon as metadata resolves, so the page body can no longer
+  // change the status code. This is the only place a real 404 can happen.
   if (isNaN(id)) {
-    return { title: "Movie Not Found" };
+    notFound();
   }
 
   const movie = await getMovie(id);
 
   if (!movie) {
+    // Distinguish "definitively missing" (real 404, ISR-cacheable) from a
+    // transient fetch failure (keep today's graceful 200 shell render).
+    if (!(await movieExists(id))) {
+      notFound();
+    }
     return { title: "Movie Not Found" };
+  }
+
+  // Single canonical URL form (slugged). Any other variant — wrong slug,
+  // missing slug, id-slug dash form, extra segments — gets a real 308 here
+  // (like notFound(), a redirect only produces a status code pre-flush).
+  const canonicalPath = getMediaPath("movie", movie.id, movie.title);
+  if (`/movie/${routeParams.join("/")}` !== canonicalPath) {
+    permanentRedirect(canonicalPath);
   }
 
   const year = movie.release_date?.split("-")[0];
@@ -102,7 +129,7 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
       type: "video.movie",
       title: movie.title,
       description: movie.overview,
-      url: `${SITE_URL}/movie/${movie.id}`,
+      url: `${SITE_URL}${canonicalPath}`,
       images: backdropUrl
         ? [
             {
@@ -131,7 +158,7 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
       images: backdropUrl ? [backdropUrl] : posterUrl ? [posterUrl] : [],
     },
     alternates: {
-      canonical: `${SITE_URL}/movie/${movie.id}`,
+      canonical: `${SITE_URL}${canonicalPath}`,
     },
   };
 }

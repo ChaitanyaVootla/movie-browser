@@ -1,7 +1,9 @@
 import { Suspense, cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getSeries as getSeriesBase } from "@/server/actions/series";
+import { seriesExists } from "@/server/services/media-exists";
+import { getMediaPath } from "@/lib/utils";
 
 // Deduplicate getSeries calls within the same request
 // generateMetadata, HeroContentAsync, SeriesContentAsync all use the same cached result
@@ -10,6 +12,15 @@ const getSeries = cache(getSeriesBase);
 // ISR: cache the rendered page for 1h (see movie page for rationale) — cuts SSR
 // CPU under crawler/repeat traffic; live ratings still stream via SSE per load.
 export const revalidate = 3600;
+
+// REQUIRED for ISR: without generateStaticParams, a dynamic route is rendered
+// per-request and `revalidate` above is a no-op (verified: no route-cache
+// entries ever written). Empty array = prerender nothing at build time, but
+// cache every on-demand render for the revalidate window (dynamicParams
+// defaults to true).
+export async function generateStaticParams(): Promise<{ params: string[] }[]> {
+  return [];
+}
 import { getAISummary } from "@/lib/ai-summary";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
 import {
@@ -62,14 +73,28 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
 
+  // notFound() must be thrown HERE, not in the page body: loading.tsx streams
+  // a 200 shell as soon as metadata resolves, so the page body can no longer
+  // change the status code. This is the only place a real 404 can happen.
   if (isNaN(id)) {
-    return { title: "Series Not Found" };
+    notFound();
   }
 
   const series = await getSeries(id);
 
   if (!series) {
+    // Distinguish "definitively missing" (real 404, ISR-cacheable) from a
+    // transient fetch failure (keep today's graceful 200 shell render).
+    if (!(await seriesExists(id))) {
+      notFound();
+    }
     return { title: "Series Not Found" };
+  }
+
+  // Single canonical URL form (slugged) — see movie page generateMetadata.
+  const canonicalPath = getMediaPath("series", series.id, series.name);
+  if (`/series/${routeParams.join("/")}` !== canonicalPath) {
+    permanentRedirect(canonicalPath);
   }
 
   const year = series.first_air_date?.split("-")[0];
@@ -98,7 +123,7 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
       type: "video.tv_show",
       title: series.name,
       description: series.overview,
-      url: `${SITE_URL}/series/${series.id}`,
+      url: `${SITE_URL}${canonicalPath}`,
       images: backdropUrl
         ? [
             {
@@ -126,7 +151,7 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
       images: backdropUrl ? [backdropUrl] : posterUrl ? [posterUrl] : [],
     },
     alternates: {
-      canonical: `${SITE_URL}/series/${series.id}`,
+      canonical: `${SITE_URL}${canonicalPath}`,
     },
   };
 }

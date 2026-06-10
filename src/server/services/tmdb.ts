@@ -73,6 +73,14 @@ async function rawFetchFromTMDB<T>(
       return response.json();
     } catch (error) {
       lastError = error as Error;
+
+      // 404 is a definitive answer, not a transient failure: retrying wastes
+      // calls AND can mask the 404 behind a later transient error, which
+      // breaks media-exists.ts's "TMDB 404 = definitively missing" check.
+      if ((error as Error).message?.includes("TMDB API error: 404")) {
+        throw error;
+      }
+
       const isConnectionError =
         (error as NodeJS.ErrnoException).code === "ECONNRESET" ||
         (error as Error).message?.includes("fetch failed");
