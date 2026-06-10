@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 
-// Build MongoDB URI from individual env vars (same as Nuxt app)
+// Build MongoDB URI from individual env vars (same as Nuxt app).
+// Resolved lazily inside connectDB() — NOT at module load — so the app can
+// boot without MONGO_* env vars in PostgreSQL-only mode (post-GA).
 function getMongoURI(): string {
   const mongoIp = process.env.MONGO_IP;
   const mongoPass = process.env.MONGO_PASS;
@@ -12,8 +14,6 @@ function getMongoURI(): string {
 
   return `mongodb://root:${mongoPass}@${mongoIp}:${mongoPort}`;
 }
-
-const MONGODB_URI = getMongoURI();
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -40,7 +40,7 @@ export async function connectDB(): Promise<typeof mongoose> {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, { ...opts, dbName: "test" }).then((mongoose) => {
+    cached.promise = mongoose.connect(getMongoURI(), { ...opts, dbName: "test" }).then((mongoose) => {
       console.log("MongoDB connected");
       return mongoose;
     });

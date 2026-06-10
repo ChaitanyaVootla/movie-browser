@@ -12,248 +12,20 @@
  * - Credits (non-aggregate)
  */
 
-import type {
-  MediaType,
-  EnrichedRatings,
-  EnrichedExternalIds,
-  ScrapedWatchLink,
-} from "../../types";
+import type { MediaType, EnrichedExternalIds } from "../../types";
 import type { TmdbMovieData } from "../tmdb";
 import type { PrismaTx } from "./types";
-
-// =============================================================================
-// Data Source Helper
-// =============================================================================
-
-const sourceNames: Record<string, string> = {
-  tmdb: "TMDB",
-  imdb: "IMDb",
-  rt_critic: "Rotten Tomatoes (Critics)",
-  rt_audience: "Rotten Tomatoes (Audience)",
-  metacritic: "Metacritic",
-  letterboxd: "Letterboxd",
-  google: "Google",
-};
-
-export async function getOrCreateSource(tx: PrismaTx, slug: string): Promise<number> {
-  const source = await tx.dataSource.upsert({
-    where: { slug },
-    create: { slug, name: sourceNames[slug] || slug, providesRatings: true },
-    update: {},
-  });
-
-  return source.id;
-}
-
-// =============================================================================
-// Ratings
-// =============================================================================
-
-/**
- * Upsert ratings - UPDATE existing or CREATE new, but NEVER delete existing
- *
- * This ensures that if Lambda fails to return a rating (e.g., Google), the
- * existing one is preserved instead of being deleted.
- */
-export async function upsertRatings(
-  tx: PrismaTx,
-  mediaId: number,
-  mediaType: MediaType,
-  tmdb: { vote_average: number; vote_count: number },
-  enrichedRatings: EnrichedRatings | null
-): Promise<void> {
-  // DO NOT delete existing ratings - we want to preserve them if Lambda doesn't return new ones
-  // Instead, upsert each rating individually
-
-  const baseData = {
-    movieId: mediaType === "movie" ? mediaId : null,
-    seriesId: mediaType === "series" ? mediaId : null,
-  };
-
-  console.log(`[Hydration/Postgres] Upserting ratings for ${mediaType} ${mediaId}:`);
-
-  // TMDB rating (always available)
-  if (tmdb.vote_average > 0) {
-    const sourceId = await getOrCreateSource(tx, "tmdb");
-    console.log(`  → TMDB: ${tmdb.vote_average} (${tmdb.vote_count} votes)`);
-    await tx.rating.upsert({
-      where:
-        mediaType === "movie"
-          ? { movieId_sourceId: { movieId: mediaId, sourceId } }
-          : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
-      create: {
-        ...baseData,
-        sourceId,
-        score: tmdb.vote_average,
-        voteCount: tmdb.vote_count,
-      },
-      update: {
-        score: tmdb.vote_average,
-        voteCount: tmdb.vote_count,
-        updatedAt: new Date(),
-      },
-    });
-  }
-
-  // Enriched ratings - only upsert what we have, preserve existing for sources we don't have
-  if (enrichedRatings) {
-    // IMDb
-    if (enrichedRatings.imdb?.score) {
-      const sourceId = await getOrCreateSource(tx, "imdb");
-      console.log(
-        `  → IMDb: ${enrichedRatings.imdb.score} (${enrichedRatings.imdb.voteCount ?? "N/A"} votes)`
-      );
-      await tx.rating.upsert({
-        where:
-          mediaType === "movie"
-            ? { movieId_sourceId: { movieId: mediaId, sourceId } }
-            : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
-        create: {
-          ...baseData,
-          sourceId,
-          score: enrichedRatings.imdb.score,
-          voteCount: enrichedRatings.imdb.voteCount ?? null,
-          sourceUrl: enrichedRatings.imdb.sourceUrl ?? null,
-        },
-        update: {
-          score: enrichedRatings.imdb.score,
-          voteCount: enrichedRatings.imdb.voteCount ?? null,
-          sourceUrl: enrichedRatings.imdb.sourceUrl ?? null,
-          updatedAt: new Date(),
-        },
-      });
-    }
-
-    // RT Critic
-    if (enrichedRatings.rtCritic?.score) {
-      const sourceId = await getOrCreateSource(tx, "rt_critic");
-      console.log(
-        `  → RT Critic: ${enrichedRatings.rtCritic.score}% (certified: ${enrichedRatings.rtCritic.certified ?? "N/A"})`
-      );
-      await tx.rating.upsert({
-        where:
-          mediaType === "movie"
-            ? { movieId_sourceId: { movieId: mediaId, sourceId } }
-            : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
-        create: {
-          ...baseData,
-          sourceId,
-          score: enrichedRatings.rtCritic.score,
-          voteCount: enrichedRatings.rtCritic.voteCount ?? null,
-          certified: enrichedRatings.rtCritic.certified ?? null,
-          consensus: enrichedRatings.rtCritic.consensus ?? null,
-          sentiment: enrichedRatings.rtCritic.sentiment ?? null,
-          sourceUrl: enrichedRatings.rtCritic.sourceUrl ?? null,
-        },
-        update: {
-          score: enrichedRatings.rtCritic.score,
-          voteCount: enrichedRatings.rtCritic.voteCount ?? null,
-          certified: enrichedRatings.rtCritic.certified ?? null,
-          consensus: enrichedRatings.rtCritic.consensus ?? null,
-          sentiment: enrichedRatings.rtCritic.sentiment ?? null,
-          sourceUrl: enrichedRatings.rtCritic.sourceUrl ?? null,
-          updatedAt: new Date(),
-        },
-      });
-    }
-
-    // RT Audience
-    if (enrichedRatings.rtAudience?.score) {
-      const sourceId = await getOrCreateSource(tx, "rt_audience");
-      console.log(`  → RT Audience: ${enrichedRatings.rtAudience.score}%`);
-      await tx.rating.upsert({
-        where:
-          mediaType === "movie"
-            ? { movieId_sourceId: { movieId: mediaId, sourceId } }
-            : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
-        create: {
-          ...baseData,
-          sourceId,
-          score: enrichedRatings.rtAudience.score,
-          voteCount: enrichedRatings.rtAudience.voteCount ?? null,
-          certified: enrichedRatings.rtAudience.certified ?? null,
-          sentiment: enrichedRatings.rtAudience.sentiment ?? null,
-        },
-        update: {
-          score: enrichedRatings.rtAudience.score,
-          voteCount: enrichedRatings.rtAudience.voteCount ?? null,
-          certified: enrichedRatings.rtAudience.certified ?? null,
-          sentiment: enrichedRatings.rtAudience.sentiment ?? null,
-          updatedAt: new Date(),
-        },
-      });
-    }
-
-    // Metacritic
-    if (enrichedRatings.metacritic?.score) {
-      const sourceId = await getOrCreateSource(tx, "metacritic");
-      console.log(`  → Metacritic: ${enrichedRatings.metacritic.score}`);
-      await tx.rating.upsert({
-        where:
-          mediaType === "movie"
-            ? { movieId_sourceId: { movieId: mediaId, sourceId } }
-            : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
-        create: {
-          ...baseData,
-          sourceId,
-          score: enrichedRatings.metacritic.score,
-          voteCount: enrichedRatings.metacritic.voteCount ?? null,
-          sourceUrl: enrichedRatings.metacritic.sourceUrl ?? null,
-        },
-        update: {
-          score: enrichedRatings.metacritic.score,
-          voteCount: enrichedRatings.metacritic.voteCount ?? null,
-          sourceUrl: enrichedRatings.metacritic.sourceUrl ?? null,
-          updatedAt: new Date(),
-        },
-      });
-    }
-
-    // Letterboxd
-    if (enrichedRatings.letterboxd?.score) {
-      const sourceId = await getOrCreateSource(tx, "letterboxd");
-      console.log(`  → Letterboxd: ${enrichedRatings.letterboxd.score}`);
-      await tx.rating.upsert({
-        where:
-          mediaType === "movie"
-            ? { movieId_sourceId: { movieId: mediaId, sourceId } }
-            : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
-        create: {
-          ...baseData,
-          sourceId,
-          score: enrichedRatings.letterboxd.score,
-        },
-        update: {
-          score: enrichedRatings.letterboxd.score,
-          updatedAt: new Date(),
-        },
-      });
-    }
-
-    // Google
-    if (enrichedRatings.google?.score) {
-      const sourceId = await getOrCreateSource(tx, "google");
-      console.log(`  → Google: ${enrichedRatings.google.score}%`);
-      await tx.rating.upsert({
-        where:
-          mediaType === "movie"
-            ? { movieId_sourceId: { movieId: mediaId, sourceId } }
-            : { seriesId_sourceId: { seriesId: mediaId, sourceId } },
-        create: {
-          ...baseData,
-          sourceId,
-          score: enrichedRatings.google.score,
-        },
-        update: {
-          score: enrichedRatings.google.score,
-          updatedAt: new Date(),
-        },
-      });
-    }
-  }
-
-  console.log(`[Hydration/Postgres] Ratings upsert complete for ${mediaType} ${mediaId}`);
-}
+import {
+  dedupeBy,
+  logChildRewrite,
+  externalIdsUnchanged,
+  videosUnchanged,
+  imagesUnchanged,
+  watchProvidersUnchanged,
+  reviewsUnchanged,
+  creditsUnchanged,
+  type CreditProjection,
+} from "./upsert-diff";
 
 // =============================================================================
 // External IDs
@@ -266,13 +38,6 @@ export async function upsertExternalIds(
   tmdb: { external_ids?: Record<string, string | number | null>; imdb_id?: string | null },
   enrichedIds: EnrichedExternalIds
 ): Promise<void> {
-  // Delete existing external IDs
-  if (mediaType === "movie") {
-    await tx.externalId.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.externalId.deleteMany({ where: { seriesId: mediaId } });
-  }
-
   const idsToCreate: Array<{
     movieId: number | null;
     seriesId: number | null;
@@ -346,8 +111,30 @@ export async function upsertExternalIds(
     }
   }
 
-  if (idsToCreate.length > 0) {
-    await tx.externalId.createMany({ data: idsToCreate, skipDuplicates: true });
+  // The (movieId|seriesId, source) unique constraint + skipDuplicates keeps the
+  // first row per source — mirror that before comparing against existing rows.
+  const deduped = dedupeBy(idsToCreate, (r) => r.source);
+  if (
+    await externalIdsUnchanged(
+      tx,
+      mediaId,
+      mediaType,
+      deduped.map((r) => ({ source: r.source, externalId: r.externalId }))
+    )
+  ) {
+    return;
+  }
+  logChildRewrite("external_ids", mediaType, mediaId);
+
+  // Delete existing external IDs
+  if (mediaType === "movie") {
+    await tx.externalId.deleteMany({ where: { movieId: mediaId } });
+  } else {
+    await tx.externalId.deleteMany({ where: { seriesId: mediaId } });
+  }
+
+  if (deduped.length > 0) {
+    await tx.externalId.createMany({ data: deduped, skipDuplicates: true });
   }
 }
 
@@ -369,13 +156,6 @@ export async function upsertVideos(
     published_at?: string;
   }>
 ): Promise<void> {
-  // Delete existing videos
-  if (mediaType === "movie") {
-    await tx.video.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.video.deleteMany({ where: { seriesId: mediaId } });
-  }
-
   const videosToCreate = videos.map((v) => ({
     movieId: mediaType === "movie" ? mediaId : null,
     seriesId: mediaType === "series" ? mediaId : null,
@@ -387,6 +167,25 @@ export async function upsertVideos(
     size: v.size ?? null,
     publishedAt: v.published_at ? new Date(v.published_at) : null,
   }));
+
+  if (
+    await videosUnchanged(
+      tx,
+      mediaId,
+      mediaType,
+      videosToCreate.map(({ movieId: _m, seriesId: _s, ...rest }) => rest)
+    )
+  ) {
+    return;
+  }
+  logChildRewrite("videos", mediaType, mediaId);
+
+  // Delete existing videos
+  if (mediaType === "movie") {
+    await tx.video.deleteMany({ where: { movieId: mediaId } });
+  } else {
+    await tx.video.deleteMany({ where: { seriesId: mediaId } });
+  }
 
   if (videosToCreate.length > 0) {
     await tx.video.createMany({ data: videosToCreate });
@@ -431,13 +230,6 @@ export async function upsertImages(
     }>;
   }
 ): Promise<void> {
-  // Delete existing images
-  if (mediaType === "movie") {
-    await tx.image.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.image.deleteMany({ where: { seriesId: mediaId } });
-  }
-
   const imagesToCreate: Array<{
     movieId: number | null;
     seriesId: number | null;
@@ -476,86 +268,28 @@ export async function upsertImages(
   addImages(images.posters, "POSTER");
   addImages(images.logos, "LOGO");
 
+  if (
+    await imagesUnchanged(
+      tx,
+      mediaId,
+      mediaType,
+      imagesToCreate.map(({ movieId: _m, seriesId: _s, ...rest }) => rest)
+    )
+  ) {
+    return;
+  }
+  logChildRewrite("images", mediaType, mediaId);
+
+  // Delete existing images
+  if (mediaType === "movie") {
+    await tx.image.deleteMany({ where: { movieId: mediaId } });
+  } else {
+    await tx.image.deleteMany({ where: { seriesId: mediaId } });
+  }
+
   if (imagesToCreate.length > 0) {
     await tx.image.createMany({ data: imagesToCreate });
   }
-}
-
-// =============================================================================
-// Scraped Watch Links
-// =============================================================================
-
-/**
- * Upsert scraped watch links - UPDATE existing or CREATE new, but NEVER delete existing
- *
- * This ensures that if Lambda fails to return watch links, the existing ones are preserved.
- */
-export async function upsertScrapedWatchLinks(
-  tx: PrismaTx,
-  mediaId: number,
-  mediaType: MediaType,
-  links: ScrapedWatchLink[]
-): Promise<void> {
-  // DO NOT delete existing links - preserve them if Lambda doesn't return new ones
-  // Only upsert the links we have
-
-  if (links.length === 0) {
-    console.log(`[Hydration/Postgres] No watch links to upsert for ${mediaType} ${mediaId}`);
-    return;
-  }
-
-  console.log(
-    `[Hydration/Postgres] Upserting ${links.length} watch links for ${mediaType} ${mediaId}:`
-  );
-
-  const baseData = {
-    movieId: mediaType === "movie" ? mediaId : null,
-    seriesId: mediaType === "series" ? mediaId : null,
-  };
-
-  const countryCode = "IN"; // Scraped links are currently India-only
-
-  for (const link of links) {
-    console.log(`  → ${link.provider}: ${link.link} (${link.price || "Free"})`);
-
-    try {
-      await tx.scrapedWatchLink.upsert({
-        where:
-          mediaType === "movie"
-            ? {
-                movieId_providerName_countryCode: {
-                  movieId: mediaId,
-                  providerName: link.provider,
-                  countryCode,
-                },
-              }
-            : {
-                seriesId_providerName_countryCode: {
-                  seriesId: mediaId,
-                  providerName: link.provider,
-                  countryCode,
-                },
-              },
-        create: {
-          ...baseData,
-          providerName: link.provider,
-          link: link.link,
-          price: link.price || null,
-          countryCode,
-        },
-        update: {
-          link: link.link,
-          price: link.price || null,
-          updatedAt: new Date(),
-        },
-      });
-    } catch (error) {
-      // Log but don't fail - some links might have issues
-      console.warn(`[Hydration/Postgres] Failed to upsert watch link ${link.provider}:`, error);
-    }
-  }
-
-  console.log(`[Hydration/Postgres] Watch links upsert complete for ${mediaType} ${mediaId}`);
 }
 
 // =============================================================================
@@ -594,6 +328,40 @@ export async function upsertWatchProviders(
     }
   >
 ): Promise<void> {
+  // Build the flat incoming projection first; the (media, provider, country,
+  // type) unique constraint collapses duplicates to the first row, so dedupe
+  // the same way before comparing against existing rows.
+  const incoming: Array<{
+    providerTmdbId: number;
+    countryCode: string;
+    type: string;
+    link: string | null;
+  }> = [];
+  for (const [countryCode, data] of Object.entries(providersByCountry)) {
+    for (const { type, providers } of [
+      { type: "FLATRATE", providers: data.flatrate },
+      { type: "RENT", providers: data.rent },
+      { type: "BUY", providers: data.buy },
+    ]) {
+      for (const provider of providers || []) {
+        incoming.push({
+          providerTmdbId: provider.provider_id,
+          countryCode,
+          type,
+          link: data.link ?? null,
+        });
+      }
+    }
+  }
+  const dedupedIncoming = dedupeBy(
+    incoming,
+    (r) => `${r.providerTmdbId}|${r.countryCode}|${r.type}`
+  );
+  if (await watchProvidersUnchanged(tx, mediaId, mediaType, dedupedIncoming)) {
+    return;
+  }
+  logChildRewrite("watch_options", mediaType, mediaId);
+
   // Delete existing watch options
   await tx.watchOption.deleteMany({
     where: mediaType === "movie" ? { movieId: mediaId } : { seriesId: mediaId },
@@ -679,6 +447,27 @@ export async function upsertReviews(
     update: {},
   });
 
+  // Change-detection: compare incoming reviews (deduped by externalId, which
+  // the unique constraint enforces) against existing rows; skip when identical.
+  const incoming = dedupeBy(reviews, (r) => r.id).map((review) => ({
+    externalId: review.id,
+    content: review.content,
+    authorName: review.author_details?.name || review.author,
+    authorUrl: review.author_details?.username
+      ? `https://www.themoviedb.org/u/${review.author_details.username}`
+      : null,
+    authorImage: review.author_details?.avatar_path
+      ? `https://image.tmdb.org/t/p/w45${review.author_details.avatar_path}`
+      : null,
+    score: review.author_details?.rating ?? null,
+    reviewUrl: review.url,
+    reviewDate: review.created_at ? new Date(review.created_at) : null,
+  }));
+  if (await reviewsUnchanged(tx, mediaId, mediaType, tmdbSource.id, incoming)) {
+    return;
+  }
+  logChildRewrite("reviews", mediaType, mediaId);
+
   // Delete existing TMDB reviews for this item
   if (mediaType === "movie") {
     await tx.review.deleteMany({
@@ -737,14 +526,6 @@ export async function upsertCredits(
   mediaType: "movie" | "series",
   credits: { cast?: Array<any>; crew?: Array<any> }
 ): Promise<void> {
-  // Delete existing non-aggregate credits only
-  if (mediaType === "movie") {
-    await tx.credit.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    // For series: only delete non-aggregate credits (preserve aggregate)
-    await tx.credit.deleteMany({ where: { seriesId: mediaId, isAggregate: false } });
-  }
-
   const allCredits: Array<{
     personId: number;
     name: string;
@@ -784,6 +565,30 @@ export async function upsertCredits(
       job: crew.job,
       department: crew.department,
     });
+  }
+
+  // Change-detection: skip the full delete+reinsert (and person upserts) when
+  // the credit set is identical to what's stored. Note: person popularity
+  // refreshes are skipped too — the daily popularity-sync job covers those.
+  const incomingProjection: CreditProjection[] = allCredits.map((c) => ({
+    personTmdbId: c.personId,
+    creditType: c.creditType,
+    character: c.character ?? null,
+    job: c.job ?? null,
+    department: c.department ?? null,
+    creditOrder: c.order ?? null,
+  }));
+  if (await creditsUnchanged(tx, mediaId, mediaType, incomingProjection)) {
+    return;
+  }
+  logChildRewrite("credits", mediaType, mediaId);
+
+  // Delete existing non-aggregate credits only
+  if (mediaType === "movie") {
+    await tx.credit.deleteMany({ where: { movieId: mediaId } });
+  } else {
+    // For series: only delete non-aggregate credits (preserve aggregate)
+    await tx.credit.deleteMany({ where: { seriesId: mediaId, isAggregate: false } });
   }
 
   // Upsert persons and create credits (no limit - store everything)

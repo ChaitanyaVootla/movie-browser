@@ -65,13 +65,17 @@ function getMongoURI(): string {
   return `mongodb://root:${mongoPass}@${mongoIp}:${mongoPort}`;
 }
 
-const mongoUri = getMongoURI();
-
 let clientPromise: Promise<MongoClient> | null = null;
 
-if (mongoUri) {
-  const mongoClient = new MongoClient(mongoUri);
-  clientPromise = mongoClient.connect();
+// In PostgreSQL mode the adapter and all user lookups go through Prisma —
+// never open a MongoDB connection (the legacy Mongo box may be unreachable
+// or decommissioned). Only the MongoDB user-data mode needs this client.
+if (!usePostgres) {
+  const mongoUri = getMongoURI();
+  if (mongoUri) {
+    const mongoClient = new MongoClient(mongoUri);
+    clientPromise = mongoClient.connect();
+  }
 }
 
 // =============================================================================

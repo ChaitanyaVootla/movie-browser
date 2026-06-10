@@ -13,16 +13,25 @@ import type { EnrichedData } from "../../types";
 import type { TmdbMovieData } from "../tmdb";
 import type { PrismaTx } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
+import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 import {
-  upsertRatings,
   upsertExternalIds,
   upsertVideos,
   upsertImages,
-  upsertScrapedWatchLinks,
   upsertWatchProviders,
   upsertReviews,
   upsertCredits,
 } from "./shared-upserts";
+import {
+  dedupeBy,
+  logChildRewrite,
+  movieCertificationsUnchanged,
+  movieGenresUnchanged,
+  movieKeywordsUnchanged,
+  movieCompaniesUnchanged,
+  movieCountriesUnchanged,
+  movieLanguagesUnchanged,
+} from "./upsert-diff";
 
 // =============================================================================
 // Main Movie Upsert
@@ -220,9 +229,6 @@ async function upsertMovieCertifications(
   movieId: number,
   releaseDates: TmdbMovieData["release_dates"]["results"]
 ): Promise<void> {
-  // Delete existing certifications
-  await tx.movieCertification.deleteMany({ where: { movieId } });
-
   const certsToCreate: Array<{
     movieId: number;
     countryCode: string;
@@ -247,25 +253,42 @@ async function upsertMovieCertifications(
     }
   }
 
+  // Get valid country codes from the database (filter out obsolete codes like SU)
+  let filteredCerts: typeof certsToCreate = [];
   if (certsToCreate.length > 0) {
-    // Get valid country codes from the database (filter out obsolete codes like SU)
     const validCountries = await tx.country.findMany({
       where: { code: { in: certsToCreate.map((c) => c.countryCode) } },
       select: { code: true },
     });
     const validCodes = new Set(validCountries.map((c) => c.code));
-    const filteredCerts = certsToCreate.filter((c) => validCodes.has(c.countryCode));
+    // The (movieId, countryCode, releaseType) unique constraint + skipDuplicates
+    // keeps the first row per key (NULL releaseType rows never collapse).
+    filteredCerts = dedupeBy(
+      certsToCreate.filter((c) => validCodes.has(c.countryCode)),
+      (c) => (c.releaseType === null ? null : `${c.countryCode}|${c.releaseType}`)
+    );
+  }
 
-    if (filteredCerts.length > 0) {
-      // Delete existing certifications for this movie first
-      await tx.movieCertification.deleteMany({ where: { movieId } });
+  if (
+    await movieCertificationsUnchanged(
+      tx,
+      movieId,
+      filteredCerts.map(({ movieId: _m, ...rest }) => rest)
+    )
+  ) {
+    return;
+  }
+  logChildRewrite("movie_certifications", "movie", movieId);
 
-      // Use createMany with skipDuplicates for remaining duplicates (same country+releaseType)
-      await tx.movieCertification.createMany({
-        data: filteredCerts,
-        skipDuplicates: true,
-      });
-    }
+  // Delete existing certifications
+  await tx.movieCertification.deleteMany({ where: { movieId } });
+
+  if (filteredCerts.length > 0) {
+    // Use createMany with skipDuplicates for remaining duplicates (same country+releaseType)
+    await tx.movieCertification.createMany({
+      data: filteredCerts,
+      skipDuplicates: true,
+    });
   }
 }
 
@@ -277,6 +300,9 @@ async function upsertMovieGenres(
   movieId: number,
   genres: Array<{ id: number; name: string }>
 ): Promise<void> {
+  if (await movieGenresUnchanged(tx, movieId, genres.map((g) => g.id))) return;
+  logChildRewrite("movie_genres", "movie", movieId);
+
   // Delete existing genre associations
   await tx.movieGenre.deleteMany({ where: { movieId } });
 
@@ -317,6 +343,9 @@ async function upsertMovieKeywords(
   movieId: number,
   keywords: Array<{ id: number; name: string }>
 ): Promise<void> {
+  if (await movieKeywordsUnchanged(tx, movieId, keywords.map((k) => k.id))) return;
+  logChildRewrite("movie_keywords", "movie", movieId);
+
   // Delete existing keyword associations
   await tx.movieKeyword.deleteMany({ where: { movieId } });
 
@@ -362,6 +391,9 @@ async function upsertMovieCompanies(
     origin_country?: string | null;
   }>
 ): Promise<void> {
+  if (await movieCompaniesUnchanged(tx, movieId, companies.map((c) => c.id))) return;
+  logChildRewrite("movie_companies", "movie", movieId);
+
   // Delete existing company associations
   await tx.movieCompany.deleteMany({ where: { movieId } });
 
@@ -416,6 +448,13 @@ async function upsertMovieCountries(
   originCountries: string[],
   productionCountries: Array<{ iso_3166_1: string; name: string }>
 ): Promise<void> {
+  const incomingPairs = [
+    ...(originCountries || []).map((code) => ({ countryCode: code, type: "ORIGIN" })),
+    ...(productionCountries || []).map((c) => ({ countryCode: c.iso_3166_1, type: "PRODUCTION" })),
+  ];
+  if (await movieCountriesUnchanged(tx, movieId, incomingPairs)) return;
+  logChildRewrite("movie_countries", "movie", movieId);
+
   // Delete existing country associations
   await tx.movieCountry.deleteMany({ where: { movieId } });
 
@@ -476,6 +515,9 @@ async function upsertMovieLanguages(
   languages: Array<{ iso_639_1: string; name: string; english_name: string }>
 ): Promise<void> {
   if (!languages.length) return;
+
+  if (await movieLanguagesUnchanged(tx, movieId, languages.map((l) => l.iso_639_1))) return;
+  logChildRewrite("movie_languages", "movie", movieId);
 
   // Delete existing language associations
   await tx.movieLanguage.deleteMany({ where: { movieId } });

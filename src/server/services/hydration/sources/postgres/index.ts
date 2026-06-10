@@ -40,13 +40,11 @@ export { upsertSeriesToPostgres } from "./series-upsert";
 // Shared Upsert Helpers (exported for potential reuse)
 // =============================================================================
 
+export { getOrCreateSource, upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 export {
-  getOrCreateSource,
-  upsertRatings,
   upsertExternalIds,
   upsertVideos,
   upsertImages,
-  upsertScrapedWatchLinks,
   upsertWatchProviders,
   upsertReviews,
   upsertCredits,

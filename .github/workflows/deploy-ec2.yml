@@ -71,6 +71,12 @@ jobs:
           MONGO_PASS: build-placeholder
           DATABASE_URL: postgresql://x:x@localhost:5432/x
           TMDB_API_KEY: build-placeholder
+          # PG-only mode at build time: prevents auth.ts module evaluation from
+          # constructing a MongoDB client against the placeholder host, and keeps
+          # builds working after MONGO_* vars are removed post-GA. Runtime mode
+          # is controlled by .env.local on the box, not by this.
+          USER_DATA_SOURCE: postgres
+          ENABLE_MONGODB_ENRICHMENT: "false"
         run: yarn build
 
       - name: Create deployment package

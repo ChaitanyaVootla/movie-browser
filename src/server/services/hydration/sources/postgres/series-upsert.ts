@@ -15,16 +15,32 @@ import type { EnrichedData } from "../../types";
 import type { TmdbSeriesData } from "../tmdb";
 import type { PrismaTx, SeasonWithEpisodes } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
+import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 import {
-  upsertRatings,
+  upsertSeriesGenres,
+  upsertSeriesKeywords,
+  upsertSeriesNetworks,
+  upsertSeriesCreators,
+  upsertSeriesCountries,
+  upsertSeriesCompanies,
+  upsertSeriesLanguages,
+} from "./series-junction-upserts";
+import {
   upsertExternalIds,
   upsertVideos,
   upsertImages,
-  upsertScrapedWatchLinks,
   upsertWatchProviders,
   upsertReviews,
   upsertCredits,
 } from "./shared-upserts";
+import {
+  dedupeBy,
+  logChildRewrite,
+  seasonsUnchanged,
+  seriesCertificationsUnchanged,
+  aggregateCreditsUnchanged,
+  type AggregateCreditProjection,
+} from "./upsert-diff";
 
 // =============================================================================
 // Main Series Upsert
@@ -251,6 +267,12 @@ async function upsertSeasons(
   seriesId: number,
   seasons: SeasonWithEpisodes[]
 ): Promise<void> {
+  // Change-detection: seasons+episodes compared as one canonical unit. When
+  // unchanged (the common case), the whole delete cascade (seasons → episodes
+  // → images) and reinsert is skipped.
+  if (await seasonsUnchanged(tx, seriesId, seasons)) return;
+  logChildRewrite("seasons", "series", seriesId);
+
   // Delete existing seasons (cascades to episodes)
   await tx.season.deleteMany({ where: { seriesId } });
 
@@ -343,9 +365,25 @@ async function upsertSeriesCertifications(
       select: { code: true },
     });
     const validCodes = new Set(validCountries.map((c) => c.code));
-    const filteredCerts = certsToCreate.filter((c) => validCodes.has(c.countryCode));
+    // The (seriesId, countryCode) unique constraint + skipDuplicates keeps the
+    // first row per country — mirror that before comparing.
+    const filteredCerts = dedupeBy(
+      certsToCreate.filter((c) => validCodes.has(c.countryCode)),
+      (c) => c.countryCode
+    );
 
     if (filteredCerts.length > 0) {
+      if (
+        await seriesCertificationsUnchanged(
+          tx,
+          seriesId,
+          filteredCerts.map(({ seriesId: _s, ...rest }) => rest)
+        )
+      ) {
+        return;
+      }
+      logChildRewrite("series_certifications", "series", seriesId);
+
       // Delete existing certifications
       await tx.seriesCertification.deleteMany({ where: { seriesId } });
       await tx.seriesCertification.createMany({ data: filteredCerts, skipDuplicates: true });
@@ -353,186 +391,9 @@ async function upsertSeriesCertifications(
   }
 }
 
-/**
- * Upsert series genres
- */
-async function upsertSeriesGenres(
-  tx: PrismaTx,
-  seriesId: number,
-  genres: Array<{ id: number; name: string }>
-): Promise<void> {
-  // Delete existing genre associations
-  await tx.seriesGenre.deleteMany({ where: { seriesId } });
 
-  for (const genre of genres) {
-    // Try to find existing genre first (fast, no lock contention)
-    let dbGenre = await tx.genre.findUnique({
-      where: { tmdbId: genre.id },
-    });
 
-    // Only create if it doesn't exist (rare - genres are pre-populated)
-    if (!dbGenre) {
-      dbGenre = await tx.genre.upsert({
-        where: { tmdbId: genre.id },
-        create: { tmdbId: genre.id, name: genre.name },
-        update: { name: genre.name },
-      });
-    }
 
-    // Create the junction using DB ID
-    await tx.seriesGenre
-      .create({
-        data: {
-          seriesId,
-          genreId: dbGenre.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
-  }
-}
-
-/**
- * Upsert series keywords
- */
-async function upsertSeriesKeywords(
-  tx: PrismaTx,
-  seriesId: number,
-  keywords: Array<{ id: number; name: string }>
-): Promise<void> {
-  // Delete existing keyword associations
-  await tx.seriesKeyword.deleteMany({ where: { seriesId } });
-
-  for (const keyword of keywords) {
-    // Try to find existing keyword first (fast, no lock contention)
-    let dbKeyword = await tx.keyword.findUnique({
-      where: { tmdbId: keyword.id },
-    });
-
-    // Only create if it doesn't exist
-    if (!dbKeyword) {
-      dbKeyword = await tx.keyword.upsert({
-        where: { tmdbId: keyword.id },
-        create: { tmdbId: keyword.id, name: keyword.name },
-        update: { name: keyword.name },
-      });
-    }
-
-    // Create the junction using DB ID
-    await tx.seriesKeyword
-      .create({
-        data: {
-          seriesId,
-          keywordId: dbKeyword.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
-  }
-}
-
-/**
- * Upsert series networks
- */
-async function upsertSeriesNetworks(
-  tx: PrismaTx,
-  seriesId: number,
-  networks: Array<{
-    id: number;
-    name: string;
-    logo_path?: string | null;
-    origin_country?: string | null;
-  }>
-): Promise<void> {
-  // Delete existing network associations
-  await tx.seriesNetwork.deleteMany({ where: { seriesId } });
-
-  for (const network of networks) {
-    // Try to find existing network first (fast, no lock contention)
-    let dbNetwork = await tx.network.findUnique({
-      where: { tmdbId: network.id },
-    });
-
-    // Only create if it doesn't exist
-    if (!dbNetwork) {
-      dbNetwork = await tx.network.upsert({
-        where: { tmdbId: network.id },
-        create: {
-          tmdbId: network.id,
-          name: network.name,
-          logoPath: network.logo_path,
-          originCountry: network.origin_country,
-        },
-        update: {
-          name: network.name,
-          logoPath: network.logo_path,
-          originCountry: network.origin_country,
-        },
-      });
-    }
-
-    // Create junction using DB ID
-    await tx.seriesNetwork
-      .create({
-        data: {
-          seriesId,
-          networkId: dbNetwork.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
-  }
-}
-
-/**
- * Upsert series creators (created_by from TMDB)
- */
-async function upsertSeriesCreators(
-  tx: PrismaTx,
-  seriesId: number,
-  creators: Array<{ id: number; name: string; profile_path: string | null }>
-): Promise<void> {
-  // Delete existing creator associations
-  await tx.seriesCreator.deleteMany({ where: { seriesId } });
-
-  for (const creator of creators) {
-    // Try to find existing person first (fast, no lock contention)
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: creator.id },
-    });
-
-    // Only create if person doesn't exist
-    if (!dbPerson) {
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: creator.id },
-        create: {
-          tmdbId: creator.id,
-          name: creator.name,
-          profilePath: creator.profile_path,
-        },
-        update: {
-          name: creator.name,
-          profilePath: creator.profile_path,
-        },
-      });
-    }
-
-    // Create junction using DB ID
-    await tx.seriesCreator
-      .create({
-        data: {
-          seriesId,
-          personId: dbPerson.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
-  }
-}
 
 /**
  * Upsert series aggregate credits (ALL cast/crew across all episodes)
@@ -569,6 +430,40 @@ async function upsertSeriesAggregateCredits(
     }>;
   }
 ): Promise<void> {
+  // Change-detection: build the projection of what WOULD be inserted (same
+  // flattening rules as below) and skip the delete+reinsert when identical.
+  const incoming: AggregateCreditProjection[] = [];
+  for (const cast of aggregateCredits.cast || []) {
+    const combinedCharacter = cast.roles
+      .map((r) => r.character)
+      .filter(Boolean)
+      .join(" / ");
+    incoming.push({
+      personTmdbId: cast.id,
+      creditType: "CAST",
+      character: combinedCharacter || null,
+      job: null,
+      department: null,
+      creditOrder: cast.order ?? null,
+      totalEpisodeCount: cast.total_episode_count ?? null,
+    });
+  }
+  for (const crew of aggregateCredits.crew || []) {
+    for (const jobInfo of crew.jobs || []) {
+      incoming.push({
+        personTmdbId: crew.id,
+        creditType: "CREW",
+        character: null,
+        job: jobInfo.job,
+        department: crew.department,
+        creditOrder: null,
+        totalEpisodeCount: crew.total_episode_count ?? null,
+      });
+    }
+  }
+  if (await aggregateCreditsUnchanged(tx, seriesId, incoming)) return;
+  logChildRewrite("credits_aggregate", "series", seriesId);
+
   // Delete existing AGGREGATE credits only (preserve non-aggregate regular credits)
   await tx.credit.deleteMany({ where: { seriesId, isAggregate: true } });
 
@@ -661,132 +556,5 @@ async function upsertSeriesAggregateCredits(
   }
 }
 
-/**
- * Upsert countries for a series (origin countries only - series don't have production_countries in TMDB)
- *
- * @param originCountries - From TMDB origin_country (ISO codes array)
- */
-async function upsertSeriesCountries(
-  tx: PrismaTx,
-  seriesId: number,
-  originCountries: string[]
-): Promise<void> {
-  if (!originCountries?.length) return;
 
-  // Delete existing country associations
-  await tx.seriesCountry.deleteMany({ where: { seriesId } });
 
-  // Insert origin countries
-  for (const code of originCountries) {
-    // Upsert country lookup
-    await tx.country.upsert({
-      where: { code },
-      create: { code, name: code },
-      update: {},
-    });
-
-    // Create junction with ORIGIN type
-    await tx.seriesCountry
-      .create({
-        data: {
-          seriesId,
-          countryCode: code,
-          type: "ORIGIN",
-        },
-      })
-      .catch(() => {});
-  }
-}
-
-/**
- * Upsert series production companies
- */
-async function upsertSeriesCompanies(
-  tx: PrismaTx,
-  seriesId: number,
-  companies: Array<{
-    id: number;
-    name: string;
-    logo_path?: string | null;
-    origin_country?: string | null;
-  }>
-): Promise<void> {
-  // Delete existing company associations
-  await tx.seriesCompany.deleteMany({ where: { seriesId } });
-
-  for (const company of companies) {
-    // Try to find existing company first (fast, no lock contention)
-    let dbCompany = await tx.productionCompany.findUnique({
-      where: { tmdbId: company.id },
-    });
-
-    // Only create if it doesn't exist
-    if (!dbCompany) {
-      dbCompany = await tx.productionCompany.upsert({
-        where: { tmdbId: company.id },
-        create: {
-          tmdbId: company.id,
-          name: company.name,
-          logoPath: company.logo_path,
-          originCountry: company.origin_country,
-        },
-        update: {
-          name: company.name,
-          logoPath: company.logo_path,
-          originCountry: company.origin_country,
-        },
-      });
-    }
-
-    // Create junction using DB ID
-    await tx.seriesCompany
-      .create({
-        data: {
-          seriesId,
-          companyId: dbCompany.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
-  }
-}
-
-/**
- * Upsert spoken languages for a series
- */
-async function upsertSeriesLanguages(
-  tx: PrismaTx,
-  seriesId: number,
-  languages: Array<{ iso_639_1: string; name: string; english_name?: string }>
-): Promise<void> {
-  if (!languages.length) return;
-
-  // Delete existing language associations
-  await tx.seriesLanguage.deleteMany({ where: { seriesId } });
-
-  for (const lang of languages) {
-    // Upsert language lookup
-    await tx.language.upsert({
-      where: { code: lang.iso_639_1 },
-      create: {
-        code: lang.iso_639_1,
-        name: lang.english_name || lang.name,
-      },
-      update: {},
-    });
-
-    // Create junction (type: SPOKEN)
-    await tx.seriesLanguage
-      .create({
-        data: {
-          seriesId,
-          languageCode: lang.iso_639_1,
-          type: "SPOKEN",
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
-  }
-}

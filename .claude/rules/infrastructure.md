@@ -85,6 +85,26 @@ Remote MongoDB on legacy EC2 (`98.130.30.197`). Connected via `MONGO_IP` env var
 Controlled by `USER_DATA_SOURCE` env var (`mongodb` default, `postgres` at GA).
 Will be fully severed post-GA.
 
+## Backups & Alerting (set up 2026-06-10, CLI-managed — NOT in Terraform)
+
+| What | Where | Schedule | Retention |
+|------|-------|----------|-----------|
+| PG logical dump (beta) | `~/bin/pg-backup.sh` → `s3://movie-browser-migration-2025-10-19/backups/pg/` | cron 02:30 UTC | 30d (S3 lifecycle) |
+| MongoDB dump (legacy, ALL user data) | `~/bin/mongo-backup.sh` on `98.130.30.197` → `.../backups/mongo/` | cron 02:00 UTC | 30d (S3 lifecycle) |
+| EBS snapshots (both volumes) | DLM policy `policy-0bbc1c9e1ae3d88e9` targets tag `Backup=daily` | daily 03:30 UTC | 7 snapshots |
+
+- PG script TOC-verifies the dump (`pg_restore --list`) **before** uploading. Logs: `~/logs/*.log` on each box.
+- **Alerting**: SNS topic `movie-browser-alerts` (ap-south-2) → email. CloudWatch alarms:
+  `{beta,prod}-status-check-failed`, `beta-cpu-surplus-credit-burn` (CPU pegged again),
+  `{beta,prod}-disk-above-80pct` (fed by `~/bin/disk-metric.sh` cron, every 5 min, namespace
+  `MovieBrowser` — both June 2026 outages were disk-fill).
+- Both EC2 instances have **termination protection** enabled; disable via
+  `aws ec2 modify-instance-attribute --no-disable-api-termination` before any teardown (GA).
+- Beta has a **2GB swapfile** (`/swapfile`, swappiness 10) and Prisma pool params
+  `connection_limit=10&pool_timeout=20` appended to `DATABASE_URL` in both EC2 env files.
+- Hot churn tables have per-table autovacuum overrides (`scale_factor=0.05`, `cost_delay=0`) —
+  set via `ALTER TABLE`, survive `prisma db push`.
+
 ## Local PostgreSQL Access (SSH Tunnel)
 
 ```bash
