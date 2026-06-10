@@ -118,18 +118,21 @@ let bedrockClient: BedrockRuntimeClient | null = null;
 
 function getBedrockClient(): BedrockRuntimeClient {
   if (!bedrockClient) {
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-      throw new Error(
-        "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
-      );
-    }
+    // Explicit credentials for local dev; on EC2 they are intentionally unset
+    // and the SDK resolves the instance profile automatically (same pattern as
+    // cohere-generator.ts). The old hard requirement on static keys made the
+    // Tier-3 LLM parser permanently fail in production.
+    const credentials =
+      process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+        ? {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          }
+        : undefined;
 
     bedrockClient = new BedrockRuntimeClient({
       region: REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      },
+      ...(credentials && { credentials }),
     });
   }
   return bedrockClient;

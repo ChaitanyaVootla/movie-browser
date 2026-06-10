@@ -14,7 +14,9 @@ import {
   getSpellingSuggestions,
   findExactMatch,
   type FuzzySearchResult,
+  type FuzzySearchOptions,
 } from "@/server/db/postgres/fuzzy-search";
+import { ftsSearchTitles, ftsSearchPeople } from "@/server/db/postgres/fts-search";
 import { semanticSearch, type SemanticSearchResult } from "@/server/db/postgres/semantic-search";
 import {
   classifyQueryIntentHybrid,
@@ -686,7 +688,7 @@ async function resolveSimilarToTitle(intent: IntentAnalysis): Promise<IntentAnal
     return intent; // Nothing to resolve or already resolved
   }
 
-  const match = await findExactMatch(similarTo.title);
+  const match = await findExactMatchSafe(similarTo.title);
   if (match) {
     return {
       ...intent,
@@ -706,6 +708,93 @@ async function resolveSimilarToTitle(intent: IntentAnalysis): Promise<IntentAnal
   });
 
   return intent;
+}
+
+// =============================================================================
+// Guarded search legs (no leg failure may reject the whole search)
+// =============================================================================
+
+/**
+ * Lexical search leg with graceful degradation.
+ *
+ * Trigram (`fuzzySearch`) runs under a 4s statement_timeout and is pathological
+ * for common multi-word queries ("the lord of the rings" — see fts-search.ts);
+ * under load the timeout fires and Prisma throws P2010. June 2026 prod bug: that
+ * rejection propagated through `Promise.all` in runCoreSearch and killed the
+ * ENTIRE search (zero results for valid titles, error swallowed client-side).
+ *
+ * Degradation chain: trigram → FTS (stop-word-aware, GIN-indexed, the same fast
+ * path autocomplete uses) → empty array. Every failure is logged with context.
+ */
+async function runLexicalSearch(
+  query: string,
+  options: FuzzySearchOptions
+): Promise<FuzzySearchResult[]> {
+  try {
+    return await fuzzySearch(query, options);
+  } catch (error: unknown) {
+    dataLogger.error({
+      event: "fuzzy_search_failed",
+      query,
+      error: error instanceof Error ? error.message : String(error),
+      fallback: "fts",
+    });
+  }
+
+  // Trigram failed (likely statement timeout on a common multi-word query).
+  // FTS handles exactly that case fast — degrade instead of returning nothing.
+  try {
+    const mediaTypes = options.mediaTypes ?? ["movie", "series", "person"];
+    const limit = options.limit ?? 20;
+    const wantsTitles = mediaTypes.includes("movie") || mediaTypes.includes("series");
+    const wantsPersons = mediaTypes.includes("person");
+
+    const [titles, persons] = await Promise.all([
+      wantsTitles ? ftsSearchTitles(query, limit) : Promise.resolve([]),
+      wantsPersons ? ftsSearchPeople(query, Math.min(limit, 5)) : Promise.resolve([]),
+    ]);
+
+    return [...titles, ...persons]
+      .filter((r) => mediaTypes.includes(r.mediaType))
+      .map((r) => ({
+        id: r.id,
+        title: r.title,
+        mediaType: r.mediaType,
+        // FTS has no trigram similarity; use a neutral mid score — RRF ranking
+        // is positional, so this only affects the displayed score.
+        similarity: 0.5,
+        posterPath: r.posterPath,
+        year: r.year,
+        popularity: r.popularity,
+        voteAverage: null,
+        voteCount: null,
+      }));
+  } catch (ftsError: unknown) {
+    dataLogger.error({
+      event: "lexical_search_failed",
+      query,
+      error: ftsError instanceof Error ? ftsError.message : String(ftsError),
+      note: "both trigram and FTS legs failed; returning empty lexical results",
+    });
+    return [];
+  }
+}
+
+/**
+ * findExactMatch, guarded: a DB hiccup on the fast path must fall through to the
+ * full search instead of rejecting the whole action.
+ */
+async function findExactMatchSafe(query: string): Promise<FuzzySearchResult | null> {
+  try {
+    return await findExactMatch(query);
+  } catch (error: unknown) {
+    dataLogger.warn({
+      event: "exact_match_failed",
+      query,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 // =============================================================================
@@ -812,10 +901,13 @@ async function runCoreSearch(params: CoreSearchParams): Promise<CoreSearchResult
     }
   }
 
+  // Each leg is independently guarded: a failure in one (trigram statement
+  // timeout, embedding/Bedrock error) degrades that leg to [] and the other
+  // leg's results are still returned. Never let one leg reject the whole search.
   const [fuzzyResults, semanticResults] = await Promise.all([
-    // Fuzzy search
+    // Lexical search (trigram with FTS fallback — see runLexicalSearch)
     !skipFuzzy && weights.fuzzy > 0.05
-      ? fuzzySearch(query, {
+      ? runLexicalSearch(query, {
           limit: limit * fetchMultiplier,
           threshold: fuzzyThreshold,
           mediaTypes,
@@ -832,6 +924,7 @@ async function runCoreSearch(params: CoreSearchParams): Promise<CoreSearchResult
         }).catch((error) => {
           dataLogger.warn({
             event: "semantic_search_fallback",
+            query,
             error: error instanceof Error ? error.message : String(error),
           });
           return [];
@@ -931,8 +1024,21 @@ export async function hybridSearch(
 
   // ==========================================================================
   // Step 1: Analyze query intent using hybrid classification (regex -> embedding -> LLM)
+  // Guarded: if the embedding/LLM tiers blow up unexpectedly, degrade to the
+  // free regex tier rather than failing the search.
   // ==========================================================================
-  const hybridResult = await classifyQueryIntentHybrid(query);
+  let hybridResult: HybridIntentResult;
+  try {
+    hybridResult = await classifyQueryIntentHybrid(query);
+  } catch (error: unknown) {
+    dataLogger.warn({
+      event: "intent_classification_failed",
+      query,
+      error: error instanceof Error ? error.message : String(error),
+      fallback: "regex",
+    });
+    hybridResult = { ...classifyQueryIntent(query), method: "regex" };
+  }
   let intent: IntentAnalysis = hybridResult;
   const classificationMethod = hybridResult.method;
 
@@ -974,7 +1080,7 @@ export async function hybridSearch(
   // Step 4: Fast path - Check for exact match
   // ==========================================================================
   if (intent.isExactLookup || intent.intent === "title") {
-    const exactMatch = await findExactMatch(query);
+    const exactMatch = await findExactMatchSafe(query);
     if (exactMatch) {
       const result = fuzzyToHybrid(exactMatch, 0, "fuzzy");
       const understanding = generateQueryUnderstanding(query, intent);
@@ -1146,8 +1252,18 @@ export async function hybridSearch(
   // ==========================================================================
   let suggestions: string[] | undefined;
   if (finalResults.length === 0) {
-    const spellingSuggestions = await getSpellingSuggestions(query, 5);
-    suggestions = spellingSuggestions.map((s) => s.suggestion);
+    try {
+      const spellingSuggestions = await getSpellingSuggestions(query, 5);
+      suggestions = spellingSuggestions.map((s) => s.suggestion);
+    } catch (error: unknown) {
+      // Suggestions are a nice-to-have; an expensive similarity scan failing
+      // must not turn an empty-but-valid response into a rejected action.
+      dataLogger.warn({
+        event: "spelling_suggestions_failed",
+        query,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   // ==========================================================================
@@ -1210,9 +1326,9 @@ export async function hybridSearch(
 export async function hybridQuickSearch(query: string, limit = 8): Promise<HybridSearchResult[]> {
   const intent = classifyQueryIntent(query);
 
-  // For short queries, just use fuzzy search (faster)
+  // For short queries, just use fuzzy search (faster); guarded with FTS fallback
   if (query.length < 5 || intent.intent === "title") {
-    const results = await fuzzySearch(query, {
+    const results = await runLexicalSearch(query, {
       limit,
       threshold: 0.15,
       boostPopular: true,

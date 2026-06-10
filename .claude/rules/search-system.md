@@ -279,6 +279,41 @@ All tracking is fire-and-forget (no `await`, wrapped in try-catch) — never blo
 
 Costs flow into the unified cost dashboard at `/admin` → Costs tab via `getUnifiedCostBreakdown()`.
 
+## Error Isolation (June 2026 zero-results incident — do not regress)
+
+Every search leg MUST be independently guarded; one leg's failure may never
+reject the whole search. Prod bug: `fuzzySearch` runs trigram under a 4s
+`statement_timeout`, common multi-word queries ("the lord of the rings") blow it
+under load → Prisma P2010 (`57014 canceling statement due to statement timeout`)
+propagated through an unguarded `Promise.all` in `runCoreSearch` → the entire
+`enhancedSearch` action rejected → /search showed "No results found" for valid
+titles (the client `catch` only `console.error`s — invisible server-side; the
+intermittent "1 result" was the title exact-match fast path which skips trigram).
+Diagnosis signature: `⨯ PrismaClientKnownRequestError ... 57014` in
+`~/.pm2/logs/next-error.log` + `hybrid_search_complete` missing for the failing
+query in `next-out.log` (it logs only on completion).
+
+Guards now in `hybrid.ts` (keep them when refactoring):
+
+- `runLexicalSearch()` — trigram → on failure log `fuzzy_search_failed` + degrade
+  to FTS (`ftsSearchTitles`/`ftsSearchPeople`, same fast path autocomplete uses)
+  → on second failure log `lexical_search_failed` + return `[]`.
+- Semantic leg `.catch` → `semantic_search_fallback` warn (pre-existing).
+- `findExactMatchSafe()` wraps both exact-match call sites (fast path +
+  `resolveSimilarToTitle`).
+- `getSpellingSuggestions` + `classifyQueryIntentHybrid` calls are try/caught
+  (fallback: no suggestions / regex classification).
+- `enhancedSearch` (search.ts): TMDB `searchMulti` supplement is try/caught — a
+  TMDB 500 must never discard hybrid results already in hand.
+- `classifyQueryIntentHybrid` clears `needsLlmParsing` after a failed LLM
+  attempt so `hybridSearch` step 2 doesn't immediately re-run the 5s LLM tier.
+- Tier-3 LLM Bedrock client uses instance-profile fallback (no static-keys
+  requirement — prod EC2 deliberately has none; the static-only check kept
+  Tier 3 permanently dead in prod).
+
+Regression tests: `src/lib/search/hybrid.test.ts` (all deps mocked; 6/7 fail on
+the pre-fix code). Run: `yarn vitest run src/lib/search/hybrid.test.ts`.
+
 ## Testing
 
 ```bash

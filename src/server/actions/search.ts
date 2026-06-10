@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { searchMulti, searchPerson } from "@/server/services/tmdb";
+import { dataLogger } from "@/lib/logger";
 import type { MovieListItem, SeriesListItem } from "@/types";
 
 // Validation schemas
@@ -231,27 +232,40 @@ export async function enhancedSearch(
     trendingIds,
     boostQuality: true,
     boostRecency: true,
-  });  const hybridResults = hybridResponse.results;
+  });
+
+  const hybridResults = hybridResponse.results;
   let tmdbFallback: SearchResult[] | undefined;
 
   // If hybrid search has limited results, supplement with TMDB
-  // This handles items not in our PostgreSQL database
+  // This handles items not in our PostgreSQL database.
+  // Guarded: a TMDB outage (500s observed in prod) must never discard the
+  // hybrid results we already have — the fallback is supplementary.
   if (hybridResults.length < 10) {
-    const tmdbResponse = await searchMulti(query, page);
+    try {
+      const tmdbResponse = await searchMulti(query, page);
 
-    // Filter out items already in hybrid results
-    const hybridIds = new Set(hybridResults.map((r) => `${r.mediaType}:${r.id}`));
-    const typedResults = tmdbResponse.results as Array<{
-      id: number;
-      media_type: "movie" | "tv" | "person";
-    }>;
-    const newTmdbResults = typedResults.filter((r) => {
-      const mediaType = r.media_type === "tv" ? "series" : r.media_type;
-      return !hybridIds.has(`${mediaType}:${r.id}`);
-    });
+      // Filter out items already in hybrid results
+      const hybridIds = new Set(hybridResults.map((r) => `${r.mediaType}:${r.id}`));
+      const typedResults = tmdbResponse.results as Array<{
+        id: number;
+        media_type: "movie" | "tv" | "person";
+      }>;
+      const newTmdbResults = typedResults.filter((r) => {
+        const mediaType = r.media_type === "tv" ? "series" : r.media_type;
+        return !hybridIds.has(`${mediaType}:${r.id}`);
+      });
 
-    if (newTmdbResults.length > 0) {
-      tmdbFallback = newTmdbResults.slice(0, 10) as SearchResult[];
+      if (newTmdbResults.length > 0) {
+        tmdbFallback = newTmdbResults.slice(0, 10) as SearchResult[];
+      }
+    } catch (error: unknown) {
+      dataLogger.warn({
+        event: "search_tmdb_fallback_failed",
+        query,
+        hybridResultCount: hybridResults.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

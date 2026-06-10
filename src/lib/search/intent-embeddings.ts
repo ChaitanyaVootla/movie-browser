@@ -562,7 +562,9 @@ export async function classifyQueryIntentHybrid(query: string): Promise<HybridIn
   }
 
   // Step 3: Fall back to LLM (slow, expensive) - only ~5% of queries
+  let llmAttempted = false;
   if (regexResult.needsLlmParsing) {
+    llmAttempted = true;
     const llmResult = await parseQueryWithLlm(query);
 
     if (llmResult) {
@@ -592,6 +594,10 @@ export async function classifyQueryIntentHybrid(query: string): Promise<HybridIn
 
   return {
     ...regexResult,
+    // If the LLM tier was already attempted and failed, don't ask callers
+    // (hybridSearch step 2) to immediately retry it — that doubled the
+    // worst-case latency by another LLM timeout for zero benefit.
+    needsLlmParsing: regexResult.needsLlmParsing && !llmAttempted,
     method: "regex",
   };
 }
