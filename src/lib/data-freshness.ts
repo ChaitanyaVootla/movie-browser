@@ -22,6 +22,13 @@ export const FRESHNESS_THRESHOLDS = {
   RECENT: 7 * DAY_MS,
   /** Content > 90 days old: refresh monthly */
   MATURE: 30 * DAY_MS,
+  /**
+   * Content > 3 years old: refresh quarterly. Ratings on mature titles barely
+   * move, and the catalog + crawler traffic skew heavily old — this tier cuts
+   * the crawler-driven Lambda scrape volume by ~50-65% (June 2026 analysis)
+   * at negligible staleness cost.
+   */
+  VERY_MATURE: 90 * DAY_MS,
 } as const;
 
 /**
@@ -35,7 +42,8 @@ export function getRefreshThreshold(releaseDate: Date | null): number {
   if (daysSinceRelease < 14) return FRESHNESS_THRESHOLDS.VERY_NEW;
   if (daysSinceRelease < 30) return FRESHNESS_THRESHOLDS.NEW;
   if (daysSinceRelease < 90) return FRESHNESS_THRESHOLDS.RECENT;
-  return FRESHNESS_THRESHOLDS.MATURE;
+  if (daysSinceRelease < 3 * 365) return FRESHNESS_THRESHOLDS.MATURE;
+  return FRESHNESS_THRESHOLDS.VERY_MATURE;
 }
 
 /**

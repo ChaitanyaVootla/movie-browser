@@ -184,8 +184,11 @@ export async function markMongoAsMigrated(mediaType: MediaType, id: number): Pro
  * Ratings come from multiple sources:
  * - external_data.ratings: IMDb, Rotten Tomatoes (from our scrapers)
  * - googleData.ratings: Google, Metacritic, Letterboxd (from Google scraper)
+ *
+ * Exported for scripts/migrate-mongo-enrichment.ts (bulk Mongo→PG migration)
+ * so the scale/sentiment mapping stays single-sourced.
  */
-function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedData {
+export function transformMongoToEnriched(doc: MongoEnrichedDocument): EnrichedData {
   const extRatings = doc.external_data?.ratings;
   const googleData = doc.googleData;
   const extIds = doc.external_data?.externalIds;
