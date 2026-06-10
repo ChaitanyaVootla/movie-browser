@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getPosterSources } from "@/lib/image";
 import {
   Table,
   TableBody,
@@ -710,7 +711,8 @@ interface ExpandedUserDetailsProps {
 
 function ExpandedUserDetails({ user, aiStats }: ExpandedUserDetailsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
       {/* User Details */}
       <div className="space-y-3">
         <h4 className="text-sm font-semibold flex items-center gap-2">
@@ -851,48 +853,106 @@ function ExpandedUserDetails({ user, aiStats }: ExpandedUserDetailsProps) {
         )}
       </div>
 
-      {/* Recent Activity */}
-      <div className="space-y-3">
+        {/* Library */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <Film className="h-4 w-4" />
+            Library
+          </h4>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Watched</p>
+              <p className="font-medium">{user.WatchedMovies || 0}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Movie watchlist</p>
+              <p className="font-medium">{user.MoviesWatchList || 0}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Series watchlist</p>
+              <p className="font-medium">{user.SeriesList || 0}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Continue watching</p>
+              <p className="font-medium">{user.ContinueWatching || 0}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Recents</p>
+              <p className="font-medium">{user.recent || 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity - full width poster cards */}
+      <div className="space-y-3 border-t pt-4">
         <h4 className="text-sm font-semibold flex items-center gap-2">
           <Eye className="h-4 w-4" />
           Recent Activity
-        </h4>
-        <div className="flex flex-wrap gap-1.5">
-          {user["recent-items"]?.slice(0, 6).map((item, i) => (
-            <Link
-              key={`${item.itemId}-${i}`}
-              href={`/${item.title ? "movie" : "series"}/${item.itemId}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Badge variant="secondary" className="text-xs hover:bg-secondary/80 cursor-pointer">
-                {item.title ? <Film className="h-3 w-3 mr-1" /> : <Tv className="h-3 w-3 mr-1" />}
-                <span className="truncate max-w-[100px]">{item.title || item.name}</span>
-              </Badge>
-            </Link>
-          ))}
-          {!user["recent-items"]?.length && (
-            <span className="text-sm text-muted-foreground">No recent activity</span>
+          {(user.recent || 0) > 0 && (
+            <span className="text-xs font-normal text-muted-foreground">({user.recent})</span>
           )}
-        </div>
-        <div className="flex flex-wrap gap-3 pt-2 text-xs text-muted-foreground border-t">
-          <span>
-            <strong className="text-foreground">{user.WatchedMovies || 0}</strong> watched
-          </span>
-          <span>
-            <strong className="text-foreground">{user.MoviesWatchList || 0}</strong> movies
-          </span>
-          <span>
-            <strong className="text-foreground">{user.SeriesList || 0}</strong> series
-          </span>
-          <span>
-            <strong className="text-foreground">{user.ContinueWatching || 0}</strong> continue
-          </span>
-          <span>
-            <strong className="text-foreground">{user.recent || 0}</strong> recents
-          </span>
-        </div>
+        </h4>
+        {user["recent-items"]?.length ? (
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
+            {user["recent-items"].map((item, i) => (
+              <RecentItemCard key={`${item.itemId}-${i}`} item={item} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No recent activity</p>
+        )}
       </div>
     </div>
+  );
+}
+
+interface RecentItemCardProps {
+  item: { itemId: number; title?: string; name?: string };
+}
+
+function RecentItemCard({ item }: RecentItemCardProps) {
+  const isMovie = Boolean(item.title);
+  const [failed, setFailed] = useState(false);
+  const poster = getPosterSources({ id: item.itemId, title: item.title, name: item.name });
+
+  return (
+    <Link
+      href={`/${isMovie ? "movie" : "series"}/${item.itemId}`}
+      onClick={(e) => e.stopPropagation()}
+      className="group w-24 shrink-0 space-y-1.5"
+    >
+      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted">
+        {failed ? (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            {isMovie ? <Film className="h-6 w-6" /> : <Tv className="h-6 w-6" />}
+          </div>
+        ) : (
+          <img
+            src={poster.primary}
+            // Decorative: the title renders below; empty alt avoids broken-image
+            // text if the error fires before hydration attaches onError.
+            alt=""
+            loading="lazy"
+            ref={(el) => {
+              if (el?.complete && el.naturalWidth === 0) setFailed(true);
+            }}
+            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+            onError={() => setFailed(true)}
+          />
+        )}
+        <div className="absolute top-1 right-1 rounded-full bg-black/60 p-1">
+          {isMovie ? (
+            <Film className="h-2.5 w-2.5 text-white" />
+          ) : (
+            <Tv className="h-2.5 w-2.5 text-white" />
+          )}
+        </div>
+      </div>
+      <p className="text-xs leading-snug line-clamp-2 text-muted-foreground transition-colors group-hover:text-foreground">
+        {item.title || item.name}
+      </p>
+    </Link>
   );
 }
 
