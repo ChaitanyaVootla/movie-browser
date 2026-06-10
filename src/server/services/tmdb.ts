@@ -54,8 +54,10 @@ async function rawFetchFromTMDB<T>(
 
       const response = await fetch(url.toString(), {
         signal: controller.signal,
-        // Disable Next.js fetch cache - we use our own in-memory cache
-        cache: "no-store",
+        // No `cache` option on purpose: Next's default already skips the fetch
+        // cache (we use our own cache-service), but an EXPLICIT "no-store" also
+        // opts the calling route out of ISR/static rendering — which silently
+        // killed page caching site-wide. Default = same freshness, ISR works.
         // Prevent connection pooling issues that cause ECONNRESET
         headers: {
           Connection: "close",

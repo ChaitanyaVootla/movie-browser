@@ -14,7 +14,7 @@ import {
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
 import { getAIDataBatch } from "@/server/services/ai-data-service";
 import { getWatchOptionsForCountry, type ProcessedWatchOptions } from "@/lib/watch-options";
-import { getCountryCode } from "@/server/utils";
+import { SSR_RENDER_COUNTRY } from "@/server/utils";
 import { MOVIE_GENRES, TV_GENRES, CACHE_DURATIONS } from "@/lib/constants";
 import { dataLogger } from "@/lib/logger";
 import type {
@@ -179,11 +179,12 @@ function processRatings(
 export async function getTrending(): Promise<TrendingData> {
   try {
     // Fetch all trending data and country code in parallel
-    const [allTrending, moviesTrending, tvTrending, countryCode] = await Promise.all([
+    // Fixed render country: home is ISR-cached (see SSR_RENDER_COUNTRY)
+    const countryCode = SSR_RENDER_COUNTRY;
+    const [allTrending, moviesTrending, tvTrending] = await Promise.all([
       getTrendingAll("week"),
       getTrendingMovies("week"),
       getTrendingTV("week"),
-      getCountryCode(),
     ]);
 
     // Map hero items (top 10 from all trending)
@@ -395,7 +396,8 @@ export async function getUpcoming(): Promise<MovieWithReleaseInfo[]> {
  */
 export async function getNowPlaying(): Promise<MovieListItem[]> {
   try {
-    const countryCode = await getCountryCode();
+    // Fixed render country: home is ISR-cached (see SSR_RENDER_COUNTRY)
+    const countryCode = SSR_RENDER_COUNTRY;
 
     const { getNowPlayingMovies } = await import("@/server/services/tmdb");
 

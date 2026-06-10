@@ -6,7 +6,6 @@ import { NavBar } from "@/components/features/layout/nav-bar";
 import { MobileBottomNav } from "@/components/features/layout/mobile-bottom-nav";
 import { Footer } from "@/components/features/layout/footer";
 import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
-import { ServerPageTracker } from "@/components/analytics/server-page-tracker";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -119,7 +118,6 @@ export default function RootLayout({
       <body
         className={`${montserrat.variable} ${geistMono.variable} font-sans antialiased min-h-screen flex flex-col`}
       >
-        <ServerPageTracker />
         <Providers>
           <ScrollToTop />
           <NavBar />

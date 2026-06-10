@@ -20,7 +20,7 @@ import {
 } from "./index";
 import type { TmdbMovieData, TmdbSeriesData } from "./sources/tmdb";
 import { getWatchOptionsForCountry } from "@/lib/watch-options";
-import { getCountryCode } from "@/server/utils";
+import { getCountryCode, SSR_RENDER_COUNTRY } from "@/server/utils";
 import type { Movie, Series, ExternalRating, WatchProviderData } from "@/types";
 
 // =============================================================================
@@ -51,9 +51,12 @@ const cachedHydrateSeries = cache((id: number) => hydrateSeries(id));
  */
 export async function getMovieWithHydration(id: number): Promise<Movie | null> {
   try {
-    const [result, countryCode] = await Promise.all([cachedHydrateMovie(id), getCountryCode()]);
+    // SSR_RENDER_COUNTRY, not getCountryCode(): this runs during ISR-cached
+    // page renders — headers() here would opt the route out of caching.
+    // Clients re-fetch watch options for their own country (watch-options.tsx).
+    const result = await cachedHydrateMovie(id);
 
-    return transformHydratedMovieToMovie(result, countryCode);
+    return transformHydratedMovieToMovie(result, SSR_RENDER_COUNTRY);
   } catch (error) {
     console.error("[Hydration/Integration] Error getting movie:", error);
     return null;
@@ -169,9 +172,10 @@ function transformHydratedMovieToMovie(
  */
 export async function getSeriesWithHydration(id: number): Promise<Series | null> {
   try {
-    const [result, countryCode] = await Promise.all([cachedHydrateSeries(id), getCountryCode()]);
+    // SSR_RENDER_COUNTRY, not getCountryCode() — see getMovieWithHydration.
+    const result = await cachedHydrateSeries(id);
 
-    return transformHydratedSeriesToSeries(result, countryCode);
+    return transformHydratedSeriesToSeries(result, SSR_RENDER_COUNTRY);
   } catch (error) {
     console.error("[Hydration/Integration] Error getting series:", error);
     return null;

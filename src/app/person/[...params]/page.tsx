@@ -162,7 +162,6 @@ function PersonSchema({ person }: { person: NonNullable<Awaited<ReturnType<typeo
 
 export default async function PersonPage({ params, searchParams }: PersonPageProps) {
   const { params: routeParams } = await params;
-  const { __e2e_error } = await searchParams;
   const personId = routeParams[0];
   const id = parseInt(personId, 10);
 
@@ -170,10 +169,14 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
     notFound();
   }
 
-  // E2E test trigger: throw an error to test error boundary
-  // Only works in development/test, never in production
-  if (__e2e_error === "true" && process.env.NODE_ENV !== "production") {
-    throw new Error("E2E Test Error: Simulated error for error boundary testing");
+  // E2E test trigger: throw an error to test error boundary.
+  // The NODE_ENV gate must wrap the `await searchParams` itself — unwrapping
+  // searchParams opts the route out of ISR, so production must never touch it.
+  if (process.env.NODE_ENV !== "production") {
+    const { __e2e_error } = await searchParams;
+    if (__e2e_error === "true") {
+      throw new Error("E2E Test Error: Simulated error for error boundary testing");
+    }
   }
 
   const person = await getPerson(id);

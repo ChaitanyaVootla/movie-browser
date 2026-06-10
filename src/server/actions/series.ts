@@ -6,7 +6,7 @@ import { getCachedSeriesRatings } from "@/server/db/cached-queries";
 import { getSeriesFromPostgresIfAvailable } from "@/server/db/postgres/hybrid";
 import { combineRatings, type ProcessedRating } from "@/lib/ratings";
 import { getWatchOptionsForCountry, getOptimizedWatchProviders } from "@/lib/watch-options";
-import { getCountryCode } from "@/server/utils";
+import { SSR_RENDER_COUNTRY } from "@/server/utils";
 import { HYDRATION_ENABLED, getSeriesWithHydration } from "@/server/services/hydration/integration";
 import type { Series, Season, Episode, ExternalRating, WatchProviderData } from "@/types";
 import { dataLogger } from "@/lib/logger";
@@ -58,8 +58,8 @@ export async function getSeries(id: number): Promise<Series | null> {
     const postgresSeries = await getSeriesFromPostgresIfAvailable(validated.id);
     if (postgresSeries) {
       // PostgreSQL has all the data we need, including watch providers
-      // Just need to process watch options for the user's country
-      const countryCode = await getCountryCode();
+      // Fixed render country: this runs inside ISR-cached page renders (see SSR_RENDER_COUNTRY)
+      const countryCode = SSR_RENDER_COUNTRY;
       const pgData = postgresSeries as PostgresSeriesResult;
       const tmdbWatchProviders = pgData["watch/providers"]?.results;
 
@@ -76,10 +76,10 @@ export async function getSeries(id: number): Promise<Series | null> {
     }
 
     // Fallback to TMDB + MongoDB
-    const [tmdbData, dbSeries, countryCode] = await Promise.all([
+    const countryCode = SSR_RENDER_COUNTRY;
+    const [tmdbData, dbSeries] = await Promise.all([
       getSeriesDetails(validated.id),
       getCachedSeriesRatings(validated.id), // Uses Next.js cache with 1hr TTL
-      getCountryCode(),
     ]);
 
     if (!tmdbData || !tmdbData.id) {

@@ -149,7 +149,22 @@ export interface LightPersonDetails {
 // =============================================================================
 
 /**
- * Get country code from request headers with GeoIP fallback
+ * Country used when rendering ISR-cached pages (movie/series/person/home).
+ *
+ * Cached renders are shared by all visitors, so they cannot depend on
+ * request headers — calling getCountryCode() (→ headers()) during a page
+ * render silently opts the whole route out of ISR. Pages render for this
+ * default; the client corrects per-user via /api/geo + the watch-providers
+ * API (see user-store-provider.tsx and watch-options.tsx).
+ */
+export const SSR_RENDER_COUNTRY = "IN";
+
+/**
+ * Get country code from request headers with GeoIP fallback.
+ *
+ * ONLY for API routes, server actions, and AI tools — never call this from
+ * a page/component render path (it awaits headers(), which kills ISR; use
+ * SSR_RENDER_COUNTRY there instead).
  */
 export async function getCountryCode(): Promise<string> {
   try {
