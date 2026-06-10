@@ -42,6 +42,23 @@ export async function getTrafficOverview(range: TimeRange): Promise<TrafficOverv
     WHERE is_bot = 0 AND ${timeCondition}
   `);
 
+  // Engaged sessions: 2+ pageviews, an authenticated user, or any user action.
+  // Sophisticated scrapers forge UA + sec-ch-ua and pass is_bot=0, but they
+  // surf with rotating IPs at exactly one pageview per session — engagement is
+  // the signal they can't fake cheaply. (Post-GA June 2026: ~97% of "human"
+  // sessions were such bots.)
+  const [engaged] = await query<{ engaged_sessions: string }>(`
+    SELECT uniq(session_id) AS engaged_sessions
+    FROM (
+      SELECT session_id, count() AS views, max(is_authenticated) AS authed
+      FROM page_views
+      WHERE is_bot = 0 AND ${timeCondition}
+      GROUP BY session_id
+      HAVING views >= 2 OR authed = 1
+        OR session_id IN (SELECT session_id FROM user_actions WHERE is_bot = 0 AND ${timeCondition})
+    )
+  `);
+
   // Session metrics from sessions table
   const [sessionMetrics] = await query<{
     avg_duration: string;
@@ -59,6 +76,7 @@ export async function getTrafficOverview(range: TimeRange): Promise<TrafficOverv
   return {
     pageViews: parseInt(result?.page_views || "0", 10),
     uniqueSessions: parseInt(result?.unique_sessions || "0", 10),
+    engagedSessions: parseInt(engaged?.engaged_sessions || "0", 10),
     uniqueUsers: parseInt(result?.unique_users || "0", 10),
     botViews: parseInt(result?.bot_views || "0", 10),
     avgSessionDuration: parseFloat(sessionMetrics?.avg_duration || "0"),

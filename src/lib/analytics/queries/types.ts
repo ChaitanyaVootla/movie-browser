@@ -53,6 +53,12 @@ export function getClickHouseDateInterval(days: number): string {
 export interface TrafficOverview {
   pageViews: number;
   uniqueSessions: number;
+  /**
+   * Sessions with real engagement: 2+ pageviews, any user action, or an
+   * authenticated user. Bot-resistant — request-header forgery (spoofed UA +
+   * sec-ch-ua) can inflate uniqueSessions but not engagement.
+   */
+  engagedSessions: number;
   uniqueUsers: number;
   botViews: number;
   avgSessionDuration: number;
