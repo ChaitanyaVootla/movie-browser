@@ -119,6 +119,29 @@ async function downloadLatestExport(mediaType: MediaType): Promise<Map<number, n
   return null;
 }
 
+/**
+ * Only update rows whose popularity changed MEANINGFULLY. TMDB recalculates
+ * the float daily for nearly every title, so an exact-equality diff rewrites
+ * ~the whole table: each write is a full MVCC row copy PLUS a B-tree
+ * delete/insert in the popularity(desc) index, x 800k rows — that's why a
+ * "simple popularity upsert" pegged the box. Ordering/sitemap consumers
+ * don't care about jitter below ~5%.
+ */
+function isSignificantChange(oldPop: number | null, newPop: number): boolean {
+  if (oldPop == null) return true;
+  const delta = Math.abs(newPop - oldPop);
+  return delta >= Math.max(0.05, oldPop * 0.05);
+}
+
+/** Round stored popularity so future diffs stay stable. */
+function roundPop(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+// Pause between write batches: spreads the index/WAL churn over the run
+// instead of a contiguous burst, so next-server + Postgres stay responsive.
+const BATCH_PAUSE_MS = 250;
+
 async function syncMoviePopularity(popularityMap: Map<number, number>): Promise<number> {
   console.log(`\n🎬 Syncing movie popularity...`);
 
@@ -138,8 +161,8 @@ async function syncMoviePopularity(popularityMap: Map<number, number>): Promise<
 
     for (const movie of batch) {
       const newPopularity = popularityMap.get(movie.id);
-      if (newPopularity != null && newPopularity !== movie.popularity) {
-        updates.push({ id: movie.id, popularity: newPopularity });
+      if (newPopularity != null && isSignificantChange(movie.popularity, newPopularity)) {
+        updates.push({ id: movie.id, popularity: roundPop(newPopularity) });
       }
     }
 
@@ -154,6 +177,10 @@ async function syncMoviePopularity(popularityMap: Map<number, number>): Promise<
     }
 
     updated += updates.length;
+
+    if (updates.length > 0 && !dryRun) {
+      await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS));
+    }
 
     if ((i + batchSize) % 10000 === 0 || i + batchSize >= movies.length) {
       console.log(`   Processed ${Math.min(i + batchSize, movies.length).toLocaleString()}/${movies.length.toLocaleString()}`);
@@ -181,8 +208,8 @@ async function syncSeriesPopularity(popularityMap: Map<number, number>): Promise
 
     for (const s of batch) {
       const newPopularity = popularityMap.get(s.id);
-      if (newPopularity != null && newPopularity !== s.popularity) {
-        updates.push({ id: s.id, popularity: newPopularity });
+      if (newPopularity != null && isSignificantChange(s.popularity, newPopularity)) {
+        updates.push({ id: s.id, popularity: roundPop(newPopularity) });
       }
     }
 
@@ -196,6 +223,10 @@ async function syncSeriesPopularity(popularityMap: Map<number, number>): Promise
     }
 
     updated += updates.length;
+
+    if (updates.length > 0 && !dryRun) {
+      await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS));
+    }
   }
 
   return updated;
@@ -220,8 +251,8 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
 
     for (const person of batch) {
       const newPopularity = popularityMap.get(person.tmdbId);
-      if (newPopularity != null && newPopularity !== person.popularity) {
-        updates.push({ id: person.id, popularity: newPopularity });
+      if (newPopularity != null && isSignificantChange(person.popularity, newPopularity)) {
+        updates.push({ id: person.id, popularity: roundPop(newPopularity) });
       }
     }
 
@@ -235,6 +266,10 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
     }
 
     updated += updates.length;
+
+    if (updates.length > 0 && !dryRun) {
+      await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS));
+    }
 
     if ((i + batchSize) % 10000 === 0 || i + batchSize >= persons.length) {
       console.log(`   Processed ${Math.min(i + batchSize, persons.length).toLocaleString()}/${persons.length.toLocaleString()}`);

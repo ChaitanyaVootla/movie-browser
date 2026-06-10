@@ -498,6 +498,57 @@ function mediaPath(type, id, title) {
 }
 
 /**
+ * Fetch localized titles from Postgres for the selected IDs so sitemap slugs
+ * match page canonicals EXACTLY (pages slug the localized title; TMDB exports
+ * only carry original_title/original_name — foreign titles diverged and the
+ * sitemap listed 308-redirecting URLs). Graceful: returns an empty map when
+ * the DB is unreachable, falling back to export titles.
+ *
+ * model: "movie" (id = TMDB id, field title), "series" (id = TMDB id, field
+ * name), "person" (tmdbId = TMDB id, field name).
+ */
+async function fetchTitlesFromPG(mediaType, ids) {
+  const titles = new Map();
+  try {
+    const { config } = await import("dotenv");
+    config({ path: ".env.local" });
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    try {
+      const chunk = 1000;
+      for (let i = 0; i < ids.length; i += chunk) {
+        const slice = ids.slice(i, i + chunk);
+        if (mediaType === "movie") {
+          const rows = await prisma.movie.findMany({
+            where: { id: { in: slice } },
+            select: { id: true, title: true },
+          });
+          for (const r of rows) if (r.title) titles.set(r.id, r.title);
+        } else if (mediaType === "series") {
+          const rows = await prisma.series.findMany({
+            where: { id: { in: slice } },
+            select: { id: true, name: true },
+          });
+          for (const r of rows) if (r.name) titles.set(r.id, r.name);
+        } else {
+          const rows = await prisma.person.findMany({
+            where: { tmdbId: { in: slice } },
+            select: { tmdbId: true, name: true },
+          });
+          for (const r of rows) if (r.name) titles.set(r.tmdbId, r.name);
+        }
+      }
+    } finally {
+      await prisma.$disconnect();
+    }
+    console.log(`   🐘 PG titles resolved for ${titles.size}/${ids.length} ${mediaType}s`);
+  } catch (err) {
+    console.warn(`   ⚠️ PG title lookup failed (${err.message}) — using export titles`);
+  }
+  return titles;
+}
+
+/**
  * Create XML sitemap with streaming/chunked generation
  */
 function createSitemap(urls, filename) {
@@ -592,6 +643,8 @@ async function generateMovieSitemap() {
 
     console.log(`📊 Processing ${topMovies.length} top movies`);
 
+    const pgTitles = await fetchTitlesFromPG("movie", topMovies.map((m) => m.id));
+
     // Process movies in chunks to manage memory
     const movieUrls = [];
     const chunkSize = CONFIG.CHUNK_SIZE;
@@ -600,7 +653,7 @@ async function generateMovieSitemap() {
       const chunk = topMovies.slice(i, i + chunkSize);
 
       const chunkUrls = chunk.map((movie) => ({
-        url: mediaPath("movie", movie.id, movie.title || movie.original_title),
+        url: mediaPath("movie", movie.id, pgTitles.get(movie.id) || movie.title || movie.original_title),
         priority:
           movie.popularity > 100
             ? "1.0" // Top tier blockbusters
@@ -654,6 +707,8 @@ async function generateSeriesSitemap() {
 
     console.log(`📊 Processing ${topSeries.length} top series`);
 
+    const pgTitles = await fetchTitlesFromPG("series", topSeries.map((x) => x.id));
+
     // Process series in chunks to manage memory
     const seriesUrls = [];
     const chunkSize = CONFIG.CHUNK_SIZE;
@@ -662,7 +717,7 @@ async function generateSeriesSitemap() {
       const chunk = topSeries.slice(i, i + chunkSize);
 
       const chunkUrls = chunk.map((show) => ({
-        url: mediaPath("series", show.id, show.name || show.original_name),
+        url: mediaPath("series", show.id, pgTitles.get(show.id) || show.name || show.original_name),
         priority:
           show.popularity > 80
             ? "1.0" // Top tier shows (Netflix/HBO hits)
@@ -717,6 +772,8 @@ async function generatePersonSitemap() {
 
     console.log(`📊 Processing ${topPersons.length} top persons`);
 
+    const pgTitles = await fetchTitlesFromPG("person", topPersons.map((p) => p.id));
+
     // Process persons in chunks to manage memory
     const personUrls = [];
     const chunkSize = CONFIG.CHUNK_SIZE;
@@ -725,7 +782,7 @@ async function generatePersonSitemap() {
       const chunk = topPersons.slice(i, i + chunkSize);
 
       const chunkUrls = chunk.map((person) => ({
-        url: mediaPath("person", person.id, person.name),
+        url: mediaPath("person", person.id, pgTitles.get(person.id) || person.name),
         priority:
           person.popularity > 50
             ? "0.9" // A-list celebrities
