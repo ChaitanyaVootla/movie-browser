@@ -13,7 +13,7 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
-import { detectBot } from "./bot-detection";
+import { detectBotFromRequest } from "./bot-detection";
 import { parseUserAgent, getSimpleBrowser, getSimpleOS } from "./device-parser";
 import {
   generateSessionId,
@@ -54,8 +54,9 @@ export async function getTrackingContext(): Promise<TrackingContext> {
   const browser = getSimpleBrowser(parsedDevice);
   const os = getSimpleOS(parsedDevice);
 
-  // Detect bots via user-agent analysis
-  const { isBot, botType } = detectBot(userAgent);
+  // Detect bots via user-agent + client-hint analysis (sec-ch-ua absence
+  // on a modern-Chrome UA = non-browser HTTP client; see bot-detection.ts)
+  const { isBot, botType } = detectBotFromRequest(userAgent, headersList.get("sec-ch-ua"), null);
 
   // Generate session ID from fingerprint (no cookies needed)
   const sessionId = generateSessionId(realIp, userAgent, acceptLanguage);
@@ -105,7 +106,7 @@ export async function getMinimalContext(): Promise<{
   const acceptLanguage = headersList.get("accept-language") || "";
   const realIp = extractClientIP(headersList);
 
-  const { isBot } = detectBot(userAgent);
+  const { isBot } = detectBotFromRequest(userAgent, headersList.get("sec-ch-ua"), null);
   const sessionId = generateSessionId(realIp, userAgent, acceptLanguage);
   const userId = session?.user?.id ? hashUserId(session.user.id) : null;
   const isAdmin = isAdminEmail(session?.user?.email);

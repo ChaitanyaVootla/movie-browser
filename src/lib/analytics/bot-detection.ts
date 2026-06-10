@@ -182,7 +182,16 @@ export function detectBotFromRequest(
   if (secChUa && /headless/i.test(secChUa)) {
     return { isBot: true, botType: "headless_hint", botCategory: "scraper" };
   }
-  return detectBot(userAgent);
+  const uaResult = detectBot(userAgent);
+  if (uaResult.isBot) return uaResult;
+  // Chromium >= 89 sends sec-ch-ua client hints on every HTTPS request. A UA
+  // claiming modern Chrome with NO client hints is an HTTP client wearing a
+  // browser costume (the post-GA scraper fleet: 1.0 views/session, no JS).
+  // iOS Chrome/Edge (CriOS/EdgiOS) are WebKit and send no hints — excluded.
+  if (secChUa === null && /chrome\/\d{2,}/i.test(userAgent) && !/crios|edgios/i.test(userAgent)) {
+    return { isBot: true, botType: "missing_client_hints", botCategory: "scraper" };
+  }
+  return uaResult;
 }
 
 // =============================================================================
