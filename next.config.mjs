@@ -32,6 +32,48 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
 
+  // 301s for URLs indexed from the legacy Nuxt site that have no Next.js
+  // route: removed/renamed theme topics (Google still sends traffic) and the
+  // old /movie + /series listing hubs. Targets verified to return 200.
+  async redirects() {
+    const goneThemeToTarget = {
+      "theme-timetravel-movie": "/topics/theme-time-travel-movie",
+      "theme-timetravel-tv": "/topics/theme-time-travel-tv",
+      "theme-alien-movie": "/topics/theme-space-movie",
+      "theme-alien-tv": "/topics/theme-space-tv",
+      "theme-apocalyptic-movie": "/topics/theme-dystopia-movie",
+      "theme-apocalyptic-tv": "/topics/theme-dystopia-tv",
+      "theme-nuclear-movie": "/topics/theme-dystopia-movie",
+      "theme-nuclear-tv": "/topics/theme-dystopia-tv",
+      "theme-mythology-movie": "/topics/genre-fantasy-movie",
+      "theme-mythology-tv": "/topics/genre-scifi-fantasy-tv",
+      "theme-demon-movie": "/topics/genre-horror-movie",
+      "theme-ghost-movie": "/topics/genre-horror-movie",
+      "theme-monster-movie": "/topics/genre-horror-movie",
+      "theme-possession-movie": "/topics/genre-horror-movie",
+      "theme-vampire-movie": "/topics/genre-horror-movie",
+      "theme-werewolf-movie": "/topics/genre-horror-movie",
+      "theme-witch-movie": "/topics/genre-horror-movie",
+      "theme-demon-tv": "/topics/genre-mystery-tv",
+      "theme-ghost-tv": "/topics/genre-mystery-tv",
+      "theme-monster-tv": "/topics/genre-mystery-tv",
+      "theme-possession-tv": "/topics/genre-mystery-tv",
+      "theme-vampire-tv": "/topics/genre-mystery-tv",
+      "theme-werewolf-tv": "/topics/genre-mystery-tv",
+      "theme-witch-tv": "/topics/genre-mystery-tv",
+    };
+    return [
+      ...Object.entries(goneThemeToTarget).map(([slug, destination]) => ({
+        source: `/topics/${slug}`,
+        destination,
+        permanent: true,
+      })),
+      // Legacy listing hubs (indexed on the old site, 404 on Next.js)
+      { source: "/movie", destination: "/browse", permanent: true },
+      { source: "/series", destination: "/browse", permanent: true },
+    ];
+  },
+
   // Security headers
   async headers() {
     return [

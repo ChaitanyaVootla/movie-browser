@@ -18,13 +18,13 @@
 
 import { config } from "dotenv";
 config({ path: ".env.local" });
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { Readable } from "stream";
+import { createInterface } from "readline";
 import { join } from "path";
 import { createGunzip } from "zlib";
 import { prisma } from "../src/server/db/postgres";
 
 const TMDB_EXPORTS_BASE = "https://files.tmdb.org/p/exports";
-const OUTPUT_DIR = join(process.cwd(), "data", "tmdb-dump");
 
 type MediaType = "movie" | "series" | "person";
 
@@ -59,41 +59,39 @@ function getExportUrl(date: Date, mediaType: MediaType): string {
   return `${TMDB_EXPORTS_BASE}/${config.exportName}_${dateStr}.json.gz`;
 }
 
-async function tryDownload(url: string): Promise<Buffer | null> {
+/**
+ * Stream a TMDB export straight into the id->popularity map:
+ * fetch body -> gunzip -> readline, one line at a time. The old path buffered
+ * the whole .gz, the whole decompressed text (~700MB for movies) AND an array
+ * of all entries — ~3.7GB RSS that starved the 8GB box. Streaming keeps RSS
+ * at roughly the size of the final Map.
+ */
+async function tryStreamExport(url: string): Promise<Map<number, number> | null> {
   try {
     const response = await fetch(url);
-    if (!response.ok) return null;
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    if (!response.ok || !response.body) return null;
+
+    const popularityMap = new Map<number, number>();
+    const gunzip = createGunzip();
+    Readable.fromWeb(response.body as import("stream/web").ReadableStream).pipe(gunzip);
+    const rl = createInterface({ input: gunzip, crlfDelay: Infinity });
+
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      try {
+        const entry = JSON.parse(line) as IdEntry;
+        if (entry.adult !== true && entry.popularity != null) {
+          popularityMap.set(entry.id, entry.popularity);
+        }
+      } catch {
+        // Skip malformed lines
+      }
+    }
+
+    return popularityMap;
   } catch {
     return null;
   }
-}
-
-async function decompress(gzBuffer: Buffer): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const gunzip = createGunzip();
-    gunzip.on("data", (chunk) => chunks.push(chunk));
-    gunzip.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-    gunzip.on("error", reject);
-    gunzip.write(gzBuffer);
-    gunzip.end();
-  });
-}
-
-function parseNDJSON(content: string): IdEntry[] {
-  const lines = content.trim().split("\n");
-  const entries: IdEntry[] = [];
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    try {
-      entries.push(JSON.parse(line));
-    } catch {
-      // Skip malformed lines
-    }
-  }
-  return entries;
 }
 
 async function downloadLatestExport(mediaType: MediaType): Promise<Map<number, number> | null> {
@@ -110,20 +108,8 @@ async function downloadLatestExport(mediaType: MediaType): Promise<Map<number, n
 
     console.log(`   Trying ${dateStr}...`);
 
-    const gzBuffer = await tryDownload(url);
-    if (gzBuffer) {
-      console.log(`   ✅ Found! Extracting...`);
-      const content = await decompress(gzBuffer);
-      const entries = parseNDJSON(content);
-
-      // Build ID -> popularity map (filter out adult content)
-      const popularityMap = new Map<number, number>();
-      for (const entry of entries) {
-        if (entry.adult !== true && entry.popularity != null) {
-          popularityMap.set(entry.id, entry.popularity);
-        }
-      }
-
+    const popularityMap = await tryStreamExport(url);
+    if (popularityMap) {
       console.log(`   📄 Loaded ${popularityMap.size.toLocaleString()} entries`);
       return popularityMap;
     }
@@ -259,6 +245,19 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
 }
 
 async function main() {
+  // PM2 re-runs cron_restart jobs once on EVERY `pm2 start` — i.e. on every
+  // deploy — which launched this heavy job at peak traffic and 502'd the site.
+  // Only proceed inside the scheduled hour; FORCE_RUN=1 overrides for manual runs.
+  const cronHourUtc = Number(process.env.CRON_HOUR_UTC ?? "21");
+  const nowHourUtc = new Date().getUTCHours();
+  if (process.env.FORCE_RUN !== "1" && !dryRun && nowHourUtc !== cronHourUtc) {
+    console.log(
+      `⏭ Started outside cron window (hour ${nowHourUtc} UTC, expected ${cronHourUtc}) — ` +
+        "exiting (deploy-time PM2 autostart guard). Set FORCE_RUN=1 to run manually."
+    );
+    process.exit(0);
+  }
+
   console.log("🔄 TMDB Popularity Sync");
   console.log(`   Mode: ${dryRun ? "DRY RUN" : "LIVE"}`);
   console.log(`   Types: ${requestedType}`);

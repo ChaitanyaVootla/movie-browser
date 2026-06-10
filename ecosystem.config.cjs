@@ -1,6 +1,16 @@
 // PM2 Configuration for Next.js App
 // This config is for the NEW Next.js app only
 // The legacy Nuxt app has its own deployment on a separate branch
+//
+// NOTE on cron jobs: PM2 runs cron_restart apps once on EVERY `pm2 start`
+// (i.e. on every deploy). Both job scripts carry a cron-window guard
+// (CRON_HOUR_UTC) so deploy-time autostarts exit immediately instead of
+// hammering the 2-vCPU box at peak. To run one manually:
+//   FORCE_RUN=1 npx tsx scripts/sync-popularity.ts
+//   FORCE_RUN=1 node scripts/generate-sitemap.js
+// Jobs run under `nice -n 19` so next-server always wins the CPU.
+// Schedules sit in the true low-traffic window for the India-heavy audience
+// (21:00/22:00 UTC = 02:30/03:30 IST).
 
 module.exports = {
   apps: [
@@ -9,41 +19,47 @@ module.exports = {
       cwd: "/home/ubuntu/movie-browser-next",
       script: "npm",
       args: "start",
-      max_memory_restart: "600M",
+      // RSS plateaus at ~1.2-1.4GB under load; 600M caused theoretical
+      // restart-cycling risk (PM2 memory enforcement is unreliable in this
+      // setup, but keep the value honest).
+      max_memory_restart: "1500M",
       env: {
         NODE_ENV: "production",
         PORT: "3002",
       },
     },
-    // Popularity Sync - runs daily at 3 AM UTC
-    // Downloads TMDB daily exports and updates popularity for movies, series, persons
+    // Popularity Sync - daily at 21:00 UTC (02:30 IST)
+    // Downloads TMDB daily exports (streaming) and updates changed popularity
+    // rows for movies, series, persons.
     {
       name: "popularity-sync",
       cwd: "/home/ubuntu/movie-browser-next",
-      script: "npx",
-      args: "tsx scripts/sync-popularity.ts",
-      cron_restart: "0 3 * * *", // 3 AM daily (before sitemap at 4 AM)
+      script: "bash",
+      args: ["-c", "exec nice -n 19 npx tsx scripts/sync-popularity.ts"],
+      cron_restart: "0 21 * * *",
       autorestart: false,
       restart_delay: 5000,
       max_restarts: 2,
       min_uptime: "1s",
       watch: false,
-      max_memory_restart: "500M",
+      max_memory_restart: "900M",
       error_file: "./logs/popularity-sync-error.log",
       out_file: "./logs/popularity-sync-out.log",
       log_file: "./logs/popularity-sync-combined.log",
       time: true,
-      env: { NODE_ENV: "production" },
+      env: { NODE_ENV: "production", CRON_HOUR_UTC: "21" },
       kill_timeout: 600000, // 10 minutes - downloads large files
     },
-    // Sitemap Generator - runs daily at 4 AM UTC
-    // Downloads TMDB daily exports and generates sitemaps to public/
+    // Sitemap Generator - daily at 22:00 UTC (03:30 IST), after popularity
     {
       name: "sitemap-generator",
       cwd: "/home/ubuntu/movie-browser-next",
-      script: "node",
-      args: "--max-old-space-size=1024 --optimize-for-size scripts/generate-sitemap.js",
-      cron_restart: "0 4 * * *", // 4 AM daily
+      script: "bash",
+      args: [
+        "-c",
+        "exec nice -n 19 node --max-old-space-size=1024 --optimize-for-size scripts/generate-sitemap.js",
+      ],
+      cron_restart: "0 22 * * *",
       autorestart: false,
       restart_delay: 5000,
       max_restarts: 2,
@@ -54,7 +70,7 @@ module.exports = {
       out_file: "./logs/sitemap-out.log",
       log_file: "./logs/sitemap-combined.log",
       time: true,
-      env: { NODE_ENV: "production" },
+      env: { NODE_ENV: "production", CRON_HOUR_UTC: "22" },
       kill_timeout: 300000, // 5 minutes - sitemap gen can take a while
     },
   ],

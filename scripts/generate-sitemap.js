@@ -95,6 +95,22 @@ const CONFIG = {
   RETRY_DELAY: 5000, // Delay between retries in milliseconds
 };
 
+// PM2 re-runs cron_restart jobs once on EVERY `pm2 start` — i.e. on every
+// deploy — which launched this job at peak traffic alongside popularity-sync
+// and 502'd the site. Only proceed inside the scheduled hour; FORCE_RUN=1
+// overrides for manual runs.
+{
+  const cronHourUtc = Number(process.env.CRON_HOUR_UTC ?? "22");
+  const nowHourUtc = new Date().getUTCHours();
+  if (process.env.FORCE_RUN !== "1" && nowHourUtc !== cronHourUtc) {
+    console.log(
+      `⏭ Started outside cron window (hour ${nowHourUtc} UTC, expected ${cronHourUtc}) — ` +
+        "exiting (deploy-time PM2 autostart guard). Set FORCE_RUN=1 to run manually."
+    );
+    process.exit(0);
+  }
+}
+
 /**
  * Helper functions to generate topic keys (matching the app logic)
  * Format: {type}-{sanitized-name}-{media}
@@ -187,8 +203,8 @@ const STATIC_ROUTES = [
   { url: "/browse", priority: "1.0", changefreq: "daily" }, // Main discovery engine - priority 1.0
   { url: "/topics", priority: "1.0", changefreq: "daily" }, // Topics hub - priority 1.0 (major traffic driver)
   { url: "/topics/all", priority: "0.9", changefreq: "daily" }, // All topics listing - very high
-  { url: "/movie", priority: "0.9", changefreq: "daily" }, // Movie section hub - very high
-  { url: "/series", priority: "0.9", changefreq: "daily" }, // Series section hub - very high
+  // NOTE: /movie and /series listing pages do NOT exist in the Next.js app
+  // (they 404) — do not add them back here unless the routes are built.
 ];
 
 /**
@@ -453,16 +469,32 @@ async function streamTMDBData(filePath, filterFn, limit) {
 }
 
 /**
- * Generate URL slug from title
+ * Generate URL slug from title.
+ * MUST stay byte-identical to getSlug() in src/lib/utils.ts — pages 308 any
+ * URL that doesn't match their canonical `/{type}/{id}/{slug}` form, and
+ * sitemap URLs must be final (non-redirecting) URLs.
  */
 function getUrlSlug(title) {
   if (!title) return "";
   return title
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .trim();
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+/**
+ * Final URL path for a media item — mirrors getMediaPath() in src/lib/utils.ts:
+ * slugged when the title yields a usable slug, plain `/{type}/{id}` otherwise
+ * (never a trailing slash or a bare "-" slug).
+ *
+ * KNOWN LIMITATION: TMDB daily exports only carry original_title/original_name,
+ * while page canonicals slug the localized title from PG/TMDB. For titles where
+ * those differ (foreign-language originals) the sitemap URL 308s to the
+ * canonical — acceptable, but fixing it properly means sourcing titles from PG.
+ */
+function mediaPath(type, id, title) {
+  const slug = getUrlSlug(title);
+  return slug ? `/${type}/${id}/${slug}` : `/${type}/${id}`;
 }
 
 /**
@@ -568,7 +600,7 @@ async function generateMovieSitemap() {
       const chunk = topMovies.slice(i, i + chunkSize);
 
       const chunkUrls = chunk.map((movie) => ({
-        url: `/movie/${movie.id}/${getUrlSlug(movie.title || movie.original_title)}`,
+        url: mediaPath("movie", movie.id, movie.title || movie.original_title),
         priority:
           movie.popularity > 100
             ? "1.0" // Top tier blockbusters
@@ -630,7 +662,7 @@ async function generateSeriesSitemap() {
       const chunk = topSeries.slice(i, i + chunkSize);
 
       const chunkUrls = chunk.map((show) => ({
-        url: `/series/${show.id}/${getUrlSlug(show.original_name || show.name)}`,
+        url: mediaPath("series", show.id, show.name || show.original_name),
         priority:
           show.popularity > 80
             ? "1.0" // Top tier shows (Netflix/HBO hits)
@@ -693,7 +725,7 @@ async function generatePersonSitemap() {
       const chunk = topPersons.slice(i, i + chunkSize);
 
       const chunkUrls = chunk.map((person) => ({
-        url: `/person/${person.id}/${getUrlSlug(person.name)}`,
+        url: mediaPath("person", person.id, person.name),
         priority:
           person.popularity > 50
             ? "0.9" // A-list celebrities

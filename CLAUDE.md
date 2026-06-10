@@ -242,16 +242,17 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `popularity-sync` | 3 AM UTC | TMDB daily exports → update popularity |
-| `sitemap-generator` | 4 AM UTC | Generate sitemaps from TMDB exports |
+| `popularity-sync` | 21:00 UTC (02:30 IST) | TMDB daily exports → update popularity (streaming, diff-only) |
+| `sitemap-generator` | 22:00 UTC (03:30 IST) | Generate sitemaps from TMDB exports |
 
-⚠️ Both jobs were `pm2 stop`ped during the GA-day load spike (2026-06-10) — a
-stopped job does NOT run at its cron time. Re-arm with `pm2 start <name>` in a
-quiet window (NOTE: starting runs the job immediately). The post-migration
-catalog is ~807k movies, so both jobs run much longer than they used to.
-
-Gotcha: a deploy (`pm2 delete all` + `pm2 start ecosystem.config.cjs`) starts
-cron jobs IMMEDIATELY regardless of schedule — this caused the GA-day CPU spike.
+Both run under `nice -n 19` and carry a **cron-window guard** (`CRON_HOUR_UTC`
+env, checked in the scripts): PM2 re-runs cron jobs once on every `pm2 start`
+(= every deploy), which used to launch them at peak traffic and 502 the site —
+deploy-time autostarts now exit instantly, so deploys safely re-arm the cron.
+Manual run: `FORCE_RUN=1 npx tsx scripts/sync-popularity.ts` or
+`FORCE_RUN=1 node scripts/generate-sitemap.js` (quiet window; prefix `nice -n 19`).
+Post-migration catalog is ~807k movies; sync-popularity streams the export
+(was 3.7GB RSS buffered, now ~Map-sized).
 
 ## File Size Guidelines
 

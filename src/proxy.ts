@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { buildTrackingContext, getPageTypeFromPath, getItemFromPath } from "@/lib/analytics/context-core";
+import { detectBotFromRequest } from "@/lib/analytics/bot-detection";
 import { trackPageView } from "@/lib/analytics/track";
 
 const { auth } = NextAuth(authConfig);
@@ -24,11 +25,45 @@ const { auth } = NextAuth(authConfig);
  * place that sees every request, including bots and cache hits.
  */
 export default auth((req: NextRequest & { auth: Session | null }) => {
+  // Block high-confidence scrapers BEFORE rendering. Post-GA a distributed
+  // fleet (rotating IPs, forged Chrome UAs, no JS) crawled long-tail URLs at
+  // a rate that outpaced the ISR cache fill and 502'd the box. Detection is
+  // the proven analytics layer-3 logic (see bot-detection.ts): webdriver
+  // header, "Headless" client hints, modern-Chrome UA with NO sec-ch-ua
+  // (real Chromium >= 89 always sends hints over HTTPS; iOS excluded), plus
+  // Accept: text/markdown (LLM scrapers — no browser sends that). Honest
+  // crawlers (Googlebot, Bingbot, social preview bots) are NOT affected.
+  if (req.method === "GET" && isBlockedScraper(req)) {
+    maybeTrackPageView(req); // keep the fleet visible in analytics
+    return new NextResponse(null, {
+      status: 429,
+      headers: { "retry-after": "3600" },
+    });
+  }
+
   const response = NextResponse.next();
   response.headers.set("x-pathname", req.nextUrl.pathname);
   maybeTrackPageView(req);
   return response;
 });
+
+const BLOCKED_BOT_TYPES = new Set(["webdriver", "headless_hint", "missing_client_hints"]);
+
+function isBlockedScraper(req: NextRequest): boolean {
+  try {
+    // LLM/markdown scrapers self-identify via Accept (browsers never send this)
+    if (req.headers.get("accept")?.includes("text/markdown")) return true;
+
+    const { botType } = detectBotFromRequest(
+      req.headers.get("user-agent") || "",
+      req.headers.get("sec-ch-ua"),
+      req.headers.get("x-analytics-wd"),
+    );
+    return botType !== null && BLOCKED_BOT_TYPES.has(botType);
+  } catch {
+    return false; // never block on a detection failure
+  }
+}
 
 /**
  * Track full-document GET requests (the equivalent of what the old
