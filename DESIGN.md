@@ -234,6 +234,10 @@ poster/backdrop images use `rounded-lg`; pills, chips, badges, and avatars are
   taller than ~60dvh on mobile should be a `Drawer`/`Sheet`.
 - **Scrollers** — horizontal media rows use `media-scroller` with `gap-4`,
   `scrollbar-hide`, edge-fade, and arrow buttons hidden on touch devices.
+- **Floating bottom-center zone is reserved for the AI assistant** (idle bubble at
+  `bottom-6` desktop / `bottom-[4.25rem]` mobile, z-50). Transient overlays
+  (install banner, toasts) must not occupy it: dock bottom-right on desktop,
+  or sit above the bubble zone (`bottom-[calc(8rem+safe-area)]`) on mobile.
 - **shadcn/ui primitives in `src/components/ui/` are read-only** — wrap, don't edit.
 
 ### Code mapping

@@ -58,11 +58,13 @@ export function InstallBanner() {
   return (
     <div
       className={cn(
-        "fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] inset-x-0 z-30 md:bottom-4",
-        "px-4 md:px-0 md:flex md:justify-center"
+        // Keep clear of the AI assistant's reserved bottom-center zone:
+        // mobile sits above bottom nav + idle bubble; desktop docks bottom-right.
+        "fixed bottom-[calc(8rem+env(safe-area-inset-bottom,0px))] inset-x-0 z-30",
+        "px-4 md:px-0 md:bottom-4 md:left-auto md:right-4"
       )}
     >
-      <div className="bg-card border border-border rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-md w-full md:mx-auto">
+      <div className="bg-card border border-border rounded-xl shadow-lg p-4 flex items-center gap-3 max-w-md w-full">
         <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-brand/10 flex items-center justify-center">
           <Download className="h-5 w-5 text-brand" />
         </div>
