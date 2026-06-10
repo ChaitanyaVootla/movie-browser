@@ -40,6 +40,15 @@ Root `docker-compose.yml` runs on EC2:
 
 Docker Compose reads `.env` on EC2 for `POSTGRES_PASSWORD`, `CLICKHOUSE_PASSWORD`, `DATABASE_URL`.
 
+**Single-file bind-mount gotcha (cost the GA cutover ~20 min):** `Caddyfile` is
+bind-mounted as a single file. The deploy's `tar -xzf` replaces it with a NEW
+inode, so the running container keeps reading the OLD content forever — `caddy
+reload` inside the container happily re-applies the stale file and logs nothing
+wrong. After any Caddyfile change shipped via deploy, `docker compose up -d
+--force-recreate caddy` is REQUIRED (seconds of TLS downtime; also resets ACME
+retry backoff). Symptom: `wget localhost:2019/config/` inside the container
+shows hosts that don't match the file on disk.
+
 PG init: only `postgres/init/01-extensions.sql` runs on container start (extensions + shadow DB).
 Search indexes (`02-search-indexes.sql`) must run **after** `yarn db:push` creates tables.
 
