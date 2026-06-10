@@ -73,5 +73,31 @@ module.exports = {
       env: { NODE_ENV: "production", CRON_HOUR_UTC: "22" },
       kill_timeout: 300000, // 5 minutes - sitemap gen can take a while
     },
+    // ISR cache prune - daily at 23:00 UTC (04:30 IST), after sitemap.
+    // Jun 10 2026: unbounded ISR route-cache entries (bot fleet × 800k-title
+    // long tail) grew .next to 41GB and filled the 77GB disk → ENOSPC outage
+    // loop. Keeps movie/series/person cache dirs under ISR_CACHE_BUDGET_MB.
+    {
+      name: "isr-cache-prune",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "bash",
+      args: [
+        "-c",
+        "exec nice -n 19 node --max-old-space-size=512 scripts/prune-isr-cache.js",
+      ],
+      cron_restart: "0 23 * * *",
+      autorestart: false,
+      restart_delay: 5000,
+      max_restarts: 2,
+      min_uptime: "1s",
+      watch: false,
+      max_memory_restart: "600M",
+      error_file: "./logs/isr-prune-error.log",
+      out_file: "./logs/isr-prune-out.log",
+      log_file: "./logs/isr-prune-combined.log",
+      time: true,
+      env: { NODE_ENV: "production", CRON_HOUR_UTC: "23" },
+      kill_timeout: 600000, // 10 minutes - may unlink hundreds of thousands of files
+    },
   ],
 };

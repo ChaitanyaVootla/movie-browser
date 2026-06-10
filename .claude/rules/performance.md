@@ -80,6 +80,16 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    - **Verify locally before pushing:** `lsof -ti :3111` first — a half-killed
      old `next-server` (pkill pattern "next start" does NOT match it) serves
      stale code and silently invalidates the whole test matrix.
+   - **ISR disk cache is UNBOUNDED — it WILL fill the disk.** Jun 10 2026: bot
+     fleet × 800k-title long tail grew `.next` to **41GB**, disk hit ENOSPC,
+     next-server SIGABRT'd on writes (PM2 log `ENOSPC`, exit 134), prod flapped
+     DOWN/SLOW for ~2h. Next never evicts disk entries by size. Mitigations:
+     `isr-cache-prune` PM2 cron (23:00 UTC, `scripts/prune-isr-cache.js`,
+     budget `ISR_CACHE_BUDGET_MB`=5GB) + bot blocking caps growth. Diagnosis
+     signature: load avg ≫ vCPUs with mid CPU%, `pm2 logs` ENOSPC, `df -h` 100%,
+     `du -sh .next`. Emergency purge (same as deploy wipe): delete
+     `*.html/*.rsc/*.meta` under `.next/server/app/{movie,series,person}`.
+     `pm2 flush` buys ~1GB instantly.
 2. **Never block the render path on a scrape/LLM/Lambda.** Detail-page hydration returns PG/TMDB immediately and refreshes ratings in a **deduped background task**; the SSE enrich endpoint streams them in. See `.claude/rules/postgres-hydration.md`. A synchronous Lambda scrape added seconds per first/stale visit.
 3. **Cap ClickHouse CPU** (it ate 1.5 of 2 cores). `docker-compose.yml`: `cpus: "0.9"` + low `cpu_shares`, and `concurrent_threads_soft_limit_num` in `analytics/clickhouse/config/config.xml`. **GOTCHA:** do NOT set `background_pool_size` low — `background_pool_size * background_merges_mutations_concurrency_ratio` must be ≥ `number_of_free_entries_in_pool_to_execute_mutation` (default 20) or ClickHouse exits 36 in a crash loop. **Always validate CH config in a throwaway local container before deploying** (see Testing below). A mounted `config.d` edit does NOT recreate the container — but DON'T force-recreate every deploy either (re-merging the part backlog spikes CPU for minutes; recreate once, manually, when config changes).
 4. **ClickHouse system logs are disabled — keep them that way.** June 2026: the

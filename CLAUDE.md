@@ -244,8 +244,9 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 |-----|----------|---------|
 | `popularity-sync` | 21:00 UTC (02:30 IST) | TMDB daily exports → update popularity (streaming, diff-only) |
 | `sitemap-generator` | 22:00 UTC (03:30 IST) | Generate sitemaps from PG (quality-gated top 50k movies / 25k series / 25k persons via `SITEMAP_*_LIMIT` envs, honest `lastmod` from `updated_at`, 50k-URL file chunking) |
+| `isr-cache-prune` | 23:00 UTC (04:30 IST) | Keep `.next/server/app/{movie,series,person}` under `ISR_CACHE_BUDGET_MB` (5GB). Jun 10 2026: unbounded ISR cache hit 41GB → disk-full outage loop |
 
-Both run under `nice -n 19` and carry a **cron-window guard** (`CRON_HOUR_UTC`
+All run under `nice -n 19` and carry a **cron-window guard** (`CRON_HOUR_UTC`
 env, checked in the scripts): PM2 re-runs cron jobs once on every `pm2 start`
 (= every deploy), which used to launch them at peak traffic and 502 the site —
 deploy-time autostarts now exit instantly, so deploys safely re-arm the cron.

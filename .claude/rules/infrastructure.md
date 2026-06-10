@@ -154,3 +154,4 @@ No migrations — schema SQL is authoritative. Re-deploy recreates containers. P
 | `next` | Always | 600MB |
 | `popularity-sync` | 21:00 UTC | 500MB |
 | `sitemap-generator` | 22:00 UTC | 1024MB |
+| `isr-cache-prune` | 23:00 UTC | 512MB (keeps ISR route cache ≤ 5GB — Jun 10 disk-fill) |
