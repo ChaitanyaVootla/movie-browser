@@ -25,6 +25,14 @@
 const fsp = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
+const zlib = require("zlib");
+
+// Entries are stored gzipped: a cached detail page is ~340KB raw (HTML +
+// RSC flight + segment prefetch copies of the same data) and ~6× smaller
+// compressed — the same disk budget holds ~6× more pages. Read path also
+// accepts legacy plain-JSON entries (pre-gzip deploys) via magic-byte sniff.
+const GZIP_MAGIC_0 = 0x1f;
+const GZIP_MAGIC_1 = 0x8b;
 
 // Budget/limits resolve in the constructor (not module load) so env is read
 // when the server actually constructs the handler — also keeps tests honest.
@@ -154,8 +162,12 @@ class BoundedCacheHandler {
       if (entry.tags !== null) continue;
       loads.push(
         fsp
-          .readFile(path.join(this.cacheDir, entry.file), "utf8")
-          .then((text) => {
+          .readFile(path.join(this.cacheDir, entry.file))
+          .then((raw) => {
+            const text =
+              raw[0] === GZIP_MAGIC_0 && raw[1] === GZIP_MAGIC_1
+                ? zlib.gunzipSync(raw).toString("utf8")
+                : raw.toString("utf8");
             entry.tags = deserialize(text).tags || [];
           })
           .catch(() => {
@@ -195,8 +207,8 @@ class BoundedCacheHandler {
         if (entry) this.#touch(hashName, entry);
         return { lastModified: memHit.lastModified, value: memHit.value };
       }
-      const text = await fsp.readFile(file, "utf8").catch(() => null);
-      if (text === null) {
+      const raw = await fsp.readFile(file).catch(() => null);
+      if (raw === null) {
         // mirror index if file vanished externally (prune job, manual rm)
         const stale = this.index.get(hashName);
         if (stale) {
@@ -205,6 +217,10 @@ class BoundedCacheHandler {
         }
         return null;
       }
+      const text =
+        raw[0] === GZIP_MAGIC_0 && raw[1] === GZIP_MAGIC_1
+          ? zlib.gunzipSync(raw).toString("utf8")
+          : raw.toString("utf8"); // legacy pre-gzip entry
       const stored = deserialize(text);
       const entry = this.index.get(hashName);
       if (entry) this.#touch(hashName, entry);
@@ -220,12 +236,15 @@ class BoundedCacheHandler {
       await this.ready;
       const file = this.#fileFor(key);
       const hashName = path.basename(file);
-      const payload = serialize({
-        lastModified: Date.now(),
-        tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
-        value: data,
-      });
-      const size = Buffer.byteLength(payload);
+      const payload = zlib.gzipSync(
+        serialize({
+          lastModified: Date.now(),
+          tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
+          value: data,
+        }),
+        { level: 4 }, // ~6x reduction; level 4 keeps write CPU negligible
+      );
+      const size = payload.length;
       if (size > this.budgetBytes) return; // absurd single entry — skip, render uncached
       await fsp.writeFile(file, payload);
       const prev = this.index.get(hashName);

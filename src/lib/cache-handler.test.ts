@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { randomBytes } from "crypto";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const BoundedCacheHandler = require("../../cache-handler.cjs");
@@ -75,7 +76,7 @@ describe("BoundedCacheHandler", () => {
   it("evicts oldest entries to stay within the byte budget", async () => {
     process.env.BOUNDED_CACHE_MB = "1"; // 1MB budget
     const handler = makeHandler();
-    const big = "x".repeat(200 * 1024); // ~200KB per entry
+    const big = randomBytes(150 * 1024).toString("base64"); // ~200KB incompressible
     for (let i = 0; i < 10; i++) {
       await handler.set(`page-${i}`, { kind: "FETCH", data: big }, {});
     }
@@ -90,7 +91,7 @@ describe("BoundedCacheHandler", () => {
   it("rebuilds the index from disk after restart and keeps evicting", async () => {
     process.env.BOUNDED_CACHE_MB = "1";
     const first = makeHandler();
-    const big = "x".repeat(200 * 1024);
+    const big = randomBytes(150 * 1024).toString("base64"); // incompressible
     for (let i = 0; i < 4; i++) {
       await first.set(`warm-${i}`, { kind: "FETCH", data: big }, {});
     }
@@ -126,7 +127,7 @@ describe("BoundedCacheHandler", () => {
   it("skips entries larger than the entire budget instead of thrashing", async () => {
     process.env.BOUNDED_CACHE_MB = "1";
     const handler = makeHandler();
-    await handler.set("huge", { kind: "FETCH", data: "x".repeat(2 * 1024 * 1024) }, {});
+    await handler.set("huge", { kind: "FETCH", data: randomBytes(1600 * 1024).toString("base64") }, {});
     const fresh = makeHandler();
     await fresh.ready;
     expect(await fresh.get("huge")).toBeNull();
@@ -153,5 +154,38 @@ describe("Next 16 segmentData (Map) round-trip", () => {
     expect(v.segmentData instanceof Map).toBe(true);
     expect(v.segmentData.get("/movie/603")?.toString()).toBe("segment-a");
     expect(Buffer.isBuffer(v.segmentData.get("/movie/603/layout"))).toBe(true);
+  });
+});
+
+describe("gzip storage", () => {
+  it("stores entries gzipped on disk and reads them back", async () => {
+    const handler = makeHandler();
+    const value = { kind: "FETCH", data: "z".repeat(50 * 1024) };
+    await handler.set("gz-entry", value, {});
+    const dir = path.join(tmpDir, "cache", "bounded-isr");
+    const file = fs.readdirSync(dir)[0];
+    const raw = fs.readFileSync(path.join(dir, file));
+    expect(raw[0]).toBe(0x1f); // gzip magic
+    expect(raw[1]).toBe(0x8b);
+    expect(raw.length).toBeLessThan(10 * 1024); // 50KB repetitive → tiny
+    const fresh = makeHandler();
+    const got = await fresh.get("gz-entry");
+    expect((got?.value as typeof value).data.length).toBe(50 * 1024);
+  });
+
+  it("still reads legacy plain-JSON entries", async () => {
+    const handler = makeHandler();
+    await handler.ready;
+    const dir = path.join(tmpDir, "cache", "bounded-isr");
+    // simulate a pre-gzip entry written by the old handler
+    const crypto = await import("crypto");
+    const hash = crypto.createHash("sha1").update("legacy-key").digest("hex");
+    fs.writeFileSync(
+      path.join(dir, `${hash}.json`),
+      JSON.stringify({ lastModified: 123, tags: [], value: { kind: "FETCH", data: "old" } }),
+    );
+    const fresh = makeHandler();
+    const got = await fresh.get("legacy-key");
+    expect((got?.value as { data: string }).data).toBe("old");
   });
 });
