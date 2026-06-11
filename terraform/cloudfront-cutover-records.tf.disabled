@@ -1,0 +1,84 @@
+# =============================================================================
+# CUTOVER RECORDS — DO NOT ENABLE UNTIL THE MANUAL APEX CUTOVER
+# =============================================================================
+# This file is intentionally suffixed `.tf.disabled` so Terraform IGNORES it.
+# It holds the apex + www ALIAS A-records that point AT the CloudFront
+# distribution. Enabling these flips live traffic from the EIP to the CDN.
+#
+# These apex/www A-records currently exist in Route53 pointing at the EIP and are
+# managed MANUALLY (per CLAUDE.md / infrastructure.md). Bringing them under
+# Terraform is the cutover step the operator performs by hand.
+#
+# CUTOVER PROCEDURE (manual — NOT part of any routine `terraform apply`):
+#   1. Confirm the CDN is healthy on its dxxx.cloudfront.net endpoint:
+#      cache HIT on 2nd curl, RSC `_rsc` returns RSC payload, session-cookie
+#      bypass works, no Set-Cookie on anon hits, stale-if-error serves stale,
+#      SSE /api/*/enrich streams.
+#   2. Lower the apex/www DNS TTL ahead of time (manual).
+#   3. Rename this file: `cloudfront-cutover-records.tf.disabled` ->
+#      `cloudfront-cutover-records.tf`.
+#   4. `terraform plan` — it should show ONLY these two alias records changing
+#      from the manual A->EIP records to ALIAS->CloudFront (Route53 alias
+#      records replace the plain A records on the same name; use
+#      allow_overwrite = true so TF adopts the manually-created records instead
+#      of erroring on "record already exists").
+#   5. `terraform apply`.
+#   6. Enforce the origin gate in Caddy (require X-Origin-Verify) and lock the
+#      security group to CloudFront IP ranges.
+#
+# ALIAS records (not CNAME) are required for the apex; `evaluate_target_health`
+# = false is standard for CloudFront alias targets.
+#
+# resource "aws_route53_record" "apex" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "themoviebrowser.com"
+#   type    = "A"
+#
+#   alias {
+#     name                   = aws_cloudfront_distribution.main.domain_name
+#     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+#     evaluate_target_health = false
+#   }
+#
+#   allow_overwrite = true
+# }
+#
+# resource "aws_route53_record" "www" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "www.themoviebrowser.com"
+#   type    = "A"
+#
+#   alias {
+#     name                   = aws_cloudfront_distribution.main.domain_name
+#     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+#     evaluate_target_health = false
+#   }
+#
+#   allow_overwrite = true
+# }
+#
+# # IPv6 (AAAA) alias records — distribution has is_ipv6_enabled = true, so add
+# # these too at cutover, otherwise IPv6-only clients miss the CDN.
+# resource "aws_route53_record" "apex_aaaa" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "themoviebrowser.com"
+#   type    = "AAAA"
+#   alias {
+#     name                   = aws_cloudfront_distribution.main.domain_name
+#     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+#     evaluate_target_health = false
+#   }
+#   allow_overwrite = true
+# }
+#
+# resource "aws_route53_record" "www_aaaa" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "www.themoviebrowser.com"
+#   type    = "AAAA"
+#   alias {
+#     name                   = aws_cloudfront_distribution.main.domain_name
+#     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+#     evaluate_target_health = false
+#   }
+#   allow_overwrite = true
+# }

@@ -59,3 +59,13 @@ variable "lambda_function_name" {
   type        = string
   default     = "movie-ratings-scraper"
 }
+
+# CloudFront Origin Lockdown
+# Secret value CloudFront injects as the X-Origin-Verify request header; Caddy on
+# the origin requires it (403 otherwise) so bots can't bypass the CDN via the EIP.
+# No default — supplied via -var or tfvars at apply time. Keep it long + random.
+variable "origin_verify_secret" {
+  description = "Shared secret CloudFront sends to the origin as X-Origin-Verify; Caddy enforces it"
+  type        = string
+  sensitive   = true
+}

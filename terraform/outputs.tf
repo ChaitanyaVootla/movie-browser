@@ -64,6 +64,24 @@ output "ec2_iam_role_arn" {
   value       = aws_iam_role.ec2_role.arn
 }
 
+# =============================================================================
+# CloudFront CDN Outputs
+# =============================================================================
+output "cloudfront_distribution_domain_name" {
+  description = "CloudFront distribution domain (dxxx.cloudfront.net) — test against this BEFORE the apex cutover, and use as the apex/www ALIAS target at cutover"
+  value       = aws_cloudfront_distribution.main.domain_name
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID (for invalidations / console)"
+  value       = aws_cloudfront_distribution.main.id
+}
+
+output "cloudfront_acm_certificate_arn" {
+  description = "ARN of the us-east-1 ACM cert (apex + wildcard) attached to the distribution"
+  value       = aws_acm_certificate.cdn.arn
+}
+
 # Setup Instructions
 output "next_steps" {
   description = "Next steps after Terraform apply"
