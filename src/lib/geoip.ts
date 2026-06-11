@@ -73,7 +73,12 @@ export function lookupIP(ip: string): GeoResult {
 export function resolveCountry(headers: {
   get: (name: string) => string | null;
 }): string {
-  const headerCountry = headers.get("x-country-code");
+  // CloudFront-Viewer-Country (2-letter ISO, set by the CDN from the viewer's
+  // IP) is authoritative behind the CDN — the origin only sees CloudFront edge
+  // IPs, so IP geoip would resolve everyone to the edge's country (Jun 11: all
+  // users showed as US). Forwarded via the CloudFront origin request policy.
+  const headerCountry =
+    headers.get("cloudfront-viewer-country") || headers.get("x-country-code");
   if (headerCountry) {
     const normalized = headerCountry.trim().toUpperCase();
     if (/^[A-Z]{2}$/.test(normalized)) {
@@ -92,7 +97,9 @@ export function resolveCountry(headers: {
 export function resolveGeo(headers: {
   get: (name: string) => string | null;
 }): { country: string; city: string | null } {
-  const headerCountry = headers.get("x-country-code");
+  // See resolveCountry: prefer CloudFront-Viewer-Country behind the CDN.
+  const headerCountry =
+    headers.get("cloudfront-viewer-country") || headers.get("x-country-code");
   const headerCity = headers.get("x-city");
 
   if (headerCountry) {
