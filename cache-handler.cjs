@@ -30,9 +30,17 @@ const crypto = require("crypto");
 // when the server actually constructs the handler — also keeps tests honest.
 
 const BUFFER_TAG = "__bisr_b64__";
+const MAP_TAG = "__bisr_map__";
 
+// Next 16 APP_PAGE values contain `segmentData: Map<string, Buffer>` (RSC
+// segment prefetch data). Naive JSON flattens Maps to {} and cache hits then
+// crash the router with "segmentData.get is not a function" — both Maps and
+// Buffers are tag-encoded so they survive the round-trip.
 function serialize(value) {
-  return JSON.stringify(value, (_k, v) => {
+  return JSON.stringify(value, function (_k, v) {
+    // `v` is post-toJSON; recover the raw value to detect Maps reliably.
+    const raw = this ? this[_k] : v;
+    if (raw instanceof Map) return { [MAP_TAG]: [...raw.entries()] };
     if (v && v.type === "Buffer" && Array.isArray(v.data)) {
       // JSON.stringify sees Buffers pre-converted via Buffer.toJSON()
       return { [BUFFER_TAG]: Buffer.from(v.data).toString("base64") };
@@ -43,8 +51,13 @@ function serialize(value) {
 
 function deserialize(text) {
   return JSON.parse(text, (_k, v) => {
-    if (v && typeof v === "object" && typeof v[BUFFER_TAG] === "string") {
-      return Buffer.from(v[BUFFER_TAG], "base64");
+    if (v && typeof v === "object") {
+      if (typeof v[BUFFER_TAG] === "string") {
+        return Buffer.from(v[BUFFER_TAG], "base64");
+      }
+      if (Array.isArray(v[MAP_TAG])) {
+        return new Map(v[MAP_TAG]); // children (incl. Buffers) already revived
+      }
     }
     return v;
   });

@@ -133,3 +133,25 @@ describe("BoundedCacheHandler", () => {
     expect(diskBytes()).toBe(0);
   });
 });
+
+describe("Next 16 segmentData (Map) round-trip", () => {
+  it("revives segmentData as a real Map with Buffer values", async () => {
+    const handler = makeHandler();
+    const value = {
+      kind: "APP_PAGE",
+      html: "<html>x</html>",
+      rscData: Buffer.from("rsc"),
+      segmentData: new Map([
+        ["/movie/603", Buffer.from("segment-a")],
+        ["/movie/603/layout", Buffer.from("segment-b")],
+      ]),
+    };
+    await handler.set("seg-page", value, {});
+    const fresh = makeHandler(); // force disk read (bypass memory layer)
+    const got = await fresh.get("seg-page");
+    const v = got?.value as typeof value;
+    expect(v.segmentData instanceof Map).toBe(true);
+    expect(v.segmentData.get("/movie/603")?.toString()).toBe("segment-a");
+    expect(Buffer.isBuffer(v.segmentData.get("/movie/603/layout"))).toBe(true);
+  });
+});
