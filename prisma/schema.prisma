@@ -102,6 +102,14 @@ model Person {
   gender       Int? // 0=unknown, 1=female, 2=male, 3=non-binary
   homepage     String?
 
+  // Full TMDB person payload (details + combined_credits + images + external_ids),
+  // trimmed to what the person detail page renders. JSONB on purpose — credits are
+  // render-only here, NOT normalized into child tables (the movie/series child-table
+  // delete+reinsert churn is a mistake we already paid down). Written once on first
+  // visit, then refreshed at most weekly by hydration/person.ts.
+  details          Json?
+  detailsUpdatedAt DateTime? @map("details_updated_at")
+
   credits       Credit[]
   aliases       PersonAlias[]
   externalIds   ExternalId[]

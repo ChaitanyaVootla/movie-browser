@@ -13,6 +13,7 @@ import {
   getSeasonDetails as getTmdbSeasonDetails,
   fetchFromTMDB,
 } from "@/server/services/tmdb";
+import { CACHE_DURATIONS } from "@/lib/constants";
 import type { MediaType } from "../types";
 
 // =============================================================================
@@ -348,6 +349,100 @@ export async function fetchFromTmdb(
     return fetchMovieFromTmdb(id);
   }
   return fetchSeriesFromTmdb(id);
+}
+
+// =============================================================================
+// Person
+// =============================================================================
+
+/** A combined-credits entry (cast or crew) as TMDB returns it (relevant fields). */
+export interface TmdbPersonCredit {
+  id: number;
+  media_type: "movie" | "tv";
+  // Movie fields
+  title?: string;
+  release_date?: string;
+  // TV fields
+  name?: string;
+  first_air_date?: string;
+  episode_count?: number;
+  // Common fields (optional-tolerant: TMDB omits some on obscure titles)
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  vote_average?: number;
+  vote_count?: number;
+  popularity?: number;
+  overview?: string;
+  genre_ids?: number[];
+  adult?: boolean;
+  credit_id: string;
+  // Cast-specific
+  character?: string;
+  order?: number;
+  // Crew-specific
+  job?: string;
+  department?: string;
+}
+
+/** TMDB person details with the appends the person detail page consumes. */
+export interface TmdbPersonData {
+  id: number;
+  name: string;
+  biography: string | null;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  profile_path: string | null;
+  homepage: string | null;
+  imdb_id: string | null;
+  popularity: number | null;
+  known_for_department: string | null;
+  also_known_as?: string[];
+  gender?: number;
+  combined_credits?: {
+    cast?: TmdbPersonCredit[];
+    crew?: TmdbPersonCredit[];
+  };
+  images?: {
+    profiles?: Array<{
+      file_path: string;
+      aspect_ratio: number;
+      width: number;
+      height: number;
+      iso_639_1?: string | null;
+      vote_average?: number;
+    }>;
+  };
+  external_ids?: {
+    imdb_id?: string | null;
+    facebook_id?: string | null;
+    instagram_id?: string | null;
+    tiktok_id?: string | null;
+    twitter_id?: string | null;
+    youtube_id?: string | null;
+    wikidata_id?: string | null;
+  };
+}
+
+/**
+ * Fetch person details from TMDB with exactly the appends the person page
+ * renders (combined_credits + images + external_ids). Deliberately NOT the
+ * legacy `getPersonDetails` append list: movie_credits/tv_credits duplicate
+ * combined_credits entirely and tagged_images is unused — dropping them roughly
+ * halves the payload before it's ever trimmed/stored.
+ *
+ * Goes through the central TMDB service (retry logic + L1/L2 cache). The cache
+ * here is a TMDB-call dedup/burst shield, not the serving layer — PostgreSQL
+ * `persons.details` serves renders (see ../person.ts).
+ */
+export async function fetchPersonFromTmdb(personId: number): Promise<TmdbPersonData> {
+  return fetchFromTMDB<TmdbPersonData>(`/person/${personId}`, {
+    params: {
+      append_to_response: "combined_credits,images,external_ids",
+    },
+    cacheNamespace: "person",
+    cacheTTL: CACHE_DURATIONS.person,
+  });
 }
 
 // Episode type for season details

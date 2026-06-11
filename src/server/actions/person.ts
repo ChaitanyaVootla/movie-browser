@@ -2,11 +2,11 @@
 
 import { z } from "zod";
 import {
-  getPersonDetails,
   getPersonBasicInfo,
   searchPerson as searchPersonTMDB,
   type PersonSearchResult,
 } from "@/server/services/tmdb";
+import { hydratePerson } from "@/server/services/hydration/person";
 import type { Person } from "@/types";
 
 const GetPersonSchema = z.object({
@@ -18,38 +18,44 @@ const SearchPersonSchema = z.object({
 });
 
 /**
- * Get full person details including credits, images, and external IDs
+ * Get full person details including credits, images, and external IDs.
+ *
+ * Serve-stale-then-refresh: PostgreSQL `persons.details` serves the render
+ * (never blocks on TMDB when present); only a details miss does one
+ * synchronous TMDB fetch. A TMDB 404 lands in the catch below → null → the
+ * page's personExists()/notFound() flow handles it, exactly as before.
+ *
+ * NOTE: movie_credits / tv_credits / tagged_images are no longer fetched or
+ * returned — nothing renders them (combined_credits covers the page) and they
+ * roughly doubled the TMDB payload. The Person fields stay optional.
  */
 export async function getPerson(id: number): Promise<Person | null> {
   try {
     const validated = GetPersonSchema.parse({ id });
-    const data = await getPersonDetails(validated.id);
+    const { data } = await hydratePerson(validated.id);
 
     if (!data || !data.id) {
       return null;
     }
 
-    // Transform TMDB response to our Person type
+    // The payload is already TMDB-shaped and trimmed — passthrough to Person.
     return {
-      id: data.id as number,
-      name: data.name as string,
-      biography: (data.biography as string) || "",
-      birthday: data.birthday as string | null,
-      deathday: data.deathday as string | null,
-      place_of_birth: data.place_of_birth as string | null,
-      profile_path: data.profile_path as string | null,
-      homepage: data.homepage as string | null,
-      imdb_id: data.imdb_id as string | null,
-      popularity: data.popularity as number,
-      known_for_department: data.known_for_department as string,
-      also_known_as: data.also_known_as as string[] | undefined,
-      gender: data.gender as number,
-      movie_credits: data.movie_credits as Person["movie_credits"],
-      tv_credits: data.tv_credits as Person["tv_credits"],
-      combined_credits: data.combined_credits as Person["combined_credits"],
-      images: data.images as Person["images"],
-      external_ids: data.external_ids as Person["external_ids"],
-      tagged_images: data.tagged_images as Person["tagged_images"],
+      id: data.id,
+      name: data.name,
+      biography: data.biography,
+      birthday: data.birthday,
+      deathday: data.deathday,
+      place_of_birth: data.place_of_birth,
+      profile_path: data.profile_path,
+      homepage: data.homepage,
+      imdb_id: data.imdb_id,
+      popularity: data.popularity,
+      known_for_department: data.known_for_department,
+      also_known_as: data.also_known_as,
+      gender: data.gender,
+      combined_credits: data.combined_credits,
+      images: data.images,
+      external_ids: data.external_ids,
     };
   } catch (error) {
     console.error("Error fetching person:", error);
