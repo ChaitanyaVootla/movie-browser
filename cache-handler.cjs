@@ -37,6 +37,9 @@ const gunzipAsync = promisify(zlib.gunzip);
 // RSC flight + segment prefetch copies of the same data) and ~6× smaller
 // compressed — the same disk budget holds ~6× more pages. Read path also
 // accepts legacy plain-JSON entries (pre-gzip deploys) via magic-byte sniff.
+/** Per-cacheDir singleton stores — survive per-request handler construction. */
+const STORES = new Map();
+
 const GZIP_MAGIC_0 = 0x1f;
 const GZIP_MAGIC_1 = 0x8b;
 
@@ -95,36 +98,49 @@ class BoundedCacheHandler {
     // entry's serialized length, so keep the budget conservative.
     this.memoryBudgetBytes =
       parseInt(process.env.BOUNDED_CACHE_MEM_MB || "48", 10) * 1024 * 1024;
-    this.memoryBytes = 0;
-    /** @type {Map<string, {file: string, size: number, lastAccess: number, tags: string[] | null}>} */
-    this.index = new Map(); // insertion order ≈ LRU order (re-inserted on access)
-    this.totalBytes = 0;
-    this.tagsLoaded = false;
-    /** @type {Map<string, {lastModified: number, value: unknown}>} hot-page LRU */
-    this.memory = new Map();
-    this.ready = this.#initIndex();
+    // CRITICAL: state is a module-level singleton per cacheDir — Next
+    // constructs the cache handler PER REQUEST, and per-instance state made
+    // every request stat-scan the whole cache dir (#initIndex), flooding the
+    // libuv threadpool and starving all fs I/O (Jun 11, found via perf:
+    // uv_fs_stat storms). The scan must run ONCE per process.
+    let store = STORES.get(this.cacheDir);
+    if (!store) {
+      store = {
+        /** @type {Map<string, {file: string, size: number, lastAccess: number, tags: string[] | null}>} */
+        index: new Map(), // insertion order ≈ LRU order (re-inserted on access)
+        totalBytes: 0,
+        tagsLoaded: false,
+        /** @type {Map<string, {lastModified: number, value: unknown, approxBytes: number}>} hot-page LRU */
+        memory: new Map(),
+        memoryBytes: 0,
+        ready: null,
+      };
+      STORES.set(this.cacheDir, store);
+      store.ready = this.#initIndex(store);
+    }
+    this.store = store;
   }
 
   #memoryGet(hashName) {
-    const hit = this.memory.get(hashName);
+    const hit = this.store.memory.get(hashName);
     if (hit) {
-      this.memory.delete(hashName);
-      this.memory.set(hashName, hit); // refresh LRU position
+      this.store.memory.delete(hashName);
+      this.store.memory.set(hashName, hit); // refresh LRU position
     }
     return hit;
   }
 
   #memorySet(hashName, stored, approxBytes) {
-    const prev = this.memory.get(hashName);
-    if (prev) this.memoryBytes -= prev.approxBytes;
-    this.memory.delete(hashName);
-    this.memory.set(hashName, { ...stored, approxBytes });
-    this.memoryBytes += approxBytes;
-    while (this.memoryBytes > this.memoryBudgetBytes && this.memory.size > 1) {
-      const oldestKey = this.memory.keys().next().value;
-      const oldest = this.memory.get(oldestKey);
-      this.memoryBytes -= oldest.approxBytes;
-      this.memory.delete(oldestKey);
+    const prev = this.store.memory.get(hashName);
+    if (prev) this.store.memoryBytes -= prev.approxBytes;
+    this.store.memory.delete(hashName);
+    this.store.memory.set(hashName, { ...stored, approxBytes });
+    this.store.memoryBytes += approxBytes;
+    while (this.store.memoryBytes > this.memoryBudgetBytes && this.store.memory.size > 1) {
+      const oldestKey = this.store.memory.keys().next().value;
+      const oldest = this.store.memory.get(oldestKey);
+      this.store.memoryBytes -= oldest.approxBytes;
+      this.store.memory.delete(oldestKey);
     }
   }
 
@@ -135,7 +151,7 @@ class BoundedCacheHandler {
     );
   }
 
-  async #initIndex() {
+  async #initIndex(store) {
     try {
       await fsp.mkdir(this.cacheDir, { recursive: true });
       const names = await fsp.readdir(this.cacheDir);
@@ -153,26 +169,26 @@ class BoundedCacheHandler {
       for (const s of stats) {
         // Key is unknown after restart (filenames are hashes) — index by file
         // hash; get()/set() address entries via #fileFor(key) hashes anyway.
-        this.index.set(s.name, {
+        store.index.set(s.name, {
           file: s.name,
           size: s.size,
           lastAccess: s.mtimeMs,
           tags: null, // lazy-loaded on first revalidateTag
         });
-        this.totalBytes += s.size;
+        store.totalBytes += s.size;
       }
     } catch {
       // Cache dir unusable — run as a pass-through (all misses).
-      this.index = new Map();
-      this.totalBytes = 0;
+      store.index = new Map();
+      store.totalBytes = 0;
     }
   }
 
   async #loadTagsIfNeeded() {
-    if (this.tagsLoaded) return;
-    this.tagsLoaded = true; // set first so concurrent calls don't double-scan
+    if (this.store.tagsLoaded) return;
+    this.store.tagsLoaded = true; // set first so concurrent calls don't double-scan
     const loads = [];
-    for (const entry of this.index.values()) {
+    for (const entry of this.store.index.values()) {
       if (entry.tags !== null) continue;
       loads.push(
         fsp
@@ -194,48 +210,48 @@ class BoundedCacheHandler {
 
   #touch(hashName, entry) {
     // Re-insert to move to the tail of Map iteration order (most recent).
-    this.index.delete(hashName);
+    this.store.index.delete(hashName);
     entry.lastAccess = Date.now();
-    this.index.set(hashName, entry);
+    this.store.index.set(hashName, entry);
   }
 
   #memoryDelete(hashName) {
-    const hit = this.memory.get(hashName);
+    const hit = this.store.memory.get(hashName);
     if (hit) {
-      this.memoryBytes -= hit.approxBytes;
-      this.memory.delete(hashName);
+      this.store.memoryBytes -= hit.approxBytes;
+      this.store.memory.delete(hashName);
     }
   }
 
   async #evictToWatermark() {
-    if (this.totalBytes <= this.budgetBytes) return;
-    for (const [hashName, entry] of this.index) {
-      if (this.totalBytes <= this.lowWatermark) break;
-      this.index.delete(hashName);
+    if (this.store.totalBytes <= this.budgetBytes) return;
+    for (const [hashName, entry] of this.store.index) {
+      if (this.store.totalBytes <= this.lowWatermark) break;
+      this.store.index.delete(hashName);
       this.#memoryDelete(hashName);
-      this.totalBytes -= entry.size;
+      this.store.totalBytes -= entry.size;
       fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {});
     }
   }
 
   async get(key) {
     try {
-      await this.ready;
+      await this.store.ready;
       const file = this.#fileFor(key);
       const hashName = path.basename(file);
       const memHit = this.#memoryGet(hashName);
       if (memHit) {
-        const entry = this.index.get(hashName);
+        const entry = this.store.index.get(hashName);
         if (entry) this.#touch(hashName, entry);
         return { lastModified: memHit.lastModified, value: memHit.value };
       }
       const raw = await fsp.readFile(file).catch(() => null);
       if (raw === null) {
         // mirror index if file vanished externally (prune job, manual rm)
-        const stale = this.index.get(hashName);
+        const stale = this.store.index.get(hashName);
         if (stale) {
-          this.index.delete(hashName);
-          this.totalBytes -= stale.size;
+          this.store.index.delete(hashName);
+          this.store.totalBytes -= stale.size;
         }
         return null;
       }
@@ -244,7 +260,7 @@ class BoundedCacheHandler {
           ? (await gunzipAsync(raw)).toString("utf8")
           : raw.toString("utf8"); // legacy pre-gzip entry
       const stored = deserialize(text);
-      const entry = this.index.get(hashName);
+      const entry = this.store.index.get(hashName);
       if (entry) this.#touch(hashName, entry);
       this.#memorySet(hashName, stored, Buffer.byteLength(text));
       return { lastModified: stored.lastModified, value: stored.value };
@@ -255,7 +271,7 @@ class BoundedCacheHandler {
 
   async set(key, data, ctx) {
     try {
-      await this.ready;
+      await this.store.ready;
       const file = this.#fileFor(key);
       const hashName = path.basename(file);
       const serialized = serialize({
@@ -268,16 +284,16 @@ class BoundedCacheHandler {
       const size = payload.length;
       if (size > this.budgetBytes) return; // absurd single entry — skip, render uncached
       await fsp.writeFile(file, payload);
-      const prev = this.index.get(hashName);
-      if (prev) this.totalBytes -= prev.size;
-      this.index.delete(hashName);
-      this.index.set(hashName, {
+      const prev = this.store.index.get(hashName);
+      if (prev) this.store.totalBytes -= prev.size;
+      this.store.index.delete(hashName);
+      this.store.index.set(hashName, {
         file: hashName,
         size,
         lastAccess: Date.now(),
         tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
       });
-      this.totalBytes += size;
+      this.store.totalBytes += size;
       this.#memorySet(
         hashName,
         { lastModified: Date.now(), value: data },
@@ -296,16 +312,16 @@ class BoundedCacheHandler {
 
   async revalidateTag(tags) {
     try {
-      await this.ready;
+      await this.store.ready;
       const wanted = Array.isArray(tags) ? tags : [tags];
       if (wanted.length === 0) return;
       await this.#loadTagsIfNeeded();
-      for (const [hashName, entry] of [...this.index]) {
+      for (const [hashName, entry] of [...this.store.index]) {
         const entryTags = entry.tags || [];
         if (wanted.some((t) => entryTags.includes(t))) {
-          this.index.delete(hashName);
+          this.store.index.delete(hashName);
           this.#memoryDelete(hashName);
-          this.totalBytes -= entry.size;
+          this.store.totalBytes -= entry.size;
           await fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {});
         }
       }
@@ -322,3 +338,5 @@ class BoundedCacheHandler {
 module.exports = BoundedCacheHandler;
 // Exported for unit tests:
 module.exports._internals = { serialize, deserialize, BUFFER_TAG };
+// Test-only: reset singleton state between cases (simulates a process restart).
+module.exports._clearStores = () => STORES.clear();

@@ -17,6 +17,7 @@ interface HandlerInstance {
   set(key: string, data: unknown, ctx: { tags?: string[] }): Promise<void>;
   revalidateTag(tags: string | string[]): Promise<void>;
   ready: Promise<void>;
+  store: { ready: Promise<void> };
   totalBytes: number;
 }
 
@@ -36,6 +37,7 @@ function diskBytes(): number {
 
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bisr-test-"));
+  BoundedCacheHandler._clearStores(); // each test starts as a fresh process
 });
 
 afterEach(() => {
@@ -68,7 +70,8 @@ describe("BoundedCacheHandler", () => {
     await handler.set("doomed", { kind: "FETCH", data: "x" }, {});
     const dir = path.join(tmpDir, "cache", "bounded-isr");
     for (const f of fs.readdirSync(dir)) fs.unlinkSync(path.join(dir, f));
-    // memory layer may still serve it; a fresh handler (new process) must miss
+    // memory layer may still serve it; a fresh process must miss
+    BoundedCacheHandler._clearStores();
     const fresh = makeHandler();
     expect(await fresh.get("doomed")).toBeNull();
   });
@@ -83,8 +86,9 @@ describe("BoundedCacheHandler", () => {
     expect(diskBytes()).toBeLessThanOrEqual(1024 * 1024);
     // newest entry must survive, oldest must be gone
     expect(await handler.get("page-9")).not.toBeNull();
+    BoundedCacheHandler._clearStores();
     const fresh = makeHandler();
-    await fresh.ready;
+    await fresh.store.ready;
     expect(await fresh.get("page-0")).toBeNull();
   });
 
@@ -95,6 +99,7 @@ describe("BoundedCacheHandler", () => {
     for (let i = 0; i < 4; i++) {
       await first.set(`warm-${i}`, { kind: "FETCH", data: big }, {});
     }
+    BoundedCacheHandler._clearStores();
     const second = makeHandler(); // simulates process restart
     for (let i = 4; i < 10; i++) {
       await second.set(`warm-${i}`, { kind: "FETCH", data: big }, {});
@@ -107,6 +112,7 @@ describe("BoundedCacheHandler", () => {
     await first.set("tagged", { kind: "FETCH", data: "a" }, { tags: ["_N_T_/movie/1"] });
     await first.set("other", { kind: "FETCH", data: "b" }, { tags: ["_N_T_/series/2"] });
 
+    BoundedCacheHandler._clearStores();
     const second = makeHandler(); // tags must be recoverable from disk
     await second.revalidateTag("_N_T_/movie/1");
     expect(await second.get("tagged")).toBeNull();
@@ -120,6 +126,7 @@ describe("BoundedCacheHandler", () => {
     for (const f of fs.readdirSync(dir)) {
       fs.writeFileSync(path.join(dir, f), "NOT JSON {{{");
     }
+    BoundedCacheHandler._clearStores();
     const fresh = makeHandler();
     await expect(fresh.get("good")).resolves.toBeNull();
   });
@@ -128,8 +135,9 @@ describe("BoundedCacheHandler", () => {
     process.env.BOUNDED_CACHE_MB = "1";
     const handler = makeHandler();
     await handler.set("huge", { kind: "FETCH", data: randomBytes(1600 * 1024).toString("base64") }, {});
+    BoundedCacheHandler._clearStores();
     const fresh = makeHandler();
-    await fresh.ready;
+    await fresh.store.ready;
     expect(await fresh.get("huge")).toBeNull();
     expect(diskBytes()).toBe(0);
   });
@@ -148,7 +156,8 @@ describe("Next 16 segmentData (Map) round-trip", () => {
       ]),
     };
     await handler.set("seg-page", value, {});
-    const fresh = makeHandler(); // force disk read (bypass memory layer)
+    BoundedCacheHandler._clearStores(); // simulate restart: force disk read
+    const fresh = makeHandler();
     const got = await fresh.get("seg-page");
     const v = got?.value as typeof value;
     expect(v.segmentData instanceof Map).toBe(true);
@@ -168,6 +177,7 @@ describe("gzip storage", () => {
     expect(raw[0]).toBe(0x1f); // gzip magic
     expect(raw[1]).toBe(0x8b);
     expect(raw.length).toBeLessThan(10 * 1024); // 50KB repetitive → tiny
+    BoundedCacheHandler._clearStores();
     const fresh = makeHandler();
     const got = await fresh.get("gz-entry");
     expect((got?.value as typeof value).data.length).toBe(50 * 1024);
@@ -175,7 +185,7 @@ describe("gzip storage", () => {
 
   it("still reads legacy plain-JSON entries", async () => {
     const handler = makeHandler();
-    await handler.ready;
+    await handler.store.ready;
     const dir = path.join(tmpDir, "cache", "bounded-isr");
     // simulate a pre-gzip entry written by the old handler
     const crypto = await import("crypto");
@@ -184,6 +194,7 @@ describe("gzip storage", () => {
       path.join(dir, `${hash}.json`),
       JSON.stringify({ lastModified: 123, tags: [], value: { kind: "FETCH", data: "old" } }),
     );
+    BoundedCacheHandler._clearStores();
     const fresh = makeHandler();
     const got = await fresh.get("legacy-key");
     expect((got?.value as { data: string }).data).toBe("old");
