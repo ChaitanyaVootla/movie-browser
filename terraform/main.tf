@@ -155,6 +155,26 @@ resource "aws_iam_role" "ec2_role" {
 }
 
 # IAM Policy: Bedrock — AI Agent (Kimi K2.5) + Embeddings (Cohere Embed v4)
+# CloudFront invalidation — the deploy purges edge HTML (/*) after each build so
+# cached pages don't reference stale server-action IDs / RSC routes (Jun 11). The
+# deploy runs on the box, so the instance profile needs this.
+resource "aws_iam_role_policy" "cloudfront_invalidate" {
+  name = "${var.project_name}-cloudfront-invalidate"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "CreateInvalidations"
+        Effect   = "Allow"
+        Action   = ["cloudfront:CreateInvalidation"]
+        Resource = "arn:aws:cloudfront::620733889764:distribution/E12R1ZNQNG3LK5"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "bedrock_invoke" {
   name = "${var.project_name}-bedrock-invoke"
   role = aws_iam_role.ec2_role.id

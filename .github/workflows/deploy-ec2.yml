@@ -262,6 +262,22 @@ jobs:
               && echo "Revalidation OK" || echo "Warning: revalidation failed"
 
             echo ""
+            echo "[8/8] Invalidating CloudFront HTML (build-skew safety)..."
+            # A new build changes server-action IDs + RSC route hashes. Edge HTML
+            # cached from the prior build would reference IDs/routes the new
+            # origin doesn't have → "Server Action not found" / RSC 404 (Jun 11).
+            # Purge so the edge serves current-build HTML. `/*` = ONE invalidation
+            # path (~free; well under the 1000/mo free tier). Uses the EC2
+            # instance-profile creds (cloudfront:CreateInvalidation granted in TF).
+            # deploymentId (next.config) is the belt: clients reload on any
+            # residual skew. Non-fatal — a failed purge degrades to TTL expiry.
+            aws cloudfront create-invalidation \
+              --distribution-id E12R1ZNQNG3LK5 --paths "/*" \
+              --query "Invalidation.Status" --output text 2>&1 \
+              && echo "CloudFront invalidation submitted" \
+              || echo "Warning: CloudFront invalidation failed (will TTL-expire)"
+
+            echo ""
             echo "Deployment complete!"
             pm2 list
           EOF

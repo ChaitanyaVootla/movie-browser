@@ -5,6 +5,14 @@ import { withSerwist } from "@serwist/turbopack";
 const nextConfig = {
   poweredByHeader: false,
 
+  // deploymentId (build SHA): behind a CDN that caches HTML, a page cached from
+  // build A embeds server-action IDs that don't exist on the origin running
+  // build B → "Server Action not found" (Jun 11). With deploymentId set, Next
+  // tags assets/actions with it and, on a mismatch, makes the client RELOAD to
+  // fresh HTML instead of erroring. Paired with the deploy-time CloudFront /*
+  // invalidation (deploy-ec2.yml) so the edge serves current-build HTML.
+  deploymentId: process.env.GITHUB_SHA || undefined,
+
   // Server Actions run behind CloudFront: the browser sends Origin
   // https://themoviebrowser.com but the origin sees Host
   // origin.themoviebrowser.com (CloudFront's origin domain), so Next's
