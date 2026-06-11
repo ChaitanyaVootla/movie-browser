@@ -71,6 +71,12 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    - **Status codes:** detail pages must NOT have `loading.tsx` — a streamed
      response is locked to HTTP 200, so `notFound()`/`permanentRedirect()` can
      never emit 404/308 (this caused soft-404s on garbage IDs at crawler scale).
+     Tested Jun 11 2026: `htmlLimitedBots: /.*/` does NOT make loading.tsx safe —
+     it blocks metadata but the shell still streams (garbage ID returned 200
+     with skeleton markup in the body). The path to instant-nav skeletons is
+     moving 404/308 resolution into proxy.ts (cheap PG id/slug lookup pre-render)
+     so pages never throw from generateMetadata — then loading.tsx becomes safe.
+     Until then: per-card pending overlays (`nav-pending.tsx`) are the answer.
      They throw from `generateMetadata` (pre-flush), and
      `htmlLimitedBots: /.*/` in next.config keeps metadata blocking/in-`<head>`
      for all UAs. In-page Suspense shells still stream content fine.

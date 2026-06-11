@@ -193,9 +193,12 @@ jobs:
             mkdir -p .cache/{youtube-channels,youtube,person,search,discover,movie,series,images}
 
             echo "[6/6] Restarting PM2..."
-            pm2 stop all 2>/dev/null || true
-            pm2 delete all 2>/dev/null || true
-            pm2 start ecosystem.config.cjs
+            # startOrReload keeps app definitions registered and restarts in
+            # place — a much shorter 502 window than the old stop-all/delete-all
+            # /start (which also lost the process list if start failed mid-way,
+            # as in the Jun 10 disk-full deploy). Caveat: apps REMOVED from
+            # ecosystem.config.cjs must be pm2-deleted manually once.
+            pm2 startOrReload ecosystem.config.cjs
             pm2 save
 
             echo ""
