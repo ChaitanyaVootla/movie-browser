@@ -6,6 +6,7 @@ import { NavBar } from "@/components/features/layout/nav-bar";
 import { MobileBottomNav } from "@/components/features/layout/mobile-bottom-nav";
 import { Footer } from "@/components/features/layout/footer";
 import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
+import { ThemeColorSync } from "@/components/features/layout/theme-color-sync";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -24,9 +25,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Android: the virtual keyboard resizes the layout viewport (dvh + fixed-bottom
+  // elements track it) instead of only the visual viewport. iOS ignores this.
+  interactiveWidget: "resizes-content",
+  // First-paint values only — ThemeColorSync replaces these with the live computed
+  // background so the Android status bar always blends with the current theme.
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#171717" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 
@@ -119,6 +125,7 @@ export default function RootLayout({
         className={`${montserrat.variable} ${geistMono.variable} font-sans antialiased min-h-screen flex flex-col`}
       >
         <Providers>
+          <ThemeColorSync />
           <ScrollToTop />
           <NavBar />
           <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0">{children}</main>

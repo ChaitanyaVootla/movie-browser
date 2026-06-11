@@ -186,21 +186,16 @@ export function AssistantFloaty({ className }: { className?: string }) {
     setShowWakeUpBorder(false);
   }, []);
 
-  const handleMinimize = useCallback(() => {
+  // Single non-destructive exit: back to the bubble, conversation preserved.
+  // Clearing only ever happens via the explicit "New conversation" action.
+  const handleDismiss = useCallback(() => {
     setState("idle");
-    // Don't clear messages - preserve the conversation
   }, []);
-
-  const handleClose = useCallback(() => {
-    setState("idle");
-    clearMessages();
-    setInput("");
-  }, [clearMessages]);
 
   const handleNavigate = useCallback(() => {
     executeNavigation();
-    handleMinimize(); // Minimize instead of close to preserve context
-  }, [executeNavigation, handleMinimize]);
+    handleDismiss(); // Back to bubble, context preserved
+  }, [executeNavigation, handleDismiss]);
 
   const handleReset = useCallback(() => {
     clearMessages();
@@ -250,7 +245,9 @@ export function AssistantFloaty({ className }: { className?: string }) {
               transition={{ duration: 0.2, ease: TRANSITION_EASE }}
               className={cn(
                 "fixed left-1/2 -translate-x-1/2 z-50",
-                "bottom-[4.25rem]", // Above the h-14 (56px) bottom nav + some margin
+                // Above the h-14 (56px) bottom nav + margin; the nav itself grows
+                // by the gesture-bar inset under edge-to-edge, so track it here too
+                "bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))]",
                 className
               )}
             >
@@ -339,8 +336,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
           onInputChange={setInput}
           onSend={handleSend}
           onExpand={() => setState("expanded")}
-          onMinimize={handleMinimize}
-          onClose={handleClose}
+          onDismiss={handleDismiss}
           prompts={contextualPrompts}
           featuredPrompt={featuredPrompt}
           onPromptClick={handlePromptClick}
@@ -358,7 +354,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
           onInputChange={setInput}
           onSend={handleSend}
           onCollapse={() => setState("active")}
-          onClose={handleClose}
+          onDismiss={handleDismiss}
           onReset={handleReset}
           pendingNavigation={pendingNavigation}
           onNavigate={handleNavigate}

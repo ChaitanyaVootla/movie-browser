@@ -66,8 +66,8 @@ export interface MinimalViewProps {
   onInputChange: (value: string) => void;
   onSend: () => void;
   onExpand: () => void;
-  onMinimize: () => void;
-  onClose: () => void;
+  /** Return to the idle bubble. Never clears the conversation. */
+  onDismiss: () => void;
   prompts: PromptConfig[];
   featuredPrompt: PromptConfig | null;
   onPromptClick: (message: string) => void;
@@ -82,7 +82,9 @@ export interface ExpandedChatProps {
   onInputChange: (value: string) => void;
   onSend: () => void;
   onCollapse: () => void;
-  onClose: () => void;
+  /** Return to the idle bubble. Never clears the conversation. */
+  onDismiss: () => void;
+  /** Start a new conversation — the only action that clears messages. */
   onReset: () => void;
   pendingNavigation: ReturnType<typeof useChatStream>["pendingNavigation"];
   onNavigate: () => void;

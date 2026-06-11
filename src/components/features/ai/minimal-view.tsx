@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, type KeyboardEvent } from "react";
+import { useEffect, useRef, useMemo, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowUp, ArrowRight, Maximize2, ChevronDown } from "lucide-react";
+import { X, ArrowUp, ArrowRight, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import {
   parseContent,
   parseMediaTags,
@@ -41,8 +42,7 @@ export function MinimalView({
   onInputChange,
   onSend,
   onExpand,
-  onMinimize,
-  onClose,
+  onDismiss,
   prompts,
   featuredPrompt,
   onPromptClick,
@@ -123,40 +123,17 @@ export function MinimalView({
       if (input.trim()) trackAIChatSubmit(input);
       onSend();
     }
-    if (e.key === "Escape") onClose();
+    if (e.key === "Escape") onDismiss();
   };
 
   const hasConversation = messages.length > 0;
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardInset();
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Handle mobile virtual keyboard - adjust position when keyboard opens
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const handleResize = () => {
-      // On mobile, when keyboard opens, visualViewport.height shrinks
-      // Calculate the keyboard height as the difference
-      const viewportHeight = viewport.height;
-      const windowHeight = window.innerHeight;
-      const keyboardH = windowHeight - viewportHeight - viewport.offsetTop;
-      setKeyboardHeight(Math.max(0, keyboardH));
-    };
-
-    viewport.addEventListener("resize", handleResize);
-    viewport.addEventListener("scroll", handleResize);
-
-    return () => {
-      viewport.removeEventListener("resize", handleResize);
-      viewport.removeEventListener("scroll", handleResize);
-    };
-  }, []);
-
-  // Calculate bottom position accounting for keyboard
+  // Calculate bottom position accounting for keyboard (iOS only — see hook)
   const bottomPosition =
     keyboardHeight > 0
       ? keyboardHeight + 8 // 8px above keyboard
@@ -281,12 +258,12 @@ export function MinimalView({
                   <Maximize2 className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={onMinimize}
-                  data-testid="ai-minimize-btn"
+                  onClick={onDismiss}
+                  data-testid="ai-close-btn"
                   className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                  title="Minimize"
+                  title="Close"
                 >
-                  <ChevronDown className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -501,18 +478,10 @@ export function MinimalView({
                       <Maximize2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={onMinimize}
-                      data-testid="ai-minimize-btn"
-                      className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                      title="Minimize"
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={onClose}
+                      onClick={onDismiss}
                       data-testid="ai-close-btn"
                       className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                      title="Close & reset"
+                      title="Close"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>

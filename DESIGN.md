@@ -256,9 +256,16 @@ poster/backdrop images use `rounded-lg`; pills, chips, badges, and avatars are
   navigations never flash a spinner. Hardcoded white/black is correct here —
   the overlay sits over imagery.
 - **Floating bottom-center zone is reserved for the AI assistant** (idle bubble at
-  `bottom-6` desktop / `bottom-[4.25rem]` mobile, z-50). Transient overlays
-  (install banner, toasts) must not occupy it: dock bottom-right on desktop,
-  or sit above the bubble zone (`bottom-[calc(8rem+safe-area)]`) on mobile.
+  `bottom-6` desktop / `bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))]`
+  mobile, z-50 — the mobile offset tracks the gesture-bar inset because the bottom
+  nav grows by it under edge-to-edge). Transient overlays (install banner, toasts)
+  must not occupy it: dock bottom-right on desktop, or sit above the bubble zone
+  (`bottom-[calc(8rem+safe-area)]`) on mobile.
+- **AI chat window controls** — X always dismisses to the bubble and never clears
+  the conversation; "New conversation" (RotateCcw, shown only when a conversation
+  exists) is the sole destructive action. Desktop minimal view: Send · Expand · X.
+  Desktop expanded header: New · Collapse · X. Mobile drawer header: New ·
+  ChevronDown (plus swipe/scrim dismiss).
 - **shadcn/ui primitives in `src/components/ui/` are read-only** — wrap, don't edit.
 
 ### Code mapping

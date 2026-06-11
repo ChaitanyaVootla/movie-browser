@@ -36,8 +36,14 @@ paths:
 
 ```
 idle → active (user interacts) → expanded (user expands)
-  ↑__________________________|  (user minimizes)
+  ↑__________________________|  (X / Escape — dismiss)
 ```
+
+**Control conventions (June 2026, do not regress):** X always dismisses to the
+idle bubble and never clears the conversation; "New conversation" (RotateCcw,
+shown only when messages exist) is the sole destructive action. Minimal view:
+Send · Expand · X. Expanded header: New · Collapse · X. Mobile drawer header:
+New · ChevronDown.
 
 ## Prompt Functions
 
@@ -54,9 +60,13 @@ const idlePrompt = pickRandom(IDLE_PROMPTS);
 ## Mobile Behavior
 
 - Uses Vaul drawer on mobile
-- Positioned above MobileBottomNav (bottom-[4.25rem])
+- Idle bubble positioned above MobileBottomNav:
+  `bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))]`
 - Auto-closes when clicking poster cards for navigation
-- Virtual keyboard handling via visualViewport API
+- Virtual keyboard: Android handled by `interactive-widget=resizes-content`
+  (root layout viewport export) — drawer `max-height: 92dvh` tracks the
+  keyboard natively; iOS handled by Vaul `repositionInputs` (drawer) and
+  `useKeyboardInset()` (desktop floating views). See `.claude/rules/pwa-mobile.md`.
 
 ## Analytics Integration
 

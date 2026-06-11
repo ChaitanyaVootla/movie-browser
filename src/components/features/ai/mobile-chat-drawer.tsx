@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useRef, useEffect, useMemo, type KeyboardEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUp, ArrowRight, RotateCcw, Film } from "lucide-react";
+import { ArrowUp, ArrowRight, RotateCcw, ChevronDown, Film } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { AISparkIcon } from "./ai-icon";
 import { cn, getMediaPath } from "@/lib/utils";
@@ -207,37 +207,12 @@ export function MobileChatDrawer({
   };
 
   const hasConversation = messages.length > 0;
-  const [drawerMaxHeight, setDrawerMaxHeight] = useState("92vh");
 
   // Focus input when drawer opens
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen]);
-
-  // Handle mobile virtual keyboard - shrink drawer when keyboard opens
-  useEffect(() => {
-    if (!isOpen) return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const handleResize = () => {
-      const keyboardHeight = window.innerHeight - viewport.height - viewport.offsetTop;
-      if (keyboardHeight > 50) {
-        // Keyboard is open — fit drawer within visible area
-        setDrawerMaxHeight(`${viewport.height - 20}px`);
-      } else {
-        setDrawerMaxHeight("92vh");
-      }
-    };
-
-    viewport.addEventListener("resize", handleResize);
-    viewport.addEventListener("scroll", handleResize);
-    return () => {
-      viewport.removeEventListener("resize", handleResize);
-      viewport.removeEventListener("scroll", handleResize);
-    };
   }, [isOpen]);
 
   // Scroll to bottom on new messages
@@ -247,7 +222,9 @@ export function MobileChatDrawer({
 
   return (
     <Drawer open={isOpen} onOpenChange={onOpenChange}>
-      <DrawerContent className="bg-black border-white/10" style={{ maxHeight: drawerMaxHeight }}>
+      {/* 92dvh tracks the keyboard via interactive-widget=resizes-content (Android);
+          Vaul's built-in input repositioning covers iOS. */}
+      <DrawerContent className="bg-black border-white/10" style={{ maxHeight: "92dvh" }}>
         <DrawerHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-white/10">
           <div className="flex items-center gap-2">
             <AISparkIcon size={18} className="text-brand" />
@@ -255,15 +232,24 @@ export function MobileChatDrawer({
               Cue
             </DrawerTitle>
           </div>
-          {hasConversation && (
+          <div className="flex items-center gap-1 -mr-2">
+            {hasConversation && (
+              <button
+                onClick={onReset}
+                className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                title="New conversation"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
             <button
-              onClick={onReset}
-              className="p-2 -mr-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-              title="New conversation"
+              onClick={onClose}
+              className="p-2 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+              title="Close"
             >
-              <RotateCcw className="w-4 h-4" />
+              <ChevronDown className="w-5 h-5" />
             </button>
-          )}
+          </div>
         </DrawerHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -442,8 +428,8 @@ export function MobileChatDrawer({
           )}
         </div>
 
-        {/* Input area - always visible at bottom */}
-        <div className="p-4 border-t border-white/10 bg-black">
+        {/* Input area - always visible at bottom; safe-area pad for gesture bar */}
+        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-white/10 bg-black">
           <div className="flex items-center gap-2">
             <input
               ref={inputRef}

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, type KeyboardEvent } from "react";
+import { useEffect, useRef, useMemo, type KeyboardEvent } from "react";
 import { motion } from "framer-motion";
 import { X, ArrowUp, ArrowRight, Minimize2, RotateCcw } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import { RichMessageContent, collectMediaTags } from "./rich-message-content";
 import { PulsingSpark } from "./ai-animations";
 import { TRANSITION_EASE, type ExpandedChatProps } from "./types";
@@ -21,7 +22,7 @@ export function ExpandedChat({
   onInputChange,
   onSend,
   onCollapse,
-  onClose,
+  onDismiss,
   onReset,
   pendingNavigation,
   onNavigate,
@@ -29,7 +30,7 @@ export function ExpandedChat({
   const { trackAIChatSubmit } = useAnalytics();
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardInset();
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -47,27 +48,6 @@ export function ExpandedChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // Handle mobile virtual keyboard
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const handleResize = () => {
-      const viewportHeight = viewport.height;
-      const windowHeight = window.innerHeight;
-      const keyboardH = windowHeight - viewportHeight - viewport.offsetTop;
-      setKeyboardHeight(Math.max(0, keyboardH));
-    };
-
-    viewport.addEventListener("resize", handleResize);
-    viewport.addEventListener("scroll", handleResize);
-
-    return () => {
-      viewport.removeEventListener("resize", handleResize);
-      viewport.removeEventListener("scroll", handleResize);
-    };
-  }, []);
 
   const _allMediaTags = useMemo(() => {
     return collectMediaTags(messages.filter((m) => m.role === "assistant").map((m) => m.content));
@@ -121,22 +101,24 @@ export function ExpandedChat({
             <span className="font-medium text-foreground">Cue</span>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={onReset}
-              className="p-1.5 rounded-md hover:bg-muted/60 transition-colors"
-              title="New conversation"
-            >
-              <RotateCcw className="w-4 h-4 text-muted-foreground" />
-            </button>
+            {messages.length > 0 && (
+              <button
+                onClick={onReset}
+                className="p-1.5 rounded-md hover:bg-muted/60 transition-colors"
+                title="New conversation"
+              >
+                <RotateCcw className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
             <button
               onClick={onCollapse}
               className="p-1.5 rounded-md hover:bg-muted/60 transition-colors"
-              title="Minimize"
+              title="Collapse"
             >
               <Minimize2 className="w-4 h-4 text-muted-foreground" />
             </button>
             <button
-              onClick={onClose}
+              onClick={onDismiss}
               className="p-1.5 rounded-md hover:bg-muted/60 transition-colors"
               title="Close"
             >
