@@ -171,6 +171,11 @@ resource "aws_cloudfront_origin_request_policy" "default" {
         "next-router-prefetch",   # Next prefetch marker
         "next-router-state-tree", # Next router state
         "next-url",               # Next URL header
+        "next-action",            # SERVER ACTIONS — without this the POST isn't
+                                  # recognized as an action (broke series season
+                                  # episodes via CDN, Jun 11)
+        "Content-Type",           # server action arg encoding
+        "Origin",                 # server action CSRF check (vs allowedOrigins)
         "Accept",                 # content negotiation (HTML vs RSC)
         # NOTE: Accept-Encoding must NOT be whitelisted here — CloudFront
         # rejects it in an origin-request policy when Compress=true (it manages

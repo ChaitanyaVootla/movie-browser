@@ -4,6 +4,17 @@ import { withSerwist } from "@serwist/turbopack";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+
+  // Server Actions run behind CloudFront: the browser sends Origin
+  // https://themoviebrowser.com but the origin sees Host
+  // origin.themoviebrowser.com (CloudFront's origin domain), so Next's
+  // action CSRF check (Origin vs Host) would reject every action. Allow the
+  // real public origins explicitly. (Jun 11: broke series season episodes.)
+  experimental: {
+    serverActions: {
+      allowedOrigins: ["themoviebrowser.com", "www.themoviebrowser.com"],
+    },
+  },
   // geoip-lite reads .dat files from node_modules at runtime — must not be bundled
   serverExternalPackages: ["geoip-lite"],
 
