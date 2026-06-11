@@ -92,6 +92,7 @@ jobs:
             yarn.lock \
             .yarnrc.yml \
             next.config.mjs \
+            cache-handler.cjs \
             docker-compose.yml \
             Caddyfile \
             ecosystem.config.cjs \
