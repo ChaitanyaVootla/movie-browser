@@ -52,9 +52,28 @@ import { getMovieFromPostgres } from "@/server/db/postgres/movies";
 import { getSeriesFromPostgres } from "@/server/db/postgres/series";
 import type { EnrichedData, HydrationResult, MediaType } from "./types";
 import { triggerProgressiveEnrichment } from "@/server/services/enrichment/progressive";
+import pLimit from "p-limit";
 
 // Re-export types
 export * from "./types";
+
+// =============================================================================
+// Cold-start stampede guard
+// =============================================================================
+// A detail-page CACHE MISS runs the full hydrate (PG read + building a large
+// TmdbMovieData/SeriesData object) before the page renders. On a cold restart
+// the in-memory ISR tier is empty, so a bot herd sweeping the 800k-title long
+// tail produces HUNDREDS of concurrent misses → hundreds of big objects built
+// at once → multi-GB RSS in seconds → kernel OOM freeze (Jun 11, repeatedly).
+// Cap concurrent heavy hydrations so memory is bounded by N renders, not by
+// inbound request count; excess requests await their turn (bots time out and
+// leave; humans rarely hit the cap). Sized ~3×vCPU. Hover-card *Partial*
+// hydrations are light and intentionally NOT capped.
+const HYDRATION_CONCURRENCY = parseInt(
+  process.env.HYDRATION_CONCURRENCY || "6",
+  10,
+);
+const hydrationLimit = pLimit(HYDRATION_CONCURRENCY);
 
 // =============================================================================
 // Main Hydration Functions
@@ -175,7 +194,15 @@ function backgroundRefreshSeries(
  * @param movieId - TMDB movie ID
  * @param options.forceRefresh - If true, bypass staleness checks and fetch fresh data
  */
-export async function hydrateMovie(
+export function hydrateMovie(
+  movieId: number,
+  options: HydrationOptions = {}
+): Promise<HydrationResult<TmdbMovieData>> {
+  // Gate heavy hydration through the concurrency limiter (see stampede guard).
+  return hydrationLimit(() => hydrateMovieImpl(movieId, options));
+}
+
+async function hydrateMovieImpl(
   movieId: number,
   options: HydrationOptions = {}
 ): Promise<HydrationResult<TmdbMovieData>> {
@@ -342,7 +369,15 @@ export async function hydrateMovie(
  * @param seriesId - TMDB series ID
  * @param options.forceRefresh - If true, bypass staleness checks and fetch fresh data
  */
-export async function hydrateSeries(
+export function hydrateSeries(
+  seriesId: number,
+  options: HydrationOptions = {}
+): Promise<HydrationResult<TmdbSeriesData>> {
+  // Gate heavy hydration through the concurrency limiter (see stampede guard).
+  return hydrationLimit(() => hydrateSeriesImpl(seriesId, options));
+}
+
+async function hydrateSeriesImpl(
   seriesId: number,
   options: HydrationOptions = {}
 ): Promise<HydrationResult<TmdbSeriesData>> {
