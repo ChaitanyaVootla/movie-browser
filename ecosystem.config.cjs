@@ -26,6 +26,12 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: "3002",
+        // --heapsnapshot-signal: `kill -USR2 <next-server pid>` writes a
+        // Heap.<ts>.heapsnapshot to cwd for leak diagnosis (Jun 11: RSS crept
+        // to ~5GB under crawler load; PM2 max_memory_restart didn't enforce).
+        // --max-old-space-size caps the JS heap so a leak degrades to GC
+        // pressure + a clean OOM restart instead of eating the 8GB box.
+        NODE_OPTIONS: "--heapsnapshot-signal=SIGUSR2 --max-old-space-size=3072",
       },
     },
     // Popularity Sync - daily at 21:00 UTC (02:30 IST)
