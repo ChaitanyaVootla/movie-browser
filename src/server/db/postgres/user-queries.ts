@@ -628,9 +628,10 @@ export async function getUserExclusions(
 // =============================================================================
 
 /**
- * Extract the location object stored at metadata.profile.location (written by
- * the user-data migration and by profile updates). The admin UI expects it at
- * the top level of each user row, matching the legacy MongoDB response shape.
+ * Extract the location object stored at metadata.profile.location (backfilled
+ * by the user-data migration, stamped/refreshed at sign-in — see
+ * resolveLoginLocation in src/lib/auth.ts). The admin UI expects it at the
+ * top level of each user row, matching the legacy MongoDB response shape.
  */
 function extractLocation(metadata: unknown): Record<string, unknown> | null {
   if (typeof metadata !== "object" || metadata === null) return null;

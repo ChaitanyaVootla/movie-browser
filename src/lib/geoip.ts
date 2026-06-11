@@ -108,7 +108,7 @@ export function resolveGeo(headers: {
 }
 
 /** Extract client IP from headers (X-Real-IP > X-Forwarded-For > unknown) */
-function extractIP(headers: { get: (name: string) => string | null }): string {
+export function extractIP(headers: { get: (name: string) => string | null }): string {
   const realIp = headers.get("x-real-ip");
   if (realIp) return realIp.trim();
 

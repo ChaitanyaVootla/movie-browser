@@ -5,6 +5,12 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { MongoClient, ObjectId } from "mongodb";
 import { authConfig, googleProvider } from "./auth.config";
 import { prisma } from "@/server/db/postgres";
+import {
+  resolveUserLocation,
+  mergeProfileLocation,
+  type UserProfileLocation,
+} from "./user-location";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Full Auth.js configuration with database adapter.
@@ -89,9 +95,27 @@ interface GoogleTokenInfo {
   picture?: string;
 }
 
+/**
+ * Resolve the signing-in user's geo location from the current request headers
+ * (sign-in callbacks run inside the /api/auth request scope). Persisted to
+ * users.metadata.profile.location — the legacy Nuxt app stamped this on login
+ * and the admin Users tab reads it; without this, post-GA users never get one.
+ * Returns null outside a request scope or when geo can't resolve — location
+ * is best-effort and must never affect login.
+ */
+async function resolveLoginLocation(): Promise<UserProfileLocation | null> {
+  try {
+    const { headers } = await import("next/headers");
+    return resolveUserLocation(await headers());
+  } catch {
+    return null;
+  }
+}
+
 async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
   // PostgreSQL path: use Prisma directly
   if (usePostgres) {
+    const location = await resolveLoginLocation();
     let user = await prisma.user.findUnique({ where: { email: tokenInfo.email } });
     if (!user) {
       user = await prisma.user.create({
@@ -101,6 +125,9 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
           name: tokenInfo.name,
           image: tokenInfo.picture,
           emailVerified: new Date(),
+          ...(location
+            ? { metadata: mergeProfileLocation(null, location) as Prisma.InputJsonValue }
+            : {}),
         },
       });
       // Create account link
@@ -115,10 +142,16 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
         },
       });
     } else {
-      // Update last active
+      // Update last active (+ refresh stored location, matching legacy behavior)
       await prisma.user.update({
         where: { id: user.id },
-        data: { lastActiveAt: new Date(), image: tokenInfo.picture || user.image },
+        data: {
+          lastActiveAt: new Date(),
+          image: tokenInfo.picture || user.image,
+          ...(location
+            ? { metadata: mergeProfileLocation(user.metadata, location) as Prisma.InputJsonValue }
+            : {}),
+        },
       });
     }
     return {
@@ -299,14 +332,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // PostgreSQL path: upsert user on sign-in
         if (usePostgres && account?.provider === "google" && account.providerAccountId) {
           try {
+            const location = await resolveLoginLocation();
+            let metadata: Prisma.InputJsonValue | undefined;
+            if (location) {
+              const existing = await prisma.user.findUnique({
+                where: { email: user.email! },
+                select: { metadata: true },
+              });
+              metadata = mergeProfileLocation(existing?.metadata, location) as Prisma.InputJsonValue;
+            }
             await prisma.user.upsert({
               where: { email: user.email! },
-              update: { lastActiveAt: new Date(), image: user.image },
+              update: {
+                lastActiveAt: new Date(),
+                image: user.image,
+                ...(metadata !== undefined ? { metadata } : {}),
+              },
               create: {
                 googleId: account.providerAccountId,
                 email: user.email!,
                 name: user.name,
                 image: user.image,
+                ...(metadata !== undefined ? { metadata } : {}),
               },
             });
           } catch (error: unknown) {
