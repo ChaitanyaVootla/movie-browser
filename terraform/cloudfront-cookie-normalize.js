@@ -23,9 +23,36 @@
 // RESPONSES (so we never replay one user's session cookie to another) is done by
 // the response headers policy, not here.
 
+// Shed-tier scrapers (no index/answer-engine value) — 429 them HERE at the
+// edge, before they reach the origin or even consume edge cache. The origin
+// Caddy shed can't do this behind CloudFront (it only sees cache misses, and a
+// 429 cached by UA-agnostic key would poison the URL for humans). Edge-shedding
+// is what keeps the scraper long-tail off the (cold, 2-vCPU) origin. Indexers
+// (Googlebot/Bingbot/GPTBot/ClaudeBot/PerplexityBot/etc.) are NOT listed → served.
+var SHED_BOTS = [
+    'bytespider', 'bytedance', 'semrushbot', 'ahrefsbot', 'dataforseo',
+    'mj12bot', 'dotbot', 'blexbot', 'petalbot', 'scrapy', 'python-requests',
+    'go-http-client', 'node-fetch', 'axios', 'wget', 'libwww', 'httpclient'
+];
+
 function handler(event) {
     var request = event.request;
     var headers = request.headers;
+
+    // Edge bot-shed (viewer-request short-circuit): 429 shed-tier scrapers.
+    var uaHeader = headers['user-agent'];
+    if (uaHeader && uaHeader.value) {
+        var ua = uaHeader.value.toLowerCase();
+        for (var i = 0; i < SHED_BOTS.length; i++) {
+            if (ua.indexOf(SHED_BOTS[i]) !== -1) {
+                return {
+                    statusCode: 429,
+                    statusDescription: 'Too Many Requests',
+                    headers: { 'retry-after': { value: '3600' } }
+                };
+            }
+        }
+    }
 
     if (!headers.cookie) {
         return request;

@@ -206,24 +206,38 @@ jobs:
             # (built on the GHA runner). The on-box install was the Jun 11
             # kernel-freeze trigger; eliminating it is the whole point.
 
-            echo "[2.5/5] Applying Prisma schema..."
+            # [2.5/5] Prisma schema + FTS — GATED to only run when the schema /
+            # index SQL actually CHANGED. These steps (bundled prisma db push +
+            # FTS psql) ran on EVERY deploy and their memory cost, concurrent
+            # with the cold-restarting next, was a Jun 11 freeze contributor.
+            # Gate by file hash stored on the box: most deploys skip both
+            # entirely (schema rarely changes). prisma generate already ran in
+            # the build; the runtime @prisma/client is in the shipped tree.
+            echo "[2.5/5] Prisma schema (gated)..."
             set -a; source .env; set +a
-            # Bundled prisma CLI (node_modules/.bin/prisma) — NOT `npx prisma`,
-            # which downloaded the CLI+engine on every deploy and was the other
-            # half of the ~4GB deploy-time memory spike. niced + heap-capped.
-            NODE_OPTIONS="--max-old-space-size=512" nice -n 19 \
-              ./node_modules/.bin/prisma db push --skip-generate 2>&1 \
-              || echo "Schema already up to date"
+            SCHEMA_HASH=$(md5sum prisma/schema.prisma | cut -d' ' -f1)
+            if [ "$SCHEMA_HASH" != "$(cat .last-schema-hash 2>/dev/null)" ]; then
+              echo "schema changed -> db push"
+              NODE_OPTIONS="--max-old-space-size=512" nice -n 19 \
+                ./node_modules/.bin/prisma db push --skip-generate 2>&1 \
+                && echo "$SCHEMA_HASH" > .last-schema-hash \
+                || echo "db push warning (non-fatal)"
+            else
+              echo "schema unchanged -> skip db push"
+            fi
 
-            echo "[3/5] Applying FTS indexes (idempotent)..."
-            # Trigram (fuzzy) indexes are now schema-managed (prisma db push, step
-            # above). This applies only the to_tsvector() FTS indexes, which Prisma
-            # can't express. CONCURRENTLY + IF NOT EXISTS = safe no-op once they
-            # exist. Non-fatal so a transient index error never blocks a deploy.
-            docker compose exec -T postgres \
-              psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=0 \
-              < postgres/init/02-search-indexes.sql 2>&1 | tail -8 \
-              || echo "FTS index step warning (non-fatal)"
+            echo "[3/5] FTS indexes (gated)..."
+            FTS_HASH=$(md5sum postgres/init/02-search-indexes.sql | cut -d' ' -f1)
+            if [ "$FTS_HASH" != "$(cat .last-fts-hash 2>/dev/null)" ]; then
+              echo "FTS sql changed -> apply"
+              docker compose exec -T postgres \
+                psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=0 \
+                < postgres/init/02-search-indexes.sql 2>&1 | tail -8 \
+                && echo "$FTS_HASH" > .last-fts-hash \
+                || echo "FTS index step warning (non-fatal)"
+            else
+              echo "FTS sql unchanged -> skip"
+            fi
 
             echo "[4/5] Creating data directories..."
             mkdir -p data/enriched logs

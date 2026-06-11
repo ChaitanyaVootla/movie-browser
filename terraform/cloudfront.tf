@@ -257,7 +257,11 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
 # Forward everything (all headers/cookies/query strings) to origin — used for
 # the uncacheable /api/* behavior (auth, mutations, SSE enrich stream).
 data "aws_cloudfront_origin_request_policy" "all_viewer" {
-  name = "Managed-AllViewer"
+  # AllViewerAndCloudFrontHeaders — forwards all viewer headers PLUS the
+  # CloudFront-generated CloudFront-Viewer-* headers. Needed so /api/geo gets
+  # CloudFront-Viewer-Country (plain AllViewer does NOT forward CF-generated
+  # headers → /api/geo fell back to the edge IP → showed US, Jun 11).
+  name = "Managed-AllViewerAndCloudFrontHeaders-2022-06"
 }
 
 # -----------------------------------------------------------------------------
