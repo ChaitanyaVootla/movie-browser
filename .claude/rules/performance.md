@@ -68,18 +68,24 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    4. **No explicit `cache: "no-store"` on fetches in the render path.** Next 15+
       default fetch is already uncached but route-static; an EXPLICIT no-store
       additionally opts the route out (tmdb.ts had one "to avoid double caching").
-   - **Status codes:** detail pages must NOT have `loading.tsx` — a streamed
-     response is locked to HTTP 200, so `notFound()`/`permanentRedirect()` can
-     never emit 404/308 (this caused soft-404s on garbage IDs at crawler scale).
-     Tested Jun 11 2026: `htmlLimitedBots: /.*/` does NOT make loading.tsx safe —
-     it blocks metadata but the shell still streams (garbage ID returned 200
-     with skeleton markup in the body). The path to instant-nav skeletons is
-     moving 404/308 resolution into proxy.ts (cheap PG id/slug lookup pre-render)
-     so pages never throw from generateMetadata — then loading.tsx becomes safe.
-     Until then: per-card pending overlays (`nav-pending.tsx`) are the answer.
-     They throw from `generateMetadata` (pre-flush), and
-     `htmlLimitedBots: /.*/` in next.config keeps metadata blocking/in-`<head>`
-     for all UAs. In-page Suspense shells still stream content fine.
+   - **Status codes: resolved in the PROXY since Jun 11 2026** (movie/series).
+     A route with `loading.tsx` streams a 200 before `generateMetadata` can
+     throw — tested: `htmlLimitedBots: /.*/` does NOT change that (garbage ID
+     returned 200 with skeleton markup). So 404/308 live pre-render in
+     `src/proxy.ts` via `src/server/proxy/media-resolver.ts`: in-process LRU
+     (100k ids → canonical slug or NOT_FOUND sentinel, negatives cached) →
+     indexed PG PK lookup → 2s-capped TMDB existence check (new releases not
+     yet in PG) → fail OPEN on any error. 404s rewrite to
+     `src/app/media-not-found/page.tsx` (loading-less route that `notFound()`s
+     pre-flush). This makes `loading.tsx` on movie/series SAFE (instant nav
+     skeletons) — but do NOT add `loading.tsx` to any other status-throwing
+     route (person) without the same proxy authority. The pages keep their
+     `generateMetadata` throws as nearly-dead fallbacks for proxy-bypassing
+     requests. Two middleware gotchas (each cost a build cycle): a RELATIVE
+     `Location` header from the proxy throws `ERR_INVALID_URL` → 500 (Next
+     requires absolute), and `req.nextUrl.origin` reflects the server's
+     internal address, not the request (`-p 3111` reported `localhost:3000`)
+     — build redirect origins from `X-Forwarded-Proto`/`Host` headers.
    - **Verify after deploy:** repeat `curl` of the same detail URL must drop to
      ~ms; route-cache files appear under `.next/server/app/movie/<id>/...html`;
      `curl -o /dev/null -w '%{http_code}'` on a garbage ID = 404, wrong slug = 308.

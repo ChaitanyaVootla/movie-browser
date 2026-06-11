@@ -6,6 +6,15 @@ import { authConfig } from "@/lib/auth.config";
 import { buildTrackingContext, getPageTypeFromPath, getItemFromPath } from "@/lib/analytics/context-core";
 import { detectBotFromRequest } from "@/lib/analytics/bot-detection";
 import { trackPageView } from "@/lib/analytics/track";
+import {
+  parseMediaDetailPath,
+  getCachedSlug,
+  resolveMediaSlug,
+  decideMediaRoute,
+  NOT_FOUND,
+  type MediaType,
+  type ResolvedSlug,
+} from "@/server/proxy/media-resolver";
 
 const { auth } = NextAuth(authConfig);
 
@@ -41,11 +50,116 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
     });
   }
 
-  const response = NextResponse.next();
+  // 404/308 resolution for movie/series detail URLs lives HERE, pre-render:
+  // the detail routes now carry loading.tsx (instant nav skeletons), which
+  // streams a 200 before generateMetadata can throw notFound()/redirect —
+  // so the proxy is the only place a real status code can still be emitted.
+  // LRU hit = fully synchronous; miss = one indexed PG PK lookup (then a
+  // 2s-capped TMDB existence check for not-yet-hydrated new releases).
+  // Any failure falls through to the page (fail open). See media-resolver.ts.
+  if (req.method === "GET") {
+    try {
+      const parsed = parseMediaDetailPath(req.nextUrl.pathname);
+      if (parsed?.kind === "invalid") {
+        // Non-numeric/garbage detail path — can never exist, real 404.
+        return applyMediaDecision(req, NOT_FOUND, null, 0);
+      }
+      if (parsed?.kind === "media") {
+        const cached = getCachedSlug(parsed.mediaType, parsed.id);
+        if (cached !== undefined) {
+          return applyMediaDecision(req, cached, parsed.mediaType, parsed.id);
+        }
+        return resolveAndApply(req, parsed.mediaType, parsed.id);
+      }
+    } catch {
+      // Resolver must never take down a route — fall through to the page.
+    }
+  }
+
+  return passThrough(req);
+});
+
+/** Default pass-through: x-pathname header + page-view tracking. */
+function passThrough(
+  req: NextRequest & { auth: Session | null },
+  mediaVerified = false,
+): NextResponse {
+  let response: NextResponse;
+  if (mediaVerified) {
+    // Informational marker for the page: the proxy already confirmed this
+    // id/slug, so the page's generateMetadata fallback throws are dead code
+    // for this request.
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-media-verified", "1");
+    response = NextResponse.next({ request: { headers: requestHeaders } });
+  } else {
+    response = NextResponse.next();
+  }
   response.headers.set("x-pathname", req.nextUrl.pathname);
   maybeTrackPageView(req);
   return response;
-});
+}
+
+/** Turn a resolved slug (or NOT_FOUND / null) into the proxy response. */
+function applyMediaDecision(
+  req: NextRequest & { auth: Session | null },
+  resolved: ResolvedSlug | null,
+  mediaType: MediaType | null,
+  id: number,
+): NextResponse {
+  const decision =
+    mediaType === null
+      ? ({ action: "not_found" } as const)
+      : decideMediaRoute(req.nextUrl.pathname, mediaType, id, resolved);
+
+  if (decision.action === "redirect") {
+    // 308 to the single canonical form, preserving the query string (the
+    // page's old permanentRedirect dropped it; keeping it is strictly safer
+    // and can't loop — the canonical path always compares equal next time).
+    // Origin gotchas (both verified locally): Next's proxy adapter REQUIRES
+    // an absolute Location (a relative one throws ERR_INVALID_URL → 500),
+    // and req.nextUrl.origin reflects the server's internal address, not the
+    // request (`-p 3111` server reported localhost:3000). So build the origin
+    // from what the client actually asked for: X-Forwarded-Proto/Host (Caddy
+    // sets proto and preserves Host; Caddy also only routes our hostnames, so
+    // Host can't be attacker-controlled in prod).
+    const proto =
+      req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
+    const host =
+      req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
+    maybeTrackPageView(req);
+    return NextResponse.redirect(
+      `${proto}://${host}${decision.location}${req.nextUrl.search}`,
+      308,
+    );
+  }
+
+  if (decision.action === "not_found") {
+    // Rewrite (not redirect) to a loading.tsx-less route that calls
+    // notFound() pre-flush → branded not-found UI with a REAL 404 status.
+    maybeTrackPageView(req); // keep garbage-id crawler sweeps visible
+    const url = req.nextUrl.clone();
+    url.pathname = "/media-not-found";
+    url.search = "";
+    return NextResponse.rewrite(url);
+  }
+
+  return passThrough(req, decision.verified);
+}
+
+/** LRU-miss path: resolve via PG → TMDB, then apply. Never throws. */
+async function resolveAndApply(
+  req: NextRequest & { auth: Session | null },
+  mediaType: MediaType,
+  id: number,
+): Promise<NextResponse> {
+  try {
+    const resolved = await resolveMediaSlug(mediaType, id);
+    return applyMediaDecision(req, resolved, mediaType, id);
+  } catch {
+    return passThrough(req); // fail open
+  }
+}
 
 // Live ClickHouse data (GA day): missing_client_hints 4,016 req/10min +
 // stale_chrome 2,858 req/10min vs ~650 human requests — these two classes

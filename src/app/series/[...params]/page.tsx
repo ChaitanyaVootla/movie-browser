@@ -85,9 +85,11 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
 
-  // notFound() must be thrown HERE, not in the page body: loading.tsx streams
-  // a 200 shell as soon as metadata resolves, so the page body can no longer
-  // change the status code. This is the only place a real 404 can happen.
+  // STATUS CODES NOW LIVE IN THE PROXY, NOT HERE — see the movie page's
+  // generateMetadata for the full rationale. This route has loading.tsx, so
+  // the throws below are a nearly-dead fallback for proxy-bypassing requests
+  // (dev direct hits, tests, resolver fail-open); real 404/308s are emitted
+  // pre-render by src/proxy.ts via src/server/proxy/media-resolver.ts.
   if (isNaN(id)) {
     notFound();
   }
@@ -95,15 +97,16 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   const series = await getSeries(id);
 
   if (!series) {
-    // Distinguish "definitively missing" (real 404, ISR-cacheable) from a
-    // transient fetch failure (keep today's graceful 200 shell render).
+    // Fallback only (proxy already 404'd definitively-missing ids): treat a
+    // transient fetch failure as a graceful 200 shell render.
     if (!(await seriesExists(id))) {
       notFound();
     }
     return { title: "Series Not Found" };
   }
 
-  // Single canonical URL form (slugged) — see movie page generateMetadata.
+  // Canonicalization fallback — the proxy 308s wrong/missing slugs before the
+  // page runs; this only fires for proxy-bypassing requests (soft redirect).
   const canonicalPath = getMediaPath("series", series.id, series.name);
   if (`/series/${routeParams.join("/")}` !== canonicalPath) {
     permanentRedirect(canonicalPath);

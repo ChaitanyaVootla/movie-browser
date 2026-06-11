@@ -70,15 +70,21 @@ navigation, via shell components inside `page.tsx`:
 - `HeroBackdropShell` / `HeroLogoShell` need only the route ID — they render
   immediately while data-dependent content streams in via in-page Suspense.
 
-### Detail pages must NOT have `loading.tsx` (June 2026)
+### Detail-page `loading.tsx` requires proxy status authority (June 2026)
 
-The movie/series/person routes previously used `loading.tsx` for the instant
-shell. **Deliberately removed — do not add it back**: a route with `loading.tsx`
-streams every response, and a streamed response is locked to HTTP **200** before
-the page runs, which made `notFound()` (garbage IDs → soft-404s at crawler
-scale) and `permanentRedirect()` (wrong-slug canonicalization) silently
-impossible. Status-affecting checks live in `generateMetadata` (runs pre-flush;
-`htmlLimitedBots: /.*/` in next.config keeps metadata blocking). With ISR
-serving most hits from cache (see `.claude/rules/performance.md` item 1), the
-streamed shell bought nothing on cache hits, and in-page Suspense still streams
-below-the-fold content on cache misses.
+A route with `loading.tsx` streams every response, and a streamed response is
+locked to HTTP **200** before the page runs — `notFound()` (garbage IDs →
+soft-404s at crawler scale) and `permanentRedirect()` (wrong-slug
+canonicalization) silently stop producing status codes.
+
+**Movie/series carry `loading.tsx` again since Jun 11 2026** (instant nav
+skeletons) because their 404/308 resolution moved pre-render into the proxy:
+`src/proxy.ts` + `src/server/proxy/media-resolver.ts` (LRU → indexed PG PK
+lookup → 2s-capped TMDB check; definitively-missing ids rewrite to
+`src/app/media-not-found/page.tsx`, which `notFound()`s pre-flush with a real
+404). The pages' `generateMetadata` throws remain only as fallbacks for
+proxy-bypassing requests (dev direct hits, tests, resolver fail-open).
+
+**Do NOT add `loading.tsx` to any other status-throwing route** (e.g. person)
+unless the proxy resolves its statuses the same way first. See
+`.claude/rules/performance.md` "Status codes" for the full recipe + gotchas.

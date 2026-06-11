@@ -88,9 +88,15 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
   const movieId = routeParams[0];
   const id = parseInt(movieId, 10);
 
-  // notFound() must be thrown HERE, not in the page body: loading.tsx streams
-  // a 200 shell as soon as metadata resolves, so the page body can no longer
-  // change the status code. This is the only place a real 404 can happen.
+  // STATUS CODES NOW LIVE IN THE PROXY, NOT HERE. This route has loading.tsx
+  // (instant nav skeletons), so every response streams a 200 shell before
+  // this function can affect the status — notFound()/permanentRedirect()
+  // below can no longer emit real 404/308s. The authoritative 404/308
+  // resolution happens pre-render in src/proxy.ts via
+  // src/server/proxy/media-resolver.ts (LRU → PG PK lookup → TMDB check).
+  // The throws are KEPT as a nearly-dead fallback for requests that bypass
+  // the proxy (dev direct hits, tests, resolver fail-open): they still render
+  // the not-found UI / client-side redirect, just without the status code.
   if (isNaN(id)) {
     notFound();
   }
@@ -98,17 +104,16 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
   const movie = await getMovie(id);
 
   if (!movie) {
-    // Distinguish "definitively missing" (real 404, ISR-cacheable) from a
-    // transient fetch failure (keep today's graceful 200 shell render).
+    // Fallback only (proxy already 404'd definitively-missing ids): treat a
+    // transient fetch failure as a graceful 200 shell render.
     if (!(await movieExists(id))) {
       notFound();
     }
     return { title: "Movie Not Found" };
   }
 
-  // Single canonical URL form (slugged). Any other variant — wrong slug,
-  // missing slug, id-slug dash form, extra segments — gets a real 308 here
-  // (like notFound(), a redirect only produces a status code pre-flush).
+  // Canonicalization fallback — the proxy 308s wrong/missing slugs before the
+  // page runs; this only fires for proxy-bypassing requests (soft redirect).
   const canonicalPath = getMediaPath("movie", movie.id, movie.title);
   if (`/movie/${routeParams.join("/")}` !== canonicalPath) {
     permanentRedirect(canonicalPath);
