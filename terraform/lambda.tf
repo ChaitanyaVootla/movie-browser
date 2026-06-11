@@ -48,6 +48,15 @@ resource "aws_s3_object" "lambda_deployment" {
   key    = "lambda-deployment.zip" # Fixed name - overwrites on each deploy
   source = "${path.module}/../lambda/lambda-deployment.zip"
   etag   = filemd5("${path.module}/../lambda/lambda-deployment.zip")
+
+  # The deployed scraper zip was uploaded out-of-band (multipart etag in S3 ≠
+  # the committed local zip's md5; the lambda function's source_code_hash is in
+  # sync, so the function isn't changing). Don't let `apply` overwrite the live
+  # artifact with a possibly-stale local zip — the lambda is managed via its own
+  # build/deploy, not `terraform apply` (Jun 11 drift audit).
+  lifecycle {
+    ignore_changes = [etag, source]
+  }
 }
 
 # Lambda function using S3 source

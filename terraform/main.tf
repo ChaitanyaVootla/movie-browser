@@ -267,6 +267,9 @@ resource "aws_instance" "main" {
       Name        = "${var.project_name}-root-volume"
       Environment = var.environment
       ManagedBy   = "Terraform"
+      # Targeted by the DLM daily-snapshot policy (added manually post-GA; declared
+      # here so `terraform plan` stops trying to remove it — see drift audit Jun 11).
+      Backup = "daily"
     }
   }
 
@@ -288,7 +291,15 @@ resource "aws_instance" "main" {
   }
 
   lifecycle {
-    ignore_changes = [user_data]
+    # ami: the data source uses most_recent=true, so a new Canonical Ubuntu
+    # image makes TF want to REPLACE the live prod box (Jun 11 drift audit:
+    # `terraform plan` showed "aws_instance.main must be replaced" → would
+    # destroy Postgres/ClickHouse/ISR cache). Pin to the running AMI by
+    # ignoring ami drift; a deliberate rebuild removes this line + taints.
+    # prevent_destroy: hard seatbelt — apply ERRORS rather than ever destroying
+    # this instance (termination protection is the AWS-side equivalent).
+    ignore_changes  = [user_data, ami]
+    prevent_destroy = true
   }
 }
 
