@@ -6,6 +6,7 @@ import { authConfig } from "@/lib/auth.config";
 import { buildTrackingContext, getPageTypeFromPath, getItemFromPath } from "@/lib/analytics/context-core";
 import { detectBotFromRequest } from "@/lib/analytics/bot-detection";
 import { trackPageView } from "@/lib/analytics/track";
+import { SITE_URL } from "@/lib/constants";
 import {
   parseMediaDetailPath,
   getCachedSlug,
@@ -116,22 +117,26 @@ function applyMediaDecision(
     // 308 to the single canonical form, preserving the query string (the
     // page's old permanentRedirect dropped it; keeping it is strictly safer
     // and can't loop — the canonical path always compares equal next time).
-    // Origin gotchas (both verified locally): Next's proxy adapter REQUIRES
-    // an absolute Location (a relative one throws ERR_INVALID_URL → 500),
-    // and req.nextUrl.origin reflects the server's internal address, not the
-    // request (`-p 3111` server reported localhost:3000). So build the origin
-    // from what the client actually asked for: X-Forwarded-Proto/Host (Caddy
-    // sets proto and preserves Host; Caddy also only routes our hostnames, so
-    // Host can't be attacker-controlled in prod).
+    // Origin gotchas (all verified): Next's proxy adapter REQUIRES an absolute
+    // Location (a relative one throws ERR_INVALID_URL → 500), and
+    // req.nextUrl.origin reflects the server's internal address, not the request
+    // (`-p 3111` server reported localhost:3000). So build the origin from what
+    // the client asked for: X-Forwarded-Proto/Host.
+    //
+    // CRITICAL (Jun 11): behind CloudFront the origin sees Host:
+    // origin.themoviebrowser.com — CF rewrites the viewer Host to the origin
+    // domain and Caddy mirrors it into x-forwarded-host. Emitting THAT as the
+    // 308 target sent every bare-id nav (all trending-carousel links lack a
+    // slug) CROSS-ORIGIN to origin.* → App-Router client navigation broke. So
+    // canonicalize the internal origin host back to the public site host. dev
+    // (localhost) / beta / www keep their own host and just get the slug 308.
     const proto =
       req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
     const host =
       req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
+    const base = host === "origin.themoviebrowser.com" ? SITE_URL : `${proto}://${host}`;
     maybeTrackPageView(req);
-    return NextResponse.redirect(
-      `${proto}://${host}${decision.location}${req.nextUrl.search}`,
-      308,
-    );
+    return NextResponse.redirect(`${base}${decision.location}${req.nextUrl.search}`, 308);
   }
 
   if (decision.action === "not_found") {
