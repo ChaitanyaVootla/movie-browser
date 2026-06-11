@@ -197,8 +197,11 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
  * cheap and proportional). L2 (disk) remains the capacity layer; L1 is only
  * a hot-key accelerator and stays small.
  */
-const L1_BUDGET_BYTES =
-  parseInt(process.env.L1_CACHE_BUDGET_MB || "150", 10) * 1024 * 1024;
+// Read per-call (not at module load) so env applies regardless of import
+// order — same lesson as cache-handler.cjs budget resolution.
+function l1BudgetBytes(): number {
+  return parseInt(process.env.L1_CACHE_BUDGET_MB || "150", 10) * 1024 * 1024;
+}
 
 const memoryCache = new NodeCache({
   checkperiod: 60, // Check for expired keys every 60 seconds
@@ -229,14 +232,15 @@ function approxSize(value: unknown): number {
 
 function l1Set(key: string, value: unknown, ttlSeconds: number): void {
   const size = approxSize(value);
-  if (size > L1_BUDGET_BYTES / 4) return; // never let one entry own the cache
+  const budget = l1BudgetBytes();
+  if (size > budget / 4) return; // never let one entry own the cache
   memoryCache.set(key, value, ttlSeconds);
   const prev = l1Sizes.get(key);
   if (prev !== undefined) l1TotalBytes -= prev;
   l1Sizes.delete(key);
   l1Sizes.set(key, size);
   l1TotalBytes += size;
-  while (l1TotalBytes > L1_BUDGET_BYTES && l1Sizes.size > 1) {
+  while (l1TotalBytes > budget && l1Sizes.size > 1) {
     const oldestKey = l1Sizes.keys().next().value as string;
     memoryCache.del(oldestKey); // "del" handler updates l1Sizes/l1TotalBytes
   }

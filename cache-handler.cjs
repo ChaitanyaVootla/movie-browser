@@ -225,13 +225,16 @@ class BoundedCacheHandler {
 
   async #evictToWatermark() {
     if (this.store.totalBytes <= this.budgetBytes) return;
+    const unlinks = [];
     for (const [hashName, entry] of this.store.index) {
       if (this.store.totalBytes <= this.lowWatermark) break;
       this.store.index.delete(hashName);
       this.#memoryDelete(hashName);
       this.store.totalBytes -= entry.size;
-      fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {});
+      unlinks.push(fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {}));
     }
+    // Await so accounting matches disk state (also makes tests deterministic).
+    await Promise.all(unlinks);
   }
 
   async get(key) {

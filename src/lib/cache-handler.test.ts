@@ -30,9 +30,13 @@ function makeHandler(): HandlerInstance {
 function diskBytes(): number {
   const dir = path.join(tmpDir, "cache", "bounded-isr");
   if (!fs.existsSync(dir)) return 0;
-  return fs
-    .readdirSync(dir)
-    .reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0);
+  return fs.readdirSync(dir).reduce((sum, f) => {
+    try {
+      return sum + fs.statSync(path.join(dir, f)).size;
+    } catch {
+      return sum; // raced an async eviction unlink — vanished file counts as 0
+    }
+  }, 0);
 }
 
 beforeEach(() => {
