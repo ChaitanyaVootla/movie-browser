@@ -10,6 +10,27 @@ paths:
 
 # Infrastructure
 
+## CloudFront CDN (since Jun 11 2026) — see `.claude/rules/cdn.md`
+
+CloudFront (`E12R1ZNQNG3LK5`) fronts the apex; the EC2 is now the ORIGIN
+(`origin.themoviebrowser.com` → EIP, Caddy serves it as a 2nd vhost). All CDN
+config + footguns live in `.claude/rules/cdn.md`. TF: `terraform/cloudfront.tf`
++ `providers.tf` (us-east-1 alias for the ACM cert) + `cloudfront-cookie-normalize.js`.
+
+**Gotchas that bit during the cutover:**
+- **SG rule limit (60) blocks the CloudFront prefix-list lockdown**: a managed
+  prefix-list reference counts as ~its-max-entries (~55) rules, so adding
+  `com.amazonaws.global.cloudfront.origin-facing` to the SG fails
+  `RulesPerSecurityGroupLimitExceeded`. Origin lockdown stays UNRESOLVED — needs an
+  SG-quota increase or the Caddy `X-Origin-Verify` secret gate (which needs box
+  `.env` access). Don't retry the prefix-list approach on this SG.
+- **`terraform apply` SG drift**: manual `aws ec2 (authorize|revoke)-security-group-ingress`
+  during the incident left the http/https rules diverged from TF → full `apply`
+  errors on the SG rules. Use `-target=` for CloudFront/IAM applies until the SG
+  drift is reconciled (re-import or align the `aws_vpc_security_group_ingress_rule`
+  http/https resources).
+- ACM cert for CloudFront MUST be in us-east-1 (the `aws.us_east_1` provider alias).
+
 ## EC2 Instances
 
 ### Beta (current active deployment)
@@ -63,8 +84,8 @@ GitHub Actions (`.github/workflows/deploy-ec2.yml`):
 - **Pipeline**:
   1. `corepack enable` + Typecheck + lint (CI gate)
   2. Build Next.js (bakes `NEXT_PUBLIC_*` + auth secrets + dummy env placeholders for module evaluation)
-  3. Tar: `.next`, `public`, `docker-compose.yml`, `Caddyfile`, `.yarnrc.yml`, `prisma`, init scripts, `scripts`
-  4. SCP to EC2 → extract → `docker compose up -d` → `source .env && prisma db push` → PM2 restart
+  3. Tar: `.next`, **`node_modules`** (built on the runner — shipped so the box does NO install), `public`, `docker-compose.yml`, `Caddyfile`, `cache-handler.cjs`, `.yarnrc.yml`, `prisma`, init scripts, `scripts`
+  4. Preflight (abort if EC2 disk <2GB / mem <1.5GB free; restart a bloated next first) → SCP → extract (NO `yarn install` — node_modules is in the tar; the on-box install OOM-froze the box Jun 11) → `docker compose up -d` (Postgres only blocking) → **gated** `prisma db push` + FTS (skip unless schema/SQL hash changed) → `pm2 startOrReload` → revalidate prerendered pages → **`cloudfront create-invalidation /*`** (build-skew safety). Failure mode is safe: `set -e` before the PM2 reload means a broken deploy leaves the old process serving. See `.claude/rules/cdn.md` for the build-skew rationale.
 
 **Build-time env vars**: The build step needs dummy `MONGO_IP`, `MONGO_PASS`, `DATABASE_URL`, `TMDB_API_KEY` because Next.js page data collection evaluates server modules at build time. Real values are in EC2 `.env.local`.
 

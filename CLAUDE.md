@@ -42,7 +42,9 @@ npx tsx scripts/generate-cohere-embeddings.ts --type both --xlarge --force
 
 ## Infrastructure
 
-**Main EC2 (production since GA 2026-06-10)**: `t4g.large` (8GB ARM) in `ap-south-2` (Hyderabad). EIP `16.112.156.196` serves `themoviebrowser.com` + `www` (301→apex) + `beta.themoviebrowser.com` via Caddy. Managed by Terraform (`terraform/`, state key `beta/terraform.tfstate`, project name `movie-browser-beta`).
+**CDN (since 2026-06-11)**: CloudFront (`E12R1ZNQNG3LK5` / `d1vtxoi7slst5n.cloudfront.net`) fronts the apex + www; origin is `origin.themoviebrowser.com` → EIP (Caddy serves it as a 2nd vhost). It edge-caches anon HTML, collapses the crawler herd (Origin Shield ap-south-1), sheds scrapers at the edge, and serves stale during origin freezes — the 2-vCPU origin could not survive the herd directly. **All CDN work + footguns are in `.claude/rules/cdn.md` — read it before touching CloudFront/Caddy/robots/next.config.**
+
+**Main EC2 (production since GA 2026-06-10, now the CloudFront origin)**: `t4g.large` (8GB ARM) in `ap-south-2` (Hyderabad). EIP `16.112.156.196`. Serves `themoviebrowser.com` + `www` + `beta.themoviebrowser.com` via Caddy (apex block also serves `origin.themoviebrowser.com`). Managed by Terraform (`terraform/`, state key `beta/terraform.tfstate`, project name `movie-browser-beta`).
 
 **Legacy EC2** (pending decommission): `98.130.30.197` — old Nuxt + MongoDB box. `themoviebrowser.com` now points at the main box (GA cutover 2026-06-10); legacy serves nothing. Separate TF state (`production/terraform.tfstate`). Decommission steps in memory `ga-cutover-state`.
 
@@ -52,7 +54,7 @@ npx tsx scripts/generate-cohere-embeddings.ts --type both --xlarge --force
 - Caddy reverse proxy (HTTPS, auto Let's Encrypt) — config in `Caddyfile`
 - Next.js via PM2 (port 3002)
 
-**CI/CD**: GitHub Actions (`.github/workflows/deploy-ec2.yml`). Push to `next` → typecheck + lint → build → deploy to beta EC2. Environment: `beta`. Requires `corepack enable` for Yarn 4. Build step needs dummy env placeholders (`MONGO_IP`, `DATABASE_URL`, etc.) for Next.js module evaluation. Secrets prefixed `NEXT_EC2_*`.
+**CI/CD**: GitHub Actions (`.github/workflows/deploy-ec2.yml`). Push to `next` → typecheck + lint → build → deploy to EC2 (the CloudFront origin). Environment: `beta`. Secrets prefixed `NEXT_EC2_*`. Build step needs dummy env placeholders (`MONGO_IP`, `DATABASE_URL`, etc.) for Next.js module evaluation. Deploy mechanism (Jun 11 2026): **node_modules ships IN the tar** (built on the runner) — NO on-box `yarn install` (it OOM-froze the 2-vCPU box). `prisma db push` + FTS indexes are **gated by file-hash** (skip unless schema/SQL changed — their memory cost concurrent with the cold restart was a freeze contributor). After PM2 `startOrReload`: revalidate prerendered pages + **`cloudfront create-invalidation /*`** (build-skew safety). Preflight aborts if EC2 disk <2GB or memory <1.5GB free. See `.claude/rules/performance.md` + `cdn.md`.
 
 **AWS IAM** (via EC2 instance profile `movie-browser-beta-ec2-role`):
 - `bedrock:InvokeModel` — Kimi K2.5 (ap-south-1) + Cohere Embed v4 (global)
@@ -196,7 +198,8 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 | `type-safety.md` | `**/*.ts`, `**/*.tsx` | No `any`, type guards, Zod |
 | `infrastructure.md` | `terraform/**`, `docker-compose.yml`, `deploy-next.sh`, workflows | EC2, Docker, CI/CD, IAM, memory budget |
 | `analytics-system.md` | `analytics/**`, `use-analytics.ts`, `api/analytics/**`, `admin/analytics/**` | Event tracking, cost tracking, ClickHouse queries, dashboard |
-| `performance.md` | `app/**`, `server/**`, `hydration/**`, `search/**`, `docker-compose.yml`, workflows | Diagnosing/fixing/testing perf: measure-first playbook, ISR, non-blocking hydration, ClickHouse CPU cap, deploy gotchas |
+| `performance.md` | `app/**`, `server/**`, `hydration/**`, `search/**`, `docker-compose.yml`, workflows | Diagnosing/fixing/testing perf: measure-first playbook, ISR, non-blocking hydration, ClickHouse CPU cap, deploy gotchas, cold-start stampede + freeze recovery |
+| `cdn.md` | `terraform/cloudfront*`, `Caddyfile`, `public/robots.txt`, `next.config.mjs` | CloudFront in front of the origin: topology, the RSC/Set-Cookie/cookie/image/server-action-skew/geo/Accept-Encoding/stale-if-error footguns, edge bot-shedding, origin lockdown (unresolved), cost (Cloudflare-vs-CloudFront) |
 
 Cursor IDE also has separate rules in `.cursor/rules/*.mdc` — those are independent from these.
 
