@@ -1,9 +1,14 @@
 "use client";
 
-import { useRef, useCallback, type ReactNode } from "react";
+import { useRef, useCallback, useEffect, type ReactNode } from "react";
 import { useHoverCardContext } from "./hover-card-context";
 import { useQuickInfo } from "./mobile-quick-info-drawer";
+import { fetchHoverCardData } from "./hover-data-cache";
 import type { MovieListItem, SeriesListItem } from "@/types";
+
+/** Hover-intent delay before warming the data cache (ms). Sweeping the cursor
+ * across a row stays free; only a deliberate pause fires the (cached) fetch. */
+const DATA_WARM_DELAY = 200;
 
 interface HoverCardWrapperProps {
   /** The card component to wrap */
@@ -46,6 +51,7 @@ export function HoverCardWrapper({
 }: HoverCardWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const warmTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTriggeredRef = useRef(false);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -59,6 +65,10 @@ export function HoverCardWrapper({
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
+    }
+    if (warmTimeoutRef.current) {
+      clearTimeout(warmTimeoutRef.current);
+      warmTimeoutRef.current = null;
     }
   }, []);
 
@@ -78,13 +88,20 @@ export function HoverCardWrapper({
 
     clearHoverTimeout();
 
+    // Warm the hover data cache after a short hover-intent pause so the card
+    // has data (or an in-flight request) by the time it opens. Cancelled on
+    // mouse-out; results are cached, so an item is fetched at most once.
+    warmTimeoutRef.current = setTimeout(() => {
+      fetchHoverCardData(item.id, isMovie ? "movie" : "series");
+    }, DATA_WARM_DELAY);
+
     hoverTimeoutRef.current = setTimeout(() => {
       if (containerRef.current) {
         const bounds = containerRef.current.getBoundingClientRect();
         openHoverCard(item, bounds);
       }
     }, delay);
-  }, [enabled, delay, item, openHoverCard, clearHoverTimeout]);
+  }, [enabled, delay, item, isMovie, openHoverCard, clearHoverTimeout]);
 
   const handleMouseLeave = useCallback(() => {
     clearHoverTimeout();
@@ -152,6 +169,14 @@ export function HoverCardWrapper({
     },
     [clearLongPressTimeout]
   );
+
+  // Clear all pending timers on unmount (e.g. carousel virtualization)
+  useEffect(() => {
+    return () => {
+      clearHoverTimeout();
+      clearLongPressTimeout();
+    };
+  }, [clearHoverTimeout, clearLongPressTimeout]);
 
   return (
     <div

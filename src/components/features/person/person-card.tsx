@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
+import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
 import type { CastMember, CrewMember } from "@/types";
 
 interface PersonCardProps {
@@ -10,26 +11,19 @@ interface PersonCardProps {
   size?: "sm" | "md";
 }
 
-function getSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 function isCastMember(person: CastMember | CrewMember): person is CastMember {
   return "character" in person;
 }
 
 export function PersonCard({ person, className, size = "md" }: PersonCardProps) {
   const role = isCastMember(person) ? person.character : person.job;
-  const href = `/person/${person.id}/${getSlug(person.name)}`;
+  const href = getMediaPath("person", person.id, person.name);
 
   const imageSize = size === "sm" ? "w-16 h-24" : "w-20 h-28 md:w-24 md:h-36";
   const cardWidth = size === "sm" ? "w-16" : "w-20 md:w-24";
 
   return (
-    <Link href={href} className={cn("flex-shrink-0 group", cardWidth, className)}>
+    <Link href={href} prefetch={false} className={cn("flex-shrink-0 group", cardWidth, className)}>
       {/* Profile Image */}
       <div
         className={cn(
@@ -54,6 +48,9 @@ export function PersonCard({ person, className, size = "md" }: PersonCardProps) 
             </span>
           </div>
         )}
+
+        {/* Navigation pending feedback */}
+        <CardPendingOverlay />
       </div>
 
       {/* Name */}
@@ -90,10 +87,10 @@ export function PersonCardCompact({
   className?: string;
 }) {
   const role = isCastMember(person) ? person.character : person.job;
-  const href = `/person/${person.id}/${getSlug(person.name)}`;
+  const href = getMediaPath("person", person.id, person.name);
 
   return (
-    <Link href={href} className={cn("flex items-center gap-2 group", className)}>
+    <Link href={href} prefetch={false} className={cn("flex items-center gap-2 group", className)}>
       {/* Small avatar */}
       <div className="relative w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
         {person.profile_path ? (

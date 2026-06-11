@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { cn, isMovieItem, getDisplayTitle, getMediaHrefFromItem } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
 import type { RecentItem, ContinueWatchingItem } from "@/stores/user";
 import { useAnalytics } from "@/hooks/use-analytics";
 
@@ -58,6 +59,7 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
       {/* Image container with aspect ratio */}
       <Link
         href={showWatchLink && watchLink ? watchLink : detailHref}
+        prefetch={false}
         target={showWatchLink && watchLink ? "_blank" : undefined}
         onClick={
           showWatchLink && watchLink
@@ -106,11 +108,19 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
               <span className="text-muted-foreground">{title}</span>
             </div>
           )}
+
+          {/* Navigation pending feedback (internal detail navigations only;
+              external watch links never enter the pending state) */}
+          <CardPendingOverlay />
         </div>
       </Link>
 
       {/* Title and provider info */}
-      <Link href={detailHref} className="mt-2 block group-hover:underline underline-offset-2">
+      <Link
+        href={detailHref}
+        prefetch={false}
+        className="mt-2 block group-hover:underline underline-offset-2"
+      >
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           {showWatchLink && providerLogo && (
             <Image

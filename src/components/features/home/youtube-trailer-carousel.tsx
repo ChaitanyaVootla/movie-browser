@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Play, Eye, ThumbsUp, ThumbsDown, User, Film } from "lucide-react";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { TrailerModal, youtubeToTrailerModalData, type TrailerModalData } from "./trailer-modal";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { formatViewCount } from "@/lib/youtube-utils";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { YouTubeTrendingTrailer } from "@/server/actions/trending";
@@ -141,10 +141,10 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
   const hasMediumConfidenceMatch = match && match.confidence >= 0.6 && match.confidence < 0.85;
   const hasMatch = match && match.confidence >= 0.6;
 
-  // Link path to movie/series detail page
-  const detailPath = match
-    ? `/${match.mediaType === "series" ? "series" : "movie"}/${match.tmdbId}`
-    : null;
+  // Link path to movie/series detail page. Must be the canonical slugged URL:
+  // the slugless form 308s (extra request + DB slug lookup) on every
+  // click/prefetch — this was the `GET /series/<id>?_rsc=` hover storm.
+  const detailPath = match ? getMediaPath(match.mediaType, match.tmdbId, match.title) : null;
 
   return (
     <div className="group relative w-[280px] sm:w-[320px] md:w-[360px] flex-shrink-0">
@@ -196,6 +196,7 @@ function YouTubeTrailerCard({ trailer, priority = false, onPlay, metadata }: Tra
         {hasMatch && detailPath ? (
           <Link
             href={detailPath}
+            prefetch={false}
             className="block text-sm font-medium text-foreground line-clamp-1 hover:text-brand transition-colors"
           >
             {trailer.title}

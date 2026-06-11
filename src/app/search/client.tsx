@@ -47,7 +47,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getSlug } from "@/lib/utils";
+import { getMediaHref, getMediaPath } from "@/lib/utils";
+import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZES, TMDB_PROFILE_SIZES, MOVIE_GENRES } from "@/lib/constants";
 import { enhancedSearch } from "@/server/actions/search";
 import type { HybridSearchResult } from "@/lib/search/hybrid";
@@ -1075,11 +1076,10 @@ function HybridResultCard({ result }: { result: HybridSearchResult }) {
   }
 
   const isMovie = result.mediaType === "movie";
-  const slug = getSlug(result.title);
-  const href = isMovie ? `/movie/${result.id}/${slug}` : `/series/${result.id}/${slug}`;
+  const href = getMediaHref(result.id, isMovie, result.title);
 
   return (
-    <Link href={href}>
+    <Link href={href} prefetch={false}>
       <Card className="overflow-hidden transition-colors hover:bg-accent/50">
         <CardContent className="flex gap-4 p-3">
           {/* Poster */}
@@ -1101,6 +1101,9 @@ function HybridResultCard({ result }: { result: HybridSearchResult }) {
                 )}
               </div>
             )}
+
+            {/* Navigation pending feedback */}
+            <CardPendingOverlay />
           </div>
 
           {/* Info */}
@@ -1156,11 +1159,10 @@ function HybridResultCard({ result }: { result: HybridSearchResult }) {
 }
 
 function PersonResultCard({ result }: { result: HybridSearchResult }) {
-  const slug = getSlug(result.title);
-  const href = `/person/${result.id}/${slug}`;
+  const href = getMediaPath("person", result.id, result.title);
 
   return (
-    <Link href={href}>
+    <Link href={href} prefetch={false}>
       <Card className="overflow-hidden transition-colors hover:bg-accent/50">
         <CardContent className="flex gap-4 p-3">
           {/* Profile Image */}
@@ -1178,6 +1180,9 @@ function PersonResultCard({ result }: { result: HybridSearchResult }) {
                 <User className="h-8 w-8 text-muted-foreground" />
               </div>
             )}
+
+            {/* Navigation pending feedback */}
+            <CardPendingOverlay className="rounded-full" />
           </div>
 
           {/* Info */}

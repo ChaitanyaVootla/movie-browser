@@ -78,10 +78,10 @@ export function getDisplayTitle(item: { title?: string; name?: string }): string
  * @param isMovie - Whether the item is a movie (true) or series (false)
  * @param title - The display title (movie.title or series.name)
  * @returns The formatted URL path e.g. /movie/123/fight-club or /series/456/breaking-bad
+ *          (slugless /movie/123 when the title yields no usable slug — see getMediaPath)
  */
 export function getMediaHref(id: number, isMovie: boolean, title: string): string {
-  const mediaType = isMovie ? "movie" : "series";
-  return `/${mediaType}/${id}/${getSlug(title)}`;
+  return getMediaPath(isMovie ? "movie" : "series", id, title);
 }
 
 /**

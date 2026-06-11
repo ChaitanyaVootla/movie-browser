@@ -19,7 +19,7 @@ import {
   User,
   Film,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { formatViewCount, formatRelativeTime } from "@/lib/youtube-utils";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import type { TrendingTrailer, YouTubeTrendingTrailer } from "@/server/actions/trending";
@@ -566,7 +566,12 @@ export function TrailerModal({
                       className="gap-2 border-white/20 hover:bg-white/10"
                     >
                       <Link
-                        href={`/${currentTrailer.match.mediaType === "series" ? "series" : "movie"}/${currentTrailer.match.tmdbId}`}
+                        href={getMediaPath(
+                          currentTrailer.match.mediaType,
+                          currentTrailer.match.tmdbId,
+                          currentTrailer.match.title
+                        )}
+                        prefetch={false}
                       >
                         <Film className="h-4 w-4" />
                         <span className="hidden sm:inline">View</span> Details

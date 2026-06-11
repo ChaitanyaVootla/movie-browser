@@ -571,4 +571,17 @@ body {
   .ai-idle-btn:hover {
     transform: scale(1.05);
   }
+
+  /* Navigation pending indicators (nav-pending.tsx): fade in after a 150ms
+     intent delay so fast/cached navigations never flash a spinner. */
+  .nav-pending-in {
+    opacity: 0;
+    animation: nav-pending-in 0.2s ease-out 0.15s forwards;
+  }
+}
+
+@keyframes nav-pending-in {
+  to {
+    opacity: 1;
+  }
 }

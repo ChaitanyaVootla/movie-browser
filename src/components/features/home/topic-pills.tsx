@@ -71,6 +71,7 @@ export function TopicPills({ topics, className }: TopicPillsProps) {
           <Link
             key={topic.key}
             href={`/topics/${topic.key}`}
+            prefetch={false}
             onClick={() =>
               trackAction({
                 action: "topic_select",

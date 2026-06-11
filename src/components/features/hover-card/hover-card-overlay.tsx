@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Check, Eye, EyeOff, Clock, Tv2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHoverCardContext } from "./hover-card-context";
-import { getHoverCardData, type HoverCardData } from "@/server/actions/hover-card";
+import { fetchHoverCardData } from "./hover-data-cache";
+import type { HoverCardData } from "@/server/actions/hover-card";
 import { getBackdropSources } from "@/lib/image";
-import { cn, getMediaHref, getSlug } from "@/lib/utils";
+import { cn, getMediaHref, getMediaPath } from "@/lib/utils";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { useUserStore, type MediaType } from "@/stores/user";
 import { useSession } from "next-auth/react";
@@ -157,7 +159,8 @@ function MiniRating({
 function CastMini({ cast }: { cast: HoverCardData["cast"][0] }) {
   return (
     <Link
-      href={`/person/${cast.id}/${getSlug(cast.name)}`}
+      href={getMediaPath("person", cast.id, cast.name)}
+      prefetch={false}
       className="flex items-center gap-2 group/cast"
       onClick={(e) => e.stopPropagation()}
     >
@@ -225,12 +228,46 @@ function WatchProviderButton({
 }
 
 /**
+ * Navigation pending feedback for the hover card's detail link.
+ * Reports pending state up (so mouse-leave doesn't close the card mid-navigation)
+ * and dims the card with a spinner while the destination page renders.
+ * Must stay a descendant of the <Link> (useLinkStatus).
+ */
+function NavPendingOverlay({ onPendingChange }: { onPendingChange: (pending: boolean) => void }) {
+  const { pending } = useLinkStatus();
+
+  useEffect(() => {
+    onPendingChange(pending);
+    return () => onPendingChange(false);
+  }, [pending, onPendingChange]);
+
+  if (!pending) return null;
+
+  return (
+    <div
+      data-nav-pending
+      aria-hidden="true"
+      className="nav-pending-in absolute inset-0 z-20 grid place-items-center bg-black/60"
+    >
+      <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-brand" />
+    </div>
+  );
+}
+
+/**
  * Hover card content
  */
-function HoverCardContent({ data, isMovie }: { data: HoverCardData; isMovie: boolean }) {
+function HoverCardContent({
+  data,
+  isMovie,
+  onNavPendingChange,
+}: {
+  data: HoverCardData;
+  isMovie: boolean;
+  onNavPendingChange: (pending: boolean) => void;
+}) {
   const { data: session } = useSession();
   const { isWatched, isInWatchlist, toggleWatched, toggleWatchlist } = useUserStore();
-  const { closeHoverCard } = useHoverCardContext();
 
   const mediaType: MediaType = isMovie ? "movie" : "series";
   const href = getMediaHref(data.id, isMovie, data.title);
@@ -269,7 +306,11 @@ function HoverCardContent({ data, isMovie }: { data: HoverCardData; isMovie: boo
   };
 
   return (
-    <Link href={href} onClick={() => closeHoverCard()} className="block">
+    // No prefetch (the card itself was already a server-action fetch) and no
+    // instant close on click: the card stays open showing NavPendingOverlay
+    // until the route actually changes (HoverCardOverlay closes on pathname).
+    <Link href={href} prefetch={false} className="relative block">
+      <NavPendingOverlay onPendingChange={onNavPendingChange} />
       {/* Backdrop Image */}
       <div className="relative aspect-video w-full overflow-hidden bg-neutral-900">
         {backdropSrc ? (
@@ -471,6 +512,11 @@ function HoverCardSkeleton() {
  */
 export function HoverCardOverlay() {
   const { state, keepOpen, startClose, setHoverCardData, closeHoverCard } = useHoverCardContext();
+  const pathname = usePathname();
+
+  // True while a navigation triggered from inside the card is pending —
+  // keeps the card (and its spinner) open even if the mouse wanders off.
+  const [navPending, setNavPending] = useState(false);
 
   // Use useSyncExternalStore for SSR-safe mounted detection
   const mounted = useSyncExternalStore(emptySubscribe, getSnapshot, getServerSnapshot);
@@ -482,20 +528,38 @@ export function HoverCardOverlay() {
     getServerWindowSize
   );
 
-  // Fetch data when item changes
+  // Fetch data when item changes (client-cached + deduped; see hover-data-cache)
   useEffect(() => {
     if (!state.isOpen || !state.item || state.data) return;
 
-    const isMovie = "title" in state.item;
-    const fetchData = async () => {
-      const data = await getHoverCardData(state.item!.id, isMovie ? "movie" : "series");
-      if (data) {
+    const item = state.item;
+    const isMovie = "title" in item;
+    let cancelled = false;
+
+    fetchHoverCardData(item.id, isMovie ? "movie" : "series").then((data) => {
+      if (!cancelled && data) {
         setHoverCardData(data);
       }
-    };
+    });
 
-    fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, [state.isOpen, state.item, state.data, setHoverCardData]);
+
+  // Close when navigation completes (detail link, cast links, or any route
+  // change). Deferred a tick so the destination page paints before the card
+  // disappears (and to avoid synchronous setState inside the effect body).
+  const prevPathnameRef = useRef(pathname);
+  useEffect(() => {
+    if (prevPathnameRef.current === pathname) return;
+    prevPathnameRef.current = pathname;
+    const timer = setTimeout(() => {
+      setNavPending(false);
+      closeHoverCard();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [pathname, closeHoverCard]);
 
   // Handle escape key
   useEffect(() => {
@@ -565,12 +629,20 @@ export function HoverCardOverlay() {
             "cursor-pointer"
           )}
           onMouseEnter={keepOpen}
-          onMouseLeave={startClose}
+          onMouseLeave={() => {
+            // Don't dismiss mid-navigation — the pending overlay is the
+            // user's only feedback that the click registered.
+            if (!navPending) startClose();
+          }}
         >
           {state.isLoading || !state.data ? (
             <HoverCardSkeleton />
           ) : (
-            <HoverCardContent data={state.data} isMovie={isMovie} />
+            <HoverCardContent
+              data={state.data}
+              isMovie={isMovie}
+              onNavPendingChange={setNavPending}
+            />
           )}
         </motion.div>
       )}

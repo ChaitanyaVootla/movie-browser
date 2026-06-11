@@ -12,6 +12,7 @@ import { getMediaBadges, getBadgeScoopColor } from "@/lib/badges";
 import type { MovieListItem, SeriesListItem } from "@/types";
 import { MovieCardActions } from "./movie-card-actions";
 import { UserStatusBadge, useIsWatched } from "@/components/features/media/user-status-badge";
+import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
 import { useMounted } from "@/hooks/use-mounted";
 
 interface MovieCardProps {
@@ -75,7 +76,10 @@ export const MovieCard = memo(function MovieCard({
   const badge = badges[0]; // Only show first badge
 
   return (
-    <Link href={href} className={cn("group block", className)}>
+    // prefetch={false}: a browse grid would otherwise fire dozens of RSC
+    // prefetches as cards enter the viewport (see .claude/rules/performance.md).
+    // CardPendingOverlay below provides click feedback instead.
+    <Link href={href} prefetch={false} className={cn("group block", className)}>
       <Card className="overflow-hidden border-0 bg-transparent transition-all duration-300 hover:scale-[1.02]">
         <CardContent className="p-0">
           {/* Poster container - relative for badge positioning */}
@@ -156,6 +160,9 @@ export const MovieCard = memo(function MovieCard({
 
               {/* User status badge (watchlist/watched) in bottom-right */}
               {!hideUserStatus && <UserStatusBadge itemId={item.id} mediaType={mediaType} />}
+
+              {/* Navigation pending feedback (dim + spinner on the clicked card) */}
+              <CardPendingOverlay />
             </div>
           </div>
 

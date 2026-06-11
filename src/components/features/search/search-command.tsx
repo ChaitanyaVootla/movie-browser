@@ -40,7 +40,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { cn, getSlug, getMediaHref, isMovieItem, getDisplayTitle } from "@/lib/utils";
+import { cn, getMediaPath, getMediaHref, isMovieItem, getDisplayTitle } from "@/lib/utils";
 import {
   TMDB_IMAGE_BASE,
   TMDB_BACKDROP_SIZES,
@@ -567,7 +567,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
       });
       const path =
         type === "person"
-          ? `/person/${id}/${getSlug(name)}`
+          ? getMediaPath("person", id, name)
           : getMediaHref(id, type === "movie", name);
       onOpenChange(false);
       router.push(path);

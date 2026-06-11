@@ -104,6 +104,7 @@ function TopicCard({ topic }: { topic: (typeof ALL_TOPICS)[0] }) {
   return (
     <Link
       href={`/topics/${topic.key}`}
+      prefetch={false}
       className={cn(
         "group flex items-center gap-2 p-3 rounded-lg border transition-all",
         "hover:bg-muted/50 hover:border-foreground/20",

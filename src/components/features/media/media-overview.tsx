@@ -9,6 +9,7 @@ import type {
   SeriesOverviewProps,
   MediaOverviewCast,
 } from "@/types";
+import type { OverviewAISummary, OverviewAIInsights } from "@/types/client-props";
 import Image from "next/image";
 import Link from "next/link";
 import { KeywordsList } from "./keywords-list";
@@ -24,43 +25,20 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { WatchNotes } from "./insight-sections";
 import { StandoutAspects } from "./standout-aspects";
 
-/** Structured insight item from AI data service */
-interface InsightItem {
-  subcategory: string;
-  text: string;
-}
-
-/** Deep dive item with spoiler level */
-interface DeepDiveItem extends InsightItem {
-  spoilerLevel: string;
-}
-
-/** Structured AI insights from the new data format */
-interface AIInsights {
-  spoilerFree: {
-    vibes: string[];
-    themes: string[];
-    bestFor: InsightItem[];
-    highlights: InsightItem[];
-    headsUp: InsightItem[];
-    questions: string[];
-  };
-  spoilerContent: {
-    questions: string[];
-    deepDive: DeepDiveItem[];
-  };
-}
-
 /**
  * Light prop types for RSC serialization optimization.
  * These contain only the fields needed for rendering, reducing payload by ~80%.
+ * AI props are server-trimmed subsets (see extractOverviewAISummary /
+ * extractOverviewAIInsights) — the full summary/insights blobs are already
+ * serialized via their own consumers (LiveAIHook, MediaActionBar,
+ * AIQuestionsSection, DeepDiveSection, MediaContextUpdater).
  */
 interface MediaOverviewProps {
   item: MovieOverviewProps | SeriesOverviewProps;
   mediaType: "movie" | "series";
-  aiSummary?: AISummary | null;
-  /** New structured AI insights with icons */
-  aiInsights?: AIInsights | null;
+  aiSummary?: OverviewAISummary | null;
+  /** Structured AI insights (spoiler-free subset only) */
+  aiInsights?: OverviewAIInsights | null;
   className?: string;
 }
 

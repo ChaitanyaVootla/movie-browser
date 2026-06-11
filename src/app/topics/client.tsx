@@ -125,7 +125,7 @@ export function TopicsClient({
         <div className="mb-6">
           <div className="flex flex-wrap gap-1.5">
             {quickLinkTopics.map((topic) => (
-              <Link key={topic.key} href={`/topics/${topic.key}`}>
+              <Link key={topic.key} href={`/topics/${topic.key}`} prefetch={false}>
                 <Badge
                   variant="outline"
                   className={cn(

@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Film, Tv } from "lucide-react";
-import { cn, getSlug } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { CDN_IMAGE_BASE, TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { ParsedMediaTag } from "@/lib/ai/parse-media-tags";
 
@@ -47,13 +47,14 @@ export const MediaChip = memo(function MediaChip({
   // If we have an ID, link to the detail page; otherwise search for it
   const href =
     tag.id !== null
-      ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
+      ? getMediaPath(tag.type, tag.id, tag.title)
       : `/browse?q=${encodeURIComponent(tag.title)}`;
   const posterUrl = getPosterUrl(tag.id, tag.type);
 
   return (
     <Link
       href={href}
+      prefetch={false}
       className={cn(
         "group/chip inline-flex items-center gap-1.5",
         "px-1.5 py-0.5 rounded-md",
@@ -118,13 +119,14 @@ export const PosterCard = memo(function PosterCard({ tag, className }: PosterCar
   // If we have an ID, link to the detail page; otherwise search for it
   const href =
     tag.id !== null
-      ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
+      ? getMediaPath(tag.type, tag.id, tag.title)
       : `/browse?q=${encodeURIComponent(tag.title)}`;
   const posterUrl = getPosterUrl(tag.id, tag.type);
 
   return (
     <Link
       href={href}
+      prefetch={false}
       className={cn(
         "group/card flex flex-col",
         "w-[80px] flex-shrink-0",

@@ -4,7 +4,7 @@ import { memo, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Loader2 } from "lucide-react";
-import { cn, getSlug } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { RatingsBar } from "@/components/features/media/ratings-bar";
 import type { ExternalRating } from "@/types";
 import type {
@@ -563,7 +563,7 @@ export const PersonChip = memo(function PersonChip({
 
   // Build href - link to person page if we have ID, otherwise search for the person
   const href = id
-    ? `/person/${id}/${getSlug(name)}`
+    ? getMediaPath("person", id, name)
     : `/browse?q=${encodeURIComponent(name)}&type=person`;
 
   // Profile image URL - use TMDB profile path from API data
@@ -573,6 +573,7 @@ export const PersonChip = memo(function PersonChip({
   return (
     <Link
       href={href}
+      prefetch={false}
       className={cn(
         "inline-flex items-center gap-1.5 pl-0.5 pr-2.5 py-0.5 rounded-full",
         "bg-white/10 hover:bg-white/20",

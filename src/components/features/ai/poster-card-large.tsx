@@ -4,7 +4,7 @@ import { useState, memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Film } from "lucide-react";
-import { cn, getSlug } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { CDN_IMAGE_BASE } from "@/lib/constants";
 import type { ParsedMediaTag } from "@/lib/ai/parse-media-tags";
 import { CARD_WIDTH, CARD_HEIGHT } from "./types";
@@ -26,13 +26,14 @@ export const PosterCardLarge = memo(function PosterCardLarge({
 
   const href =
     tag.id !== null
-      ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
+      ? getMediaPath(tag.type, tag.id, tag.title)
       : `/browse?q=${encodeURIComponent(tag.title)}`;
   const posterUrl = tag.id !== null ? `${CDN_IMAGE_BASE}/${tag.type}/${tag.id}/poster.webp` : null;
 
   return (
     <Link
       href={href}
+      prefetch={false}
       onClick={onNavigate}
       className={cn(
         "group/card shrink-0 flex flex-col",

@@ -6,14 +6,15 @@ import { MediaCard } from "@/components/features/movie/media-card";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { MediaScroller } from "./media-scroller";
 import type { MovieListItem, SeriesListItem } from "@/types";
+import type { LightMovieListItem, LightSeriesListItem } from "@/types/client-props";
 
 interface SimilarSectionClientProps {
-  /** AI embedding-based similar items */
-  embeddingSimilar: (MovieListItem | SeriesListItem)[];
-  /** TMDB recommendations */
-  recommendations: (MovieListItem | SeriesListItem)[];
-  /** TMDB similar */
-  similar: (MovieListItem | SeriesListItem)[];
+  /** AI embedding-based similar items (server-trimmed to card fields) */
+  embeddingSimilar: (LightMovieListItem | LightSeriesListItem)[];
+  /** TMDB recommendations (server-trimmed to card fields) */
+  recommendations: (LightMovieListItem | LightSeriesListItem)[];
+  /** TMDB similar (server-trimmed to card fields) */
+  similar: (LightMovieListItem | LightSeriesListItem)[];
   /** Type of media */
   mediaType: "movie" | "series";
   /** Whether embedding results were found (>= 5 items) */

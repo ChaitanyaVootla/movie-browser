@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, createContext, useContext } from "react";
+import { useEffect, useRef, useState, useCallback, createContext, useContext } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Plus, Check, Eye, EyeOff, Clock, Tv2, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +13,11 @@ import {
   DrawerTitle,
   DrawerClose,
 } from "@/components/ui/drawer";
-import { getHoverCardData, type HoverCardData } from "@/server/actions/hover-card";
+import type { HoverCardData } from "@/server/actions/hover-card";
+import { fetchHoverCardData } from "./hover-data-cache";
+import { InlinePendingSpinner } from "@/components/features/layout/nav-pending";
 import { getBackdropSources } from "@/lib/image";
-import { cn, getMediaHref, getSlug } from "@/lib/utils";
+import { cn, getMediaHref, getMediaPath } from "@/lib/utils";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { useUserStore, type MediaType } from "@/stores/user";
 import { useSession } from "next-auth/react";
@@ -85,21 +88,40 @@ export function QuickInfoProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
-  // Fetch data when item changes
+  // Fetch data when item changes (client-cached + deduped; see hover-data-cache)
   useEffect(() => {
     if (!state.isOpen || !state.item || state.data) return;
 
-    const fetchData = async () => {
-      const data = await getHoverCardData(state.item!.id, state.isMovie ? "movie" : "series");
-      if (data) {
-        setState((prev) => ({ ...prev, data, isLoading: false }));
-      } else {
-        setState((prev) => ({ ...prev, isLoading: false }));
-      }
-    };
+    const itemId = state.item.id;
+    let cancelled = false;
 
-    fetchData();
+    fetchHoverCardData(itemId, state.isMovie ? "movie" : "series").then((data) => {
+      if (cancelled) return;
+      setState((prev) => {
+        // Ignore stale resolutions (drawer closed or reopened on another item)
+        if (!prev.item || prev.item.id !== itemId) return prev;
+        return data ? { ...prev, data, isLoading: false } : { ...prev, isLoading: false };
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [state.isOpen, state.item, state.data, state.isMovie]);
+
+  // Close the drawer once a navigation triggered from inside it completes.
+  // Deferred a tick so the destination page paints before the drawer slides
+  // away (and to avoid synchronous setState inside the effect body).
+  const pathname = usePathname();
+  const prevPathnameRef = useRef(pathname);
+  useEffect(() => {
+    if (prevPathnameRef.current === pathname) return;
+    prevPathnameRef.current = pathname;
+    const timer = setTimeout(() => {
+      setState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [pathname]);
 
   // Reset data when drawer closes
   useEffect(() => {
@@ -174,7 +196,8 @@ function MiniRating({
 function CastMini({ cast }: { cast: HoverCardData["cast"][0] }) {
   return (
     <Link
-      href={`/person/${cast.id}/${getSlug(cast.name)}`}
+      href={getMediaPath("person", cast.id, cast.name)}
+      prefetch={false}
       className="flex items-center gap-2 group/cast"
     >
       <div className="relative h-10 w-10 rounded-full overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-white/10 group-hover/cast:ring-white/30 transition-all">
@@ -243,15 +266,7 @@ function WatchProviderButton({
 // Drawer Content
 // ============================================================================
 
-function QuickInfoContent({
-  data,
-  isMovie,
-  onClose,
-}: {
-  data: HoverCardData;
-  isMovie: boolean;
-  onClose: () => void;
-}) {
+function QuickInfoContent({ data, isMovie }: { data: HoverCardData; isMovie: boolean }) {
   const { data: session } = useSession();
   const { isWatched, isInWatchlist, toggleWatched, toggleWatchlist } = useUserStore();
 
@@ -385,9 +400,13 @@ function QuickInfoContent({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 pt-2">
-          <Link href={href} onClick={onClose} className="flex-1">
-            <Button className="w-full" size="lg">
+          {/* No instant close on tap: the spinner inside the button is the
+              feedback while the page renders; the drawer closes when the
+              route changes (pathname effect in QuickInfoProvider). */}
+          <Link href={href} prefetch={false} className="flex-1">
+            <Button className="w-full gap-2" size="lg">
               View Details
+              <InlinePendingSpinner />
             </Button>
           </Link>
 
@@ -483,7 +502,7 @@ function MobileQuickInfoDrawer() {
           {state.isLoading || !state.data ? (
             <QuickInfoSkeleton />
           ) : (
-            <QuickInfoContent data={state.data} isMovie={state.isMovie} onClose={closeQuickInfo} />
+            <QuickInfoContent data={state.data} isMovie={state.isMovie} />
           )}
         </div>
       </DrawerContent>

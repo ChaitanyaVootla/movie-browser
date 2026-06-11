@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Play, Eye, ThumbsUp, ThumbsDown } from "lucide-react";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { TrailerModal, toTrailerModalData, type TrailerModalData } from "./trailer-modal";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { formatViewCount } from "@/lib/youtube-utils";
 import type { TrendingTrailer } from "@/server/actions/trending";
@@ -65,7 +65,13 @@ function TrailerLikeBar({ likes, dislikes }: { likes: number; dislikes: number }
  * Individual trailer card with YouTube thumbnail and play button overlay
  */
 function TrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCardProps) {
-  const detailUrl = `/movie/${trailer.tmdbId}`;
+  // Canonical slugged URL — a bare `/movie/<id>` 308s to the slugged form and
+  // costs an extra request + DB slug lookup per click/prefetch.
+  const detailUrl = getMediaPath(
+    trailer.mediaType === "tv" ? "series" : "movie",
+    trailer.tmdbId,
+    trailer.title
+  );
   const thumbnailUrl = `https://img.youtube.com/vi/${trailer.youtubeKey}/mqdefault.jpg`;
 
   return (
@@ -98,6 +104,7 @@ function TrailerCard({ trailer, priority = false, onPlay, metadata }: TrailerCar
       <div className="mt-2 space-y-1">
         <Link
           href={detailUrl}
+          prefetch={false}
           className="block text-sm font-medium text-foreground hover:text-brand transition-colors line-clamp-1"
         >
           {trailer.title}

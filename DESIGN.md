@@ -245,6 +245,16 @@ poster/backdrop images use `rounded-lg`; pills, chips, badges, and avatars are
   taller than ~60dvh on mobile should be a `Drawer`/`Sheet`.
 - **Scrollers** — horizontal media rows use `media-scroller` with `gap-4`,
   `scrollbar-hide`, edge-fade, and arrow buttons hidden on touch devices.
+- **Navigation pending** — card links in grids/carousels use `prefetch={false}`
+  (the server cannot absorb viewport prefetch storms), so every internal card
+  link must give instant click feedback instead: `CardPendingOverlay` (a
+  `bg-black/50` dim over the image + a centered 28px spinner ring,
+  `border-white/30` with a `border-t-brand` tip) rendered inside the card's
+  `relative` image container, as a descendant of the `<Link>`. Text/button
+  links use `InlinePendingSpinner` (16px, `currentColor`). Both fade in only
+  after a **150ms delay** (`.nav-pending-in` in `globals.css`) so fast/cached
+  navigations never flash a spinner. Hardcoded white/black is correct here —
+  the overlay sits over imagery.
 - **Floating bottom-center zone is reserved for the AI assistant** (idle bubble at
   `bottom-6` desktop / `bottom-[4.25rem]` mobile, z-50). Transient overlays
   (install banner, toasts) must not occupy it: dock bottom-right on desktop,
@@ -261,6 +271,7 @@ class strings**:
 | Page shell (non-hero pages) | `<PageMain>` — `@/components/features/layout/page-main` |
 | Section heading + header row | `<SectionHeading>` — `@/components/features/layout/section-heading` |
 | Sticky bar, hero tagline, overline label, page padding constants | `@/lib/design` |
+| Navigation pending overlay / inline spinner | `CardPendingOverlay`, `InlinePendingSpinner` — `@/components/features/layout/nav-pending` |
 
 When a recipe changes here, change its canonical implementation in the same commit
 (and vice versa). `.claude/rules/design-system.md` is the enforcement rule.

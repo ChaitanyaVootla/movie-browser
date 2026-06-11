@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp, ArrowRight, RotateCcw, Film } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { AISparkIcon } from "./ai-icon";
-import { cn, getSlug } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { CDN_IMAGE_BASE } from "@/lib/constants";
 import {
   parseContent,
@@ -52,13 +52,14 @@ function hasPartialTag(content: string): boolean {
 function MobilePosterCard({ tag, onNavigate }: { tag: ParsedMediaTag; onNavigate?: () => void }) {
   const href =
     tag.id !== null
-      ? `/${tag.type}/${tag.id}/${getSlug(tag.title)}`
+      ? getMediaPath(tag.type, tag.id, tag.title)
       : `/browse?q=${encodeURIComponent(tag.title)}`;
   const posterUrl = tag.id !== null ? `${CDN_IMAGE_BASE}/${tag.type}/${tag.id}/poster.webp` : null;
 
   return (
     <Link
       href={href}
+      prefetch={false}
       onClick={onNavigate}
       className="shrink-0 flex flex-col"
       style={{ width: CARD_WIDTH }}

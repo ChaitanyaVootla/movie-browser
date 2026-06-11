@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollContainer } from "@/components/features/media/scroll-container";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { getEpisode } from "@/server/actions/series";
 import type { Episode, CastMember, CrewMember, EpisodeStill } from "@/types";
 
@@ -72,21 +72,14 @@ interface EpisodeModalProps {
   onClose: () => void;
 }
 
-function getSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 // Person card with squircle avatar (like CastCard in media-overview)
 function PersonCard({ person, role }: { person: CastMember | CrewMember; role: "cast" | "crew" }) {
-  const href = `/person/${person.id}/${getSlug(person.name)}`;
+  const href = getMediaPath("person", person.id, person.name);
   const displayRole =
     role === "cast" ? (person as CastMember).character : (person as CrewMember).job;
 
   return (
-    <Link href={href} className="group flex-shrink-0 w-[85px]">
+    <Link href={href} prefetch={false} className="group flex-shrink-0 w-[85px]">
       <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted mb-1.5 ring-1 ring-white/10 group-hover:ring-brand/50 transition-all">
         {person.profile_path ? (
           <Image
@@ -116,10 +109,10 @@ function PersonCard({ person, role }: { person: CastMember | CrewMember; role: "
 
 // Small circular avatar for crew inline display
 function CrewAvatar({ person, label }: { person: CrewMember; label: string }) {
-  const href = `/person/${person.id}/${getSlug(person.name)}`;
+  const href = getMediaPath("person", person.id, person.name);
 
   return (
-    <Link href={href} className="flex items-center gap-2 group">
+    <Link href={href} prefetch={false} className="flex items-center gap-2 group">
       <div className="relative h-7 w-7 rounded-full overflow-hidden bg-muted ring-1 ring-white/10 group-hover:ring-brand/50 transition-all flex-shrink-0">
         {person.profile_path ? (
           <Image

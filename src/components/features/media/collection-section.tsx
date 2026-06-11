@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Clapperboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, getMediaHref } from "@/lib/utils";
+import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
 import type { LightCollection, LightCollectionPart } from "@/types/client-props";
 import { MediaScroller } from "./media-scroller";
 
@@ -26,6 +27,7 @@ function CollectionCard({ part, isCurrent }: { part: LightCollectionPart; isCurr
   return (
     <Link
       href={href}
+      prefetch={false}
       className={cn(
         "group block flex-shrink-0",
         // Card sizes
@@ -75,6 +77,9 @@ function CollectionCard({ part, isCurrent }: { part: LightCollectionPart; isCurr
               </Badge>
             </div>
           )}
+
+          {/* Navigation pending feedback */}
+          <CardPendingOverlay />
 
           {/* Rating badge for non-current */}
           {!isCurrent && part.vote_average > 0 && (

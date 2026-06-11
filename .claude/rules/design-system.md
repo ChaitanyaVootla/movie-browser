@@ -32,6 +32,7 @@ Canonical implementations live in code — import them instead of copying class 
 |--------|------------------|
 | Page shell (non-hero pages: `min-h-screen pt-4 md:pt-20 pb-12 px-4 md:px-8 lg:px-12`) | `<PageMain>` from `@/components/features/layout/page-main` |
 | Section heading (h2: `text-xl font-semibold tracking-tight`) + header row with optional action | `<SectionHeading>` from `@/components/features/layout/section-heading` |
+| Navigation pending feedback (card dim+spinner / inline spinner, 150ms-delayed via `.nav-pending-in`; pairs with `prefetch={false}` on grid/carousel card links) | `CardPendingOverlay` / `InlinePendingSpinner` from `@/components/features/layout/nav-pending` |
 | Sticky in-page bar, hero tagline, overline label, page padding | class constants in `@/lib/design` |
 
 If a new pattern appears 3+ times, promote it: add a constant/component, document the

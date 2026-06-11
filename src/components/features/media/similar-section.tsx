@@ -1,6 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSimilarItems } from "@/server/actions/similar";
 import { SimilarSectionClient } from "./similar-section-client";
+import { extractSimilarCardItems } from "@/types/client-props";
 import type { MovieListItem, SeriesListItem } from "@/types";
 
 interface SimilarSectionProps {
@@ -59,16 +60,26 @@ export async function SimilarSection({
     excludeCollectionId,
   });
 
-  // Use prefetched data or fetched data
-  const recommendations = prefetchedRecs || result.tmdbRecommendations;
-  const similar = prefetchedSimilar || result.tmdbSimilar;
-  const embeddingSimilar = result.embeddingSimilar;
+  // Use prefetched data or fetched data, trimmed to the fields cards render.
+  // Raw TMDB/embedding items carry overview/genres/original_* at runtime —
+  // picking fields here cuts the flight payload by ~10-30KB per page.
+  const recommendations = extractSimilarCardItems(
+    prefetchedRecs || result.tmdbRecommendations,
+    mediaType,
+    maxItems
+  );
+  const similar = extractSimilarCardItems(
+    prefetchedSimilar || result.tmdbSimilar,
+    mediaType,
+    maxItems
+  );
+  const embeddingSimilar = extractSimilarCardItems(result.embeddingSimilar, mediaType, maxItems);
 
   return (
     <SimilarSectionClient
-      embeddingSimilar={embeddingSimilar as MovieListItem[] | SeriesListItem[]}
-      recommendations={recommendations as MovieListItem[] | SeriesListItem[]}
-      similar={similar as MovieListItem[] | SeriesListItem[]}
+      embeddingSimilar={embeddingSimilar}
+      recommendations={recommendations}
+      similar={similar}
       mediaType={mediaType}
       hasEmbeddingResults={result.hasEmbeddingResults}
       className={className}

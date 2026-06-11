@@ -10,20 +10,21 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { getSeason } from "@/server/actions/series";
-import type { Season, Episode } from "@/types";
+import type { Episode } from "@/types";
+import type { SeasonSelectorSeason } from "@/types/client-props";
 import { EpisodeScroller } from "./episode-scroller";
 
 interface SeasonSelectorProps {
   seriesId: number;
   seriesName: string;
-  seasons: Season[];
+  /** Server-trimmed seasons (no overview/poster — the selector renders only name/count/date) */
+  seasons: SeasonSelectorSeason[];
   className?: string;
 }
 
 // Get the default season number from the seasons list (prefer latest regular season)
-function getDefaultSeasonNumber(seasons: Season[]): number {
+function getDefaultSeasonNumber(seasons: SeasonSelectorSeason[]): number {
   const regularSeasons = seasons.filter((s) => s.season_number > 0);
   const defaultSeason = regularSeasons[regularSeasons.length - 1] || seasons[0];
   return defaultSeason?.season_number ?? 1;
