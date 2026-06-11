@@ -85,8 +85,15 @@ jobs:
 
       - name: Create deployment package
         run: |
+          # Ship the GHA-built node_modules IN the tar so the box does NO
+          # `yarn install` (that ~1.2GB install + npx prisma spiked ~4GB next
+          # to the live server and froze the 2-core box, Jun 11). The runner
+          # already ran `yarn install --immutable` above, so node_modules here
+          # is the exact production tree. Keeps `next start` + .env loading +
+          # cacheHandler unchanged (lower risk than a standalone restructure).
           tar -czf deploy.tar.gz \
             .next \
+            node_modules \
             public \
             package.json \
             yarn.lock \
@@ -164,7 +171,11 @@ jobs:
             set -e
             cd /home/ubuntu/movie-browser-next
 
-            echo "[1/6] Extracting build..."
+            echo "[1/5] Extracting build (incl. prebuilt node_modules)..."
+            # Overlay extract — yarn --immutable means node_modules is the exact
+            # same version tree, so overwriting in place is idempotent and safe
+            # under the still-running old process (no rm of a live node_modules).
+            # .next/cache (ISR, bounded) is not in the tar, so it's preserved.
             tar -xzf deploy.tar.gz
             rm -f deploy.tar.gz
 
@@ -191,18 +202,20 @@ jobs:
             done
             docker compose ps </dev/null
 
-            echo "[3/6] Installing production dependencies..."
-            sudo corepack enable
-            # nice/ionice + capped Node heap: this step coexists with the live
-            # site on 2 vCPUs/8GB; an unbounded install contributed to the
-            # Jun 11 kernel freeze.
-            NODE_OPTIONS="--max-old-space-size=1024" nice -n 19 ionice -c3 yarn install --immutable
+            # NOTE: no `yarn install` step — node_modules ships in the tar
+            # (built on the GHA runner). The on-box install was the Jun 11
+            # kernel-freeze trigger; eliminating it is the whole point.
 
-            echo "[4/6] Applying Prisma schema..."
+            echo "[2.5/5] Applying Prisma schema..."
             set -a; source .env; set +a
-            npx prisma db push --skip-generate 2>&1 || echo "Schema already up to date"
+            # Bundled prisma CLI (node_modules/.bin/prisma) — NOT `npx prisma`,
+            # which downloaded the CLI+engine on every deploy and was the other
+            # half of the ~4GB deploy-time memory spike. niced + heap-capped.
+            NODE_OPTIONS="--max-old-space-size=512" nice -n 19 \
+              ./node_modules/.bin/prisma db push --skip-generate 2>&1 \
+              || echo "Schema already up to date"
 
-            echo "[4.5/6] Applying FTS indexes (idempotent)..."
+            echo "[3/5] Applying FTS indexes (idempotent)..."
             # Trigram (fuzzy) indexes are now schema-managed (prisma db push, step
             # above). This applies only the to_tsvector() FTS indexes, which Prisma
             # can't express. CONCURRENTLY + IF NOT EXISTS = safe no-op once they
@@ -212,11 +225,11 @@ jobs:
               < postgres/init/02-search-indexes.sql 2>&1 | tail -8 \
               || echo "FTS index step warning (non-fatal)"
 
-            echo "[5/6] Creating data directories..."
+            echo "[4/5] Creating data directories..."
             mkdir -p data/enriched logs
             mkdir -p .cache/{youtube-channels,youtube,person,search,discover,movie,series,images}
 
-            echo "[6/6] Restarting PM2..."
+            echo "[5/5] Restarting PM2..."
             # startOrReload keeps app definitions registered and restarts in
             # place — a much shorter 502 window than the old stop-all/delete-all
             # /start (which also lost the process list if start failed mid-way,
