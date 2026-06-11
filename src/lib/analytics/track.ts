@@ -9,14 +9,7 @@
  * - System metrics (cache, errors, AI usage) are still tracked for operational visibility
  */
 
-import { insertAnalyticsEvent, queueEvent } from "./client";
-
-/**
- * Convert to ClickHouse-compatible timestamp format (YYYY-MM-DD HH:MM:SS.mmm)
- */
-function toClickHouseTimestamp(date: Date = new Date()): string {
-  return date.toISOString().replace("T", " ").replace("Z", "");
-}
+import { insertAnalyticsEvent, queueEvent, toClickHouseTimestamp } from "./client";
 
 /**
  * Check if tracking should be skipped for admin users
@@ -35,7 +28,6 @@ import type {
   SessionEvent,
   AIUsageEvent,
   UserActionEvent,
-  APICallEvent,
   ErrorEvent,
   PerformanceEvent,
   CacheMetricsEvent,
@@ -264,7 +256,7 @@ export function trackAIUsage(options: TrackAIUsageOptions): void {
     response_length: options.responseLength,
   };
 
-  // Insert immediately (low volume, important data)
+  // Queued for batched insertion (flushes within 5s)
   insertAnalyticsEvent("ai_usage", event);
 }
 
@@ -361,13 +353,9 @@ export function trackAPICall(options: TrackAPICallOptions): void {
     tokens: options.tokens ?? 0,
   };
 
-  // Lambda, embedding, and Tavily calls: insert immediately (low volume, important for cost tracking)
-  // Other API calls: batch for efficiency
-  if (options.service === "lambda" || options.service === "embedding" || options.service === "tavily") {
-    insertAnalyticsEvent("api_calls", event);
-  } else {
-    queueEvent("api_calls", event);
-  }
+  // All API calls are queued for batched insertion (timestamp captured above,
+  // at call time — batching only delays the HTTP transport, not the data)
+  queueEvent("api_calls", event);
 }
 
 // =============================================================================
@@ -495,7 +483,7 @@ export function trackError(options: TrackErrorOptions): void {
     severity: options.severity ?? "medium",
   };
 
-  // Insert immediately (errors are important)
+  // Queued for batched insertion (flushes within 5s)
   insertAnalyticsEvent("errors", event);
 }
 
@@ -594,7 +582,7 @@ export function trackCacheMetrics(options: TrackCacheMetricsOptions): void {
     namespace_sizes: options.namespaceSizes,
   };
 
-  // Insert immediately (low volume)
+  // Queued for batched insertion (flushes within 5s)
   insertAnalyticsEvent("cache_metrics", event);
 }
 
@@ -642,6 +630,6 @@ export function trackSystemMetrics(options: TrackSystemMetricsOptions): void {
     uptime: options.uptime,
   };
 
-  // Insert immediately (low volume, time-critical for correlation)
+  // Queued for batched insertion (timestamp captured at call time above)
   insertAnalyticsEvent("system_metrics", event);
 }

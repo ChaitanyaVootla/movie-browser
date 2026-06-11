@@ -15,7 +15,7 @@ paths:
 
 ```
 Client (useAnalytics hook) -> POST /api/analytics/ingest -> ClickHouse
-Server (track*.ts functions) -> direct insert -> ClickHouse
+Server (track*.ts functions) -> per-table in-process queue (200 events / 5s, 5k bound drop-oldest, single-flight, async_insert) -> ClickHouse
 Admin dashboard -> GET /api/admin/analytics -> ClickHouse queries -> React Query -> Charts
 ```
 

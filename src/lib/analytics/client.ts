@@ -74,6 +74,11 @@ function getConfigCached(): ClickHouseConfig | null {
 
 /**
  * Build the ClickHouse HTTP URL for an insert query
+ *
+ * `async_insert=1` + `wait_for_async_insert=0` make ClickHouse buffer rows
+ * server-side and write parts in the background instead of creating one part
+ * per INSERT — removes parts/merge churn from the many small periodic flushes.
+ * Trade-off: data errors surface in ClickHouse logs, not the HTTP response.
  */
 function buildInsertUrl(config: ClickHouseConfig, table: string): string {
   const { protocol, host, port, database, username, password } = config;
@@ -83,8 +88,17 @@ function buildInsertUrl(config: ClickHouseConfig, table: string): string {
   url.searchParams.set("query", query);
   url.searchParams.set("user", username);
   url.searchParams.set("password", password);
+  url.searchParams.set("async_insert", "1");
+  url.searchParams.set("wait_for_async_insert", "0");
 
   return url.toString();
+}
+
+/**
+ * Convert to ClickHouse-compatible timestamp format (YYYY-MM-DD HH:MM:SS.mmm)
+ */
+export function toClickHouseTimestamp(date: Date = new Date()): string {
+  return date.toISOString().replace("T", " ").replace("Z", "");
 }
 
 /**
@@ -154,22 +168,73 @@ export async function insertEvents<T extends Record<string, unknown>>(
 }
 
 // =============================================================================
-// Batch Buffer (Optional - for high-volume scenarios)
+// Batch Buffer (ALL inserts go through this — one HTTP insert per flush)
+//
+// On the 2-vCPU box every ClickHouse HTTP request transits docker-proxy, so
+// per-event inserts at request volume burn dockerd CPU. Everything is queued
+// in-process per table and flushed as a single multi-row INSERT every
+// BATCH_FLUSH_INTERVAL_MS or at BATCH_SIZE events, whichever comes first.
+//
+// Guarantees:
+// - Fire-and-forget: enqueue is synchronous, never throws into request handling
+// - Bounded: queue is capped at MAX_QUEUE_SIZE per table (drop-oldest + warn)
+// - Single-flight per table: at most one in-flight insert (no stampedes when
+//   ClickHouse is slow; events keep queuing and flush after it settles)
+// - Timestamps are stamped at enqueue time, not flush time
+// - Best-effort flush on process `beforeExit`; timers are unref'd so a pending
+//   flush never holds a short-lived script open
 // =============================================================================
 
-interface BatchBuffer<T> {
-  events: T[];
+interface BatchBuffer {
+  events: Record<string, unknown>[];
   flushTimeout: NodeJS.Timeout | null;
+  inFlight: boolean;
+  droppedSinceWarn: number;
+  lastDropWarnAt: number;
 }
 
-const batchBuffers = new Map<string, BatchBuffer<Record<string, unknown>>>();
+const batchBuffers = new Map<string, BatchBuffer>();
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 200;
 const BATCH_FLUSH_INTERVAL_MS = 5000;
+/** Hard cap per table — beyond this, oldest events are dropped (memory safety) */
+const MAX_QUEUE_SIZE = 5000;
+/** Rate-limit overflow warnings to avoid log spam during an outage */
+const DROP_WARN_INTERVAL_MS = 10_000;
+
+let exitFlushRegistered = false;
 
 /**
- * Add an event to the batch buffer for delayed insertion
- * Useful for high-volume events like page views
+ * Register a best-effort flush when the event loop drains.
+ * Lazy (on first enqueue) so importing this module has no side effects.
+ */
+function registerExitFlush(): void {
+  if (exitFlushRegistered) {
+    return;
+  }
+  exitFlushRegistered = true;
+  process.on("beforeExit", () => {
+    flushAllBuffers();
+  });
+}
+
+function scheduleFlush(table: string, buffer: BatchBuffer): void {
+  buffer.flushTimeout = setTimeout(() => {
+    flushBuffer(table);
+  }, BATCH_FLUSH_INTERVAL_MS);
+  // Don't keep the process alive just for a pending analytics flush
+  if (typeof buffer.flushTimeout.unref === "function") {
+    buffer.flushTimeout.unref();
+  }
+}
+
+/**
+ * Add an event to the batch buffer for delayed insertion.
+ *
+ * The event's `timestamp` is captured here (enqueue time) if the caller did
+ * not set one — never at flush time, and never left to ClickHouse's
+ * `DEFAULT now64(3)` (which would stamp insert time, skewed by up to the
+ * flush interval).
  */
 export function queueEvent<T extends Record<string, unknown>>(table: string, event: T): void {
   const config = getConfigCached();
@@ -177,13 +242,44 @@ export function queueEvent<T extends Record<string, unknown>>(table: string, eve
     return; // Analytics disabled
   }
 
+  registerExitFlush();
+
   let buffer = batchBuffers.get(table);
   if (!buffer) {
-    buffer = { events: [], flushTimeout: null };
+    buffer = {
+      events: [],
+      flushTimeout: null,
+      inFlight: false,
+      droppedSinceWarn: 0,
+      lastDropWarnAt: 0,
+    };
     batchBuffers.set(table, buffer);
   }
 
-  buffer.events.push(event);
+  // Stamp timestamp at enqueue time (extra fields on tables without a
+  // `timestamp` column are skipped by JSONEachRow, same as `event_type`)
+  const stamped: Record<string, unknown> =
+    event.timestamp === undefined ? { ...event, timestamp: toClickHouseTimestamp() } : event;
+
+  buffer.events.push(stamped);
+
+  // Bounded queue: drop oldest beyond the cap — never grow unbounded
+  if (buffer.events.length > MAX_QUEUE_SIZE) {
+    const overflow = buffer.events.length - MAX_QUEUE_SIZE;
+    buffer.events.splice(0, overflow);
+    buffer.droppedSinceWarn += overflow;
+    const now = Date.now();
+    if (now - buffer.lastDropWarnAt >= DROP_WARN_INTERVAL_MS) {
+      dataLogger.warn({
+        event: "analytics_queue_overflow",
+        table,
+        dropped: buffer.droppedSinceWarn,
+        queueSize: buffer.events.length,
+      });
+      buffer.droppedSinceWarn = 0;
+      buffer.lastDropWarnAt = now;
+    }
+  }
 
   // Flush if batch size reached
   if (buffer.events.length >= BATCH_SIZE) {
@@ -193,14 +289,14 @@ export function queueEvent<T extends Record<string, unknown>>(table: string, eve
 
   // Set up delayed flush if not already scheduled
   if (!buffer.flushTimeout) {
-    buffer.flushTimeout = setTimeout(() => {
-      flushBuffer(table);
-    }, BATCH_FLUSH_INTERVAL_MS);
+    scheduleFlush(table, buffer);
   }
 }
 
 /**
- * Flush the batch buffer for a table
+ * Flush the batch buffer for a table as a single multi-row insert.
+ * Single-flight: if an insert is already in progress, events keep queuing
+ * and a follow-up flush runs when it settles.
  */
 function flushBuffer(table: string): void {
   const buffer = batchBuffers.get(table);
@@ -214,18 +310,28 @@ function flushBuffer(table: string): void {
     buffer.flushTimeout = null;
   }
 
-  // Take events and reset buffer
+  if (buffer.inFlight) {
+    return; // The in-flight insert's completion handler re-flushes
+  }
+
+  // Take all queued events and reset buffer
   const events = buffer.events;
   buffer.events = [];
+  buffer.inFlight = true;
 
-  // Fire-and-forget insert
-  insertEvents(table, events).catch(() => {
-    // Already logged in insertEvents
+  // Fire-and-forget insert (insertEvents never throws; logs internally)
+  void insertEvents(table, events).finally(() => {
+    buffer.inFlight = false;
+    if (buffer.events.length >= BATCH_SIZE) {
+      flushBuffer(table);
+    } else if (buffer.events.length > 0 && !buffer.flushTimeout) {
+      scheduleFlush(table, buffer);
+    }
   });
 }
 
 /**
- * Flush all pending buffers (call on server shutdown)
+ * Flush all pending buffers (called on `beforeExit`; safe to call manually)
  */
 export function flushAllBuffers(): void {
   for (const table of batchBuffers.keys()) {
@@ -349,11 +455,10 @@ export function insertAnalyticsEvents(table: TableName, events: Partial<Analytic
 }
 
 /**
- * Insert a single analytics event immediately
+ * Insert a single analytics event (queued — flushes within 5s or at batch size).
+ * Per-event HTTP inserts are banned: each one is a docker-proxy round-trip
+ * and a ClickHouse part on the 2-vCPU box.
  */
-export function insertAnalyticsEvent(
-  table: TableName,
-  event: Partial<AnalyticsEvent>
-): Promise<void> {
-  return insertEvents(table, [event as Record<string, unknown>]);
+export function insertAnalyticsEvent(table: TableName, event: Partial<AnalyticsEvent>): void {
+  queueEvent(table, event as Record<string, unknown>);
 }
