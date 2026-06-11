@@ -1,16 +1,66 @@
 # robots.txt for The Movie Browser
 # Production domain: themoviebrowser.com
+#
+# Jun 11 2026 — two-tier policy mirroring the Caddy edge bot-shed (see
+# Caddyfile @heavybots). Now that CloudFront fronts the origin, search + AI
+# answer-engine indexers are served cheaply from the edge cache, so we ALLOW
+# them. Pure scrapers / SEO-audit crawlers (no index value) are explicitly
+# disallowed and additionally 429'd at the edge.
 
+# ---------------------------------------------------------------------------
+# TIER 2 — INDEXERS WE WANT (search + AI answer engines): allow site, block API
+# ---------------------------------------------------------------------------
+User-agent: Googlebot
+User-agent: Google-Extended
+User-agent: Bingbot
+User-agent: Applebot
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: PerplexityBot
+Disallow: /api/
+Disallow: /ratings
+Disallow: /watchlist
+Disallow: /watched
+Allow: /
+
+# ---------------------------------------------------------------------------
+# TIER 1 — PURE SCRAPERS / SEO AUDIT (no index value): block entirely
+# (also shed with HTTP 429 at the Caddy edge)
+# ---------------------------------------------------------------------------
+User-agent: Bytespider
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: DataForSeoBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+# ---------------------------------------------------------------------------
+# DEFAULT — everyone else: index public pages, never the API/SSE or private
+# user content.
+# ---------------------------------------------------------------------------
 User-agent: *
-
+# API + SSE enrich endpoints (GET /api/[mediaType]/[id]/enrich) — never crawl
+Disallow: /api/
 # Private user content - not for indexing
 Disallow: /ratings
 Disallow: /watchlist
 Disallow: /watched
-
-# API endpoints
-Disallow: /api/
-
 # Allow everything else
 Allow: /
 

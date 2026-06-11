@@ -5,21 +5,57 @@
 # can read a STALE inode after deploy replaces the file (see
 # .claude/rules/infrastructure.md). Apply changes with:
 #   docker compose up -d --force-recreate caddy
+#
+# Jun 11 2026 — CDN rollout: CloudFront fronts the apex; this box becomes the
+# origin (reached at origin.themoviebrowser.com, behind the CDN). The edge
+# absorbs the anonymous-HTML + bot herd that used to cold-start-OOM the 2-vCPU
+# box (see memory: prod-isr-disk-incident-jun10 / cdn-plan-jun11). The three
+# CDN-pairing changes in the apex block below — (a) stale-if-error, (b) origin
+# lockdown gate, (c) relaxed bot shed — ship via a NORMAL deploy AFTER the CDN
+# is live. They are safe to commit now: the origin gate is no-op until
+# ORIGIN_VERIFY_SECRET is set, and the relaxed bot shed only widens what we
+# serve (the edge cache makes serving indexers cheap).
 
-themoviebrowser.com {
+themoviebrowser.com, origin.themoviebrowser.com {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	encode zstd gzip
 
-	# Edge bot-shedding (Jun 11 2026): the 2-vCPU origin cannot absorb the
-	# crawler herd on a cold cache — every restart fanned out into hundreds of
-	# concurrent long-tail renders → multi-GB RSS → kernel OOM freeze. App-layer
-	# caps don't help (the render pipeline allocates AFTER them). Until
-	# CloudFront fronts the origin (edge cache + request collapsing absorbs the
-	# herd), shed the heavy AI/scraper/social crawlers HERE, pre-render, at
-	# near-zero cost. Googlebot/Bingbot are deliberately NOT matched (SEO).
-	# RELAX once the CDN is live. Forged-Chrome scrapers faking a real UA are
-	# still caught by src/proxy.ts (missing client hints).
-	@heavybots header_regexp User-Agent (?i)(bytespider|bytedance|meta-externalagent|facebookexternalhit|anthropic|claudebot|claude-web|gptbot|oai-searchbot|chatgpt|ccbot|amazonbot|applebot|semrushbot|ahrefsbot|dataforseo|petalbot|yandexbot|baiduspider|dotbot|mj12bot|blexbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient)
+	# (b) ORIGIN LOCKDOWN GATE (CDN pairing, Jun 11 2026)
+	# CloudFront injects `X-Origin-Verify: <secret>` on every origin request.
+	# Reject anything that doesn't carry the matching secret so bots can't
+	# bypass the CDN by hitting origin.themoviebrowser.com / the EIP directly
+	# and re-OOM the box. The gate is CONDITIONAL on ORIGIN_VERIFY_SECRET being
+	# set: while it's empty (pre-cutover, warmup, direct-access during rollout)
+	# the matcher's expectation is itself empty so nothing is gated. Set the
+	# secret in the EC2 .env (and the matching CloudFront origin custom header)
+	# only at cutover.
+	# Defense-in-depth: ALSO restrict the EC2 security group ingress to the
+	# CloudFront managed prefix list (com.amazonaws.global.cloudfront.origin-facing)
+	# so a leaked/guessed secret still can't reach the box from arbitrary IPs.
+	@badorigin expression `"{$ORIGIN_VERIFY_SECRET:}" != "" && {http.request.header.X-Origin-Verify} != "{$ORIGIN_VERIFY_SECRET:}"`
+	respond @badorigin 403 {
+		close
+	}
+
+	# (c) EDGE BOT-SHED — TWO TIERS (CDN pairing, Jun 11 2026)
+	# Before the CDN we shed ALL heavy crawlers (incl. AI indexers) here at
+	# Caddy because the cold origin couldn't absorb them. Now that CloudFront
+	# fronts the origin, the edge cache serves crawlers for ~zero origin cost,
+	# so we only shed the tier that has NO index/answer-engine value.
+	#
+	#   TIER 1 — SHED (429): pure scrapers / SEO-audit / generic HTTP clients.
+	#     They crawl aggressively, never send us users, and re-jam the event
+	#     loop on any post-deploy cold-render window.
+	#   TIER 2 — SERVE (NOT matched here): search + AI answer-engine indexers
+	#     (Googlebot, Bingbot, Applebot, GPTBot, OAI-SearchBot, ChatGPT-User,
+	#     ClaudeBot, anthropic-ai, PerplexityBot, Google-Extended, CCBot). These
+	#     send/answer users; blocking them dropped us from AI answer engines.
+	#     Only safe to serve them once the CDN edge absorbs their load — which
+	#     is now the case. robots.txt mirrors this split.
+	#
+	# Forged-Chrome scrapers faking a real UA are still caught by src/proxy.ts
+	# (missing client hints) and the Tier-1 list below.
+	@heavybots header_regexp User-Agent (?i)(bytespider|bytedance|semrushbot|ahrefsbot|dataforseo|mj12bot|dotbot|blexbot|petalbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient|headless)
 	respond @heavybots 429 {
 		close
 	}
@@ -28,6 +64,42 @@ themoviebrowser.com {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
 		header_up X-Forwarded-Proto {scheme}
+
+		# (a) stale-if-error (CDN pairing, Jun 11 2026)
+		# Next emits `Cache-Control: s-maxage=<ttl>, stale-while-revalidate` on
+		# cacheable (anonymous) HTML, but NOT `stale-if-error`. Append it so the
+		# CDN can serve the last-good page when this origin 5xxs or freezes
+		# (the whole point of the CDN for this box). Scope STRICTLY to document
+		# responses — the `@html` matcher requires BOTH status 200 AND
+		# `Content-Type: text/html*`, so static assets (already `immutable`)
+		# and JSON/RSC payloads are untouched (verified locally).
+		#
+		# WHY a handle_response block (not `header_down +Cache-Control`):
+		#   - `header_down`/inline `header @matcher` matchers match the REQUEST,
+		#     not the upstream response, so they can't see Content-Type.
+		#   - A response matcher MUST live in `handle_response`.
+		#   - `handle_response` hands control to its inner route, so it must end
+		#     with `copy_response` or the upstream BODY is dropped (verified:
+		#     without it the page renders empty — this is the load-bearing line).
+		#
+		# CAVEAT: `+Cache-Control` adds a SECOND `Cache-Control` field line
+		# rather than splicing the token into Next's existing one (verified: the
+		# response carries both `s-maxage=...,stale-while-revalidate` AND
+		# `stale-if-error=86400`). Per RFC 7230 §3.2.2 multiple same-name fields
+		# are equivalent to one comma-joined value, and CloudFront/Cloudflare
+		# both honor `stale-if-error` parsed across all Cache-Control fields —
+		# so Next's s-maxage/SWR are preserved and NOT clobbered. If a future
+		# CDN rejects split fields, replace the inner block with logic that
+		# reads `{http.reverse_proxy.upstream.header.Cache-Control}` and
+		# re-emits a single merged field.
+		@html {
+			status 200
+			header Content-Type *text/html*
+		}
+		handle_response @html {
+			header +Cache-Control "stale-if-error=86400"
+			copy_response
+		}
 	}
 }
 
