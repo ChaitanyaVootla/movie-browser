@@ -174,6 +174,23 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    ByteSpider (`bytedance`) was the top *served* (not 429'd) crawler at ~315
    req/min — first throttle/block candidate in `src/proxy.ts` if the box is hot.
 
+12. **Node RSS climbs unbounded while the V8 heap stays flat → glibc malloc
+   arena fragmentation, NOT a JS leak.** Jun 11 2026: prod RSS grew to 4.8-6GB
+   and kernel-froze the box repeatedly. Two heap snapshots diffed (kill -USR2,
+   `--heapsnapshot-signal=SIGUSR2` in NODE_OPTIONS): **RSS +757MB but JS heap
+   only +30MB** between them — the growth was native/external, not JavaScript.
+   Cause: the ISR `cache-handler.cjs` gzip/gunzips on every cache op; under
+   crawler load that churns large Buffers, and glibc's default malloc arenas
+   (8 × nCPU) retain freed chunks instead of returning them to the OS. Fix:
+   **`MALLOC_ARENA_MAX=2`** in the PM2 `env` (ecosystem.config.cjs). Verified:
+   RSS plateaued ~1GB (oscillating 980-1080, memory returning to OS) over 35min
+   vs the old unbounded climb. Diagnosis signature: `ps rss` ≫ heap snapshot
+   total; RSS grows while `process.memoryUsage().heapUsed` is flat; app does
+   heavy zlib/Buffer work. Don't chase it in JS — it's the allocator. (Heap
+   caps like `--max-old-space-size` do NOT bound this; it's external memory.)
+   `MALLOC_ARENA_MAX` must be a real process env var — PM2 `--update-env` reads
+   the ecosystem `env` block, NOT arbitrary shell vars.
+
 ## Testing a fix
 
 - **App perf:** re-run the Playwright TTFB / POST-timing scripts above against beta after deploy; compare before/after. Confirm load average dropped via SSH.

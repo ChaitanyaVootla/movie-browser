@@ -26,11 +26,17 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: "3002",
+        // ROOT CAUSE of the Jun 11 RSS climb (heap-snapshot-diffed: RSS grew
+        // +757MB while the V8 heap grew only +30MB → the growth is native,
+        // not JS). The cache-handler gzip/gunzip on every ISR cache op churns
+        // large Buffers; glibc's default malloc arenas (8 × nCPU) retain freed
+        // chunks instead of returning them to the OS → RSS balloons unbounded
+        // while the heap stays flat. Capping arenas to 2 is the standard fix
+        // for "Node RSS leaks while heap is flat under heavy zlib/Buffer load".
+        MALLOC_ARENA_MAX: "2",
         // --heapsnapshot-signal: `kill -USR2 <next-server pid>` writes a
-        // Heap.<ts>.heapsnapshot to cwd for leak diagnosis (Jun 11: RSS crept
-        // to ~5GB under crawler load; PM2 max_memory_restart didn't enforce).
-        // --max-old-space-size caps the JS heap so a leak degrades to GC
-        // pressure + a clean OOM restart instead of eating the 8GB box.
+        // Heap.<ts>.heapsnapshot to cwd for leak diagnosis.
+        // --max-old-space-size caps the JS heap as a backstop.
         NODE_OPTIONS: "--heapsnapshot-signal=SIGUSR2 --max-old-space-size=3072",
       },
     },
