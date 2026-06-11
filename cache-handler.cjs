@@ -26,6 +26,12 @@ const fsp = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
 const zlib = require("zlib");
+const { promisify } = require("util");
+
+// ASYNC zlib only — gzipSync/gunzipSync on the request path blocked the event
+// loop under concurrent crawler load (Jun 11: 40s without serving a byte).
+const gzipAsync = promisify(zlib.gzip);
+const gunzipAsync = promisify(zlib.gunzip);
 
 // Entries are stored gzipped: a cached detail page is ~340KB raw (HTML +
 // RSC flight + segment prefetch copies of the same data) and ~6× smaller
@@ -82,12 +88,14 @@ class BoundedCacheHandler {
     // write (write-amplification under sustained crawl).
     this.lowWatermark = Math.floor(this.budgetBytes * 0.9);
     // Hot-page memory layer: with a custom cacheHandler Next bypasses its own
-    // in-memory LRU, so without this every hit costs a disk read + JSON parse.
-    // Sized in entries (a cached detail page is ~100-300KB → ~50-150MB).
-    this.memoryEntries = parseInt(
-      process.env.BOUNDED_CACHE_MEM_ENTRIES || "500",
-      10,
-    );
+    // in-memory LRU, so without this every hit costs a disk read + parse.
+    // BYTE-budgeted (NOT entry-count): deserialized page objects are ~1MB+ in
+    // JS heap each — an entry-count cap of 500 grew RSS to 2.3GB and put the
+    // process into a GC death spiral (Jun 11). Sizes are approximated by each
+    // entry's serialized length, so keep the budget conservative.
+    this.memoryBudgetBytes =
+      parseInt(process.env.BOUNDED_CACHE_MEM_MB || "48", 10) * 1024 * 1024;
+    this.memoryBytes = 0;
     /** @type {Map<string, {file: string, size: number, lastAccess: number, tags: string[] | null}>} */
     this.index = new Map(); // insertion order ≈ LRU order (re-inserted on access)
     this.totalBytes = 0;
@@ -106,11 +114,17 @@ class BoundedCacheHandler {
     return hit;
   }
 
-  #memorySet(hashName, stored) {
+  #memorySet(hashName, stored, approxBytes) {
+    const prev = this.memory.get(hashName);
+    if (prev) this.memoryBytes -= prev.approxBytes;
     this.memory.delete(hashName);
-    this.memory.set(hashName, stored);
-    while (this.memory.size > this.memoryEntries) {
-      this.memory.delete(this.memory.keys().next().value);
+    this.memory.set(hashName, { ...stored, approxBytes });
+    this.memoryBytes += approxBytes;
+    while (this.memoryBytes > this.memoryBudgetBytes && this.memory.size > 1) {
+      const oldestKey = this.memory.keys().next().value;
+      const oldest = this.memory.get(oldestKey);
+      this.memoryBytes -= oldest.approxBytes;
+      this.memory.delete(oldestKey);
     }
   }
 
@@ -163,10 +177,10 @@ class BoundedCacheHandler {
       loads.push(
         fsp
           .readFile(path.join(this.cacheDir, entry.file))
-          .then((raw) => {
+          .then(async (raw) => {
             const text =
               raw[0] === GZIP_MAGIC_0 && raw[1] === GZIP_MAGIC_1
-                ? zlib.gunzipSync(raw).toString("utf8")
+                ? (await gunzipAsync(raw)).toString("utf8")
                 : raw.toString("utf8");
             entry.tags = deserialize(text).tags || [];
           })
@@ -185,12 +199,20 @@ class BoundedCacheHandler {
     this.index.set(hashName, entry);
   }
 
+  #memoryDelete(hashName) {
+    const hit = this.memory.get(hashName);
+    if (hit) {
+      this.memoryBytes -= hit.approxBytes;
+      this.memory.delete(hashName);
+    }
+  }
+
   async #evictToWatermark() {
     if (this.totalBytes <= this.budgetBytes) return;
     for (const [hashName, entry] of this.index) {
       if (this.totalBytes <= this.lowWatermark) break;
       this.index.delete(hashName);
-      this.memory.delete(hashName);
+      this.#memoryDelete(hashName);
       this.totalBytes -= entry.size;
       fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {});
     }
@@ -219,12 +241,12 @@ class BoundedCacheHandler {
       }
       const text =
         raw[0] === GZIP_MAGIC_0 && raw[1] === GZIP_MAGIC_1
-          ? zlib.gunzipSync(raw).toString("utf8")
+          ? (await gunzipAsync(raw)).toString("utf8")
           : raw.toString("utf8"); // legacy pre-gzip entry
       const stored = deserialize(text);
       const entry = this.index.get(hashName);
       if (entry) this.#touch(hashName, entry);
-      this.#memorySet(hashName, stored);
+      this.#memorySet(hashName, stored, Buffer.byteLength(text));
       return { lastModified: stored.lastModified, value: stored.value };
     } catch {
       return null; // any failure = cache miss
@@ -236,14 +258,13 @@ class BoundedCacheHandler {
       await this.ready;
       const file = this.#fileFor(key);
       const hashName = path.basename(file);
-      const payload = zlib.gzipSync(
-        serialize({
-          lastModified: Date.now(),
-          tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
-          value: data,
-        }),
-        { level: 4 }, // ~6x reduction; level 4 keeps write CPU negligible
-      );
+      const serialized = serialize({
+        lastModified: Date.now(),
+        tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
+        value: data,
+      });
+      // level 4: ~6x reduction with modest CPU; MUST stay async (see header)
+      const payload = await gzipAsync(serialized, { level: 4 });
       const size = payload.length;
       if (size > this.budgetBytes) return; // absurd single entry — skip, render uncached
       await fsp.writeFile(file, payload);
@@ -257,7 +278,11 @@ class BoundedCacheHandler {
         tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
       });
       this.totalBytes += size;
-      this.#memorySet(hashName, { lastModified: Date.now(), value: data });
+      this.#memorySet(
+        hashName,
+        { lastModified: Date.now(), value: data },
+        Buffer.byteLength(serialized),
+      );
       await this.#evictToWatermark();
     } catch {
       // Write failed (ENOSPC etc.) — try to shed weight, never throw.
@@ -279,7 +304,7 @@ class BoundedCacheHandler {
         const entryTags = entry.tags || [];
         if (wanted.some((t) => entryTags.includes(t))) {
           this.index.delete(hashName);
-          this.memory.delete(hashName);
+          this.#memoryDelete(hashName);
           this.totalBytes -= entry.size;
           await fsp.unlink(path.join(this.cacheDir, entry.file)).catch(() => {});
         }
