@@ -134,9 +134,13 @@ jobs:
             # A bloated next is restarted first: free relief, and the deploy
             # restarts it anyway.
             MEM_MB=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
-            echo "Available memory: ${MEM_MB}MB"
-            if [ "$MEM_MB" -lt 2000 ]; then
-              echo "Low memory — restarting next to reclaim leaked RSS..."
+            NEXT_RSS=$(ps aux | grep "next-server" | grep -v grep | head -1 | awk '{print int($6/1024)}')
+            echo "Available memory: ${MEM_MB}MB; next RSS: ${NEXT_RSS:-0}MB"
+            # Restart a bloated next BEFORE the install lands — Jun 11 second
+            # freeze: preflight passed at ~2GB available but the deploy's own
+            # footprint on top of a 2GB next froze the kernel anyway.
+            if [ "$MEM_MB" -lt 2500 ] || [ "${NEXT_RSS:-0}" -gt 1000 ]; then
+              echo "Restarting next to reclaim RSS before deploying..."
               pm2 restart next || true
               sleep 10
               MEM_MB=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
