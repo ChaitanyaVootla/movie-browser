@@ -32,7 +32,6 @@ import {
   omitEmpty,
 } from "@/lib/seo/jsonld";
 import { getCollectionFromPostgres } from "@/server/db/postgres";
-import { getAISummary } from "@/lib/ai-summary";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
 import {
   MediaActionBar,
@@ -68,6 +67,10 @@ import {
   extractWatchOptionsItem,
   extractTrailerData,
   extractLightCollection,
+  extractLightVideos,
+  extractLightGalleryImages,
+  extractOverviewAISummary,
+  extractOverviewAIInsights,
 } from "@/types/client-props";
 
 interface MoviePageProps {
@@ -429,8 +432,8 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
       <MediaOverview
         item={extractMovieOverviewProps(movie)}
         mediaType="movie"
-        aiSummary={aiSummary}
-        aiInsights={aiData?.insights}
+        aiSummary={extractOverviewAISummary(aiSummary)}
+        aiInsights={extractOverviewAIInsights(aiData?.insights)}
       />
 
       {/* AI Questions - clickable prompts that trigger AI chat */}
@@ -474,20 +477,20 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         </Suspense>
       )}
 
-      {/* Video Gallery */}
+      {/* Video Gallery - field-picked to declared Video shape */}
       {youtubeVideos.length > 0 && (
         <VideoGallery
-          videos={youtubeVideos.slice(0, 20)}
+          videos={extractLightVideos(youtubeVideos, 20)}
           mediaId={movie.id}
           mediaType="movie"
           className="mt-8 md:mt-12"
         />
       )}
 
-      {/* Image Gallery */}
+      {/* Image Gallery - light images (drops iso_639_1/vote_average) */}
       {movie.images?.backdrops && movie.images.backdrops.length > 0 && (
         <ImageGallery
-          images={movie.images.backdrops.slice(0, 20)}
+          images={extractLightGalleryImages(movie.images.backdrops, 20)}
           title="Gallery"
           className="mt-8 md:mt-12"
         />

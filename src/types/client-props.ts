@@ -258,41 +258,62 @@ export function extractTrailerData(videos?: { results: Video[] }): TrailerData |
 }
 
 // =============================================================================
-// Recommendations / Similar - Strip overview to reduce payload
+// Recommendations / Similar - Pick only the fields poster/wide cards render
 // =============================================================================
 
 import type { MovieListItem, SeriesListItem } from "./index";
 
-/** Light movie list item without overview (~200-500 bytes saved per item) */
-export type LightMovieListItem = Omit<MovieListItem, "overview">;
+/**
+ * Light movie list item: exactly the fields MediaCard/MovieCard/WideMovieCard
+ * render (id, title, images, rating, date) plus the required list-item scalars.
+ * Assignable to MovieListItem (the omitted fields are all optional there).
+ */
+export type LightMovieListItem = Omit<MovieListItem, "overview" | "genre_ids" | "genres">;
 
-/** Light series list item without overview (~200-500 bytes saved per item) */
-export type LightSeriesListItem = Omit<SeriesListItem, "overview">;
+/** Light series list item — see LightMovieListItem */
+export type LightSeriesListItem = Omit<SeriesListItem, "overview" | "genre_ids" | "genres">;
 
 /**
- * Strip overview from movie list items.
- * Saves ~200-500 bytes per item × 15-30 items = 3-15KB per array
+ * Field-PICKING extractor (not a rest-spread): raw TMDB list items and
+ * embedding-similar results carry overview, genre objects, original_title,
+ * original_language, debug scores, etc. at runtime even though the static type
+ * says MovieListItem. Picking drops ~400-700 bytes per item; × 15-45 items per
+ * detail page = ~10-30KB off the flight payload.
  */
-export function extractLightMovieListItems(
-  items: MovieListItem[] | undefined,
+export function extractSimilarCardItems(
+  items: (MovieListItem | SeriesListItem)[] | undefined,
+  mediaType: "movie" | "series",
   limit = 15
-): LightMovieListItem[] {
+): (LightMovieListItem | LightSeriesListItem)[] {
   if (!items || items.length === 0) return [];
 
-  return items.slice(0, limit).map(({ overview: _overview, ...rest }) => rest);
-}
-
-/**
- * Strip overview from series list items.
- * Saves ~200-500 bytes per item × 15-30 items = 3-15KB per array
- */
-export function extractLightSeriesListItems(
-  items: SeriesListItem[] | undefined,
-  limit = 15
-): LightSeriesListItem[] {
-  if (!items || items.length === 0) return [];
-
-  return items.slice(0, limit).map(({ overview: _overview, ...rest }) => rest);
+  return items.slice(0, limit).map((item) => {
+    const base = {
+      id: item.id,
+      poster_path: item.poster_path,
+      backdrop_path: item.backdrop_path,
+      vote_average: item.vote_average,
+      vote_count: item.vote_count,
+      popularity: item.popularity,
+      adult: item.adult,
+    };
+    if (mediaType === "movie") {
+      const movie = item as MovieListItem;
+      return {
+        ...base,
+        title: movie.title,
+        release_date: movie.release_date,
+        media_type: "movie" as const,
+      };
+    }
+    const series = item as SeriesListItem;
+    return {
+      ...base,
+      name: series.name,
+      first_air_date: series.first_air_date,
+      media_type: "tv" as const,
+    };
+  });
 }
 
 // =============================================================================
@@ -393,6 +414,147 @@ export function extractLightGalleryImages(
     width: img.width,
     height: img.height,
   }));
+}
+
+// =============================================================================
+// Video Gallery - Pick only declared Video fields
+// =============================================================================
+
+/**
+ * Field-pick videos to the declared Video shape. Runtime objects from the PG
+ * transform / raw TMDB carry extras (size, iso_639_1, iso_3166_1) that the
+ * gallery never reads. ~50-80 bytes per video × 20 = ~1-1.5KB.
+ */
+export function extractLightVideos(videos: Video[], limit = 20): Video[] {
+  return videos.slice(0, limit).map((v) => ({
+    id: v.id,
+    key: v.key,
+    name: v.name,
+    site: v.site,
+    type: v.type,
+    official: v.official,
+    published_at: v.published_at,
+  }));
+}
+
+// =============================================================================
+// Season Selector - Only the fields the selector header renders
+// =============================================================================
+
+import type { Season, Episode } from "./index";
+
+/** Light season for SeasonSelector (episodes load client-side via getSeason) */
+export interface SeasonSelectorSeason {
+  id: number;
+  season_number: number;
+  name: string;
+  episode_count: number;
+  air_date: string;
+}
+
+/**
+ * Strip per-season overview (can be 300-800 bytes each on prestige shows) and
+ * poster_path — the selector renders only name/count/date. Saves up to several
+ * KB on long-running series (e.g. 40 seasons).
+ */
+export function extractSeasonSelectorSeasons(seasons: Season[]): SeasonSelectorSeason[] {
+  return seasons.map((s) => ({
+    id: s.id,
+    season_number: s.season_number,
+    name: s.name,
+    episode_count: s.episode_count,
+    air_date: s.air_date,
+  }));
+}
+
+// =============================================================================
+// Episode Info - next/last episode display fields only
+// =============================================================================
+
+/**
+ * Pick the Episode fields NextEpisodeCard/EpisodeModal display (the modal
+ * fetches the full episode on open). Drops stored-JSON extras like
+ * production_code, show_id, episode_type, crew/guest_stars.
+ */
+export function extractLightEpisode(episode: Episode | null | undefined): Episode | null {
+  if (!episode) return null;
+  return {
+    id: episode.id,
+    episode_number: episode.episode_number,
+    season_number: episode.season_number,
+    name: episode.name,
+    overview: episode.overview,
+    still_path: episode.still_path,
+    air_date: episode.air_date,
+    runtime: episode.runtime,
+    vote_average: episode.vote_average,
+    vote_count: episode.vote_count,
+  };
+}
+
+// =============================================================================
+// MediaOverview AI props - only the AI fields the overview card renders
+// =============================================================================
+
+import type { AISummary } from "./index";
+
+/** Subset of AISummary that MediaOverview renders (themes tags + Vibe grid) */
+export interface OverviewAISummary {
+  themes?: string[];
+  mood?: AISummary["mood"];
+}
+
+/** Structured insight item (mirrors ai-data-service shape) */
+export interface OverviewInsightItem {
+  subcategory: string;
+  text: string;
+}
+
+/** Subset of AI insights that MediaOverview renders */
+export interface OverviewAIInsights {
+  spoilerFree: {
+    highlights: OverviewInsightItem[];
+    bestFor: OverviewInsightItem[];
+    headsUp: OverviewInsightItem[];
+  };
+}
+
+/** Input shape for extractOverviewAIInsights (structural match for AIDataResponse["insights"]) */
+interface InsightsLike {
+  spoilerFree: {
+    highlights: OverviewInsightItem[];
+    bestFor: OverviewInsightItem[];
+    headsUp: OverviewInsightItem[];
+  };
+}
+
+/**
+ * MediaOverview only renders themes + mood from AISummary. Passing the full
+ * summary re-serializes hook/quickTake/aiQuestions/watchContext (already sent
+ * via their own props elsewhere on the page — strings are not deduped in the
+ * flight payload).
+ */
+export function extractOverviewAISummary(summary: AISummary | null): OverviewAISummary | null {
+  if (!summary) return null;
+  return { themes: summary.themes, mood: summary.mood };
+}
+
+/**
+ * MediaOverview only renders spoilerFree highlights/bestFor/headsUp. Passing
+ * the full insights blob re-serializes vibes/themes/questions and the entire
+ * spoilerContent deep-dive (also passed to DeepDiveSection).
+ */
+export function extractOverviewAIInsights(
+  insights: InsightsLike | null | undefined
+): OverviewAIInsights | null {
+  if (!insights) return null;
+  return {
+    spoilerFree: {
+      highlights: insights.spoilerFree.highlights,
+      bestFor: insights.spoilerFree.bestFor,
+      headsUp: insights.spoilerFree.headsUp,
+    },
+  };
 }
 
 // =============================================================================

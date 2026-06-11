@@ -28,7 +28,6 @@ export const revalidate = 3600;
 export async function generateStaticParams(): Promise<{ params: string[] }[]> {
   return [];
 }
-import { getAISummary } from "@/lib/ai-summary";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
 import {
   MediaActionBar,
@@ -63,6 +62,12 @@ import {
   extractSeriesOverviewProps,
   extractWatchOptionsItem,
   extractTrailerData,
+  extractLightVideos,
+  extractLightGalleryImages,
+  extractSeasonSelectorSeasons,
+  extractLightEpisode,
+  extractOverviewAISummary,
+  extractOverviewAIInsights,
 } from "@/types/client-props";
 
 interface SeriesPageProps {
@@ -423,20 +428,20 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         className="mt-2 md:mt-3"
       />
 
-      {/* Season & Episode Selector */}
+      {/* Season & Episode Selector - light seasons (no per-season overview/poster) */}
       {displaySeasons.length > 0 && (
         <SeasonSelector
           seriesId={series.id}
           seriesName={series.name}
-          seasons={displaySeasons}
+          seasons={extractSeasonSelectorSeasons(displaySeasons)}
           className="mt-4 md:mt-6"
         />
       )}
 
-      {/* Next/Last Episode Info */}
+      {/* Next/Last Episode Info - display fields only */}
       <EpisodeInfoSection
-        nextEpisode={series.next_episode_to_air}
-        lastEpisode={series.last_episode_to_air}
+        nextEpisode={extractLightEpisode(series.next_episode_to_air)}
+        lastEpisode={extractLightEpisode(series.last_episode_to_air)}
         seriesId={series.id}
         seriesName={series.name}
         className="mt-6 md:mt-8"
@@ -446,8 +451,8 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
       <MediaOverview
         item={extractSeriesOverviewProps(series)}
         mediaType="series"
-        aiSummary={aiSummary}
-        aiInsights={aiData?.insights}
+        aiSummary={extractOverviewAISummary(aiSummary)}
+        aiInsights={extractOverviewAIInsights(aiData?.insights)}
       />
 
       {/* AI Questions - clickable prompts that trigger AI chat */}
@@ -481,20 +486,20 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         />
       )}
 
-      {/* Video Gallery */}
+      {/* Video Gallery - field-picked to declared Video shape */}
       {youtubeVideos.length > 0 && (
         <VideoGallery
-          videos={youtubeVideos.slice(0, 20)}
+          videos={extractLightVideos(youtubeVideos, 20)}
           mediaId={series.id}
           mediaType="series"
           className="mt-8 md:mt-12"
         />
       )}
 
-      {/* Image Gallery */}
+      {/* Image Gallery - light images (drops iso_639_1/vote_average) */}
       {series.images?.backdrops && series.images.backdrops.length > 0 && (
         <ImageGallery
-          images={series.images.backdrops.slice(0, 20)}
+          images={extractLightGalleryImages(series.images.backdrops, 20)}
           title="Gallery"
           className="mt-8 md:mt-12"
         />
