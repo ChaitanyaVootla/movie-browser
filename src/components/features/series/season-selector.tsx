@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSeason } from "@/server/actions/series";
+import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import type { Episode } from "@/types";
 import type { SeasonSelectorSeason } from "@/types/client-props";
 import { EpisodeScroller } from "./episode-scroller";
@@ -49,18 +50,38 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
   const selectedSeason =
     seasons.find((s) => s.season_number === selectedSeasonNumber) || seasons[0];
 
+  // Fetch episodes with stale-action self-healing. A getSeason rejection must
+  // NEVER escape startTransition — an uncaught action error bubbles to the
+  // route error boundary and replaces the entire page with "Couldn't load
+  // series" (seen Jun 11: stale tab after a deploy → action POST 404). Stale
+  // action IDs trigger one guarded reload (what a user would do by hand);
+  // other failures just leave the episodes section in its empty state.
+  const fetchSeason = async (seasonNumber: number, onDone?: () => void) => {
+    try {
+      const seasonData = await getSeason(seriesId, seasonNumber);
+      if (seasonData?.episodes) {
+        setEpisodes(seasonData.episodes);
+      }
+    } catch (error: unknown) {
+      if (isStaleServerActionError(error)) {
+        recoverFromStaleAction();
+        return; // reloading — keep the section in its loading state
+      }
+      // Scoped failure: log and fall through to the empty state.
+      console.error("Failed to load season episodes", error);
+    } finally {
+      onDone?.();
+    }
+  };
+
   // Load initial season episodes on mount only
   useEffect(() => {
     let cancelled = false;
 
     startTransition(async () => {
-      const seasonData = await getSeason(seriesId, defaultSeasonNumber);
-      if (!cancelled) {
-        if (seasonData?.episodes) {
-          setEpisodes(seasonData.episodes);
-        }
-        setHasLoadedOnce(true);
-      }
+      await fetchSeason(defaultSeasonNumber, () => {
+        if (!cancelled) setHasLoadedOnce(true);
+      });
     });
 
     return () => {
@@ -75,10 +96,7 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
 
     setSelectedSeasonNumber(seasonNumber);
     startTransition(async () => {
-      const seasonData = await getSeason(seriesId, seasonNumber);
-      if (seasonData?.episodes) {
-        setEpisodes(seasonData.episodes);
-      }
+      await fetchSeason(seasonNumber);
     });
   };
 
