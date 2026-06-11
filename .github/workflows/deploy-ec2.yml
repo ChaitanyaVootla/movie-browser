@@ -129,6 +129,23 @@ jobs:
               echo "::error::Less than 2GB free on EC2 — refusing to deploy onto a full disk"
               exit 1
             fi
+            # Memory preflight (Jun 11: yarn install on a leak-bloated box
+            # OOM/swap-froze the KERNEL — instance needed an AWS reboot).
+            # A bloated next is restarted first: free relief, and the deploy
+            # restarts it anyway.
+            MEM_MB=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
+            echo "Available memory: ${MEM_MB}MB"
+            if [ "$MEM_MB" -lt 2000 ]; then
+              echo "Low memory — restarting next to reclaim leaked RSS..."
+              pm2 restart next || true
+              sleep 10
+              MEM_MB=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
+              echo "Available memory after restart: ${MEM_MB}MB"
+            fi
+            if [ "$MEM_MB" -lt 1500 ]; then
+              echo "::error::Less than 1.5GB memory available — deploying now risks freezing the box"
+              exit 1
+            fi
           EOF
 
       - name: Upload to EC2
@@ -172,7 +189,10 @@ jobs:
 
             echo "[3/6] Installing production dependencies..."
             sudo corepack enable
-            yarn install --immutable
+            # nice/ionice + capped Node heap: this step coexists with the live
+            # site on 2 vCPUs/8GB; an unbounded install contributed to the
+            # Jun 11 kernel freeze.
+            NODE_OPTIONS="--max-old-space-size=1024" nice -n 19 ionice -c3 yarn install --immutable
 
             echo "[4/6] Applying Prisma schema..."
             set -a; source .env; set +a
