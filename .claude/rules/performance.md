@@ -80,16 +80,23 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    - **Verify locally before pushing:** `lsof -ti :3111` first — a half-killed
      old `next-server` (pkill pattern "next start" does NOT match it) serves
      stale code and silently invalidates the whole test matrix.
-   - **ISR disk cache is UNBOUNDED — it WILL fill the disk.** Jun 10 2026: bot
-     fleet × 800k-title long tail grew `.next` to **41GB**, disk hit ENOSPC,
-     next-server SIGABRT'd on writes (PM2 log `ENOSPC`, exit 134), prod flapped
-     DOWN/SLOW for ~2h. Next never evicts disk entries by size. Mitigations:
-     `isr-cache-prune` PM2 cron (23:00 UTC, `scripts/prune-isr-cache.js`,
-     budget `ISR_CACHE_BUDGET_MB`=5GB) + bot blocking caps growth. Diagnosis
-     signature: load avg ≫ vCPUs with mid CPU%, `pm2 logs` ENOSPC, `df -h` 100%,
-     `du -sh .next`. Emergency purge (same as deploy wipe): delete
-     `*.html/*.rsc/*.meta` under `.next/server/app/{movie,series,person}`.
-     `pm2 flush` buys ~1GB instantly.
+   - **ISR disk cache: bounded by `cache-handler.cjs` since Jun 11 2026** (LRU
+     at write time, `BOUNDED_CACHE_MB`=4GB, stored in `.next/cache/bounded-isr`,
+     7 unit tests in `src/lib/cache-handler.test.ts`). Background: Next's
+     DEFAULT cache never evicts by size — Jun 10 it grew to **41GB** under bot
+     crawl, disk hit ENOSPC, next-server SIGABRT'd, prod flapped for hours.
+     The handler MUST ship in the deploy tar (next.config references it at
+     runtime; missing file = 500 on every request — burned us once).
+     Backstops: `isr-cache-prune` PM2 job every 6h + deploy preflight refuses
+     <2GB free disk. Diagnosis signature for disk-full: load ≫ vCPUs at mid
+     CPU%, `pm2 logs` ENOSPC, `df -h` 100%. `pm2 flush` buys ~1GB instantly.
+     **Disk-full aftermath checklist (each bit us on Jun 10):** (1) ClickHouse's
+     log file breaks → infinite "Cannot log message / File access error" storm
+     → dockerd+CH burn ~1.7 cores shoveling json logs (48MB/min rotation) —
+     `docker restart analytics-clickhouse` fixes it; (2) a half-killed
+     next-server can squat port 3002 → PM2 crash-loops on EADDRINUSE —
+     `sudo fuser -k 3002/tcp`; (3) a deploy whose scp/tar failed mid-way leaves
+     `.next` corrupt — redeploy, don't debug it.
 2. **Never block the render path on a scrape/LLM/Lambda.** Detail-page hydration returns PG/TMDB immediately and refreshes ratings in a **deduped background task**; the SSE enrich endpoint streams them in. See `.claude/rules/postgres-hydration.md`. A synchronous Lambda scrape added seconds per first/stale visit.
 3. **Cap ClickHouse CPU** (it ate 1.5 of 2 cores). `docker-compose.yml`: `cpus: "0.9"` + low `cpu_shares`, and `concurrent_threads_soft_limit_num` in `analytics/clickhouse/config/config.xml`. **GOTCHA:** do NOT set `background_pool_size` low — `background_pool_size * background_merges_mutations_concurrency_ratio` must be ≥ `number_of_free_entries_in_pool_to_execute_mutation` (default 20) or ClickHouse exits 36 in a crash loop. **Always validate CH config in a throwaway local container before deploying** (see Testing below). A mounted `config.d` edit does NOT recreate the container — but DON'T force-recreate every deploy either (re-merging the part backlog spikes CPU for minutes; recreate once, manually, when config changes).
 4. **ClickHouse system logs are disabled — keep them that way.** June 2026: the
@@ -141,9 +148,11 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    ~7k req/10min vs ~650 human). `src/proxy.ts` 429s them pre-render (plus
    webdriver/headless hints and `Accept: text/markdown` LLM scrapers). When the
    box melts under "organic" traffic, FIRST check
-   `page_views GROUP BY bot_type` for the last 10 min — and remember every
-   deploy wipes the ISR cache, so post-deploy there's a cold-render window
-   where blocked-class gaps re-jam the event loop fast.
+   `page_views GROUP BY bot_type` for the last 10 min. NOTE (corrected Jun 11):
+   deploys do NOT wipe the ISR cache — the deploy tar extracts OVER `.next`,
+   so cache entries persist across deploys (this false assumption hid the
+   41GB cache growth). Cold-render windows happen only after a cache purge
+   or revalidate expiry, not every deploy.
 11. **Don't run parallel Playwright audits against prod.** Jun 10 2026: four
    concurrent visual-audit agents scroll-loading ~80 pages (incl. uncached sparse
    titles and garbage IDs → cold renders + enrichment triggers) on top of the
