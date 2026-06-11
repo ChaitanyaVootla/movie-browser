@@ -73,10 +73,12 @@ module.exports = {
       env: { NODE_ENV: "production", CRON_HOUR_UTC: "22" },
       kill_timeout: 300000, // 5 minutes - sitemap gen can take a while
     },
-    // ISR cache prune - daily at 23:00 UTC (04:30 IST), after sitemap.
-    // Jun 10 2026: unbounded ISR route-cache entries (bot fleet × 800k-title
-    // long tail) grew .next to 41GB and filled the 77GB disk → ENOSPC outage
-    // loop. Keeps movie/series/person cache dirs under ISR_CACHE_BUDGET_MB.
+    // ISR cache prune - every 6h. Jun 10 2026: unbounded ISR route-cache
+    // entries (bot fleet × 800k-title long tail) grew .next to 41GB and filled
+    // the 77GB disk → ENOSPC outage loop. Primary bound is now the custom
+    // cache-handler.cjs (LRU at write time); this job is the belt-and-braces
+    // backstop for anything else under .next. FORCE_RUN=1 skips the
+    // deploy-autostart guard safely: the script fast-exits when under budget.
     {
       name: "isr-cache-prune",
       cwd: "/home/ubuntu/movie-browser-next",
@@ -85,7 +87,7 @@ module.exports = {
         "-c",
         "exec nice -n 19 node --max-old-space-size=512 scripts/prune-isr-cache.js",
       ],
-      cron_restart: "0 23 * * *",
+      cron_restart: "0 */6 * * *",
       autorestart: false,
       restart_delay: 5000,
       max_restarts: 2,
@@ -96,7 +98,9 @@ module.exports = {
       out_file: "./logs/isr-prune-out.log",
       log_file: "./logs/isr-prune-combined.log",
       time: true,
-      env: { NODE_ENV: "production", CRON_HOUR_UTC: "23" },
+      // FORCE_RUN=1: no hour guard — runs every 6h AND once per deploy, both
+      // safe because the script exits in seconds when under budget.
+      env: { NODE_ENV: "production", FORCE_RUN: "1" },
       kill_timeout: 600000, // 10 minutes - may unlink hundreds of thousands of files
     },
   ],

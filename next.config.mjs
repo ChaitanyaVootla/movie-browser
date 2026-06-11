@@ -1,3 +1,4 @@
+import { fileURLToPath } from "url";
 import { withSerwist } from "@serwist/turbopack";
 
 /** @type {import('next').NextConfig} */
@@ -5,6 +6,20 @@ const nextConfig = {
   poweredByHeader: false,
   // geoip-lite reads .dat files from node_modules at runtime — must not be bundled
   serverExternalPackages: ["geoip-lite"],
+
+  // Bounded LRU disk cache for ISR (prod only — dev keeps the default).
+  // Next's default file-system cache has NO size eviction: on Jun 10 2026 it
+  // grew to 41GB under bot crawl, filled the disk and crash-looped the server.
+  // Budget via BOUNDED_CACHE_MB env (default 4GB). See cache-handler.cjs.
+  // The file ships in the deploy tar (deploy-ec2.yml) — it is loaded at
+  // runtime from the app root, not bundled.
+  ...(process.env.NODE_ENV === "production"
+    ? {
+        cacheHandler: fileURLToPath(
+          new URL("./cache-handler.cjs", import.meta.url),
+        ),
+      }
+    : {}),
 
   // Disable streaming metadata for ALL user agents (not just the default bot
   // list). With streaming metadata (Next 15.2+ default), generateMetadata no
