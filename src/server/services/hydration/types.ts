@@ -78,6 +78,7 @@ export interface EnrichedData {
 
 export type HydrationSource =
   | "postgres_fresh" // Data was fresh in PostgreSQL
+  | "postgres_stale" // Served stale PostgreSQL data; refresh running in background
   | "hydrated_mongo" // Used MongoDB enriched data
   | "hydrated_lambda"; // Called Lambda for enriched data
 

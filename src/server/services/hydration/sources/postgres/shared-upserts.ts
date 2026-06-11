@@ -2,30 +2,65 @@
  * PostgreSQL Shared Upsert Functions
  *
  * Helper functions used by both movie and series upsert operations:
- * - Ratings
  * - External IDs
  * - Videos
  * - Images
  * - Watch providers
- * - Scraped watch links
  * - Reviews
  * - Credits (non-aggregate)
+ *
+ * All child collections are reconciled DIFF-BASED (June 2026): existing rows
+ * are loaded once, matched against incoming rows by natural key
+ * (`diffChildRows` in ./diff-reconcile), and only the delta is written —
+ * insert new, update changed, delete removed. When nothing changed (the
+ * overwhelmingly common case for TMDB data), ZERO writes happen. The previous
+ * delete+reinsert-everything pattern produced ~387k deletes/day at crawler
+ * scale, starved autovacuum, and bloated tables to 100x their live size.
  */
 
+import { dataLogger } from "@/lib/logger";
 import type { MediaType, EnrichedExternalIds } from "../../types";
 import type { TmdbMovieData } from "../tmdb";
 import type { PrismaTx } from "./types";
+import { dedupeBy } from "./upsert-diff";
 import {
-  dedupeBy,
-  logChildRewrite,
-  externalIdsUnchanged,
-  videosUnchanged,
-  imagesUnchanged,
-  watchProvidersUnchanged,
-  reviewsUnchanged,
-  creditsUnchanged,
-  type CreditProjection,
-} from "./upsert-diff";
+  diffChildRows,
+  hasChanges,
+  floatEq3,
+  sameDate,
+  type ChildRowDiff,
+} from "./diff-reconcile";
+
+// =============================================================================
+// Shared helpers
+// =============================================================================
+
+function mediaWhere(
+  mediaId: number,
+  mediaType: MediaType
+): { movieId: number } | { seriesId: number } {
+  return mediaType === "movie" ? { movieId: mediaId } : { seriesId: mediaId };
+}
+
+/** Observability: every actual child-table write is logged with delta counts. */
+function logChildReconcile(
+  table: string,
+  mediaType: string,
+  mediaId: number,
+  diff: ChildRowDiff<unknown, unknown>
+): void {
+  dataLogger.debug(
+    {
+      table,
+      mediaType,
+      mediaId,
+      inserted: diff.toInsert.length,
+      updated: diff.toUpdate.length,
+      deleted: diff.toDelete.length,
+    },
+    "hydration: child rows changed, reconciling"
+  );
+}
 
 // =============================================================================
 // External IDs
@@ -112,29 +147,36 @@ export async function upsertExternalIds(
   }
 
   // The (movieId|seriesId, source) unique constraint + skipDuplicates keeps the
-  // first row per source — mirror that before comparing against existing rows.
+  // first row per source — mirror that before diffing against existing rows.
   const deduped = dedupeBy(idsToCreate, (r) => r.source);
-  if (
-    await externalIdsUnchanged(
-      tx,
-      mediaId,
-      mediaType,
-      deduped.map((r) => ({ source: r.source, externalId: r.externalId }))
-    )
-  ) {
-    return;
-  }
-  logChildRewrite("external_ids", mediaType, mediaId);
 
-  // Delete existing external IDs
-  if (mediaType === "movie") {
-    await tx.externalId.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.externalId.deleteMany({ where: { seriesId: mediaId } });
-  }
+  const existing = await tx.externalId.findMany({
+    where: mediaWhere(mediaId, mediaType),
+    select: { id: true, source: true, externalId: true },
+  });
 
-  if (deduped.length > 0) {
-    await tx.externalId.createMany({ data: deduped, skipDuplicates: true });
+  const diff = diffChildRows(
+    existing,
+    deduped,
+    (r) => r.source,
+    (a, b) => a.externalId === b.externalId
+  );
+  if (!hasChanges(diff)) return;
+  logChildReconcile("external_ids", mediaType, mediaId, diff);
+
+  if (diff.toDelete.length > 0) {
+    await tx.externalId.deleteMany({
+      where: { id: { in: diff.toDelete.map((r) => r.id) } },
+    });
+  }
+  for (const { existing: row, incoming } of diff.toUpdate) {
+    await tx.externalId.update({
+      where: { id: row.id },
+      data: { externalId: incoming.externalId },
+    });
+  }
+  if (diff.toInsert.length > 0) {
+    await tx.externalId.createMany({ data: diff.toInsert, skipDuplicates: true });
   }
 }
 
@@ -168,27 +210,58 @@ export async function upsertVideos(
     publishedAt: v.published_at ? new Date(v.published_at) : null,
   }));
 
-  if (
-    await videosUnchanged(
-      tx,
-      mediaId,
-      mediaType,
-      videosToCreate.map(({ movieId: _m, seriesId: _s, ...rest }) => rest)
-    )
-  ) {
-    return;
-  }
-  logChildRewrite("videos", mediaType, mediaId);
+  // The (movieId|seriesId, key) unique constraint allows one row per video key.
+  const deduped = dedupeBy(videosToCreate, (v) => v.key);
 
-  // Delete existing videos
-  if (mediaType === "movie") {
-    await tx.video.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.video.deleteMany({ where: { seriesId: mediaId } });
-  }
+  const existing = await tx.video.findMany({
+    where: mediaWhere(mediaId, mediaType),
+    select: {
+      id: true,
+      key: true,
+      name: true,
+      site: true,
+      type: true,
+      official: true,
+      size: true,
+      publishedAt: true,
+    },
+  });
 
-  if (videosToCreate.length > 0) {
-    await tx.video.createMany({ data: videosToCreate });
+  const diff = diffChildRows(
+    existing,
+    deduped,
+    (r) => r.key,
+    (a, b) =>
+      a.name === b.name &&
+      a.site === b.site &&
+      a.type === b.type &&
+      a.official === b.official &&
+      a.size === b.size &&
+      sameDate(a.publishedAt, b.publishedAt)
+  );
+  if (!hasChanges(diff)) return;
+  logChildReconcile("videos", mediaType, mediaId, diff);
+
+  if (diff.toDelete.length > 0) {
+    await tx.video.deleteMany({ where: { id: { in: diff.toDelete.map((r) => r.id) } } });
+  }
+  // Update only TMDB-owned fields — preserves YouTube engagement columns
+  // (viewCount, topComments, …) that are fetched separately.
+  for (const { existing: row, incoming } of diff.toUpdate) {
+    await tx.video.update({
+      where: { id: row.id },
+      data: {
+        name: incoming.name,
+        site: incoming.site,
+        type: incoming.type,
+        official: incoming.official,
+        size: incoming.size,
+        publishedAt: incoming.publishedAt,
+      },
+    });
+  }
+  if (diff.toInsert.length > 0) {
+    await tx.video.createMany({ data: diff.toInsert, skipDuplicates: true });
   }
 }
 
@@ -268,27 +341,58 @@ export async function upsertImages(
   addImages(images.posters, "POSTER");
   addImages(images.logos, "LOGO");
 
-  if (
-    await imagesUnchanged(
-      tx,
-      mediaId,
-      mediaType,
-      imagesToCreate.map(({ movieId: _m, seriesId: _s, ...rest }) => rest)
-    )
-  ) {
-    return;
-  }
-  logChildRewrite("images", mediaType, mediaId);
+  const existing = await tx.image.findMany({
+    where: mediaWhere(mediaId, mediaType),
+    select: {
+      id: true,
+      filePath: true,
+      type: true,
+      aspectRatio: true,
+      width: true,
+      height: true,
+      voteAverage: true,
+      voteCount: true,
+      language: true,
+    },
+  });
 
-  // Delete existing images
-  if (mediaType === "movie") {
-    await tx.image.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    await tx.image.deleteMany({ where: { seriesId: mediaId } });
-  }
+  // No unique constraint on images — duplicates are matched as a multiset
+  // (diffChildRows pairs the Nth incoming duplicate with the Nth existing).
+  // Float fields (aspectRatio, voteAverage) compare with 3-decimal tolerance:
+  // TMDB re-jitters them constantly without meaningful change.
+  const diff = diffChildRows(
+    existing,
+    imagesToCreate,
+    (r) => `${r.type}|${r.filePath}`,
+    (a, b) =>
+      floatEq3(a.aspectRatio, b.aspectRatio) &&
+      a.width === b.width &&
+      a.height === b.height &&
+      floatEq3(a.voteAverage, b.voteAverage) &&
+      a.voteCount === b.voteCount &&
+      a.language === b.language
+  );
+  if (!hasChanges(diff)) return;
+  logChildReconcile("images", mediaType, mediaId, diff);
 
-  if (imagesToCreate.length > 0) {
-    await tx.image.createMany({ data: imagesToCreate });
+  if (diff.toDelete.length > 0) {
+    await tx.image.deleteMany({ where: { id: { in: diff.toDelete.map((r) => r.id) } } });
+  }
+  for (const { existing: row, incoming } of diff.toUpdate) {
+    await tx.image.update({
+      where: { id: row.id },
+      data: {
+        aspectRatio: incoming.aspectRatio,
+        width: incoming.width,
+        height: incoming.height,
+        voteAverage: incoming.voteAverage,
+        voteCount: incoming.voteCount,
+        language: incoming.language,
+      },
+    });
+  }
+  if (diff.toInsert.length > 0) {
+    await tx.image.createMany({ data: diff.toInsert });
   }
 }
 
@@ -328,20 +432,24 @@ export async function upsertWatchProviders(
     }
   >
 ): Promise<void> {
-  // Build the flat incoming projection first; the (media, provider, country,
-  // type) unique constraint collapses duplicates to the first row, so dedupe
-  // the same way before comparing against existing rows.
+  // Build the flat incoming projection; the (media, provider, country, type)
+  // unique constraint collapses duplicates to the first row, so dedupe the
+  // same way before diffing against existing rows. Provider metadata rides
+  // along for creating streaming_providers rows on insert (not compared).
   const incoming: Array<{
     providerTmdbId: number;
     countryCode: string;
-    type: string;
+    type: "FLATRATE" | "RENT" | "BUY";
     link: string | null;
+    providerName: string;
+    providerLogoPath: string | null;
+    providerPriority: number;
   }> = [];
   for (const [countryCode, data] of Object.entries(providersByCountry)) {
     for (const { type, providers } of [
-      { type: "FLATRATE", providers: data.flatrate },
-      { type: "RENT", providers: data.rent },
-      { type: "BUY", providers: data.buy },
+      { type: "FLATRATE" as const, providers: data.flatrate },
+      { type: "RENT" as const, providers: data.rent },
+      { type: "BUY" as const, providers: data.buy },
     ]) {
       for (const provider of providers || []) {
         incoming.push({
@@ -349,6 +457,9 @@ export async function upsertWatchProviders(
           countryCode,
           type,
           link: data.link ?? null,
+          providerName: provider.provider_name,
+          providerLogoPath: provider.logo_path ?? null,
+          providerPriority: provider.display_priority || 100,
         });
       }
     }
@@ -357,66 +468,94 @@ export async function upsertWatchProviders(
     incoming,
     (r) => `${r.providerTmdbId}|${r.countryCode}|${r.type}`
   );
-  if (await watchProvidersUnchanged(tx, mediaId, mediaType, dedupedIncoming)) {
-    return;
-  }
-  logChildRewrite("watch_options", mediaType, mediaId);
 
-  // Delete existing watch options
-  await tx.watchOption.deleteMany({
-    where: mediaType === "movie" ? { movieId: mediaId } : { seriesId: mediaId },
+  const existingRaw = await tx.watchOption.findMany({
+    where: mediaWhere(mediaId, mediaType),
+    select: {
+      id: true,
+      countryCode: true,
+      type: true,
+      link: true,
+      provider: { select: { tmdbId: true } },
+    },
   });
+  const existing = existingRaw.map((r) => ({
+    id: r.id,
+    providerTmdbId: r.provider.tmdbId,
+    countryCode: r.countryCode,
+    type: String(r.type),
+    link: r.link,
+  }));
 
-  // Store ALL countries (no limit - TMDB provides 90+ countries)
-  for (const [countryCode, data] of Object.entries(providersByCountry)) {
-    const types: Array<{ type: "FLATRATE" | "RENT" | "BUY"; providers: typeof data.flatrate }> = [
-      { type: "FLATRATE", providers: data.flatrate },
-      { type: "RENT", providers: data.rent },
-      { type: "BUY", providers: data.buy },
-    ];
+  const diff = diffChildRows(
+    existing,
+    dedupedIncoming,
+    (r) => `${r.providerTmdbId}|${r.countryCode}|${r.type}`,
+    (a, b) => a.link === b.link
+  );
+  if (!hasChanges(diff)) return;
+  logChildReconcile("watch_options", mediaType, mediaId, diff);
 
-    for (const { type, providers } of types) {
-      for (const provider of providers || []) {
-        // Try to find existing provider first (fast, no lock contention)
-        let dbProvider = await tx.streamingProvider.findUnique({
-          where: { tmdbId: provider.provider_id },
-        });
+  if (diff.toDelete.length > 0) {
+    await tx.watchOption.deleteMany({
+      where: { id: { in: diff.toDelete.map((r) => r.id) } },
+    });
+  }
+  for (const { existing: row, incoming: inc } of diff.toUpdate) {
+    await tx.watchOption.update({ where: { id: row.id }, data: { link: inc.link } });
+  }
 
-        // Only upsert if provider doesn't exist
-        if (!dbProvider) {
-          dbProvider = await tx.streamingProvider.upsert({
-            where: { tmdbId: provider.provider_id },
-            create: {
-              tmdbId: provider.provider_id,
-              name: provider.provider_name,
-              logoPath: provider.logo_path,
-              priority: provider.display_priority || 100,
-            },
-            update: {
-              name: provider.provider_name,
-              logoPath: provider.logo_path,
-              priority: provider.display_priority || 100,
-            },
-          });
-        }
+  if (diff.toInsert.length > 0) {
+    // Resolve provider DB ids; create streaming_providers rows only when
+    // missing (existing providers are NOT metadata-refreshed — unchanged
+    // behavior from the rewrite era).
+    const neededTmdbIds = [...new Set(diff.toInsert.map((r) => r.providerTmdbId))];
+    const found = await tx.streamingProvider.findMany({
+      where: { tmdbId: { in: neededTmdbIds } },
+      select: { id: true, tmdbId: true },
+    });
+    const providerDbId = new Map(found.map((p) => [p.tmdbId, p.id]));
 
-        // Create watch option using DB ID
-        await tx.watchOption
-          .create({
-            data: {
-              movieId: mediaType === "movie" ? mediaId : null,
-              seriesId: mediaType === "series" ? mediaId : null,
-              providerId: dbProvider.id,
-              type,
-              countryCode,
-              link: data.link,
-            },
-          })
-          .catch(() => {
-            // Ignore duplicates
-          });
-      }
+    for (const row of diff.toInsert) {
+      if (providerDbId.has(row.providerTmdbId)) continue;
+      const created = await tx.streamingProvider.upsert({
+        where: { tmdbId: row.providerTmdbId },
+        create: {
+          tmdbId: row.providerTmdbId,
+          name: row.providerName,
+          logoPath: row.providerLogoPath,
+          priority: row.providerPriority,
+        },
+        update: {
+          name: row.providerName,
+          logoPath: row.providerLogoPath,
+          priority: row.providerPriority,
+        },
+      });
+      providerDbId.set(row.providerTmdbId, created.id);
     }
+
+    const data: Array<{
+      movieId: number | null;
+      seriesId: number | null;
+      providerId: number;
+      type: "FLATRATE" | "RENT" | "BUY";
+      countryCode: string;
+      link: string | null;
+    }> = [];
+    for (const row of diff.toInsert) {
+      const providerId = providerDbId.get(row.providerTmdbId);
+      if (providerId === undefined) continue; // unreachable: resolved above
+      data.push({
+        movieId: mediaType === "movie" ? mediaId : null,
+        seriesId: mediaType === "series" ? mediaId : null,
+        providerId,
+        type: row.type,
+        countryCode: row.countryCode,
+        link: row.link,
+      });
+    }
+    await tx.watchOption.createMany({ data, skipDuplicates: true });
   }
 }
 
@@ -433,6 +572,7 @@ export async function upsertReviews(
   mediaType: "movie" | "series",
   reviews: TmdbMovieData["reviews"]["results"]
 ): Promise<void> {
+  // Quirk preserved: an empty TMDB review list does NOT delete stored reviews.
   if (!reviews.length) return;
 
   // Get or create TMDB data source
@@ -447,8 +587,7 @@ export async function upsertReviews(
     update: {},
   });
 
-  // Change-detection: compare incoming reviews (deduped by externalId, which
-  // the unique constraint enforces) against existing rows; skip when identical.
+  // Incoming reviews deduped by externalId (the unique constraint enforces it).
   const incoming = dedupeBy(reviews, (r) => r.id).map((review) => ({
     externalId: review.id,
     content: review.content,
@@ -463,184 +602,80 @@ export async function upsertReviews(
     reviewUrl: review.url,
     reviewDate: review.created_at ? new Date(review.created_at) : null,
   }));
-  if (await reviewsUnchanged(tx, mediaId, mediaType, tmdbSource.id, incoming)) {
-    return;
-  }
-  logChildRewrite("reviews", mediaType, mediaId);
 
-  // Delete existing TMDB reviews for this item
-  if (mediaType === "movie") {
-    await tx.review.deleteMany({
-      where: { movieId: mediaId, sourceId: tmdbSource.id },
-    });
-  } else {
-    await tx.review.deleteMany({
-      where: { seriesId: mediaId, sourceId: tmdbSource.id },
+  const existing = await tx.review.findMany({
+    where: { ...mediaWhere(mediaId, mediaType), sourceId: tmdbSource.id },
+    select: {
+      id: true,
+      externalId: true,
+      content: true,
+      authorName: true,
+      authorUrl: true,
+      authorImage: true,
+      score: true,
+      reviewUrl: true,
+      reviewDate: true,
+    },
+  });
+
+  const diff = diffChildRows(
+    existing,
+    incoming,
+    (r) => r.externalId ?? "",
+    (a, b) =>
+      a.content === b.content &&
+      a.authorName === b.authorName &&
+      a.authorUrl === b.authorUrl &&
+      a.authorImage === b.authorImage &&
+      floatEq3(a.score, b.score) &&
+      a.reviewUrl === b.reviewUrl &&
+      sameDate(a.reviewDate, b.reviewDate)
+  );
+  if (!hasChanges(diff)) return;
+  logChildReconcile("reviews", mediaType, mediaId, diff);
+
+  if (diff.toDelete.length > 0) {
+    await tx.review.deleteMany({ where: { id: { in: diff.toDelete.map((r) => r.id) } } });
+  }
+  for (const { existing: row, incoming: inc } of diff.toUpdate) {
+    await tx.review.update({
+      where: { id: row.id },
+      data: {
+        content: inc.content,
+        authorName: inc.authorName,
+        authorUrl: inc.authorUrl,
+        authorImage: inc.authorImage,
+        score: inc.score,
+        reviewUrl: inc.reviewUrl,
+        reviewDate: inc.reviewDate,
+      },
     });
   }
-
-  // Insert new reviews (use externalId for deduplication)
-  for (const review of reviews) {
-    await tx.review
-      .create({
-        data: {
-          movieId: mediaType === "movie" ? mediaId : null,
-          seriesId: mediaType === "series" ? mediaId : null,
-          sourceId: tmdbSource.id,
-          reviewType: "user",
-          externalId: review.id, // TMDB review ID for uniqueness
-          content: review.content,
-          authorName: review.author_details?.name || review.author,
-          authorUrl: review.author_details?.username
-            ? `https://www.themoviedb.org/u/${review.author_details.username}`
-            : null,
-          authorImage: review.author_details?.avatar_path
-            ? `https://image.tmdb.org/t/p/w45${review.author_details.avatar_path}`
-            : null,
-          score: review.author_details?.rating ?? null,
-          reviewUrl: review.url,
-          reviewDate: review.created_at ? new Date(review.created_at) : null,
-          scrapedAt: new Date(),
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
+  if (diff.toInsert.length > 0) {
+    await tx.review.createMany({
+      data: diff.toInsert.map((inc) => ({
+        movieId: mediaType === "movie" ? mediaId : null,
+        seriesId: mediaType === "series" ? mediaId : null,
+        sourceId: tmdbSource.id,
+        reviewType: "user",
+        externalId: inc.externalId, // TMDB review ID for uniqueness
+        content: inc.content,
+        authorName: inc.authorName,
+        authorUrl: inc.authorUrl,
+        authorImage: inc.authorImage,
+        score: inc.score,
+        reviewUrl: inc.reviewUrl,
+        reviewDate: inc.reviewDate,
+        scrapedAt: new Date(),
+      })),
+      skipDuplicates: true,
+    });
   }
 }
 
 // =============================================================================
-// Credits (Non-Aggregate)
+// Credits (Non-Aggregate) — split into ./credit-upserts.ts (800-line limit);
+// re-exported here so existing importers keep working.
 // =============================================================================
 
-/**
- * Upsert credits (cast and crew) - NON-AGGREGATE version
- *
- * Stores ALL cast and ALL crew members (no arbitrary limits).
- * For series: This stores the "regular" credits (main cast), NOT aggregate_credits.
- * The isAggregate flag allows UI to choose which to display.
- */
-export async function upsertCredits(
-  tx: PrismaTx,
-  mediaId: number,
-  mediaType: "movie" | "series",
-  credits: { cast?: Array<any>; crew?: Array<any> }
-): Promise<void> {
-  const allCredits: Array<{
-    personId: number;
-    name: string;
-    profilePath: string | null;
-    knownFor: string | null;
-    popularity: number | null;
-    creditType: "CAST" | "CREW";
-    character?: string;
-    job?: string;
-    department?: string;
-    order?: number;
-  }> = [];
-
-  // Process ALL cast
-  for (const cast of credits.cast || []) {
-    allCredits.push({
-      personId: cast.id,
-      name: cast.name,
-      profilePath: cast.profile_path,
-      knownFor: cast.known_for_department,
-      popularity: cast.popularity ?? null,
-      creditType: "CAST",
-      character: cast.character,
-      order: cast.order,
-    });
-  }
-
-  // Process ALL crew (no job filter - store everything)
-  for (const crew of credits.crew || []) {
-    allCredits.push({
-      personId: crew.id,
-      name: crew.name,
-      profilePath: crew.profile_path,
-      knownFor: crew.known_for_department,
-      popularity: crew.popularity ?? null,
-      creditType: "CREW",
-      job: crew.job,
-      department: crew.department,
-    });
-  }
-
-  // Change-detection: skip the full delete+reinsert (and person upserts) when
-  // the credit set is identical to what's stored. Note: person popularity
-  // refreshes are skipped too — the daily popularity-sync job covers those.
-  const incomingProjection: CreditProjection[] = allCredits.map((c) => ({
-    personTmdbId: c.personId,
-    creditType: c.creditType,
-    character: c.character ?? null,
-    job: c.job ?? null,
-    department: c.department ?? null,
-    creditOrder: c.order ?? null,
-  }));
-  if (await creditsUnchanged(tx, mediaId, mediaType, incomingProjection)) {
-    return;
-  }
-  logChildRewrite("credits", mediaType, mediaId);
-
-  // Delete existing non-aggregate credits only
-  if (mediaType === "movie") {
-    await tx.credit.deleteMany({ where: { movieId: mediaId } });
-  } else {
-    // For series: only delete non-aggregate credits (preserve aggregate)
-    await tx.credit.deleteMany({ where: { seriesId: mediaId, isAggregate: false } });
-  }
-
-  // Upsert persons and create credits (no limit - store everything)
-  for (const credit of allCredits) {
-    // Try to find existing person first (fast, no lock contention)
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: credit.personId },
-    });
-
-    if (!dbPerson) {
-      // Create new person
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: credit.personId },
-        create: {
-          tmdbId: credit.personId,
-          name: credit.name,
-          profilePath: credit.profilePath,
-          knownFor: credit.knownFor,
-          popularity: credit.popularity,
-        },
-        update: {
-          name: credit.name,
-          profilePath: credit.profilePath,
-          knownFor: credit.knownFor,
-          popularity: credit.popularity,
-        },
-      });
-    } else if (credit.popularity != null && (dbPerson.popularity == null || credit.popularity > dbPerson.popularity)) {
-      // Update popularity if we have a higher value (person popularity can vary by movie context)
-      await tx.person.update({
-        where: { id: dbPerson.id },
-        data: { popularity: credit.popularity },
-      });
-    }
-
-    // Create credit using DB ID (non-aggregate)
-    await tx.credit
-      .create({
-        data: {
-          movieId: mediaType === "movie" ? mediaId : null,
-          seriesId: mediaType === "series" ? mediaId : null,
-          personId: dbPerson.id,
-          creditType: credit.creditType,
-          character: credit.character,
-          job: credit.job,
-          department: credit.department,
-          creditOrder: credit.order,
-          isAggregate: false,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
-  }
-}
+export { upsertCredits } from "./credit-upserts";

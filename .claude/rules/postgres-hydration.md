@@ -12,25 +12,49 @@ paths:
 
 ## Architecture
 
-PostgreSQL is the **source of truth** for movies/series. Flow:
+PostgreSQL is the **source of truth** for movies/series. Flow (June 2026,
+serve-stale-then-refresh — do not regress to blocking on TMDB):
 
 ```
-Check PG → TMDB API if stale → MongoDB enrichment → Upsert to PG → Progressive AI enrichment (fire-and-forget) → Return PG data
+Normal visit, PG HAS the row (fresh OR stale) → return PG data IMMEDIATELY
+  └─ if stale: deduped+capped background task (TMDB refetch if core stale →
+     MongoDB/Lambda enrichment → upsert → progressive AI enrichment);
+     SSE streams new ratings/AI; ISR revalidation picks up core fields
+Normal visit, TRUE PG MISS → synchronous TMDB fetch (the ONLY blocking case)
+  → return TMDB data with empty enriched → persist + enrich in background
+forceRefresh / skipLambda (admin, bulk populate) → fully synchronous path
+  (TMDB → enrichment → upsert → read back from PG)
 ```
 
-After the PG upsert, if the data was freshly fetched (from Lambda or MongoDB — not the PG fast path), `triggerProgressiveEnrichment()` fires in the background. This is a fire-and-forget call: errors are logged and swallowed, never blocking the response. See `src/server/services/hydration/index.ts` lines 142-146 (movies) and 274-278 (series).
+The render path must NEVER await TMDB/Lambda for an entity that exists in PG —
+a TMDB round-trip is ~300-800ms (worse under load) and was the dominant
+per-movie latency on the 2-vCPU box. Series episode fetches
+(`fetchAllSeasonEpisodes`) also live in the background task: nested episodes
+are not part of the render payload (season pages fetch episodes from TMDB
+directly). `triggerProgressiveEnrichment()` fires after the background/sync
+upsert when enriched data came from Lambda/MongoDB; fire-and-forget, errors
+swallowed. Contract is pinned by `src/server/services/hydration/index.test.ts`
+(deferred-promise tests fail if the render path ever awaits TMDB on a PG hit).
 
 ## Diff-Based Upserts (June 2026 — do not regress to delete+reinsert)
 
-Every child-table upsert (seasons+episodes, credits, images, videos, external_ids,
-watch_options, reviews, certifications, junctions) compares a canonical projection
-of existing vs incoming rows (`sources/postgres/upsert-diff.ts`) and **skips the
-delete+reinsert when identical** — the common case. Rewrites are debug-logged
-("hydration: child rows changed, rewriting"). The old always-rewrite pattern
-bloated tables to 60x live size and starved autovacuum. When adding a field to a
-`createMany`, ADD IT to the matching comparator in `upsert-diff.ts` too, or real
-changes will be silently skipped. Helper files split out for the 800-line limit:
-`rating-upserts.ts`, `series-junction-upserts.ts`.
+Child-table upserts (credits, images, videos, external_ids, watch_options,
+reviews) use **per-row diff reconciliation** (Jun 11 2026): `diffChildRows` in
+`sources/postgres/diff-reconcile.ts` computes {toInsert, toUpdate, toDelete}
+against the natural key, so an unchanged collection = ZERO writes and a one-row
+change = one UPDATE (the old skip-or-full-rewrite bloated tables to 60x live
+size and starved autovacuum). Reconciliations are debug-logged
+("hydration: child rows changed, reconciling" with per-table counts) — healthy
+steady state is near-silence on revisits; a table logging on every visit means
+a field is missing from its `isSame` comparator in `shared-upserts.ts` /
+`credit-upserts.ts`. When adding a field to a child `createMany`, ADD IT to the
+matching `isSame` lambda too, or real changes are silently skipped. Float
+fields TMDB jitters (aspectRatio, voteAverage, score) compare via `floatEq3`
+(3-decimal tolerance — popularity-sync precedent). The whole-set comparators in
+`upsert-diff.ts` are legacy (still used by seasons/episodes/certifications/
+junction upserts only). Helper files split out for the 800-line limit:
+`rating-upserts.ts`, `credit-upserts.ts`, `series-junction-upserts.ts`,
+`diff-reconcile.ts`.
 
 ## Background Refresh Cap
 
