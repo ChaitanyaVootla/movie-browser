@@ -186,11 +186,69 @@ const CACHE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
 // L1 Cache (In-Memory)
 // =============================================================================
 
+/**
+ * Byte-budgeted LRU wrapper around the L1 store.
+ *
+ * WHY (Jun 11 2026 incident — heap-snapshot verified): the bare NodeCache had
+ * NO size bound. Crawler sweeps insert unique-URL TMDB payloads at ~30MB/min
+ * with 1-24h TTLs → millions of retained parsed-JSON fragments → 4.8GB RSS →
+ * kernel OOM froze the instance twice. The L1 now evicts oldest-accessed
+ * entries past L1_BUDGET_BYTES (size approximated at insert via JSON length —
+ * cheap and proportional). L2 (disk) remains the capacity layer; L1 is only
+ * a hot-key accelerator and stays small.
+ */
+const L1_BUDGET_BYTES =
+  parseInt(process.env.L1_CACHE_BUDGET_MB || "150", 10) * 1024 * 1024;
+
 const memoryCache = new NodeCache({
   checkperiod: 60, // Check for expired keys every 60 seconds
   useClones: true, // Use clones to prevent accidental mutations
   deleteOnExpire: true,
 });
+
+/** fullKey -> approx serialized bytes; Map iteration order ≈ LRU (re-inserted on get). */
+const l1Sizes = new Map<string, number>();
+let l1TotalBytes = 0;
+
+memoryCache.on("del", (key: string) => {
+  const size = l1Sizes.get(key);
+  if (size !== undefined) {
+    l1TotalBytes -= size;
+    l1Sizes.delete(key);
+  }
+});
+
+function approxSize(value: unknown): number {
+  try {
+    const s = JSON.stringify(value);
+    return s ? s.length : 256;
+  } catch {
+    return 4096; // unserializable — assume chunky
+  }
+}
+
+function l1Set(key: string, value: unknown, ttlSeconds: number): void {
+  const size = approxSize(value);
+  if (size > L1_BUDGET_BYTES / 4) return; // never let one entry own the cache
+  memoryCache.set(key, value, ttlSeconds);
+  const prev = l1Sizes.get(key);
+  if (prev !== undefined) l1TotalBytes -= prev;
+  l1Sizes.delete(key);
+  l1Sizes.set(key, size);
+  l1TotalBytes += size;
+  while (l1TotalBytes > L1_BUDGET_BYTES && l1Sizes.size > 1) {
+    const oldestKey = l1Sizes.keys().next().value as string;
+    memoryCache.del(oldestKey); // "del" handler updates l1Sizes/l1TotalBytes
+  }
+}
+
+function l1Touch(key: string): void {
+  const size = l1Sizes.get(key);
+  if (size !== undefined) {
+    l1Sizes.delete(key);
+    l1Sizes.set(key, size); // move to tail = most recently used
+  }
+}
 
 // Track in-flight requests to prevent duplicate fetches
 const inFlightRequests = new Map<string, Promise<unknown>>();
@@ -420,6 +478,7 @@ export function cacheGet<T>(namespace: CacheNamespace, key: string): T | undefin
 
   // Check L1 first
   const l1Value = memoryCache.get<T>(fullKey);
+  if (l1Value !== undefined) l1Touch(fullKey);
   if (l1Value !== undefined) {
     cacheStats.l1Hits++;
     return l1Value;
@@ -432,7 +491,7 @@ export function cacheGet<T>(namespace: CacheNamespace, key: string): T | undefin
     if (fileEntry && Date.now() < fileEntry.expiresAt) {
       cacheStats.l2Hits++;
       // Populate L1 from L2
-      memoryCache.set(fullKey, fileEntry.data, config.l1TTL);
+      l1Set(fullKey, fileEntry.data, config.l1TTL);
       return fileEntry.data;
     }
     cacheStats.l2Misses++;
@@ -455,7 +514,7 @@ export function cacheSet<T>(
 
   // Set in L1
   const l1TTL = customTTL ?? config.l1TTL;
-  memoryCache.set(fullKey, value, l1TTL);
+  l1Set(fullKey, value, l1TTL);
 
   // Set in L2 if configured
   if (config.persistToFile && config.l2TTL > 0) {
@@ -670,6 +729,7 @@ export async function cachedFetchPersistent<T>(
 
   // 1. Check L1 (memory)
   const l1Value = memoryCache.get<T>(fullKey);
+  if (l1Value !== undefined) l1Touch(fullKey);
   if (l1Value !== undefined) {
     cacheStats.l1Hits++;
     return l1Value;
@@ -688,12 +748,12 @@ export async function cachedFetchPersistent<T>(
       if (!isExpired) {
         // Valid cache
         cacheStats.l2Hits++;
-        memoryCache.set(fullKey, fileEntry.data, config.l1TTL);
+        l1Set(fullKey, fileEntry.data, config.l1TTL);
         return fileEntry.data;
       } else if (isWithinGrace) {
         // Stale but within grace period - return stale, refresh in background
         cacheStats.staleHits++;
-        memoryCache.set(fullKey, fileEntry.data, 60); // Short L1 TTL
+        l1Set(fullKey, fileEntry.data, 60); // Short L1 TTL
 
         // Trigger background refresh (don't await)
         refreshInBackground(namespace, key, fetcher, config, customTTL);
@@ -715,7 +775,7 @@ export async function cachedFetchPersistent<T>(
     .then((data) => {
       // Store in L1
       const l1TTL = customTTL ?? config.l1TTL;
-      memoryCache.set(fullKey, data, l1TTL);
+      l1Set(fullKey, data, l1TTL);
 
       // Store in L2 if configured
       if (config.persistToFile && config.l2TTL > 0) {
@@ -754,7 +814,7 @@ async function refreshInBackground<T>(
     .then((data) => {
       const fullKey = buildFullKey(namespace, key);
       const l1TTL = customTTL ?? config.l1TTL;
-      memoryCache.set(fullKey, data, l1TTL);
+      l1Set(fullKey, data, l1TTL);
 
       if (config.persistToFile && config.l2TTL > 0) {
         const l2TTL = customTTL ?? config.l2TTL;
@@ -1041,7 +1101,7 @@ export function warmL1FromL2(namespace: CacheNamespace): { loaded: number; error
       const remainingTTL = Math.max(0, Math.floor((entry.expiresAt - now) / 1000));
 
       if (remainingTTL > 0) {
-        memoryCache.set(fullKey, data, remainingTTL);
+        l1Set(fullKey, data, remainingTTL);
         loaded++;
       }
     } catch {
