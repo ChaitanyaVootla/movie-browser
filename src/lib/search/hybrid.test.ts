@@ -11,6 +11,14 @@
  * These tests pin the contract: NO single leg failure (lexical, semantic,
  * exact-match, spelling suggestions) may reject `hybridSearch` — each leg
  * degrades independently and the remaining legs' results are returned.
+ *
+ * June 2026 follow-up (post-hardening prod observation): 3+-word queries STILL
+ * burned the full 4s trigram statement_timeout before the FTS fallback ran.
+ * `runLexicalSearch` now pre-empts: 3+ words → FTS directly, trigram never
+ * called. 1-2 word queries keep trigram-first (typo tolerance). The
+ * trigram-degradation tests below therefore use 2-word queries (which still
+ * exercise the trigram leg); the pre-empt itself is pinned in the
+ * "multi-word FTS pre-empt" describe block.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -153,16 +161,17 @@ beforeEach(() => {
 
 describe("hybridSearch error isolation (June 2026 zero-results regression)", () => {
   it("returns semantic results when the trigram leg throws a statement timeout", async () => {
+    // 2-word query: still routed trigram-first (3+ words pre-empt to FTS)
     mockFuzzySearch.mockRejectedValue(statementTimeout);
     mockSemanticSearch.mockResolvedValue([semanticResult]);
 
-    const response = await hybridSearch("the lord of the rings");
+    const response = await hybridSearch("lord rings");
 
     expect(response.results.length).toBeGreaterThan(0);
     expect(response.results.map((r) => r.id)).toContain(semanticResult.id);
     // The failure must be logged, not swallowed silently
     expect(dataLogger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ event: "fuzzy_search_failed", query: "the lord of the rings" })
+      expect.objectContaining({ event: "fuzzy_search_failed", query: "lord rings" })
     );
   });
 
@@ -170,9 +179,10 @@ describe("hybridSearch error isolation (June 2026 zero-results regression)", () 
     mockFuzzySearch.mockRejectedValue(statementTimeout);
     mockFtsSearchTitles.mockResolvedValue([ftsResult]);
 
-    const response = await hybridSearch("the lord of the rings");
+    const response = await hybridSearch("lord rings");
 
     expect(response.results.map((r) => r.id)).toContain(ftsResult.id);
+    expect(mockFuzzySearch).toHaveBeenCalled();
     expect(mockFtsSearchTitles).toHaveBeenCalled();
   });
 
@@ -181,7 +191,7 @@ describe("hybridSearch error isolation (June 2026 zero-results regression)", () 
     mockFtsSearchTitles.mockRejectedValue(new Error("fts also timed out"));
     mockFtsSearchPeople.mockRejectedValue(new Error("fts also timed out"));
 
-    const response = await hybridSearch("the lord of the rings");
+    const response = await hybridSearch("lord rings");
 
     expect(response.results).toEqual([]);
     expect(dataLogger.error).toHaveBeenCalledWith(
@@ -193,7 +203,7 @@ describe("hybridSearch error isolation (June 2026 zero-results regression)", () 
     mockFuzzySearch.mockResolvedValue([fuzzyResult]);
     mockSemanticSearch.mockRejectedValue(new Error("Bedrock embedding unavailable"));
 
-    const response = await hybridSearch("the lord of the rings");
+    const response = await hybridSearch("lord rings");
 
     expect(response.results.map((r) => r.id)).toContain(fuzzyResult.id);
     expect(dataLogger.warn).toHaveBeenCalledWith(
@@ -228,13 +238,51 @@ describe("hybridSearch error isolation (June 2026 zero-results regression)", () 
 
   it("degrades to regex classification if the hybrid classifier itself throws", async () => {
     mockClassify.mockRejectedValue(new Error("classifier exploded"));
-    mockFuzzySearch.mockResolvedValue([fuzzyResult]);
+    // 5-word query → lexical leg is the FTS pre-empt path, so provide FTS results
+    mockFtsSearchTitles.mockResolvedValue([ftsResult]);
 
     const response = await hybridSearch("the lord of the rings");
 
     expect(response.results.length).toBeGreaterThan(0);
     expect(dataLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ event: "intent_classification_failed" })
+    );
+  });
+});
+
+describe("multi-word FTS pre-empt (June 2026 trigram-timeout follow-up)", () => {
+  it("routes 3+-word queries directly to FTS without ever calling trigram", async () => {
+    mockFtsSearchTitles.mockResolvedValue([ftsResult]);
+
+    const response = await hybridSearch("the lord of the rings");
+
+    expect(mockFuzzySearch).not.toHaveBeenCalled();
+    expect(mockFtsSearchTitles).toHaveBeenCalledWith("the lord of the rings", expect.any(Number));
+    expect(response.results.map((r) => r.id)).toContain(ftsResult.id);
+  });
+
+  it("keeps trigram-first for 2-word queries (typo tolerance)", async () => {
+    mockFuzzySearch.mockResolvedValue([fuzzyResult]);
+
+    const response = await hybridSearch("lord rings");
+
+    expect(mockFuzzySearch).toHaveBeenCalled();
+    // Trigram succeeded → FTS never needed
+    expect(mockFtsSearchTitles).not.toHaveBeenCalled();
+    expect(response.results.map((r) => r.id)).toContain(fuzzyResult.id);
+  });
+
+  it("degrades to empty lexical (logged) when FTS fails on the pre-empt path, semantic leg unaffected", async () => {
+    mockFtsSearchTitles.mockRejectedValue(new Error("fts timed out"));
+    mockFtsSearchPeople.mockRejectedValue(new Error("fts timed out"));
+    mockSemanticSearch.mockResolvedValue([semanticResult]);
+
+    const response = await hybridSearch("the lord of the rings");
+
+    expect(mockFuzzySearch).not.toHaveBeenCalled();
+    expect(response.results.map((r) => r.id)).toContain(semanticResult.id);
+    expect(dataLogger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "lexical_search_failed", query: "the lord of the rings" })
     );
   });
 });

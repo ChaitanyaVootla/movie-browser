@@ -195,6 +195,23 @@ const POPULARITY_DIVISOR = 15;
  */
 const FALLBACK_THRESHOLD = 5;
 
+/**
+ * Lexical pre-empt: queries with this many whitespace-separated words (or more)
+ * go DIRECTLY to FTS, skipping trigram entirely.
+ *
+ * Trigram is pathological for common multi-word queries (see
+ * `.claude/rules/search-system.md` and the `fts-search.ts` header): "the lord
+ * of the rings" shares ultra-common trigrams with a huge slice of the catalog,
+ * so the candidate set explodes and the 4s statement_timeout fires. June 2026
+ * prod incident (post error-isolation hardening): such queries still burned the
+ * full 4s timeout (`fuzzy_search_failed ... Code 57014 ... fallback: fts` in
+ * prod logs) BEFORE the FTS fallback did the useful work — worst-case searches
+ * paid 4s+ for results FTS returns in ~100ms (stop-words dropped, GIN-indexed).
+ * 1-2 word queries keep trigram-first: that's where trigram earns its keep
+ * (typo tolerance) and stays fast.
+ */
+const FTS_PREEMPT_MIN_WORDS = 3;
+
 // =============================================================================
 // Query Understanding
 // =============================================================================
@@ -725,11 +742,26 @@ async function resolveSimilarToTitle(intent: IntentAnalysis): Promise<IntentAnal
  *
  * Degradation chain: trigram → FTS (stop-word-aware, GIN-indexed, the same fast
  * path autocomplete uses) → empty array. Every failure is logged with context.
+ *
+ * Pre-empt: queries with `FTS_PREEMPT_MIN_WORDS`+ words skip trigram entirely
+ * and go straight to FTS — trigram on those reliably burned the full 4s
+ * statement_timeout before falling back here anyway (see the constant's doc).
  */
 async function runLexicalSearch(
   query: string,
   options: FuzzySearchOptions
 ): Promise<FuzzySearchResult[]> {
+  const wordCount = query.trim().split(/\s+/).filter(Boolean).length;
+  if (wordCount >= FTS_PREEMPT_MIN_WORDS) {
+    dataLogger.debug({
+      event: "lexical_fts_preempt",
+      query,
+      wordCount,
+      note: "multi-word query routed directly to FTS, trigram skipped",
+    });
+    return runFtsLexicalSearch(query, options);
+  }
+
   try {
     return await fuzzySearch(query, options);
   } catch (error: unknown) {
@@ -743,6 +775,19 @@ async function runLexicalSearch(
 
   // Trigram failed (likely statement timeout on a common multi-word query).
   // FTS handles exactly that case fast — degrade instead of returning nothing.
+  return runFtsLexicalSearch(query, options);
+}
+
+/**
+ * FTS leg of the lexical search, mapped to `FuzzySearchResult` shape. Used both
+ * as the multi-word pre-empt path and as the degradation target when trigram
+ * fails. On FTS failure: log `lexical_search_failed` + return [] — never throw
+ * (the semantic leg must be unaffected).
+ */
+async function runFtsLexicalSearch(
+  query: string,
+  options: FuzzySearchOptions
+): Promise<FuzzySearchResult[]> {
   try {
     const mediaTypes = options.mediaTypes ?? ["movie", "series", "person"];
     const limit = options.limit ?? 20;
@@ -774,7 +819,7 @@ async function runLexicalSearch(
       event: "lexical_search_failed",
       query,
       error: ftsError instanceof Error ? ftsError.message : String(ftsError),
-      note: "both trigram and FTS legs failed; returning empty lexical results",
+      note: "FTS lexical leg failed (trigram skipped or already failed); returning empty lexical results",
     });
     return [];
   }
