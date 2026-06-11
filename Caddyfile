@@ -9,6 +9,21 @@
 themoviebrowser.com {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	encode zstd gzip
+
+	# Edge bot-shedding (Jun 11 2026): the 2-vCPU origin cannot absorb the
+	# crawler herd on a cold cache — every restart fanned out into hundreds of
+	# concurrent long-tail renders → multi-GB RSS → kernel OOM freeze. App-layer
+	# caps don't help (the render pipeline allocates AFTER them). Until
+	# CloudFront fronts the origin (edge cache + request collapsing absorbs the
+	# herd), shed the heavy AI/scraper/social crawlers HERE, pre-render, at
+	# near-zero cost. Googlebot/Bingbot are deliberately NOT matched (SEO).
+	# RELAX once the CDN is live. Forged-Chrome scrapers faking a real UA are
+	# still caught by src/proxy.ts (missing client hints).
+	@heavybots header_regexp User-Agent (?i)(bytespider|bytedance|meta-externalagent|facebookexternalhit|anthropic|claudebot|claude-web|gptbot|oai-searchbot|chatgpt|ccbot|amazonbot|applebot|semrushbot|ahrefsbot|dataforseo|petalbot|yandexbot|baiduspider|dotbot|mj12bot|blexbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient)
+	respond @heavybots 429 {
+		close
+	}
+
 	reverse_proxy localhost:3002 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
