@@ -106,7 +106,11 @@ interface GoogleTokenInfo {
 async function resolveLoginLocation(): Promise<UserProfileLocation | null> {
   try {
     const { headers } = await import("next/headers");
-    return resolveUserLocation(await headers());
+    const location = resolveUserLocation(await headers());
+    if (!location) return null;
+    // Stamp so the intermittent refresher (user-location-refresh.ts) knows
+    // this location is fresh and doesn't rewrite it on the next page view.
+    return { ...location, updatedAt: new Date().toISOString() };
   } catch {
     return null;
   }

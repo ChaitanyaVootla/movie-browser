@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { resolveUserLocation, mergeProfileLocation } from "./user-location";
+import {
+  resolveUserLocation,
+  mergeProfileLocation,
+  shouldRefreshStoredLocation,
+  extractProfileLocation,
+} from "./user-location";
 
 describe("resolveUserLocation", () => {
   it("returns null when no geo signal is present", () => {
@@ -63,5 +68,59 @@ describe("mergeProfileLocation", () => {
     expect(mergeProfileLocation("garbage", location)).toEqual({
       profile: { location },
     });
+  });
+});
+
+describe("extractProfileLocation", () => {
+  it("returns metadata.profile.location when present", () => {
+    const metadata = { profile: { location: { countryCode: "IN" } } };
+    expect(extractProfileLocation(metadata)).toEqual({ countryCode: "IN" });
+  });
+
+  it("returns null for missing or malformed metadata", () => {
+    expect(extractProfileLocation(null)).toBeNull();
+    expect(extractProfileLocation({})).toBeNull();
+    expect(extractProfileLocation({ profile: "garbage" })).toBeNull();
+  });
+});
+
+describe("shouldRefreshStoredLocation", () => {
+  const now = new Date("2026-06-11T12:00:00Z");
+  const DAY = 24 * 60 * 60 * 1000;
+  const fresh = { countryCode: "IN", city: "Hyderabad" };
+  const recentStamp = new Date(now.getTime() - 60_000).toISOString();
+
+  it("refreshes when nothing is stored", () => {
+    expect(shouldRefreshStoredLocation(null, fresh, now, DAY)).toBe(true);
+    expect(shouldRefreshStoredLocation("garbage", fresh, now, DAY)).toBe(true);
+    expect(shouldRefreshStoredLocation({}, fresh, now, DAY)).toBe(true);
+  });
+
+  it("refreshes when the country changed", () => {
+    const stored = { countryCode: "US", city: "Hyderabad", updatedAt: recentStamp };
+    expect(shouldRefreshStoredLocation(stored, fresh, now, DAY)).toBe(true);
+  });
+
+  it("refreshes when the city changed", () => {
+    const stored = { countryCode: "IN", city: "Mumbai", updatedAt: recentStamp };
+    expect(shouldRefreshStoredLocation(stored, fresh, now, DAY)).toBe(true);
+  });
+
+  it("refreshes when the stored stamp is older than maxAge (or missing)", () => {
+    const oldStamp = new Date(now.getTime() - 2 * DAY).toISOString();
+    expect(
+      shouldRefreshStoredLocation({ ...fresh, updatedAt: oldStamp }, fresh, now, DAY),
+    ).toBe(true);
+    expect(shouldRefreshStoredLocation({ ...fresh }, fresh, now, DAY)).toBe(true);
+  });
+
+  it("does not refresh when location is unchanged and recently stamped", () => {
+    const stored = { countryCode: "IN", city: "Hyderabad", updatedAt: recentStamp };
+    expect(shouldRefreshStoredLocation(stored, fresh, now, DAY)).toBe(false);
+  });
+
+  it("does not treat a missing fresh city as a change", () => {
+    const stored = { countryCode: "IN", city: "Hyderabad", updatedAt: recentStamp };
+    expect(shouldRefreshStoredLocation(stored, { countryCode: "IN" }, now, DAY)).toBe(false);
   });
 });

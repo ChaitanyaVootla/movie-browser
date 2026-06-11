@@ -27,6 +27,7 @@ import { generateSessionId, extractClientIP } from "@/lib/analytics/session";
 import { resolveGeo } from "@/lib/geoip";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
+import { maybeRefreshUserLocation } from "@/server/services/user-location-refresh";
 import { apiLogger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -123,6 +124,13 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     const isAdmin = isAdminEmail(session?.user?.email);
     const shouldTrackAdmin = process.env.TRACK_ADMIN_ANALYTICS === "true";
+
+    // Keep the user's stored location + lastActiveAt fresh (throttled to once
+    // per 6h per user, fire-and-forget). Runs before the admin early-return on
+    // purpose: it's profile upkeep, not analytics.
+    if (session?.user?.email) {
+      maybeRefreshUserLocation(session.user.email, request.headers);
+    }
 
     if (isAdmin && !shouldTrackAdmin) {
       // Return success without tracking to avoid polluting analytics
