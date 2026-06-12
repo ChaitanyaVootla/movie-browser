@@ -94,7 +94,16 @@ Key validated facts this design rests on:
 6. **No fan-out writes ever** (no per-follower activity rows, no
    "notify all followers" rows). Notifications are write-on-event, bounded by
    direct recipients (reply author, circle members).
-7. **Edge-cache rules** (CloudFront caches anon HTML):
+7. **Typed nullable anchor columns, never generic `(itemId, itemType)`.**
+   Generic polymorphism loses real FKs (no Restrict/Cascade enforcement, no
+   FK indexes), invites silent misattribution (TMDB reuses numeric ids across
+   movie/TV — id 603 exists in both), kills Prisma relations, and degrades
+   join planning. Adding a new anchor type in the typed pattern is one
+   nullable column + a CHECK line + an index — the cheap operation. The
+   anchor universe is a small closed set (movie, series, season/episode,
+   person, list, circle, review); generic typing is for integrity-free
+   open-ended streams (ClickHouse analytics — correctly uses itemId/itemType).
+8. **Edge-cache rules** (CloudFront caches anon HTML):
    - Anon-cached variants of any discussion surface contain ONLY
      `spoilerScope=NONE, status=PUBLISHED, circleId IS NULL` comments —
      progress-independent, hence cacheable, and exactly what crawlers should
