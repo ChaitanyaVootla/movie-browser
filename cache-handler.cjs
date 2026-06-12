@@ -22,6 +22,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-require-imports -- runtime CJS, loaded by the Next server outside the bundle */
+const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
@@ -39,6 +40,24 @@ const gunzipAsync = promisify(zlib.gunzip);
 // accepts legacy plain-JSON entries (pre-gzip deploys) via magic-byte sniff.
 /** Per-cacheDir singleton stores — survive per-request handler construction. */
 const STORES = new Map();
+
+/** Memoized BUILD_ID read — the handler is constructed per request, so the
+ *  sync read must happen at most once per distDir. Falls back to "dev" when
+ *  the file is missing (dev server, unit tests) for a stable namespace. */
+const BUILD_ID_CACHE = new Map();
+function readBuildId(distDir) {
+  let id = BUILD_ID_CACHE.get(distDir);
+  if (!id) {
+    try {
+      id =
+        fs.readFileSync(path.join(distDir, "BUILD_ID"), "utf8").trim() || "dev";
+    } catch {
+      id = "dev";
+    }
+    BUILD_ID_CACHE.set(distDir, id);
+  }
+  return id;
+}
 
 const GZIP_MAGIC_0 = 0x1f;
 const GZIP_MAGIC_1 = 0x8b;
@@ -84,7 +103,17 @@ class BoundedCacheHandler {
   constructor(ctx) {
     const serverDistDir =
       (ctx && ctx.serverDistDir) || path.join(process.cwd(), ".next", "server");
-    this.cacheDir = path.join(serverDistDir, "..", "cache", "bounded-isr");
+    // Namespace entries by BUILD_ID (Jun 12 2026): .next/cache survives both
+    // `next build` and the deploy tar (extracted OVER .next), and entries are
+    // keyed by route path only — so after a deploy the handler kept serving
+    // the PREVIOUS build's HTML (whose chunk URLs can 404, and which kept the
+    // Jun 12 broken-hydration HTML alive long after the fixed build shipped).
+    // A per-build subdirectory makes a new build start from an empty namespace
+    // (cold ISR after deploy is absorbed by CloudFront); stale build dirs are
+    // pruned once at store init.
+    const distDir = path.join(serverDistDir, "..");
+    this.buildId = readBuildId(distDir);
+    this.cacheDir = path.join(distDir, "cache", "bounded-isr", this.buildId);
     this.budgetBytes =
       parseInt(process.env.BOUNDED_CACHE_MB || "4000", 10) * 1024 * 1024;
     // Evict down to 90% of budget so a full cache doesn't evict one file per
@@ -154,6 +183,21 @@ class BoundedCacheHandler {
   async #initIndex(store) {
     try {
       await fsp.mkdir(this.cacheDir, { recursive: true });
+      // Best-effort, once per process: remove other builds' namespaces and
+      // legacy flat *.json entries from the pre-namespacing scheme — they are
+      // unreachable now and would otherwise sit in the disk budget forever.
+      const parent = path.dirname(this.cacheDir);
+      fsp
+        .readdir(parent)
+        .then((siblings) => {
+          for (const name of siblings) {
+            if (name === this.buildId) continue;
+            fsp
+              .rm(path.join(parent, name), { recursive: true, force: true })
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
       const names = await fsp.readdir(this.cacheDir);
       const stats = [];
       for (const name of names) {

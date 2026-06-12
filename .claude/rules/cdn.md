@@ -55,11 +55,21 @@ every freeze the night of cutover).
 6. **Server-action / RSC BUILD SKEW** (the subtle one): edge HTML cached from build
    A embeds action IDs / RSC route hashes that build B's origin doesn't have →
    "Server Action not found" / RSC 404 (intermittent: pages cached from the current
-   build work, older ones don't). Fix: `deploymentId = process.env.GITHUB_SHA` in
-   next.config (client reloads on mismatch) + **deploy-time `aws cloudfront
-   create-invalidation /*`** so the edge serves current-build HTML. `/*` = ONE
-   invalidation path (~free; the >$1k fear is only from per-URL BULK purging — never
-   do that). The EC2 instance role has `cloudfront:CreateInvalidation` for this.
+   build work, older ones don't). **`deploymentId` is NOT a usable fix — it took the
+   whole site down on Jun 12 2026.** On Next 16.1.0 + Turbopack, runtime renders
+   apply it inconsistently (entry scripts/CSS emitted bare, flight chunk URLs with
+   `?dpl=` — even with identical build/runtime config): same chunk loads under two
+   URLs → modules execute twice → hydration dies SILENTLY site-wide (pages render,
+   nothing clickable, zero console errors; only build-time prerenders are
+   consistent). Removed from next.config — do not re-add until verified fixed
+   upstream (repro: clean `GITHUB_SHA=x yarn build` + `GITHUB_SHA=x next start`,
+   then grep served HTML for bare+dpl duplicates). Current skew posture: accepted
+   ~1h window for action POSTs from stale edge HTML; `cache-handler.cjs` namespaces
+   ISR by BUILD_ID so the ORIGIN at least never serves cross-build HTML. If skew
+   hurts again, the lever is a manual `aws cloudfront create-invalidation --paths
+   "/*"` (ONE path, ~free; the >$1k fear is only per-URL BULK purging) — but NOT
+   auto-per-deploy (caused the Jun 11 cold-edge outage; commit 05fd778). The EC2
+   instance role has `cloudfront:CreateInvalidation`.
 7. **Geo**: behind CloudFront the origin only sees edge IPs → IP-geoip shows US.
    Read the `CloudFront-Viewer-Country` header (`src/lib/geoip.ts`), and `/api/*`
    MUST use the `AllViewerAndCloudFrontHeaders` origin-request policy (plain

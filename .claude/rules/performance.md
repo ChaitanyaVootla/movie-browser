@@ -166,11 +166,14 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    ~7k req/10min vs ~650 human). `src/proxy.ts` 429s them pre-render (plus
    webdriver/headless hints and `Accept: text/markdown` LLM scrapers). When the
    box melts under "organic" traffic, FIRST check
-   `page_views GROUP BY bot_type` for the last 10 min. NOTE (corrected Jun 11):
-   deploys do NOT wipe the ISR cache — the deploy tar extracts OVER `.next`,
-   so cache entries persist across deploys (this false assumption hid the
-   41GB cache growth). Cold-render windows happen only after a cache purge
-   or revalidate expiry, not every deploy.
+   `page_views GROUP BY bot_type` for the last 10 min. NOTE (re-corrected Jun
+   12): since BUILD_ID namespacing in `cache-handler.cjs`, every deploy DOES
+   start with an empty ISR namespace (the un-namespaced cache had served
+   stale-build HTML across deploys — chunk-ref 404s + it kept the Jun 12
+   broken-hydration HTML alive after the fix shipped). The deploy cold window
+   is absorbed by CloudFront (edge cache + stale-if-error + Origin Shield
+   collapsing), so this is safe — but it makes "don't hammer prod right after
+   a deploy" matter more.
 11. **Don't run parallel Playwright audits against prod.** Jun 10 2026: four
    concurrent visual-audit agents scroll-loading ~80 pages (incl. uncached sparse
    titles and garbage IDs → cold renders + enrichment triggers) on top of the

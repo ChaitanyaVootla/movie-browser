@@ -5,13 +5,20 @@ import { withSerwist } from "@serwist/turbopack";
 const nextConfig = {
   poweredByHeader: false,
 
-  // deploymentId (build SHA): behind a CDN that caches HTML, a page cached from
-  // build A embeds server-action IDs that don't exist on the origin running
-  // build B → "Server Action not found" (Jun 11). With deploymentId set, Next
-  // tags assets/actions with it and, on a mismatch, makes the client RELOAD to
-  // fresh HTML instead of erroring. Paired with the deploy-time CloudFront /*
-  // invalidation (deploy-ec2.yml) so the edge serves current-build HTML.
-  deploymentId: process.env.GITHUB_SHA || undefined,
+  // DO NOT set `deploymentId` (removed Jun 12 2026 — it broke the whole site).
+  // It was added (b83c870) for CDN build-skew protection ("Server Action not
+  // found" from edge-cached HTML of an older build). But on Next 16.1.0 +
+  // Turbopack, RUNTIME renders apply it inconsistently: entry scripts/CSS are
+  // emitted WITHOUT ?dpl= while flight-manifest chunk URLs carry it — even when
+  // build-time and runtime config values match exactly (reproduced locally on a
+  // clean build). The browser sees the same chunk under two URLs, executes
+  // every module twice (two React instances), and hydration dies SILENTLY
+  // site-wide: pages render but nothing is interactive, zero console errors.
+  // Only build-time prerenders get consistent ?dpl= tagging, which is why the
+  // breakage looked intermittent/cache-dependent. Accepted tradeoff: action
+  // POSTs from stale edge HTML can fail for up to the edge TTL (~1h) after a
+  // deploy — far less harm than dead hydration everywhere. Re-evaluate when
+  // upstream fixes runtime deploymentId under Turbopack.
 
   // Server Actions run behind CloudFront: the browser sends Origin
   // https://themoviebrowser.com but the origin sees Host

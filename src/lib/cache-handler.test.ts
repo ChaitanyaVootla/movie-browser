@@ -28,7 +28,7 @@ function makeHandler(): HandlerInstance {
 }
 
 function diskBytes(): number {
-  const dir = path.join(tmpDir, "cache", "bounded-isr");
+  const dir = path.join(tmpDir, "cache", "bounded-isr", "dev");
   if (!fs.existsSync(dir)) return 0;
   return fs.readdirSync(dir).reduce((sum, f) => {
     try {
@@ -72,7 +72,7 @@ describe("BoundedCacheHandler", () => {
     expect(await handler.get("never-set")).toBeNull();
 
     await handler.set("doomed", { kind: "FETCH", data: "x" }, {});
-    const dir = path.join(tmpDir, "cache", "bounded-isr");
+    const dir = path.join(tmpDir, "cache", "bounded-isr", "dev");
     for (const f of fs.readdirSync(dir)) fs.unlinkSync(path.join(dir, f));
     // memory layer may still serve it; a fresh process must miss
     BoundedCacheHandler._clearStores();
@@ -126,7 +126,7 @@ describe("BoundedCacheHandler", () => {
   it("never throws on a corrupt entry file — degrades to a miss", async () => {
     const handler = makeHandler();
     await handler.set("good", { kind: "FETCH", data: "ok" }, {});
-    const dir = path.join(tmpDir, "cache", "bounded-isr");
+    const dir = path.join(tmpDir, "cache", "bounded-isr", "dev");
     for (const f of fs.readdirSync(dir)) {
       fs.writeFileSync(path.join(dir, f), "NOT JSON {{{");
     }
@@ -170,12 +170,35 @@ describe("Next 16 segmentData (Map) round-trip", () => {
   });
 });
 
+describe("build namespacing (Jun 12: stale-build HTML survived deploys)", () => {
+  it("reads BUILD_ID for the namespace and prunes other builds' entries", async () => {
+    // a previous build's namespace + a legacy flat entry
+    const parent = path.join(tmpDir, "cache", "bounded-isr");
+    fs.mkdirSync(path.join(parent, "old-build-id"), { recursive: true });
+    fs.writeFileSync(path.join(parent, "old-build-id", "stale.json"), "{}");
+    fs.writeFileSync(path.join(parent, "legacy-flat.json"), "{}");
+
+    const handler = makeHandler();
+    await handler.store.ready;
+    await handler.set("fresh", { kind: "FETCH", data: "new" }, {});
+    // prune is fire-and-forget; poll briefly
+    for (let i = 0; i < 50 && fs.existsSync(path.join(parent, "old-build-id")); i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(fs.existsSync(path.join(parent, "old-build-id"))).toBe(false);
+    expect(fs.existsSync(path.join(parent, "legacy-flat.json"))).toBe(false);
+    expect(await handler.get("fresh")).not.toBeNull();
+    // entries live under the per-build dir ("dev" fallback without BUILD_ID)
+    expect(fs.readdirSync(path.join(parent, "dev")).length).toBeGreaterThan(0);
+  });
+});
+
 describe("gzip storage", () => {
   it("stores entries gzipped on disk and reads them back", async () => {
     const handler = makeHandler();
     const value = { kind: "FETCH", data: "z".repeat(50 * 1024) };
     await handler.set("gz-entry", value, {});
-    const dir = path.join(tmpDir, "cache", "bounded-isr");
+    const dir = path.join(tmpDir, "cache", "bounded-isr", "dev");
     const file = fs.readdirSync(dir)[0];
     const raw = fs.readFileSync(path.join(dir, file));
     expect(raw[0]).toBe(0x1f); // gzip magic
@@ -190,7 +213,7 @@ describe("gzip storage", () => {
   it("still reads legacy plain-JSON entries", async () => {
     const handler = makeHandler();
     await handler.store.ready;
-    const dir = path.join(tmpDir, "cache", "bounded-isr");
+    const dir = path.join(tmpDir, "cache", "bounded-isr", "dev");
     // simulate a pre-gzip entry written by the old handler
     const crypto = await import("crypto");
     const hash = crypto.createHash("sha1").update("legacy-key").digest("hex");
