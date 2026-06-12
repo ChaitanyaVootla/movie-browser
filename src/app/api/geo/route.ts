@@ -12,10 +12,10 @@ import { NextResponse } from "next/server";
 import { resolveGeo } from "@/lib/geoip";
 
 export async function GET(request: Request): Promise<NextResponse> {
-  const { country, city } = resolveGeo(request.headers);
+  const { country, city, region, timezone } = resolveGeo(request.headers);
 
   return NextResponse.json(
-    { country, city },
+    { country, city, region, timezone },
     {
       headers: {
         "Cache-Control": "private, max-age=3600",

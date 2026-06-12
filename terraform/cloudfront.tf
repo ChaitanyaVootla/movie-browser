@@ -122,11 +122,19 @@ resource "aws_cloudfront_cache_policy" "default" {
     }
 
     headers_config {
-      # Cache key does not vary on headers; the headers Next needs are still
-      # FORWARDED to the origin via the origin request policy below. (Keeping
-      # headers out of the cache key keeps the anon hit ratio high; RSC variants
-      # are disambiguated by the `_rsc` query param, which IS in the key.)
-      header_behavior = "none"
+      # The `rsc` header MUST be in the cache key (Jun 12 2026 incident): the
+      # origin-request policy forwards it, so a request with `RSC: 1` but NO
+      # `_rsc` query param (bots replaying captured headers — or anyone with
+      # curl) makes Next return the flight payload, and without this key entry
+      # CloudFront cached that text/x-component body under the SAME key as the
+      # HTML page → every user's reload showed the raw RSC payload for an hour
+      # (+ a year of stale-while-revalidate). Keying `rsc` costs nothing: HTML
+      # requests never send it, and real client-nav requests already split on
+      # `_rsc`. Other Next headers stay out of the key (hit ratio).
+      header_behavior = "whitelist"
+      headers {
+        items = ["rsc"]
+      }
     }
 
     query_strings_config {
@@ -181,7 +189,14 @@ resource "aws_cloudfront_origin_request_policy" "default" {
         # rejects it in an origin-request policy when Compress=true (it manages
         # br/gzip negotiation itself). Removing it; CloudFront still negotiates
         # compression with the origin.
-        "CloudFront-Viewer-Country" # geo for SSR region hints
+        "CloudFront-Viewer-Country", # geo for SSR region hints
+        "CloudFront-Viewer-Address"  # real viewer ip:port — geoip city/tz for
+                                     # page-view analytics + session IDs. The
+                                     # connection IP at the origin is a CF POP
+                                     # (geo-locating it = the Seattle/LA wonky
+                                     # location bug, Jun 12). NOTE: this fills
+                                     # the 10-header policy quota — an 11th
+                                     # needs an AWS quota increase.
       ]
     }
   }

@@ -35,6 +35,39 @@ describe("resolveUserLocation", () => {
     expect(location?.countryCode).toBe("US");
     expect(location?.countryName).toBe("United States");
   });
+
+  it("builds the full location from CloudFront viewer headers", () => {
+    const headers = new Headers({
+      "cloudfront-viewer-country": "IN",
+      "cloudfront-viewer-city": "Hyderabad",
+      "cloudfront-viewer-country-region-name": "Telangana",
+      "cloudfront-viewer-time-zone": "Asia/Kolkata",
+      "x-real-ip": "8.8.8.8", // CloudFront POP IP — must not leak into the location
+    });
+
+    const location = resolveUserLocation(headers);
+
+    expect(location).toEqual({
+      countryCode: "IN",
+      countryName: "India",
+      city: "Hyderabad",
+      region: "Telangana",
+      timezone: "Asia/Kolkata",
+    });
+  });
+
+  it("never stamps the CDN connection IP's city when no viewer address is forwarded", () => {
+    const headers = new Headers({
+      "cloudfront-viewer-country": "IN",
+      "x-real-ip": "8.8.8.8", // edge POP — its US city/timezone must NOT be stored
+    });
+
+    const location = resolveUserLocation(headers);
+
+    expect(location?.countryCode).toBe("IN");
+    expect(location?.city).toBeUndefined();
+    expect(location?.timezone).toBeUndefined();
+  });
 });
 
 describe("mergeProfileLocation", () => {

@@ -1,8 +1,23 @@
 /**
  * GeoIP Lookup
  *
- * App-level GeoIP using geoip-lite (bundles MaxMind GeoLite2).
- * Replaces the Nginx GeoIP2 module for setting x-country-code / x-city headers.
+ * Geo resolution for a request, CDN-aware. Behind CloudFront the connection
+ * IP (x-real-ip / x-forwarded-for, set by Caddy from the socket peer) is a
+ * CloudFront POP — geo-locating it puts users in Seattle/LA/Mumbai (the Jun
+ * 2026 wonky-location bug). The viewer's identity only reaches the origin via
+ * CloudFront-generated headers:
+ *
+ * - CloudFront-Viewer-Country / -City / -Country-Region-Name / -Time-Zone —
+ *   computed at the edge from the viewer IP. Forwarded on /api/* by the
+ *   managed AllViewerAndCloudFrontHeaders policy; page routes get -Country +
+ *   -Address via the custom origin-request policy (terraform/cloudfront.tf).
+ * - CloudFront-Viewer-Address — the real viewer "ip:port". Used for GeoIP
+ *   gap-fill and as the canonical client IP.
+ *
+ * The geoip-lite (bundled MaxMind GeoLite2) fallback only ever runs against
+ * an IP we can attribute to the viewer: the viewer address behind the CDN, or
+ * the connection IP for direct-origin/dev requests. If a CDN request carries
+ * no viewer address, missing fields stay null — never the POP's city.
  *
  * IMPORTANT: geoip-lite reads .dat files eagerly on require().
  * We lazy-load it to avoid build-time failures during Next.js page data collection.
@@ -15,6 +30,15 @@ export interface GeoResult {
   timezone: string | null;
   ll: [number, number] | null;
 }
+
+export interface ResolvedGeo {
+  country: string;
+  city: string | null;
+  region: string | null;
+  timezone: string | null;
+}
+
+type HeaderGetter = { get: (name: string) => string | null };
 
 const FALLBACK: GeoResult = {
   country: "unknown",
@@ -62,60 +86,112 @@ export function lookupIP(ip: string): GeoResult {
   };
 }
 
+/** "1.2.3.4:46532" / "2001:db8::1:46532" -> IP without the port. */
+function stripViewerAddressPort(address: string): string {
+  const trimmed = address.trim();
+  // Bracketed IPv6 ("[::1]:443") — not CloudFront's format, but cheap to honor.
+  const bracket = trimmed.match(/^\[(.+)\]:\d+$/);
+  if (bracket?.[1]) return bracket[1];
+  const lastColon = trimmed.lastIndexOf(":");
+  if (lastColon === -1) return trimmed;
+  return trimmed.slice(0, lastColon);
+}
+
+/** CloudFront percent-encodes non-ASCII header values (e.g. "S%C3%A3o Paulo"). */
+function decodeViewerValue(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function getDecoded(headers: HeaderGetter, name: string): string | null {
+  const value = headers.get(name);
+  return value ? decodeViewerValue(value).trim() || null : null;
+}
+
+function normalizeCountry(raw: string | null): string | null {
+  if (!raw) return null;
+  const normalized = raw.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : null;
+}
+
+/**
+ * The IP we are allowed to GEO-LOCATE as the viewer:
+ * - CloudFront-Viewer-Address when present (the real viewer IP),
+ * - the connection IP only for direct-origin/dev requests (no CDN markers),
+ * - null for CDN requests without a viewer address (connection IP = POP).
+ */
+function viewerIPForGeo(headers: HeaderGetter): string | null {
+  const address = headers.get("cloudfront-viewer-address");
+  if (address) return stripViewerAddressPort(address);
+  if (headers.get("cloudfront-viewer-country")) return null;
+  const realIp = headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const forwardedFor = headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const first = forwardedFor.split(",")[0];
+    if (first) return first.trim();
+  }
+  return null;
+}
+
 /**
  * Resolve country code from request headers, with GeoIP fallback.
  *
  * Priority:
- * 1. x-country-code header (set by proxy, if configured)
- * 2. GeoIP lookup from client IP
- * 3. "unknown"
+ * 1. CloudFront-Viewer-Country (authoritative behind the CDN)
+ * 2. x-country-code header (legacy nginx GeoIP2 path)
+ * 3. GeoIP lookup of the viewer IP (see viewerIPForGeo)
+ * 4. "unknown"
  */
-export function resolveCountry(headers: {
-  get: (name: string) => string | null;
-}): string {
-  // CloudFront-Viewer-Country (2-letter ISO, set by the CDN from the viewer's
-  // IP) is authoritative behind the CDN — the origin only sees CloudFront edge
-  // IPs, so IP geoip would resolve everyone to the edge's country (Jun 11: all
-  // users showed as US). Forwarded via the CloudFront origin request policy.
+export function resolveCountry(headers: HeaderGetter): string {
   const headerCountry =
-    headers.get("cloudfront-viewer-country") || headers.get("x-country-code");
-  if (headerCountry) {
-    const normalized = headerCountry.trim().toUpperCase();
-    if (/^[A-Z]{2}$/.test(normalized)) {
-      return normalized;
-    }
-  }
+    normalizeCountry(headers.get("cloudfront-viewer-country")) ||
+    normalizeCountry(headers.get("x-country-code"));
+  if (headerCountry) return headerCountry;
 
-  const ip = extractIP(headers);
-  const geo = lookupIP(ip);
-  return geo.country;
+  const ip = viewerIPForGeo(headers);
+  return ip ? lookupIP(ip).country : "unknown";
 }
 
 /**
- * Full geo resolution from headers with GeoIP fallback.
+ * Full geo resolution from headers: country/city/region/timezone from the
+ * CloudFront viewer headers, gaps filled by a GeoIP lookup of the viewer IP.
+ * Fields a CDN request doesn't carry stay null — never the POP's geo.
  */
-export function resolveGeo(headers: {
-  get: (name: string) => string | null;
-}): { country: string; city: string | null } {
-  // See resolveCountry: prefer CloudFront-Viewer-Country behind the CDN.
+export function resolveGeo(headers: HeaderGetter): ResolvedGeo {
   const headerCountry =
-    headers.get("cloudfront-viewer-country") || headers.get("x-country-code");
-  const headerCity = headers.get("x-city");
+    normalizeCountry(headers.get("cloudfront-viewer-country")) ||
+    normalizeCountry(headers.get("x-country-code"));
+  const headerCity =
+    getDecoded(headers, "cloudfront-viewer-city") || headers.get("x-city");
+  const headerRegion =
+    getDecoded(headers, "cloudfront-viewer-country-region-name") ||
+    getDecoded(headers, "cloudfront-viewer-country-region");
+  const headerTimezone = headers.get("cloudfront-viewer-time-zone");
 
-  if (headerCountry) {
-    const normalized = headerCountry.trim().toUpperCase();
-    if (/^[A-Z]{2}$/.test(normalized)) {
-      return { country: normalized, city: headerCity || null };
-    }
-  }
+  const needsLookup = !headerCountry || !headerCity || !headerRegion || !headerTimezone;
+  const ip = needsLookup ? viewerIPForGeo(headers) : null;
+  const ipGeo = ip ? lookupIP(ip) : FALLBACK;
 
-  const ip = extractIP(headers);
-  const geo = lookupIP(ip);
-  return { country: geo.country, city: headerCity || geo.city };
+  return {
+    country: headerCountry || ipGeo.country,
+    city: headerCity || ipGeo.city,
+    region: headerRegion || ipGeo.region,
+    timezone: headerTimezone || ipGeo.timezone,
+  };
 }
 
-/** Extract client IP from headers (X-Real-IP > X-Forwarded-For > unknown) */
-export function extractIP(headers: { get: (name: string) => string | null }): string {
+/**
+ * Extract the client IP for hashing/logging (NOT for geo — see viewerIPForGeo).
+ * Priority: CloudFront-Viewer-Address > X-Real-IP > X-Forwarded-For > unknown.
+ */
+export function extractIP(headers: HeaderGetter): string {
+  const address = headers.get("cloudfront-viewer-address");
+  if (address) return stripViewerAddressPort(address);
+
   const realIp = headers.get("x-real-ip");
   if (realIp) return realIp.trim();
 

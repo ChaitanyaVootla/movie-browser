@@ -34,10 +34,21 @@ every freeze the night of cutover).
   orphan, safe to delete.
 
 ## The footguns (every one cost a CF redeploy ~5–15min to fix; all are live-fixed)
-1. **RSC client-nav**: cache key MUST include the `_rsc` query param and the
-   origin-request policy MUST forward the `rsc` header, or App-Router navigation
-   gets HTML instead of a flight payload and breaks. Verify: a `?_rsc=` request
-   returns `content-type: text/x-component`.
+1. **RSC client-nav**: cache key MUST include BOTH the `_rsc` query param AND
+   the `rsc` header (the origin-request policy forwards the header). The param
+   alone is NOT enough — Jun 12 2026 prod incident: a request with `RSC: 1`
+   but no `_rsc` param (bots replaying captured headers; one curl reproduces
+   it) makes Next return the flight payload, and with `header_behavior=none`
+   CloudFront cached that `text/x-component` body under the SAME key as the
+   HTML page → reloads showed the raw RSC payload to everyone, and the
+   year-long `stale-while-revalidate` kept it alive past the 1h s-maxage
+   (fix required a `/*` invalidation). Keying `rsc` costs no hit ratio: HTML
+   requests never send it. Verify both directions: `?_rsc=` request →
+   `text/x-component`; a plain GET *after* a `curl -H 'RSC: 1'` GET of the
+   same URL → still `text/html`. Gotcha while testing: identity vs
+   gzip/brotli are SEPARATE cache entries — a no-`Accept-Encoding` curl can
+   MISS while browsers HIT the poisoned compressed variant; always test with
+   `--compressed`.
 2. **Set-Cookie leak**: response-headers policy strips `Set-Cookie` on cacheable
    behaviors, or one user's session cookie is replayed to all on cache hits.
 3. **Cookies / cache key**: cache policy `cookie_behavior=none` (anon share one
@@ -70,11 +81,25 @@ every freeze the night of cutover).
    "/*"` (ONE path, ~free; the >$1k fear is only per-URL BULK purging) — but NOT
    auto-per-deploy (caused the Jun 11 cold-edge outage; commit 05fd778). The EC2
    instance role has `cloudfront:CreateInvalidation`.
-7. **Geo**: behind CloudFront the origin only sees edge IPs → IP-geoip shows US.
-   Read the `CloudFront-Viewer-Country` header (`src/lib/geoip.ts`), and `/api/*`
-   MUST use the `AllViewerAndCloudFrontHeaders` origin-request policy (plain
-   AllViewer does NOT forward CF-generated headers). Header is NOT in the cache key
-   (SSR HTML stays country-agnostic; /api/geo is uncached).
+7. **Geo**: behind CloudFront the origin's connection IP (Caddy's
+   `x-real-ip`/XFF = socket peer) is a CF POP — geo-locating it stamps users
+   with the POP's city (Jun 12: logged-in users showed Seattle/LA/Mumbai in
+   the admin Users tab via `metadata.profile.location`). The viewer's geo
+   ONLY reaches the origin as CloudFront-generated headers, all consumed by
+   `src/lib/geoip.ts` (the ONE place geo/IP extraction is allowed to live):
+   - `/api/*` uses `Managed-AllViewerAndCloudFrontHeaders-2022-06` (plain
+     AllViewer does NOT forward CF-generated headers) → full set:
+     `CloudFront-Viewer-Country/-City/-Country-Region-Name/-Time-Zone/
+     -Address` (+lat/long/postal). Sign-in location stamping, analytics
+     ingest, and /api/geo all live here.
+   - Page routes use the custom whitelist policy → `-Country` + `-Address`
+     only; city/tz come from geoip-lite on the `-Address` IP. The policy is
+     AT its 10-header quota — an 11th header needs an AWS quota increase.
+   - `resolveGeo` NEVER geoip-locates the connection IP when CF markers are
+     present but `-Address` is missing — null city beats POP city.
+   - These are origin-request-policy headers, NOT cache-key headers (SSR HTML
+     stays country-agnostic; /api/geo is uncached). Adding viewer geo headers
+     to the CACHE policy would shatter the edge cache — never do it.
 8. **`Accept-Encoding`** cannot be whitelisted in an origin-request policy when
    Compress=true (CloudFront manages it) — apply errors if you try.
 9. **`stale-if-error`**: Next does NOT emit it; Caddy appends `stale-if-error=86400`

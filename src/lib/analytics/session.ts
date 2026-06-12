@@ -7,6 +7,7 @@
  */
 
 import crypto from "crypto";
+import { extractIP } from "@/lib/geoip";
 
 // =============================================================================
 // Session ID Generation
@@ -96,27 +97,14 @@ export function getSessionTimeoutMs(): number {
 // =============================================================================
 
 /**
- * Extract client IP from various headers
- * Priority: X-Real-IP > X-Forwarded-For (first) > fallback
+ * Extract client IP from various headers.
+ * Behind CloudFront, x-real-ip/x-forwarded-for are the edge POP (Caddy sets
+ * them from the socket peer) — every viewer routed through one POP would share
+ * a session-ID IP component. extractIP prefers CloudFront-Viewer-Address (the
+ * real viewer ip:port) before those.
  */
 export function extractClientIP(headers: { get: (name: string) => string | null }): string {
-  // X-Real-IP is typically set by Nginx
-  const realIp = headers.get("x-real-ip");
-  if (realIp) {
-    return realIp.trim();
-  }
-
-  // X-Forwarded-For may contain multiple IPs (client, proxy1, proxy2, ...)
-  const forwardedFor = headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0];
-    if (firstIp) {
-      return firstIp.trim();
-    }
-  }
-
-  // Fallback to unknown
-  return "unknown";
+  return extractIP(headers);
 }
 
 // =============================================================================

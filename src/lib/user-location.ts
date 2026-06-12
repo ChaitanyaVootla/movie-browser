@@ -9,12 +9,14 @@
  * (scripts/migrate-user-data.ts) and what the admin UI reads.
  */
 
-import { resolveGeo, lookupIP, extractIP } from "./geoip";
+import { resolveGeo } from "./geoip";
 
 export interface UserProfileLocation {
   countryCode: string;
   countryName?: string;
   city?: string;
+  /** State/province display name (admin Users tab reads stateName || region). */
+  region?: string;
   timezone?: string;
   /** ISO stamp of when this location was resolved — drives refresh staleness. */
   updatedAt?: string;
@@ -30,27 +32,24 @@ function countryDisplayName(code: string): string | undefined {
 }
 
 /**
- * Resolve a persistable location from request headers (x-country-code/x-city
- * if a proxy sets them, GeoIP lookup from the client IP otherwise).
- * Returns null when nothing resolves — callers must not overwrite an existing
- * stored location with null.
+ * Resolve a persistable location from request headers. resolveGeo is CDN-aware:
+ * CloudFront viewer headers first, GeoIP of the viewer IP for gaps, and never
+ * the connection IP behind the CDN (that's a CloudFront POP — the Jun 2026
+ * "users in Seattle/LA" bug). Returns null when nothing resolves — callers
+ * must not overwrite an existing stored location with null.
  */
 export function resolveUserLocation(headers: {
   get: (name: string) => string | null;
 }): UserProfileLocation | null {
-  const { country, city } = resolveGeo(headers);
+  const { country, city, region, timezone } = resolveGeo(headers);
   if (!country || country === "unknown") return null;
-
-  // resolveGeo skips the IP lookup when header geo is present; do it here so
-  // timezone (and city, if the header path had none) still gets captured.
-  const ipGeo = lookupIP(extractIP(headers));
 
   const location: UserProfileLocation = { countryCode: country };
   const countryName = countryDisplayName(country);
   if (countryName) location.countryName = countryName;
-  const resolvedCity = city ?? ipGeo.city;
-  if (resolvedCity) location.city = resolvedCity;
-  if (ipGeo.timezone) location.timezone = ipGeo.timezone;
+  if (city) location.city = city;
+  if (region) location.region = region;
+  if (timezone) location.timezone = timezone;
   return location;
 }
 
