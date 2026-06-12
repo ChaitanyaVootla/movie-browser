@@ -7617,6 +7617,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fflate@npm:^0.8.3":
+  version: 0.8.3
+  resolution: "fflate@npm:0.8.3"
+  checksum: 10c0/eab181ca37f5348ae76d4b6f840e0026e30220e33153289ac942222d8b9638237d486507dbcc09878d724095bd354993a2ee48bbee99c8f2c6440d4448719aa7
+  languageName: node
+  linkType: hard
+
 "file-entry-cache@npm:^8.0.0":
   version: 8.0.0
   resolution: "file-entry-cache@npm:8.0.0"
@@ -9708,6 +9715,7 @@ __metadata:
     eslint-config-next: "npm:16.1.0"
     eslint-config-prettier: "npm:^10.1.5"
     eslint-plugin-playwright: "npm:^2.2.0"
+    fflate: "npm:^0.8.3"
     framer-motion: "npm:^12.23.26"
     geoip-lite: "npm:^2.0.1"
     happy-dom: "npm:^20.0.11"
