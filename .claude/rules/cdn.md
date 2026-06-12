@@ -149,14 +149,23 @@ memory `cdn-plan-jun11`.
 ## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.
 - www still A→EIP (works via 301→CF; cleaner to alias www→CF).
-- `/topics/genre-war-politics-tv` genuine 404 (topic-slug bug, pre-existing).
-- **`/serwist/sw.js` is served with `s-maxage=31536000`** → CloudFront pins one
-  build's service worker for a YEAR (deploys ship new SW content at the same
-  URL; no deploy-time invalidation exists anymore). Stopgap: invalidate
-  `/serwist/*` manually after SW-affecting deploys. Durable fix: a CF cache
-  behavior (or Caddy header override) giving `/serwist/*` a short TTL.
-  (The Jun-11 serwist `parseRoute` error itself was fixed Jun 12 — serwist v9
-  `matcher`+strategy-instance shapes, plus `{scope:"/"}` at registration.)
+- Image distro (`E300L33VF15D5T`): no Origin Shield, 24h TTL on immutable
+  posters — each edge node misses independently against the image origin.
+  Improvement candidate, but it's outside this repo's TF state: plan it as its
+  own change, never as a drive-by.
+
+## Cache-lifetime posture (fixed Jun 12 2026, commit 70a2db1 — keep these true)
+- HTML SWR is bounded: `expireTime: 7200` in next.config → movie/series emit
+  `s-maxage=3600, swr=3600` (was swr≈1 YEAR, which kept stale-build HTML with
+  dead server-action IDs servable long past s-maxage; person: no SWR since its
+  revalidate 86400 > expireTime — verified, no odd clamping).
+- 404s: `media-not-found` has `revalidate = 3600` (was s-maxage=1y — one
+  transient 404 pinned a URL dead at the edge forever, with no deploy purge).
+- `/serwist/*`: next.config headers() → `max-age=0, s-maxage=60` (was
+  year-pinned SW). (The Jun-11 serwist `parseRoute` error was fixed Jun 12 —
+  serwist v9 `matcher`+strategy-instance shapes, plus `{scope:"/"}`.)
+- manifest/favicon/robots: `max-age=300, s-maxage=86400` (were uncacheable).
+- Canonical-slug 308 in `src/proxy.ts`: `s-maxage=86400`.
 
 See also: `.claude/rules/performance.md` (cold-start stampede, freeze recovery),
 `.claude/rules/infrastructure.md` (EC2/SG/deploy).
