@@ -33,6 +33,16 @@ const nextConfig = {
   // geoip-lite reads .dat files from node_modules at runtime — must not be bundled
   serverExternalPackages: ["geoip-lite"],
 
+  // Bounds the stale-while-revalidate window Next emits on ISR HTML
+  // (SWR = expireTime - revalidate). The default (1y) let CloudFront serve
+  // year-stale HTML while revalidating; combined with no-invalidation deploys
+  // that serves old-build pages whose server-action IDs the new build 404s
+  // (Jun 12 2026 UnrecognizedActionError incident). 7200 → movie/series
+  // (revalidate 3600) get SWR=3600; person (revalidate 86400 > expireTime)
+  // gets no SWR window. Outage protection is unaffected — stale-if-error is
+  // appended by Caddy, not SWR.
+  expireTime: 7200,
+
   // Bounded LRU disk cache for ISR (prod only — dev keeps the default).
   // Next's default file-system cache has NO size eviction: on Jun 10 2026 it
   // grew to 41GB under bot crawl, filled the disk and crash-looped the server.
@@ -116,9 +126,34 @@ const nextConfig = {
     ];
   },
 
-  // Security headers
+  // Security headers + edge-cache TTLs for static-ish files
   async headers() {
     return [
+      // Service worker: was inheriting s-maxage=31536000, which pinned one
+      // build's SW at CloudFront for a year (deploys ship new SW bytes at the
+      // same URL and never invalidate). Browsers ignore max-age>=86400 for SW
+      // scripts anyway; the s-maxage=60 is what matters (edge).
+      {
+        source: "/serwist/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=60, must-revalidate",
+          },
+        ],
+      },
+      // Public-dir files served with max-age=0 by default → every PWA client
+      // and crawler hits the 2-vCPU origin for static bytes. Cache at the
+      // edge for a day; clients revalidate after 5 min.
+      {
+        source: "/(manifest.json|favicon.ico|robots.txt)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=300, s-maxage=86400",
+          },
+        ],
+      },
       {
         source: "/:path*",
         headers: [

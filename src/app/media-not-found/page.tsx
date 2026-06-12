@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Without this, the fully-static route inherits Next's max s-maxage (1y) and
+// CloudFront pins the 404 forever (deploys don't invalidate) — a transient
+// miss (e.g. a new release not yet in PG during a TMDB hiccup) would
+// permanently kill the URL at the edge. 1h matches the detail pages' TTL.
+export const revalidate = 3600;
+
 export default function MediaNotFoundPage(): never {
   notFound();
 }

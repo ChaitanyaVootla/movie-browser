@@ -136,7 +136,16 @@ function applyMediaDecision(
       req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
     const base = host === "origin.themoviebrowser.com" ? SITE_URL : `${proto}://${host}`;
     maybeTrackPageView(req);
-    return NextResponse.redirect(`${base}${decision.location}${req.nextUrl.search}`, 308);
+    const redirect = NextResponse.redirect(
+      `${base}${decision.location}${req.nextUrl.search}`,
+      308,
+    );
+    // Let CloudFront cache the canonical-slug redirect — wrong-slug URLs
+    // (old indexed links) otherwise cost an origin round-trip per hit. Safe
+    // to cache long: the canonical slug only changes with a title rename,
+    // and the target page itself revalidates hourly.
+    redirect.headers.set("cache-control", "public, s-maxage=86400");
+    return redirect;
   }
 
   if (decision.action === "not_found") {
