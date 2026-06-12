@@ -262,7 +262,6 @@ model Movie {
 
   // User relations
   watchlistItems   WatchlistItem[]
-  watchedByUsers   WatchedMovie[]
   userRatings      UserRating[]
   recentViews      RecentItem[]
   continueWatching ContinueWatching[]
@@ -1003,7 +1002,6 @@ model User {
   accounts         Account[]
   sessions         Session[]
   watchlistItems   WatchlistItem[]
-  watchedMovies    WatchedMovie[]
   ratings          UserRating[]
   recentItems      RecentItem[]
   continueWatching ContinueWatching[]
@@ -1094,21 +1092,6 @@ model WatchlistItem {
   @@index([userId, addedAt(sort: Desc)])
   @@index([userId, position])
   @@map("watchlist")
-}
-
-// Keep separate - watched movies is movie-only feature currently
-model WatchedMovie {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  movieId   Int      @map("movie_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, movieId])
-  @@index([userId, createdAt(sort: Desc)])
-  @@map("watched_movies")
 }
 
 // Already polymorphic - keep as-is

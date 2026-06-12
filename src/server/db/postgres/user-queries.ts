@@ -10,6 +10,7 @@
 
 import { prisma } from "./index";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
+import { markStatsDirty } from "./social/stats-dirty";
 
 const MAX_RECENTS = 20;
 const MAX_CONTINUE_WATCHING = 10;
@@ -89,9 +90,10 @@ function mapGenres(
 export async function getLibraryData(userId: number) {
   const [watchedMovies, watchlistMovies, watchlistSeries, ratings, recents, continueWatching] =
     await Promise.all([
-      prisma.watchedMovie.findMany({
-        where: { userId },
+      prisma.watchEvent.findMany({
+        where: { userId, movieId: { not: null } },
         select: { movieId: true },
+        distinct: ["movieId"],
       }),
       prisma.watchlistItem.findMany({
         where: { userId, movieId: { not: null } },
@@ -126,7 +128,7 @@ export async function getLibraryData(userId: number) {
     ]);
 
   return {
-    watchedMovieIds: watchedMovies.map((w) => w.movieId),
+    watchedMovieIds: watchedMovies.flatMap((w) => (w.movieId === null ? [] : [w.movieId])),
     watchlistMovieIds: watchlistMovies.map((w) => w.movieId!),
     watchlistSeriesIds: watchlistSeries.map((s) => s.seriesId!),
     ratings: ratings.flatMap((r) =>
@@ -310,29 +312,34 @@ export async function removeSeriesFromWatchlist(userId: number, seriesId: number
 export async function getWatchedMovieIdsWithDates(
   userId: number
 ): Promise<{ movieId: number; createdAt: Date }[]> {
-  return prisma.watchedMovie.findMany({
-    where: { userId },
-    select: { movieId: true, createdAt: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const rows = await prisma.$queryRaw<Array<{ movie_id: number; last_at: Date }>>`
+    SELECT movie_id, MAX(COALESCE(watched_at, created_at)) AS last_at
+    FROM watch_events
+    WHERE user_id = ${userId} AND movie_id IS NOT NULL
+    GROUP BY movie_id
+    ORDER BY last_at DESC
+  `;
+  return rows.map((r) => ({ movieId: r.movie_id, createdAt: r.last_at }));
 }
 
 export async function markMovieWatched(userId: number, movieId: number): Promise<void> {
-  try {
-    await prisma.watchedMovie.upsert({
-      where: { userId_movieId: { userId, movieId } },
-      create: { userId, movieId },
-      update: {},
+  const existing = await prisma.watchEvent.findFirst({
+    where: { userId, movieId },
+    select: { id: true },
+  });
+  if (existing) return;
+  await prisma.$transaction(async (tx) => {
+    await tx.watchEvent.create({
+      data: { userId, movieId, watchedAt: new Date(), watchedAtPrecision: "DATETIME", source: "LOGGED" },
     });
-  } catch (error: unknown) {
-    if (isPrismaError(error) && error.code === "P2002") return;
-    throw error;
-  }
+    await markStatsDirty(tx, userId);
+  });
 }
 
 export async function unmarkMovieWatched(userId: number, movieId: number): Promise<void> {
-  await prisma.watchedMovie.deleteMany({
-    where: { userId, movieId },
+  await prisma.$transaction(async (tx) => {
+    await tx.watchEvent.deleteMany({ where: { userId, movieId } });
+    await markStatsDirty(tx, userId);
   });
 }
 
@@ -565,8 +572,8 @@ export async function getUserItemStatus(
         where: { userId_movieId: { userId, movieId: itemId } },
         select: { id: true },
       }),
-      prisma.watchedMovie.findUnique({
-        where: { userId_movieId: { userId, movieId: itemId } },
+      prisma.watchEvent.findFirst({
+        where: { userId, movieId: itemId },
         select: { id: true },
       }),
       prisma.userRating.findUnique({
@@ -582,7 +589,7 @@ export async function getUserItemStatus(
   }
 
   // Series
-  const [watchlist, rating] = await Promise.all([
+  const [watchlist, rating, progress] = await Promise.all([
     prisma.watchlistItem.findUnique({
       where: { userId_seriesId: { userId, seriesId: itemId } },
       select: { id: true },
@@ -591,10 +598,14 @@ export async function getUserItemStatus(
       where: { userId_seriesId: { userId, seriesId: itemId } },
       select: { rating: true },
     }),
+    prisma.seriesProgress.findUnique({
+      where: { userId_seriesId: { userId, seriesId: itemId } },
+      select: { status: true },
+    }),
   ]);
   return {
     inWatchlist: !!watchlist,
-    isWatched: false, // No watched tracking for series
+    isWatched: progress?.status === "COMPLETED" || progress?.status === "CAUGHT_UP",
     userRating: rating?.rating ?? null,
   };
 }
@@ -605,9 +616,10 @@ export async function getUserExclusions(
 ): Promise<{ watchedIds: number[]; watchlistIds: number[]; dislikedIds: number[] }> {
   if (mediaType === "movie") {
     const [watched, watchlist, disliked] = await Promise.all([
-      prisma.watchedMovie.findMany({
-        where: { userId },
+      prisma.watchEvent.findMany({
+        where: { userId, movieId: { not: null } },
         select: { movieId: true },
+        distinct: ["movieId"],
       }),
       prisma.watchlistItem.findMany({
         where: { userId, movieId: { not: null } },
@@ -619,14 +631,18 @@ export async function getUserExclusions(
       }),
     ]);
     return {
-      watchedIds: watched.map((w) => w.movieId),
+      watchedIds: watched.flatMap((w) => (w.movieId === null ? [] : [w.movieId])),
       watchlistIds: watchlist.map((w) => w.movieId!),
       dislikedIds: disliked.map((d) => d.movieId!),
     };
   }
 
-  // Series (no watched tracking)
-  const [watchlist, disliked] = await Promise.all([
+  // Series: watched = any tracked progress (series_progress row exists)
+  const [watched, watchlist, disliked] = await Promise.all([
+    prisma.seriesProgress.findMany({
+      where: { userId },
+      select: { seriesId: true },
+    }),
     prisma.watchlistItem.findMany({
       where: { userId, seriesId: { not: null } },
       select: { seriesId: true },
@@ -637,7 +653,7 @@ export async function getUserExclusions(
     }),
   ]);
   return {
-    watchedIds: [],
+    watchedIds: watched.map((w) => w.seriesId),
     watchlistIds: watchlist.map((w) => w.seriesId!),
     dislikedIds: disliked.map((d) => d.seriesId!),
   };
@@ -672,6 +688,14 @@ export async function getAdminUsersWithActivity() {
     _count: { _all: true },
   });
   const seriesListByUser = new Map(seriesListCounts.map((c) => [c.userId, c._count._all]));
+
+  const watchedCounts = await prisma.$queryRaw<Array<{ user_id: number; n: bigint }>>`
+    SELECT user_id, COUNT(DISTINCT movie_id)::bigint AS n
+    FROM watch_events
+    WHERE movie_id IS NOT NULL
+    GROUP BY user_id
+  `;
+  const watchedByUser = new Map(watchedCounts.map((c) => [c.user_id, Number(c.n)]));
 
   // Legacy shape also carries the 10 most recent items per user with display
   // titles ("recent-items") — the admin UI's expanded card renders them.
@@ -715,7 +739,6 @@ export async function getAdminUsersWithActivity() {
       metadata: true,
       _count: {
         select: {
-          watchedMovies: true,
           watchlistItems: true,
           ratings: true,
           recentItems: true,
@@ -737,7 +760,7 @@ export async function getAdminUsersWithActivity() {
     lastVisited: u.lastActiveAt?.toISOString() ?? null,
     preferredCountry: u.preferredCountry,
     role: u.role,
-    WatchedMovies: u._count.watchedMovies,
+    WatchedMovies: watchedByUser.get(u.id) ?? 0,
     MoviesWatchList: u._count.watchlistItems - (seriesListByUser.get(u.id) ?? 0),
     recent: u._count.recentItems,
     "recent-items": recentItemsByUser.get(u.id) ?? [],
