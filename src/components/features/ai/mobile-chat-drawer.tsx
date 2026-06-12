@@ -32,6 +32,20 @@ interface PromptConfig {
 const CARD_WIDTH = 120;
 const CARD_HEIGHT = 180;
 
+/**
+ * Vaul's `repositionInputs` compensates for a keyboard that OVERLAYS the page,
+ * which is only how iOS behaves (it ignores `interactive-widget`). On Android
+ * the app's `interactive-widget=resizes-content` (root viewport export) makes
+ * the browser shrink the layout viewport instead, so the fixed drawer already
+ * tracks the keyboard — vaul's extra `bottom: keyboardHeight` offset then
+ * floated the input a full keyboard-height above the keyboard. Enable vaul's
+ * handling ONLY where the platform needs it (iOS, incl. iPadOS desktop-UA).
+ */
+const IS_IOS =
+  typeof navigator !== "undefined" &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1));
+
 // =============================================================================
 // Utilities (shared with assistant-floaty)
 // =============================================================================
@@ -208,22 +222,36 @@ export function MobileChatDrawer({
 
   const hasConversation = messages.length > 0;
 
-  // Focus input when drawer opens
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [isOpen]);
-
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, cleanText, mediaTags.length]);
 
+  // Keyboard open/close resizes the layout viewport (Android resizes-content),
+  // shrinking the drawer — keep the latest message pinned to the bottom instead
+  // of letting it slide out of view behind the input.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onResize = () => messagesEndRef.current?.scrollIntoView({ block: "end" });
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [isOpen]);
+
+  // Focus AFTER the open animation settles (focusing mid-flight made the
+  // keyboard resize fight the drawer transition), and only for a fresh chat —
+  // with an existing conversation the user wants to read it first, not have
+  // the keyboard cover it. (Vaul's onAnimationEnd doesn't fire for an
+  // externally-controlled `open` prop, so time it to its 500ms transition.)
+  useEffect(() => {
+    if (!isOpen || messages.length > 0) return;
+    const timer = setTimeout(() => inputRef.current?.focus(), 520);
+    return () => clearTimeout(timer);
+  }, [isOpen, messages.length]);
+
   return (
-    <Drawer open={isOpen} onOpenChange={onOpenChange}>
+    <Drawer open={isOpen} onOpenChange={onOpenChange} repositionInputs={IS_IOS}>
       {/* 92dvh tracks the keyboard via interactive-widget=resizes-content (Android);
-          Vaul's built-in input repositioning covers iOS. */}
+          vaul repositionInputs (gated to iOS above) covers iOS. */}
       <DrawerContent className="bg-black border-white/10" style={{ maxHeight: "92dvh" }}>
         <DrawerHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-white/10">
           <div className="flex items-center gap-2">

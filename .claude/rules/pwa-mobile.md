@@ -56,11 +56,22 @@ keyboard is handled app-wide. Established June 2026 (S25 Ultra polish pass).
   bug). With it, the layout viewport (and ALL viewport units) resize, so
   fixed-bottom UI and `dvh` heights just work. App-wide setting; applies to
   search palette and any focused input too.
-- iOS ignores `interactive-widget`. Fallbacks: Vaul's built-in
-  `repositionInputs` covers the mobile chat drawer; desktop floating chat
-  panels use `useKeyboardInset()` (`src/hooks/use-keyboard-inset.ts`) — a
-  visualViewport listener that is ~0 on Android by construction. Do NOT add
-  new ad-hoc visualViewport math; use the hook.
+- iOS ignores `interactive-widget`. Fallbacks: Vaul's `repositionInputs`
+  covers the mobile chat drawer **on iOS ONLY** — it must be `false` on
+  Android (`repositionInputs={IS_IOS}` in `mobile-chat-drawer.tsx`). Vaul
+  assumes the keyboard OVERLAYS the page and adds `bottom: keyboardHeight`
+  to the drawer; with `resizes-content` the fixed drawer already tracks the
+  shrunken layout viewport, so vaul's offset double-compensated → a full
+  keyboard-height gap between input and keyboard (Jun 12 2026). Any
+  fixed-bottom input inside a Vaul drawer needs this gating. Desktop
+  floating chat panels use `useKeyboardInset()`
+  (`src/hooks/use-keyboard-inset.ts`) — a visualViewport listener that is ~0
+  on Android by construction. Do NOT add new ad-hoc visualViewport math; use
+  the hook.
+- Chat drawer focus discipline: focus the input in Vaul's `onAnimationEnd`
+  (mid-flight focus makes the keyboard resize fight the 500ms drawer
+  transition) and only when the conversation is empty — with messages
+  present the user opens the drawer to READ; the keyboard would cover them.
 
 ## AI chat window controls (consolidated June 2026)
 

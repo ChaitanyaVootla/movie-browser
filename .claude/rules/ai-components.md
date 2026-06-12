@@ -65,8 +65,13 @@ const idlePrompt = pickRandom(IDLE_PROMPTS);
 - Auto-closes when clicking poster cards for navigation
 - Virtual keyboard: Android handled by `interactive-widget=resizes-content`
   (root layout viewport export) — drawer `max-height: 92dvh` tracks the
-  keyboard natively; iOS handled by Vaul `repositionInputs` (drawer) and
-  `useKeyboardInset()` (desktop floating views). See `.claude/rules/pwa-mobile.md`.
+  keyboard natively and Vaul `repositionInputs` MUST stay disabled there
+  (`repositionInputs={IS_IOS}` — re-enabling it on Android re-creates the
+  keyboard-height gap, Jun 12 2026); iOS handled by Vaul `repositionInputs`
+  (drawer) and `useKeyboardInset()` (desktop floating views). Input focus:
+  in `onAnimationEnd`, only when the conversation is empty (existing
+  messages = user wants to read them, not the keyboard).
+  See `.claude/rules/pwa-mobile.md`.
 
 ## Analytics Integration
 
