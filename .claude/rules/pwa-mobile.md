@@ -11,9 +11,14 @@ keyboard is handled app-wide. Established June 2026 (S25 Ultra polish pass).
 - `ThemeColorSync` (`src/components/features/layout/theme-color-sync.tsx`,
   mounted in the root layout) owns this: it reads the computed `body`
   background (browser resolves the OKLch `--background` token) and writes it
-  to a single live `theme-color` meta, removing the SSR media-scoped pair from
-  the `viewport` export. A `MutationObserver` on `<html class>` re-syncs on
-  every mode/style/accent change. Don't add static theme-color metas anywhere.
+  into the `content` of EVERY existing `theme-color` meta (both SSR
+  media-scoped variants get the same color — whichever Chrome matches is
+  right). **NEVER `.remove()` those metas — they are React-owned (root
+  `viewport` export); removing them crashed every client navigation with
+  `null.removeChild` in React's metadata commit (Jun 12 2026).** Two
+  MutationObservers re-sync: `<html class>` (mode/style/accent change) and
+  `document.head` childList (React swaps the metas back to first-paint colors
+  on every navigation). Don't add static theme-color metas anywhere.
 - Note: modern Chromium serializes the computed color as `lab(...)` — that's
   fine; the same engine parses it for the status bar.
 - Bottom gesture-bar bleed = `viewportFit: "cover"` (root layout) + honest

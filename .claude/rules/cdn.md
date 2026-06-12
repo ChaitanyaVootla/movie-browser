@@ -121,13 +121,17 @@ collapsing; the setup is portable — DNS + cache-rule re-expression). Deferred
 decision: stay CloudFront (AWS-native + api.* product) vs Cloudflare (cost). See
 memory `cdn-plan-jun11`.
 
-## Open items (Jun 11, deferred)
-- 2 unpushed commits (deploymentId + invalidation + edge-shed/image/api/geo/gating)
-  — activate on the next deliberate deploy.
+## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.
 - www still A→EIP (works via 301→CF; cleaner to alias www→CF).
-- Pre-existing app bugs surfaced (NOT CDN): `/topics/genre-war-politics-tv` genuine
-  404 (topic-slug bug), serwist SW `parseRoute` error (PWA config).
+- `/topics/genre-war-politics-tv` genuine 404 (topic-slug bug, pre-existing).
+- **`/serwist/sw.js` is served with `s-maxage=31536000`** → CloudFront pins one
+  build's service worker for a YEAR (deploys ship new SW content at the same
+  URL; no deploy-time invalidation exists anymore). Stopgap: invalidate
+  `/serwist/*` manually after SW-affecting deploys. Durable fix: a CF cache
+  behavior (or Caddy header override) giving `/serwist/*` a short TTL.
+  (The Jun-11 serwist `parseRoute` error itself was fixed Jun 12 — serwist v9
+  `matcher`+strategy-instance shapes, plus `{scope:"/"}` at registration.)
 
 See also: `.claude/rules/performance.md` (cold-start stampede, freeze recovery),
 `.claude/rules/infrastructure.md` (EC2/SG/deploy).
