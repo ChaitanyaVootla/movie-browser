@@ -637,10 +637,11 @@ export async function getUserExclusions(
     };
   }
 
-  // Series: watched = any tracked progress (series_progress row exists)
+  // Series: watched = finished or caught up (matches getUserItemStatus);
+  // WATCHING/PAUSED/DROPPED must stay recommendable.
   const [watched, watchlist, disliked] = await Promise.all([
     prisma.seriesProgress.findMany({
-      where: { userId },
+      where: { userId, status: { in: ["COMPLETED", "CAUGHT_UP"] } },
       select: { seriesId: true },
     }),
     prisma.watchlistItem.findMany({

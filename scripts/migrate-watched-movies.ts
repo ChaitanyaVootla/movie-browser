@@ -17,7 +17,21 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
-  const sourceRows = await prisma.watchedMovie.count();
+  // Raw SQL throughout: the WatchedMovie model is gone from the generated
+  // client (dropped in the same change), but the TABLE still exists wherever
+  // this script legitimately runs (prod, pre-schema-deploy).
+  const tableExists = await prisma.$queryRaw<Array<{ reg: string | null }>>`
+    SELECT to_regclass('public.watched_movies')::text AS reg
+  `;
+  if (tableExists[0]?.reg === null) {
+    console.log("watched_movies table no longer exists — migration already done. Nothing to do.");
+    return;
+  }
+
+  const sourceCount = await prisma.$queryRaw<Array<{ n: bigint }>>`
+    SELECT COUNT(*)::bigint AS n FROM watched_movies
+  `;
+  const sourceRows = Number(sourceCount[0]?.n ?? 0n);
 
   const inserted = await prisma.$executeRaw`
     INSERT INTO watch_events
