@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn, getMediaHref } from "@/lib/utils";
 import { MediaBackdrop } from "@/components/features/media/media-backdrop";
 import { HeroContent, heroContainerVariants } from "@/components/features/media/hero-content";
@@ -29,6 +29,10 @@ interface HeroCarouselProps {
 }
 
 const SWIPE_THRESHOLD = 50; // Minimum distance for swipe
+// The first auto-advance is held past the LCP window (CrUX stops recording LCP
+// shortly after ~the first seconds without input); advancing at the default 8s
+// re-stamped home LCP at 8.3s in prod. Subsequent cycles use slideDuration.
+const FIRST_ADVANCE_MS = 10000;
 
 export function HeroCarousel({
   items,
@@ -41,6 +45,8 @@ export function HeroCarousel({
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   // Key to reset CSS animation when slide changes or autoplay resumes
   const [animationKey, setAnimationKey] = useState(0);
+  // False until the first advance or any user interaction (gates FIRST_ADVANCE_MS)
+  const [hasCycled, setHasCycled] = useState(false);
   // Touch handling for swipe
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -50,22 +56,39 @@ export function HeroCarousel({
     ? (currentItem as unknown as { title: string }).title
     : (currentItem as unknown as { name: string }).name;
 
-  // Get enhanced data for current item
-  const mediaTypeKey = isMovie ? "movie" : "tv";
-  const enhancedDataKey = `${mediaTypeKey}:${currentItem?.id}`;
-  const enhancedData = heroEnhancedData?.[enhancedDataKey];
+  const href = getMediaHref(currentItem?.id ?? 0, isMovie, title);
+
+  // Slides stay mounted in a window around the current index (±1, wrapping, plus
+  // slide 0) so the next backdrop is fetched and paintable BEFORE the swap —
+  // swapping to an already-mounted, same-size element can never re-stamp LCP,
+  // and slide 0 (the LCP element) is never unmounted.
+  const isInWindow = useCallback(
+    (index: number) => {
+      const len = items.length;
+      if (len <= 4) return true;
+      const dist = Math.min(
+        (index - currentIndex + len) % len,
+        (currentIndex - index + len) % len
+      );
+      return dist <= 1 || index === 0;
+    },
+    [items.length, currentIndex]
+  );
 
   const goToSlide = useCallback((index: number) => {
+    setHasCycled(true);
     setCurrentIndex(index);
     setAnimationKey((k) => k + 1);
   }, []);
 
   const goToPrevious = useCallback(() => {
+    setHasCycled(true);
     setCurrentIndex((prev) => (prev === 0 ? items.length - 1 : prev - 1));
     setAnimationKey((k) => k + 1);
   }, [items.length]);
 
   const goToNext = useCallback(() => {
+    setHasCycled(true);
     setCurrentIndex((prev) => (prev + 1) % items.length);
     setAnimationKey((k) => k + 1);
   }, [items.length]);
@@ -114,16 +137,18 @@ export function HeroCarousel({
     [items.length, goToPrevious, goToNext]
   );
 
-  // Auto-advance using interval (CSS handles the smooth progress)
+  // Auto-advance; the animationKey dep re-arms the timeout after each cycle
+  const cycleMs = hasCycled ? slideDuration : Math.max(slideDuration, FIRST_ADVANCE_MS);
   useEffect(() => {
     if (!isAutoPlaying || items.length <= 1) return;
 
-    const interval = setInterval(() => {
+    const timeout = setTimeout(() => {
+      setHasCycled(true);
       setCurrentIndex((prev) => (prev + 1) % items.length);
       setAnimationKey((k) => k + 1);
-    }, slideDuration);
-    return () => clearInterval(interval);
-  }, [isAutoPlaying, items.length, slideDuration, animationKey]);
+    }, cycleMs);
+    return () => clearTimeout(timeout);
+  }, [isAutoPlaying, items.length, cycleMs, animationKey]);
 
   // Pause on hover
   const handleMouseEnter = () => setIsAutoPlaying(false);
@@ -135,10 +160,6 @@ export function HeroCarousel({
   if (items.length === 0) {
     return null;
   }
-
-  const href = getMediaHref(currentItem.id, isMovie, title);
-  const mediaType = isMovie ? "movie" : "series";
-  const rating = currentItem.vote_average || 0;
 
   // Navigate to details page (for clickable area)
   const handleClick = (e: React.MouseEvent) => {
@@ -168,63 +189,96 @@ export function HeroCarousel({
     >
       {/* Hero container - stacked on mobile, overlay on desktop */}
       <div className="hero-container relative w-full overflow-hidden flex flex-col md:block">
-        {/* Background with crossfade */}
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0, scale: 1.02 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="relative w-full aspect-video md:absolute md:inset-0 md:aspect-auto flex-shrink-0"
-          >
-            <MediaBackdrop
-              item={{
-                id: currentItem.id,
-                title: isMovie ? title : undefined,
-                name: !isMovie ? title : undefined,
-                backdrop_path: currentItem.backdrop_path,
-              }}
-              mediaType={mediaType}
-              overlay="light"
-              className="absolute inset-0"
-            />
-          </motion.div>
-        </AnimatePresence>
+        {/* Backdrops: one static layout box, slides stacked inside and crossfaded
+            with opacity ONLY. No remount, no scale — a new slide's paint is never
+            larger than the previous one, so the swap cannot re-stamp LCP, and the
+            layout box never changes (no CLS). */}
+        <div className="relative w-full aspect-video md:absolute md:inset-0 md:aspect-auto flex-shrink-0">
+          {items.map((item, index) => {
+            const slideIsMovie = item.media_type === "movie";
+            const slideTitle = slideIsMovie
+              ? (item as unknown as { title: string }).title
+              : (item as unknown as { name: string }).name;
+            return (
+              <div
+                key={`${item.media_type}:${item.id}`}
+                className={cn(
+                  "absolute inset-0 transition-opacity duration-700 ease-out",
+                  index === currentIndex ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}
+                aria-hidden={index !== currentIndex}
+              >
+                {isInWindow(index) && (
+                  <MediaBackdrop
+                    item={{
+                      id: item.id,
+                      title: slideIsMovie ? slideTitle : undefined,
+                      name: !slideIsMovie ? slideTitle : undefined,
+                      backdrop_path: item.backdrop_path,
+                    }}
+                    mediaType={slideIsMovie ? "movie" : "series"}
+                    priority={index === 0}
+                    overlay="light"
+                    className="absolute inset-0"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-        {/* Content - stacked below image on mobile, overlay on desktop */}
+        {/* Content - stacked below image on mobile, overlay on desktop. Mounted
+            slides share one grid cell so the block's height is the max of the
+            window (no collapse/regrow shift on swap, unlike mode="wait"). */}
         <div className="relative z-10 bg-black px-4 -mt-8 pb-10 min-h-[160px] md:min-h-0 md:absolute md:inset-0 md:mt-0 md:pb-0 md:bg-transparent md:flex md:flex-col md:justify-end md:px-8 lg:px-12">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              variants={heroContainerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="md:pb-6 lg:pb-8"
-            >
-              <HeroContent
-                itemId={currentItem.id}
-                title={title}
-                mediaType={mediaType}
-                ratings={enhancedData?.ratings}
-                voteAverage={rating}
-                watchOptions={enhancedData?.watchOptions}
-                hook={enhancedData?.hook}
-                item={
-                  enhancedData?.item || {
-                    id: currentItem.id,
-                    title: isMovie ? title : undefined,
-                    name: !isMovie ? title : undefined,
-                    poster_path: currentItem.poster_path,
-                    backdrop_path: currentItem.backdrop_path,
-                  }
-                }
-                animate={false} // Parent handles animation
-                priority
-              />
-            </motion.div>
-          </AnimatePresence>
+          <div className="grid">
+            {items.map((item, index) => {
+              if (!isInWindow(index)) return null;
+              const slideIsMovie = item.media_type === "movie";
+              const slideTitle = slideIsMovie
+                ? (item as unknown as { title: string }).title
+                : (item as unknown as { name: string }).name;
+              const enhanced =
+                heroEnhancedData?.[`${slideIsMovie ? "movie" : "tv"}:${item.id}`];
+              const isCurrent = index === currentIndex;
+              return (
+                <motion.div
+                  key={`${item.media_type}:${item.id}`}
+                  variants={heroContainerVariants}
+                  initial="hidden"
+                  animate={isCurrent ? "visible" : "hidden"}
+                  className={cn(
+                    // md: bottom-pin content within the cell so the visible slide
+                    // stays hero-bottom-anchored even when a hidden sibling is taller
+                    "[grid-area:1/1] md:pb-6 lg:pb-8 md:flex md:flex-col md:justify-end",
+                    !isCurrent && "pointer-events-none"
+                  )}
+                  aria-hidden={!isCurrent}
+                >
+                  <HeroContent
+                    itemId={item.id}
+                    title={slideTitle}
+                    mediaType={slideIsMovie ? "movie" : "series"}
+                    ratings={enhanced?.ratings}
+                    voteAverage={item.vote_average || 0}
+                    watchOptions={enhanced?.watchOptions}
+                    hook={enhanced?.hook}
+                    item={
+                      enhanced?.item || {
+                        id: item.id,
+                        title: slideIsMovie ? slideTitle : undefined,
+                        name: !slideIsMovie ? slideTitle : undefined,
+                        poster_path: item.poster_path,
+                        backdrop_path: item.backdrop_path,
+                      }
+                    }
+                    animate={false} // Parent handles animation
+                    priority={index === 0}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Progress dots - centered below content on mobile, right-aligned on desktop */}
@@ -256,7 +310,7 @@ export function HeroCarousel({
                       initial={{ width: "0%" }}
                       animate={{ width: "100%" }}
                       transition={{
-                        duration: slideDuration / 1000,
+                        duration: cycleMs / 1000,
                         ease: "linear",
                       }}
                     />
