@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { buildBrowseUrl } from "@/lib/discover";
+import { createTopicKey } from "@/lib/topics";
 import type { Genre } from "@/types";
 
 interface GenreBadgeProps {
@@ -14,14 +15,6 @@ interface GenreBadgeProps {
   className?: string;
   /** If true, links to /browse with genre filter instead of /topics */
   linkToBrowse?: boolean;
-}
-
-function getTopicKey(genreName: string, mediaType: "movie" | "series"): string {
-  const slug = genreName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-  return `genre-${slug}-${mediaType === "movie" ? "movies" : "tv"}`;
 }
 
 export function GenreBadge({
@@ -36,7 +29,7 @@ export function GenreBadge({
         media_type: mediaType === "movie" ? "movie" : "tv",
         with_genres: [genre.id],
       })
-    : `/topics/${getTopicKey(genre.name, mediaType)}`;
+    : `/topics/${createTopicKey("genre", genre.name, mediaType === "movie" ? "movie" : "tv")}`;
 
   const sizeClasses = {
     sm: "text-xs px-2 py-0.5",

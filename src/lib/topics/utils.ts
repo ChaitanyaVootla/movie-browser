@@ -5,6 +5,8 @@
  */
 
 import { POPULAR_MOVIE_GENRES, POPULAR_TV_GENRES } from "../discover";
+import { MOVIE_GENRES, TV_GENRES } from "../constants";
+import type { Genre } from "@/types";
 import type { TopicMeta, TopicVariation, MediaType, ParsedTopicKey, TopicType } from "./types";
 import {
   getLanguageByCode,
@@ -35,6 +37,18 @@ export function createTopicKey(type: TopicType, topic: string, media: MediaType)
 }
 
 /**
+ * Legacy media-suffix aliases. GenreBadge historically emitted `-movies`
+ * (plural) keys that were indexed/bookmarked before the generator was fixed —
+ * keep resolving them so those URLs don't 404.
+ */
+const MEDIA_SUFFIX_ALIASES: Record<string, MediaType> = {
+  movie: "movie",
+  movies: "movie",
+  tv: "tv",
+  shows: "tv",
+};
+
+/**
  * Parse topic key into components
  */
 export function parseTopicKey(key: string): ParsedTopicKey | null {
@@ -42,11 +56,11 @@ export function parseTopicKey(key: string): ParsedTopicKey | null {
   if (parts.length < 3) return null;
 
   const type = parts[0] as TopicType;
-  const media = parts[parts.length - 1] as MediaType;
+  const media = MEDIA_SUFFIX_ALIASES[parts[parts.length - 1]];
   const topic = parts.slice(1, -1).join("-");
 
   if (!["genre", "country", "language", "theme"].includes(type)) return null;
-  if (!["movie", "tv"].includes(media)) return null;
+  if (!media) return null;
 
   return { type, topic, media };
 }
@@ -55,12 +69,25 @@ export function parseTopicKey(key: string): ParsedTopicKey | null {
 // Genre Topics
 // ============================================
 
+/** Full TMDB genre lists — resolution must accept EVERY genre a detail page
+ * can render as a pill (e.g. "War & Politics", "History", "Western"), not just
+ * the curated POPULAR_* subsets, or those pills 404 (live bug, Jun 2026). */
+const ALL_MOVIE_GENRE_LIST: Genre[] = Object.entries(MOVIE_GENRES).map(([id, name]) => ({
+  id: Number(id),
+  name,
+}));
+const ALL_TV_GENRE_LIST: Genre[] = Object.entries(TV_GENRES).map(([id, name]) => ({
+  id: Number(id),
+  name,
+}));
+
 /**
  * Get topic metadata for a genre
  */
 export function getGenreMeta(genreName: string, media: MediaType = "movie"): TopicMeta | undefined {
+  const allGenres = media === "movie" ? ALL_MOVIE_GENRE_LIST : ALL_TV_GENRE_LIST;
   const genres = media === "movie" ? POPULAR_MOVIE_GENRES : POPULAR_TV_GENRES;
-  const genre = genres.find((g) => sanitizeSlug(g.name) === sanitizeSlug(genreName));
+  const genre = allGenres.find((g) => sanitizeSlug(g.name) === sanitizeSlug(genreName));
 
   if (!genre) return undefined;
 
