@@ -52,6 +52,7 @@ import { getMovieFromPostgres } from "@/server/db/postgres/movies";
 import { getSeriesFromPostgres } from "@/server/db/postgres/series";
 import type { EnrichedData, HydrationResult, MediaType } from "./types";
 import { triggerProgressiveEnrichment } from "@/server/services/enrichment/progressive";
+import { triggerUserEpisodeReconcile } from "@/server/services/hydration/reconcile-user-episodes";
 import pLimit from "p-limit";
 
 // Re-export types
@@ -172,6 +173,7 @@ function backgroundRefreshSeries(
         getEnrichedData("series", seriesId, freshTmdb.first_air_date, freshTmdb, {}),
       ]);
       await upsertSeriesToPostgres({ ...freshTmdb, seasons }, enriched);
+      triggerUserEpisodeReconcile(seriesId);
       if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
         triggerProgressiveEnrichment("series", seriesId, freshTmdb).catch(() => {});
       }
@@ -512,6 +514,7 @@ async function hydrateSeriesImpl(
     const tmdbDataWithEpisodes = { ...tmdbData, seasons: seasonsWithEpisodes };
     await upsertSeriesToPostgres(tmdbDataWithEpisodes, enriched);
     console.log(`[Hydration] Series ${seriesId}: PostgreSQL upsert complete`);
+    triggerUserEpisodeReconcile(seriesId);
 
     // Trigger progressive AI enrichment in background (fire-and-forget)
     // Only when fresh enriched data was fetched (Lambda or MongoDB) — not the PG fast path
