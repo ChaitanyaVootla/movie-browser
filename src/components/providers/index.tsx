@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import dynamic from "next/dynamic";
 import { ThemeProvider } from "./theme-provider";
 import { ColorPaletteProvider } from "./color-palette-provider";
 import { QueryProvider } from "./query-provider";
@@ -13,7 +15,7 @@ import {
   QuickInfoProvider,
 } from "@/components/features/hover-card";
 import { AssistantFloaty } from "@/components/features/ai";
-import { SearchProvider, SearchCommand, useSearch } from "@/components/features/search";
+import { SearchProvider, useSearch } from "@/components/features/search";
 import { AnalyticsProvider } from "@/components/analytics";
 import {
   ServiceWorkerRegister,
@@ -25,9 +27,23 @@ interface ProvidersProps {
   children: React.ReactNode;
 }
 
+// The search dialog is a large client component (cmdk + results + topic/mood
+// UI) that most visitors never open — keep it out of the shared bundle and
+// only fetch its chunk on the first open. ssr:false is safe: closed dialogs
+// render nothing server-side anyway.
+const SearchCommand = dynamic(
+  () => import("@/components/features/search/search-command").then((m) => m.SearchCommand),
+  { ssr: false }
+);
+
 // Separate component to access search context
 function SearchDialogRenderer() {
   const { open, setOpen } = useSearch();
+  // Don't mount (= don't download) the dialog until the first open request;
+  // keep it mounted afterwards so close animations and reopens stay instant.
+  const [hasOpened, setHasOpened] = useState(false);
+  if (open && !hasOpened) setHasOpened(true);
+  if (!hasOpened && !open) return null;
   return <SearchCommand open={open} onOpenChange={setOpen} />;
 }
 

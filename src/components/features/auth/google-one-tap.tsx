@@ -50,6 +50,11 @@ interface GoogleNotification {
 
 const ONE_TAP_COOLDOWN_KEY = "google_one_tap_dismissed";
 const ONE_TAP_COOLDOWN_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+// One prompt attempt per browser session: when FedCM/the browser declines to
+// show the prompt (no Google session, FedCM blocked, network error), retrying
+// on every hard navigation just repeats the same GSI console noise + network
+// round-trip for the same answer. Explicit dismissals use the 24h cooldown.
+const ONE_TAP_SESSION_KEY = "google_one_tap_attempted";
 
 interface GoogleOneTapProps {
   /**
@@ -137,7 +142,14 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
       window.google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed()) {
           const reason = notification.getNotDisplayedReason();
-          // These are expected scenarios, not errors
+          // These are expected scenarios, not errors. Whatever the reason,
+          // the answer won't change within this session — don't re-attempt
+          // on every hard navigation.
+          try {
+            sessionStorage.setItem(ONE_TAP_SESSION_KEY, "1");
+          } catch {
+            // Storage unavailable (private mode) — retrying is harmless
+          }
           if (reason === "suppressed_by_user" || reason === "opt_out_or_no_session") {
             console.debug("One Tap not shown:", reason);
           } else if (reason === "browser_not_supported") {
@@ -165,7 +177,11 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
     }
   }, [handleCredentialResponse, promptParentId, setCooldown]);
 
-  // Load Google Identity Services script
+  // Load Google Identity Services script — deferred off the page-load path.
+  // Loading GSI at mount cost every anonymous page view a network round-trip
+  // plus a burst of FedCM console noise before the page was even interactive.
+  // Arm one-shot listeners instead: the first user interaction (or a fallback
+  // timer) triggers the load, and only once per session (see prompt callback).
   useEffect(() => {
     // Only run for unauthenticated users
     if (status !== "unauthenticated") return;
@@ -176,29 +192,63 @@ export function GoogleOneTap({ delay = 1500, promptParentId }: GoogleOneTapProps
       return;
     }
 
-    // Already loaded
-    if (scriptLoaded.current && window.google?.accounts?.id) {
-      const timer = setTimeout(initializeOneTap, delay);
-      return () => clearTimeout(timer);
+    // Already attempted this session (FedCM unavailable / no Google session)
+    try {
+      if (sessionStorage.getItem(ONE_TAP_SESSION_KEY)) {
+        console.debug("One Tap already attempted this session, skipping");
+        return;
+      }
+    } catch {
+      // Storage unavailable — proceed as before
     }
 
-    // Load script
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      scriptLoaded.current = true;
-      // Delay showing prompt to let user orient on page
-      setTimeout(initializeOneTap, delay);
-    };
-    script.onerror = () => {
-      console.error("Failed to load Google Identity Services");
+    let cancelled = false;
+    let promptTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const loadAndInitialize = () => {
+      if (cancelled) return;
+      removeListeners();
+      clearTimeout(fallbackTimer);
+
+      // Already loaded (e.g. auth status flapped)
+      if (scriptLoaded.current && window.google?.accounts?.id) {
+        promptTimer = setTimeout(initializeOneTap, delay);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        scriptLoaded.current = true;
+        if (cancelled) return;
+        // Delay showing prompt to let user orient on page
+        promptTimer = setTimeout(initializeOneTap, delay);
+      };
+      script.onerror = () => {
+        console.error("Failed to load Google Identity Services");
+      };
+      document.head.appendChild(script);
     };
 
-    document.head.appendChild(script);
+    const interactionEvents = ["pointerdown", "keydown", "scroll"] as const;
+    const removeListeners = () => {
+      for (const event of interactionEvents) {
+        window.removeEventListener(event, loadAndInitialize);
+      }
+    };
+    for (const event of interactionEvents) {
+      window.addEventListener(event, loadAndInitialize, { once: true, passive: true });
+    }
+    // Fallback for users who land and read without interacting
+    const fallbackTimer = setTimeout(loadAndInitialize, 3000);
 
     return () => {
+      cancelled = true;
+      removeListeners();
+      clearTimeout(fallbackTimer);
+      if (promptTimer) clearTimeout(promptTimer);
       // Cleanup: cancel any pending prompts
       if (window.google?.accounts?.id) {
         try {

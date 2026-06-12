@@ -94,6 +94,9 @@ export function NavBar() {
             <Link
               href="/"
               data-testid="nav-logo"
+              // Always-rendered on every page; prefetching home's 22KB RSC
+              // payload per page view is wasted weight — home loads on demand.
+              prefetch={false}
               className="flex items-center gap-2 font-bold text-xl group"
             >
               <Image
