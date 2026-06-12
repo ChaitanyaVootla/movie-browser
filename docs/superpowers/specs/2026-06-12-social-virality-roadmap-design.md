@@ -212,6 +212,8 @@ increments `rewatchCount`, status `REWATCHING`; **never deletes events**.
 **Spoiler-gate predicate** (phase 1, status-aware — required for granularity-
 unknown imports): visible ⇔ `scope=NONE` OR `progress.status=COMPLETED` OR
 `(scopeSeason, scopeEpisode) <= (maxSeasonNumber, maxEpisodeNumber)`.
+Movie-side: `scope=WATCHED|ENDING` visible ⇔ watched-state EXISTS
+(`[userId, movieId]` index on watch_events).
 Known accepted limitation: high-watermark over-permits sparse/out-of-order
 watchers; season-0 specials gate as "before S1E1". Exact per-episode gating
 remains possible later from raw events without schema change.
@@ -235,7 +237,9 @@ Letterboxd 0.5–5 → score = stars×2; Letterboxd film "likes" import → thum
 One per user per title (per season for series-season reviews — Serializd's
 core mechanic): `userId, movieId?, seriesId?, seasonNumber?, body,
 containsSpoilers Boolean, isPrivate Boolean, watchEventId Int?` (preserves
-Letterboxd diary↔review linkage on import), `createdAt, editedAt`.
+Letterboxd diary↔review linkage on import), `status CommentStatus` +
+`aiLabels Json?` (reviews are the FIRST AI-gate consumer — they need the same
+moderation fields as comments), `createdAt, editedAt`.
 Uniqueness: `@@unique([userId, movieId])`; for series use a raw
 `UNIQUE NULLS NOT DISTINCT (user_id, series_id, season_number)` index (PG 17;
 in 04-ugc-constraints.sql) so one series-level review (NULL season) per user
@@ -322,7 +326,8 @@ model List {
   isRanked        Boolean  @default(false) @map("is_ranked")
   isPinned        Boolean  @default(false) @map("is_pinned")  // showcased on profile
   itemCount       Int      @default(0) @map("item_count")
-  createdAt/updatedAt
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
   @@unique([ownerId, slug])
   @@index([ownerId])
   @@index([circleId])
@@ -383,8 +388,9 @@ Write-on-event only (invariant 6).
 
 #### `reports`
 
-`reporterId (indexed), commentId (indexed; other targets later), reason enum,
-note?, status, createdAt`. `@@index([status, createdAt])` (mod queue).
+`reporterId (indexed), commentId? (indexed), reviewId? (indexed — reviews are
+public UGC from phase 0), reason enum, note?, status, createdAt`.
+`@@index([status, createdAt])` (mod queue).
 
 #### `blocks` — safety table stakes (phase 0 schema; the retrofit trap)
 
@@ -544,8 +550,10 @@ moderation; TMDB art covers customization), taste-compatibility module
 - **Box capacity**: all hot paths verified index-only-ish; stats snapshotted;
   no fan-out. Watch general write growth on comments (likeCount index
   deferred deliberately).
-- **Scope creep**: phase 0 ships tracking + profiles ONLY; comments/lists
-  tables exist but no UI until their phases.
+- **Scope creep**: phase 0 UI = tracking + profiles + review writing + the
+  Four Favorites module (a List under the hood). Comments tables exist with
+  NO UI until phase 1; general list CRUD/browsing UI waits for phase 2
+  (profile "pinned lists" section renders only once lists exist).
 
 ## 7. Verification (phase 0 definition of done)
 
