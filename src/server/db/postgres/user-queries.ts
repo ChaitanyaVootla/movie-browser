@@ -102,7 +102,7 @@ export async function getLibraryData(userId: number) {
         select: { seriesId: true },
       }),
       prisma.userRating.findMany({
-        where: { userId },
+        where: { userId, rating: { not: null } },
         select: { movieId: true, seriesId: true, rating: true },
       }),
       prisma.recentItem.findMany({
@@ -129,11 +129,17 @@ export async function getLibraryData(userId: number) {
     watchedMovieIds: watchedMovies.map((w) => w.movieId),
     watchlistMovieIds: watchlistMovies.map((w) => w.movieId!),
     watchlistSeriesIds: watchlistSeries.map((s) => s.seriesId!),
-    ratings: ratings.map((r) => ({
-      itemId: r.movieId ?? r.seriesId!,
-      itemType: r.movieId ? ("movie" as const) : ("series" as const),
-      rating: r.rating,
-    })),
+    ratings: ratings.flatMap((r) =>
+      r.rating === null
+        ? []
+        : [
+            {
+              itemId: r.movieId ?? r.seriesId!,
+              itemType: r.movieId ? ("movie" as const) : ("series" as const),
+              rating: r.rating,
+            },
+          ]
+    ),
     recentItems: recents.map((r) => {
       const isMovie = r.movieId !== null;
       return {
@@ -338,17 +344,23 @@ export async function getUserRatings(
   userId: number
 ): Promise<{ itemId: number; itemType: "movie" | "series"; rating: number; createdAt: Date }[]> {
   const ratings = await prisma.userRating.findMany({
-    where: { userId },
+    where: { userId, rating: { not: null } },
     select: { movieId: true, seriesId: true, rating: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
 
-  return ratings.map((r) => ({
-    itemId: r.movieId ?? r.seriesId!,
-    itemType: r.movieId ? ("movie" as const) : ("series" as const),
-    rating: r.rating,
-    createdAt: r.createdAt,
-  }));
+  return ratings.flatMap((r) =>
+    r.rating === null
+      ? []
+      : [
+          {
+            itemId: r.movieId ?? r.seriesId!,
+            itemType: r.movieId ? ("movie" as const) : ("series" as const),
+            rating: r.rating,
+            createdAt: r.createdAt,
+          },
+        ]
+  );
 }
 
 export async function upsertRating(
@@ -360,14 +372,14 @@ export async function upsertRating(
   if (itemType === "movie") {
     await prisma.userRating.upsert({
       where: { userId_movieId: { userId, movieId: itemId } },
-      create: { userId, movieId: itemId, rating },
-      update: { rating, createdAt: new Date() },
+      create: { userId, movieId: itemId, rating, ratedAt: new Date() },
+      update: { rating, createdAt: new Date(), ratedAt: new Date() },
     });
   } else {
     await prisma.userRating.upsert({
       where: { userId_seriesId: { userId, seriesId: itemId } },
-      create: { userId, seriesId: itemId, rating },
-      update: { rating, createdAt: new Date() },
+      create: { userId, seriesId: itemId, rating, ratedAt: new Date() },
+      update: { rating, createdAt: new Date(), ratedAt: new Date() },
     });
   }
 }
@@ -377,10 +389,18 @@ export async function deleteRating(
   itemId: number,
   itemType: "movie" | "series"
 ): Promise<void> {
-  if (itemType === "movie") {
-    await prisma.userRating.deleteMany({ where: { userId, movieId: itemId } });
+  // Legacy semantics = remove the thumb; must NOT nuke a coexisting score.
+  const where =
+    itemType === "movie" ? { userId, movieId: itemId } : { userId, seriesId: itemId };
+  const existing = await prisma.userRating.findFirst({
+    where,
+    select: { id: true, score: true },
+  });
+  if (!existing) return;
+  if (existing.score === null) {
+    await prisma.userRating.delete({ where: { id: existing.id } });
   } else {
-    await prisma.userRating.deleteMany({ where: { userId, seriesId: itemId } });
+    await prisma.userRating.update({ where: { id: existing.id }, data: { rating: null } });
   }
 }
 
