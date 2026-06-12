@@ -6,6 +6,9 @@ import { getMovie as getMovieBase } from "@/server/actions/movie";
 // Deduplicate getMovie calls within the same request
 // generateMetadata, HeroContentAsync, MovieContentAsync all use the same cached result
 const getMovie = cache(getMovieBase);
+// Same dedup for AI data — generateMetadata uses the hook/themes (unique SEO
+// content) and both async sections render from it; one PG read per request.
+const getAIDataCached = cache(getAIData);
 
 // ISR: cache the rendered page for 1h instead of full SSR on every request. The
 // SSR HTML is user-agnostic (user state hydrates client-side; ratings stream via
@@ -30,6 +33,7 @@ import {
   watchActions,
   titleSameAs,
   omitEmpty,
+  aiThemeKeywords,
 } from "@/lib/seo/jsonld";
 import { getCollectionFromPostgres } from "@/server/db/postgres";
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
@@ -101,7 +105,8 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
     notFound();
   }
 
-  const movie = await getMovie(id);
+  // AI data rides along (~5ms PG read, deduped with the page render below).
+  const [movie, aiData] = await Promise.all([getMovie(id), getAIDataCached(id, "movie")]);
 
   if (!movie) {
     // Fallback only (proxy already 404'd definitively-missing ids): treat a
@@ -128,8 +133,16 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
       ? `${titleBase} — Where to Watch, Ratings & Cast | ${SITE_NAME}`
       : `${titleBase} | ${SITE_NAME}`;
   const watchIntro = `Where to watch ${titleBase} — streaming options, ratings, cast & reviews.`;
-  const description = movie.overview
-    ? truncateAtWord(`${watchIntro} ${movie.overview}`, 160)
+  // Prefer the AI hook over the TMDB overview: every TMDB-based site serves
+  // the identical overview text (duplicate SERP snippets); the hook is unique
+  // to us. Fall back to the overview for un-enriched long-tail titles.
+  const aiHook =
+    typeof aiData?.hook === "string" && aiData.hook.trim().length > 0
+      ? aiData.hook.trim()
+      : null;
+  const descriptionBody = aiHook ?? movie.overview;
+  const description = descriptionBody
+    ? truncateAtWord(`${watchIntro} ${descriptionBody}`, 160)
     : watchIntro;
   const backdropUrl = movie.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${movie.backdrop_path}`
@@ -154,7 +167,7 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
       siteName: SITE_NAME,
       locale: "en_US",
       title: movie.title,
-      description: movie.overview,
+      description,
       url: `${SITE_URL}${canonicalPath}`,
       images: backdropUrl
         ? [
@@ -308,7 +321,7 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
   // Fetch movie and AI data in parallel
   const [movie, aiData] = await Promise.all([
     getMovie(movieId),
-    getAIData(movieId, "movie"),
+    getAIDataCached(movieId, "movie"),
   ]);
   if (!movie) return null;
 
@@ -372,7 +385,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
   // Fetch movie data and AI data in parallel
   const [movie, aiData] = await Promise.all([
     getMovie(movieId),
-    getAIData(movieId, "movie"),
+    getAIDataCached(movieId, "movie"),
   ]);
   if (!movie) return null;
 
@@ -394,7 +407,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
       </h1>
 
       {/* JSON-LD Schema */}
-      <MovieSchema movie={movie} />
+      <MovieSchema movie={movie} aiThemes={aiData?.insights?.spoilerFree?.themes} />
 
       {/* Track this page view for recents */}
       <RecentTracker
@@ -518,7 +531,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
 }
 
 // JSON-LD structured data for SEO
-function MovieSchema({ movie }: { movie: Movie }) {
+function MovieSchema({ movie, aiThemes }: { movie: Movie; aiThemes?: string[] }) {
   const director = movie.credits?.crew?.find((c) => c.job === "Director");
   const actors = movie.credits?.cast?.slice(0, 5) || [];
   const canonicalPath = getMediaPath("movie", movie.id, movie.title);
@@ -543,6 +556,8 @@ function MovieSchema({ movie }: { movie: Movie }) {
           }
         : undefined,
     genre: movie.genres?.map((g) => g.name),
+    // AI-generated themes — unique-to-us keywords (genre is shared TMDB taxonomy)
+    keywords: aiThemeKeywords(aiThemes),
     duration: movie.runtime ? `PT${movie.runtime}M` : undefined,
     director: director
       ? {

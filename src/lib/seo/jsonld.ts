@@ -89,6 +89,20 @@ export function watchActions(
   return actions.length > 0 ? actions : undefined;
 }
 
+/**
+ * schema.org `keywords` from AI-generated themes (comma-separated, max 6).
+ * Unlike genre (TMDB taxonomy every competitor shares), themes are unique
+ * per-title content. Returns undefined when no usable themes exist.
+ */
+export function aiThemeKeywords(themes: unknown): string | undefined {
+  if (!Array.isArray(themes)) return undefined;
+  const clean = themes
+    .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+    .map((t) => t.trim())
+    .slice(0, 6);
+  return clean.length > 0 ? clean.join(", ") : undefined;
+}
+
 /** sameAs links (IMDb) for Knowledge Graph entity reconciliation. */
 export function titleSameAs(imdbId: string | null | undefined): string[] | undefined {
   return imdbId ? [`https://www.imdb.com/title/${imdbId}/`] : undefined;

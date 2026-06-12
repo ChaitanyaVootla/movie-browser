@@ -10,6 +10,7 @@ import {
   watchActions,
   titleSameAs,
   omitEmpty,
+  aiThemeKeywords,
 } from "@/lib/seo/jsonld";
 
 // Deduplicate getSeries calls within the same request
@@ -29,6 +30,10 @@ export async function generateStaticParams(): Promise<{ params: string[] }[]> {
   return [];
 }
 import { getAIData, aiDataResponseToSummary } from "@/server/services/ai-data-service";
+
+// Same dedup for AI data — generateMetadata uses the hook/themes (unique SEO
+// content) and both async sections render from it; one PG read per request.
+const getAIDataCached = cache(getAIData);
 import {
   MediaActionBar,
   MediaOverview,
@@ -94,7 +99,8 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
     notFound();
   }
 
-  const series = await getSeries(id);
+  // AI data rides along (~5ms PG read, deduped with the page render below).
+  const [series, aiData] = await Promise.all([getSeries(id), getAIDataCached(id, "series")]);
 
   if (!series) {
     // Fallback only (proxy already 404'd definitively-missing ids): treat a
@@ -121,8 +127,16 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
       ? `${titleBase} — Where to Watch, Ratings & Cast | ${SITE_NAME}`
       : `${titleBase} | ${SITE_NAME}`;
   const watchIntro = `Where to watch ${titleBase} — streaming options, ratings, cast & episodes.`;
-  const description = series.overview
-    ? truncateAtWord(`${watchIntro} ${series.overview}`, 160)
+  // Prefer the AI hook over the TMDB overview: every TMDB-based site serves
+  // the identical overview text (duplicate SERP snippets); the hook is unique
+  // to us. Fall back to the overview for un-enriched long-tail titles.
+  const aiHook =
+    typeof aiData?.hook === "string" && aiData.hook.trim().length > 0
+      ? aiData.hook.trim()
+      : null;
+  const descriptionBody = aiHook ?? series.overview;
+  const description = descriptionBody
+    ? truncateAtWord(`${watchIntro} ${descriptionBody}`, 160)
     : watchIntro;
   const backdropUrl = series.backdrop_path
     ? `${TMDB_IMAGE_BASE}/w1280${series.backdrop_path}`
@@ -148,7 +162,7 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
       siteName: SITE_NAME,
       locale: "en_US",
       title: series.name,
-      description: series.overview,
+      description,
       url: `${SITE_URL}${canonicalPath}`,
       images: backdropUrl
         ? [
@@ -305,7 +319,7 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
   // Fetch series and AI data in parallel
   const [series, aiData] = await Promise.all([
     getSeries(seriesId),
-    getAIData(seriesId, "series"),
+    getAIDataCached(seriesId, "series"),
   ]);
   if (!series) return null;
 
@@ -369,7 +383,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
   // Fetch series data and AI data in parallel
   const [series, aiData] = await Promise.all([
     getSeries(seriesId),
-    getAIData(seriesId, "series"),
+    getAIDataCached(seriesId, "series"),
   ]);
   if (!series) return null;
 
@@ -391,7 +405,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         {series.first_air_date ? ` (${series.first_air_date.split("-")[0]})` : ""}
       </h1>
 
-      <SeriesSchema series={series} />
+      <SeriesSchema series={series} aiThemes={aiData?.insights?.spoilerFree?.themes} />
 
       {/* Track this page view for recents */}
       <RecentTracker
@@ -523,7 +537,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
 }
 
 // JSON-LD structured data for SEO
-function SeriesSchema({ series }: { series: Series }) {
+function SeriesSchema({ series, aiThemes }: { series: Series; aiThemes?: string[] }) {
   // TMDB "created_by" maps to crew job "Creator"; fall back to created_by-less
   const creators = series.credits?.crew?.filter((c) => c.job === "Creator") || [];
   const actors = series.credits?.cast?.slice(0, 5) || [];
@@ -552,6 +566,8 @@ function SeriesSchema({ series }: { series: Series }) {
           }
         : undefined,
     genre: series.genres?.map((g) => g.name),
+    // AI-generated themes — unique-to-us keywords (genre is shared TMDB taxonomy)
+    keywords: aiThemeKeywords(aiThemes),
     numberOfSeasons: regularSeasons?.length || series.number_of_seasons,
     numberOfEpisodes: series.number_of_episodes,
     creator: creators.map((c) => ({
