@@ -6983,3 +6983,1135 @@ Local-only constraint: nothing in this plan is pushed or deployed. When phase 0 
 - Notifications write-on-event, no fan-out: Task 12. Reports: Task 23. Username claim + lower() unique: Tasks 3, 23.
 - Renumbering reconcile fire-and-forget: Task 17. CSV import (Letterboxd zip incl. dateless watched.csv + date-only precision, Trakt, IMDb) + ImportJob row stats + local storage interface: Tasks 18–21. Export: Task 22.
 - Deliberately NOT here (other plans): all §4.3 UI, comments read/write paths (phase 1), web push, OG cards, taste-compat.
+
+---
+
+### Task 24: UI contract bridge — Appendix A actions + `src/types/social.ts` (RECONCILIATION — added by plan review)
+
+**Why this task exists:** the UI plan (`2026-06-12-phase0-ui.md`) was written in parallel and
+consumes the contracts in its Appendix A — different names/modules than Tasks 7–23 export
+(`logWatchAction` vs `diary.logWatch`, `{ ok }` vs `{ success }`, `mediaType+tmdbId` vs
+`movieId/seriesId`). This task closes the gap with a thin bridge layer that implements
+Appendix A EXACTLY, by mapping onto the modules Tasks 7–23 already built. UI components import
+ONLY from `@/server/actions/tracking|profile|reviews|imports` + `@/types/social`.
+
+**Decisions pinned (both executors follow these):**
+- `src/types/social.ts` is created HERE (backend executes first). UI plan Task 1 only verifies
+  it exists and extends analytics types.
+- `ActionResult = { ok: true } | { ok: false; error: string }` at the bridge boundary; internal
+  `{ success }` shapes stay untouched.
+- `mediaType: "movie" | "series"` + `tmdbId` at the boundary; `movies.id`/`series.id` ARE TMDB
+  ids, so mapping is `movieId = tmdbId` / `seriesId = tmdbId`.
+- DTO relaxations vs the UI plan's original sketch (UI plan updated to match):
+  `UserStatsDTO.monthlyCounts: { month: string; count: number }[]` (snapshot doesn't split
+  movies/episodes per month); `PersonSliceDTO.personId/profilePath` are `null` in v1 (stats
+  aggregate by name); `RewatchChampionDTO = { title: string; count: number }` (no poster/ids in
+  snapshot); `UserStatsDTO.countries` may be `[]` in v1 — UI hides empty sections;
+  `ImportJobDTO.stats.processed` is derived (`imported + skipped + errors.length`) and only
+  final-on-completion — the progress bar may jump.
+
+**Files:**
+- Create: `src/types/social.ts`
+- Create: `src/server/db/postgres/social/public-profile.ts`
+- Create: `src/server/actions/tracking.ts`
+- Modify: `src/server/actions/profile.ts` (append bridge exports)
+- Modify: `src/server/actions/reviews.ts` (append bridge exports)
+- Modify: `src/server/actions/imports.ts` (append bridge exports)
+
+- [ ] **Step 1: Create `src/types/social.ts`** — copy the UI plan's Task 1 file VERBATIM,
+  then apply the four relaxations above to these types (final shapes):
+
+```typescript
+export interface UserStatsDTO {
+  totalHours: number;
+  moviesWatched: number;
+  episodesWatched: number;
+  seriesCompleted: number;
+  /** Last 12 months, oldest first. month = "2026-06". Combined movie+episode count. */
+  monthlyCounts: { month: string; count: number }[];
+  genres: BreakdownSliceDTO[];
+  decades: BreakdownSliceDTO[];
+  /** May be empty in v1 (no country dimension in the snapshot) — hide section when []. */
+  countries: BreakdownSliceDTO[];
+  topActors: PersonSliceDTO[];
+  topDirectors: PersonSliceDTO[];
+  currentStreakDays: number;
+  longestStreakDays: number;
+  rewatchChampions: RewatchChampionDTO[];
+  computedAt: string;
+}
+
+export interface PersonSliceDTO {
+  /** null in v1 — stats aggregate by name; render unlinked with initials fallback. */
+  personId: number | null;
+  name: string;
+  profilePath: string | null;
+  count: number;
+}
+
+export interface RewatchChampionDTO {
+  title: string;
+  count: number;
+}
+```
+
+- [ ] **Step 2: Create `src/server/db/postgres/social/public-profile.ts`**:
+
+```typescript
+/**
+ * PublicProfileDTO assembly. Returns null for unknown OR private users —
+ * callers cannot distinguish (privacy by construction, spec §4.1.8).
+ * Reads ONLY public, PUBLISHED, progress-independent data + the stats snapshot.
+ */
+import { prisma } from "@/server/db/postgres";
+import { getUserStatsSnapshot } from "./stats";
+import { getFourFavorites } from "./lists";
+import { getFollowCounts } from "./follows";
+import { getUserReviews } from "./reviews";
+import { getProgressShelf } from "./progress";
+import type {
+  BreakdownSliceDTO,
+  FavoriteItemDTO,
+  PublicProfileDTO,
+  ReviewDTO,
+} from "@/types/social";
+
+interface ProfileEnvelope {
+  profile?: {
+    backdrop?: { mediaType: "movie" | "series"; tmdbId: number; imagePath: string; titleName?: string };
+    avatarImagePath?: string;
+    accent?: string;
+    links?: string[];
+    location?: string;
+  };
+  preferences?: { logPrivatelyByDefault?: boolean };
+}
+
+export function parseEnvelope(metadata: unknown): ProfileEnvelope {
+  if (typeof metadata !== "object" || metadata === null) return {};
+  return metadata as ProfileEnvelope;
+}
+
+function toSlices(items: { name?: string; decade?: string; count: number }[]): BreakdownSliceDTO[] {
+  return items.map((i) => ({ label: i.name ?? i.decade ?? "", count: i.count }));
+}
+
+export async function getPublicProfileByUsername(
+  username: string
+): Promise<PublicProfileDTO | null> {
+  const user = await prisma.user.findFirst({
+    where: { username: { equals: username, mode: "insensitive" } },
+    select: {
+      id: true, username: true, name: true, image: true, bio: true,
+      isPublic: true, metadata: true, createdAt: true,
+    },
+  });
+  if (!user || !user.isPublic || !user.username) return null;
+  const env = parseEnvelope(user.metadata);
+
+  const [snapshot, favorites, follows, reviewsPage, watching, pinnedRows, histogramRows] =
+    await Promise.all([
+      getUserStatsSnapshot(user.id),
+      getFourFavorites(user.id),
+      getFollowCounts(user.id),
+      getUserReviews(user.id, { includePrivate: false, limit: 6 }),
+      getProgressShelf(user.id, ["WATCHING", "REWATCHING"], 6),
+      prisma.list.findMany({
+        where: { ownerId: user.id, isPinned: true, isPublic: true, kind: "REGULAR" },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        select: {
+          id: true, name: true, slug: true, itemCount: true,
+          items: {
+            orderBy: { position: "asc" },
+            take: 4,
+            select: {
+              movie: { select: { posterPath: true } },
+              series: { select: { posterPath: true } },
+            },
+          },
+        },
+      }),
+      prisma.userRating.groupBy({
+        by: ["score"],
+        where: { userId: user.id, score: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+
+  const reviewUser = {
+    username: user.username,
+    displayName: user.name ?? user.username,
+    avatarUrl: user.image,
+  };
+  const reviews: ReviewDTO[] = reviewsPage.reviews.map((r) => ({
+    id: r.id,
+    ...reviewUser,
+    score: null, // own-score join intentionally omitted on the profile surface (v1)
+    body: r.body,
+    containsSpoilers: r.containsSpoilers,
+    seasonNumber: r.seasonNumber,
+    createdAt: r.createdAt.toISOString(),
+    editedAt: r.editedAt?.toISOString() ?? null,
+  }));
+
+  const histogram = new Array<number>(10).fill(0);
+  for (const row of histogramRows) {
+    if (row.score !== null && row.score >= 1 && row.score <= 10) {
+      histogram[row.score - 1] = row._count._all;
+    }
+  }
+
+  const favoriteItems: FavoriteItemDTO[] = favorites.map((f) => ({
+    mediaType: f.movie ? "movie" : "series",
+    tmdbId: f.movie?.id ?? f.series?.id ?? 0,
+    title: f.movie?.title ?? f.series?.name ?? "",
+    posterPath: f.movie?.posterPath ?? f.series?.posterPath ?? null,
+  }));
+
+  return {
+    username: user.username,
+    displayName: user.name ?? user.username,
+    avatarUrl: env.profile?.avatarImagePath ?? user.image,
+    accent: (env.profile?.accent ?? "default") as PublicProfileDTO["accent"],
+    bio: user.bio,
+    links: env.profile?.links ?? [],
+    location: env.profile?.location ?? null,
+    backdrop: env.profile?.backdrop
+      ? {
+          mediaType: env.profile.backdrop.mediaType,
+          tmdbId: env.profile.backdrop.tmdbId,
+          imagePath: env.profile.backdrop.imagePath,
+          titleName: env.profile.backdrop.titleName ?? "",
+        }
+      : null,
+    joinedAt: user.createdAt.toISOString(),
+    isPublic: true,
+    counts: {
+      followers: follows.followers,
+      following: follows.following,
+      filmsWatched: snapshot.moviesWatched,
+      episodesWatched: snapshot.episodesWatched,
+      hoursWatched: Math.round(snapshot.hoursWatched),
+    },
+    fourFavorites: favoriteItems,
+    pinnedLists: pinnedRows.map((l) => ({
+      id: l.id,
+      name: l.name,
+      slug: l.slug,
+      itemCount: l.itemCount,
+      posterPaths: l.items
+        .map((i) => i.movie?.posterPath ?? i.series?.posterPath)
+        .filter((p): p is string => Boolean(p)),
+    })),
+    reviews,
+    ratingsHistogram: histogram,
+    topGenres: toSlices(snapshot.topGenres),
+    topDecades: toSlices(snapshot.topDecades),
+    currentlyWatching: watching.map((w) => ({
+      seriesId: w.seriesId,
+      seriesName: w.name,
+      posterPath: w.posterPath,
+      seasonNumber: w.lastSeasonNumber,
+      episodeNumber: w.lastEpisodeNumber,
+    })),
+    longestStreakDays: snapshot.longestStreakDays,
+    rewatchChampions: snapshot.rewatches.champions,
+  };
+}
+```
+
+- [ ] **Step 3: Create `src/server/actions/tracking.ts`** (Appendix A names; `{ ok }` results;
+  `mediaType+tmdbId` boundary):
+
+```typescript
+"use server";
+
+import { z } from "zod";
+import { prisma } from "@/server/db/postgres";
+import { requirePgUserId } from "@/lib/user-id";
+import { userApiLogger } from "@/lib/logger";
+import {
+  logWatchEvent,
+  editWatchEvent,
+  deleteWatchEvent,
+  markSeasonWatched as markSeasonWatchedQuery,
+  markSeriesWatched as markSeriesWatchedQuery,
+  setPosition as setPositionQuery,
+  getDiaryPage as getDiaryPageQuery,
+  type DiaryCursor,
+  type DiaryEntry,
+} from "@/server/db/postgres/social/watch-events";
+import {
+  getSeriesProgress,
+  getProgressShelf,
+  recomputeSeriesProgress,
+  resetToRewatch as resetToRewatchQuery,
+  setManualStatus,
+} from "@/server/db/postgres/social/progress";
+import { getUserStatsSnapshot } from "@/server/db/postgres/social/stats";
+import type {
+  ActionResult,
+  DiaryEntryDTO,
+  DiaryPageDTO,
+  LogWatchInput,
+  SeriesTrackingDTO,
+  UpNextItemDTO,
+  UserStatsDTO,
+  WatchStatus,
+} from "@/types/social";
+
+const fail = (action: string, error: unknown): { ok: false; error: string } => {
+  const message = error instanceof Error ? error.message : String(error);
+  userApiLogger.error({ action, error: message });
+  return { ok: false, error: message };
+};
+
+const MediaRef = z.object({
+  mediaType: z.enum(["movie", "series"]),
+  tmdbId: z.number().int().positive(),
+});
+
+function toIds(ref: z.infer<typeof MediaRef>): { movieId?: number; seriesId?: number } {
+  return ref.mediaType === "movie" ? { movieId: ref.tmdbId } : { seriesId: ref.tmdbId };
+}
+
+function toDiaryDTO(e: DiaryEntry): DiaryEntryDTO {
+  return {
+    id: e.id,
+    mediaType: e.movieId !== null ? "movie" : "series",
+    tmdbId: e.movieId ?? e.seriesId ?? 0,
+    title: e.title ?? "",
+    posterPath: e.posterPath,
+    seasonNumber: e.seasonNumber,
+    episodeNumber: e.episodeNumber,
+    episodeName: null,
+    watchedAt: e.watchedAt?.toISOString() ?? null,
+    watchedAtPrecision: e.watchedAtPrecision,
+    note: e.note,
+    isRewatch: e.isRewatch,
+    isPrivate: e.isPrivate,
+    source: e.source,
+  };
+}
+
+const LogWatchSchema = MediaRef.extend({
+  seasonNumber: z.number().int().min(0).optional(),
+  episodeNumber: z.number().int().min(0).optional(),
+  tmdbEpisodeId: z.number().int().positive().optional(),
+  watchedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  note: z.string().max(5000).optional(),
+  isRewatch: z.boolean().optional(),
+  isPrivate: z.boolean().optional(),
+});
+
+export async function logWatchAction(
+  input: LogWatchInput
+): Promise<{ ok: true; eventId: number } | { ok: false; error: string }> {
+  try {
+    const v = LogWatchSchema.parse(input);
+    const userId = await requirePgUserId();
+    const { id } = await logWatchEvent(userId, {
+      ...toIds(v),
+      seasonNumber: v.seasonNumber,
+      episodeNumber: v.episodeNumber,
+      watchedDate: v.watchedAt,
+      note: v.note,
+      isRewatch: v.isRewatch,
+      isPrivate: v.isPrivate,
+    });
+    return { ok: true, eventId: id };
+  } catch (error: unknown) {
+    return fail("logWatchAction", error);
+  }
+}
+
+const UpdateEventSchema = z.object({
+  eventId: z.number().int().positive(),
+  watchedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  note: z.string().max(5000).nullable().optional(),
+  isPrivate: z.boolean().optional(),
+});
+
+export async function updateWatchEventAction(
+  input: z.infer<typeof UpdateEventSchema>
+): Promise<ActionResult> {
+  try {
+    const { eventId, watchedAt, ...rest } = UpdateEventSchema.parse(input);
+    const userId = await requirePgUserId();
+    const okay = await editWatchEvent(userId, eventId, { ...rest, watchedDate: watchedAt });
+    return okay ? { ok: true } : { ok: false, error: "Not found" };
+  } catch (error: unknown) {
+    return fail("updateWatchEventAction", error);
+  }
+}
+
+export async function deleteWatchEventAction(eventId: number): Promise<ActionResult> {
+  try {
+    const id = z.number().int().positive().parse(eventId);
+    const userId = await requirePgUserId();
+    const okay = await deleteWatchEvent(userId, id);
+    return okay ? { ok: true } : { ok: false, error: "Not found" };
+  } catch (error: unknown) {
+    return fail("deleteWatchEventAction", error);
+  }
+}
+
+const ToggleEpisodeSchema = z.object({
+  seriesId: z.number().int().positive(),
+  seasonNumber: z.number().int().min(0),
+  episodeNumber: z.number().int().min(0),
+  tmdbEpisodeId: z.number().int().positive().optional(),
+  watched: z.boolean(),
+});
+
+export async function toggleEpisodeWatchedAction(
+  input: z.infer<typeof ToggleEpisodeSchema>
+): Promise<ActionResult> {
+  try {
+    const v = ToggleEpisodeSchema.parse(input);
+    const userId = await requirePgUserId();
+    if (v.watched) {
+      await logWatchEvent(userId, {
+        seriesId: v.seriesId,
+        seasonNumber: v.seasonNumber,
+        episodeNumber: v.episodeNumber,
+      });
+    } else {
+      await prisma.$transaction(async (tx) => {
+        await tx.watchEvent.deleteMany({
+          where: {
+            userId,
+            seriesId: v.seriesId,
+            seasonNumber: v.seasonNumber,
+            episodeNumber: v.episodeNumber,
+          },
+        });
+        await recomputeSeriesProgress(tx, userId, v.seriesId);
+      });
+    }
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("toggleEpisodeWatchedAction", error);
+  }
+}
+
+const SeasonSchema = z.object({
+  seriesId: z.number().int().positive(),
+  seasonNumber: z.number().int().min(0),
+});
+
+export async function markSeasonWatchedAction(
+  input: z.infer<typeof SeasonSchema>
+): Promise<ActionResult> {
+  try {
+    const v = SeasonSchema.parse(input);
+    const userId = await requirePgUserId();
+    await markSeasonWatchedQuery(userId, v.seriesId, v.seasonNumber);
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("markSeasonWatchedAction", error);
+  }
+}
+
+export async function markSeriesWatchedAction(input: {
+  seriesId: number;
+}): Promise<ActionResult> {
+  try {
+    const seriesId = z.number().int().positive().parse(input.seriesId);
+    const userId = await requirePgUserId();
+    await markSeriesWatchedQuery(userId, seriesId);
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("markSeriesWatchedAction", error);
+  }
+}
+
+const PositionSchema = z.object({
+  seriesId: z.number().int().positive(),
+  seasonNumber: z.number().int().min(1),
+  episodeNumber: z.number().int().min(1),
+});
+
+export async function setPositionAction(
+  input: z.infer<typeof PositionSchema>
+): Promise<ActionResult> {
+  try {
+    const v = PositionSchema.parse(input);
+    const userId = await requirePgUserId();
+    await setPositionQuery(userId, v.seriesId, v.seasonNumber, v.episodeNumber);
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("setPositionAction", error);
+  }
+}
+
+const StatusSchema = z.object({
+  seriesId: z.number().int().positive(),
+  status: z
+    .enum(["WATCHING", "CAUGHT_UP", "COMPLETED", "DROPPED", "PAUSED", "REWATCHING"])
+    .nullable(),
+});
+
+export async function setSeriesStatusAction(
+  input: z.infer<typeof StatusSchema>
+): Promise<ActionResult> {
+  try {
+    const v = StatusSchema.parse(input);
+    const userId = await requirePgUserId();
+    await setManualStatus(userId, v.seriesId, v.status);
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("setSeriesStatusAction", error);
+  }
+}
+
+export async function resetToRewatchAction(input: { seriesId: number }): Promise<ActionResult> {
+  try {
+    const seriesId = z.number().int().positive().parse(input.seriesId);
+    const userId = await requirePgUserId();
+    await resetToRewatchQuery(userId, seriesId);
+    return { ok: true };
+  } catch (error: unknown) {
+    return fail("resetToRewatchAction", error);
+  }
+}
+
+export async function getSeriesTracking(
+  seriesId: number
+): Promise<SeriesTrackingDTO | null> {
+  try {
+    const id = z.number().int().positive().parse(seriesId);
+    const userId = await requirePgUserId();
+    const progress = await getSeriesProgress(userId, id);
+    if (!progress) return { progress: null, watchedEpisodes: [] };
+    const [totalEpisodes, eventRows] = await Promise.all([
+      prisma.episode.count({
+        where: { season: { seriesId: id, seasonNumber: { gt: 0 } } },
+      }),
+      prisma.watchEvent.findMany({
+        where: {
+          userId,
+          seriesId: id,
+          episodeNumber: { not: null },
+          ...(progress.rewatchStartedAt
+            ? { createdAt: { gte: progress.rewatchStartedAt } }
+            : {}),
+        },
+        select: { seasonNumber: true, episodeNumber: true },
+        distinct: ["seasonNumber", "episodeNumber"],
+      }),
+    ]);
+    return {
+      progress: {
+        status: progress.status,
+        statusIsManual: progress.statusIsManual,
+        lastSeasonNumber: progress.lastSeasonNumber,
+        lastEpisodeNumber: progress.lastEpisodeNumber,
+        episodesWatched: progress.episodesWatched,
+        totalEpisodes,
+        rewatchCount: progress.rewatchCount,
+      },
+      watchedEpisodes: eventRows
+        .filter((r) => r.seasonNumber !== null && r.episodeNumber !== null)
+        .map((r) => ({
+          seasonNumber: r.seasonNumber as number,
+          episodeNumber: r.episodeNumber as number,
+        })),
+    };
+  } catch (error: unknown) {
+    userApiLogger.error({ action: "getSeriesTracking", error: String(error) });
+    return null;
+  }
+}
+
+export async function getUpNext(limit = 10): Promise<UpNextItemDTO[]> {
+  try {
+    const userId = await requirePgUserId();
+    const shelf = await getProgressShelf(userId, ["WATCHING", "REWATCHING"], limit);
+    const items = await Promise.all(
+      shelf.map(async (s): Promise<UpNextItemDTO | null> => {
+        const next = await prisma.episode.findFirst({
+          where: {
+            season: { seriesId: s.seriesId, seasonNumber: { gt: 0 } },
+            OR: [
+              { season: { seasonNumber: { gt: s.lastSeasonNumber ?? 0 } } },
+              {
+                season: { seasonNumber: s.lastSeasonNumber ?? 0 },
+                episodeNumber: { gt: s.lastEpisodeNumber ?? 0 },
+              },
+            ],
+          },
+          orderBy: [{ season: { seasonNumber: "asc" } }, { episodeNumber: "asc" }],
+          select: {
+            name: true,
+            episodeNumber: true,
+            stillPath: true,
+            season: { select: { seasonNumber: true } },
+          },
+        });
+        if (!next) return null;
+        const totalEpisodes = await prisma.episode.count({
+          where: { season: { seriesId: s.seriesId, seasonNumber: { gt: 0 } } },
+        });
+        return {
+          seriesId: s.seriesId,
+          seriesName: s.name,
+          status: s.status as WatchStatus,
+          seasonNumber: next.season.seasonNumber,
+          episodeNumber: next.episodeNumber,
+          episodeName: next.name,
+          episodeStillPath: next.stillPath,
+          episodesLeft: Math.max(0, totalEpisodes - s.episodesWatched),
+        };
+      })
+    );
+    return items.filter((i): i is UpNextItemDTO => i !== null);
+  } catch (error: unknown) {
+    userApiLogger.error({ action: "getUpNext", error: String(error) });
+    return [];
+  }
+}
+
+export async function getDiaryPage(input: {
+  cursor?: string;
+  limit?: number;
+}): Promise<DiaryPageDTO> {
+  try {
+    const userId = await requirePgUserId();
+    const cursor = input.cursor
+      ? (JSON.parse(input.cursor) as DiaryCursor)
+      : undefined;
+    const [page, undatedCount] = await Promise.all([
+      getDiaryPageQuery(userId, { cursor, limit: input.limit ?? 30 }),
+      prisma.watchEvent.count({ where: { userId, watchedAt: null } }),
+    ]);
+    return {
+      entries: page.entries.map(toDiaryDTO),
+      nextCursor: page.nextCursor ? JSON.stringify(page.nextCursor) : null,
+      undatedCount,
+    };
+  } catch (error: unknown) {
+    userApiLogger.error({ action: "getDiaryPage", error: String(error) });
+    return { entries: [], nextCursor: null, undatedCount: 0 };
+  }
+}
+
+export async function getDiaryUndated(): Promise<DiaryEntryDTO[]> {
+  try {
+    const userId = await requirePgUserId();
+    const rows = await prisma.watchEvent.findMany({
+      where: { userId, watchedAt: null },
+      orderBy: { id: "desc" },
+      take: 500,
+      include: {
+        movie: { select: { title: true, posterPath: true } },
+        series: { select: { name: true, posterPath: true } },
+      },
+    });
+    return rows.map((e) =>
+      toDiaryDTO({
+        id: e.id,
+        movieId: e.movieId,
+        seriesId: e.seriesId,
+        seasonNumber: e.seasonNumber,
+        episodeNumber: e.episodeNumber,
+        watchedAt: e.watchedAt,
+        watchedAtPrecision: e.watchedAtPrecision,
+        effectiveAt: e.createdAt,
+        note: e.note,
+        tags: e.tags,
+        isRewatch: e.isRewatch,
+        isPrivate: e.isPrivate,
+        source: e.source,
+        title: e.movie?.title ?? e.series?.name ?? null,
+        posterPath: e.movie?.posterPath ?? e.series?.posterPath ?? null,
+      })
+    );
+  } catch (error: unknown) {
+    userApiLogger.error({ action: "getDiaryUndated", error: String(error) });
+    return [];
+  }
+}
+
+export async function getUserStats(): Promise<UserStatsDTO> {
+  const userId = await requirePgUserId();
+  const [s, seriesCompleted] = await Promise.all([
+    getUserStatsSnapshot(userId),
+    prisma.seriesProgress.count({ where: { userId, status: "COMPLETED" } }),
+  ]);
+  const months = Object.keys(s.byMonth).sort().slice(-12);
+  return {
+    totalHours: Math.round(s.hoursWatched),
+    moviesWatched: s.moviesWatched,
+    episodesWatched: s.episodesWatched,
+    seriesCompleted,
+    monthlyCounts: months.map((month) => ({ month, count: s.byMonth[month] ?? 0 })),
+    genres: s.topGenres.map((g) => ({ label: g.name, count: g.count })),
+    decades: s.topDecades.map((d) => ({ label: d.decade, count: d.count })),
+    countries: [],
+    topActors: s.topActors.map((a) => ({
+      personId: null, name: a.name, profilePath: null, count: a.count,
+    })),
+    topDirectors: s.topDirectors.map((d) => ({
+      personId: null, name: d.name, profilePath: null, count: d.count,
+    })),
+    currentStreakDays: (s as { currentStreakDays?: number }).currentStreakDays ?? 0,
+    longestStreakDays: s.longestStreakDays,
+    rewatchChampions: s.rewatches.champions,
+    computedAt: new Date().toISOString(),
+  };
+}
+```
+
+  NOTE for the executor: if `StatsSnapshot` (Task 16) field names differ from the mapping above
+  (`hoursWatched`, `byMonth`, `topGenres[].name`, `topDecades[].decade`, `rewatches.champions`),
+  fix the MAPPING here to the actual snapshot shape — never change the DTO.
+
+- [ ] **Step 4: Append to `src/server/actions/profile.ts`** (after the Task 23 content):
+
+```typescript
+import { revalidatePath } from "next/cache";
+import { getPublicProfileByUsername, parseEnvelope } from "@/server/db/postgres/social/public-profile";
+import { getFourFavorites, setFourFavorites } from "@/server/db/postgres/social/lists";
+import { followUser, unfollowUser, isFollowing } from "@/server/db/postgres/social/follows";
+import { assertNotBlocked } from "@/server/db/postgres/social/blocks";
+import { auth } from "@/lib/auth";
+import type {
+  ActionResult,
+  FavoriteItemDTO,
+  OwnProfileSettingsDTO,
+  ProfileCustomizationInput,
+  ProfileViewerStateDTO,
+  PublicProfileDTO,
+  TrackedMediaType,
+} from "@/types/social";
+
+export async function getPublicProfile(username: string): Promise<PublicProfileDTO | null> {
+  return getPublicProfileByUsername(z.string().min(1).max(30).parse(username));
+}
+
+export async function getProfileViewerState(username: string): Promise<ProfileViewerStateDTO> {
+  const fallback = { isOwner: false, isFollowing: false };
+  try {
+    const session = await auth();
+    if (!session?.user) return fallback;
+    const viewerId = await requirePgUserId();
+    const target = await prisma.user.findFirst({
+      where: { username: { equals: username, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!target) return fallback;
+    if (target.id === viewerId) return { isOwner: true, isFollowing: false };
+    return { isOwner: false, isFollowing: await isFollowing(viewerId, target.id) };
+  } catch {
+    return fallback;
+  }
+}
+
+export async function followAction(input: {
+  username: string;
+  follow: boolean;
+}): Promise<ActionResult> {
+  try {
+    const viewerId = await requirePgUserId();
+    const target = await prisma.user.findFirst({
+      where: { username: { equals: input.username, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!target || target.id === viewerId) return { ok: false, error: "Not found" };
+    if (input.follow) {
+      await assertNotBlocked(viewerId, target.id);
+      await followUser(viewerId, target.id);
+    } else {
+      await unfollowUser(viewerId, target.id);
+    }
+    return { ok: true };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function claimUsernameAction(input: { username: string }): Promise<ActionResult> {
+  const result = await claimUsername(input);
+  if (result.success) {
+    revalidatePath(`/u/${result.username}`);
+    return { ok: true };
+  }
+  return { ok: false, error: result.error };
+}
+
+export async function checkUsernameAvailability(
+  username: string
+): Promise<{ available: boolean }> {
+  const candidate = username.toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(candidate) || RESERVED.has(candidate)) {
+    return { available: false };
+  }
+  const existing = await prisma.user.findFirst({
+    where: { username: { equals: candidate, mode: "insensitive" } },
+    select: { id: true },
+  });
+  return { available: existing === null };
+}
+
+export async function getUsernameStatus(): Promise<{ username: string | null }> {
+  try {
+    const userId = await requirePgUserId();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    });
+    return { username: user?.username ?? null };
+  } catch {
+    return { username: null };
+  }
+}
+
+const CustomizationSchema = z.object({
+  backdrop: z
+    .object({
+      mediaType: z.enum(["movie", "series"]),
+      tmdbId: z.number().int().positive(),
+      imagePath: z.string().max(200),
+    })
+    .nullable(),
+  avatarImagePath: z.string().max(200).nullable(),
+  accent: z.enum(["default", "midnight", "forest", "golden", "ocean", "sunset", "violet", "rose"]),
+  bio: z.string().max(160),
+  links: z.array(z.string().url().max(200)).max(3),
+  location: z.string().max(60),
+});
+
+export async function updateProfileAction(
+  input: ProfileCustomizationInput
+): Promise<ActionResult> {
+  try {
+    const v = CustomizationSchema.parse(input);
+    const userId = await requirePgUserId();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, metadata: true },
+    });
+    const env = parseEnvelope(user?.metadata);
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        bio: v.bio || null,
+        metadata: {
+          ...env,
+          profile: {
+            ...(env.profile ?? {}),
+            backdrop: v.backdrop ?? undefined,
+            avatarImagePath: v.avatarImagePath ?? undefined,
+            accent: v.accent,
+            links: v.links,
+            location: v.location || undefined,
+          },
+        },
+      },
+    });
+    if (user?.username) revalidatePath(`/u/${user.username}`);
+    // DEPLOY FOLLOW-UP: single-path CloudFront invalidation /u/<username>* on privacy flips.
+    return { ok: true };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function setFourFavoritesAction(input: {
+  items: { mediaType: TrackedMediaType; tmdbId: number }[];
+}): Promise<ActionResult> {
+  try {
+    const items = z
+      .array(z.object({ mediaType: z.enum(["movie", "series"]), tmdbId: z.number().int().positive() }))
+      .max(4)
+      .parse(input.items);
+    const userId = await requirePgUserId();
+    await setFourFavorites(
+      userId,
+      items.map((i) =>
+        i.mediaType === "movie" ? { movieId: i.tmdbId } : { seriesId: i.tmdbId }
+      )
+    );
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+    if (user?.username) revalidatePath(`/u/${user.username}`);
+    return { ok: true };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function setPrivacyDefaultsAction(input: {
+  logPrivatelyByDefault: boolean;
+}): Promise<ActionResult> {
+  try {
+    const value = z.boolean().parse(input.logPrivatelyByDefault);
+    const userId = await requirePgUserId();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { metadata: true } });
+    const env = parseEnvelope(user?.metadata);
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        metadata: { ...env, preferences: { ...(env.preferences ?? {}), logPrivatelyByDefault: value } },
+      },
+    });
+    return { ok: true };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
+  const userId = await requirePgUserId();
+  const [user, favorites] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, name: true, image: true, bio: true, metadata: true },
+    }),
+    getFourFavorites(userId),
+  ]);
+  const env = parseEnvelope(user?.metadata);
+  const fourFavorites: FavoriteItemDTO[] = favorites.map((f) => ({
+    mediaType: f.movie ? "movie" : "series",
+    tmdbId: f.movie?.id ?? f.series?.id ?? 0,
+    title: f.movie?.title ?? f.series?.name ?? "",
+    posterPath: f.movie?.posterPath ?? f.series?.posterPath ?? null,
+  }));
+  return {
+    username: user?.username ?? null,
+    displayName: user?.name ?? user?.username ?? "You",
+    googleImageUrl: user?.image ?? null,
+    customization: {
+      backdrop: env.profile?.backdrop
+        ? {
+            mediaType: env.profile.backdrop.mediaType,
+            tmdbId: env.profile.backdrop.tmdbId,
+            imagePath: env.profile.backdrop.imagePath,
+          }
+        : null,
+      avatarImagePath: env.profile?.avatarImagePath ?? null,
+      accent: (env.profile?.accent ?? "default") as OwnProfileSettingsDTO["customization"]["accent"],
+      bio: user?.bio ?? "",
+      links: env.profile?.links ?? [],
+      location: env.profile?.location ?? "",
+    },
+    privacy: { logPrivatelyByDefault: env.preferences?.logPrivatelyByDefault ?? false },
+    fourFavorites,
+  };
+}
+
+export async function getTitleImages(input: {
+  mediaType: TrackedMediaType;
+  tmdbId: number;
+}): Promise<{ backdrops: string[]; posters: string[] }> {
+  const v = z
+    .object({ mediaType: z.enum(["movie", "series"]), tmdbId: z.number().int().positive() })
+    .parse(input);
+  const where = v.mediaType === "movie" ? { movieId: v.tmdbId } : { seriesId: v.tmdbId };
+  const rows = await prisma.image.findMany({
+    where: { ...where, type: { in: ["BACKDROP", "POSTER"] } },
+    orderBy: { voteAverage: "desc" },
+    take: 40,
+    select: { filePath: true, type: true },
+  });
+  return {
+    backdrops: rows.filter((r) => r.type === "BACKDROP").map((r) => r.filePath).slice(0, 12),
+    posters: rows.filter((r) => r.type === "POSTER").map((r) => r.filePath).slice(0, 12),
+  };
+}
+```
+
+- [ ] **Step 5: Append to `src/server/actions/reviews.ts`** (alias the db imports as
+  `getOwnReviewQuery`/`getPublicReviewsQuery` at the top of the file to avoid name collisions):
+
+```typescript
+import type {
+  ActionResult as UiActionResult,
+  OwnReviewDTO,
+  ReviewDTO,
+  SubmitReviewInput,
+  TrackedMediaType,
+} from "@/types/social";
+
+function reviewTarget(mediaType: TrackedMediaType, tmdbId: number, seasonNumber?: number) {
+  return mediaType === "movie"
+    ? { movieId: tmdbId }
+    : { seriesId: tmdbId, seasonNumber: seasonNumber ?? null };
+}
+
+export async function submitReviewAction(
+  input: SubmitReviewInput
+): Promise<{ ok: true; review: OwnReviewDTO } | { ok: false; error: string }> {
+  const result = await upsertReview({
+    ...reviewTarget(input.mediaType, input.tmdbId, input.seasonNumber),
+    body: input.body,
+    containsSpoilers: input.containsSpoilers,
+    isPrivate: input.isPrivate,
+  });
+  if (!result.success || !result.review) {
+    return { ok: false, error: result.success ? "Review missing" : result.error };
+  }
+  const userId = await requirePgUserId();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { username: true, name: true, image: true },
+  });
+  const r = result.review;
+  return {
+    ok: true,
+    review: {
+      id: r.id,
+      username: user?.username ?? null,
+      displayName: user?.name ?? user?.username ?? "You",
+      avatarUrl: user?.image ?? null,
+      score: null,
+      body: r.body,
+      containsSpoilers: r.containsSpoilers,
+      seasonNumber: r.seasonNumber,
+      createdAt: r.createdAt.toISOString(),
+      editedAt: r.editedAt?.toISOString() ?? null,
+      status: r.status,
+      isPrivate: r.isPrivate,
+    },
+  };
+}
+
+export async function deleteReviewAction(input: { reviewId: number }): Promise<UiActionResult> {
+  const result = await deleteReview({ reviewId: input.reviewId });
+  return result.success ? { ok: true } : { ok: false, error: result.error };
+}
+
+export async function getPublicReviews(input: {
+  mediaType: TrackedMediaType;
+  tmdbId: number;
+  seasonNumber?: number;
+  limit?: number;
+}): Promise<ReviewDTO[]> {
+  const page = await getPublicReviewsQuery({
+    ...reviewTarget(input.mediaType, input.tmdbId, input.seasonNumber),
+    viewerId: null,
+    limit: input.limit ?? 10,
+  });
+  const userIds = [...new Set(page.reviews.map((r) => r.userId).filter((id): id is number => id !== null))];
+  const scores = await prisma.userRating.findMany({
+    where: {
+      userId: { in: userIds },
+      score: { not: null },
+      ...(input.mediaType === "movie" ? { movieId: input.tmdbId } : { seriesId: input.tmdbId }),
+    },
+    select: { userId: true, score: true },
+  });
+  const scoreByUser = new Map(scores.map((s) => [s.userId, s.score]));
+  return page.reviews.map((r) => ({
+    id: r.id,
+    username: r.user?.username ?? null,
+    displayName: r.user?.name ?? r.user?.username ?? "Member",
+    avatarUrl: r.user?.image ?? null,
+    score: (r.userId !== null ? scoreByUser.get(r.userId) : null) ?? null,
+    body: r.body,
+    containsSpoilers: r.containsSpoilers,
+    seasonNumber: r.seasonNumber,
+    createdAt: r.createdAt.toISOString(),
+    editedAt: r.editedAt?.toISOString() ?? null,
+  }));
+}
+
+export async function getOwnReview(input: {
+  mediaType: TrackedMediaType;
+  tmdbId: number;
+  seasonNumber?: number;
+}): Promise<OwnReviewDTO | null> {
+  try {
+    const userId = await requirePgUserId();
+    const r = await getOwnReviewQuery(userId, reviewTarget(input.mediaType, input.tmdbId, input.seasonNumber));
+    if (!r) return null;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, name: true, image: true },
+    });
+    return {
+      id: r.id,
+      username: user?.username ?? null,
+      displayName: user?.name ?? user?.username ?? "You",
+      avatarUrl: user?.image ?? null,
+      score: null,
+      body: r.body,
+      containsSpoilers: r.containsSpoilers,
+      seasonNumber: r.seasonNumber,
+      createdAt: r.createdAt.toISOString(),
+      editedAt: r.editedAt?.toISOString() ?? null,
+      status: r.status,
+      isPrivate: r.isPrivate,
+    };
+  } catch {
+    return null;
+  }
+}
+```
+
+  NOTE: `upsertReview`'s return must include the review row (`{ success: true, review }`); if
+  Task 14's version returns less, extend it there rather than re-querying here.
+
+- [ ] **Step 6: Append to `src/server/actions/imports.ts`**:
+
+```typescript
+import type { ImportJobDTO } from "@/types/social";
+import type { ImportJob } from "@prisma/client";
+
+interface StoredImportStats {
+  rowsTotal: number;
+  imported: number;
+  skipped: number;
+  errors: { row: number; reason: string }[];
+}
+
+function toImportJobDTO(job: ImportJob): ImportJobDTO {
+  const stats = (job.stats ?? null) as StoredImportStats | null;
+  return {
+    id: job.id,
+    source: job.source,
+    status: job.status,
+    stats: stats
+      ? { ...stats, processed: stats.imported + stats.skipped + stats.errors.length }
+      : null,
+    createdAt: job.createdAt.toISOString(),
+    completedAt: job.completedAt?.toISOString() ?? null,
+  };
+}
+
+export async function startImportAction(
+  formData: FormData
+): Promise<{ ok: true; jobId: number } | { ok: false; error: string }> {
+  const result = await startImport(formData);
+  return result.success ? { ok: true, jobId: result.jobId } : { ok: false, error: result.error };
+}
+
+export async function getImportJobs(): Promise<ImportJobDTO[]> {
+  const result = await listImportJobs();
+  return result.success ? result.jobs.map(toImportJobDTO) : [];
+}
+
+export async function getImportJobById(jobId: number): Promise<ImportJobDTO | null> {
+  const result = await getImportJob({ jobId });
+  return result.success ? toImportJobDTO(result.job) : null;
+}
+```
+
+  NOTE: the UI plan calls `getImportJob(id)` with a bare number — its Task 15 import-client must
+  use `getImportJobById(id)` (UI plan updated accordingly; the original `getImportJob({jobId})`
+  zod-object action keeps its name).
+
+- [ ] **Step 7: Verify + commit**
+
+Run: `yarn typecheck && yarn lint`
+Expected: exit 0.
+
+```bash
+git add src/types/social.ts src/server/db/postgres/social/public-profile.ts src/server/actions/tracking.ts src/server/actions/profile.ts src/server/actions/reviews.ts src/server/actions/imports.ts
+git commit -m "feat(phase0): UI contract bridge — Appendix A actions over the tracking core
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+```
+
+Then re-run the Task 23 final verification suite once more (it is the suite-wide gate).
