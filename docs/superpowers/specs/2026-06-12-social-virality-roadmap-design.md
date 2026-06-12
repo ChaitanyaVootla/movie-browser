@@ -50,7 +50,7 @@ Key validated facts this design rests on:
 
 | Phase | What ships | Why it's sequenced here |
 |---|---|---|
-| **0 — Tracking Core + primitives** (this spec) | Episode-level progress, dated diary w/ rewatches & notes, 1–10 ratings, free stats, CSV import, username + public profiles; schema anchors for comments/reactions/lists/notifications | Must be good solo before social; everything else reads its tables |
+| **0 — Tracking Core + primitives** (this spec) | Episode-level progress, dated diary w/ rewatches & notes, 1–10 ratings, free stats, CSV import, username + rich public profiles (backdrop/avatar/accent customization, pinned lists, follow graph, public reviews), review writing as first AI-gate consumer; schema anchors for comments/reactions/lists/notifications | Must be good solo before social; everything else reads its tables; profiles are the identity artifact |
 | **1 — Discussion layer** | Spoiler-gated threaded comments on movie/series/episode pages; per-episode SEO pages (DiscussionForumPosting structured data); AI gate (toxicity + spoiler-scope classification); AI thread summaries safe-to-your-progress; threads never archive | The virality wedge: fed by existing SEO traffic, no social cold start; anonymous readers see spoiler-free tier + "N comments unlock when you've watched" |
 | **2 — Identity artifacts** | Public + collaborative lists, OG share cards, Four-Favorites format, free stats pages + Wrapped | Share-out acquisition; reuses comment/reaction primitives |
 | **3 — Circles + binge clubs** | Group watchlists, taste-aware group polls w/ AI mediation, scheduled series watches with auto-created progress-gated circle threads, invite links | The retention engine + invite loop; needs phases 0–1 primitives |
@@ -311,6 +311,7 @@ model List {
   isPublic        Boolean  @default(false) @map("is_public")
   isCollaborative Boolean  @default(false) @map("is_collaborative")
   isRanked        Boolean  @default(false) @map("is_ranked")
+  isPinned        Boolean  @default(false) @map("is_pinned")  // showcased on profile
   itemCount       Int      @default(0) @map("item_count")
   createdAt/updatedAt
   @@unique([ownerId, slug])
@@ -381,6 +382,23 @@ note?, status, createdAt`. `@@index([status, createdAt])` (mod queue).
 Username claim flow; raw `UNIQUE INDEX ON lower(username)` (case-insensitive
 routing for `/u/[username]`; in 04-ugc-constraints.sql).
 
+Profile customization lives in the existing `metadata` Json envelope (no
+schema change): `profile.backdrop {movieId|seriesId, imagePath}` (reference
+into TMDB imagery we already serve — zero storage, zero upload moderation),
+`profile.avatar` (Google image default OR a TMDB poster/still pick; custom
+uploads deferred — they drag in storage + image moderation), `profile.accent`
+(rides the existing 3-tier OKLch theming), `profile.links/pronouns/location`.
+Note: Letterboxd gates profile backdrops behind Patron ($49/yr) — ours ship
+free ("free what they paywall").
+
+#### `follows` — activate existing model (phase 0)
+
+Follow button + follower/following counts and lists on profiles. Safest
+social feature (no UGC, no moderation), makes the profile a social object,
+and seeds the graph phase 2's friend-weighted scores need. Counts are
+query-time at current scale (indexes exist); denormalize only if profiles get
+crawler-hot.
+
 #### `circles` — extend existing
 
 Add `slug`, `inviteCode` (shareable join links = the phase-3 acquisition
@@ -410,8 +428,20 @@ notoriously import-polluted).
   (date defaults today).
 - **Stats** page (free): hours, counts/month, genres/decades/countries, top
   actors/directors, streaks, rewatch champions.
-- **Public profile** `/u/[username]`: stats + diary highlights + favorites +
-  lists (respecting per-entry `isPrivate` from day one).
+- **Public profile** `/u/[username]` — the identity page, not a stats dump:
+  user-chosen movie/series **backdrop** rendered through the existing
+  hero-backdrop/gradient system, avatar (Google or TMDB-art pick), accent
+  color, bio + links; Four Favorites module; **pinned lists**; public
+  reviews; ratings histogram; top genres/decades; currently-watching shelf;
+  streaks/rewatch champions; **follow button + follower/following counts**.
+  All respecting per-entry `isPrivate` from day one. Layout reserves a slot
+  for the phase-2 **taste-compatibility module** ("you're 87% compatible" +
+  share card — Beli's mechanic; profile-visit payoff and the natural
+  'compare with me' link for group chats).
+- **Review writing** (public/private toggle, containsSpoilers flag) from
+  detail pages; renders on profile + detail page. First consumer of the AI
+  gate pipeline — moderation machinery gets battle-tested on low-volume
+  reviews before phase-1 comment threads scale it.
 - **Import** flow: upload → background job → per-row report.
 - Settings: privacy defaults (log privately by default toggle).
 
@@ -422,7 +452,10 @@ episode ratings (future table sketched), collection/ownership tracking,
 activity-feed materialization (query-time later via follows indexes),
 episode-level watchlist, DMs, advanced per-criteria scores, Trakt-style
 check-in, hidden-items table ("not interested" = existing thumb-down
-exclusion; revisit as explicit signal in phase 2).
+exclusion; revisit as explicit signal in phase 2), badges/achievements
+(retention polish, not foundation), custom image uploads (storage + image
+moderation; TMDB art covers customization), taste-compatibility module
+(phase 2 — profile layout reserves its slot).
 
 ## 5. Phase 1+ design notes carried from research/review
 
