@@ -239,6 +239,24 @@ jobs:
               echo "FTS sql unchanged -> skip"
             fi
 
+            echo "[3.5/5] UGC constraints (gated)..."
+            # Gate on schema + constraints file COMBINED: `prisma db push` table
+            # recreation silently drops CHECK constraints, so a schema change
+            # must re-fire this even when 04-ugc-constraints.sql is unchanged
+            # (social roadmap spec §4.1 invariant 5). File is idempotent
+            # (DROP CONSTRAINT IF EXISTS + ADD / CREATE UNIQUE INDEX IF NOT EXISTS).
+            UGC_HASH=$(cat postgres/init/04-ugc-constraints.sql prisma/schema.prisma | md5sum | cut -d' ' -f1)
+            if [ "$UGC_HASH" != "$(cat .last-ugc-hash 2>/dev/null)" ]; then
+              echo "UGC sql or schema changed -> apply"
+              docker compose exec -T postgres \
+                psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=0 \
+                < postgres/init/04-ugc-constraints.sql 2>&1 | tail -8 \
+                && echo "$UGC_HASH" > .last-ugc-hash \
+                || echo "UGC constraints step warning (non-fatal)"
+            else
+              echo "UGC sql unchanged -> skip"
+            fi
+
             echo "[4/5] Creating data directories..."
             mkdir -p data/enriched logs
             mkdir -p .cache/{youtube-channels,youtube,person,search,discover,movie,series,images}
