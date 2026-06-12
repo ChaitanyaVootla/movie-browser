@@ -477,6 +477,30 @@ body {
     height: auto;
   }
 
+  /* Mobile hero top scrim — makes backdrop imagery appear to slide under the
+     system status bar (DESIGN.md → Layout → System bars). Solid --hero-base at
+     y=0 is load-bearing: Android standalone PWAs cannot draw under the status
+     bar, so the bar (painted --hero-base by ThemeColorSync) must meet a fully
+     opaque pixel row or the seam shows. On iOS standalone the image genuinely
+     extends under the bar (safe-area-inset-top > 0) and the longer fade keeps
+     the clock legible. The 8px floor keeps the gradient sane when the inset
+     is 0 (Android / browser tab). */
+  .hero-top-scrim {
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(max(env(safe-area-inset-top, 0px), 8px) + 4rem);
+    background: linear-gradient(
+      to bottom,
+      rgb(var(--hero-base-rgb)),
+      rgb(var(--hero-base-rgb) / 0.55) max(env(safe-area-inset-top, 0px), 8px),
+      rgb(var(--hero-base-rgb) / 0.25) calc(max(env(safe-area-inset-top, 0px), 8px) + 1.75rem),
+      transparent
+    );
+  }
+
   @media (min-width: 768px) {
     .hero-container {
       height: clamp(var(--hero-height-min), var(--hero-height-target), var(--hero-height-max));

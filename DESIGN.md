@@ -185,7 +185,7 @@ z-50). Every offset in the app derives from these two facts:
 
 | Concern | Recipe |
 |---------|--------|
-| Page top offset (non-hero pages) | `pt-4 md:pt-20` (mobile: breathing room only; desktop: 64px navbar + 16px) |
+| Page top offset (non-hero pages) | `pt-[calc(env(safe-area-inset-top,0px)+1rem)] md:pt-20` (mobile: safe-area + breathing room — the inset is 0 on Android standalone but equals the status bar on iOS standalone, where content draws under it; desktop: 64px navbar + 16px) |
 | Sticky in-page bars (filters, toolbars) | mobile `top-0`, desktop `md:top-16` — flush under the navbar, with `z-40 bg-background/95 backdrop-blur-sm border-b` |
 | Fixed full-height panels (desktop sidebars) | `top-16 h-[calc(100dvh-4rem)]` |
 | Page horizontal padding | `px-4 md:px-8 lg:px-12` (browse-style split layouts may use `px-4 md:px-6 lg:px-8` inside the content pane) |
@@ -204,11 +204,36 @@ Sparse titles with **no backdrop art at all** (CDN and TMDB both missing) get a
 compact hero instead of an empty void: `HeroBackdropShell` marks itself
 `data-backdrop-state="failed"`, `.hero-container:has(...)` in `globals.css` collapses
 the fixed clamp height to `auto`, and the content flows at natural height (`md:pt-20`
-to clear the navbar; mobile `pt-10`). The with-backdrop layout is unchanged.
+to clear the navbar; mobile `pt-[calc(env(safe-area-inset-top,0px)+2.5rem)]` — the
+inset covers the iOS standalone status bar). The with-backdrop layout is unchanged.
 
 Viewport rules: use `dvh`/`svh`, never `vh`, for anything full-height (mobile Safari).
 Respect `env(safe-area-inset-*)` on fixed/sticky top and bottom elements. Touch
 targets ≥ 40px on mobile.
+
+### System bars (installed PWA, "native edge-to-edge")
+
+Platform facts (researched Jun 2026): an Android standalone PWA **cannot** draw
+under the top status bar — Chrome's edge-to-edge (135+) extends the viewport only
+into the **bottom** gesture bar; the status bar is an opaque strip painted with
+`theme-color`. iOS standalone (`black-translucent`) **does** draw content under the
+status bar (`safe-area-inset-top` = its height there; 0 on Android). The native
+look is therefore an illusion built from three pieces, all mandatory:
+
+1. **`.hero-top-scrim`** (`globals.css`) on every mobile hero image: a gradient
+   that is **solid `--hero-base` at y=0** and fades down over ~4rem (+ the top
+   inset). Solid-at-top is the load-bearing part — on Android the opaque status
+   bar sits directly above the image, and any alpha < 1 at the seam reads as a
+   hard edge. On iOS the same scrim keeps the clock legible over the bleed.
+2. **Status bar color = what's under it**: `ThemeColorSync` paints `theme-color`
+   with the hero's `--hero-base` while a `[data-hero-root]` element is under the
+   status bar seam, and with the page background otherwise (re-evaluated on
+   scroll). Without this, light mode shows a light bar above a dark hero.
+3. **Bottom bleed**: `viewportFit: "cover"` + the translucent blurred bottom nav
+   extending through `env(safe-area-inset-bottom)`; content scrolls under it.
+
+Don't try `display: fullscreen` for "more native" — it hides the clock/battery
+entirely, which native media apps don't do.
 
 ## Elevation & Depth
 

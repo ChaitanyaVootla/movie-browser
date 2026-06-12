@@ -4,8 +4,10 @@
  * it changes here in the same commit.
  */
 
-/** Non-hero page shell. Mobile has no top navbar; desktop navbar is 64px. */
-export const PAGE_SHELL = "min-h-screen pt-4 md:pt-20 pb-12 px-4 md:px-8 lg:px-12";
+/** Non-hero page shell. Mobile has no top navbar (safe-area inset covers the iOS
+ * status bar, 0 on Android); desktop navbar is 64px. */
+export const PAGE_SHELL =
+  "min-h-screen pt-[calc(env(safe-area-inset-top,0px)+1rem)] md:pt-20 pb-12 px-4 md:px-8 lg:px-12";
 
 /** Standalone horizontal page padding (for full-bleed pages that pad sections individually). */
 export const PAGE_PADDING_X = "px-4 md:px-8 lg:px-12";

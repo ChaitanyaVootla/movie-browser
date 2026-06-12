@@ -51,6 +51,9 @@ export function MediaBackdrop({
 
   return (
     <div
+      // ThemeColorSync paints the status bar --hero-base while this element is
+      // under the status bar seam (DESIGN.md → System bars)
+      data-hero-root
       className={cn(
         "relative w-full overflow-hidden bg-hero-base",
         // Mobile: flex column, image + content stacked
@@ -72,8 +75,8 @@ export function MediaBackdrop({
               fetchPriority={priority ? "high" : undefined}
               onError={handleImageError}
             />
-            {/* Top gradient for navbar */}
-            <div className="absolute inset-x-0 top-0 h-16 bg-linear-to-b from-hero-base/40 to-transparent" />
+            {/* Top scrim: blends the image into the system status bar (DESIGN.md → System bars) */}
+            <div className="hero-top-scrim" />
             {/* Bottom gradient - fade to black for content below */}
             {overlay !== "none" && (
               <div
