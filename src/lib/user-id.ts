@@ -84,3 +84,15 @@ async function getPostgresUserId(googleId: string | undefined): Promise<number |
   userIdCache.set(googleId, user.id);
   return user.id;
 }
+
+/**
+ * Phase-0 social features are Postgres-only (no MongoDB twin). Throws when the
+ * USER_DATA_SOURCE flag still points at MongoDB so we fail loudly, not with
+ * FK violations against google-sub pseudo-ids.
+ */
+export async function requirePgUserId(): Promise<number> {
+  if (!usePostgresUserData) {
+    throw new Error("Social features require USER_DATA_SOURCE=postgres");
+  }
+  return requireUserIdForDb();
+}
