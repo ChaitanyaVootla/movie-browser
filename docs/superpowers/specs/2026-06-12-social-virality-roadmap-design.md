@@ -52,8 +52,8 @@ Key validated facts this design rests on:
 |---|---|---|
 | **0 — Tracking Core + primitives** (this spec) | Episode-level progress, dated diary w/ rewatches & notes, 1–10 ratings, free stats, CSV import, username + rich public profiles (backdrop/avatar/accent customization, pinned lists, follow graph, public reviews), review writing as first AI-gate consumer; schema anchors for comments/reactions/lists/notifications | Must be good solo before social; everything else reads its tables; profiles are the identity artifact |
 | **1 — Discussion layer** | Spoiler-gated threaded comments on movie/series/episode pages; per-episode SEO pages (DiscussionForumPosting structured data); AI gate (toxicity + spoiler-scope classification); AI thread summaries safe-to-your-progress; threads never archive | The virality wedge: fed by existing SEO traffic, no social cold start; anonymous readers see spoiler-free tier + "N comments unlock when you've watched" |
-| **2 — Identity artifacts** | Public + collaborative lists, OG share cards, Four-Favorites format, free stats pages + Wrapped | Share-out acquisition; reuses comment/reaction primitives |
-| **3 — Circles + binge clubs** | Group watchlists, taste-aware group polls w/ AI mediation, scheduled series watches with auto-created progress-gated circle threads, invite links | The retention engine + invite loop; needs phases 0–1 primitives |
+| **2 — Identity artifacts** | Public + collaborative lists, OG share cards, Four-Favorites format, free stats pages + Wrapped, taste-compatibility module, **shareability audit** (X cards / Discord / WhatsApp / Telegram / Reddit unfurls for every public object), **Feed v1** (follows + own activity + popular/taste-blended reviews, trailers, releases) | Share-out acquisition; reuses comment/reaction primitives |
+| **3 — Circles + binge clubs** | Group watchlists, taste-aware group polls w/ AI mediation, scheduled series watches with auto-created progress-gated circle threads, invite links, **Feed v2** (your-circles content + related public circles discovery) | The retention engine + invite loop; needs phases 0–1 primitives |
 | **4 — AI second screen** | Recap-to-my-progress, spoiler-safe "who is that?" Q&A across whole catalog (Amazon X-Ray Recaps generalized), AI recaps posted into club threads | Rides ai_insights + agent + progress rows; needs per-episode AI table later (same natural-key pattern) |
 
 ## 4. Phase 0 spec — Tracking Core
@@ -377,6 +377,40 @@ Write-on-event only (invariant 6).
 `reporterId (indexed), commentId (indexed; other targets later), reason enum,
 note?, status, createdAt`. `@@index([status, createdAt])` (mod queue).
 
+#### `blocks` — safety table stakes (phase 0 schema; the retrofit trap)
+
+`blockerId, blockedId, type (BLOCK | MUTE), createdAt`;
+`@@unique([blockerId, blockedId])`, both columns indexed, both FKs Cascade.
+BLOCK = mutual invisibility + no follow/mention/reply; MUTE = one-way hide.
+**Invariant: every social read path (comments, replies, follows, mentions,
+notifications, feed, compatibility, user search) filters blocks from day one
+of social features** — enforced via the same query-helper pattern as
+`publicComments`, never ad-hoc where-clauses.
+
+#### Social plumbing designed now (ships phases 0–1)
+
+- **@mentions**: parsed on publish, `MENTION` notification (type already
+  enumerated), respects blocks. No schema beyond notifications.
+- **Permalinks**: every public social object (comment, review, list) gets a
+  stable URL from day one — notifications, shares, and SEO hang off them.
+- **User search + taste-based follow suggestions**: username search; embedding
+  taste-similarity suggestions ("people who love what you love") instead of
+  clout-based popular-user lists. Doubles as the compatibility teaser.
+- **Web push** (PWA infra exists): reply notifications, "S3 just dropped"
+  (TV Time's biggest retention lever), club-episode-open. Plumbing phase 1.
+- **Data export**: full CSV export of own data — the trust mirror of
+  demanding lossless imports from Letterboxd/Trakt.
+
+#### Deliberately rejected (taste-graph, not attention-graph)
+
+DMs (moderation surface with none of our strengths), algorithmic engagement
+feed, stories/ephemeral, video/clip uploads, public clout mechanics
+(follower leaderboards — taste communities sour into status games;
+StoryGraph's safety-positioning beats Goodreads partly by avoiding this),
+re/quote-posts (imports pile-on culture). External sharing happens on
+Twitter/Reddit/Discord — by design — so every public object must unfurl
+beautifully there (see shareability, §5).
+
 #### `users` — extend
 
 Username claim flow; raw `UNIQUE INDEX ON lower(username)` (case-insensitive
@@ -475,6 +509,22 @@ moderation; TMDB art covers customization), taste-compatibility module
   before public visibility. Moderation is a phase-1 launch requirement.
 - Fable rule (hard): AI never characterizes users or performs personality;
   Wrapped copy is neutral-toned; roast-style anything is opt-in-never-default.
+- **Shareability as a strategy**: rejected features (DMs, re-posts) mean the
+  external conversation happens on X/Reddit/Discord/WhatsApp linking back to
+  us — so unfurls must be excellent. Rule for ALL phases: every new public
+  object ships with *correct* OG from day one; the dedicated audit/polish
+  pass (per-platform unfurl rendering, card imagery, oEmbed consideration)
+  is a phase-2 item. WhatsApp/Telegram previews matter disproportionately
+  for the IN-heavy audience.
+- **Feed design** (v1 phase 2, v2 phase 3): query-time fan-in over follows +
+  circle memberships (bounded, indexed — the fan-out write ban stands).
+  Interleaved card feed: friend reviews, hot threads, new trailers,
+  "S2 drops Friday" cards. **The movie/trailer sprinkle is the cold-start
+  solution, not garnish** — with a thin graph the feed blends popular +
+  taste-matched public content (embeddings: "reviews of titles like what you
+  watch", "public circles you'd fit") so it has value at zero follows.
+  Taste-relevance ranking, transparent; no engagement-bait dark patterns.
+  Per-user, logged-in, client-fetched — never edge-cached.
 
 ## 6. Risks
 
