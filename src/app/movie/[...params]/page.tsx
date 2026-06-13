@@ -63,6 +63,7 @@ import {
 } from "@/components/features/media";
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
+import { ReviewsSection } from "@/components/features/reviews";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Collection, Movie } from "@/types";
@@ -513,6 +514,14 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
           className="mt-8 md:mt-12"
         />
       )}
+
+      {/* User reviews (published+public only in cached HTML; own review hydrates client-side) */}
+      <ReviewsSection
+        mediaType="movie"
+        tmdbId={movie.id}
+        title={movie.title}
+        className="mt-8 md:mt-12"
+      />
 
       {/* Similar - AI-powered embedding similarity with TMDB fallback */}
       <Suspense fallback={<SimilarSectionSkeleton />}>

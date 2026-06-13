@@ -64,6 +64,7 @@ import {
   SeriesTrackingProvider,
   SeriesProgressPanel,
 } from "@/components/features/tracking";
+import { ReviewsSection } from "@/components/features/reviews";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
@@ -532,6 +533,14 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           className="mt-8 md:mt-12"
         />
       )}
+
+      {/* User reviews (published+public only in cached HTML; own review hydrates client-side) */}
+      <ReviewsSection
+        mediaType="series"
+        tmdbId={series.id}
+        title={series.name}
+        className="mt-8 md:mt-12"
+      />
 
       {/* Similar - AI-powered embedding similarity with TMDB fallback */}
       <Suspense fallback={<SimilarSectionSkeleton />}>
