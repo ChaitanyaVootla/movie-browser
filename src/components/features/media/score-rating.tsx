@@ -6,7 +6,13 @@ import { Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
 import { LoginDialog, useLoginDialog } from "@/components/features/auth";
@@ -227,9 +233,9 @@ export function ScoreRating({ itemId, itemType, className }: ScoreRatingProps) {
   if (isMobile) {
     return (
       <>
-        {/* Drawer trigger is the same pill; gate is a no-op here (authenticated). */}
-        <span onClick={() => setOpen(true)}>{trigger}</span>
+        {/* Drawer trigger is the same pill; asChild keeps it keyboard-focusable. */}
         <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>{trigger}</DrawerTrigger>
           <DrawerContent>
             <DrawerHeader className="text-center">
               <DrawerTitle className="text-lg font-semibold">Rate this title</DrawerTitle>

@@ -144,7 +144,7 @@ export function CommentComposer({
       ) : (
         <div className="flex items-center justify-between gap-2">
           <Select value={scope} onValueChange={(v) => setScope(v as SpoilerScopeValue)}>
-            <SelectTrigger className="w-auto min-w-36 h-9 text-xs">
+            <SelectTrigger className="w-auto min-w-36 h-10 sm:h-9 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { getOwnProfileSettings } from "@/server/actions/profile";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
+import { SignInButton } from "@/components/features/auth";
 import {
   BlockedUsersSettings,
   FourFavoritesEditor,
@@ -31,6 +32,7 @@ export default async function SettingsPage() {
           <UserCog className="h-8 w-8 text-muted-foreground" />
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-sm text-muted-foreground">Sign in to manage your profile.</p>
+          <SignInButton message="Sign in to manage your profile" className="mt-1" />
         </div>
       </PageMain>
     );

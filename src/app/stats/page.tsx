@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getUserStats } from "@/server/actions/tracking";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
+import { SignInButton } from "@/components/features/auth";
 import { StatTiles } from "@/components/features/stats/stat-tiles";
 import { BreakdownBars, MonthlyBarChart } from "@/components/features/stats/bar-charts";
 import { TopPeopleRow } from "@/components/features/stats/top-people-row";
@@ -29,6 +30,7 @@ export default async function StatsPage() {
           <p className="text-sm text-muted-foreground">
             Sign in and log what you watch — every stat here is free.
           </p>
+          <SignInButton message="Sign in to see your watching stats" className="mt-1" />
         </div>
       </PageMain>
     );

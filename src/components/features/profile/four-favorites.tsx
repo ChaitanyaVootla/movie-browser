@@ -32,7 +32,7 @@ export function FourFavorites({ favorites }: { favorites: FavoriteItemDTO[] }) {
                 />
               )}
             </div>
-            <p className="mt-1.5 text-xs font-medium line-clamp-1 group-hover:text-brand transition-colors">
+            <p className="mt-1.5 text-[11px] leading-tight font-medium line-clamp-2 group-hover:text-brand transition-colors">
               {item.title}
             </p>
           </Link>

@@ -722,10 +722,63 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
   });
   counts.notifications = 2;
 
-  // user_stats: leave absent (it recomputes from watch_events on first read),
-  // so counts on the public profile are always consistent with the diary.
-
   return counts;
+}
+
+// ---------------------------------------------------------------------------
+// user_stats snapshots. The public profile + Wrapped render ONLY from the
+// stored snapshot (never live-compute on those crawler-hammered surfaces — see
+// getUserStatsSnapshot in stats.ts), so a freshly-seeded user with no snapshot
+// shows "0 films". We proactively compute + store a NON-dirty snapshot here
+// (via the same pure aggregation the app uses) so profiles read real numbers
+// immediately and the seed summary can print honest totals.
+// ---------------------------------------------------------------------------
+interface StatsSummary {
+  username: string;
+  moviesWatched: number;
+  episodesWatched: number;
+  hoursWatched: number;
+}
+
+async function seedUserStats(ids: Record<string, number>): Promise<StatsSummary[]> {
+  // Lazy import (mirrors the hydration lazy-import pattern): pulls the shared PG
+  // client + the pure stats aggregator only on the path that needs it.
+  const { computeUserStats } = await import("../src/server/db/postgres/social/stats");
+  // computeUserStats reads via the shared `@/server/db/postgres` client (a
+  // SEPARATE connection from this script's `prisma`); our seed writes are
+  // already committed, so it sees them. Disconnect it after so the script's
+  // event loop can exit cleanly.
+  const { prisma: sharedPrisma } = await import("../src/server/db/postgres");
+
+  const out: StatsSummary[] = [];
+  for (const [username, userId] of Object.entries(ids)) {
+    // computeUserStats reads watch_events (joined to movies/series/episodes/
+    // genres/credits) and returns the StatsSnapshot JSON. Imports stay INCLUDED
+    // (matches getUserStatsSnapshot) so import-only diaries aren't zeroed.
+    const snapshot = await computeUserStats(userId);
+    await prisma.userStats.upsert({
+      where: { userId },
+      create: {
+        userId,
+        stats: snapshot as unknown as Prisma.InputJsonValue,
+        computedAt: new Date(),
+        dirty: false,
+      },
+      update: {
+        stats: snapshot as unknown as Prisma.InputJsonValue,
+        computedAt: new Date(),
+        dirty: false,
+      },
+    });
+    out.push({
+      username,
+      moviesWatched: snapshot.moviesWatched,
+      episodesWatched: snapshot.episodesWatched,
+      hoursWatched: snapshot.hoursWatched,
+    });
+  }
+  await sharedPrisma.$disconnect();
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -734,18 +787,22 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
 async function main(): Promise<void> {
   console.log("Seeding local social demo data (dev DB on :5436)...\n");
 
-  console.log("1/3 Catalog...");
+  console.log("1/4 Catalog...");
   const catalogPath = await seedCatalog();
   console.log(`    catalog path: ${catalogPath}\n`);
 
-  console.log("2/3 Demo users...");
+  console.log("2/4 Demo users...");
   const ids = await seedUsers();
   const userIds = Object.values(ids);
   console.log(`    users: ${Object.keys(ids).join(", ")}\n`);
 
-  console.log("3/3 Social data (wipe + reseed for idempotency)...");
+  console.log("3/4 Social data (wipe + reseed for idempotency)...");
   await wipeDemoSocialData(userIds);
   const counts = await seedSocialData(ids);
+  console.log("    done.\n");
+
+  console.log("4/4 user_stats snapshots (compute + store)...");
+  const stats = await seedUserStats(ids);
   console.log("    done.\n");
 
   // -- Summary ------------------------------------------------------------
@@ -782,6 +839,13 @@ async function main(): Promise<void> {
   console.log(`  follows          : ${counts.follows}`);
   console.log(`  lists            : ${counts.lists} (1 FOUR_FAVORITES + 1 regular)`);
   console.log(`  notifications    : ${counts.notifications}`);
+  console.log("");
+  console.log("Profile stats (user_stats snapshots — must be > 0 for movie watchers):");
+  for (const s of stats) {
+    console.log(
+      `  @${s.username.padEnd(14)} films=${s.moviesWatched}  episodes=${s.episodesWatched}  hours=${s.hoursWatched}`,
+    );
+  }
   console.log("============================================================");
 }
 

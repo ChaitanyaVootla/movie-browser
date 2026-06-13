@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { getDiaryPage } from "@/server/actions/tracking";
 import { PageMain } from "@/components/features/layout/page-main";
 import { Button } from "@/components/ui/button";
+import { SignInButton } from "@/components/features/auth";
 import { DiaryEntryActions } from "@/components/features/tracking/diary-entry-actions";
 import { DiaryBackfillSection } from "@/components/features/tracking/diary-backfill-section";
 import { episodeCode, groupDiaryByMonth } from "@/lib/tracking-format";
@@ -90,6 +91,7 @@ export default async function DiaryPage({ searchParams }: DiaryPageProps) {
           <p className="text-sm text-muted-foreground">
             Sign in to keep a dated diary of everything you watch.
           </p>
+          <SignInButton message="Sign in to keep your watch diary" className="mt-1" />
         </div>
       </PageMain>
     );

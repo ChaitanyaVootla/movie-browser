@@ -132,7 +132,7 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
         <ProfileJsonLd profile={profile} />
         <ProfileHero profile={profile} />
 
-        <div className={`${PAGE_PADDING_X} pt-6 md:pt-8 space-y-8 md:space-y-10`}>
+        <div className={`mx-auto w-full max-w-7xl ${PAGE_PADDING_X} pt-6 md:pt-8 space-y-8 md:space-y-10`}>
           <FourFavorites favorites={profile.fourFavorites} />
           <CurrentlyWatchingShelf items={profile.currentlyWatching} />
           <ProfileTaste profile={profile} />

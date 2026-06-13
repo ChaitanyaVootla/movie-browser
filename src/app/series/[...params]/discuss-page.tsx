@@ -2,6 +2,7 @@ import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { MessagesSquare } from "lucide-react";
 import { prisma } from "@/server/db/postgres";
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
@@ -182,7 +183,9 @@ export async function EpisodeDiscussPage({ params }: { params: DiscussParams }) 
           currentEpisode={params.episode}
         />
 
-        <SectionHeading>Discussion</SectionHeading>
+        <SectionHeading icon={<MessagesSquare className="h-5 w-5 text-brand" />}>
+          Discussion
+        </SectionHeading>
         <ThreadSummaryCard anchor={anchor} />
         <CommentListClient
           anchor={anchor}

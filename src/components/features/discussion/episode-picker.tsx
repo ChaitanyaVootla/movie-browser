@@ -81,7 +81,7 @@ export function EpisodePicker({
             href={href(e)}
             title={e.name ?? undefined}
             className={cn(
-              "shrink-0 inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-border px-2 text-xs transition-colors",
+              "shrink-0 inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-border px-2 text-xs transition-colors",
               e.episodeNumber === currentEpisode
                 ? "bg-foreground text-background font-semibold"
                 : "text-muted-foreground hover:bg-muted/60"
