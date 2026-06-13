@@ -1,8 +1,8 @@
 # Social & Virality Roadmap — Implementation Progress / RESUME HERE
 
-**Last updated:** 2026-06-13 ~09:55 IST
+**Last updated:** 2026-06-13 ~10:05 IST
 **Branch:** `feat/social-phase0` (off `next`). **Local `master` ref = rolling checkpoint.**
-**Current HEAD:** `c440a60` (also pushed to local `master`).
+**Current HEAD:** `14c018c` (also pushed to local `master`).
 
 This is the authoritative resume point for the autonomous overnight implementation
 of the Social & Virality Roadmap. If a session fails, read this first, then continue
@@ -43,7 +43,7 @@ from "NEXT STEPS".
 | Plan file (docs/superpowers/plans/) | Status |
 |---|---|
 | `2026-06-12-phase0-backend.md` (24 tasks) | ✅ COMPLETE + reviewed + fixed |
-| `2026-06-12-phase0-ui.md` (16 tasks) | 🔄 Tasks 1–13 done; **14–16 remaining** |
+| `2026-06-12-phase0-ui.md` (16 tasks) | ✅ COMPLETE (all 16) — prod build passes |
 | `2026-06-12-phase1-discussion.md` (18 tasks) | ⏳ not started |
 | `2026-06-12-phase2-identity-artifacts.md` (15 tasks) | ⏳ not started |
 | `2026-06-12-phase3-4-circles-clubs-ai.md` (19 tasks) | ⏳ not started |
@@ -87,20 +87,22 @@ performance.md). Tests green (modulo the known cache-l1 flake).
 - T12 `36e07c7` username-form + claim-prompt (mounted in layout) + privacy-settings.
 - T13 `c440a60` backdrop-picker, profile-editor, four-favorites-editor, export-data-button (a T15 file, created early per plan note — T15 skips it), settings barrel, `/settings` hub.
 
+- T15 `fe8f8cb` Import flow UI (import-client + /settings/import) + export button (existed); barrel extended.
+- T16 `14c018c` Nav wiring (Diary/Stats in mobile bottom nav + user menu). **Production `yarn build` PASSED** — route types verified: /movie /series /u/[username] = SSG/ISR; /person = SSG; /diary /stats /settings /settings/import = dynamic.
+
 Components live under `src/components/features/{tracking,reviews,home,stats,profile,settings}/`.
-NOTE for T15: `export-data-button.tsx` already exists; settings barrel omits `ImportClient` until T15 adds it.
+
+### PHASE 0 = COMPLETE (backend 24/24 + UI 16/16, prod build green). Screenshots of
+authenticated/seeded surfaces deferred to user morning review (local 5436 DB is
+schema-only). Pending: a final Fable review of the full phase-0 UI before declaring done.
 
 ---
 
 ## NEXT STEPS (resume here)
 
-1. **UI Batch D = phase0-ui Tasks 14–16** (opus agent): settings barrel/ordering
-   guard (T14), import flow UI + data export button (T15), nav wiring + **final
-   Playwright screenshot verification** at 390px + 1440px (T16 — spoof a real Chrome
-   `sec-ch-ua` + userAgent per performance.md or src/proxy.ts 429s headless Chromium
-   and pages render empty). This completes phase 0.
-4. **Fable code-review** of full phase-0 UI; fix; checkpoint. Phase 0 COMPLETE.
-5. **Phase 1** (`2026-06-12-phase1-discussion.md`, 18 tasks): spoiler-gated comments,
+1. **Fable code-review** of full phase-0 UI (diff 45f387d..14c018c); fix; checkpoint.
+   Then phase 0 is fully signed off.
+2. **Phase 1** (`2026-06-12-phase1-discussion.md`, 18 tasks): spoiler-gated comments,
    AI gate, per-episode SEO pages, notifications + web push, moderation. Implement in
    batches, review between, same rules.
 6. **Phase 2** (`2026-06-12-phase2-identity-artifacts.md`, 15 tasks): lists UI, OG
