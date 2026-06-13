@@ -15,6 +15,7 @@ import {
   NOT_FOUND,
   type MediaType,
   type ResolvedSlug,
+  type DiscussSuffix,
 } from "@/server/proxy/media-resolver";
 
 const { auth } = NextAuth(authConfig);
@@ -66,11 +67,17 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
         return applyMediaDecision(req, NOT_FOUND, null, 0);
       }
       if (parsed?.kind === "media") {
+        // Accepted limitation: for /discuss/sXeY we verify the SERIES exists
+        // (404/308 authority) but NOT that S{s}E{e} exists — that would cost an
+        // extra episodes query per request. A discuss page for a nonexistent
+        // episode renders the not-found UI with HTTP 200 (soft-404), same
+        // fallback class as proxy-bypassing detail requests. Discuss pages are
+        // only ever linked for episodes that exist; revisit if GSC flags it.
         const cached = getCachedSlug(parsed.mediaType, parsed.id);
         if (cached !== undefined) {
-          return applyMediaDecision(req, cached, parsed.mediaType, parsed.id);
+          return applyMediaDecision(req, cached, parsed.mediaType, parsed.id, parsed.discuss);
         }
-        return resolveAndApply(req, parsed.mediaType, parsed.id);
+        return resolveAndApply(req, parsed.mediaType, parsed.id, parsed.discuss);
       }
     } catch {
       // Resolver must never take down a route — fall through to the page.
@@ -107,11 +114,12 @@ function applyMediaDecision(
   resolved: ResolvedSlug | null,
   mediaType: MediaType | null,
   id: number,
+  discuss?: DiscussSuffix,
 ): NextResponse {
   const decision =
     mediaType === null
       ? ({ action: "not_found" } as const)
-      : decideMediaRoute(req.nextUrl.pathname, mediaType, id, resolved);
+      : decideMediaRoute(req.nextUrl.pathname, mediaType, id, resolved, discuss);
 
   if (decision.action === "redirect") {
     // 308 to the single canonical form, preserving the query string (the
@@ -166,10 +174,11 @@ async function resolveAndApply(
   req: NextRequest & { auth: Session | null },
   mediaType: MediaType,
   id: number,
+  discuss?: DiscussSuffix,
 ): Promise<NextResponse> {
   try {
     const resolved = await resolveMediaSlug(mediaType, id);
-    return applyMediaDecision(req, resolved, mediaType, id);
+    return applyMediaDecision(req, resolved, mediaType, id, discuss);
   } catch {
     return passThrough(req); // fail open
   }
