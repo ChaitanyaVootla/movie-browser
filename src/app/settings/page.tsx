@@ -45,7 +45,10 @@ export default async function SettingsPage() {
 
         <section className="space-y-4">
           <SectionHeading>Account</SectionHeading>
-          <UsernameForm currentUsername={settings.username} />
+          <UsernameForm
+            currentUsername={settings.username}
+            previousUsernames={settings.previousUsernames}
+          />
         </section>
 
         <section className="space-y-4">

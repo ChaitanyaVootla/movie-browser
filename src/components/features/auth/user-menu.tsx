@@ -16,6 +16,7 @@ import {
   LayoutList,
   NotebookPen,
   BarChart3,
+  User,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
+import { useUsername } from "@/hooks/use-username";
 import {
   usePreferencesStore,
   selectCardDisplayMode,
@@ -90,6 +92,7 @@ export function UserMenu({ className }: UserMenuProps) {
   const accentColor = usePreferencesStore(selectAccentColor);
   const setAccentColor = usePreferencesStore((state) => state.setAccentColor);
   const mounted = useMounted();
+  const { username } = useUsername();
 
   const isDark = resolvedTheme === "dark";
 
@@ -146,6 +149,17 @@ export function UserMenu({ className }: UserMenuProps) {
         <DropdownMenuSeparator />
 
         {/* Profile Actions */}
+        <DropdownMenuItem asChild>
+          <Link
+            href={username ? `/u/${username}` : "/settings"}
+            prefetch={false}
+            className="cursor-pointer"
+          >
+            <User className="mr-2 h-4 w-4" />
+            <span>{username ? "Profile" : "Set up profile"}</span>
+          </Link>
+        </DropdownMenuItem>
+
         <DropdownMenuItem asChild>
           <Link href="/watchlist" className="cursor-pointer">
             <List className="mr-2 h-4 w-4" />

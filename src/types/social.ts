@@ -274,6 +274,8 @@ export interface OwnProfileSettingsDTO {
   customization: ProfileCustomizationInput;
   privacy: { logPrivatelyByDefault: boolean };
   fourFavorites: FavoriteItemDTO[];
+  /** Prior usernames this account has left behind, newest-first (Twitter-style trail). */
+  previousUsernames: string[];
 }
 
 // ---------------------------------------------------------------------------

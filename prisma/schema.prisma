@@ -1029,8 +1029,24 @@ model User {
   blocksMade         Block[]          @relation("blocker")
   blocksReceived     Block[]          @relation("blocked")
   pushSubscriptions  PushSubscription[]
+  usernameHistory    UsernameHistory[]
 
   @@map("users")
+}
+
+// Username-change history trail (Twitter-style): every prior handle a user
+// has left behind, recorded when they change away from it. See claimUsername
+// in src/server/actions/profile.ts.
+model UsernameHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  username  String
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, changedAt(sort: Desc)])
+  @@map("username_history")
 }
 
 // Auth.js adapter models (required for PrismaAdapter at GA)

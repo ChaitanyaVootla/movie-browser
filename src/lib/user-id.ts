@@ -1,4 +1,6 @@
 import { auth } from "./auth";
+import { authLogger } from "./logger";
+import type { Session } from "next-auth";
 
 /**
  * Feature flag: when true, user data is read/written from PostgreSQL via Prisma.
@@ -21,7 +23,7 @@ export async function getUserIdForDb(): Promise<number | null> {
   }
 
   if (usePostgresUserData) {
-    return getPostgresUserId(session.user.googleId || session.user.id);
+    return getPostgresUserId(session.user);
   }
 
   // MongoDB mode: parse Google sub as integer
@@ -65,7 +67,8 @@ export function parseGoogleSub(sub: string | undefined | null): number | null {
 
 const userIdCache = new Map<string, number>();
 
-async function getPostgresUserId(googleId: string | undefined): Promise<number | null> {
+async function getPostgresUserId(sessionUser: Session["user"]): Promise<number | null> {
+  const googleId = sessionUser.googleId || sessionUser.id;
   if (!googleId) return null;
 
   // Check module-level cache (lives for the duration of the serverless invocation)
@@ -79,10 +82,43 @@ async function getPostgresUserId(googleId: string | undefined): Promise<number |
     select: { id: true },
   });
 
-  if (!user) return null;
+  if (user) {
+    userIdCache.set(googleId, user.id);
+    return user.id;
+  }
 
-  userIdCache.set(googleId, user.id);
-  return user.id;
+  // Self-heal: a valid authenticated session whose users row is missing
+  // (session predates/outlives its DB row — dev reality + prod fragility).
+  // Lazily provision the row, mirroring the auth.ts signIn upsert shape.
+  // Idempotent via @unique googleId upsert (safe under concurrent requests).
+  const email = sessionUser.email;
+  if (!email) return null;
+
+  try {
+    const provisioned = await prisma.user.upsert({
+      where: { googleId },
+      create: {
+        googleId,
+        email,
+        name: sessionUser.name,
+        image: sessionUser.image,
+      },
+      update: {},
+      select: { id: true },
+    });
+    authLogger.info(
+      { googleId, userId: provisioned.id },
+      "auto-provisioned PG user row from session"
+    );
+    userIdCache.set(googleId, provisioned.id);
+    return provisioned.id;
+  } catch (error: unknown) {
+    authLogger.error(
+      { err: error instanceof Error ? error.message : String(error), googleId },
+      "failed to auto-provision PG user row from session"
+    );
+    return null;
+  }
 }
 
 /**

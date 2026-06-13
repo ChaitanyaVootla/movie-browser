@@ -21,7 +21,22 @@ export async function claimUsername(input: z.infer<typeof ClaimUsernameSchema>) 
       return { success: false as const, error: "Username not available" };
     }
     const userId = await requirePgUserId();
-    await prisma.user.update({ where: { id: userId }, data: { username } });
+    await prisma.$transaction(async (tx) => {
+      // Read the CURRENT handle before overwriting it.
+      const current = await tx.user.findUnique({
+        where: { id: userId },
+        select: { username: true },
+      });
+      await tx.user.update({ where: { id: userId }, data: { username } });
+      // History semantics: we record the handle a user LEAVES BEHIND. The
+      // first-ever claim (previous === null) records NO row — the trail is the
+      // sequence of prior handles, and there is no prior handle on first claim.
+      // A no-op "change" to the same string also records nothing.
+      const previous = current?.username ?? null;
+      if (previous && previous !== username) {
+        await tx.usernameHistory.create({ data: { userId, username: previous } });
+      }
+    });
     return { success: true as const, username };
   } catch (error: unknown) {
     // P2002 covers both the Prisma @unique and the raw lower(username) unique
@@ -159,6 +174,23 @@ export async function getUsernameStatus(): Promise<{ username: string | null }> 
   }
 }
 
+// Prior handles this user has left behind, newest-first. Empty until they
+// change their username at least once (the first claim records no history).
+export async function getUsernameHistory(userId: number): Promise<string[]> {
+  try {
+    const rows = await prisma.usernameHistory.findMany({
+      where: { userId },
+      orderBy: { changedAt: "desc" },
+      select: { username: true },
+    });
+    return rows.map((r) => r.username);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    userApiLogger.error({ action: "getUsernameHistory", error: message });
+    return [];
+  }
+}
+
 const CustomizationSchema = z.object({
   backdrop: z
     .object({
@@ -255,12 +287,13 @@ export async function setPrivacyDefaultsAction(input: {
 
 export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
   const userId = await requirePgUserId();
-  const [user, favorites] = await Promise.all([
+  const [user, favorites, previousUsernames] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { username: true, name: true, image: true, bio: true, metadata: true },
     }),
     getFourFavorites(userId),
+    getUsernameHistory(userId),
   ]);
   const env = parseEnvelope(user?.metadata);
   const fourFavorites: FavoriteItemDTO[] = favorites.map((f) => ({
@@ -289,6 +322,7 @@ export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
     },
     privacy: { logPrivatelyByDefault: env.preferences?.logPrivatelyByDefault ?? false },
     fourFavorites,
+    previousUsernames,
   };
 }
 

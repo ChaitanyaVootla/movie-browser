@@ -32,6 +32,7 @@ import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { useUsername } from "@/hooks/use-username";
 
 // =============================================================================
 // Types
@@ -59,12 +60,18 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
   const { openLoginDialog } = useLoginDialog();
   const mounted = useMounted();
   const { canPrompt, isInstalled, promptInstall } = useInstallPrompt();
+  const { username } = useUsername();
 
   const user = session?.user;
   const isAuthenticated = status === "authenticated";
 
   const menuItems = isAuthenticated
     ? [
+        {
+          href: username ? `/u/${username}` : "/settings",
+          label: username ? "Profile" : "Set up profile",
+          icon: User,
+        },
         { href: "/notifications", label: "Notifications", icon: Bell },
         { href: "/watchlist", label: "Watchlist", icon: List },
         { href: "/diary", label: "Diary", icon: NotebookPen },
@@ -128,6 +135,7 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
               <Link
                 key={href}
                 href={href!}
+                prefetch={false}
                 onClick={() => onOpenChange(false)}
                 className={cn(
                   "flex items-center gap-4 px-6 py-3.5",

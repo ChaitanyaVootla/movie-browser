@@ -14,6 +14,8 @@ import { isValidUsername, normalizeUsername } from "@/lib/tracking-format";
 
 interface UsernameFormProps {
   currentUsername: string | null;
+  /** Prior handles left behind on username changes, newest-first. */
+  previousUsernames?: string[];
   /** Called after a successful claim (e.g. close the first-run prompt). */
   onClaimed?: (username: string) => void;
 }
@@ -21,7 +23,7 @@ interface UsernameFormProps {
 type Availability = "idle" | "checking" | "available" | "taken" | "invalid";
 
 /** Claim (or change) username: live availability, lowercase a-z 0-9 _ , 3-20. */
-export function UsernameForm({ currentUsername, onClaimed }: UsernameFormProps) {
+export function UsernameForm({ currentUsername, previousUsernames = [], onClaimed }: UsernameFormProps) {
   const [value, setValue] = useState(currentUsername ?? "");
   const [availability, setAvailability] = useState<Availability>("idle");
   const [busy, setBusy] = useState(false);
@@ -128,6 +130,12 @@ export function UsernameForm({ currentUsername, onClaimed }: UsernameFormProps) 
           "Claim a username to unlock your public profile."
         )}
       </p>
+      {previousUsernames.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Previous usernames:{" "}
+          {previousUsernames.map((u) => `@${u}`).join(", ")}
+        </p>
+      )}
     </div>
   );
 }
