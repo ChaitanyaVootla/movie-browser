@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { QuickLogButton } from "@/components/features/tracking/quick-log-button";
 
 const MEDIA_TYPE: MediaType = "movie"; // Only movies for now
 
@@ -82,6 +83,8 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
       >
         {watched ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </Button>
+
+      <QuickLogButton mediaType="movie" tmdbId={itemId} title="" variant="card" />
     </div>
   );
 }

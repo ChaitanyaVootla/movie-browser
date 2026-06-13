@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { MediaActions } from "./media-actions";
 import { TrailerModal, type TrailerModalData } from "@/components/features/home/trailer-modal";
 import { QuickTake } from "./quick-take";
+import { QuickLogButton } from "@/components/features/tracking/quick-log-button";
 import type { TrailerData } from "@/types";
 import type { MediaType } from "@/stores/user";
 
@@ -49,15 +50,24 @@ export function MediaActionBar({
     <>
       <div className={cn("px-4 md:px-8 lg:px-12", className)}>
         <div className="flex items-center gap-6">
-          {/* Action buttons */}
-          <MediaActions
-            itemId={itemId}
-            mediaType={mediaType}
-            title={title}
-            hasTrailer={!!trailer}
-            onPlayTrailer={() => setShowTrailer(true)}
-            variant="hero"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Action buttons */}
+            <MediaActions
+              itemId={itemId}
+              mediaType={mediaType}
+              title={title}
+              hasTrailer={!!trailer}
+              onPlayTrailer={() => setShowTrailer(true)}
+              variant="hero"
+            />
+            {/* Diary quick-log (date defaults today) */}
+            <QuickLogButton
+              mediaType={mediaType === "movie" ? "movie" : "series"}
+              tmdbId={itemId}
+              title={title}
+              variant="bar"
+            />
+          </div>
 
           {/* QuickTake pills (AI-generated) - flows right after buttons */}
           {quickTake && quickTake.length > 0 && (
