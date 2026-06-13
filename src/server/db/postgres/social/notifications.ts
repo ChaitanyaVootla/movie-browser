@@ -4,6 +4,7 @@
  */
 import { Prisma, type NotificationType } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
+import { getHiddenUserIds } from "./blocks";
 
 export interface CreateNotificationInput {
   userId: number; // recipient
@@ -42,11 +43,17 @@ export async function listNotifications(
   opts: { unreadOnly?: boolean; cursorId?: number; limit?: number } = {}
 ) {
   const limit = Math.min(opts.limit ?? 30, 100);
+  // Re-filter blocks at READ time: a block created AFTER a notification was
+  // written must still suppress the now-hidden actor (write-time filter only
+  // catches pre-existing blocks). Spec §4.2: notifications filter blocks "from
+  // day one ... via the same query-helper pattern, never ad-hoc."
+  const hidden = await getHiddenUserIds(userId);
   const rows = await prisma.notification.findMany({
     where: {
       userId,
       ...(opts.unreadOnly ? { readAt: null } : {}),
       ...(opts.cursorId ? { id: { lt: opts.cursorId } } : {}),
+      ...(hidden.size > 0 ? { NOT: { actorId: { in: [...hidden] } } } : {}),
     },
     orderBy: { id: "desc" },
     take: limit + 1,

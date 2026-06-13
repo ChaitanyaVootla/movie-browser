@@ -7,6 +7,8 @@ import {
   blockUser as blockUserQuery,
   unblockUser as unblockUserQuery,
   getBlockList,
+  assertNotBlocked,
+  BlockedError,
 } from "@/server/db/postgres/social/blocks";
 import {
   followUser as followUserQuery,
@@ -92,12 +94,17 @@ export async function getFollowState(input: z.infer<typeof FollowStateSchema>) {
   try {
     const { userId: targetId } = FollowStateSchema.parse(input);
     const userId = await requirePgUserId();
+    // BLOCK = mutual invisibility: a blocked viewer gets no graph for the blocker.
+    await assertNotBlocked(userId, targetId);
     const [counts, following] = await Promise.all([
       getFollowCounts(targetId),
       isFollowing(userId, targetId),
     ]);
     return { success: true as const, counts, isFollowing: following };
   } catch (error: unknown) {
+    if (error instanceof BlockedError) {
+      return { success: true as const, counts: { followers: 0, following: 0 }, isFollowing: false };
+    }
     return actionError("getFollowState", error);
   }
 }
@@ -113,10 +120,15 @@ export async function getFollowList(input: z.infer<typeof FollowListSchema>) {
   try {
     const { userId: targetId, direction, cursorId, limit } = FollowListSchema.parse(input);
     const viewerId = await requirePgUserId();
+    // BLOCK = mutual invisibility: a blocked viewer gets no graph for the blocker.
+    await assertNotBlocked(viewerId, targetId);
     const fn = direction === "followers" ? listFollowers : listFollowing;
     const page = await fn(targetId, viewerId, { cursorId, limit });
     return { success: true as const, ...page };
   } catch (error: unknown) {
+    if (error instanceof BlockedError) {
+      return { success: true as const, users: [], nextCursorId: null };
+    }
     return actionError("getFollowList", error);
   }
 }

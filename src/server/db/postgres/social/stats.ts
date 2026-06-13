@@ -126,14 +126,25 @@ async function fetchPeopleRows(
   }));
 }
 
-export async function computeUserStats(userId: number): Promise<StatsSnapshot> {
+/**
+ * `excludeImported` drops BACKFILL/IMPORT events for honest, import-free stats
+ * (the "honest Wrapped" surface — spec §4.2). The cached snapshot
+ * (`getUserStatsSnapshot`) deliberately keeps imports INCLUDED so profile
+ * totals aren't 0 for import-only users; the Wrapped surface (phase 2) calls
+ * this directly with `{ excludeImported: true }`, year-scoped, rather than
+ * reusing the single cached snapshot.
+ */
+export async function computeUserStats(
+  userId: number,
+  opts: { excludeImported?: boolean } = {}
+): Promise<StatsSnapshot> {
   const events = await fetchEventRows(userId);
   const movieIds = [...new Set(events.filter((e) => e.kind === "movie").map((e) => e.titleId))];
   const seriesIds = [
     ...new Set(events.filter((e) => e.kind !== "movie").map((e) => e.titleId)),
   ];
   const people = await fetchPeopleRows(movieIds, seriesIds);
-  return computeStats(events, people);
+  return computeStats(events, people, opts);
 }
 
 /**
