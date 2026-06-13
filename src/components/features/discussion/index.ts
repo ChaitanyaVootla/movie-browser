@@ -8,4 +8,5 @@ export { DiscussionStarters } from "./discussion-starters";
 export { ScopeBadge, scopeLabel } from "./scope-badge";
 export { MentionText } from "./mention-text";
 export { ReportDialog } from "./report-dialog";
-// EpisodePicker (Task 13) and ThreadSummaryCard (Task 14) appended in their tasks.
+export { ThreadSummaryCard } from "./thread-summary-card";
+// EpisodePicker (Task 13) appended in its task.
