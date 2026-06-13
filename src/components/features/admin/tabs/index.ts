@@ -15,3 +15,4 @@ export { UsersTab } from "./users-tab";
 export { DatabaseTab } from "./database-tab";
 export { QueryTab } from "./query-tab";
 export { InspectTab } from "./inspect-tab";
+export { ModerationTab } from "./moderation-tab";

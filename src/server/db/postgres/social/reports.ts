@@ -5,6 +5,68 @@
 import type { ReportReason } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 
+// Shared author projection for the moderation queue + reports views.
+const MOD_COMMENT_INCLUDE = {
+  user: { select: { id: true, username: true, name: true } },
+} as const;
+
+/**
+ * Comments awaiting moderator review: gate-held (PENDING_REVIEW) and
+ * auto/user-FLAGGED. Oldest first so the queue drains FIFO. The comment
+ * status index serves this.
+ */
+export function getModerationQueue(take = 100) {
+  return prisma.comment.findMany({
+    where: { status: { in: ["PENDING_REVIEW", "FLAGGED"] } },
+    include: MOD_COMMENT_INCLUDE,
+    orderBy: { createdAt: "asc" },
+    take,
+  });
+}
+
+/** Open reports with the reported comment + reporter, oldest first. */
+export function getOpenReports(take = 100) {
+  return prisma.report.findMany({
+    where: { status: "OPEN" },
+    include: {
+      comment: { include: MOD_COMMENT_INCLUDE },
+      reporter: { select: { id: true, username: true } },
+    },
+    orderBy: { createdAt: "asc" },
+    take,
+  });
+}
+
+/** Approve a held/flagged comment → publish it. */
+export function approveComment(commentId: number): Promise<{ id: number }> {
+  return prisma.comment.update({
+    where: { id: commentId },
+    data: { status: "PUBLISHED" },
+    select: { id: true },
+  });
+}
+
+/** Remove a comment (moderator takedown). */
+export function removeComment(commentId: number): Promise<{ id: number }> {
+  return prisma.comment.update({
+    where: { id: commentId },
+    data: { status: "REMOVED" },
+    select: { id: true },
+  });
+}
+
+/** Close an open report as RESOLVED or DISMISSED. */
+export function resolveReport(
+  reportId: number,
+  resolution: "RESOLVED" | "DISMISSED"
+): Promise<{ id: number }> {
+  return prisma.report.update({
+    where: { id: reportId },
+    data: { status: resolution },
+    select: { id: true },
+  });
+}
+
 export interface CreateReportInput {
   commentId?: number;
   reviewId?: number;
