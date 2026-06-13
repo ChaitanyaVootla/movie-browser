@@ -1,8 +1,8 @@
 # Social & Virality Roadmap — Implementation Progress / RESUME HERE
 
-**Last updated:** 2026-06-13 ~09:40 IST
+**Last updated:** 2026-06-13 ~09:55 IST
 **Branch:** `feat/social-phase0` (off `next`). **Local `master` ref = rolling checkpoint.**
-**Current HEAD:** `bd4718f` (also pushed to local `master`).
+**Current HEAD:** `c440a60` (also pushed to local `master`).
 
 This is the authoritative resume point for the autonomous overnight implementation
 of the Social & Virality Roadmap. If a session fails, read this first, then continue
@@ -43,7 +43,7 @@ from "NEXT STEPS".
 | Plan file (docs/superpowers/plans/) | Status |
 |---|---|
 | `2026-06-12-phase0-backend.md` (24 tasks) | ✅ COMPLETE + reviewed + fixed |
-| `2026-06-12-phase0-ui.md` (16 tasks) | 🔄 Tasks 1–9 done; **10–16 remaining** |
+| `2026-06-12-phase0-ui.md` (16 tasks) | 🔄 Tasks 1–13 done; **14–16 remaining** |
 | `2026-06-12-phase1-discussion.md` (18 tasks) | ⏳ not started |
 | `2026-06-12-phase2-identity-artifacts.md` (15 tasks) | ⏳ not started |
 | `2026-06-12-phase3-4-circles-clubs-ai.md` (19 tasks) | ⏳ not started |
@@ -82,21 +82,19 @@ performance.md). Tests green (modulo the known cache-l1 flake).
 - T7 `d5720df` Diary page (edit/delete, collapsed BACKFILL).
 - T8 `29f0ced` Stats page (pure CSS/SVG charts, no new deps).
 - T9 `bd4718f` Review components + display on detail pages (PENDING_REVIEW messaging).
+- T10 `95accf7` Profile scaffolding (accent-scope, follow-button, owner-actions, profile-hero, four-favorites, profile-modules).
+- T11 `150c545` `/u/[username]` page: ISR revalidate=300 + generateStaticParams()=>[], OG/Twitter, ProfilePage JSON-LD, private/notFound branches.
+- T12 `36e07c7` username-form + claim-prompt (mounted in layout) + privacy-settings.
+- T13 `c440a60` backdrop-picker, profile-editor, four-favorites-editor, export-data-button (a T15 file, created early per plan note — T15 skips it), settings barrel, `/settings` hub.
 
-Components live under `src/components/features/{tracking,reviews,home,stats}/`.
+Components live under `src/components/features/{tracking,reviews,home,stats,profile,settings}/`.
+NOTE for T15: `export-data-button.tsx` already exists; settings barrel omits `ImportClient` until T15 adds it.
 
 ---
 
 ## NEXT STEPS (resume here)
 
-1. **(optional) Fable code-review** of UI batch A+B diff `git diff 45f387d..bd4718f`
-   — focus: DESIGN.md conformance, edge-cache invariant (no user data in ISR HTML),
-   mobile-first/safe-area, analytics wiring, no `any`. Fix findings, commit, checkpoint.
-2. **UI Batch C = phase0-ui Tasks 10–13** (opus agent): public profile scaffolding
-   components (T10), public profile page `/u/[username]` + SEO (T11), settings hub +
-   username claim + privacy (T12), profile customization editor + Four Favorites
-   editor (T13).
-3. **UI Batch D = phase0-ui Tasks 14–16** (opus agent): settings barrel/ordering
+1. **UI Batch D = phase0-ui Tasks 14–16** (opus agent): settings barrel/ordering
    guard (T14), import flow UI + data export button (T15), nav wiring + **final
    Playwright screenshot verification** at 390px + 1440px (T16 — spoof a real Chrome
    `sec-ch-ua` + userAgent per performance.md or src/proxy.ts 429s headless Chromium
