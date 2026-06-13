@@ -130,6 +130,7 @@
     "tailwind-merge": "^3.4.0",
     "tsx": "^4.21.0",
     "vaul": "^1.1.2",
+    "web-push": "^3.6.7",
     "web-vitals": "^5.1.0",
     "zod": "^4.2.1",
     "zustand": "^5.0.9"
@@ -146,6 +147,7 @@
     "@types/pino-pretty": "^5.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^5.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.0",

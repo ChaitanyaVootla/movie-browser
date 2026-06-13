@@ -72,3 +72,44 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// --- Web push (phase 1) -----------------------------------------------------
+// Added additively after Serwist setup — does not touch the precache/runtime
+// caching above. Payloads are spoiler-safe by construction (see notify.ts).
+interface PushData {
+  title?: string;
+  body?: string;
+  url?: string;
+}
+
+self.addEventListener("push", (event) => {
+  let data: PushData = {};
+  try {
+    data = (event.data?.json() as PushData) ?? {};
+  } catch {
+    // non-JSON push — show generic
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "Movie Browser", {
+      body: data.body ?? "",
+      icon: "/images/android-chrome-192x192.png",
+      badge: "/images/android-chrome-192x192.png",
+      data: { url: data.url ?? "/notifications" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data as { url?: string } | undefined)?.url ?? "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => "focus" in c);
+      if (existing) {
+        void existing.navigate(url);
+        return existing.focus();
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
