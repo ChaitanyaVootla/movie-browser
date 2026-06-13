@@ -244,6 +244,13 @@ async function seedCatalogViaFallback(): Promise<void> {
         update: { name: sn.name, episodeCount: sn.episodes },
       });
       for (let ep = 1; ep <= sn.episodes; ep++) {
+        // Deterministic PAST air date (weekly from the series first-air date —
+        // these are all old shows, so always in the past). Without an air date,
+        // bulk mark-season/series/set-position skip the episode (they only mark
+        // aired episodes), so the seeded show must carry real air dates.
+        const weekOffset = (sn.seasonNumber - 1) * 52 + (ep - 1);
+        const airDate = new Date(`${s.firstAirDate}T00:00:00Z`);
+        airDate.setUTCDate(airDate.getUTCDate() + weekOffset * 7);
         await prisma.episode.upsert({
           where: { seasonId_episodeNumber: { seasonId: season.id, episodeNumber: ep } },
           create: {
@@ -252,10 +259,31 @@ async function seedCatalogViaFallback(): Promise<void> {
             name: `${s.name} S${sn.seasonNumber}E${ep}`,
             runtime: sn.episodeRuntime,
             episodeType: ep === sn.episodes ? "finale" : "standard",
+            airDate,
           },
-          update: { runtime: sn.episodeRuntime },
+          update: { runtime: sn.episodeRuntime, airDate },
         });
       }
+    }
+  }
+
+  // Seed BACKDROP images so the profile backdrop picker has options in fallback
+  // mode (the picker reads the images table; fallback catalog otherwise has none).
+  // Idempotent: only insert when a title has no BACKDROP image yet.
+  for (const m of MOVIES) {
+    const existing = await prisma.image.count({ where: { movieId: m.id, type: "BACKDROP" } });
+    if (existing === 0) {
+      await prisma.image.create({
+        data: { movieId: m.id, filePath: m.backdropPath, type: "BACKDROP", aspectRatio: 1.778, width: 1920, height: 1080 },
+      });
+    }
+  }
+  for (const s of SERIES) {
+    const existing = await prisma.image.count({ where: { seriesId: s.id, type: "BACKDROP" } });
+    if (existing === 0) {
+      await prisma.image.create({
+        data: { seriesId: s.id, filePath: s.backdropPath, type: "BACKDROP", aspectRatio: 1.778, width: 1920, height: 1080 },
+      });
     }
   }
 }
