@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { CommentStatus } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
+import { auditedTransaction } from "@/server/db/audit";
 import { dataLogger } from "@/lib/logger";
 import { requireUserIdForDb } from "@/lib/user-id";
 import { getMediaPath } from "@/lib/utils";
@@ -146,23 +147,29 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
       ? { gate: { ...gate }, gatedAt: new Date().toISOString() }
       : { gate: null, gatedAt: new Date().toISOString(), gateError: true };
 
-    const created = await prisma.comment.create({
-      data: {
-        userId,
-        movieId: anchor.type === "movie" ? anchor.movieId : null,
-        seriesId: anchor.type === "series" ? anchor.seriesId : null,
-        seasonNumber: anchor.type === "series" ? anchor.seasonNumber : null,
-        episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
-        parentId,
-        body: input.body,
-        spoilerScope: input.spoilerScope,
-        scopeSeason: input.spoilerScope === "EPISODE" ? input.scopeSeason : null,
-        scopeEpisode: input.spoilerScope === "EPISODE" ? input.scopeEpisode : null,
-        status: held ? CommentStatus.PENDING_REVIEW : CommentStatus.PUBLISHED,
-        aiLabels: aiLabels as object,
-      },
-      include: { user: { select: { id: true, username: true, name: true, image: true } } },
-    });
+    // Wrap the comment INSERT in auditedTransaction so the row (and its
+    // PENDING_REVIEW/PUBLISHED status) is attributed to this user in audit_log.
+    // The AI gate ran ABOVE, outside the tx; notifications fire AFTER, also
+    // outside — never hold a tx open across those network calls.
+    const created = await auditedTransaction(userId, (tx) =>
+      tx.comment.create({
+        data: {
+          userId,
+          movieId: anchor.type === "movie" ? anchor.movieId : null,
+          seriesId: anchor.type === "series" ? anchor.seriesId : null,
+          seasonNumber: anchor.type === "series" ? anchor.seasonNumber : null,
+          episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
+          parentId,
+          body: input.body,
+          spoilerScope: input.spoilerScope,
+          scopeSeason: input.spoilerScope === "EPISODE" ? input.scopeSeason : null,
+          scopeEpisode: input.spoilerScope === "EPISODE" ? input.scopeEpisode : null,
+          status: held ? CommentStatus.PENDING_REVIEW : CommentStatus.PUBLISHED,
+          aiLabels: aiLabels as object,
+        },
+        include: { user: { select: { id: true, username: true, name: true, image: true } } },
+      })
+    );
 
     if (held) return { status: "pending_review" };
 
@@ -264,21 +271,25 @@ export async function editComment(
       episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
     });
     const held = gate === null || gate.toxicity === "flagged";
-    await prisma.comment.update({
-      where: { id: input.commentId },
-      data: {
-        body: input.body,
-        spoilerScope: input.spoilerScope,
-        scopeSeason: input.spoilerScope === "EPISODE" ? input.scopeSeason : null,
-        scopeEpisode: input.spoilerScope === "EPISODE" ? input.scopeEpisode : null,
-        status: held ? CommentStatus.PENDING_REVIEW : CommentStatus.PUBLISHED,
-        editedAt: new Date(),
-        aiLabels: {
-          gate: gate ? { ...gate } : null,
-          gatedAt: new Date().toISOString(),
-        } as object,
-      },
-    });
+    // Wrap the UPDATE (including the moderation status change) in
+    // auditedTransaction for actor attribution. The re-gate ran above, outside.
+    await auditedTransaction(userId, (tx) =>
+      tx.comment.update({
+        where: { id: input.commentId },
+        data: {
+          body: input.body,
+          spoilerScope: input.spoilerScope,
+          scopeSeason: input.spoilerScope === "EPISODE" ? input.scopeSeason : null,
+          scopeEpisode: input.spoilerScope === "EPISODE" ? input.scopeEpisode : null,
+          status: held ? CommentStatus.PENDING_REVIEW : CommentStatus.PUBLISHED,
+          editedAt: new Date(),
+          aiLabels: {
+            gate: gate ? { ...gate } : null,
+            gatedAt: new Date().toISOString(),
+          } as object,
+        },
+      })
+    );
     return { ok: true };
   } catch (error: unknown) {
     dataLogger.error(
@@ -296,10 +307,13 @@ export async function deleteComment(
   try {
     const userId = await requireUserIdForDb();
     const input = DeleteCommentSchema.parse(rawInput);
-    const result = await prisma.comment.updateMany({
-      where: { id: input.commentId, userId },
-      data: { status: CommentStatus.DELETED_BY_USER, body: "" },
-    });
+    // Soft-delete (status change + body scrub) wrapped for actor attribution.
+    const result = await auditedTransaction(userId, (tx) =>
+      tx.comment.updateMany({
+        where: { id: input.commentId, userId },
+        data: { status: CommentStatus.DELETED_BY_USER, body: "" },
+      })
+    );
     return result.count === 1 ? { ok: true } : { ok: false, message: "Not found" };
   } catch (error: unknown) {
     dataLogger.error(

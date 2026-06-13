@@ -3,20 +3,30 @@
  * at current scale (indexes exist); denormalize only if profiles get
  * crawler-hot (spec §4.2 follows).
  */
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 import { assertNotBlocked, getHiddenUserIds } from "./blocks";
 import { createNotification } from "./notifications";
 
-export async function followUser(followerId: number, followingId: number): Promise<void> {
+/** Global client or an interactive-tx client (the latter carries audit actor). */
+type Db = typeof prisma | Prisma.TransactionClient;
+
+export async function followUser(
+  followerId: number,
+  followingId: number,
+  db: Db = prisma
+): Promise<void> {
   if (followerId === followingId) throw new Error("Cannot follow yourself");
   await assertNotBlocked(followerId, followingId);
   try {
-    await prisma.follow.create({ data: { followerId, followingId } });
+    await db.follow.create({ data: { followerId, followingId } });
   } catch (error: unknown) {
     if (isPrismaError(error) && error.code === "P2002") return; // already following
     throw error;
   }
+  // Notifications are NOT an audited table and use their own connection; the
+  // audited write (the follow row above) already carries the actor GUC.
   await createNotification({
     userId: followingId,
     type: "FOLLOW",
@@ -25,8 +35,12 @@ export async function followUser(followerId: number, followingId: number): Promi
   });
 }
 
-export async function unfollowUser(followerId: number, followingId: number): Promise<void> {
-  await prisma.follow.deleteMany({ where: { followerId, followingId } });
+export async function unfollowUser(
+  followerId: number,
+  followingId: number,
+  db: Db = prisma
+): Promise<void> {
+  await db.follow.deleteMany({ where: { followerId, followingId } });
 }
 
 export async function getFollowCounts(

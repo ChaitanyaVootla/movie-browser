@@ -3,8 +3,12 @@
  * A row may carry thumb, score, or both — never neither (DB CHECK enforces;
  * this module deletes the row when both would become null).
  */
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { markStatsDirty } from "./stats-dirty";
+
+/** Global client or an interactive-tx client (the latter carries audit actor). */
+type Db = typeof prisma | Prisma.TransactionClient;
 
 export interface SetRatingInput {
   itemId: number;
@@ -17,13 +21,20 @@ export interface SetRatingInput {
   ratedAt?: Date;
 }
 
-export async function setUserRating(userId: number, input: SetRatingInput): Promise<void> {
+export async function setUserRating(
+  userId: number,
+  input: SetRatingInput,
+  db: Db = prisma
+): Promise<void> {
   const where =
     input.itemType === "movie"
       ? { userId, movieId: input.itemId }
       : { userId, seriesId: input.itemId };
 
-  await prisma.$transaction(async (tx) => {
+  // Field-level clear semantics: undefined = leave a field as-is, null = clear
+  // ONLY that field. The row is deleted ONLY when BOTH thumb and score end up
+  // null (clearing a score must preserve a coexisting thumb, and vice-versa).
+  const run = async (tx: Db) => {
     const existing = await tx.userRating.findFirst({
       where,
       select: { id: true, rating: true, score: true },
@@ -52,7 +63,16 @@ export async function setUserRating(userId: number, input: SetRatingInput): Prom
       });
     }
     await markStatsDirty(tx, userId);
-  });
+  };
+
+  // When given an interactive-tx client (e.g. from auditedTransaction), run on
+  // it directly — Prisma forbids nesting $transaction inside a tx. Otherwise
+  // open our own transaction so the read+write stay atomic.
+  if (db === prisma) {
+    await prisma.$transaction((tx) => run(tx));
+  } else {
+    await run(db);
+  }
 }
 
 export interface TitleRating {

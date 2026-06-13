@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requirePgUserId } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
+import { auditedTransaction } from "@/server/db/audit";
 import { setUserRating, getTitleRating } from "@/server/db/postgres/social/ratings";
 
 const SetRatingSchema = z
@@ -20,7 +21,9 @@ export async function setRating(input: z.infer<typeof SetRatingSchema>) {
   try {
     const validated = SetRatingSchema.parse(input);
     const userId = await requirePgUserId();
-    await setUserRating(userId, validated);
+    // Wrap in auditedTransaction so the user_ratings write is attributed to
+    // this user in audit_log (the trigger reads the audit.actor_id GUC set here).
+    await auditedTransaction(userId, (tx) => setUserRating(userId, validated, tx));
     return { success: true as const };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

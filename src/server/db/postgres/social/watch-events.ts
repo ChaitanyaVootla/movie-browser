@@ -244,12 +244,25 @@ async function backfillEpisodes(
   });
 }
 
+/**
+ * Episodes eligible for bulk-mark (mark-season / mark-series / set-position).
+ *
+ * NULL air_date means UNKNOWN, not future — common in prod (and for every dev
+ * episode). We INCLUDE those and EXCLUDE only episodes with a KNOWN future air
+ * date, so we never mark a known-unaired episode as watched.
+ * `airDate IS NULL OR airDate <= now()`  ⇔  NOT (airDate > now()).
+ */
+export const airedEpisodeOrWhere = (now: Date): Prisma.EpisodeWhereInput["OR"] => [
+  { airDate: null },
+  { airDate: { lte: now } },
+];
+
 async function fetchAiredEpisodes(
   seriesId: number,
   seasonWhere: Prisma.SeasonWhereInput
 ): Promise<EpisodeKey[]> {
   const eps = await prisma.episode.findMany({
-    where: { airDate: { lte: new Date() }, season: { is: { seriesId, ...seasonWhere } } },
+    where: { OR: airedEpisodeOrWhere(new Date()), season: { is: { seriesId, ...seasonWhere } } },
     select: {
       episodeNumber: true,
       tmdbEpisodeId: true,

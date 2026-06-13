@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requirePgUserId } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 import { prisma } from "@/server/db/postgres";
+import { auditedTransaction } from "@/server/db/audit";
 import { gateText } from "@/server/services/moderation/gate";
 import type { GateOutput, GateStatus } from "@/server/services/moderation/gate-policy";
 import {
@@ -71,7 +72,12 @@ export async function upsertReview(input: z.infer<typeof UpsertReviewSchema>) {
       aiLabels = gate.aiLabels;
     }
 
-    const review = await upsertUserReview(userId, { ...validated, status, aiLabels });
+    // Wrap the DB write in auditedTransaction so the user_reviews row is
+    // attributed to this user. The gate (an LLM call) ran ABOVE, outside the
+    // transaction — never hold a tx open across a network call.
+    const review = await auditedTransaction(userId, (tx) =>
+      upsertUserReview(userId, { ...validated, status, aiLabels }, tx)
+    );
     return { success: true as const, reviewId: review.id, status, review };
   } catch (error: unknown) {
     return actionError("upsertReview", error);
@@ -84,7 +90,9 @@ export async function deleteReview(input: z.infer<typeof DeleteReviewSchema>) {
   try {
     const { reviewId } = DeleteReviewSchema.parse(input);
     const userId = await requirePgUserId();
-    const ok = await deleteUserReview(userId, reviewId);
+    const ok = await auditedTransaction(userId, (tx) =>
+      deleteUserReview(userId, reviewId, tx)
+    );
     return ok ? { success: true as const } : { success: false as const, error: "Not found" };
   } catch (error: unknown) {
     return actionError("deleteReview", error);

@@ -4,8 +4,11 @@
  * feed/search) filters through getHiddenUserIds/assertNotBlocked. Convention
  * is not enough; do not hand-roll block where-clauses elsewhere.
  */
-import type { BlockType } from "@prisma/client";
+import { Prisma, type BlockType } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
+
+/** Global client or an interactive-tx client (the latter carries audit actor). */
+type Db = typeof prisma | Prisma.TransactionClient;
 
 export interface BlockRowInput {
   blockerId: number;
@@ -59,10 +62,11 @@ export async function assertNotBlocked(userA: number, userB: number): Promise<vo
 export async function blockUser(
   blockerId: number,
   blockedId: number,
-  type: BlockType
+  type: BlockType,
+  db: Db = prisma
 ): Promise<void> {
   if (blockerId === blockedId) throw new Error("Cannot block yourself");
-  await prisma.$transaction(async (tx) => {
+  const run = async (tx: Db) => {
     await tx.block.upsert({
       where: { blockerId_blockedId: { blockerId, blockedId } },
       create: { blockerId, blockedId, type },
@@ -79,11 +83,22 @@ export async function blockUser(
         },
       });
     }
-  });
+  };
+  // Run on a passed-in tx directly (Prisma forbids nesting $transaction);
+  // otherwise open our own so the upsert + follow-sever stay atomic.
+  if (db === prisma) {
+    await prisma.$transaction((tx) => run(tx));
+  } else {
+    await run(db);
+  }
 }
 
-export async function unblockUser(blockerId: number, blockedId: number): Promise<void> {
-  await prisma.block.deleteMany({ where: { blockerId, blockedId } });
+export async function unblockUser(
+  blockerId: number,
+  blockedId: number,
+  db: Db = prisma
+): Promise<void> {
+  await db.block.deleteMany({ where: { blockerId, blockedId } });
 }
 
 export async function getBlockList(blockerId: number) {

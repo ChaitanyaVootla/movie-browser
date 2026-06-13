@@ -4,9 +4,12 @@
  * Positions are gapped integers (n*1024): drag = 1 UPDATE; renumber when a
  * gap is exhausted.
  */
-import { type ListKind } from "@prisma/client";
+import { Prisma, type ListKind } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
+
+/** Global client or an interactive-tx client (the latter carries audit actor). */
+type Db = typeof prisma | Prisma.TransactionClient;
 
 export const POSITION_GAP = 1024;
 const FOUR_FAVORITES_MAX = 4;
@@ -221,11 +224,15 @@ export async function getListWithItems(listId: number) {
  * Four Favorites: replace-all semantics, max 4, transactional. Find-or-create
  * the single FOUR_FAVORITES list (raw partial unique backs this up).
  */
-export async function setFourFavorites(ownerId: number, refs: ListItemRef[]): Promise<void> {
+export async function setFourFavorites(
+  ownerId: number,
+  refs: ListItemRef[],
+  db: Db = prisma
+): Promise<void> {
   if (refs.length > FOUR_FAVORITES_MAX) {
     throw new Error(`Four Favorites holds at most ${FOUR_FAVORITES_MAX} items`);
   }
-  await prisma.$transaction(async (tx) => {
+  const run = async (tx: Db) => {
     let list = await tx.list.findFirst({
       where: { ownerId, kind: "FOUR_FAVORITES" },
       select: { id: true },
@@ -257,7 +264,14 @@ export async function setFourFavorites(ownerId: number, refs: ListItemRef[]): Pr
       });
     }
     await tx.list.update({ where: { id: list.id }, data: { itemCount: refs.length } });
-  });
+  };
+  // Run on a passed-in tx directly (Prisma forbids nesting $transaction);
+  // otherwise open our own so the replace-all stays atomic.
+  if (db === prisma) {
+    await prisma.$transaction((tx) => run(tx));
+  } else {
+    await run(db);
+  }
 }
 
 export async function getFourFavorites(ownerId: number) {

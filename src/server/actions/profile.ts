@@ -130,11 +130,14 @@ export async function followAction(input: {
       select: { id: true },
     });
     if (!target || target.id === viewerId) return { ok: false, error: "Not found" };
+    const targetId = target.id;
+    // Wrap the follows write in auditedTransaction for actor attribution
+    // (matches social.ts follow/unfollow).
     if (input.follow) {
-      await assertNotBlocked(viewerId, target.id);
-      await followUser(viewerId, target.id);
+      await assertNotBlocked(viewerId, targetId);
+      await auditedTransaction(viewerId, (tx) => followUser(viewerId, targetId, tx));
     } else {
-      await unfollowUser(viewerId, target.id);
+      await auditedTransaction(viewerId, (tx) => unfollowUser(viewerId, targetId, tx));
     }
     return { ok: true };
   } catch (error: unknown) {
@@ -216,27 +219,32 @@ export async function updateProfileAction(
   try {
     const v = CustomizationSchema.parse(input);
     const userId = await requirePgUserId();
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { username: true, metadata: true },
-    });
-    const env = parseEnvelope(user?.metadata);
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        bio: v.bio || null,
-        metadata: {
-          ...env,
-          profile: {
-            ...(env.profile ?? {}),
-            backdrop: v.backdrop ?? undefined,
-            avatarImagePath: v.avatarImagePath ?? undefined,
-            accent: v.accent,
-            links: v.links,
-            location: v.location || undefined,
+    // Wrap in auditedTransaction so the users-table UPDATE is attributed to
+    // this user in audit_log (the trigger reads the audit.actor_id GUC).
+    const user = await auditedTransaction(userId, async (tx) => {
+      const u = await tx.user.findUnique({
+        where: { id: userId },
+        select: { username: true, metadata: true },
+      });
+      const env = parseEnvelope(u?.metadata);
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          bio: v.bio || null,
+          metadata: {
+            ...env,
+            profile: {
+              ...(env.profile ?? {}),
+              backdrop: v.backdrop ?? undefined,
+              avatarImagePath: v.avatarImagePath ?? undefined,
+              accent: v.accent,
+              links: v.links,
+              location: v.location || undefined,
+            },
           },
         },
-      },
+      });
+      return u;
     });
     if (user?.username) revalidatePath(`/u/${user.username}`);
     // DEPLOY FOLLOW-UP: single-path CloudFront invalidation /u/<username>* on privacy flips.
@@ -255,10 +263,14 @@ export async function setFourFavoritesAction(input: {
       .max(4)
       .parse(input.items);
     const userId = await requirePgUserId();
-    await setFourFavorites(
-      userId,
-      items.map((i) =>
-        i.mediaType === "movie" ? { movieId: i.tmdbId } : { seriesId: i.tmdbId }
+    // Wrap in auditedTransaction so the lists write is attributed to this user.
+    await auditedTransaction(userId, (tx) =>
+      setFourFavorites(
+        userId,
+        items.map((i) =>
+          i.mediaType === "movie" ? { movieId: i.tmdbId } : { seriesId: i.tmdbId }
+        ),
+        tx
       )
     );
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
@@ -275,13 +287,16 @@ export async function setPrivacyDefaultsAction(input: {
   try {
     const value = z.boolean().parse(input.logPrivatelyByDefault);
     const userId = await requirePgUserId();
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { metadata: true } });
-    const env = parseEnvelope(user?.metadata);
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        metadata: { ...env, preferences: { ...(env.preferences ?? {}), logPrivatelyByDefault: value } },
-      },
+    // Wrap in auditedTransaction so the users-table UPDATE is attributed to this user.
+    await auditedTransaction(userId, async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { metadata: true } });
+      const env = parseEnvelope(user?.metadata);
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          metadata: { ...env, preferences: { ...(env.preferences ?? {}), logPrivatelyByDefault: value } },
+        },
+      });
     });
     return { ok: true };
   } catch (error: unknown) {

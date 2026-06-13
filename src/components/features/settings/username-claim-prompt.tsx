@@ -1,64 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { getUsernameStatus } from "@/server/actions/profile";
-import { UsernameForm } from "./username-form";
 
 const SNOOZE_KEY = "username-prompt-snoozed";
+const TOAST_ID = "username-claim-prompt";
 
 /**
- * First-time username prompt: shows once per device for authenticated users
- * without a username. Mounted in the root layout; renders nothing otherwise.
+ * First-time username nudge for authenticated users without a username.
+ *
+ * Renders nothing (no modal, no overlay) — it raises a single non-blocking
+ * sonner toast with a "Claim" action that routes to /settings. This must
+ * NEVER trap focus or intercept clicks on page content: a modal Dialog here
+ * overlaid detail pages and made the Rate pill et al. unclickable.
+ *
+ * Shows once per device — acting on it OR dismissing it sets a localStorage
+ * snooze flag, so it never re-fires on subsequent loads/navigations. Mounted
+ * in the root layout.
  */
 export function UsernameClaimPrompt() {
   const { status } = useSession();
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (status !== "authenticated") return;
     if (typeof window === "undefined") return;
     if (window.localStorage.getItem(SNOOZE_KEY) === "1") return;
+
     let cancelled = false;
+    const snooze = () => window.localStorage.setItem(SNOOZE_KEY, "1");
+
     getUsernameStatus()
       .then((result) => {
-        if (!cancelled && result.username === null) setOpen(true);
+        if (cancelled || result.username !== null) return;
+        toast("Claim your username", {
+          id: TOAST_ID,
+          description:
+            "Get a public profile — your diary, favorites & reviews at a shareable link.",
+          // Persist until the user acts or dismisses; a toast can't block content.
+          duration: Infinity,
+          // Explicit close affordance so dismissing is trivial (no modal trap).
+          closeButton: true,
+          action: {
+            label: "Claim",
+            onClick: () => {
+              snooze();
+              router.push("/settings");
+            },
+          },
+          cancel: {
+            label: "Maybe later",
+            onClick: snooze,
+          },
+          // Any dismissal (close button / swipe / programmatic close) = "maybe
+          // later" — snooze so we never nag again on later loads/navigations.
+          onDismiss: snooze,
+          onAutoClose: snooze,
+        });
       })
       .catch(() => undefined);
+
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, router]);
 
-  const snooze = () => {
-    window.localStorage.setItem(SNOOZE_KEY, "1");
-    setOpen(false);
-  };
-
-  if (!open) return null;
-
-  return (
-    <Dialog open={open} onOpenChange={(next) => (next ? setOpen(true) : snooze())}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Claim your username</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Get your public profile at themoviebrowser.com/u/yourname — your diary,
-          favorites, and reviews in one shareable place.
-        </p>
-        <UsernameForm currentUsername={null} onClaimed={() => setOpen(false)} />
-        <Button variant="ghost" size="sm" className="w-full" onClick={snooze}>
-          Maybe later
-        </Button>
-      </DialogContent>
-    </Dialog>
-  );
+  return null;
 }

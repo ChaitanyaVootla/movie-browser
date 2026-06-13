@@ -9,6 +9,9 @@ import { prisma } from "@/server/db/postgres";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 import { getHiddenUserIds } from "./blocks";
 
+/** Global client or an interactive-tx client (the latter carries audit actor). */
+type Db = typeof prisma | Prisma.TransactionClient;
+
 export interface UpsertReviewData {
   movieId?: number;
   seriesId?: number;
@@ -29,7 +32,8 @@ export type UserReviewRow = Awaited<ReturnType<typeof prisma.userReview.create>>
 
 export async function upsertUserReview(
   userId: number,
-  data: UpsertReviewData
+  data: UpsertReviewData,
+  db: Db = prisma
 ): Promise<UserReviewRow> {
   const common = {
     body: data.body,
@@ -41,7 +45,7 @@ export async function upsertUserReview(
   };
 
   if (data.movieId !== undefined) {
-    const review = await prisma.userReview.upsert({
+    const review = await db.userReview.upsert({
       where: { userId_movieId: { userId, movieId: data.movieId } },
       create: { userId, movieId: data.movieId, ...common },
       update: { ...common, editedAt: new Date() },
@@ -55,26 +59,26 @@ export async function upsertUserReview(
     seriesId: data.seriesId,
     seasonNumber: data.seasonNumber ?? null,
   };
-  const existing = await prisma.userReview.findFirst({
+  const existing = await db.userReview.findFirst({
     where: seriesWhere,
     select: { id: true },
   });
   if (existing) {
-    return prisma.userReview.update({
+    return db.userReview.update({
       where: { id: existing.id },
       data: { ...common, editedAt: new Date() },
     });
   }
   try {
-    return await prisma.userReview.create({
+    return await db.userReview.create({
       data: { ...seriesWhere, ...common },
     });
   } catch (error: unknown) {
     // Raced the NULLS NOT DISTINCT unique: fall back to update.
     if (isPrismaError(error) && error.code === "P2002") {
-      const raced = await prisma.userReview.findFirst({ where: seriesWhere, select: { id: true } });
+      const raced = await db.userReview.findFirst({ where: seriesWhere, select: { id: true } });
       if (raced) {
-        return prisma.userReview.update({
+        return db.userReview.update({
           where: { id: raced.id },
           data: { ...common, editedAt: new Date() },
         });
@@ -84,8 +88,12 @@ export async function upsertUserReview(
   }
 }
 
-export async function deleteUserReview(userId: number, reviewId: number): Promise<boolean> {
-  const result = await prisma.userReview.deleteMany({ where: { id: reviewId, userId } });
+export async function deleteUserReview(
+  userId: number,
+  reviewId: number,
+  db: Db = prisma
+): Promise<boolean> {
+  const result = await db.userReview.deleteMany({ where: { id: reviewId, userId } });
   return result.count > 0;
 }
 

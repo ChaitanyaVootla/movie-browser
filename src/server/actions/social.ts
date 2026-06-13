@@ -5,6 +5,7 @@ import { requirePgUserId } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/server/db/postgres";
+import { auditedTransaction } from "@/server/db/audit";
 import {
   blockUser as blockUserQuery,
   unblockUser as unblockUserQuery,
@@ -37,7 +38,7 @@ export async function blockUser(input: z.infer<typeof BlockSchema>) {
   try {
     const { userId: targetId, type } = BlockSchema.parse(input);
     const userId = await requirePgUserId();
-    await blockUserQuery(userId, targetId, type);
+    await auditedTransaction(userId, (tx) => blockUserQuery(userId, targetId, type, tx));
     return { success: true as const };
   } catch (error: unknown) {
     return actionError("blockUser", error);
@@ -50,7 +51,7 @@ export async function unblockUser(input: z.infer<typeof UnblockSchema>) {
   try {
     const { userId: targetId } = UnblockSchema.parse(input);
     const userId = await requirePgUserId();
-    await unblockUserQuery(userId, targetId);
+    await auditedTransaction(userId, (tx) => unblockUserQuery(userId, targetId, tx));
     return { success: true as const };
   } catch (error: unknown) {
     return actionError("unblockUser", error);
@@ -116,7 +117,7 @@ export async function follow(input: z.infer<typeof FollowSchema>) {
   try {
     const { userId: targetId } = FollowSchema.parse(input);
     const userId = await requirePgUserId();
-    await followUserQuery(userId, targetId);
+    await auditedTransaction(userId, (tx) => followUserQuery(userId, targetId, tx));
     return { success: true as const };
   } catch (error: unknown) {
     return actionError("follow", error);
@@ -127,7 +128,7 @@ export async function unfollow(input: z.infer<typeof FollowSchema>) {
   try {
     const { userId: targetId } = FollowSchema.parse(input);
     const userId = await requirePgUserId();
-    await unfollowUserQuery(userId, targetId);
+    await auditedTransaction(userId, (tx) => unfollowUserQuery(userId, targetId, tx));
     return { success: true as const };
   } catch (error: unknown) {
     return actionError("unfollow", error);
