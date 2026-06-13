@@ -9,6 +9,7 @@ import { getFourFavorites } from "./lists";
 import { getFollowCounts } from "./follows";
 import { getUserReviews } from "./reviews";
 import { getProgressShelf } from "./progress";
+import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type {
   BreakdownSliceDTO,
   FavoriteItemDTO,
@@ -49,7 +50,7 @@ export async function getPublicProfileByUsername(
   if (!user || !user.isPublic || !user.username) return null;
   const env = parseEnvelope(user.metadata);
 
-  const [snapshot, favorites, follows, reviewsPage, watching, pinnedRows, histogramRows] =
+  const [snapshot, favorites, follows, reviewsPage, watching, pinnedRows, histogramRows, dailyRows, recentRows] =
     await Promise.all([
       getUserStatsSnapshot(user.id),
       getFourFavorites(user.id),
@@ -77,6 +78,28 @@ export async function getPublicProfileByUsername(
         where: { userId: user.id, score: { not: null } },
         _count: { _all: true },
       }),
+      // Daily watch counts for the heatmap (public, dated, last ~26 weeks).
+      prisma.$queryRaw<Array<{ day: string; count: number }>>`
+        SELECT to_char(watched_at, 'YYYY-MM-DD') AS day, count(*)::int AS count
+        FROM watch_events
+        WHERE user_id = ${user.id} AND is_private = false
+          AND watched_at IS NOT NULL AND watched_at >= now() - interval '182 days'
+        GROUP BY 1
+      `,
+      // Most-recent watched titles for the side list (public, dated).
+      prisma.$queryRaw<
+        Array<{ movie_id: number | null; series_id: number | null; title: string | null; poster_path: string | null; watched_at: Date }>
+      >`
+        SELECT we.movie_id, we.series_id, we.watched_at,
+               COALESCE(m.title, s.name) AS title,
+               COALESCE(m.poster_path, s.poster_path) AS poster_path
+        FROM watch_events we
+        LEFT JOIN movies m ON m.id = we.movie_id
+        LEFT JOIN series s ON s.id = we.series_id
+        WHERE we.user_id = ${user.id} AND we.is_private = false AND we.watched_at IS NOT NULL
+        ORDER BY we.watched_at DESC
+        LIMIT 8
+      `,
     ]);
 
   const reviewUser = {
@@ -112,7 +135,12 @@ export async function getPublicProfileByUsername(
   return {
     username: user.username,
     displayName: user.name ?? user.username,
-    avatarUrl: env.profile?.avatarImagePath ?? user.image,
+    // avatarImagePath is a TMDB file path ("/abc.jpg") → build the full image
+    // URL; fall back to the Google photo. (Bug: it was used as the src raw,
+    // yielding a broken relative URL → initials fallback.)
+    avatarUrl: env.profile?.avatarImagePath
+      ? `${TMDB_IMAGE_BASE}/w342${env.profile.avatarImagePath}`
+      : user.image,
     accent: (env.profile?.accent ?? "default") as PublicProfileDTO["accent"],
     bio: user.bio,
     links: env.profile?.links ?? [],
@@ -148,6 +176,21 @@ export async function getPublicProfileByUsername(
     ratingsHistogram: histogram,
     topGenres: toSlices(snapshot.topGenres),
     topDecades: toSlices(snapshot.topDecades),
+    topCountries: snapshot.topCountries,
+    monthlyActivity: Object.keys(snapshot.byMonth)
+      .sort()
+      .slice(-12)
+      .map((month) => ({ month, count: snapshot.byMonth[month] ?? 0 })),
+    dailyActivity: dailyRows.map((r) => ({ day: r.day, count: Number(r.count) })),
+    recentWatches: recentRows
+      .map((r) => ({
+        mediaType: (r.movie_id !== null ? "movie" : "series") as "movie" | "series",
+        tmdbId: r.movie_id ?? r.series_id ?? 0,
+        title: r.title ?? "",
+        posterPath: r.poster_path,
+        watchedAt: r.watched_at.toISOString(),
+      }))
+      .filter((r) => r.tmdbId && r.title),
     currentlyWatching: watching.map((w) => ({
       seriesId: w.seriesId,
       seriesName: w.name ?? "",
@@ -156,6 +199,11 @@ export async function getPublicProfileByUsername(
       episodeNumber: w.lastEpisodeNumber,
     })),
     longestStreakDays: snapshot.longestStreakDays,
+    currentStreakDays: snapshot.currentStreakDays,
+    rewatchCount: snapshot.rewatches.count,
     rewatchChampions: snapshot.rewatches.champions,
+    // Read-only access to the saved widget layout; typed loosely here (the
+    // shared envelope stays JSON-write-safe — see updateProfileAction).
+    layout: (env.profile as { layout?: unknown } | undefined)?.layout ?? null,
   };
 }

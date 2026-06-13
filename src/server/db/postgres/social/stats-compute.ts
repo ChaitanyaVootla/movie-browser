@@ -14,6 +14,8 @@ export interface StatsEventRow {
   /** series.episode_run_time — runtime fallback for episodes. */
   fallbackRuntimes: number[];
   genres: string[];
+  /** Production (movie) / origin (series) ISO alpha-2 country CODES for this title. */
+  countries: string[];
   year: number | null;
   watchedAt: Date | null;
   precision: WatchedAtPrecision;
@@ -38,9 +40,11 @@ export const StatsSnapshotSchema = z.object({
   byMonth: z.record(z.string(), z.number()),
   topGenres: z.array(NameCount),
   topDecades: z.array(z.object({ decade: z.string(), count: z.number() })),
+  topCountries: z.array(z.object({ code: z.string(), count: z.number() })).default([]),
   topActors: z.array(NameCount),
   topDirectors: z.array(NameCount),
   longestStreakDays: z.number(),
+  currentStreakDays: z.number().default(0),
   rewatches: z.object({
     count: z.number(),
     champions: z.array(z.object({ title: z.string(), count: z.number() })),
@@ -88,9 +92,32 @@ function longestStreak(days: Set<string>): number {
   return longest;
 }
 
+/**
+ * Current streak = consecutive dated days ending at the most recent watch,
+ * but only "alive" if that most recent day is today or yesterday (UTC). A gap
+ * to two+ days ago means the streak has lapsed → 0.
+ */
+function currentStreak(days: Set<string>, now: Date): number {
+  if (days.size === 0) return 0;
+  const todayT = Date.parse(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
+  const dayTs = new Set([...days].map((d) => Date.parse(`${d}T00:00:00Z`)));
+  const mostRecent = Math.max(...dayTs);
+  // Lapsed if the latest watch was before yesterday.
+  if (todayT - mostRecent > DAY_MS) return 0;
+  let streak = 0;
+  let cursor = mostRecent;
+  while (dayTs.has(cursor)) {
+    streak += 1;
+    cursor -= DAY_MS;
+  }
+  return streak;
+}
+
 export interface ComputeStatsOptions {
   /** Honest Wrapped: drop BACKFILL/IMPORT noise (spec: source column exists for this). */
   excludeImported?: boolean;
+  /** "Now" for current-streak liveness; defaults to wall clock. Injectable for tests. */
+  now?: Date;
 }
 
 export function computeStats(
@@ -106,8 +133,13 @@ export function computeStats(
   const seriesIds = new Set<number>();
   const genreCounts = new Map<string, number>();
   const decadeCounts = new Map<string, number>();
+  const countryCounts = new Map<string, number>();
   const byMonth = new Map<string, number>();
-  const titleWatchCounts = new Map<number, { title: string; count: number }>();
+  // Rewatch champions = titles ranked by REWATCH events only. Keying by titleId
+  // and counting every watch double-counts series (each episode shares the
+  // series titleId), so a once-through binge of 13 episodes wrongly read as
+  // "13× rewatched". Only rows flagged isRewatch count here.
+  const rewatchByTitle = new Map<number, { title: string; count: number }>();
   const datedDays = new Set<string>();
   let minutes = 0;
   let episodes = 0;
@@ -118,17 +150,20 @@ export function computeStats(
     if (row.kind === "movie") movieIds.add(row.titleId);
     else seriesIds.add(row.titleId);
     if (row.kind === "episode") episodes += 1;
-    if (row.isRewatch) rewatchCount += 1;
+    if (row.isRewatch) {
+      rewatchCount += 1;
+      const entry = rewatchByTitle.get(row.titleId);
+      if (entry) entry.count += 1;
+      else rewatchByTitle.set(row.titleId, { title: row.title, count: 1 });
+    }
     for (const g of row.genres) bump(genreCounts, g);
+    for (const c of row.countries) bump(countryCounts, c);
     if (row.year !== null) bump(decadeCounts, `${Math.floor(row.year / 10) * 10}s`);
     if (row.watchedAt !== null && row.precision !== "UNKNOWN") {
       const day = utcDayKey(row.watchedAt);
       datedDays.add(day);
       bump(byMonth, day.slice(0, 7));
     }
-    const entry = titleWatchCounts.get(row.titleId);
-    if (entry) entry.count += 1;
-    else titleWatchCounts.set(row.titleId, { title: row.title, count: 1 });
   }
 
   const watchedTitleIds = new Set([...movieIds, ...seriesIds]);
@@ -139,8 +174,8 @@ export function computeStats(
     bump(p.role === "actor" ? actorCounts : directorCounts, p.name);
   }
 
-  const champions = [...titleWatchCounts.values()]
-    .filter((t) => t.count >= 2)
+  const champions = [...rewatchByTitle.values()]
+    .filter((t) => t.count >= 1)
     .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title))
     .slice(0, 5)
     .map((t) => ({ title: t.title, count: t.count }));
@@ -157,9 +192,14 @@ export function computeStats(
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 10)
       .map(([decade, count]) => ({ decade, count })),
+    topCountries: [...countryCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 20)
+      .map(([code, count]) => ({ code, count })),
     topActors: topN(actorCounts, 10),
     topDirectors: topN(directorCounts, 10),
     longestStreakDays: longestStreak(datedDays),
+    currentStreakDays: currentStreak(datedDays, opts.now ?? new Date()),
     rewatches: { count: rewatchCount, champions },
     computedAt: new Date().toISOString(),
   };

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { AtSign } from "lucide-react";
 import { toast } from "sonner";
 import { getUsernameStatus } from "@/server/actions/profile";
 
@@ -24,11 +25,14 @@ const TOAST_ID = "username-claim-prompt";
 export function UsernameClaimPrompt() {
   const { status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (status !== "authenticated") return;
     if (typeof window === "undefined") return;
     if (window.localStorage.getItem(SNOOZE_KEY) === "1") return;
+    // Don't nag on /settings — the claim form is already on screen there.
+    if (pathname === "/settings" || pathname.startsWith("/settings/")) return;
 
     let cancelled = false;
     const snooze = () => window.localStorage.setItem(SNOOZE_KEY, "1");
@@ -38,8 +42,9 @@ export function UsernameClaimPrompt() {
         if (cancelled || result.username !== null) return;
         toast("Claim your username", {
           id: TOAST_ID,
+          icon: <AtSign className="size-4 text-brand" />,
           description:
-            "Get a public profile — your diary, favorites & reviews at a shareable link.",
+            "Your diary, favorites & reviews at a shareable themoviebrowser.com/u/ link.",
           // Persist until the user acts or dismisses; a toast can't block content.
           duration: Infinity,
           // Explicit close affordance so dismissing is trivial (no modal trap).
@@ -66,7 +71,7 @@ export function UsernameClaimPrompt() {
     return () => {
       cancelled = true;
     };
-  }, [status, router]);
+  }, [status, router, pathname]);
 
   return null;
 }

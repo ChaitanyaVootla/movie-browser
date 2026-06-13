@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HeroBackdropShell } from "@/components/features/media/hero-backdrop-shell";
+import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { getMediaPath } from "@/lib/utils";
 import type { PublicProfileDTO } from "@/types/social";
 import { UserModerationMenu } from "@/components/features/discussion";
@@ -33,6 +35,12 @@ export function ProfileHero({ profile }: { profile: PublicProfileDTO }) {
             {profile.displayName}
           </h1>
           <p className="text-sm font-medium text-white/70">@{profile.username}</p>
+          {profile.location && (
+            <p className="mt-1 flex items-center justify-center gap-1 text-xs font-medium text-white/60 md:justify-start">
+              <MapPin className="h-3 w-3" />
+              {profile.location}
+            </p>
+          )}
         </div>
 
         {profile.bio && (
@@ -59,15 +67,13 @@ export function ProfileHero({ profile }: { profile: PublicProfileDTO }) {
 
         <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
           <FollowButton username={profile.username} />
-          <OwnerActions username={profile.username} />
+          <OwnerActions />
           <UserModerationMenu username={profile.username} />
           <span className="text-xs font-medium text-white/70">
             <strong className="text-white">{profile.counts.followers.toLocaleString()}</strong>{" "}
             followers ·{" "}
             <strong className="text-white">{profile.counts.following.toLocaleString()}</strong>{" "}
-            following ·{" "}
-            <strong className="text-white">{profile.counts.filmsWatched.toLocaleString()}</strong>{" "}
-            films
+            following
           </span>
         </div>
 
@@ -102,6 +108,7 @@ export function ProfileHero({ profile }: { profile: PublicProfileDTO }) {
           mediaId={backdrop.tmdbId}
           mediaType={backdrop.mediaType}
           tmdbBackdropPath={backdrop.imagePath}
+          exactSrc={`${TMDB_IMAGE_BASE}/w1280${backdrop.imagePath}`}
           overlay="medium"
         >
           {identity}

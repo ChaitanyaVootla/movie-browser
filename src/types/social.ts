@@ -247,9 +247,27 @@ export interface PublicProfileDTO {
   ratingsHistogram: number[];
   topGenres: BreakdownSliceDTO[];
   topDecades: BreakdownSliceDTO[];
+  /** Top production/origin countries (ISO alpha-2 code + count); name/flag derived in the UI. */
+  topCountries: { code: string; count: number }[];
+  /** Last 12 months, oldest first. month = "2026-06". */
+  monthlyActivity: { month: string; count: number }[];
+  /** Per-day watch counts (public, dated, last ~26 weeks) for the heatmap. day = "2026-06-13". */
+  dailyActivity: { day: string; count: number }[];
+  /** Most-recent public watched titles for the watch-activity side list. */
+  recentWatches: {
+    mediaType: TrackedMediaType;
+    tmdbId: number;
+    title: string;
+    posterPath: string | null;
+    watchedAt: string;
+  }[];
   currentlyWatching: CurrentlyWatchingItemDTO[];
   longestStreakDays: number;
+  currentStreakDays: number;
+  rewatchCount: number;
   rewatchChampions: RewatchChampionDTO[];
+  /** Saved widget-dashboard layout (metadata.profile.layout) or null → default. Validated by resolveLayout. */
+  layout: unknown;
 }
 
 export interface ProfileViewerStateDTO {

@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Loader2, Search } from "lucide-react";
+import { Check, Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
-import { getAutocompleteSuggestions, type AutocompleteSuggestion } from "@/server/actions/autocomplete";
-import { getTitleImages } from "@/server/actions/profile";
+import {
+  getTitleImages,
+  searchTitlesForBackdrop,
+  type BackdropTitleResult,
+} from "@/server/actions/profile";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { TrackedMediaType } from "@/types/social";
 
@@ -29,7 +32,7 @@ interface BackdropPickerProps {
 export function BackdropPicker({ current, onSelect, onPostersLoaded }: BackdropPickerProps) {
   const [query, setQuery] = useState("");
   const debounced = useDebounce(query, 300);
-  const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<BackdropTitleResult[]>([]);
   const [picked, setPicked] = useState<{ mediaType: TrackedMediaType; tmdbId: number; titleName: string } | null>(
     current ? { mediaType: current.mediaType, tmdbId: current.tmdbId, titleName: current.titleName } : null
   );
@@ -47,13 +50,8 @@ export function BackdropPicker({ current, onSelect, onPostersLoaded }: BackdropP
         return;
       }
       try {
-        const response = await getAutocompleteSuggestions(trimmed);
-        if (cancelled) return;
-        setSuggestions(
-          response.suggestions.filter(
-            (s) => s.type === "title" && s.id !== undefined && s.mediaType !== "person"
-          )
-        );
+        const results = await searchTitlesForBackdrop(trimmed);
+        if (!cancelled) setSuggestions(results);
       } catch {
         /* ignore */
       }
@@ -99,23 +97,22 @@ export function BackdropPicker({ current, onSelect, onPostersLoaded }: BackdropP
 
       {suggestions.length > 0 && (
         <ul className="divide-y divide-border/50 rounded-md border bg-card">
-          {suggestions.slice(0, 5).map((s) => (
-            <li key={`${s.mediaType}-${s.id}`}>
+          {suggestions.slice(0, 6).map((s) => (
+            <li key={`${s.mediaType}-${s.tmdbId}`}>
               <button
                 type="button"
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-muted/50"
                 onClick={() => {
-                  setPicked({
-                    mediaType: s.mediaType === "movie" ? "movie" : "series",
-                    tmdbId: s.id as number,
-                    titleName: s.label,
-                  });
+                  setPicked({ mediaType: s.mediaType, tmdbId: s.tmdbId, titleName: s.title });
                   setSuggestions([]);
                   setQuery("");
                 }}
               >
-                <span className="font-medium">{s.label}</span>
+                <span className="font-medium">{s.title}</span>
                 {s.year && <span className="text-xs text-muted-foreground">({s.year})</span>}
+                <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {s.mediaType}
+                </span>
               </button>
             </li>
           ))}
@@ -124,12 +121,17 @@ export function BackdropPicker({ current, onSelect, onPostersLoaded }: BackdropP
 
       {picked && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            Backdrops from “{picked.titleName}”
+          <p className="text-xs font-medium text-foreground">
+            Tap a backdrop to use it{" "}
+            <span className="text-muted-foreground">— from “{picked.titleName}”</span>
           </p>
           {loadingImages ? (
             <div className="flex h-24 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : backdrops.length === 0 ? (
+            <div className="flex h-20 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
+              No artwork found for this title.
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-2">
@@ -140,8 +142,10 @@ export function BackdropPicker({ current, onSelect, onPostersLoaded }: BackdropP
                     key={path}
                     type="button"
                     className={cn(
-                      "relative aspect-video overflow-hidden rounded-md border-2 transition-colors",
-                      isSelected ? "border-brand" : "border-transparent hover:border-border"
+                      "group relative aspect-video overflow-hidden rounded-md border-2 transition-all hover:scale-[1.03]",
+                      isSelected
+                        ? "border-brand ring-2 ring-brand"
+                        : "border-transparent hover:border-brand/60"
                     )}
                     onClick={() => onSelect({ ...picked, imagePath: path })}
                   >
@@ -152,6 +156,11 @@ export function BackdropPicker({ current, onSelect, onPostersLoaded }: BackdropP
                       className="object-cover"
                       sizes="(max-width: 768px) 33vw, 160px"
                     />
+                    {isSelected && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-brand/30">
+                        <Check className="h-5 w-5 text-white drop-shadow" />
+                      </span>
+                    )}
                   </button>
                 );
               })}

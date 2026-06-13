@@ -17,7 +17,8 @@ resume board: `docs/superpowers/plans/PROGRESS.md`.
 `src/app/series/[...params]/discuss-page.tsx`, `src/lib/user-id.ts`,
 `src/lib/{watch-dates,tracking-format,profile-accents}.ts`,
 `postgres/init/04-ugc-constraints.sql`, the social models in
-`prisma/schema.prisma`. See also `.claude/rules/audit-log.md`.
+`prisma/schema.prisma`. See also `.claude/rules/audit-log.md` and the profile
+widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboard-design.md`.
 
 ---
 
@@ -37,6 +38,36 @@ resume board: `docs/superpowers/plans/PROGRESS.md`.
   pinned lists, public reviews, stats, follow button + counts. DB:
   `social/public-profile.ts`, `social/follows.ts`. Actions: `profile.ts`,
   `social.ts`. Page: `src/app/u/[username]/page.tsx`.
+- **Profile = customizable WIDGET DASHBOARD** (branch work, in flux — full design
+  in `docs/superpowers/specs/2026-06-13-profile-widget-dashboard-design.md`).
+  The body below the hero is a grid of registered widgets (stat tiles, ratings/
+  genres/decades charts, country flag-breakdown, **Watch activity** GitHub-style
+  heatmap + recent titles, Four-Favorites poster board, currently-watching, lists,
+  reviews). Registry + layout schema in `components/features/profile/widgets/`
+  (`types,registry,render,widget-card,country-map,watch-activity`); layout saved
+  in `users.metadata.profile.layout` (JSON, no migration). **Dual render**:
+  PUBLIC = static SSR CSS grid (`profile-dashboard.tsx`, `.dash-grid` in
+  globals.css) — cacheable/SEO; OWNER edit = `react-grid-layout` v2
+  (`profile-dashboard-editor.tsx`, owner-only, `dynamic ssr:false`) swapped in by
+  `profile-dashboard-switch.tsx` via `editMode` in `profile-viewer-context.tsx`;
+  Save → `updateProfileLayoutAction`. **Settings = on-profile MODAL**
+  (`profile-settings-dialog.tsx`, hero "Settings" button) holding appearance +
+  account/privacy/blocked/data (the `/settings` page still exists as the
+  username-claim bootstrap + nav fallback). GOTCHAS (each burned time):
+  (a) `react-grid-layout` v2.2.3 is a React-19 hook-API rewrite — NO
+  `WidthProvider`; use `useContainerWidth` + `dragConfig`/`resizeConfig` +
+  `verticalCompactor` (v1 breaks on React 19 — removed `findDOMNode`).
+  (b) Profile avatar (`avatarImagePath`) + backdrop (`imagePath`) are TMDB FILE
+  PATHS — must prefix `TMDB_IMAGE_BASE/wNNN` before use as an `src` (the hero
+  backdrop passes `exactSrc` to `HeroBackdropShell` to bypass its CDN-by-id);
+  forgetting the prefix on `public-profile.ts` rendered a broken relative URL →
+  initials.
+  (c) The backdrop picker searches **TMDB** (`searchTitlesForBackdrop`) +
+  `getTitleImages` falls back to TMDB — the local `images`/catalog tables are
+  sparse in dev (~11 titles), so local-only search/images looked broken.
+  (d) Country stats key by **ISO code** (`topCountries: {code,count}`); the
+  widget derives flag emoji + name (`country-list`, with a SHORT_NAMES map for
+  verbose official names).
 - **Reviews** — `user_reviews`, a distinct entity (NOT a comment variant), one
   per user per title (per season for series). FIRST AI-gate consumer (default
   `status=PENDING_REVIEW`). DB: `social/reviews.ts`. Action: `reviews.ts`.
@@ -162,6 +193,7 @@ DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' \
 | Ratings | `user-ratings.ts` | `social/ratings.ts` | (in media action bar) |
 | Stats | (page) | `social/{stats,stats-compute,stats-dirty}.ts` | `features/stats/*` |
 | Profiles | `profile.ts`, `social.ts` | `social/{public-profile,follows}.ts` | `features/profile/*`, `features/settings/*` |
+| Profile dashboard | `profile.ts` (`updateProfileLayoutAction`, `searchTitlesForBackdrop`, `getTitleImages`) | `social/public-profile.ts` (dailyActivity/recentWatches/topCountries) | `features/profile/{profile-dashboard,profile-dashboard-switch,profile-dashboard-editor,profile-settings-dialog,profile-viewer-context}.tsx`, `features/profile/widgets/*` |
 | Reviews | `reviews.ts` | `social/reviews.ts` | `features/reviews/*` |
 | Discussion | `comments.ts`, `comment-reads.ts`, `thread-summary.ts` | `postgres/comments.ts`, `services/discussion/*` | `features/discussion/*` |
 | Moderation | `reports.ts` | `social/reports.ts`, `services/moderation/*` | `features/discussion/{report-dialog,user-moderation-menu}.tsx`, admin moderation tab |

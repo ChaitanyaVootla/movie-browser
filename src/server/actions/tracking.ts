@@ -23,6 +23,7 @@ import {
   setManualStatus,
 } from "@/server/db/postgres/social/progress";
 import { getUserStatsSnapshot } from "@/server/db/postgres/social/stats";
+import { getName as countryName } from "country-list";
 import type {
   ActionResult,
   DiaryEntryDTO,
@@ -422,14 +423,14 @@ export async function getUserStats(): Promise<UserStatsDTO> {
     monthlyCounts: months.map((month) => ({ month, count: s.byMonth[month] ?? 0 })),
     genres: s.topGenres.map((g) => ({ label: g.name, count: g.count })),
     decades: s.topDecades.map((d) => ({ label: d.decade, count: d.count })),
-    countries: [],
+    countries: s.topCountries.map((c) => ({ label: countryName(c.code) ?? c.code, count: c.count })),
     topActors: s.topActors.map((a) => ({
       personId: null, name: a.name, profilePath: null, count: a.count,
     })),
     topDirectors: s.topDirectors.map((d) => ({
       personId: null, name: d.name, profilePath: null, count: d.count,
     })),
-    currentStreakDays: (s as { currentStreakDays?: number }).currentStreakDays ?? 0,
+    currentStreakDays: s.currentStreakDays,
     longestStreakDays: s.longestStreakDays,
     rewatchChampions: s.rewatches.champions,
     computedAt: new Date().toISOString(),

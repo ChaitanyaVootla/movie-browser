@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { checkUsernameAvailability, claimUsernameAction } from "@/server/actions/profile";
@@ -77,6 +78,29 @@ export function UsernameForm({ currentUsername, previousUsernames = [], onClaime
     }
   };
 
+  const normalized = normalizeUsername(value);
+  const isError = availability === "taken" || availability === "invalid";
+
+  // State-driven input border: green when available, red when taken/invalid.
+  // We override the focus-visible variants too so the colour holds while the
+  // field is focused (the user is mid-typing when these states fire).
+  const inputStateClass =
+    availability === "available"
+      ? "border-success focus-visible:border-success focus-visible:ring-success/30"
+      : isError
+        ? "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30"
+        : "";
+
+  // The status glyph; keyed so each swap replays a gentle fade+scale (no bounce).
+  const statusIcon =
+    availability === "checking" ? (
+      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+    ) : availability === "available" ? (
+      <Check className="h-4 w-4 text-success" />
+    ) : isError ? (
+      <X className="h-4 w-4 text-destructive" />
+    ) : null;
+
   return (
     <div className="space-y-2">
       <Label htmlFor="username-input">Username</Label>
@@ -94,15 +118,18 @@ export function UsernameForm({ currentUsername, previousUsernames = [], onClaime
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            className="h-10 pl-8 pr-8"
+            aria-invalid={isError}
+            aria-describedby="username-help"
+            className={cn("h-10 pl-8 pr-9", inputStateClass)}
           />
           <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
-            {availability === "checking" && (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-            {availability === "available" && <Check className="h-4 w-4 text-brand" />}
-            {(availability === "taken" || availability === "invalid") && (
-              <X className="h-4 w-4 text-destructive" />
+            {statusIcon && (
+              <span
+                key={availability}
+                className="block animate-in fade-in-0 zoom-in-95 duration-200"
+              >
+                {statusIcon}
+              </span>
             )}
           </span>
         </div>
@@ -114,20 +141,26 @@ export function UsernameForm({ currentUsername, previousUsernames = [], onClaime
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : claimed ? "Change" : "Claim"}
         </Button>
       </div>
-      <p className="text-xs font-medium text-muted-foreground">
-        {availability === "invalid" ? (
-          "3–20 characters: a–z, 0–9, underscore."
+      <p id="username-help" role="status" aria-live="polite" className="text-xs font-medium">
+        {availability === "checking" ? (
+          <span className="text-muted-foreground">Checking availability…</span>
+        ) : availability === "available" ? (
+          <span className="text-success">@{normalized} is available</span>
         ) : availability === "taken" ? (
-          "That one's taken."
+          <span className="text-destructive">That one&rsquo;s taken — try another.</span>
+        ) : availability === "invalid" ? (
+          <span className="text-muted-foreground">3–20 characters: a–z, 0–9, underscore.</span>
         ) : claimed ? (
-          <>
+          <span className="text-muted-foreground">
             Your profile:{" "}
             <Link href={`/u/${claimed}`} className="text-brand hover:underline">
               themoviebrowser.com/u/{claimed}
             </Link>
-          </>
+          </span>
         ) : (
-          "Claim a username to unlock your public profile."
+          <span className="text-muted-foreground">
+            Claim a username to unlock your public profile.
+          </span>
         )}
       </p>
       {previousUsernames.length > 0 && (

@@ -33,6 +33,8 @@ body {
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -95,6 +97,10 @@ body {
   --accent: oklch(0.96 0 0);
   --accent-foreground: oklch(0.18 0 0);
   --destructive: oklch(0.55 0.22 25);
+  /* Success / "available" — calm green, accent-independent (never overridden
+   * per .accent-*). Paired with --destructive for go/stop form feedback. */
+  --success: oklch(0.55 0.15 152);
+  --success-foreground: oklch(0.99 0 0);
   --border: oklch(0.91 0 0);
   --input: oklch(0.91 0 0);
   --ring: oklch(0.65 0 0);
@@ -146,6 +152,10 @@ body {
   --accent: oklch(0.15 0 0);
   --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.6 0.22 25);
+  /* Success / "available" — calm green, accent-independent (never overridden
+   * per .accent-*). Brighter than light mode for the OLED canvas. */
+  --success: oklch(0.72 0.17 152);
+  --success-foreground: oklch(0.1 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.5 0 0);
@@ -607,5 +617,72 @@ body {
 @keyframes nav-pending-in {
   to {
     opacity: 1;
+  }
+}
+
+/* Profile page section reveal: subtle staggered fade-up on load. The hero is
+   intentionally excluded (it carries the LCP backdrop and must paint
+   immediately). null-returning section components render no node, so
+   :nth-child only counts sections actually present. Respects reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .profile-stagger > * {
+    animation: profile-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .profile-stagger > *:nth-child(1) {
+    animation-delay: 0.03s;
+  }
+  .profile-stagger > *:nth-child(2) {
+    animation-delay: 0.09s;
+  }
+  .profile-stagger > *:nth-child(3) {
+    animation-delay: 0.15s;
+  }
+  .profile-stagger > *:nth-child(4) {
+    animation-delay: 0.21s;
+  }
+  .profile-stagger > *:nth-child(5) {
+    animation-delay: 0.27s;
+  }
+  .profile-stagger > *:nth-child(6) {
+    animation-delay: 0.33s;
+  }
+  .profile-stagger > *:nth-child(n + 7) {
+    animation-delay: 0.39s;
+  }
+}
+
+@keyframes profile-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Profile widget dashboard (profile-dashboard.tsx). Mobile: 2-col, widgets
+   span 1 or 2 via --m-span. Desktop: an N-col grid (--cols) where each widget
+   is placed at its explicit start column (--d-x) and spans --d-w; rows flow to
+   natural content height (dense backfills gaps). The owner editor uses
+   react-grid-layout with the same coords. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+.dash-item {
+  grid-column: span var(--m-span, 2);
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .dash-grid {
+    grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
+    grid-auto-flow: row dense;
+  }
+  .dash-item {
+    grid-column: var(--d-x) / span var(--d-w);
   }
 }

@@ -11,6 +11,14 @@ interface HeroBackdropShellProps {
   mediaType: "movie" | "series";
   /** TMDB backdrop path for fallback (optional, can come from context) */
   tmdbBackdropPath?: string | null;
+  /**
+   * Exact image URL to render as the PRIMARY source, bypassing the
+   * CDN-by-id backdrop. Use when the consumer chose a SPECIFIC image (e.g. a
+   * profile backdrop, which may not be the title's canonical backdrop). When
+   * set, the deterministic CDN URL is skipped; tmdbBackdropPath remains the
+   * error fallback.
+   */
+  exactSrc?: string | null;
   className?: string;
   children?: React.ReactNode;
   overlay?: "light" | "medium" | "heavy" | "none";
@@ -35,6 +43,7 @@ export function HeroBackdropShell({
   mediaId,
   mediaType,
   tmdbBackdropPath: propPath,
+  exactSrc,
   className,
   children,
   overlay = "light",
@@ -45,8 +54,9 @@ export function HeroBackdropShell({
   // Get TMDB path from props or context (context updates when async content loads)
   const tmdbBackdropPath = propPath ?? heroContext?.data?.tmdbBackdropPath;
 
-  // CDN URL is deterministic - just needs ID
-  const cdnUrl = `${CDN_IMAGE_BASE}/${mediaType}/${mediaId}/backdrop.webp`;
+  // Primary source: an exact image (profile backdrops) bypasses the CDN-by-id
+  // backdrop; otherwise the deterministic CDN URL (movie/series detail pages).
+  const cdnUrl = exactSrc ?? `${CDN_IMAGE_BASE}/${mediaType}/${mediaId}/backdrop.webp`;
   // TMDB fallback needs the path
   const tmdbUrl = tmdbBackdropPath ? `${TMDB_IMAGE_BASE}/w1280${tmdbBackdropPath}` : null;
 

@@ -14,6 +14,7 @@ function movieRow(over: Partial<StatsEventRow> = {}): StatsEventRow {
     runtimeMinutes: 136,
     fallbackRuntimes: [],
     genres: ["Action", "Science Fiction"],
+    countries: ["US"],
     year: 1999,
     watchedAt: new Date("2026-01-10T12:00:00Z"),
     precision: "DATE",
@@ -31,6 +32,7 @@ function episodeRow(over: Partial<StatsEventRow> = {}): StatsEventRow {
     runtimeMinutes: null,
     fallbackRuntimes: [47],
     genres: ["Drama"],
+    countries: ["US"],
     year: 2008,
     watchedAt: new Date("2026-01-11T12:00:00Z"),
     precision: "DATE",
@@ -82,7 +84,7 @@ describe("computeStats", () => {
     expect(computeStats(rows, []).longestStreakDays).toBe(3);
   });
 
-  it("rewatch champions: titles with 2+ watches, sorted by count", () => {
+  it("rewatch champions: count REWATCH events only, never first watches", () => {
     const rows = [
       movieRow(),
       movieRow({ isRewatch: true }),
@@ -91,7 +93,49 @@ describe("computeStats", () => {
     ];
     const stats = computeStats(rows, []);
     expect(stats.rewatches.count).toBe(2);
-    expect(stats.rewatches.champions[0]).toEqual({ title: "The Matrix", count: 3 });
+    // The Matrix was rewatched twice (2 isRewatch events); the first watch
+    // doesn't count. Fight Club (watched once, never rewatched) is NOT a champion.
+    expect(stats.rewatches.champions).toEqual([{ title: "The Matrix", count: 2 }]);
+  });
+
+  it("rewatch champions: a series binged once through is NOT a champion", () => {
+    // 13 distinct episodes, none flagged isRewatch → 0 rewatches, no champion.
+    const rows = Array.from({ length: 13 }, (_, i) =>
+      episodeRow({ watchedAt: new Date(`2026-01-${String(i + 1).padStart(2, "0")}T12:00:00Z`) })
+    );
+    const stats = computeStats(rows, []);
+    expect(stats.rewatches.count).toBe(0);
+    expect(stats.rewatches.champions).toEqual([]);
+  });
+
+  it("country breakdown: aggregates production/origin country CODES", () => {
+    const rows = [
+      movieRow({ countries: ["US"] }),
+      movieRow({ titleId: 1, countries: ["US", "GB"] }),
+      episodeRow({ countries: ["KR"] }),
+    ];
+    const stats = computeStats(rows, []);
+    const us = stats.topCountries.find((c) => c.code === "US");
+    expect(us?.count).toBe(2);
+    expect(stats.topCountries.map((c) => c.code)).toContain("KR");
+  });
+
+  it("current streak: alive only if the latest watch is today or yesterday", () => {
+    const now = new Date("2026-01-13T12:00:00Z");
+    // 11th, 12th, 13th consecutive, ending today → streak 3
+    const live = computeStats(
+      [
+        movieRow({ watchedAt: new Date("2026-01-11T12:00:00Z") }),
+        movieRow({ watchedAt: new Date("2026-01-12T12:00:00Z") }),
+        movieRow({ watchedAt: new Date("2026-01-13T12:00:00Z") }),
+      ],
+      [],
+      { now }
+    );
+    expect(live.currentStreakDays).toBe(3);
+    // latest watch was 3 days ago → lapsed → 0
+    const lapsed = computeStats([movieRow({ watchedAt: new Date("2026-01-10T12:00:00Z") })], [], { now });
+    expect(lapsed.currentStreakDays).toBe(0);
   });
 
   it("top actors/directors from people rows", () => {

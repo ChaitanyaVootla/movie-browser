@@ -26,6 +26,7 @@ interface MovieEventRaw {
   is_rewatch: boolean;
   source: WatchEventSource;
   genres: string[];
+  countries: string[];
 }
 
 interface SeriesEventRaw extends MovieEventRaw {
@@ -39,11 +40,13 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
            EXTRACT(YEAR FROM m.release_date)::int AS year,
            we.watched_at, we.watched_at_precision AS precision,
            we.is_rewatch, we.source,
-           COALESCE(array_agg(DISTINCT g.name) FILTER (WHERE g.name IS NOT NULL), '{}') AS genres
+           COALESCE(array_agg(DISTINCT g.name) FILTER (WHERE g.name IS NOT NULL), '{}') AS genres,
+           COALESCE(array_agg(DISTINCT mc.country_code) FILTER (WHERE mc.country_code IS NOT NULL), '{}') AS countries
     FROM watch_events we
     JOIN movies m ON m.id = we.movie_id
     LEFT JOIN movie_genres mg ON mg.movie_id = m.id
     LEFT JOIN genres g ON g.id = mg.genre_id
+    LEFT JOIN movie_countries mc ON mc.movie_id = m.id
     WHERE we.user_id = ${userId} AND we.movie_id IS NOT NULL
     GROUP BY we.id, m.id
   `;
@@ -55,13 +58,15 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
            we.watched_at, we.watched_at_precision AS precision,
            we.is_rewatch, we.source,
            s.episode_run_time AS fallback_runtimes,
-           COALESCE(array_agg(DISTINCT g.name) FILTER (WHERE g.name IS NOT NULL), '{}') AS genres
+           COALESCE(array_agg(DISTINCT g.name) FILTER (WHERE g.name IS NOT NULL), '{}') AS genres,
+           COALESCE(array_agg(DISTINCT sc.country_code) FILTER (WHERE sc.country_code IS NOT NULL), '{}') AS countries
     FROM watch_events we
     JOIN series s ON s.id = we.series_id
     LEFT JOIN seasons sn ON sn.series_id = we.series_id AND sn.season_number = we.season_number
     LEFT JOIN episodes e ON e.season_id = sn.id AND e.episode_number = we.episode_number
     LEFT JOIN series_genres sg ON sg.series_id = s.id
     LEFT JOIN genres g ON g.id = sg.genre_id
+    LEFT JOIN series_countries sc ON sc.series_id = s.id
     WHERE we.user_id = ${userId} AND we.series_id IS NOT NULL
     GROUP BY we.id, s.id, e.runtime
   `;
@@ -73,6 +78,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     runtimeMinutes: r.runtime,
     fallbackRuntimes: [],
     genres: r.genres,
+    countries: r.countries,
     year: r.year,
     watchedAt: r.watched_at,
     precision: r.precision,
@@ -87,6 +93,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     runtimeMinutes: r.episode_number !== null ? r.runtime : 0,
     fallbackRuntimes: r.episode_number !== null ? r.fallback_runtimes : [],
     genres: r.genres,
+    countries: r.countries,
     year: r.year,
     watchedAt: r.watched_at,
     precision: r.precision,

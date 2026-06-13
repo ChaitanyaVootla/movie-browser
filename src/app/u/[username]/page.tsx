@@ -5,14 +5,12 @@ import { Lock } from "lucide-react";
 import { getPublicProfile as getPublicProfileBase } from "@/server/actions/profile";
 import { PageMain } from "@/components/features/layout/page-main";
 import { AccentScope } from "@/components/features/profile/accent-scope";
+import { ProfileViewerProvider } from "@/components/features/profile/profile-viewer-context";
 import { ProfileHero } from "@/components/features/profile/profile-hero";
-import { FourFavorites } from "@/components/features/profile/four-favorites";
-import {
-  CurrentlyWatchingShelf,
-  PinnedLists,
-  ProfileReviews,
-  ProfileTaste,
-} from "@/components/features/profile/profile-modules";
+import { ProfileDashboard } from "@/components/features/profile/profile-dashboard";
+import { ProfileDashboardSwitch } from "@/components/features/profile/profile-dashboard-switch";
+import { ProfileSetupCard } from "@/components/features/profile/profile-setup-card";
+import { ProfileVisitorEmpty } from "@/components/features/profile/profile-visitor-empty";
 import { PAGE_PADDING_X, OVERLINE } from "@/lib/design";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
 import { truncateAtWord } from "@/lib/utils";
@@ -126,18 +124,37 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
     );
   }
 
+  const isEmptyProfile =
+    profile.fourFavorites.length === 0 &&
+    profile.reviews.length === 0 &&
+    profile.currentlyWatching.length === 0 &&
+    profile.pinnedLists.length === 0 &&
+    profile.topGenres.length === 0 &&
+    profile.topDecades.length === 0 &&
+    !profile.ratingsHistogram.some((n) => n > 0) &&
+    profile.counts.filmsWatched + profile.counts.episodesWatched === 0;
+
   return (
     <AccentScope accent={profile.accent}>
-      <article className="pb-12">
+      <ProfileViewerProvider username={profile.username}>
+        <article className="pb-12">
         <ProfileJsonLd profile={profile} />
         <ProfileHero profile={profile} />
 
-        <div className={`mx-auto w-full max-w-7xl ${PAGE_PADDING_X} pt-6 md:pt-8 space-y-8 md:space-y-10`}>
-          <FourFavorites favorites={profile.fourFavorites} />
-          <CurrentlyWatchingShelf items={profile.currentlyWatching} />
-          <ProfileTaste profile={profile} />
-          <PinnedLists lists={profile.pinnedLists} username={profile.username} />
-          <ProfileReviews reviews={profile.reviews} />
+        <div className={`profile-stagger mx-auto w-full max-w-7xl ${PAGE_PADDING_X} pt-5 md:pt-6 space-y-6 md:space-y-8`}>
+          <ProfileSetupCard
+            flags={{
+              hasBackdrop: profile.backdrop !== null,
+              hasFourFavorites: profile.fourFavorites.length > 0,
+              hasBio: Boolean(profile.bio),
+              hasLogged: profile.counts.filmsWatched + profile.counts.episodesWatched > 0,
+              hasReview: profile.reviews.length > 0,
+            }}
+          />
+          <ProfileVisitorEmpty displayName={profile.displayName} isEmpty={isEmptyProfile} />
+          <ProfileDashboardSwitch profile={profile}>
+            <ProfileDashboard profile={profile} />
+          </ProfileDashboardSwitch>
 
           {/* Reserved slot: phase-2 taste-compatibility module ("you're 87%
               compatible" + share card) renders here. Do not fill. */}
@@ -150,7 +167,8 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
             })}
           </p>
         </div>
-      </article>
+        </article>
+      </ProfileViewerProvider>
     </AccentScope>
   );
 }

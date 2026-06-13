@@ -1,6 +1,8 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
+import { getMovieImages, getSeriesImages, searchMulti } from "@/server/services/tmdb";
 import { requirePgUserId } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 import { prisma } from "@/server/db/postgres";
@@ -254,6 +256,49 @@ export async function updateProfileAction(
   }
 }
 
+const LayoutWidgetSchema = z.object({
+  id: z.string().min(1).max(64),
+  type: z.string().min(1).max(40),
+  x: z.number().int().min(0).max(48),
+  y: z.number().int().min(0).max(1000),
+  w: z.number().int().min(1).max(24),
+  h: z.number().int().min(1).max(24),
+  config: z.record(z.string(), z.unknown()).optional(),
+});
+const ProfileLayoutSchema = z.object({
+  v: z.literal(1),
+  cols: z.number().int().min(1).max(24),
+  widgets: z.array(LayoutWidgetSchema).max(40),
+});
+
+/** Persist the owner's customized widget-dashboard layout (metadata.profile.layout). */
+export async function updateProfileLayoutAction(input: { layout: unknown }): Promise<ActionResult> {
+  try {
+    const layout = ProfileLayoutSchema.parse(input.layout);
+    const userId = await requirePgUserId();
+    const user = await auditedTransaction(userId, async (tx) => {
+      const u = await tx.user.findUnique({
+        where: { id: userId },
+        select: { username: true, metadata: true },
+      });
+      const env = parseEnvelope(u?.metadata);
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          // Layout config values are validated JSON; cast past Prisma's strict
+          // InputJsonValue (the z.unknown() config poisons structural typing).
+          metadata: { ...env, profile: { ...(env.profile ?? {}), layout } } as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return u;
+    });
+    if (user?.username) revalidatePath(`/u/${user.username}`);
+    return { ok: true };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export async function setFourFavoritesAction(input: {
   items: { mediaType: TrackedMediaType; tmdbId: number }[];
 }): Promise<ActionResult> {
@@ -345,6 +390,46 @@ export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
   };
 }
 
+export interface BackdropTitleResult {
+  mediaType: TrackedMediaType;
+  tmdbId: number;
+  title: string;
+  year: string | null;
+}
+
+/**
+ * Title search for the backdrop picker — queries TMDB directly (not the local
+ * catalog), so a user can pick ANY movie/show for their backdrop even if it
+ * isn't hydrated locally. Pairs with getTitleImages' TMDB image fallback.
+ */
+export async function searchTitlesForBackdrop(query: string): Promise<BackdropTitleResult[]> {
+  const q = z.string().trim().min(1).max(100).parse(query);
+  try {
+    const res = await searchMulti(q);
+    const results = (res.results ?? []) as Array<Record<string, unknown>>;
+    return results
+      .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+      .slice(0, 8)
+      .map((r) => {
+        const isMovie = r.media_type === "movie";
+        const date = (isMovie ? r.release_date : r.first_air_date) as string | undefined;
+        return {
+          mediaType: isMovie ? ("movie" as const) : ("series" as const),
+          tmdbId: r.id as number,
+          title: (isMovie ? r.title : r.name) as string,
+          year: date ? date.slice(0, 4) : null,
+        };
+      })
+      .filter((r) => r.tmdbId && r.title);
+  } catch (error: unknown) {
+    userApiLogger.error({
+      action: "searchTitlesForBackdrop",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+}
+
 export async function getTitleImages(input: {
   mediaType: TrackedMediaType;
   tmdbId: number;
@@ -359,8 +444,27 @@ export async function getTitleImages(input: {
     take: 40,
     select: { filePath: true, type: true },
   });
-  return {
-    backdrops: rows.filter((r) => r.type === "BACKDROP").map((r) => r.filePath).slice(0, 12),
-    posters: rows.filter((r) => r.type === "POSTER").map((r) => r.filePath).slice(0, 12),
-  };
+  let backdrops = rows.filter((r) => r.type === "BACKDROP").map((r) => r.filePath).slice(0, 12);
+  let posters = rows.filter((r) => r.type === "POSTER").map((r) => r.filePath).slice(0, 12);
+
+  // The local `images` table is only populated for hydrated titles — most
+  // titles a user searches for their backdrop won't be in it, leaving the
+  // picker empty. Fall back to TMDB (cached) so ANY title shows real artwork.
+  if (backdrops.length === 0) {
+    try {
+      const tmdb =
+        v.mediaType === "movie"
+          ? await getMovieImages(v.tmdbId)
+          : await getSeriesImages(v.tmdbId);
+      backdrops = tmdb.backdrops.map((b) => b.file_path).slice(0, 12);
+      if (posters.length === 0) posters = tmdb.posters.map((p) => p.file_path).slice(0, 12);
+    } catch (error: unknown) {
+      userApiLogger.error({
+        action: "getTitleImages.tmdbFallback",
+        tmdbId: v.tmdbId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return { backdrops, posters };
 }

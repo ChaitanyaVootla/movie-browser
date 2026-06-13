@@ -18,6 +18,7 @@ colors:
   on-brand: oklch(0.1 0 0)
   border: oklch(1 0 0 / 10%)
   error: oklch(0.6 0.22 25)
+  success: oklch(0.72 0.17 152)
 typography:
   headline-display:
     fontFamily: Montserrat
@@ -144,6 +145,17 @@ Rules:
 - Exception: content rendered **on top of imagery** (hero backdrops, poster overlays,
   trailer modals) may use `text-white` / `bg-black/60` because imagery is not themed.
 - All color definitions live in OKLch in `globals.css`.
+
+State semantics (`{colors.error}` red / `{colors.success}` green) are the only
+non-monochrome, non-brand colors, and they exist solely for **go/stop feedback**:
+form validation, availability checks, destructive confirmation. They are
+**accent-independent** — defined once in the base light/dark blocks and NEVER
+overridden per `.accent-*`, so "available" always reads green and "error" always
+reads red regardless of the user's chosen accent (the brand accent itself can be
+red/green/blue, so it must never carry success/error meaning). Use `text-success`
+/ `text-destructive`; never repurpose `text-brand` for a positive/negative state.
+Success is a calm, slightly-desaturated green (not neon) so it sits quietly in the
+OLED canvas. Do not use either for decoration or large fills.
 
 ## Typography
 
