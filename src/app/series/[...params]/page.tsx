@@ -64,7 +64,9 @@ import {
   SeriesTrackingProvider,
   SeriesProgressPanel,
 } from "@/components/features/tracking";
+import NextLink from "next/link";
 import { ReviewsSection } from "@/components/features/reviews";
+import { DiscussionSection } from "@/components/features/discussion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
@@ -552,7 +554,36 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           className="mt-8 md:mt-12"
         />
       </Suspense>
+
+      {/* Discussion — series-level anchor; links to per-episode threads.
+          Anon tier + locked teaser are ISR-safe; gated tier hydrates client-side. */}
+      <Suspense fallback={null}>
+        <DiscussionSection
+          anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
+          starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
+          className="mt-8 md:mt-12"
+        >
+          <EpisodeThreadsLink seriesId={series.id} seriesName={series.name} />
+        </DiscussionSection>
+      </Suspense>
     </SeriesTrackingProvider>
+  );
+}
+
+function EpisodeThreadsLink({
+  seriesId,
+  seriesName,
+}: {
+  seriesId: number;
+  seriesName: string;
+}) {
+  return (
+    <NextLink
+      href={`${getMediaPath("series", seriesId, seriesName)}/discuss/s1e1`}
+      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-10"
+    >
+      Browse per-episode discussions →
+    </NextLink>
   );
 }
 

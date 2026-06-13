@@ -64,6 +64,7 @@ import {
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { ReviewsSection } from "@/components/features/reviews";
+import { DiscussionSection } from "@/components/features/discussion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Collection, Movie } from "@/types";
@@ -533,6 +534,16 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
           className="mt-8 md:mt-12"
           // Exclude movies from the same collection (they're shown in CollectionSection above)
           excludeCollectionId={(movie.belongs_to_collection as { id?: number } | null)?.id}
+        />
+      </Suspense>
+
+      {/* Discussion — anon tier + locked teaser are progress-independent (ISR-safe);
+          gated tier hydrates client-side. */}
+      <Suspense fallback={null}>
+        <DiscussionSection
+          anchor={{ type: "movie", movieId: movie.id }}
+          starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
+          className="mt-8 md:mt-12"
         />
       </Suspense>
     </>
