@@ -81,6 +81,8 @@ export function ModerationTab() {
   const [reports, setReports] = useState<ModReport[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // `refresh` adds the spinner for event-handler re-fetches (after a moderation
+  // action), where synchronous setState is fine.
   const refresh = useCallback(async () => {
     setLoading(true);
     const [queueRes, reportsRes] = await Promise.all([
@@ -92,9 +94,24 @@ export function ModerationTab() {
     setLoading(false);
   }, []);
 
+  // Mount load: all setState lives inside the async IIFE closure (post-await),
+  // which the set-state-in-effect rule does not flag. `loading` inits to true.
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let cancelled = false;
+    void (async () => {
+      const [queueRes, reportsRes] = await Promise.all([
+        fetch("/api/admin/moderation?view=queue"),
+        fetch("/api/admin/moderation?view=reports"),
+      ]);
+      if (cancelled) return;
+      if (queueRes.ok) setComments(((await queueRes.json()) as { comments: ModComment[] }).comments);
+      if (reportsRes.ok) setReports(((await reportsRes.json()) as { reports: ModReport[] }).reports);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const resolveReport = async (reportId: number, resolution: "RESOLVED" | "DISMISSED") => {
     const ok = await postAction({ action: "resolve_report", reportId, resolution });
