@@ -105,12 +105,20 @@ Forrest Gump (13), The Matrix (603); Breaking Bad (1396), Game of Thrones
 ## 2. Run the app (pointed at the dev DB)
 
 ```bash
-DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' yarn dev
+DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' \
+  USER_DATA_SOURCE=postgres \
+  ENABLE_MONGODB_ENRICHMENT=false \
+  yarn dev
 ```
 
 > The single most important step: **dev MUST point at :5436**, not the
 > prod-tunnel `.env` DB. If you run a bare `yarn dev`, you will be looking at
 > production data and none of the demo seed.
+>
+> **`USER_DATA_SOURCE=postgres` is required** — without it, every social feature
+> throws `Social features require USER_DATA_SOURCE=postgres` (a guard in
+> `requirePgUserId`; prod sets it, local `.env` may not). `ENABLE_MONGODB_ENRICHMENT=false`
+> keeps the app off any Mongo path.
 
 Open http://localhost:3000 (or whatever port Next prints).
 
