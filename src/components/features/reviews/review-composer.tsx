@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useMobile } from "@/hooks/use-mobile";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { IS_IOS } from "@/lib/device";
 import { submitReviewAction } from "@/server/actions/reviews";
 import type { OwnReviewDTO, TrackedMediaType } from "@/types/social";
 
@@ -127,7 +128,7 @@ export function ReviewComposer({
   }`;
 
   return isMobile ? (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={IS_IOS}>
       <DrawerContent>
         <DrawerHeader className="text-left">
           <DrawerTitle className="text-lg font-semibold line-clamp-1">{heading}</DrawerTitle>

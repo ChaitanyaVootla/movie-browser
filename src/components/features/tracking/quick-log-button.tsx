@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
+import { IS_IOS } from "@/lib/device";
 import { useMobile } from "@/hooks/use-mobile";
 import { useSession } from "next-auth/react";
 import { useLoginDialog } from "@/components/features/auth";
@@ -151,7 +152,7 @@ export function QuickLogButton({
       )}
 
       {isMobile ? (
-        <Drawer open={open} onOpenChange={setOpen}>
+        <Drawer open={open} onOpenChange={setOpen} repositionInputs={IS_IOS}>
           <DrawerContent>
             <DrawerHeader className="text-left">
               <DrawerTitle className="text-lg font-semibold line-clamp-1">

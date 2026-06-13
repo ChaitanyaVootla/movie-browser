@@ -9,6 +9,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { AISparkIcon } from "./ai-icon";
 import { cn, getMediaPath } from "@/lib/utils";
 import { CDN_IMAGE_BASE } from "@/lib/constants";
+import { IS_IOS } from "@/lib/device";
 import {
   parseContent,
   parseMediaTags,
@@ -31,20 +32,6 @@ interface PromptConfig {
 
 const CARD_WIDTH = 120;
 const CARD_HEIGHT = 180;
-
-/**
- * Vaul's `repositionInputs` compensates for a keyboard that OVERLAYS the page,
- * which is only how iOS behaves (it ignores `interactive-widget`). On Android
- * the app's `interactive-widget=resizes-content` (root viewport export) makes
- * the browser shrink the layout viewport instead, so the fixed drawer already
- * tracks the keyboard — vaul's extra `bottom: keyboardHeight` offset then
- * floated the input a full keyboard-height above the keyboard. Enable vaul's
- * handling ONLY where the platform needs it (iOS, incl. iPadOS desktop-UA).
- */
-const IS_IOS =
-  typeof navigator !== "undefined" &&
-  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1));
 
 // =============================================================================
 // Utilities (shared with assistant-floaty)

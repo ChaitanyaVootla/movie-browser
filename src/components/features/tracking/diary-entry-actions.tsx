@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMobile } from "@/hooks/use-mobile";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { IS_IOS } from "@/lib/device";
 import { deleteWatchEventAction, updateWatchEventAction } from "@/server/actions/tracking";
 import type { DiaryEntryDTO } from "@/types/social";
 import { LogWatchForm, type LogWatchFormValues } from "./log-watch-form";
@@ -117,7 +118,7 @@ export function DiaryEntryActions({ entry }: DiaryEntryActionsProps) {
       </DropdownMenu>
 
       {isMobile ? (
-        <Drawer open={editing} onOpenChange={setEditing}>
+        <Drawer open={editing} onOpenChange={setEditing} repositionInputs={IS_IOS}>
           <DrawerContent>
             <DrawerHeader className="text-left">
               <DrawerTitle className="text-lg font-semibold line-clamp-1">
