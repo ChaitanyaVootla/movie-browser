@@ -257,6 +257,24 @@ jobs:
               echo "UGC sql unchanged -> skip"
             fi
 
+            echo "[3.6/5] Audit triggers (gated)..."
+            # Gate on schema + audit file COMBINED: a `prisma db push` table
+            # recreation silently drops TRIGGERS, so a schema change must
+            # re-fire this even when 05-audit.sql is unchanged. File is
+            # idempotent (CREATE OR REPLACE FUNCTION + DROP TRIGGER IF EXISTS +
+            # CREATE TRIGGER). See .claude/rules/audit-log.md.
+            AUDIT_HASH=$(cat postgres/init/05-audit.sql prisma/schema.prisma | md5sum | cut -d' ' -f1)
+            if [ "$AUDIT_HASH" != "$(cat .last-audit-hash 2>/dev/null)" ]; then
+              echo "audit sql or schema changed -> apply"
+              docker compose exec -T postgres \
+                psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=0 \
+                < postgres/init/05-audit.sql 2>&1 | tail -8 \
+                && echo "$AUDIT_HASH" > .last-audit-hash \
+                || echo "audit triggers step warning (non-fatal)"
+            else
+              echo "audit sql unchanged -> skip"
+            fi
+
             echo "[4/5] Creating data directories..."
             mkdir -p data/enriched logs
             mkdir -p .cache/{youtube-channels,youtube,person,search,discover,movie,series,images}

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requirePgUserId } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 import { prisma } from "@/server/db/postgres";
+import { auditedTransaction } from "@/server/db/audit";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 
 const RESERVED = new Set(["admin", "api", "settings", "import", "export", "me", "u"]);
@@ -21,7 +22,10 @@ export async function claimUsername(input: z.infer<typeof ClaimUsernameSchema>) 
       return { success: false as const, error: "Username not available" };
     }
     const userId = await requirePgUserId();
-    await prisma.$transaction(async (tx) => {
+    // Run inside auditedTransaction so the username change records BOTH the
+    // typed username_history row AND a generic audit_log row attributed to this
+    // user (the users-table UPDATE trigger fires with audit.actor_id = userId).
+    await auditedTransaction(userId, async (tx) => {
       // Read the CURRENT handle before overwriting it.
       const current = await tx.user.findUnique({
         where: { id: userId },

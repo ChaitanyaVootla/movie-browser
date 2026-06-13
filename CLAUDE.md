@@ -199,6 +199,7 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 | `type-safety.md` | `**/*.ts`, `**/*.tsx` | No `any`, type guards, Zod |
 | `infrastructure.md` | `terraform/**`, `docker-compose.yml`, `deploy-next.sh`, workflows | EC2, Docker, CI/CD, IAM, memory budget |
 | `analytics-system.md` | `analytics/**`, `use-analytics.ts`, `api/analytics/**`, `admin/analytics/**` | Event tracking, cost tracking, ClickHouse queries, dashboard |
+| `audit-log.md` | `postgres/init/05-audit.sql`, `server/db/audit.ts`, `audit.test.ts`, `apply-audit.ts`, `deploy-ec2.yml` | Generic trigger-based `audit_log` backbone: opt-in per table, actor capture via `auditedTransaction`, NEVER-audit-catalog rule, no-FK-on-actor rationale, hash-gated deploy |
 | `performance.md` | `app/**`, `server/**`, `hydration/**`, `search/**`, `docker-compose.yml`, workflows | Diagnosing/fixing/testing perf: measure-first playbook, ISR, non-blocking hydration, ClickHouse CPU cap, deploy gotchas, cold-start stampede + freeze recovery |
 | `cdn.md` | `terraform/cloudfront*`, `Caddyfile`, `public/robots.txt`, `next.config.mjs` | CloudFront in front of the origin: topology, the RSC/Set-Cookie/cookie/image/server-action-skew/geo/Accept-Encoding/stale-if-error footguns, edge bot-shedding, origin lockdown (unresolved), cost (Cloudflare-vs-CloudFront) |
 

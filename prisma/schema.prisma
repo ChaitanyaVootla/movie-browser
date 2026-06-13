@@ -1049,6 +1049,35 @@ model UsernameHistory {
   @@map("username_history")
 }
 
+// Generic, trigger-based audit backbone (industry-standard "if_modified"
+// pattern). Written by the audit.if_modified() plpgsql trigger (see
+// postgres/init/05-audit.sql) on an OPT-IN set of low-churn, human-meaningful
+// tables — NEVER on catalog/hydration tables (movies/series/etc.), which are
+// delete+reinserted en masse and would flood this log. Coexists with the typed
+// `username_history` shadow table. See .claude/rules/audit-log.md.
+//
+// actorId has NO @relation / FK on purpose: the audit trail must OUTLIVE the
+// actor's user row (a deleted user's actions must still be attributable), and a
+// cascade/restrict on user deletion would either erase or block the trail. It
+// is captured at mutation time via `SET LOCAL "audit.actor_id"` (see
+// src/server/db/audit.ts) and degrades gracefully to NULL when unset.
+model AuditLog {
+  id             BigInt   @id @default(autoincrement())
+  tableName      String   @map("table_name")
+  rowId          String   @map("row_id")
+  operation      String
+  changedAt      DateTime @default(now()) @map("changed_at")
+  actorId        Int?     @map("actor_id")
+  oldData        Json?    @map("old_data")
+  newData        Json?    @map("new_data")
+  changedColumns String[] @default([]) @map("changed_columns")
+
+  @@index([tableName, rowId, changedAt(sort: Desc)])
+  @@index([actorId, changedAt(sort: Desc)])
+  @@index([changedAt(sort: Desc)])
+  @@map("audit_log")
+}
+
 // Auth.js adapter models (required for PrismaAdapter at GA)
 model Account {
   id                String  @id @default(cuid())
