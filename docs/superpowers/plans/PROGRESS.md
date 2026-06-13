@@ -1,20 +1,28 @@
 # Social & Virality Roadmap — Implementation Progress / RESUME HERE
 
-**Last updated:** 2026-06-13 ~11:30 IST
+**Last updated:** 2026-06-13 (docs sync pass)
 **Branch:** `feat/social-phase0` (off `next`). **Local `master` ref = rolling checkpoint.**
-**Current HEAD:** `e649ebc` (also pushed to local `master`). **PHASE 1 COMPLETE — awaiting user review.**
+**Status:** **PHASE 0 + PHASE 1 COMPLETE, E2E-validated, post-review hardening done — READY TO TEST.**
+Phases 2–4 are PLANNED, NOT STARTED (awaiting explicit user GO). NOT yet deployed to prod.
 
 This is the authoritative resume point for the autonomous overnight implementation
 of the Social & Virality Roadmap. If a session fails, read this first, then continue
 from "NEXT STEPS".
 
+**Reference docs now in sync with the code:**
+- `.claude/rules/social-features.md` — master engineering reference (scope, hard
+  invariants, file map, local-dev, pre-deploy checklist).
+- `.claude/rules/audit-log.md` — the audit backbone.
+- `docs/LOCAL_REVIEW.md` — click-through local review kit (dev DB :5436 + seed + test-auth).
+- `CLAUDE.md` — Architecture Patterns "Social & Community Features" subsection + datastore note.
+
 ---
 
-## ⏸ USER DIRECTIVE (2026-06-13 ~10:30): PAUSE AFTER PHASE 1
-Parallelize remaining Phase-1 work as much as safely possible (isolated git
-worktrees for disjoint task sets — never two agents in one working tree). When
-Phase 1 is COMPLETE + Fable-reviewed + verified, **STOP and present for user
-review. Do NOT auto-start Phase 2.** Resume Phase 2/3-4 only on explicit go.
+## ⏸ USER DIRECTIVE (2026-06-13 ~10:30): PAUSE AFTER PHASE 1 — NOW HONORED
+Phase 1 is COMPLETE + Fable-reviewed + verified. **STOPPED, presented for user
+review.** Do NOT auto-start Phase 2 — resume Phase 2/3-4 only on explicit GO.
+A future session is doing UI/UX polish on the shipped Phase 0/1 surfaces; it must
+honor the hard invariants in `.claude/rules/social-features.md`.
 
 ## Guardrails (NON-NEGOTIABLE)
 
@@ -50,9 +58,9 @@ review. Do NOT auto-start Phase 2.** Resume Phase 2/3-4 only on explicit go.
 |---|---|
 | `2026-06-12-phase0-backend.md` (24 tasks) | ✅ COMPLETE + reviewed + fixed |
 | `2026-06-12-phase0-ui.md` (16 tasks) | ✅ COMPLETE (all 16) — prod build passes |
-| `2026-06-12-phase1-discussion.md` (18 tasks) | ✅ COMPLETE + reviewed + fixed — build green |
-| `2026-06-12-phase2-identity-artifacts.md` (15 tasks) | ⏳ not started |
-| `2026-06-12-phase3-4-circles-clubs-ai.md` (19 tasks) | ⏳ not started |
+| `2026-06-12-phase1-discussion.md` (18 tasks) | ✅ COMPLETE + reviewed + fixed + E2E-validated — build green |
+| `2026-06-12-phase2-identity-artifacts.md` (15 tasks) | ⏳ PLANNED, not started (awaiting user GO) |
+| `2026-06-12-phase3-4-circles-clubs-ai.md` (19 tasks) | ⏳ PLANNED, not started (awaiting user GO) |
 
 Spec (source of truth): `docs/superpowers/specs/2026-06-12-social-virality-roadmap-design.md`.
 
@@ -108,15 +116,19 @@ schema-only). Pending: a final Fable review of the full phase-0 UI before declar
 
 0. **PHASE 0 SIGNED OFF** — UI review done (1 SHOULD-FIX applied: IS_IOS drawer gate,
    `5d6f403`). Backend 24/24 + UI 16/16, prod build green, edge-cache invariant verified.
-1. **Phase 1 IN PROGRESS** — batches: B1 = Tasks 1–5 (schema, spoiler gate, mention
-   parser, rate limit, AI comment gate); B2 = Tasks 6–9 (read path, write path,
-   notifications service + web push, notifications UI); B3 = Tasks 10–13 (discussion
-   UI, wire into detail pages, proxy authority for discuss URLs, per-episode SEO
-   pages); B4 = Tasks 14–18 (AI thread summary, block/mute UI+enforcement, admin mod
-   queue, content policy page, final verification sweep). Fable review between batches.
-2. **Phase 1 (reference)** (`2026-06-12-phase1-discussion.md`, 18 tasks): spoiler-gated comments,
-   AI gate, per-episode SEO pages, notifications + web push, moderation. Implement in
-   batches, review between, same rules.
+1. **PHASE 1 COMPLETE** — all 18 tasks done, reviewed + fixed, build green, E2E-validated:
+   spoiler-gated threaded comments, AI submit gate (fail-closed→PENDING_REVIEW),
+   per-episode SEO discuss pages (`DiscussionForumPosting` JSON-LD), notifications +
+   VAPID-gated web push, blocks/mute enforcement, admin moderation queue + reports,
+   AI thread summaries (click-gated + cached), content policy page.
+2. **CURRENT FOCUS: pre-deploy + UI/UX polish.** This branch is ready-to-test but NOT
+   deployed. Before prod, walk the **pre-deploy checklist in `.claude/rules/social-features.md`**
+   (hash-gated 04-ugc + 05-audit SQL steps — confirmed in `deploy-ec2.yml`; AI
+   kill-switch consideration; VAPID keys; single-path CloudFront invalidation hooks
+   for privacy flips / moderation removals — currently only a `DEPLOY FOLLOW-UP`
+   marker in `profile.ts`, not wired; `ENABLE_TEST_AUTH` must NEVER be set in prod).
+   A future session does UI/UX improvements on the shipped surfaces — it must honor
+   the hard invariants in that rule (edge-cache, spoiler-gate, natural keys, AI cost-safety).
 6. **Phase 2** (`2026-06-12-phase2-identity-artifacts.md`, 15 tasks): lists UI, OG
    share cards, Wrapped, taste compatibility, Feed v1, user search. NOTE: this plan
    was written less granularly — re-read it before executing; it adds schema (Task 1:
