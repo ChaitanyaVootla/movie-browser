@@ -10,6 +10,12 @@ from "NEXT STEPS".
 
 ---
 
+## ⏸ USER DIRECTIVE (2026-06-13 ~10:30): PAUSE AFTER PHASE 1
+Parallelize remaining Phase-1 work as much as safely possible (isolated git
+worktrees for disjoint task sets — never two agents in one working tree). When
+Phase 1 is COMPLETE + Fable-reviewed + verified, **STOP and present for user
+review. Do NOT auto-start Phase 2.** Resume Phase 2/3-4 only on explicit go.
+
 ## Guardrails (NON-NEGOTIABLE)
 
 - **NO push to origin / any remote.** Pushing `next` auto-deploys to prod. All work
