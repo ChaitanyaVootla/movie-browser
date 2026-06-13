@@ -3,10 +3,13 @@
 import { z } from "zod";
 import { requirePgUserId } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/server/db/postgres";
 import {
   blockUser as blockUserQuery,
   unblockUser as unblockUserQuery,
   getBlockList,
+  getBlockState,
   assertNotBlocked,
   BlockedError,
 } from "@/server/db/postgres/social/blocks";
@@ -61,6 +64,49 @@ export async function getMyBlocks() {
     return { success: true as const, blocks };
   } catch (error: unknown) {
     return actionError("getMyBlocks", error);
+  }
+}
+
+export interface ProfileModerationStateDTO {
+  /** Resolved target user id, or null when not signed in / no such user. */
+  targetUserId: number | null;
+  /** True when the viewer is looking at their own profile (no controls). */
+  isOwner: boolean;
+  /** The viewer's outbound block/mute against this profile, if any. */
+  blockState: "BLOCK" | "MUTE" | null;
+}
+
+/**
+ * Resolves the viewer's moderation relationship to a profile, by username.
+ * Called client-side from the profile page so block state is NEVER baked into
+ * the ISR-cached HTML (roadmap §4.1.8: viewer-specific state hydrates here).
+ */
+export async function getProfileModerationState(
+  username: string
+): Promise<ProfileModerationStateDTO> {
+  const fallback: ProfileModerationStateDTO = {
+    targetUserId: null,
+    isOwner: false,
+    blockState: null,
+  };
+  try {
+    const session = await auth();
+    if (!session?.user) return fallback;
+    const viewerId = await requirePgUserId();
+    const target = await prisma.user.findFirst({
+      where: { username: { equals: z.string().min(1).max(30).parse(username), mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!target) return fallback;
+    if (target.id === viewerId) return { targetUserId: target.id, isOwner: true, blockState: null };
+    const blockState = await getBlockState(viewerId, target.id);
+    return { targetUserId: target.id, isOwner: false, blockState };
+  } catch (error: unknown) {
+    userApiLogger.error({
+      action: "getProfileModerationState",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return fallback;
   }
 }
 

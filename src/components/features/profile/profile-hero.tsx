@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HeroBackdropShell } from "@/components/features/media/hero-backdrop-shell";
 import { getMediaPath } from "@/lib/utils";
 import type { PublicProfileDTO } from "@/types/social";
+import { UserModerationMenu } from "@/components/features/discussion";
 import { FollowButton } from "./follow-button";
 import { OwnerActions } from "./owner-actions";
 
@@ -59,6 +60,7 @@ export function ProfileHero({ profile }: { profile: PublicProfileDTO }) {
         <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
           <FollowButton username={profile.username} />
           <OwnerActions username={profile.username} />
+          <UserModerationMenu username={profile.username} />
           <span className="text-xs font-medium text-white/70">
             <strong className="text-white">{profile.counts.followers.toLocaleString()}</strong>{" "}
             followers ·{" "}

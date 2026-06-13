@@ -80,7 +80,11 @@ export type ActionType =
   // Phase 1 (discussion comments)
   | "comment_post"
   | "comment_report"
-  | "thread_summarize";
+  | "thread_summarize"
+  // Phase 1 (safety: block/mute)
+  | "block_user"
+  | "mute_user"
+  | "unblock_user";
 
 // =============================================================================
 // Query Types (AI)

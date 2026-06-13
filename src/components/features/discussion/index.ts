@@ -10,3 +10,4 @@ export { MentionText } from "./mention-text";
 export { ReportDialog } from "./report-dialog";
 export { ThreadSummaryCard } from "./thread-summary-card";
 export { EpisodePicker } from "./episode-picker";
+export { UserModerationMenu } from "./user-moderation-menu";

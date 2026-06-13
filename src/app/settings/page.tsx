@@ -6,6 +6,7 @@ import { getOwnProfileSettings } from "@/server/actions/profile";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import {
+  BlockedUsersSettings,
   FourFavoritesEditor,
   PrivacySettings,
   ProfileEditor,
@@ -60,6 +61,11 @@ export default async function SettingsPage() {
         <section className="space-y-4">
           <SectionHeading>Privacy</SectionHeading>
           <PrivacySettings defaults={settings.privacy} />
+        </section>
+
+        <section className="space-y-4">
+          <SectionHeading>Blocked &amp; muted</SectionHeading>
+          <BlockedUsersSettings />
         </section>
 
         <section className="space-y-4">

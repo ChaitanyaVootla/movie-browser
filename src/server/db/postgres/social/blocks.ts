@@ -93,3 +93,15 @@ export async function getBlockList(blockerId: number) {
     include: { blocked: { select: { id: true, username: true, name: true, image: true } } },
   });
 }
+
+/** The viewer's own outbound block/mute against a target, for menu state. */
+export async function getBlockState(
+  blockerId: number,
+  blockedId: number
+): Promise<BlockType | null> {
+  const row = await prisma.block.findUnique({
+    where: { blockerId_blockedId: { blockerId, blockedId } },
+    select: { type: true },
+  });
+  return row?.type ?? null;
+}
