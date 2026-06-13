@@ -18,6 +18,8 @@ import {
   ChevronRight,
   Bookmark,
   Download,
+  NotebookPen,
+  BarChart3,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { signOut } from "next-auth/react";
@@ -63,6 +65,8 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
   const menuItems = isAuthenticated
     ? [
         { href: "/watchlist", label: "Watchlist", icon: List },
+        { href: "/diary", label: "Diary", icon: NotebookPen },
+        { href: "/stats", label: "Stats", icon: BarChart3 },
         { href: "/watched", label: "Watched", icon: Eye },
         { href: "/ratings", label: "My Ratings", icon: Star },
         { href: "/settings", label: "Settings", icon: Settings },

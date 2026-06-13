@@ -14,6 +14,8 @@ import {
   Monitor,
   LayoutGrid,
   LayoutList,
+  NotebookPen,
+  BarChart3,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -162,6 +164,20 @@ export function UserMenu({ className }: UserMenuProps) {
           <Link href="/ratings" className="cursor-pointer">
             <Star className="mr-2 h-4 w-4" />
             <span>My Ratings</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href="/diary" className="cursor-pointer">
+            <NotebookPen className="mr-2 h-4 w-4" />
+            <span>Diary</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href="/stats" className="cursor-pointer">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            <span>Stats</span>
           </Link>
         </DropdownMenuItem>
 
