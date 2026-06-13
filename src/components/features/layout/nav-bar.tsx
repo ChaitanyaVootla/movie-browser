@@ -8,6 +8,7 @@ import { Search, Sparkles, Compass, Shield, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountrySelector } from "./country-selector";
 import { UserMenu, LoginDialog, useLoginDialog, SettingsMenu } from "@/components/features/auth";
+import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { useSearch } from "@/components/features/search";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -188,7 +189,10 @@ export function NavBar() {
 
             {/* Auth: User Menu with theme toggle, or Settings + Sign In for non-auth */}
             {isAuthenticated ? (
-              <UserMenu />
+              <>
+                <NotificationBell />
+                <UserMenu />
+              </>
             ) : (
               <>
                 {/* Settings dropdown for non-authenticated users */}

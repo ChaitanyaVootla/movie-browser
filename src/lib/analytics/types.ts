@@ -72,7 +72,11 @@ export type ActionType =
   | "profile_customize"
   | "four_favorites_edit"
   | "import_start"
-  | "export_data";
+  | "export_data"
+  // Phase 1 (discussion notifications)
+  | "notification_open"
+  | "push_enable"
+  | "push_disable";
 
 // =============================================================================
 // Query Types (AI)

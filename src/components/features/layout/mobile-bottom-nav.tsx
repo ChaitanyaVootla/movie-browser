@@ -20,6 +20,7 @@ import {
   Download,
   NotebookPen,
   BarChart3,
+  Bell,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { signOut } from "next-auth/react";
@@ -64,6 +65,7 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
 
   const menuItems = isAuthenticated
     ? [
+        { href: "/notifications", label: "Notifications", icon: Bell },
         { href: "/watchlist", label: "Watchlist", icon: List },
         { href: "/diary", label: "Diary", icon: NotebookPen },
         { href: "/stats", label: "Stats", icon: BarChart3 },
