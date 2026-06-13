@@ -76,7 +76,11 @@ export type ActionType =
   // Phase 1 (discussion notifications)
   | "notification_open"
   | "push_enable"
-  | "push_disable";
+  | "push_disable"
+  // Phase 1 (discussion comments)
+  | "comment_post"
+  | "comment_report"
+  | "thread_summarize";
 
 // =============================================================================
 // Query Types (AI)
