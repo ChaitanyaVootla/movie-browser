@@ -1028,6 +1028,7 @@ model User {
   reportsFiled       Report[]
   blocksMade         Block[]          @relation("blocker")
   blocksReceived     Block[]          @relation("blocked")
+  pushSubscriptions  PushSubscription[]
 
   @@map("users")
 }
@@ -1472,6 +1473,40 @@ model Block {
   @@unique([blockerId, blockedId])
   @@index([blockedId])
   @@map("blocks")
+}
+
+// Web-push subscriptions (phase 1). One row per browser endpoint.
+model PushSubscription {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// Cached AI thread summaries (phase 1). Keyed by anchor + the viewer's
+// spoiler-scope bucket so a summary is only ever served to viewers whose
+// visible-comment set is a superset of its input.
+model ThreadSummary {
+  id              Int      @id @default(autoincrement())
+  anchorKey       String   @map("anchor_key") // "movie:603" | "series:1396" | "series:1396:s2e5"
+  scopeKey        String   @map("scope_key")  // "none" | "watched" | "completed" | "s2e5"
+  summary         String   @db.Text
+  commentCount    Int      @map("comment_count")
+  newestCommentId Int      @map("newest_comment_id")
+  modelId         String?  @map("model_id")
+  generatedAt     DateTime @default(now()) @map("generated_at")
+
+  @@unique([anchorKey, scopeKey])
+  @@map("thread_summaries")
 }
 
 // =============================================================================
