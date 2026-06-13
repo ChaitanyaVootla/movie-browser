@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { MediaActions } from "./media-actions";
+import { ScoreRating } from "./score-rating";
 import { TrailerModal, type TrailerModalData } from "@/components/features/home/trailer-modal";
 import { QuickTake } from "./quick-take";
 import { QuickLogButton } from "@/components/features/tracking/quick-log-button";
@@ -60,6 +61,8 @@ export function MediaActionBar({
               onPlayTrailer={() => setShowTrailer(true)}
               variant="hero"
             />
+            {/* Connoisseur 1–10 score (half-stars); sits beside the thumbs */}
+            <ScoreRating itemId={itemId} itemType={mediaType === "movie" ? "movie" : "series"} />
             {/* Diary quick-log (date defaults today) */}
             <QuickLogButton
               mediaType={mediaType === "movie" ? "movie" : "series"}

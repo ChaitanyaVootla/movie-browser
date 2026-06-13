@@ -34,6 +34,7 @@ export type ActionType =
   | "rate_like"
   | "rate_dislike"
   | "rate_remove"
+  | "rate_score"
   | "mark_watched"
   | "unmark_watched"
   | "watch_click"
