@@ -37,20 +37,31 @@ export function getOpenReports(take = 100) {
   });
 }
 
-/** Approve a held/flagged comment → publish it. */
-export function approveComment(commentId: number): Promise<{ id: number }> {
-  return prisma.comment.update({
-    where: { id: commentId },
+/**
+ * Approve a held/flagged comment → publish it. Guarded transition: only
+ * PENDING_REVIEW/FLAGGED may be approved, so a REMOVED comment can never be
+ * resurrected (nor a replayed request re-publish one). No-op count=0 throws.
+ */
+export async function approveComment(commentId: number): Promise<{ count: number }> {
+  const result = await prisma.comment.updateMany({
+    where: { id: commentId, status: { in: ["PENDING_REVIEW", "FLAGGED"] } },
     data: { status: "PUBLISHED" },
-    select: { id: true },
   });
+  if (result.count === 0) {
+    throw new Error("Comment is not in an approvable state");
+  }
+  return result;
 }
 
-/** Remove a comment (moderator takedown). */
+/**
+ * Remove a comment (moderator takedown). Scrubs the body on removal
+ * (invariant 4: removal = scrub), keeping aiLabels for the moderation audit
+ * trail. The row/thread structure survives so replies aren't orphaned.
+ */
 export function removeComment(commentId: number): Promise<{ id: number }> {
   return prisma.comment.update({
     where: { id: commentId },
-    data: { status: "REMOVED" },
+    data: { status: "REMOVED", body: "" },
     select: { id: true },
   });
 }

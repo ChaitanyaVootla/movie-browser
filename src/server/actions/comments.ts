@@ -249,6 +249,10 @@ export async function editComment(
           seasonNumber: existing.seasonNumber,
           episodeNumber: existing.episodeNumber,
         };
+    // Rate-limit edits too: the re-gate below is a Bedrock call, so unbounded
+    // edits would be an LLM-cost vector (createComment is already limited).
+    const rate = await checkCommentRateLimit(userId);
+    if (!rate.ok) return { ok: false, message: rate.message };
     const title = (await getAnchorTitle(anchor)) ?? "";
     // Re-gate edits for toxicity (no scope-suggestion round-trip on edit —
     // the author explicitly sets scope here).
