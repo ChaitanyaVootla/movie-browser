@@ -21,10 +21,16 @@ export interface UpsertReviewData {
   aiLabels?: Prisma.InputJsonValue | null;
 }
 
+/**
+ * Persisted review row returned to the action layer (Task 24 bridge consumes
+ * the full row to build OwnReviewDTO without a re-query).
+ */
+export type UserReviewRow = Awaited<ReturnType<typeof prisma.userReview.create>>;
+
 export async function upsertUserReview(
   userId: number,
   data: UpsertReviewData
-): Promise<{ id: number }> {
+): Promise<UserReviewRow> {
   const common = {
     body: data.body,
     containsSpoilers: data.containsSpoilers,
@@ -39,7 +45,6 @@ export async function upsertUserReview(
       where: { userId_movieId: { userId, movieId: data.movieId } },
       create: { userId, movieId: data.movieId, ...common },
       update: { ...common, editedAt: new Date() },
-      select: { id: true },
     });
     return review;
   }
@@ -55,27 +60,24 @@ export async function upsertUserReview(
     select: { id: true },
   });
   if (existing) {
-    await prisma.userReview.update({
+    return prisma.userReview.update({
       where: { id: existing.id },
       data: { ...common, editedAt: new Date() },
     });
-    return existing;
   }
   try {
     return await prisma.userReview.create({
       data: { ...seriesWhere, ...common },
-      select: { id: true },
     });
   } catch (error: unknown) {
     // Raced the NULLS NOT DISTINCT unique: fall back to update.
     if (isPrismaError(error) && error.code === "P2002") {
       const raced = await prisma.userReview.findFirst({ where: seriesWhere, select: { id: true } });
       if (raced) {
-        await prisma.userReview.update({
+        return prisma.userReview.update({
           where: { id: raced.id },
           data: { ...common, editedAt: new Date() },
         });
-        return raced;
       }
     }
     throw error;

@@ -65,3 +65,48 @@ export async function listImportJobs() {
     return actionError("listImportJobs", error);
   }
 }
+
+// ---------------------------------------------------------------------------
+// UI contract bridge (Appendix A) — Task 24
+// ---------------------------------------------------------------------------
+
+import type { ImportJobDTO } from "@/types/social";
+import type { ImportJob } from "@prisma/client";
+
+interface StoredImportStats {
+  rowsTotal: number;
+  imported: number;
+  skipped: number;
+  errors: { row: number; reason: string }[];
+}
+
+function toImportJobDTO(job: ImportJob): ImportJobDTO {
+  const stats = (job.stats ?? null) as StoredImportStats | null;
+  return {
+    id: job.id,
+    source: job.source,
+    status: job.status,
+    stats: stats
+      ? { ...stats, processed: stats.imported + stats.skipped + stats.errors.length }
+      : null,
+    createdAt: job.createdAt.toISOString(),
+    completedAt: job.completedAt?.toISOString() ?? null,
+  };
+}
+
+export async function startImportAction(
+  formData: FormData
+): Promise<{ ok: true; jobId: number } | { ok: false; error: string }> {
+  const result = await startImport(formData);
+  return result.success ? { ok: true, jobId: result.jobId } : { ok: false, error: result.error };
+}
+
+export async function getImportJobs(): Promise<ImportJobDTO[]> {
+  const result = await listImportJobs();
+  return result.success ? result.jobs.map(toImportJobDTO) : [];
+}
+
+export async function getImportJobById(jobId: number): Promise<ImportJobDTO | null> {
+  const result = await getImportJob({ jobId });
+  return result.success ? toImportJobDTO(result.job) : null;
+}
