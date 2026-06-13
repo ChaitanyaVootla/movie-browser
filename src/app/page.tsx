@@ -22,6 +22,7 @@ import {
   TopicScroller,
   TrailerCarousel,
   YouTubeTrailerCarousel,
+  UpNextSection,
 } from "@/components/features/home";
 import { buildBrowseUrl } from "@/lib/discover";
 import { getPopularTopics, getTopicByKey } from "@/lib/topics";
@@ -151,6 +152,9 @@ export default async function HomePage() {
       <div className="px-4 md:px-8 lg:px-12 pb-16 space-y-10">
         {/* Continue Watching - Top priority for logged-in users */}
         <ContinueWatchingSection />
+
+        {/* Up Next - next unwatched episodes (client island, per-user) */}
+        <UpNextSection />
 
         {/* Topic Pills for Quick Navigation */}
         <TopicPills topics={popularTopics} />
