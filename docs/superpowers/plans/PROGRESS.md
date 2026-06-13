@@ -1,8 +1,8 @@
 # Social & Virality Roadmap — Implementation Progress / RESUME HERE
 
-**Last updated:** 2026-06-13 ~10:05 IST
+**Last updated:** 2026-06-13 ~10:15 IST
 **Branch:** `feat/social-phase0` (off `next`). **Local `master` ref = rolling checkpoint.**
-**Current HEAD:** `14c018c` (also pushed to local `master`).
+**Current HEAD:** `5d6f403` (also pushed to local `master`).
 
 This is the authoritative resume point for the autonomous overnight implementation
 of the Social & Virality Roadmap. If a session fails, read this first, then continue
@@ -44,7 +44,7 @@ from "NEXT STEPS".
 |---|---|
 | `2026-06-12-phase0-backend.md` (24 tasks) | ✅ COMPLETE + reviewed + fixed |
 | `2026-06-12-phase0-ui.md` (16 tasks) | ✅ COMPLETE (all 16) — prod build passes |
-| `2026-06-12-phase1-discussion.md` (18 tasks) | ⏳ not started |
+| `2026-06-12-phase1-discussion.md` (18 tasks) | 🔄 IN PROGRESS |
 | `2026-06-12-phase2-identity-artifacts.md` (15 tasks) | ⏳ not started |
 | `2026-06-12-phase3-4-circles-clubs-ai.md` (19 tasks) | ⏳ not started |
 
@@ -100,9 +100,15 @@ schema-only). Pending: a final Fable review of the full phase-0 UI before declar
 
 ## NEXT STEPS (resume here)
 
-1. **Fable code-review** of full phase-0 UI (diff 45f387d..14c018c); fix; checkpoint.
-   Then phase 0 is fully signed off.
-2. **Phase 1** (`2026-06-12-phase1-discussion.md`, 18 tasks): spoiler-gated comments,
+0. **PHASE 0 SIGNED OFF** — UI review done (1 SHOULD-FIX applied: IS_IOS drawer gate,
+   `5d6f403`). Backend 24/24 + UI 16/16, prod build green, edge-cache invariant verified.
+1. **Phase 1 IN PROGRESS** — batches: B1 = Tasks 1–5 (schema, spoiler gate, mention
+   parser, rate limit, AI comment gate); B2 = Tasks 6–9 (read path, write path,
+   notifications service + web push, notifications UI); B3 = Tasks 10–13 (discussion
+   UI, wire into detail pages, proxy authority for discuss URLs, per-episode SEO
+   pages); B4 = Tasks 14–18 (AI thread summary, block/mute UI+enforcement, admin mod
+   queue, content policy page, final verification sweep). Fable review between batches.
+2. **Phase 1 (reference)** (`2026-06-12-phase1-discussion.md`, 18 tasks): spoiler-gated comments,
    AI gate, per-episode SEO pages, notifications + web push, moderation. Implement in
    batches, review between, same rules.
 6. **Phase 2** (`2026-06-12-phase2-identity-artifacts.md`, 15 tasks): lists UI, OG
