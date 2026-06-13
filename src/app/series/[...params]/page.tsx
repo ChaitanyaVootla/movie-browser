@@ -67,6 +67,11 @@ import {
 import NextLink from "next/link";
 import { ReviewsSection } from "@/components/features/reviews";
 import { DiscussionSection } from "@/components/features/discussion";
+import {
+  EpisodeDiscussPage,
+  generateDiscussMetadata,
+  parseDiscussParams,
+} from "./discuss-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
@@ -94,6 +99,12 @@ interface SeriesPageProps {
 // Generate SEO metadata
 export async function generateMetadata({ params }: SeriesPageProps): Promise<Metadata> {
   const { params: routeParams } = await params;
+
+  // Per-episode discussion pages (Task 13) ride this catch-all (Next.js
+  // forbids a sibling [seriesId] segment). Branch before the detail-page logic.
+  const discuss = parseDiscussParams(routeParams);
+  if (discuss) return generateDiscussMetadata(discuss);
+
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
 
@@ -666,6 +677,11 @@ function SeriesSchema({ series, aiThemes }: { series: Series; aiThemes?: string[
 
 export default async function SeriesPage({ params, searchParams }: SeriesPageProps) {
   const { params: routeParams } = await params;
+
+  // Per-episode discussion branch (Task 13) — same catch-all, no dynamic APIs.
+  const discuss = parseDiscussParams(routeParams);
+  if (discuss) return <EpisodeDiscussPage params={discuss} />;
+
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
 

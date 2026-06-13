@@ -9,4 +9,4 @@ export { ScopeBadge, scopeLabel } from "./scope-badge";
 export { MentionText } from "./mention-text";
 export { ReportDialog } from "./report-dialog";
 export { ThreadSummaryCard } from "./thread-summary-card";
-// EpisodePicker (Task 13) appended in its task.
+export { EpisodePicker } from "./episode-picker";
