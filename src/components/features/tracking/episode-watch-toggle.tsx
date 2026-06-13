@@ -16,8 +16,12 @@ interface EpisodeWatchToggleProps {
 
 /**
  * Watched checkmark overlaid on episode thumbnails. Renders nothing for
- * logged-out visitors (the page HTML stays cache-safe; this is a client island).
- * Hardcoded white/black is correct here — the control sits over imagery.
+ * logged-out visitors (cache-safe client island). Uses the card's own dark
+ * badge vocabulary (`bg-black/…`, matching the rating/runtime badges) so it
+ * blends instead of shouting: watched = a small brand check on a quiet dark
+ * chip (always visible); unwatched = the same chip with a white check that
+ * only appears on hover/focus. The dimmed still is the primary "seen" cue;
+ * this just confirms it.
  */
 export function EpisodeWatchToggle({
   seriesId,
@@ -50,14 +54,14 @@ export function EpisodeWatchToggle({
         });
       }}
       className={cn(
-        "absolute top-1.5 left-1.5 z-10 flex size-10 md:size-8 items-center justify-center rounded-full border backdrop-blur-sm transition-colors",
+        "absolute top-2 left-2 z-10 flex size-6 items-center justify-center rounded-full border border-white/15 bg-black/60 backdrop-blur-sm transition-all duration-200 active:scale-90",
         watched
-          ? "bg-brand text-white border-brand"
-          : "bg-black/60 text-white/70 border-white/30 hover:text-white hover:bg-black/80",
+          ? "text-brand"
+          : "text-white/80 opacity-0 hover:bg-black/75 hover:text-white group-hover:opacity-100 focus-visible:opacity-100",
         className
       )}
     >
-      <Check className={cn("h-4 w-4", watched && "stroke-[3]")} />
+      <Check className={cn("size-3.5", watched && "stroke-[3]")} />
     </button>
   );
 }

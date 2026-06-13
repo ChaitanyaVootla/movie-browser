@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Loader2, LocateFixed } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ListChecks, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -28,17 +29,38 @@ interface SetPositionSheetProps {
   seasons: SeasonSelectorSeason[];
   /** Custom trigger label, e.g. "Set my position" or "Start tracking". */
   triggerLabel?: string;
+  /** Icon-only trigger (used beside the progress bar once tracking is active). */
+  compact?: boolean;
+  /** Fully custom trigger; receives an `open` callback. Overrides label/compact. */
+  renderTrigger?: (open: () => void) => ReactNode;
+  /** Controlled open state (no trigger rendered) — e.g. opened from a menu item. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
  * "Caught up through SxEy" picker — one tap backfills everything up to the
  * chosen episode (source=BACKFILL on the server).
  */
-export function SetPositionSheet({ seriesId, seasons, triggerLabel = "Set my position" }: SetPositionSheetProps) {
+export function SetPositionSheet({
+  seriesId,
+  seasons,
+  triggerLabel = "Set my position",
+  compact = false,
+  renderTrigger,
+  open: openProp,
+  onOpenChange,
+}: SetPositionSheetProps) {
   const tracking = useSeriesTracking();
   const isMobile = useMobile();
   const { trackAction } = useAnalytics();
-  const [open, setOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? openProp : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (isControlled) onOpenChange?.(next);
+    else setInternalOpen(next);
+  };
   const [busy, setBusy] = useState(false);
 
   const regularSeasons = useMemo(() => seasons.filter((s) => s.season_number > 0), [seasons]);
@@ -119,14 +141,30 @@ export function SetPositionSheet({ seriesId, seasons, triggerLabel = "Set my pos
     </div>
   );
 
-  const trigger = (
+  const trigger = isControlled ? null : renderTrigger ? (
+    renderTrigger(() => setOpen(true))
+  ) : compact ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Set my position"
+          onClick={() => setOpen(true)}
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+        >
+          <ListChecks className="size-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>Set my position</TooltipContent>
+    </Tooltip>
+  ) : (
     <Button
       variant="ghost"
       size="sm"
       className="gap-1.5 h-9 text-muted-foreground hover:text-foreground"
       onClick={() => setOpen(true)}
     >
-      <LocateFixed className="h-3.5 w-3.5" />
+      <ListChecks className="h-3.5 w-3.5" />
       {triggerLabel}
     </Button>
   );

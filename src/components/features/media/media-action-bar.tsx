@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { MediaActions } from "./media-actions";
 import { ScoreRating } from "./score-rating";
@@ -17,6 +17,8 @@ interface MediaActionBarProps {
   /** Pre-extracted trailer data (light) - preferred for RSC optimization */
   trailer?: TrailerData | null;
   quickTake?: string[];
+  /** Optional inline control rendered as a peer of the action buttons (e.g. series progress). */
+  actionSlot?: ReactNode;
   className?: string;
 }
 
@@ -31,6 +33,7 @@ export function MediaActionBar({
   title,
   trailer,
   quickTake,
+  actionSlot,
   className,
 }: MediaActionBarProps) {
   const [showTrailer, setShowTrailer] = useState(false);
@@ -60,6 +63,7 @@ export function MediaActionBar({
               hasTrailer={!!trailer}
               onPlayTrailer={() => setShowTrailer(true)}
               variant="hero"
+              watchedSlot={actionSlot}
             />
             {/* Connoisseur 1–10 score (half-stars); sits beside the thumbs */}
             <ScoreRating itemId={itemId} itemType={mediaType === "movie" ? "movie" : "series"} />

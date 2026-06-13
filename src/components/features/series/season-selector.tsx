@@ -8,13 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSeason } from "@/server/actions/series";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import type { Episode } from "@/types";
 import type { SeasonSelectorSeason } from "@/types/client-props";
-import { SeasonWatchButton } from "@/components/features/tracking/season-watch-button";
+import { SeasonProgressBar } from "@/components/features/tracking/season-progress-bar";
+import { SeasonProgressProvider } from "@/components/features/tracking/season-progress-context";
 import { EpisodeScroller } from "./episode-scroller";
 
 interface SeasonSelectorProps {
@@ -103,11 +103,13 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
 
   if (!seasons.length) return null;
 
-  // Season selector header content - passed to EpisodeScroller as title
+  // Season selector header content - passed to EpisodeScroller as title.
+  // The progress bar + season-watch control live inside SeasonProgressBar
+  // (reads watched state from context; renders a plain count badge for anon).
   const seasonHeader = (
     <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
       <Select value={selectedSeason?.season_number.toString()} onValueChange={handleSeasonChange}>
-        <SelectTrigger className="w-[140px] sm:w-[180px]">
+        <SelectTrigger className="w-[140px] shrink-0 sm:w-[180px]">
           <SelectValue placeholder="Select Season" />
         </SelectTrigger>
         {/* popper + max-h: long season lists (e.g. 38 seasons) must scroll internally
@@ -124,76 +126,71 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
         </SelectContent>
       </Select>
 
-      {selectedSeason && (
-        <div className="flex items-center gap-2 sm:gap-3 text-sm text-muted-foreground">
-          <Badge variant="secondary" className="font-normal text-xs sm:text-sm">
-            {episodes.length || selectedSeason.episode_count} Episodes
-          </Badge>
-          {selectedSeason.air_date && (
-            <span className="text-xs sm:text-sm whitespace-nowrap">
-              {new Date(selectedSeason.air_date).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-              })}
-            </span>
-          )}
-        </div>
+      {selectedSeason && selectedSeason.air_date && (
+        <span className="hidden shrink-0 text-xs text-muted-foreground whitespace-nowrap sm:inline">
+          {new Date(selectedSeason.air_date).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+          })}
+        </span>
       )}
 
       {selectedSeason && (
-        <SeasonWatchButton
+        <SeasonProgressBar
           seriesId={seriesId}
-          seasonNumber={selectedSeason.season_number}
-          episodeCount={episodes.length || selectedSeason.episode_count}
+          fallbackCount={episodes.length || selectedSeason.episode_count}
         />
       )}
     </div>
   );
 
+  const selectedSeasonNumberForCtx = selectedSeason?.season_number ?? 1;
+
   return (
-    <div className={className}>
-      {/* Episodes with integrated season selector.
-          Skeleton covers BOTH the initial mount fetch and season changes; the
-          empty state only renders once a load has actually completed with zero
-          episodes. Skeleton dimensions mirror EpisodeScroller cards
-          (w-[240px] md:w-[280px], aspect-video + two text lines) so content
-          below doesn't jump when episodes arrive. */}
-      {isLoading ? (
-        <div className="space-y-4">
-          {/* Header skeleton */}
-          <div className="flex items-center gap-3 px-4 md:px-8 lg:px-12">
-            <Skeleton className="h-10 w-[200px]" />
-            <Skeleton className="h-6 w-24" />
-            <Skeleton className="h-4 w-32" />
+    <SeasonProgressProvider seasonNumber={selectedSeasonNumberForCtx} episodes={episodes}>
+      <div className={className}>
+        {/* Episodes with integrated season selector.
+            Skeleton covers BOTH the initial mount fetch and season changes; the
+            empty state only renders once a load has actually completed with zero
+            episodes. Skeleton dimensions mirror EpisodeScroller cards
+            (w-[240px] md:w-[280px], aspect-video + two text lines) so content
+            below doesn't jump when episodes arrive. */}
+        {isLoading ? (
+          <div className="space-y-4">
+            {/* Header skeleton */}
+            <div className="flex items-center gap-3 px-4 md:px-8 lg:px-12">
+              <Skeleton className="h-10 w-[180px] shrink-0" />
+              <Skeleton className="h-8 flex-1 max-w-xs rounded-full" />
+            </div>
+            {/* Episode skeletons */}
+            <div className="flex gap-4 px-4 md:px-8 lg:px-12 overflow-hidden">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-[240px] md:w-[280px] space-y-2">
+                  <Skeleton className="aspect-video rounded-lg" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
           </div>
-          {/* Episode skeletons */}
-          <div className="flex gap-4 px-4 md:px-8 lg:px-12 overflow-hidden">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex-shrink-0 w-[240px] md:w-[280px] space-y-2">
-                <Skeleton className="aspect-video rounded-lg" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-            ))}
+        ) : episodes.length > 0 ? (
+          <EpisodeScroller
+            episodes={episodes}
+            seriesId={seriesId}
+            seriesName={seriesName}
+            seasonNumber={selectedSeasonNumberForCtx}
+            title={seasonHeader}
+          />
+        ) : selectedSeason ? (
+          <div className="space-y-4">
+            {/* Show header even when no episodes */}
+            <div className="px-4 md:px-8 lg:px-12">{seasonHeader}</div>
+            <div className="px-4 md:px-8 lg:px-12 py-8 text-center text-muted-foreground">
+              No episodes available for this season yet.
+            </div>
           </div>
-        </div>
-      ) : episodes.length > 0 ? (
-        <EpisodeScroller
-          episodes={episodes}
-          seriesId={seriesId}
-          seriesName={seriesName}
-          seasonNumber={selectedSeason?.season_number || 1}
-          title={seasonHeader}
-        />
-      ) : selectedSeason ? (
-        <div className="space-y-4">
-          {/* Show header even when no episodes */}
-          <div className="px-4 md:px-8 lg:px-12">{seasonHeader}</div>
-          <div className="px-4 md:px-8 lg:px-12 py-8 text-center text-muted-foreground">
-            No episodes available for this season yet.
-          </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </SeasonProgressProvider>
   );
 }

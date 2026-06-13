@@ -62,7 +62,7 @@ import { getMediaBadges } from "@/lib/badges";
 import { SeasonSelector, EpisodeInfoSection } from "@/components/features/series";
 import {
   SeriesTrackingProvider,
-  SeriesProgressPanel,
+  SeriesProgressInline,
 } from "@/components/features/tracking";
 import NextLink from "next/link";
 import { ReviewsSection } from "@/components/features/reviews";
@@ -452,22 +452,22 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         status={series.status}
       />
 
-      {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills */}
-      {/* Pass only trailer data instead of full videos array */}
+      {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills.
+          Series progress rides INLINE in this row as a peer of the buttons
+          (client island — renders nothing in cached anon HTML). */}
       <MediaActionBar
         itemId={series.id}
         mediaType="series"
         title={series.name}
         trailer={extractTrailerData(series.videos)}
         quickTake={aiSummary?.quickTake}
+        actionSlot={
+          <SeriesProgressInline
+            seriesId={series.id}
+            seasons={extractSeasonSelectorSeasons(displaySeasons)}
+          />
+        }
         className="mt-2 md:mt-3"
-      />
-
-      {/* Series progress (client island — renders nothing in cached anon HTML) */}
-      <SeriesProgressPanel
-        seriesId={series.id}
-        seasons={extractSeasonSelectorSeasons(displaySeasons)}
-        className="mt-3"
       />
 
       {/* Season & Episode Selector - light seasons (no per-season overview/poster) */}

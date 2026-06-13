@@ -259,9 +259,15 @@ export async function getSeriesTracking(
     const userId = await requirePgUserId();
     const progress = await getSeriesProgress(userId, id);
     if (!progress) return { progress: null, watchedEpisodes: [] };
-    const [totalEpisodes, eventRows] = await Promise.all([
+    const [totalEpisodes, airedEpisodes, eventRows] = await Promise.all([
       prisma.episode.count({
         where: { season: { seriesId: id, seasonNumber: { gt: 0 } } },
+      }),
+      prisma.episode.count({
+        where: {
+          season: { seriesId: id, seasonNumber: { gt: 0 } },
+          OR: [{ airDate: null }, { airDate: { lte: new Date() } }],
+        },
       }),
       prisma.watchEvent.findMany({
         where: {
@@ -284,6 +290,7 @@ export async function getSeriesTracking(
         lastEpisodeNumber: progress.lastEpisodeNumber,
         episodesWatched: progress.episodesWatched,
         totalEpisodes,
+        airedEpisodes,
         rewatchCount: progress.rewatchCount,
       },
       watchedEpisodes: eventRows

@@ -44,10 +44,17 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 - Run the script from `/Users/chaitanya/dev/movie-browser` (not `/tmp`) or `@playwright/test` won't resolve. The `clickhouse/...` and chromium images are already pulled locally.
 - **`src/proxy.ts` 429s headless Chromium — including against local dev.** Headless
   Chrome sends `sec-ch-ua: "HeadlessChrome"`, which the scraper shed blocks, so pages
-  render empty (no nav, no AI floaty) with a 429 console error. Spoof BOTH a real
-  Chrome `userAgent` AND `extraHTTPHeaders: { "sec-ch-ua": '"Chromium";v="136", "Google
-  Chrome";v="136", "Not.A/Brand";v="99"', "sec-ch-ua-mobile", "sec-ch-ua-platform" }`
-  on the browser context before debugging "missing" UI.
+  render empty (no nav, no AI floaty) with a 429 console error. Spoof a real Chrome
+  `userAgent` AND clean `sec-ch-ua`/`sec-ch-ua-mobile`/`sec-ch-ua-platform` hints.
+  **GOTCHA (Jun 2026): `newContext({ extraHTTPHeaders })` is NOT enough** — Chromium's
+  own high-entropy client hints still leak the HeadlessChrome brand past it and the
+  document itself 429s (blank white page, `body.innerText` empty, `[role=progressbar]`
+  absent — even though the same URL `curl`s 200 with full HTML). Force the headers on
+  EVERY request via `page.route('**/*', r => r.continue({ headers: { ...r.request().headers(),
+  'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+  'sec-ch-ua-mobile': '?0', 'sec-ch-ua-platform': '"macOS"', 'user-agent': UA } }))`.
+  Verify you got past it: `detectBotFromRequest(ua, secChUa)` returns `isBot:false` and
+  the nav `response.status()` is 200, not 429.
 - The search dialog's "Search all for X" is an **always-present `cmdk-item`** — don't treat `items>=1` as "results loaded"; wait for a `[cmdk-group-heading]` (Movies/Series/Results).
 - Results from a **previous query persist** while a new one loads → open a fresh dialog per query, or you'll measure stale state.
 - Per-keystroke typing fires many debounced actions that queue; use `fill()` for a single clean action when measuring server time.

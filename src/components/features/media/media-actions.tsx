@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,12 @@ interface MediaActionsProps {
   className?: string;
   variant?: "hero" | "compact";
   showWatched?: boolean;
+  /**
+   * Series tracking control, rendered in the SAME slot a movie's "Watched"
+   * toggle occupies (right after Watchlist) so the watch control is positionally
+   * consistent across movie ↔ series pages.
+   */
+  watchedSlot?: ReactNode;
 }
 
 // Animated icon wrapper with bounce and rotation
@@ -77,6 +84,7 @@ export function MediaActions({
   className,
   variant = "hero",
   showWatched = true,
+  watchedSlot,
 }: MediaActionsProps) {
   const {
     isInWatchlist,
@@ -322,6 +330,9 @@ export function MediaActions({
               </TooltipContent>
             </Tooltip>
           )}
+
+          {/* Series tracking sits in the movie "Watched" slot for consistency */}
+          {mediaType === "series" && watchedSlot}
 
           {/* Like */}
           <Tooltip>

@@ -5,6 +5,10 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { EpisodeWatchToggle } from "@/components/features/tracking/episode-watch-toggle";
+import { EpisodeCatchUpButton } from "@/components/features/tracking/episode-catch-up-button";
+import { useSeriesTracking } from "@/components/features/tracking/series-tracking-provider";
+import { useSeasonProgress } from "@/components/features/tracking/season-progress-context";
+import { episodeKey } from "@/lib/tracking-format";
 import { cn } from "@/lib/utils";
 import type { Episode } from "@/types";
 import { EpisodeModal } from "./episode-modal";
@@ -28,6 +32,8 @@ interface EpisodeCardProps {
 
 function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardProps) {
   const [imageError, setImageError] = useState(false);
+  const tracking = useSeriesTracking();
+  const season = useSeasonProgress();
   const isUpcoming = episode.air_date ? new Date(episode.air_date) > new Date() : false;
   const airDate = episode.air_date
     ? new Date(episode.air_date).toLocaleDateString("en-US", {
@@ -40,6 +46,14 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
   const stillUrl = episode.still_path
     ? `https://image.tmdb.org/t/p/w400${episode.still_path}`
     : null;
+
+  // Tracking-driven card state (logged-in only; empty/false for anon → cache-safe).
+  const watched =
+    !!tracking?.isAuthenticated &&
+    tracking.watched.has(episodeKey(seasonNumber, episode.episode_number));
+  const previewEp = season?.previewEpisode ?? null;
+  const inPreview =
+    !isUpcoming && !watched && previewEp != null && episode.episode_number <= previewEp;
 
   return (
     <div className="group flex-shrink-0 w-[240px] md:w-[280px] text-left">
@@ -61,8 +75,16 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
         )}
       </div>
 
-      {/* Episode thumbnail — toggle is a SIBLING of the click target, not a child */}
-      <div className="relative aspect-video rounded-lg overflow-hidden bg-muted mb-2">
+      {/* Episode thumbnail — overlay controls are SIBLINGS of the click target.
+          Watched = a single cohesive "recede" treatment (dimmed still + the
+          persistent check chip), no extra rings/labels. Preview = a quiet
+          monochrome ring. */}
+      <div
+        className={cn(
+          "relative aspect-video rounded-lg overflow-hidden bg-muted mb-2 transition-all duration-200",
+          inPreview && "ring-2 ring-brand/60"
+        )}
+      >
         <button onClick={onClick} className="absolute inset-0 text-left" aria-label={episode.name}>
           {stillUrl && !imageError ? (
             <Image
@@ -70,8 +92,9 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
               alt={episode.name}
               fill
               className={cn(
-                "object-cover transition-transform duration-300",
-                !isUpcoming && "group-hover:scale-105"
+                "object-cover transition-all duration-300",
+                !isUpcoming && "group-hover:scale-105",
+                watched && "opacity-50 group-hover:opacity-75"
               )}
               sizes="280px"
               onError={() => setImageError(true)}
@@ -81,6 +104,9 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
               <span className="text-muted-foreground text-xs">No preview</span>
             </div>
           )}
+
+          {/* Preview wash — "this would be marked watched" */}
+          {inPreview && <div className="absolute inset-0 bg-brand/15" />}
 
           {!isUpcoming && (
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -109,14 +135,21 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
           )}
         </button>
 
-        {/* Watched checkmark (logged-in only; client-hydrated, never in cached HTML) */}
+        {/* Tracking controls (logged-in only; client-hydrated, never in cached HTML) */}
         {!isUpcoming && (
-          <EpisodeWatchToggle
-            seriesId={seriesId}
-            seasonNumber={seasonNumber}
-            episodeNumber={episode.episode_number}
-            tmdbEpisodeId={episode.id}
-          />
+          <>
+            <EpisodeWatchToggle
+              seriesId={seriesId}
+              seasonNumber={seasonNumber}
+              episodeNumber={episode.episode_number}
+              tmdbEpisodeId={episode.id}
+            />
+            <EpisodeCatchUpButton
+              seriesId={seriesId}
+              seasonNumber={seasonNumber}
+              episodeNumber={episode.episode_number}
+            />
+          </>
         )}
       </div>
 
@@ -125,6 +158,7 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
         <h3
           className={cn(
             "text-sm font-medium line-clamp-1 transition-colors",
+            watched && "text-muted-foreground",
             !isUpcoming && "group-hover:text-brand"
           )}
         >

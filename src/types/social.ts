@@ -52,6 +52,13 @@ export interface SeriesProgressDTO {
   lastEpisodeNumber: number | null;
   episodesWatched: number;
   totalEpisodes: number;
+  /**
+   * Episodes that have aired so far (air_date <= now, or null air_date), across
+   * all regular seasons. The "available" extent for the buffer-style progress
+   * bar — on ongoing shows this is < totalEpisodes, so the UI can honestly show
+   * "watched / available / total" instead of pretending unaired episodes count.
+   */
+  airedEpisodes: number;
   rewatchCount: number;
 }
 

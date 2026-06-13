@@ -293,20 +293,85 @@ export async function markSeriesWatched(
   return backfillEpisodes(userId, seriesId, episodes);
 }
 
-/** "Caught up through S{s}E{e}": backfills every aired non-special episode <= position. */
+/**
+ * "Caught up through S{s}E{e}": SETS the watermark exactly — backfills every
+ * aired non-special episode <= position AND removes auto-marked (BACKFILL)
+ * episodes ABOVE the position, so the control moves the position in BOTH
+ * directions (the old backfill-only version was a no-op when correcting
+ * downward — e.g. an already-complete series wouldn't budge). Dated diary
+ * entries (LOGGED / IMPORT) are never deleted; if one sits above the chosen
+ * position the watermark legitimately reflects it.
+ */
 export async function setPosition(
   userId: number,
   seriesId: number,
   seasonNumber: number,
   episodeNumber: number
-): Promise<{ inserted: number }> {
+): Promise<{ inserted: number; removed: number }> {
   const all = await fetchAiredEpisodes(seriesId, { seasonNumber: { gt: 0 } });
   const upTo = all.filter(
     (e) =>
       e.seasonNumber < seasonNumber ||
       (e.seasonNumber === seasonNumber && e.episodeNumber <= episodeNumber)
   );
-  return backfillEpisodes(userId, seriesId, upTo);
+
+  return prisma.$transaction(async (tx) => {
+    const progress = await tx.seriesProgress.findUnique({
+      where: { userId_seriesId: { userId, seriesId } },
+      select: { rewatchStartedAt: true },
+    });
+    const reset = progress?.rewatchStartedAt ?? null;
+    const cycleWhere: Prisma.WatchEventWhereInput = reset
+      ? { OR: [{ watchedAt: { gte: reset } }, { watchedAt: null, createdAt: { gte: reset } }] }
+      : {};
+
+    const existing = await tx.watchEvent.findMany({
+      where: { userId, seriesId, episodeNumber: { not: null }, ...cycleWhere },
+      select: { seasonNumber: true, episodeNumber: true },
+    });
+    const have = new Set(existing.map((e) => `${e.seasonNumber}:${e.episodeNumber}`));
+
+    // Backfill everything up to the position that isn't already watched.
+    const rows = upTo
+      .filter((e) => !have.has(`${e.seasonNumber}:${e.episodeNumber}`))
+      .map((e) => ({
+        userId,
+        seriesId,
+        seasonNumber: e.seasonNumber,
+        episodeNumber: e.episodeNumber,
+        tmdbEpisodeId: e.tmdbEpisodeId,
+        watchedAt: null,
+        watchedAtPrecision: "UNKNOWN" as const,
+        source: "BACKFILL" as const,
+        isRewatch: reset !== null,
+      }));
+    if (rows.length > 0) {
+      await tx.watchEvent.createMany({ data: rows });
+    }
+
+    // Pull the watermark back: drop auto-marked episodes ABOVE the position.
+    const { count: removed } = await tx.watchEvent.deleteMany({
+      where: {
+        userId,
+        seriesId,
+        source: "BACKFILL",
+        episodeNumber: { not: null },
+        AND: [
+          cycleWhere,
+          {
+            OR: [
+              { seasonNumber: { gt: seasonNumber } },
+              { seasonNumber, episodeNumber: { gt: episodeNumber } },
+            ],
+          },
+        ],
+      },
+    });
+
+    await recomputeSeriesProgress(tx, userId, seriesId);
+    await markStatsDirty(tx, userId);
+    return { inserted: rows.length, removed };
+  });
 }
 
 // ---------------------------------------------------------------------------

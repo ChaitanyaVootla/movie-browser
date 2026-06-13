@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollContainer } from "@/components/features/media/scroll-container";
+import { EpisodeModalActions } from "@/components/features/tracking/episode-modal-actions";
 import { cn, getMediaPath } from "@/lib/utils";
 import { getEpisode } from "@/server/actions/series";
 import type { Episode, CastMember, CrewMember, EpisodeStill } from "@/types";
@@ -441,6 +442,7 @@ function EpisodeDetailsSkeleton() {
 function EpisodeContent({
   episode,
   fullEpisode,
+  seriesId,
   seriesName,
   seasonNumber,
   isPending,
@@ -448,6 +450,7 @@ function EpisodeContent({
 }: {
   episode: Episode;
   fullEpisode: Episode | null;
+  seriesId: number;
   seriesName: string;
   seasonNumber: number;
   isPending: boolean;
@@ -539,6 +542,16 @@ function EpisodeContent({
               <Title className="text-xl font-bold leading-tight">{displayEpisode.name}</Title>
               <p className="text-sm text-muted-foreground">{seriesName}</p>
             </Header>
+
+            {/* Watch tracking (logged-in only) — primary set-position path on touch */}
+            <EpisodeModalActions
+              seriesId={seriesId}
+              seasonNumber={seasonNumber}
+              episodeNumber={displayEpisode.episode_number}
+              tmdbEpisodeId={displayEpisode.id}
+              isUpcoming={!!isUpcoming}
+              className="mb-4"
+            />
 
             {/* Info cards grid */}
             <div className="grid grid-cols-2 gap-2">
@@ -669,6 +682,7 @@ export function EpisodeModal({
           <EpisodeContent
             episode={episode}
             fullEpisode={fullEpisode}
+            seriesId={seriesId}
             seriesName={seriesName}
             seasonNumber={seasonNumber}
             isPending={isPending}
@@ -698,6 +712,7 @@ export function EpisodeModal({
         <EpisodeContent
           episode={episode}
           fullEpisode={fullEpisode}
+          seriesId={seriesId}
           seriesName={seriesName}
           seasonNumber={seasonNumber}
           isPending={isPending}
