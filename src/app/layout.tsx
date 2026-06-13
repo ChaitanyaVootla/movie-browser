@@ -7,6 +7,7 @@ import { MobileBottomNav } from "@/components/features/layout/mobile-bottom-nav"
 import { Footer } from "@/components/features/layout/footer";
 import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
 import { ThemeColorSync } from "@/components/features/layout/theme-color-sync";
+import { UsernameClaimPrompt } from "@/components/features/settings/username-claim-prompt";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -131,6 +132,7 @@ export default function RootLayout({
           <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0">{children}</main>
           <Footer className="hidden md:block" />
           <MobileBottomNav />
+          <UsernameClaimPrompt />
         </Providers>
       </body>
     </html>
