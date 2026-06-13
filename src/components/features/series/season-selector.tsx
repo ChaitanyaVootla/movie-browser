@@ -14,6 +14,7 @@ import { getSeason } from "@/server/actions/series";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import type { Episode } from "@/types";
 import type { SeasonSelectorSeason } from "@/types/client-props";
+import { SeasonWatchButton } from "@/components/features/tracking/season-watch-button";
 import { EpisodeScroller } from "./episode-scroller";
 
 interface SeasonSelectorProps {
@@ -137,6 +138,14 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
             </span>
           )}
         </div>
+      )}
+
+      {selectedSeason && (
+        <SeasonWatchButton
+          seriesId={seriesId}
+          seasonNumber={selectedSeason.season_number}
+          episodeCount={episodes.length || selectedSeason.episode_count}
+        />
       )}
     </div>
   );

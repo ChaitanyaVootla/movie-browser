@@ -60,6 +60,10 @@ import {
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { SeasonSelector, EpisodeInfoSection } from "@/components/features/series";
+import {
+  SeriesTrackingProvider,
+  SeriesProgressPanel,
+} from "@/components/features/tracking";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
@@ -397,7 +401,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
   const displaySeasons = series.seasons?.filter((s) => s.season_number >= 0) || [];
 
   return (
-    <>
+    <SeriesTrackingProvider seriesId={series.id}>
       {/* JSON-LD Schema */}
       {/* Single semantic H1 (visually hidden) — see movie page */}
       <h1 className="sr-only">
@@ -443,6 +447,13 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         trailer={extractTrailerData(series.videos)}
         quickTake={aiSummary?.quickTake}
         className="mt-2 md:mt-3"
+      />
+
+      {/* Series progress (client island — renders nothing in cached anon HTML) */}
+      <SeriesProgressPanel
+        seriesId={series.id}
+        seasons={extractSeasonSelectorSeasons(displaySeasons)}
+        className="mt-3"
       />
 
       {/* Season & Episode Selector - light seasons (no per-season overview/poster) */}
@@ -532,7 +543,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           className="mt-8 md:mt-12"
         />
       </Suspense>
-    </>
+    </SeriesTrackingProvider>
   );
 }
 
