@@ -12,3 +12,4 @@ export { ThreadSummaryCard } from "./thread-summary-card";
 export { EpisodePicker } from "./episode-picker";
 export { UserModerationMenu } from "./user-moderation-menu";
 export { DiscussionEntryStrip } from "./discussion-entry-strip";
+export { DiscussionCountBadge, shouldShowBadge } from "./discussion-count-badge";
