@@ -18,11 +18,13 @@ import {
 } from "@/server/services/discussion/comment-schemas";
 import { isStricterScope } from "@/server/services/discussion/spoiler-gate";
 import { checkCommentRateLimit } from "@/server/services/discussion/rate-limit";
-import { parseMentions, resolveMentions } from "@/server/services/discussion/mentions";
+import { parseMentions, resolveMentions, parseEntityMentions, resolveEntityMentions } from "@/server/services/discussion/mentions";
 import { runCommentGate } from "@/server/services/moderation/comment-gate";
 import { notifyMention, notifyReply } from "@/server/services/notifications/notify";
 import { toCommentDto, COMMENT_INCLUDE, type CommentDto } from "@/server/db/postgres/comments";
 import { bumpRootActivity, stampNewRootActivity } from "@/server/services/discussion/activity-bump";
+import { containsObscenity } from "@/server/services/discussion/obscenity-filter";
+import { sanitizeCommentBody } from "@/server/services/discussion/sanitize-comment";
 
 export type CreateCommentResult =
   | { status: "published"; comment: CommentDto }
@@ -109,14 +111,24 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
     const title = await getAnchorTitle(anchor);
     if (!title) return { status: "error", message: "Title not found" };
 
-    // AI gate. null = unavailable → PENDING_REVIEW (fail closed for visibility).
-    const gate = await runCommentGate({
-      body: input.body,
-      title,
-      mediaType: anchor.type,
-      seasonNumber: anchor.type === "series" ? anchor.seasonNumber : null,
-      episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
-    });
+    // §6 step 1: sanitize raw HTML on write — stored body is markdown-lite only.
+    const cleanBody = sanitizeCommentBody(input.body);
+    if (cleanBody.length < 2) return { status: "error", message: "Comment is empty after formatting" };
+
+    // §6 step 2: deterministic prefilter BEFORE the LLM gate. Obvious profanity/slurs
+    // short-circuit to held — no Bedrock call spent (AI cost-safety, invariant 6).
+    const obscene = containsObscenity(cleanBody);
+
+    // AI gate (skipped when obscene — cost-safe). null = unavailable → PENDING_REVIEW.
+    const gate = obscene
+      ? null
+      : await runCommentGate({
+          body: cleanBody,
+          title,
+          mediaType: anchor.type,
+          seasonNumber: anchor.type === "series" ? anchor.seasonNumber : null,
+          episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
+        });
 
     // Scope suggestion (user-adjustable pre-publish): if the AI thinks the
     // comment is more spoilery than the chosen scope and the user hasn't
@@ -143,10 +155,31 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
       };
     }
 
-    const held = gate === null || gate.toxicity === "flagged";
-    const aiLabels: Record<string, unknown> = gate
-      ? { gate: { ...gate }, gatedAt: new Date().toISOString() }
-      : { gate: null, gatedAt: new Date().toISOString(), gateError: true };
+    const held = obscene || gate === null || gate.toxicity === "flagged";
+    const aiLabels: Record<string, unknown> = obscene
+      ? { gate: null, gatedAt: new Date().toISOString(), prefilter: "obscenity" }
+      : gate
+        ? { gate: { ...gate }, gatedAt: new Date().toISOString() }
+        : { gate: null, gatedAt: new Date().toISOString(), gateError: true };
+
+    // Resolve entity mentions + attachment BEFORE the tx (catalog reads, no AI).
+    const entityRows = await resolveEntityMentions(parseEntityMentions(cleanBody));
+    const att = input.attachment;
+    const attachmentData = att
+      ? {
+          attachmentEntityType: att.entityType,
+          attachmentMovieId: att.entityType === "movie" ? att.tmdbId : null,
+          attachmentSeriesId: att.entityType === "series" || att.entityType === "episode" ? att.tmdbId : null,
+          attachmentPersonId: att.entityType === "person" ? att.tmdbId : null,
+          attachmentImagePath: att.imagePath,
+        }
+      : {
+          attachmentEntityType: null,
+          attachmentMovieId: null,
+          attachmentSeriesId: null,
+          attachmentPersonId: null,
+          attachmentImagePath: null,
+        };
 
     // Wrap the comment INSERT in auditedTransaction so the row (and its
     // PENDING_REVIEW/PUBLISHED status) is attributed to this user in audit_log.
@@ -162,16 +195,23 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
           seasonNumber: anchor.type === "series" ? anchor.seasonNumber : null,
           episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
           parentId,
-          body: input.body,
+          body: cleanBody,
           spoilerScope: input.spoilerScope,
           scopeSeason: input.spoilerScope === "EPISODE" ? input.scopeSeason : null,
           scopeEpisode: input.spoilerScope === "EPISODE" ? input.scopeEpisode : null,
           status: held ? CommentStatus.PENDING_REVIEW : CommentStatus.PUBLISHED,
           aiLabels: aiLabels as object,
           lastActivityAt: held ? null : now,
+          ...attachmentData,
         },
         include: COMMENT_INCLUDE,
       });
+      // Persist entity mentions inside the same tx (typed join rows, no fan-out).
+      if (entityRows.length > 0) {
+        await tx.commentEntityMention.createMany({
+          data: entityRows.map((r) => ({ commentId: row.id, ...r })),
+        });
+      }
       // Trending counters are PUBLISHED-only (held comments are invisible).
       if (!held) {
         if (parentId !== null) {
@@ -185,6 +225,9 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
 
     if (held) return { status: "pending_review" };
 
+    // Re-fetch with entity mentions loaded (createMany ran after the include fetch).
+    const full = await prisma.comment.findUnique({ where: { id: created.id }, include: COMMENT_INCLUDE });
+
     // Notifications: write-on-event, bounded recipients (invariant 6).
     // Fire-and-forget — never block the submit response on push delivery.
     const url = commentPermalink(anchor, title, created.id);
@@ -196,11 +239,12 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
             actorId: userId,
             commentId: created.id,
             title,
-            snippet: input.body.slice(0, 140),
+            snippet: cleanBody.slice(0, 140),
             url,
           });
         }
-        const mentioned = await resolveMentions(parseMentions(input.body), userId);
+        // @user mentions only notify (entity mentions do NOT fan out — invariant 6).
+        const mentioned = await resolveMentions(parseMentions(cleanBody), userId);
         for (const user of mentioned) {
           if (user.id === parentAuthorId) continue; // no double-notify
           await notifyMention({
@@ -208,7 +252,7 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
             actorId: userId,
             commentId: created.id,
             title,
-            snippet: input.body.slice(0, 140),
+            snippet: cleanBody.slice(0, 140),
             url,
           });
         }
@@ -223,7 +267,7 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
       }
     })();
 
-    return { status: "published", comment: toCommentDto(created) };
+    return { status: "published", comment: toCommentDto(full ?? created) };
   } catch (error: unknown) {
     if (error instanceof z.ZodError) return { status: "error", message: "Invalid comment" };
     dataLogger.error(
@@ -273,23 +317,35 @@ export async function editComment(
     const rate = await checkCommentRateLimit(userId);
     if (!rate.ok) return { ok: false, message: rate.message };
     const title = (await getAnchorTitle(anchor)) ?? "";
+
+    // Sanitize + deterministic prefilter before the re-gate.
+    const cleanEditBody = sanitizeCommentBody(input.body);
+    if (cleanEditBody.length < 2) return { ok: false, message: "Comment is empty after formatting" };
+    const obsceneEdit = containsObscenity(cleanEditBody);
+
     // Re-gate edits for toxicity (no scope-suggestion round-trip on edit —
-    // the author explicitly sets scope here).
-    const gate = await runCommentGate({
-      body: input.body,
-      title,
-      mediaType: anchor.type,
-      seasonNumber: anchor.type === "series" ? anchor.seasonNumber : null,
-      episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
-    });
-    const held = gate === null || gate.toxicity === "flagged";
+    // the author explicitly sets scope here). Skip gate when obscene (cost-safe).
+    const gate = obsceneEdit
+      ? null
+      : await runCommentGate({
+          body: cleanEditBody,
+          title,
+          mediaType: anchor.type,
+          seasonNumber: anchor.type === "series" ? anchor.seasonNumber : null,
+          episodeNumber: anchor.type === "series" ? anchor.episodeNumber : null,
+        });
+    const held = obsceneEdit || gate === null || gate.toxicity === "flagged";
+
+    // Resolve entity mentions BEFORE opening the tx (catalog reads, no network in tx).
+    const editEntityRows = await resolveEntityMentions(parseEntityMentions(cleanEditBody));
+
     // Wrap the UPDATE (including the moderation status change) in
     // auditedTransaction for actor attribution. The re-gate ran above, outside.
-    await auditedTransaction(userId, (tx) =>
-      tx.comment.update({
+    await auditedTransaction(userId, async (tx) => {
+      await tx.comment.update({
         where: { id: input.commentId },
         data: {
-          body: input.body,
+          body: cleanEditBody,
           spoilerScope: input.spoilerScope,
           scopeSeason: input.spoilerScope === "EPISODE" ? input.scopeSeason : null,
           scopeEpisode: input.spoilerScope === "EPISODE" ? input.scopeEpisode : null,
@@ -300,8 +356,15 @@ export async function editComment(
             gatedAt: new Date().toISOString(),
           } as object,
         },
-      })
-    );
+      });
+      // Reconcile entity mentions: replace all.
+      await tx.commentEntityMention.deleteMany({ where: { commentId: input.commentId } });
+      if (editEntityRows.length > 0) {
+        await tx.commentEntityMention.createMany({
+          data: editEntityRows.map((r) => ({ commentId: input.commentId, ...r })),
+        });
+      }
+    });
     return { ok: true };
   } catch (error: unknown) {
     dataLogger.error(
