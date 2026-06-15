@@ -24,6 +24,8 @@ export interface SetRatingInput {
   thumb?: 1 | -1 | null;
   /** undefined = leave unchanged; null = clear. */
   score?: number | null;
+  /** "loved it" heart. undefined = leave unchanged. */
+  liked?: boolean;
   /** Import-honest timestamp; defaults to now. */
   ratedAt?: Date;
 }
@@ -65,12 +67,21 @@ export async function setUserRating(
     const nextThumb = input.thumb !== undefined ? input.thumb : (existing?.rating ?? null);
     const nextScore = input.score !== undefined ? input.score : (existing?.score ?? null);
 
+    // Only write `liked` when provided — undefined must not clobber an existing
+    // true with a default false.
+    const likedData = input.liked !== undefined ? { liked: input.liked } : {};
+
     if (nextThumb === null && nextScore === null) {
       if (existing) await tx.userRating.delete({ where: { id: existing.id } });
     } else if (existing) {
       await tx.userRating.update({
         where: { id: existing.id },
-        data: { rating: nextThumb, score: nextScore, ratedAt: input.ratedAt ?? new Date() },
+        data: {
+          rating: nextThumb,
+          score: nextScore,
+          ...likedData,
+          ratedAt: input.ratedAt ?? new Date(),
+        },
       });
     } else {
       const isMovie = input.itemType === "movie";
@@ -85,6 +96,7 @@ export async function setUserRating(
           mediaType: isMovie ? "MOVIE" : "SERIES",
           rating: nextThumb,
           score: nextScore,
+          ...likedData,
           ratedAt: input.ratedAt ?? new Date(),
         },
       });

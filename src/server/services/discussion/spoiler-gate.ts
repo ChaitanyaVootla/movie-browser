@@ -78,14 +78,22 @@ export function isScopeVisible(
 }
 
 /**
- * The same predicate as a Prisma where-clause so gated pagination runs in SQL
- * (residual filter on the anchor's ordered index — verified read path in spec).
+ * The visible-scope OR-branches as plain structural objects. The scope columns
+ * (`spoilerScope`, `scopeSeason`, `scopeEpisode`) are IDENTICAL on `Comment` and
+ * `UserReview`, so the branch logic is shared and cast per-model at the edge.
  */
-export function visibleScopeWhere(
+interface ScopeBranch {
+  spoilerScope: SpoilerScopeValue | { in: SpoilerScopeValue[] };
+  scopeSeason?: number | { lt: number };
+  scopeEpisode?: { lte: number };
+  OR?: { scopeSeason: number | { lt: number }; scopeEpisode?: { lte: number } }[];
+}
+
+function buildScopeBranches(
   ctx: ViewerGateContext,
   anchorKind: "movie" | "series"
-): Prisma.CommentWhereInput {
-  const branches: Prisma.CommentWhereInput[] = [{ spoilerScope: "NONE" }];
+): ScopeBranch[] {
+  const branches: ScopeBranch[] = [{ spoilerScope: "NONE" }];
   const fullAccess = anchorKind === "movie" ? ctx.movieWatched : ctx.seriesCompleted;
   if (fullAccess) {
     branches.push({ spoilerScope: { in: ["WATCHED", "EPISODE", "ENDING"] } });
@@ -98,7 +106,26 @@ export function visibleScopeWhere(
       ],
     });
   }
-  return { OR: branches };
+  return branches;
+}
+
+/**
+ * The same predicate as a Prisma where-clause so gated pagination runs in SQL
+ * (residual filter on the anchor's ordered index — verified read path in spec).
+ */
+export function visibleScopeWhere(
+  ctx: ViewerGateContext,
+  anchorKind: "movie" | "series"
+): Prisma.CommentWhereInput {
+  return { OR: buildScopeBranches(ctx, anchorKind) } as Prisma.CommentWhereInput;
+}
+
+/** Identical scope predicate, typed for `UserReview` (shares the scope columns). */
+export function visibleReviewScopeWhere(
+  ctx: ViewerGateContext,
+  anchorKind: "movie" | "series"
+): Prisma.UserReviewWhereInput {
+  return { OR: buildScopeBranches(ctx, anchorKind) } as Prisma.UserReviewWhereInput;
 }
 
 const SCOPE_RANKS: Record<SpoilerScopeValue, number> = {

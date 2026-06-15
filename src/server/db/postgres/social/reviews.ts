@@ -7,10 +7,21 @@
 import { Prisma, type CommentStatus } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
+import {
+  visibleReviewScopeWhere,
+  type ViewerGateContext,
+} from "@/server/services/discussion/spoiler-gate";
+import type { SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
 import { getHiddenUserIds } from "./blocks";
 
 /** Global client or an interactive-tx client (the latter carries audit actor). */
 type Db = typeof prisma | Prisma.TransactionClient;
+
+export interface ReviewImageData {
+  entityType: "movie" | "series" | "episode" | "person";
+  tmdbId: number;
+  imagePath: string;
+}
 
 export interface UpsertReviewData {
   movieId?: number;
@@ -18,8 +29,13 @@ export interface UpsertReviewData {
   seasonNumber?: number | null;
   episodeNumber?: number | null;
   tmdbEpisodeId?: number | null;
+  title?: string | null;
   body: string;
-  containsSpoilers: boolean;
+  spoilerScope: SpoilerScopeValue;
+  scopeSeason?: number | null;
+  scopeEpisode?: number | null;
+  scopeTmdbEpisodeId?: number | null;
+  images?: ReviewImageData[] | null;
   isPrivate: boolean;
   /** null = the ONE canonical unit review; set = a per-viewing (rewatch) review. */
   watchEventId?: number | null;
@@ -58,8 +74,16 @@ export async function upsertUserReview(
   const common = {
     mediaType: isMovie ? ("MOVIE" as const) : ("SERIES" as const),
     tmdbEpisodeId: isMovie ? null : (data.tmdbEpisodeId ?? null),
+    title: data.title ?? null,
     body: data.body,
-    containsSpoilers: data.containsSpoilers,
+    spoilerScope: data.spoilerScope,
+    scopeSeason: data.scopeSeason ?? null,
+    scopeEpisode: data.scopeEpisode ?? null,
+    scopeTmdbEpisodeId: data.scopeTmdbEpisodeId ?? null,
+    images:
+      data.images != null
+        ? (data.images as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
     isPrivate: data.isPrivate,
     status: data.status,
     aiLabels: data.aiLabels ?? Prisma.JsonNull,
@@ -127,8 +151,10 @@ export interface PublicReviewsOptions {
 }
 
 /**
- * Public read path: PUBLISHED + not private, block-filtered via the enforced
- * helper. (Mirror of the publicComments pattern comments get in phase 1.)
+ * Public read path: PUBLISHED + not private + spoilerScope NONE, block-filtered
+ * via the enforced helper. (Mirror of the publicComments pattern.) The hard
+ * `spoilerScope: "NONE"` filter keeps spoiler bodies out of the anon-cacheable
+ * tier — gated bodies load via getVisibleReviews (a POST, never edge-cached).
  */
 export async function getPublicReviews(opts: PublicReviewsOptions) {
   const limit = Math.min(opts.limit ?? 20, 50);
@@ -138,6 +164,7 @@ export async function getPublicReviews(opts: PublicReviewsOptions) {
     where: {
       status: "PUBLISHED",
       isPrivate: false,
+      spoilerScope: "NONE",
       ...(opts.movieId !== undefined
         ? { movieId: opts.movieId }
         : { seriesId: opts.seriesId, seasonNumber: opts.seasonNumber ?? null }),
@@ -145,6 +172,54 @@ export async function getPublicReviews(opts: PublicReviewsOptions) {
       ...(opts.cursorId ? { id: { lt: opts.cursorId } } : {}),
     },
     orderBy: { id: "desc" },
+    take: limit + 1,
+    include: { user: { select: { id: true, username: true, name: true, image: true } } },
+  });
+  const page = rows.slice(0, limit);
+  return {
+    reviews: page,
+    nextCursorId: rows.length > limit && page.length > 0 ? page[page.length - 1].id : null,
+  };
+}
+
+export interface VisibleReviewsOptions {
+  movieId?: number;
+  seriesId?: number;
+  seasonNumber?: number | null;
+  viewerId?: number | null;
+  gate: ViewerGateContext;
+  anchorKind: "movie" | "series";
+  sort: "popular" | "recent";
+  cursorId?: number;
+  limit?: number;
+}
+
+/**
+ * Gated read path (a POST, never edge-cached): PUBLISHED + not private +
+ * block-filtered, with the spoiler filter resolved to what THIS viewer's watch
+ * progress permits (visibleReviewScopeWhere). Keyset-paginated; the action
+ * layer joins author score/liked + likedByViewer onto these raw rows.
+ */
+export async function getVisibleReviews(opts: VisibleReviewsOptions) {
+  const limit = Math.min(opts.limit ?? 20, 50);
+  const hidden =
+    opts.viewerId != null ? await getHiddenUserIds(opts.viewerId) : new Set<number>();
+  const orderBy: Prisma.UserReviewOrderByWithRelationInput[] =
+    opts.sort === "popular"
+      ? [{ likeCount: "desc" }, { id: "desc" }]
+      : [{ createdAt: "desc" }, { id: "desc" }];
+  const rows = await prisma.userReview.findMany({
+    where: {
+      status: "PUBLISHED",
+      isPrivate: false,
+      ...visibleReviewScopeWhere(opts.gate, opts.anchorKind),
+      ...(opts.movieId !== undefined
+        ? { movieId: opts.movieId }
+        : { seriesId: opts.seriesId, seasonNumber: opts.seasonNumber ?? null }),
+      ...(hidden.size > 0 ? { userId: { notIn: [...hidden] } } : {}),
+      ...(opts.cursorId ? { id: { lt: opts.cursorId } } : {}),
+    },
+    orderBy,
     take: limit + 1,
     include: { user: { select: { id: true, username: true, name: true, image: true } } },
   });
