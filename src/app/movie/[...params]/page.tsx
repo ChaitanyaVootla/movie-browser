@@ -64,7 +64,7 @@ import {
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { ReviewsSection } from "@/components/features/reviews";
-import { DiscussionSection, DiscussionEntryStrip } from "@/components/features/discussion";
+import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Collection, Movie } from "@/types";
@@ -553,7 +553,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
           anchor={{ type: "movie", movieId: movie.id }}
           starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
           className="mt-8 md:mt-12"
-          viewAllHref={`${getMediaPath("movie", movie.id, movie.title)}/discussions`}
+          viewAllHref={discussionsHref({ type: "movie", movieId: movie.id }, movie.title)}
         />
       </Suspense>
     </>

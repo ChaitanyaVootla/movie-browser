@@ -66,7 +66,7 @@ import {
 } from "@/components/features/tracking";
 import NextLink from "next/link";
 import { ReviewsSection } from "@/components/features/reviews";
-import { DiscussionSection, DiscussionEntryStrip } from "@/components/features/discussion";
+import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
 import {
   EpisodeDiscussPage,
   generateDiscussMetadata,
@@ -582,7 +582,10 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
           starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
           className="mt-8 md:mt-12"
-          viewAllHref={`${getMediaPath("series", series.id, series.name)}/discussions`}
+          viewAllHref={discussionsHref(
+            { type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null },
+            series.name
+          )}
         >
           <EpisodeThreadsLink seriesId={series.id} seriesName={series.name} />
         </DiscussionSection>
