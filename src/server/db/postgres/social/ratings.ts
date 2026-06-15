@@ -121,6 +121,66 @@ export async function getTitleRating(
   return row ? { thumb: row.rating, score: row.score, ratedAt: row.ratedAt } : null;
 }
 
+// ---------------------------------------------------------------------------
+// Rating histogram (1..10 distribution + average) over user_ratings.
+// ---------------------------------------------------------------------------
+
+export interface RatingHistogram {
+  /** Keyed 1..10, every bucket present (0 when no scores). */
+  buckets: Record<number, number>;
+  /** Mean of scored ratings, or null when there are none. */
+  average: number | null;
+  /** Total scored ratings. */
+  total: number;
+}
+
+/** Pure shaper — buckets 1..10 from grouped (score, count) rows. */
+export function shapeHistogram(rows: { score: number; n: number }[]): RatingHistogram {
+  const buckets: Record<number, number> = {};
+  for (let s = 1; s <= 10; s++) buckets[s] = 0;
+  let total = 0;
+  let weightedSum = 0;
+  for (const { score, n } of rows) {
+    if (score >= 1 && score <= 10) {
+      buckets[score] += n;
+      total += n;
+      weightedSum += score * n;
+    }
+  }
+  return { buckets, average: total === 0 ? null : weightedSum / total, total };
+}
+
+/**
+ * Score distribution for a title (movie / series / season) across all users.
+ * Anchor predicate is parameterized via Prisma.sql — never interpolated.
+ */
+export async function getRatingHistogram(anchor: {
+  movieId?: number;
+  seriesId?: number;
+  seasonNumber?: number | null;
+}): Promise<RatingHistogram> {
+  let predicate: Prisma.Sql;
+  if (anchor.movieId !== undefined) {
+    predicate = Prisma.sql`movie_id = ${anchor.movieId}`;
+  } else if (anchor.seriesId !== undefined) {
+    const seasonClause =
+      anchor.seasonNumber == null
+        ? Prisma.sql`season_number IS NULL`
+        : Prisma.sql`season_number = ${anchor.seasonNumber}`;
+    predicate = Prisma.sql`series_id = ${anchor.seriesId} AND ${seasonClause}`;
+  } else {
+    return shapeHistogram([]);
+  }
+
+  const rows = await prisma.$queryRaw<{ score: number; n: number }[]>`
+    SELECT score, COUNT(*)::int AS n
+    FROM user_ratings
+    WHERE ${predicate} AND score IS NOT NULL
+    GROUP BY score
+  `;
+  return shapeHistogram(rows);
+}
+
 /** Batch fetch for review lists: title-level scores by (userId, title). */
 export async function getScoresForUsers(
   userIds: number[],
