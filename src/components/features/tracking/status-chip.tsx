@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, ListChecks, RotateCcw, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,13 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
@@ -26,6 +19,7 @@ import type { WatchStatus } from "@/types/social";
 import type { SeasonSelectorSeason } from "@/types/client-props";
 import { useSeriesTracking } from "./series-tracking-provider";
 import { ProgressBorderPill } from "./progress-border-pill";
+import { SetPositionSheet } from "./set-position-sheet";
 
 export const STATUS_LABELS: Record<WatchStatus, string> = {
   WATCHING: "Watching",
@@ -54,30 +48,23 @@ const CHIP_BASE =
   "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors";
 
 /**
- * Combined status + progress control. The pill shows the watch status inside a
- * border that IS the "caught up" progress. Clicking it opens one slick modal
- * for the two things people actually do: set their position (most common) and
- * change status — plus reset-to-rewatch. Never deletes diary events (the server
- * starts a fresh cycle, §4.2 series_progress).
+ * Combined status + progress control. The pill shows the watch status (with the
+ * current position, e.g. "Watching · S2E5") inside a border that IS the "caught
+ * up" progress. Clicking it opens one modal for the three things people do:
+ * jump into the rich Set-Position picker (most common), change status, and
+ * reset-to-rewatch. Never deletes diary events (the server starts a fresh cycle,
+ * §4.2 series_progress).
  */
 export function StatusChip({ seriesId, seasons }: StatusChipProps) {
   const tracking = useSeriesTracking();
   const { trackAction } = useAnalytics();
   const isMobile = useMobile();
   const [open, setOpen] = useState(false);
+  const [posOpen, setPosOpen] = useState(false);
   const [confirmRewatch, setConfirmRewatch] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [posBusy, setPosBusy] = useState(false);
 
-  const regularSeasons = useMemo(
-    () => (seasons ?? []).filter((s) => s.season_number > 0),
-    [seasons]
-  );
   const progress = tracking?.progress ?? null;
-  const [seasonNumber, setSeasonNumber] = useState<number>(
-    progress?.lastSeasonNumber ?? regularSeasons[0]?.season_number ?? 1
-  );
-  const [episodeNumber, setEpisodeNumber] = useState<number>(progress?.lastEpisodeNumber ?? 1);
 
   if (!tracking || !tracking.isAuthenticated || !progress) return null;
 
@@ -86,12 +73,19 @@ export function StatusChip({ seriesId, seasons }: StatusChipProps) {
       ? Math.round((progress.episodesWatched / progress.airedEpisodes) * 100)
       : 0;
 
-  const selectedSeason = regularSeasons.find((s) => s.season_number === seasonNumber);
-  const episodeOptions = Array.from(
-    { length: Math.max(selectedSeason?.episode_count ?? 1, 1) },
-    (_, i) => i + 1
-  );
-  const hasSeasons = regularSeasons.length > 0;
+  const rewatchSuffix = progress.rewatchCount > 0 ? ` ×${progress.rewatchCount + 1}` : "";
+  const completed = progress.status === "COMPLETED";
+  const positionCode =
+    progress.lastSeasonNumber && progress.lastEpisodeNumber
+      ? episodeCode(progress.lastSeasonNumber, progress.lastEpisodeNumber)
+      : null;
+  // Chip label: "Completed ×N" once finished; otherwise pair the status with the
+  // position so the watched-till point is visible at a glance.
+  const chipLabel = completed
+    ? `${STATUS_LABELS.COMPLETED}${rewatchSuffix}`
+    : positionCode
+      ? `${STATUS_LABELS[progress.status]} · ${positionCode}`
+      : STATUS_LABELS[progress.status];
 
   const handleStatus = async (status: WatchStatus | null) => {
     const ok = await tracking.setStatus(status);
@@ -105,21 +99,6 @@ export function StatusChip({ seriesId, seasons }: StatusChipProps) {
     }
   };
 
-  const handleSavePosition = async () => {
-    setPosBusy(true);
-    const ok = await tracking.setPosition(seasonNumber, episodeNumber);
-    setPosBusy(false);
-    if (ok) {
-      trackAction({
-        action: "set_position",
-        mediaType: "series",
-        itemId: seriesId,
-        metadata: { seasonNumber, episodeNumber },
-      });
-      setOpen(false);
-    }
-  };
-
   const handleRewatch = async () => {
     setBusy(true);
     const ok = await tracking.resetToRewatch();
@@ -130,61 +109,33 @@ export function StatusChip({ seriesId, seasons }: StatusChipProps) {
     }
   };
 
+  const hasSeasons = (seasons ?? []).some((s) => s.season_number > 0);
+
   const body = (
     <div className="space-y-6">
-      {/* Position — the most-used action, up top */}
+      {/* Position — the most-used action: open the rich episode picker. */}
       {hasSeasons && (
-        <div className="space-y-2.5">
-          <p className="text-sm font-semibold">I’m caught up to</p>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Select
-              value={String(seasonNumber)}
-              onValueChange={(v) => {
-                setSeasonNumber(parseInt(v, 10));
-                setEpisodeNumber(1);
-              }}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="max-h-[min(50dvh,var(--radix-select-content-available-height))]"
-              >
-                {regularSeasons.map((s) => (
-                  <SelectItem key={s.id} value={String(s.season_number)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={String(episodeNumber)}
-              onValueChange={(v) => setEpisodeNumber(parseInt(v, 10))}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="max-h-[min(50dvh,var(--radix-select-content-available-height))]"
-              >
-                {episodeOptions.map((n) => (
-                  <SelectItem key={n} value={String(n)}>
-                    Episode {n}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button className="h-10 w-full" disabled={posBusy} onClick={() => void handleSavePosition()}>
-            {posBusy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              `Mark caught up through ${episodeCode(seasonNumber, episodeNumber)}`
-            )}
-          </Button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setPosOpen(true);
+          }}
+          className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-left transition-colors hover:bg-muted"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand">
+            <ListChecks className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-foreground">
+              {positionCode ? "Update my position" : "Set my position"}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {positionCode ? `Caught up to ${positionCode}` : "Pick the episode you're up to"}
+            </span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+        </button>
       )}
 
       {/* Status */}
@@ -243,14 +194,17 @@ export function StatusChip({ seriesId, seasons }: StatusChipProps) {
         <span>
           Start a rewatch
           <span className="block text-xs text-muted-foreground/70">
-            Keeps your diary; progress restarts from S1E1.
+            Keeps your diary; progress restarts from S1E1
+            {progress.rewatchCount > 0 ? ` (rewatch #${progress.rewatchCount + 1})` : ""}.
           </span>
         </span>
       </button>
     </div>
   );
 
-  const title = `${percent}% caught up · ${progress.episodesWatched}/${progress.airedEpisodes}`;
+  const title = `${percent}% caught up · ${progress.episodesWatched}/${progress.airedEpisodes}${
+    progress.rewatchCount > 0 ? ` · ${progress.rewatchCount + 1} watch-throughs` : ""
+  }`;
 
   return (
     <>
@@ -258,14 +212,20 @@ export function StatusChip({ seriesId, seasons }: StatusChipProps) {
         type="button"
         onClick={() => setOpen(true)}
         className="inline-flex rounded-full outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand/40"
-        aria-label={`Watch status: ${STATUS_LABELS[progress.status]}, ${percent}% caught up — edit progress`}
+        aria-label={`Watch status: ${chipLabel}, ${percent}% caught up — edit progress`}
       >
         <ProgressBorderPill percent={percent} className="h-8 px-3.5">
-          <span className="text-xs font-medium text-foreground">
-            {STATUS_LABELS[progress.status]}
-          </span>
+          <span className="text-xs font-medium text-foreground">{chipLabel}</span>
         </ProgressBorderPill>
       </button>
+
+      {/* Rich set-position picker, opened from the "Update my position" row. */}
+      <SetPositionSheet
+        seriesId={seriesId}
+        seasons={seasons ?? []}
+        open={posOpen}
+        onOpenChange={setPosOpen}
+      />
 
       {isMobile ? (
         <Drawer open={open} onOpenChange={setOpen}>

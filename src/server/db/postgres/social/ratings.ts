@@ -1,7 +1,10 @@
 /**
- * User ratings: thumb (±1) + score (1-10) + ratedAt on one row.
- * A row may carry thumb, score, or both — never neither (DB CHECK enforces;
- * this module deletes the row when both would become null).
+ * Canonical user ratings: thumb (±1) + score (1-10) + ratedAt on one row, at
+ * ANY granularity (movie / series / season / episode). A row may carry thumb,
+ * score, or both — never neither (DB CHECK enforces; this module deletes the
+ * row when both would become null). The per-viewing historical twin lives in
+ * watch_events.score. Series-unit uniqueness is the granular partial index
+ * uq_user_ratings_series_unit (04-ugc-constraints.sql).
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
@@ -13,6 +16,10 @@ type Db = typeof prisma | Prisma.TransactionClient;
 export interface SetRatingInput {
   itemId: number;
   itemType: "movie" | "series";
+  /** Series granularity: null = series-level, set season for a season rating. */
+  seasonNumber?: number | null;
+  episodeNumber?: number | null;
+  tmdbEpisodeId?: number | null;
   /** undefined = leave unchanged; null = clear. */
   thumb?: 1 | -1 | null;
   /** undefined = leave unchanged; null = clear. */
@@ -21,15 +28,30 @@ export interface SetRatingInput {
   ratedAt?: Date;
 }
 
+/** Exact-unit match (explicit nulls — never `undefined`, which matches any). */
+function ratingWhere(userId: number, input: RatingTarget): Prisma.UserRatingWhereInput {
+  if (input.itemType === "movie") return { userId, movieId: input.itemId };
+  return {
+    userId,
+    seriesId: input.itemId,
+    seasonNumber: input.seasonNumber ?? null,
+    episodeNumber: input.episodeNumber ?? null,
+  };
+}
+
+interface RatingTarget {
+  itemId: number;
+  itemType: "movie" | "series";
+  seasonNumber?: number | null;
+  episodeNumber?: number | null;
+}
+
 export async function setUserRating(
   userId: number,
   input: SetRatingInput,
   db: Db = prisma
 ): Promise<void> {
-  const where =
-    input.itemType === "movie"
-      ? { userId, movieId: input.itemId }
-      : { userId, seriesId: input.itemId };
+  const where = ratingWhere(userId, input);
 
   // Field-level clear semantics: undefined = leave a field as-is, null = clear
   // ONLY that field. The row is deleted ONLY when BOTH thumb and score end up
@@ -51,11 +73,16 @@ export async function setUserRating(
         data: { rating: nextThumb, score: nextScore, ratedAt: input.ratedAt ?? new Date() },
       });
     } else {
+      const isMovie = input.itemType === "movie";
       await tx.userRating.create({
         data: {
           userId,
-          movieId: input.itemType === "movie" ? input.itemId : null,
-          seriesId: input.itemType === "series" ? input.itemId : null,
+          movieId: isMovie ? input.itemId : null,
+          seriesId: isMovie ? null : input.itemId,
+          seasonNumber: isMovie ? null : (input.seasonNumber ?? null),
+          episodeNumber: isMovie ? null : (input.episodeNumber ?? null),
+          tmdbEpisodeId: isMovie ? null : (input.tmdbEpisodeId ?? null),
+          mediaType: isMovie ? "MOVIE" : "SERIES",
           rating: nextThumb,
           score: nextScore,
           ratedAt: input.ratedAt ?? new Date(),
@@ -84,18 +111,17 @@ export interface TitleRating {
 export async function getTitleRating(
   userId: number,
   itemId: number,
-  itemType: "movie" | "series"
+  itemType: "movie" | "series",
+  unit?: { seasonNumber?: number | null; episodeNumber?: number | null }
 ): Promise<TitleRating | null> {
-  const where =
-    itemType === "movie" ? { userId, movieId: itemId } : { userId, seriesId: itemId };
   const row = await prisma.userRating.findFirst({
-    where,
+    where: ratingWhere(userId, { itemId, itemType, ...unit }),
     select: { rating: true, score: true, ratedAt: true },
   });
   return row ? { thumb: row.rating, score: row.score, ratedAt: row.ratedAt } : null;
 }
 
-/** Batch fetch for review lists: scores by (userId, title). */
+/** Batch fetch for review lists: title-level scores by (userId, title). */
 export async function getScoresForUsers(
   userIds: number[],
   itemId: number,
@@ -105,7 +131,13 @@ export async function getScoresForUsers(
   const where =
     itemType === "movie"
       ? { movieId: itemId, userId: { in: userIds }, score: { not: null } }
-      : { seriesId: itemId, userId: { in: userIds }, score: { not: null } };
+      : {
+          seriesId: itemId,
+          seasonNumber: null,
+          episodeNumber: null,
+          userId: { in: userIds },
+          score: { not: null },
+        };
   const rows = await prisma.userRating.findMany({
     where,
     select: { userId: true, score: true },

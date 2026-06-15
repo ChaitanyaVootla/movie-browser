@@ -11,6 +11,8 @@
 import { prisma } from "./index";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 import { markStatsDirty } from "./social/stats-dirty";
+import { logWatchEvent } from "./social/watch-events";
+import { setUserRating } from "./social/ratings";
 
 const MAX_RECENTS = 20;
 const MAX_CONTINUE_WATCHING = 10;
@@ -91,7 +93,7 @@ export async function getLibraryData(userId: number) {
   const [watchedMovies, watchlistMovies, watchlistSeries, ratings, recents, continueWatching] =
     await Promise.all([
       prisma.watchEvent.findMany({
-        where: { userId, movieId: { not: null } },
+        where: { userId, movieId: { not: null }, kind: "WATCH" },
         select: { movieId: true },
         distinct: ["movieId"],
       }),
@@ -315,7 +317,7 @@ export async function getWatchedMovieIdsWithDates(
   const rows = await prisma.$queryRaw<Array<{ movie_id: number; last_at: Date }>>`
     SELECT movie_id, MAX(COALESCE(watched_at, created_at)) AS last_at
     FROM watch_events
-    WHERE user_id = ${userId} AND movie_id IS NOT NULL
+    WHERE user_id = ${userId} AND movie_id IS NOT NULL AND kind = 'WATCH'
     GROUP BY movie_id
     ORDER BY last_at DESC
   `;
@@ -324,21 +326,18 @@ export async function getWatchedMovieIdsWithDates(
 
 export async function markMovieWatched(userId: number, movieId: number): Promise<void> {
   const existing = await prisma.watchEvent.findFirst({
-    where: { userId, movieId },
+    where: { userId, movieId, kind: "WATCH" },
     select: { id: true },
   });
   if (existing) return;
-  await prisma.$transaction(async (tx) => {
-    await tx.watchEvent.create({
-      data: { userId, movieId, watchedAt: new Date(), watchedAtPrecision: "DATETIME", source: "LOGGED" },
-    });
-    await markStatsDirty(tx, userId);
-  });
+  // Delegate so the event carries the snapshot (media_type/runtime/year/cycle).
+  await logWatchEvent(userId, { movieId });
 }
 
 export async function unmarkMovieWatched(userId: number, movieId: number): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    await tx.watchEvent.deleteMany({ where: { userId, movieId } });
+    // Unmark only the viewings — keep any NOTE diary entries on this title.
+    await tx.watchEvent.deleteMany({ where: { userId, movieId, kind: "WATCH" } });
     await markStatsDirty(tx, userId);
   });
 }
@@ -376,19 +375,9 @@ export async function upsertRating(
   itemType: "movie" | "series",
   rating: number
 ): Promise<void> {
-  if (itemType === "movie") {
-    await prisma.userRating.upsert({
-      where: { userId_movieId: { userId, movieId: itemId } },
-      create: { userId, movieId: itemId, rating, ratedAt: new Date() },
-      update: { rating, createdAt: new Date(), ratedAt: new Date() },
-    });
-  } else {
-    await prisma.userRating.upsert({
-      where: { userId_seriesId: { userId, seriesId: itemId } },
-      create: { userId, seriesId: itemId, rating, ratedAt: new Date() },
-      update: { rating, createdAt: new Date(), ratedAt: new Date() },
-    });
-  }
+  // Legacy thumb-only path: delegate to the canonical setter (handles
+  // media_type, granularity, and field-level merge that preserves a score).
+  await setUserRating(userId, { itemId, itemType, thumb: rating === -1 ? -1 : 1 });
 }
 
 export async function deleteRating(
@@ -573,7 +562,7 @@ export async function getUserItemStatus(
         select: { id: true },
       }),
       prisma.watchEvent.findFirst({
-        where: { userId, movieId: itemId },
+        where: { userId, movieId: itemId, kind: "WATCH" },
         select: { id: true },
       }),
       prisma.userRating.findUnique({
@@ -594,8 +583,8 @@ export async function getUserItemStatus(
       where: { userId_seriesId: { userId, seriesId: itemId } },
       select: { id: true },
     }),
-    prisma.userRating.findUnique({
-      where: { userId_seriesId: { userId, seriesId: itemId } },
+    prisma.userRating.findFirst({
+      where: { userId, seriesId: itemId, seasonNumber: null, episodeNumber: null },
       select: { rating: true },
     }),
     prisma.seriesProgress.findUnique({
@@ -617,7 +606,7 @@ export async function getUserExclusions(
   if (mediaType === "movie") {
     const [watched, watchlist, disliked] = await Promise.all([
       prisma.watchEvent.findMany({
-        where: { userId, movieId: { not: null } },
+        where: { userId, movieId: { not: null }, kind: "WATCH" },
         select: { movieId: true },
         distinct: ["movieId"],
       }),
@@ -693,7 +682,7 @@ export async function getAdminUsersWithActivity() {
   const watchedCounts = await prisma.$queryRaw<Array<{ user_id: number; n: bigint }>>`
     SELECT user_id, COUNT(DISTINCT movie_id)::bigint AS n
     FROM watch_events
-    WHERE movie_id IS NOT NULL
+    WHERE movie_id IS NOT NULL AND kind = 'WATCH'
     GROUP BY user_id
   `;
   const watchedByUser = new Map(watchedCounts.map((c) => [c.user_id, Number(c.n)]));

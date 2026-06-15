@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { MediaScroller } from "@/components/features/media/media-scroller";
+import { UpNextSection } from "@/components/features/home/up-next-section";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 
@@ -230,7 +231,13 @@ export function WatchlistClient() {
   const seriesCount = watchlist?.series?.totalCount || 0;
 
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+    <div className="space-y-8">
+      {/* In-progress series (series_progress → Up Next). Self-gates: renders
+          nothing if you have no shows in progress. The watchlist below is now
+          pure "want to watch" — starting a show auto-removes it from there. */}
+      <UpNextSection title="Continue Watching" />
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
       <TabsList className="w-fit mx-auto">
         <TabsTrigger value="series" className="gap-2">
           <Tv className="h-4 w-4" />
@@ -326,7 +333,8 @@ export function WatchlistClient() {
           />
         )}
       </TabsContent>
-    </Tabs>
+      </Tabs>
+    </div>
   );
 }
 

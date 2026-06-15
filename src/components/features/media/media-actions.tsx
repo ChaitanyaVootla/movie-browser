@@ -12,7 +12,6 @@ import {
   Plus,
   ThumbsUp,
   ThumbsDown,
-  Eye,
   Loader2,
 } from "lucide-react";
 import { useUserLibrary } from "@/hooks/use-user-library";
@@ -36,7 +35,6 @@ interface MediaActionsProps {
   onPlayTrailer?: () => void;
   className?: string;
   variant?: "hero" | "compact";
-  showWatched?: boolean;
   /**
    * Series tracking control, rendered in the SAME slot a movie's "Watched"
    * toggle occupies (right after Watchlist) so the watch control is positionally
@@ -83,21 +81,13 @@ export function MediaActions({
   onPlayTrailer,
   className,
   variant = "hero",
-  showWatched = true,
   watchedSlot,
 }: MediaActionsProps) {
-  const {
-    isInWatchlist,
-    isWatched,
-    isLiked,
-    isDisliked,
-    toggleWatchlist,
-    toggleWatched,
-    like,
-    dislike,
-  } = useUserLibrary(itemId, mediaType);
-  const { trackWatchlistAdd, trackWatchlistRemove, trackRating, trackWatched, trackShareClick } =
-    useAnalytics();
+  const { isInWatchlist, isLiked, isDisliked, toggleWatchlist, like, dislike } = useUserLibrary(
+    itemId,
+    mediaType
+  );
+  const { trackWatchlistAdd, trackWatchlistRemove, trackRating, trackShareClick } = useAnalytics();
 
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [animating, setAnimating] = useState<string | null>(null);
@@ -119,28 +109,6 @@ export function MediaActions({
       } else {
         trackWatchlistRemove(itemId, mediaType, title);
       }
-    } finally {
-      setIsUpdating(null);
-    }
-  };
-
-  const handleWatchedToggle = async () => {
-    const wasWatched = isWatched;
-    setIsUpdating("watched");
-    try {
-      await toggleWatched();
-      if (!wasWatched) {
-        triggerAnimation("watched", 700);
-        // Nudge the AI agent to surface post-watch discussion
-        setTimeout(() => {
-          window.dispatchEvent(
-            new CustomEvent("ai-post-watch", {
-              detail: { tmdbId: itemId, mediaType, title },
-            })
-          );
-        }, 800); // After watched animation completes
-      }
-      trackWatched(itemId, mediaType, !wasWatched, title);
     } finally {
       setIsUpdating(null);
     }
@@ -289,50 +257,10 @@ export function MediaActions({
             </TooltipContent>
           </Tooltip>
 
-          {/* Watched toggle (movies only) */}
-          {showWatched && mediaType === "movie" && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className={cn(
-                    "gap-1.5 rounded-full transition-all backdrop-blur-sm relative overflow-visible",
-                    isWatched
-                      ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]"
-                      : "bg-white/10 hover:bg-white/20 border border-white/20 text-white/80 hover:text-white"
-                  )}
-                  onClick={handleWatchedToggle}
-                  disabled={isUpdating === "watched"}
-                  aria-label={isWatched ? "Mark as Unwatched" : "Mark as Watched"}
-                >
-                  {/* Animation layers */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <PulseRings isActive={animating === "watched"} ringCount={2} />
-                    <GlowBurst isActive={animating === "watched"} />
-                  </div>
-                  <ShineSweep isActive={animating === "watched"} />
-
-                  <AnimatedIcon animate={animating === "watched"} variant="watched">
-                    {isUpdating === "watched" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Eye className={cn("h-3.5 w-3.5", isWatched && "fill-current stroke-[2.5]")} />
-                    )}
-                  </AnimatedIcon>
-                  <span className="text-[13px] font-semibold">
-                    {isWatched ? "Watched" : "Seen it?"}
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {isWatched ? "Mark as Unwatched" : "Mark as Watched"}
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {/* Series tracking sits in the movie "Watched" slot for consistency */}
-          {mediaType === "series" && watchedSlot}
+          {/* Single watch control, positioned right after Watchlist for both
+              media types: movies pass the segmented WatchedButton, series pass
+              the progress control (see MediaActionBar). */}
+          {watchedSlot}
 
           {/* Like */}
           <Tooltip>

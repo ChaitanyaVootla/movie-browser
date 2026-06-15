@@ -82,7 +82,7 @@ export async function getPublicProfileByUsername(
       prisma.$queryRaw<Array<{ day: string; count: number }>>`
         SELECT to_char(watched_at, 'YYYY-MM-DD') AS day, count(*)::int AS count
         FROM watch_events
-        WHERE user_id = ${user.id} AND is_private = false
+        WHERE user_id = ${user.id} AND is_private = false AND kind = 'WATCH'
           AND watched_at IS NOT NULL AND watched_at >= now() - interval '182 days'
         GROUP BY 1
       `,
@@ -96,7 +96,8 @@ export async function getPublicProfileByUsername(
         FROM watch_events we
         LEFT JOIN movies m ON m.id = we.movie_id
         LEFT JOIN series s ON s.id = we.series_id
-        WHERE we.user_id = ${user.id} AND we.is_private = false AND we.watched_at IS NOT NULL
+        WHERE we.user_id = ${user.id} AND we.is_private = false AND we.kind = 'WATCH'
+          AND we.watched_at IS NOT NULL
         ORDER BY we.watched_at DESC
         LIMIT 8
       `,

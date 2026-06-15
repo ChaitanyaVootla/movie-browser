@@ -20,6 +20,7 @@ import {
   toggleEpisodeWatchedAction,
 } from "@/server/actions/tracking";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
+import { emitDiaryUpdated } from "@/hooks/use-diary-pulse";
 import { episodeKey } from "@/lib/tracking-format";
 import type { SeriesProgressDTO, WatchStatus } from "@/types/social";
 
@@ -123,6 +124,7 @@ export function SeriesTrackingProvider({ seriesId, children }: SeriesTrackingPro
         });
         if (!result.ok) throw new Error(result.error);
         await refresh(); // authoritative progress/status recompute
+        if (nextWatched) emitDiaryUpdated("series", seriesId); // pulse the Diary button
       } catch {
         // Roll back
         setWatched((prev) => {
@@ -146,6 +148,7 @@ export function SeriesTrackingProvider({ seriesId, children }: SeriesTrackingPro
           return false;
         }
         await refresh();
+        emitDiaryUpdated("series", seriesId); // pulse the Diary button — progress changed
         toast.success(successMessage);
         return true;
       } catch {
@@ -153,7 +156,7 @@ export function SeriesTrackingProvider({ seriesId, children }: SeriesTrackingPro
         return false;
       }
     },
-    [refresh]
+    [refresh, seriesId]
   );
 
   const value = useMemo<SeriesTrackingContextValue>(

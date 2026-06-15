@@ -5,7 +5,13 @@
  * episodeNumber) + tmdbEpisodeId soft ref — NEVER an FK onto episodes rows.
  * Batch mark APIs are MANDATORY: one createMany + ONE recompute per batch.
  */
-import { Prisma, type WatchedAtPrecision, type WatchEventSource } from "@prisma/client";
+import {
+  Prisma,
+  type MediaType,
+  type WatchedAtPrecision,
+  type WatchEventSource,
+  type WatchEntryKind,
+} from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { dateOnlyToUtc } from "@/lib/watch-dates";
 import { recomputeSeriesProgress } from "./progress";
@@ -23,15 +29,20 @@ export interface LogWatchInput {
   /** YYYY-MM-DD = date precision; null = dateless; undefined = now (DATETIME). */
   watchedDate?: string | null;
   note?: string;
+  /** Optional rating captured at this viewing (1-10). */
+  score?: number | null;
   isRewatch?: boolean;
   isPrivate?: boolean;
   tags?: string[];
   source?: WatchEventSource;
+  /** WATCH = a viewing (default); NOTE = a diary entry that is NOT a viewing. */
+  kind?: WatchEntryKind;
 }
 
 export interface EditWatchEventInput {
   watchedDate?: string | null;
   note?: string | null;
+  score?: number | null;
   isRewatch?: boolean;
   isPrivate?: boolean;
   tags?: string[];
@@ -47,12 +58,84 @@ export interface DiaryEntry {
   watchedAtPrecision: WatchedAtPrecision;
   effectiveAt: Date;
   note: string | null;
+  score: number | null;
+  cycle: number;
+  kind: WatchEntryKind;
   tags: string[];
   isRewatch: boolean;
   isPrivate: boolean;
   source: WatchEventSource;
   title: string | null;
   posterPath: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot: immutable facts copied onto the event at write time so bulk
+// analytics ("hours watched", decade breakdown) never join the catalog tables
+// (which delete+reinsert on hydration). See unification design §4.1.
+// ---------------------------------------------------------------------------
+
+interface Snapshot {
+  mediaType: MediaType;
+  runtimeMinutes: number | null;
+  releaseYear: number | null;
+  tmdbEpisodeId: number | null;
+}
+
+const yearOf = (d: Date | null | undefined): number | null => d?.getUTCFullYear() ?? null;
+
+async function movieSnapshot(movieId: number): Promise<Snapshot> {
+  const m = await prisma.movie.findUnique({
+    where: { id: movieId },
+    select: { runtime: true, releaseDate: true },
+  });
+  return {
+    mediaType: "MOVIE",
+    runtimeMinutes: m?.runtime ?? null,
+    releaseYear: yearOf(m?.releaseDate),
+    tmdbEpisodeId: null,
+  };
+}
+
+async function seriesSnapshot(
+  seriesId: number,
+  seasonNumber?: number,
+  episodeNumber?: number
+): Promise<Snapshot> {
+  const s = await prisma.series.findUnique({
+    where: { id: seriesId },
+    select: { firstAirDate: true, episodeRunTime: true },
+  });
+  const releaseYear = yearOf(s?.firstAirDate);
+  const fallbackRuntime = s?.episodeRunTime?.[0] ?? null;
+  if (seasonNumber !== undefined && episodeNumber !== undefined) {
+    const ep = await prisma.episode.findFirst({
+      where: { episodeNumber, season: { seriesId, seasonNumber } },
+      select: { runtime: true, tmdbEpisodeId: true },
+    });
+    return {
+      mediaType: "SERIES",
+      runtimeMinutes: ep?.runtime ?? fallbackRuntime,
+      releaseYear,
+      tmdbEpisodeId: ep?.tmdbEpisodeId ?? null,
+    };
+  }
+  // Series-level event ("watched the whole show", granularity unknown): no
+  // single runtime — leave null (counts as 0 hours, honest).
+  return { mediaType: "SERIES", runtimeMinutes: null, releaseYear, tmdbEpisodeId: null };
+}
+
+/** Current rewatch cycle for a series (rewatchCount + 1); 1 when not tracked. */
+async function seriesCycle(
+  tx: Prisma.TransactionClient,
+  userId: number,
+  seriesId: number
+): Promise<number> {
+  const p = await tx.seriesProgress.findUnique({
+    where: { userId_seriesId: { userId, seriesId } },
+    select: { rewatchCount: true },
+  });
+  return (p?.rewatchCount ?? 0) + 1;
 }
 
 export interface DiaryCursor {
@@ -77,18 +160,6 @@ function resolveWatchedAt(watchedDate: string | null | undefined): {
   return { watchedAt: dateOnlyToUtc(watchedDate), watchedAtPrecision: "DATE" };
 }
 
-async function lookupTmdbEpisodeId(
-  seriesId: number,
-  seasonNumber: number,
-  episodeNumber: number
-): Promise<number | null> {
-  const row = await prisma.episode.findFirst({
-    where: { episodeNumber, season: { seriesId, seasonNumber } },
-    select: { tmdbEpisodeId: true },
-  });
-  return row?.tmdbEpisodeId ?? null;
-}
-
 // ---------------------------------------------------------------------------
 // Single-event CRUD
 // ---------------------------------------------------------------------------
@@ -98,14 +169,26 @@ export async function logWatchEvent(
   input: LogWatchInput
 ): Promise<{ id: number }> {
   const { watchedAt, watchedAtPrecision } = resolveWatchedAt(input.watchedDate);
-  const tmdbEpisodeId =
-    input.seriesId !== undefined &&
-    input.seasonNumber !== undefined &&
-    input.episodeNumber !== undefined
-      ? await lookupTmdbEpisodeId(input.seriesId, input.seasonNumber, input.episodeNumber)
-      : null;
+  const snapshot =
+    input.movieId !== undefined
+      ? await movieSnapshot(input.movieId)
+      : await seriesSnapshot(input.seriesId!, input.seasonNumber, input.episodeNumber);
+
+  const kind: WatchEntryKind = input.kind ?? "WATCH";
+  // A NOTE is not a viewing: it never moves the cycle counter or the rewatch flag.
+  const isWatch = kind === "WATCH";
 
   return prisma.$transaction(async (tx) => {
+    // cycle: which watch-through this is (WATCH entries only). Series share the
+    // current rewatch cycle; movies count their own prior viewings.
+    const cycle = !isWatch
+      ? 1
+      : input.seriesId !== undefined
+        ? await seriesCycle(tx, userId, input.seriesId)
+        : (await tx.watchEvent.count({
+            where: { userId, movieId: input.movieId, kind: "WATCH" },
+          })) + 1;
+
     const event = await tx.watchEvent.create({
       data: {
         userId,
@@ -113,19 +196,33 @@ export async function logWatchEvent(
         seriesId: input.seriesId ?? null,
         seasonNumber: input.seasonNumber ?? null,
         episodeNumber: input.episodeNumber ?? null,
-        tmdbEpisodeId,
+        tmdbEpisodeId: snapshot.tmdbEpisodeId,
         watchedAt,
         watchedAtPrecision,
         note: input.note ?? null,
+        score: input.score ?? null,
+        kind,
+        mediaType: snapshot.mediaType,
+        runtimeMinutes: snapshot.runtimeMinutes,
+        releaseYear: snapshot.releaseYear,
+        cycle,
         tags: input.tags ?? [],
-        isRewatch: input.isRewatch ?? false,
+        isRewatch: isWatch ? (input.isRewatch ?? cycle > 1) : false,
         isPrivate: input.isPrivate ?? false,
         source: input.source ?? "LOGGED",
       },
       select: { id: true },
     });
-    if (input.seriesId !== undefined) {
+    // A NOTE doesn't change watched progress, but recompute is cheap + safe
+    // (it filters to WATCH) — keeps the watermark correct if this is a WATCH.
+    if (input.seriesId !== undefined && isWatch) {
       await recomputeSeriesProgress(tx, userId, input.seriesId);
+    }
+    // Watching a movie means it's no longer "want to watch" — drop it from the
+    // watchlist (Trakt-style). NOTE entries don't count as watching. (Series are
+    // handled inside recomputeSeriesProgress.)
+    if (input.movieId !== undefined && isWatch) {
+      await tx.watchlistItem.deleteMany({ where: { userId, movieId: input.movieId } });
     }
     await markStatsDirty(tx, userId);
     return { id: event.id };
@@ -150,6 +247,7 @@ export async function editWatchEvent(
     data.watchedAtPrecision = watchedAtPrecision;
   }
   if (patch.note !== undefined) data.note = patch.note;
+  if (patch.score !== undefined) data.score = patch.score;
   if (patch.isRewatch !== undefined) data.isRewatch = patch.isRewatch;
   if (patch.isPrivate !== undefined) data.isPrivate = patch.isPrivate;
   if (patch.tags !== undefined) data.tags = patch.tags;
@@ -189,6 +287,18 @@ interface EpisodeKey {
   seasonNumber: number;
   episodeNumber: number;
   tmdbEpisodeId: number | null;
+  runtime: number | null;
+}
+
+/** Series-level snapshot facts shared by every backfilled episode row. */
+async function seriesBackfillFacts(
+  seriesId: number
+): Promise<{ releaseYear: number | null; fallbackRuntime: number | null }> {
+  const s = await prisma.series.findUnique({
+    where: { id: seriesId },
+    select: { firstAirDate: true, episodeRunTime: true },
+  });
+  return { releaseYear: yearOf(s?.firstAirDate), fallbackRuntime: s?.episodeRunTime?.[0] ?? null };
 }
 
 /**
@@ -201,12 +311,14 @@ async function backfillEpisodes(
   seriesId: number,
   episodes: EpisodeKey[]
 ): Promise<{ inserted: number }> {
+  const facts = await seriesBackfillFacts(seriesId);
   return prisma.$transaction(async (tx) => {
     const progress = await tx.seriesProgress.findUnique({
       where: { userId_seriesId: { userId, seriesId } },
-      select: { rewatchStartedAt: true },
+      select: { rewatchStartedAt: true, rewatchCount: true },
     });
     const reset = progress?.rewatchStartedAt ?? null;
+    const cycle = (progress?.rewatchCount ?? 0) + 1;
     const cycleWhere: Prisma.WatchEventWhereInput = reset
       ? {
           OR: [
@@ -216,7 +328,7 @@ async function backfillEpisodes(
         }
       : {};
     const existing = await tx.watchEvent.findMany({
-      where: { userId, seriesId, episodeNumber: { not: null }, ...cycleWhere },
+      where: { userId, seriesId, episodeNumber: { not: null }, kind: "WATCH", ...cycleWhere },
       select: { seasonNumber: true, episodeNumber: true },
     });
     const have = new Set(existing.map((e) => `${e.seasonNumber}:${e.episodeNumber}`));
@@ -232,6 +344,11 @@ async function backfillEpisodes(
         watchedAt: null,
         watchedAtPrecision: "UNKNOWN" as const,
         source: "BACKFILL" as const,
+        kind: "WATCH" as const,
+        mediaType: "SERIES" as const,
+        runtimeMinutes: e.runtime ?? facts.fallbackRuntime,
+        releaseYear: facts.releaseYear,
+        cycle,
         isRewatch: reset !== null,
       }));
 
@@ -266,6 +383,7 @@ async function fetchAiredEpisodes(
     select: {
       episodeNumber: true,
       tmdbEpisodeId: true,
+      runtime: true,
       season: { select: { seasonNumber: true } },
     },
   });
@@ -273,6 +391,7 @@ async function fetchAiredEpisodes(
     seasonNumber: e.season.seasonNumber,
     episodeNumber: e.episodeNumber,
     tmdbEpisodeId: e.tmdbEpisodeId,
+    runtime: e.runtime,
   }));
 }
 
@@ -314,19 +433,21 @@ export async function setPosition(
       e.seasonNumber < seasonNumber ||
       (e.seasonNumber === seasonNumber && e.episodeNumber <= episodeNumber)
   );
+  const facts = await seriesBackfillFacts(seriesId);
 
   return prisma.$transaction(async (tx) => {
     const progress = await tx.seriesProgress.findUnique({
       where: { userId_seriesId: { userId, seriesId } },
-      select: { rewatchStartedAt: true },
+      select: { rewatchStartedAt: true, rewatchCount: true },
     });
     const reset = progress?.rewatchStartedAt ?? null;
+    const cycle = (progress?.rewatchCount ?? 0) + 1;
     const cycleWhere: Prisma.WatchEventWhereInput = reset
       ? { OR: [{ watchedAt: { gte: reset } }, { watchedAt: null, createdAt: { gte: reset } }] }
       : {};
 
     const existing = await tx.watchEvent.findMany({
-      where: { userId, seriesId, episodeNumber: { not: null }, ...cycleWhere },
+      where: { userId, seriesId, episodeNumber: { not: null }, kind: "WATCH", ...cycleWhere },
       select: { seasonNumber: true, episodeNumber: true },
     });
     const have = new Set(existing.map((e) => `${e.seasonNumber}:${e.episodeNumber}`));
@@ -343,6 +464,11 @@ export async function setPosition(
         watchedAt: null,
         watchedAtPrecision: "UNKNOWN" as const,
         source: "BACKFILL" as const,
+        kind: "WATCH" as const,
+        mediaType: "SERIES" as const,
+        runtimeMinutes: e.runtime ?? facts.fallbackRuntime,
+        releaseYear: facts.releaseYear,
+        cycle,
         isRewatch: reset !== null,
       }));
     if (rows.length > 0) {
@@ -381,7 +507,7 @@ export async function setPosition(
 /** Movie watched-state: spoiler-gate predicate `EXISTS` on [userId, movieId]. */
 export async function hasWatchedMovie(userId: number, movieId: number): Promise<boolean> {
   const row = await prisma.watchEvent.findFirst({
-    where: { userId, movieId },
+    where: { userId, movieId, kind: "WATCH" },
     select: { id: true },
   });
   return row !== null;
@@ -397,6 +523,9 @@ interface DiaryRawRow {
   watched_at_precision: WatchedAtPrecision;
   effective_at: Date;
   note: string | null;
+  score: number | null;
+  cycle: number;
+  kind: WatchEntryKind;
   tags: string[];
   is_rewatch: boolean;
   is_private: boolean;
@@ -413,7 +542,12 @@ interface DiaryRawRow {
  */
 export async function getDiaryPage(
   userId: number,
-  opts: { cursor?: DiaryCursor; limit?: number } = {}
+  opts: {
+    cursor?: DiaryCursor;
+    limit?: number;
+    mediaType?: "movie" | "series";
+    rewatchOnly?: boolean;
+  } = {}
 ): Promise<{ entries: DiaryEntry[]; nextCursor: DiaryCursor | null }> {
   const limit = Math.min(opts.limit ?? 50, 100);
   const cursorClause = opts.cursor
@@ -421,12 +555,20 @@ export async function getDiaryPage(
         opts.cursor.effectiveAt
       )}, ${opts.cursor.id})`
     : Prisma.empty;
+  // Filters apply to the whole history (not just the loaded page).
+  const mediaClause =
+    opts.mediaType === "movie"
+      ? Prisma.sql`AND we.movie_id IS NOT NULL`
+      : opts.mediaType === "series"
+        ? Prisma.sql`AND we.series_id IS NOT NULL`
+        : Prisma.empty;
+  const rewatchClause = opts.rewatchOnly ? Prisma.sql`AND we.is_rewatch = true` : Prisma.empty;
 
   const rows = await prisma.$queryRaw<DiaryRawRow[]>`
     SELECT we.id, we.movie_id, we.series_id, we.season_number, we.episode_number,
            we.watched_at, we.watched_at_precision,
            COALESCE(we.watched_at, we.created_at) AS effective_at,
-           we.note, we.tags, we.is_rewatch, we.is_private, we.source,
+           we.note, we.score, we.cycle, we.kind, we.tags, we.is_rewatch, we.is_private, we.source,
            m.title AS movie_title, m.poster_path AS movie_poster,
            s.name AS series_name, s.poster_path AS series_poster
     FROM watch_events we
@@ -434,6 +576,8 @@ export async function getDiaryPage(
     LEFT JOIN series s ON s.id = we.series_id
     WHERE we.user_id = ${userId}
     ${cursorClause}
+    ${mediaClause}
+    ${rewatchClause}
     ORDER BY effective_at DESC, we.id DESC
     LIMIT ${limit + 1}
   `;
@@ -449,6 +593,9 @@ export async function getDiaryPage(
     watchedAtPrecision: r.watched_at_precision,
     effectiveAt: r.effective_at,
     note: r.note,
+    score: r.score,
+    cycle: r.cycle,
+    kind: r.kind,
     tags: r.tags,
     isRewatch: r.is_rewatch,
     isPrivate: r.is_private,

@@ -16,9 +16,12 @@ export interface UpsertReviewData {
   movieId?: number;
   seriesId?: number;
   seasonNumber?: number | null;
+  episodeNumber?: number | null;
+  tmdbEpisodeId?: number | null;
   body: string;
   containsSpoilers: boolean;
   isPrivate: boolean;
+  /** null = the ONE canonical unit review; set = a per-viewing (rewatch) review. */
   watchEventId?: number | null;
   status: CommentStatus;
   aiLabels?: Prisma.InputJsonValue | null;
@@ -30,39 +33,39 @@ export interface UpsertReviewData {
  */
 export type UserReviewRow = Awaited<ReturnType<typeof prisma.userReview.create>>;
 
+/**
+ * Upsert a review at any granularity. The unit identity is
+ * (user, movie|series, season, episode, watchEventId) — matching the
+ * uq_user_reviews_unit_event partial unique. Find-then-write (Prisma cannot
+ * upsert on a NULLS NOT DISTINCT raw index), with a P2002 race fallback.
+ */
 export async function upsertUserReview(
   userId: number,
   data: UpsertReviewData,
   db: Db = prisma
 ): Promise<UserReviewRow> {
+  const isMovie = data.movieId !== undefined;
+  if (!isMovie && data.seriesId === undefined) throw new Error("movieId or seriesId required");
+
+  const identity = {
+    userId,
+    movieId: isMovie ? data.movieId! : null,
+    seriesId: isMovie ? null : data.seriesId!,
+    seasonNumber: isMovie ? null : (data.seasonNumber ?? null),
+    episodeNumber: isMovie ? null : (data.episodeNumber ?? null),
+    watchEventId: data.watchEventId ?? null,
+  };
   const common = {
+    mediaType: isMovie ? ("MOVIE" as const) : ("SERIES" as const),
+    tmdbEpisodeId: isMovie ? null : (data.tmdbEpisodeId ?? null),
     body: data.body,
     containsSpoilers: data.containsSpoilers,
     isPrivate: data.isPrivate,
-    watchEventId: data.watchEventId ?? null,
     status: data.status,
     aiLabels: data.aiLabels ?? Prisma.JsonNull,
   };
 
-  if (data.movieId !== undefined) {
-    const review = await db.userReview.upsert({
-      where: { userId_movieId: { userId, movieId: data.movieId } },
-      create: { userId, movieId: data.movieId, ...common },
-      update: { ...common, editedAt: new Date() },
-    });
-    return review;
-  }
-
-  if (data.seriesId === undefined) throw new Error("movieId or seriesId required");
-  const seriesWhere = {
-    userId,
-    seriesId: data.seriesId,
-    seasonNumber: data.seasonNumber ?? null,
-  };
-  const existing = await db.userReview.findFirst({
-    where: seriesWhere,
-    select: { id: true },
-  });
+  const existing = await db.userReview.findFirst({ where: identity, select: { id: true } });
   if (existing) {
     return db.userReview.update({
       where: { id: existing.id },
@@ -70,13 +73,11 @@ export async function upsertUserReview(
     });
   }
   try {
-    return await db.userReview.create({
-      data: { ...seriesWhere, ...common },
-    });
+    return await db.userReview.create({ data: { ...identity, ...common } });
   } catch (error: unknown) {
     // Raced the NULLS NOT DISTINCT unique: fall back to update.
     if (isPrismaError(error) && error.code === "P2002") {
-      const raced = await db.userReview.findFirst({ where: seriesWhere, select: { id: true } });
+      const raced = await db.userReview.findFirst({ where: identity, select: { id: true } });
       if (raced) {
         return db.userReview.update({
           where: { id: raced.id },
@@ -97,6 +98,7 @@ export async function deleteUserReview(
   return result.count > 0;
 }
 
+/** The ONE canonical unit-level review (watchEventId NULL) for a movie / series / season. */
 export async function getOwnReview(
   userId: number,
   target: { movieId?: number; seriesId?: number; seasonNumber?: number | null }
@@ -104,8 +106,14 @@ export async function getOwnReview(
   return prisma.userReview.findFirst({
     where:
       target.movieId !== undefined
-        ? { userId, movieId: target.movieId }
-        : { userId, seriesId: target.seriesId, seasonNumber: target.seasonNumber ?? null },
+        ? { userId, movieId: target.movieId, watchEventId: null }
+        : {
+            userId,
+            seriesId: target.seriesId,
+            seasonNumber: target.seasonNumber ?? null,
+            episodeNumber: null,
+            watchEventId: null,
+          },
   });
 }
 

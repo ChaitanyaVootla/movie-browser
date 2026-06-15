@@ -530,7 +530,12 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
     { userId: cy, movieId: 155, watchedAt: daysAgo(5), source: "LOGGED" as const },
     { userId: cy, movieId: 27205, watchedAt: daysAgo(33), source: "LOGGED" as const },
   ];
-  const we = await prisma.watchEvent.createMany({ data: watchEvents });
+  const we = await prisma.watchEvent.createMany({
+    data: watchEvents.map((w) => ({
+      ...w,
+      mediaType: w.movieId != null ? ("MOVIE" as const) : ("SERIES" as const),
+    })),
+  });
   counts.watchEvents = we.count;
 
   // -- USER RATINGS (score 1-10 + thumb) ----------------------------------
@@ -544,7 +549,12 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
     { userId: bea, seriesId: 1396, score: 10, rating: 1, ratedAt: daysAgo(12) },
     { userId: bea, seriesId: 1399, score: 7, rating: 1, ratedAt: daysAgo(120) },
   ];
-  const ur = await prisma.userRating.createMany({ data: ratings });
+  const ur = await prisma.userRating.createMany({
+    data: ratings.map((r) => ({
+      ...r,
+      mediaType: r.movieId != null ? ("MOVIE" as const) : ("SERIES" as const),
+    })),
+  });
   counts.ratings = ur.count;
 
   // -- SERIES PROGRESS (materialized watermark) ---------------------------
@@ -582,6 +592,7 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
     data: {
       userId: ada,
       movieId: 550,
+      mediaType: "MOVIE",
       body:
         "A film that rewards rewatches: the satire of consumerism lands harder every decade. Fincher's control of tone is immaculate, and the sound design alone justifies the runtime.",
       containsSpoilers: false,
@@ -592,6 +603,7 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
     data: {
       userId: cy,
       movieId: 155,
+      mediaType: "MOVIE",
       body:
         "Heath Ledger's Joker reframes the whole trilogy. SPOILER: the ferry sequence — neither boat detonating the other — is the thesis statement, and Dent's fall is the tragedy that earns the ending's lie.",
       containsSpoilers: true,

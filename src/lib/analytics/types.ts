@@ -63,6 +63,7 @@ export type ActionType =
   | "series_status_change"
   | "reset_rewatch"
   | "up_next_click"
+  | "diary_open"
   | "diary_edit"
   | "diary_delete"
   | "review_submit"

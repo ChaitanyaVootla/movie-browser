@@ -33,8 +33,20 @@ ALTER TABLE watch_events DROP CONSTRAINT IF EXISTS chk_watch_events_episode_chai
 ALTER TABLE watch_events ADD CONSTRAINT chk_watch_events_episode_chain
   CHECK (episode_number IS NULL OR season_number IS NOT NULL);
 
+-- media_type must agree with which anchor FK is set.
+ALTER TABLE watch_events DROP CONSTRAINT IF EXISTS chk_watch_events_media_type;
+ALTER TABLE watch_events ADD CONSTRAINT chk_watch_events_media_type
+  CHECK ((media_type = 'MOVIE' AND movie_id IS NOT NULL)
+      OR (media_type = 'SERIES' AND series_id IS NOT NULL));
+
+-- per-viewing score (optional) is on the 1-10 scale when present.
+ALTER TABLE watch_events DROP CONSTRAINT IF EXISTS chk_watch_events_score_range;
+ALTER TABLE watch_events ADD CONSTRAINT chk_watch_events_score_range
+  CHECK (score IS NULL OR (score >= 1 AND score <= 10));
+
 -- ---------------------------------------------------------------------------
 -- user_ratings: a row may carry thumb, score, or both — never neither.
+-- Now granular: movie OR (series + optional season + optional episode).
 -- ---------------------------------------------------------------------------
 ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_thumb;
 ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_thumb
@@ -48,9 +60,36 @@ ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_not_empty;
 ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_not_empty
   CHECK (rating IS NOT NULL OR score IS NOT NULL);
 
+ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_one_anchor;
+ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_one_anchor
+  CHECK (num_nonnulls(movie_id, series_id) = 1);
+
+ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_season_chain;
+ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_season_chain
+  CHECK (season_number IS NULL OR series_id IS NOT NULL);
+
+ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_episode_chain;
+ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_episode_chain
+  CHECK (episode_number IS NULL OR season_number IS NOT NULL);
+
+ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_media_type;
+ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_media_type
+  CHECK ((media_type = 'MOVIE' AND movie_id IS NOT NULL)
+      OR (media_type = 'SERIES' AND series_id IS NOT NULL));
+
+-- Canonical-rating uniqueness per series unit (movie unit is the Prisma
+-- compound unique user_id+movie_id). NULLS NOT DISTINCT so a series-level
+-- (NULL season) row is unique, and S2 vs S2E5 are distinct units.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_ratings_series_unit
+  ON user_ratings (user_id, series_id, season_number, episode_number) NULLS NOT DISTINCT
+  WHERE series_id IS NOT NULL;
+
 -- ---------------------------------------------------------------------------
--- user_reviews: exactly one anchor; season requires series; ONE series-level
--- review (NULL season) per user per series — PG17 UNIQUE NULLS NOT DISTINCT.
+-- user_reviews: exactly one anchor; season/episode chains; media_type agrees.
+-- Uniqueness: ONE canonical review per (user, unit) when watch_event_id IS
+-- NULL, PLUS one per linked watch_event (per-rewatch reviews). A single
+-- NULLS NOT DISTINCT index over all anchor cols + watch_event_id expresses
+-- both movie and series granularities (unification design §4.3).
 -- ---------------------------------------------------------------------------
 ALTER TABLE user_reviews DROP CONSTRAINT IF EXISTS chk_user_reviews_one_anchor;
 ALTER TABLE user_reviews ADD CONSTRAINT chk_user_reviews_one_anchor
@@ -60,9 +99,20 @@ ALTER TABLE user_reviews DROP CONSTRAINT IF EXISTS chk_user_reviews_season_chain
 ALTER TABLE user_reviews ADD CONSTRAINT chk_user_reviews_season_chain
   CHECK (season_number IS NULL OR series_id IS NOT NULL);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_user_reviews_user_series_season
-  ON user_reviews (user_id, series_id, season_number) NULLS NOT DISTINCT
-  WHERE series_id IS NOT NULL;
+ALTER TABLE user_reviews DROP CONSTRAINT IF EXISTS chk_user_reviews_episode_chain;
+ALTER TABLE user_reviews ADD CONSTRAINT chk_user_reviews_episode_chain
+  CHECK (episode_number IS NULL OR season_number IS NOT NULL);
+
+ALTER TABLE user_reviews DROP CONSTRAINT IF EXISTS chk_user_reviews_media_type;
+ALTER TABLE user_reviews ADD CONSTRAINT chk_user_reviews_media_type
+  CHECK ((media_type = 'MOVIE' AND movie_id IS NOT NULL)
+      OR (media_type = 'SERIES' AND series_id IS NOT NULL));
+
+-- Old title/season-only unique is superseded by the unit+event index below.
+DROP INDEX IF EXISTS uq_user_reviews_user_series_season;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_reviews_unit_event
+  ON user_reviews (user_id, movie_id, series_id, season_number, episode_number, watch_event_id)
+  NULLS NOT DISTINCT;
 
 -- ---------------------------------------------------------------------------
 -- comments: <=1 of movie/series/list anchors AND at least one of (anchor,

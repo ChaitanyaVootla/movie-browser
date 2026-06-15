@@ -180,7 +180,14 @@ interface RatingsLambdaResponse {
 /**
  * Call Google Lambda (puppeteer-node14) for deep watch links
  */
+/** DEV: AWS Lambda enrichment is slow/absent locally and would block the
+ *  synchronous miss-path hydration (~30s tx timeout → dev-server saturation).
+ *  Off by default in non-prod; set ENABLE_DEV_LAMBDA=true to opt in. */
+const DEV_LAMBDA_DISABLED =
+  process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_LAMBDA !== "true";
+
 async function callGoogleLambda(searchString: string): Promise<GoogleLambdaResponse | null> {
+  if (DEV_LAMBDA_DISABLED) return null;
   const startTime = Date.now();
   let statusCode = 200;
   let errorType: string | null = null;
@@ -262,6 +269,7 @@ async function callRatingsLambda(
   wikidataId: string | null | undefined,
   mediaType: "movie" | "tv"
 ): Promise<RatingsLambdaResponse | null> {
+  if (DEV_LAMBDA_DISABLED) return null;
   const startTime = Date.now();
   let statusCode = 200;
   let errorType: string | null = null;

@@ -1,5 +1,7 @@
 export { QuickLogButton } from "./quick-log-button";
 export { LogWatchForm } from "./log-watch-form";
+export { WatchedButton } from "./watched-button";
+export { DiaryPanel } from "./diary-panel";
 export { SeriesTrackingProvider, useSeriesTracking } from "./series-tracking-provider";
 export { EpisodeWatchToggle } from "./episode-watch-toggle";
 export { EpisodeCatchUpButton } from "./episode-catch-up-button";

@@ -1140,24 +1140,33 @@ model WatchlistItem {
   @@map("watchlist")
 }
 
-// Already polymorphic - keep as-is
+// Canonical "your rating" per unit at ANY granularity (movie / series / season
+// / episode). Drives the card badge + taste vector. The historical per-viewing
+// twin lives in watch_events.score. Series-unit uniqueness is a granular
+// partial UNIQUE NULLS NOT DISTINCT in 04-ugc-constraints.sql (Prisma can't
+// express it); the movie compound unique below is sufficient for movies.
 model UserRating {
-  id        Int       @id @default(autoincrement())
-  userId    Int       @map("user_id")
-  movieId   Int?      @map("movie_id")
-  seriesId  Int?      @map("series_id")
-  rating    Int? // thumb: 1 = like, -1 = dislike (nullable: score-only rows exist)
-  score     Int? // 1-10 (Letterboxd 0.5-5 stars import as stars*2)
-  ratedAt   DateTime? @map("rated_at") // import-honest; Wrapped reads it
-  createdAt DateTime  @default(now()) @map("created_at")
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  movieId       Int?      @map("movie_id")
+  seriesId      Int?      @map("series_id")
+  seasonNumber  Int?      @map("season_number") // null = series-level
+  episodeNumber Int?      @map("episode_number") // null = season-level / series-level
+  tmdbEpisodeId Int?      @map("tmdb_episode_id") // soft ref, NO relation
+  mediaType     MediaType @map("media_type")
+  rating        Int? // thumb: 1 = like, -1 = dislike (nullable: score-only rows exist)
+  score         Int? // 1-10 (Letterboxd 0.5-5 stars import as stars*2)
+  ratedAt       DateTime? @map("rated_at") // import-honest; Wrapped reads it
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
   @@unique([userId, movieId])
-  @@unique([userId, seriesId])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, seriesId, seasonNumber, episodeNumber])
+  @@index([seriesId])
   @@map("user_ratings")
 }
 
@@ -1239,6 +1248,12 @@ model WatchEvent {
   isRewatch          Boolean            @default(false) @map("is_rewatch")
   isPrivate          Boolean            @default(false) @map("is_private")
   source             WatchEventSource   @default(LOGGED)
+  kind               WatchEntryKind     @default(WATCH) // WATCH = a viewing; NOTE = a non-viewing diary entry (rating/note)
+  mediaType          MediaType          @map("media_type") // explicit discriminant (MOVIE ⇔ movieId, SERIES ⇔ seriesId)
+  runtimeMinutes     Int?               @map("runtime_minutes") // snapshot at watch time (decouples "hours watched" from catalog churn)
+  releaseYear        Int?               @map("release_year") // snapshot for decade analytics without a catalog join
+  cycle              Int                @default(1) // rewatch-cycle ordinal: 1 = first watch-through, 2 = first rewatch, …
+  score              Int?               // optional rating captured AT this viewing (1-10); canonical rating lives in user_ratings
   createdAt          DateTime           @default(now()) @map("created_at")
 
   user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1252,6 +1267,9 @@ model WatchEvent {
   @@index([seriesId, tmdbEpisodeId]) // reconcile pass
   @@index([movieId])
   @@index([seriesId])
+  @@index([movieId, watchedAt(sort: Desc)]) // cross-user "most-logged" analytics
+  @@index([seriesId, watchedAt(sort: Desc)])
+  @@index([mediaType, watchedAt(sort: Desc)])
   @@map("watch_events")
 }
 
@@ -1300,18 +1318,26 @@ model UserStats {
 // Invariant 7: typed nullable anchor columns, never generic (itemId, itemType).
 // =============================================================================
 
-// Distinct entity, NOT a comment variant. One per user per title (per season
-// for series-season reviews). FIRST AI-gate consumer.
+// Distinct entity, NOT a comment variant. First AI-gate consumer. Generalized
+// to ANY granularity (movie / series / season / episode) and to per-viewing
+// multiplicity: ONE canonical unit-level review (watchEventId NULL) per unit,
+// PLUS optional extra reviews each tied to a distinct watch_event (per-rewatch
+// reviews). Uniqueness is a granular partial UNIQUE NULLS NOT DISTINCT keyed on
+// (user, unit, watch_event_id) in 04-ugc-constraints.sql — Prisma can't express
+// it, so there is NO @@unique here. See unification design §4.3 / §6.
 model UserReview {
   id               Int           @id @default(autoincrement())
   userId           Int           @map("user_id")
   movieId          Int?          @map("movie_id")
   seriesId         Int?          @map("series_id")
   seasonNumber     Int?          @map("season_number")
+  episodeNumber    Int?          @map("episode_number") // null = season-level / series-level
+  tmdbEpisodeId    Int?          @map("tmdb_episode_id") // soft ref, NO relation
+  mediaType        MediaType     @map("media_type")
   body             String        @db.Text
   containsSpoilers Boolean       @default(false) @map("contains_spoilers")
   isPrivate        Boolean       @default(false) @map("is_private")
-  watchEventId     Int?          @map("watch_event_id") // Letterboxd diary↔review linkage
+  watchEventId     Int?          @map("watch_event_id") // Letterboxd diary↔review linkage; NULL = canonical unit review
   status           CommentStatus @default(PENDING_REVIEW)
   aiLabels         Json?         @map("ai_labels")
   createdAt        DateTime      @default(now()) @map("created_at")
@@ -1323,11 +1349,8 @@ model UserReview {
   watchEvent WatchEvent? @relation(fields: [watchEventId], references: [id], onDelete: SetNull)
   reports    Report[]
 
-  // Series uniqueness (one series-level review, NULL season, per user) is raw
-  // SQL: UNIQUE NULLS NOT DISTINCT in postgres/init/04-ugc-constraints.sql.
-  @@unique([userId, movieId])
   @@index([movieId, status, createdAt(sort: Desc)])
-  @@index([seriesId, seasonNumber, status, createdAt(sort: Desc)])
+  @@index([seriesId, seasonNumber, episodeNumber, status, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
   @@index([seriesId])
   @@index([watchEventId])
@@ -1706,6 +1729,25 @@ enum WatchEventSource {
   LOGGED
   BACKFILL
   IMPORT
+}
+
+// A diary entry is NOT necessarily a viewing. WATCH = an actual watch
+// (counts toward progress, hours, watched-state, spoiler gate). NOTE = a dated
+// diary entry that does NOT assert viewing (log just a rating, a note, or a
+// thought) — excluded from progress/hours/watched-state. See unification
+// design §6 (don't force a watch for a diary entry).
+enum WatchEntryKind {
+  WATCH
+  NOTE
+}
+
+// Explicit discriminant for user-data rows (watch_events, user_ratings,
+// user_reviews). Today these infer type from which nullable FK is set; an
+// explicit column makes bulk GROUP BY / partial indexes / a future ClickHouse
+// partition key trivial. See 2026-06-14-diary-log-unification-design.md §4.
+enum MediaType {
+  MOVIE
+  SERIES
 }
 
 enum WatchedAtPrecision {

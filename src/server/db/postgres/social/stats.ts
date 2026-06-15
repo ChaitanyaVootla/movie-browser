@@ -47,7 +47,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     LEFT JOIN movie_genres mg ON mg.movie_id = m.id
     LEFT JOIN genres g ON g.id = mg.genre_id
     LEFT JOIN movie_countries mc ON mc.movie_id = m.id
-    WHERE we.user_id = ${userId} AND we.movie_id IS NOT NULL
+    WHERE we.user_id = ${userId} AND we.movie_id IS NOT NULL AND we.kind = 'WATCH'
     GROUP BY we.id, m.id
   `;
 
@@ -67,7 +67,7 @@ async function fetchEventRows(userId: number): Promise<StatsEventRow[]> {
     LEFT JOIN series_genres sg ON sg.series_id = s.id
     LEFT JOIN genres g ON g.id = sg.genre_id
     LEFT JOIN series_countries sc ON sc.series_id = s.id
-    WHERE we.user_id = ${userId} AND we.series_id IS NOT NULL
+    WHERE we.user_id = ${userId} AND we.series_id IS NOT NULL AND we.kind = 'WATCH'
     GROUP BY we.id, s.id, e.runtime
   `;
 

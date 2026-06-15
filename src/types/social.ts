@@ -41,6 +41,10 @@ export interface LogWatchInput {
   /** ISO date "YYYY-MM-DD" (stored 12:00 UTC, precision DATE) or null = unknown. */
   watchedAt: string | null;
   note?: string;
+  /** Per-viewing rating 1-10 (also sets your canonical rating). */
+  score?: number | null;
+  /** WATCH = a viewing (default); NOTE = a diary entry that is not a viewing. */
+  kind?: "WATCH" | "NOTE";
   isRewatch?: boolean;
   isPrivate?: boolean;
 }
@@ -98,6 +102,12 @@ export interface DiaryEntryDTO {
   watchedAt: string | null;
   watchedAtPrecision: WatchedAtPrecision;
   note: string | null;
+  /** Rating captured at this viewing (1-10), independent of canonical rating. */
+  score: number | null;
+  /** Rewatch-cycle ordinal: 1 = first watch-through. */
+  cycle: number;
+  /** WATCH = a viewing; NOTE = a non-viewing diary entry (rating/note). */
+  kind: "WATCH" | "NOTE";
   isRewatch: boolean;
   isPrivate: boolean;
   source: WatchEventSource;

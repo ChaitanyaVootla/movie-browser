@@ -22,7 +22,7 @@ import type { UpNextItemDTO } from "@/types/social";
  * Client island: the home page is ISR-cached, so this fetches per-user on the
  * client (roadmap invariant §4.1.8) like ContinueWatchingSection.
  */
-export function UpNextSection() {
+export function UpNextSection({ title = "Up Next" }: { title?: string } = {}) {
   const { status } = useSafeSession();
   const { trackAction } = useAnalytics();
   const [items, setItems] = useState<UpNextItemDTO[] | null>(null);
@@ -51,7 +51,7 @@ export function UpNextSection() {
   if (items === null) {
     return (
       <section className="space-y-4">
-        <SectionHeading icon={<ListVideo className="h-5 w-5 text-brand" />}>Up Next</SectionHeading>
+        <SectionHeading icon={<ListVideo className="h-5 w-5 text-brand" />}>{title}</SectionHeading>
         <div className="flex gap-4 overflow-hidden">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex-shrink-0 w-[240px] md:w-[280px] space-y-2">
@@ -68,7 +68,7 @@ export function UpNextSection() {
 
   return (
     <MediaScroller
-      title={<SectionHeading icon={<ListVideo className="h-5 w-5 text-brand" />}>Up Next</SectionHeading>}
+      title={<SectionHeading icon={<ListVideo className="h-5 w-5 text-brand" />}>{title}</SectionHeading>}
       showControls={items.length > 4}
     >
       {items.map((item) => {

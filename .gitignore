@@ -106,3 +106,5 @@ data/person_ids_*.json
 .pnp.*
 .cache
 data-dumps
+# Brainstorming visual companion
+.superpowers/

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requirePgUserId } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
+import { prisma } from "@/server/db/postgres";
 import {
   logWatchEvent,
   editWatchEvent,
@@ -205,5 +206,62 @@ export async function getDiary(input: z.infer<typeof DiaryPageSchema> = {}) {
     return { success: true as const, ...page };
   } catch (error: unknown) {
     return failure("getDiary", error);
+  }
+}
+
+/**
+ * Read-only counters + activity heatmap source for the Diary page header.
+ * - `uniqueTitles`  — distinct movies/series ever logged (rewatches collapse).
+ * - `totalEntries`  — every watch_events row (rewatch = +1; the two diverge
+ *                     for rewatchers, which is why both are labelled).
+ * - `thisYear`      — dated entries in the current calendar year.
+ * - `dailyActivity` — last ~182 days, one {date,count} per day with activity
+ *                     (sparse; the heatmap fills the gaps). Mirrors the
+ *                     public-profile heatmap source.
+ *
+ * No input → no Zod schema needed; auth + PG-source enforced by requirePgUserId.
+ */
+export async function getDiaryStats(): Promise<{
+  uniqueTitles: number;
+  totalEntries: number;
+  thisYear: number;
+  dailyActivity: { date: string; count: number }[];
+}> {
+  try {
+    const userId = await requirePgUserId();
+    const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+
+    const [totalEntries, distinctRows, thisYear, dailyRows] = await Promise.all([
+      prisma.watchEvent.count({ where: { userId } }),
+      prisma.$queryRaw<Array<{ unique_titles: number }>>`
+        SELECT count(DISTINCT coalesce('m' || movie_id, 's' || series_id))::int AS unique_titles
+        FROM watch_events
+        WHERE user_id = ${userId}
+      `,
+      prisma.watchEvent.count({
+        where: { userId, watchedAt: { gte: yearStart } },
+      }),
+      prisma.$queryRaw<Array<{ date: string; count: number }>>`
+        SELECT to_char(watched_at, 'YYYY-MM-DD') AS date, count(*)::int AS count
+        FROM watch_events
+        WHERE user_id = ${userId}
+          AND watched_at IS NOT NULL
+          AND watched_at >= now() - interval '182 days'
+        GROUP BY 1
+      `,
+    ]);
+
+    return {
+      uniqueTitles: distinctRows[0]?.unique_titles ?? 0,
+      totalEntries,
+      thisYear,
+      dailyActivity: dailyRows.map((r) => ({ date: r.date, count: Number(r.count) })),
+    };
+  } catch (error: unknown) {
+    userApiLogger.error({
+      action: "getDiaryStats",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { uniqueTitles: 0, totalEntries: 0, thisYear: 0, dailyActivity: [] };
   }
 }

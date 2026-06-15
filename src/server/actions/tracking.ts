@@ -23,6 +23,8 @@ import {
   setManualStatus,
 } from "@/server/db/postgres/social/progress";
 import { getUserStatsSnapshot } from "@/server/db/postgres/social/stats";
+import { setUserRating } from "@/server/db/postgres/social/ratings";
+import { auditedTransaction } from "@/server/db/audit";
 import { getName as countryName } from "country-list";
 import type {
   ActionResult,
@@ -63,6 +65,9 @@ function toDiaryDTO(e: DiaryEntry): DiaryEntryDTO {
     watchedAt: e.watchedAt?.toISOString() ?? null,
     watchedAtPrecision: e.watchedAtPrecision,
     note: e.note,
+    score: e.score,
+    cycle: e.cycle,
+    kind: e.kind,
     isRewatch: e.isRewatch,
     isPrivate: e.isPrivate,
     source: e.source,
@@ -75,6 +80,8 @@ const LogWatchSchema = MediaRef.extend({
   tmdbEpisodeId: z.number().int().positive().optional(),
   watchedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   note: z.string().max(5000).optional(),
+  score: z.number().int().min(1).max(10).nullable().optional(),
+  kind: z.enum(["WATCH", "NOTE"]).optional(),
   isRewatch: z.boolean().optional(),
   isPrivate: z.boolean().optional(),
 });
@@ -91,9 +98,29 @@ export async function logWatchAction(
       episodeNumber: v.episodeNumber,
       watchedDate: v.watchedAt,
       note: v.note,
+      score: v.score,
+      kind: v.kind,
       isRewatch: v.isRewatch,
       isPrivate: v.isPrivate,
     });
+    // Rating a viewing also sets your canonical rating for that unit
+    // (Letterboxd-style: the latest logged rating is your rating). Audited.
+    if (v.score != null) {
+      await auditedTransaction(userId, (tx) =>
+        setUserRating(
+          userId,
+          {
+            itemId: v.tmdbId,
+            itemType: v.mediaType,
+            seasonNumber: v.seasonNumber ?? null,
+            episodeNumber: v.episodeNumber ?? null,
+            tmdbEpisodeId: v.tmdbEpisodeId ?? null,
+            score: v.score,
+          },
+          tx
+        )
+      );
+    }
     return { ok: true, eventId: id };
   } catch (error: unknown) {
     return fail("logWatchAction", error);
@@ -104,6 +131,8 @@ const UpdateEventSchema = z.object({
   eventId: z.number().int().positive(),
   watchedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   note: z.string().max(5000).nullable().optional(),
+  score: z.number().int().min(1).max(10).nullable().optional(),
+  isRewatch: z.boolean().optional(),
   isPrivate: z.boolean().optional(),
 });
 
@@ -274,6 +303,7 @@ export async function getSeriesTracking(
           userId,
           seriesId: id,
           episodeNumber: { not: null },
+          kind: "WATCH",
           ...(progress.rewatchStartedAt
             ? { createdAt: { gte: progress.rewatchStartedAt } }
             : {}),
@@ -303,6 +333,46 @@ export async function getSeriesTracking(
   } catch (error: unknown) {
     userApiLogger.error({ action: "getSeriesTracking", error: String(error) });
     return null;
+  }
+}
+
+export interface SeasonEpisodeDTO {
+  episodeNumber: number;
+  name: string | null;
+  stillPath: string | null;
+  airDate: string | null;
+}
+
+const SeasonEpisodesSchema = z.object({
+  seriesId: z.number().int().positive(),
+  seasonNumber: z.number().int().min(1),
+});
+
+/**
+ * Catalog read for the Set-Position picker: episodes of one season with names,
+ * stills and air dates so the picker can show real episodes instead of bare
+ * numbers. No auth required (catalog data, same as the page render). Episodes
+ * use the natural key — this is purely catalog metadata, no user state.
+ */
+export async function getSeasonEpisodes(
+  input: z.infer<typeof SeasonEpisodesSchema>
+): Promise<SeasonEpisodeDTO[]> {
+  try {
+    const v = SeasonEpisodesSchema.parse(input);
+    const rows = await prisma.episode.findMany({
+      where: { season: { seriesId: v.seriesId, seasonNumber: v.seasonNumber } },
+      orderBy: { episodeNumber: "asc" },
+      select: { episodeNumber: true, name: true, stillPath: true, airDate: true },
+    });
+    return rows.map((e) => ({
+      episodeNumber: e.episodeNumber,
+      name: e.name,
+      stillPath: e.stillPath,
+      airDate: e.airDate ? e.airDate.toISOString() : null,
+    }));
+  } catch (error: unknown) {
+    userApiLogger.error({ action: "getSeasonEpisodes", error: String(error) });
+    return [];
   }
 }
 
@@ -357,6 +427,8 @@ export async function getUpNext(limit = 10): Promise<UpNextItemDTO[]> {
 export async function getDiaryPage(input: {
   cursor?: string;
   limit?: number;
+  mediaType?: "movie" | "series";
+  rewatchOnly?: boolean;
 }): Promise<DiaryPageDTO> {
   try {
     const userId = await requirePgUserId();
@@ -364,8 +436,18 @@ export async function getDiaryPage(input: {
       ? (JSON.parse(input.cursor) as DiaryCursor)
       : undefined;
     const [page, undatedCount] = await Promise.all([
-      getDiaryPageQuery(userId, { cursor, limit: input.limit ?? 30 }),
-      prisma.watchEvent.count({ where: { userId, watchedAt: null } }),
+      getDiaryPageQuery(userId, {
+        cursor,
+        limit: input.limit ?? 30,
+        mediaType: input.mediaType,
+        rewatchOnly: input.rewatchOnly,
+      }),
+      // Undated = user-logged entries without a date (to offer "add a date").
+      // BACKFILL auto-marks are dateless by design — exclude them so the
+      // backfill section isn't inflated by bulk catch-up episodes.
+      prisma.watchEvent.count({
+        where: { userId, watchedAt: null, source: { not: "BACKFILL" } },
+      }),
     ]);
     return {
       entries: page.entries.map(toDiaryDTO),
@@ -401,6 +483,9 @@ export async function getDiaryUndated(): Promise<DiaryEntryDTO[]> {
         watchedAtPrecision: e.watchedAtPrecision,
         effectiveAt: e.createdAt,
         note: e.note,
+        score: e.score,
+        cycle: e.cycle,
+        kind: e.kind,
         tags: e.tags,
         isRewatch: e.isRewatch,
         isPrivate: e.isPrivate,
@@ -412,6 +497,79 @@ export async function getDiaryUndated(): Promise<DiaryEntryDTO[]> {
   } catch (error: unknown) {
     userApiLogger.error({ action: "getDiaryUndated", error: String(error) });
     return [];
+  }
+}
+
+export interface TitleDiaryDTO {
+  entries: DiaryEntryDTO[];
+  /** Total logged viewings for this title (diary entries). */
+  watchCount: number;
+  /** Canonical rating for the title (score 1-10 + thumb ±1). */
+  rating: { score: number | null; thumb: number | null } | null;
+  /** Most recent effective watch date (ISO) or null. */
+  lastWatchedAt: string | null;
+}
+
+/**
+ * Per-title diary slice for the in-place Diary panel: every viewing of this
+ * movie/series for the viewer, plus the canonical title rating. Client island
+ * only — never on a cacheable render path.
+ */
+export async function getTitleDiary(
+  input: z.infer<typeof MediaRef>
+): Promise<TitleDiaryDTO> {
+  const empty: TitleDiaryDTO = { entries: [], watchCount: 0, rating: null, lastWatchedAt: null };
+  try {
+    const ref = MediaRef.parse(input);
+    const userId = await requirePgUserId();
+    const ids = toIds(ref);
+    const [rows, ratingRow] = await Promise.all([
+      prisma.watchEvent.findMany({
+        where: { userId, ...(ref.mediaType === "movie" ? { movieId: ref.tmdbId } : { seriesId: ref.tmdbId }) },
+        orderBy: [{ watchedAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+        take: 500,
+        include: {
+          movie: { select: { title: true, posterPath: true } },
+          series: { select: { name: true, posterPath: true } },
+        },
+      }),
+      prisma.userRating.findFirst({
+        where: { userId, ...ids, ...(ref.mediaType === "series" ? { seasonNumber: null, episodeNumber: null } : {}) },
+        select: { score: true, rating: true },
+      }),
+    ]);
+    const entries = rows.map((e) =>
+      toDiaryDTO({
+        id: e.id,
+        movieId: e.movieId,
+        seriesId: e.seriesId,
+        seasonNumber: e.seasonNumber,
+        episodeNumber: e.episodeNumber,
+        watchedAt: e.watchedAt,
+        watchedAtPrecision: e.watchedAtPrecision,
+        effectiveAt: e.watchedAt ?? e.createdAt,
+        note: e.note,
+        score: e.score,
+        cycle: e.cycle,
+        kind: e.kind,
+        tags: e.tags,
+        isRewatch: e.isRewatch,
+        isPrivate: e.isPrivate,
+        source: e.source,
+        title: e.movie?.title ?? e.series?.name ?? null,
+        posterPath: e.movie?.posterPath ?? e.series?.posterPath ?? null,
+      })
+    );
+    return {
+      entries,
+      // "Times watched" counts WATCH entries only (notes are not viewings).
+      watchCount: entries.filter((e) => e.kind === "WATCH").length,
+      rating: ratingRow ? { score: ratingRow.score, thumb: ratingRow.rating } : null,
+      lastWatchedAt: entries.find((e) => e.watchedAt && e.kind === "WATCH")?.watchedAt ?? null,
+    };
+  } catch (error: unknown) {
+    userApiLogger.error({ action: "getTitleDiary", error: String(error) });
+    return empty;
   }
 }
 

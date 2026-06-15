@@ -32,6 +32,21 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
   was hard-migrated into `watch_events (source=BACKFILL)` and dropped.
   DB layer: `social/{watch-events,progress,progress-derive,ratings,stats,stats-compute,stats-dirty}.ts`.
   Actions: `tracking.ts`, `diary.ts`, `user-ratings.ts`.
+  **Diary/log unification (2026-06-14, `docs/superpowers/specs/2026-06-14-diary-log-unification-design.md`):**
+  `watch_events` gained snapshot/analytics columns (`media_type`, `runtime_minutes`,
+  `release_year`, `cycle`, `score`) written on EVERY create path (decouples
+  "hours watched" from catalog churn → ClickHouse-ready) AND a `kind`
+  (`WATCH`|`NOTE`): a diary entry need NOT be a viewing — `NOTE` logs a
+  rating/note only and is EXCLUDED from every "watched" inference (progress,
+  hours, spoiler gate, hide-watched, taste, public heatmap). **Any new
+  `watch_events` read that means "watched" MUST filter `kind = 'WATCH'`.**
+  `user_ratings` + `user_reviews` are generalized to ANY granularity
+  (movie/series/season/episode; reviews also per-`watchEventId` for per-rewatch
+  reviews) via partial `UNIQUE NULLS NOT DISTINCT` indexes (movie rating keeps a
+  Prisma compound unique). Canonical rating = `user_ratings`; per-viewing rating
+  = `watch_events.score` (logging a score also upserts canonical, Letterboxd-style).
+  UI: segmented `WatchedButton` (movie), shared `diary-panel.tsx` (Sheet/Drawer
+  per-title log), redesigned `/diary`, richer Set-Position modal.
 - **Public profiles `/u/[username]`** — identity page: TMDB-art backdrop through
   the hero/gradient system, accent (3-tier OKLch theming), bio/links/location
   (all in `users.metadata` Json envelope — no schema change), Four Favorites,
@@ -170,6 +185,85 @@ DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' npx tsx scripts/
 DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' \
   USER_DATA_SOURCE=postgres ENABLE_MONGODB_ENRICHMENT=false yarn dev
 ```
+
+### Run the dev server under PM2 — self-serve debugging (do this for autonomous work)
+
+Prefer running the local dev server under **PM2** so an agent can start/restart it
+and **read its logs to debug without a human relaying errors**. Config:
+`ecosystem.dev.config.cjs` (local-only; sets the :5436 DB + `USER_DATA_SOURCE` +
+`ENABLE_MONGODB_ENRICHMENT=false` + `ENABLE_TEST_AUTH=true`; PM2 sets these in
+`process.env` BEFORE Next loads, and Next does NOT override already-set env, so
+this DATABASE_URL wins over the prod-tunneled one in `.env`).
+
+```bash
+npx pm2 start ecosystem.dev.config.cjs   # start mb-dev
+npx pm2 restart mb-dev                    # RESTART after any schema/prisma generate (stale client = "Unknown argument")
+npx pm2 logs mb-dev --nostream --lines 80 # read runtime errors yourself (grep for "error"/"Prisma"/"Unknown argument")
+npx pm2 stop mb-dev / delete mb-dev
+```
+
+- **After `prisma generate` / `db push`, ALWAYS `pm2 restart mb-dev`** — a running
+  dev server holds the OLD generated client and rejects new columns as "Unknown
+  argument" (cost a debug cycle 2026-06-14).
+- Local has **no ClickHouse** → `clickhouse_insert_error: fetch failed` in the log
+  is expected and harmless.
+- `src/proxy.ts` **429s `curl`/headless** (bot-shed) — a 429 from a script is the
+  shed, not a render bug; a real browser is unaffected. To curl past it, spoof a
+  full Chrome UA + `sec-ch-ua` client hints (see `.claude/rules/performance.md`).
+- **General principle:** when you need to work fast, efficiently, and
+  autonomously, set up this kind of self-serve tooling (process manager + log
+  access + a seeded local DB + test-auth) up front so you can observe real
+  behavior and iterate without waiting on a human to paste errors back.
+
+### Two local-dev perf footguns (diagnosed 2026-06-14 — pages hung 40-90s)
+
+Both are ENVIRONMENT issues, not app/feature bugs (hydration logs "PostgreSQL
+fully fresh" while the page still hangs). Symptoms: movie/series/profile pages
+take 20-90s, the single-threaded dev server saturates ("nothing loads"), logs
+show `fetch_retry … "This operation was aborted"`.
+
+1. **Broken undici response decompression** — `TypeError:
+   controller[kState].transformAlgorithm is not a function` in this local Node
+   (20 & 22) + Next 16 Turbopack runtime. Decompressing gzip/br responses
+   crashes, so EVERY compressed outbound `fetch` hangs until its 20s abort +
+   retries (TMDB API, the proxy slug-resolver's existence check in
+   `media-resolver.ts`, geo, OAuth userinfo, YouTube). On one thread they
+   serialize → total saturation. **Fix (shipped): `src/instrumentation.ts`
+   patches global `fetch` to send `Accept-Encoding: identity` in dev only
+   (Node runtime), bypassing decompression.** NEVER in prod (real undici works,
+   keeps gzip). Took movie pages 86s → 0.15s. AWS-SDK calls (Bedrock/Cohere)
+   don't use global fetch, so a lone residual log line from background
+   enrichment is harmless.
+2. **No local ClickHouse** while `.env` `CLICKHOUSE_HOST` points at prod → every
+   page-view/event insert (incl. the `/api/analytics/ingest` route) awaits a
+   multi-second connect-timeout; under rapid interaction these pile up and
+   saturate the dev thread (made set-position/"mark up to here" feel like a
+   ~1min hang). **Fix (code-level, robust): `getConfig()` in
+   `src/lib/analytics/client.ts` returns null in non-prod unless
+   `ENABLE_DEV_ANALYTICS=true`** — analytics is OFF by default in dev regardless
+   of env. (An `ecosystem.dev.config.cjs` `CLICKHOUSE_HOST=""` override is NOT
+   reliable — `pm2 restart --update-env` doesn't always re-apply the ecosystem
+   env block; the code guard is the dependable fix. To re-apply ecosystem env
+   cleanly: `pm2 delete mb-dev && pm2 start ecosystem.dev.config.cjs`.)
+4. **Synchronous miss-path hydration calls AWS Lambda.** A title NOT in the
+   sparse dev catalog is a true PG miss → SYNCHRONOUS hydration (TMDB + upsert +
+   the Google/ratings **Lambdas**). Locally those Lambdas are slow/absent, so the
+   upsert transaction blows its 30s timeout (`Transaction already closed … do
+   less work`) and, on one dev thread, saturates everything (auth/session,
+   compile all climb to 30s+). `MAX_BACKGROUND_REFRESH=0` does NOT cover this —
+   the miss path is synchronous, not background. **Fix (code-level):
+   `DEV_LAMBDA_DISABLED` in `sources/lambda.ts` makes `callGoogleLambda`/
+   `callRatingsLambda` return null in non-prod (set `ENABLE_DEV_LAMBDA=true` to
+   opt in)** → a miss is TMDB-only (~2-3s cold, ~0.3s warm). Prod untouched.
+3. **Background refresh + enrichment + SSE pile-up on the sparse dev catalog.**
+   Every detail-page visit triggers a background TMDB refresh → progressive
+   enrichment (Bedrock/Cohere) that never settles locally, AND opens a 120s SSE
+   poll (`/api/[mediaType]/[id]/enrich`). These STACK per navigation and
+   saturate the single dev thread — symptom is PROGRESSIVE degradation where
+   even Turbopack compile creeps from ~1s to 45s and unrelated pages stop
+   loading. `ecosystem.dev.config.cjs` sets **`MAX_BACKGROUND_REFRESH=0`**
+   (hydration/index.ts) to disable the refresh/enrichment chain in dev. Verified
+   flat ~0.1s loads across repeated navigation after this + the undici patch.
 
 - `seed-social-demo.ts` is idempotent and **refuses to run unless `DATABASE_URL`
   contains `5436`**. It seeds 3 demo users (`cinephile_ada`, `binge_bea`,

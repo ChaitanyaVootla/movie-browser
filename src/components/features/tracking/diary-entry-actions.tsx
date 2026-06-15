@@ -46,6 +46,7 @@ export function DiaryEntryActions({ entry }: DiaryEntryActionsProps) {
         eventId: entry.id,
         watchedAt: values.watchedAt,
         note: values.note || null,
+        score: values.score,
         isPrivate: values.isPrivate,
       });
       if (result.ok) {
@@ -87,11 +88,13 @@ export function DiaryEntryActions({ entry }: DiaryEntryActionsProps) {
       defaultValues={{
         watchedAt: entry.watchedAt ? entry.watchedAt.slice(0, 10) : null,
         note: entry.note ?? "",
-        isRewatch: entry.isRewatch,
+        score: entry.score,
+        isWatch: entry.kind !== "NOTE",
         isPrivate: entry.isPrivate,
       }}
       submitLabel="Save changes"
       busy={busy}
+      allowKindToggle={false}
       onSubmit={(values) => void handleEdit(values)}
     />
   );

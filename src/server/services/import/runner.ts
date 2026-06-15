@@ -177,6 +177,7 @@ export async function runImportJob(jobId: number): Promise<void> {
         userId: job.userId,
         movieId: resolved.kind === "movie" ? resolved.id : null,
         seriesId: resolved.kind === "series" ? resolved.id : null,
+        mediaType: resolved.kind === "movie" ? "MOVIE" : "SERIES",
         seasonNumber: null,
         episodeNumber: null,
         tmdbEpisodeId: null,

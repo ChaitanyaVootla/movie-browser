@@ -84,17 +84,18 @@ export function QuickLogButton({
         tmdbEpisodeId,
         watchedAt: values.watchedAt,
         note: values.note || undefined,
-        isRewatch: values.isRewatch,
+        score: values.score,
+        kind: values.isWatch ? "WATCH" : "NOTE",
         isPrivate: values.isPrivate,
       });
       if (result.ok) {
-        toast.success("Logged to your diary");
+        toast.success(values.isWatch ? "Logged to your diary" : "Added a note to your diary");
         trackAction({
           action: "log_watch",
           mediaType,
           itemId: tmdbId,
           itemTitle: title,
-          metadata: { seasonNumber, episodeNumber, rewatch: values.isRewatch },
+          metadata: { seasonNumber, episodeNumber, note: !values.isWatch },
         });
         setOpen(false);
         onLogged?.();

@@ -100,7 +100,7 @@ export function EpisodeModalActions({
           ) : (
             <ListChecks className="h-4 w-4" />
           )}
-          Caught up to here
+          Mark watched up to here
         </Button>
       )}
     </div>

@@ -20,7 +20,7 @@ export async function recomputeSeriesProgress(
 ): Promise<void> {
   const [events, series, airedEpisodes, existing] = await Promise.all([
     tx.watchEvent.findMany({
-      where: { userId, seriesId },
+      where: { userId, seriesId, kind: "WATCH" },
       select: { seasonNumber: true, episodeNumber: true, watchedAt: true, createdAt: true },
     }),
     tx.series.findUnique({ where: { id: seriesId }, select: { status: true } }),
@@ -61,6 +61,12 @@ export async function recomputeSeriesProgress(
     create: { userId, seriesId, ...fields },
     update: fields,
   });
+
+  // Trakt-style: once a series has real watch progress it's no longer "want to
+  // watch" — drop it from the watchlist so the watchlist stays pure intent.
+  // (Only fires when progress is non-empty, i.e. there ARE WATCH events; a
+  // NOTE-only series never reaches here, so noting a to-watch show is safe.)
+  await tx.watchlistItem.deleteMany({ where: { userId, seriesId } });
 }
 
 /**

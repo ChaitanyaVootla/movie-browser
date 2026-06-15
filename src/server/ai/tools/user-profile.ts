@@ -46,7 +46,7 @@ export const getUserProfileTool = tool(
       const [watchedMovies, watchlistCount, ratings, recentItems] = await Promise.all([
         // Recent watched with title + genres (last 8)
         prisma.watchEvent.findMany({
-          where: { userId, movieId: { not: null } },
+          where: { userId, movieId: { not: null }, kind: "WATCH" },
           orderBy: [{ watchedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
           distinct: ["movieId"],
           take: 8,
