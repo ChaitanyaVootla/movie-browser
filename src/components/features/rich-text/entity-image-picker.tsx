@@ -71,6 +71,7 @@ export function EntityImagePicker({ anchor, onSelect }: EntityImagePickerProps) 
   // Load images for the active entity (anchor by default, or a picked entity).
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingImages(true);
     void getEntityImages({ entityType: active.entityType, tmdbId: active.tmdbId }).then((res) => {
       if (cancelled) return;
@@ -87,6 +88,7 @@ export function EntityImagePicker({ anchor, onSelect }: EntityImagePickerProps) 
     let cancelled = false;
     const q = debouncedSearch.trim();
     if (q.length < 1) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults(null);
       setSearching(false);
       return;
