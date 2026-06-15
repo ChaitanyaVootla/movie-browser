@@ -66,7 +66,7 @@ import {
 } from "@/components/features/tracking";
 import NextLink from "next/link";
 import { ReviewsSection } from "@/components/features/reviews";
-import { DiscussionSection } from "@/components/features/discussion";
+import { DiscussionSection, DiscussionEntryStrip } from "@/components/features/discussion";
 import {
   EpisodeDiscussPage,
   generateDiscussMetadata,
@@ -566,6 +566,15 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         />
       </Suspense>
 
+      {/* Discussion entry strip — cacheable baseline; client island upgrades to "N new". */}
+      <Suspense fallback={null}>
+        <DiscussionEntryStrip
+          anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
+          title={series.name}
+          className="px-4 md:px-8 lg:px-12 mt-4"
+        />
+      </Suspense>
+
       {/* Discussion — series-level anchor; links to per-episode threads.
           Anon tier + locked teaser are ISR-safe; gated tier hydrates client-side. */}
       <Suspense fallback={null}>
@@ -573,6 +582,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
           starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
           className="mt-8 md:mt-12"
+          viewAllHref={`${getMediaPath("series", series.id, series.name)}/discussions`}
         >
           <EpisodeThreadsLink seriesId={series.id} seriesName={series.name} />
         </DiscussionSection>

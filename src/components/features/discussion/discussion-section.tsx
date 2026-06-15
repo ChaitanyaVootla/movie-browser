@@ -13,6 +13,9 @@ interface DiscussionSectionProps {
   starters: string[];
   className?: string;
   children?: ReactNode; // e.g. episode-thread links on series pages
+  /** Cap rendered roots; when set, a "View all →" link appears instead of "Show more". */
+  viewAllHref?: string;
+  previewLimit?: number;
 }
 
 /**
@@ -27,6 +30,8 @@ export async function DiscussionSection({
   starters,
   className,
   children,
+  viewAllHref,
+  previewLimit,
 }: DiscussionSectionProps) {
   const [initialPage, lockedCount, topVideo] = await Promise.all([
     getPublicCommentPage(anchor),
@@ -53,6 +58,8 @@ export async function DiscussionSection({
           lockedCount={lockedCount}
           starters={starters}
           defaultScope="NONE"
+          previewLimit={previewLimit ?? 3}
+          viewAllHref={viewAllHref}
         />
       </div>
     </section>

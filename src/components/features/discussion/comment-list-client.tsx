@@ -25,6 +25,9 @@ interface CommentListClientProps {
   defaultScope?: SpoilerScopeValue;
   defaultScopeSeason?: number | null;
   defaultScopeEpisode?: number | null;
+  /** Cap rendered roots + show a "View all →" link instead of "Show more". */
+  previewLimit?: number;
+  viewAllHref?: string;
 }
 
 /**
@@ -42,6 +45,8 @@ export function CommentListClient({
   defaultScope = "NONE",
   defaultScopeSeason = null,
   defaultScopeEpisode = null,
+  previewLimit,
+  viewAllHref,
 }: CommentListClientProps) {
   const { status } = useSession();
   const [page, setPage] = useState<CommentPageDto>(initialPage);
@@ -65,6 +70,7 @@ export function CommentListClient({
   }, [signedIn, refresh]);
 
   const allRoots = [...page.roots, ...extraPages.flatMap((p) => p.roots)];
+  const visibleRoots = previewLimit ? allRoots.slice(0, previewLimit) : allRoots;
   const lastCursor: CommentCursor | null =
     extraPages.length > 0 ? extraPages[extraPages.length - 1].nextCursor : page.nextCursor;
 
@@ -98,7 +104,7 @@ export function CommentListClient({
       {!signedIn && <LockedTeaser count={lockedCount} mediaType={anchor.type} />}
 
       <div className="space-y-5">
-        {allRoots.map((thread) => (
+        {visibleRoots.map((thread) => (
           <CommentThread
             key={thread.id}
             thread={thread}
@@ -110,16 +116,22 @@ export function CommentListClient({
         ))}
       </div>
 
-      {lastCursor && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          disabled={loadingMore}
-          onClick={() => void loadMore()}
-        >
-          {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Show more comments"}
+      {viewAllHref ? (
+        <Button asChild variant="outline" size="sm" className="w-full">
+          <a href={viewAllHref}>View all comments →</a>
         </Button>
+      ) : (
+        lastCursor && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+          >
+            {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Show more comments"}
+          </Button>
+        )
       )}
     </div>
   );

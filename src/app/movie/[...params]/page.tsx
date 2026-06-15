@@ -64,7 +64,7 @@ import {
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { ReviewsSection } from "@/components/features/reviews";
-import { DiscussionSection } from "@/components/features/discussion";
+import { DiscussionSection, DiscussionEntryStrip } from "@/components/features/discussion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Collection, Movie } from "@/types";
@@ -537,6 +537,15 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         />
       </Suspense>
 
+      {/* Discussion entry strip — cacheable baseline; client island upgrades to "N new". */}
+      <Suspense fallback={null}>
+        <DiscussionEntryStrip
+          anchor={{ type: "movie", movieId: movie.id }}
+          title={movie.title}
+          className="px-4 md:px-8 lg:px-12 mt-4"
+        />
+      </Suspense>
+
       {/* Discussion — anon tier + locked teaser are progress-independent (ISR-safe);
           gated tier hydrates client-side. */}
       <Suspense fallback={null}>
@@ -544,6 +553,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
           anchor={{ type: "movie", movieId: movie.id }}
           starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
           className="mt-8 md:mt-12"
+          viewAllHref={`${getMediaPath("movie", movie.id, movie.title)}/discussions`}
         />
       </Suspense>
     </>

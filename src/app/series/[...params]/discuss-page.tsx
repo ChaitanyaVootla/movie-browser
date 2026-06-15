@@ -21,6 +21,7 @@ import {
   type EpisodeNavItem,
 } from "@/components/features/discussion/episode-picker";
 import { ThreadSummaryCard } from "@/components/features/discussion/thread-summary-card";
+import { DiscussionEntryStrip } from "@/components/features/discussion/discussion-entry-strip";
 
 export interface DiscussParams {
   seriesId: number;
@@ -182,6 +183,14 @@ export async function EpisodeDiscussPage({ params }: { params: DiscussParams }) 
           currentSeason={params.season}
           currentEpisode={params.episode}
         />
+
+        <Link
+          href={`${basePath}/discussions`}
+          className="text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          ← All {series.name} discussions
+        </Link>
+        <DiscussionEntryStrip anchor={anchor} title={series.name} />
 
         <SectionHeading icon={<MessagesSquare className="h-5 w-5 text-brand" />}>
           Discussion
