@@ -67,3 +67,61 @@ export async function notifyReply(params: CommentNotifyParams): Promise<void> {
 export async function notifyMention(params: CommentNotifyParams): Promise<void> {
   return createCommentNotification("MENTION", params);
 }
+
+// ---------------------------------------------------------------------------
+// Episode-drop notifications (spec §7)
+// ---------------------------------------------------------------------------
+
+export function episodeDropPayloadKey(seriesId: number, seasonNumber: number): string {
+  return `series:${seriesId}:s${seasonNumber}`;
+}
+
+export function episodeDropMessage(seriesTitle: string, seasonNumber: number): string {
+  return `New episodes of ${seriesTitle} (season ${seasonNumber}) — its discussion is now open.`;
+}
+
+interface EpisodeDropParams {
+  recipientId: number;
+  seriesId: number;
+  seriesTitle: string;
+  seasonNumber: number;
+  url: string;
+}
+
+/**
+ * Write-on-event, bounded by the viewer's tracked set (spec §7) — NOT a fan-out.
+ * Idempotent: skip if an EPISODE_DROP for this (series,season) already exists for
+ * the recipient (the cron may re-scan overlapping windows).
+ */
+export async function notifyEpisodeDrop(params: EpisodeDropParams): Promise<boolean> {
+  const key = episodeDropPayloadKey(params.seriesId, params.seasonNumber);
+  const existing = await prisma.notification.findFirst({
+    where: {
+      userId: params.recipientId,
+      type: "EPISODE_DROP",
+      payload: { path: ["dropKey"], equals: key },
+    },
+    select: { id: true },
+  });
+  if (existing) return false;
+
+  await createNotification({
+    userId: params.recipientId,
+    type: "EPISODE_DROP",
+    actorId: null,
+    payload: {
+      dropKey: key,
+      seriesId: params.seriesId,
+      seasonNumber: params.seasonNumber,
+      title: params.seriesTitle,
+      url: params.url,
+    },
+  });
+
+  void sendPushToUser(params.recipientId, {
+    title: `New on a show you track`,
+    body: episodeDropMessage(params.seriesTitle, params.seasonNumber),
+    url: params.url,
+  });
+  return true;
+}
