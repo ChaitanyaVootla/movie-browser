@@ -14,7 +14,7 @@ import type {
   SpoilerScopeValue,
 } from "@/server/services/discussion/comment-schemas";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { MentionAutocomplete } from "./mention-autocomplete";
+import { MentionAutocomplete, type MentionItem } from "./mention-autocomplete";
 import { CommentImagePicker } from "./comment-image-picker";
 import { scopeLabel } from "./scope-badge";
 
@@ -40,10 +40,17 @@ interface Suggestion {
   episode: number | null;
 }
 
+/**
+ * Trailing-mention detection. The @ must start the input or follow whitespace,
+ * and the query may contain spaces (titles/people have spaces) — capture up to
+ * 40 chars excluding newlines and a second @.
+ */
+const TRAILING_MENTION_RE = /(?:^|\s)@([^\n@]{0,40})$/;
+
 /** Extract trailing @token from the current textarea value up to the caret. */
 function getTrailingMention(value: string, caretPos: number): string | null {
   const before = value.slice(0, caretPos);
-  const match = before.match(/@([a-z0-9_]{0,30})$/i);
+  const match = before.match(TRAILING_MENTION_RE);
   return match ? match[1] : null;
 }
 
@@ -68,6 +75,9 @@ export function CommentComposer({
 
   // Autocomplete state: non-null = showing the palette.
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  // Flattened, ordered item list owned by the composer for keyboard nav.
+  const [mentionItems, setMentionItems] = useState<MentionItem[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isSeries = anchor.type === "series";
@@ -133,7 +143,51 @@ export function CommentComposer({
     setBody(value);
     const caret = textareaRef.current?.selectionStart ?? value.length;
     const trailing = getTrailingMention(value, caret);
-    setMentionQuery(trailing !== null ? trailing : null);
+    setMentionQuery(trailing);
+    setActiveIndex(0);
+  };
+
+  const closeMention = () => {
+    setMentionQuery(null);
+    setMentionItems([]);
+    setActiveIndex(0);
+  };
+
+  /** Keyboard nav while the mention palette is open. Returns true if handled. */
+  const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (mentionQuery === null) return false;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMention();
+      return true;
+    }
+    if (mentionItems.length === 0) {
+      // Palette is open but still searching/empty — swallow Enter so it neither
+      // submits nor inserts a newline; let everything else through.
+      if (e.key === "Enter") {
+        e.preventDefault();
+        return true;
+      }
+      return false;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % mentionItems.length);
+      return true;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i - 1 + mentionItems.length) % mentionItems.length);
+      return true;
+    }
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      const item = mentionItems[Math.min(activeIndex, mentionItems.length - 1)];
+      if (item) insertToken(item.token);
+      return true;
+    }
+    return false;
   };
 
   /** Insert a mention token at the current caret position, replacing the @token. */
@@ -143,17 +197,26 @@ export function CommentComposer({
     const caret = ta.selectionStart ?? body.length;
     const before = body.slice(0, caret);
     const after = body.slice(caret);
-    // Find the @token start.
-    const match = before.match(/@([a-z0-9_]{0,30})$/i);
+    // Find the @token start — preserve any leading whitespace the regex matched.
+    const match = before.match(TRAILING_MENTION_RE);
+    let newBefore: string;
     if (match && match.index !== undefined) {
-      const newBody = before.slice(0, match.index) + token + " " + after;
-      setBody(newBody);
+      const atIndex = before.indexOf("@", match.index);
+      newBefore = before.slice(0, atIndex) + token + " ";
     } else {
-      setBody(before + token + " " + after);
+      newBefore = before + token + " ";
     }
+    const newBody = newBefore + after;
+    setBody(newBody);
     setMentionQuery(null);
-    // Restore focus.
-    setTimeout(() => ta.focus(), 0);
+    setMentionItems([]);
+    setActiveIndex(0);
+    // Restore focus + place caret right after the inserted token.
+    const caretPos = newBefore.length;
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(caretPos, caretPos);
+    }, 0);
   };
 
   return (
@@ -164,10 +227,7 @@ export function CommentComposer({
           value={body}
           onChange={(e) => handleBodyChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Escape" && mentionQuery !== null) {
-              setMentionQuery(null);
-              e.stopPropagation();
-            }
+            handleMentionKeyDown(e);
           }}
           rows={3}
           maxLength={4000}
@@ -178,8 +238,10 @@ export function CommentComposer({
           <MentionAutocomplete
             query={mentionQuery}
             anchor={anchor}
+            activeIndex={activeIndex}
+            onItemsChange={setMentionItems}
             onInsert={insertToken}
-            onClose={() => setMentionQuery(null)}
+            onClose={closeMention}
           />
         )}
       </div>
