@@ -1,7 +1,7 @@
 import { prisma, type Prisma } from "@/server/db/postgres";
 import { compareTrending, type TrendingRow } from "@/server/services/discussion/trending";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
-import { anchorWhere, PUBLIC_COMMENTS_WHERE, toCommentDto, type CommentDto } from "./comments";
+import { anchorWhere, PUBLIC_COMMENTS_WHERE, toCommentDto, COMMENT_INCLUDE, type CommentDto } from "./comments";
 
 interface RawTrendingRow {
   id: number;
@@ -24,7 +24,7 @@ export function toTrendingRows(rows: RawTrendingRow[], now: Date): TrendingRow[]
     .sort(compareTrending(now));
 }
 
-const TOP_AUTHOR = { select: { id: true, username: true, name: true, image: true } } as const;
+// Note: COMMENT_INCLUDE is used instead of the old TOP_AUTHOR to include entityMentions for the DTO.
 
 /** Recently-active candidate window pulled (ordered by lastActivityAt) before
  * in-memory recency-decay ranking. Bounds the per-render scan. */
@@ -53,7 +53,7 @@ export async function getPublicTrendingRoots(
     where,
     orderBy: { lastActivityAt: "desc" },
     take: Math.max(limit * 3, TRENDING_CANDIDATE_WINDOW),
-    include: { user: TOP_AUTHOR },
+    include: COMMENT_INCLUDE,
   });
   const now = new Date();
   const ranked = toTrendingRows(
@@ -86,7 +86,7 @@ export async function getPublicLatestRoots(
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit,
-    include: { user: TOP_AUTHOR },
+    include: COMMENT_INCLUDE,
   });
-  return rows.map(toCommentDto);
+  return rows.map((r) => toCommentDto(r));
 }

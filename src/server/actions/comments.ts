@@ -21,7 +21,7 @@ import { checkCommentRateLimit } from "@/server/services/discussion/rate-limit";
 import { parseMentions, resolveMentions } from "@/server/services/discussion/mentions";
 import { runCommentGate } from "@/server/services/moderation/comment-gate";
 import { notifyMention, notifyReply } from "@/server/services/notifications/notify";
-import { toCommentDto, type CommentDto } from "@/server/db/postgres/comments";
+import { toCommentDto, COMMENT_INCLUDE, type CommentDto } from "@/server/db/postgres/comments";
 import { bumpRootActivity, stampNewRootActivity } from "@/server/services/discussion/activity-bump";
 
 export type CreateCommentResult =
@@ -170,7 +170,7 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
           aiLabels: aiLabels as object,
           lastActivityAt: held ? null : now,
         },
-        include: { user: { select: { id: true, username: true, name: true, image: true } } },
+        include: COMMENT_INCLUDE,
       });
       // Trending counters are PUBLISHED-only (held comments are invisible).
       if (!held) {

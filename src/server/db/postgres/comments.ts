@@ -10,6 +10,7 @@ import {
   type ViewerGateContext,
 } from "@/server/services/discussion/spoiler-gate";
 import { getExcludedAuthorIds } from "./blocks";
+import { getMediaPath } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // DTOs (serializable across the server-action boundary — dates as ISO strings)
@@ -20,6 +21,21 @@ export interface CommentAuthorDto {
   username: string | null;
   name: string | null;
   image: string | null;
+}
+
+export interface CommentAttachment {
+  entityType: "movie" | "series" | "episode" | "person";
+  tmdbId: number;
+  imagePath: string;
+}
+
+export interface EntityMentionRef {
+  kind: "movie" | "series" | "episode" | "person";
+  tmdbId: number;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+  name: string; // CURRENT catalog name (live)
+  href: string;
 }
 
 export interface CommentDto {
@@ -34,6 +50,9 @@ export interface CommentDto {
   createdAt: string;
   editedAt: string | null;
   author: CommentAuthorDto | null;
+  attachment: CommentAttachment | null;
+  viewerLiked: boolean;
+  entityMentions: EntityMentionRef[];
 }
 
 export interface CommentThreadDto extends CommentDto {
@@ -50,10 +69,49 @@ const AUTHOR_SELECT = {
   select: { id: true, username: true, name: true, image: true },
 } as const;
 
-type CommentRow = Prisma.CommentGetPayload<{ include: { user: typeof AUTHOR_SELECT } }>;
+export const COMMENT_INCLUDE = {
+  user: AUTHOR_SELECT,
+  entityMentions: {
+    select: {
+      movieId: true, seriesId: true, personId: true, seasonNumber: true, episodeNumber: true,
+      movie: { select: { id: true, title: true } },
+      series: { select: { id: true, name: true } },
+      person: { select: { id: true, name: true } },
+    },
+  },
+} as const;
 
-export function toCommentDto(row: CommentRow): CommentDto {
+type CommentRow = Prisma.CommentGetPayload<{ include: typeof COMMENT_INCLUDE }>;
+
+export function toCommentDto(row: CommentRow, viewerLikedIds?: Set<number>): CommentDto {
   const deleted = row.status === CommentStatus.DELETED_BY_USER;
+  const attachment: CommentAttachment | null =
+    deleted || !row.attachmentEntityType || !row.attachmentImagePath
+      ? null
+      : {
+          entityType: row.attachmentEntityType as CommentAttachment["entityType"],
+          tmdbId:
+            row.attachmentMovieId ?? row.attachmentSeriesId ?? row.attachmentPersonId ?? 0,
+          imagePath: row.attachmentImagePath,
+        };
+  const entityMentions: EntityMentionRef[] = deleted
+    ? []
+    : row.entityMentions.map((m) => {
+        if (m.movie) {
+          return { kind: "movie" as const, tmdbId: m.movie.id, seasonNumber: null, episodeNumber: null, name: m.movie.title, href: getMediaPath("movie", m.movie.id, m.movie.title) };
+        }
+        if (m.person) {
+          return { kind: "person" as const, tmdbId: m.person.id, seasonNumber: null, episodeNumber: null, name: m.person.name, href: getMediaPath("person", m.person.id, m.person.name) };
+        }
+        // series or episode
+        const sid = m.series?.id ?? (m.seriesId as number);
+        const sname = m.series?.name ?? "Series";
+        const base = getMediaPath("series", sid, sname);
+        if (m.seasonNumber !== null && m.episodeNumber !== null) {
+          return { kind: "episode" as const, tmdbId: sid, seasonNumber: m.seasonNumber, episodeNumber: m.episodeNumber, name: sname, href: `${base}/discuss/s${m.seasonNumber}e${m.episodeNumber}` };
+        }
+        return { kind: "series" as const, tmdbId: sid, seasonNumber: null, episodeNumber: null, name: sname, href: base };
+      });
   return {
     id: row.id,
     parentId: row.parentId,
@@ -66,6 +124,9 @@ export function toCommentDto(row: CommentRow): CommentDto {
     createdAt: row.createdAt.toISOString(),
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
     author: deleted || !row.user ? null : row.user,
+    attachment,
+    viewerLiked: viewerLikedIds ? viewerLikedIds.has(row.id) : false,
+    entityMentions,
   };
 }
 
@@ -109,6 +170,7 @@ const REPLY_PREVIEW_PER_ROOT = 50; // depth cap 2 → bounded total
 /**
  * Anon-cacheable tier (spec invariant 8): NONE-scope, PUBLISHED, circle-NULL
  * only. Safe inside ISR/edge-cached HTML; exactly what crawlers should index.
+ * viewerId MUST remain null here — invariant 1: no viewer data in cacheable HTML.
  */
 export async function getPublicCommentPage(
   anchor: DiscussionAnchor,
@@ -124,7 +186,8 @@ export async function getPublicCommentPage(
       cursorWhere(cursor),
     ],
   };
-  return pageWithReplies(where, { AND: [PUBLIC_COMMENTS_WHERE, { spoilerScope: "NONE" }] }, limit);
+  // viewerId = null: anon tier — viewerLiked is always false (invariant 1)
+  return pageWithReplies(where, { AND: [PUBLIC_COMMENTS_WHERE, { spoilerScope: "NONE" }] }, limit, null);
 }
 
 /**
@@ -180,7 +243,7 @@ export async function getVisibleCommentPage(
   const where: Prisma.CommentWhereInput = {
     AND: [anchorWhere(anchor), { parentId: null }, visibility, blockFilter, cursorWhere(cursor)],
   };
-  return pageWithReplies(where, { AND: [visibility, blockFilter] }, limit);
+  return pageWithReplies(where, { AND: [visibility, blockFilter] }, limit, viewerId);
 }
 
 /**
@@ -214,11 +277,12 @@ export async function countVisibleNewSince(
 async function pageWithReplies(
   rootWhere: Prisma.CommentWhereInput,
   replyVisibility: Prisma.CommentWhereInput,
-  limit: number
+  limit: number,
+  viewerId: number | null
 ): Promise<CommentPageDto> {
   const rows = await prisma.comment.findMany({
     where: rootWhere,
-    include: { user: AUTHOR_SELECT },
+    include: COMMENT_INCLUDE,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
   });
@@ -232,7 +296,7 @@ async function pageWithReplies(
     [replies, counts] = await Promise.all([
       prisma.comment.findMany({
         where: { AND: [{ parentId: { in: rootIds } }, replyVisibility] },
-        include: { user: AUTHOR_SELECT },
+        include: COMMENT_INCLUDE,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         take: REPLY_PREVIEW_PER_ROOT * rootIds.length,
       }),
@@ -243,11 +307,23 @@ async function pageWithReplies(
       }),
     ]);
   }
+
+  // Viewer like-state: only for the gated (POST) path (invariant 1 — no viewer data in cacheable HTML).
+  const allIds = [...roots.map((r) => r.id), ...replies.map((r) => r.id)];
+  const likedRows =
+    viewerId && allIds.length
+      ? await prisma.reaction.findMany({
+          where: { userId: viewerId, commentId: { in: allIds }, type: "LIKE" },
+          select: { commentId: true },
+        })
+      : [];
+  const likedIds = new Set(likedRows.map((l) => l.commentId).filter((id): id is number => id !== null));
+
   const repliesByRoot = new Map<number, CommentDto[]>();
   for (const reply of replies) {
     if (reply.parentId === null) continue;
     const list = repliesByRoot.get(reply.parentId) ?? [];
-    list.push(toCommentDto(reply));
+    list.push(toCommentDto(reply, likedIds));
     repliesByRoot.set(reply.parentId, list);
   }
   const countByRoot = new Map<number, number>();
@@ -257,7 +333,7 @@ async function pageWithReplies(
   const last = roots[roots.length - 1];
   return {
     roots: roots.map((r) => ({
-      ...toCommentDto(r),
+      ...toCommentDto(r, likedIds),
       replies: repliesByRoot.get(r.id) ?? [],
       replyCount: countByRoot.get(r.id) ?? 0,
     })),
