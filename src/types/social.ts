@@ -347,3 +347,14 @@ export interface MentionSearchResultDto {
   cast: { tmdbId: number; name: string; imagePath: string | null }[];
   episodes: { seriesId: number; seasonNumber: number; episodeNumber: number; name: string; imagePath: string | null }[];
 }
+
+// ---------------------------------------------------------------------------
+// MediaAnchor — re-export of the generalized rich-text editor anchor.
+// Canonical definition lives in services/discussion/comment-schemas.ts so the
+// Zod schema and type stay co-located; re-exported here for shared consumers.
+// ---------------------------------------------------------------------------
+
+export {
+  MediaAnchorSchema,
+  type MediaAnchor,
+} from "@/server/services/discussion/comment-schemas";

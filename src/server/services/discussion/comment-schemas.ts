@@ -31,6 +31,11 @@ export const DiscussionAnchorSchema = z.discriminatedUnion("type", [
     }),
 ]);
 
+// MediaAnchor: the unit a rich-text body is attached to (movie/series + optional season/episode).
+// Generalizes DiscussionAnchor so reviews + discussion share one anchor type.
+export const MediaAnchorSchema = DiscussionAnchorSchema;
+export type MediaAnchor = z.infer<typeof MediaAnchorSchema>;
+
 export const SpoilerScopeSchema = z.enum(["NONE", "WATCHED", "EPISODE", "ENDING"]);
 export type SpoilerScopeValue = z.infer<typeof SpoilerScopeSchema>;
 
