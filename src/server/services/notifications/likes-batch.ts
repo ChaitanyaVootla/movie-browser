@@ -2,16 +2,25 @@ import { prisma } from "@/server/db/postgres";
 import { createNotification } from "@/server/db/postgres/social/notifications";
 import { getHiddenUserIds } from "@/server/db/postgres/social/blocks";
 
+export type LikeTargetType = "comment" | "review";
+
 export interface LikesBatchPayload {
   count: number;
   sampleActor: string;
-  commentId: number;
+  /** Discriminator for the like target. Legacy rows without it are treated as "comment". */
+  targetType: LikeTargetType;
+  /** Set when targetType === "comment". */
+  commentId?: number;
+  /** Set when targetType === "review". */
+  reviewId?: number;
   url: string;
 }
 
 interface LikeEvent {
   actorName: string;
-  commentId: number;
+  targetType: LikeTargetType;
+  commentId?: number;
+  reviewId?: number;
   url: string;
 }
 
@@ -20,53 +29,69 @@ export function mergeLikesPayload(prev: LikesBatchPayload | null, ev: LikeEvent)
   return {
     count: (prev?.count ?? 0) + 1,
     sampleActor: ev.actorName,
+    targetType: ev.targetType,
     commentId: ev.commentId,
+    reviewId: ev.reviewId,
     url: ev.url,
   };
 }
 
 export function likesBatchMessage(p: LikesBatchPayload): string {
-  if (p.count <= 1) return `${p.sampleActor} liked your comment`;
-  return `${p.sampleActor} + ${p.count - 1} others liked your comment`;
+  const target = p.targetType === "review" ? "review" : "comment";
+  if (p.count <= 1) return `${p.sampleActor} liked your ${target}`;
+  return `${p.sampleActor} + ${p.count - 1} others liked your ${target}`;
 }
 
 function asPayload(value: unknown): LikesBatchPayload | null {
   if (typeof value !== "object" || value === null) return null;
   const v = value as Record<string, unknown>;
-  if (typeof v.count !== "number" || typeof v.commentId !== "number") return null;
+  if (typeof v.count !== "number") return null;
+  const targetType: LikeTargetType = v.targetType === "review" ? "review" : "comment";
   return {
     count: v.count,
     sampleActor: typeof v.sampleActor === "string" ? v.sampleActor : "Someone",
-    commentId: v.commentId,
+    targetType,
+    commentId: typeof v.commentId === "number" ? v.commentId : undefined,
+    reviewId: typeof v.reviewId === "number" ? v.reviewId : undefined,
     url: typeof v.url === "string" ? v.url : "",
   };
 }
 
-/**
- * Likes-on-my-comment notification — BATCHED + low-priority (spec §7): never
- * one-per-like. Coalesces into the recipient's existing UNREAD LIKES_BATCH row
- * for the same comment, else inserts a fresh one. No fan-out, block-respecting.
- *
- * Phase D: call this from the like-reaction server action's success path
- * (Phase B's reaction action) — marker left there if Phase B isn't present.
- */
-export async function notifyLikeBatched(params: {
+interface NotifyLikeParams {
   recipientId: number;
   actorId: number;
   actorName: string;
-  commentId: number;
+  targetType: LikeTargetType;
+  commentId?: number;
+  reviewId?: number;
   url: string;
-}): Promise<void> {
+}
+
+/**
+ * Likes-on-my-content notification — BATCHED + low-priority (spec §7): never
+ * one-per-like. Coalesces into the recipient's existing UNREAD LIKES_BATCH row
+ * for the same target (comment OR review), else inserts a fresh one. No fan-out,
+ * block-respecting.
+ *
+ * Generalized 2026-06-15: a single LIKES_BATCH type covers both comment and
+ * review likes; the payload carries a `targetType` discriminator + the matching
+ * anchor id. Comment behavior is unchanged (dedupe still keys on commentId).
+ */
+export async function notifyLikeBatched(params: NotifyLikeParams): Promise<void> {
   if (params.actorId === params.recipientId) return; // self-like never notifies
   const hidden = await getHiddenUserIds(params.recipientId);
   if (hidden.has(params.actorId)) return;
+
+  const anchorPath = params.targetType === "review" ? "reviewId" : "commentId";
+  const anchorId = params.targetType === "review" ? params.reviewId : params.commentId;
+  if (typeof anchorId !== "number") return; // defensive: nothing to key on
 
   const existing = await prisma.notification.findFirst({
     where: {
       userId: params.recipientId,
       type: "LIKES_BATCH",
       readAt: null,
-      payload: { path: ["commentId"], equals: params.commentId },
+      payload: { path: [anchorPath], equals: anchorId },
     },
     orderBy: { id: "desc" },
     select: { id: true, payload: true },
@@ -74,7 +99,9 @@ export async function notifyLikeBatched(params: {
 
   const next = mergeLikesPayload(existing ? asPayload(existing.payload) : null, {
     actorName: params.actorName,
+    targetType: params.targetType,
     commentId: params.commentId,
+    reviewId: params.reviewId,
     url: params.url,
   });
 

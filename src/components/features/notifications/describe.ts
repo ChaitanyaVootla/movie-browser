@@ -10,12 +10,15 @@ export function describeNotification(n: NotificationDto): string {
     return `New episodes of ${title} — its discussion is now open`;
   }
   if (n.type === "LIKES_BATCH") {
-    const p = n.payload as { count?: number; sampleActor?: string };
+    const p = n.payload as { count?: number; sampleActor?: string; targetType?: string };
     const sample = p.sampleActor ?? "Someone";
     const count = p.count ?? 1;
+    // Legacy rows (and comment likes) have no/`"comment"` targetType.
+    const target = p.targetType === "review" ? "review" : "comment";
+    const suffix = target === "review" ? `your review of ${title}` : "your comment";
     return count <= 1
-      ? `${sample} liked your comment`
-      : `${sample} + ${count - 1} others liked your comment`;
+      ? `${sample} liked ${suffix}`
+      : `${sample} + ${count - 1} others liked ${suffix}`;
   }
   return `${who} · ${title}`;
 }

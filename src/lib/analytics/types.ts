@@ -68,6 +68,7 @@ export type ActionType =
   | "diary_delete"
   | "review_submit"
   | "review_delete"
+  | "review_like"
   | "follow"
   | "unfollow"
   | "username_claim"
