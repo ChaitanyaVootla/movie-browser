@@ -166,13 +166,28 @@ export interface UserStatsDTO {
 // Reviews
 // ---------------------------------------------------------------------------
 
+export interface ReviewImage {
+  entityType: "movie" | "series" | "episode" | "person";
+  tmdbId: number;
+  imagePath: string;
+}
+
 export interface SubmitReviewInput {
   mediaType: TrackedMediaType;
   tmdbId: number;
   seasonNumber?: number;
+  title?: string;
   body: string;
-  containsSpoilers: boolean;
+  /** 1–10; null = unrated/abstain. */
+  score?: number | null;
+  /** "loved it" heart. */
+  liked?: boolean;
+  spoilerScope: SpoilerScopeValue;
+  scopeSeason?: number | null;
+  scopeEpisode?: number | null;
   isPrivate: boolean;
+  /** ≤4 images. */
+  images?: ReviewImage[];
 }
 
 export interface ReviewDTO {
@@ -180,11 +195,17 @@ export interface ReviewDTO {
   username: string | null;
   displayName: string;
   avatarUrl: string | null;
-  /** 1–10 score from user_ratings join, when present. */
+  title: string | null;
   score: number | null;
+  liked: boolean;
   body: string;
-  containsSpoilers: boolean;
+  spoilerScope: SpoilerScopeValue;
+  scopeSeason: number | null;
+  scopeEpisode: number | null;
+  images: ReviewImage[];
   seasonNumber: number | null;
+  likeCount: number;
+  likedByViewer: boolean;
   createdAt: string;
   editedAt: string | null;
 }
@@ -358,3 +379,6 @@ export {
   MediaAnchorSchema,
   type MediaAnchor,
 } from "@/server/services/discussion/comment-schemas";
+
+import type { SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
+export type { SpoilerScopeValue };
