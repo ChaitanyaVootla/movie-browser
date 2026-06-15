@@ -85,6 +85,50 @@ module.exports = {
       env: { NODE_ENV: "production", CRON_HOUR_UTC: "22" },
       kill_timeout: 300000, // 5 minutes - sitemap gen can take a while
     },
+    // Episode-drop notifications - daily at 05:00 UTC (10:30 IST). Diffs newly-aired
+    // episodes against viewers' tracked sets and writes ONE bounded EPISODE_DROP per
+    // (viewer, series, season). No fan-out; idempotent.
+    {
+      name: "episode-drop-notify",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "bash",
+      args: ["-c", "exec nice -n 19 npx tsx scripts/seed-episode-drop-notifications.ts"],
+      cron_restart: "0 5 * * *",
+      autorestart: false,
+      restart_delay: 5000,
+      max_restarts: 2,
+      min_uptime: "1s",
+      watch: false,
+      max_memory_restart: "700M",
+      error_file: "./logs/episode-drop-error.log",
+      out_file: "./logs/episode-drop-out.log",
+      log_file: "./logs/episode-drop-combined.log",
+      time: true,
+      env: { NODE_ENV: "production", CRON_HOUR_UTC: "5" },
+      kill_timeout: 300000,
+    },
+    // Cue trending seeds - daily at 20:00 UTC (01:30 IST). Walks top-N trending
+    // titles, seeds ONE spoiler-free Cue opener per virgin title (idempotent). One
+    // Bedrock Flex call per seed; O(trending/day) cost, never O(catalog).
+    {
+      name: "cue-seed",
+      cwd: "/home/ubuntu/movie-browser-next",
+      script: "bash",
+      args: ["-c", "exec nice -n 19 npx tsx scripts/seed-cue-comments.ts --limit=20"],
+      cron_restart: "0 20 * * *",
+      autorestart: false,
+      restart_delay: 5000,
+      max_restarts: 2,
+      min_uptime: "1s",
+      watch: false,
+      max_memory_restart: "700M",
+      error_file: "./logs/cue-seed-error.log",
+      out_file: "./logs/cue-seed-out.log",
+      log_file: "./logs/cue-seed-combined.log",
+      time: true,
+      env: { NODE_ENV: "production", CRON_HOUR_UTC: "20" },
+      kill_timeout: 300000,
+    },
     // ISR cache prune - every 6h. Jun 10 2026: unbounded ISR route-cache
     // entries (bot fleet × 800k-title long tail) grew .next to 41GB and filled
     // the 77GB disk → ENOSPC outage loop. Primary bound is now the custom

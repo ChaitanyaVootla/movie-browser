@@ -143,6 +143,16 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
 - **Audit backbone** — generic trigger-based `audit_log` over an opt-in set of
   low-churn tables. Detailed in **`.claude/rules/audit-log.md`** — read it before
   touching `postgres/init/05-audit.sql` or `src/server/db/audit.ts`.
+- **Phase D — Destination & Retention (branch `feat/discussions-flesh`, Jun 2026).**
+  `EPISODE_DROP` + `LIKES_BATCH` NotificationType values; cross-catalog `/discussions`
+  hub (ISR, Hot/New anon + Following viewer-scoped); `notifyEpisodeDrop` (idempotent,
+  bounded, dropKey-gated) + `notifyLikeBatched` (pure coalescing, never one-per-like);
+  `cue` system user (`users.metadata.bot=true`) + daily Cue trending-seed cron (one
+  Bedrock Flex call per virgin title, `auditedTransaction(cueUserId, …)` for audit
+  attribution, `shouldSkipTitle` idempotency); `CueBadge` on Cue-authored comments;
+  inert audience-selector stub in composer + hub (circles-readiness seam, NOT WIRED).
+  PM2 crons: `episode-drop-notify` (05:00 UTC) + `cue-seed` (20:00 UTC) — both carry
+  the `CRON_HOUR_UTC` guard + `nice -n 19`.
 
 ---
 
@@ -321,9 +331,12 @@ show `fetch_retry … "This operation was aborted"`.
 | Profile dashboard | `profile.ts` (`updateProfileLayoutAction`, `searchTitlesForBackdrop`, `getTitleImages`) | `social/public-profile.ts` (dailyActivity/recentWatches/topCountries) | `features/profile/{profile-dashboard,profile-dashboard-switch,profile-dashboard-editor,profile-settings-dialog,profile-viewer-context}.tsx`, `features/profile/widgets/*` |
 | Reviews | `reviews.ts` | `social/reviews.ts` | `features/reviews/*` |
 | Discussion | `comments.ts`, `comment-reads.ts`, `thread-summary.ts` | `postgres/comments.ts`, `services/discussion/*` | `features/discussion/*` |
+| Discussion hub | `discussions-hub.ts` (getHubPublicPage, getHubFollowing) | `social/discussion-hub.ts` (Hot/New/Following DB reads) | `app/discussions/page.tsx` + `hub-tabs.tsx` + `hub-thread-card.tsx` |
 | Moderation | `reports.ts` | `social/reports.ts`, `services/moderation/*` | `features/discussion/{report-dialog,user-moderation-menu}.tsx`, admin moderation tab |
 | Blocks/mute | `social.ts` | `social/blocks.ts` | `features/settings/blocked-users-settings.tsx` |
 | Notifications | `notifications.ts` | `social/notifications.ts`, `services/notifications/push.ts` | `features/notifications/*` |
+| Notifications Phase D | (cron: `seed-episode-drop-notifications.ts`) | `services/notifications/notify.ts` (notifyEpisodeDrop, episodeDropPayloadKey), `services/notifications/likes-batch.ts` (notifyLikeBatched, mergeLikesPayload) | `features/notifications/describe.ts` |
+| Cue AI seeds | (cron: `seed-cue-comments.ts`) | `services/cue/{cue-prompt,cue-seed}.ts` (CUE_USERNAME/CUE_METADATA, shouldSkipTitle, insertCueSeed via auditedTransaction) | `features/discussion/cue-badge.tsx` (AI badge on Cue comments) |
 | Lists / Four Favorites | `lists.ts` | `social/lists.ts` | `features/settings/four-favorites-editor.tsx`, `features/profile/four-favorites.tsx` |
 | Import / export | `imports.ts` | `services/import/*` | `features/settings/{import-client,export-data-button}.tsx` |
 | Up Next (home) | (uses `social/progress.ts`) | — | `features/home/up-next-section.tsx` |
