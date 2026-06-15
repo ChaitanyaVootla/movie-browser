@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -80,7 +80,6 @@ export function EntityImagePicker({ anchor, onSelect }: EntityImagePickerProps) 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active.entityType, active.tmdbId]);
 
   // Search the catalog for entities to switch to.
