@@ -4,15 +4,31 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { loadReviews, type LoadReviewsResult } from "@/server/actions/reviews";
+import {
+  loadReviews,
+  getReviewHistogram,
+  type LoadReviewsResult,
+} from "@/server/actions/reviews";
+import type { RatingHistogram as RatingHistogramData } from "@/server/db/postgres/social/ratings";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import type { ReviewDTO, TrackedMediaType } from "@/types/social";
+import { RatingHistogram } from "./rating-histogram";
 import { ReviewCard } from "./review-card";
 import { dedupeById } from "./dedupe-reviews";
 
 type SortTab = "popular" | "recent" | "following";
+
+/** Sentinel for the title-level ("All") view in the season selector. */
+const ALL_SEASONS = "all";
 
 interface ReviewsClientProps {
   mediaType: TrackedMediaType;
@@ -20,6 +36,18 @@ interface ReviewsClientProps {
   seasonNumber?: number;
   /** Anon NONE+PUBLISHED+public Popular set from SSR — seeds the Popular tab. */
   initialReviews: ReviewDTO[];
+  /**
+   * SSR title-level histogram — seeds the histogram so anon HTML is unchanged.
+   * When the viewer switches season, the client re-fetches the per-season
+   * histogram via getReviewHistogram (a POST, never edge-cached).
+   */
+  initialHistogram: RatingHistogramData;
+  /**
+   * Available season numbers for a series (e.g. [1, 2, 3]). When present and
+   * non-empty, a season selector lets the viewer scope reviews to one season
+   * ("All" = title-level). Omitted/empty (movies, single-season) = no selector.
+   */
+  seasons?: number[];
 }
 
 /** Per-tab loaded state. `seeded` Popular renders the SSR set until a fetch resolves. */
@@ -65,10 +93,26 @@ function SkeletonCards() {
  * - Recent / Following load on first visit. Following with no session or no
  *   follows → friendly empty state (loadReviews already returns []).
  */
-export function ReviewsClient({ mediaType, tmdbId, seasonNumber, initialReviews }: ReviewsClientProps) {
+export function ReviewsClient({
+  mediaType,
+  tmdbId,
+  seasonNumber,
+  initialReviews,
+  initialHistogram,
+  seasons,
+}: ReviewsClientProps) {
   const { status } = useSession();
   const signedIn = status === "authenticated";
+  const hasSeasonSelector = mediaType === "series" && (seasons?.length ?? 0) > 0;
   const [tab, setTab] = useState<SortTab>("popular");
+
+  // Selected season unit. ALL_SEASONS = title-level (the SSR default — seeded
+  // reviews + histogram render with zero fetch). A real season number scopes
+  // every read to that season.
+  const [selectedSeason, setSelectedSeason] = useState<string>(ALL_SEASONS);
+  const activeSeason = selectedSeason === ALL_SEASONS ? seasonNumber : Number(selectedSeason);
+
+  const [histogram, setHistogram] = useState<RatingHistogramData>(initialHistogram);
   const [tabs, setTabs] = useState<Record<SortTab, TabState>>({
     popular: { ...EMPTY_TAB, reviews: initialReviews },
     recent: EMPTY_TAB,
@@ -80,7 +124,14 @@ export function ReviewsClient({ mediaType, tmdbId, seasonNumber, initialReviews 
       setTabs((prev) => ({ ...prev, [sort]: { ...prev[sort], loading: true } }));
       let result: LoadReviewsResult;
       try {
-        result = await loadReviews({ mediaType, tmdbId, seasonNumber, sort, cursorId, limit: 20 });
+        result = await loadReviews({
+          mediaType,
+          tmdbId,
+          seasonNumber: activeSeason,
+          sort,
+          cursorId,
+          limit: 20,
+        });
       } catch (error: unknown) {
         if (isStaleServerActionError(error)) recoverFromStaleAction();
         result = { ok: false, error: "Could not load reviews" };
@@ -100,18 +151,52 @@ export function ReviewsClient({ mediaType, tmdbId, seasonNumber, initialReviews 
         };
       });
     },
-    [mediaType, tmdbId, seasonNumber]
+    [mediaType, tmdbId, activeSeason]
   );
 
-  // Upgrade Popular's anon seed → viewer-gated tier once signed in (folds in
-  // spoiler reviews + like state). Keeps the seed visible until it resolves.
+  // Switching season is a client interaction (POST-only — never edge-cached):
+  // reset every tab to unloaded, re-fetch the active tab, and re-fetch the
+  // per-season histogram. "All" returns to the SSR title-level seed.
+  const handleSeasonChange = useCallback(
+    (value: string) => {
+      setSelectedSeason(value);
+      const season = value === ALL_SEASONS ? seasonNumber : Number(value);
+
+      if (value === ALL_SEASONS) {
+        // Restore the SSR title-level seed for Popular; lazy-reload others.
+        setHistogram(initialHistogram);
+        setTabs({
+          popular: { ...EMPTY_TAB, reviews: initialReviews },
+          recent: EMPTY_TAB,
+          following: EMPTY_TAB,
+        });
+        return;
+      }
+
+      setTabs({ popular: EMPTY_TAB, recent: EMPTY_TAB, following: EMPTY_TAB });
+      void getReviewHistogram({ mediaType, tmdbId, seasonNumber: season })
+        .then(setHistogram)
+        .catch(() => {});
+    },
+    [mediaType, tmdbId, seasonNumber, initialHistogram, initialReviews]
+  );
+
+  // Load the ACTIVE tab when it needs a fetch:
+  //  - Popular: upgrade its anon seed → viewer-gated tier once signed in (folds
+  //    in spoiler reviews + like state; the seed stays visible until resolved),
+  //    or load it for a freshly-selected season (no seed at season scope).
+  //  - Recent/Following: reload after a season switch reset them to unloaded
+  //    while the viewer stays on that tab (handleTabChange only fires on change).
+  // The Following tab still no-ops server-side for anon/no-follows (empty page).
   useEffect(() => {
-    if (signedIn && !tabs.popular.loaded && !tabs.popular.loading) {
-      // Defer out of the effect body — fetchTab's first act is a synchronous
-      // setState (loading flag), which cascades if called inline in an effect.
-      queueMicrotask(() => void fetchTab("popular"));
-    }
-  }, [signedIn, tabs.popular.loaded, tabs.popular.loading, fetchTab]);
+    const active = tabs[tab];
+    if (active.loaded || active.loading) return;
+    // Popular at title scope ("All") keeps its SSR seed unless signed in.
+    if (tab === "popular" && selectedSeason === ALL_SEASONS && !signedIn) return;
+    // Defer out of the effect body — fetchTab's first act is a synchronous
+    // setState (loading flag), which cascades if called inline in an effect.
+    queueMicrotask(() => void fetchTab(tab));
+  }, [signedIn, selectedSeason, tab, tabs, fetchTab]);
 
   // Load Recent/Following lazily on first visit.
   const handleTabChange = useCallback(
@@ -144,18 +229,39 @@ export function ReviewsClient({ mediaType, tmdbId, seasonNumber, initialReviews 
       : "No reviews yet — be the first.";
 
   return (
-    <Tabs value={tab} onValueChange={handleTabChange} className="gap-4">
-      <TabsList className="h-11 w-full max-w-sm">
-        <TabsTrigger value="popular" className="min-h-10">
-          Popular
-        </TabsTrigger>
-        <TabsTrigger value="recent" className="min-h-10">
-          Recent
-        </TabsTrigger>
-        <TabsTrigger value="following" className="min-h-10">
-          Following
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      {hasSeasonSelector && (
+        <div className="flex items-center gap-2">
+          <Select value={selectedSeason} onValueChange={handleSeasonChange}>
+            <SelectTrigger className="h-10 w-44" aria-label="Filter reviews by season">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SEASONS}>All seasons</SelectItem>
+              {seasons!.map((s) => (
+                <SelectItem key={s} value={String(s)}>
+                  Season {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <RatingHistogram histogram={histogram} />
+
+      <Tabs value={tab} onValueChange={handleTabChange} className="gap-4">
+        <TabsList className="h-11 w-full max-w-sm">
+          <TabsTrigger value="popular" className="min-h-10">
+            Popular
+          </TabsTrigger>
+          <TabsTrigger value="recent" className="min-h-10">
+            Recent
+          </TabsTrigger>
+          <TabsTrigger value="following" className="min-h-10">
+            Following
+          </TabsTrigger>
+        </TabsList>
 
       {(["popular", "recent", "following"] as const).map((sort) => {
         const state = tabs[sort];
@@ -192,6 +298,7 @@ export function ReviewsClient({ mediaType, tmdbId, seasonNumber, initialReviews 
           </TabsContent>
         );
       })}
-    </Tabs>
+      </Tabs>
+    </div>
   );
 }

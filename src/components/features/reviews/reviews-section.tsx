@@ -2,7 +2,6 @@ import { MessageSquareQuote } from "lucide-react";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { getPublicReviews, getReviewHistogram } from "@/server/actions/reviews";
 import type { TrackedMediaType } from "@/types/social";
-import { RatingHistogram } from "./rating-histogram";
 import { OwnReviewSlot } from "./own-review-slot";
 import { ReviewsClient } from "./reviews-client";
 
@@ -11,6 +10,12 @@ interface ReviewsSectionProps {
   tmdbId: number;
   title: string;
   seasonNumber?: number;
+  /**
+   * Available season numbers (series only) — enables the client season
+   * selector so a viewer can scope reviews to one season. Title-level
+   * ("All") stays the SSR default. Omit for movies / single-season series.
+   */
+  seasons?: number[];
   className?: string;
 }
 
@@ -34,6 +39,7 @@ export async function ReviewsSection({
   tmdbId,
   title,
   seasonNumber,
+  seasons,
   className,
 }: ReviewsSectionProps) {
   // No auth / headers / cookies — both reads are viewer-agnostic.
@@ -49,8 +55,6 @@ export async function ReviewsSection({
           Reviews
         </SectionHeading>
 
-        <RatingHistogram histogram={histogram} />
-
         {/* Viewer's own review — client island, never in cacheable HTML. */}
         <OwnReviewSlot
           mediaType={mediaType}
@@ -59,14 +63,17 @@ export async function ReviewsSection({
           seasonNumber={seasonNumber}
         />
 
-        {/* Tabs + gated/spoiler/Following/likes — client island. The anon
-            Popular set is rendered as real ReviewCards in the SSR HTML below
-            (SEO + instant paint) and reused as the Popular tab's seed. */}
+        {/* Histogram + season selector + tabs + gated/spoiler/Following/likes —
+            client island seeded with the SSR title-level histogram and anon
+            Popular set (SEO + instant paint, edge-cache safe). The season
+            selector and viewer tiers re-fetch via server-action POSTs. */}
         <ReviewsClient
           mediaType={mediaType}
           tmdbId={tmdbId}
           seasonNumber={seasonNumber}
           initialReviews={anonPopular}
+          initialHistogram={histogram}
+          seasons={seasons}
         />
       </div>
     </section>

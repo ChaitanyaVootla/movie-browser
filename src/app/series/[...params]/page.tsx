@@ -573,6 +573,9 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         mediaType="series"
         tmdbId={series.id}
         title={series.name}
+        seasons={displaySeasons
+          .filter((s) => s.season_number > 0)
+          .map((s) => s.season_number)}
         className="mt-8 md:mt-12"
       />
 
