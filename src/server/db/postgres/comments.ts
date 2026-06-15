@@ -242,3 +242,46 @@ export async function getLockedCommentCount(anchor: DiscussionAnchor): Promise<n
 export async function getPublishedCommentCount(anchor: DiscussionAnchor): Promise<number> {
   return prisma.comment.count({ where: { AND: [anchorWhere(anchor), PUBLIC_COMMENTS_WHERE] } });
 }
+
+// ---------------------------------------------------------------------------
+// Cacheable baseline summary
+// ---------------------------------------------------------------------------
+
+import { adaptiveCountLabel, type AdaptiveCountVariant } from "@/server/services/discussion/discussion-counts";
+
+export interface AnchorPublicSummary {
+  publishedCount: number;
+  lastActivityAt: string | null;
+}
+
+export interface AnchorBaseline extends AnchorPublicSummary {
+  variant: AdaptiveCountVariant;
+  label: string;
+}
+
+/** Pure mapper (testable without a DB): summary → adaptive baseline DTO. */
+export function summaryToBaseline(summary: AnchorPublicSummary): AnchorBaseline {
+  const { variant, label } = adaptiveCountLabel(summary.publishedCount);
+  return { ...summary, variant, label };
+}
+
+/**
+ * Anon-cacheable baseline (spec §4): published count + freshest activity for the
+ * anchor. NONE-tier-agnostic count is fine in ISR HTML (progress-independent).
+ * One aggregate read; no per-render scan.
+ */
+export async function getAnchorPublicSummary(anchor: DiscussionAnchor): Promise<AnchorBaseline> {
+  const where = { AND: [anchorWhere(anchor), PUBLIC_COMMENTS_WHERE] };
+  const [publishedCount, latest] = await Promise.all([
+    prisma.comment.count({ where }),
+    prisma.comment.findFirst({
+      where,
+      orderBy: { lastActivityAt: "desc" },
+      select: { lastActivityAt: true },
+    }),
+  ]);
+  return summaryToBaseline({
+    publishedCount,
+    lastActivityAt: latest?.lastActivityAt ? latest.lastActivityAt.toISOString() : null,
+  });
+}
