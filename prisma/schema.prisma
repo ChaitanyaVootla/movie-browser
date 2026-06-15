@@ -1883,3 +1883,34 @@ enum ReportStatus {
   RESOLVED
   DISMISSED
 }
+
+enum UnfurlStatus {
+  OK
+  FAILED // SSRF-blocked / timeout / parse-fail: render as a plain safe anchor
+}
+
+enum UnfurlProvider {
+  GENERIC
+  YOUTUBE
+}
+
+/// Cached server-side link unfurls. Keyed by a sha256 of the normalized URL so
+/// a card is fetched ONCE (on comment submit) and NEVER refetched on a render or
+/// crawl path. No FK to comments — many comments may share one URL hash, and the
+/// cache outlives any single comment. Carries no viewer data → safe in ISR HTML.
+model LinkUnfurl {
+  urlHash     String        @id @map("url_hash") // sha256 hex of normalized URL
+  url         String        @db.Text
+  domain      String
+  status      UnfurlStatus  @default(OK)
+  provider    UnfurlProvider @default(GENERIC)
+  title       String?       @db.Text
+  description String?       @db.Text
+  imageUrl    String?       @map("image_url") @db.Text // stored; only rendered for allowlisted hosts (rung 7 follow-up)
+  faviconUrl  String?       @map("favicon_url") @db.Text
+  youtubeId   String?       @map("youtube_id") // set when provider = YOUTUBE
+  fetchedAt   DateTime      @default(now()) @map("fetched_at")
+
+  @@index([domain])
+  @@map("link_unfurls")
+}
