@@ -25,6 +25,7 @@ import { toCommentDto, COMMENT_INCLUDE, type CommentDto } from "@/server/db/post
 import { bumpRootActivity, stampNewRootActivity } from "@/server/services/discussion/activity-bump";
 import { containsObscenity } from "@/server/services/discussion/obscenity-filter";
 import { sanitizeCommentBody } from "@/server/services/discussion/sanitize-comment";
+import { unfurlFirstLink } from "@/server/services/discussion/unfurl";
 
 export type CreateCommentResult =
   | { status: "published"; comment: CommentDto }
@@ -256,6 +257,9 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
             url,
           });
         }
+        // Unfurl the first link (fire-and-forget; bounded by comment volume).
+        // Runs only on submit of a PUBLISHED comment — never on a render path.
+        await unfurlFirstLink(cleanBody);
       } catch (error: unknown) {
         dataLogger.error(
           {
