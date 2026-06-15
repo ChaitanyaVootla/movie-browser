@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { ImageIcon, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createComment, type CreateCommentResult } from "@/server/actions/comments";
-import type { DiscussionAnchor, SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
+import type {
+  CommentAttachmentInput,
+  DiscussionAnchor,
+  SpoilerScopeValue,
+} from "@/server/services/discussion/comment-schemas";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { MentionAutocomplete } from "./mention-autocomplete";
+import { CommentImagePicker } from "./comment-image-picker";
 import { scopeLabel } from "./scope-badge";
+
+const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
 
 interface ComposerProps {
   anchor: DiscussionAnchor;
@@ -30,6 +40,13 @@ interface Suggestion {
   episode: number | null;
 }
 
+/** Extract trailing @token from the current textarea value up to the caret. */
+function getTrailingMention(value: string, caretPos: number): string | null {
+  const before = value.slice(0, caretPos);
+  const match = before.match(/@([a-z0-9_]{0,30})$/i);
+  return match ? match[1] : null;
+}
+
 export function CommentComposer({
   anchor,
   parentId = null,
@@ -46,6 +63,12 @@ export function CommentComposer({
   const [scope, setScope] = useState<SpoilerScopeValue>(defaultScope);
   const [submitting, setSubmitting] = useState(false);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [attachment, setAttachment] = useState<CommentAttachmentInput | null>(null);
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+
+  // Autocomplete state: non-null = showing the palette.
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isSeries = anchor.type === "series";
   const episodeScopeAvailable =
@@ -73,7 +96,7 @@ export function CommentComposer({
       anchor,
       parentId,
       body,
-      attachment: null, // Phase B: wired in Task 11; null for now
+      attachment,
       ...scopeForSubmit(confirmed, accepted),
     });
     setSubmitting(false);
@@ -86,11 +109,13 @@ export function CommentComposer({
       });
       setBody("");
       setSuggestion(null);
+      setAttachment(null);
       toast.success("Comment posted");
       onPublished?.();
     } else if (result.status === "pending_review") {
       setBody("");
       setSuggestion(null);
+      setAttachment(null);
       toast.info("Held for review — it'll appear once a moderator approves it.");
       onPublished?.();
     } else if (result.status === "scope_suggestion") {
@@ -104,16 +129,84 @@ export function CommentComposer({
     }
   };
 
+  const handleBodyChange = (value: string) => {
+    setBody(value);
+    const caret = textareaRef.current?.selectionStart ?? value.length;
+    const trailing = getTrailingMention(value, caret);
+    setMentionQuery(trailing !== null ? trailing : null);
+  };
+
+  /** Insert a mention token at the current caret position, replacing the @token. */
+  const insertToken = (token: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const caret = ta.selectionStart ?? body.length;
+    const before = body.slice(0, caret);
+    const after = body.slice(caret);
+    // Find the @token start.
+    const match = before.match(/@([a-z0-9_]{0,30})$/i);
+    if (match && match.index !== undefined) {
+      const newBody = before.slice(0, match.index) + token + " " + after;
+      setBody(newBody);
+    } else {
+      setBody(before + token + " " + after);
+    }
+    setMentionQuery(null);
+    // Restore focus.
+    setTimeout(() => ta.focus(), 0);
+  };
+
   return (
     <div className="space-y-2">
-      <textarea
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        rows={3}
-        maxLength={4000}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-border bg-card/40 px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-      />
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => handleBodyChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && mentionQuery !== null) {
+              setMentionQuery(null);
+              e.stopPropagation();
+            }
+          }}
+          rows={3}
+          maxLength={4000}
+          placeholder={placeholder}
+          className="w-full rounded-lg border border-border bg-card/40 px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+        />
+        {mentionQuery !== null && (
+          <MentionAutocomplete
+            query={mentionQuery}
+            anchor={anchor}
+            onInsert={insertToken}
+            onClose={() => setMentionQuery(null)}
+          />
+        )}
+      </div>
+
+      {/* Attachment preview */}
+      {attachment && (
+        <div className="relative w-32 overflow-hidden rounded-lg border border-border">
+          <div className="relative aspect-video">
+            <Image
+              src={`${TMDB_IMAGE_BASE}/w300${attachment.imagePath}`}
+              alt="Attachment preview"
+              fill
+              sizes="128px"
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setAttachment(null)}
+            className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+            aria-label="Remove attachment"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
 
       {suggestion ? (
         // AI scope suggestion — user-adjustable pre-publish (spec §5)
@@ -143,7 +236,8 @@ export function CommentComposer({
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-2">
+        // Toolbar row: scope · @ hint · Add image · spacer · Cancel · Post
+        <div className="flex items-center gap-2 flex-wrap">
           <Select value={scope} onValueChange={(v) => setScope(v as SpoilerScopeValue)}>
             <SelectTrigger className="w-auto min-w-36 h-10 sm:h-9 text-xs">
               <SelectValue />
@@ -161,6 +255,22 @@ export function CommentComposer({
               <SelectItem value="ENDING">Ending spoilers</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Add image button */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-10 sm:h-9 gap-1.5 text-xs text-muted-foreground"
+            onClick={() => setImagePickerOpen(true)}
+            aria-label="Add image"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            Add image
+          </Button>
+
+          <div className="flex-1" />
+
           <div className="flex items-center gap-2">
             {onCancel && (
               <Button variant="ghost" size="sm" onClick={onCancel}>
@@ -177,6 +287,23 @@ export function CommentComposer({
           </div>
         </div>
       )}
+
+      {/* Image picker dialog */}
+      <Dialog open={imagePickerOpen} onOpenChange={setImagePickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Pick an image</DialogTitle>
+          </DialogHeader>
+          <CommentImagePicker
+            anchor={anchor}
+            onSelect={(att) => {
+              setAttachment(att);
+              setImagePickerOpen(false);
+            }}
+            onClose={() => setImagePickerOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
