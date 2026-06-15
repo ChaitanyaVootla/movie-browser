@@ -88,9 +88,25 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
   `status=PENDING_REVIEW`). DB: `social/reviews.ts`. Action: `reviews.ts`.
 - **Discussion** (Phase 1) — `comments` (threaded, spoiler-scoped, circle-aware
   anchor; replies denormalize anchor columns from root). Per-episode SEO pages
-  via `discuss-page.tsx` (renders `DiscussionForumPosting` JSON-LD). DB:
-  `postgres/comments.ts`. Actions: `comments.ts` (write) + `comment-reads.ts`
+  via `discuss-page.tsx` (renders `DiscussionForumPosting` JSON-LD). Dedicated
+  per-title pages via `discussions-page.tsx` (movie + series `/{id}/{slug}/discussions`).
+  DB: `postgres/comments.ts`. Actions: `comments.ts` (write) + `comment-reads.ts`
   (read). Services: `discussion/{spoiler-gate,comment-schemas,mentions,rate-limit,thread-summary}.ts`.
+  - **ROUTING GOTCHA (burned a debug cycle 2026-06-15, twice over):** movie/series
+    detail routes are CATCH-ALLs (`src/app/{movie,series}/[...params]`). You CANNOT
+    add a static child route folder like `[...params]/discussions/page.tsx` — Next.js
+    forbids a static segment after a catch-all (`Invalid segment … catch all segment
+    must be the last segment`) → **fatal Turbopack panic, whole app down** (and it is
+    invisible to typecheck + unit tests; only a real `next` build/dev catches it). Add
+    new sub-pages by folding them into the catch-all `page.tsx`: a sibling
+    `*-page.tsx` component + a pure parse helper that detects the trailing segment,
+    branched in both `generateMetadata` and the default export — exactly like
+    `discuss-page.tsx`/`discussions-page.tsx`. AND: the proxy slug-canonicalizer
+    (`src/server/proxy/media-resolver.ts`) 308s any unknown `/{id}/...` tail to the
+    bare detail slug, **stripping your new suffix** — so the page is unreachable until
+    you add the suffix to the preserved set (`DISCUSS_RE`/`DISCUSSIONS_RE` parsed
+    before `MEDIA_DETAIL_RE`, re-appended in `decideMediaRoute`). Always verify a new
+    detail sub-route by actually loading it in the running dev server, not just tests.
 - **Notifications + web push** — `notifications` (write-on-event only, bounded
   by direct recipients — NO fan-out), `push_subscriptions`. DB:
   `social/notifications.ts`. Action: `notifications.ts`. Push service:
