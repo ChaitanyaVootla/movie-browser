@@ -24,35 +24,34 @@ describe("CommentBody", () => {
     const html = renderToStaticMarkup(
       <CommentBody comment={dto({
         body: "see [[movie:550|Old Name]]",
-        entityMentions: [{ kind: "movie", tmdbId: 550, seasonNumber: null, episodeNumber: null, name: "Fight Club", href: "/movie/550/fight-club" }],
+        entityMentions: [{ kind: "movie", tmdbId: 550, seasonNumber: null, episodeNumber: null, name: "Fight Club", href: "/movie/550/fight-club", imagePath: null }],
       })} />
     );
     expect(html).toContain('href="/movie/550/fight-club"');
     expect(html).toContain("Fight Club"); // CURRENT catalog name, not the stored label
   });
-  it("renders a mention INLINE — no <p> block wrapper that would force a newline (issue 2)", () => {
+  it("renders a mention INLINE — text + mention flow on one line, no block break (issue 2)", () => {
     const html = renderToStaticMarkup(<CommentBody comment={dto({ body: "hi @bea nice" })} />);
-    // The text segments must NOT be wrapped in block <p> elements (which caused the
-    // spurious line break around the mention); they render as block <span>s, not <p>s.
+    // The text segments must NOT be wrapped in block elements: a block <p> or a
+    // block <span> per text segment forces the mention onto its own line — the
+    // user-reported "newline after @mention" bug. They must render inline.
     expect(html).not.toContain("<p>");
+    expect(html).not.toContain('class="block'); // no per-segment block wrapper
     expect(html).toContain('href="/u/bea"');
     // Both surrounding words are present and the boundary whitespace around the
     // mention is preserved (so words never glue onto the chip).
     expect(html).toContain(">hi<");
     expect(html).toContain(">nice<");
     expect(html).toContain("</span> "); // trailing space after "hi" before the link
-    // The space before "nice" sits inside the outer token span (not a bare "> <span>")
     expect(html).toMatch(/> <span/); // leading space token before the "nice" segment
-    // Paragraphs render as block <span> elements (not bare inline spans)
-    expect(html).toContain('class="block');
   });
-  it("renders a two-paragraph body as two separate block paragraphs", () => {
+  it("preserves both paragraphs' content for a two-paragraph body (inline, no lost text)", () => {
     const html = renderToStaticMarkup(<CommentBody comment={dto({ body: "first para\n\nsecond para" })} />);
-    // Must contain at least two block paragraph spans
-    const blockMatches = html.match(/class="block[^"]*"/g) ?? [];
-    expect(blockMatches.length).toBeGreaterThanOrEqual(2);
-    // The second paragraph must carry the mt-2.5 spacing class
-    expect(html).toContain("mt-2.5");
+    // Inline rendering keeps text + mentions on one line (issue 2); authored
+    // newlines are preserved by the container's whitespace-pre-wrap. The key
+    // invariant is no content loss and no per-segment block wrapper.
+    expect(html).toContain("first para");
+    expect(html).toContain("second para");
     expect(html).not.toContain("<p>");
   });
   it("hides a [spoiler] body until revealed (renders a button, not the text in plain flow)", () => {

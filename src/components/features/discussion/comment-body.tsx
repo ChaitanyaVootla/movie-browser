@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { CommentDto, EntityMentionRef } from "@/server/db/postgres/comments";
 import { MARKDOWN_ALLOWED_ELEMENTS } from "@/server/services/discussion/sanitize-comment";
+
+const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
 
 
 /** Inline reveal for a [spoiler]…[/spoiler] span — independent of the watch-gate. */
@@ -106,14 +109,16 @@ const SAFE_LINK_COMPONENTS: Components = {
       {children}
     </a>
   ),
-  // Each markdown paragraph renders as a block <span> so that:
-  // (a) inline content within it (text, @mention links, spoiler chips, entity links)
-  //     stays on one line — no forced line break around inline tokens (a plain <p>
-  //     caused the "spurious newline around a mention" bug); and
-  // (b) genuine multi-paragraph bodies (authored with \n\n) produce a visible gap
-  //     between paragraphs: every paragraph after the first gets mt-2.5 via the
-  //     [&:not(:first-child)] selector.
-  p: ({ children }) => <span className="block [&:not(:first-child)]:mt-2.5">{children}</span>,
+  // Render each markdown paragraph INLINE. The renderer tokenizes the body
+  // around @mentions / [[entity]] / [spoiler] and routes EACH residual text
+  // segment through its own ReactMarkdown pass — so a block-level <p> here makes
+  // every segment its own line ("hi @x nice" → three lines, the user-reported
+  // mention-on-its-own-line bug). Inline keeps text + mentions flowing on one
+  // line. Authored newlines are preserved by the container's `whitespace-pre-wrap`
+  // (boundary whitespace is re-emitted in renderToken's text case), so explicit
+  // line breaks still render; `\n\n` collapses to a single break (acceptable —
+  // an inline-token break is far worse than a tighter paragraph gap).
+  p: ({ children }) => <span>{children}</span>,
 };
 
 /** Render a single token to a React node. */
@@ -162,12 +167,26 @@ function renderToken(token: Token, refs: Map<string, EntityMentionRef>, keyStr: 
     case "entity": {
       const ref = refs.get(token.key);
       if (ref) {
+        // Render a thumbnail chip (matches the composer's mention chip) so a
+        // posted mention reads as a recognizable title/person, not bare text.
         return (
           <Link
             key={keyStr}
             href={ref.href}
-            className="font-medium text-brand hover:underline"
+            className="mx-px inline-flex items-center gap-1 rounded bg-brand/10 px-1.5 py-0.5 align-[-0.15em] text-[0.95em] font-medium leading-none text-brand transition-colors hover:bg-brand/20"
           >
+            {ref.imagePath && (
+              <span className="relative inline-block h-3.5 w-3.5 shrink-0 overflow-hidden rounded-[3px] bg-muted">
+                <Image
+                  src={`${TMDB_IMAGE_BASE}/w92${ref.imagePath}`}
+                  alt=""
+                  fill
+                  sizes="14px"
+                  className="object-cover"
+                  unoptimized
+                />
+              </span>
+            )}
             {ref.name}
           </Link>
         );

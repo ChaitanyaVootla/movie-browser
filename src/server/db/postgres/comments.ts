@@ -51,6 +51,7 @@ export interface EntityMentionRef {
   episodeNumber: number | null;
   name: string; // CURRENT catalog name (live)
   href: string;
+  imagePath: string | null; // TMDB poster/profile file path (prefix at render); null → initial chip
 }
 
 /** True when an author's users.metadata marks it as a bot (Cue). Pure. */
@@ -101,9 +102,9 @@ export const COMMENT_INCLUDE = {
   entityMentions: {
     select: {
       movieId: true, seriesId: true, personId: true, seasonNumber: true, episodeNumber: true,
-      movie: { select: { id: true, title: true } },
-      series: { select: { id: true, name: true } },
-      person: { select: { id: true, name: true } },
+      movie: { select: { id: true, title: true, posterPath: true } },
+      series: { select: { id: true, name: true, posterPath: true } },
+      person: { select: { id: true, name: true, profilePath: true } },
     },
   },
 } as const;
@@ -125,19 +126,20 @@ export function toCommentDto(row: CommentRow, viewerLikedIds?: Set<number>): Com
     ? []
     : row.entityMentions.map((m) => {
         if (m.movie) {
-          return { kind: "movie" as const, tmdbId: m.movie.id, seasonNumber: null, episodeNumber: null, name: m.movie.title, href: getMediaPath("movie", m.movie.id, m.movie.title) };
+          return { kind: "movie" as const, tmdbId: m.movie.id, seasonNumber: null, episodeNumber: null, name: m.movie.title, href: getMediaPath("movie", m.movie.id, m.movie.title), imagePath: m.movie.posterPath };
         }
         if (m.person) {
-          return { kind: "person" as const, tmdbId: m.person.id, seasonNumber: null, episodeNumber: null, name: m.person.name, href: getMediaPath("person", m.person.id, m.person.name) };
+          return { kind: "person" as const, tmdbId: m.person.id, seasonNumber: null, episodeNumber: null, name: m.person.name, href: getMediaPath("person", m.person.id, m.person.name), imagePath: m.person.profilePath };
         }
         // series or episode
         const sid = m.series?.id ?? (m.seriesId as number);
         const sname = m.series?.name ?? "Series";
+        const sposter = m.series?.posterPath ?? null;
         const base = getMediaPath("series", sid, sname);
         if (m.seasonNumber !== null && m.episodeNumber !== null) {
-          return { kind: "episode" as const, tmdbId: sid, seasonNumber: m.seasonNumber, episodeNumber: m.episodeNumber, name: sname, href: `${base}/discuss/s${m.seasonNumber}e${m.episodeNumber}` };
+          return { kind: "episode" as const, tmdbId: sid, seasonNumber: m.seasonNumber, episodeNumber: m.episodeNumber, name: sname, href: `${base}/discuss/s${m.seasonNumber}e${m.episodeNumber}`, imagePath: sposter };
         }
-        return { kind: "series" as const, tmdbId: sid, seasonNumber: null, episodeNumber: null, name: sname, href: base };
+        return { kind: "series" as const, tmdbId: sid, seasonNumber: null, episodeNumber: null, name: sname, href: base, imagePath: sposter };
       });
   return {
     id: row.id,
