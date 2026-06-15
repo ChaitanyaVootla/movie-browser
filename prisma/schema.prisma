@@ -1859,6 +1859,8 @@ enum NotificationType {
   FOLLOW
   CIRCLE_INVITE
   CLUB_EPISODE_OPEN
+  EPISODE_DROP // a new episode/season dropped for a show the viewer tracks; "its discussion is now open"
+  LIKES_BATCH  // coalesced likes-on-my-comment (never one-per-like)
 }
 
 enum ReactionType {
