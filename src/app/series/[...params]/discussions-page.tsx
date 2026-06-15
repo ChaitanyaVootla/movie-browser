@@ -1,19 +1,22 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { MessagesSquare } from "lucide-react";
 import { prisma } from "@/server/db/postgres";
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { breadcrumbList, omitEmpty } from "@/lib/seo/jsonld";
 import { PageMain } from "@/components/features/layout/page-main";
-import { SectionHeading } from "@/components/features/layout/section-heading";
 import {
   getPublishedCommentCount,
   getPublicCommentPage,
+  getLockedCommentCount,
+  getParticipantCount,
 } from "@/server/db/postgres/comments";
 import { getPublicTrendingRoots, getPublicLatestRoots } from "@/server/db/postgres/comments-trending";
+import { getTrailerReactions } from "@/server/db/postgres/trailer-reactions";
+import { getAIDataLegacy } from "@/server/services/ai-data-service";
 import { TrendingCommentList } from "@/components/features/discussion/trending-comment-list";
+import { DiscussionPageHeader } from "@/components/features/discussion/discussion-page-header";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
 import { parseSeriesDiscussions } from "./discussions-parse";
 
@@ -25,7 +28,7 @@ export { parseSeriesDiscussions };
 async function getSeriesLite(id: number) {
   return prisma.series.findUnique({
     where: { id },
-    select: { id: true, name: true, firstAirDate: true },
+    select: { id: true, name: true, firstAirDate: true, posterPath: true },
   });
 }
 
@@ -63,12 +66,27 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
   const basePath = getMediaPath("series", series.id, series.name);
   const canonicalUrl = `${SITE_URL}${basePath}/discussions`;
 
-  const [trending, latest, publishedCount, initialPage] = await Promise.all([
+  const [
+    trending,
+    latest,
+    publishedCount,
+    initialPage,
+    lockedCount,
+    participantCount,
+    aiSummary,
+    webReactionsRaw,
+  ] = await Promise.all([
     getPublicTrendingRoots(anchor),
     getPublicLatestRoots(anchor),
     getPublishedCommentCount(anchor),
     getPublicCommentPage(anchor),
+    getLockedCommentCount(anchor),
+    getParticipantCount(anchor),
+    getAIDataLegacy(series.id, "series"),
+    getTrailerReactions("series", series.id),
   ]);
+  const starters = (aiSummary?.aiQuestions ?? []).slice(0, 4);
+  const year = series.firstAirDate ? series.firstAirDate.getUTCFullYear() : null;
 
   const jsonLd = omitEmpty({
     "@context": "https://schema.org",
@@ -93,30 +111,31 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
   ]);
 
   return (
-    <PageMain className="max-w-3xl mx-auto md:px-6 lg:px-6">
+    <PageMain className="max-w-4xl mx-auto px-3 md:px-6 lg:px-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
-      <header className="space-y-2 mb-6">
-        <Link
-          href={basePath}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wide"
-        >
-          {series.name}
+      <DiscussionPageHeader
+        basePath={basePath}
+        title={series.name}
+        year={year}
+        posterPath={series.posterPath}
+        publishedCount={publishedCount}
+        participantCount={participantCount}
+      />
+      <p className="-mt-3 mb-5 text-sm text-muted-foreground">
+        Whole-series threads below. For an episode, open its{" "}
+        <Link href={`${basePath}/discuss/s1e1`} className="underline hover:text-foreground">
+          per-episode discussion
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{series.name} — Discussion</h1>
-        <p className="text-sm text-muted-foreground">
-          Whole-series threads below. For an episode, open its{" "}
-          <Link href={`${basePath}/discuss/s1e1`} className="underline hover:text-foreground">
-            per-episode discussion
-          </Link>
-          .
-        </p>
-      </header>
-      <div className="space-y-6" id="discussion">
-        <SectionHeading icon={<MessagesSquare className="h-5 w-5 text-brand" />}>
-          Series discussion
-        </SectionHeading>
-        <TrendingCommentList anchor={anchor} trending={trending} latest={latest} />
+        .
+      </p>
+      <div className="space-y-5" id="discussion">
+        <TrendingCommentList
+          anchor={anchor}
+          trending={trending}
+          latest={latest}
+          emptyState={{ initialPage, lockedCount, starters, webReactionsRaw }}
+        />
       </div>
     </PageMain>
   );

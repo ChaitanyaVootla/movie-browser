@@ -1,18 +1,21 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { MessagesSquare } from "lucide-react";
+import { Clock } from "lucide-react";
 import { prisma } from "@/server/db/postgres";
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { breadcrumbList, omitEmpty } from "@/lib/seo/jsonld";
 import { PageMain } from "@/components/features/layout/page-main";
-import { SectionHeading } from "@/components/features/layout/section-heading";
 import {
   getPublicCommentPage,
   getLockedCommentCount,
   getPublishedCommentCount,
+  getParticipantCount,
 } from "@/server/db/postgres/comments";
+import { getTrailerReactions } from "@/server/db/postgres/trailer-reactions";
+import { getAIDataLegacy } from "@/server/services/ai-data-service";
 import { CommentListClient } from "@/components/features/discussion/comment-list-client";
+import { DiscussionPageHeader } from "@/components/features/discussion/discussion-page-header";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
 import { parseMovieDiscussions } from "./discussions-parse";
 
@@ -24,7 +27,7 @@ export { parseMovieDiscussions };
 async function getMovieLite(id: number) {
   return prisma.movie.findUnique({
     where: { id },
-    select: { id: true, title: true, releaseDate: true },
+    select: { id: true, title: true, releaseDate: true, posterPath: true },
   });
 }
 
@@ -54,11 +57,17 @@ export async function MovieDiscussionsView({ movieId }: { movieId: number }) {
   const basePath = getMediaPath("movie", movie.id, movie.title);
   const canonicalUrl = `${SITE_URL}${basePath}/discussions`;
 
-  const [initialPage, lockedCount, publishedCount] = await Promise.all([
-    getPublicCommentPage(anchor),
-    getLockedCommentCount(anchor),
-    getPublishedCommentCount(anchor),
-  ]);
+  const [initialPage, lockedCount, publishedCount, participantCount, aiSummary, webReactionsRaw] =
+    await Promise.all([
+      getPublicCommentPage(anchor),
+      getLockedCommentCount(anchor),
+      getPublishedCommentCount(anchor),
+      getParticipantCount(anchor),
+      getAIDataLegacy(movie.id, "movie"),
+      getTrailerReactions("movie", movie.id),
+    ]);
+  const starters = (aiSummary?.aiQuestions ?? []).slice(0, 4);
+  const year = movie.releaseDate ? movie.releaseDate.getUTCFullYear() : null;
 
   const jsonLd = omitEmpty({
     "@context": "https://schema.org",
@@ -83,26 +92,30 @@ export async function MovieDiscussionsView({ movieId }: { movieId: number }) {
   ]);
 
   return (
-    <PageMain className="max-w-3xl mx-auto md:px-6 lg:px-6">
+    <PageMain className="max-w-4xl mx-auto px-3 md:px-6 lg:px-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
-      <header className="space-y-2 mb-6">
-        <a
-          href={basePath}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wide"
-        >
-          {movie.title}
-        </a>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{movie.title} — Discussion</h1>
-      </header>
-      <div className="space-y-6" id="discussion">
-        <SectionHeading icon={<MessagesSquare className="h-5 w-5 text-brand" />}>Discussion</SectionHeading>
+      <DiscussionPageHeader
+        basePath={basePath}
+        title={movie.title}
+        year={year}
+        posterPath={movie.posterPath}
+        publishedCount={publishedCount}
+        participantCount={participantCount}
+      />
+      <div className="space-y-5" id="discussion">
+        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <Clock className="h-4 w-4 text-brand" />
+          Newest first
+        </div>
         <CommentListClient
           anchor={anchor}
           initialPage={initialPage}
           lockedCount={lockedCount}
-          starters={[]}
+          starters={starters}
           defaultScope="NONE"
+          richEmptyState
+          webReactionsRaw={webReactionsRaw}
         />
       </div>
     </PageMain>

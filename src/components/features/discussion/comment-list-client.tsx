@@ -14,6 +14,7 @@ import type {
 import { CommentComposer } from "./comment-composer";
 import { CommentThread } from "./comment-item";
 import { DiscussionStarters } from "./discussion-starters";
+import { DiscussionEmptyState } from "./discussion-empty-state";
 import { LockedTeaser } from "./locked-teaser";
 
 interface CommentListClientProps {
@@ -28,6 +29,15 @@ interface CommentListClientProps {
   /** Cap rendered roots + show a "View all →" link instead of "Show more". */
   previewLimit?: number;
   viewAllHref?: string;
+  /**
+   * When true, the zero-comment state renders the full inviting empty-state card
+   * (starter chips + "From around the web") instead of the compact starter row.
+   * Used on the dedicated discussions pages; the inline detail-page section keeps
+   * the compact `DiscussionStarters`.
+   */
+  richEmptyState?: boolean;
+  /** Trailer top-comments JSON for the rich empty-state "From around the web". */
+  webReactionsRaw?: unknown;
 }
 
 /**
@@ -47,6 +57,8 @@ export function CommentListClient({
   defaultScopeEpisode = null,
   previewLimit,
   viewAllHref,
+  richEmptyState = false,
+  webReactionsRaw,
 }: CommentListClientProps) {
   const { status } = useSession();
   const [page, setPage] = useState<CommentPageDto>(initialPage);
@@ -129,7 +141,17 @@ export function CommentListClient({
         </p>
       )}
 
-      {allRoots.length === 0 && <DiscussionStarters prompts={starters} onPick={pickStarter} />}
+      {allRoots.length === 0 &&
+        (richEmptyState ? (
+          <DiscussionEmptyState
+            starters={starters}
+            onPick={pickStarter}
+            signedIn={signedIn}
+            webReactionsRaw={webReactionsRaw}
+          />
+        ) : (
+          <DiscussionStarters prompts={starters} onPick={pickStarter} />
+        ))}
       {!signedIn && <LockedTeaser count={lockedCount} mediaType={anchor.type} />}
 
       <div className="space-y-5">
