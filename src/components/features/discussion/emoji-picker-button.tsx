@@ -52,8 +52,8 @@ export function EmojiPickerButton({ onPick }: { onPick: (name: string) => void }
           Emoji
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-2">
-        <div className="grid grid-cols-8 gap-0.5">
+      <PopoverContent align="start" className="w-[308px] p-2">
+        <div className="grid grid-cols-7 gap-0.5">
           {grid.map((e) => (
             <button
               key={e.name}
@@ -61,7 +61,7 @@ export function EmojiPickerButton({ onPick }: { onPick: (name: string) => void }
               title={`:${e.name}:`}
               aria-label={`Insert ${e.name} emoji`}
               className={cn(
-                "flex h-8 w-8 items-center justify-center rounded text-lg leading-none",
+                "flex h-10 w-10 items-center justify-center rounded text-lg leading-none",
                 "hover:bg-accent focus:bg-accent focus:outline-none transition-colors"
               )}
               onClick={() => {
