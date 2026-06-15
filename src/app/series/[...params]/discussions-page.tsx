@@ -16,7 +16,6 @@ import {
 } from "@/server/db/postgres/comments";
 import { getPublicTrendingRoots, getPublicLatestRoots } from "@/server/db/postgres/comments-trending";
 import { getTrailerReactions } from "@/server/db/postgres/trailer-reactions";
-import { getAIDataLegacy } from "@/server/services/ai-data-service";
 import { getSeries } from "@/server/actions/series";
 import { extractSeriesOverviewProps } from "@/types/client-props";
 import { TrendingCommentList } from "@/components/features/discussion/trending-comment-list";
@@ -121,8 +120,8 @@ function SeriesDiscussionsContentFallback() {
   );
 }
 
-// Heavy reads (trending/latest roots, comment page, counts, AI starters, web
-// reactions, full catalog item for the sidebar) + the discussion JSON-LD.
+// Heavy reads (trending/latest roots, comment page, counts, web reactions, full
+// catalog item for the sidebar) + the discussion JSON-LD.
 // Rendered inside <Suspense> so the hero band above commits FIRST (View-Transition
 // capture target). Cacheable catalog/comment surface — no auth()/headers() — ISR-safe.
 async function SeriesDiscussionsContent({ seriesId }: { seriesId: number }) {
@@ -138,21 +137,19 @@ async function SeriesDiscussionsContent({ seriesId }: { seriesId: number }) {
   const basePath = getMediaPath("series", series.id, series.name);
   const canonicalUrl = `${SITE_URL}${basePath}/discussions`;
 
-  const [trending, latest, publishedCount, initialPage, lockedCount, aiSummary, webReactionsRaw, fullSeries] =
+  const [trending, latest, publishedCount, initialPage, lockedCount, webReactionsRaw, fullSeries] =
     await Promise.all([
       getPublicTrendingRoots(anchor),
       getPublicLatestRoots(anchor),
       getPublishedCommentCount(anchor),
       getPublicCommentPage(anchor),
       getLockedCommentCount(anchor),
-      getAIDataLegacy(series.id, "series"),
       getTrailerReactions("series", series.id),
       // Full catalog item for the "About this title" sidebar. Cacheable catalog
       // read (no auth()/headers()) — ISR-safe. Null-safe: missing item just hides
       // the sidebar.
       getSeries(series.id),
     ]);
-  const starters = (aiSummary?.aiQuestions ?? []).slice(0, 4);
   const year = series.firstAirDate ? series.firstAirDate.getUTCFullYear() : null;
 
   const overviewItem = fullSeries ? extractSeriesOverviewProps(fullSeries) : null;
@@ -206,7 +203,7 @@ async function SeriesDiscussionsContent({ seriesId }: { seriesId: number }) {
             anchor={anchor}
             trending={trending}
             latest={latest}
-            emptyState={{ initialPage, lockedCount, starters, webReactionsRaw }}
+            emptyState={{ initialPage, lockedCount, starters: [], webReactionsRaw }}
           />
         </div>
         {sidebar ? (

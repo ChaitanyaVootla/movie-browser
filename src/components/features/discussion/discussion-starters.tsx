@@ -1,28 +1,29 @@
 "use client";
 
 import { MessageSquarePlus } from "lucide-react";
+import { DISCUSSION_STARTER_PROMPTS } from "./starter-prompts";
 
 /**
- * AI discussion prompts seeded from ai_insights (spoiler-free questions +
- * themes — the corpus the spec says we uniquely have). Clicking seeds the
- * composer. Rendered in cacheable HTML: prompts are content-derived, never
- * user-derived.
+ * Static discussion-starter chips that seed the composer. Prompts come from
+ * the static set in `starter-prompts.ts` — never AI-generated (cost-safety
+ * invariant 6). The `prompts` prop is kept for backward-compat but IGNORED;
+ * call-sites may pass `[]` or omit it.
  */
 export function DiscussionStarters({
-  prompts,
   onPick,
 }: {
-  prompts: string[];
+  /** Kept for backward-compat — ignored; always uses the static set. */
+  prompts?: string[];
   onPick: (prompt: string) => void;
 }) {
-  if (prompts.length === 0) return null;
+  const prompts = DISCUSSION_STARTER_PROMPTS.slice(0, 4);
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         Discussion starters
       </p>
       <div className="flex flex-wrap gap-2">
-        {prompts.slice(0, 4).map((prompt) => (
+        {prompts.map((prompt) => (
           <button
             key={prompt}
             onClick={() => onPick(prompt)}

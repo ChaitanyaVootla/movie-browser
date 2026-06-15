@@ -5,29 +5,29 @@ import { DiscussionEmptyState } from "./discussion-empty-state";
 afterEach(cleanup);
 
 describe("DiscussionEmptyState", () => {
-  it("falls back to static editorial prompts when no AI starters are given", () => {
-    render(<DiscussionEmptyState starters={[]} onPick={vi.fn()} signedIn />);
-    // Static fallback set — must NOT require any AI call.
+  it("always renders the static prompt set regardless of starters prop", () => {
+    render(<DiscussionEmptyState onPick={vi.fn()} signedIn />);
+    // Static set — must NOT require any AI call.
     expect(screen.getByText("What did you think of the ending?")).toBeTruthy();
-    expect(screen.getByText("Best scene?")).toBeTruthy();
+    expect(screen.getByText("Best scene or moment?")).toBeTruthy();
     expect(screen.getByText("Overrated or underrated?")).toBeTruthy();
   });
 
-  it("prefers AI starters (capped at 4) over the fallback", () => {
-    const starters = ["Q1", "Q2", "Q3", "Q4", "Q5"];
-    render(<DiscussionEmptyState starters={starters} onPick={vi.fn()} signedIn />);
-    expect(screen.getByText("Q1")).toBeTruthy();
-    expect(screen.getByText("Q4")).toBeTruthy();
-    expect(screen.queryByText("Q5")).toBeNull();
-    // Fallback must not leak through when AI prompts exist.
-    expect(screen.queryByText("Best scene?")).toBeNull();
+  it("ignores any AI-sourced starters passed via the prop and always shows the static set", () => {
+    const aiStarters = ["Q1", "Q2", "Q3", "Q4", "Q5"];
+    render(<DiscussionEmptyState starters={aiStarters} onPick={vi.fn()} signedIn />);
+    // AI prompts must NOT appear.
+    expect(screen.queryByText("Q1")).toBeNull();
+    // Static set must always be shown.
+    expect(screen.getByText("What did you think of the ending?")).toBeTruthy();
+    expect(screen.getByText("Best scene or moment?")).toBeTruthy();
   });
 
-  it("seeds the composer with the picked prompt", () => {
+  it("seeds the composer with the picked static prompt", () => {
     const onPick = vi.fn();
-    render(<DiscussionEmptyState starters={["Why this title?"]} onPick={onPick} signedIn />);
-    fireEvent.click(screen.getByText("Why this title?"));
-    expect(onPick).toHaveBeenCalledWith("Why this title?");
+    render(<DiscussionEmptyState onPick={onPick} signedIn />);
+    fireEvent.click(screen.getByText("What did you think of the ending?"));
+    expect(onPick).toHaveBeenCalledWith("What did you think of the ending?");
   });
 
   it("shows sign-in framing when the viewer is anonymous", () => {

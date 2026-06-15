@@ -2,22 +2,15 @@
 
 import { MessageSquarePlus, Sparkles } from "lucide-react";
 import { WebReactions } from "./web-reactions";
-
-/**
- * Editorial fallback prompts when a title has no AI-generated starters. STATIC —
- * never triggers an AI/Bedrock call (cost-safety invariant 6). Kept generic so
- * they read well for any movie or series.
- */
-const FALLBACK_PROMPTS = [
-  "What did you think of the ending?",
-  "Best scene?",
-  "Who would you recommend this to?",
-  "Overrated or underrated?",
-];
+import { DISCUSSION_STARTER_PROMPTS } from "./starter-prompts";
 
 interface DiscussionEmptyStateProps {
-  /** AI starter prompts (cached `aiQuestions`); falls back to a static set. */
-  starters: string[];
+  /**
+   * Kept for backward-compat but IGNORED — the component always renders the
+   * static set from `starter-prompts.ts`. Pass `[]` (or omit) from call-sites;
+   * AI-sourced prompts are no longer used here (cost-safety invariant 6).
+   */
+  starters?: string[];
   /** Seed the composer + open it. */
   onPick: (prompt: string) => void;
   /** Whether the viewer can post (drives copy only). */
@@ -33,12 +26,11 @@ interface DiscussionEmptyStateProps {
  * thread never feels dead. Fully client-side — sits below the cacheable header.
  */
 export function DiscussionEmptyState({
-  starters,
   onPick,
   signedIn,
   webReactionsRaw,
 }: DiscussionEmptyStateProps) {
-  const prompts = (starters.length > 0 ? starters : FALLBACK_PROMPTS).slice(0, 4);
+  const prompts = DISCUSSION_STARTER_PROMPTS.slice(0, 4);
 
   return (
     <div className="space-y-5">

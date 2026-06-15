@@ -565,7 +565,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
       <Suspense fallback={null}>
         <DiscussionSection
           anchor={{ type: "movie", movieId: movie.id }}
-          starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
+          starters={[]}
           className="mt-8 md:mt-12"
           viewAllHref={discussionsHref({ type: "movie", movieId: movie.id }, movie.title)}
         />

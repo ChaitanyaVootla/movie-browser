@@ -15,7 +15,6 @@ import {
   getParticipantCount,
 } from "@/server/db/postgres/comments";
 import { getTrailerReactions } from "@/server/db/postgres/trailer-reactions";
-import { getAIDataLegacy } from "@/server/services/ai-data-service";
 import { getMovie } from "@/server/actions/movie";
 import { extractMovieOverviewProps } from "@/types/client-props";
 import { CommentListClient } from "@/components/features/discussion/comment-list-client";
@@ -118,9 +117,9 @@ function MovieDiscussionsContentFallback() {
   );
 }
 
-// Heavy reads (comment list, counts, AI starters, web reactions, full catalog
-// item for the sidebar) + the discussion JSON-LD. Rendered inside <Suspense> so
-// the hero band above commits FIRST (View-Transition capture target). This is a
+// Heavy reads (comment list, counts, web reactions, full catalog item for the
+// sidebar) + the discussion JSON-LD. Rendered inside <Suspense> so the hero
+// band above commits FIRST (View-Transition capture target). This is a
 // cacheable catalog/comment surface — no auth()/headers() — ISR-safe.
 async function MovieDiscussionsContent({ movieId }: { movieId: number }) {
   const movie = await getMovieLite(movieId);
@@ -130,19 +129,17 @@ async function MovieDiscussionsContent({ movieId }: { movieId: number }) {
   const basePath = getMediaPath("movie", movie.id, movie.title);
   const canonicalUrl = `${SITE_URL}${basePath}/discussions`;
 
-  const [initialPage, lockedCount, publishedCount, aiSummary, webReactionsRaw, fullMovie] =
+  const [initialPage, lockedCount, publishedCount, webReactionsRaw, fullMovie] =
     await Promise.all([
       getPublicCommentPage(anchor),
       getLockedCommentCount(anchor),
       getPublishedCommentCount(anchor),
-      getAIDataLegacy(movie.id, "movie"),
       getTrailerReactions("movie", movie.id),
       // Full catalog item for the "About this title" sidebar. Cacheable catalog
       // read (no auth()/headers()) — ISR-safe. Null-safe: missing item just hides
       // the sidebar.
       getMovie(movie.id),
     ]);
-  const starters = (aiSummary?.aiQuestions ?? []).slice(0, 4);
   const year = movie.releaseDate ? movie.releaseDate.getUTCFullYear() : null;
 
   const overviewItem = fullMovie ? extractMovieOverviewProps(fullMovie) : null;
@@ -193,7 +190,7 @@ async function MovieDiscussionsContent({ movieId }: { movieId: number }) {
             anchor={anchor}
             initialPage={initialPage}
             lockedCount={lockedCount}
-            starters={starters}
+            starters={[]}
             defaultScope="NONE"
             richEmptyState
             webReactionsRaw={webReactionsRaw}

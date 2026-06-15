@@ -592,7 +592,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
       <Suspense fallback={null}>
         <DiscussionSection
           anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
-          starters={(aiSummary?.aiQuestions ?? []).slice(0, 4)}
+          starters={[]}
           className="mt-8 md:mt-12"
           viewAllHref={discussionsHref(
             { type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null },
