@@ -12,15 +12,7 @@ import {
   type NotificationDto,
 } from "@/server/actions/notifications";
 import { cn } from "@/lib/utils";
-
-function describe(n: NotificationDto): string {
-  const who = n.actor?.username ?? n.actor?.name ?? "Someone";
-  const title = n.payload.title ?? "a title";
-  if (n.type === "REPLY") return `${who} replied to your comment on ${title}`;
-  if (n.type === "MENTION") return `${who} mentioned you on ${title}`;
-  if (n.type === "FOLLOW") return `${who} followed you`;
-  return `${who} · ${title}`;
-}
+import { describeNotification } from "./describe";
 
 export function NotificationList() {
   const [items, setItems] = useState<NotificationDto[]>([]);
@@ -108,7 +100,7 @@ export function NotificationList() {
                 !n.read && "bg-muted/30"
               )}
             >
-              <p className="text-sm">{describe(n)}</p>
+              <p className="text-sm">{describeNotification(n)}</p>
               {n.payload.snippet && !n.payload.spoilery && (
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                   {n.payload.snippet}
