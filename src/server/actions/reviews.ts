@@ -21,7 +21,7 @@ import {
   getVisibleReviews,
   type ReviewImageData,
 } from "@/server/db/postgres/social/reviews";
-import { setUserRating, getRatingHistogram, type RatingHistogram } from "@/server/db/postgres/social/ratings";
+import { setUserRating, getRatingHistogram, shapeHistogram, type RatingHistogram } from "@/server/db/postgres/social/ratings";
 import { listFollowing } from "@/server/db/postgres/social/follows";
 
 function actionError(action: string, error: unknown) {
@@ -516,10 +516,20 @@ const ReviewHistogramSchema = z.object({
 export async function getReviewHistogram(
   input: z.infer<typeof ReviewHistogramSchema>
 ): Promise<RatingHistogram> {
-  const v = ReviewHistogramSchema.parse(input);
-  return getRatingHistogram(
-    v.mediaType === "movie"
-      ? { movieId: v.tmdbId }
-      : { seriesId: v.tmdbId, seasonNumber: v.seasonNumber ?? null }
-  );
+  try {
+    const v = ReviewHistogramSchema.parse(input);
+    return await getRatingHistogram(
+      v.mediaType === "movie"
+        ? { movieId: v.tmdbId }
+        : { seriesId: v.tmdbId, seasonNumber: v.seasonNumber ?? null }
+    );
+  } catch (error: unknown) {
+    // Runs inside the cached RSC render (reviews-section.tsx) — must NOT throw
+    // out of the render tree. Degrade to an empty histogram.
+    userApiLogger.error({
+      action: "getReviewHistogram",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return shapeHistogram([]);
+  }
 }
