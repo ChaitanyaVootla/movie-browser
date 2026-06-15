@@ -93,7 +93,7 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
   ]);
 
   return (
-    <PageMain className="max-w-3xl mx-auto">
+    <PageMain className="max-w-3xl mx-auto md:px-6 lg:px-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <header className="space-y-2 mb-6">

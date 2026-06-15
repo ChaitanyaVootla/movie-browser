@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadComments } from "@/server/actions/comment-reads";
 import type { CommentPageDto } from "@/server/db/postgres/comments";
@@ -54,7 +54,17 @@ export function CommentListClient({
   const [viewerId, setViewerId] = useState<number | null>(null);
   const [seed, setSeed] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
+  // The top-level composer is collapsed by default so it doesn't eat prime
+  // space on the dedicated discussions page. A single-line trigger expands it;
+  // publish/cancel collapses it again.
+  const [composerOpen, setComposerOpen] = useState(false);
   const signedIn = status === "authenticated";
+
+  // Picking a starter prompt seeds + opens the composer.
+  const pickStarter = useCallback((text: string) => {
+    setSeed(text);
+    setComposerOpen(true);
+  }, []);
 
   const refresh = useCallback(() => {
     void loadComments({ anchor, cursor: null }).then((fresh) => {
@@ -85,22 +95,41 @@ export function CommentListClient({
   return (
     <div className="space-y-5">
       {signedIn ? (
-        <CommentComposer
-          key={seed} // re-mount to apply starter seed text
-          anchor={anchor}
-          seedText={seed}
-          defaultScope={defaultScope}
-          defaultScopeSeason={defaultScopeSeason}
-          defaultScopeEpisode={defaultScopeEpisode}
-          onPublished={refresh}
-        />
+        composerOpen ? (
+          <CommentComposer
+            key={seed} // re-mount to apply starter seed text
+            anchor={anchor}
+            seedText={seed}
+            defaultScope={defaultScope}
+            defaultScopeSeason={defaultScopeSeason}
+            defaultScopeEpisode={defaultScopeEpisode}
+            onPublished={() => {
+              setSeed("");
+              setComposerOpen(false);
+              refresh();
+            }}
+            onCancel={() => {
+              setSeed("");
+              setComposerOpen(false);
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setComposerOpen(true)}
+            className="flex w-full items-center gap-2 rounded-xl border border-border bg-card/60 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-brand/40 hover:bg-card min-h-12"
+          >
+            <PenLine className="h-4 w-4 shrink-0 text-brand" />
+            <span>Add a comment…</span>
+          </button>
+        )
       ) : (
         <p className="text-sm text-muted-foreground">
           Sign in to join the discussion — comments are spoiler-gated to your watch progress.
         </p>
       )}
 
-      {allRoots.length === 0 && <DiscussionStarters prompts={starters} onPick={setSeed} />}
+      {allRoots.length === 0 && <DiscussionStarters prompts={starters} onPick={pickStarter} />}
       {!signedIn && <LockedTeaser count={lockedCount} mediaType={anchor.type} />}
 
       <div className="space-y-5">
