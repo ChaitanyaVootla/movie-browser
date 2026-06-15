@@ -1160,6 +1160,7 @@ model UserRating {
   mediaType     MediaType @map("media_type")
   rating        Int? // thumb: 1 = like, -1 = dislike (nullable: score-only rows exist)
   score         Int? // 1-10 (Letterboxd 0.5-5 stars import as stars*2)
+  liked         Boolean   @default(false)
   ratedAt       DateTime? @map("rated_at") // import-honest; Wrapped reads it
   createdAt     DateTime  @default(now()) @map("created_at")
 
@@ -1171,6 +1172,8 @@ model UserRating {
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, seriesId, seasonNumber, episodeNumber])
   @@index([seriesId])
+  @@index([movieId, score])
+  @@index([seriesId, seasonNumber, score])
   @@map("user_ratings")
 }
 
@@ -1339,7 +1342,13 @@ model UserReview {
   tmdbEpisodeId    Int?          @map("tmdb_episode_id") // soft ref, NO relation
   mediaType        MediaType     @map("media_type")
   body             String        @db.Text
-  containsSpoilers Boolean       @default(false) @map("contains_spoilers")
+  title              String?      @db.VarChar(140)
+  spoilerScope       SpoilerScope @default(NONE) @map("spoiler_scope")
+  scopeSeason        Int?         @map("scope_season")
+  scopeEpisode       Int?         @map("scope_episode")
+  scopeTmdbEpisodeId Int?         @map("scope_tmdb_episode_id")
+  images             Json?
+  likeCount          Int          @default(0) @map("like_count")
   isPrivate        Boolean       @default(false) @map("is_private")
   watchEventId     Int?          @map("watch_event_id") // Letterboxd diary↔review linkage; NULL = canonical unit review
   status           CommentStatus @default(PENDING_REVIEW)
@@ -1352,12 +1361,15 @@ model UserReview {
   series     Series?     @relation(fields: [seriesId], references: [id], onDelete: Restrict)
   watchEvent WatchEvent? @relation(fields: [watchEventId], references: [id], onDelete: SetNull)
   reports    Report[]
+  reactions  Reaction[]
 
   @@index([movieId, status, createdAt(sort: Desc)])
   @@index([seriesId, seasonNumber, episodeNumber, status, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
   @@index([seriesId])
   @@index([watchEventId])
+  @@index([movieId, status, likeCount(sort: Desc)])
+  @@index([seriesId, seasonNumber, status, likeCount(sort: Desc)])
   @@map("user_reviews")
 }
 
@@ -1452,14 +1464,18 @@ model Reaction {
   id        Int          @id @default(autoincrement())
   userId    Int          @map("user_id")
   commentId Int?         @map("comment_id") // reviewId?/listId? later — adding nullable anchors is the cheap op
+  reviewId  Int?         @map("review_id")
   type      ReactionType @default(LIKE)
   createdAt DateTime     @default(now()) @map("created_at")
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  review    UserReview?  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
   @@unique([userId, commentId])
+  @@unique([userId, reviewId])
   @@index([commentId]) // standalone: the unique leading with userId does not cover cascade scans
+  @@index([reviewId])
   @@map("reactions")
 }
 
