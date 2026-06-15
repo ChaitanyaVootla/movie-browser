@@ -13,7 +13,7 @@ function buckets(partial: Record<number, number>): Record<number, number> {
 }
 
 describe("RatingHistogram", () => {
-  it("renders the average and at least one bar when there are ratings", () => {
+  it("shows the average, the /10 scale, a star summary, and the count", () => {
     const histogram: RatingHistogramData = {
       buckets: buckets({ 8: 3, 10: 1 }),
       average: 8.5,
@@ -21,15 +21,27 @@ describe("RatingHistogram", () => {
     };
     render(<RatingHistogram histogram={histogram} />);
 
-    // Average rendered to one decimal.
     expect(screen.getByText("8.5")).toBeTruthy();
-    // Total count.
+    expect(screen.getByText("/10")).toBeTruthy();
     expect(screen.getByText("4 ratings")).toBeTruthy();
-    // Distribution bars present.
-    expect(screen.getAllByTestId("histogram-bar").length).toBeGreaterThan(0);
+    // The star summary is an accessible image labelled with the average.
+    expect(
+      screen.getByRole("img", { name: /average rating 8\.5 out of 10/i })
+    ).toBeTruthy();
   });
 
-  it("renders the empty state and no bars when there are no ratings", () => {
+  it("singularizes a single rating", () => {
+    const histogram: RatingHistogramData = {
+      buckets: buckets({ 7: 1 }),
+      average: 7,
+      total: 1,
+    };
+    render(<RatingHistogram histogram={histogram} />);
+
+    expect(screen.getByText("1 rating")).toBeTruthy();
+  });
+
+  it("renders the empty state and no star summary when there are no ratings", () => {
     const histogram: RatingHistogramData = {
       buckets: buckets({}),
       average: null,
@@ -38,6 +50,6 @@ describe("RatingHistogram", () => {
     render(<RatingHistogram histogram={histogram} />);
 
     expect(screen.getByText("No ratings yet")).toBeTruthy();
-    expect(screen.queryAllByTestId("histogram-bar").length).toBe(0);
+    expect(screen.queryByRole("img")).toBeNull();
   });
 });

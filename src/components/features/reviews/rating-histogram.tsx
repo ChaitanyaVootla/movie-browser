@@ -1,12 +1,13 @@
+import { Star, StarHalf } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RatingHistogram as RatingHistogramData } from "@/server/db/postgres/social/ratings";
 
 /**
- * Compact per-title rating summary: the average + a small 1→10 mini bar-chart +
- * the rating count, as an inline pill that sits BESIDE the tabs (it does NOT
- * take the full width). Server-rendered, zero JS, theme tokens only. Each bar
- * carries a `title` so the per-score breakdown is available on hover without
- * spending vertical space.
+ * Compact per-title rating summary: read-only stars (from the average) + the
+ * numeric average + the rating count, as an inline pill beside the tabs. A
+ * per-score bar chart reads as noise at low rating counts, so we show the
+ * at-a-glance star summary instead (a full distribution belongs on a richer
+ * surface). Server-rendered, zero JS, theme tokens only.
  */
 export function RatingHistogram({
   histogram,
@@ -15,9 +16,9 @@ export function RatingHistogram({
   histogram: RatingHistogramData;
   className?: string;
 }) {
-  const { buckets, average, total } = histogram;
+  const { average, total } = histogram;
 
-  if (total === 0) {
+  if (total === 0 || average === null) {
     return (
       <div
         className={cn(
@@ -30,41 +31,37 @@ export function RatingHistogram({
     );
   }
 
-  // Scores 1..10, left→right. Bar height ∝ share of the busiest bucket.
-  const scores = Array.from({ length: 10 }, (_, i) => i + 1);
-  const maxCount = Math.max(1, ...scores.map((s) => buckets[s] ?? 0));
+  const stars = average / 2; // canonical 1–10 → 0–5 stars
 
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-3 rounded-lg border bg-card px-3 py-1.5",
+        "inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5",
         className
       )}
     >
-      <div className="flex items-baseline gap-0.5">
-        <span className="text-2xl font-bold leading-none tracking-tight tabular-nums">
-          {average?.toFixed(1) ?? "—"}
-        </span>
-        <span className="text-xs font-medium text-muted-foreground">/10</span>
-      </div>
-
-      <div className="flex h-7 items-end gap-px" aria-hidden>
-        {scores.map((score) => {
-          const count = buckets[score] ?? 0;
-          // count>0 gets a visible minimum; empty buckets show a faint baseline.
-          const heightPct = count > 0 ? Math.max(14, (count / maxCount) * 100) : 6;
+      <div
+        className="flex items-center gap-px"
+        role="img"
+        aria-label={`Average rating ${average.toFixed(1)} out of 10`}
+      >
+        {[0, 1, 2, 3, 4].map((i) => {
+          const fill = stars - i; // 1 = full, 0.5 = half, ≤0 = empty
           return (
-            <div
-              key={score}
-              data-testid="histogram-bar"
-              title={`${score}: ${count}`}
-              className={cn("w-[3px] rounded-full", count > 0 ? "bg-brand/70" : "bg-muted")}
-              style={{ height: `${heightPct}%` }}
-            />
+            <span key={i} className="relative inline-flex h-3.5 w-3.5">
+              <Star className="h-3.5 w-3.5 text-muted-foreground/30" strokeWidth={1.5} />
+              {fill >= 1 ? (
+                <Star className="absolute h-3.5 w-3.5 fill-brand text-brand" strokeWidth={1.5} />
+              ) : fill >= 0.5 ? (
+                <StarHalf className="absolute h-3.5 w-3.5 fill-brand text-brand" strokeWidth={1.5} />
+              ) : null}
+            </span>
           );
         })}
       </div>
-
+      <span className="text-sm font-semibold tabular-nums">{average.toFixed(1)}</span>
+      <span className="text-xs font-medium text-muted-foreground">/10</span>
+      <span className="text-muted-foreground/40">·</span>
       <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">
         {total} {total === 1 ? "rating" : "ratings"}
       </span>
