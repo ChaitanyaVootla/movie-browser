@@ -13,6 +13,13 @@
  * getPublicCommentPage. They carry NO viewer data.
  */
 import { CommentStatus, type Prisma } from "@prisma/client";
+import { prisma } from "@/server/db/postgres";
+import type { CommentCursor } from "@/server/services/discussion/comment-schemas";
+import {
+  visibleScopeWhere,
+  type ViewerGateContext,
+} from "@/server/services/discussion/spoiler-gate";
+import { getHiddenUserIds } from "./blocks";
 
 export const HUB_HOT_WINDOW_MS = 72 * 60 * 60 * 1000;
 
@@ -99,5 +106,169 @@ export function toHubThreadCard(row: HubCommentRow): HubThreadCard {
     href: "/discussions",
     isCue: author.isCue,
     author: { id: author.id, username: author.username, name: author.name, image: author.image },
+  };
+}
+
+// =============================================================================
+// DB-backed read functions
+// =============================================================================
+
+const HUB_PAGE_SIZE = 20;
+
+const HUB_INCLUDE = {
+  user: { select: { id: true, username: true, name: true, image: true, metadata: true } },
+  movie: { select: { id: true, title: true, posterPath: true } },
+  series: { select: { id: true, name: true, posterPath: true } },
+} as const;
+
+type RawHubRow = Prisma.CommentGetPayload<{ include: typeof HUB_INCLUDE }>;
+
+function isBotMetadata(metadata: Prisma.JsonValue | null): boolean {
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    !Array.isArray(metadata) &&
+    (metadata as Record<string, unknown>).bot === true
+  );
+}
+
+function rawToHubRow(row: RawHubRow): HubCommentRow {
+  return {
+    id: row.id,
+    body: row.body,
+    likeCount: row.likeCount,
+    createdAt: row.createdAt,
+    movieId: row.movieId,
+    seriesId: row.seriesId,
+    seasonNumber: row.seasonNumber,
+    episodeNumber: row.episodeNumber,
+    user: row.user
+      ? {
+          id: row.user.id,
+          username: row.user.username,
+          name: row.user.name,
+          image: row.user.image,
+          isCue: isBotMetadata(row.user.metadata),
+        }
+      : null,
+    movie: row.movie ? { id: row.movie.id, title: row.movie.title, posterPath: row.movie.posterPath } : null,
+    series: row.series ? { id: row.series.id, name: row.series.name, posterPath: row.series.posterPath } : null,
+  };
+}
+
+export interface HubPage {
+  cards: HubThreadCard[];
+  nextCursor: CommentCursor | null;
+}
+
+/** Only movie/series-anchored rows are hub-eligible. */
+const HUB_ANCHOR_WHERE: Prisma.CommentWhereInput = {
+  OR: [{ movieId: { not: null } }, { seriesId: { not: null } }],
+};
+
+/** New = createdAt DESC, keyset-paginated. Anon-cacheable. */
+export async function getHubNewPage(
+  cursor: CommentCursor | null = null,
+  limit: number = HUB_PAGE_SIZE
+): Promise<HubPage> {
+  const cursorWhere: Prisma.CommentWhereInput = cursor
+    ? {
+        OR: [
+          { createdAt: { lt: new Date(cursor.createdAt) } },
+          { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } },
+        ],
+      }
+    : {};
+  const rows = await prisma.comment.findMany({
+    where: { AND: [hubBaseWhere(), HUB_ANCHOR_WHERE, cursorWhere] },
+    include: HUB_INCLUDE,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+  });
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const last = page[page.length - 1];
+  return {
+    cards: page.map((r) => toHubThreadCard(rawToHubRow(r))),
+    nextCursor:
+      hasMore && last ? { createdAt: last.createdAt.toISOString(), id: last.id } : null,
+  };
+}
+
+/**
+ * Hot = root NONE-scope comments created in the last 72h, ranked by like volume
+ * then recency. A bounded index-range scan (WHERE createdAt > window) — no
+ * whole-table scan, no ML. Anon-cacheable; recomputed once per ISR window.
+ */
+export async function getHubHotPage(limit: number = HUB_PAGE_SIZE): Promise<HubPage> {
+  const rows = await prisma.comment.findMany({
+    where: {
+      AND: [hubBaseWhere(), HUB_ANCHOR_WHERE, { createdAt: { gt: hotWindowStart() } }],
+    },
+    include: HUB_INCLUDE,
+    orderBy: [{ likeCount: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+  });
+  return { cards: rows.map((r) => toHubThreadCard(rawToHubRow(r))), nextCursor: null };
+}
+
+/**
+ * Following = recent VISIBLE discussion from users the viewer follows or titles
+ * the viewer tracks. Viewer-scoped + spoiler-gated + block-filtered → server
+ * action ONLY, never edge-cached. Loaded into the hub's Following tab.
+ */
+export async function getHubFollowingPage(
+  viewerId: number,
+  ctx: ViewerGateContext,
+  cursor: CommentCursor | null = null,
+  limit: number = HUB_PAGE_SIZE
+): Promise<HubPage> {
+  const [following, trackedSeries, hidden] = await Promise.all([
+    prisma.follow.findMany({ where: { followerId: viewerId }, select: { followingId: true } }),
+    prisma.seriesProgress.findMany({ where: { userId: viewerId }, select: { seriesId: true } }),
+    getHiddenUserIds(viewerId),
+  ]);
+  const followedIds = following.map((f) => f.followingId);
+  const trackedSeriesIds = trackedSeries.map((s) => s.seriesId);
+  if (followedIds.length === 0 && trackedSeriesIds.length === 0) {
+    return { cards: [], nextCursor: null };
+  }
+  const cursorWhere: Prisma.CommentWhereInput = cursor
+    ? {
+        OR: [
+          { createdAt: { lt: new Date(cursor.createdAt) } },
+          { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } },
+        ],
+      }
+    : {};
+  const sourceWhere: Prisma.CommentWhereInput = {
+    OR: [
+      ...(followedIds.length ? [{ userId: { in: followedIds } }] : []),
+      ...(trackedSeriesIds.length ? [{ seriesId: { in: trackedSeriesIds } }] : []),
+    ],
+  };
+  const rows = await prisma.comment.findMany({
+    where: {
+      AND: [
+        { circleId: null, status: CommentStatus.PUBLISHED, parentId: null },
+        HUB_ANCHOR_WHERE,
+        sourceWhere,
+        // gate: NONE always visible; series-tracked rows gated by series ctx.
+        visibleScopeWhere(ctx, "series"),
+        hidden.size > 0 ? { userId: { notIn: [...hidden] } } : {},
+        cursorWhere,
+      ],
+    },
+    include: HUB_INCLUDE,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+  });
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const last = page[page.length - 1];
+  return {
+    cards: page.map((r) => toHubThreadCard(rawToHubRow(r))),
+    nextCursor:
+      hasMore && last ? { createdAt: last.createdAt.toISOString(), id: last.id } : null,
   };
 }

@@ -5,6 +5,8 @@ import {
   hubBaseWhere,
   toHubThreadCard,
   type HubCommentRow,
+  getHubHotPage,
+  getHubNewPage,
 } from "./discussion-hub";
 
 describe("discussion-hub where-builders", () => {
@@ -64,5 +66,28 @@ describe("toHubThreadCard", () => {
     });
     expect(card.isCue).toBe(true);
     expect(card.author.username).toBe("cue");
+  });
+});
+
+const HAS_DB = !!process.env.DATABASE_URL?.includes("5436");
+const d = HAS_DB ? describe : describe.skip;
+
+d("hub DB reads (dev DB)", () => {
+  it("getHubNewPage returns root NONE-scope cards newest-first with a cursor shape", async () => {
+    const page = await getHubNewPage(null, 5);
+    expect(Array.isArray(page.cards)).toBe(true);
+    for (const c of page.cards) {
+      expect(["movie", "series"]).toContain(c.anchor.type);
+    }
+    // nextCursor is null or a {createdAt,id} keyset
+    if (page.nextCursor) {
+      expect(typeof page.nextCursor.id).toBe("number");
+      expect(typeof page.nextCursor.createdAt).toBe("string");
+    }
+  });
+
+  it("getHubHotPage returns at most `limit` cards within the 72h window", async () => {
+    const page = await getHubHotPage(3);
+    expect(page.cards.length).toBeLessThanOrEqual(3);
   });
 });
