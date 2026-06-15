@@ -336,6 +336,15 @@ async function pageWithReplies(
       : [];
   const likedIds = new Set(likedRows.map((l) => l.commentId).filter((id): id is number => id !== null));
 
+  // Link cards: ONE batched lookup against the CACHED unfurl table for every
+  // body on the page (roots + replies), then a pure in-process join. NO network
+  // on the render path (edge-cache + perf invariant) — cards only appear for
+  // links already unfurled on submit; everything else renders a plain anchor.
+  const cardMap = await buildLinkCardMap([
+    ...roots.map((r) => r.body),
+    ...replies.map((r) => r.body),
+  ]);
+
   const repliesByRoot = new Map<number, CommentDto[]>();
   for (const reply of replies) {
     if (reply.parentId === null) continue;
@@ -349,11 +358,14 @@ async function pageWithReplies(
   }
   const last = roots[roots.length - 1];
   return {
-    roots: roots.map((r) => ({
-      ...toCommentDto(r, likedIds),
-      replies: repliesByRoot.get(r.id) ?? [],
-      replyCount: countByRoot.get(r.id) ?? 0,
-    })),
+    roots: attachLinkCards(
+      roots.map((r) => ({
+        ...toCommentDto(r, likedIds),
+        replies: attachLinkCards(repliesByRoot.get(r.id) ?? [], cardMap),
+        replyCount: countByRoot.get(r.id) ?? 0,
+      })),
+      cardMap
+    ),
     nextCursor: hasMore && last ? { createdAt: last.createdAt.toISOString(), id: last.id } : null,
   };
 }
