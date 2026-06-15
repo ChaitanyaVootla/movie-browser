@@ -272,6 +272,17 @@ export function CommentComposer({
           <div className="flex-1" />
 
           <div className="flex items-center gap-2">
+            {/* Circles-readiness seam (spec §9) — NOT WIRED. Reserves the audience selector. */}
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              data-circles-readiness="true"
+              title="Posting to circles is coming soon"
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground"
+            >
+              Everyone
+            </button>
             {onCancel && (
               <Button variant="ghost" size="sm" onClick={onCancel}>
                 Cancel

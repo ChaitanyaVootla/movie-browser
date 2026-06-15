@@ -53,6 +53,16 @@ export interface EntityMentionRef {
   href: string;
 }
 
+/** True when an author's users.metadata marks it as a bot (Cue). Pure. */
+export function commentIsCue(metadata: Prisma.JsonValue | null | undefined): boolean {
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    !Array.isArray(metadata) &&
+    (metadata as Record<string, unknown>).bot === true
+  );
+}
+
 export interface CommentDto {
   id: number;
   parentId: number | null;
@@ -65,6 +75,7 @@ export interface CommentDto {
   createdAt: string;
   editedAt: string | null;
   author: CommentAuthorDto | null;
+  isCue?: boolean;
   attachment: CommentAttachment | null;
   viewerLiked: boolean;
   entityMentions: EntityMentionRef[];
@@ -82,7 +93,7 @@ export interface CommentPageDto {
 }
 
 const AUTHOR_SELECT = {
-  select: { id: true, username: true, name: true, image: true },
+  select: { id: true, username: true, name: true, image: true, metadata: true },
 } as const;
 
 export const COMMENT_INCLUDE = {
@@ -139,7 +150,8 @@ export function toCommentDto(row: CommentRow, viewerLikedIds?: Set<number>): Com
     likeCount: row.likeCount,
     createdAt: row.createdAt.toISOString(),
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
-    author: deleted || !row.user ? null : row.user,
+    author: deleted || !row.user ? null : { id: row.user.id, username: row.user.username, name: row.user.name, image: row.user.image },
+    isCue: row.user ? commentIsCue(row.user.metadata) : false,
     attachment,
     viewerLiked: viewerLikedIds ? viewerLikedIds.has(row.id) : false,
     entityMentions,

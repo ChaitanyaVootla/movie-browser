@@ -18,6 +18,7 @@ import type { DiscussionAnchor } from "@/server/services/discussion/comment-sche
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "./comment-composer";
 import { CommentBody } from "./comment-body";
+import { CueBadge } from "./cue-badge";
 import { LinkCard } from "./link-card";
 import { LikeButton } from "./like-button";
 import { ReportDialog } from "./report-dialog";
@@ -94,6 +95,7 @@ function SingleComment({
               {comment.author?.name ?? "former member"}
             </span>
           )}
+          {comment.isCue ? <CueBadge className="ml-1" /> : null}
           <span>{relativeTime(comment.createdAt)}</span>
           {comment.editedAt && <span>(edited)</span>}
           <ScopeBadge
