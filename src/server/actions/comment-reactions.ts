@@ -6,6 +6,7 @@ import { prisma } from "@/server/db/postgres";
 import { requirePgUserId } from "@/lib/user-id";
 import { dataLogger } from "@/lib/logger";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
+import { assertNotBlocked, BlockedError } from "@/server/db/postgres/social/blocks";
 
 const ToggleLikeSchema = z.object({ commentId: z.number().int().positive() });
 
@@ -27,10 +28,15 @@ export async function toggleLike(raw: z.infer<typeof ToggleLikeSchema>): Promise
     const { commentId } = ToggleLikeSchema.parse(raw);
     const comment = await prisma.comment.findUnique({
       where: { id: commentId },
-      select: { id: true, status: true, circleId: true },
+      select: { id: true, status: true, circleId: true, userId: true },
     });
     if (!comment || comment.status !== CommentStatus.PUBLISHED || comment.circleId !== null) {
       return { ok: false, message: "Comment not found" };
+    }
+    // Block check (BLOCK is mutual): a user blocked by the comment author cannot like it.
+    // comment.userId is nullable (SetNull on account deletion); skip check when null.
+    if (comment.userId !== null) {
+      await assertNotBlocked(userId, comment.userId);
     }
     const existing = await prisma.reaction.findUnique({
       where: { userId_commentId: { userId, commentId } },
@@ -72,6 +78,9 @@ export async function toggleLike(raw: z.infer<typeof ToggleLikeSchema>): Promise
       throw error;
     }
   } catch (error: unknown) {
+    if (error instanceof BlockedError) {
+      return { ok: false, message: "Interaction not allowed" };
+    }
     dataLogger.error(
       { action: "toggleLike", error: error instanceof Error ? error.message : String(error) },
       "toggleLike failed"
