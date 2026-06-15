@@ -17,9 +17,12 @@ import type { CommentDto, CommentThreadDto } from "@/server/db/postgres/comments
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "./comment-composer";
-import { MentionText } from "./mention-text";
+import { CommentBody } from "./comment-body";
+import { LikeButton } from "./like-button";
 import { ReportDialog } from "./report-dialog";
 import { ScopeBadge } from "./scope-badge";
+
+const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
 
 function relativeTime(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -31,29 +34,6 @@ function relativeTime(iso: string): string {
   const days = Math.floor(hours / 24);
   if (days < 365) return `${days}d ago`;
   return `${Math.floor(days / 365)}y ago`;
-}
-
-function CommentBody({ comment }: { comment: CommentDto }) {
-  if (comment.status === "DELETED_BY_USER") {
-    return <p className="text-sm text-muted-foreground italic">Comment deleted by author</p>;
-  }
-  if (comment.status === "PENDING_REVIEW" || comment.status === "FLAGGED") {
-    return (
-      <div>
-        <p className="text-[11px] text-muted-foreground italic mb-1">
-          Pending review — visible only to you
-        </p>
-        <p className="text-sm text-foreground/90 leading-relaxed">
-          <MentionText body={comment.body} />
-        </p>
-      </div>
-    );
-  }
-  return (
-    <p className="text-sm text-foreground/90 leading-relaxed">
-      <MentionText body={comment.body} />
-    </p>
-  );
 }
 
 function SingleComment({
@@ -122,8 +102,26 @@ function SingleComment({
           />
         </div>
         <CommentBody comment={comment} />
+        {comment.attachment && comment.status === "PUBLISHED" && (
+          <div className="relative mt-1.5 aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">
+            <Image
+              src={`${TMDB_IMAGE_BASE}/w500${comment.attachment.imagePath}`}
+              alt=""
+              fill
+              sizes="320px"
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+        )}
         {comment.status === "PUBLISHED" && (
           <div className="flex items-center gap-1 -ml-2">
+            <LikeButton
+              commentId={comment.id}
+              initialLiked={comment.viewerLiked}
+              initialCount={comment.likeCount}
+              disabled={!canInteract}
+            />
             {canInteract && onReply && (
               <Button
                 variant="ghost"
