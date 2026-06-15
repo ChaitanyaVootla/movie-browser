@@ -8,11 +8,11 @@ planned-not-built. Source of truth for intent:
 resume board: `docs/superpowers/plans/PROGRESS.md`.
 
 **Scope (paths this rule governs):**
-`src/server/actions/{tracking,profile,reviews,comments,comment-reads,social,user-ratings,imports,diary,lists,notifications,reports,thread-summary}.ts`,
+`src/server/actions/{tracking,profile,reviews,reviews-helpers,review-reactions,catalog-search,comments,comment-reads,social,user-ratings,imports,diary,lists,notifications,reports,thread-summary}.ts`,
 `src/server/db/postgres/social/**`, `src/server/db/postgres/comments.ts`,
 `src/server/services/{discussion,moderation,import,notifications}/**`,
 `src/server/db/audit.ts`,
-`src/components/features/{tracking,profile,settings,reviews,discussion,notifications,stats,home}/**`,
+`src/components/features/{tracking,profile,settings,reviews,discussion,rich-text,notifications,stats,home}/**`,
 `src/app/u/**`, `src/app/{diary,stats,settings,notifications}/**`,
 `src/app/series/[...params]/discuss-page.tsx`, `src/lib/user-id.ts`,
 `src/lib/{watch-dates,tracking-format,profile-accents}.ts`,
@@ -85,7 +85,44 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
   verbose official names).
 - **Reviews** — `user_reviews`, a distinct entity (NOT a comment variant), one
   per user per title (per season for series). FIRST AI-gate consumer (default
-  `status=PENDING_REVIEW`). DB: `social/reviews.ts`. Action: `reviews.ts`.
+  `status=PENDING_REVIEW`). **Redesigned 2026-06-15
+  (`docs/superpowers/specs/2026-06-15-reviews-rich-composer-design.md`) to the
+  discussion polish bar:** reviewing + rating are ONE act, two records — the
+  composer carries a half-star control (0.5–5 → canonical `user_ratings.score`
+  1–10, `score=round(stars*2)`) + a "loved it" heart (`user_ratings.liked`, new;
+  thumb retired from the review flow) + an optional `title` + a RICH body built
+  on the **shared `components/features/rich-text/` editor** (emoji, @mentions,
+  `[[entity]]`, inline `[spoiler]`, ≤4 catalog images via `images Json?`).
+  `upsertReview` upserts the review row AND the canonical rating in ONE
+  `auditedTransaction`. Reviews ADOPTED the comment **`spoilerScope`** model
+  (enum + `scopeSeason`/`scopeEpisode`/`scopeTmdbEpisodeId`) — the bare
+  `containsSpoilers` boolean is GONE. Anon tier = `spoilerScope=NONE` only (hard
+  filter in `getPublicReviews`); spoiler-tier reviews load via the `loadReviews`
+  server action (POST) gated by `visibleReviewScopeWhere` + the viewer watermark
+  (reuses `spoiler-gate.ts`). **Likes**: polymorphic `Reaction.reviewId` (+ the
+  pre-existing `commentId`) + denormalized `user_reviews.likeCount`;
+  `toggleReviewLike` mirrors `toggleLike`; like→batched notify via the
+  generalized `notifyLikeBatched` (`targetType: "comment"|"review"`). Display:
+  ratings histogram (`getRatingHistogram` over `user_ratings`, NULL scores
+  abstain) + Popular/Recent/Following tabs + season selector (series). Pure
+  helpers (`starsToScore`, `resolveReviewScope`) live in `reviews-helpers.ts`
+  (NOT the `"use server"` `reviews.ts`). DB: `social/reviews.ts` +
+  `social/ratings.ts` (`liked`, histogram). Actions: `reviews.ts`,
+  `reviews-helpers.ts`, `review-reactions.ts`. Components: `features/reviews/*`.
+- **Shared rich-text editor (`src/components/features/rich-text/`)** — the
+  generic Tiptap editor + read-only renderer, **extracted from the discussion
+  feature 2026-06-15** so discussion AND reviews share ONE editor: `serialize.ts`
+  (token round-trip incl. inline-spoiler), `extensions.tsx`
+  (`buildMentionExtension(anchor: MediaAnchor)`, emoji, `SpoilerMark`),
+  `use-rich-text-editor.ts`, `emoji-picker.tsx`, `mention-chip.tsx`,
+  `mention-suggestion-list.tsx`, `emoji-suggestion-list.tsx`,
+  `entity-image-picker.tsx`, `toolbar.tsx` (`RichTextToolbar`), `rich-text-body.tsx`
+  (`RichTextBody({ body, entityMentions?, status?, idKey? })` — NOT coupled to
+  `CommentDto`). Catalog mention/image search is the generic
+  `server/actions/catalog-search.ts` (`searchMentionEntities`, `getEntityImages`).
+  The anchor type is `MediaAnchor` (alias of the old `DiscussionAnchor`). Reviews
+  pass no resolved `entityMentions` yet → `[[entity]]` tokens fall back to label
+  (chip-thumbnail parity for reviews is a documented fast-follow).
 - **Discussion** (Phase 1) — `comments` (threaded, spoiler-scoped, circle-aware
   anchor; replies denormalize anchor columns from root). Per-episode SEO pages
   via `discuss-page.tsx` (renders `DiscussionForumPosting` JSON-LD). Dedicated
@@ -329,7 +366,8 @@ show `fetch_retry … "This operation was aborted"`.
 | Stats | (page) | `social/{stats,stats-compute,stats-dirty}.ts` | `features/stats/*` |
 | Profiles | `profile.ts`, `social.ts` | `social/{public-profile,follows}.ts` | `features/profile/*`, `features/settings/*` |
 | Profile dashboard | `profile.ts` (`updateProfileLayoutAction`, `searchTitlesForBackdrop`, `getTitleImages`) | `social/public-profile.ts` (dailyActivity/recentWatches/topCountries) | `features/profile/{profile-dashboard,profile-dashboard-switch,profile-dashboard-editor,profile-settings-dialog,profile-viewer-context}.tsx`, `features/profile/widgets/*` |
-| Reviews | `reviews.ts` | `social/reviews.ts` | `features/reviews/*` |
+| Reviews | `reviews.ts`, `reviews-helpers.ts`, `review-reactions.ts` | `social/reviews.ts` (incl. `getVisibleReviews`), `social/ratings.ts` (`liked`, `getRatingHistogram`) | `features/reviews/*` (composer, card, like button, histogram, section, client, own-slot, star-rating-input) |
+| Shared rich-text | `catalog-search.ts` (`searchMentionEntities`, `getEntityImages`) | `services/discussion/spoiler-gate.ts` (`visibleReviewScopeWhere`), `services/discussion/comment-schemas.ts` (`MediaAnchor`) | `features/rich-text/*` (editor, toolbar, emoji, mentions, image picker, `RichTextBody`) — shared by discussion + reviews |
 | Discussion | `comments.ts`, `comment-reads.ts`, `thread-summary.ts` | `postgres/comments.ts`, `services/discussion/*` | `features/discussion/*` |
 | Discussion hub | `discussions-hub.ts` (getHubPublicPage, getHubFollowing) | `social/discussion-hub.ts` (Hot/New/Following DB reads) | `app/discussions/page.tsx` + `hub-tabs.tsx` + `hub-thread-card.tsx` |
 | Moderation | `reports.ts` | `social/reports.ts`, `services/moderation/*` | `features/discussion/{report-dialog,user-moderation-menu}.tsx`, admin moderation tab |

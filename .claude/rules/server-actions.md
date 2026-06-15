@@ -5,6 +5,23 @@ paths:
 
 # Server Actions
 
+## A `"use server"` module may export ONLY async functions (Next-only rule)
+
+Every **export** from a `"use server"` file must be an async function (a server
+action). A synchronous exported helper — even a pure one — fails the build with
+`Server Actions must be async functions`. **`yarn typecheck` (tsc) and Vitest do
+NOT catch this; only the Next compiler does**, so it surfaces at dev-compile /
+build time, not in your green type/test run (burned us 2026-06-15: pure
+`starsToScore`/`resolveReviewScope` exported from `reviews.ts`).
+
+- Put pure/synchronous helpers in a SEPARATE non-`"use server"` module (e.g.
+  `reviews-helpers.ts`) and import them into the action file + tests.
+- Non-exported sync helpers inside a `"use server"` file are fine (the rule is
+  about exports only).
+- **Verify any `"use server"` change with a REAL route compile**, not just
+  `tsc`: hit the page that imports it on the dev server and confirm a 200 with no
+  compile error in logs (see `.claude/rules/social-features.md` LOCAL DEV).
+
 ## Structure
 
 ```typescript
