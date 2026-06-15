@@ -73,6 +73,7 @@ export function CommentComposer({
       anchor,
       parentId,
       body,
+      attachment: null, // Phase B: wired in Task 11; null for now
       ...scopeForSubmit(confirmed, accepted),
     });
     setSubmitting(false);

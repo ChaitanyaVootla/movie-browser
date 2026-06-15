@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const CommentAttachmentSchema = z.object({
+  entityType: z.enum(["movie", "series", "episode", "person"]),
+  tmdbId: z.number().int().positive(),
+  imagePath: z.string().regex(/^\/[\w./-]{1,200}$/, "TMDB file path"),
+});
+export type CommentAttachmentInput = z.infer<typeof CommentAttachmentSchema>;
+
 /** Typed anchor for a discussion surface (spec invariant 7: no generic itemId/itemType). */
 export type DiscussionAnchor =
   | { type: "movie"; movieId: number }
@@ -37,6 +44,7 @@ export const CreateCommentSchema = z
     scopeEpisode: z.number().int().min(1).nullable().default(null),
     /** true on resubmit after the user accepted/overrode the AI scope suggestion */
     confirmedScope: z.boolean().default(false),
+    attachment: CommentAttachmentSchema.nullable().default(null),
   })
   .refine((i) => i.spoilerScope !== "EPISODE" || i.scopeSeason !== null, {
     message: "EPISODE scope requires scopeSeason",
@@ -49,6 +57,7 @@ export const EditCommentSchema = z.object({
   spoilerScope: SpoilerScopeSchema,
   scopeSeason: z.number().int().min(0).nullable().default(null),
   scopeEpisode: z.number().int().min(1).nullable().default(null),
+  attachment: CommentAttachmentSchema.nullable().default(null),
 });
 
 export const DeleteCommentSchema = z.object({ commentId: z.number().int().positive() });
