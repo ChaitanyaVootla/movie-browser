@@ -10104,6 +10104,7 @@ __metadata:
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
     react-grid-layout: "npm:^2.2.3"
+    react-lite-youtube-embed: "npm:^3.6.0"
     react-markdown: "npm:^10.1.0"
     recharts: "npm:^3.6.0"
     remark-gfm: "npm:^4.0.1"
@@ -11172,6 +11173,16 @@ __metadata:
   version: 17.0.2
   resolution: "react-is@npm:17.0.2"
   checksum: 10c0/2bdb6b93fbb1820b024b496042cce405c57e2f85e777c9aabd55f9b26d145408f9f74f5934676ffdc46f3dcff656d78413a6e43968e7b3f92eea35b3052e9053
+  languageName: node
+  linkType: hard
+
+"react-lite-youtube-embed@npm:^3.6.0":
+  version: 3.6.0
+  resolution: "react-lite-youtube-embed@npm:3.6.0"
+  peerDependencies:
+    react: ">=18.2.0"
+    react-dom: ">=18.2.0"
+  checksum: 10c0/546f91b23d0d8e0a5b7348665dce62a4e19efbb2519ca6a3cc474d0879cf2552e2f9fa7735130cd9b86ec63398af24d78d5f9498e0990856d3870c5e33a4173c
   languageName: node
   linkType: hard
 
