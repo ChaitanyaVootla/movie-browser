@@ -173,6 +173,33 @@ const nextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()", // Disable unused features
           },
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              // Next inlines hydration bootstrap + uses eval in dev; allow both
+              // unsafe-inline/eval for scripts (matches Next's documented CSP
+              // guidance until nonce-based CSP is wired — a separate hardening
+              // task). Keep this conservative: no wildcard.
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              // Images: our CDNs + TMDB + YouTube thumbnails + the favicon host.
+              // NO arbitrary external hotlinks (rung 7 image proxy deferred).
+              "img-src 'self' data: blob: https://image.tmdb.org https://image.themoviebrowser.com https://img.youtube.com https://i.ytimg.com https://www.google.com",
+              "font-src 'self' data:",
+              // YouTube facade iframe (lite-youtube → youtube-nocookie.com) only.
+              // Also covers trailer-modal.tsx (youtube.com/embed) + video-gallery.tsx (youtube-nocookie.com/embed)
+              // + chat-tags.tsx (youtube.com/embed).
+              "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
+              // XHR/fetch: self (server actions POST same-origin) + analytics ingest.
+              "connect-src 'self' https://*.themoviebrowser.com",
+              "media-src 'self' https://image.themoviebrowser.com",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "frame-ancestors 'self'",
+              "form-action 'self'",
+            ].join("; "),
+          },
         ],
       },
     ];
