@@ -15,7 +15,36 @@ import type {
   FavoriteItemDTO,
   PublicProfileDTO,
   ReviewDTO,
+  ReviewImage,
 } from "@/types/social";
+
+/** images JSON is loosely typed in the DB; coerce defensively to ReviewImage[]. */
+function parseReviewImages(raw: unknown): ReviewImage[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReviewImage[] = [];
+  for (const item of raw) {
+    if (
+      typeof item === "object" &&
+      item !== null &&
+      "entityType" in item &&
+      "tmdbId" in item &&
+      "imagePath" in item
+    ) {
+      const r = item as { entityType: unknown; tmdbId: unknown; imagePath: unknown };
+      if (
+        (r.entityType === "movie" ||
+          r.entityType === "series" ||
+          r.entityType === "episode" ||
+          r.entityType === "person") &&
+        typeof r.tmdbId === "number" &&
+        typeof r.imagePath === "string"
+      ) {
+        out.push({ entityType: r.entityType, tmdbId: r.tmdbId, imagePath: r.imagePath });
+      }
+    }
+  }
+  return out;
+}
 
 interface ProfileEnvelope {
   profile?: {
@@ -111,10 +140,17 @@ export async function getPublicProfileByUsername(
   const reviews: ReviewDTO[] = reviewsPage.reviews.map((r) => ({
     id: r.id,
     ...reviewUser,
+    title: r.title,
     score: null, // own-score join intentionally omitted on the profile surface (v1)
+    liked: false, // own-rating heart not joined on the profile surface (v1)
     body: r.body,
-    containsSpoilers: r.containsSpoilers,
+    spoilerScope: r.spoilerScope,
+    scopeSeason: r.scopeSeason,
+    scopeEpisode: r.scopeEpisode,
+    images: parseReviewImages(r.images),
     seasonNumber: r.seasonNumber,
+    likeCount: r.likeCount,
+    likedByViewer: false, // viewer state never baked into the ISR-cached profile (invariant 1)
     createdAt: r.createdAt.toISOString(),
     editedAt: r.editedAt?.toISOString() ?? null,
   }));

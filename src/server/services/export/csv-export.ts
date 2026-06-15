@@ -100,7 +100,7 @@ export async function buildUserExport(
       r.movie?.title ?? r.series?.name ?? "",
       String(r.movieId ?? r.seriesId ?? ""),
       r.seasonNumber !== null ? String(r.seasonNumber) : "",
-      String(r.containsSpoilers),
+      String(r.spoilerScope !== "NONE"),
       String(r.isPrivate),
       r.status,
       iso(r.createdAt),

@@ -245,7 +245,12 @@ export async function runImportJob(jobId: number): Promise<void> {
       const { id } = await upsertUserReview(job.userId, {
         ...(resolved.kind === "movie" ? { movieId: resolved.id } : { seriesId: resolved.id }),
         body: review.body,
-        containsSpoilers: review.containsSpoilers,
+        title: null,
+        spoilerScope: review.containsSpoilers ? "WATCHED" : "NONE",
+        scopeSeason: null,
+        scopeEpisode: null,
+        scopeTmdbEpisodeId: null,
+        images: undefined,
         isPrivate: false,
         status: "PENDING_REVIEW",
       });
