@@ -86,7 +86,7 @@ function SingleComment({
               href={`/u/${username}`}
               className="font-medium text-foreground/90 hover:underline"
             >
-              {username}
+              @{username}
             </Link>
           ) : (
             <span className="font-medium text-foreground/70">
