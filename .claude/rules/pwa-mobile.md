@@ -83,3 +83,20 @@ separate minimize-vs-close pair.
 See also: `.claude/rules/design-system.md` (layout facts, safe-area rules),
 `.claude/rules/ai-components.md` (chat component structure),
 `.claude/rules/performance.md` (Playwright measurement gotchas).
+
+## Service worker MUST NOT intercept navigations (Jun 2026)
+
+`src/app/sw.ts` (Serwist, auto-registered via `@serwist/turbopack` + the
+`src/app/serwist/[[...path]]/route.ts` route — there is NO `SerwistProvider`, so
+no `disable`/`cacheOnNavigation` prop to toggle). **Navigations are handled by a
+`NetworkOnly` runtime-caching route (matcher `request.mode === "navigate"`,
+placed FIRST) and `navigationPreload` is OFF.** Background: with
+`navigationPreload: true` and the default pages strategy, a **direct load / hard
+refresh** of an RSC-streamed route under `loading.tsx` (e.g. `/series/.../discussions`,
+movie/series detail) was served as a **DOWNLOAD** instead of a page — the
+"discussions page not accessible / routing race" bug. Client-side (soft) nav was
+unaffected, which masked it. Offline still works: `NetworkOnly` throws on network
+failure → the `fallbacks` `/~offline` document entry catches it. **Do NOT re-enable
+`navigationPreload` or add a cache-first/NetworkFirst strategy for `mode:navigate`**
+— let navigations always hit the network. Verify any SW change by DIRECT-loading a
+streamed route with the SW active (not just clicking a link).

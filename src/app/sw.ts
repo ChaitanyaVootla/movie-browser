@@ -8,7 +8,7 @@
 // the service worker NEVER installed (no offline support, console error on
 // every page) — and `@ts-nocheck` hid the type mismatch.
 import { defaultCache } from "@serwist/turbopack/worker";
-import { CacheFirst, ExpirationPlugin, Serwist } from "serwist";
+import { CacheFirst, ExpirationPlugin, NetworkOnly, Serwist } from "serwist";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 
 declare global {
@@ -23,8 +23,20 @@ const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
+  // navigationPreload intentionally OFF: with the NetworkOnly navigation route
+  // below nothing consumes event.preloadResponse, and an unconsumed preload was
+  // serving direct loads of streamed routes (e.g. /…/discussions, RSC-streamed
+  // under loading.tsx) as a DOWNLOAD instead of a page — the "discussions page
+  // not accessible / routing race" bug (Jun 2026). See pwa-mobile.md.
   runtimeCaching: [
+    // Navigations ALWAYS go to network — never serve/cache HTML documents from
+    // the SW. Intercepting navigations broke direct loads of streamed routes
+    // (served as a download). Offline still falls back to /~offline via the
+    // `fallbacks` config (NetworkOnly throws on network failure → fallback).
+    {
+      matcher: ({ request }) => request.mode === "navigate",
+      handler: new NetworkOnly(),
+    },
     // CDN poster/backdrop images — cache-first, long-lived
     {
       matcher: ({ url }) =>
