@@ -5,7 +5,7 @@ import { CommentStatus } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
 import { auditedTransaction } from "@/server/db/audit";
 import { dataLogger } from "@/lib/logger";
-import { requireUserIdForDb } from "@/lib/user-id";
+import { requirePgUserId } from "@/lib/user-id";
 import { getMediaPath } from "@/lib/utils";
 import {
   CreateCommentSchema,
@@ -67,7 +67,7 @@ function commentPermalink(anchor: DiscussionAnchor, title: string, commentId: nu
 
 export async function createComment(rawInput: CreateCommentInput): Promise<CreateCommentResult> {
   try {
-    const userId = await requireUserIdForDb();
+    const userId = await requirePgUserId();
     const input = CreateCommentSchema.parse(rawInput);
 
     const rate = await checkCommentRateLimit(userId);
@@ -284,7 +284,7 @@ export async function editComment(
   rawInput: z.infer<typeof EditCommentSchema>
 ): Promise<SimpleActionResult> {
   try {
-    const userId = await requireUserIdForDb();
+    const userId = await requirePgUserId();
     const input = EditCommentSchema.parse(rawInput);
     const existing = await prisma.comment.findUnique({
       where: { id: input.commentId },
@@ -380,7 +380,7 @@ export async function deleteComment(
   rawInput: z.infer<typeof DeleteCommentSchema>
 ): Promise<SimpleActionResult> {
   try {
-    const userId = await requireUserIdForDb();
+    const userId = await requirePgUserId();
     const input = DeleteCommentSchema.parse(rawInput);
     // Soft-delete (status change + body scrub) wrapped for actor attribution.
     const result = await auditedTransaction(userId, (tx) =>
@@ -403,7 +403,7 @@ export async function reportComment(
   rawInput: z.infer<typeof ReportCommentSchema>
 ): Promise<SimpleActionResult> {
   try {
-    const reporterId = await requireUserIdForDb();
+    const reporterId = await requirePgUserId();
     const input = ReportCommentSchema.parse(rawInput);
     const comment = await prisma.comment.findUnique({
       where: { id: input.commentId },

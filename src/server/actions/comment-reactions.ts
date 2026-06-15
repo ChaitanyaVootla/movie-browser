@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { CommentStatus } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
-import { requireUserIdForDb } from "@/lib/user-id";
+import { requirePgUserId } from "@/lib/user-id";
 import { dataLogger } from "@/lib/logger";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 
@@ -23,7 +23,7 @@ export type ToggleLikeResult =
  */
 export async function toggleLike(raw: z.infer<typeof ToggleLikeSchema>): Promise<ToggleLikeResult> {
   try {
-    const userId = await requireUserIdForDb();
+    const userId = await requirePgUserId();
     const { commentId } = ToggleLikeSchema.parse(raw);
     const comment = await prisma.comment.findUnique({
       where: { id: commentId },
