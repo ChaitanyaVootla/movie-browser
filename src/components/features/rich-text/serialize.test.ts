@@ -116,4 +116,46 @@ describe("serializeToBody", () => {
     expect(serializeToBody(doc(), resolveEmoji)).toBe("");
     expect(serializeToBody(null, resolveEmoji)).toBe("");
   });
+
+  it("wraps a spoiler mark as the [spoiler] token", () => {
+    const d = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "the killer is " },
+            { type: "text", marks: [{ type: "spoiler" }], text: "the butler" },
+          ],
+        },
+      ],
+    };
+    expect(serializeToBody(d as EditorJSONNode, () => undefined)).toBe(
+      "the killer is [spoiler]the butler[/spoiler]"
+    );
+  });
+
+  it("a spoiler mark combined with bold emits a parseable [spoiler] token (bold is not part of the token grammar)", () => {
+    // The body string is markdown-lite; bold/italic are NOT part of the
+    // established token grammar and the serializer does not emit `**` for them
+    // (they pass through as plain text, matching prior behavior). The spoiler
+    // mark wraps the resulting text OUTERMOST, so the output is a valid
+    // `[spoiler]…[/spoiler]` token the read-only renderer (rich-text-body.tsx)
+    // parses to a tap-to-reveal span.
+    const d = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "it was " },
+            { type: "text", marks: [{ type: "bold" }, { type: "spoiler" }], text: "him" },
+          ],
+        },
+      ],
+    };
+    expect(serializeToBody(d as EditorJSONNode, () => undefined)).toBe(
+      "it was [spoiler]him[/spoiler]"
+    );
+  });
 });

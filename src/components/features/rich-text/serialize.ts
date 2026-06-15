@@ -98,15 +98,47 @@ function readMentionAttrs(attrs: Record<string, unknown> | undefined): MentionNo
   };
 }
 
+/** A single Tiptap mark as it appears on a text node's `marks` array. */
+interface MarkJSON {
+  type?: string;
+}
+
+function readMarkTypes(marks: unknown): string[] {
+  if (!Array.isArray(marks)) return [];
+  const out: string[] = [];
+  for (const m of marks as MarkJSON[]) {
+    if (m && typeof m.type === "string") out.push(m.type);
+  }
+  return out;
+}
+
+/**
+ * Wrap a text node's raw text in its marks' canonical body tokens. Today only
+ * the `spoiler` mark serializes — wrapping OUTERMOST in `[spoiler]…[/spoiler]`
+ * (the canonical inline-spoiler token the read-time renderer `rich-text-body.tsx`
+ * already parses as a tap-to-reveal span). Other inline marks (bold/italic/…)
+ * are intentionally NOT emitted here: the body string is markdown-lite and those
+ * are not part of the established token grammar, so they pass through as plain
+ * text exactly as before — adding them is a separate, out-of-scope change.
+ */
+function applyMarks(text: string, markTypes: string[]): string {
+  let out = text;
+  if (markTypes.includes("spoiler")) out = `[spoiler]${out}[/spoiler]`;
+  return out;
+}
+
 /** Serialize the inline content of a single block (paragraph) to a string. */
 function serializeInline(nodes: EditorJSONNode[] | undefined, resolveEmoji: EmojiResolver): string {
   if (!nodes) return "";
   let out = "";
   for (const node of nodes) {
     switch (node.type) {
-      case "text":
-        out += node.text ?? "";
+      case "text": {
+        const raw = node.text ?? "";
+        const marks = readMarkTypes((node as { marks?: unknown }).marks);
+        out += marks.length ? applyMarks(raw, marks) : raw;
         break;
+      }
       case "hardBreak":
         out += "\n";
         break;
