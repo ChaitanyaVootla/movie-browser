@@ -107,6 +107,21 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
     you add the suffix to the preserved set (`DISCUSS_RE`/`DISCUSSIONS_RE` parsed
     before `MEDIA_DETAIL_RE`, re-appended in `decideMediaRoute`). Always verify a new
     detail sub-route by actually loading it in the running dev server, not just tests.
+  - **CSP GOTCHA (Phase C, 2026-06-15):** Phase C (link/trailer cards) introduced the
+    app's **FIRST global `Content-Security-Policy`** (`next.config.mjs` `headers()`,
+    `/:path*` — APP-WIDE, see also `.claude/rules/cdn.md`). A host-restricted `img-src`
+    SILENTLY breaks images across the whole app, not just discussion pages. `img-src`
+    MUST include every external image host the app loads: TMDB CDN
+    (`image.tmdb.org`/`image.themoviebrowser.com`), `flagcdn.com` (country flags in
+    nav + detail badges), `*.googleusercontent.com`/`*.ggpht.com` (Google avatars),
+    `img.youtube.com`/`i.ytimg.com` (yt thumbs), `www.google.com` (card favicons).
+    `frame-src` = `youtube-nocookie.com` + `youtube.com` (existing trailer embeds +
+    lite-youtube facade). `script-src`/`style-src` MUST keep `'unsafe-inline'
+    'unsafe-eval'` (App Router needs them — a nonce-only CSP breaks the app). The CSP
+    is built dev-aware: dev appends `ws://localhost:* http://localhost:*` to
+    `connect-src` for Turbopack HMR. **Before changing the CSP, audit every external
+    resource the app references and browser-verify the console for zero CSP violations
+    (the bug class is invisible to unit tests + typecheck).**
 - **Notifications + web push** — `notifications` (write-on-event only, bounded
   by direct recipients — NO fan-out), `push_subscriptions`. DB:
   `social/notifications.ts`. Action: `notifications.ts`. Push service:
