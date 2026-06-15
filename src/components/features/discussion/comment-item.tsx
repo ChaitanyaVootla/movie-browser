@@ -18,6 +18,7 @@ import type { DiscussionAnchor } from "@/server/services/discussion/comment-sche
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "./comment-composer";
 import { CommentBody } from "./comment-body";
+import { LinkCard } from "./link-card";
 import { LikeButton } from "./like-button";
 import { ReportDialog } from "./report-dialog";
 import { ScopeBadge } from "./scope-badge";
@@ -102,6 +103,7 @@ function SingleComment({
           />
         </div>
         <CommentBody comment={comment} />
+        {comment.linkCard && <LinkCard card={comment.linkCard} />}
         {comment.attachment && comment.status === "PUBLISHED" && (
           <div className="relative mt-1.5 aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">
             <Image
