@@ -132,18 +132,20 @@ export async function getPublicCommentPage(
  * edge-cached). Spoiler predicate in SQL, blocks filtered, and the viewer
  * always sees their own PENDING_REVIEW/FLAGGED comments.
  */
-export async function getVisibleCommentPage(
+/**
+ * The viewer's visible-comment predicate (spoiler-gated public set ∪ the
+ * viewer's own held/published) plus their block filter. Shared by the gated
+ * read path and the cheap "new since" count so they can never diverge.
+ */
+async function buildVisibleFilters(
   anchor: DiscussionAnchor,
   ctx: ViewerGateContext,
-  viewerId: number | null,
-  cursor: CommentCursor | null = null,
-  limit: number = PAGE_SIZE
-): Promise<CommentPageDto> {
+  viewerId: number | null
+): Promise<{ visibility: Prisma.CommentWhereInput; blockFilter: Prisma.CommentWhereInput }> {
   const excluded = await getExcludedAuthorIds(viewerId);
-  const anchorKind = anchor.type;
   const visibility: Prisma.CommentWhereInput = {
     OR: [
-      { AND: [PUBLIC_COMMENTS_WHERE, visibleScopeWhere(ctx, anchorKind)] },
+      { AND: [PUBLIC_COMMENTS_WHERE, visibleScopeWhere(ctx, anchor.type)] },
       // own held/published comments (author must see what they wrote)
       ...(viewerId
         ? [
@@ -164,10 +166,48 @@ export async function getVisibleCommentPage(
   };
   const blockFilter: Prisma.CommentWhereInput =
     excluded.length > 0 ? { OR: [{ userId: { notIn: excluded } }, { userId: null }] } : {};
+  return { visibility, blockFilter };
+}
+
+export async function getVisibleCommentPage(
+  anchor: DiscussionAnchor,
+  ctx: ViewerGateContext,
+  viewerId: number | null,
+  cursor: CommentCursor | null = null,
+  limit: number = PAGE_SIZE
+): Promise<CommentPageDto> {
+  const { visibility, blockFilter } = await buildVisibleFilters(anchor, ctx, viewerId);
   const where: Prisma.CommentWhereInput = {
     AND: [anchorWhere(anchor), { parentId: null }, visibility, blockFilter, cursorWhere(cursor)],
   };
   return pageWithReplies(where, { AND: [visibility, blockFilter] }, limit);
+}
+
+/**
+ * Cheap count of VISIBLE root comments created after `since` (hot path: the
+ * entry-strip "N new since you watched" upgrade). Same gating + block predicate
+ * as getVisibleCommentPage, so it counts exactly what the viewer may see — but a
+ * single COUNT instead of materializing a 100-row page. `since` null = first
+ * visit (count all visible roots).
+ */
+export async function countVisibleNewSince(
+  anchor: DiscussionAnchor,
+  ctx: ViewerGateContext,
+  viewerId: number | null,
+  since: Date | null
+): Promise<number> {
+  const { visibility, blockFilter } = await buildVisibleFilters(anchor, ctx, viewerId);
+  return prisma.comment.count({
+    where: {
+      AND: [
+        anchorWhere(anchor),
+        { parentId: null },
+        visibility,
+        blockFilter,
+        ...(since ? [{ createdAt: { gt: since } }] : []),
+      ],
+    },
+  });
 }
 
 /** Shared pagination + ONE batched reply fetch + ONE reply-count groupBy. */

@@ -4,8 +4,8 @@ import { dataLogger } from "@/lib/logger";
 import { getUserIdForDb } from "@/lib/user-id";
 import { anchorKey } from "@/server/services/discussion/comment-schemas";
 import { getViewerGateContext } from "@/server/services/discussion/spoiler-gate";
-import { getVisibleCommentPage } from "@/server/db/postgres/comments";
-import { getLastSeen, upsertLastSeen, newSinceFromRows } from "@/server/db/postgres/comment-reads";
+import { countVisibleNewSince } from "@/server/db/postgres/comments";
+import { getLastSeen, upsertLastSeen } from "@/server/db/postgres/comment-reads";
 import { getAnchorPublicSummary } from "@/server/db/postgres/comments";
 import {
   GetAnchorActivitySchema,
@@ -37,13 +37,14 @@ export async function getAnchorActivity(
       return { publishedCount: baseline.publishedCount, newSinceLastSeen: 0, signedIn: false };
     }
     const ctx = await getViewerGateContext(userId, anchor);
-    const [page, lastSeen] = await Promise.all([
-      getVisibleCommentPage(anchor, ctx, userId, null, 100),
-      getLastSeen(userId, anchorKey(anchor)),
-    ]);
-    const newSince = newSinceFromRows(
-      page.roots.map((r) => ({ createdAt: r.createdAt })),
-      lastSeen
+    const lastSeen = await getLastSeen(userId, anchorKey(anchor));
+    // Cheap COUNT over the SAME visible-scope + block predicate as the gated read
+    // path — no 100-row page materialized just to count (2-vCPU hot path).
+    const newSince = await countVisibleNewSince(
+      anchor,
+      ctx,
+      userId,
+      lastSeen ? new Date(lastSeen) : null
     );
     return { publishedCount: baseline.publishedCount, newSinceLastSeen: newSince, signedIn: true };
   } catch (error: unknown) {
