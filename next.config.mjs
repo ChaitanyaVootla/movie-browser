@@ -1,6 +1,53 @@
 import { fileURLToPath } from "url";
 import { withSerwist } from "@serwist/turbopack";
 
+/**
+ * Content-Security-Policy, built from a directive array so dev and prod differ
+ * only in the dev-augmented connect-src (Turbopack HMR websocket). PRODUCTION
+ * stays strict — no localhost/ws sources are emitted there.
+ */
+function buildCsp() {
+  // connect-src: self (server actions POST same-origin) + analytics ingest.
+  const connectSrc = ["'self'", "https://*.themoviebrowser.com"];
+  if (process.env.NODE_ENV !== "production") {
+    // Dev only: Turbopack's HMR socket (ws://localhost) + dev asset fetches.
+    // The headers() CSP applies in dev too, and without these connect-src
+    // would block the HMR websocket. NEVER emitted in production.
+    connectSrc.push(
+      "ws://localhost:*",
+      "ws://127.0.0.1:*",
+      "http://localhost:*",
+      "http://127.0.0.1:*",
+    );
+  }
+  return [
+    "default-src 'self'",
+    // Next inlines hydration bootstrap + uses eval in dev; allow both
+    // unsafe-inline/eval for scripts (matches Next's documented CSP
+    // guidance until nonce-based CSP is wired — a separate hardening
+    // task). Keep this conservative: no wildcard.
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    // Images: our CDNs + TMDB + YouTube thumbnails + the favicon host +
+    // flag CDN (country-language-badges/country-selector) + Google account
+    // avatars (Auth.js Google user.image = lh3.googleusercontent.com,
+    // rendered in comment-item, mobile nav, profiles).
+    // NO arbitrary external hotlinks (rung 7 image proxy deferred).
+    "img-src 'self' data: blob: https://image.tmdb.org https://image.themoviebrowser.com https://img.youtube.com https://i.ytimg.com https://www.google.com https://flagcdn.com https://*.googleusercontent.com https://*.ggpht.com",
+    "font-src 'self' data:",
+    // YouTube facade iframe (lite-youtube → youtube-nocookie.com) only.
+    // Also covers trailer-modal.tsx (youtube.com/embed) + video-gallery.tsx (youtube-nocookie.com/embed)
+    // + chat-tags.tsx (youtube.com/embed).
+    "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
+    `connect-src ${connectSrc.join(" ")}`,
+    "media-src 'self' https://image.themoviebrowser.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
@@ -175,30 +222,7 @@ const nextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              // Next inlines hydration bootstrap + uses eval in dev; allow both
-              // unsafe-inline/eval for scripts (matches Next's documented CSP
-              // guidance until nonce-based CSP is wired — a separate hardening
-              // task). Keep this conservative: no wildcard.
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
-              // Images: our CDNs + TMDB + YouTube thumbnails + the favicon host.
-              // NO arbitrary external hotlinks (rung 7 image proxy deferred).
-              "img-src 'self' data: blob: https://image.tmdb.org https://image.themoviebrowser.com https://img.youtube.com https://i.ytimg.com https://www.google.com",
-              "font-src 'self' data:",
-              // YouTube facade iframe (lite-youtube → youtube-nocookie.com) only.
-              // Also covers trailer-modal.tsx (youtube.com/embed) + video-gallery.tsx (youtube-nocookie.com/embed)
-              // + chat-tags.tsx (youtube.com/embed).
-              "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
-              // XHR/fetch: self (server actions POST same-origin) + analytics ingest.
-              "connect-src 'self' https://*.themoviebrowser.com",
-              "media-src 'self' https://image.themoviebrowser.com",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "frame-ancestors 'self'",
-              "form-action 'self'",
-            ].join("; "),
+            value: buildCsp(),
           },
         ],
       },
