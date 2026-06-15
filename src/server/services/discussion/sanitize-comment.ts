@@ -20,7 +20,7 @@ export function sanitizeCommentBody(raw: string): string {
 }
 
 /**
- * react-markdown allowlist shared by the read-only renderer (comment-body.tsx).
+ * react-markdown allowlist shared by the read-only renderer (rich-text/rich-text-body.tsx).
  * NO `img`, `iframe`, `a`-as-raw, `html` — links are emitted via a custom `a`
  * component with rel="nofollow ugc noopener noreferrer". Spoiler tags are handled
  * by a remark pre-pass, not raw HTML.

@@ -15,12 +15,16 @@ import type {
   SpoilerScopeValue,
 } from "@/server/services/discussion/comment-schemas";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { CommentImagePicker } from "./comment-image-picker";
 import { scopeLabel } from "./scope-badge";
-import { useCommentEditor } from "./use-comment-editor";
-import { serializeToBody, type EditorJSONNode } from "./comment-editor-serialize";
-import { resolveEmojiUnicode, insertEmojiByName } from "./comment-editor-extensions";
-import { EmojiPickerButton } from "./emoji-picker-button";
+import {
+  EntityImagePicker,
+  useRichTextEditor,
+  serializeToBody,
+  type EditorJSONNode,
+  resolveEmojiUnicode,
+  insertEmojiByName,
+  EmojiPicker,
+} from "@/components/features/rich-text";
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
 
@@ -64,7 +68,7 @@ export function CommentComposer({
   // Bump on every editor update so the Post button's disabled state stays live.
   const [, setRev] = useState(0);
 
-  const editor = useCommentEditor({
+  const editor = useRichTextEditor({
     anchor,
     placeholder,
     seedText,
@@ -232,7 +236,7 @@ export function CommentComposer({
           </Button>
 
           {/* Emoji picker button */}
-          <EmojiPickerButton onPick={(name) => editor && insertEmojiByName(editor, name)} />
+          <EmojiPicker onPick={(name) => editor && insertEmojiByName(editor, name)} />
 
           <div className="flex-1" />
 
@@ -266,7 +270,7 @@ export function CommentComposer({
           <DialogHeader>
             <DialogTitle className="text-sm">Pick an image</DialogTitle>
           </DialogHeader>
-          <CommentImagePicker
+          <EntityImagePicker
             anchor={anchor}
             onSelect={(att) => {
               setAttachment(att);

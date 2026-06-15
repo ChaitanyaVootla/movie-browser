@@ -4,7 +4,7 @@ import {
   mentionToToken,
   type EditorJSONNode,
   type MentionNodeAttrs,
-} from "./comment-editor-serialize";
+} from "./serialize";
 
 // A tiny emoji resolver mirroring the gitHubEmojis name→unicode mapping.
 const resolveEmoji = (name: string): string | undefined =>

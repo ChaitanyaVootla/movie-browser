@@ -3,11 +3,11 @@
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
-import { buildMentionExtension, CommentEmojiExtension } from "./comment-editor-extensions";
+import type { MediaAnchor } from "@/types/social";
+import { buildMentionExtension, CommentEmojiExtension } from "./extensions";
 
-interface UseCommentEditorArgs {
-  anchor: DiscussionAnchor;
+interface UseRichTextEditorArgs {
+  anchor: MediaAnchor;
   placeholder: string;
   /** Initial plain text (e.g. a discussion starter). Tokens in seedText render as text. */
   seedText: string;
@@ -19,9 +19,9 @@ interface UseCommentEditorArgs {
  * strike/code/blockquote — the marks comment-body.tsx already renders) MINUS the
  * block features the body renderer ignores (headings/horizontal rule), plus the
  * custom `@` mention chip and the `:` emoji extension. The serialized body comes
- * from serializeToBody(editor.getJSON()) — see comment-editor-serialize.ts.
+ * from serializeToBody(editor.getJSON()) — see serialize.ts.
  */
-export function useCommentEditor({ anchor, placeholder, seedText, onChange }: UseCommentEditorArgs): Editor | null {
+export function useRichTextEditor({ anchor, placeholder, seedText, onChange }: UseRichTextEditorArgs): Editor | null {
   return useEditor({
     // SSR-safe: avoid hydration mismatch warnings (this lives in a client island).
     immediatelyRender: false,

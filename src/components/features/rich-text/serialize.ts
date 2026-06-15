@@ -21,7 +21,7 @@
 /** The kinds an @-mention chip can carry. "user" serializes to @username. */
 export type MentionKind = "user" | "movie" | "series" | "person" | "episode";
 
-/** Attributes stored on the custom Tiptap mention node (see comment-editor-extensions). */
+/** Attributes stored on the custom Tiptap mention node (see extensions). */
 export interface MentionNodeAttrs {
   kind: MentionKind;
   /** For user: the username. For entity: the TMDB id (movie/series/person) or the SERIES id (episode). */

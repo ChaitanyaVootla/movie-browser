@@ -17,7 +17,7 @@ import type { CommentDto, CommentThreadDto } from "@/server/db/postgres/comments
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "./comment-composer";
-import { CommentBody } from "./comment-body";
+import { RichTextBody } from "@/components/features/rich-text";
 import { CueBadge } from "./cue-badge";
 import { LinkCard } from "./link-card";
 import { LikeButton } from "./like-button";
@@ -104,7 +104,7 @@ function SingleComment({
             scopeEpisode={comment.scopeEpisode}
           />
         </div>
-        <CommentBody comment={comment} />
+        <RichTextBody comment={comment} />
         {comment.linkCard && <LinkCard card={comment.linkCard} />}
         {comment.attachment && comment.status === "PUBLISHED" && (
           <div className="relative mt-1.5 aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">

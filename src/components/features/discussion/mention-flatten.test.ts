@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { flattenMentionResults } from "./comment-editor-extensions";
-import { mentionToToken } from "./comment-editor-serialize";
+import { flattenMentionResults, mentionToToken } from "@/components/features/rich-text";
 import type { MentionSearchResultDto } from "@/types/social";
 
 describe("flattenMentionResults → mention node attrs", () => {

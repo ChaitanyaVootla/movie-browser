@@ -25,7 +25,7 @@ interface PickedEmoji {
  * Toolbar emoji PICKER (issue 3b). Opens a popover grid; selecting inserts the
  * unicode emoji into the editor via `onPick`. DESIGN.md tokens, 40px+ targets.
  */
-export function EmojiPickerButton({ onPick }: { onPick: (name: string) => void }) {
+export function EmojiPicker({ onPick }: { onPick: (name: string) => void }) {
   const [open, setOpen] = useState(false);
 
   const grid: PickedEmoji[] = useMemo(() => {

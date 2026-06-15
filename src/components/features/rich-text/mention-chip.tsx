@@ -4,7 +4,7 @@ import Image from "next/image";
 import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { AtSign } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { MentionKind } from "./comment-editor-serialize";
+import type { MentionKind } from "./serialize";
 
 /**
  * Atomic inline chip rendered for a mention node inside the Tiptap editor. The

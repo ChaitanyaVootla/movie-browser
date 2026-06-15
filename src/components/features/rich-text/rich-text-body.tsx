@@ -205,7 +205,7 @@ function renderToken(token: Token, refs: Map<string, EntityMentionRef>, keyStr: 
  * bold/italic/blockquote formatting. Tokens are NOT passed through markdown
  * to avoid regex/markdown interaction.
  */
-export function CommentBody({ comment }: { comment: CommentDto }) {
+export function RichTextBody({ comment }: { comment: CommentDto }) {
   if (comment.status === "DELETED_BY_USER") {
     return <p className="text-sm text-muted-foreground italic">Comment deleted by author</p>;
   }

@@ -18,7 +18,7 @@ vi.mock("@/hooks/use-analytics", () => ({
 // `:emoji` shortcode popup run on ProseMirror's contenteditable, which jsdom
 // cannot faithfully simulate — those are verified in-browser via Playwright.
 // The load-bearing serialization contract (chips → tokens, emoji → unicode, no
-// spurious newlines) is unit-tested in comment-editor-serialize.test.ts. Here we
+// spurious newlines) is unit-tested in rich-text/serialize.test.ts. Here we
 // only assert the composer's structural toolbar renders for the new editor.
 describe("CommentComposer (Tiptap)", () => {
   it("renders the editor surface plus Add image, Emoji and Post controls", () => {

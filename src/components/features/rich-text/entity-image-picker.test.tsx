@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { CommentImagePicker } from "./comment-image-picker";
+import { EntityImagePicker } from "./entity-image-picker";
 
 const getEntityImages = vi.fn().mockResolvedValue({ images: [] });
 const searchMentionEntities = vi.fn().mockResolvedValue({
@@ -14,10 +14,10 @@ vi.mock("@/server/actions/discussion-search", () => ({
   searchMentionEntities: (...args: unknown[]) => searchMentionEntities(...args),
 }));
 
-describe("CommentImagePicker", () => {
+describe("EntityImagePicker", () => {
   it("renders ONLY inner content (search box + grid) — no self-rendered header/close X", async () => {
     render(
-      <CommentImagePicker
+      <EntityImagePicker
         anchor={{ type: "movie", movieId: 550 }}
         onSelect={vi.fn()}
         onClose={vi.fn()}
@@ -33,7 +33,7 @@ describe("CommentImagePicker", () => {
   it("loads the anchor's images on mount", async () => {
     getEntityImages.mockClear();
     render(
-      <CommentImagePicker
+      <EntityImagePicker
         anchor={{ type: "movie", movieId: 550 }}
         onSelect={vi.fn()}
         onClose={vi.fn()}
@@ -47,7 +47,7 @@ describe("CommentImagePicker", () => {
   it("searches other entities when the user types", async () => {
     searchMentionEntities.mockClear();
     render(
-      <CommentImagePicker
+      <EntityImagePicker
         anchor={{ type: "movie", movieId: 550 }}
         onSelect={vi.fn()}
         onClose={vi.fn()}

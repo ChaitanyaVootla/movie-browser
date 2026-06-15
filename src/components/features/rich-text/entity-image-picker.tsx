@@ -6,8 +6,7 @@ import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getEntityImages, searchMentionEntities } from "@/server/actions/discussion-search";
 import type { CommentAttachmentInput } from "@/server/services/discussion/comment-schemas";
-import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
-import type { MentionSearchResultDto } from "@/types/social";
+import type { MentionSearchResultDto, MediaAnchor } from "@/types/social";
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
 
@@ -23,8 +22,8 @@ interface EntityChoice {
   sublabel?: string;
 }
 
-interface CommentImagePickerProps {
-  anchor: DiscussionAnchor;
+interface EntityImagePickerProps {
+  anchor: MediaAnchor;
   onSelect: (attachment: CommentAttachmentInput) => void;
   /** Retained so the owning Dialog can also close from inside if needed. */
   onClose: () => void;
@@ -50,7 +49,7 @@ function useDebounce<T>(value: T, ms: number): T {
  * the catalog via `searchMentionEntities`; picking an entity loads ITS images via
  * `getEntityImages`. Both are pure catalog reads — NO AI, NO TMDB API.
  */
-export function CommentImagePicker({ anchor, onSelect }: CommentImagePickerProps) {
+export function EntityImagePicker({ anchor, onSelect }: EntityImagePickerProps) {
   // The entity whose images are currently in the grid. null = the anchor itself.
   const [selected, setSelected] = useState<EntityChoice | null>(null);
   const [images, setImages] = useState<string[]>([]);

@@ -3,7 +3,7 @@
  * detail-page COMMENT PEEK (and anywhere a one-line teaser of a body is shown).
  *
  * Comment bodies are markdown-lite plus three custom token shapes (see
- * `comment-body.tsx#tokenize`):
+ * `rich-text/rich-text-body.tsx#tokenize`):
  *   - `[[movie|series|person|ep:id(:s:e)?|Label]]` entity mentions
  *   - `[spoiler]…[/spoiler]` inline-reveal blocks
  *   - `@username` user mentions

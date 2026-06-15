@@ -7,9 +7,9 @@ import { Emoji, gitHubEmojis } from "@tiptap/extension-emoji";
 import type { SuggestionOptions, SuggestionProps, SuggestionKeyDownProps } from "@tiptap/suggestion";
 import { computePosition, flip, shift, offset, type VirtualElement } from "@floating-ui/dom";
 import { searchMentionEntities } from "@/server/actions/discussion-search";
-import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
+import type { MediaAnchor } from "@/types/social";
 import type { MentionSearchResultDto } from "@/types/social";
-import { CommentMentionChip } from "./comment-mention-chip";
+import { CommentMentionChip } from "./mention-chip";
 import {
   MentionSuggestionList,
   type MentionSuggestionItem,
@@ -154,7 +154,7 @@ function makeSuggestionRender<Item>(
  * exact `@user` / `[[...]]` token grammar AND renders the atomic chip node view.
  * `atom: true` makes a single Backspace remove the whole chip.
  */
-export function buildMentionExtension(anchor: DiscussionAnchor) {
+export function buildMentionExtension(anchor: MediaAnchor) {
   return Mention.extend({
     atom: true,
     addAttributes() {
