@@ -40,18 +40,23 @@ export function MentionAutocomplete({ query, anchor, onInsert, onClose }: Mentio
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (debouncedQuery.length < 1) {
-      setResults(null);
-      return;
-    }
     let cancelled = false;
-    setLoading(true);
-    void searchMentionEntities({ query: debouncedQuery, anchor }).then((res) => {
+    const run = async () => {
+      if (debouncedQuery.length < 1) {
+        if (!cancelled) {
+          setResults(null);
+          setLoading(false);
+        }
+        return;
+      }
+      if (!cancelled) setLoading(true);
+      const res = await searchMentionEntities({ query: debouncedQuery, anchor });
       if (!cancelled) {
         setResults(res);
         setLoading(false);
       }
-    });
+    };
+    void run();
     return () => { cancelled = true; };
   }, [debouncedQuery, anchor]);
 

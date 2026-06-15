@@ -8,10 +8,6 @@ import type { Components } from "react-markdown";
 import type { CommentDto, EntityMentionRef } from "@/server/db/postgres/comments";
 import { MARKDOWN_ALLOWED_ELEMENTS } from "@/server/services/discussion/sanitize-comment";
 
-// Token grammar (matches mentions.ts ENTITY_RE + the @user RE + [spoiler]).
-const ENTITY_TOKEN_RE = /\[\[(movie|series|person|ep):([0-9]+)(?::([0-9]+):([0-9]+))?\|[^\]]{0,120}\]\]/g;
-const USER_TOKEN_RE = /(?:^|(?<=[^@\w]))@([a-z0-9_]{3,30})(?=[^a-z0-9_]|$)/gi;
-const SPOILER_TOKEN_RE = /\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi;
 
 /** Inline reveal for a [spoiler]…[/spoiler] span — independent of the watch-gate. */
 function InlineSpoiler({ text }: { text: string }) {
