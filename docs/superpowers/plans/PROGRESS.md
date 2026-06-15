@@ -1,9 +1,63 @@
 # Social & Virality Roadmap — Implementation Progress / RESUME HERE
 
-**Last updated:** 2026-06-13 (docs sync pass)
+**Last updated:** 2026-06-15 (discussions positioning/fleshing-out effort)
 **Branch:** `feat/social-phase0` (off `next`). **Local `master` ref = rolling checkpoint.**
-**Status:** **PHASE 0 + PHASE 1 COMPLETE, E2E-validated, post-review hardening done — READY TO TEST.**
-Phases 2–4 are PLANNED, NOT STARTED (awaiting explicit user GO). NOT yet deployed to prod.
+**Status:** **PHASE 0 + PHASE 1 COMPLETE; DISCUSSIONS POSITIONING/RICH-CONTENT EFFORT COMPLETE (2026-06-15).**
+Phases 2–4 (taste artifacts, full circles/clubs, AI second screen) remain PLANNED, NOT STARTED. NOT yet deployed to prod.
+
+---
+
+## ✅ DISCUSSIONS POSITIONING + RICH-CONTENT EFFORT — COMPLETE (2026-06-15)
+
+Layered on Phase 1's discussion engine. Spec: `docs/superpowers/specs/2026-06-15-discussions-positioning-design.md`.
+Plans: `docs/superpowers/plans/2026-06-15-discussions-phase{A,B,C,D}-*.md`. 75 commits, all
+merged to `feat/social-phase0` (== `master` == worktree `feat/discussions-flesh`, all local).
+**typecheck 0 · 222 discussion tests pass (49 files) · discussion code lint-clean ·
+browser-verified on the running dev server (:5436 DB).**
+
+- **Phase A — Surfacing:** entry-point strip + adaptive counts (invite below ~5–10,
+  count+activity above; "N new since you watched" hydrates client-side), dedicated
+  `/movie/[id]/discussions` + `/series/[...]/discussions` pages (activity-first
+  Trending·Latest, scope filters), cheap rolling-Trending (recency-decayed read-time
+  score off denormalized counters, NO AI), per-anchor read cursor, count badge for cards.
+- **Phase B — Composer:** markdown-lite + `[spoiler]` (react-markdown, NO raw HTML +
+  server sanitize-html), unified `@`-mention type-ahead (users AND titles/people/episodes,
+  typed anchor cols, entity = no fan-out), Like UI, catalog-image picker (TMDB CDN, no
+  upload), `obscenity` deterministic prefilter before the LLM gate.
+- **Phase C — Cards:** SSRF-hardened OG/oEmbed unfurl (IP-pinning undici dispatcher,
+  streaming body cap, fail-open) cached in `link_unfurls` (NO network on render),
+  link-preview cards, lite-YouTube facade. **Introduced the app's FIRST global CSP**
+  (`next.config.mjs`, dev-aware for HMR) — browser-verified 0 violations.
+- **Phase D — Destination & retention:** global `/discussions` hub (Hot·New·Following,
+  anon-ISR + client Following), `EPISODE_DROP` + batched `LIKES_BATCH` notifications,
+  **Cue AI trending-seed cron** (bounded top-N/day, idempotent skip-before-Bedrock,
+  spoilerScope=NONE, `cue` system user, AI badge), inert circle-readiness seams. Two new
+  PM2 crons (`episode-drop-notify` 05:00, `cue-seed` 20:00, guarded).
+
+**Two reality-only bugs caught by running the server (now durable gotchas in
+`social-features.md`):** (1) a static child route under the `[...params]` catch-all =
+fatal Turbopack panic, invisible to typecheck/unit tests → folded into the catch-all +
+proxy suffix-preservation (`DISCUSSIONS_RE` in `media-resolver.ts`); (2) the app's first
+CSP must allowlist every external image host (flagcdn, googleusercontent, yt thumbs) or
+images break app-wide.
+
+**LEFT TO DO before this reaches prod (NOT done here — local-only, never pushed):**
+- Walk the **pre-deploy checklist in `.claude/rules/social-features.md`** (hash-gated
+  04-ugc + 05-audit SQL; the new schema — Comment counters/attachment cols +
+  `CommentEntityMention` + `LinkUnfurl` + `NotificationType` enum vals + hub index — must
+  be `db push`'d to the prod DB; CSP review; VAPID keys; `ENABLE_TEST_AUTH` must be ABSENT
+  in prod; `USER_DATA_SOURCE=postgres`).
+- **Bedrock kill-switch / cost confirm** for the Cue cron + comment gate before opening
+  writes at scale; confirm `cue-seed` top-N cap is set sanely for prod.
+- **Deferred follow-ups (tracked, not bugs):** card-grid/search count wiring (per-render
+  DB cost — left per-surface); locked-episode gated rows island (client-gated); user
+  image uploads + external hotlinks (rungs 6–7, need NSFW/CSAM + image proxy); CloudFront
+  single-path invalidation for moderation removals.
+- **NOTE:** the in-progress **diary-log-unification WIP** (committed as a checkpoint at
+  `030312d` to give a stable worktree base) rode along on this branch — it predates this
+  effort and is unrelated; review it separately.
+- Pre-existing, NOT introduced here: `analytics/client.test.ts` 12-test timer-isolation
+  flake; 1 `e2e/content/error-boundaries.spec.ts` lint error; ~125 lint warnings.
 
 This is the authoritative resume point for the autonomous overnight implementation
 of the Social & Virality Roadmap. If a session fails, read this first, then continue
