@@ -1,3 +1,5 @@
+import { lookup as dnsLookup } from "node:dns";
+import { Agent } from "undici";
 import { dataLogger } from "@/lib/logger";
 import {
   getUnfurl,
@@ -6,7 +8,7 @@ import {
   type UpsertUnfurlInput,
 } from "@/server/db/postgres/social/link-unfurls";
 import { parseOgMeta } from "./og-parse";
-import { assertPublicAddresses } from "./ssrf-guard";
+import { assertPublicAddresses, isPublicIp } from "./ssrf-guard";
 import { extractFirstLink, normalizeUrl, parseYouTubeId, urlHash } from "./url-normalize";
 
 const FETCH_TIMEOUT_MS = 2_000; // mirrors media-resolver.ts discipline
@@ -120,23 +122,126 @@ export async function fetchUnfurl(rawUrl: string, deps: UnfurlDeps): Promise<Ups
 }
 
 /**
+ * Read a response body incrementally, accumulating up to MAX_BODY_BYTES, then
+ * cancel the stream (don't buffer the whole body). Returns the decoded prefix,
+ * or null if the body is missing/unreadable. Fail-open: a read error → null
+ * (the caller turns that into a FAILED record). Cancelling the reader aborts the
+ * underlying download once we have enough <head> bytes.
+ */
+async function readCappedBody(res: Response, controller: AbortController): Promise<string | null> {
+  if (!res.body) return null;
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        total += value.byteLength;
+        if (total >= MAX_BODY_BYTES) break;
+      }
+    }
+  } catch {
+    return null;
+  } finally {
+    // Stop the download; abort the request too so a slow/huge body can't linger.
+    try {
+      await reader.cancel();
+    } catch {
+      /* ignore */
+    }
+    controller.abort();
+  }
+  const merged = new Uint8Array(Math.min(total, MAX_BODY_BYTES));
+  let offset = 0;
+  for (const chunk of chunks) {
+    if (offset >= merged.length) break;
+    const take = Math.min(chunk.byteLength, merged.length - offset);
+    merged.set(chunk.subarray(0, take), offset);
+    offset += take;
+  }
+  return new TextDecoder("utf-8").decode(merged);
+}
+
+/**
+ * DNS-rebinding (TOCTOU) defense. `assertPublicAddresses` resolves DNS to vet a
+ * host, but a plain `fetch` then RE-resolves independently — a low-TTL attacker
+ * record can return a public IP to the check and a private IP to the actual
+ * connection. This undici dispatcher closes that gap: its `connect.lookup` is the
+ * SAME resolution `fetch` dials on, and it re-validates every returned address
+ * with `isPublicIp` (fail-closed), per connection — i.e. per redirect hop, since
+ * we re-fetch each Location manually. So fetch connects to a vetted IP, not a
+ * re-resolved one. The per-hop `assertPublicAddresses` re-gate is kept as
+ * defense-in-depth (it also blocks empty-resolution hosts before egress).
+ */
+function makePinnedDispatcher(): Agent {
+  return new Agent({
+    connect: {
+      lookup(
+        hostname: string,
+        _opts: unknown,
+        cb: (err: NodeJS.ErrnoException | null, addresses: Array<{ address: string; family: number }>) => void
+      ): void {
+        dnsLookup(hostname, { all: true }, (err, addresses) => {
+          if (err) {
+            cb(err, []);
+            return;
+          }
+          const list = Array.isArray(addresses) ? addresses : [];
+          // Re-validate the addresses being DIALED. Any private/empty → block.
+          if (list.length === 0 || !list.every((a) => isPublicIp(a.address))) {
+            cb(new Error("SSRF: resolved address is not public"), []);
+            return;
+          }
+          cb(null, list.map((a) => ({ address: a.address, family: a.family })));
+        });
+      },
+    },
+  });
+}
+
+/** Injectable fetch surface so the hardened path is unit-testable. */
+type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
+
+/** Injectable hooks for the hardened fetch (tests pass a mock fetch + host gate). */
+export interface HardenedFetchOpts {
+  fetchImpl?: FetchLike;
+  /** Per-hop host SSRF re-gate (default: real DNS-resolving assertPublicAddresses). */
+  assertPublic?: (hostname: string) => Promise<boolean>;
+  /** IP-pinning dispatcher; pass null to skip (tests with a mock fetch). */
+  dispatcher?: Agent | null;
+}
+
+/**
  * Real network fetch with the SSRF discipline applied AT EACH redirect hop:
  * manual redirects, 2s budget across the whole chain, re-resolve+re-gate each
- * Location, body-size cap. Used by the default deps in enqueueUnfurl.
+ * Location, an IP-pinning dispatcher (DNS-rebinding defense), body-size cap.
+ * Used by the default deps in enqueueUnfurl. The opts are injectable for tests
+ * (production uses global fetch + the pinned dispatcher + real host gate).
  */
-async function fetchTextHardened(
-  startUrl: string
+export async function fetchTextHardened(
+  startUrl: string,
+  opts: HardenedFetchOpts = {}
 ): Promise<{ ok: true; finalUrl: string; html: string } | { ok: false }> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const assertPublic = opts.assertPublic ?? assertPublicAddresses;
+  const dispatcher = opts.dispatcher === undefined ? makePinnedDispatcher() : opts.dispatcher;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     let current = startUrl;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const hostname = new URL(current).hostname;
-      if (!(await assertPublicAddresses(hostname))) return { ok: false };
-      const res = await fetch(current, {
+      // Per-hop re-gate (defense-in-depth; the dispatcher pins the actual dial).
+      if (!(await assertPublic(hostname))) return { ok: false };
+      const res = await fetchImpl(current, {
         signal: controller.signal,
         redirect: "manual",
+        // @ts-expect-error — `dispatcher` is an undici RequestInit extension Node's
+        // global fetch honors but the DOM RequestInit type doesn't declare.
+        dispatcher,
         headers: { "user-agent": USER_AGENT, accept: "text/html,application/xhtml+xml" },
       });
       if (res.status >= 300 && res.status < 400) {
@@ -150,10 +255,11 @@ async function fetchTextHardened(
       if (!res.ok) return { ok: false };
       const contentType = res.headers.get("content-type") ?? "";
       if (!contentType.includes("html")) return { ok: false };
-      // Cap the body: read up to MAX_BODY_BYTES then stop.
-      const buf = await res.arrayBuffer();
-      const slice = buf.byteLength > MAX_BODY_BYTES ? buf.slice(0, MAX_BODY_BYTES) : buf;
-      const html = new TextDecoder("utf-8").decode(slice);
+      // Stream the body, accumulating at most MAX_BODY_BYTES, then abort — never
+      // buffer an unbounded response into memory (a hostile server can stream
+      // gigabytes). The 2s AbortController still bounds total time.
+      const html = await readCappedBody(res, controller);
+      if (html === null) return { ok: false };
       return { ok: true, finalUrl: current, html };
     }
     return { ok: false }; // too many redirects
@@ -161,12 +267,17 @@ async function fetchTextHardened(
     return { ok: false };
   } finally {
     clearTimeout(timer);
+    try {
+      await dispatcher?.close();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 const defaultDeps: UnfurlDeps = {
   assertPublic: (hostname) => assertPublicAddresses(hostname),
-  fetchText: fetchTextHardened,
+  fetchText: (url) => fetchTextHardened(url),
 };
 
 /** Cache read for the render path (delegates to the DB layer). */
