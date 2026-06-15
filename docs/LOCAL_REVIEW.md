@@ -50,10 +50,20 @@ DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' yarn db:push
 # UNIQUE NULLS NOT DISTINCT) that Prisma cannot express
 DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' \
   npx tsx scripts/apply-ugc-constraints.ts
+
+# Seed the `countries` reference table (full ISO 3166-1 alpha-2 list).
+# REQUIRED: it is the FK target for watch_options.country_code. Hydration only
+# lazily upserts a title's origin/production countries, but watch-provider rows
+# reference arbitrary TMDB regions — so without this, miss-path hydration of an
+# uncatalogued title aborts on watch_options_country_code_fkey and the row never
+# persists. (seed-social-demo.ts also seeds this automatically as step 0/4.)
+DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' \
+  npx tsx scripts/seed-countries.ts
 ```
 
 You should see `apply-ugc-constraints.ts` report the `chk_*` CHECK constraints
-(16) and the `uq_*` unique indexes (3) present.
+(16) and the `uq_*` unique indexes (3) present, and `seed-countries.ts` report
+249 ISO codes upserted.
 
 ---
 

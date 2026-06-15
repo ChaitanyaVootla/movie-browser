@@ -160,6 +160,40 @@ const SERIES: SeriesSeed[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Countries reference table.
+//
+// `countries(code)` is the FK target for watch_options.country_code,
+// movie_countries, series_countries, certifications, etc. Hydration only
+// LAZILY upserts origin/production-country codes, but upsertWatchProviders
+// inserts watch_options rows whose country_code is a TMDB watch-provider region
+// WITHOUT first upserting the code — so on a sparse fresh dev DB any miss-path
+// hydration aborts on watch_options_country_code_fkey. Seed the full ISO list
+// (the same source the profile country-map widget uses) up front. Standalone
+// equivalent: scripts/seed-countries.ts.
+// ---------------------------------------------------------------------------
+async function seedCountries(): Promise<void> {
+  const { getData } = await import("country-list");
+  // Mirror prisma/seed.ts: include codes country-list misses but TMDB uses.
+  const additional = [
+    { code: "XK", name: "Kosovo" },
+    { code: "TW", name: "Taiwan" },
+    { code: "SU", name: "Soviet Union" },
+  ];
+  const base = getData();
+  const rows = [
+    ...base,
+    ...additional.filter((a) => !base.some((c) => c.code === a.code)),
+  ];
+  for (const { code, name } of rows) {
+    await prisma.country.upsert({
+      where: { code },
+      create: { code, name },
+      update: {},
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Catalog seeding.
 // ---------------------------------------------------------------------------
 async function seedCatalogViaHydration(): Promise<void> {
@@ -826,6 +860,10 @@ async function seedUserStats(ids: Record<string, number>): Promise<StatsSummary[
 // ---------------------------------------------------------------------------
 async function main(): Promise<void> {
   console.log("Seeding local social demo data (dev DB on :5436)...\n");
+
+  console.log("0/4 Countries reference table (FK target for watch_options)...");
+  await seedCountries();
+  console.log("    done.\n");
 
   console.log("1/4 Catalog...");
   const catalogPath = await seedCatalog();
