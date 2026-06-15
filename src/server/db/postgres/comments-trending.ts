@@ -8,26 +8,38 @@ interface RawTrendingRow {
   recentActivityCount: number;
   likeCount: number;
   createdAt: Date;
+  lastActivityAt: Date;
 }
 
-/** Pure: comment rows → ranked TrendingRows (sorted desc). */
-export function toTrendingRows(rows: RawTrendingRow[]): TrendingRow[] {
+/** Pure: comment rows → ranked TrendingRows (rolling, recency-decayed against `now`). */
+export function toTrendingRows(rows: RawTrendingRow[], now: Date): TrendingRow[] {
   return rows
     .map((r) => ({
       id: r.id,
       recentActivityCount: r.recentActivityCount,
       likeCount: r.likeCount,
       createdAt: r.createdAt.toISOString(),
+      lastActivityAt: r.lastActivityAt.toISOString(),
     }))
-    .sort(compareTrending);
+    .sort(compareTrending(now));
 }
 
 const TOP_AUTHOR = { select: { id: true, username: true, name: true, image: true } } as const;
 
+/** Recently-active candidate window pulled (ordered by lastActivityAt) before
+ * in-memory recency-decay ranking. Bounds the per-render scan. */
+const TRENDING_CANDIDATE_WINDOW = 100;
+
 /**
  * Anon-tier Trending roots for a dedicated page (spec §3). NONE-scope, PUBLISHED,
- * circle-NULL ONLY — safe in ISR HTML. Ranks the top window in memory off
- * denormalized counters; no per-render scan beyond a bounded LIMIT.
+ * circle-NULL ONLY — safe in ISR HTML.
+ *
+ * Rolling, NO cron: pull the bounded set of MOST-RECENTLY-ACTIVE roots
+ * (orderBy lastActivityAt DESC — uses the existing trending index), then rank
+ * THAT window in memory by a recency-decayed engagement score (`trending.ts`).
+ * Because the candidate set is recency-ordered and the score decays with the age
+ * of `lastActivityAt`, an old high-engagement thread cannot dominate a freshly
+ * active one. Cheap: one indexed scan capped at TRENDING_CANDIDATE_WINDOW.
  */
 export async function getPublicTrendingRoots(
   anchor: DiscussionAnchor,
@@ -40,16 +52,21 @@ export async function getPublicTrendingRoots(
   const rows = await prisma.comment.findMany({
     where,
     orderBy: { lastActivityAt: "desc" },
-    take: limit * 3,
+    take: Math.max(limit * 3, TRENDING_CANDIDATE_WINDOW),
     include: { user: TOP_AUTHOR },
   });
+  const now = new Date();
   const ranked = toTrendingRows(
     rows.map((r) => ({
       id: r.id,
       recentActivityCount: r.recentActivityCount,
       likeCount: r.likeCount,
       createdAt: r.createdAt,
-    }))
+      // A root's own creation is its first activity (lastActivityAt is null until
+      // a reply lands), so fall back to createdAt for the recency decay.
+      lastActivityAt: r.lastActivityAt ?? r.createdAt,
+    })),
+    now
   ).slice(0, limit);
   const byId = new Map(rows.map((r) => [r.id, r]));
   return ranked.flatMap((t) => {

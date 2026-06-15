@@ -1379,8 +1379,8 @@ model Comment {
   aiLabels           Json?         @map("ai_labels")
   likeCount          Int           @default(0) @map("like_count") // atomic increments only
   replyCount          Int           @default(0) @map("reply_count") // denorm: published replies (roots only meaningful)
-  recentActivityCount Int           @default(0) @map("recent_activity_count") // rolling Trending signal; bumped on write, decayed by recompute
-  lastActivityAt      DateTime?     @map("last_activity_at") // newest published descendant or self
+  recentActivityCount Int           @default(0) @map("recent_activity_count") // cumulative engagement counter (atomic bump on each published reply). NOT decayed in-column; rolling Trending is achieved at read time via recency decay over lastActivityAt (services/discussion/trending.ts). No cron.
+  lastActivityAt      DateTime?     @map("last_activity_at") // newest published descendant or self; drives the read-time Trending recency decay
   editedAt           DateTime?     @map("edited_at")
   createdAt          DateTime      @default(now()) @map("created_at")
 
