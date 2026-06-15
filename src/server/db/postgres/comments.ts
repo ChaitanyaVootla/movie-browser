@@ -11,6 +11,8 @@ import {
 } from "@/server/services/discussion/spoiler-gate";
 import { getExcludedAuthorIds } from "./blocks";
 import { getMediaPath } from "@/lib/utils";
+import { getUnfurlsByHashes } from "./social/link-unfurls";
+import { extractFirstLink, urlHash } from "@/server/services/discussion/url-normalize";
 
 // ---------------------------------------------------------------------------
 // DTOs (serializable across the server-action boundary — dates as ISO strings)
@@ -21,6 +23,19 @@ export interface CommentAuthorDto {
   username: string | null;
   name: string | null;
   image: string | null;
+}
+
+/** The card shape carried on a rendered comment (no urlHash — render-only). */
+export interface LinkCardLite {
+  url: string;
+  domain: string;
+  status: "OK" | "FAILED";
+  provider: "GENERIC" | "YOUTUBE";
+  title: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  faviconUrl: string | null;
+  youtubeId: string | null;
 }
 
 export interface CommentAttachment {
@@ -53,6 +68,7 @@ export interface CommentDto {
   attachment: CommentAttachment | null;
   viewerLiked: boolean;
   entityMentions: EntityMentionRef[];
+  linkCard: LinkCardLite | null;
 }
 
 export interface CommentThreadDto extends CommentDto {
@@ -127,6 +143,7 @@ export function toCommentDto(row: CommentRow, viewerLikedIds?: Set<number>): Com
     attachment,
     viewerLiked: viewerLikedIds ? viewerLikedIds.has(row.id) : false,
     entityMentions,
+    linkCard: null, // hydrated separately via attachLinkCards (no per-row query)
   };
 }
 
@@ -357,6 +374,62 @@ export async function getLockedCommentCount(anchor: DiscussionAnchor): Promise<n
 /** Published-comment total for JSON-LD commentCount. */
 export async function getPublishedCommentCount(anchor: DiscussionAnchor): Promise<number> {
   return prisma.comment.count({ where: { AND: [anchorWhere(anchor), PUBLIC_COMMENTS_WHERE] } });
+}
+
+// ---------------------------------------------------------------------------
+// Link card hydration (no-network join from cached unfurl table)
+// ---------------------------------------------------------------------------
+
+/**
+ * Attach a cached link card to each comment whose FIRST link has a cached
+ * unfurl. PURE — reads only the provided map (built once per page). NEVER fetches
+ * on the render path (edge-cache + perf invariant). Comments without a cached row
+ * keep `linkCard: null` and render a plain anchor.
+ */
+export function attachLinkCards<T extends CommentDto>(
+  comments: T[],
+  cardsByUrl: Map<string, LinkCardLite>
+): T[] {
+  return comments.map((c) => {
+    if (c.status !== "PUBLISHED") return c;
+    const link = extractFirstLink(c.body);
+    if (!link) return c;
+    const card = cardsByUrl.get(link);
+    return card ? { ...c, linkCard: card } : c;
+  });
+}
+
+/**
+ * Build the URL→card map for a set of comment bodies (roots + replies). One
+ * batched query against the unfurl cache; returns only OK rows (FAILED rows
+ * render as plain anchors anyway).
+ */
+export async function buildLinkCardMap(bodies: string[]): Promise<Map<string, LinkCardLite>> {
+  const urls = new Map<string, string>(); // normalized url → urlHash
+  for (const body of bodies) {
+    const link = extractFirstLink(body);
+    if (link) urls.set(link, urlHash(link));
+  }
+  if (urls.size === 0) return new Map();
+  const byHash = await getUnfurlsByHashes([...urls.values()]);
+  const result = new Map<string, LinkCardLite>();
+  for (const [url, hash] of urls) {
+    const dto = byHash.get(hash);
+    if (dto && dto.status === "OK") {
+      result.set(url, {
+        url: dto.url,
+        domain: dto.domain,
+        status: dto.status,
+        provider: dto.provider,
+        title: dto.title,
+        description: dto.description,
+        imageUrl: dto.imageUrl,
+        faviconUrl: dto.faviconUrl,
+        youtubeId: dto.youtubeId,
+      });
+    }
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------

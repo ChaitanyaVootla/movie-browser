@@ -7,7 +7,7 @@ const dto = (over: Partial<CommentDto>): CommentDto => ({
   id: 1, parentId: null, body: "", spoilerScope: "NONE", scopeSeason: null, scopeEpisode: null,
   status: "PUBLISHED", likeCount: 0, createdAt: "2026-06-15T00:00:00Z", editedAt: null,
   author: { id: 1, username: "ada", name: "Ada", image: null }, attachment: null,
-  viewerLiked: false, entityMentions: [], ...over,
+  viewerLiked: false, entityMentions: [], linkCard: null, ...over,
 });
 
 describe("CommentBody", () => {
