@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { MentionListHandle } from "./mention-suggestion-list";
 
@@ -23,24 +23,27 @@ interface EmojiListProps {
  */
 export const EmojiSuggestionListView = forwardRef<MentionListHandle, EmojiListProps>(
   function EmojiSuggestionListView({ items, command }, ref) {
-    const [active, setActive] = useState(0);
-
-    useEffect(() => {
-      setActive((i) => (items.length === 0 ? 0 : Math.min(i, items.length - 1)));
-    }, [items]);
+    // Track the highlight by emoji name (see MentionSuggestionList for the rationale).
+    const [activeName, setActiveName] = useState<string | null>(null);
+    const activeIndex = Math.max(0, items.findIndex((i) => i.name === activeName));
+    const move = (delta: number) => {
+      if (!items.length) return;
+      const next = (activeIndex + delta + items.length) % items.length;
+      setActiveName(items[next].name);
+    };
 
     useImperativeHandle(ref, () => ({
       onKeyDown: (event: KeyboardEvent) => {
         if (event.key === "ArrowDown") {
-          if (items.length) setActive((i) => (i + 1) % items.length);
+          move(1);
           return true;
         }
         if (event.key === "ArrowUp") {
-          if (items.length) setActive((i) => (i - 1 + items.length) % items.length);
+          move(-1);
           return true;
         }
         if (event.key === "Enter" || event.key === "Tab") {
-          const item = items[active];
+          const item = items[activeIndex];
           if (item) {
             command(item);
             return true;
@@ -71,13 +74,13 @@ export const EmojiSuggestionListView = forwardRef<MentionListHandle, EmojiListPr
             key={item.name}
             type="button"
             role="option"
-            aria-selected={index === active}
+            aria-selected={index === activeIndex}
             className={cn(
               "flex w-full items-center gap-2.5 px-3 text-left min-h-[40px] transition-colors",
               "hover:bg-accent focus:bg-accent focus:outline-none",
-              index === active && "bg-accent"
+              index === activeIndex && "bg-accent"
             )}
-            onMouseEnter={() => setActive(index)}
+            onMouseEnter={() => setActiveName(item.name)}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => command(item)}
           >

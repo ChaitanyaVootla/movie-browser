@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -44,25 +44,28 @@ interface MentionListProps {
  */
 export const MentionSuggestionList = forwardRef<MentionListHandle, MentionListProps>(
   function MentionSuggestionList({ items, loading, command }, ref) {
-    const [active, setActive] = useState(0);
-
-    // Reset/clamp the highlight whenever the result set changes.
-    useEffect(() => {
-      setActive((i) => (items.length === 0 ? 0 : Math.min(i, items.length - 1)));
-    }, [items]);
+    // Track the highlight by item KEY (not index): when the result set changes the
+    // key usually vanishes, so we fall back to the top — a reset with no effect/ref.
+    const [activeKey, setActiveKey] = useState<string | null>(null);
+    const activeIndex = Math.max(0, items.findIndex((i) => i.key === activeKey));
+    const move = (delta: number) => {
+      if (!items.length) return;
+      const next = (activeIndex + delta + items.length) % items.length;
+      setActiveKey(items[next].key);
+    };
 
     useImperativeHandle(ref, () => ({
       onKeyDown: (event: KeyboardEvent) => {
         if (event.key === "ArrowDown") {
-          if (items.length) setActive((i) => (i + 1) % items.length);
+          move(1);
           return true;
         }
         if (event.key === "ArrowUp") {
-          if (items.length) setActive((i) => (i - 1 + items.length) % items.length);
+          move(-1);
           return true;
         }
         if (event.key === "Enter" || event.key === "Tab") {
-          const item = items[active];
+          const item = items[activeIndex];
           if (item) {
             command(item);
             return true;
@@ -90,7 +93,6 @@ export const MentionSuggestionList = forwardRef<MentionListHandle, MentionListPr
       );
     }
 
-    let lastSection: MentionSection | null = null;
     return (
       <div
         className="w-72 max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto rounded-lg border border-border bg-background py-1 shadow-lg"
@@ -98,8 +100,8 @@ export const MentionSuggestionList = forwardRef<MentionListHandle, MentionListPr
         aria-label="Mention suggestions"
       >
         {items.map((item, index) => {
-          const heading = item.section !== lastSection ? item.section : null;
-          lastSection = item.section;
+          // Show the section heading before the first item of each section.
+          const heading = items[index - 1]?.section !== item.section ? item.section : null;
           const isPerson = item.attrs.kind === "person" || item.attrs.kind === "user";
           return (
             <div key={item.key}>
@@ -111,13 +113,13 @@ export const MentionSuggestionList = forwardRef<MentionListHandle, MentionListPr
               <button
                 type="button"
                 role="option"
-                aria-selected={index === active}
+                aria-selected={index === activeIndex}
                 className={cn(
                   "flex w-full items-center gap-2.5 px-3 text-left min-h-[40px] transition-colors",
                   "hover:bg-accent focus:bg-accent focus:outline-none",
-                  index === active && "bg-accent"
+                  index === activeIndex && "bg-accent"
                 )}
-                onMouseEnter={() => setActive(index)}
+                onMouseEnter={() => setActiveKey(item.key)}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => command(item)}
               >
