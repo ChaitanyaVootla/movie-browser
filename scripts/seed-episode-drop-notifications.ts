@@ -11,6 +11,7 @@
  * Usage:
  *   FORCE_RUN=1 npx tsx scripts/seed-episode-drop-notifications.ts
  */
+import { fileURLToPath } from "url";
 import { config } from "dotenv";
 config({ path: ".env.local" });
 import { prisma } from "../src/server/db/postgres";
@@ -101,7 +102,10 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+// Only run when executed directly (not when imported by tests)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
