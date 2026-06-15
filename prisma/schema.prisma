@@ -1030,6 +1030,7 @@ model User {
   blocksReceived     Block[]          @relation("blocked")
   pushSubscriptions  PushSubscription[]
   usernameHistory    UsernameHistory[]
+  commentReads       CommentRead[]
 
   @@map("users")
 }
@@ -1377,6 +1378,9 @@ model Comment {
   status             CommentStatus @default(PUBLISHED)
   aiLabels           Json?         @map("ai_labels")
   likeCount          Int           @default(0) @map("like_count") // atomic increments only
+  replyCount          Int           @default(0) @map("reply_count") // denorm: published replies (roots only meaningful)
+  recentActivityCount Int           @default(0) @map("recent_activity_count") // rolling Trending signal; bumped on write, decayed by recompute
+  lastActivityAt      DateTime?     @map("last_activity_at") // newest published descendant or self
   editedAt           DateTime?     @map("edited_at")
   createdAt          DateTime      @default(now()) @map("created_at")
 
@@ -1393,6 +1397,8 @@ model Comment {
   // circleId INSIDE the composite (public reads use circle_id IS NULL as index condition)
   @@index([movieId, circleId, status, createdAt(sort: Desc)])
   @@index([seriesId, seasonNumber, episodeNumber, circleId, status, createdAt(sort: Desc)])
+  @@index([movieId, circleId, status, lastActivityAt(sort: Desc)], map: "idx_comments_movie_trending")
+  @@index([seriesId, seasonNumber, episodeNumber, circleId, status, lastActivityAt(sort: Desc)], map: "idx_comments_series_trending")
   @@index([parentId])
   @@index([listId])
   @@index([circleId])
@@ -1413,6 +1419,24 @@ model Reaction {
   @@unique([userId, commentId])
   @@index([commentId]) // standalone: the unique leading with userId does not cover cascade scans
   @@map("reactions")
+}
+
+// Per-(user, anchor) read cursor powering "N new since you watched" (spec §4).
+// anchorKey is the string form from comment-schemas.anchorKey() — natural-key
+// safe (no FK to episodes/seasons). NOT in the audit opt-in set (a read cursor
+// is not human-meaningful history).
+model CommentRead {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  anchorKey  String   @map("anchor_key") // "movie:603" | "series:1396:s2e5" | ...
+  lastSeenAt DateTime @map("last_seen_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, anchorKey])
+  @@index([userId])
+  @@map("comment_reads")
 }
 
 // Phase-2 anchor, designed now. Four Favorites = List(kind: FOUR_FAVORITES).
