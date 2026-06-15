@@ -1418,6 +1418,8 @@ model Comment {
   @@index([attachmentMovieId])
   @@index([attachmentSeriesId])
   @@index([attachmentPersonId])
+  // Hub "New" cross-catalog sort: (circleId,status,spoilerScope,parentId) filter + createdAt DESC scan
+  @@index([circleId, status, spoilerScope, parentId, createdAt(sort: Desc)], map: "idx_comments_hub_new")
   @@map("comments")
 }
 
