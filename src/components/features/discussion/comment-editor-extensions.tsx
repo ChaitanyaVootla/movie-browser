@@ -186,6 +186,20 @@ export function buildMentionExtension(anchor: DiscussionAnchor) {
         const res = await searchMentionEntities({ query: query.trim(), anchor });
         return flattenMentionResults(res);
       },
+      // The default Mention command spreads the WHOLE selected item as node attrs,
+      // which would nest our kind/season/episode under `.attrs`. Write the chip's
+      // declared attrs explicitly so the node carries {kind,id,label,...} flat.
+      command: ({ editor, range, props }) => {
+        const item = props as unknown as MentionSuggestionItem;
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(range, [
+            { type: "mention", attrs: { ...item.attrs } },
+            { type: "text", text: " " },
+          ])
+          .run();
+      },
       render: makeSuggestionRender<MentionSuggestionItem>(MentionSuggestionList, { loading: false }),
     },
   });
