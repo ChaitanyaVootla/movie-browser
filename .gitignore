@@ -109,3 +109,6 @@ data-dumps
 # Brainstorming visual companion
 .superpowers/
 .worktrees/
+
+# moved-aside next build caches (do not let Tailwind v4 content-scan them)
+.next.stale*

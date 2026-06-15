@@ -15,33 +15,28 @@ import {
 import { getPublicTrendingRoots, getPublicLatestRoots } from "@/server/db/postgres/comments-trending";
 import { TrendingCommentList } from "@/components/features/discussion/trending-comment-list";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
-import { parseSeriesDiscussionsId } from "./parse";
+import { parseSeriesDiscussions } from "./discussions-parse";
 
-// ISR — anon/activity-first surface; viewer-gated tier hydrates elsewhere.
-export const revalidate = 3600;
-export async function generateStaticParams(): Promise<{ params: string[] }[]> {
-  return [];
-}
-
-interface PageProps {
-  params: Promise<{ params: string[] }>;
-}
+// Re-export so the catch-all `page.tsx` imports parse + render + metadata from
+// one module. The pure parse helper lives in `./discussions-parse` (no server
+// imports) so it is unit-testable in isolation.
+export { parseSeriesDiscussions };
 
 async function getSeriesLite(id: number) {
-  return prisma.series.findUnique({ where: { id }, select: { id: true, name: true, firstAirDate: true } });
+  return prisma.series.findUnique({
+    where: { id },
+    select: { id: true, name: true, firstAirDate: true },
+  });
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { params: routeParams } = await params;
-  const id = parseSeriesDiscussionsId(routeParams);
-  if (id === null) return { title: "Discussion Not Found" };
-  const series = await getSeriesLite(id);
+export async function generateSeriesDiscussionsMetadata(seriesId: number): Promise<Metadata> {
+  const series = await getSeriesLite(seriesId);
   if (!series) return { title: "Discussion Not Found" };
   const title = `${series.name} Discussion | ${SITE_NAME}`;
   const canonical = `${SITE_URL}${getMediaPath("series", series.id, series.name)}/discussions`;
   const description = truncateAtWord(
     `Spoiler-safe discussion of ${series.name} — all seasons and episodes. Comments unlock with your watch progress. Threads never archive.`,
-    160
+    160,
   );
   return {
     title: { absolute: title },
@@ -52,11 +47,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function SeriesDiscussionsPage({ params }: PageProps) {
-  const { params: routeParams } = await params;
-  const id = parseSeriesDiscussionsId(routeParams);
-  if (id === null) notFound();
-  const series = await getSeriesLite(id);
+export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) {
+  const series = await getSeriesLite(seriesId);
   if (!series) notFound();
 
   // Series-ROOT anchor (All scope). Season/Episode scope filters navigate to the

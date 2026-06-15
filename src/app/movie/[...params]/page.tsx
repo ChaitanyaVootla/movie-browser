@@ -65,6 +65,11 @@ import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { ReviewsSection } from "@/components/features/reviews";
 import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
+import {
+  parseMovieDiscussions,
+  generateMovieDiscussionsMetadata,
+  MovieDiscussionsView,
+} from "./discussions-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Collection, Movie } from "@/types";
@@ -91,6 +96,12 @@ interface MoviePageProps {
 // Generate SEO metadata
 export async function generateMetadata({ params }: MoviePageProps): Promise<Metadata> {
   const { params: routeParams } = await params;
+
+  // Dedicated discussions page (rides this catch-all — Next.js forbids a static
+  // `discussions` segment after [...params]). Branch before detail-page logic.
+  const discussionsMovieId = parseMovieDiscussions(routeParams);
+  if (discussionsMovieId !== null) return generateMovieDiscussionsMetadata(discussionsMovieId);
+
   const movieId = routeParams[0];
   const id = parseInt(movieId, 10);
 
@@ -678,6 +689,11 @@ async function CollectionAsync({
 
 export default async function MoviePage({ params, searchParams }: MoviePageProps) {
   const { params: routeParams } = await params;
+
+  // Dedicated discussions page branch (same catch-all, no dynamic APIs).
+  const discussionsMovieId = parseMovieDiscussions(routeParams);
+  if (discussionsMovieId !== null) return <MovieDiscussionsView movieId={discussionsMovieId} />;
+
   const movieId = routeParams[0];
   const id = parseInt(movieId, 10);
 

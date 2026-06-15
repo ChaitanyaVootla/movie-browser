@@ -72,6 +72,11 @@ import {
   generateDiscussMetadata,
   parseDiscussParams,
 } from "./discuss-page";
+import {
+  parseSeriesDiscussions,
+  generateSeriesDiscussionsMetadata,
+  SeriesDiscussionsView,
+} from "./discussions-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
@@ -104,6 +109,10 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
   // forbids a sibling [seriesId] segment). Branch before the detail-page logic.
   const discuss = parseDiscussParams(routeParams);
   if (discuss) return generateDiscussMetadata(discuss);
+
+  // Dedicated series discussions index page (trailing `discussions` segment).
+  const discussionsSeriesId = parseSeriesDiscussions(routeParams);
+  if (discussionsSeriesId !== null) return generateSeriesDiscussionsMetadata(discussionsSeriesId);
 
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
@@ -694,6 +703,10 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
   // Per-episode discussion branch (Task 13) — same catch-all, no dynamic APIs.
   const discuss = parseDiscussParams(routeParams);
   if (discuss) return <EpisodeDiscussPage params={discuss} />;
+
+  // Dedicated series discussions index page branch (trailing `discussions`).
+  const discussionsSeriesId = parseSeriesDiscussions(routeParams);
+  if (discussionsSeriesId !== null) return <SeriesDiscussionsView seriesId={discussionsSeriesId} />;
 
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);

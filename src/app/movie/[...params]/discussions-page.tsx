@@ -14,33 +14,28 @@ import {
 } from "@/server/db/postgres/comments";
 import { CommentListClient } from "@/components/features/discussion/comment-list-client";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
-import { parseDiscussionsParams } from "./parse";
+import { parseMovieDiscussions } from "./discussions-parse";
 
-// ISR — user-agnostic; viewer state hydrates client-side (spec invariant 1).
-export const revalidate = 3600;
-export async function generateStaticParams(): Promise<{ params: string[] }[]> {
-  return [];
-}
-
-interface PageProps {
-  params: Promise<{ params: string[] }>;
-}
+// Re-export so the catch-all `page.tsx` imports parse + render + metadata from
+// one module. The pure parse helper lives in `./discussions-parse` (no server
+// imports) so it is unit-testable in isolation.
+export { parseMovieDiscussions };
 
 async function getMovieLite(id: number) {
-  return prisma.movie.findUnique({ where: { id }, select: { id: true, title: true, releaseDate: true } });
+  return prisma.movie.findUnique({
+    where: { id },
+    select: { id: true, title: true, releaseDate: true },
+  });
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { params: routeParams } = await params;
-  const id = parseDiscussionsParams(routeParams);
-  if (id === null) return { title: "Discussion Not Found" };
-  const movie = await getMovieLite(id);
+export async function generateMovieDiscussionsMetadata(movieId: number): Promise<Metadata> {
+  const movie = await getMovieLite(movieId);
   if (!movie) return { title: "Discussion Not Found" };
   const title = `${movie.title} Discussion | ${SITE_NAME}`;
   const canonical = `${SITE_URL}${getMediaPath("movie", movie.id, movie.title)}/discussions`;
   const description = truncateAtWord(
     `Join the spoiler-safe discussion of ${movie.title}. Threads never archive.`,
-    160
+    160,
   );
   return {
     title: { absolute: title },
@@ -51,11 +46,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function MovieDiscussionsPage({ params }: PageProps) {
-  const { params: routeParams } = await params;
-  const id = parseDiscussionsParams(routeParams);
-  if (id === null) notFound();
-  const movie = await getMovieLite(id);
+export async function MovieDiscussionsView({ movieId }: { movieId: number }) {
+  const movie = await getMovieLite(movieId);
   if (!movie) notFound();
 
   const anchor: DiscussionAnchor = { type: "movie", movieId: movie.id };
