@@ -248,20 +248,22 @@ export function ReviewsClient({
         </div>
       )}
 
-      <RatingHistogram histogram={histogram} />
-
       <Tabs value={tab} onValueChange={handleTabChange} className="gap-4">
-        <TabsList className="h-11 w-full max-w-sm">
-          <TabsTrigger value="popular" className="min-h-10">
-            Popular
-          </TabsTrigger>
-          <TabsTrigger value="recent" className="min-h-10">
-            Recent
-          </TabsTrigger>
-          <TabsTrigger value="following" className="min-h-10">
-            Following
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center gap-3">
+          <TabsList className="h-11 w-full max-w-sm sm:w-auto">
+            <TabsTrigger value="popular" className="min-h-10">
+              Popular
+            </TabsTrigger>
+            <TabsTrigger value="recent" className="min-h-10">
+              Recent
+            </TabsTrigger>
+            <TabsTrigger value="following" className="min-h-10">
+              Following
+            </TabsTrigger>
+          </TabsList>
+          {/* Compact rating summary, beside the tabs (right on sm+, wraps below on mobile). */}
+          <RatingHistogram histogram={histogram} className="sm:ml-auto" />
+        </div>
 
       {(["popular", "recent", "following"] as const).map((sort) => {
         const state = tabs[sort];
