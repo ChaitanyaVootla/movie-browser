@@ -698,6 +698,18 @@ body {
   pointer-events: none;
 }
 
+/* Inline-spoiler mark inside the editor (SpoilerMark → <span class="rich-spoiler">).
+   Visibly distinct while authoring — muted chip with a light blur — so the writer
+   sees what they've marked. Serializes to the [spoiler]…[/spoiler] body token; the
+   READ-ONLY renderer (rich-text-body.tsx) draws its own tap-to-reveal control, so
+   this style is editor-only. Uses semantic tokens; no hardcoded color. */
+.rich-spoiler {
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+  background-color: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  filter: blur(0.4px);
+}
+
 /* ========================================
    VIEW TRANSITIONS — detail ↔ discussions shared-element morph
    ========================================

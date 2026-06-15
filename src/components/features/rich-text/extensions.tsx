@@ -2,6 +2,7 @@
 
 import { ReactRenderer, ReactNodeViewRenderer } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
+import { Mark, mergeAttributes } from "@tiptap/core";
 import Mention from "@tiptap/extension-mention";
 import { Emoji, gitHubEmojis } from "@tiptap/extension-emoji";
 import type { SuggestionOptions, SuggestionProps, SuggestionKeyDownProps } from "@tiptap/suggestion";
@@ -18,6 +19,43 @@ import {
 import { EmojiSuggestionListView, type EmojiSuggestion } from "./emoji-suggestion-list";
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    spoiler: {
+      /** Toggle the inline-spoiler mark on the current selection. */
+      toggleSpoiler: () => ReturnType;
+    };
+  }
+}
+
+/**
+ * Inline-spoiler mark. Renders selected text as a visibly-distinct
+ * `<span class="rich-spoiler">` in the editor (muted + blurred, see globals.css
+ * `.rich-spoiler`) and serializes — via serialize.ts — to the canonical
+ * `[spoiler]…[/spoiler]` body token the read-only renderer parses as a
+ * tap-to-reveal span. No new dependency: built with `Mark.create` from
+ * `@tiptap/core` (already installed).
+ */
+export const SpoilerMark = Mark.create({
+  name: "spoiler",
+  // Inclusive so typing at the boundary keeps applying the mark, like bold.
+  inclusive: true,
+  parseHTML() {
+    return [{ tag: "span.rich-spoiler" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["span", mergeAttributes(HTMLAttributes, { class: "rich-spoiler" }), 0];
+  },
+  addCommands() {
+    return {
+      toggleSpoiler:
+        () =>
+        ({ commands }) =>
+          commands.toggleMark(this.name),
+    };
+  },
+});
 
 /** Flatten the sectioned search DTO into the ordered suggestion item list. */
 export function flattenMentionResults(results: MentionSearchResultDto | null): MentionSuggestionItem[] {

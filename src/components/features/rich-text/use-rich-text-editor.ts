@@ -4,7 +4,7 @@ import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import type { MediaAnchor } from "@/types/social";
-import { buildMentionExtension, CommentEmojiExtension } from "./extensions";
+import { buildMentionExtension, CommentEmojiExtension, SpoilerMark } from "./extensions";
 
 interface UseRichTextEditorArgs {
   anchor: MediaAnchor;
@@ -36,6 +36,7 @@ export function useRichTextEditor({ anchor, placeholder, seedText, onChange }: U
       Placeholder.configure({ placeholder }),
       buildMentionExtension(anchor),
       CommentEmojiExtension,
+      SpoilerMark,
     ],
     content: seedText ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: seedText }] }] } : undefined,
     editorProps: {

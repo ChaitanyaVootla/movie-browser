@@ -27,6 +27,7 @@ describe("CommentComposer (Tiptap)", () => {
     expect(document.querySelector(".ProseMirror")).toBeTruthy();
     expect(screen.getByRole("button", { name: /add image/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /add emoji/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /mark as spoiler/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^post$/i })).toBeInTheDocument();
   });
 

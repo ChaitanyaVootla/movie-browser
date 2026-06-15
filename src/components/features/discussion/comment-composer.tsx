@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { EditorContent } from "@tiptap/react";
 import { toast } from "sonner";
-import { ImageIcon, Sparkles, X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,7 +23,7 @@ import {
   type EditorJSONNode,
   resolveEmojiUnicode,
   insertEmojiByName,
-  EmojiPicker,
+  RichTextToolbar,
 } from "@/components/features/rich-text";
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
@@ -202,8 +202,14 @@ export function CommentComposer({
           </div>
         </div>
       ) : (
-        // Toolbar row: scope · Add image · Emoji · spacer · Cancel · Post
-        <div className="flex items-center gap-2 flex-wrap">
+        // Toolbar row: scope · Add image · Emoji · Spoiler · spacer · Cancel · Post
+        <RichTextToolbar
+          editor={editor}
+          showImage
+          showSpoiler
+          onAddImage={() => setImagePickerOpen(true)}
+          onPickEmoji={(name) => editor && insertEmojiByName(editor, name)}
+        >
           <Select value={scope} onValueChange={(v) => setScope(v as SpoilerScopeValue)}>
             <SelectTrigger className="w-auto min-w-36 h-10 sm:h-9 text-xs">
               <SelectValue />
@@ -221,22 +227,6 @@ export function CommentComposer({
               <SelectItem value="ENDING">Ending spoilers</SelectItem>
             </SelectContent>
           </Select>
-
-          {/* Add image button */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-10 sm:h-9 gap-1.5 text-xs text-muted-foreground"
-            onClick={() => setImagePickerOpen(true)}
-            aria-label="Add image"
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-            Add image
-          </Button>
-
-          {/* Emoji picker button */}
-          <EmojiPicker onPick={(name) => editor && insertEmojiByName(editor, name)} />
 
           <div className="flex-1" />
 
@@ -261,7 +251,7 @@ export function CommentComposer({
               {submitting ? "Posting…" : "Post"}
             </Button>
           </div>
-        </div>
+        </RichTextToolbar>
       )}
 
       {/* Image picker dialog */}
