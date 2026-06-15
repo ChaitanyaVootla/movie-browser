@@ -8,10 +8,10 @@ import { auditedTransaction } from "@/server/db/audit";
 import { gateText } from "@/server/services/moderation/gate";
 import type { GateOutput, GateStatus } from "@/server/services/moderation/gate-policy";
 import {
-  isStricterScope,
   getViewerGateContext,
   ANON_GATE_CONTEXT,
 } from "@/server/services/discussion/spoiler-gate";
+import { resolveReviewScope } from "./reviews-helpers";
 import type { MediaAnchor, SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
 import { unfurlFirstLink } from "@/server/services/discussion/unfurl";
 import {
@@ -29,51 +29,6 @@ function actionError(action: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   userApiLogger.error({ action, error: message });
   return { success: false as const, error: message };
-}
-
-// ---------------------------------------------------------------------------
-// Pure helpers (exported for the composer UI + unit tests). NO side effects.
-// ---------------------------------------------------------------------------
-
-/**
- * Half-star rating (0.5–5) → canonical 1–10 score. null/0/undefined = unrated
- * (the user abstains from scoring). Callers that already hold an integer 1–10
- * `score` should pass it straight through — this helper is only the star→score
- * conversion the composer header does.
- */
-export function starsToScore(stars: number | null | undefined): number | null {
-  return stars && stars > 0 ? Math.round(stars * 2) : null;
-}
-
-/**
- * Resolve the final spoiler scope: start from the user's chosen scope, and adopt
- * the AI-suggested scope ONLY when it is strictly stricter (never weaker — we
- * never down-grade a user who chose to over-warn). Mirrors the comment flow.
- */
-export function resolveReviewScope(
-  chosen: SpoilerScopeValue,
-  chosenSeason: number | null,
-  chosenEpisode: number | null,
-  aiSpoiler: GateOutput["spoiler"] | undefined
-): { scope: SpoilerScopeValue; season: number | null; episode: number | null } {
-  if (
-    aiSpoiler &&
-    isStricterScope(
-      aiSpoiler.scope,
-      aiSpoiler.season ?? null,
-      aiSpoiler.episode ?? null,
-      chosen,
-      chosenSeason,
-      chosenEpisode
-    )
-  ) {
-    return {
-      scope: aiSpoiler.scope,
-      season: aiSpoiler.season ?? null,
-      episode: aiSpoiler.episode ?? null,
-    };
-  }
-  return { scope: chosen, season: chosenSeason, episode: chosenEpisode };
 }
 
 // ---------------------------------------------------------------------------

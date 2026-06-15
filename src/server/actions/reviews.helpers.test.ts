@@ -1,15 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
-// The pure helpers under test do NOT touch auth/db. Mock @/lib/user-id so
-// importing the "use server" action module doesn't pull next-auth's server
-// entry (next-auth/lib/env.js imports a bare `next/server` that vitest's ESM
-// resolver can't resolve cold — mirrors the next-auth/react mock in setup).
-vi.mock("@/lib/user-id", () => ({
-  requirePgUserId: vi.fn(),
-  getUserIdForDb: vi.fn(),
-}));
-
-import { starsToScore, resolveReviewScope } from "./reviews";
+import { starsToScore, resolveReviewScope } from "./reviews-helpers";
 
 describe("starsToScore", () => {
   it("maps half-stars 0.5..5 to 1..10", () => {
