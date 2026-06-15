@@ -111,14 +111,15 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
   ]);
 
   return (
-    <PageMain className="max-w-4xl mx-auto px-3 md:px-6 lg:px-6">
+    <PageMain className="max-w-3xl mx-auto px-2.5 sm:px-4 md:px-6 lg:px-6 pt-0 md:pt-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <DiscussionPageHeader
         basePath={basePath}
+        mediaType="series"
+        mediaId={series.id}
         title={series.name}
         year={year}
-        posterPath={series.posterPath}
         publishedCount={publishedCount}
         participantCount={participantCount}
       />

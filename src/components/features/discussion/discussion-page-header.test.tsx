@@ -7,9 +7,10 @@ afterEach(cleanup);
 describe("DiscussionPageHeader", () => {
   const base = {
     basePath: "/movie/603/the-matrix",
+    mediaType: "movie" as const,
+    mediaId: 603,
     title: "The Matrix",
     year: 1999,
-    posterPath: "/poster.jpg",
     publishedCount: 12,
   };
 
@@ -21,11 +22,22 @@ describe("DiscussionPageHeader", () => {
     expect(back?.getAttribute("href")).toBe("/movie/603/the-matrix");
   });
 
-  it("prefixes the TMDB image base on the poster path", () => {
+  it("renders the deterministic CDN backdrop by media type + id", () => {
     const { container } = render(<DiscussionPageHeader {...base} />);
     const img = container.querySelector("img");
-    expect(img?.getAttribute("src")).toContain("image.tmdb.org");
-    expect(img?.getAttribute("src")).toContain("/poster.jpg");
+    expect(img?.getAttribute("src")).toBe(
+      "https://image.themoviebrowser.com/movie/603/backdrop.webp"
+    );
+  });
+
+  it("uses the series CDN path for a series anchor", () => {
+    const { container } = render(
+      <DiscussionPageHeader {...base} mediaType="series" mediaId={1396} title="Breaking Bad" />
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(
+      "https://image.themoviebrowser.com/series/1396/backdrop.webp"
+    );
   });
 
   it("pluralizes the comment count", () => {
@@ -41,11 +53,5 @@ describe("DiscussionPageHeader", () => {
     expect(screen.getByText(/3 people/)).toBeTruthy();
     rerender(<DiscussionPageHeader {...base} participantCount={0} />);
     expect(screen.queryByText(/people/)).toBeNull();
-  });
-
-  it("renders without a poster (no path) without crashing", () => {
-    const { container } = render(<DiscussionPageHeader {...base} posterPath={null} />);
-    expect(container.querySelector("img")).toBeNull();
-    expect(screen.getByText("The Matrix")).toBeTruthy();
   });
 });
