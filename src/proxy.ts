@@ -75,9 +75,9 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
         // only ever linked for episodes that exist; revisit if GSC flags it.
         const cached = getCachedSlug(parsed.mediaType, parsed.id);
         if (cached !== undefined) {
-          return applyMediaDecision(req, cached, parsed.mediaType, parsed.id, parsed.discuss);
+          return applyMediaDecision(req, cached, parsed.mediaType, parsed.id, parsed.discuss, parsed.discussions);
         }
-        return resolveAndApply(req, parsed.mediaType, parsed.id, parsed.discuss);
+        return resolveAndApply(req, parsed.mediaType, parsed.id, parsed.discuss, parsed.discussions);
       }
     } catch {
       // Resolver must never take down a route — fall through to the page.
@@ -115,11 +115,12 @@ function applyMediaDecision(
   mediaType: MediaType | null,
   id: number,
   discuss?: DiscussSuffix,
+  discussions?: boolean,
 ): NextResponse {
   const decision =
     mediaType === null
       ? ({ action: "not_found" } as const)
-      : decideMediaRoute(req.nextUrl.pathname, mediaType, id, resolved, discuss);
+      : decideMediaRoute(req.nextUrl.pathname, mediaType, id, resolved, discuss, discussions);
 
   if (decision.action === "redirect") {
     // 308 to the single canonical form, preserving the query string (the
@@ -175,10 +176,11 @@ async function resolveAndApply(
   mediaType: MediaType,
   id: number,
   discuss?: DiscussSuffix,
+  discussions?: boolean,
 ): Promise<NextResponse> {
   try {
     const resolved = await resolveMediaSlug(mediaType, id);
-    return applyMediaDecision(req, resolved, mediaType, id, discuss);
+    return applyMediaDecision(req, resolved, mediaType, id, discuss, discussions);
   } catch {
     return passThrough(req); // fail open
   }
