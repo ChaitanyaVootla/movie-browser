@@ -18,6 +18,11 @@ interface Props {
  * Viewer upgrade (spec §4): after hydration, replace the cacheable baseline with
  * "N new since you watched" when the signed-in viewer has unread visible comments.
  * Fetched via a server-action POST — never edge-cached.
+ *
+ * Layout note: the "jump to #discussion" affordance is a <button> (NOT an
+ * anchor) so the dedicated-page <Link> can sit beside it as a SIBLING — nesting
+ * one anchor inside another is invalid HTML (broken tap target + hydration
+ * warning).
  */
 export function DiscussionEntryStripClient({ anchor, baselineLabel, anchorJumpHref, dedicatedHref }: Props) {
   const [label, setLabel] = useState(baselineLabel);
@@ -37,21 +42,35 @@ export function DiscussionEntryStripClient({ anchor, baselineLabel, anchorJumpHr
     };
   }, [anchor]);
 
+  const jumpToDiscussion = () => {
+    const id = anchorJumpHref.replace(/^#/, "");
+    const target = typeof document !== "undefined" ? document.getElementById(id) : null;
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // Reflect the anchor in the URL without a full navigation.
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", anchorJumpHref);
+    }
+  };
+
   return (
-    <Link
-      href={anchorJumpHref}
-      className="group flex items-center gap-2 rounded-full border border-border bg-card/40 px-4 py-2 text-sm transition-colors hover:bg-card/70 min-h-10"
-      data-discussion-strip
-    >
-      <MessagesSquare className="h-4 w-4 text-brand shrink-0" />
-      <span className="font-medium text-foreground">{label}</span>
+    <div className="group flex items-center gap-2 rounded-full border border-border bg-card/40 px-4 py-2 text-sm transition-colors hover:bg-card/70 min-h-10">
+      <button
+        type="button"
+        onClick={jumpToDiscussion}
+        className="flex flex-1 items-center gap-2 text-left min-h-10"
+        data-discussion-strip
+      >
+        <MessagesSquare className="h-4 w-4 text-brand shrink-0" />
+        <span className="font-medium text-foreground">{label}</span>
+      </button>
       <Link
         href={dedicatedHref}
         className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        onClick={(e) => e.stopPropagation()}
       >
         View all <ArrowRight className="h-3 w-3" />
       </Link>
-    </Link>
+    </div>
   );
 }
