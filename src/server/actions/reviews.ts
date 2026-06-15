@@ -13,7 +13,6 @@ import {
 } from "@/server/services/discussion/spoiler-gate";
 import { resolveReviewScope } from "./reviews-helpers";
 import type { MediaAnchor, SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
-import { unfurlFirstLink } from "@/server/services/discussion/unfurl";
 import {
   upsertUserReview,
   deleteUserReview,
@@ -144,11 +143,9 @@ export async function upsertReview(input: z.infer<typeof UpsertReviewSchema>) {
       return row;
     });
 
-    // Fire-and-forget unfurl of the first body link (AFTER commit, only when
-    // the review is publicly visible).
-    if (!v.isPrivate && status === "PUBLISHED") {
-      void unfurlFirstLink(v.body).catch(() => {});
-    }
+    // NOTE: no link-card unfurl here — reviews have no link-card storage and
+    // the card UI is not rendered on review bodies (links render inline via the
+    // shared body renderer). Re-add an unfurl + storage if review link cards ship.
 
     return { success: true as const, reviewId: review.id, status, review };
   } catch (error: unknown) {
