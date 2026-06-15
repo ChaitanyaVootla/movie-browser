@@ -104,11 +104,29 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
   `toggleReviewLike` mirrors `toggleLike`; like→batched notify via the
   generalized `notifyLikeBatched` (`targetType: "comment"|"review"`). Display:
   ratings histogram (`getRatingHistogram` over `user_ratings`, NULL scores
-  abstain) + Popular/Recent/Following tabs + season selector (series). Pure
-  helpers (`starsToScore`, `resolveReviewScope`) live in `reviews-helpers.ts`
-  (NOT the `"use server"` `reviews.ts`). DB: `social/reviews.ts` +
-  `social/ratings.ts` (`liked`, histogram). Actions: `reviews.ts`,
-  `reviews-helpers.ts`, `review-reactions.ts`. Components: `features/reviews/*`.
+  abstain; rendered as a compact Letterboxd-style track-backed bar chart beside
+  the tabs — `rating-histogram.tsx`) + Popular/Recent/Following tabs + season
+  selector (series). Pure helpers (`starsToScore`, `resolveReviewScope`) live in
+  `reviews-helpers.ts` (NOT the `"use server"` `reviews.ts`). DB:
+  `social/reviews.ts` + `social/ratings.ts` (`liked`, histogram). Actions:
+  `reviews.ts`, `reviews-helpers.ts`, `review-reactions.ts`. Components:
+  `features/reviews/*`.
+  - **RATING-WRITE invariants (got these wrong first pass — final review caught
+    them):** (a) `setUserRating`'s delete/keep/create decision MUST factor
+    `liked` — a heart-only row (no thumb, no score) is valid and must persist;
+    clearing a score while keeping the heart must NOT delete the row (treat
+    "empty" as `thumb===null && score===null && liked!==true`). (b) `upsertReview`
+    propagates the rating (`setUserRating(score ?? null, liked ?? false)`) when
+    `hadExistingReview || score!=null || liked` — the `hadExistingReview` guard
+    is load-bearing: an unconditional always-propagate WIPES the rating of a
+    quick-rater who then writes a text-only review (the composer can't prefill a
+    rating that has no review row). Editing a review DOES clear a removed
+    score/heart. (c) The ISR-cached public profile read (`getUserReviews` from
+    `public-profile.ts`) MUST pass `noneScopeOnly:true` — it is NOT the same as
+    `getPublicReviews`; without it, whole-review-spoiler bodies leak into
+    cacheable HTML (invariant 2 break). (d) `getReviewHistogram` is wrapped in
+    try/catch → empty histogram on error (it's called in a cached RSC render;
+    an unguarded throw takes the page down).
 - **Shared rich-text editor (`src/components/features/rich-text/`)** — the
   generic Tiptap editor + read-only renderer, **extracted from the discussion
   feature 2026-06-15** so discussion AND reviews share ONE editor: `serialize.ts`
@@ -342,6 +360,28 @@ show `fetch_retry … "This operation was aborted"`.
    loading. `ecosystem.dev.config.cjs` sets **`MAX_BACKGROUND_REFRESH=0`**
    (hydration/index.ts) to disable the refresh/enrichment chain in dev. Verified
    flat ~0.1s loads across repeated navigation after this + the undici patch.
+5. **`countries` FK target unseeded → hydration upsert rolls back → titles never
+   persist (diagnosed 2026-06-15).** `watch_options.country_code` FKs to
+   `countries(code)`; hydration's `upsertWatchProviders` inserts TMDB
+   watch-provider region codes assuming `countries` is fully populated. A fresh
+   dev DB only had ~7 codes → `watch_options_country_code_fkey` violation aborts
+   the ENTIRE upsert transaction → the movie/series row is never written → every
+   visit stays a PG miss and the slug resolver leans on its 2s TMDB existence
+   check (intermittent `/discussions` 404s; `[Hydration/Postgres] Error upserting`
+   log spam). **Fix: seed `countries` — `scripts/seed-countries.ts` (idempotent,
+   :5436-guarded, country-list pkg + XK/TW/SU), wired as step 0 of
+   `seed-social-demo.ts`.** Prod is fine (seeded by `prisma/seed.ts`
+   `yarn db:seed --ref`) but that seed is NOT in the deploy pipeline — a latent
+   gap for any fresh env that skips it.
+6. **`MAX_BACKGROUND_REFRESH=0` also no-ops the miss-path PERSIST (not just
+   refresh).** A true PG miss returns TMDB data but persists via
+   `backgroundRefreshMovie/Series`, which the dev `=0` guard skips — so browsing
+   a title in dev rendered it but NEVER added it to the local catalog (compounds
+   footgun 5's 404s). **Fix (`hydration/index.ts` `persistOnMissInDev`): when
+   `MAX_BACKGROUND_REFRESH===0 && NODE_ENV!=="production"`, the miss path fires a
+   TMDB-only (NO enrichment/Lambda/SSE — those are the pile-up) fire-and-forget
+   upsert, so dev visits populate PG.** Prod (cap>0) + tests (cap defaults to 3)
+   are inert. Now any browsed title persists → resolver PG-hits → 404s gone.
 
 - `seed-social-demo.ts` is idempotent and **refuses to run unless `DATABASE_URL`
   contains `5436`**. It seeds 3 demo users (`cinephile_ada`, `binge_bea`,
