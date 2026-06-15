@@ -232,13 +232,24 @@ export async function getVisibleReviews(opts: VisibleReviewsOptions) {
 
 export async function getUserReviews(
   userId: number,
-  opts: { includePrivate: boolean; cursorId?: number; limit?: number }
+  opts: {
+    includePrivate: boolean;
+    cursorId?: number;
+    limit?: number;
+    /**
+     * Restrict to spoilerScope NONE. REQUIRED for any ISR-cached surface (the
+     * public profile): a non-NONE review body must never bake into anon-cacheable
+     * HTML (HARD INVARIANT 2). Omit only for owner-private / non-cached reads.
+     */
+    noneScopeOnly?: boolean;
+  }
 ) {
   const limit = Math.min(opts.limit ?? 20, 50);
   const rows = await prisma.userReview.findMany({
     where: {
       userId,
       ...(opts.includePrivate ? {} : { isPrivate: false, status: "PUBLISHED" }),
+      ...(opts.noneScopeOnly ? { spoilerScope: "NONE" } : {}),
       ...(opts.cursorId ? { id: { lt: opts.cursorId } } : {}),
     },
     orderBy: { id: "desc" },

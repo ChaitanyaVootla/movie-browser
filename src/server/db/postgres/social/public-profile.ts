@@ -84,7 +84,10 @@ export async function getPublicProfileByUsername(
       getUserStatsSnapshot(user.id),
       getFourFavorites(user.id),
       getFollowCounts(user.id),
-      getUserReviews(user.id, { includePrivate: false, limit: 6 }),
+      // ISR-cached surface: NONE-scope only — non-NONE bodies must not bake into
+      // the anon-cacheable profile HTML (HARD INVARIANT 2). Spoiler reviews can
+      // be a documented fast-follow to a client-loaded section.
+      getUserReviews(user.id, { includePrivate: false, noneScopeOnly: true, limit: 6 }),
       getProgressShelf(user.id, ["WATCHING", "REWATCHING"], 6),
       prisma.list.findMany({
         where: { ownerId: user.id, isPinned: true, isPublic: true, kind: "REGULAR" },
