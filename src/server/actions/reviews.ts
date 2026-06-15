@@ -1,23 +1,29 @@
 "use server";
 
 import { z } from "zod";
-import { requirePgUserId } from "@/lib/user-id";
+import { requirePgUserId, getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 import { prisma } from "@/server/db/postgres";
 import { auditedTransaction } from "@/server/db/audit";
 import { gateText } from "@/server/services/moderation/gate";
 import type { GateOutput, GateStatus } from "@/server/services/moderation/gate-policy";
-import { isStricterScope } from "@/server/services/discussion/spoiler-gate";
-import type { SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
+import {
+  isStricterScope,
+  getViewerGateContext,
+  ANON_GATE_CONTEXT,
+} from "@/server/services/discussion/spoiler-gate";
+import type { MediaAnchor, SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
 import { unfurlFirstLink } from "@/server/services/discussion/unfurl";
 import {
   upsertUserReview,
   deleteUserReview,
   getOwnReview as getOwnReviewQuery,
   getPublicReviews as getPublicReviewsQuery,
+  getVisibleReviews,
   type ReviewImageData,
 } from "@/server/db/postgres/social/reviews";
-import { setUserRating } from "@/server/db/postgres/social/ratings";
+import { setUserRating, getRatingHistogram, type RatingHistogram } from "@/server/db/postgres/social/ratings";
+import { listFollowing } from "@/server/db/postgres/social/follows";
 
 function actionError(action: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -440,4 +446,113 @@ export async function getOwnReview(input: {
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// loadReviews — progress-gated reader (POST, never edge-cached). Mirrors
+// loadComments: anon callers fall back to the NONE tier via ANON_GATE_CONTEXT.
+// ---------------------------------------------------------------------------
+
+const LoadReviewsSchema = z.object({
+  mediaType: z.enum(["movie", "series"]),
+  tmdbId: z.number().int().positive(),
+  seasonNumber: z.number().int().min(0).optional(),
+  sort: z.enum(["popular", "recent", "following"]),
+  cursorId: z.number().int().positive().optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+});
+
+export type LoadReviewsResult =
+  | { ok: true; reviews: ReviewDTO[]; nextCursorId: number | null }
+  | { ok: false; error: string };
+
+export async function loadReviews(
+  input: z.infer<typeof LoadReviewsSchema>
+): Promise<LoadReviewsResult> {
+  try {
+    const v = LoadReviewsSchema.parse(input);
+    const userId = await getUserIdForDb(); // null for anon — never throws
+    const isMovie = v.mediaType === "movie";
+    const seasonNumber = v.seasonNumber ?? null;
+
+    const anchor: MediaAnchor = isMovie
+      ? { type: "movie", movieId: v.tmdbId }
+      : { type: "series", seriesId: v.tmdbId, seasonNumber, episodeNumber: null };
+    const gate = userId ? await getViewerGateContext(userId, anchor) : ANON_GATE_CONTEXT;
+
+    // Following: scope to the viewer's follows. Anon / no-follows → empty page.
+    let followingIds: number[] | null = null;
+    if (v.sort === "following") {
+      if (!userId) return { ok: true, reviews: [], nextCursorId: null };
+      const follows = await listFollowing(userId, userId, { limit: 100 });
+      followingIds = follows.users.map((u) => u.id);
+      if (followingIds.length === 0) return { ok: true, reviews: [], nextCursorId: null };
+    }
+
+    const page = await getVisibleReviews({
+      ...(isMovie ? { movieId: v.tmdbId } : { seriesId: v.tmdbId, seasonNumber }),
+      viewerId: userId,
+      gate,
+      anchorKind: isMovie ? "movie" : "series",
+      sort: v.sort === "following" ? "recent" : v.sort,
+      cursorId: v.cursorId,
+      limit: v.limit,
+    });
+
+    // Following: residual author filter (kept out of the DB helper to keep its
+    // signature anchor-only; the follow set is bounded at 100).
+    const rows =
+      followingIds !== null
+        ? page.reviews.filter((r) => r.userId !== null && followingIds!.includes(r.userId))
+        : page.reviews;
+
+    const scoreByUser = await scoresForAuthors(rows, v.mediaType, v.tmdbId, seasonNumber);
+    const reviewIds = rows.map((r) => r.id);
+    const likedByViewer =
+      userId && reviewIds.length > 0
+        ? new Set(
+            (
+              await prisma.reaction.findMany({
+                where: { userId, reviewId: { in: reviewIds } },
+                select: { reviewId: true },
+              })
+            ).flatMap((x) => (x.reviewId === null ? [] : [x.reviewId]))
+          )
+        : new Set<number>();
+
+    const reviews = rows.map((r) =>
+      toReviewDTO(r, r.user, {
+        score: r.userId !== null ? scoreByUser.get(r.userId)?.score ?? null : null,
+        liked: r.userId !== null ? scoreByUser.get(r.userId)?.liked ?? false : false,
+        likedByViewer: likedByViewer.has(r.id),
+      })
+    );
+
+    // When the Following residual filter trimmed the page, the helper's cursor
+    // (keyset on raw rows) is still valid — it points at the last raw row id.
+    return { ok: true, reviews, nextCursorId: page.nextCursorId };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getReviewHistogram — 1..10 score distribution for the title unit.
+// ---------------------------------------------------------------------------
+
+const ReviewHistogramSchema = z.object({
+  mediaType: z.enum(["movie", "series"]),
+  tmdbId: z.number().int().positive(),
+  seasonNumber: z.number().int().min(0).optional(),
+});
+
+export async function getReviewHistogram(
+  input: z.infer<typeof ReviewHistogramSchema>
+): Promise<RatingHistogram> {
+  const v = ReviewHistogramSchema.parse(input);
+  return getRatingHistogram(
+    v.mediaType === "movie"
+      ? { movieId: v.tmdbId }
+      : { seriesId: v.tmdbId, seasonNumber: v.seasonNumber ?? null }
+  );
 }
