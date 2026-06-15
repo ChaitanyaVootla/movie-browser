@@ -22,6 +22,7 @@ import { parseMentions, resolveMentions } from "@/server/services/discussion/men
 import { runCommentGate } from "@/server/services/moderation/comment-gate";
 import { notifyMention, notifyReply } from "@/server/services/notifications/notify";
 import { toCommentDto, type CommentDto } from "@/server/db/postgres/comments";
+import { bumpRootActivity, stampNewRootActivity } from "@/server/services/discussion/activity-bump";
 
 export type CreateCommentResult =
   | { status: "published"; comment: CommentDto }
@@ -151,8 +152,9 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
     // PENDING_REVIEW/PUBLISHED status) is attributed to this user in audit_log.
     // The AI gate ran ABOVE, outside the tx; notifications fire AFTER, also
     // outside — never hold a tx open across those network calls.
-    const created = await auditedTransaction(userId, (tx) =>
-      tx.comment.create({
+    const now = new Date();
+    const created = await auditedTransaction(userId, async (tx) => {
+      const row = await tx.comment.create({
         data: {
           userId,
           movieId: anchor.type === "movie" ? anchor.movieId : null,
@@ -166,10 +168,20 @@ export async function createComment(rawInput: CreateCommentInput): Promise<Creat
           scopeEpisode: input.spoilerScope === "EPISODE" ? input.scopeEpisode : null,
           status: held ? CommentStatus.PENDING_REVIEW : CommentStatus.PUBLISHED,
           aiLabels: aiLabels as object,
+          lastActivityAt: held ? null : now,
         },
         include: { user: { select: { id: true, username: true, name: true, image: true } } },
-      })
-    );
+      });
+      // Trending counters are PUBLISHED-only (held comments are invisible).
+      if (!held) {
+        if (parentId !== null) {
+          await bumpRootActivity(tx, parentId, now); // parentId is already the flattened root
+        } else {
+          await stampNewRootActivity(tx, row.id, now);
+        }
+      }
+      return row;
+    });
 
     if (held) return { status: "pending_review" };
 
