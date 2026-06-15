@@ -102,12 +102,13 @@ model Person {
   gender       Int? // 0=unknown, 1=female, 2=male, 3=non-binary
   homepage     String?
 
-  credits       Credit[]
-  aliases       PersonAlias[]
-  externalIds   ExternalId[]
-  images        Image[]
-  seriesCreated SeriesCreator[]
-  listItems     ListItem[]
+  credits               Credit[]
+  aliases               PersonAlias[]
+  externalIds           ExternalId[]
+  images                Image[]
+  seriesCreated         SeriesCreator[]
+  listItems             ListItem[]
+  commentEntityMentions CommentEntityMention[]
 
   @@index([name])
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_persons_name_trgm")
@@ -261,14 +262,15 @@ model Movie {
   aiData            AiData?
 
   // User relations
-  watchlistItems   WatchlistItem[]
-  userRatings      UserRating[]
-  recentViews      RecentItem[]
-  continueWatching ContinueWatching[]
-  watchEvents      WatchEvent[]
-  userReviews      UserReview[]
-  comments         Comment[]
-  listItems        ListItem[]
+  watchlistItems        WatchlistItem[]
+  userRatings           UserRating[]
+  recentViews           RecentItem[]
+  continueWatching      ContinueWatching[]
+  watchEvents           WatchEvent[]
+  userReviews           UserReview[]
+  comments              Comment[]
+  listItems             ListItem[]
+  commentEntityMentions CommentEntityMention[]
 
   @@index([popularity(sort: Desc)])
   @@index([releaseDate(sort: Desc)])
@@ -440,15 +442,16 @@ model Series {
   aiData            AiData?
 
   // User relations
-  watchlistItems   WatchlistItem[]
-  userRatings      UserRating[]
-  recentViews      RecentItem[]
-  continueWatching ContinueWatching[]
-  watchEvents      WatchEvent[]
-  seriesProgress   SeriesProgress[]
-  userReviews      UserReview[]
-  comments         Comment[]
-  listItems        ListItem[]
+  watchlistItems        WatchlistItem[]
+  userRatings           UserRating[]
+  recentViews           RecentItem[]
+  continueWatching      ContinueWatching[]
+  watchEvents           WatchEvent[]
+  seriesProgress        SeriesProgress[]
+  userReviews           UserReview[]
+  comments              Comment[]
+  listItems             ListItem[]
+  commentEntityMentions CommentEntityMention[]
 
   @@index([popularity(sort: Desc)])
   @@index([firstAirDate(sort: Desc)])
@@ -1384,15 +1387,24 @@ model Comment {
   editedAt           DateTime?     @map("edited_at")
   createdAt          DateTime      @default(now()) @map("created_at")
 
-  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  movie     Movie?     @relation(fields: [movieId], references: [id], onDelete: Restrict)
-  series    Series?    @relation(fields: [seriesId], references: [id], onDelete: Restrict)
-  list      List?      @relation(fields: [listId], references: [id], onDelete: Cascade)
-  circle    Circle?    @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  replies   Comment[]  @relation("CommentReplies")
-  reactions Reaction[]
-  reports   Report[]
+  // Phase B (2026-06-15): catalog-image attachment (TMDB file-path ref + typed entity id).
+  // Zero upload — render prefixes TMDB_IMAGE_BASE. attachmentEntityType is the discriminant.
+  attachmentEntityType String? @map("attachment_entity_type") // "movie" | "series" | "episode" | "person"
+  attachmentMovieId    Int?    @map("attachment_movie_id")
+  attachmentSeriesId   Int?    @map("attachment_series_id")
+  attachmentPersonId   Int?    @map("attachment_person_id")
+  attachmentImagePath  String? @map("attachment_image_path")
+
+  user           User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  movie          Movie?                 @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  series         Series?                @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  list           List?                  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  circle         Circle?                @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  parent         Comment?               @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies        Comment[]              @relation("CommentReplies")
+  reactions      Reaction[]
+  reports        Report[]
+  entityMentions CommentEntityMention[]
 
   // circleId INSIDE the composite (public reads use circle_id IS NULL as index condition)
   @@index([movieId, circleId, status, createdAt(sort: Desc)])
@@ -1403,7 +1415,35 @@ model Comment {
   @@index([listId])
   @@index([circleId])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([attachmentMovieId])
+  @@index([attachmentSeriesId])
+  @@index([attachmentPersonId])
   @@map("comments")
+}
+
+// Phase B (2026-06-15): typed @-entity mention join. NEVER generic (itemId,itemType).
+// Episodes use NATURAL KEYS (series_id, season_number, episode_number) — NEVER FK to
+// episodes/seasons (hydration delete+reinserts them). FK only to stable catalog parents.
+model CommentEntityMention {
+  id            Int      @id @default(autoincrement())
+  commentId     Int      @map("comment_id")
+  movieId       Int?     @map("movie_id")
+  seriesId      Int?     @map("series_id")
+  personId      Int?     @map("person_id")
+  seasonNumber  Int?     @map("season_number")
+  episodeNumber Int?     @map("episode_number")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  comment Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  movie   Movie?   @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  series  Series?  @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  person  Person?  @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@index([commentId])
+  @@index([movieId])
+  @@index([seriesId])
+  @@index([personId])
+  @@map("comment_entity_mentions")
 }
 
 model Reaction {
