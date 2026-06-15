@@ -400,6 +400,20 @@ export async function getPublishedCommentCount(anchor: DiscussionAnchor): Promis
   return prisma.comment.count({ where: { AND: [anchorWhere(anchor), PUBLIC_COMMENTS_WHERE] } });
 }
 
+/**
+ * Distinct authors in the anon-visible tier — the "N people" header hint. Counts
+ * only PUBLISHED comments (progress-INDEPENDENT) so it is legal in edge-cacheable
+ * HTML (spec invariant 8) and computed once per ISR window. No viewer data.
+ */
+export async function getParticipantCount(anchor: DiscussionAnchor): Promise<number> {
+  const rows = await prisma.comment.findMany({
+    where: { AND: [anchorWhere(anchor), PUBLIC_COMMENTS_WHERE] },
+    select: { userId: true },
+    distinct: ["userId"],
+  });
+  return rows.length;
+}
+
 // ---------------------------------------------------------------------------
 // Link card hydration (no-network join from cached unfurl table)
 // ---------------------------------------------------------------------------
