@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "next-view-transitions";
 import { loadComments } from "@/server/actions/comment-reads";
 import type { CommentPageDto } from "@/server/db/postgres/comments";
 import type {
@@ -169,7 +170,10 @@ export function CommentListClient({
 
       {viewAllHref ? (
         <Button asChild variant="outline" size="sm" className="w-full">
-          <a href={viewAllHref}>View all comments →</a>
+          {/* next-view-transitions Link → detail→discussions client nav that
+              fires the shared-element morph (was a hard <a> = full reload, no
+              morph). Feature-detects to normal nav when unsupported. */}
+          <Link href={viewAllHref}>View all comments →</Link>
         </Button>
       ) : (
         lastCursor && (

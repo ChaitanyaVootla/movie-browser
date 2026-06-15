@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+// next-view-transitions Link: identical API to next/link, but wraps the client
+// navigation in document.startViewTransition so the detail→discussions
+// shared-element morph (hero-backdrop / hero-logo) fires. Feature-detects:
+// browsers without startViewTransition just get a normal navigation.
+import { Link } from "next-view-transitions";
 import { MessagesSquare, ArrowRight, Heart, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CommentPeekDto } from "@/server/db/postgres/comments";

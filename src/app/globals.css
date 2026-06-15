@@ -697,3 +697,51 @@ body {
   height: 0;
   pointer-events: none;
 }
+
+/* ========================================
+   VIEW TRANSITIONS — detail ↔ discussions shared-element morph
+   ========================================
+   The detail-page hero (HeroBackdropShell / HeroLogoShell) and the discussions
+   hero band (discussion-page-header.tsx) both expose `view-transition-name:
+   hero-backdrop` (backdrop) and `hero-logo` (title logo). next-view-transitions'
+   <Link> wraps the client navigation in document.startViewTransition, so the
+   browser morphs each named element from its old box (tall detail hero) into its
+   new box (shorter discussions band) — the backdrop "squishes", the logo glides.
+
+   EXPERIMENTAL + graceful: a browser without the View Transitions API simply
+   navigates normally (the library feature-detects). Everything NOT sharing a name
+   gets the UA-default cross-fade of the old/new snapshots.
+
+   Scoped to the two named groups only (no `::view-transition-group(*)`), so this
+   never re-times unrelated transitions. Short ~300ms ease so it reads as snappy,
+   not floaty. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(hero-backdrop),
+  ::view-transition-group(hero-logo) {
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* The morphing element should size to its new box smoothly; image-content
+     `object-fit` keeps the backdrop from distorting while the box reshapes. */
+  ::view-transition-old(hero-backdrop),
+  ::view-transition-new(hero-backdrop) {
+    height: 100%;
+    object-fit: cover;
+  }
+  ::view-transition-old(hero-logo),
+  ::view-transition-new(hero-logo) {
+    /* Logos are wide/transparent — fit inside the morphing box, don't stretch. */
+    object-fit: contain;
+  }
+}
+
+/* prefers-reduced-motion: KILL the morph entirely. Zero-duration on the root
+   group collapses the whole transition to an instant swap (the library still
+   calls startViewTransition, but nothing animates). */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

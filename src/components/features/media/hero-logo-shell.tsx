@@ -15,6 +15,15 @@ interface HeroLogoShellProps {
   tmdbLogoPath?: string | null;
   /** Responsive constraints via Tailwind classes (e.g., max-w-[280px] sm:max-w-[380px]) */
   className?: string;
+  /**
+   * Opt-in `view-transition-name` for the logo's root element — used ONLY by
+   * the detail-page hero so a detail→discussions View Transition morphs this
+   * logo into the discussions hero band's logo (same name). Applied to whatever
+   * root element wins (skeleton / text fallback / image) so the morph target
+   * survives the load-state swap. MUST be unique per page snapshot; leave
+   * undefined elsewhere (the shell is shared).
+   */
+  viewTransitionName?: string;
 }
 
 type LoadState = "cdn" | "tmdb" | "text" | "pending";
@@ -35,9 +44,13 @@ export function HeroLogoShell({
   fallbackText: propText,
   tmdbLogoPath: propLogoPath,
   className,
+  viewTransitionName,
 }: HeroLogoShellProps) {
   const heroContext = useHeroMedia();
   const [loadState, setLoadState] = useState<LoadState>("cdn");
+  // Applied to whichever root element renders so the morph target persists
+  // across the CDN→TMDB→text load-state swaps. Absent when undefined.
+  const vtStyle = viewTransitionName ? { viewTransitionName } : undefined;
 
   // Get values from props or context (context updates when async content loads)
   const tmdbLogoPath = propLogoPath ?? heroContext?.data?.tmdbLogoPath;
@@ -90,6 +103,7 @@ export function HeroLogoShell({
   if (loadState === "pending") {
     return (
       <div
+        style={vtStyle}
         className={cn(
           "animate-pulse bg-gradient-to-r from-muted/50 via-muted/30 to-transparent rounded-lg",
           "w-[200px] h-[60px] sm:w-[280px] sm:h-[80px] md:w-[400px] md:h-[100px]",
@@ -106,6 +120,7 @@ export function HeroLogoShell({
       return (
         <div
           data-testid="hero-logo"
+          style={vtStyle}
           className={cn("h-12 sm:h-16 md:h-20 bg-transparent", className)}
         />
       );
@@ -116,6 +131,7 @@ export function HeroLogoShell({
       // a duplicate/competing h1 only in the rare image-fallback state.
       <p
         data-testid="hero-logo"
+        style={vtStyle}
         className={cn(
           "text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white drop-shadow-lg line-clamp-2",
           className
@@ -129,7 +145,7 @@ export function HeroLogoShell({
   // Image state (cdn or tmdb)
   // className contains responsive max-w/max-h constraints, applied directly to img
   return (
-    <div data-testid="hero-logo" className="relative">
+    <div data-testid="hero-logo" style={vtStyle} className="relative">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={currentSrc!}

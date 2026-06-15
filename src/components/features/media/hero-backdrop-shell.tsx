@@ -22,6 +22,15 @@ interface HeroBackdropShellProps {
   className?: string;
   children?: React.ReactNode;
   overlay?: "light" | "medium" | "heavy" | "none";
+  /**
+   * Opt-in `view-transition-name` for the root element, used ONLY by the
+   * detail-page hero so a detail→discussions View Transition can morph this
+   * backdrop into the discussions hero band's backdrop (which carries the same
+   * name). MUST be unique per page snapshot — only one element with a given
+   * name may be live at a time. Leave undefined everywhere else (the shell is
+   * shared) so no spurious morph target exists.
+   */
+  viewTransitionName?: string;
 }
 
 type LoadState = "cdn" | "tmdb" | "failed" | "pending";
@@ -47,6 +56,7 @@ export function HeroBackdropShell({
   className,
   children,
   overlay = "light",
+  viewTransitionName,
 }: HeroBackdropShellProps) {
   const heroContext = useHeroMedia();
   const [loadState, setLoadState] = useState<LoadState>("cdn");
@@ -113,6 +123,10 @@ export function HeroBackdropShell({
       // ThemeColorSync paints the status bar --hero-base while this element is
       // under the status bar seam (DESIGN.md → System bars)
       data-hero-root
+      // Opt-in shared-element morph target (detail→discussions). Undefined →
+      // the property is simply absent (no morph), so non-detail usages are
+      // unaffected.
+      style={viewTransitionName ? { viewTransitionName } : undefined}
       className={cn(
         "relative w-full overflow-hidden bg-hero-base",
         // Mobile: flex column, image + content stacked

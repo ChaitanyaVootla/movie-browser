@@ -1,4 +1,9 @@
-import Link from "next/link";
+// next-view-transitions Link (drop-in next/link API): wraps the
+// discussions→detail navigation in document.startViewTransition so the
+// shared-element morph plays in reverse. Feature-detects → normal nav when
+// unsupported. This component stays server-renderable (the library Link is a
+// client component, like next/link).
+import { Link } from "next-view-transitions";
 import { ChevronLeft, MessagesSquare, Users } from "lucide-react";
 import { CDN_IMAGE_BASE } from "@/lib/constants";
 import { PAGE_PADDING_X } from "@/lib/design";
@@ -34,9 +39,12 @@ interface DiscussionPageHeaderProps {
  * title as alt; the sr-only heading guarantees one canonical heading regardless
  * of the logo load state).
  *
- * Shared-element morph prep (no transition yet): the backdrop wrapper carries
- * `view-transition-name: hero-backdrop` and the logo wrapper `hero-logo`, so a
- * future detail→discussions View Transition can match them. One of each per page.
+ * Shared-element morph (ACTIVE): the backdrop wrapper carries
+ * `view-transition-name: hero-backdrop` and the logo carries `hero-logo` (via
+ * the HeroLogoShell prop), the SAME names the detail-page hero opts into — so a
+ * detail↔discussions client navigation (next-view-transitions Link) morphs the
+ * tall detail backdrop into this shorter band and repositions the logo. One of
+ * each name per page snapshot. Timing + reduced-motion kill switch: globals.css.
  *
  * Full-bleed: this component owns its own horizontal padding internally and is
  * rendered edge-to-edge by the page (the page's PageMain drops its gutter), so the
@@ -121,15 +129,17 @@ export function DiscussionPageHeader({
         {/* sr-only canonical heading for SEO/a11y; the logo is the visual title. */}
         <h1 className="sr-only">{title} discussion</h1>
 
-        <div
-          className="mt-1.5 flex items-end gap-3"
-          style={{ viewTransitionName: "hero-logo" }}
-        >
+        {/* The `hero-logo` morph name lives ON the logo element itself (via the
+            HeroLogoShell prop), not this flex wrapper — so it matches the
+            detail-page side exactly (logo-only morph; the year span is excluded
+            on both sides). */}
+        <div className="mt-1.5 flex items-end gap-3">
           <HeroLogoShell
             mediaId={mediaId}
             mediaType={mediaType}
             fallbackText={title}
             tmdbLogoPath={tmdbLogoPath}
+            viewTransitionName="hero-logo"
             className="max-h-16 max-w-[260px] sm:max-h-20 sm:max-w-[340px] md:max-h-24 md:max-w-[420px]"
           />
           {year ? (

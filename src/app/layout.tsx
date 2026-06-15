@@ -8,6 +8,7 @@ import { Footer } from "@/components/features/layout/footer";
 import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
 import { ThemeColorSync } from "@/components/features/layout/theme-color-sync";
 import { UsernameClaimPrompt } from "@/components/features/settings/username-claim-prompt";
+import { ViewTransitions } from "next-view-transitions";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -116,8 +117,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
+    // ViewTransitions wraps document.startViewTransition around App Router
+    // client navigations. It feature-detects (no startViewTransition → normal
+    // nav) and is a no-op for routes without matching view-transition-name
+    // elements, so unrelated navigations get at most a default cross-fade.
+    // The detail↔discussions morph is opted in via shared `hero-backdrop` /
+    // `hero-logo` names on those two routes' heroes (see globals.css for the
+    // scoped timing + the prefers-reduced-motion kill switch).
+    <ViewTransitions>
+      <html lang="en" suppressHydrationWarning>
+        <head>
         <link rel="preconnect" href="https://image.tmdb.org" />
         <link rel="preconnect" href="https://accounts.google.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://api.themoviedb.org" />
@@ -135,6 +144,7 @@ export default function RootLayout({
           <UsernameClaimPrompt />
         </Providers>
       </body>
-    </html>
+      </html>
+    </ViewTransitions>
   );
 }

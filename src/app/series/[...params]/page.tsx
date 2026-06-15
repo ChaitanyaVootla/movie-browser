@@ -744,7 +744,15 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
                 Desktop: Image fills container, content overlays at bottom */}
             <section className="relative">
               <div className="hero-container relative w-full overflow-hidden">
-                <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
+                {/* viewTransitionName opts this hero into the detail↔discussions
+                    shared-element morph (matched on the discussions page's hero
+                    band). Other HeroBackdropShell usages omit it → no morph. */}
+                <HeroBackdropShell
+                  mediaId={id}
+                  mediaType="series"
+                  overlay="light"
+                  viewTransitionName="hero-backdrop"
+                >
                   {/* Content container
                       Mobile: centered, normal document flow (below image)
                       Desktop: fills the shell's overlay wrapper, bottom-anchored.
@@ -756,6 +764,7 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
                       <HeroLogoShell
                         mediaId={id}
                         mediaType="series"
+                        viewTransitionName="hero-logo"
                         className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
                       />
                     </div>
