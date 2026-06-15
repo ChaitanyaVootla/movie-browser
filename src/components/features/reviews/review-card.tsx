@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { RichTextBody } from "@/components/features/rich-text/rich-text-body";
 import { ScopeBadge } from "@/components/features/discussion/scope-badge";
-import type { CommentDto } from "@/server/db/postgres/comments";
 import type { ReviewDTO } from "@/types/social";
 import { scoreToStars } from "./star-rating-input";
 import { ReviewLikeButton } from "./review-like-button";
@@ -50,45 +49,20 @@ function StarDisplay({ score }: { score: number }) {
   );
 }
 
-/**
- * Build a minimal CommentDto-shaped object so the shared `RichTextBody`
- * (mentions / emoji / inline-[spoiler]) renders the canonical review body.
- * Reviews carry no entity-mention refs, so any [[entity]] token falls back to
- * its stored label (acceptable — no thumbnail chip). Status PUBLISHED so no
- * "pending review" banner is shown.
- */
-function reviewBodyAsComment(review: ReviewDTO): CommentDto {
-  return {
-    id: review.id,
-    parentId: null,
-    body: review.body,
-    spoilerScope: review.spoilerScope,
-    scopeSeason: review.scopeSeason,
-    scopeEpisode: review.scopeEpisode,
-    status: "PUBLISHED",
-    likeCount: review.likeCount,
-    createdAt: review.createdAt,
-    editedAt: review.editedAt,
-    author: null,
-    attachment: null,
-    viewerLiked: review.likedByViewer,
-    entityMentions: [],
-    linkCard: null,
-  };
-}
-
 /** Expand/collapse wrapper for long review bodies (CSS line-clamp ~8 lines). */
 function ReviewBody({ review }: { review: ReviewDTO }) {
   const [expanded, setExpanded] = useState(false);
   // Heuristic: only offer read-more when the body is long enough to plausibly
   // overflow the clamp. Avoids a useless toggle on short reviews.
   const canTruncate = review.body.length > 320 || review.body.split("\n").length > 8;
-  const comment = reviewBodyAsComment(review);
 
   return (
     <div className="space-y-1.5">
       <div className={cn(!expanded && canTruncate && "line-clamp-[8]")}>
-        <RichTextBody comment={comment} />
+        {/* Reviews carry no resolved entity-mention refs yet, so [[entity]]
+            tokens fall back to their stored label (no thumbnail chip) — a
+            documented fast-follow. @user / emoji / inline-[spoiler] render fully. */}
+        <RichTextBody body={review.body} entityMentions={[]} idKey={review.id} />
       </div>
       {canTruncate && (
         <button

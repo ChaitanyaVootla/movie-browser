@@ -6,8 +6,21 @@ import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
-import type { CommentDto, EntityMentionRef } from "@/server/db/postgres/comments";
+import type { EntityMentionRef } from "@/server/db/postgres/comments";
 import { MARKDOWN_ALLOWED_ELEMENTS } from "@/server/services/discussion/sanitize-comment";
+
+/**
+ * Recognized render statuses controlling the deleted/pending notices.
+ * Documented as a union, but the prop accepts any `string` because callers'
+ * status fields are stringly-typed (e.g. CommentDto.status); unrecognized
+ * values render as a normal published body.
+ */
+export type RichTextStatus =
+  | "PUBLISHED"
+  | "PENDING_REVIEW"
+  | "FLAGGED"
+  | "REMOVED"
+  | "DELETED_BY_USER";
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
 
@@ -204,15 +217,30 @@ function renderToken(token: Token, refs: Map<string, EntityMentionRef>, keyStr: 
  * nodes, then render the residual text segments through react-markdown for
  * bold/italic/blockquote formatting. Tokens are NOT passed through markdown
  * to avoid regex/markdown interaction.
+ *
+ * Feature-agnostic: takes a canonical body string + optional entity-mention
+ * refs (shared by discussion comments AND reviews). Callers that have no
+ * resolved mentions pass none — `[[entity]]` tokens then fall back to their
+ * stored label.
  */
-export function RichTextBody({ comment }: { comment: CommentDto }) {
-  if (comment.status === "DELETED_BY_USER") {
-    return <p className="text-sm text-muted-foreground italic">Comment deleted by author</p>;
+export function RichTextBody({
+  body,
+  entityMentions = [],
+  status = "PUBLISHED",
+  idKey = "rt",
+}: {
+  body: string;
+  entityMentions?: EntityMentionRef[];
+  status?: string;
+  idKey?: string | number;
+}) {
+  if (status === "DELETED_BY_USER") {
+    return <p className="text-sm text-muted-foreground italic">Deleted by author</p>;
   }
 
-  const refs = buildMentionMap(comment.entityMentions);
-  const tokens = tokenize(comment.body);
-  const pending = comment.status === "PENDING_REVIEW" || comment.status === "FLAGGED";
+  const refs = buildMentionMap(entityMentions);
+  const tokens = tokenize(body);
+  const pending = status === "PENDING_REVIEW" || status === "FLAGGED";
 
   return (
     <div className="text-sm text-foreground/90">
@@ -222,7 +250,7 @@ export function RichTextBody({ comment }: { comment: CommentDto }) {
         </p>
       )}
       <div className="prose-comment whitespace-pre-wrap break-words [&_strong]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground">
-        {tokens.map((t, i) => renderToken(t, refs, `t-${comment.id}-${i}`))}
+        {tokens.map((t, i) => renderToken(t, refs, `t-${idKey}-${i}`))}
       </div>
     </div>
   );

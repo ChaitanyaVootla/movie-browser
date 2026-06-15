@@ -104,7 +104,12 @@ function SingleComment({
             scopeEpisode={comment.scopeEpisode}
           />
         </div>
-        <RichTextBody comment={comment} />
+        <RichTextBody
+          body={comment.body}
+          entityMentions={comment.entityMentions}
+          status={comment.status}
+          idKey={comment.id}
+        />
         {comment.linkCard && <LinkCard card={comment.linkCard} />}
         {comment.attachment && comment.status === "PUBLISHED" && (
           <div className="relative mt-1.5 aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">
