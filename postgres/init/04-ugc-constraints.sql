@@ -45,7 +45,8 @@ ALTER TABLE watch_events ADD CONSTRAINT chk_watch_events_score_range
   CHECK (score IS NULL OR (score >= 1 AND score <= 10));
 
 -- ---------------------------------------------------------------------------
--- user_ratings: a row may carry thumb, score, or both — never neither.
+-- user_ratings: a row may carry thumb, score, heart, or any combination —
+-- never all empty.
 -- Now granular: movie OR (series + optional season + optional episode).
 -- ---------------------------------------------------------------------------
 ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_thumb;
@@ -58,7 +59,7 @@ ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_score_range
 
 ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_not_empty;
 ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_not_empty
-  CHECK (rating IS NOT NULL OR score IS NOT NULL);
+  CHECK (rating IS NOT NULL OR score IS NOT NULL OR liked = true);
 
 ALTER TABLE user_ratings DROP CONSTRAINT IF EXISTS chk_user_ratings_one_anchor;
 ALTER TABLE user_ratings ADD CONSTRAINT chk_user_ratings_one_anchor
