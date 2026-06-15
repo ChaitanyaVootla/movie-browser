@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getEntityImages, searchMentionEntities } from "@/server/actions/discussion-search";
+import { getEntityImages, searchMentionEntities } from "@/server/actions/catalog-search";
 import type { CommentAttachmentInput } from "@/server/services/discussion/comment-schemas";
 import type { MentionSearchResultDto, MediaAnchor } from "@/types/social";
 

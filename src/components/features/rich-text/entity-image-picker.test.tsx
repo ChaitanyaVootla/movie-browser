@@ -9,7 +9,7 @@ const searchMentionEntities = vi.fn().mockResolvedValue({
   cast: [],
   episodes: [],
 });
-vi.mock("@/server/actions/discussion-search", () => ({
+vi.mock("@/server/actions/catalog-search", () => ({
   getEntityImages: (...args: unknown[]) => getEntityImages(...args),
   searchMentionEntities: (...args: unknown[]) => searchMentionEntities(...args),
 }));

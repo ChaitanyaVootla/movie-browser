@@ -3,12 +3,12 @@
 import { z } from "zod";
 import { prisma } from "@/server/db/postgres";
 import { dataLogger } from "@/lib/logger";
-import { DiscussionAnchorSchema } from "@/server/services/discussion/comment-schemas";
+import { MediaAnchorSchema } from "@/server/services/discussion/comment-schemas";
 import type { MentionSearchResultDto } from "@/types/social";
 
 const SearchSchema = z.object({
   query: z.string().trim().min(1).max(60),
-  anchor: DiscussionAnchorSchema,
+  anchor: MediaAnchorSchema,
 });
 
 const GetEntityImagesSchema = z.object({

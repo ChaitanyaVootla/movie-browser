@@ -6,7 +6,7 @@ import Mention from "@tiptap/extension-mention";
 import { Emoji, gitHubEmojis } from "@tiptap/extension-emoji";
 import type { SuggestionOptions, SuggestionProps, SuggestionKeyDownProps } from "@tiptap/suggestion";
 import { computePosition, flip, shift, offset, type VirtualElement } from "@floating-ui/dom";
-import { searchMentionEntities } from "@/server/actions/discussion-search";
+import { searchMentionEntities } from "@/server/actions/catalog-search";
 import type { MediaAnchor } from "@/types/social";
 import type { MentionSearchResultDto } from "@/types/social";
 import { CommentMentionChip } from "./mention-chip";

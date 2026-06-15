@@ -6,7 +6,7 @@ import { CommentComposer } from "./comment-composer";
 vi.mock("@/server/actions/comments", () => ({
   createComment: vi.fn().mockResolvedValue({ status: "error", message: "Test" }),
 }));
-vi.mock("@/server/actions/discussion-search", () => ({
+vi.mock("@/server/actions/catalog-search", () => ({
   searchMentionEntities: vi.fn().mockResolvedValue({ people: [], titles: [], cast: [], episodes: [] }),
   getEntityImages: vi.fn().mockResolvedValue({ images: [] }),
 }));
