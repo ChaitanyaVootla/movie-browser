@@ -686,3 +686,14 @@ body {
     grid-column: var(--d-x) / span var(--d-w);
   }
 }
+
+/* Tiptap comment composer: empty-state placeholder (Placeholder extension adds
+   .is-editor-empty + data-placeholder on the first empty paragraph). Uses the
+   muted-foreground token; no hardcoded color. */
+.prose-comment p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
+import { EditorContent } from "@tiptap/react";
 import { toast } from "sonner";
 import { ImageIcon, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,12 @@ import type {
   SpoilerScopeValue,
 } from "@/server/services/discussion/comment-schemas";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { MentionAutocomplete, type MentionItem } from "./mention-autocomplete";
 import { CommentImagePicker } from "./comment-image-picker";
 import { scopeLabel } from "./scope-badge";
+import { useCommentEditor } from "./use-comment-editor";
+import { serializeToBody, type EditorJSONNode } from "./comment-editor-serialize";
+import { resolveEmojiUnicode, insertEmojiByName } from "./comment-editor-extensions";
+import { EmojiPickerButton } from "./emoji-picker-button";
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
 
@@ -40,20 +44,6 @@ interface Suggestion {
   episode: number | null;
 }
 
-/**
- * Trailing-mention detection. The @ must start the input or follow whitespace,
- * and the query may contain spaces (titles/people have spaces) — capture up to
- * 40 chars excluding newlines and a second @.
- */
-const TRAILING_MENTION_RE = /(?:^|\s)@([^\n@]{0,40})$/;
-
-/** Extract trailing @token from the current textarea value up to the caret. */
-function getTrailingMention(value: string, caretPos: number): string | null {
-  const before = value.slice(0, caretPos);
-  const match = before.match(TRAILING_MENTION_RE);
-  return match ? match[1] : null;
-}
-
 export function CommentComposer({
   anchor,
   parentId = null,
@@ -66,19 +56,24 @@ export function CommentComposer({
   onCancel,
 }: ComposerProps) {
   const { trackAction } = useAnalytics();
-  const [body, setBody] = useState(seedText);
   const [scope, setScope] = useState<SpoilerScopeValue>(defaultScope);
   const [submitting, setSubmitting] = useState(false);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [attachment, setAttachment] = useState<CommentAttachmentInput | null>(null);
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  // Bump on every editor update so the Post button's disabled state stays live.
+  const [, setRev] = useState(0);
 
-  // Autocomplete state: non-null = showing the palette.
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  // Flattened, ordered item list owned by the composer for keyboard nav.
-  const [mentionItems, setMentionItems] = useState<MentionItem[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editor = useCommentEditor({
+    anchor,
+    placeholder,
+    seedText,
+    onChange: () => setRev((r) => r + 1),
+  });
+
+  /** Current serialized body — the canonical token string the backend expects. */
+  const currentBody = (): string =>
+    editor ? serializeToBody(editor.getJSON() as EditorJSONNode, resolveEmojiUnicode) : "";
 
   const isSeries = anchor.type === "series";
   const episodeScopeAvailable =
@@ -99,7 +94,12 @@ export function CommentComposer({
     confirmedScope: confirmed,
   });
 
+  const clearEditor = () => {
+    editor?.commands.clearContent(true);
+  };
+
   const submit = async (confirmed: boolean, accepted: Suggestion | null = null) => {
+    const body = currentBody();
     if (body.trim().length < 2) return;
     setSubmitting(true);
     const result: CreateCommentResult = await createComment({
@@ -117,13 +117,13 @@ export function CommentComposer({
         itemId: anchor.type === "movie" ? anchor.movieId : anchor.seriesId,
         metadata: { isReply: parentId !== null, scope: result.comment.spoilerScope },
       });
-      setBody("");
+      clearEditor();
       setSuggestion(null);
       setAttachment(null);
       toast.success("Comment posted");
       onPublished?.();
     } else if (result.status === "pending_review") {
-      setBody("");
+      clearEditor();
       setSuggestion(null);
       setAttachment(null);
       toast.info("Held for review — it'll appear once a moderator approves it.");
@@ -139,112 +139,12 @@ export function CommentComposer({
     }
   };
 
-  const handleBodyChange = (value: string) => {
-    setBody(value);
-    const caret = textareaRef.current?.selectionStart ?? value.length;
-    const trailing = getTrailingMention(value, caret);
-    setMentionQuery(trailing);
-    setActiveIndex(0);
-  };
-
-  const closeMention = () => {
-    setMentionQuery(null);
-    setMentionItems([]);
-    setActiveIndex(0);
-  };
-
-  /** Keyboard nav while the mention palette is open. Returns true if handled. */
-  const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
-    if (mentionQuery === null) return false;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      closeMention();
-      return true;
-    }
-    if (mentionItems.length === 0) {
-      // Palette is open but still searching/empty — swallow Enter so it neither
-      // submits nor inserts a newline; let everything else through.
-      if (e.key === "Enter") {
-        e.preventDefault();
-        return true;
-      }
-      return false;
-    }
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex((i) => (i + 1) % mentionItems.length);
-      return true;
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((i) => (i - 1 + mentionItems.length) % mentionItems.length);
-      return true;
-    }
-    if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      const item = mentionItems[Math.min(activeIndex, mentionItems.length - 1)];
-      if (item) insertToken(item.token);
-      return true;
-    }
-    return false;
-  };
-
-  /** Insert a mention token at the current caret position, replacing the @token. */
-  const insertToken = (token: string) => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const caret = ta.selectionStart ?? body.length;
-    const before = body.slice(0, caret);
-    const after = body.slice(caret);
-    // Find the @token start — preserve any leading whitespace the regex matched.
-    const match = before.match(TRAILING_MENTION_RE);
-    let newBefore: string;
-    if (match && match.index !== undefined) {
-      const atIndex = before.indexOf("@", match.index);
-      newBefore = before.slice(0, atIndex) + token + " ";
-    } else {
-      newBefore = before + token + " ";
-    }
-    const newBody = newBefore + after;
-    setBody(newBody);
-    setMentionQuery(null);
-    setMentionItems([]);
-    setActiveIndex(0);
-    // Restore focus + place caret right after the inserted token.
-    const caretPos = newBefore.length;
-    setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(caretPos, caretPos);
-    }, 0);
-  };
+  const canPost = !submitting && currentBody().trim().length >= 2;
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => handleBodyChange(e.target.value)}
-          onKeyDown={(e) => {
-            handleMentionKeyDown(e);
-          }}
-          rows={3}
-          maxLength={4000}
-          placeholder={placeholder}
-          className="w-full rounded-lg border border-border bg-card/40 px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-        />
-        {mentionQuery !== null && (
-          <MentionAutocomplete
-            query={mentionQuery}
-            anchor={anchor}
-            activeIndex={activeIndex}
-            onItemsChange={setMentionItems}
-            onInsert={insertToken}
-            onClose={closeMention}
-          />
-        )}
-      </div>
+      {/* Rich Tiptap editor: atomic mention chips, :emoji shortcodes, inline marks. */}
+      <EditorContent editor={editor} />
 
       {/* Attachment preview */}
       {attachment && (
@@ -298,7 +198,7 @@ export function CommentComposer({
           </div>
         </div>
       ) : (
-        // Toolbar row: scope · @ hint · Add image · spacer · Cancel · Post
+        // Toolbar row: scope · Add image · Emoji · spacer · Cancel · Post
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={scope} onValueChange={(v) => setScope(v as SpoilerScopeValue)}>
             <SelectTrigger className="w-auto min-w-36 h-10 sm:h-9 text-xs">
@@ -331,6 +231,9 @@ export function CommentComposer({
             Add image
           </Button>
 
+          {/* Emoji picker button */}
+          <EmojiPickerButton onPick={(name) => editor && insertEmojiByName(editor, name)} />
+
           <div className="flex-1" />
 
           <div className="flex items-center gap-2">
@@ -350,11 +253,7 @@ export function CommentComposer({
                 Cancel
               </Button>
             )}
-            <Button
-              size="sm"
-              disabled={submitting || body.trim().length < 2}
-              onClick={() => void submit(false)}
-            >
+            <Button size="sm" disabled={!canPost} onClick={() => void submit(false)}>
               {submitting ? "Posting…" : "Post"}
             </Button>
           </div>

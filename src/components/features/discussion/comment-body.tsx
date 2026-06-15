@@ -106,25 +106,47 @@ const SAFE_LINK_COMPONENTS: Components = {
       {children}
     </a>
   ),
+  // Each text segment is one fragment in a flowing inline run alongside mention
+  // chips / @user links. ReactMarkdown wraps a paragraph's content in a <p> block;
+  // a block element forces a line break between adjacent text segments and around
+  // inline mentions (the "spurious newline after a mention" bug). Render the
+  // top-level paragraph as an inline <span> so the whole comment flows on one line
+  // — explicit blank lines still produce paragraph breaks via the `\n\n` markdown
+  // the composer serializes (the wrapper's `whitespace-pre-wrap` preserves them).
+  p: ({ children }) => <span>{children}</span>,
 };
 
 /** Render a single token to a React node. */
 function renderToken(token: Token, refs: Map<string, EntityMentionRef>, keyStr: string): React.ReactNode {
   switch (token.type) {
-    case "text":
+    case "text": {
       // Pass text segments through react-markdown for bold/italic/blockquote/code.
+      // react-markdown TRIMS the leading/trailing whitespace of a paragraph's text,
+      // which — now that adjacent text segments and mentions render inline (issue 2)
+      // — would glue a word onto its neighbouring mention ("hi @bea nice" → "hi@bea
+      // nice"). Re-emit the boundary whitespace explicitly (the container is
+      // `whitespace-pre-wrap`, so a literal space renders).
+      const leadWs = token.value.match(/^\s+/)?.[0] ?? "";
+      const trailWs = token.value.match(/\s+$/)?.[0] ?? "";
+      const core = token.value.slice(leadWs.length, token.value.length - trailWs.length);
       return (
-        <ReactMarkdown
-          key={keyStr}
-          remarkPlugins={[remarkGfm]}
-          allowedElements={[...MARKDOWN_ALLOWED_ELEMENTS]}
-          unwrapDisallowed
-          skipHtml
-          components={SAFE_LINK_COMPONENTS}
-        >
-          {token.value}
-        </ReactMarkdown>
+        <span key={keyStr}>
+          {leadWs}
+          {core && (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              allowedElements={[...MARKDOWN_ALLOWED_ELEMENTS]}
+              unwrapDisallowed
+              skipHtml
+              components={SAFE_LINK_COMPONENTS}
+            >
+              {core}
+            </ReactMarkdown>
+          )}
+          {trailWs}
+        </span>
       );
+    }
     case "spoiler":
       return <InlineSpoiler key={keyStr} text={token.text} />;
     case "user":

@@ -30,6 +30,19 @@ describe("CommentBody", () => {
     expect(html).toContain('href="/movie/550/fight-club"');
     expect(html).toContain("Fight Club"); // CURRENT catalog name, not the stored label
   });
+  it("renders a mention INLINE — no <p> block wrapper that would force a newline (issue 2)", () => {
+    const html = renderToStaticMarkup(<CommentBody comment={dto({ body: "hi @bea nice" })} />);
+    // The text segments must NOT be wrapped in block <p> elements (which caused the
+    // spurious line break around the mention); they render as inline <span>s.
+    expect(html).not.toContain("<p>");
+    expect(html).toContain('href="/u/bea"');
+    // Both surrounding words are present and the boundary whitespace around the
+    // mention is preserved (so words never glue onto the chip).
+    expect(html).toContain(">hi<");
+    expect(html).toContain(">nice<");
+    expect(html).toContain("</span> "); // trailing space after "hi" before the link
+    expect(html).toContain("> <span>"); // leading space before "nice"
+  });
   it("hides a [spoiler] body until revealed (renders a button, not the text in plain flow)", () => {
     const html = renderToStaticMarkup(<CommentBody comment={dto({ body: "the killer is [spoiler]Bob[/spoiler]" })} />);
     expect(html).toContain("Reveal spoiler");

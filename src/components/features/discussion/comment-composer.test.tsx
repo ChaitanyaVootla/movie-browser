@@ -1,73 +1,44 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { CommentComposer } from "./comment-composer";
 
 // Mock server actions to prevent next-auth/next/server import errors.
 vi.mock("@/server/actions/comments", () => ({
   createComment: vi.fn().mockResolvedValue({ status: "error", message: "Test" }),
 }));
-const searchMentionEntities = vi.fn().mockResolvedValue({
-  people: [],
-  titles: [],
-  cast: [],
-  episodes: [],
-});
 vi.mock("@/server/actions/discussion-search", () => ({
-  searchMentionEntities: (...args: unknown[]) => searchMentionEntities(...args),
+  searchMentionEntities: vi.fn().mockResolvedValue({ people: [], titles: [], cast: [], episodes: [] }),
   getEntityImages: vi.fn().mockResolvedValue({ images: [] }),
 }));
 vi.mock("@/hooks/use-analytics", () => ({
   useAnalytics: () => ({ trackAction: vi.fn() }),
 }));
 
-describe("CommentComposer", () => {
-  it("renders textarea and Add image button for a movie anchor", () => {
+// NOTE: the rich @-mention CHIP flow, single-Backspace chip deletion, and the
+// `:emoji` shortcode popup run on ProseMirror's contenteditable, which jsdom
+// cannot faithfully simulate — those are verified in-browser via Playwright.
+// The load-bearing serialization contract (chips → tokens, emoji → unicode, no
+// spurious newlines) is unit-tested in comment-editor-serialize.test.ts. Here we
+// only assert the composer's structural toolbar renders for the new editor.
+describe("CommentComposer (Tiptap)", () => {
+  it("renders the editor surface plus Add image, Emoji and Post controls", () => {
     render(<CommentComposer anchor={{ type: "movie", movieId: 550 }} />);
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    // The Tiptap ProseMirror editable surface mounts (contenteditable div).
+    expect(document.querySelector(".ProseMirror")).toBeTruthy();
     expect(screen.getByRole("button", { name: /add image/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add emoji/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^post$/i })).toBeInTheDocument();
   });
 
-  it("does not throw when @a is typed into the textarea (autocomplete mount)", () => {
-    const { getByRole } = render(<CommentComposer anchor={{ type: "movie", movieId: 550 }} />);
-    const textarea = getByRole("textbox");
-    expect(() => {
-      fireEvent.change(textarea, { target: { value: "@a" } });
-    }).not.toThrow();
+  it("disables Post when the editor is empty", () => {
+    render(<CommentComposer anchor={{ type: "movie", movieId: 550 }} />);
+    expect(screen.getByRole("button", { name: /^post$/i })).toBeDisabled();
   });
 
-  it("searches a MULTI-WORD mention query (e.g. '@walter wh')", async () => {
-    searchMentionEntities.mockClear();
-    const { getByRole } = render(<CommentComposer anchor={{ type: "movie", movieId: 550 }} />);
-    const textarea = getByRole("textbox");
-    fireEvent.change(textarea, { target: { value: "@walter wh" } });
-    await waitFor(
-      () => {
-        expect(searchMentionEntities).toHaveBeenCalled();
-      },
-      { timeout: 1000 }
-    );
-    const lastCall = searchMentionEntities.mock.calls.at(-1)?.[0] as { query: string };
-    expect(lastCall.query).toBe("walter wh");
-  });
-
-  it("highlights and inserts a result via keyboard (ArrowDown + Enter)", async () => {
-    searchMentionEntities.mockResolvedValueOnce({
-      people: [{ username: "walter", name: "Walter White", image: null }],
-      titles: [],
-      cast: [],
-      episodes: [],
-    });
-    const { getByRole } = render(<CommentComposer anchor={{ type: "movie", movieId: 550 }} />);
-    const textarea = getByRole("textbox") as HTMLTextAreaElement;
-    fireEvent.change(textarea, { target: { value: "@walter" } });
-    // Palette renders the option once results arrive.
-    const option = await screen.findByRole("option", { name: /walter/i });
-    expect(option).toBeInTheDocument();
-    // Enter selects the (already-highlighted index 0) item and must NOT add a newline.
-    fireEvent.keyDown(textarea, { key: "Enter" });
-    await waitFor(() => {
-      expect(textarea.value).toContain("@walter");
-      expect(textarea.value).not.toContain("\n");
-    });
+  it("renders a Cancel button only when onCancel is provided", () => {
+    const { rerender } = render(<CommentComposer anchor={{ type: "movie", movieId: 550 }} />);
+    expect(screen.queryByRole("button", { name: /cancel/i })).not.toBeInTheDocument();
+    rerender(<CommentComposer anchor={{ type: "movie", movieId: 550 }} onCancel={() => {}} />);
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
   });
 });
