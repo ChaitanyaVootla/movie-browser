@@ -514,3 +514,54 @@ export async function getAnchorPublicSummary(anchor: DiscussionAnchor): Promise<
     lastActivityAt: latest?.lastActivityAt ? latest.lastActivityAt.toISOString() : null,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Comment peek (cacheable teaser for the detail-page entry strip)
+// ---------------------------------------------------------------------------
+
+import { commentSnippet } from "@/server/services/discussion/comment-snippet";
+
+/** Compact, viewer-agnostic top-comment shape for the detail-page peek. */
+export interface CommentPeekDto {
+  id: number;
+  /** Plain-text teaser (markup/spoilers stripped). */
+  snippet: string;
+  likeCount: number;
+  isCue: boolean;
+  author: { username: string | null; name: string | null; image: string | null } | null;
+}
+
+/**
+ * Top N PUBLIC root comments for the detail-page peek (anon-cacheable tier ONLY:
+ * PUBLISHED + spoilerScope=NONE + circleId IS NULL — invariant 1/2). Ranked by
+ * likeCount then recency so the strongest comment leads the teaser. NO viewer
+ * data (no `viewerLiked`, no block filter) → safe in ISR HTML. Bodies are
+ * reduced to plain-text snippets here so the client never ships raw bodies.
+ */
+export async function getTopPublicComments(
+  anchor: DiscussionAnchor,
+  limit = 3
+): Promise<CommentPeekDto[]> {
+  const rows = await prisma.comment.findMany({
+    where: {
+      AND: [anchorWhere(anchor), PUBLIC_COMMENTS_WHERE, { parentId: null }, { spoilerScope: "NONE" }],
+    },
+    orderBy: [{ likeCount: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+    select: {
+      id: true,
+      body: true,
+      likeCount: true,
+      user: { select: { username: true, name: true, image: true, metadata: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    snippet: commentSnippet(r.body),
+    likeCount: r.likeCount,
+    isCue: r.user ? commentIsCue(r.user.metadata) : false,
+    author: r.user
+      ? { username: r.user.username, name: r.user.name, image: r.user.image }
+      : null,
+  }));
+}
