@@ -56,22 +56,23 @@ export async function setUserRating(
   const where = ratingWhere(userId, input);
 
   // Field-level clear semantics: undefined = leave a field as-is, null = clear
-  // ONLY that field. The row is deleted ONLY when BOTH thumb and score end up
-  // null (clearing a score must preserve a coexisting thumb, and vice-versa).
+  // ONLY that field. The row is deleted ONLY when thumb, score AND the heart
+  // (`liked`) all end up empty — clearing a score must preserve a coexisting
+  // thumb OR a heart, and vice-versa (the loosened CHECK allows `liked = true`
+  // as the sole signal, so a heart-only rating is a valid, keepable row).
   const run = async (tx: Db) => {
     const existing = await tx.userRating.findFirst({
       where,
-      select: { id: true, rating: true, score: true },
+      select: { id: true, rating: true, score: true, liked: true },
     });
 
     const nextThumb = input.thumb !== undefined ? input.thumb : (existing?.rating ?? null);
     const nextScore = input.score !== undefined ? input.score : (existing?.score ?? null);
+    // undefined = leave the heart as-is (preserves an existing true); the
+    // computed value is written unconditionally below — no conditional spread.
+    const nextLiked = input.liked !== undefined ? input.liked : (existing?.liked ?? false);
 
-    // Only write `liked` when provided — undefined must not clobber an existing
-    // true with a default false.
-    const likedData = input.liked !== undefined ? { liked: input.liked } : {};
-
-    if (nextThumb === null && nextScore === null) {
+    if (nextThumb === null && nextScore === null && nextLiked !== true) {
       if (existing) await tx.userRating.delete({ where: { id: existing.id } });
     } else if (existing) {
       await tx.userRating.update({
@@ -79,7 +80,7 @@ export async function setUserRating(
         data: {
           rating: nextThumb,
           score: nextScore,
-          ...likedData,
+          liked: nextLiked,
           ratedAt: input.ratedAt ?? new Date(),
         },
       });
@@ -96,7 +97,7 @@ export async function setUserRating(
           mediaType: isMovie ? "MOVIE" : "SERIES",
           rating: nextThumb,
           score: nextScore,
-          ...likedData,
+          liked: nextLiked,
           ratedAt: input.ratedAt ?? new Date(),
         },
       });

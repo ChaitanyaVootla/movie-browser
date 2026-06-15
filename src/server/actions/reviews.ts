@@ -107,6 +107,14 @@ export async function upsertReview(input: z.infer<typeof UpsertReviewSchema>) {
     const images: ReviewImageData[] | null = v.images ?? null;
 
     const review = await auditedTransaction(userId, async (tx) => {
+      // Whether this user already has a canonical review for the unit — drives
+      // the clear-propagation decision below (see the setUserRating call).
+      const hadExistingReview =
+        (await getOwnReviewQuery(userId, {
+          ...(isMovie ? { movieId: itemId } : { seriesId: itemId }),
+          seasonNumber: v.seasonNumber ?? null,
+        })) !== null;
+
       const row = await upsertUserReview(
         userId,
         {
@@ -125,17 +133,24 @@ export async function upsertReview(input: z.infer<typeof UpsertReviewSchema>) {
         },
         tx
       );
-      // Letterboxd-style: logging a score/heart on a review also upserts the
-      // canonical user_ratings row (title granularity for series).
-      if (v.score != null || v.liked) {
+      // Letterboxd-style: the review composer always carries the user's current
+      // canonical rating (getOwnReview joins user_ratings), so a SAVE must
+      // propagate clears — removing the score/heart on edit must delete the
+      // canonical rating (with C1, both-null+unhearted deletes the row).
+      //
+      // SAFE-FALLBACK guard: only propagate when EDITING an existing review (so
+      // a brand-new TEXT-ONLY review never wipes an unrelated quick-rate that
+      // the composer didn't prefill — getOwnReview returns null with no review
+      // row, so the composer starts blank in that case).
+      if (hadExistingReview || v.score != null || v.liked) {
         await setUserRating(
           userId,
           {
             itemId,
             itemType: mediaType,
             seasonNumber: v.seasonNumber ?? null,
-            ...(v.score !== undefined ? { score: v.score } : {}),
-            ...(v.liked !== undefined ? { liked: v.liked } : {}),
+            score: v.score ?? null,
+            liked: v.liked ?? false,
           },
           tx
         );
