@@ -1,24 +1,46 @@
 import { MessageSquareQuote } from "lucide-react";
 import { SectionHeading } from "@/components/features/layout/section-heading";
-import { getPublicReviews } from "@/server/actions/reviews";
+import { getPublicReviews, getReviewHistogram } from "@/server/actions/reviews";
 import type { TrackedMediaType } from "@/types/social";
-import { ReviewCard } from "./review-card";
+import { RatingHistogram } from "./rating-histogram";
 import { OwnReviewSlot } from "./own-review-slot";
+import { ReviewsClient } from "./reviews-client";
 
 interface ReviewsSectionProps {
   mediaType: TrackedMediaType;
   tmdbId: number;
   title: string;
+  seasonNumber?: number;
   className?: string;
 }
 
 /**
- * Detail-page reviews. Server-rendered list contains ONLY status=PUBLISHED,
- * isPrivate=false reviews — progress-independent and safe in edge-cached anon
- * HTML (§4.1.8). The viewer's own/pending review hydrates via OwnReviewSlot.
+ * Detail-page reviews (spec §E). EDGE-CACHE SAFE: this server tree contains NO
+ * viewer data — none of Next's dynamic request APIs (auth, headers, cookies)
+ * are called anywhere in it or its children.
+ *
+ * The SSR HTML carries only the anon-cacheable tier:
+ *  - the rating histogram (aggregate over user_ratings, no viewer state), and
+ *  - the anon Popular page from getPublicReviews (hard-filtered to spoilerScope
+ *    NONE + status PUBLISHED + public — §4.1.8).
+ *
+ * All viewer-specific tiers (Following tab, progress-gated spoiler reviews,
+ * per-viewer like state) and the viewer's own/pending/private review hydrate
+ * CLIENT-SIDE via server actions (POSTs, never edge-cached): ReviewsClient owns
+ * the tabs/gated/likes; OwnReviewSlot owns the viewer's own review.
  */
-export async function ReviewsSection({ mediaType, tmdbId, title, className }: ReviewsSectionProps) {
-  const reviews = await getPublicReviews({ mediaType, tmdbId, limit: 12 });
+export async function ReviewsSection({
+  mediaType,
+  tmdbId,
+  title,
+  seasonNumber,
+  className,
+}: ReviewsSectionProps) {
+  // No auth / headers / cookies — both reads are viewer-agnostic.
+  const [histogram, anonPopular] = await Promise.all([
+    getReviewHistogram({ mediaType, tmdbId, seasonNumber }),
+    getPublicReviews({ mediaType, tmdbId, seasonNumber, limit: 12 }),
+  ]);
 
   return (
     <section className={className}>
@@ -27,17 +49,25 @@ export async function ReviewsSection({ mediaType, tmdbId, title, className }: Re
           Reviews
         </SectionHeading>
 
-        <OwnReviewSlot mediaType={mediaType} tmdbId={tmdbId} title={title} />
+        <RatingHistogram histogram={histogram} />
 
-        {reviews.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {reviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No reviews yet — be the first.</p>
-        )}
+        {/* Viewer's own review — client island, never in cacheable HTML. */}
+        <OwnReviewSlot
+          mediaType={mediaType}
+          tmdbId={tmdbId}
+          title={title}
+          seasonNumber={seasonNumber}
+        />
+
+        {/* Tabs + gated/spoiler/Following/likes — client island. The anon
+            Popular set is rendered as real ReviewCards in the SSR HTML below
+            (SEO + instant paint) and reused as the Popular tab's seed. */}
+        <ReviewsClient
+          mediaType={mediaType}
+          tmdbId={tmdbId}
+          seasonNumber={seasonNumber}
+          initialReviews={anonPopular}
+        />
       </div>
     </section>
   );
