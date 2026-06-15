@@ -3,6 +3,7 @@ import { ChevronLeft, MessagesSquare, Users } from "lucide-react";
 import { CDN_IMAGE_BASE } from "@/lib/constants";
 import { PAGE_PADDING_X } from "@/lib/design";
 import { cn } from "@/lib/utils";
+import { HeroLogoShell } from "@/components/features/media/hero-logo-shell";
 
 interface DiscussionPageHeaderProps {
   /** Link back to the title's detail page. */
@@ -13,6 +14,8 @@ interface DiscussionPageHeaderProps {
   title: string;
   /** Release/first-air year, if known. */
   year?: number | null;
+  /** TMDB logo path → HeroLogoShell fallback when the CDN logo 404s. */
+  tmdbLogoPath?: string | null;
   /** Published (anon-visible) root+reply count. */
   publishedCount: number;
   /** People who have posted in the public tier (cheap COUNT(DISTINCT)). */
@@ -21,16 +24,23 @@ interface DiscussionPageHeaderProps {
 
 /**
  * Cinematic, backdrop-driven HERO BAND for the dedicated discussions pages.
- * Server component — no viewer data, fully ISR-cacheable. Mirrors the detail-page
- * hero (full-bleed TMDB backdrop via the deterministic CDN-by-id URL + a gradient
- * scrim fading to `--hero-base`) but SHORTER (this is a discussion page, not the
- * detail page). The backdrop is a plain `<img>` (no client error-fallback shell):
- * on a 404 the transparent image simply leaves the `bg-hero-base` base showing,
- * which is the intended fallback color — so the band always reads correctly.
+ * Server-safe (no viewer data) and fully ISR-cacheable — `HeroLogoShell` is a
+ * "use client" island, but it renders from the route id + an optional TMDB logo
+ * path only (no `auth()`/`headers()`), so the band stays anon-cacheable.
+ *
+ * The title is rendered as the actual TMDB **logo image** (via `HeroLogoShell`,
+ * which falls back CDN → TMDB → text), mirroring the detail-page hero. A visually
+ * hidden <h1> carries the title text for SEO/a11y (the logo is an <img> with the
+ * title as alt; the sr-only heading guarantees one canonical heading regardless
+ * of the logo load state).
+ *
+ * Shared-element morph prep (no transition yet): the backdrop wrapper carries
+ * `view-transition-name: hero-backdrop` and the logo wrapper `hero-logo`, so a
+ * future detail→discussions View Transition can match them. One of each per page.
  *
  * Full-bleed: this component owns its own horizontal padding internally and is
  * rendered edge-to-edge by the page (the page's PageMain drops its gutter), so the
- * backdrop spans the viewport while the text respects `PAGE_PADDING_X`.
+ * backdrop spans the column while the text respects `PAGE_PADDING_X`.
  */
 export function DiscussionPageHeader({
   basePath,
@@ -38,6 +48,7 @@ export function DiscussionPageHeader({
   mediaId,
   title,
   year,
+  tmdbLogoPath,
   publishedCount,
   participantCount,
 }: DiscussionPageHeaderProps) {
@@ -47,17 +58,24 @@ export function DiscussionPageHeader({
   return (
     <header
       data-hero-root
-      className="relative -mx-2.5 mb-6 flex min-h-[13rem] flex-col justify-end overflow-hidden rounded-b-2xl bg-hero-base sm:-mx-4 md:-mx-6 md:min-h-[15rem] md:rounded-2xl lg:-mx-6"
+      className="relative -mx-2.5 mb-6 flex min-h-[14rem] flex-col justify-end overflow-hidden rounded-b-2xl bg-hero-base sm:-mx-4 md:-mx-6 md:min-h-[16rem] md:rounded-2xl lg:-mx-6"
     >
       {/* Full-bleed backdrop. eslint-disable: CDN already serves WebP; Next's
-          optimizer on the CPU-starved box would be slower (perf rule). */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={backdropUrl}
-        alt=""
-        aria-hidden
-        className="absolute inset-0 h-full w-full object-cover object-[center_28%]"
-      />
+          optimizer on the CPU-starved box would be slower (perf rule). The
+          wrapper carries the view-transition-name for the future shared-element
+          morph (set, not yet activated). */}
+      <div
+        className="absolute inset-0"
+        style={{ viewTransitionName: "hero-backdrop" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={backdropUrl}
+          alt=""
+          aria-hidden
+          className="h-full w-full object-cover object-[center_28%]"
+        />
+      </div>
       {/* Top scrim → blends into the system status bar on mobile (DESIGN.md → System bars). */}
       <div className="hero-top-scrim" />
       {/* Bottom + left gradient scrim → fades imagery into --hero-base for text legibility. */}
@@ -92,23 +110,32 @@ export function DiscussionPageHeader({
       >
         <Link
           href={basePath}
-          className="group mb-2.5 inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-white/70 transition-colors hover:text-white"
+          className="group mb-3 inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-white/70 transition-colors hover:text-white"
         >
           <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
           Back to {title}
         </Link>
 
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">Discussion</p>
-        <h1 className="mt-1 text-3xl font-bold leading-[1.05] tracking-tight text-white sm:text-4xl">
-          <span className="line-clamp-2">
-            {title}
-            {year ? (
-              <span className="ml-2 align-middle text-xl font-medium text-white/55 sm:text-2xl">
-                {year}
-              </span>
-            ) : null}
-          </span>
-        </h1>
+
+        {/* sr-only canonical heading for SEO/a11y; the logo is the visual title. */}
+        <h1 className="sr-only">{title} discussion</h1>
+
+        <div
+          className="mt-1.5 flex items-end gap-3"
+          style={{ viewTransitionName: "hero-logo" }}
+        >
+          <HeroLogoShell
+            mediaId={mediaId}
+            mediaType={mediaType}
+            fallbackText={title}
+            tmdbLogoPath={tmdbLogoPath}
+            className="max-h-16 max-w-[260px] sm:max-h-20 sm:max-w-[340px] md:max-h-24 md:max-w-[420px]"
+          />
+          {year ? (
+            <span className="pb-1 text-lg font-medium text-white/55 sm:text-xl">{year}</span>
+          ) : null}
+        </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/80">
           <span className="inline-flex items-center gap-1.5">

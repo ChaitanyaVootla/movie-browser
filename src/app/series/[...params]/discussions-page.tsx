@@ -15,8 +15,11 @@ import {
 import { getPublicTrendingRoots, getPublicLatestRoots } from "@/server/db/postgres/comments-trending";
 import { getTrailerReactions } from "@/server/db/postgres/trailer-reactions";
 import { getAIDataLegacy } from "@/server/services/ai-data-service";
+import { getSeries } from "@/server/actions/series";
+import { extractSeriesOverviewProps } from "@/types/client-props";
 import { TrendingCommentList } from "@/components/features/discussion/trending-comment-list";
 import { DiscussionPageHeader } from "@/components/features/discussion/discussion-page-header";
+import { DiscussionInfoSidebar } from "@/components/features/discussion/discussion-info-sidebar";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
 import { parseSeriesDiscussions } from "./discussions-parse";
 
@@ -75,6 +78,7 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
     participantCount,
     aiSummary,
     webReactionsRaw,
+    fullSeries,
   ] = await Promise.all([
     getPublicTrendingRoots(anchor),
     getPublicLatestRoots(anchor),
@@ -84,9 +88,17 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
     getParticipantCount(anchor),
     getAIDataLegacy(series.id, "series"),
     getTrailerReactions("series", series.id),
+    // Full catalog item for the "About this title" sidebar. Cacheable catalog
+    // read (no auth()/headers()) — ISR-safe. Null-safe: missing item just hides
+    // the sidebar.
+    getSeries(series.id),
   ]);
   const starters = (aiSummary?.aiQuestions ?? []).slice(0, 4);
   const year = series.firstAirDate ? series.firstAirDate.getUTCFullYear() : null;
+
+  const overviewItem = fullSeries ? extractSeriesOverviewProps(fullSeries) : null;
+  const englishLogo = fullSeries?.images?.logos?.find((l) => l.iso_639_1 === "en");
+  const tmdbLogoPath = englishLogo?.file_path ?? fullSeries?.images?.logos?.[0]?.file_path ?? null;
 
   const jsonLd = omitEmpty({
     "@context": "https://schema.org",
@@ -110,8 +122,18 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
     { name: "Discussion" },
   ]);
 
+  const sidebar = overviewItem ? (
+    <DiscussionInfoSidebar
+      item={overviewItem}
+      mediaType="series"
+      basePath={basePath}
+      year={year}
+      posterPath={series.posterPath}
+    />
+  ) : null;
+
   return (
-    <PageMain className="max-w-3xl mx-auto px-2.5 sm:px-4 md:px-6 lg:px-6 pt-0 md:pt-16">
+    <PageMain className="max-w-6xl mx-auto px-2.5 sm:px-4 md:px-6 lg:px-6 pt-0 md:pt-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <DiscussionPageHeader
@@ -120,23 +142,32 @@ export async function SeriesDiscussionsView({ seriesId }: { seriesId: number }) 
         mediaId={series.id}
         title={series.name}
         year={year}
+        tmdbLogoPath={tmdbLogoPath}
         publishedCount={publishedCount}
         participantCount={participantCount}
       />
-      <p className="-mt-3 mb-5 text-sm text-muted-foreground">
-        Whole-series threads below. For an episode, open its{" "}
-        <Link href={`${basePath}/discuss/s1e1`} className="underline hover:text-foreground">
-          per-episode discussion
-        </Link>
-        .
-      </p>
-      <div className="space-y-5" id="discussion">
-        <TrendingCommentList
-          anchor={anchor}
-          trending={trending}
-          latest={latest}
-          emptyState={{ initialPage, lockedCount, starters, webReactionsRaw }}
-        />
+      {/* Two-column on desktop: discussion fills the main column, "About this
+          title" rides the right rail. Single column on mobile (sidebar stacks
+          below the discussion). */}
+      <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
+        <div className="space-y-5 min-w-0" id="discussion">
+          <p className="-mt-3 text-sm text-muted-foreground">
+            Whole-series threads below. For an episode, open its{" "}
+            <Link href={`${basePath}/discuss/s1e1`} className="underline hover:text-foreground">
+              per-episode discussion
+            </Link>
+            .
+          </p>
+          <TrendingCommentList
+            anchor={anchor}
+            trending={trending}
+            latest={latest}
+            emptyState={{ initialPage, lockedCount, starters, webReactionsRaw }}
+          />
+        </div>
+        {sidebar ? (
+          <div className="mt-8 lg:mt-0 lg:sticky lg:top-20">{sidebar}</div>
+        ) : null}
       </div>
     </PageMain>
   );

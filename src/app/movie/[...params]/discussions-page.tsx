@@ -14,8 +14,11 @@ import {
 } from "@/server/db/postgres/comments";
 import { getTrailerReactions } from "@/server/db/postgres/trailer-reactions";
 import { getAIDataLegacy } from "@/server/services/ai-data-service";
+import { getMovie } from "@/server/actions/movie";
+import { extractMovieOverviewProps } from "@/types/client-props";
 import { CommentListClient } from "@/components/features/discussion/comment-list-client";
 import { DiscussionPageHeader } from "@/components/features/discussion/discussion-page-header";
+import { DiscussionInfoSidebar } from "@/components/features/discussion/discussion-info-sidebar";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
 import { parseMovieDiscussions } from "./discussions-parse";
 
@@ -57,17 +60,32 @@ export async function MovieDiscussionsView({ movieId }: { movieId: number }) {
   const basePath = getMediaPath("movie", movie.id, movie.title);
   const canonicalUrl = `${SITE_URL}${basePath}/discussions`;
 
-  const [initialPage, lockedCount, publishedCount, participantCount, aiSummary, webReactionsRaw] =
-    await Promise.all([
-      getPublicCommentPage(anchor),
-      getLockedCommentCount(anchor),
-      getPublishedCommentCount(anchor),
-      getParticipantCount(anchor),
-      getAIDataLegacy(movie.id, "movie"),
-      getTrailerReactions("movie", movie.id),
-    ]);
+  const [
+    initialPage,
+    lockedCount,
+    publishedCount,
+    participantCount,
+    aiSummary,
+    webReactionsRaw,
+    fullMovie,
+  ] = await Promise.all([
+    getPublicCommentPage(anchor),
+    getLockedCommentCount(anchor),
+    getPublishedCommentCount(anchor),
+    getParticipantCount(anchor),
+    getAIDataLegacy(movie.id, "movie"),
+    getTrailerReactions("movie", movie.id),
+    // Full catalog item for the "About this title" sidebar. Cacheable catalog
+    // read (no auth()/headers()) — ISR-safe. Null-safe: missing item just hides
+    // the sidebar.
+    getMovie(movie.id),
+  ]);
   const starters = (aiSummary?.aiQuestions ?? []).slice(0, 4);
   const year = movie.releaseDate ? movie.releaseDate.getUTCFullYear() : null;
+
+  const overviewItem = fullMovie ? extractMovieOverviewProps(fullMovie) : null;
+  const englishLogo = fullMovie?.images?.logos?.find((l) => l.iso_639_1 === "en");
+  const tmdbLogoPath = englishLogo?.file_path ?? fullMovie?.images?.logos?.[0]?.file_path ?? null;
 
   const jsonLd = omitEmpty({
     "@context": "https://schema.org",
@@ -91,8 +109,18 @@ export async function MovieDiscussionsView({ movieId }: { movieId: number }) {
     { name: "Discussion" },
   ]);
 
+  const sidebar = overviewItem ? (
+    <DiscussionInfoSidebar
+      item={overviewItem}
+      mediaType="movie"
+      basePath={basePath}
+      year={year}
+      posterPath={movie.posterPath}
+    />
+  ) : null;
+
   return (
-    <PageMain className="max-w-3xl mx-auto px-2.5 sm:px-4 md:px-6 lg:px-6 pt-0 md:pt-16">
+    <PageMain className="max-w-6xl mx-auto px-2.5 sm:px-4 md:px-6 lg:px-6 pt-0 md:pt-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <DiscussionPageHeader
@@ -101,23 +129,32 @@ export async function MovieDiscussionsView({ movieId }: { movieId: number }) {
         mediaId={movie.id}
         title={movie.title}
         year={year}
+        tmdbLogoPath={tmdbLogoPath}
         publishedCount={publishedCount}
         participantCount={participantCount}
       />
-      <div className="space-y-5" id="discussion">
-        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-          <Clock className="h-4 w-4 text-brand" />
-          Newest first
+      {/* Two-column on desktop: discussion fills the main column, "About this
+          title" rides the right rail. Single column on mobile (sidebar stacks
+          below the discussion). */}
+      <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
+        <div className="space-y-5 min-w-0" id="discussion">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <Clock className="h-4 w-4 text-brand" />
+            Newest first
+          </div>
+          <CommentListClient
+            anchor={anchor}
+            initialPage={initialPage}
+            lockedCount={lockedCount}
+            starters={starters}
+            defaultScope="NONE"
+            richEmptyState
+            webReactionsRaw={webReactionsRaw}
+          />
         </div>
-        <CommentListClient
-          anchor={anchor}
-          initialPage={initialPage}
-          lockedCount={lockedCount}
-          starters={starters}
-          defaultScope="NONE"
-          richEmptyState
-          webReactionsRaw={webReactionsRaw}
-        />
+        {sidebar ? (
+          <div className="mt-8 lg:mt-0 lg:sticky lg:top-20">{sidebar}</div>
+        ) : null}
       </div>
     </PageMain>
   );

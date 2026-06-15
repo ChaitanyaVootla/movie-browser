@@ -15,3 +15,4 @@ export { DiscussionEntryStrip } from "./discussion-entry-strip";
 export { discussionsHref } from "./discussion-entry-strip-href";
 export { DiscussionCountBadge, shouldShowBadge } from "./discussion-count-badge";
 export { TrendingCommentList } from "./trending-comment-list";
+export { DiscussionInfoSidebar } from "./discussion-info-sidebar";
