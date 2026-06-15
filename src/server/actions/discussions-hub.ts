@@ -11,7 +11,6 @@ import {
   type HubPage,
 } from "@/server/db/postgres/social/discussion-hub";
 import { ANON_GATE_CONTEXT } from "@/server/services/discussion/spoiler-gate";
-import { prisma } from "@/server/db/postgres";
 
 export const HubTabSchema = z.enum(["hot", "new", "following"]);
 export type HubTab = z.infer<typeof HubTabSchema>;
@@ -53,15 +52,12 @@ export async function getHubFollowing(
     const { cursor } = FollowingSchema.parse(raw);
     // Build a series-oriented gate context from the viewer's progress max-watermark.
     // The mixed list only needs the conservative series context (see hub note in plan).
-    const completed = await prisma.seriesProgress.count({
-      where: { userId: viewerId, status: "COMPLETED" },
-    });
     const ctx = {
       ...ANON_GATE_CONTEXT,
       loggedIn: true,
-      // Following surfaces NONE-scope + the viewer's tracked-series watermark rows;
-      // treat completed-anything as not granting blanket access in the mixed list.
-      seriesCompleted: completed > 0 ? false : false,
+      // The mixed cross-catalog Following list intentionally never grants blanket
+      // COMPLETED access (conservative gate; gated bodies must never leak).
+      seriesCompleted: false,
     };
     return getHubFollowingPage(viewerId, ctx, cursor as CommentCursor | null);
   } catch (error: unknown) {
