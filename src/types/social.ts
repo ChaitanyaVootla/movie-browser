@@ -336,3 +336,14 @@ export interface ImportJobDTO {
   createdAt: string;
   completedAt: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase B: @-mention search (sectioned catalog search for the autocomplete)
+// ---------------------------------------------------------------------------
+
+export interface MentionSearchResultDto {
+  people: { username: string; name: string | null; image: string | null }[];
+  titles: { kind: "movie" | "series"; tmdbId: number; name: string; year: number | null; imagePath: string | null }[];
+  cast: { tmdbId: number; name: string; imagePath: string | null }[];
+  episodes: { seriesId: number; seasonNumber: number; episodeNumber: number; name: string; imagePath: string | null }[];
+}
