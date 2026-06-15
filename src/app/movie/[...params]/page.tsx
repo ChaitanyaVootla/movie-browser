@@ -459,6 +459,18 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         className="mt-2 md:mt-3"
       />
 
+      {/* Discussion entry — surfaced HIGH (right below the action bar) so it's
+          discoverable near the hero. Cacheable baseline; the client island
+          upgrades to "N new since you watched". Jumps to the inline
+          #discussion section lower on the page, links to the dedicated page. */}
+      <Suspense fallback={null}>
+        <DiscussionEntryStrip
+          anchor={{ type: "movie", movieId: movie.id }}
+          title={movie.title}
+          className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4"
+        />
+      </Suspense>
+
       {/* Overview, cast, and details - using light props to reduce RSC payload by ~80% */}
       <MediaOverview
         item={extractMovieOverviewProps(movie)}
@@ -545,15 +557,6 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
           className="mt-8 md:mt-12"
           // Exclude movies from the same collection (they're shown in CollectionSection above)
           excludeCollectionId={(movie.belongs_to_collection as { id?: number } | null)?.id}
-        />
-      </Suspense>
-
-      {/* Discussion entry strip — cacheable baseline; client island upgrades to "N new". */}
-      <Suspense fallback={null}>
-        <DiscussionEntryStrip
-          anchor={{ type: "movie", movieId: movie.id }}
-          title={movie.title}
-          className="px-4 md:px-8 lg:px-12 mt-4"
         />
       </Suspense>
 

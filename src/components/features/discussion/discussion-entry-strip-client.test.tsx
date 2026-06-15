@@ -23,7 +23,7 @@ describe("DiscussionEntryStripClient markup", () => {
   it("does NOT nest an anchor inside another anchor", () => {
     const { container } = render(<DiscussionEntryStripClient {...props} />);
     const anchors = container.querySelectorAll("a");
-    // Exactly one anchor (the dedicated "View all" link); the jump affordance is a button.
+    // Exactly one anchor (the dedicated-page link); the on-page jump is a button.
     expect(anchors.length).toBe(1);
     anchors.forEach((a) => {
       expect(a.querySelector("a")).toBeNull();
@@ -32,15 +32,15 @@ describe("DiscussionEntryStripClient markup", () => {
     cleanup();
   });
 
-  it("exposes both targets: a jump button (#discussion) and a dedicated-page link", () => {
+  it("exposes both targets: a dedicated-page link (primary) and an on-page jump button", () => {
     const { container, getByRole } = render(<DiscussionEntryStripClient {...props} />);
-    // Jump affordance is a button, not an anchor.
-    const jump = getByRole("button");
-    expect(jump.getAttribute("type")).toBe("button");
-    expect(jump.hasAttribute("data-discussion-strip")).toBe(true);
-    // Dedicated page is reachable via a real anchor href.
+    // Dedicated page is the primary affordance — a real anchor carrying the marker.
     const link = container.querySelector('a[href="/movie/603/the-matrix/discussions"]');
     expect(link).not.toBeNull();
+    expect(link?.hasAttribute("data-discussion-strip")).toBe(true);
+    // On-page jump affordance is a button, not an anchor.
+    const jump = getByRole("button");
+    expect(jump.getAttribute("type")).toBe("button");
     cleanup();
   });
 });

@@ -55,22 +55,30 @@ export function DiscussionEntryStripClient({ anchor, baselineLabel, anchorJumpHr
   };
 
   return (
-    <div className="group flex items-center gap-2 rounded-full border border-border bg-card/40 px-4 py-2 text-sm transition-colors hover:bg-card/70 min-h-10">
+    <div className="group flex items-center gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-brand/40 hover:bg-card min-h-12">
+      {/* Primary affordance: open the full thread on the dedicated page. */}
+      <Link
+        href={dedicatedHref}
+        className="flex flex-1 items-center gap-3 min-h-10"
+        data-discussion-strip
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand">
+          <MessagesSquare className="h-[18px] w-[18px]" />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-sm font-semibold text-foreground">{label}</span>
+          <span className="text-xs text-muted-foreground">Spoiler-safe discussion</span>
+        </span>
+        <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand" />
+      </Link>
+      {/* Secondary: jump to the inline thread further down the page. */}
       <button
         type="button"
         onClick={jumpToDiscussion}
-        className="flex flex-1 items-center gap-2 text-left min-h-10"
-        data-discussion-strip
+        className="hidden shrink-0 items-center rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex min-h-9"
       >
-        <MessagesSquare className="h-4 w-4 text-brand shrink-0" />
-        <span className="font-medium text-foreground">{label}</span>
+        On this page
       </button>
-      <Link
-        href={dedicatedHref}
-        className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        View all <ArrowRight className="h-3 w-3" />
-      </Link>
     </div>
   );
 }

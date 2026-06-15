@@ -479,6 +479,18 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         className="mt-2 md:mt-3"
       />
 
+      {/* Discussion entry — surfaced HIGH (right below the action bar) so it's
+          discoverable near the hero. Cacheable baseline; the client island
+          upgrades to "N new since you watched". Jumps to the inline
+          #discussion section lower on the page, links to the dedicated page. */}
+      <Suspense fallback={null}>
+        <DiscussionEntryStrip
+          anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
+          title={series.name}
+          className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4"
+        />
+      </Suspense>
+
       {/* Season & Episode Selector - light seasons (no per-season overview/poster) */}
       {displaySeasons.length > 0 && (
         <SeasonSelector
@@ -572,15 +584,6 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           tmdbRecommendations={series.recommendations?.results?.slice(0, 15)}
           tmdbSimilar={series.similar?.results?.slice(0, 15)}
           className="mt-8 md:mt-12"
-        />
-      </Suspense>
-
-      {/* Discussion entry strip — cacheable baseline; client island upgrades to "N new". */}
-      <Suspense fallback={null}>
-        <DiscussionEntryStrip
-          anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
-          title={series.name}
-          className="px-4 md:px-8 lg:px-12 mt-4"
         />
       </Suspense>
 
