@@ -33,7 +33,7 @@ describe("CommentBody", () => {
   it("renders a mention INLINE — no <p> block wrapper that would force a newline (issue 2)", () => {
     const html = renderToStaticMarkup(<CommentBody comment={dto({ body: "hi @bea nice" })} />);
     // The text segments must NOT be wrapped in block <p> elements (which caused the
-    // spurious line break around the mention); they render as inline <span>s.
+    // spurious line break around the mention); they render as block <span>s, not <p>s.
     expect(html).not.toContain("<p>");
     expect(html).toContain('href="/u/bea"');
     // Both surrounding words are present and the boundary whitespace around the
@@ -41,7 +41,19 @@ describe("CommentBody", () => {
     expect(html).toContain(">hi<");
     expect(html).toContain(">nice<");
     expect(html).toContain("</span> "); // trailing space after "hi" before the link
-    expect(html).toContain("> <span>"); // leading space before "nice"
+    // The space before "nice" sits inside the outer token span (not a bare "> <span>")
+    expect(html).toMatch(/> <span/); // leading space token before the "nice" segment
+    // Paragraphs render as block <span> elements (not bare inline spans)
+    expect(html).toContain('class="block');
+  });
+  it("renders a two-paragraph body as two separate block paragraphs", () => {
+    const html = renderToStaticMarkup(<CommentBody comment={dto({ body: "first para\n\nsecond para" })} />);
+    // Must contain at least two block paragraph spans
+    const blockMatches = html.match(/class="block[^"]*"/g) ?? [];
+    expect(blockMatches.length).toBeGreaterThanOrEqual(2);
+    // The second paragraph must carry the mt-2.5 spacing class
+    expect(html).toContain("mt-2.5");
+    expect(html).not.toContain("<p>");
   });
   it("hides a [spoiler] body until revealed (renders a button, not the text in plain flow)", () => {
     const html = renderToStaticMarkup(<CommentBody comment={dto({ body: "the killer is [spoiler]Bob[/spoiler]" })} />);

@@ -106,14 +106,14 @@ const SAFE_LINK_COMPONENTS: Components = {
       {children}
     </a>
   ),
-  // Each text segment is one fragment in a flowing inline run alongside mention
-  // chips / @user links. ReactMarkdown wraps a paragraph's content in a <p> block;
-  // a block element forces a line break between adjacent text segments and around
-  // inline mentions (the "spurious newline after a mention" bug). Render the
-  // top-level paragraph as an inline <span> so the whole comment flows on one line
-  // — explicit blank lines still produce paragraph breaks via the `\n\n` markdown
-  // the composer serializes (the wrapper's `whitespace-pre-wrap` preserves them).
-  p: ({ children }) => <span>{children}</span>,
+  // Each markdown paragraph renders as a block <span> so that:
+  // (a) inline content within it (text, @mention links, spoiler chips, entity links)
+  //     stays on one line — no forced line break around inline tokens (a plain <p>
+  //     caused the "spurious newline around a mention" bug); and
+  // (b) genuine multi-paragraph bodies (authored with \n\n) produce a visible gap
+  //     between paragraphs: every paragraph after the first gets mt-2.5 via the
+  //     [&:not(:first-child)] selector.
+  p: ({ children }) => <span className="block [&:not(:first-child)]:mt-2.5">{children}</span>,
 };
 
 /** Render a single token to a React node. */
