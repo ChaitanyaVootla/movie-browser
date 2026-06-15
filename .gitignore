@@ -108,3 +108,4 @@ data/person_ids_*.json
 data-dumps
 # Brainstorming visual companion
 .superpowers/
+.worktrees/
