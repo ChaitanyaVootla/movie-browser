@@ -7,7 +7,8 @@ import { ExternalLink } from "lucide-react";
 import { cn, isMovieItem, getDisplayTitle, getMediaHrefFromItem } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
-import type { RecentItem, ContinueWatchingItem } from "@/stores/user";
+import { useUserStore, selectSeriesProgress, type RecentItem, type ContinueWatchingItem } from "@/stores/user";
+import { CardProgressBar } from "@/components/features/media/social-signals";
 import { useAnalytics } from "@/hooks/use-analytics";
 
 // CDN and TMDB image URLs
@@ -43,6 +44,10 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
   const title = getDisplayTitle(item);
   const mediaType = isMovie ? "movie" : "series";
   const detailHref = getMediaHrefFromItem(item.itemId, item);
+
+  // Series watch progress (Phase A) — the key continue-watching signal.
+  const seriesProg = useUserStore(selectSeriesProgress(item.itemId));
+  const showProgress = !isMovie && !!seriesProg && seriesProg.pct > 0 && seriesProg.pct < 100;
 
   // Continue watching specific fields
   const watchLink = "watchLink" in item ? item.watchLink : undefined;
@@ -112,6 +117,9 @@ export function WideCard({ item, className, showWatchLink = false }: WideCardPro
           {/* Navigation pending feedback (internal detail navigations only;
               external watch links never enter the pending state) */}
           <CardPendingOverlay />
+
+          {/* Series watch-progress hairline bar */}
+          {showProgress && seriesProg && <CardProgressBar percent={seriesProg.pct} />}
         </div>
       </Link>
 

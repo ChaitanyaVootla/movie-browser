@@ -23,8 +23,20 @@ export interface LibraryData {
   watchlistMovieIds: number[];
   watchlistSeriesIds: number[];
   ratings: { itemId: number; itemType: "movie" | "series"; rating: number }[];
+  scores: { itemId: number; itemType: "movie" | "series"; score: number }[];
+  liked: { itemId: number; itemType: "movie" | "series" }[];
+  seriesProgress: SeriesProgressData[];
   recentItems: RecentItemData[];
   continueWatchingItems: ContinueWatchingItemData[];
+}
+
+export interface SeriesProgressData {
+  seriesId: number;
+  watched: number;
+  total: number | null;
+  lastSeason: number | null;
+  lastEpisode: number | null;
+  status: string;
 }
 
 export interface RecentItemData {

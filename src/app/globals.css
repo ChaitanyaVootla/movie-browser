@@ -110,10 +110,16 @@ body {
   --hero-base: oklch(0.15 0 0);
   --hero-base-rgb: 28 28 28;
 
-  /* Brand color - Cinematic accent */
-  --brand: oklch(0.55 0.2 25);
+  /* Brand color - Cinematic accent (Scarlet; see specs/2026-06-16-social-signals).
+     Light mode: darker for contrast on the light/cream canvas. */
+  --brand: oklch(0.52 0.215 22);
   --brand-foreground: oklch(0.99 0 0);
-  --brand-rgb: 180 60 50;
+  --brand-rgb: 200 30 46;
+
+  /* Dulled personal-signal tone (social signals on cards): a quieted brand so
+     personal state (your rating star, loved heart, progress bar) never screams.
+     References --brand, so it re-resolves under .dark + any accent. */
+  --sig: color-mix(in oklab, var(--brand) 78%, #8a8a8a);
 
   /* Chart colors */
   --chart-1: oklch(0.55 0.2 25);
@@ -165,10 +171,11 @@ body {
   --hero-base: oklch(0 0 0);
   --hero-base-rgb: 0 0 0;
 
-  /* Brand color - Warmer in dark mode */
-  --brand: oklch(0.7 0.22 30);
-  --brand-foreground: oklch(0.1 0 0);
-  --brand-rgb: 230 100 70;
+  /* Brand color - Scarlet (dark). White foreground: scarlet is deep enough that
+     white text/icons on a scarlet fill clear AA (was dark text on the old bright red). */
+  --brand: oklch(0.59 0.235 22);
+  --brand-foreground: oklch(0.99 0 0);
+  --brand-rgb: 234 36 52;
 
   /* Chart colors - Brighter for dark mode */
   --chart-1: oklch(0.7 0.22 30);

@@ -51,6 +51,22 @@ export function groupDiaryByMonth(entries: DiaryEntryDTO[]): DiaryMonthGroup[] {
   return groups;
 }
 
+/**
+ * Locale-aware compact count for social-proof badges ("1.2K", "5M", lakhs in
+ * `en-IN`). Use everywhere a count is shown on a card/carousel — never hardcode
+ * K/M (the YouTube-lakh i18n gotcha). Falls back to the plain number on error.
+ */
+export function formatCompactCount(n: number, locale?: string): string {
+  try {
+    return new Intl.NumberFormat(locale, {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(n);
+  } catch {
+    return String(n);
+  }
+}
+
 /** Username rules shared with the claim form: 3–20 chars, a–z 0–9 _ . */
 export const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
 

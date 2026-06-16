@@ -90,8 +90,17 @@ function mapGenres(
 // =============================================================================
 
 export async function getLibraryData(userId: number) {
-  const [watchedMovies, watchlistMovies, watchlistSeries, ratings, recents, continueWatching] =
-    await Promise.all([
+  const [
+    watchedMovies,
+    watchlistMovies,
+    watchlistSeries,
+    ratings,
+    scoreRatings,
+    likedRatings,
+    seriesProgressRows,
+    recents,
+    continueWatching,
+  ] = await Promise.all([
       prisma.watchEvent.findMany({
         where: { userId, movieId: { not: null }, kind: "WATCH" },
         select: { movieId: true },
@@ -108,6 +117,25 @@ export async function getLibraryData(userId: number) {
       prisma.userRating.findMany({
         where: { userId, rating: { not: null } },
         select: { movieId: true, seriesId: true, rating: true },
+      }),
+      prisma.userRating.findMany({
+        where: { userId, score: { not: null } },
+        select: { movieId: true, seriesId: true, score: true },
+      }),
+      prisma.userRating.findMany({
+        where: { userId, liked: true },
+        select: { movieId: true, seriesId: true },
+      }),
+      prisma.seriesProgress.findMany({
+        where: { userId },
+        select: {
+          seriesId: true,
+          episodesWatched: true,
+          lastSeasonNumber: true,
+          lastEpisodeNumber: true,
+          status: true,
+          series: { select: { numberOfEpisodes: true } },
+        },
       }),
       prisma.recentItem.findMany({
         where: { userId },
@@ -144,6 +172,29 @@ export async function getLibraryData(userId: number) {
             },
           ]
     ),
+    scores: scoreRatings.flatMap((r) =>
+      r.score === null
+        ? []
+        : [
+            {
+              itemId: r.movieId ?? r.seriesId!,
+              itemType: r.movieId ? ("movie" as const) : ("series" as const),
+              score: r.score,
+            },
+          ]
+    ),
+    liked: likedRatings.map((r) => ({
+      itemId: r.movieId ?? r.seriesId!,
+      itemType: r.movieId ? ("movie" as const) : ("series" as const),
+    })),
+    seriesProgress: seriesProgressRows.map((p) => ({
+      seriesId: p.seriesId,
+      watched: p.episodesWatched,
+      total: p.series?.numberOfEpisodes ?? null,
+      lastSeason: p.lastSeasonNumber,
+      lastEpisode: p.lastEpisodeNumber,
+      status: p.status as string,
+    })),
     recentItems: recents.map((r) => {
       const isMovie = r.movieId !== null;
       return {

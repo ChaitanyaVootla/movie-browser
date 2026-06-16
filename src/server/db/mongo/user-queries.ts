@@ -53,6 +53,17 @@ export async function getLibraryData(userId: number) {
       itemType: r.itemType,
       rating: r.rating,
     })),
+    // Legacy Mongo path does not carry score / liked / series-progress signals.
+    scores: [] as { itemId: number; itemType: "movie" | "series"; score: number }[],
+    liked: [] as { itemId: number; itemType: "movie" | "series" }[],
+    seriesProgress: [] as {
+      seriesId: number;
+      watched: number;
+      total: number | null;
+      lastSeason: number | null;
+      lastEpisode: number | null;
+      status: string;
+    }[],
     recentItems: (
       recents as Array<{
         itemId: number;

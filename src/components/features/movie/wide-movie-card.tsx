@@ -11,7 +11,20 @@ import { getWidePosterSources, getBackdropSources } from "@/lib/image";
 import { getMediaBadges, getBadgeScoopColor } from "@/lib/badges";
 import type { MovieListItem, SeriesListItem } from "@/types";
 import { MovieCardActions } from "./movie-card-actions";
-import { UserStatusBadge, useIsWatched } from "@/components/features/media/user-status-badge";
+import { useIsWatched } from "@/components/features/media/user-status-badge";
+import {
+  useUserStore,
+  selectIsInWatchlist,
+  selectScore,
+  selectLiked,
+  selectSeriesProgress,
+} from "@/stores/user";
+import {
+  PersonalCornerCluster,
+  CardProgressBar,
+  hasPersonalState,
+  type PersonalCardState,
+} from "@/components/features/media/social-signals";
 import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
 import { useMounted } from "@/hooks/use-mounted";
 
@@ -49,8 +62,27 @@ export function WideMovieCard({
   const mediaType = itemIsMovie ? "movie" : "series";
   const href = getMediaHref(item.id, itemIsMovie, title);
 
-  // Check if user has watched this item (for grayscale effect)
+  // Check if user has watched this item (movies; for grayscale effect)
   const isWatched = useIsWatched(item.id);
+
+  // Social signals (Phase A) — client-hydrated from the user store.
+  const isHydrated = useUserStore((s) => s.isHydrated);
+  const inWatchlist = useUserStore(selectIsInWatchlist(item.id, mediaType));
+  const score = useUserStore(selectScore(item.id, mediaType));
+  const loved = useUserStore(selectLiked(item.id, mediaType));
+  const seriesProg = useUserStore(selectSeriesProgress(item.id));
+  const completed =
+    !itemIsMovie && !!seriesProg && seriesProg.total != null && seriesProg.watched >= seriesProg.total;
+  const watchedState = itemIsMovie ? isWatched : completed;
+  const inProgress = !itemIsMovie && !!seriesProg && seriesProg.pct > 0 && !completed;
+  const personal: PersonalCardState = {
+    // canonical score is 1–10; the card shows the half-star scale (0.5–5)
+    stars: score != null ? score / 2 : null,
+    loved,
+    watched: watchedState,
+    watchlisted: inWatchlist,
+  };
+  const showPersonal = isHydrated && !hideUserStatus && hasPersonalState(personal);
 
   // Badges are derived from the current date (e.g. "New", "Just Released") via
   // getMediaBadges(). Under ISR the server HTML is cached for hours, so computing
@@ -119,7 +151,7 @@ export function WideMovieCard({
                   sizes="(max-width: 640px) 280px, (max-width: 1024px) 340px, 400px"
                   className={cn(
                     "object-cover transition-all duration-300 group-hover:scale-105",
-                    isWatched &&
+                    watchedState &&
                       !hideUserStatus &&
                       "grayscale brightness-75 group-hover:grayscale-0 group-hover:brightness-100"
                   )}
@@ -153,8 +185,10 @@ export function WideMovieCard({
                 className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               />
 
-              {/* Badge inside image at bottom-left with inverted corner */}
-              {badge && (
+              {/* Bottom-left scoop: personal cluster supersedes the quality badge */}
+              {showPersonal ? (
+                <PersonalCornerCluster state={personal} raised={inProgress} />
+              ) : badge ? (
                 <div className="absolute bottom-0 left-0 z-10 flex items-end">
                   {/* Badge - small and sleek */}
                   <span
@@ -177,10 +211,10 @@ export function WideMovieCard({
                     aria-hidden="true"
                   />
                 </div>
-              )}
+              ) : null}
 
-              {/* User status badge (watchlist/watched) in bottom-right */}
-              {!hideUserStatus && <UserStatusBadge itemId={item.id} mediaType={mediaType} />}
+              {/* Series progress: bottom hairline bar (in-progress only) */}
+              {inProgress && seriesProg && <CardProgressBar percent={seriesProg.pct} />}
 
               {/* Navigation pending feedback (dim + spinner on the clicked card) */}
               <CardPendingOverlay />
