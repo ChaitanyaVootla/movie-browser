@@ -10,6 +10,32 @@ switcher. Keep it until Phases A–C ship; delete after.
 
 ---
 
+## 0. Implementation status (2026-06-16)
+
+- **Phase A — DONE** (commit `feat(social/phaseA)`): Scarlet accent in
+  `globals.css` + `--sig`; DESIGN.md Social-signals section; library hydration
+  extended with `score`/`liked`/`seriesProgress` (`/api/user/library` +
+  `getLibraryData` pg/mongo + user store selectors); `social-signals.tsx`
+  primitives; `MovieCard`/`WideMovieCard`/`WideCard` render the personal
+  cluster (½-star = score/2 + heart / watched / watchlist, superseding the
+  quality badge) + bottom hairline progress bar. Verified: ★4.5♥ on a real
+  card; position-setter intact.
+- **Phase B — DONE** (commit `feat(social/phaseB)`): detail-page Community
+  teaser row — `DiscussionEntryStrip` + new `ReviewsRatingsEntry` (anon-cacheable
+  histogram + counts) as 2-col peers under the action bar, wired into movie +
+  series pages; `ReviewsSection#reviews` CTA target; `getPublishedReviewCount` +
+  `getPublicReviewCount`. Verified: 9.0 + histogram renders.
+- **Phase C — PARTIAL** (commit `feat(social/phaseC)`): discussion-count social
+  proof on home trending carousels via `getPublishedCommentCountsForType` (one
+  grouped query) → `MovieCarousel.commentCounts` → existing `DiscussionCountBadge`.
+  Verified: query returns `{1396:10}`. **Deferred:** "popular with friends"
+  ordering (viewer-specific, can't live on cached home), hero-carousel overlay
+  counts, counts on similar/discover carousels.
+- **Open follow-ups:** destructive-red audit (§2b caveat — `--destructive` is
+  hue 25, near Scarlet hue 22, left intact pending review); live store-update of
+  score/liked/progress on detail-page mutation (cards currently reflect on next
+  hydration); "1 ratings" pluralization in the entry footer.
+
 ## 1. Problem
 
 Phase 0/1 shipped a full social/community stack (tracking, ratings, reviews,
