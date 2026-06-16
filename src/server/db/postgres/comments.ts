@@ -404,6 +404,37 @@ export async function getPublishedCommentCount(anchor: DiscussionAnchor): Promis
 }
 
 /**
+ * Batched published-comment counts for a set of movie OR series ids — ONE
+ * grouped query (no N+1) for carousel/card social proof (Phase C). Series counts
+ * include episode-level discussion (max "being discussed" signal). Viewer-agnostic
+ * (PUBLISHED + circleId null) → safe in ISR-cached carousels. Returns a plain
+ * object keyed by tmdb id (serializable server→client).
+ */
+export async function getPublishedCommentCountsForType(
+  type: "movie" | "series",
+  ids: number[]
+): Promise<Record<number, number>> {
+  const out: Record<number, number> = {};
+  if (ids.length === 0) return out;
+  if (type === "movie") {
+    const rows = await prisma.comment.groupBy({
+      by: ["movieId"],
+      where: { ...PUBLIC_COMMENTS_WHERE, movieId: { in: ids } },
+      _count: { _all: true },
+    });
+    for (const r of rows) if (r.movieId != null) out[r.movieId] = r._count._all;
+  } else {
+    const rows = await prisma.comment.groupBy({
+      by: ["seriesId"],
+      where: { ...PUBLIC_COMMENTS_WHERE, seriesId: { in: ids } },
+      _count: { _all: true },
+    });
+    for (const r of rows) if (r.seriesId != null) out[r.seriesId] = r._count._all;
+  }
+  return out;
+}
+
+/**
  * Distinct authors in the anon-visible tier — the "N people" header hint. Counts
  * only PUBLISHED comments (progress-INDEPENDENT) so it is legal in edge-cacheable
  * HTML (spec invariant 8) and computed once per ISR window. No viewer data.
