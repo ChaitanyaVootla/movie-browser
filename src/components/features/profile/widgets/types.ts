@@ -24,6 +24,7 @@ export type WidgetType =
   | "showcase.watching"
   | "showcase.lists"
   | "showcase.reviews"
+  | "showcase.discussions"
   | "text.note";
 
 export interface WidgetInstance {

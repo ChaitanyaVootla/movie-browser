@@ -6,7 +6,6 @@ import { EditorContent } from "@tiptap/react";
 import { toast } from "sonner";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createComment, type CreateCommentResult } from "@/server/actions/comments";
 import type {
@@ -15,9 +14,9 @@ import type {
   SpoilerScopeValue,
 } from "@/server/services/discussion/comment-schemas";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { MediaImagePicker } from "@/components/features/media/media-image-picker";
 import { scopeLabel } from "./scope-badge";
 import {
-  EntityImagePicker,
   useRichTextEditor,
   serializeToBody,
   type EditorJSONNode,
@@ -254,22 +253,17 @@ export function CommentComposer({
         </RichTextToolbar>
       )}
 
-      {/* Image picker dialog */}
-      <Dialog open={imagePickerOpen} onOpenChange={setImagePickerOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Pick an image</DialogTitle>
-          </DialogHeader>
-          <EntityImagePicker
-            anchor={anchor}
-            onSelect={(att) => {
-              setAttachment(att);
-              setImagePickerOpen(false);
-            }}
-            onClose={() => setImagePickerOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Standardized TMDB image picker */}
+      <MediaImagePicker
+        open={imagePickerOpen}
+        onOpenChange={setImagePickerOpen}
+        anchor={anchor}
+        title="Attach an image"
+        onPick={(p) => {
+          setAttachment({ entityType: p.entityType, tmdbId: p.tmdbId, imagePath: p.imagePath });
+          setImagePickerOpen(false);
+        }}
+      />
     </div>
   );
 }

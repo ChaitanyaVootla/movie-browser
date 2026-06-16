@@ -23,5 +23,4 @@ export {
 export { useRichTextEditor } from "./use-rich-text-editor";
 export { EmojiPicker } from "./emoji-picker";
 export { RichTextToolbar } from "./toolbar";
-export { EntityImagePicker } from "./entity-image-picker";
 export { RichTextBody } from "./rich-text-body";

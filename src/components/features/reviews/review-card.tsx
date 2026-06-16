@@ -5,9 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { Heart, Star, StarHalf } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { RichTextBody } from "@/components/features/rich-text/rich-text-body";
 import { ScopeBadge } from "@/components/features/discussion/scope-badge";
+import { AttachmentImages } from "@/components/features/media/attachment-images";
 import type { ReviewDTO } from "@/types/social";
 import { scoreToStars } from "./star-rating-input";
 import { ReviewLikeButton } from "./review-like-button";
@@ -91,19 +92,53 @@ export function ReviewCard({ review, className }: ReviewCardProps) {
     day: "numeric",
   });
 
+  // On aggregate surfaces (the profile reviews widget) the review carries the
+  // title it's about; lead with a clickable poster + title there, since the
+  // author is already obvious. On a title's own detail page `media` is unset and
+  // we keep the author header.
+  const media = review.media;
+  const mediaHref = media ? getMediaPath(media.mediaType, media.tmdbId, media.titleName) : null;
+
   return (
     <article className={cn("rounded-xl border bg-card p-4 space-y-3", className)}>
       <header className="flex items-start gap-2.5">
-        <Avatar className="size-8 shrink-0">
-          {review.avatarUrl && (
-            <AvatarImage src={review.avatarUrl} alt="" referrerPolicy="no-referrer" />
-          )}
-          <AvatarFallback className="text-xs font-medium">
-            {review.displayName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        {media && mediaHref ? (
+          <Link
+            href={mediaHref}
+            prefetch={false}
+            className="relative h-12 w-8 shrink-0 overflow-hidden rounded border border-border bg-muted"
+          >
+            {media.posterPath && (
+              <Image
+                src={`${TMDB_IMAGE_BASE}/w92${media.posterPath}`}
+                alt=""
+                fill
+                sizes="32px"
+                className="object-cover"
+                unoptimized
+              />
+            )}
+          </Link>
+        ) : (
+          <Avatar className="size-8 shrink-0">
+            {review.avatarUrl && (
+              <AvatarImage src={review.avatarUrl} alt="" referrerPolicy="no-referrer" />
+            )}
+            <AvatarFallback className="text-xs font-medium">
+              {review.displayName.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        )}
         <div className="min-w-0 flex-1">
-          {review.username ? (
+          {media && mediaHref ? (
+            <Link
+              href={mediaHref}
+              prefetch={false}
+              className="line-clamp-1 text-sm font-semibold transition-colors hover:text-brand"
+            >
+              {media.titleName}
+            </Link>
+          ) : review.username ? (
             <Link
               href={`/u/${review.username}`}
               prefetch={false}
@@ -146,23 +181,7 @@ export function ReviewCard({ review, className }: ReviewCardProps) {
       <ReviewBody review={review} />
 
       {review.images.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {review.images.slice(0, 4).map((img, i) => (
-            <div
-              key={`${img.entityType}-${img.tmdbId}-${i}`}
-              className="relative aspect-[2/3] overflow-hidden rounded-lg border border-border bg-muted"
-            >
-              <Image
-                src={`${TMDB_IMAGE_BASE}/w500${img.imagePath}`}
-                alt=""
-                fill
-                sizes="(max-width: 640px) 50vw, 160px"
-                className="object-cover"
-                unoptimized
-              />
-            </div>
-          ))}
-        </div>
+        <AttachmentImages images={review.images.slice(0, 4)} />
       )}
 
       <footer className="-ml-2 flex items-center">

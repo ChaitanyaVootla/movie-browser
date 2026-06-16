@@ -36,7 +36,6 @@ import type {
   TrackedMediaType,
 } from "@/types/social";
 import {
-  EntityImagePicker,
   useRichTextEditor,
   serializeToBody,
   resolveEmojiUnicode,
@@ -44,6 +43,7 @@ import {
   RichTextToolbar,
   type EditorJSONNode,
 } from "@/components/features/rich-text";
+import { MediaImagePicker } from "@/components/features/media/media-image-picker";
 import { StarRatingInput } from "./star-rating-input";
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
@@ -125,13 +125,16 @@ export function ReviewComposer({
   const bodyLen = currentBody().trim().length;
   const canSubmit = !busy && bodyLen >= 3 && bodyLen <= MAX_BODY;
 
-  const addImage = (img: ReviewImage) => {
+  // Keep the picker open for multi-select; clicking a chosen image removes it,
+  // and the MAX_IMAGES cap is enforced here + on the toolbar button.
+  const toggleImage = (img: ReviewImage) => {
     setImages((prev) =>
-      prev.length >= MAX_IMAGES || prev.some((p) => p.imagePath === img.imagePath)
-        ? prev
-        : [...prev, img]
+      prev.some((p) => p.imagePath === img.imagePath)
+        ? prev.filter((p) => p.imagePath !== img.imagePath)
+        : prev.length >= MAX_IMAGES
+          ? prev
+          : [...prev, img]
     );
-    setImagePickerOpen(false);
   };
 
   const handleSubmit = async () => {
@@ -336,19 +339,18 @@ export function ReviewComposer({
         </div>
       </div>
 
-      {/* Image picker dialog */}
-      <Dialog open={imagePickerOpen} onOpenChange={setImagePickerOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Pick an image</DialogTitle>
-          </DialogHeader>
-          <EntityImagePicker
-            anchor={anchor}
-            onSelect={(att) => addImage(att)}
-            onClose={() => setImagePickerOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Standardized TMDB image picker — multi-select up to MAX_IMAGES */}
+      <MediaImagePicker
+        open={imagePickerOpen}
+        onOpenChange={setImagePickerOpen}
+        anchor={anchor}
+        multi
+        title={`Add images · ${images.length}/${MAX_IMAGES}`}
+        selectedPaths={images.map((i) => i.imagePath)}
+        onPick={(p) =>
+          toggleImage({ entityType: p.entityType, tmdbId: p.tmdbId, imagePath: p.imagePath })
+        }
+      />
     </div>
   );
 

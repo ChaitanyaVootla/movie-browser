@@ -8,6 +8,7 @@ import { getUserStatsSnapshot } from "./stats";
 import { getFourFavorites } from "./lists";
 import { getFollowCounts } from "./follows";
 import { getUserReviews } from "./reviews";
+import { getUserComments } from "../comments";
 import { getProgressShelf } from "./progress";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type {
@@ -79,7 +80,7 @@ export async function getPublicProfileByUsername(
   if (!user || !user.isPublic || !user.username) return null;
   const env = parseEnvelope(user.metadata);
 
-  const [snapshot, favorites, follows, reviewsPage, watching, pinnedRows, histogramRows, dailyRows, recentRows] =
+  const [snapshot, favorites, follows, reviewsPage, discussions, watching, pinnedRows, histogramRows, dailyRows, recentRows] =
     await Promise.all([
       getUserStatsSnapshot(user.id),
       getFourFavorites(user.id),
@@ -88,6 +89,8 @@ export async function getPublicProfileByUsername(
       // the anon-cacheable profile HTML (HARD INVARIANT 2). Spoiler reviews can
       // be a documented fast-follow to a client-loaded section.
       getUserReviews(user.id, { includePrivate: false, noneScopeOnly: true, limit: 6 }),
+      // Same anon-cacheable-tier contract: PUBLISHED + NONE + circle-NULL roots only.
+      getUserComments(user.id, 6),
       getProgressShelf(user.id, ["WATCHING", "REWATCHING"], 6),
       prisma.list.findMany({
         where: { ownerId: user.id, isPinned: true, isPublic: true, kind: "REGULAR" },
@@ -156,6 +159,13 @@ export async function getPublicProfileByUsername(
     likedByViewer: false, // viewer state never baked into the ISR-cached profile (invariant 1)
     createdAt: r.createdAt.toISOString(),
     editedAt: r.editedAt?.toISOString() ?? null,
+    // The reviewed title — lets each profile card link back to the movie/series
+    // (omitted on a title's own detail page, where it would be redundant).
+    media: r.movie
+      ? { mediaType: "movie", tmdbId: r.movie.id, titleName: r.movie.title, posterPath: r.movie.posterPath }
+      : r.series
+        ? { mediaType: "series", tmdbId: r.series.id, titleName: r.series.name, posterPath: r.series.posterPath }
+        : undefined,
   }));
 
   const histogram = new Array<number>(10).fill(0);
@@ -213,6 +223,7 @@ export async function getPublicProfileByUsername(
         .filter((p): p is string => Boolean(p)),
     })),
     reviews,
+    discussions,
     ratingsHistogram: histogram,
     topGenres: toSlices(snapshot.topGenres),
     topDecades: toSlices(snapshot.topDecades),

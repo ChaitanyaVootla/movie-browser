@@ -190,6 +190,18 @@ export interface SubmitReviewInput {
   images?: ReviewImage[];
 }
 
+/**
+ * The title a review/discussion is anchored to. Present only on aggregate
+ * surfaces (the public profile) where the title is NOT already context; omitted
+ * on a title's own detail page, where rendering it would be redundant.
+ */
+export interface MediaAnchorRefDTO {
+  mediaType: TrackedMediaType;
+  tmdbId: number;
+  titleName: string;
+  posterPath: string | null;
+}
+
 export interface ReviewDTO {
   id: number;
   username: string | null;
@@ -208,6 +220,8 @@ export interface ReviewDTO {
   likedByViewer: boolean;
   createdAt: string;
   editedAt: string | null;
+  /** Set on the profile reviews widget so each card links to the reviewed title. */
+  media?: MediaAnchorRefDTO;
 }
 
 export interface OwnReviewDTO extends ReviewDTO {
@@ -260,6 +274,30 @@ export interface CurrentlyWatchingItemDTO {
   episodeNumber: number | null;
 }
 
+/**
+ * A discussion comment the user has posted, surfaced on their public profile.
+ * Anon-cacheable tier ONLY (PUBLISHED + spoilerScope=NONE + circleId IS NULL —
+ * HARD INVARIANT 2). The body is reduced to a plain-text snippet in the DB layer
+ * so no raw markup/spoiler tokens bake into the ISR HTML.
+ */
+export interface ProfileCommentDTO {
+  id: number;
+  /** Plain-text teaser (markup/spoilers stripped). */
+  snippet: string;
+  likeCount: number;
+  replyCount: number;
+  createdAt: string;
+  /** The title this discussion is anchored to. */
+  mediaType: TrackedMediaType;
+  tmdbId: number;
+  titleName: string;
+  posterPath: string | null;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+  /** Ready-to-use deep link to the discussion thread (…/discussions or …/discuss/sNeN). */
+  href: string;
+}
+
 export interface PublicProfileDTO {
   username: string;
   displayName: string;
@@ -281,6 +319,8 @@ export interface PublicProfileDTO {
   fourFavorites: FavoriteItemDTO[];
   pinnedLists: PinnedListDTO[];
   reviews: ReviewDTO[];
+  /** Recent public discussion comments the user has posted (NONE-scope, root-level). */
+  discussions: ProfileCommentDTO[];
   /** Index 0 = score 1 … index 9 = score 10. */
   ratingsHistogram: number[];
   topGenres: BreakdownSliceDTO[];

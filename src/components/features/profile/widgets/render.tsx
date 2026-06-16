@@ -5,8 +5,11 @@ import {
   Clapperboard,
   Clock,
   Flame,
+  Heart,
   ListChecks,
+  MessageCircle,
   MessageSquareQuote,
+  MessagesSquare,
   Quote,
   Repeat,
   Star,
@@ -166,6 +169,66 @@ export const WIDGET_RENDER: Record<WidgetType, RenderFn> = {
             <ReviewCard key={review.id} review={review} />
           ))}
         </div>
+      </WidgetCard>
+    ) : null,
+  "showcase.discussions": ({ data }) =>
+    data.discussions.length > 0 ? (
+      <WidgetCard title="Discussions" icon={<MessagesSquare className="h-4 w-4" />}>
+        <ul className="space-y-1">
+          {data.discussions.slice(0, 6).map((c) => (
+            <li key={c.id}>
+              <Link
+                href={c.href}
+                prefetch={false}
+                className="group -mx-2 flex gap-3 rounded-lg p-2 transition-colors hover:bg-muted/50"
+              >
+                <div className="relative h-16 w-11 flex-shrink-0 overflow-hidden rounded border border-border bg-muted">
+                  {c.posterPath && (
+                    <Image
+                      src={`${TMDB_IMAGE_BASE}/w92${c.posterPath}`}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="44px"
+                    />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <span className="truncate text-foreground transition-colors group-hover:text-brand">
+                      {c.titleName}
+                    </span>
+                    {c.seasonNumber !== null && c.episodeNumber !== null && (
+                      <span className="flex-shrink-0">· {episodeCode(c.seasonNumber, c.episodeNumber)}</span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-foreground/90">{c.snippet}</p>
+                  <p className="mt-1 flex items-center gap-3 text-[11px] font-medium text-muted-foreground">
+                    <span>
+                      {new Date(c.createdAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    {c.likeCount > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <Heart className="h-3 w-3" />
+                        {c.likeCount}
+                      </span>
+                    )}
+                    {c.replyCount > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <MessageCircle className="h-3 w-3" />
+                        {c.replyCount}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </WidgetCard>
     ) : null,
 

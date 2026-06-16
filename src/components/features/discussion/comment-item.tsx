@@ -23,8 +23,7 @@ import { LinkCard } from "./link-card";
 import { LikeButton } from "./like-button";
 import { ReportDialog } from "./report-dialog";
 import { ScopeBadge } from "./scope-badge";
-
-const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE ?? "https://image.tmdb.org/t/p";
+import { AttachmentImages } from "@/components/features/media/attachment-images";
 
 function relativeTime(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -112,16 +111,7 @@ function SingleComment({
         />
         {comment.linkCard && <LinkCard card={comment.linkCard} />}
         {comment.attachment && comment.status === "PUBLISHED" && (
-          <div className="relative mt-1.5 aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-border">
-            <Image
-              src={`${TMDB_IMAGE_BASE}/w500${comment.attachment.imagePath}`}
-              alt=""
-              fill
-              sizes="320px"
-              className="object-cover"
-              unoptimized
-            />
-          </div>
+          <AttachmentImages images={[comment.attachment]} className="mt-1.5" />
         )}
         {comment.status === "PUBLISHED" && (
           <div className="flex items-center gap-1 -ml-2">

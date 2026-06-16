@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Check, Loader2 } from "lucide-react";
+import { Check, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,17 @@ import { useAnalytics } from "@/hooks/use-analytics";
 import { updateProfileAction } from "@/server/actions/profile";
 import { PROFILE_ACCENT_OPTIONS, PROFILE_ACCENT_VARS } from "@/lib/profile-accents";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
-import type { OwnProfileSettingsDTO, ProfileAccent } from "@/types/social";
-import { BackdropPicker, type BackdropSelection } from "./backdrop-picker";
+import type { OwnProfileSettingsDTO, ProfileAccent, TrackedMediaType } from "@/types/social";
+import { MediaImagePicker } from "@/components/features/media/media-image-picker";
 import { ProfileEditorPreview } from "./profile-editor-preview";
+
+/** A profile backdrop choice — a TMDB title + the picked backdrop file path. */
+export interface BackdropSelection {
+  mediaType: TrackedMediaType;
+  tmdbId: number;
+  titleName: string;
+  imagePath: string;
+}
 
 interface ProfileEditorProps {
   settings: OwnProfileSettingsDTO;
@@ -61,7 +69,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
   const [saved, setSaved] = useState<EditableProfile>(() => initialFrom(settings.customization));
   const [backdrop, setBackdrop] = useState<BackdropSelection | null>(saved.backdrop);
   const [avatarImagePath, setAvatarImagePath] = useState<string | null>(saved.avatarImagePath);
-  const [posterOptions, setPosterOptions] = useState<string[]>([]);
+  const [pickerMode, setPickerMode] = useState<"backdrop" | "avatar" | null>(null);
   const [accent, setAccent] = useState<ProfileAccent>(saved.accent);
   const [bio, setBio] = useState(saved.bio);
   const [links, setLinks] = useState<string[]>([...saved.links, "", "", ""].slice(0, 3));
@@ -135,16 +143,47 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
         {/* Backdrop */}
         <div className="space-y-2">
           <Label>Profile backdrop</Label>
-          <BackdropPicker current={backdrop} onSelect={setBackdrop} onPostersLoaded={setPosterOptions} />
-          {backdrop && (
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setBackdrop(null)}
-              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              onClick={() => setPickerMode("backdrop")}
+              className={cn(
+                "group relative aspect-video w-40 shrink-0 overflow-hidden rounded-lg border-2 bg-muted transition-colors",
+                backdrop ? "border-border hover:border-brand/60" : "border-dashed border-border hover:border-brand/60"
+              )}
+              aria-label="Choose a backdrop"
             >
-              Remove backdrop
+              {backdrop ? (
+                <Image
+                  src={`${TMDB_IMAGE_BASE}/w300${backdrop.imagePath}`}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="160px"
+                  unoptimized
+                />
+              ) : (
+                <span className="flex h-full flex-col items-center justify-center gap-1 text-muted-foreground">
+                  <ImagePlus className="h-5 w-5" />
+                  <span className="text-xs font-medium">Choose</span>
+                </span>
+              )}
             </button>
-          )}
+            <div className="min-w-0 space-y-1.5">
+              <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setPickerMode("backdrop")}>
+                {backdrop ? "Change backdrop" : "Choose backdrop"}
+              </Button>
+              {backdrop && (
+                <button
+                  type="button"
+                  onClick={() => setBackdrop(null)}
+                  className="block text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  Remove backdrop
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Avatar */}
@@ -167,27 +206,25 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
                 <AvatarFallback className="text-xs">{settings.displayName.slice(0, 2)}</AvatarFallback>
               </Avatar>
             </button>
-            {posterOptions.map((path) => (
+            {avatarImagePath && (
               <button
-                key={path}
                 type="button"
-                onClick={() => setAvatarImagePath(path)}
-                className={cn(
-                  "rounded-full border-2 p-0.5 transition-colors",
-                  avatarImagePath === path ? "border-brand" : "border-transparent hover:border-border"
-                )}
-                aria-label="Use this artwork as avatar"
+                onClick={() => setPickerMode("avatar")}
+                className="rounded-full border-2 border-brand p-0.5"
+                aria-label="Change avatar artwork"
               >
                 <span className="relative block size-12 overflow-hidden rounded-full bg-muted">
-                  <Image src={`${TMDB_IMAGE_BASE}/w185${path}`} alt="" fill className="object-cover" sizes="48px" />
+                  <Image src={`${TMDB_IMAGE_BASE}/w185${avatarImagePath}`} alt="" fill className="object-cover" sizes="48px" unoptimized />
                 </span>
               </button>
-            ))}
+            )}
+            <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => setPickerMode("avatar")}>
+              <ImagePlus className="h-4 w-4" />
+              Pick artwork
+            </Button>
           </div>
           <p className="text-xs font-medium text-muted-foreground">
-            {posterOptions.length > 0
-              ? "Pick a poster as your avatar, or keep your Google photo."
-              : "Using your Google photo. Choose a backdrop title above to pick poster art instead."}
+            Use any poster or cast photo as your avatar — search any title or person — or keep your Google photo.
           </p>
         </div>
 
@@ -271,6 +308,38 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
           </Button>
         </div>
       </div>
+
+      {/* Standardized TMDB image picker — backdrop (movie/series backdrops) or
+          avatar (any title poster / any person photo). */}
+      <MediaImagePicker
+        open={pickerMode !== null}
+        onOpenChange={(o) => !o && setPickerMode(null)}
+        entityTypes={pickerMode === "backdrop" ? ["movie", "series"] : ["movie", "series", "person"]}
+        kinds={pickerMode === "backdrop" ? ["backdrop"] : ["poster", "profile"]}
+        selectedPaths={
+          pickerMode === "backdrop"
+            ? backdrop
+              ? [backdrop.imagePath]
+              : []
+            : avatarImagePath
+              ? [avatarImagePath]
+              : []
+        }
+        title={pickerMode === "backdrop" ? "Choose a backdrop" : "Choose your avatar"}
+        onPick={(p) => {
+          if (pickerMode === "backdrop") {
+            setBackdrop({
+              mediaType: p.entityType === "series" ? "series" : "movie",
+              tmdbId: p.tmdbId,
+              titleName: p.entityName,
+              imagePath: p.imagePath,
+            });
+          } else {
+            setAvatarImagePath(p.imagePath);
+          }
+          setPickerMode(null);
+        }}
+      />
     </div>
   );
 }

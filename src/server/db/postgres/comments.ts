@@ -11,6 +11,7 @@ import {
 } from "@/server/services/discussion/spoiler-gate";
 import { getExcludedAuthorIds } from "./blocks";
 import { getMediaPath } from "@/lib/utils";
+import type { ProfileCommentDTO } from "@/types/social";
 import { getUnfurlsByHashes } from "./social/link-unfurls";
 import { extractFirstLink, urlHash } from "@/server/services/discussion/url-normalize";
 
@@ -564,4 +565,77 @@ export async function getTopPublicComments(
       ? { username: r.user.username, name: r.user.name, image: r.user.image }
       : null,
   }));
+}
+
+/**
+ * A user's recent public discussion comments, for the public-profile
+ * "Discussions" widget. ANON-CACHEABLE TIER ONLY (HARD INVARIANT 2): PUBLISHED +
+ * spoilerScope=NONE + circleId IS NULL + roots only. NO viewer data → safe in
+ * ISR HTML. Bodies are reduced to plain-text snippets so no raw markup/spoiler
+ * tokens ship, and each row carries a ready-built deep link to its thread.
+ */
+export async function getUserComments(
+  userId: number,
+  limit = 6
+): Promise<ProfileCommentDTO[]> {
+  const rows = await prisma.comment.findMany({
+    where: {
+      AND: [{ userId }, PUBLIC_COMMENTS_WHERE, { parentId: null }, { spoilerScope: "NONE" }],
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+    select: {
+      id: true,
+      body: true,
+      likeCount: true,
+      replyCount: true,
+      createdAt: true,
+      seasonNumber: true,
+      episodeNumber: true,
+      movie: { select: { id: true, title: true, posterPath: true } },
+      series: { select: { id: true, name: true, posterPath: true } },
+    },
+  });
+
+  const out: ProfileCommentDTO[] = [];
+  for (const r of rows) {
+    // A public root comment is always anchored to exactly one title.
+    if (r.movie) {
+      out.push({
+        id: r.id,
+        snippet: commentSnippet(r.body),
+        likeCount: r.likeCount,
+        replyCount: r.replyCount,
+        createdAt: r.createdAt.toISOString(),
+        mediaType: "movie",
+        tmdbId: r.movie.id,
+        titleName: r.movie.title,
+        posterPath: r.movie.posterPath,
+        seasonNumber: null,
+        episodeNumber: null,
+        href: `${getMediaPath("movie", r.movie.id, r.movie.title)}/discussions`,
+      });
+    } else if (r.series) {
+      const base = getMediaPath("series", r.series.id, r.series.name);
+      const href =
+        r.episodeNumber !== null && r.seasonNumber !== null
+          ? `${base}/discuss/s${r.seasonNumber}e${r.episodeNumber}`
+          : `${base}/discussions`;
+      out.push({
+        id: r.id,
+        snippet: commentSnippet(r.body),
+        likeCount: r.likeCount,
+        replyCount: r.replyCount,
+        createdAt: r.createdAt.toISOString(),
+        mediaType: "series",
+        tmdbId: r.series.id,
+        titleName: r.series.name,
+        posterPath: r.series.posterPath,
+        seasonNumber: r.seasonNumber,
+        episodeNumber: r.episodeNumber,
+        href,
+      });
+    }
+  }
+  return out;
 }

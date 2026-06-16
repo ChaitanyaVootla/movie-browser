@@ -26,6 +26,7 @@ export const WIDGET_META: Record<WidgetType, WidgetMeta> = {
   "showcase.watching": { type: "showcase.watching", category: "showcase", title: "Currently watching", defaultSize: { w: 6, h: 2 }, minSize: { w: 4, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.currentlyWatching.length > 0 },
   "showcase.lists": { type: "showcase.lists", category: "showcase", title: "Lists", defaultSize: { w: 6, h: 2 }, minSize: { w: 4, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.pinnedLists.length > 0 },
   "showcase.reviews": { type: "showcase.reviews", category: "showcase", title: "Reviews", defaultSize: { w: 12, h: 3 }, minSize: { w: 6, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.reviews.length > 0 },
+  "showcase.discussions": { type: "showcase.discussions", category: "showcase", title: "Discussions", defaultSize: { w: 6, h: 3 }, minSize: { w: 4, h: 2 }, mobileSpan: 2, isAvailable: (d) => d.discussions.length > 0 },
 
   "text.note": { type: "text.note", category: "text", title: "Note", defaultSize: { w: 4, h: 1 }, minSize: { w: 3, h: 1 }, mobileSpan: 2, isAvailable: () => true },
 };
@@ -47,6 +48,7 @@ const DEFAULT_ORDER: WidgetType[] = [
   "chart.activity",
   "showcase.lists",
   "showcase.reviews",
+  "showcase.discussions",
 ];
 
 /**

@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Search, Sparkles, Compass, Shield, Bookmark } from "lucide-react";
+import { Search, Sparkles, Compass, Shield, Bookmark, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountrySelector } from "./country-selector";
 import { UserMenu, LoginDialog, useLoginDialog, SettingsMenu } from "@/components/features/auth";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { useSearch } from "@/components/features/search";
+import { useUsername } from "@/hooks/use-username";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
@@ -26,6 +27,7 @@ export function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { isOpen, openLoginDialog, setIsOpen } = useLoginDialog();
   const { open: isSearchOpen, setOpen: setSearchOpen } = useSearch();
+  const { username } = useUsername();
 
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
@@ -143,6 +145,24 @@ export function NavBar() {
                     </Button>
                   </Link>
                 ))}
+              {/* Profile — primary destination beside Watchlist. Falls back to
+                  /settings (username-claim bootstrap) when no username is set. */}
+              {isAuthenticated && (
+                <Link
+                  href={username ? `/u/${username}` : "/settings"}
+                  data-testid="nav-profile"
+                >
+                  <Button
+                    variant="ghost"
+                    className={navLinkClass(
+                      Boolean(username && pathname?.startsWith(`/u/${username}`))
+                    )}
+                  >
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Button>
+                </Link>
+              )}
               {/* Admin link - only visible to admins */}
               {isAdmin && (
                 <Link href="/admin" data-testid="nav-admin">

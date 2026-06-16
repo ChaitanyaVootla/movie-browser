@@ -127,6 +127,7 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
   const isEmptyProfile =
     profile.fourFavorites.length === 0 &&
     profile.reviews.length === 0 &&
+    profile.discussions.length === 0 &&
     profile.currentlyWatching.length === 0 &&
     profile.pinnedLists.length === 0 &&
     profile.topGenres.length === 0 &&
