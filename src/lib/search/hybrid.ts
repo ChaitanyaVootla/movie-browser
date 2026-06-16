@@ -16,7 +16,7 @@ import {
   type FuzzySearchResult,
   type FuzzySearchOptions,
 } from "@/server/db/postgres/fuzzy-search";
-import { ftsSearchTitles, ftsSearchPeople } from "@/server/db/postgres/fts-search";
+import { ftsPrefixSearchTitles, ftsPrefixSearchPeople } from "@/server/db/postgres/fts-search";
 import { semanticSearch, type SemanticSearchResult } from "@/server/db/postgres/semantic-search";
 import {
   classifyQueryIntentHybrid,
@@ -195,22 +195,10 @@ const POPULARITY_DIVISOR = 15;
  */
 const FALLBACK_THRESHOLD = 5;
 
-/**
- * Lexical pre-empt: queries with this many whitespace-separated words (or more)
- * go DIRECTLY to FTS, skipping trigram entirely.
- *
- * Trigram is pathological for common multi-word queries (see
- * `.claude/rules/search-system.md` and the `fts-search.ts` header): "the lord
- * of the rings" shares ultra-common trigrams with a huge slice of the catalog,
- * so the candidate set explodes and the 4s statement_timeout fires. June 2026
- * prod incident (post error-isolation hardening): such queries still burned the
- * full 4s timeout (`fuzzy_search_failed ... Code 57014 ... fallback: fts` in
- * prod logs) BEFORE the FTS fallback did the useful work — worst-case searches
- * paid 4s+ for results FTS returns in ~100ms (stop-words dropped, GIN-indexed).
- * 1-2 word queries keep trigram-first: that's where trigram earns its keep
- * (typo tolerance) and stays fast.
- */
-const FTS_PREEMPT_MIN_WORDS = 3;
+// NOTE: The old `FTS_PREEMPT_MIN_WORDS` (route ≥3-word queries to FTS, trigram
+// otherwise) is GONE. `runLexicalSearch` is now FTS-FIRST for EVERY query and
+// runs trigram only when FTS is empty — see that function's doc. Trigram on the
+// hot path was pathological for the most common 1–2-word title searches.
 
 // =============================================================================
 // Query Understanding
@@ -734,34 +722,31 @@ async function resolveSimilarToTitle(intent: IntentAnalysis): Promise<IntentAnal
 /**
  * Lexical search leg with graceful degradation.
  *
- * Trigram (`fuzzySearch`) runs under a 4s statement_timeout and is pathological
- * for common multi-word queries ("the lord of the rings" — see fts-search.ts);
- * under load the timeout fires and Prisma throws P2010. June 2026 prod bug: that
- * rejection propagated through `Promise.all` in runCoreSearch and killed the
- * ENTIRE search (zero results for valid titles, error swallowed client-side).
+ * FTS-FIRST (June 2026): every query goes through FTS first — it is GIN-indexed
+ * (~5ms) and prefix-aware ("inc" → Inception via the title-only index). Trigram
+ * (`fuzzySearch`) runs ONLY when FTS finds nothing, i.e. a probable misspelling
+ * (distinctive enough that trigram stays fast).
  *
- * Degradation chain: trigram → FTS (stop-word-aware, GIN-indexed, the same fast
- * path autocomplete uses) → empty array. Every failure is logged with context.
- *
- * Pre-empt: queries with `FTS_PREEMPT_MIN_WORDS`+ words skip trigram entirely
- * and go straight to FTS — trigram on those reliably burned the full 4s
- * statement_timeout before falling back here anyway (see the constant's doc).
+ * This INVERTS the previous trigram-first order. Trigram was pathological for the
+ * most common searches: a short/2-word title like "the matrix" matched ~184k
+ * candidate rows via shared trigrams → a multi-second heap recheck (18s cold),
+ * and it sat on the hot path for exactly those 1–2-word title queries. Under load
+ * its 4s statement_timeout also fired and Prisma threw P2010, which (June 2026
+ * prod bug) propagated through `Promise.all` in runCoreSearch and killed the
+ * ENTIRE search. Keeping it strictly as the empty-FTS fallback removes it from the
+ * hot path while preserving typo tolerance. Every failure is logged + swallowed.
  */
 async function runLexicalSearch(
   query: string,
   options: FuzzySearchOptions
 ): Promise<FuzzySearchResult[]> {
-  const wordCount = query.trim().split(/\s+/).filter(Boolean).length;
-  if (wordCount >= FTS_PREEMPT_MIN_WORDS) {
-    dataLogger.debug({
-      event: "lexical_fts_preempt",
-      query,
-      wordCount,
-      note: "multi-word query routed directly to FTS, trigram skipped",
-    });
-    return runFtsLexicalSearch(query, options);
-  }
+  const fts = await runFtsLexicalSearch(query, options);
+  if (fts.length > 0) return fts;
 
+  // FTS came up empty → likely a misspelling FTS can't match (no matching lexeme).
+  // Trigram handles that case and stays fast (a typo is distinctive). Guarded: a
+  // timeout/throw here must never reject the whole search (the semantic leg and
+  // the action itself must survive).
   try {
     return await fuzzySearch(query, options);
   } catch (error: unknown) {
@@ -769,20 +754,18 @@ async function runLexicalSearch(
       event: "fuzzy_search_failed",
       query,
       error: error instanceof Error ? error.message : String(error),
-      fallback: "fts",
+      fallback: "none",
+      note: "trigram typo-fallback failed after empty FTS; returning empty lexical results",
     });
+    return [];
   }
-
-  // Trigram failed (likely statement timeout on a common multi-word query).
-  // FTS handles exactly that case fast — degrade instead of returning nothing.
-  return runFtsLexicalSearch(query, options);
 }
 
 /**
- * FTS leg of the lexical search, mapped to `FuzzySearchResult` shape. Used both
- * as the multi-word pre-empt path and as the degradation target when trigram
- * fails. On FTS failure: log `lexical_search_failed` + return [] — never throw
- * (the semantic leg must be unaffected).
+ * FTS leg of the lexical search, mapped to `FuzzySearchResult` shape. Prefix-aware
+ * + title/name-only (the same fast path autocomplete uses) — see fts-search.ts.
+ * On FTS failure: log `lexical_search_failed` + return [] — never throw (the
+ * semantic leg must be unaffected; the caller then tries trigram).
  */
 async function runFtsLexicalSearch(
   query: string,
@@ -795,8 +778,8 @@ async function runFtsLexicalSearch(
     const wantsPersons = mediaTypes.includes("person");
 
     const [titles, persons] = await Promise.all([
-      wantsTitles ? ftsSearchTitles(query, limit) : Promise.resolve([]),
-      wantsPersons ? ftsSearchPeople(query, Math.min(limit, 5)) : Promise.resolve([]),
+      wantsTitles ? ftsPrefixSearchTitles(query, limit) : Promise.resolve([]),
+      wantsPersons ? ftsPrefixSearchPeople(query, Math.min(limit, 5)) : Promise.resolve([]),
     ]);
 
     return [...titles, ...persons]

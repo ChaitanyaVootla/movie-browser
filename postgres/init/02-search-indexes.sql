@@ -45,3 +45,19 @@ USING GIN (to_tsvector('english',
 -- like "matrix" hits thousands of bios); name-only stays fast and relevant.
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_persons_name_fts ON persons
 USING GIN (to_tsvector('english', COALESCE(name, '')));
+
+-- =============================================================================
+-- Title/name-ONLY FTS — used for as-you-type PREFIX matching (to_tsquery 'inc:*')
+-- =============================================================================
+-- The combined idx_movies_fts / idx_series_fts above index title+overview(+tagline)
+-- as one document. That is correct for relevance on a SUBMITTED query, but
+-- pathological for a short single-token PREFIX: "inc:*" matches ~41k movies via
+-- words in the overview (incident, increase, …) → 4s heap recheck. Matching the
+-- prefix against the TITLE only is ~25x more selective (inc → ~1.6k titles) and
+-- returns what autocomplete actually wants — titles that START with what you typed.
+-- Same rationale as idx_persons_name_fts. See fts-search.ts (ftsPrefixSearch*).
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_movies_title_fts ON movies
+USING GIN (to_tsvector('english', COALESCE(title, '')));
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_series_name_fts ON series
+USING GIN (to_tsvector('english', COALESCE(name, '')));

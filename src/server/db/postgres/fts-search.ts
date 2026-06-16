@@ -31,6 +31,93 @@ export interface FtsResult {
 const FTS_TIMEOUT_MS = 2500;
 
 /**
+ * Build a SAFE prefix tsquery string from arbitrary user input, e.g.
+ * "the inc" → "the:* & inc:*" (which `to_tsquery('english', …)` reduces to
+ * "inc:*", dropping the "the" stop-word).
+ *
+ * Every token is reduced to `[a-z0-9]` and joined with our own ` & `/`:*`, so the
+ * result can never contain a tsquery operator from the user — it is safe to pass
+ * as a parameter to `to_tsquery`. Returns "" when the input has no usable token
+ * (caller must skip — `to_tsquery('english','')` would error, and an all-stop-word
+ * query yields an empty tsquery that matches nothing anyway).
+ */
+function toPrefixTsQuery(query: string): string {
+  return query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => `${t}:*`)
+    .join(" & ");
+}
+
+/**
+ * As-you-type PREFIX search across movie + series TITLES (title-only index
+ * `idx_movies_title_fts` / `idx_series_name_fts`).
+ *
+ * Why title-only + prefix: `websearch_to_tsquery` treats "inc" as a COMPLETE
+ * lexeme, so it never matches "Inception" (which stems to `incept`) — autocomplete
+ * for a partial word found nothing and fell through to the pathological trigram
+ * scan. A prefix query (`inc:*`) against the TITLE-only vector matches "Inception"
+ * and is ~25x more selective than the combined title+overview index (≈1.6k vs 41k
+ * candidate rows for "inc"). Ranked by popularity — the right signal for "which of
+ * the titles starting with what I typed did I mean".
+ */
+export async function ftsPrefixSearchTitles(query: string, limit = 6): Promise<FtsResult[]> {
+  const tsq = toPrefixTsQuery(query);
+  if (!tsq) return [];
+
+  const movieSql = `
+    SELECT m.id, m.title, 'movie'::text AS "mediaType", m.poster_path AS "posterPath",
+           EXTRACT(YEAR FROM m.release_date)::text AS year, m.popularity
+    FROM movies m
+    WHERE to_tsvector('english', COALESCE(m.title, '')) @@ to_tsquery('english', $1)
+    ORDER BY m.popularity DESC NULLS LAST
+    LIMIT $2
+  `;
+  const seriesSql = `
+    SELECT s.id, s.name AS title, 'series'::text AS "mediaType", s.poster_path AS "posterPath",
+           EXTRACT(YEAR FROM s.first_air_date)::text AS year, s.popularity
+    FROM series s
+    WHERE to_tsvector('english', COALESCE(s.name, '')) @@ to_tsquery('english', $1)
+    ORDER BY s.popularity DESC NULLS LAST
+    LIMIT $2
+  `;
+
+  const [movies, series] = await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${FTS_TIMEOUT_MS}`);
+    return Promise.all([
+      tx.$queryRawUnsafe<FtsResult[]>(movieSql, tsq, limit),
+      tx.$queryRawUnsafe<FtsResult[]>(seriesSql, tsq, limit),
+    ]);
+  });
+
+  return [...movies, ...series]
+    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+    .slice(0, limit);
+}
+
+/** As-you-type PREFIX search across people by NAME (idx_persons_name_fts). */
+export async function ftsPrefixSearchPeople(query: string, limit = 2): Promise<FtsResult[]> {
+  const tsq = toPrefixTsQuery(query);
+  if (!tsq) return [];
+
+  const sql = `
+    SELECT p.tmdb_id AS id, p.name AS title, 'person'::text AS "mediaType",
+           p.profile_path AS "posterPath", NULL::text AS year, p.popularity
+    FROM persons p
+    WHERE to_tsvector('english', COALESCE(p.name, '')) @@ to_tsquery('english', $1)
+    ORDER BY p.popularity DESC NULLS LAST
+    LIMIT $2
+  `;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${FTS_TIMEOUT_MS}`);
+    return tx.$queryRawUnsafe<FtsResult[]>(sql, tsq, limit);
+  });
+}
+
+/**
  * FTS search across movie + series titles. Ranks title-relevance first, then
  * popularity, so exact title matches ("The Matrix") beat overview-only mentions.
  */

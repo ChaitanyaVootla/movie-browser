@@ -590,6 +590,18 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     router.push(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [query, onOpenChange, router]);
 
+  // Hand a hard-to-match query off to the Cue assistant. Deterministic search
+  // (regex + embedding) handles the common case; when it comes up empty we offer
+  // AI as an explicit, intentional action rather than firing an LLM on every
+  // keystroke. assistant-floaty listens for the "ai-chat-trigger" event.
+  const handleAskCue = React.useCallback(() => {
+    const q = query.trim();
+    if (!q) return;
+    trackAction({ action: "search_ask_cue", metadata: { query: q } });
+    onOpenChange(false);
+    window.dispatchEvent(new CustomEvent("ai-chat-trigger", { detail: { message: q } }));
+  }, [query, onOpenChange, trackAction]);
+
   const handleSelectMood = React.useCallback(
     (moodQuery: string) => {
       trackAction({ action: "mood_select", metadata: { mood: moodQuery } });
@@ -794,11 +806,13 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
               </div>
             )}
 
-            {/* Empty state - only show when no topics match either */}
+            {/* Empty state - only show when no topics match either. When the
+                deterministic search comes up empty, offer Cue as an explicit
+                opt-in (no AI fires automatically — see handleAskCue). */}
             {showEmptyState && (
               <CommandEmpty>
                 <div
-                  className="flex flex-col items-center justify-center gap-2"
+                  className="flex flex-col items-center justify-center gap-3 px-4"
                   style={{ minHeight: CONTENT_MIN_HEIGHT }}
                   role="status"
                   aria-live="polite"
@@ -807,7 +821,15 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   <p className="text-sm text-muted-foreground">
                     No results found for &ldquo;{debouncedQuery}&rdquo;
                   </p>
-                  <p className="text-xs text-muted-foreground/60">Press Enter to search all</p>
+                  <button
+                    type="button"
+                    onClick={handleAskCue}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-accent/10 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Sparkles className="h-4 w-4 text-accent-foreground" aria-hidden="true" />
+                    Ask Cue about &ldquo;{debouncedQuery}&rdquo;
+                  </button>
+                  <p className="text-xs text-muted-foreground/60">or press Enter to search all</p>
                 </div>
               </CommandEmpty>
             )}

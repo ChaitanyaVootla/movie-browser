@@ -46,6 +46,7 @@ export type ActionType =
   | "share_click"
   | "external_link"
   | "search_result_click"
+  | "search_ask_cue"
   | "topic_select"
   | "mood_select"
   | "carousel_nav"

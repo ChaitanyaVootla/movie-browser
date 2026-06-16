@@ -24,9 +24,10 @@ The search system uses a sophisticated multi-tier approach to handle any query t
 | Query Expansion | `src/lib/search/query-expansion.ts` | Theme/mood synonyms, typo correction |
 | LLM Parser | `src/lib/search/llm-query-parser.ts` | Kimi K2.5 fallback for complex NL queries |
 | Hybrid Search | `src/lib/search/hybrid.ts` | RRF combining fuzzy + semantic results |
-| Fuzzy Search | `src/server/db/postgres/fuzzy-search.ts` | pg_trgm trigram matching |
+| Fuzzy Search | `src/server/db/postgres/fuzzy-search.ts` | pg_trgm trigram — **typo fallback only**, no longer on the hot path |
+| FTS / Prefix Search | `src/server/db/postgres/fts-search.ts` | `to_tsvector` GIN FTS + **prefix** (`ftsPrefixSearch*`, title/name-only) |
 | Semantic Search | `src/server/db/postgres/semantic-search.ts` | pgvector 1024-dim Cohere Embed v4 embeddings |
-| Autocomplete | `src/server/actions/autocomplete.ts` | Fast suggestions (<100ms) |
+| Autocomplete | `src/server/actions/autocomplete.ts` | Fast suggestions (<100ms) — prefix FTS first, trigram fallback |
 | Search Action | `src/server/actions/search.ts` | Server action with trending boost |
 
 ## 3-Tier Intent Classification
@@ -44,9 +45,21 @@ const result = await classifyQueryIntentHybrid(query);
 |------|--------|------|---------|--------------|
 | 1 | Regex | $0 | <5ms | ~70% |
 | 2 | Embedding | $0.00002 | ~100ms | ~25% |
-| 3 | LLM (Kimi K2) | $0.01 | 1-2s | ~5% |
+| 3 | LLM (Kimi K2) | $0.01 | 1-2s | **OPT-IN, default OFF** |
 
-**Expected average cost**: ~$0.0006/query (80% cheaper than LLM-only)
+**Tier 3 LLM is OPT-IN (June 2026, default OFF — `isSearchLlmEnabled()` in
+`llm-query-parser.ts`, gated on `SEARCH_LLM_ENABLED=true`).** It was a 1–2s
+SYNCHRONOUS Bedrock call on the hot path, and search is crawler-hammered — an LLM
+there is both a latency landmine and a cost/abuse exposure (violates "never invoke
+AI on a render/crawler path"). `parseQueryWithLlm` returns `null` immediately when
+disabled, so classification cleanly degrades to regex+embedding and
+`needsLlmParsing` resolves to false (both call sites — `classifyQueryIntentHybrid`
+step 3 and `hybridSearch` step 2 — become no-ops). When a query is genuinely too
+ambiguous, the search overlay's EMPTY state surfaces an explicit **"Ask Cue"**
+action (`handleAskCue` in `search-command.tsx` → dispatches the `ai-chat-trigger`
+CustomEvent the assistant-floaty listens for) — moving AI to an intentional click.
+
+**Expected average cost** (LLM off): embedding tier only (~$0.000005/query).
 
 ## Extracted Filter Types (14+)
 
@@ -295,9 +308,15 @@ query in `next-out.log` (it logs only on completion).
 
 Guards now in `hybrid.ts` (keep them when refactoring):
 
-- `runLexicalSearch()` — trigram → on failure log `fuzzy_search_failed` + degrade
-  to FTS (`ftsSearchTitles`/`ftsSearchPeople`, same fast path autocomplete uses)
-  → on second failure log `lexical_search_failed` + return `[]`.
+- `runLexicalSearch()` — **FTS-FIRST since June 2026** (inverted from trigram-first;
+  the old `FTS_PREEMPT_MIN_WORDS` 3-word gate is GONE). Order: prefix FTS
+  (`ftsPrefixSearchTitles`/`ftsPrefixSearchPeople`, title/name-only GIN indexes
+  `idx_movies_title_fts`/`idx_series_name_fts`, ~5ms, "inc" → Inception) → if it
+  returns rows, DONE (trigram never runs); if it throws, log `lexical_search_failed`
+  + return `[]`. Trigram (`fuzzySearch`) runs ONLY when prefix FTS is EMPTY (a
+  probable misspelling, distinctive enough to stay fast); on its failure log
+  `fuzzy_search_failed` + return `[]`. Trigram was pathological on the hot path —
+  "the matrix" matched ~184k candidate rows → multi-second heap recheck (18s cold).
 - Semantic leg `.catch` → `semantic_search_fallback` warn (pre-existing).
 - `findExactMatchSafe()` wraps both exact-match call sites (fast path +
   `resolveSimilarToTitle`).
@@ -311,8 +330,9 @@ Guards now in `hybrid.ts` (keep them when refactoring):
   requirement — prod EC2 deliberately has none; the static-only check kept
   Tier 3 permanently dead in prod).
 
-Regression tests: `src/lib/search/hybrid.test.ts` (all deps mocked; 6/7 fail on
-the pre-fix code). Run: `yarn vitest run src/lib/search/hybrid.test.ts`.
+Regression tests: `src/lib/search/hybrid.test.ts` (8 tests, all deps mocked; pins
+the FTS-first ordering + the degradation chain). Run:
+`yarn vitest run src/lib/search/hybrid.test.ts`.
 
 ## Filter extraction must never leave a stopword residual as the search text
 
