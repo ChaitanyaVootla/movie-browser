@@ -34,6 +34,7 @@ Canonical implementations live in code — import them instead of copying class 
 | Section heading (h2: `text-xl font-semibold tracking-tight`) + header row with optional action | `<SectionHeading>` from `@/components/features/layout/section-heading` |
 | Navigation pending feedback (card dim+spinner / inline spinner, 150ms-delayed via `.nav-pending-in`; pairs with `prefetch={false}` on grid/carousel card links) | `CardPendingOverlay` / `InlinePendingSpinner` from `@/components/features/layout/nav-pending` |
 | Sticky in-page bar, hero tagline, overline label, page padding | class constants in `@/lib/design` |
+| Social signals (personal-state cluster on cards, %-filled star, hairline progress bar; theme-led on `--sig`) | `PersonalCornerCluster` / `PartialStar` / `CardProgressBar` from `@/components/features/media/social-signals` (see DESIGN.md → Social signals) |
 
 If a new pattern appears 3+ times, promote it: add a constant/component, document the
 recipe in DESIGN.md Components, and add a row here.

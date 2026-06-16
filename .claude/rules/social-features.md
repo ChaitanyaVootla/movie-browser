@@ -208,6 +208,27 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
   inert audience-selector stub in composer + hub (circles-readiness seam, NOT WIRED).
   PM2 crons: `episode-drop-notify` (05:00 UTC) + `cue-seed` (20:00 UTC) — both carry
   the `CRON_HOUR_UTC` guard + `nice -n 19`.
+- **Signal surfacing & consolidation (2026-06-16, spec
+  `docs/superpowers/specs/2026-06-16-social-signals-consolidation-design.md`).**
+  A theme-led, single-accent (**Scarlet**) signal vocabulary promoting tracking/
+  ratings/reviews/discussion across surfaces — NO multi-hue palette (see DESIGN.md
+  → Social signals; `--sig` = dulled brand for personal glyphs). **Phase A**
+  (shipped): the `/api/user/library` hydration carries `score`/`liked`/
+  `seriesProgress` (additive) → user-store selectors `selectScore`/`selectLiked`/
+  `selectSeriesProgress`; `components/features/media/social-signals.tsx`
+  (`PartialStar`, `CardProgressBar`, `PersonalCornerCluster`) renders on
+  `MovieCard`/`WideMovieCard`/`WideCard` — a bottom-left **personal cluster**
+  (½-star = `score/2` + heart / watched / watchlist) that SUPERSEDES the quality
+  badge, plus a bottom hairline progress bar. **Phase B** (shipped): detail-page
+  **Community teaser row** — `DiscussionEntryStrip` + `features/reviews/
+  reviews-ratings-entry.tsx` (`ReviewsRatingsEntry`, anon-cacheable histogram +
+  `getPublicReviewCount`) as 2-col peers under the action bar, in both
+  `{movie,series}/[...params]/page.tsx`; `ReviewsSection#reviews` is the CTA
+  target. **Phase C** (partial): `getPublishedCommentCountsForType` (one grouped
+  query) → `MovieCarousel.commentCounts` → existing `DiscussionCountBadge` on home
+  trending. All new reads are viewer-agnostic / client-hydrated (edge-cache
+  invariant intact). Deferred: popular-with-friends ordering, hero-overlay counts,
+  destructive-red audit (`--destructive` ≈ Scarlet hue).
 
 ---
 
