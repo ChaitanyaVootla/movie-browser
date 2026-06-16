@@ -63,7 +63,7 @@ import {
 } from "@/components/features/media";
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
-import { ReviewsSection } from "@/components/features/reviews";
+import { ReviewsSection, ReviewsRatingsEntry } from "@/components/features/reviews";
 import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
 import {
   parseMovieDiscussions,
@@ -459,17 +459,17 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         className="mt-2 md:mt-3"
       />
 
-      {/* Discussion entry — surfaced HIGH (right below the action bar) so it's
-          discoverable near the hero. Cacheable baseline; the client island
-          upgrades to "N new since you watched". Jumps to the inline
-          #discussion section lower on the page, links to the dedicated page. */}
-      <Suspense fallback={null}>
-        <DiscussionEntryStrip
-          anchor={{ type: "movie", movieId: movie.id }}
-          title={movie.title}
-          className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4"
-        />
-      </Suspense>
+      {/* Community entry row — Discussion + Reviews&Ratings as PEER teasers right
+          below the action bar (spec §4.3). Both cacheable/anon-tier (no viewer
+          state). Each links into its full section lower on the page. */}
+      <div className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4 grid gap-3 md:grid-cols-2">
+        <Suspense fallback={null}>
+          <DiscussionEntryStrip anchor={{ type: "movie", movieId: movie.id }} title={movie.title} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ReviewsRatingsEntry mediaType="movie" tmdbId={movie.id} href="#reviews" />
+        </Suspense>
+      </div>
 
       {/* Overview, cast, and details - using light props to reduce RSC payload by ~80% */}
       <MediaOverview

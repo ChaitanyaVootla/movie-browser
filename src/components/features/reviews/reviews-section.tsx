@@ -1,4 +1,5 @@
 import { MessageSquareQuote } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { getPublicReviews, getReviewHistogram } from "@/server/actions/reviews";
 import type { TrackedMediaType } from "@/types/social";
@@ -49,7 +50,7 @@ export async function ReviewsSection({
   ]);
 
   return (
-    <section className={className}>
+    <section id="reviews" className={cn("scroll-mt-20", className)}>
       <div className="px-4 md:px-8 lg:px-12 space-y-4">
         <SectionHeading icon={<MessageSquareQuote className="h-5 w-5 text-brand" />}>
           Reviews

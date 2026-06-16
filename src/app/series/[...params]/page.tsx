@@ -65,7 +65,7 @@ import {
   SeriesProgressInline,
 } from "@/components/features/tracking";
 import NextLink from "next/link";
-import { ReviewsSection } from "@/components/features/reviews";
+import { ReviewsSection, ReviewsRatingsEntry } from "@/components/features/reviews";
 import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
 import {
   EpisodeDiscussPage,
@@ -483,13 +483,19 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           discoverable near the hero. Cacheable baseline; the client island
           upgrades to "N new since you watched". Jumps to the inline
           #discussion section lower on the page, links to the dedicated page. */}
-      <Suspense fallback={null}>
-        <DiscussionEntryStrip
-          anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
-          title={series.name}
-          className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4"
-        />
-      </Suspense>
+      {/* Community entry row — Discussion + Reviews&Ratings as PEER teasers right
+          below the action bar (spec §4.3). Both cacheable/anon-tier. */}
+      <div className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4 grid gap-3 md:grid-cols-2">
+        <Suspense fallback={null}>
+          <DiscussionEntryStrip
+            anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
+            title={series.name}
+          />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ReviewsRatingsEntry mediaType="series" tmdbId={series.id} href="#reviews" />
+        </Suspense>
+      </div>
 
       {/* Season & Episode Selector - light seasons (no per-season overview/poster) */}
       {displaySeasons.length > 0 && (

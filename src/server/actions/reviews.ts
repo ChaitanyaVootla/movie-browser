@@ -18,6 +18,7 @@ import {
   deleteUserReview,
   getOwnReview as getOwnReviewQuery,
   getPublicReviews as getPublicReviewsQuery,
+  getPublishedReviewCount,
   getVisibleReviews,
   type ReviewImageData,
 } from "@/server/db/postgres/social/reviews";
@@ -531,5 +532,29 @@ export async function getReviewHistogram(
       error: error instanceof Error ? error.message : String(error),
     });
     return shapeHistogram([]);
+  }
+}
+
+/**
+ * Anon-tier published review count (Reviews & Ratings teaser footer). Wrapped in
+ * try/catch like getReviewHistogram — runs inside the cached RSC render and must
+ * never throw out of the tree (degrades to 0).
+ */
+export async function getPublicReviewCount(
+  input: z.infer<typeof ReviewHistogramSchema>
+): Promise<number> {
+  try {
+    const v = ReviewHistogramSchema.parse(input);
+    return await getPublishedReviewCount(
+      v.mediaType === "movie"
+        ? { movieId: v.tmdbId }
+        : { seriesId: v.tmdbId, seasonNumber: v.seasonNumber ?? null }
+    );
+  } catch (error: unknown) {
+    userApiLogger.error({
+      action: "getPublicReviewCount",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return 0;
   }
 }

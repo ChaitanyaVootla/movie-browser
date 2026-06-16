@@ -182,6 +182,28 @@ export async function getPublicReviews(opts: PublicReviewsOptions) {
   };
 }
 
+/**
+ * Anon-tier published review count for a title/season (mirrors getPublicReviews'
+ * hard filter: PUBLISHED + public + spoilerScope NONE). Viewer-agnostic →
+ * safe in cacheable RSC. Used by the detail-page Reviews & Ratings teaser.
+ */
+export async function getPublishedReviewCount(anchor: {
+  movieId?: number;
+  seriesId?: number;
+  seasonNumber?: number | null;
+}): Promise<number> {
+  return prisma.userReview.count({
+    where: {
+      status: "PUBLISHED",
+      isPrivate: false,
+      spoilerScope: "NONE",
+      ...(anchor.movieId !== undefined
+        ? { movieId: anchor.movieId }
+        : { seriesId: anchor.seriesId, seasonNumber: anchor.seasonNumber ?? null }),
+    },
+  });
+}
+
 export interface VisibleReviewsOptions {
   movieId?: number;
   seriesId?: number;
