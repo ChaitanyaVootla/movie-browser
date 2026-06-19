@@ -49,9 +49,9 @@ ENABLE_TEST_AUTH=true <above> yarn dev   # then GET/POST /api/test-auth/login fo
 
 **CDN (since 2026-06-11)**: CloudFront (`E12R1ZNQNG3LK5` / `d1vtxoi7slst5n.cloudfront.net`) fronts the apex + www; origin is `origin.themoviebrowser.com` → EIP (Caddy serves it as a 2nd vhost). It edge-caches anon HTML, collapses the crawler herd (Origin Shield ap-south-1), sheds scrapers at the edge, and serves stale during origin freezes — the 2-vCPU origin could not survive the herd directly. **All CDN work + footguns are in `.claude/rules/cdn.md` — read it before touching CloudFront/Caddy/robots/next.config.**
 
-**Main EC2 (production since GA 2026-06-10, now the CloudFront origin)**: `t4g.large` (8GB ARM) in `ap-south-2` (Hyderabad). EIP `16.112.156.196`. Serves `themoviebrowser.com` + `www` + `beta.themoviebrowser.com` via Caddy (apex block also serves `origin.themoviebrowser.com`). Managed by Terraform (`terraform/`, state key `beta/terraform.tfstate`, project name `movie-browser-beta`).
+**Main EC2 (production since GA 2026-06-10, now the CloudFront origin)**: `m8g.large` (2 vCPU / 8GB ARM Graviton4, non-burstable; migrated 2026-06-19 from `t4g.large` to escape CPU-credit throttling — same in-place stop/start via TF, `ignore_changes=[ami,user_data]`+`prevent_destroy` keep it safe) with a 120GB gp3 root volume (grown from 80GB same day) in `ap-south-2` (Hyderabad). EIP `16.112.156.196`. Serves `themoviebrowser.com` + `www` + `beta.themoviebrowser.com` via Caddy (apex block also serves `origin.themoviebrowser.com`). Managed by Terraform (`terraform/`, state key `beta/terraform.tfstate`, project name `movie-browser-beta`).
 
-**Legacy EC2** (pending decommission): `98.130.30.197` — old Nuxt + MongoDB box. `themoviebrowser.com` now points at the main box (GA cutover 2026-06-10); legacy serves nothing. Separate TF state (`production/terraform.tfstate`). Decommission steps in memory `ga-cutover-state`.
+**Legacy EC2** (DECOMMISSIONED 2026-06-16): old Nuxt + MongoDB box `98.130.30.197` (`i-0f5504ddcaded80b3`, t4g.medium) was **terminated** — instance gone, EIP `eipalloc-031c8a01bd22ded32` released, root volume deleted, CloudWatch alarms (`prod-status-check-failed`, `prod-disk-above-80pct`) deleted. Final pre-terminate artifacts retained: EBS image `snap-05cf05982fcfc46f3` (tagged `Keep=true`) + the single pinned mongodump (see MongoDB below). Separate TF state (`production/terraform.tfstate`) is now stale — its only resources are gone. Still-dead DNS/CloudFront leftovers (optional cleanup, NOT yet done): `api.themoviebrowser.com` distribution (`E156DU7JYCYHU`) + the `/t/p` `proxyimage` passthrough behavior on dist `E300L33VF15D5T` — **but that distribution (`image.themoviebrowser.com`) is LIVE: its `/movie|/series/{id}/*.webp` paths serve posters from S3 and MUST be kept.**
 
 **Services on Beta EC2** (via `docker-compose.yml`):
 - PostgreSQL 17 + pgvector + pg_trgm (port 5433)
@@ -70,7 +70,7 @@ ENABLE_TEST_AUTH=true <above> yarn dev   # then GET/POST /api/test-auth/login fo
 
 **AWS credentials**: On EC2, omit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` — the instance profile provides Bedrock access. Set them only for local dev. Use project IAM user `moviebrowser` (account `620733889764`), never default machine creds.
 
-**MongoDB**: SEVERED at GA (2026-06-10): `USER_DATA_SOURCE=postgres` + `ENABLE_MONGODB_ENRICHMENT=false` on the box; the app makes zero Mongo connections. Enrichment corpus bulk-migrated to PG (534k docs, 0 errors); full mongodump pinned in S3 (`backups/mongo/`). Legacy box pending decommission.
+**MongoDB**: SEVERED at GA (2026-06-10): `USER_DATA_SOURCE=postgres` + `ENABLE_MONGODB_ENRICHMENT=false` on the box; the app makes zero Mongo connections. Enrichment corpus bulk-migrated to PG (534k docs, 0 errors); single fresh mongodump pinned in S3 at `s3://movie-browser-migration-2025-10-19/mongodb-dumps/prod-mongo-final-2026-06-16.archive.gz` (9.09GB, moved out of the 30-day-expiry `backups/` prefix so it never auto-deletes). Legacy box terminated 2026-06-16 (see Infrastructure → Legacy EC2).
 
 **Local PG Access**: `ssh -i movie-browser-ec2-key.pem -L 5433:localhost:5433 ubuntu@16.112.156.196 -N` then use `yarn db:studio`.
 
@@ -175,16 +175,26 @@ hit the legacy site before it's stopped.
 
 ### Post-GA Cleanup (pending)
 
-1. Decommission legacy EC2 `98.130.30.197` (stop → watch a week → terminate;
-   termination protection must be disabled first; release EIP; remove its
-   CloudWatch alarms/disk cron; delete dead `api.themoviebrowser.com` +
-   `proxyimage` CloudFront leftovers).
+1. ✅ DONE 2026-06-16 — legacy EC2 `98.130.30.197` (`i-0f5504ddcaded80b3`)
+   terminated: termination protection disabled, instance terminated, EIP
+   released, root volume deleted, `prod-status-check-failed` +
+   `prod-disk-above-80pct` alarms deleted, 7 DLM daily snapshots of the legacy
+   volume pruned to one tagged final image (`snap-05cf05982fcfc46f3`). REMAINING
+   (optional): delete the truly-dead `api.themoviebrowser.com` distribution
+   (`E156DU7JYCYHU`); do NOT delete `image.themoviebrowser.com` (`E12... E300L33VF15D5T`)
+   — its S3-backed `/movie|/series/{id}/*.webp` paths are LIVE (only its `/t/p`
+   `proxyimage` passthrough origin is dead).
 2. Delete Mongo code: `src/server/db/mongo/`, `src/server/services/hydration/sources/mongo.ts`
    (keep `transformMongoToEnriched` consumers in mind — `scripts/migrate-mongo-enrichment.ts`
    imports it; archive the script alongside), Mongoose models, mongodb branches in
    `user-data.ts`/`user-id.ts`/`auth.ts`.
 3. Remove packages: `mongoose`, `mongodb`, `@auth/mongodb-adapter`. Remove `MONGO_*` env vars.
-4. Keep the S3 mongodump (`backups/mongo/`, 9GB) pinned until cleanup is long verified.
+4. ✅ S3 mongodump consolidated to ONE pinned copy (2026-06-16):
+   `mongodb-dumps/prod-mongo-final-2026-06-16.archive.gz` (9.09GB) — relocated out
+   of the auto-expiring `backups/` prefix; older daily dumps + stale 2025-10 test
+   dumps deleted. Keep this one pinned until Mongo code deletion (steps 2–3) is
+   long verified. NOTE: the box's nightly `mongo-backup.sh` cron died with the box,
+   so nothing replaces it — do not let it expire.
 
 ## Claude Code Rules
 

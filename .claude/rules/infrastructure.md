@@ -34,7 +34,7 @@ config + footguns live in `.claude/rules/cdn.md`. TF: `terraform/cloudfront.tf`
 ## EC2 Instances
 
 ### Beta (current active deployment)
-- **Instance**: `t4g.large` (8GB ARM Graviton) in `ap-south-2` (Hyderabad)
+- **Instance**: `m8g.large` (2 vCPU / 8GB ARM Graviton4, **non-burstable** — migrated 2026-06-19 from `t4g.large` to end CPU-credit throttling; in-place stop/start via `terraform apply -target=aws_instance.main`). Root volume 120GB gp3 (grown from 80GB same day). No CPU credits on m-class → the old `--cpu-credits unlimited` + `beta-cpu-surplus-credit-burn` alarm are now no-ops. **To change type/size again:** edit `terraform.tfvars` → baseline-plan → `terraform apply -target=aws_instance.main` (`unset AWS_PROFILE`, `source ../.env.local`, `export TF_VAR_origin_verify_secret=<X-Origin-Verify from CloudFront E12R1ZNQNG3LK5>`; `-target` dodges the SG ingress drift). After a volume bump grow the ext4 FS online: `sudo growpart /dev/nvme0n1 1 && sudo resize2fs /dev/nvme0n1p1`. **On any stop/start:** PM2 (`pm2-ubuntu.service`) + Postgres/Caddy (`unless-stopped`) auto-start, but **ClickHouse is `restart:no`** → run `sudo docker start analytics-clickhouse`.
 - **EIP**: `16.112.156.196` → `beta.themoviebrowser.com`
 - **Terraform**: `terraform/` with state at `s3://movie-browser-terraform-state/beta/terraform.tfstate`
 - **Project name**: `movie-browser-beta` (all AWS resources use this prefix)

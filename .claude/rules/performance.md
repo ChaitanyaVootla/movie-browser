@@ -39,8 +39,13 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 ```
 - `%Cpu(s) ... 0.0 id` = CPU-saturated. High `wa` = disk I/O bound. Load avg ≫ vCPU count = oversubscribed (beta = **2 vCPUs**).
 - Beta shares 2 cores across Postgres + ClickHouse + Next (PM2) + background enrichment. CPU is the scarce resource.
-- **CPU-CREDIT THROTTLE (the `t4g` trap — diagnosed Jun 19 2026).** The box is a
-  `t4g.large` **burstable** instance. Signature: **high load avg (10-15) but total
+- **CPU-CREDIT THROTTLE (the `t4g` trap — diagnosed Jun 19 2026).** RESOLVED 2026-06-19:
+  the box was **migrated to `m8g.large` (Graviton4, non-burstable)**, so this credit-throttle
+  trap NO LONGER APPLIES (m-class has no CPU credits — full sustained 2-core clock). Kept here
+  as diagnostic history + because it recurs on any future burstable box. The box is still **2
+  vCPU**, so genuine CPU *contention* (PG+CH+Next sharing 2 cores) can still occur — but it now
+  shows as real ~100%×2 saturation, not credit-capped starvation. (When it WAS a)
+  `t4g.large` **burstable** instance: signature was **high load avg (10-15) but total
   `%Cpu` well under 100%×nCPU** (e.g. ~40% used at load 13) — processes are starving
   (huge run queue) yet capped at the **baseline** (~40% for t4g.large). That means the
   box has **burned its CPU credits and is throttled to baseline**, NOT that traffic is
