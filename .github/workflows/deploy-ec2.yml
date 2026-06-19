@@ -105,6 +105,7 @@ jobs:
             ecosystem.config.cjs \
             prisma \
             postgres/init \
+            postgres/migrations \
             analytics/clickhouse \
             scripts
 
@@ -215,16 +216,50 @@ jobs:
             # the build; the runtime @prisma/client is in the shipped tree.
             echo "[2.5/5] Prisma schema (gated)..."
             set -a; source .env; set +a
+
+            # [2.5a] watched_movies → watch_events: EXPAND/CONTRACT pre-push snapshot.
+            # The social schema drops the watched_movies table (data moves to
+            # watch_events). `prisma db push` only syncs the `public` schema, so a
+            # copy in a SEPARATE schema survives the push (verified Jun 19 2026 on a
+            # restored prod-shaped DB). Snapshot it BEFORE db push, then db push may
+            # safely drop public.watched_movies (we hold the data), then backfill
+            # post-push. Self-gating: only fires while the legacy table still exists
+            # (i.e. the first social deploy); inert forever after. HARD-FAILS if the
+            # snapshot can't be taken — never let db push drop unbacked-up data.
+            ACCEPT_DL=""
+            WM_EXISTS=$(docker compose exec -T postgres psql -U moviebrowser -d moviebrowser -tAc \
+              "SELECT to_regclass('public.watched_movies') IS NOT NULL" </dev/null 2>/dev/null | tr -d '[:space:]')
+            if [ "$WM_EXISTS" = "t" ]; then
+              echo "[2.5a] legacy watched_movies present -> snapshot to migration_backup before db push"
+              docker compose exec -T postgres psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=1 </dev/null \
+                -c "CREATE SCHEMA IF NOT EXISTS migration_backup; DROP TABLE IF EXISTS migration_backup.watched_movies; CREATE TABLE migration_backup.watched_movies AS SELECT * FROM public.watched_movies;" 2>&1 | tail -3 \
+                && ACCEPT_DL="--accept-data-loss" \
+                || { echo "::error::watched_movies snapshot FAILED — aborting before db push to avoid data loss"; exit 1; }
+              echo "[2.5a] snapshot OK; db push will run with --accept-data-loss (data is backed up)"
+            fi
+
             SCHEMA_HASH=$(md5sum prisma/schema.prisma | cut -d' ' -f1)
             if [ "$SCHEMA_HASH" != "$(cat .last-schema-hash 2>/dev/null)" ]; then
               echo "schema changed -> db push"
+              # $ACCEPT_DL is set ONLY on the watched_movies migration deploy (above);
+              # empty on every normal deploy, so destructive changes still refuse.
               NODE_OPTIONS="--max-old-space-size=512" nice -n 19 \
-                ./node_modules/.bin/prisma db push --skip-generate 2>&1 \
+                ./node_modules/.bin/prisma db push --skip-generate $ACCEPT_DL 2>&1 \
                 && echo "$SCHEMA_HASH" > .last-schema-hash \
                 || echo "db push warning (non-fatal)"
             else
               echo "schema unchanged -> skip db push"
             fi
+
+            # [2.5b] watched_movies → watch_events: post-push backfill. NOT
+            # hash-gated — self-gates on the migration_backup snapshot existing
+            # (no-op on every normal deploy). Idempotent + verifies completeness;
+            # HARD-FAILS on error (migration_backup retains the data → re-deploy
+            # retries). See postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql.
+            echo "[2.5b] watched_movies -> watch_events backfill (gated on snapshot)..."
+            docker compose exec -T postgres psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=1 \
+              < postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql 2>&1 | tail -6 \
+              || { echo "::error::watched_movies backfill FAILED — migration_backup retains the data; re-run the deploy to retry"; exit 1; }
 
             echo "[3/5] FTS indexes (gated)..."
             FTS_HASH=$(md5sum postgres/init/02-search-indexes.sql | cut -d' ' -f1)

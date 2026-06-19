@@ -6,7 +6,13 @@
  * as watch_events.created_at for ordering.
  *
  * Idempotent via NOT EXISTS on (user, movie, BACKFILL). Run BEFORE dropping
- * the model from the schema.
+ * the model from the schema (reads public.watched_movies while it still exists).
+ *
+ * NOTE: the PROD deploy does NOT use this script — it runs the expand/contract
+ * SQL in postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql
+ * (snapshot → db push drops the table → backfill from the snapshot), wired into
+ * .github/workflows/deploy-ec2.yml. This script remains for local/dev + manual
+ * pre-drop runs; keep the INSERT column list in sync with that SQL.
  *
  * Usage:
  *   DATABASE_URL="postgresql://dev:dev@localhost:5436/moviebrowser" \
@@ -33,12 +39,17 @@ async function main(): Promise<void> {
   `;
   const sourceRows = Number(sourceCount[0]?.n ?? 0n);
 
+  // media_type is REQUIRED (NOT NULL, no default) on watch_events — added by the
+  // 2026-06-14 diary/log unification AFTER this script was first written.
+  // watched_movies was movies-only, so every row is 'MOVIE'. kind=WATCH / cycle=1
+  // are DB defaults, set explicitly for clarity. (Omitting media_type made the
+  // prod backfill fail with a NOT NULL violation — caught in a Jun 19 rehearsal.)
   const inserted = await prisma.$executeRaw`
     INSERT INTO watch_events
-      (user_id, movie_id, watched_at, watched_at_precision, source,
-       is_rewatch, is_private, tags, created_at)
-    SELECT wm.user_id, wm.movie_id, NULL, 'UNKNOWN', 'BACKFILL',
-           false, false, '{}', wm.created_at
+      (user_id, movie_id, media_type, watched_at, watched_at_precision, source,
+       is_rewatch, is_private, tags, kind, cycle, created_at)
+    SELECT wm.user_id, wm.movie_id, 'MOVIE', NULL, 'UNKNOWN', 'BACKFILL',
+           false, false, '{}', 'WATCH', 1, wm.created_at
     FROM watched_movies wm
     WHERE NOT EXISTS (
       SELECT 1 FROM watch_events we
