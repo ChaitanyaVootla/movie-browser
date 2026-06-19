@@ -25,6 +25,7 @@ import {
   Bot,
   DollarSign,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -82,6 +83,7 @@ interface UserActivity {
   sub: number;
   name: string;
   email: string;
+  username?: string | null;
   picture?: string;
   image?: string;
   createdAt?: string;
@@ -629,7 +631,22 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
       </TableCell>
       <TableCell>
         <div className="min-w-[180px]">
-          <p className="font-medium truncate max-w-[200px]">{user.name || "Unknown"}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium truncate max-w-[170px]">{user.name || "Unknown"}</p>
+            {user.username && (
+              <Link
+                href={`/u/${user.username}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title={`View public profile (@${user.username})`}
+                aria-label={`Open @${user.username}'s public profile`}
+                className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate max-w-[200px]">{user.email}</p>
         </div>
       </TableCell>
