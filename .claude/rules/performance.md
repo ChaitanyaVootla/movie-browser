@@ -229,7 +229,7 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 
 ## Don't over-trust audit/agent suggestions — temper with context
 - Don't `dynamic(..., { ssr:false })` the hero/LCP element (kills LCP + SEO).
-- Don't remove `unoptimized` from images — Next's optimizer runs `sharp` on the CPU-starved EC2, making it worse. CDN already serves WebP.
+- **Image optimization is OFF globally** (`next.config.mjs` `images.unoptimized: true`, Jun 19 2026) — do NOT re-enable it. Every image source is already optimized + CDN-served at a fixed size (our CDN serves pre-rendered WebP; TMDB fallbacks are pre-sized `w500`/`w1280`/`w780` per `src/lib/image.ts`; Google avatars / YT thumbs likewise). The origin optimizer re-downloaded + re-encoded each via `sharp` on the 2-vCPU box and cached the result in `.next/cache/images` with **NO size bound** → it filled the disk and took prod down (the Jun 19 outage; the Jun 10 twin was the unbounded ISR cache). It was previously toggled per-`<Image>` via inconsistent `unoptimized` props — the leak. `prune-isr-cache.js` now also bounds `.next/cache/images` as a backstop, but the real fix is keeping optimization OFF. `next/image` with `unoptimized` still does layout/lazy-load/`sizes` — only the `sharp` resize/reencode is skipped.
 - An `h632` profile image is correct for 2× retina (256px container) — not "2.6× oversize"; audits often assume 1× DPR.
 
 See also: `.claude/rules/infrastructure.md` (memory/CPU budget), `.claude/rules/postgres-hydration.md`, `.claude/rules/search-system.md`, `.claude/rules/analytics-system.md`.

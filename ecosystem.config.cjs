@@ -133,12 +133,16 @@ module.exports = {
     //   env: { NODE_ENV: "production", CRON_HOUR_UTC: "20" },
     //   kill_timeout: 300000,
     // },
-    // ISR cache prune - every 6h. Jun 10 2026: unbounded ISR route-cache
-    // entries (bot fleet × 800k-title long tail) grew .next to 41GB and filled
-    // the 77GB disk → ENOSPC outage loop. Primary bound is now the custom
-    // cache-handler.cjs (LRU at write time); this job is the belt-and-braces
-    // backstop for anything else under .next. FORCE_RUN=1 skips the
-    // deploy-autostart guard safely: the script fast-exits when under budget.
+    // Disk-cache prune - every 6h. Bounds BOTH the ISR route cache
+    // (.next/server/app, Jun 10 2026: grew to 41GB → ENOSPC outage) AND the
+    // image-optimizer cache (.next/cache/images, Jun 19 2026: the SAME outage,
+    // different hog — now mostly inert since images are `unoptimized` in
+    // next.config, but kept as a backstop if optimization is ever re-enabled).
+    // Primary ISR bound is the custom cache-handler.cjs (LRU at write time);
+    // this job is the belt-and-braces backstop. A PM2-independent failsafe
+    // (scripts/disk-guard.sh, system crontab) covers a dead PM2 daemon — this
+    // job can't run if PM2 itself is down (Jun 19 cascade). FORCE_RUN=1 skips
+    // the deploy-autostart guard safely: the script fast-exits when under budget.
     {
       name: "isr-cache-prune",
       cwd: "/home/ubuntu/movie-browser-next",

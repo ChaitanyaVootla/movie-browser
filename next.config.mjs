@@ -116,6 +116,21 @@ const nextConfig = {
   htmlLimitedBots: /.*/,
 
   images: {
+    // unoptimized: ALL image sources are already optimized + CDN-served at a
+    // fixed size — our CDN (image.themoviebrowser.com) serves pre-rendered WebP,
+    // and the TMDB fallback URLs are pre-sized variants (poster w500, backdrop
+    // w1280, wide w780 — see src/lib/image.ts), as are Google avatars / YouTube
+    // thumbs. The origin optimizer re-downloaded each, re-encoded it with `sharp`
+    // on the 2-vCPU box, and cached the result in `.next/cache/images` with NO
+    // size bound — which filled the disk and took prod down (Jun 19 2026; the
+    // Jun 10 twin was the ISR cache). There is no image on this app that
+    // warrants origin optimization, so disable it globally: `next/image` now
+    // passes `src` straight through (layout/lazy-load/`sizes` still apply).
+    // Eliminates the unbounded cache AND the sharp CPU load. Was previously
+    // toggled per-component via `unoptimized` props (inconsistent → the leak).
+    unoptimized: true,
+    // remotePatterns/formats only gate the optimizer (now off) — kept as
+    // documentation of the allowed external hosts.
     remotePatterns: [
       {
         protocol: "https",

@@ -206,7 +206,7 @@ export function WatchOptions({
                       fill
                       sizes="28px"
                       className="object-contain p-0.5"
-                      unoptimized={option.image.startsWith("http")}
+                      unoptimized
                     />
                   </div>
                 </button>

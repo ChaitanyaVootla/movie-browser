@@ -401,7 +401,7 @@ export const ChatWatchOptions = memo(function ChatWatchOptions({
             fill
             sizes="24px"
             className="object-contain p-0.5"
-            unoptimized={link.logo.startsWith("http")}
+            unoptimized
           />
         </a>
       ))}

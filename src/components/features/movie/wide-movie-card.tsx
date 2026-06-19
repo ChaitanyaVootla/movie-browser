@@ -157,7 +157,7 @@ export function WideMovieCard({
                   )}
                   priority={priority}
                   onError={handleImageError}
-                  unoptimized={!useFallback && !useBackdrop} // CDN images are already optimized
+                  unoptimized // CDN + TMDB-fallback srcs are already optimized (next.config images.unoptimized)
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted">
