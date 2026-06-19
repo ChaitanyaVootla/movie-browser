@@ -130,10 +130,31 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      old `next-server` (pkill pattern "next start" does NOT match it) serves
      stale code and silently invalidates the whole test matrix.
    - **ISR disk cache: bounded by `cache-handler.cjs` since Jun 11 2026** (LRU
-     at write time, `BOUNDED_CACHE_MB`=4GB, stored in `.next/cache/bounded-isr`,
+     at write time, `BOUNDED_CACHE_MB` — **raised 4000→25000 (25GB) on Jun 20 2026**,
+     set in the box `.env.local`; stored in `.next/cache/bounded-isr/{BUILD_ID}`,
      7 unit tests in `src/lib/cache-handler.test.ts`). Background: Next's
      DEFAULT cache never evicts by size — Jun 10 it grew to **41GB** under bot
      crawl, disk hit ENOSPC, next-server SIGABRT'd, prod flapped for hours.
+   - **CACHE-CAP TOO SMALL → THRASH → CPU saturation (Jun 20 2026 incident).**
+     The 4GB cap was too small for the ~800k catalog's working set. The cache
+     filled to 4GB, then **thrashed**: every cold page evicted one that got
+     re-requested → re-rendered → evicted, forever. So the 2 cores did constant
+     cold re-renders of pages that should've been cache hits. Trigger: origin-
+     reaching renders rose (bot→human traffic-mix flip ~tripled real renders;
+     bots get 429'd cheaply at the proxy, humans get full SSR). Signature that
+     distinguishes it from a crawler herd or a code regression: **flat total
+     req/min but CPU jumps 30%→80%+ and HOLDS** (doesn't recover like a deploy
+     cold-window); `next` (Node/SSR) is the CPU hog while **postgres/pgvector
+     stays low (~5%)** — so it's NOT the vector-similarity queries, it's React
+     SSR of cold detail pages; the ISR `bounded-isr` dir sits pinned at the cap.
+     **FIX: raise `BOUNDED_CACHE_MB`** so the working set fits (disk permitting —
+     it's on the 120GB root, ~62GB free). Verified: load 4+→0.36, CPU 82%→28% at
+     identical traffic, instantly. NOT caused by deploys (the BUILD_ID namespace
+     reset is a separate, recoverable cold-window), NOT CloudFront (we don't
+     invalidate on deploy), NOT orphan procs (clean tree). Per-cold-render cost is
+     dominated by Node SSR + `getSimilarItems`' 2 TMDB calls (already cached +
+     Suspense-wrapped, so only a cold-cache transient) — maximizing cache HIT rate
+     is the lever, not micro-opting the render.
      The handler MUST ship in the deploy tar (next.config references it at
      runtime; missing file = 500 on every request — burned us once).
      Backstops: `isr-cache-prune` PM2 job every 6h + deploy preflight refuses
