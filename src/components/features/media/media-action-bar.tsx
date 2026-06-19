@@ -82,7 +82,7 @@ export function MediaActionBar({
     <>
       <div className={cn("px-4 md:px-8 lg:px-12", className)}>
         <div className="flex items-center gap-6">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <div className="flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-start sm:gap-2">
             {/* The watch control sits in the watched slot (right after
                 Watchlist), the Diary opener is a SEPARATE sibling — same layout
                 for movie and series. Movie: standalone Watched toggle (+count);

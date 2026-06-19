@@ -221,7 +221,14 @@ export function StatusChip({ seriesId, seasons }: StatusChipProps) {
         aria-label={`Watch status: ${chipLabel}, ${percent}% caught up — edit progress`}
       >
         <ProgressBorderPill percent={percent} className="h-8 px-3.5">
-          <span className="text-xs font-medium text-foreground">{chipLabel}</span>
+          {/* Mobile: drop the status word to keep the action bar one row — the
+              progress border already conveys the watching state, so the bare
+              position code (e.g. "S1E11") carries the info. Desktop shows the
+              full "Watching · S1E11" label. */}
+          <span className="text-xs font-medium text-foreground">
+            <span className="sm:hidden">{positionCode ?? chipLabel}</span>
+            <span className="hidden sm:inline">{chipLabel}</span>
+          </span>
         </ProgressBorderPill>
       </button>
 
