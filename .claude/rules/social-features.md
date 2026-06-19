@@ -448,6 +448,24 @@ Routes: `/u/[username]`, `/diary`, `/stats`, `/settings` (+ `/settings/import`),
 
 ## PRE-DEPLOY CHECKLIST (must happen before this branch reaches prod)
 
+0. **`watched_movies` → `watch_events` data migration — WIRED (Jun 19 2026).**
+   The social schema DROPS `watched_movies` (data moves to `watch_events`). A
+   bare `prisma db push` would either refuse the drop (no `--accept-data-loss` →
+   social tables uncreated) or drop it before anything backfilled (data loss).
+   Solved with **expand/contract** in `deploy-ec2.yml` (self-gating, inert after
+   the first social deploy): `[2.5a]` snapshots `public.watched_movies` →
+   `migration_backup.watched_movies` (a separate schema `db push` does NOT
+   touch — verified) and sets `--accept-data-loss` ONLY for that deploy; db push
+   drops the now-backed-up table + creates `watch_events`; `[2.5b]` runs the
+   idempotent backfill `postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql`
+   (verifies completeness, hard-fails with the snapshot retained so a re-deploy
+   retries). `prisma migrate diff` confirmed this DROP is the ONLY data-loss op
+   in the whole pre→post diff. **Rehearsal gotcha:** the backfill MUST set
+   `media_type` (`watch_events.media_type` is NOT NULL no-default, added by the
+   2026-06-14 diary unification) — the old `migrate-watched-movies.ts` omitted it
+   and would have failed the prod backfill; both it and the SQL file now set
+   `'MOVIE'` (watched_movies was movies-only). Take a fresh verified PG snapshot
+   to S3 before the real run (`~/bin/pg-backup.sh` on the box).
 1. **Raw-SQL integrity is hash-gated in CI** — confirmed present in
    `.github/workflows/deploy-ec2.yml`:
    - UGC step: applies `postgres/init/04-ugc-constraints.sql` when
