@@ -7,6 +7,7 @@ import {
   LogOut,
   Eye,
   List,
+  ListChecks,
   Star,
   Settings,
   Moon,
@@ -164,6 +165,13 @@ export function UserMenu({ className }: UserMenuProps) {
           <Link href="/watchlist" className="cursor-pointer">
             <List className="mr-2 h-4 w-4" />
             <span>Watchlist</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href="/lists" className="cursor-pointer">
+            <ListChecks className="mr-2 h-4 w-4" />
+            <span>Lists</span>
           </Link>
         </DropdownMenuItem>
 
