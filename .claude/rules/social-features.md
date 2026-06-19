@@ -273,7 +273,7 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
    by `googleId`), so an authed session always resolves to a PG id.
 5. **AUDIT ACTOR ATTRIBUTION.** Mutating actions on audited tables
    (`users, user_reviews, comments, user_ratings, blocks, follows, lists,
-   watchlist`) run through `auditedTransaction(userId, fn)` (`src/server/db/audit.ts`)
+   list_items, watchlist`) run through `auditedTransaction(userId, fn)` (`src/server/db/audit.ts`)
    so `audit_log.actor_id` is set via `SET LOCAL`. Writes outside the wrapper
    still audit — with a NULL actor. Cross-link **`.claude/rules/audit-log.md`**.
 6. **AI COST-SAFETY.** The comment/review AI gate runs ONLY on submit and is

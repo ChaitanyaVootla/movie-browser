@@ -59,7 +59,7 @@ zero human-meaningful content. Audit only **low-churn, human-meaningful** tables
 
 **Current opt-in set:** `users` (excludes `updated_at,last_active_at,image`),
 `user_reviews`, `comments`, `user_ratings`, `blocks`, `follows`, `lists`,
-`watchlist`.
+`list_items`, `watchlist`.
 
 ## Actor capture — `auditedTransaction`
 

@@ -84,17 +84,21 @@ export async function createList(ownerId: number, input: CreateListInput) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
     try {
-      return await prisma.list.create({
-        data: {
-          ownerId,
-          name: input.name,
-          slug,
-          description: input.description ?? null,
-          isPublic: input.isPublic ?? false,
-          isRanked: input.isRanked ?? false,
-          kind: input.kind ?? "REGULAR",
-        },
-      });
+      // Wrap PER-ATTEMPT (C2): a P2002 inside an interactive tx aborts that tx,
+      // so the next attempt's create needs a FRESH transaction.
+      return await auditedTransaction(ownerId, (tx) =>
+        tx.list.create({
+          data: {
+            ownerId,
+            name: input.name,
+            slug,
+            description: input.description ?? null,
+            isPublic: input.isPublic ?? false,
+            isRanked: input.isRanked ?? false,
+            kind: input.kind ?? "REGULAR",
+          },
+        })
+      );
     } catch (error: unknown) {
       if (isPrismaError(error) && error.code === "P2002") continue; // slug collision
       throw error;
@@ -112,16 +116,20 @@ export interface UpdateListInput {
 }
 
 export async function updateList(ownerId: number, listId: number, patch: UpdateListInput) {
-  const result = await prisma.list.updateMany({
-    where: { id: listId, ownerId },
-    data: patch,
+  return auditedTransaction(ownerId, async (tx) => {
+    const result = await tx.list.updateMany({
+      where: { id: listId, ownerId },
+      data: patch,
+    });
+    return result.count > 0;
   });
-  return result.count > 0;
 }
 
 export async function deleteList(ownerId: number, listId: number): Promise<boolean> {
-  const result = await prisma.list.deleteMany({ where: { id: listId, ownerId } });
-  return result.count > 0;
+  return auditedTransaction(ownerId, async (tx) => {
+    const result = await tx.list.deleteMany({ where: { id: listId, ownerId } });
+    return result.count > 0;
+  });
 }
 
 export interface ListItemRef {
@@ -152,7 +160,7 @@ export async function addListItem(
   if (list.kind === "FOUR_FAVORITES" && list.itemCount >= FOUR_FAVORITES_MAX) {
     throw new Error(`Four Favorites holds at most ${FOUR_FAVORITES_MAX} items`);
   }
-  return prisma.$transaction(async (tx) => {
+  return auditedTransaction(ownerId, async (tx) => {
     const last = await tx.listItem.findFirst({
       where: { listId },
       orderBy: { position: "desc" },
@@ -187,7 +195,7 @@ export async function removeListItem(
   itemId: number
 ): Promise<boolean> {
   await requireOwnedList(ownerId, listId);
-  return prisma.$transaction(async (tx) => {
+  return auditedTransaction(ownerId, async (tx) => {
     const result = await tx.listItem.deleteMany({ where: { id: itemId, listId } });
     if (result.count > 0) {
       await tx.list.update({ where: { id: listId }, data: { itemCount: { decrement: 1 } } });
@@ -207,7 +215,9 @@ export async function moveListItem(
   beforeItemId: number | null
 ): Promise<void> {
   await requireOwnedList(ownerId, listId);
-  await prisma.$transaction(async (tx) => {
+  // moveListItem touches no `lists` row (pure reorder) → no `lists` audit row by
+  // design; the list_items UPDATEs it makes DO audit (C1/C2).
+  await auditedTransaction(ownerId, async (tx) => {
     const items = await tx.listItem.findMany({
       where: { listId },
       orderBy: { position: "asc" },
@@ -367,9 +377,10 @@ export async function setFourFavorites(
     await tx.list.update({ where: { id: list.id }, data: { itemCount: refs.length } });
   };
   // Run on a passed-in tx directly (Prisma forbids nesting $transaction);
-  // otherwise open our own so the replace-all stays atomic.
+  // otherwise open our own audited tx so the replace-all stays atomic AND the
+  // actor is attributed. When a tx is passed in, the caller owns the actor.
   if (db === prisma) {
-    await prisma.$transaction((tx) => run(tx));
+    await auditedTransaction(ownerId, (tx) => run(tx));
   } else {
     await run(db);
   }

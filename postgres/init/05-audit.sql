@@ -162,6 +162,13 @@ CREATE TRIGGER trg_audit_lists
   AFTER INSERT OR UPDATE OR DELETE ON lists
   FOR EACH ROW EXECUTE FUNCTION audit.if_modified('updated_at');
 
+-- list_items: user-action-bounded, low-churn (adds/removes/reorders) — safe to
+-- audit (NOT a hydration/catalog table). No excluded columns.
+DROP TRIGGER IF EXISTS trg_audit_list_items ON list_items;
+CREATE TRIGGER trg_audit_list_items
+  AFTER INSERT OR UPDATE OR DELETE ON list_items
+  FOR EACH ROW EXECUTE FUNCTION audit.if_modified('');
+
 DROP TRIGGER IF EXISTS trg_audit_watchlist ON watchlist;
 CREATE TRIGGER trg_audit_watchlist
   AFTER INSERT OR UPDATE OR DELETE ON watchlist
