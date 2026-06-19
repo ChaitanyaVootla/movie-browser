@@ -22,6 +22,7 @@ import {
 import { cn, getMediaPath } from "@/lib/utils";
 import { formatViewCount, formatRelativeTime } from "@/lib/youtube-utils";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import type { TrendingTrailer, YouTubeTrendingTrailer } from "@/server/actions/trending";
 import type { YouTubeComment } from "@/types";
 
@@ -392,6 +393,9 @@ export function TrailerModal({
   } | null>(null);
 
   const wakeLock = useWakeLock();
+
+  // Mobile Back closes the trailer instead of navigating the page behind it.
+  useHistoryDismiss(isOpen, onClose);
 
   const currentTrailer = trailers[currentIndex];
   const prevTrailer = currentIndex > 0 ? trailers[currentIndex - 1] : null;

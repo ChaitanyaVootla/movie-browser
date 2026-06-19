@@ -33,6 +33,7 @@ import {
 } from "@/lib/discover";
 import { POPULAR_LANGUAGES, POPULAR_COUNTRIES } from "@/lib/topics";
 import { STICKY_BAR, STICKY_BAR_SAFE_AREA } from "@/lib/design";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { cn } from "@/lib/utils";
 import type { MediaItem } from "@/types";
 import { discover } from "@/server/actions/discover";
@@ -55,6 +56,9 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
   const searchParams = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [_isPending, startTransition] = useTransition();
+
+  // Mobile Back closes the filters drawer instead of navigating the page.
+  useHistoryDismiss(mobileFiltersOpen, () => setMobileFiltersOpen(false));
 
   // Parse initial params from URL using the centralized parser
   const getInitialParams = useCallback((): Partial<DiscoverParams> & {

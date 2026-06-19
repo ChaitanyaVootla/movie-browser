@@ -32,6 +32,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { cn } from "@/lib/utils";
 import { IS_IOS } from "@/lib/device";
 import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { episodeCode, monthLabel } from "@/lib/tracking-format";
 import {
@@ -157,6 +158,13 @@ export function DiaryPanel({
   const [editEntry, setEditEntry] = useState<DiaryEntryDTO | null>(null);
   const [deleteEntry, setDeleteEntry] = useState<DiaryEntryDTO | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Mobile Back button closes the top-most open layer (delete confirm → edit →
+  // log form → the panel itself), one tap at a time, never navigating the page.
+  useHistoryDismiss(open, () => onOpenChange(false));
+  useHistoryDismiss(logging, () => setLogging(false));
+  useHistoryDismiss(!!editEntry, () => setEditEntry(null));
+  useHistoryDismiss(!!deleteEntry, () => setDeleteEntry(null));
 
   const refetch = useCallback(async () => {
     setLoading(true);

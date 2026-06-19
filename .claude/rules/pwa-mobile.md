@@ -73,6 +73,38 @@ keyboard is handled app-wide. Established June 2026 (S25 Ultra polish pass).
   transition) and only when the conversation is empty — with messages
   present the user opens the drawer to READ; the keyboard would cover them.
 
+## Mobile overlays = Vaul drawers + Back-button dismiss (June 2026)
+
+Every mobile slide-up surface MUST be a **Vaul `Drawer`** (`@/components/ui/drawer`),
+never a Radix `Sheet side="bottom"` (no drag-to-dismiss) or a centered `Dialog`.
+Vaul gives the native feel for free: drag-down to dismiss, velocity snap, scrim
+tap, smooth spring. The responsive pattern is `isMobile ? <Drawer> : <Dialog>` (or
+`<Popover>` / `<Sheet>` on desktop) — DESIGN.md → "Dialogs vs Drawers".
+
+**Back-button dismiss is mandatory and centralized.** A drawer/dialog's open state
+is pure React state, invisible to browser history — so on mobile the hardware/
+gesture Back button navigated the page *behind* the open overlay (page changed,
+overlay stayed = the "back went back a page but the modal remained" bug). Fixed by
+**`useHistoryDismiss(open, onClose)`** (`src/hooks/use-history-dismiss.ts`):
+
+- Call it once per overlay open-state, e.g. `useHistoryDismiss(open, () => onOpenChange(false))`.
+  For nested layers (diary panel → log form → edit → delete), call it once **per
+  layer** — a module-level stack closes only the top-most one per Back press.
+- It is **mobile-gated** (`matchMedia("(max-width: 767px)")` = the `useMobile`
+  breakpoint), so it is a no-op on desktop; pass the raw `open` even for responsive
+  components that render a `Dialog` on desktop.
+- Mechanics: on open it `pushState`s one synthetic entry; `popstate` (Back) closes
+  the top overlay instead of navigating; any other close (scrim/drag/X/select)
+  unwinds the synthetic entry via a suppressed `history.back()` so Back is never
+  "dead" and a forward in-drawer navigation is never undone.
+- **Do NOT hand-roll `pushState`/`popstate` per component** (search-command's old
+  bespoke handler leaked a dangling entry on non-Back closes — replaced). One hook,
+  everywhere. Every Vaul `Drawer` consumer + `search-command` + `trailer-modal` +
+  `profile-settings-dialog` now route through it.
+- The `mobile-quick-info-drawer` keeps its `usePathname` auto-close as a separate
+  safety (closes after an in-drawer link navigation); the hook coexists because
+  `removeOverlay` skips the synthetic `back()` once history has moved forward.
+
 ## AI chat window controls (consolidated June 2026)
 
 X always dismisses to the idle bubble and NEVER clears the conversation;

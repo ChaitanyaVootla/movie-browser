@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { IS_IOS } from "@/lib/device";
 import { submitReviewAction } from "@/server/actions/reviews";
@@ -97,6 +98,10 @@ export function ReviewComposer({
   const [images, setImages] = useState<ReviewImage[]>(existing?.images ?? []);
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Mobile Back closes the image picker first, then the composer.
+  useHistoryDismiss(open, () => onOpenChange(false));
+  useHistoryDismiss(imagePickerOpen, () => setImagePickerOpen(false));
   // Bump on every editor update so the char counter + Submit disabled state stay live.
   const [, setRev] = useState(0);
 

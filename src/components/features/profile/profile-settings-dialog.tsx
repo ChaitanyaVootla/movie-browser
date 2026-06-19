@@ -21,6 +21,7 @@ import {
 } from "@/components/features/settings";
 import { ExportDataButton } from "@/components/features/settings/export-data-button";
 import { getOwnProfileSettings } from "@/server/actions/profile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import type { OwnProfileSettingsDTO } from "@/types/social";
 
 /**
@@ -40,6 +41,8 @@ export function ProfileSettingsDialog({
   const router = useRouter();
   const [settings, setSettings] = useState<OwnProfileSettingsDTO | null>(null);
   const [touched, setTouched] = useState(false);
+
+  useHistoryDismiss(open, () => onOpenChange(false));
 
   useEffect(() => {
     if (!open || settings) return;

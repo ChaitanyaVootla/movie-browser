@@ -25,11 +25,12 @@ import {
 import { useState, useCallback } from "react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSearch } from "@/components/features/search";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useMounted } from "@/hooks/use-mounted";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { useUsername } from "@/hooks/use-username";
@@ -65,6 +66,9 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
   const user = session?.user;
   const isAuthenticated = status === "authenticated";
 
+  // Mobile Back / swipe-down closes the menu instead of navigating the page.
+  useHistoryDismiss(open, () => onOpenChange(false));
+
   const menuItems = isAuthenticated
     ? [
         {
@@ -97,10 +101,10 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl pb-8 px-0">
-        <SheetHeader className="px-6 pb-4 border-b border-border/30">
-          <SheetTitle className="text-left">
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="rounded-t-3xl px-0 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
+        <div className="px-6 pb-4 border-b border-border/30">
+          <DrawerTitle className="text-left">
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
@@ -125,8 +129,8 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
             ) : (
               <span className="text-lg">Menu</span>
             )}
-          </SheetTitle>
-        </SheetHeader>
+          </DrawerTitle>
+        </div>
 
         <nav className="flex flex-col py-2">
           {/* Auth-only menu items */}
@@ -231,8 +235,8 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
             </button>
           )}
         </nav>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }
 

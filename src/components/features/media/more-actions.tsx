@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useUserLibrary } from "@/hooks/use-user-library";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import type { MediaType } from "@/stores/user";
 
 interface MoreActionsProps {
@@ -37,6 +38,8 @@ export function MoreActions({ itemId, mediaType, title, className }: MoreActions
   const { trackRating, trackShareClick } = useAnalytics();
   const [open, setOpen] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
+
+  useHistoryDismiss(open, () => setOpen(false));
 
   const handleLike = async () => {
     const wasLiked = isLiked;

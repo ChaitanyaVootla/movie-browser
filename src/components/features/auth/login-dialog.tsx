@@ -10,8 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 
 interface LoginDialogProps {
   open: boolean;
@@ -35,6 +44,9 @@ export function LoginDialog({
   const [isLoading, setIsLoading] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const renderAttempted = useRef(false);
+  const isMobile = useMobile();
+
+  useHistoryDismiss(open, () => onOpenChange(false));
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -93,15 +105,9 @@ export function LoginDialog({
     }
   }, [open, renderGoogleButton]);
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="text-center space-y-3">
-          <DialogTitle className="text-2xl font-semibold">Welcome to Movie Browser</DialogTitle>
-          <DialogDescription className="text-base">{message}</DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col items-center gap-6 py-6">
+  const body = (
+    <>
+      <div className="flex flex-col items-center gap-6 py-6">
           {/* Google Sign-In Button (rendered by Google Identity Services) */}
           <div ref={googleButtonRef} className="min-h-[44px] flex items-center justify-center" />
 
@@ -142,17 +148,42 @@ export function LoginDialog({
           </div>
         </div>
 
-        {/* Not now button */}
-        <div className="flex justify-center pb-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Not now
-          </Button>
-        </div>
+      {/* Not now button */}
+      <div className="flex justify-center pb-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onOpenChange(false)}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Not now
+        </Button>
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">
+          <DrawerHeader className="space-y-3">
+            <DrawerTitle className="text-2xl font-semibold">Welcome to Movie Browser</DrawerTitle>
+            <DrawerDescription className="text-base">{message}</DrawerDescription>
+          </DrawerHeader>
+          {body}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="text-center space-y-3">
+          <DialogTitle className="text-2xl font-semibold">Welcome to Movie Browser</DialogTitle>
+          <DialogDescription className="text-base">{message}</DialogDescription>
+        </DialogHeader>
+        {body}
       </DialogContent>
     </Dialog>
   );

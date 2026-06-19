@@ -53,6 +53,7 @@ import { getPopularTopics, searchTopics } from "@/lib/topics";
 import { useUserStore, selectRecents } from "@/stores/user";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import type {
   SearchResult,
   SearchMovieResult,
@@ -424,21 +425,11 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     }
   }, [open]);
 
-  // Handle mobile back button - push history state when open, close on popstate
-  React.useEffect(() => {
-    if (!open) return;
-
-    const handlePopState = () => {
-      onOpenChange(false);
-    };
-
-    window.history.pushState({ searchOpen: true }, "");
-    window.addEventListener("popstate", handlePopState);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [open, onOpenChange]);
+  // Mobile Back button closes the search palette instead of navigating away.
+  // Shared with every other overlay via useHistoryDismiss (replaces the old
+  // bespoke pushState/popstate handler that left a dangling history entry on
+  // non-Back closes).
+  useHistoryDismiss(open, () => onOpenChange(false));
 
   // Fetch autocomplete suggestions on quick debounce (150ms)
   React.useEffect(() => {

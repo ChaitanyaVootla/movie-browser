@@ -14,6 +14,7 @@ import {
   DrawerClose,
 } from "@/components/ui/drawer";
 import type { HoverCardData } from "@/server/actions/hover-card";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { fetchHoverCardData } from "./hover-data-cache";
 import { InlinePendingSpinner } from "@/components/features/layout/nav-pending";
 import { getBackdropSources } from "@/lib/image";
@@ -108,6 +109,9 @@ export function QuickInfoProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [state.isOpen, state.item, state.data, state.isMovie]);
+
+  // Mobile Back closes the quick-info drawer instead of navigating the page.
+  useHistoryDismiss(state.isOpen, closeQuickInfo);
 
   // Close the drawer once a navigation triggered from inside it completes.
   // Deferred a tick so the destination page paints before the drawer slides

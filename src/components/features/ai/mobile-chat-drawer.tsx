@@ -18,6 +18,7 @@ import {
   type ParsedMediaTag,
 } from "@/lib/ai/parse-media-tags";
 import type { useChatStream } from "@/hooks/use-chat-stream";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { ChatRatings, ChatWatchOptions, PersonChip, useTagData } from "./chat-tags";
 import { PulsingSpark } from "./ai-animations";
 
@@ -134,6 +135,10 @@ export function MobileChatDrawer({
 }: MobileChatDrawerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Mobile Back button dismisses the chat to the idle bubble (never navigates
+  // the page behind it).
+  useHistoryDismiss(isOpen, () => onOpenChange(false));
 
   const lastAssistantMessage = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {

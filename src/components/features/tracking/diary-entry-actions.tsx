@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { IS_IOS } from "@/lib/device";
 import { deleteWatchEventAction, updateWatchEventAction } from "@/server/actions/tracking";
@@ -38,6 +39,9 @@ export function DiaryEntryActions({ entry }: DiaryEntryActionsProps) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  useHistoryDismiss(editing, () => setEditing(false));
+  useHistoryDismiss(confirmDelete, () => setConfirmDelete(false));
 
   const handleEdit = async (values: LogWatchFormValues) => {
     setBusy(true);

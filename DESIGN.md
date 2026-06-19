@@ -346,8 +346,13 @@ proof reads as negative. Mirrors the existing discussion-badge rule.
   `bg-background/95 backdrop-blur-sm border-b`, sits flush under the navbar on
   desktop and at `top-0` on mobile (with safe-area padding). Filters open in a
   `Drawer` on mobile, persistent sidebar on `md:`+.
-- **Dialogs vs Drawers** — confirmation/forms use `Dialog` on desktop; anything
-  taller than ~60dvh on mobile should be a `Drawer`/`Sheet`.
+- **Dialogs vs Drawers** — confirmation/forms use `Dialog` on desktop; on mobile
+  EVERY slide-up surface is a **Vaul `Drawer`** (`isMobile ? <Drawer> : <Dialog>`),
+  never a centered `Dialog` or a Radix `Sheet side="bottom"` — Vaul gives native
+  drag-down-to-dismiss, scrim tap, and spring motion. Every mobile overlay MUST
+  wire the hardware/gesture Back button to close (not navigate the page) via
+  `useHistoryDismiss(open, onClose)` (`src/hooks/use-history-dismiss.ts`); see
+  `.claude/rules/pwa-mobile.md` → "Mobile overlays".
 - **Scrollers** — horizontal media rows use `media-scroller` with `gap-4`,
   `scrollbar-hide`, edge-fade, and arrow buttons hidden on touch devices.
 - **Navigation pending** — card links in grids/carousels use `prefetch={false}`

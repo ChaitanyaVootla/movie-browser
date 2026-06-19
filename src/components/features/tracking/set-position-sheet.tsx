@@ -15,6 +15,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { episodeCode } from "@/lib/tracking-format";
@@ -79,6 +80,9 @@ export function SetPositionSheet({
     if (isControlled) onOpenChange?.(next);
     else setInternalOpen(next);
   };
+
+  // Mobile Back button closes the picker instead of navigating the page.
+  useHistoryDismiss(open, () => setOpen(false));
 
   // null = the season menu (root); a number = drilled into that season's episodes.
   const [openSeason, setOpenSeason] = useState<number | null>(null);

@@ -13,6 +13,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { episodeCode } from "@/lib/tracking-format";
 import type { WatchStatus } from "@/types/social";
@@ -63,6 +64,11 @@ export function StatusChip({ seriesId, seasons }: StatusChipProps) {
   const [posOpen, setPosOpen] = useState(false);
   const [confirmRewatch, setConfirmRewatch] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Mobile Back closes whichever layer is on top (the nested Set-Position picker
+  // manages its own via SetPositionSheet).
+  useHistoryDismiss(open, () => setOpen(false));
+  useHistoryDismiss(confirmRewatch, () => setConfirmRewatch(false));
 
   const progress = tracking?.progress ?? null;
 

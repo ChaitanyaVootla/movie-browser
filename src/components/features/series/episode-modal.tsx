@@ -44,6 +44,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollContainer } from "@/components/features/media/scroll-container";
 import { EpisodeModalActions } from "@/components/features/tracking/episode-modal-actions";
 import { cn, getMediaPath } from "@/lib/utils";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { getEpisode } from "@/server/actions/series";
 import type { Episode, CastMember, CrewMember, EpisodeStill } from "@/types";
 
@@ -649,6 +650,9 @@ export function EpisodeModal({
   const [fullEpisode, setFullEpisode] = useState<Episode | null>(null);
   const [isPending, startTransition] = useTransition();
   const isMobile = useIsMobile();
+
+  // Mobile Back closes the episode drawer instead of navigating the page.
+  useHistoryDismiss(!!episode, onClose);
 
   useEffect(() => {
     if (episode) {

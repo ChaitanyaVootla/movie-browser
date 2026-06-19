@@ -14,6 +14,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import { IS_IOS } from "@/lib/device";
 import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useSession } from "next-auth/react";
 import { useLoginDialog } from "@/components/features/auth";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -57,6 +58,8 @@ export function QuickLogButton({
   const { status } = useSession();
   const { openLoginDialog } = useLoginDialog();
   const { trackAction } = useAnalytics();
+
+  useHistoryDismiss(open, () => setOpen(false));
 
   const subtitle =
     seasonNumber !== undefined && episodeNumber !== undefined

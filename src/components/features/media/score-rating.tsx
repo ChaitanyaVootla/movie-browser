@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
+import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { LoginDialog, useLoginDialog } from "@/components/features/auth";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { getRating, setRating } from "@/server/actions/user-ratings";
@@ -54,6 +55,7 @@ export function ScoreRating({ itemId, itemType, className }: ScoreRatingProps) {
   } = useLoginDialog();
 
   const [open, setOpen] = useState(false);
+  useHistoryDismiss(open, () => setOpen(false));
   // Current saved score (1–10) or null. Hover preview is a separate transient.
   const [score, setScore] = useState<number | null>(null);
   const [hoverScore, setHoverScore] = useState<number | null>(null);
