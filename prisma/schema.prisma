@@ -1157,7 +1157,12 @@ model UserRating {
   seasonNumber  Int?      @map("season_number") // null = series-level
   episodeNumber Int?      @map("episode_number") // null = season-level / series-level
   tmdbEpisodeId Int?      @map("tmdb_episode_id") // soft ref, NO relation
-  mediaType     MediaType @map("media_type")
+  // @default(MOVIE): user_ratings predates the social schema with movie-only rows,
+  // so `db push` MUST be able to add this required column to the populated table
+  // (177 prod rows) — a default backfills them as MOVIE (correct: they were all
+  // movie ratings). The app always sets mediaType explicitly; the default is only
+  // a fallback. (A no-default required column aborted the Jun 19 social db push.)
+  mediaType     MediaType @default(MOVIE) @map("media_type")
   rating        Int? // thumb: 1 = like, -1 = dislike (nullable: score-only rows exist)
   score         Int? // 1-10 (Letterboxd 0.5-5 stars import as stars*2)
   liked         Boolean   @default(false)

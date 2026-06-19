@@ -257,9 +257,19 @@ jobs:
             # HARD-FAILS on error (migration_backup retains the data → re-deploy
             # retries). See postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql.
             echo "[2.5b] watched_movies -> watch_events backfill (gated on snapshot)..."
+            # NB: capture psql's REAL exit code — piping to `tail` would mask it
+            # (pipeline status = tail's 0), which on Jun 19 2026 let a FAILED
+            # migration (db push had aborted, so watch_events didn't exist → this
+            # script RAISEd) report a falsely-successful deploy. Write to a file,
+            # then check $?.
             docker compose exec -T postgres psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=1 \
-              < postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql 2>&1 | tail -6 \
-              || { echo "::error::watched_movies backfill FAILED — migration_backup retains the data; re-run the deploy to retry"; exit 1; }
+              < postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql > /tmp/backfill.log 2>&1
+            BACKFILL_RC=$?
+            tail -6 /tmp/backfill.log
+            if [ "$BACKFILL_RC" -ne 0 ]; then
+              echo "::error::watched_movies backfill FAILED (rc=$BACKFILL_RC) — migration_backup retains the data; fix + re-run the deploy"
+              exit 1
+            fi
 
             echo "[3/5] FTS indexes (gated)..."
             FTS_HASH=$(md5sum postgres/init/02-search-indexes.sql | cut -d' ' -f1)
