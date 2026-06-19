@@ -38,12 +38,22 @@ let nextId = 1;
 // Count of synthetic history.back() calls whose popstate we must swallow.
 let suppressCount = 0;
 let listening = false;
-// When a non-Back close unwinds its synthetic entry it does so on a microtask,
-// so a same-tick re-push (React StrictMode's dev mount→cleanup→mount, or a
-// rapid close-then-open) can CANCEL the unwind and reuse the existing entry
-// instead of churning history. Without this, StrictMode double-pushes and the
-// racing back() corrupts the stack (a Back then escapes the page).
+// When a non-Back close unwinds its synthetic entry it does so AFTER a short
+// delay (see UNWIND_DELAY_MS), so:
+//  1. a same-tick re-push (React StrictMode's dev mount→cleanup→mount, or a
+//     rapid close-then-open) CANCELS the unwind and reuses the existing entry
+//     instead of churning history; and
+//  2. the synthetic history.back() does not fire its popstate WHILE the drawer
+//     library (Vaul) is mid-close. A popstate landing during Vaul's close
+//     animation wedges its cleanup — the body scroll-lock (`overflow:hidden`,
+//     `position:fixed`) is never restored and the overlay never unmounts, so
+//     the page is left frozen/unscrollable for a real touch user. Letting Vaul
+//     finish first and unwinding history after avoids that entirely.
 let pendingUnwind = false;
+// Comfortably longer than Vaul's (~500ms) and Radix's (~200ms) close
+// animations (+ margin for slower devices), so the overlay has fully torn down
+// and restored the body scroll-lock before we touch history.
+const UNWIND_DELAY_MS = 600;
 
 function currentOverlayId(): number | null {
   const state = window.history.state as { __overlay?: number } | null;
@@ -92,15 +102,20 @@ function removeOverlay(id: number) {
   // Only unwind our synthetic entry if we are still sitting on it. If the user
   // navigated forward (e.g. tapped a link inside the overlay) the current
   // history state is no longer ours, and calling back() would undo that
-  // navigation. Deferred to a microtask so a same-tick re-push can cancel it.
+  // navigation. Deferred (see UNWIND_DELAY_MS) so the overlay finishes closing
+  // first and a same-tick re-push can cancel it.
   if (currentOverlayId() === id) {
     pendingUnwind = true;
-    queueMicrotask(() => {
+    window.setTimeout(() => {
       if (!pendingUnwind) return;
+      // Still our entry? (A real Back during the delay would have already moved
+      // us off it and run handlePopState.)
+      if (currentOverlayId() === id) {
+        suppressCount += 1;
+        window.history.back();
+      }
       pendingUnwind = false;
-      suppressCount += 1;
-      window.history.back();
-    });
+    }, UNWIND_DELAY_MS);
   }
 }
 
