@@ -53,6 +53,15 @@ widget-dashboard spec `docs/superpowers/specs/2026-06-13-profile-widget-dashboar
   pinned lists, public reviews, stats, follow button + counts. DB:
   `social/public-profile.ts`, `social/follows.ts`. Actions: `profile.ts`,
   `social.ts`. Page: `src/app/u/[username]/page.tsx`.
+  **METADATA KEY GOTCHA (Jun-19-2026 prod crash):** the user-entered free-text
+  display location is `metadata.profile.displayLocation` (string). Do NOT use
+  `metadata.profile.location` — that key holds the **geo object**
+  `{countryCode,city,...}` written at sign-in by `lib/auth.ts`/`lib/user-location.ts`
+  and read by the admin Users tab. They collided once (profile wrote a string there,
+  geo overwrote it with an object) → `location.trim is not a function` crashed every
+  profile with a stored location. `ProfileEnvelope.location` is typed as the geo
+  object so `.trim()` on it is a compile error; profile reads coerce
+  `displayLocation` defensively (non-string → ""/null).
 - **Profile = customizable WIDGET DASHBOARD** (branch work, in flux — full design
   in `docs/superpowers/specs/2026-06-13-profile-widget-dashboard-design.md`).
   The body below the hero is a grid of registered widgets (stat tiles, ratings/
