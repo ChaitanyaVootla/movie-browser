@@ -12,7 +12,6 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -325,11 +324,20 @@ function SaveToListBody({
                   {row.pending ? (
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   ) : (
-                    <Checkbox
-                      checked={row.contains}
-                      tabIndex={-1}
-                      className="pointer-events-none h-5 w-5"
-                    />
+                    // Plain visual box (NOT a Radix Checkbox — that renders its own
+                    // <button>, which nests illegally inside this row <button>). The
+                    // row's aria-pressed conveys state to assistive tech.
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "flex h-5 w-5 items-center justify-center rounded-[4px] border transition-colors",
+                        row.contains
+                          ? "border-brand bg-brand text-white"
+                          : "border-input bg-transparent"
+                      )}
+                    >
+                      {row.contains ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : null}
+                    </span>
                   )}
                 </span>
                 <span className="flex-1 min-w-0">

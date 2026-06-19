@@ -260,6 +260,17 @@ export async function getOwnLists(ownerId: number) {
   return prisma.list.findMany({
     where: { ownerId },
     orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+    // First few item posters for the browse-card cover stack (bounded join).
+    include: {
+      items: {
+        orderBy: { position: "asc" },
+        take: 4,
+        select: {
+          movie: { select: { posterPath: true } },
+          series: { select: { posterPath: true } },
+        },
+      },
+    },
   });
 }
 

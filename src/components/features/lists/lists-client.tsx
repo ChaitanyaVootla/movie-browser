@@ -43,6 +43,9 @@ export function ListsClient() {
             itemCount: l.itemCount,
             isPublic: l.isPublic,
             isRanked: l.isRanked,
+            posterPaths: l.items
+              .map((it) => it.movie?.posterPath ?? it.series?.posterPath)
+              .filter((p): p is string => Boolean(p)),
           }))
       );
       setState("ready");
