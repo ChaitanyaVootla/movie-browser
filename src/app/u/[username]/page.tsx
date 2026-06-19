@@ -4,14 +4,9 @@ import { notFound } from "next/navigation";
 import { Lock } from "lucide-react";
 import { getPublicProfile as getPublicProfileBase } from "@/server/actions/profile";
 import { PageMain } from "@/components/features/layout/page-main";
-import { AccentScope } from "@/components/features/profile/accent-scope";
 import { ProfileViewerProvider } from "@/components/features/profile/profile-viewer-context";
-import { ProfileHero } from "@/components/features/profile/profile-hero";
-import { ProfileDashboard } from "@/components/features/profile/profile-dashboard";
-import { ProfileDashboardSwitch } from "@/components/features/profile/profile-dashboard-switch";
-import { ProfileSetupCard } from "@/components/features/profile/profile-setup-card";
-import { ProfileVisitorEmpty } from "@/components/features/profile/profile-visitor-empty";
-import { PAGE_PADDING_X, OVERLINE } from "@/lib/design";
+import { ProfileBodyContent } from "@/components/features/profile/profile-body-content";
+import { ProfileBodySwitch } from "@/components/features/profile/profile-body-switch";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
 import { truncateAtWord } from "@/lib/utils";
 
@@ -124,52 +119,16 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
     );
   }
 
-  const isEmptyProfile =
-    profile.fourFavorites.length === 0 &&
-    profile.reviews.length === 0 &&
-    profile.discussions.length === 0 &&
-    profile.currentlyWatching.length === 0 &&
-    profile.pinnedLists.length === 0 &&
-    profile.topGenres.length === 0 &&
-    profile.topDecades.length === 0 &&
-    !profile.ratingsHistogram.some((n) => n > 0) &&
-    profile.counts.filmsWatched + profile.counts.episodesWatched === 0;
-
+  // The page HTML is ISR + CDN-cached (anonymous). Visitors get the
+  // server-rendered, zero-JS body via `children`; the owner's client swaps to a
+  // fresh, uncached re-render so they see their own edits immediately. The JSON-LD
+  // stays server-rendered (SEO) with the cached profile.
   return (
-    <AccentScope accent={profile.accent}>
-      <ProfileViewerProvider username={profile.username}>
-        <article className="pb-12">
-        <ProfileJsonLd profile={profile} />
-        <ProfileHero profile={profile} />
-
-        <div className={`profile-stagger mx-auto w-full max-w-7xl ${PAGE_PADDING_X} pt-5 md:pt-6 space-y-6 md:space-y-8`}>
-          <ProfileSetupCard
-            flags={{
-              hasBackdrop: profile.backdrop !== null,
-              hasFourFavorites: profile.fourFavorites.length > 0,
-              hasBio: Boolean(profile.bio),
-              hasLogged: profile.counts.filmsWatched + profile.counts.episodesWatched > 0,
-              hasReview: profile.reviews.length > 0,
-            }}
-          />
-          <ProfileVisitorEmpty displayName={profile.displayName} isEmpty={isEmptyProfile} />
-          <ProfileDashboardSwitch profile={profile}>
-            <ProfileDashboard profile={profile} />
-          </ProfileDashboardSwitch>
-
-          {/* Reserved slot: phase-2 taste-compatibility module ("you're 87%
-              compatible" + share card) renders here. Do not fill. */}
-
-          <p className={OVERLINE}>
-            Member since{" "}
-            {new Date(profile.joinedAt).toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-        </article>
-      </ProfileViewerProvider>
-    </AccentScope>
+    <ProfileViewerProvider username={profile.username} initialProfile={profile}>
+      <ProfileJsonLd profile={profile} />
+      <ProfileBodySwitch>
+        <ProfileBodyContent profile={profile} />
+      </ProfileBodySwitch>
+    </ProfileViewerProvider>
   );
 }

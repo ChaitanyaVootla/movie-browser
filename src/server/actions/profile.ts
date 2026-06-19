@@ -103,6 +103,32 @@ export async function getPublicProfile(username: string): Promise<PublicProfileD
   return getPublicProfileByUsername(z.string().min(1).max(30).parse(username));
 }
 
+/**
+ * Fresh, UNCACHED full profile for the authenticated OWNER only. `/u/[username]`
+ * is ISR + CDN-cached (anonymous), so an owner's own edits (backdrop, accent,
+ * bio, location, layout, four-favorites…) lag up to the cache TTL — confusing
+ * when you can't see your own changes. The profile body re-fetches this once it
+ * resolves the viewer as the owner and re-renders from fresh data; everyone else
+ * rides the cached page. Returns null for non-owners (server-action POST → never
+ * edge-cached, always request-time fresh).
+ */
+export async function getFreshProfileForOwner(username: string): Promise<PublicProfileDTO | null> {
+  try {
+    const parsed = z.string().min(1).max(30).parse(username);
+    const session = await auth();
+    if (!session?.user) return null;
+    const viewerId = await requirePgUserId();
+    const target = await prisma.user.findFirst({
+      where: { username: { equals: parsed, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!target || target.id !== viewerId) return null;
+    return getPublicProfileByUsername(parsed);
+  } catch {
+    return null;
+  }
+}
+
 export async function getProfileViewerState(username: string): Promise<ProfileViewerStateDTO> {
   const fallback = { isOwner: false, isFollowing: false };
   try {

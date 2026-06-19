@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
-import { getProfileViewerState } from "@/server/actions/profile";
+import { getProfileViewerState, getFreshProfileForOwner } from "@/server/actions/profile";
+import type { PublicProfileDTO } from "@/types/social";
 
 /**
  * Resolves the viewer↔profile relationship ONCE and shares it with every
@@ -24,15 +25,23 @@ interface ViewerContextValue {
   /** Owner dashboard "Customize" mode (drag/resize widgets). */
   editMode: boolean;
   setEditMode: (value: boolean) => void;
+  /**
+   * Effective profile: the fresh, uncached profile once it loads for the owner,
+   * otherwise the cached `initialProfile`. The owner-fresh body renders from
+   * this so the owner sees their own edits despite the page being CDN-cached.
+   */
+  profile: PublicProfileDTO;
 }
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
 
 export function ProfileViewerProvider({
   username,
+  initialProfile,
   children,
 }: {
   username: string;
+  initialProfile: PublicProfileDTO;
   children: ReactNode;
 }) {
   const { status } = useSession();
@@ -40,6 +49,8 @@ export function ProfileViewerProvider({
   // setState per run (avoids cascading-render lint + extra renders).
   const [viewer, setViewer] = useState({ resolved: false, isOwner: false, isFollowing: false });
   const [editMode, setEditMode] = useState(false);
+  // Fresh uncached profile, fetched only for the owner (null = use cached).
+  const [freshProfile, setFreshProfile] = useState<PublicProfileDTO | null>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -53,7 +64,17 @@ export function ProfileViewerProvider({
         : Promise.resolve({ isOwner: false, isFollowing: false });
     lookup
       .then((s) => {
-        if (!cancelled) setViewer({ resolved: true, isOwner: s.isOwner, isFollowing: s.isFollowing });
+        if (cancelled) return;
+        setViewer({ resolved: true, isOwner: s.isOwner, isFollowing: s.isFollowing });
+        // Owner: the cached page can lag their latest edits → pull fresh and
+        // swap the body to it (others ride the cached HTML).
+        if (s.isOwner) {
+          getFreshProfileForOwner(username)
+            .then((fresh) => {
+              if (!cancelled && fresh) setFreshProfile(fresh);
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => {
         if (!cancelled) setViewer({ resolved: true, isOwner: false, isFollowing: false });
@@ -76,6 +97,7 @@ export function ProfileViewerProvider({
         setIsFollowing,
         editMode,
         setEditMode,
+        profile: freshProfile ?? initialProfile,
       }}
     >
       {children}
