@@ -202,16 +202,32 @@ export async function getMovieCollection(collectionId: number): Promise<Record<s
   });
 }
 
-export async function getMovieImages(movieId: number): Promise<{
+/** A single TMDB artwork entry (the fields the image picker + galleries use). */
+export interface TmdbImageItem {
+  file_path: string;
+  aspect_ratio: number;
+  vote_average?: number;
+  vote_count?: number;
+  width?: number;
+  height?: number;
+  iso_639_1?: string | null;
+}
+
+/**
+ * `allLanguages` drops the `en,null` language filter so the picker can offer
+ * EVERY localized poster/backdrop, not just English + language-neutral.
+ */
+export async function getMovieImages(
+  movieId: number,
+  opts: { allLanguages?: boolean } = {}
+): Promise<{
   id: number;
-  backdrops: Array<{ file_path: string; aspect_ratio: number }>;
-  posters: Array<{ file_path: string; aspect_ratio: number }>;
-  logos: Array<{ file_path: string; aspect_ratio: number }>;
+  backdrops: TmdbImageItem[];
+  posters: TmdbImageItem[];
+  logos: TmdbImageItem[];
 }> {
   return fetchFromTMDB(`/movie/${movieId}/images`, {
-    params: {
-      include_image_language: "en,null",
-    },
+    params: opts.allLanguages ? {} : { include_image_language: "en,null" },
     cacheNamespace: "images",
     cacheTTL: CACHE_DURATIONS.movie,
   });
@@ -297,19 +313,45 @@ export async function getEpisodeDetails(
   );
 }
 
-export async function getSeriesImages(seriesId: number): Promise<{
+export async function getSeriesImages(
+  seriesId: number,
+  opts: { allLanguages?: boolean } = {}
+): Promise<{
   id: number;
-  backdrops: Array<{ file_path: string; aspect_ratio: number }>;
-  posters: Array<{ file_path: string; aspect_ratio: number }>;
-  logos: Array<{ file_path: string; aspect_ratio: number }>;
+  backdrops: TmdbImageItem[];
+  posters: TmdbImageItem[];
+  logos: TmdbImageItem[];
 }> {
   return fetchFromTMDB(`/tv/${seriesId}/images`, {
-    params: {
-      include_image_language: "en,null",
-    },
+    params: opts.allLanguages ? {} : { include_image_language: "en,null" },
     cacheNamespace: "images",
     cacheTTL: CACHE_DURATIONS.series,
   });
+}
+
+/** All profile photos for a person (TMDB `/person/{id}/images`). */
+export async function getPersonImages(
+  personId: number
+): Promise<{ id: number; profiles: TmdbImageItem[] }> {
+  return fetchFromTMDB(`/person/${personId}/images`, {
+    cacheNamespace: "person",
+    cacheTTL: CACHE_DURATIONS.person,
+  });
+}
+
+/** All stills for a single episode (TMDB `/tv/{id}/season/{s}/episode/{e}/images`). */
+export async function getEpisodeImages(
+  seriesId: number,
+  seasonNumber: number,
+  episodeNumber: number
+): Promise<{ id: number; stills: TmdbImageItem[] }> {
+  return fetchFromTMDB(
+    `/tv/${seriesId}/season/${seasonNumber}/episode/${episodeNumber}/images`,
+    {
+      cacheNamespace: "series",
+      cacheTTL: CACHE_DURATIONS.series,
+    }
+  );
 }
 
 /**

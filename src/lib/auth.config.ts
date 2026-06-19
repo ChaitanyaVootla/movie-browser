@@ -14,6 +14,46 @@ import { getUserRole } from "./admin";
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// =============================================================================
+// FAIL-CLOSED test-auth gate (security-sensitive)
+// =============================================================================
+//
+// `ENABLE_TEST_AUTH=true` opts a LOCAL-ONLY NextAuth Credentials provider into
+// the providers array (see auth.ts) that signs in a fixed dummy identity so
+// Playwright E2E can authenticate without driving the un-automatable Google
+// OAuth flow.
+//
+// This MUST be impossible to enable in production. The gate is triple-checked:
+//   1. The provider is only added when NODE_ENV !== "production" AND
+//      ENABLE_TEST_AUTH === "true" (see TEST_AUTH_ENABLED below + auth.ts).
+//   2. The dev-only route /api/test-auth/login is gated by the same condition.
+//   3. This assertion below CRASHES BOOT if the flag is ever set in production,
+//      so a misconfig fails closed (no silent bypass).
+//
+// Production is configured with NODE_ENV=production (set implicitly by
+// `next build` / `next start`) and NEVER sets ENABLE_TEST_AUTH — confirmed
+// absent from .github/workflows/deploy-ec2.yml, terraform/, and scripts/.
+// Do NOT add ENABLE_TEST_AUTH to any deploy/prod config.
+if (isProduction && process.env.ENABLE_TEST_AUTH === "true") {
+  throw new Error("ENABLE_TEST_AUTH must never be set in production");
+}
+
+/**
+ * Whether the local-only test-auth bypass is active. True ONLY in non-production
+ * with ENABLE_TEST_AUTH=true. Consumed by auth.ts (provider gating) and the
+ * /api/test-auth/login route. The fail-closed assertion above guarantees this is
+ * always false in production.
+ */
+export const TEST_AUTH_ENABLED =
+  !isProduction && process.env.ENABLE_TEST_AUTH === "true";
+
+/** Fixed identity the test-auth Credentials provider authorizes. */
+export const TEST_AUTH_USER = {
+  googleId: "test-local-user",
+  email: "test@local.dev",
+  name: "Test User",
+} as const;
+
 // Google OAuth provider (Edge-compatible)
 export const googleProvider = Google({
   clientId: process.env.GOOGLE_AUTH_CLIENT_ID!,

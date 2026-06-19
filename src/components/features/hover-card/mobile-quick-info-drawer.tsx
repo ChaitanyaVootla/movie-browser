@@ -256,7 +256,7 @@ function WatchProviderButton({
         alt={option.displayName}
         fill
         className="object-contain p-1.5"
-        unoptimized={option.image.startsWith("http")}
+        unoptimized
       />
     </button>
   );
@@ -313,7 +313,7 @@ function QuickInfoContent({ data, isMovie }: { data: HoverCardData; isMovie: boo
             className="object-cover"
             sizes="100vw"
             onError={() => !useFallback && backdropSources.fallback && setUseFallback(true)}
-            unoptimized={!useFallback}
+            unoptimized
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />

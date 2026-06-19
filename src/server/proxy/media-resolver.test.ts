@@ -61,6 +61,38 @@ describe("parseMediaDetailPath", () => {
     expect(parseMediaDetailPath("/movie/0")).toEqual({ kind: "invalid" });
     expect(parseMediaDetailPath("/movie/-5/x")).toEqual({ kind: "invalid" });
   });
+
+  it("parses the dedicated discussions index suffix (movie + series, with/without slug)", () => {
+    expect(parseMediaDetailPath("/movie/27205/inception/discussions")).toEqual({
+      kind: "media",
+      mediaType: "movie",
+      id: 27205,
+      discussions: true,
+    });
+    expect(parseMediaDetailPath("/movie/27205/discussions")).toEqual({
+      kind: "media",
+      mediaType: "movie",
+      id: 27205,
+      discussions: true,
+    });
+    expect(parseMediaDetailPath("/series/1396/breaking-bad/discussions")).toEqual({
+      kind: "media",
+      mediaType: "series",
+      id: 1396,
+      discussions: true,
+    });
+  });
+
+  it("does not confuse /discussions with the per-episode /discuss suffix", () => {
+    // /discuss/sNeN stays a discuss suffix, not a discussions index
+    expect(parseMediaDetailPath("/series/1396/breaking-bad/discuss/s2e5")).toMatchObject({
+      kind: "media",
+      discuss: { season: 2, episode: 5 },
+    });
+    expect(parseMediaDetailPath("/series/1396/breaking-bad/discuss/s2e5")).not.toHaveProperty(
+      "discussions",
+    );
+  });
 });
 
 describe("canonicalMediaPath", () => {
@@ -252,5 +284,77 @@ describe("decideMediaRoute", () => {
       action: "next",
       verified: false,
     });
+  });
+
+  it("preserves the /discussions suffix when canonicalizing", () => {
+    // correct slug + discussions → pass through (the dedicated page must render)
+    expect(
+      decideMediaRoute("/movie/27205/inception/discussions", "movie", 27205, "inception", undefined, true),
+    ).toEqual({ action: "next", verified: true });
+    // missing slug + discussions → 308 to canonical WITH the suffix retained
+    expect(
+      decideMediaRoute("/movie/27205/discussions", "movie", 27205, "inception", undefined, true),
+    ).toEqual({ action: "redirect", location: "/movie/27205/inception/discussions" });
+    expect(
+      decideMediaRoute("/series/1396/discussions", "series", 1396, "breaking-bad", undefined, true),
+    ).toEqual({ action: "redirect", location: "/series/1396/breaking-bad/discussions" });
+  });
+
+  it("preserves the per-episode /discuss suffix when canonicalizing", () => {
+    expect(
+      decideMediaRoute("/series/1396/discuss/s2e5", "series", 1396, "breaking-bad", {
+        season: 2,
+        episode: 5,
+      }),
+    ).toEqual({ action: "redirect", location: "/series/1396/breaking-bad/discuss/s2e5" });
+  });
+});
+
+describe("discuss paths", () => {
+  it("parses a canonical discuss path", () => {
+    expect(parseMediaDetailPath("/series/1396/breaking-bad/discuss/s2e5")).toEqual({
+      kind: "media",
+      mediaType: "series",
+      id: 1396,
+      discuss: { season: 2, episode: 5 },
+    });
+  });
+  it("parses a slugless discuss path", () => {
+    expect(parseMediaDetailPath("/series/1396/discuss/s2e5")).toEqual({
+      kind: "media",
+      mediaType: "series",
+      id: 1396,
+      discuss: { season: 2, episode: 5 },
+    });
+  });
+  it("rejects malformed discuss suffixes as invalid (pre-render 404)", () => {
+    expect(parseMediaDetailPath("/series/1396/breaking-bad/discuss/nonsense")).toEqual({
+      kind: "invalid",
+    });
+    expect(parseMediaDetailPath("/series/1396/discuss/s2")).toEqual({ kind: "invalid" });
+    expect(parseMediaDetailPath("/movie/603/the-matrix/discuss/s1e1")).toEqual({ kind: "invalid" });
+  });
+  it("redirects wrong-slug discuss paths to canonical, preserving the suffix", () => {
+    const decision = decideMediaRoute(
+      "/series/1396/wrong-slug/discuss/s2e5",
+      "series",
+      1396,
+      "breaking-bad",
+      { season: 2, episode: 5 },
+    );
+    expect(decision).toEqual({
+      action: "redirect",
+      location: "/series/1396/breaking-bad/discuss/s2e5",
+    });
+  });
+  it("passes through the canonical discuss path", () => {
+    const decision = decideMediaRoute(
+      "/series/1396/breaking-bad/discuss/s2e5",
+      "series",
+      1396,
+      "breaking-bad",
+      { season: 2, episode: 5 },
+    );
+    expect(decision).toEqual({ action: "next", verified: true });
   });
 });

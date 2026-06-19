@@ -2,13 +2,13 @@
 
 import { useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Users, BarChart3, Activity, Search } from "lucide-react";
+import { Users, BarChart3, Activity, Search, ShieldAlert } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnalyticsDashboard } from "@/components/features/admin";
-import { UsersTab, InspectTab } from "@/components/features/admin/tabs";
+import { UsersTab, InspectTab, ModerationTab } from "@/components/features/admin/tabs";
 import type { TimeRange, AnalyticsSubTab } from "@/components/features/admin/analytics-types";
 
-const VALID_TABS = ["analytics", "users", "inspect"] as const;
+const VALID_TABS = ["analytics", "users", "inspect", "moderation"] as const;
 const VALID_SUBTABS: AnalyticsSubTab[] = [
   "traffic",
   "ai",
@@ -154,6 +154,13 @@ export function AdminDashboard() {
               <Search className="h-4 w-4" />
               Inspect
             </TabsTrigger>
+            <TabsTrigger
+              value="moderation"
+              className="gap-2 h-8 px-4 text-sm rounded-md data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Moderation
+            </TabsTrigger>
           </TabsList>
 
           {/* Analytics Tab */}
@@ -174,6 +181,11 @@ export function AdminDashboard() {
           {/* Inspect Tab */}
           <TabsContent value="inspect" className="mt-4">
             <InspectTab />
+          </TabsContent>
+
+          {/* Moderation Tab */}
+          <TabsContent value="moderation" className="mt-4">
+            <ModerationTab />
           </TabsContent>
         </Tabs>
       </div>

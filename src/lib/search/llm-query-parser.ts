@@ -76,6 +76,22 @@ const LLM_TIMEOUT_MS = 5000;
 /** Cache TTL for parsed queries (15 minutes) */
 const CACHE_TTL_SECONDS = 900;
 
+/**
+ * Tier-3 LLM query parsing is OPT-IN (June 2026, default OFF).
+ *
+ * It is a 1–2s SYNCHRONOUS Bedrock call on the search hot path, and search is
+ * hammered by crawlers — running an LLM there is both a latency landmine (the
+ * unlucky ~5% of queries waited 1–2s+) and a cost/abuse exposure that violates the
+ * codebase invariant "never invoke AI on a render/crawler path". With it off, the
+ * regex + embedding tiers handle classification deterministically and, when a query
+ * is genuinely too ambiguous, the UI surfaces an explicit "Ask Cue" action — moving
+ * the AI cost to an intentional click. Set `SEARCH_LLM_ENABLED=true` to restore
+ * inline LLM parsing.
+ */
+export function isSearchLlmEnabled(): boolean {
+  return process.env.SEARCH_LLM_ENABLED === "true";
+}
+
 // =============================================================================
 // System Prompt
 // =============================================================================
@@ -162,6 +178,12 @@ function getBedrockClient(): BedrockRuntimeClient {
  * }
  */
 export async function parseQueryWithLlm(query: string): Promise<LlmParsedQuery | null> {
+  // OPT-IN gate: by default the LLM tier never runs on the search path (see
+  // isSearchLlmEnabled). Returning null is exactly the "no parse" path callers
+  // already handle, so classification cleanly degrades to regex + embedding and
+  // `needsLlmParsing` resolves to false downstream.
+  if (!isSearchLlmEnabled()) return null;
+
   const startTime = Date.now();
   const normalizedQuery = query.toLowerCase().trim();
 

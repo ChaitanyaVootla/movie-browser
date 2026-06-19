@@ -40,8 +40,14 @@ const PG_INT4_MAX = 2_147_483_647;
 // Path parsing (pure)
 // ---------------------------------------------------------------------------
 
+/** Per-episode discussion suffix on a series URL (/discuss/s2e5). */
+export interface DiscussSuffix {
+  season: number;
+  episode: number;
+}
+
 export type ParsedMediaPath =
-  | { kind: "media"; mediaType: MediaType; id: number }
+  | { kind: "media"; mediaType: MediaType; id: number; discuss?: DiscussSuffix; discussions?: boolean }
   // /movie/... or /series/... that can never resolve to a title (non-numeric
   // id, id 0, etc.) — definite 404, no lookup needed.
   | { kind: "invalid" };
@@ -53,7 +59,43 @@ export type ParsedMediaPath =
 const MEDIA_DETAIL_RE = /^\/(movie|series)\/(\d+)(?:[/-].*)?$/;
 const MEDIA_PREFIX_RE = /^\/(movie|series)\//;
 
+// /series/123/some-slug/discuss/s2e5 or /series/123/discuss/s2e5
+const DISCUSS_RE = /^\/series\/(\d+)(?:\/[a-z0-9-]+)?\/discuss\/s(\d{1,2})e(\d{1,3})$/;
+// any /movie|series/<id>/.../discuss/... that did NOT match DISCUSS_RE is garbage
+const DISCUSS_PREFIX_RE = /^\/(movie|series)\/\d+(?:\/[^/]+)?\/discuss(\/|$)/;
+// Dedicated discussions index page: /movie|series/123/some-slug/discussions or
+// /movie|series/123/discussions. Like /discuss, this suffix must survive slug
+// canonicalization (the generic detail regex would otherwise 308 it away).
+const DISCUSSIONS_RE = /^\/(movie|series)\/(\d+)(?:\/[a-z0-9-]+)?\/discussions$/;
+
 export function parseMediaDetailPath(pathname: string): ParsedMediaPath | null {
+  // Discuss suffixes MUST be parsed before MEDIA_DETAIL_RE — that generic regex
+  // matches /series/123/anything and would 308 the discuss path away to the
+  // detail page (the footgun this branch exists for).
+  const discussMatch = DISCUSS_RE.exec(pathname);
+  if (discussMatch) {
+    const id = Number(discussMatch[1]);
+    if (!Number.isSafeInteger(id) || id <= 0 || id > PG_INT4_MAX) return { kind: "invalid" };
+    return {
+      kind: "media",
+      mediaType: "series",
+      id,
+      discuss: { season: Number(discussMatch[2]), episode: Number(discussMatch[3]) },
+    };
+  }
+  // A /discuss/ path that did not match DISCUSS_RE (malformed suffix, or a movie
+  // discuss URL) can never be a valid discussion page — real 404, pre-render.
+  if (DISCUSS_PREFIX_RE.test(pathname)) return { kind: "invalid" };
+
+  // Dedicated discussions index page — parse before MEDIA_DETAIL_RE so the slug
+  // canonicalizer preserves the /discussions suffix instead of 308ing it away.
+  const discussionsMatch = DISCUSSIONS_RE.exec(pathname);
+  if (discussionsMatch) {
+    const id = Number(discussionsMatch[2]);
+    if (!Number.isSafeInteger(id) || id <= 0 || id > PG_INT4_MAX) return { kind: "invalid" };
+    return { kind: "media", mediaType: discussionsMatch[1] as MediaType, id, discussions: true };
+  }
+
   const match = MEDIA_DETAIL_RE.exec(pathname);
   if (!match) {
     // Media-prefixed but unparseable (/movie/abc, /movie/null, /series/12abc):
@@ -250,10 +292,20 @@ export function decideMediaRoute(
   mediaType: MediaType,
   id: number,
   resolved: ResolvedSlug | null,
+  discuss?: DiscussSuffix,
+  discussions?: boolean,
 ): MediaRouteDecision {
   if (resolved === null) return { action: "next", verified: false };
   if (resolved === NOT_FOUND) return { action: "not_found" };
-  const canonical = canonicalMediaPath(mediaType, id, resolved);
+  // Per-episode discuss pages and the dedicated discussions index live under the
+  // detail slug; preserve the suffix when canonicalizing so the slug fix doesn't
+  // 308 the discussion URL away.
+  const suffix = discuss
+    ? `/discuss/s${discuss.season}e${discuss.episode}`
+    : discussions
+      ? "/discussions"
+      : "";
+  const canonical = canonicalMediaPath(mediaType, id, resolved) + suffix;
   if (pathname !== canonical) return { action: "redirect", location: canonical };
   return { action: "next", verified: true };
 }

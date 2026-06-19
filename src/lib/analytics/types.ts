@@ -34,6 +34,7 @@ export type ActionType =
   | "rate_like"
   | "rate_dislike"
   | "rate_remove"
+  | "rate_score"
   | "mark_watched"
   | "unmark_watched"
   | "watch_click"
@@ -45,6 +46,7 @@ export type ActionType =
   | "share_click"
   | "external_link"
   | "search_result_click"
+  | "search_ask_cue"
   | "topic_select"
   | "mood_select"
   | "carousel_nav"
@@ -52,7 +54,41 @@ export type ActionType =
   | "gallery_nav"
   | "settings_change"
   | "continue_watching_click"
-  | "pwa_install";
+  | "pwa_install"
+  // Phase 0 tracking core (Jun 2026)
+  | "log_watch"
+  | "episode_toggle"
+  | "mark_season_watched"
+  | "mark_series_watched"
+  | "set_position"
+  | "series_status_change"
+  | "reset_rewatch"
+  | "up_next_click"
+  | "diary_open"
+  | "diary_edit"
+  | "diary_delete"
+  | "review_submit"
+  | "review_delete"
+  | "review_like"
+  | "follow"
+  | "unfollow"
+  | "username_claim"
+  | "profile_customize"
+  | "four_favorites_edit"
+  | "import_start"
+  | "export_data"
+  // Phase 1 (discussion notifications)
+  | "notification_open"
+  | "push_enable"
+  | "push_disable"
+  // Phase 1 (discussion comments)
+  | "comment_post"
+  | "comment_report"
+  | "thread_summarize"
+  // Phase 1 (safety: block/mute)
+  | "block_user"
+  | "mute_user"
+  | "unblock_user";
 
 // =============================================================================
 // Query Types (AI)

@@ -19,11 +19,15 @@ export default function Loading() {
       {/* Hero — .hero-container handles the height clamp (≤60vh on desktop) */}
       <section className="relative">
         <div className="hero-container relative w-full overflow-hidden">
-          {/* Backdrop placeholder: aspect-ratio block on mobile, fill on desktop */}
+          {/* Backdrop placeholder: aspect-ratio block on mobile, fill on desktop.
+              Deliberately UNNAMED (no view-transition-name): the loading skeleton
+              must NOT participate in the detail↔discussions shared-element morph.
+              The real discussions hero (rendered above any Suspense boundary) is
+              the morph's capture target — see discussions-page.tsx. */}
           <Skeleton className="aspect-video w-full rounded-none md:absolute md:inset-0 md:h-full md:aspect-auto" />
 
           <div className="relative flex flex-col items-center text-center md:items-start md:text-left md:h-full md:justify-end px-4 md:px-8 lg:px-12 pt-4 md:pt-0 pb-5 md:pb-6 lg:pb-8 gap-2.5 md:gap-3">
-            {/* Title/logo placeholder */}
+            {/* Title/logo placeholder. */}
             <Skeleton className="h-12 w-56 sm:w-64 md:h-20 md:w-96 bg-white/10 mb-1 md:mb-4" />
 
             {/* Badges */}

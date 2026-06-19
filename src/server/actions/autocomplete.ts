@@ -6,11 +6,16 @@
  * Fast autocomplete suggestions for search (<100ms target).
  * Returns suggestions for titles, people, filters, and moods.
  *
- * Uses fuzzy search (pg_trgm) for speed - no semantic search.
+ * Uses prefix full-text search (title/name-only GIN indexes) for speed, with
+ * trigram (pg_trgm) only as a typo fallback. No semantic search on this path.
  */
 
 import { fuzzySearch } from "@/server/db/postgres/fuzzy-search";
-import { ftsSearchTitles, ftsSearchPeople, type FtsResult } from "@/server/db/postgres/fts-search";
+import {
+  ftsPrefixSearchTitles,
+  ftsPrefixSearchPeople,
+  type FtsResult,
+} from "@/server/db/postgres/fts-search";
 import { MOOD_FILTERS } from "@/lib/search/moods";
 import { dataLogger } from "@/lib/logger";
 
@@ -126,16 +131,18 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
   const normalizedQuery = query.trim();
 
   try {
-    // Primary: full-text search. Fast for real words — including common
-    // multi-word queries like "the matrix" that make pure-trigram search explode
-    // (stop-words are dropped, lexemes hit the FTS GIN indexes).
+    // Primary: PREFIX full-text search against title/name-only GIN indexes. This
+    // is the as-you-type path — "inc" matches "Inception" (which websearch FTS
+    // can't, since it treats "inc" as a complete lexeme). Title/name-only keeps a
+    // short prefix selective (~1.6k rows for "inc" vs ~41k against the combined
+    // title+overview index → no 4s heap recheck). See fts-search.ts.
     let titleResults: FtsResult[] = [];
     let personResults: FtsResult[] = [];
     // allSettled (not all): a slow/failed person query must not wipe out title
     // results (and vice versa) — each branch degrades independently.
     const [titleRes, personRes] = await Promise.allSettled([
-      ftsSearchTitles(normalizedQuery, 4),
-      ftsSearchPeople(normalizedQuery, 2),
+      ftsPrefixSearchTitles(normalizedQuery, 4),
+      ftsPrefixSearchPeople(normalizedQuery, 2),
     ]);
     titleResults = titleRes.status === "fulfilled" ? titleRes.value : [];
     personResults = personRes.status === "fulfilled" ? personRes.value : [];
@@ -159,11 +166,11 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
       popularity: r.popularity,
     });
 
-    // Only fall back to trigram when FTS found NOTHING at all — that signals a
-    // probable misspelling, which is distinctive enough that trigram stays fast.
-    // If FTS matched real words (e.g. "the matrix"), we skip trigram entirely;
-    // running it per-type would re-introduce the slow common-word person scan
-    // (trigram "the …" over ~3M persons takes seconds).
+    // Only fall back to trigram when prefix FTS found NOTHING at all — that
+    // signals a probable misspelling, which is distinctive enough that trigram
+    // stays fast. If the prefix matched (e.g. "inc" → Inception), we skip trigram
+    // entirely; running it per-type would re-introduce the slow common-word person
+    // scan (trigram "the …" over ~3M persons takes seconds).
     if (titleResults.length === 0 && personResults.length === 0) {
       const [fuzzyTitles, fuzzyPeople] = await Promise.all([
         fuzzySearch(normalizedQuery, {

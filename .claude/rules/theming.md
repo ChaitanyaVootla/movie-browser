@@ -25,7 +25,7 @@ The app uses a 3-tier theming system:
 ### Color Space
 All colors use **OKLch** for perceptual uniformity:
 ```css
---brand: oklch(0.7 0.22 30);  /* lightness, chroma, hue */
+--brand: oklch(0.59 0.235 22);  /* Scarlet — default accent (dark). lightness, chroma, hue */
 ```
 
 ### Key Variables
@@ -34,8 +34,9 @@ All colors use **OKLch** for perceptual uniformity:
 |----------|---------|
 | `--background` | Page background |
 | `--foreground` | Text color |
-| `--brand` | Accent/brand color |
-| `--brand-rgb` | RGB values for gradients (space-separated: `230 100 70`) |
+| `--brand` | Accent/brand color — default **Scarlet** `oklch(0.59 0.235 22)` (dark) / `oklch(0.52 0.215 22)` (light); white `--brand-foreground` (specs/2026-06-16-social-signals) |
+| `--brand-rgb` | RGB values for gradients (space-separated: `234 36 52` dark / `200 30 46` light) |
+| `--sig` | Dulled personal-signal tone (social signals on cards) — `color-mix(in oklab, var(--brand) 78%, #8a8a8a)`; references `--brand` so it re-resolves per mode/accent. See DESIGN.md → Social signals. |
 | `--hero-base` | Hero section background (oklch) |
 | `--hero-base-rgb` | Hero gradient RGB (space-separated) |
 
@@ -75,7 +76,7 @@ Applied via `.accent-*` classes on `<html>`:
 
 | Accent | Description | Dark Mode Brand |
 |--------|-------------|-----------------|
-| default | Cinematic red | `oklch(0.7 0.22 30)` |
+| default | Cinematic red (Scarlet) | `oklch(0.59 0.235 22)` |
 | midnight | Electric blue | `oklch(0.72 0.24 255)` |
 | forest | Spring green | `oklch(0.75 0.26 145)` |
 | golden | Bright yellow | `oklch(0.92 0.22 95)` |

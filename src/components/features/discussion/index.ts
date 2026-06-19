@@ -1,0 +1,18 @@
+export { DiscussionSection } from "./discussion-section";
+export { CommentListClient } from "./comment-list-client";
+export { CommentComposer } from "./comment-composer";
+export { CommentThread } from "./comment-item";
+export { LockedTeaser } from "./locked-teaser";
+export { WebReactions, parseTopComments } from "./web-reactions";
+export { DiscussionStarters } from "./discussion-starters";
+export { ScopeBadge, scopeLabel } from "./scope-badge";
+export { MentionText } from "./mention-text";
+export { ReportDialog } from "./report-dialog";
+export { ThreadSummaryCard } from "./thread-summary-card";
+export { EpisodePicker } from "./episode-picker";
+export { UserModerationMenu } from "./user-moderation-menu";
+export { DiscussionEntryStrip } from "./discussion-entry-strip";
+export { discussionsHref } from "./discussion-entry-strip-href";
+export { DiscussionCountBadge, shouldShowBadge } from "./discussion-count-badge";
+export { TrendingCommentList } from "./trending-comment-list";
+export { DiscussionInfoSidebar } from "./discussion-info-sidebar";

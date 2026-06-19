@@ -87,6 +87,11 @@ export function Footer({ className }: FooterProps) {
                   Terms of Service
                 </Link>
               </li>
+              <li>
+                <Link href="/content-policy" className="hover:text-foreground transition-colors">
+                  Content Policy
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

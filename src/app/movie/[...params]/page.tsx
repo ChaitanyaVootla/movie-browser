@@ -63,6 +63,13 @@ import {
 } from "@/components/features/media";
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
+import { ReviewsSection, ReviewsRatingsEntry } from "@/components/features/reviews";
+import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
+import {
+  parseMovieDiscussions,
+  generateMovieDiscussionsMetadata,
+  MovieDiscussionsView,
+} from "./discussions-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Collection, Movie } from "@/types";
@@ -89,6 +96,12 @@ interface MoviePageProps {
 // Generate SEO metadata
 export async function generateMetadata({ params }: MoviePageProps): Promise<Metadata> {
   const { params: routeParams } = await params;
+
+  // Dedicated discussions page (rides this catch-all — Next.js forbids a static
+  // `discussions` segment after [...params]). Branch before detail-page logic.
+  const discussionsMovieId = parseMovieDiscussions(routeParams);
+  if (discussionsMovieId !== null) return generateMovieDiscussionsMetadata(discussionsMovieId);
+
   const movieId = routeParams[0];
   const id = parseInt(movieId, 10);
 
@@ -446,6 +459,18 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         className="mt-2 md:mt-3"
       />
 
+      {/* Community entry row — Discussion + Reviews&Ratings as PEER teasers right
+          below the action bar (spec §4.3). Both cacheable/anon-tier (no viewer
+          state). Each links into its full section lower on the page. */}
+      <div className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4 grid gap-3 md:grid-cols-2">
+        <Suspense fallback={null}>
+          <DiscussionEntryStrip anchor={{ type: "movie", movieId: movie.id }} title={movie.title} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ReviewsRatingsEntry mediaType="movie" tmdbId={movie.id} href="#reviews" />
+        </Suspense>
+      </div>
+
       {/* Overview, cast, and details - using light props to reduce RSC payload by ~80% */}
       <MediaOverview
         item={extractMovieOverviewProps(movie)}
@@ -514,6 +539,14 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         />
       )}
 
+      {/* User reviews (published+public only in cached HTML; own review hydrates client-side) */}
+      <ReviewsSection
+        mediaType="movie"
+        tmdbId={movie.id}
+        title={movie.title}
+        className="mt-8 md:mt-12"
+      />
+
       {/* Similar - AI-powered embedding similarity with TMDB fallback */}
       <Suspense fallback={<SimilarSectionSkeleton />}>
         <SimilarSection
@@ -524,6 +557,17 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
           className="mt-8 md:mt-12"
           // Exclude movies from the same collection (they're shown in CollectionSection above)
           excludeCollectionId={(movie.belongs_to_collection as { id?: number } | null)?.id}
+        />
+      </Suspense>
+
+      {/* Discussion — anon tier + locked teaser are progress-independent (ISR-safe);
+          gated tier hydrates client-side. */}
+      <Suspense fallback={null}>
+        <DiscussionSection
+          anchor={{ type: "movie", movieId: movie.id }}
+          starters={[]}
+          className="mt-8 md:mt-12"
+          viewAllHref={discussionsHref({ type: "movie", movieId: movie.id }, movie.title)}
         />
       </Suspense>
     </>
@@ -648,6 +692,11 @@ async function CollectionAsync({
 
 export default async function MoviePage({ params, searchParams }: MoviePageProps) {
   const { params: routeParams } = await params;
+
+  // Dedicated discussions page branch (same catch-all, no dynamic APIs).
+  const discussionsMovieId = parseMovieDiscussions(routeParams);
+  if (discussionsMovieId !== null) return <MovieDiscussionsView movieId={discussionsMovieId} />;
+
   const movieId = routeParams[0];
   const id = parseInt(movieId, 10);
 
@@ -681,7 +730,15 @@ export default async function MoviePage({ params, searchParams }: MoviePageProps
                 Desktop: Image fills container, content overlays at bottom */}
             <section className="relative">
               <div className="hero-container relative w-full overflow-hidden">
-                <HeroBackdropShell mediaId={id} mediaType="movie" overlay="light">
+                {/* viewTransitionName opts this hero into the detail↔discussions
+                    shared-element morph (matched on the discussions page's hero
+                    band). Other HeroBackdropShell usages omit it → no morph. */}
+                <HeroBackdropShell
+                  mediaId={id}
+                  mediaType="movie"
+                  overlay="light"
+                  viewTransitionName="hero-backdrop"
+                >
                   {/* Content container
                       Mobile: centered, normal document flow (below image)
                       Desktop: fills the shell's overlay wrapper, bottom-anchored.
@@ -693,6 +750,7 @@ export default async function MoviePage({ params, searchParams }: MoviePageProps
                       <HeroLogoShell
                         mediaId={id}
                         mediaType="movie"
+                        viewTransitionName="hero-logo"
                         className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
                       />
                     </div>

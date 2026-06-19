@@ -15,6 +15,9 @@ interface MovieCarouselProps {
   seeAllLabel?: string;
   className?: string;
   loading?: boolean;
+  /** Published-comment counts keyed by tmdb id (Phase C social proof). The
+   * DiscussionCountBadge self-hides below its threshold, so unknown/low = clean. */
+  commentCounts?: Record<number, number>;
 }
 
 export function MovieCarousel({
@@ -25,6 +28,7 @@ export function MovieCarousel({
   seeAllLabel = "View All",
   className,
   loading = false,
+  commentCounts,
 }: MovieCarouselProps) {
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 
@@ -55,6 +59,7 @@ export function MovieCarousel({
               item={item}
               className={posterCardClass}
               wideClassName={wideCardClass}
+              commentCount={commentCounts?.[item.id]}
               // No priority: carousel rows sit below the hero (the LCP); preloading
               // their posters added ~28 head preloads competing with the hero image
               priority={false}

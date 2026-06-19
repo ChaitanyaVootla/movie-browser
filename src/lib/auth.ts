@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { MongoClient, ObjectId } from "mongodb";
-import { authConfig, googleProvider } from "./auth.config";
+import { authConfig, googleProvider, TEST_AUTH_ENABLED, TEST_AUTH_USER } from "./auth.config";
 import { prisma } from "@/server/db/postgres";
 import {
   resolveUserLocation,
@@ -261,6 +261,63 @@ async function getOrCreateGoogleUser(tokenInfo: GoogleTokenInfo) {
 }
 
 // =============================================================================
+// LOCAL-ONLY test-auth Credentials provider (security-sensitive)
+// =============================================================================
+//
+// SECURITY: This provider authorizes a fixed dummy identity WITHOUT any real
+// credential check. It exists solely so Playwright E2E can obtain a session
+// (Google OAuth cannot be automated). It is added to `providers` ONLY when
+// TEST_AUTH_ENABLED is true — i.e. NODE_ENV !== "production" AND
+// ENABLE_TEST_AUTH === "true" (gate computed in auth.config.ts, which also
+// hard-CRASHES boot if the flag is ever seen in production). Production never
+// sets ENABLE_TEST_AUTH, so this provider is never registered there.
+const testAuthProvider = Credentials({
+  id: "test-auth",
+  name: "Test Auth (local only)",
+  // No input fields — the identity is fixed and server-decided.
+  credentials: {},
+  authorize: async () => {
+    // Eagerly provision the PG users row so the very first authed action
+    // resolves (the user-id.ts self-heal would also do this, but creating it
+    // here makes the E2E session deterministic from request #1).
+    if (usePostgres) {
+      try {
+        const user = await prisma.user.upsert({
+          where: { googleId: TEST_AUTH_USER.googleId },
+          create: {
+            googleId: TEST_AUTH_USER.googleId,
+            email: TEST_AUTH_USER.email,
+            name: TEST_AUTH_USER.name,
+          },
+          update: { lastActiveAt: new Date() },
+          select: { id: true },
+        });
+        return {
+          id: user.id.toString(),
+          name: TEST_AUTH_USER.name,
+          email: TEST_AUTH_USER.email,
+          googleId: TEST_AUTH_USER.googleId,
+        };
+      } catch (error: unknown) {
+        console.error(
+          "[test-auth] failed to provision PG user:",
+          error instanceof Error ? error.message : String(error)
+        );
+        return null;
+      }
+    }
+    // Non-postgres (legacy) mode: return the fixed identity; googleId flows
+    // into the jwt callback exactly like the Google path.
+    return {
+      id: TEST_AUTH_USER.googleId,
+      name: TEST_AUTH_USER.name,
+      email: TEST_AUTH_USER.email,
+      googleId: TEST_AUTH_USER.googleId,
+    };
+  },
+});
+
+// =============================================================================
 // Auth.js Configuration
 // =============================================================================
 
@@ -325,6 +382,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       },
     }),
+
+    // LOCAL-ONLY test-auth bypass for E2E. Spread is empty in production.
+    ...(TEST_AUTH_ENABLED ? [testAuthProvider] : []),
   ],
 
   // Additional callbacks for Node.js runtime
@@ -332,6 +392,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig.callbacks,
 
     async signIn({ user, account }) {
+      // LOCAL-ONLY: allow the test-auth provider through. It can only be
+      // registered when TEST_AUTH_ENABLED (non-prod + ENABLE_TEST_AUTH), so
+      // reaching here at all already implies the gate passed.
+      if (TEST_AUTH_ENABLED && account?.provider === "test-auth") {
+        return true;
+      }
       if (account?.provider === "google" || account?.provider === "google-one-tap") {
         // PostgreSQL path: upsert user on sign-in
         if (usePostgres && account?.provider === "google" && account.providerAccountId) {

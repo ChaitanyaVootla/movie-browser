@@ -37,12 +37,24 @@ export interface ContinueWatchingItem {
   updatedAt: Date | string;
 }
 
+/** Client-side series progress (from series_progress) for card progress bars. */
+export interface SeriesProgressClient {
+  watched: number;
+  total: number | null;
+  pct: number; // 0–100, 0 when total is unknown
+  status: string;
+}
+
 interface UserLibraryState {
   // IDs only - for quick lookups
   watchedMovies: Set<number>;
   watchlistMovies: Set<number>;
   watchlistSeries: Set<number>;
-  ratings: Map<string, number>; // "movie:123" -> rating
+  ratings: Map<string, number>; // "movie:123" -> rating (thumb: -1/0/1)
+  // Social signals (Phase A): hydrated with the library, read by cards.
+  scores: Map<string, number>; // "movie:123" -> score 1–10
+  liked: Set<string>; // "movie:123" present = loved
+  seriesProgress: Map<number, SeriesProgressClient>; // seriesId -> progress
 
   // Recent items (synced with server)
   recents: RecentItem[];
@@ -117,6 +129,9 @@ const initialState: UserLibraryState = {
   watchlistMovies: new Set(),
   watchlistSeries: new Set(),
   ratings: new Map(),
+  scores: new Map(),
+  liked: new Set(),
+  seriesProgress: new Map(),
   recents: [],
   continueWatching: [],
   countryOverride: null,
@@ -456,6 +471,37 @@ export const useUserStore = create<UserStore>()(
                   ]
                 )
               ),
+              scores: new Map(
+                (data.scores || []).map(
+                  (r: { itemId: number; itemType: MediaType; score: number }) => [
+                    getRatingKey(r.itemId, r.itemType),
+                    r.score,
+                  ]
+                )
+              ),
+              liked: new Set(
+                (data.liked || []).map((r: { itemId: number; itemType: MediaType }) =>
+                  getRatingKey(r.itemId, r.itemType)
+                )
+              ),
+              seriesProgress: new Map(
+                (data.seriesProgress || []).map(
+                  (p: {
+                    seriesId: number;
+                    watched: number;
+                    total: number | null;
+                    status: string;
+                  }) => [
+                    p.seriesId,
+                    {
+                      watched: p.watched,
+                      total: p.total,
+                      pct: p.total && p.total > 0 ? Math.round((p.watched / p.total) * 100) : 0,
+                      status: p.status,
+                    } satisfies SeriesProgressClient,
+                  ]
+                )
+              ),
               recents: data.recents || [],
               continueWatching: data.continueWatching || [],
               isHydrated: true,
@@ -515,6 +561,16 @@ export const selectIsInWatchlist = (id: number, mediaType: MediaType) => (state:
 
 export const selectRating = (id: number, mediaType: MediaType) => (state: UserStore) =>
   state.ratings.get(getRatingKey(id, mediaType)) ?? 0;
+
+/** Social signals (Phase A) — read by cards for the personal corner cluster. */
+export const selectScore = (id: number, mediaType: MediaType) => (state: UserStore) =>
+  state.scores.get(getRatingKey(id, mediaType)) ?? null;
+
+export const selectLiked = (id: number, mediaType: MediaType) => (state: UserStore) =>
+  state.liked.has(getRatingKey(id, mediaType));
+
+export const selectSeriesProgress = (seriesId: number) => (state: UserStore) =>
+  state.seriesProgress.get(seriesId);
 
 export const selectIsHydrated = (state: UserStore) => state.isHydrated;
 

@@ -60,7 +60,18 @@ export function Providers({ children }: ProvidersProps) {
                   <QuickInfoProvider>
                     {children}
                     <HoverCardOverlay />
-                    <Toaster position="bottom-right" />
+                    {/* Mobile has no top navbar — without an offset, toasts sit
+                        UNDER the h-14 bottom nav (+ its safe-area growth). Lift
+                        them clear of it so no toast hides behind the nav. The PWA
+                        install banner lives higher (bottom-32) so they don't overlap. */}
+                    <Toaster
+                      position="bottom-right"
+                      mobileOffset={{
+                        bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
+                        left: "1rem",
+                        right: "1rem",
+                      }}
+                    />
                     {/* Google One Tap - shows login prompt for unauthenticated users */}
                     <GoogleOneTap delay={2000} />
                     {/* Cue - AI chat assistant */}

@@ -45,12 +45,14 @@ export const getUserProfileTool = tool(
       // Single parallel batch: all user data in one round trip
       const [watchedMovies, watchlistCount, ratings, recentItems] = await Promise.all([
         // Recent watched with title + genres (last 8)
-        prisma.watchedMovie.findMany({
-          where: { userId },
-          orderBy: { createdAt: "desc" },
+        prisma.watchEvent.findMany({
+          where: { userId, movieId: { not: null }, kind: "WATCH" },
+          orderBy: [{ watchedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+          distinct: ["movieId"],
           take: 8,
           select: {
             movieId: true,
+            watchedAt: true,
             createdAt: true,
             movie: {
               select: {
@@ -108,7 +110,7 @@ export const getUserProfileTool = tool(
 
       // Watched movies contribute to genre preferences
       for (const w of watchedMovies) {
-        for (const g of w.movie.genres) {
+        for (const g of w.movie?.genres ?? []) {
           genreCounts.set(g.genre.name, (genreCounts.get(g.genre.name) || 0) + 1);
         }
       }
@@ -120,8 +122,8 @@ export const getUserProfileTool = tool(
 
       // --- Compact recent watches with timing ---
       const recentWatched = watchedMovies.slice(0, 5).map((w) => ({
-        title: w.movie.title,
-        when: daysAgo(w.createdAt),
+        title: w.movie?.title ?? "Unknown",
+        when: daysAgo(w.watchedAt ?? w.createdAt),
       }));
 
       // --- Recently browsed (might not have watched) ---

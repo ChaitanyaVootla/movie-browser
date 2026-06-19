@@ -44,10 +44,18 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 - Run the script from `/Users/chaitanya/dev/movie-browser` (not `/tmp`) or `@playwright/test` won't resolve. The `clickhouse/...` and chromium images are already pulled locally.
 - **`src/proxy.ts` 429s headless Chromium — including against local dev.** Headless
   Chrome sends `sec-ch-ua: "HeadlessChrome"`, which the scraper shed blocks, so pages
-  render empty (no nav, no AI floaty) with a 429 console error. Spoof BOTH a real
-  Chrome `userAgent` AND `extraHTTPHeaders: { "sec-ch-ua": '"Chromium";v="136", "Google
-  Chrome";v="136", "Not.A/Brand";v="99"', "sec-ch-ua-mobile", "sec-ch-ua-platform" }`
-  on the browser context before debugging "missing" UI.
+  render empty (no nav, no AI floaty) with a 429 console error. Spoof a real Chrome
+  `userAgent` AND clean `sec-ch-ua`/`sec-ch-ua-mobile`/`sec-ch-ua-platform` hints.
+  **GOTCHA (Jun 2026): `newContext({ extraHTTPHeaders })` is NOT enough** — Chromium's
+  own high-entropy client hints still leak the HeadlessChrome brand past it and the
+  document itself 429s (blank white page, `body.innerText` empty, `[role=progressbar]`
+  absent — even though the same URL `curl`s 200 with full HTML). Force the headers on
+  EVERY request via `page.route('**/*', r => r.continue({ headers: { ...r.request().headers(),
+  'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+  'sec-ch-ua-mobile': '?0', 'sec-ch-ua-platform': '"macOS"', 'user-agent': UA } }))`.
+  Verify you got past it: `detectBotFromRequest(ua, secChUa)` returns `isBot:false` and
+  the nav `response.status()` is 200, not 429.
+- **The PWA Service Worker breaks cross-origin image loads in headless Chromium.** Verifying TMDB-served imagery (`image.tmdb.org`, e.g. the `MediaImagePicker` grid) rendered every tile black with `net::ERR_FAILED` and NO CSP console message — yet a blank page loaded the identical URL fine and the app's CSP `img-src` allowed the host. Cause: the Serwist SW (registered on the app, absent on `about:blank`) intercepting cross-origin requests in headless. Fix: `browser.newContext({ serviceWorkers: "block" })`. Real browsers are unaffected (the whole app renders TMDB images through that SW). Note `next/image` is lazy, so the `naturalWidth>0` count tops out at the visible rows (~85 of 228) — that's loaded, not broken.
 - The search dialog's "Search all for X" is an **always-present `cmdk-item`** — don't treat `items>=1` as "results loaded"; wait for a `[cmdk-group-heading]` (Movies/Series/Results).
 - Results from a **previous query persist** while a new one loads → open a fresh dialog per query, or you'll measure stale state.
 - Per-keystroke typing fires many debounced actions that queue; use `fill()` for a single clean action when measuring server time.
@@ -221,7 +229,7 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 
 ## Don't over-trust audit/agent suggestions — temper with context
 - Don't `dynamic(..., { ssr:false })` the hero/LCP element (kills LCP + SEO).
-- Don't remove `unoptimized` from images — Next's optimizer runs `sharp` on the CPU-starved EC2, making it worse. CDN already serves WebP.
+- **Image optimization is OFF globally** (`next.config.mjs` `images.unoptimized: true`, Jun 19 2026) — do NOT re-enable it. Every image source is already optimized + CDN-served at a fixed size (our CDN serves pre-rendered WebP; TMDB fallbacks are pre-sized `w500`/`w1280`/`w780` per `src/lib/image.ts`; Google avatars / YT thumbs likewise). The origin optimizer re-downloaded + re-encoded each via `sharp` on the 2-vCPU box and cached the result in `.next/cache/images` with **NO size bound** → it filled the disk and took prod down (the Jun 19 outage; the Jun 10 twin was the unbounded ISR cache). It was previously toggled per-`<Image>` via inconsistent `unoptimized` props — the leak. `prune-isr-cache.js` now also bounds `.next/cache/images` as a backstop, but the real fix is keeping optimization OFF. `next/image` with `unoptimized` still does layout/lazy-load/`sizes` — only the `sharp` resize/reencode is skipped.
 - An `h632` profile image is correct for 2× retina (256px container) — not "2.6× oversize"; audits often assume 1× DPR.
 
 See also: `.claude/rules/infrastructure.md` (memory/CPU budget), `.claude/rules/postgres-hydration.md`, `.claude/rules/search-system.md`, `.claude/rules/analytics-system.md`.

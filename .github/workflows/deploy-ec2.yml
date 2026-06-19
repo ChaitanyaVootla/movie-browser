@@ -125,9 +125,9 @@ jobs:
             FREE_MB=$(df --output=avail -m / | tail -1 | tr -d ' ')
             echo "Free disk: ${FREE_MB}MB"
             if [ "$FREE_MB" -lt 3000 ]; then
-              echo "Low disk — running emergency ISR cache prune..."
+              echo "Low disk — running emergency ISR + image cache prune..."
               cd /home/ubuntu/movie-browser-next
-              FORCE_RUN=1 ISR_CACHE_BUDGET_MB=1000 node scripts/prune-isr-cache.js || true
+              FORCE_RUN=1 ISR_CACHE_BUDGET_MB=1000 IMAGE_CACHE_BUDGET_MB=1000 node scripts/prune-isr-cache.js || true
               rm -rf .next/cache/bounded-isr || true
               FREE_MB=$(df --output=avail -m / | tail -1 | tr -d ' ')
               echo "Free disk after prune: ${FREE_MB}MB"
@@ -239,6 +239,42 @@ jobs:
               echo "FTS sql unchanged -> skip"
             fi
 
+            echo "[3.5/5] UGC constraints (gated)..."
+            # Gate on schema + constraints file COMBINED: `prisma db push` table
+            # recreation silently drops CHECK constraints, so a schema change
+            # must re-fire this even when 04-ugc-constraints.sql is unchanged
+            # (social roadmap spec §4.1 invariant 5). File is idempotent
+            # (DROP CONSTRAINT IF EXISTS + ADD / CREATE UNIQUE INDEX IF NOT EXISTS).
+            UGC_HASH=$(cat postgres/init/04-ugc-constraints.sql prisma/schema.prisma | md5sum | cut -d' ' -f1)
+            if [ "$UGC_HASH" != "$(cat .last-ugc-hash 2>/dev/null)" ]; then
+              echo "UGC sql or schema changed -> apply"
+              docker compose exec -T postgres \
+                psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=0 \
+                < postgres/init/04-ugc-constraints.sql 2>&1 | tail -8 \
+                && echo "$UGC_HASH" > .last-ugc-hash \
+                || echo "UGC constraints step warning (non-fatal)"
+            else
+              echo "UGC sql unchanged -> skip"
+            fi
+
+            echo "[3.6/5] Audit triggers (gated)..."
+            # Gate on schema + audit file COMBINED: a `prisma db push` table
+            # recreation silently drops TRIGGERS, so a schema change must
+            # re-fire this even when 05-audit.sql is unchanged. File is
+            # idempotent (CREATE OR REPLACE FUNCTION + DROP TRIGGER IF EXISTS +
+            # CREATE TRIGGER). See .claude/rules/audit-log.md.
+            AUDIT_HASH=$(cat postgres/init/05-audit.sql prisma/schema.prisma | md5sum | cut -d' ' -f1)
+            if [ "$AUDIT_HASH" != "$(cat .last-audit-hash 2>/dev/null)" ]; then
+              echo "audit sql or schema changed -> apply"
+              docker compose exec -T postgres \
+                psql -U moviebrowser -d moviebrowser -v ON_ERROR_STOP=0 \
+                < postgres/init/05-audit.sql 2>&1 | tail -8 \
+                && echo "$AUDIT_HASH" > .last-audit-hash \
+                || echo "audit triggers step warning (non-fatal)"
+            else
+              echo "audit sql unchanged -> skip"
+            fi
+
             echo "[4/5] Creating data directories..."
             mkdir -p data/enriched logs
             mkdir -p .cache/{youtube-channels,youtube,person,search,discover,movie,series,images}
@@ -251,6 +287,18 @@ jobs:
             # ecosystem.config.cjs must be pm2-deleted manually once.
             pm2 startOrReload ecosystem.config.cjs
             pm2 save
+
+            # PM2-independent disk-pressure failsafe. The isr-cache-prune job
+            # lives INSIDE PM2 — when a full disk killed the PM2 daemon (Jun 19
+            # 2026), nothing reclaimed disk and the box stayed down. This system
+            # crontab runs disk-guard.sh every 15 min regardless of PM2 health.
+            # Idempotent: strip any prior entry, re-add (the script ships in the
+            # tar; chmod in case the tar lost the bit).
+            chmod +x scripts/disk-guard.sh || true
+            ( crontab -l 2>/dev/null | grep -v 'disk-guard.sh' ; \
+              echo '*/15 * * * * /home/ubuntu/movie-browser-next/scripts/disk-guard.sh' ) \
+              | crontab -
+            echo "disk-guard cron installed"
 
             echo ""
             echo "[7/7] Revalidating build-prerendered pages (/ and /topics)..."

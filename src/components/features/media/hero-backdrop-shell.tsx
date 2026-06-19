@@ -11,9 +11,26 @@ interface HeroBackdropShellProps {
   mediaType: "movie" | "series";
   /** TMDB backdrop path for fallback (optional, can come from context) */
   tmdbBackdropPath?: string | null;
+  /**
+   * Exact image URL to render as the PRIMARY source, bypassing the
+   * CDN-by-id backdrop. Use when the consumer chose a SPECIFIC image (e.g. a
+   * profile backdrop, which may not be the title's canonical backdrop). When
+   * set, the deterministic CDN URL is skipped; tmdbBackdropPath remains the
+   * error fallback.
+   */
+  exactSrc?: string | null;
   className?: string;
   children?: React.ReactNode;
   overlay?: "light" | "medium" | "heavy" | "none";
+  /**
+   * Opt-in `view-transition-name` for the root element, used ONLY by the
+   * detail-page hero so a detail→discussions View Transition can morph this
+   * backdrop into the discussions hero band's backdrop (which carries the same
+   * name). MUST be unique per page snapshot — only one element with a given
+   * name may be live at a time. Leave undefined everywhere else (the shell is
+   * shared) so no spurious morph target exists.
+   */
+  viewTransitionName?: string;
 }
 
 type LoadState = "cdn" | "tmdb" | "failed" | "pending";
@@ -35,9 +52,11 @@ export function HeroBackdropShell({
   mediaId,
   mediaType,
   tmdbBackdropPath: propPath,
+  exactSrc,
   className,
   children,
   overlay = "light",
+  viewTransitionName,
 }: HeroBackdropShellProps) {
   const heroContext = useHeroMedia();
   const [loadState, setLoadState] = useState<LoadState>("cdn");
@@ -45,8 +64,9 @@ export function HeroBackdropShell({
   // Get TMDB path from props or context (context updates when async content loads)
   const tmdbBackdropPath = propPath ?? heroContext?.data?.tmdbBackdropPath;
 
-  // CDN URL is deterministic - just needs ID
-  const cdnUrl = `${CDN_IMAGE_BASE}/${mediaType}/${mediaId}/backdrop.webp`;
+  // Primary source: an exact image (profile backdrops) bypasses the CDN-by-id
+  // backdrop; otherwise the deterministic CDN URL (movie/series detail pages).
+  const cdnUrl = exactSrc ?? `${CDN_IMAGE_BASE}/${mediaType}/${mediaId}/backdrop.webp`;
   // TMDB fallback needs the path
   const tmdbUrl = tmdbBackdropPath ? `${TMDB_IMAGE_BASE}/w1280${tmdbBackdropPath}` : null;
 
@@ -103,6 +123,10 @@ export function HeroBackdropShell({
       // ThemeColorSync paints the status bar --hero-base while this element is
       // under the status bar seam (DESIGN.md → System bars)
       data-hero-root
+      // Opt-in shared-element morph target (detail→discussions). Undefined →
+      // the property is simply absent (no morph), so non-detail usages are
+      // unaffected.
+      style={viewTransitionName ? { viewTransitionName } : undefined}
       className={cn(
         "relative w-full overflow-hidden bg-hero-base",
         // Mobile: flex column, image + content stacked

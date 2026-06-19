@@ -52,6 +52,7 @@ import { getMovieFromPostgres } from "@/server/db/postgres/movies";
 import { getSeriesFromPostgres } from "@/server/db/postgres/series";
 import type { EnrichedData, HydrationResult, MediaType } from "./types";
 import { triggerProgressiveEnrichment } from "@/server/services/enrichment/progressive";
+import { triggerUserEpisodeReconcile } from "@/server/services/hydration/reconcile-user-episodes";
 import pLimit from "p-limit";
 
 // Re-export types
@@ -103,6 +104,25 @@ const MAX_BACKGROUND_REFRESH = Number(process.env.MAX_BACKGROUND_REFRESH ?? 3);
 
 function backgroundRefreshSlotsFull(): boolean {
   return inFlightMovieRefresh.size + inFlightSeriesRefresh.size >= MAX_BACKGROUND_REFRESH;
+}
+
+// DEV ONLY. With MAX_BACKGROUND_REFRESH=0 (the local-dev perf guard,
+// ecosystem.dev.config.cjs) the miss-path background persist is a no-op, so a
+// browsed title NEVER lands in the local catalog — every visit stays a PG miss
+// and the slug resolver leans on the 2s TMDB existence check (intermittent
+// /discussions 404s). Persist the title TMDB-ONLY (no Lambda, no progressive
+// enrichment, no SSE — those are what saturate the single dev thread, which is
+// why the cap is 0), fire-and-forget so the render is never blocked. Prod
+// (cap>0, NODE_ENV=production) keeps the background-refresh persist and this
+// never runs. In tests the cap defaults to 3, so this is inert there too.
+const DEV_PERSIST_ON_MISS =
+  MAX_BACKGROUND_REFRESH === 0 && process.env.NODE_ENV !== "production";
+
+function persistOnMissInDev(upsert: () => Promise<unknown>, label: string): void {
+  if (!DEV_PERSIST_ON_MISS) return;
+  void upsert().catch((e) =>
+    console.error(`[Hydration] dev miss-persist ${label} failed:`, e)
+  );
 }
 
 /**
@@ -172,6 +192,7 @@ function backgroundRefreshSeries(
         getEnrichedData("series", seriesId, freshTmdb.first_air_date, freshTmdb, {}),
       ]);
       await upsertSeriesToPostgres({ ...freshTmdb, seasons }, enriched);
+      triggerUserEpisodeReconcile(seriesId);
       if (enrichedSource === "lambda" || enrichedSource === "mongodb") {
         triggerProgressiveEnrichment("series", seriesId, freshTmdb).catch(() => {});
       }
@@ -276,6 +297,7 @@ async function hydrateMovieImpl(
   // persist + enrich in the background (deduped). SSE streams ratings when ready.
   if (!forceRefresh && !skipLambda) {
     backgroundRefreshMovie(movieId, tmdbData);
+    persistOnMissInDev(() => upsertMovieToPostgres(tmdbData, emptyEnriched()), `movie ${movieId}`);
     return {
       data: tmdbData,
       enriched: pgRaw ? transformPostgresRatingsToEnriched(pgRaw) : emptyEnriched(),
@@ -458,6 +480,12 @@ async function hydrateSeriesImpl(
   // upsert itself all run in the background; SSE streams ratings when ready.
   if (!forceRefresh && !skipLambda) {
     backgroundRefreshSeries(seriesId, tmdbData, needsEpisodeFetch ? null : tmdbData.seasons);
+    // DEV-only: persist core series (TMDB-only; episodes backfill on a later
+    // forced fetch) so the local catalog gets the row. See persistOnMissInDev.
+    persistOnMissInDev(
+      () => upsertSeriesToPostgres({ ...tmdbData, seasons: tmdbData.seasons ?? [] }, emptyEnriched()),
+      `series ${seriesId}`
+    );
     return {
       data: tmdbData,
       enriched: pgRaw ? transformPostgresRatingsToEnriched(pgRaw) : emptyEnriched(),
@@ -512,6 +540,7 @@ async function hydrateSeriesImpl(
     const tmdbDataWithEpisodes = { ...tmdbData, seasons: seasonsWithEpisodes };
     await upsertSeriesToPostgres(tmdbDataWithEpisodes, enriched);
     console.log(`[Hydration] Series ${seriesId}: PostgreSQL upsert complete`);
+    triggerUserEpisodeReconcile(seriesId);
 
     // Trigger progressive AI enrichment in background (fire-and-forget)
     // Only when fresh enriched data was fetched (Lambda or MongoDB) — not the PG fast path

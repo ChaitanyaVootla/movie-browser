@@ -11,6 +11,7 @@ import {
   getYouTubeTrendingTrailers,
 } from "@/server/actions/trending";
 import { discoverBatch } from "@/server/actions/discover";
+import { getPublishedCommentCountsForType } from "@/server/db/postgres/comments";
 import { HeroCarousel } from "@/components/features/movie/hero-carousel";
 import { MovieCarousel } from "@/components/features/movie/movie-carousel";
 import { UpcomingCarousel } from "@/components/features/movie/upcoming-carousel";
@@ -22,6 +23,7 @@ import {
   TopicScroller,
   TrailerCarousel,
   YouTubeTrailerCarousel,
+  UpNextSection,
 } from "@/components/features/home";
 import { buildBrowseUrl } from "@/lib/discover";
 import { getPopularTopics, getTopicByKey } from "@/lib/topics";
@@ -89,16 +91,30 @@ export default async function HomePage() {
   // trending.movies to avoid a duplicate TMDB call). Everything else is already in flight.
   const trending = await trendingPromise;
   const trendingTrailersPromise = getTrendingTrailers(10, trending.movies);
+  // Batched published-comment counts for the trending cards (Phase C social
+  // proof). Viewer-agnostic + ISR-cached; the badge self-hides below threshold.
+  const commentCountsPromise = Promise.all([
+    getPublishedCommentCountsForType(
+      "movie",
+      trending.movies.map((m) => m.id)
+    ),
+    getPublishedCommentCountsForType(
+      "series",
+      trending.tv.map((s) => s.id)
+    ),
+  ]).catch(() => [{}, {}] as [Record<number, number>, Record<number, number>]);
 
   // Join all the in-flight work.
-  const [upcoming, nowPlaying, youtubeTrailers, trendingTrailers, topicResults] =
+  const [upcoming, nowPlaying, youtubeTrailers, trendingTrailers, topicResults, commentCounts] =
     await Promise.all([
       upcomingPromise,
       nowPlayingPromise,
       youtubeTrailersPromise,
       trendingTrailersPromise,
       Promise.all(topicPromises),
+      commentCountsPromise,
     ]);
+  const [movieCommentCounts, seriesCommentCounts] = commentCounts;
 
   // Prepare topic scroller data
   const topicScrollers = selectedTopics.map((topic, index) => ({
@@ -152,6 +168,9 @@ export default async function HomePage() {
         {/* Continue Watching - Top priority for logged-in users */}
         <ContinueWatchingSection />
 
+        {/* Up Next - next unwatched episodes (client island, per-user) */}
+        <UpNextSection />
+
         {/* Topic Pills for Quick Navigation */}
         <TopicPills topics={popularTopics} />
 
@@ -178,6 +197,7 @@ export default async function HomePage() {
           icon={<Film className="h-5 w-5 text-brand" />}
           seeAllHref={buildBrowseUrl({ media_type: "movie", sort_by: "popularity.desc" })}
           seeAllLabel="Browse All"
+          commentCounts={movieCommentCounts}
         />
 
         {/* Trending TV Shows */}
@@ -187,6 +207,7 @@ export default async function HomePage() {
           icon={<Tv className="h-5 w-5 text-brand" />}
           seeAllHref={buildBrowseUrl({ media_type: "tv", sort_by: "popularity.desc" })}
           seeAllLabel="Browse All"
+          commentCounts={seriesCommentCounts}
         />
 
         {/* Recent Visits - After trending sections for logged-in users */}

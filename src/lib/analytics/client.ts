@@ -28,6 +28,15 @@ interface ClickHouseConfig {
 }
 
 function getConfig(): ClickHouseConfig | null {
+  // Analytics is OFF in dev unless explicitly opted in. Local runs have no
+  // ClickHouse, and `.env` points CLICKHOUSE_HOST at the (unreachable) prod
+  // instance — so without this guard every page-view/event insert awaits a
+  // multi-second connect-timeout, and under rapid interaction those pile up and
+  // saturate the single dev thread. Set ENABLE_DEV_ANALYTICS=true to opt in.
+  if (process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_ANALYTICS !== "true") {
+    return null;
+  }
+
   const host = process.env.CLICKHOUSE_HOST;
   const password = process.env.CLICKHOUSE_PASSWORD;
 

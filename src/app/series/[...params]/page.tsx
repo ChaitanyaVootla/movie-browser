@@ -60,6 +60,23 @@ import {
 import { sortVideos } from "@/lib/video-utils";
 import { getMediaBadges } from "@/lib/badges";
 import { SeasonSelector, EpisodeInfoSection } from "@/components/features/series";
+import {
+  SeriesTrackingProvider,
+  SeriesProgressInline,
+} from "@/components/features/tracking";
+import NextLink from "next/link";
+import { ReviewsSection, ReviewsRatingsEntry } from "@/components/features/reviews";
+import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
+import {
+  EpisodeDiscussPage,
+  generateDiscussMetadata,
+  parseDiscussParams,
+} from "./discuss-page";
+import {
+  parseSeriesDiscussions,
+  generateSeriesDiscussionsMetadata,
+  SeriesDiscussionsView,
+} from "./discussions-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SITE_NAME, SITE_URL, TMDB_IMAGE_BASE, CDN_IMAGE_BASE } from "@/lib/constants";
 import type { Series } from "@/types";
@@ -87,6 +104,16 @@ interface SeriesPageProps {
 // Generate SEO metadata
 export async function generateMetadata({ params }: SeriesPageProps): Promise<Metadata> {
   const { params: routeParams } = await params;
+
+  // Per-episode discussion pages (Task 13) ride this catch-all (Next.js
+  // forbids a sibling [seriesId] segment). Branch before the detail-page logic.
+  const discuss = parseDiscussParams(routeParams);
+  if (discuss) return generateDiscussMetadata(discuss);
+
+  // Dedicated series discussions index page (trailing `discussions` segment).
+  const discussionsSeriesId = parseSeriesDiscussions(routeParams);
+  if (discussionsSeriesId !== null) return generateSeriesDiscussionsMetadata(discussionsSeriesId);
+
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
 
@@ -397,7 +424,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
   const displaySeasons = series.seasons?.filter((s) => s.season_number >= 0) || [];
 
   return (
-    <>
+    <SeriesTrackingProvider seriesId={series.id}>
       {/* JSON-LD Schema */}
       {/* Single semantic H1 (visually hidden) — see movie page */}
       <h1 className="sr-only">
@@ -434,16 +461,41 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         status={series.status}
       />
 
-      {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills */}
-      {/* Pass only trailer data instead of full videos array */}
+      {/* Action buttons - Play Trailer, Watchlist, Like/Dislike, Share + QuickTake pills.
+          Series progress rides INLINE in this row as a peer of the buttons
+          (client island — renders nothing in cached anon HTML). */}
       <MediaActionBar
         itemId={series.id}
         mediaType="series"
         title={series.name}
         trailer={extractTrailerData(series.videos)}
         quickTake={aiSummary?.quickTake}
+        actionSlot={
+          <SeriesProgressInline
+            seriesId={series.id}
+            seasons={extractSeasonSelectorSeasons(displaySeasons)}
+          />
+        }
         className="mt-2 md:mt-3"
       />
+
+      {/* Discussion entry — surfaced HIGH (right below the action bar) so it's
+          discoverable near the hero. Cacheable baseline; the client island
+          upgrades to "N new since you watched". Jumps to the inline
+          #discussion section lower on the page, links to the dedicated page. */}
+      {/* Community entry row — Discussion + Reviews&Ratings as PEER teasers right
+          below the action bar (spec §4.3). Both cacheable/anon-tier. */}
+      <div className="px-4 md:px-8 lg:px-12 mt-3 md:mt-4 grid gap-3 md:grid-cols-2">
+        <Suspense fallback={null}>
+          <DiscussionEntryStrip
+            anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
+            title={series.name}
+          />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ReviewsRatingsEntry mediaType="series" tmdbId={series.id} href="#reviews" />
+        </Suspense>
+      </div>
 
       {/* Season & Episode Selector - light seasons (no per-season overview/poster) */}
       {displaySeasons.length > 0 && (
@@ -522,6 +574,17 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         />
       )}
 
+      {/* User reviews (published+public only in cached HTML; own review hydrates client-side) */}
+      <ReviewsSection
+        mediaType="series"
+        tmdbId={series.id}
+        title={series.name}
+        seasons={displaySeasons
+          .filter((s) => s.season_number > 0)
+          .map((s) => s.season_number)}
+        className="mt-8 md:mt-12"
+      />
+
       {/* Similar - AI-powered embedding similarity with TMDB fallback */}
       <Suspense fallback={<SimilarSectionSkeleton />}>
         <SimilarSection
@@ -532,7 +595,40 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
           className="mt-8 md:mt-12"
         />
       </Suspense>
-    </>
+
+      {/* Discussion — series-level anchor; links to per-episode threads.
+          Anon tier + locked teaser are ISR-safe; gated tier hydrates client-side. */}
+      <Suspense fallback={null}>
+        <DiscussionSection
+          anchor={{ type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null }}
+          starters={[]}
+          className="mt-8 md:mt-12"
+          viewAllHref={discussionsHref(
+            { type: "series", seriesId: series.id, seasonNumber: null, episodeNumber: null },
+            series.name
+          )}
+        >
+          <EpisodeThreadsLink seriesId={series.id} seriesName={series.name} />
+        </DiscussionSection>
+      </Suspense>
+    </SeriesTrackingProvider>
+  );
+}
+
+function EpisodeThreadsLink({
+  seriesId,
+  seriesName,
+}: {
+  seriesId: number;
+  seriesName: string;
+}) {
+  return (
+    <NextLink
+      href={`${getMediaPath("series", seriesId, seriesName)}/discuss/s1e1`}
+      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-10"
+    >
+      Browse per-episode discussions →
+    </NextLink>
   );
 }
 
@@ -615,6 +711,15 @@ function SeriesSchema({ series, aiThemes }: { series: Series; aiThemes?: string[
 
 export default async function SeriesPage({ params, searchParams }: SeriesPageProps) {
   const { params: routeParams } = await params;
+
+  // Per-episode discussion branch (Task 13) — same catch-all, no dynamic APIs.
+  const discuss = parseDiscussParams(routeParams);
+  if (discuss) return <EpisodeDiscussPage params={discuss} />;
+
+  // Dedicated series discussions index page branch (trailing `discussions`).
+  const discussionsSeriesId = parseSeriesDiscussions(routeParams);
+  if (discussionsSeriesId !== null) return <SeriesDiscussionsView seriesId={discussionsSeriesId} />;
+
   const seriesId = routeParams[0];
   const id = parseInt(seriesId, 10);
 
@@ -648,7 +753,15 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
                 Desktop: Image fills container, content overlays at bottom */}
             <section className="relative">
               <div className="hero-container relative w-full overflow-hidden">
-                <HeroBackdropShell mediaId={id} mediaType="series" overlay="light">
+                {/* viewTransitionName opts this hero into the detail↔discussions
+                    shared-element morph (matched on the discussions page's hero
+                    band). Other HeroBackdropShell usages omit it → no morph. */}
+                <HeroBackdropShell
+                  mediaId={id}
+                  mediaType="series"
+                  overlay="light"
+                  viewTransitionName="hero-backdrop"
+                >
                   {/* Content container
                       Mobile: centered, normal document flow (below image)
                       Desktop: fills the shell's overlay wrapper, bottom-anchored.
@@ -660,6 +773,7 @@ export default async function SeriesPage({ params, searchParams }: SeriesPagePro
                       <HeroLogoShell
                         mediaId={id}
                         mediaType="series"
+                        viewTransitionName="hero-logo"
                         className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
                       />
                     </div>

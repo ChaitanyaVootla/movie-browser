@@ -8,7 +8,7 @@
 // the service worker NEVER installed (no offline support, console error on
 // every page) — and `@ts-nocheck` hid the type mismatch.
 import { defaultCache } from "@serwist/turbopack/worker";
-import { CacheFirst, ExpirationPlugin, Serwist } from "serwist";
+import { CacheFirst, ExpirationPlugin, NetworkOnly, Serwist } from "serwist";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 
 declare global {
@@ -23,8 +23,20 @@ const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
+  // navigationPreload intentionally OFF: with the NetworkOnly navigation route
+  // below nothing consumes event.preloadResponse, and an unconsumed preload was
+  // serving direct loads of streamed routes (e.g. /…/discussions, RSC-streamed
+  // under loading.tsx) as a DOWNLOAD instead of a page — the "discussions page
+  // not accessible / routing race" bug (Jun 2026). See pwa-mobile.md.
   runtimeCaching: [
+    // Navigations ALWAYS go to network — never serve/cache HTML documents from
+    // the SW. Intercepting navigations broke direct loads of streamed routes
+    // (served as a download). Offline still falls back to /~offline via the
+    // `fallbacks` config (NetworkOnly throws on network failure → fallback).
+    {
+      matcher: ({ request }) => request.mode === "navigate",
+      handler: new NetworkOnly(),
+    },
     // CDN poster/backdrop images — cache-first, long-lived
     {
       matcher: ({ url }) =>
@@ -72,3 +84,44 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// --- Web push (phase 1) -----------------------------------------------------
+// Added additively after Serwist setup — does not touch the precache/runtime
+// caching above. Payloads are spoiler-safe by construction (see notify.ts).
+interface PushData {
+  title?: string;
+  body?: string;
+  url?: string;
+}
+
+self.addEventListener("push", (event) => {
+  let data: PushData = {};
+  try {
+    data = (event.data?.json() as PushData) ?? {};
+  } catch {
+    // non-JSON push — show generic
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "Movie Browser", {
+      body: data.body ?? "",
+      icon: "/images/android-chrome-192x192.png",
+      badge: "/images/android-chrome-192x192.png",
+      data: { url: data.url ?? "/notifications" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data as { url?: string } | undefined)?.url ?? "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => "focus" in c);
+      if (existing) {
+        void existing.navigate(url);
+        return existing.focus();
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});

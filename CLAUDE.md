@@ -6,7 +6,7 @@ AI-first movie/TV discovery platform built with Next.js 15, React 19, TypeScript
 
 - **Framework**: Next.js 15 (App Router) + React 19 + TypeScript (strict)
 - **AI Agent**: LangGraph.js + MemorySaver checkpointer + AWS Bedrock (Kimi K2.5, default) or OpenRouter (fallback) + Tavily (web search/extract, 1000 credits/month free tier)
-- **Database**: PostgreSQL (Prisma 6.x) + pgvector — sole datastore since GA (2026-06-10). Legacy MongoDB archived to S3; code paths flag-gated off, deletion pending (see Post-GA Cleanup)
+- **Database**: PostgreSQL (Prisma 6.x) + pgvector — sole datastore since GA (2026-06-10). Legacy MongoDB archived to S3; code paths flag-gated off, deletion pending (see Post-GA Cleanup). Social/community tables added on `feat/social-phase0` (not yet in prod): `watch_events`, `series_progress`, `user_ratings` (extended w/ `score`), `user_reviews`, `comments`, `reactions`, `lists`/`list_items`, `follows`, `blocks`, `notifications`, `reports`, `username_history`, `audit_log`, `user_stats`, `import_jobs`, `push_subscriptions`, `thread_summaries` (UserTasteVector is Phase 2, not yet present). See `social-features.md`.
 - **Embeddings**: Cohere Embed v4 via Bedrock (`global.cohere.embed-v4:0`, 1024 dims)
 - **State**: Zustand (client) + TanStack Query (server)
 - **UI**: shadcn/ui + Tailwind CSS v4 + Framer Motion
@@ -38,6 +38,11 @@ yarn popularity:sync          # Sync TMDB popularity (daily cron)
 
 # Embeddings
 npx tsx scripts/generate-cohere-embeddings.ts --type both --xlarge --force
+
+# Social features — LOCAL-ONLY (dev DB on :5436; NEVER prod — .env DATABASE_URL tunnels to PROD)
+DATABASE_URL='postgresql://dev:dev@localhost:5436/moviebrowser' npx tsx scripts/seed-social-demo.ts   # idempotent demo data (refuses unless URL has 5436)
+DATABASE_URL='...5436' USER_DATA_SOURCE=postgres ENABLE_MONGODB_ENRICHMENT=false yarn dev   # run app against dev DB — see docs/LOCAL_REVIEW.md
+ENABLE_TEST_AUTH=true <above> yarn dev   # then GET/POST /api/test-auth/login for an E2E session (triple-gated; crashes boot if set in prod)
 ```
 
 ## Infrastructure
@@ -102,6 +107,8 @@ src/
 **Search System**: 3-tier intent classification (regex 70% → embedding 25% → LLM 5%), 14+ filter types, query expansion, fast autocomplete (<100ms). See `.claude/rules/search-system.md`.
 
 **AI Insights**: Tag-based architecture with `ai_data` + `ai_insights` tables. 8 categories, 3 spoiler levels (FREE/LIGHT/HEAVY). See `.claude/rules/ai-insights.md`.
+
+**Social & Community Features (Phase 0/1 — branch `feat/social-phase0`, not yet in prod)**: Tracking core (`watch_events` diary + `series_progress` watermark + `user_ratings` score/thumb), public profiles `/u/[username]`, reviews, spoiler-gated threaded discussion (per-episode SEO pages w/ `DiscussionForumPosting` JSON-LD), notifications + web push, blocks/mute, AI moderation gate + reports queue, lists/Four-Favorites, CSV import/export, and a generic trigger-based audit backbone. **Hard invariants a UI session must not break**: (1) ISR-cached surfaces (`/u/*`, movie/series, discuss pages) carry NO viewer data in cacheable HTML — viewer state hydrates client-side via server actions, no `auth()`/`headers()` in those render trees; (2) discussion is spoiler-gated by the viewer's watch progress, anon-cacheable tier = `spoilerScope=NONE` + `PUBLISHED` + `circleId IS NULL` only; (3) user/episode data uses natural keys (`series_id, season_number, episode_number` + soft `tmdb_episode_id`) — NEVER FK to `episodes`/`seasons` (hydration delete+reinserts them); (4) social needs `USER_DATA_SOURCE=postgres` (`requirePgUserId`); (5) audited mutations run through `auditedTransaction`; (6) AI runs only on submit (gate, rate-limited) or click (thread summary, cached) — never on render/crawler paths. Full reference: `.claude/rules/social-features.md` + `.claude/rules/audit-log.md`. Spec: `docs/superpowers/specs/2026-06-12-social-virality-roadmap-design.md`; plans + resume board: `docs/superpowers/plans/`.
 
 **Theming**: 3-tier system (mode/style/accent), OKLch color space, hero gradients. See `.claude/rules/theming.md`.
 
@@ -199,6 +206,8 @@ Path-scoped rules in `.claude/rules/` load automatically when editing matching f
 | `type-safety.md` | `**/*.ts`, `**/*.tsx` | No `any`, type guards, Zod |
 | `infrastructure.md` | `terraform/**`, `docker-compose.yml`, `deploy-next.sh`, workflows | EC2, Docker, CI/CD, IAM, memory budget |
 | `analytics-system.md` | `analytics/**`, `use-analytics.ts`, `api/analytics/**`, `admin/analytics/**` | Event tracking, cost tracking, ClickHouse queries, dashboard |
+| `audit-log.md` | `postgres/init/05-audit.sql`, `server/db/audit.ts`, `audit.test.ts`, `apply-audit.ts`, `deploy-ec2.yml` | Generic trigger-based `audit_log` backbone: opt-in per table, actor capture via `auditedTransaction`, NEVER-audit-catalog rule, no-FK-on-actor rationale, hash-gated deploy |
+| `social-features.md` | `server/actions/{tracking,profile,reviews,reviews-helpers,review-reactions,catalog-search,comments,social,...}.ts`, `server/db/postgres/social/**`, `server/db/postgres/comments.ts`, `server/services/{discussion,moderation,import,notifications}/**`, `components/features/{tracking,profile,settings,reviews,discussion,rich-text,notifications,stats,home}/**`, `app/u/**`, `app/{diary,stats,settings,notifications}/**`, `lib/user-id.ts`, `postgres/init/04-ugc-constraints.sql` | Social/community stack (Phase 0/1, branch `feat/social-phase0`): tracking core, profiles, **reviews (rich composer: rating+heart+title on the shared `features/rich-text/` editor)**, spoiler-gated discussion, moderation, notifications/push, blocks, lists/Four-Favorites, import/export. The hard invariants (edge-cache, spoiler-gate, natural-key episodes, requirePgUserId, audit actor, AI cost-safety, rating-write) + local-dev + pre-deploy checklist |
 | `performance.md` | `app/**`, `server/**`, `hydration/**`, `search/**`, `docker-compose.yml`, workflows | Diagnosing/fixing/testing perf: measure-first playbook, ISR, non-blocking hydration, ClickHouse CPU cap, deploy gotchas, cold-start stampede + freeze recovery |
 | `cdn.md` | `terraform/cloudfront*`, `Caddyfile`, `public/robots.txt`, `next.config.mjs` | CloudFront in front of the origin: topology, the RSC/Set-Cookie/cookie/image/server-action-skew/geo/Accept-Encoding/stale-if-error footguns, edge bot-shedding, origin lockdown (unresolved), cost (Cloudflare-vs-CloudFront) |
 
@@ -249,6 +258,8 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 | `popularity-sync` | 21:00 UTC (02:30 IST) | TMDB daily exports → update popularity (streaming, diff-only) |
 | `sitemap-generator` | 22:00 UTC (03:30 IST) | Generate sitemaps from PG (quality-gated top 50k movies / 25k series / 25k persons via `SITEMAP_*_LIMIT` envs, honest `lastmod` from `updated_at`, 50k-URL file chunking) |
 | `isr-cache-prune` | 23:00 UTC (04:30 IST) | Keep `.next/server/app/{movie,series,person}` under `ISR_CACHE_BUDGET_MB` (5GB). Jun 10 2026: unbounded ISR cache hit 41GB → disk-full outage loop |
+| `episode-drop-notify` | 05:00 UTC (10:30 IST) | Diff newly-aired episodes → EPISODE_DROP notifications for viewers tracking the series (bounded, idempotent) |
+| `cue-seed` | **DISABLED (not scheduled)** | Seed ONE spoiler-free Cue opener on top-N trending virgin titles (idempotent; one Bedrock Flex call per seed). Code kept; PM2 entry **commented out** in `ecosystem.config.cjs` per a 2026-06-15 product decision — the only AI-generated kickoff stays OFF until explicitly enabled. Run manually: `FORCE_RUN=1 npx tsx scripts/seed-cue-comments.ts --limit=20`. |
 
 All run under `nice -n 19` and carry a **cron-window guard** (`CRON_HOUR_UTC`
 env, checked in the scripts): PM2 re-runs cron jobs once on every `pm2 start`

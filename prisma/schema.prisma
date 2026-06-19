@@ -102,11 +102,13 @@ model Person {
   gender       Int? // 0=unknown, 1=female, 2=male, 3=non-binary
   homepage     String?
 
-  credits       Credit[]
-  aliases       PersonAlias[]
-  externalIds   ExternalId[]
-  images        Image[]
-  seriesCreated SeriesCreator[]
+  credits               Credit[]
+  aliases               PersonAlias[]
+  externalIds           ExternalId[]
+  images                Image[]
+  seriesCreated         SeriesCreator[]
+  listItems             ListItem[]
+  commentEntityMentions CommentEntityMention[]
 
   @@index([name])
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_persons_name_trgm")
@@ -260,11 +262,15 @@ model Movie {
   aiData            AiData?
 
   // User relations
-  watchlistItems   WatchlistItem[]
-  watchedByUsers   WatchedMovie[]
-  userRatings      UserRating[]
-  recentViews      RecentItem[]
-  continueWatching ContinueWatching[]
+  watchlistItems        WatchlistItem[]
+  userRatings           UserRating[]
+  recentViews           RecentItem[]
+  continueWatching      ContinueWatching[]
+  watchEvents           WatchEvent[]
+  userReviews           UserReview[]
+  comments              Comment[]
+  listItems             ListItem[]
+  commentEntityMentions CommentEntityMention[]
 
   @@index([popularity(sort: Desc)])
   @@index([releaseDate(sort: Desc)])
@@ -436,10 +442,16 @@ model Series {
   aiData            AiData?
 
   // User relations
-  watchlistItems   WatchlistItem[]
-  userRatings      UserRating[]
-  recentViews      RecentItem[]
-  continueWatching ContinueWatching[]
+  watchlistItems        WatchlistItem[]
+  userRatings           UserRating[]
+  recentViews           RecentItem[]
+  continueWatching      ContinueWatching[]
+  watchEvents           WatchEvent[]
+  seriesProgress        SeriesProgress[]
+  userReviews           UserReview[]
+  comments              Comment[]
+  listItems             ListItem[]
+  commentEntityMentions CommentEntityMention[]
 
   @@index([popularity(sort: Desc)])
   @@index([firstAirDate(sort: Desc)])
@@ -970,17 +982,17 @@ model AiInsight {
 // =============================================================================
 
 model User {
-  id               Int      @id @default(autoincrement())
-  googleId         String   @unique @map("google_id")
-  email            String   @unique
+  id               Int       @id @default(autoincrement())
+  googleId         String    @unique @map("google_id")
+  email            String    @unique
   name             String?
   image            String?
   emailVerified    DateTime? @map("email_verified")
-  role             UserRole @default(USER)
-  username         String?  @unique
+  role             UserRole  @default(USER)
+  username         String?   @unique
   bio              String?
-  isPublic         Boolean  @default(true) @map("is_public")
-  preferredCountry String?  @map("preferred_country")
+  isPublic         Boolean   @default(true) @map("is_public")
+  preferredCountry String?   @map("preferred_country")
 
   // Flexible metadata for profile info + future preferences
   // Structure: { profile: { familyName, givenName, location }, preferences: { theme, ... } }
@@ -993,7 +1005,6 @@ model User {
   accounts         Account[]
   sessions         Session[]
   watchlistItems   WatchlistItem[]
-  watchedMovies    WatchedMovie[]
   ratings          UserRating[]
   recentItems      RecentItem[]
   continueWatching ContinueWatching[]
@@ -1006,7 +1017,69 @@ model User {
   followers              Follow[]       @relation("following")
   following              Follow[]       @relation("followers")
 
+  watchEvents        WatchEvent[]
+  seriesProgress     SeriesProgress[]
+  userStats          UserStats?
+  userReviews        UserReview[]
+  comments           Comment[]
+  reactions          Reaction[]
+  ownedLists         List[]
+  listItemsAdded     ListItem[]       @relation("listItemAddedBy")
+  importJobs         ImportJob[]
+  notifications      Notification[]   @relation("notificationRecipient")
+  notificationsActed Notification[]   @relation("notificationActor")
+  reportsFiled       Report[]
+  blocksMade         Block[]          @relation("blocker")
+  blocksReceived     Block[]          @relation("blocked")
+  pushSubscriptions  PushSubscription[]
+  usernameHistory    UsernameHistory[]
+  commentReads       CommentRead[]
+
   @@map("users")
+}
+
+// Username-change history trail (Twitter-style): every prior handle a user
+// has left behind, recorded when they change away from it. See claimUsername
+// in src/server/actions/profile.ts.
+model UsernameHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  username  String
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, changedAt(sort: Desc)])
+  @@map("username_history")
+}
+
+// Generic, trigger-based audit backbone (industry-standard "if_modified"
+// pattern). Written by the audit.if_modified() plpgsql trigger (see
+// postgres/init/05-audit.sql) on an OPT-IN set of low-churn, human-meaningful
+// tables — NEVER on catalog/hydration tables (movies/series/etc.), which are
+// delete+reinserted en masse and would flood this log. Coexists with the typed
+// `username_history` shadow table. See .claude/rules/audit-log.md.
+//
+// actorId has NO @relation / FK on purpose: the audit trail must OUTLIVE the
+// actor's user row (a deleted user's actions must still be attributable), and a
+// cascade/restrict on user deletion would either erase or block the trail. It
+// is captured at mutation time via `SET LOCAL "audit.actor_id"` (see
+// src/server/db/audit.ts) and degrades gracefully to NULL when unset.
+model AuditLog {
+  id             BigInt   @id @default(autoincrement())
+  tableName      String   @map("table_name")
+  rowId          String   @map("row_id")
+  operation      String
+  changedAt      DateTime @default(now()) @map("changed_at")
+  actorId        Int?     @map("actor_id")
+  oldData        Json?    @map("old_data")
+  newData        Json?    @map("new_data")
+  changedColumns String[] @default([]) @map("changed_columns")
+
+  @@index([tableName, rowId, changedAt(sort: Desc)])
+  @@index([actorId, changedAt(sort: Desc)])
+  @@index([changedAt(sort: Desc)])
+  @@map("audit_log")
 }
 
 // Auth.js adapter models (required for PrismaAdapter at GA)
@@ -1056,6 +1129,8 @@ model WatchlistItem {
   userId   Int      @map("user_id")
   movieId  Int?     @map("movie_id")
   seriesId Int?     @map("series_id")
+  position Int? // gapped integers (n*1024); addedAt fallback when NULL
+  note     String? // Trakt import fidelity
   addedAt  DateTime @default(now()) @map("added_at")
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1065,40 +1140,40 @@ model WatchlistItem {
   @@unique([userId, movieId])
   @@unique([userId, seriesId])
   @@index([userId, addedAt(sort: Desc)])
+  @@index([userId, position])
   @@map("watchlist")
 }
 
-// Keep separate - watched movies is movie-only feature currently
-model WatchedMovie {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  movieId   Int      @map("movie_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, movieId])
-  @@index([userId, createdAt(sort: Desc)])
-  @@map("watched_movies")
-}
-
-// Already polymorphic - keep as-is
+// Canonical "your rating" per unit at ANY granularity (movie / series / season
+// / episode). Drives the card badge + taste vector. The historical per-viewing
+// twin lives in watch_events.score. Series-unit uniqueness is a granular
+// partial UNIQUE NULLS NOT DISTINCT in 04-ugc-constraints.sql (Prisma can't
+// express it); the movie compound unique below is sufficient for movies.
 model UserRating {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  movieId   Int?     @map("movie_id")
-  seriesId  Int?     @map("series_id")
-  rating    Int // 1 = like, -1 = dislike
-  createdAt DateTime @default(now()) @map("created_at")
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  movieId       Int?      @map("movie_id")
+  seriesId      Int?      @map("series_id")
+  seasonNumber  Int?      @map("season_number") // null = series-level
+  episodeNumber Int?      @map("episode_number") // null = season-level / series-level
+  tmdbEpisodeId Int?      @map("tmdb_episode_id") // soft ref, NO relation
+  mediaType     MediaType @map("media_type")
+  rating        Int? // thumb: 1 = like, -1 = dislike (nullable: score-only rows exist)
+  score         Int? // 1-10 (Letterboxd 0.5-5 stars import as stars*2)
+  liked         Boolean   @default(false)
+  ratedAt       DateTime? @map("rated_at") // import-honest; Wrapped reads it
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie  Movie?  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   series Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
   @@unique([userId, movieId])
-  @@unique([userId, seriesId])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, seriesId, seasonNumber, episodeNumber])
+  @@index([seriesId])
+  @@index([movieId, score])
+  @@index([seriesId, seasonNumber, score])
   @@map("user_ratings")
 }
 
@@ -1157,6 +1232,434 @@ model SavedFilter {
 }
 
 // =============================================================================
+// PHASE 0 — TRACKING CORE (spec: docs/superpowers/specs/2026-06-12-social-virality-roadmap-design.md §4.2)
+// Invariant 1: NEVER FK user data onto episodes/seasons rows (hydration
+// delete+reinserts them). Natural keys (series_id, season_number,
+// episode_number) + tmdb_episode_id as soft no-FK reference.
+// =============================================================================
+
+// The diary: one row per watch occurrence; rewatch = new row.
+model WatchEvent {
+  id                 Int                @id @default(autoincrement())
+  userId             Int                @map("user_id")
+  movieId            Int?               @map("movie_id")
+  seriesId           Int?               @map("series_id")
+  seasonNumber       Int?               @map("season_number")
+  episodeNumber      Int?               @map("episode_number")
+  tmdbEpisodeId      Int?               @map("tmdb_episode_id") // soft ref, NO relation (stable across TMDB renumbering)
+  watchedAt          DateTime?          @map("watched_at") // nullable: dateless imports exist
+  watchedAtPrecision WatchedAtPrecision @default(DATETIME) @map("watched_at_precision")
+  // date-only values stored at 12:00 UTC (no IST day-shift) — src/lib/watch-dates.ts
+  note               String? // PRIVATE per-watch note
+  tags               String[]           @default([]) // stored for import fidelity; no UI yet
+  isRewatch          Boolean            @default(false) @map("is_rewatch")
+  isPrivate          Boolean            @default(false) @map("is_private")
+  source             WatchEventSource   @default(LOGGED)
+  kind               WatchEntryKind     @default(WATCH) // WATCH = a viewing; NOTE = a non-viewing diary entry (rating/note)
+  mediaType          MediaType          @map("media_type") // explicit discriminant (MOVIE ⇔ movieId, SERIES ⇔ seriesId)
+  runtimeMinutes     Int?               @map("runtime_minutes") // snapshot at watch time (decouples "hours watched" from catalog churn)
+  releaseYear        Int?               @map("release_year") // snapshot for decade analytics without a catalog join
+  cycle              Int                @default(1) // rewatch-cycle ordinal: 1 = first watch-through, 2 = first rewatch, …
+  score              Int?               // optional rating captured AT this viewing (1-10); canonical rating lives in user_ratings
+  createdAt          DateTime           @default(now()) @map("created_at")
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie   Movie?       @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  series  Series?      @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  reviews UserReview[]
+
+  @@index([userId, watchedAt(sort: Desc)])
+  @@index([userId, movieId])
+  @@index([userId, seriesId, seasonNumber, episodeNumber])
+  @@index([seriesId, tmdbEpisodeId]) // reconcile pass
+  @@index([movieId])
+  @@index([seriesId])
+  @@index([movieId, watchedAt(sort: Desc)]) // cross-user "most-logged" analytics
+  @@index([seriesId, watchedAt(sort: Desc)])
+  @@index([mediaType, watchedAt(sort: Desc)])
+  @@map("watch_events")
+}
+
+// Materialized progress, one row per (user, series). Split pointers: spoiler
+// gate reads ONLY the lifetime watermark (max*); Up Next reads current cycle.
+model SeriesProgress {
+  userId            Int         @map("user_id")
+  seriesId          Int         @map("series_id") // FK to series OK (parent rows stable across hydration)
+  status            WatchStatus
+  statusIsManual    Boolean     @default(false) @map("status_is_manual")
+  lastSeasonNumber  Int?        @map("last_season_number")
+  lastEpisodeNumber Int?        @map("last_episode_number")
+  episodesWatched   Int         @default(0) @map("episodes_watched")
+  maxSeasonNumber   Int?        @map("max_season_number")
+  maxEpisodeNumber  Int?        @map("max_episode_number")
+  rewatchStartedAt  DateTime?   @map("rewatch_started_at") // Trakt reset_at semantics; NEVER deletes events
+  rewatchCount      Int         @default(0) @map("rewatch_count")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@id([userId, seriesId])
+  @@index([userId, status, updatedAt(sort: Desc)]) // Up Next / shelves
+  @@index([seriesId])
+  @@map("series_progress")
+}
+
+// Lazy stats snapshot: watch-event writes set dirty; recompute on read when
+// dirty or >24h. Public profiles/Wrapped render from snapshot only.
+model UserStats {
+  userId     Int      @id @map("user_id")
+  stats      Json
+  computedAt DateTime @map("computed_at")
+  dirty      Boolean  @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+// =============================================================================
+// PHASE 0 — UGC & SOCIAL ANCHORS
+// Invariant 4: UGC→catalog FKs are Restrict (a catalog delete must be a
+// deliberate decision, never a silent UGC purge). Cheap user state → Cascade.
+// Invariant 7: typed nullable anchor columns, never generic (itemId, itemType).
+// =============================================================================
+
+// Distinct entity, NOT a comment variant. First AI-gate consumer. Generalized
+// to ANY granularity (movie / series / season / episode) and to per-viewing
+// multiplicity: ONE canonical unit-level review (watchEventId NULL) per unit,
+// PLUS optional extra reviews each tied to a distinct watch_event (per-rewatch
+// reviews). Uniqueness is a granular partial UNIQUE NULLS NOT DISTINCT keyed on
+// (user, unit, watch_event_id) in 04-ugc-constraints.sql — Prisma can't express
+// it, so there is NO @@unique here. See unification design §4.3 / §6.
+model UserReview {
+  id               Int           @id @default(autoincrement())
+  userId           Int           @map("user_id")
+  movieId          Int?          @map("movie_id")
+  seriesId         Int?          @map("series_id")
+  seasonNumber     Int?          @map("season_number")
+  episodeNumber    Int?          @map("episode_number") // null = season-level / series-level
+  tmdbEpisodeId    Int?          @map("tmdb_episode_id") // soft ref, NO relation
+  mediaType        MediaType     @map("media_type")
+  body             String        @db.Text
+  title              String?      @db.VarChar(140)
+  spoilerScope       SpoilerScope @default(NONE) @map("spoiler_scope")
+  scopeSeason        Int?         @map("scope_season")
+  scopeEpisode       Int?         @map("scope_episode")
+  scopeTmdbEpisodeId Int?         @map("scope_tmdb_episode_id")
+  images             Json?
+  likeCount          Int          @default(0) @map("like_count")
+  isPrivate        Boolean       @default(false) @map("is_private")
+  watchEventId     Int?          @map("watch_event_id") // Letterboxd diary↔review linkage; NULL = canonical unit review
+  status           CommentStatus @default(PENDING_REVIEW)
+  aiLabels         Json?         @map("ai_labels")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  editedAt         DateTime?     @map("edited_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie      Movie?      @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  series     Series?     @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  watchEvent WatchEvent? @relation(fields: [watchEventId], references: [id], onDelete: SetNull)
+  reports    Report[]
+  reactions  Reaction[]
+
+  @@index([movieId, status, createdAt(sort: Desc)])
+  @@index([seriesId, seasonNumber, episodeNumber, status, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([seriesId])
+  @@index([watchEventId])
+  @@index([movieId, status, likeCount(sort: Desc)])
+  @@index([seriesId, seasonNumber, status, likeCount(sort: Desc)])
+  @@map("user_reviews")
+}
+
+// Phase-1 anchor, designed now. NO UI until phase 1. Comments are NEVER
+// hard-deleted in app code — deletion = status DELETED_BY_USER + body scrubbed.
+model Comment {
+  id                 Int           @id @default(autoincrement())
+  userId             Int?          @map("user_id") // nullable: SetNull on account deletion (reply trees survive)
+  movieId            Int?          @map("movie_id")
+  seriesId           Int?          @map("series_id")
+  seasonNumber       Int?          @map("season_number")
+  episodeNumber      Int?          @map("episode_number")
+  listId             Int?          @map("list_id") // phase 2
+  circleId           Int?          @map("circle_id") // phase 3: visibility scope OR standalone anchor
+  parentId           Int?          @map("parent_id") // replies DENORMALIZE anchor columns from root
+  body               String        @db.Text
+  spoilerScope       SpoilerScope  @default(NONE) @map("spoiler_scope")
+  scopeSeason        Int?          @map("scope_season")
+  scopeEpisode       Int?          @map("scope_episode")
+  scopeTmdbEpisodeId Int?          @map("scope_tmdb_episode_id") // renumber reconcile
+  status             CommentStatus @default(PUBLISHED)
+  aiLabels           Json?         @map("ai_labels")
+  likeCount          Int           @default(0) @map("like_count") // atomic increments only
+  replyCount          Int           @default(0) @map("reply_count") // denorm: published replies (roots only meaningful)
+  recentActivityCount Int           @default(0) @map("recent_activity_count") // cumulative engagement counter (atomic bump on each published reply). NOT decayed in-column; rolling Trending is achieved at read time via recency decay over lastActivityAt (services/discussion/trending.ts). No cron.
+  lastActivityAt      DateTime?     @map("last_activity_at") // newest published descendant or self; drives the read-time Trending recency decay
+  editedAt           DateTime?     @map("edited_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  // Phase B (2026-06-15): catalog-image attachment (TMDB file-path ref + typed entity id).
+  // Zero upload — render prefixes TMDB_IMAGE_BASE. attachmentEntityType is the discriminant.
+  attachmentEntityType String? @map("attachment_entity_type") // "movie" | "series" | "episode" | "person"
+  attachmentMovieId    Int?    @map("attachment_movie_id")
+  attachmentSeriesId   Int?    @map("attachment_series_id")
+  attachmentPersonId   Int?    @map("attachment_person_id")
+  attachmentImagePath  String? @map("attachment_image_path")
+
+  user           User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  movie          Movie?                 @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  series         Series?                @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  list           List?                  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  circle         Circle?                @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  parent         Comment?               @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies        Comment[]              @relation("CommentReplies")
+  reactions      Reaction[]
+  reports        Report[]
+  entityMentions CommentEntityMention[]
+
+  // circleId INSIDE the composite (public reads use circle_id IS NULL as index condition)
+  @@index([movieId, circleId, status, createdAt(sort: Desc)])
+  @@index([seriesId, seasonNumber, episodeNumber, circleId, status, createdAt(sort: Desc)])
+  @@index([movieId, circleId, status, lastActivityAt(sort: Desc)], map: "idx_comments_movie_trending")
+  @@index([seriesId, seasonNumber, episodeNumber, circleId, status, lastActivityAt(sort: Desc)], map: "idx_comments_series_trending")
+  @@index([parentId])
+  @@index([listId])
+  @@index([circleId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([attachmentMovieId])
+  @@index([attachmentSeriesId])
+  @@index([attachmentPersonId])
+  // Hub "New" cross-catalog sort: (circleId,status,spoilerScope,parentId) filter + createdAt DESC scan
+  @@index([circleId, status, spoilerScope, parentId, createdAt(sort: Desc)], map: "idx_comments_hub_new")
+  @@map("comments")
+}
+
+// Phase B (2026-06-15): typed @-entity mention join. NEVER generic (itemId,itemType).
+// Episodes use NATURAL KEYS (series_id, season_number, episode_number) — NEVER FK to
+// episodes/seasons (hydration delete+reinserts them). FK only to stable catalog parents.
+model CommentEntityMention {
+  id            Int      @id @default(autoincrement())
+  commentId     Int      @map("comment_id")
+  movieId       Int?     @map("movie_id")
+  seriesId      Int?     @map("series_id")
+  personId      Int?     @map("person_id")
+  seasonNumber  Int?     @map("season_number")
+  episodeNumber Int?     @map("episode_number")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  comment Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  movie   Movie?   @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  series  Series?  @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  person  Person?  @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@index([commentId])
+  @@index([movieId])
+  @@index([seriesId])
+  @@index([personId])
+  @@map("comment_entity_mentions")
+}
+
+model Reaction {
+  id        Int          @id @default(autoincrement())
+  userId    Int          @map("user_id")
+  commentId Int?         @map("comment_id") // reviewId?/listId? later — adding nullable anchors is the cheap op
+  reviewId  Int?         @map("review_id")
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  review    UserReview?  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@unique([userId, reviewId])
+  @@index([commentId]) // standalone: the unique leading with userId does not cover cascade scans
+  @@index([reviewId])
+  @@map("reactions")
+}
+
+// Per-(user, anchor) read cursor powering "N new since you watched" (spec §4).
+// anchorKey is the string form from comment-schemas.anchorKey() — natural-key
+// safe (no FK to episodes/seasons). NOT in the audit opt-in set (a read cursor
+// is not human-meaningful history).
+model CommentRead {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  anchorKey  String   @map("anchor_key") // "movie:603" | "series:1396:s2e5" | ...
+  lastSeenAt DateTime @map("last_seen_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, anchorKey])
+  @@index([userId])
+  @@map("comment_reads")
+}
+
+// Phase-2 anchor, designed now. Four Favorites = List(kind: FOUR_FAVORITES).
+model List {
+  id              Int      @id @default(autoincrement())
+  ownerId         Int      @map("owner_id")
+  circleId        Int?     @map("circle_id") // phase-3 group lists
+  kind            ListKind @default(REGULAR)
+  name            String
+  slug            String
+  description     String?
+  isPublic        Boolean  @default(false) @map("is_public")
+  isCollaborative Boolean  @default(false) @map("is_collaborative")
+  isRanked        Boolean  @default(false) @map("is_ranked")
+  isPinned        Boolean  @default(false) @map("is_pinned") // showcased on profile
+  itemCount       Int      @default(0) @map("item_count")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  owner    User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  circle   Circle?    @relation(fields: [circleId], references: [id], onDelete: SetNull)
+  items    ListItem[]
+  comments Comment[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId])
+  @@index([circleId])
+  @@map("lists")
+}
+
+model ListItem {
+  id        Int      @id @default(autoincrement()) // surrogate PK: reorders must not churn the PK
+  listId    Int      @map("list_id")
+  movieId   Int?     @map("movie_id")
+  seriesId  Int?     @map("series_id")
+  personId  Int?     @map("person_id") // person lists: real Letterboxd gap
+  position  Int // gapped integers (n*1024): drag = 1 UPDATE
+  note      String?
+  addedById Int?     @map("added_by_id")
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  list    List    @relation(fields: [listId], references: [id], onDelete: Cascade)
+  movie   Movie?  @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  series  Series? @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  person  Person? @relation(fields: [personId], references: [id], onDelete: Restrict)
+  addedBy User?   @relation("listItemAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([listId, movieId])
+  @@unique([listId, seriesId])
+  @@unique([listId, personId])
+  @@index([listId, position])
+  @@index([movieId])
+  @@index([seriesId])
+  @@index([personId])
+  @@index([addedById])
+  @@map("list_items")
+}
+
+model ImportJob {
+  id          Int             @id @default(autoincrement())
+  userId      Int             @map("user_id")
+  source      ImportSource
+  status      ImportJobStatus @default(PENDING)
+  fileRef     String          @map("file_ref") // local path now, S3 key later — raw upload retained as lossless fallback
+  stats       Json? // {rowsTotal, imported, skipped, errors[]}
+  createdAt   DateTime        @default(now()) @map("created_at")
+  completedAt DateTime?       @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("import_jobs")
+}
+
+// Write-on-event ONLY, bounded by direct recipients (invariant 6: no fan-out).
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("user_id") // recipient
+  type      NotificationType
+  actorId   Int?             @map("actor_id")
+  payload   Json
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user  User  @relation("notificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("notificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@index([actorId])
+  @@map("notifications")
+}
+
+model Report {
+  id         Int          @id @default(autoincrement())
+  reporterId Int          @map("reporter_id")
+  commentId  Int?         @map("comment_id")
+  reviewId   Int?         @map("review_id") // reviews are public UGC from phase 0
+  reason     ReportReason
+  note       String?
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  reporter User        @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  comment  Comment?    @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  review   UserReview? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([commentId])
+  @@index([reviewId])
+  @@index([status, createdAt]) // mod queue
+  @@map("reports")
+}
+
+// Safety table stakes (the retrofit trap). BLOCK = mutual invisibility;
+// MUTE = one-way hide. Every social read path filters via blocks.ts helpers.
+model Block {
+  id        Int       @id @default(autoincrement())
+  blockerId Int       @map("blocker_id")
+  blockedId Int       @map("blocked_id")
+  type      BlockType @default(BLOCK)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+// Web-push subscriptions (phase 1). One row per browser endpoint.
+model PushSubscription {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// Cached AI thread summaries (phase 1). Keyed by anchor + the viewer's
+// spoiler-scope bucket so a summary is only ever served to viewers whose
+// visible-comment set is a superset of its input.
+model ThreadSummary {
+  id              Int      @id @default(autoincrement())
+  anchorKey       String   @map("anchor_key") // "movie:603" | "series:1396" | "series:1396:s2e5"
+  scopeKey        String   @map("scope_key")  // "none" | "watched" | "completed" | "s2e5"
+  summary         String   @db.Text
+  commentCount    Int      @map("comment_count")
+  newestCommentId Int      @map("newest_comment_id")
+  modelId         String?  @map("model_id")
+  generatedAt     DateTime @default(now()) @map("generated_at")
+
+  @@unique([anchorKey, scopeKey])
+  @@map("thread_summaries")
+}
+
+// =============================================================================
 // SOCIAL MODELS (unchanged)
 // =============================================================================
 
@@ -1194,13 +1697,18 @@ model Circle {
   id          Int      @id @default(autoincrement())
   ownerId     Int      @map("owner_id")
   name        String
+  slug        String?  @unique
+  inviteCode  String?  @unique @map("invite_code") // shareable join links (phase-3 acquisition loop)
+  imageUrl    String?  @map("image_url")
   description String?
   isPublic    Boolean  @default(false) @map("is_public")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  owner   User           @relation("circleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members CircleMember[]
+  owner    User           @relation("circleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  CircleMember[]
+  lists    List[]
+  comments Comment[]
 
   @@index([ownerId])
   @@map("circles")
@@ -1288,4 +1796,141 @@ enum SpoilerLevel {
   FREE
   LIGHT
   HEAVY
+}
+
+enum WatchStatus {
+  WATCHING
+  CAUGHT_UP
+  COMPLETED
+  DROPPED
+  PAUSED
+  REWATCHING
+}
+
+enum WatchEventSource {
+  LOGGED
+  BACKFILL
+  IMPORT
+}
+
+// A diary entry is NOT necessarily a viewing. WATCH = an actual watch
+// (counts toward progress, hours, watched-state, spoiler gate). NOTE = a dated
+// diary entry that does NOT assert viewing (log just a rating, a note, or a
+// thought) — excluded from progress/hours/watched-state. See unification
+// design §6 (don't force a watch for a diary entry).
+enum WatchEntryKind {
+  WATCH
+  NOTE
+}
+
+// Explicit discriminant for user-data rows (watch_events, user_ratings,
+// user_reviews). Today these infer type from which nullable FK is set; an
+// explicit column makes bulk GROUP BY / partial indexes / a future ClickHouse
+// partition key trivial. See 2026-06-14-diary-log-unification-design.md §4.
+enum MediaType {
+  MOVIE
+  SERIES
+}
+
+enum WatchedAtPrecision {
+  DATETIME
+  DATE
+  UNKNOWN
+}
+
+enum SpoilerScope {
+  NONE
+  WATCHED
+  EPISODE
+  ENDING
+}
+
+enum CommentStatus {
+  PENDING_REVIEW
+  PUBLISHED
+  FLAGGED
+  REMOVED
+  DELETED_BY_USER
+}
+
+enum ListKind {
+  REGULAR
+  FOUR_FAVORITES
+}
+
+enum ImportSource {
+  LETTERBOXD
+  TRAKT
+  IMDB
+}
+
+enum ImportJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum NotificationType {
+  REPLY
+  MENTION
+  FOLLOW
+  CIRCLE_INVITE
+  CLUB_EPISODE_OPEN
+  EPISODE_DROP // a new episode/season dropped for a show the viewer tracks; "its discussion is now open"
+  LIKES_BATCH  // coalesced likes-on-my-comment (never one-per-like)
+}
+
+enum ReactionType {
+  LIKE
+}
+
+enum BlockType {
+  BLOCK
+  MUTE
+}
+
+enum ReportReason {
+  SPOILER
+  HARASSMENT
+  SPAM
+  HATE_SPEECH
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum UnfurlStatus {
+  OK
+  FAILED // SSRF-blocked / timeout / parse-fail: render as a plain safe anchor
+}
+
+enum UnfurlProvider {
+  GENERIC
+  YOUTUBE
+}
+
+/// Cached server-side link unfurls. Keyed by a sha256 of the normalized URL so
+/// a card is fetched ONCE (on comment submit) and NEVER refetched on a render or
+/// crawl path. No FK to comments — many comments may share one URL hash, and the
+/// cache outlives any single comment. Carries no viewer data → safe in ISR HTML.
+model LinkUnfurl {
+  urlHash     String        @id @map("url_hash") // sha256 hex of normalized URL
+  url         String        @db.Text
+  domain      String
+  status      UnfurlStatus  @default(OK)
+  provider    UnfurlProvider @default(GENERIC)
+  title       String?       @db.Text
+  description String?       @db.Text
+  imageUrl    String?       @map("image_url") @db.Text // stored; only rendered for allowlisted hosts (rung 7 follow-up)
+  faviconUrl  String?       @map("favicon_url") @db.Text
+  youtubeId   String?       @map("youtube_id") // set when provider = YOUTUBE
+  fetchedAt   DateTime      @default(now()) @map("fetched_at")
+
+  @@index([domain])
+  @@map("link_unfurls")
 }

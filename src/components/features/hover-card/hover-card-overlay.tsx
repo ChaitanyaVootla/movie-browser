@@ -221,7 +221,7 @@ function WatchProviderButton({
         alt={option.displayName}
         fill
         className="object-contain p-1"
-        unoptimized={option.image.startsWith("http")}
+        unoptimized
       />
     </button>
   );
@@ -321,7 +321,7 @@ function HoverCardContent({
             className="object-cover"
             sizes="440px"
             onError={() => !useFallback && backdropSources.fallback && setUseFallback(true)}
-            unoptimized={!useFallback}
+            unoptimized
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />

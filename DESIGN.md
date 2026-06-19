@@ -14,10 +14,12 @@ colors:
   on-muted: oklch(0.65 0 0)
   primary: oklch(0.95 0 0)
   on-primary: oklch(0 0 0)
-  brand: oklch(0.7 0.22 30)
-  on-brand: oklch(0.1 0 0)
+  brand: oklch(0.59 0.235 22)
+  on-brand: oklch(0.99 0 0)
+  sig: color-mix(in oklab, var(--brand) 78%, grey)
   border: oklch(1 0 0 / 10%)
   error: oklch(0.6 0.22 25)
+  success: oklch(0.72 0.17 152)
 typography:
   headline-display:
     fontFamily: Montserrat
@@ -132,10 +134,15 @@ keeps working. See `.claude/rules/theming.md`.
 The palette is intentionally monochrome. {colors.background} is the page canvas;
 {colors.surface} is for grouped regions (sidebars, wells); {colors.card} is for
 elevated cards and popovers. Text is {colors.on-surface} for primary content and
-{colors.on-muted} for metadata. {colors.brand} (warm cinematic red-orange, OKLch) is
-reserved for: accents on interactive emphasis (active states, the AI assistant, the
-tagline rule), ratings flair, and brand moments — never for large fills. Borders are
-white at 10% alpha, not gray fills.
+{colors.on-muted} for metadata. {colors.brand} (**Scarlet** — a deep cinematic red,
+OKLch hue ~22; locked 2026-06-16) is reserved for: accents on interactive emphasis
+(active states, the AI assistant, the tagline rule), ratings flair, and brand moments
+— never for large fills. Foreground over a brand fill is white ({colors.on-brand}).
+Borders are white at 10% alpha, not gray fills.
+
+The brand is now a **red**, so it MUST NOT double as the danger colour: destructive
+actions (delete, block, report, remove) use {colors.error} / `text-destructive`, never
+`text-brand`. See Social signals → Caveats and the State semantics paragraph below.
 
 Rules:
 
@@ -144,6 +151,17 @@ Rules:
 - Exception: content rendered **on top of imagery** (hero backdrops, poster overlays,
   trailer modals) may use `text-white` / `bg-black/60` because imagery is not themed.
 - All color definitions live in OKLch in `globals.css`.
+
+State semantics (`{colors.error}` red / `{colors.success}` green) are the only
+non-monochrome, non-brand colors, and they exist solely for **go/stop feedback**:
+form validation, availability checks, destructive confirmation. They are
+**accent-independent** — defined once in the base light/dark blocks and NEVER
+overridden per `.accent-*`, so "available" always reads green and "error" always
+reads red regardless of the user's chosen accent (the brand accent itself can be
+red/green/blue, so it must never carry success/error meaning). Use `text-success`
+/ `text-destructive`; never repurpose `text-brand` for a positive/negative state.
+Success is a calm, slightly-desaturated green (not neon) so it sits quietly in the
+OLED canvas. Do not use either for decoration or large fills.
 
 ## Typography
 
@@ -251,6 +269,68 @@ Base radius is 10px (`--radius: 0.625rem`). Cards and modals use {rounded.xl}
 (`rounded-xl`); buttons, inputs, and menu items use {rounded.md} (`rounded-md`);
 poster/backdrop images use `rounded-lg`; pills, chips, badges, and avatars are
 {rounded.full}. Never introduce arbitrary radii (`rounded-[Npx]`) outside the scale.
+
+## Social signals
+
+The visual vocabulary for personal state, "you vs community", and social proof —
+identical on every surface a title appears (cards, carousels, detail, profile).
+Finalized 2026-06-16 (`docs/superpowers/specs/2026-06-16-social-signals-consolidation-design.md`).
+
+**One accent, theme-led — no palette.** All personal signals ride a single dulled
+accent tone, {colors.sig} (`--sig` = `color-mix(in oklab, var(--brand) 78%, grey)`),
+plus neutral/over-imagery white. There is **no multi-hue palette** (we rejected the
+Letterboxd green/orange/blue — it fights a single-accent cinematic brand). States are
+told apart by **glyph + shape + fill**, never by hue, so they re-tint automatically
+when the accent changes.
+
+**Personal-state glyphs** (`--sig`-toned, small):
+
+| State | Glyph |
+|-------|-------|
+| Watched | grayscale poster + eye/check tick |
+| Loved | filled heart in `--sig` |
+| Rated | star whose fill is **`%`-filled** in `--sig` (the partial fill encodes the value, e.g. 70% = 3.5★) |
+| Watchlisted | bookmark |
+
+**"You" vs "community" must never look the same.** Your rating = a filled `--sig`
+star (`%`-filled to your value); the community average = **neutral** (white/muted),
+never `--sig`. The two are visually distinct at a glance on the same surface.
+
+**Poster card slots** (`MovieCard`):
+
+- **Top-right** — community vote chip (`vote_average`). Neutral. Unchanged.
+- **Bottom-left (inverted-corner scoop)** — the **personal cluster** (`%`-star + heart
+  / watched tick / bookmark). When the viewer has state it **supersedes** the
+  quality/media badge (Trending/New…); with no viewer state it falls back to that
+  badge. This kills the old BL/BR split — the bottom-right user-status badge folds in.
+- **Bottom edge** — a **3px hairline progress bar** in `--sig` for in-progress series.
+  The bottom-left chip **lifts 3px** so it never overlaps or notches the bar.
+- **Whole poster** — grayscale when watched (watched is conveyed by grayscale; the
+  chip carries rating/heart).
+
+**Wide card** — backdrop carries a **footer line of social proof** on the image
+(`💬 discussing · 👥 friends`); the title moves **below** the card (no in-card title),
+and the same `--sig` hairline progress bar sits on the bottom edge.
+
+**Community data viz** — the rating-distribution **histogram bars use true `--brand`**
+(the full-saturation Scarlet), NOT the dulled `--sig`. Only the small personal glyphs
+(your star/heart, progress bar) use `--sig`. This keeps the community signal vivid and
+the personal signal quiet.
+
+**Counts** — locale-aware via `Intl.NumberFormat` compact notation (renders lakhs /
+crore as well as K / M); **never hardcode `K`/`M`**. Apply a **threshold ≥ 5** before
+rendering any count (don't show "1 review" / "2 watching") — sub-threshold social
+proof reads as negative. Mirrors the existing discussion-badge rule.
+
+**Caveats:**
+
+- **`--brand` is red — destructive actions must not use it.** Delete / block / report /
+  remove use {colors.error} / `text-destructive` (or distinct iconography + labels),
+  never `--brand`. Audit destructive UI wherever the accent lands.
+- Personal/viewer state (your rating, progress, "friends here") **hydrates
+  client-side** — it must never bake into ISR-cacheable HTML (see
+  `.claude/rules/social-features.md` § HARD INVARIANTS, edge-cache). Global counts are
+  cacheable; personal signals are client islands.
 
 ## Components
 

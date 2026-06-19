@@ -64,6 +64,16 @@ the cap an item simply stays stale; a later visit retries. Removing this cap let
 GA-day crawler traffic queue unbounded in-process Lambda+LLM work (Node 2GB RSS,
 19s TTFB). PM2 also has a 1.5GB `max_memory_restart` guardrail on `next`.
 
+**Gotcha — the cap also gates the true-PG-MISS persist, not just stale refreshes**
+(the miss path returns TMDB data and persists via `backgroundRefreshMovie/Series`).
+So with `MAX_BACKGROUND_REFRESH=0` (the dev guard) a browsed title renders but is
+NEVER written to PG. `persistOnMissInDev` (`hydration/index.ts`) closes this in
+dev ONLY: on a true miss with `cap===0 && NODE_ENV!=="production"` it fires a
+TMDB-only (no enrichment/Lambda/SSE) fire-and-forget upsert so dev visits populate
+the local catalog. Prod (cap>0) and tests (cap defaults to 3) never hit it. See
+`.claude/rules/social-features.md` local-dev footguns 5–6 (the `countries` FK seed
+is the other half: without it the miss-path upsert FK-aborts regardless).
+
 ## Bulk Enrichment Migration (completed 2026-06-10)
 
 `scripts/migrate-mongo-enrichment.ts` moved the legacy Mongo corpus into PG

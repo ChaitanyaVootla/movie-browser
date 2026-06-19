@@ -33,6 +33,8 @@ body {
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -95,6 +97,10 @@ body {
   --accent: oklch(0.96 0 0);
   --accent-foreground: oklch(0.18 0 0);
   --destructive: oklch(0.55 0.22 25);
+  /* Success / "available" — calm green, accent-independent (never overridden
+   * per .accent-*). Paired with --destructive for go/stop form feedback. */
+  --success: oklch(0.55 0.15 152);
+  --success-foreground: oklch(0.99 0 0);
   --border: oklch(0.91 0 0);
   --input: oklch(0.91 0 0);
   --ring: oklch(0.65 0 0);
@@ -104,10 +110,16 @@ body {
   --hero-base: oklch(0.15 0 0);
   --hero-base-rgb: 28 28 28;
 
-  /* Brand color - Cinematic accent */
-  --brand: oklch(0.55 0.2 25);
+  /* Brand color - Cinematic accent (Scarlet; see specs/2026-06-16-social-signals).
+     Light mode: darker for contrast on the light/cream canvas. */
+  --brand: oklch(0.52 0.215 22);
   --brand-foreground: oklch(0.99 0 0);
-  --brand-rgb: 180 60 50;
+  --brand-rgb: 200 30 46;
+
+  /* Dulled personal-signal tone (social signals on cards): a quieted brand so
+     personal state (your rating star, loved heart, progress bar) never screams.
+     References --brand, so it re-resolves under .dark + any accent. */
+  --sig: color-mix(in oklab, var(--brand) 78%, #8a8a8a);
 
   /* Chart colors */
   --chart-1: oklch(0.55 0.2 25);
@@ -146,6 +158,10 @@ body {
   --accent: oklch(0.15 0 0);
   --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.6 0.22 25);
+  /* Success / "available" — calm green, accent-independent (never overridden
+   * per .accent-*). Brighter than light mode for the OLED canvas. */
+  --success: oklch(0.72 0.17 152);
+  --success-foreground: oklch(0.1 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.5 0 0);
@@ -155,10 +171,11 @@ body {
   --hero-base: oklch(0 0 0);
   --hero-base-rgb: 0 0 0;
 
-  /* Brand color - Warmer in dark mode */
-  --brand: oklch(0.7 0.22 30);
-  --brand-foreground: oklch(0.1 0 0);
-  --brand-rgb: 230 100 70;
+  /* Brand color - Scarlet (dark). White foreground: scarlet is deep enough that
+     white text/icons on a scarlet fill clear AA (was dark text on the old bright red). */
+  --brand: oklch(0.59 0.235 22);
+  --brand-foreground: oklch(0.99 0 0);
+  --brand-rgb: 234 36 52;
 
   /* Chart colors - Brighter for dark mode */
   --chart-1: oklch(0.7 0.22 30);
@@ -607,5 +624,143 @@ body {
 @keyframes nav-pending-in {
   to {
     opacity: 1;
+  }
+}
+
+/* Profile page section reveal: subtle staggered fade-up on load. The hero is
+   intentionally excluded (it carries the LCP backdrop and must paint
+   immediately). null-returning section components render no node, so
+   :nth-child only counts sections actually present. Respects reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .profile-stagger > * {
+    animation: profile-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .profile-stagger > *:nth-child(1) {
+    animation-delay: 0.03s;
+  }
+  .profile-stagger > *:nth-child(2) {
+    animation-delay: 0.09s;
+  }
+  .profile-stagger > *:nth-child(3) {
+    animation-delay: 0.15s;
+  }
+  .profile-stagger > *:nth-child(4) {
+    animation-delay: 0.21s;
+  }
+  .profile-stagger > *:nth-child(5) {
+    animation-delay: 0.27s;
+  }
+  .profile-stagger > *:nth-child(6) {
+    animation-delay: 0.33s;
+  }
+  .profile-stagger > *:nth-child(n + 7) {
+    animation-delay: 0.39s;
+  }
+}
+
+@keyframes profile-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Profile widget dashboard (profile-dashboard.tsx). Mobile: 2-col, widgets
+   span 1 or 2 via --m-span. Desktop: an N-col grid (--cols) where each widget
+   is placed at its explicit start column (--d-x) and spans --d-w; rows flow to
+   natural content height (dense backfills gaps). The owner editor uses
+   react-grid-layout with the same coords. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+.dash-item {
+  grid-column: span var(--m-span, 2);
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .dash-grid {
+    grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
+    grid-auto-flow: row dense;
+  }
+  .dash-item {
+    grid-column: var(--d-x) / span var(--d-w);
+  }
+}
+
+/* Tiptap comment composer: empty-state placeholder (Placeholder extension adds
+   .is-editor-empty + data-placeholder on the first empty paragraph). Uses the
+   muted-foreground token; no hardcoded color. */
+.prose-comment p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Inline-spoiler mark inside the editor (SpoilerMark → <span class="rich-spoiler">).
+   Visibly distinct while authoring — muted chip with a light blur — so the writer
+   sees what they've marked. Serializes to the [spoiler]…[/spoiler] body token; the
+   READ-ONLY renderer (rich-text-body.tsx) draws its own tap-to-reveal control, so
+   this style is editor-only. Uses semantic tokens; no hardcoded color. */
+.rich-spoiler {
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+  background-color: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  filter: blur(0.4px);
+}
+
+/* ========================================
+   VIEW TRANSITIONS — detail ↔ discussions shared-element morph
+   ========================================
+   The detail-page hero (HeroBackdropShell / HeroLogoShell) and the discussions
+   hero band (discussion-page-header.tsx) both expose `view-transition-name:
+   hero-backdrop` (backdrop) and `hero-logo` (title logo). next-view-transitions'
+   <Link> wraps the client navigation in document.startViewTransition, so the
+   browser morphs each named element from its old box (tall detail hero) into its
+   new box (shorter discussions band) — the backdrop "squishes", the logo glides.
+
+   EXPERIMENTAL + graceful: a browser without the View Transitions API simply
+   navigates normally (the library feature-detects). Everything NOT sharing a name
+   gets the UA-default cross-fade of the old/new snapshots.
+
+   Scoped to the two named groups only (no `::view-transition-group(*)`), so this
+   never re-times unrelated transitions. Short ~300ms ease so it reads as snappy,
+   not floaty. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(hero-backdrop),
+  ::view-transition-group(hero-logo) {
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* The morphing element should size to its new box smoothly; image-content
+     `object-fit` keeps the backdrop from distorting while the box reshapes. */
+  ::view-transition-old(hero-backdrop),
+  ::view-transition-new(hero-backdrop) {
+    height: 100%;
+    object-fit: cover;
+  }
+  ::view-transition-old(hero-logo),
+  ::view-transition-new(hero-logo) {
+    /* Logos are wide/transparent — fit inside the morphing box, don't stretch. */
+    object-fit: contain;
+  }
+}
+
+/* prefers-reduced-motion: KILL the morph entirely. Zero-duration on the root
+   group collapses the whole transition to an instant swap (the library still
+   calls startViewTransition, but nothing animates). */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
