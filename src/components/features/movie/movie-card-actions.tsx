@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Check, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useUserStore,
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { QuickLogButton } from "@/components/features/tracking/quick-log-button";
+import { SaveButton } from "@/components/features/lists/save-button";
 
 const MEDIA_TYPE: MediaType = "movie"; // Only movies for now
 
@@ -29,7 +30,7 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
   const inWatchlist = useUserStore(selectIsInWatchlist(itemId, MEDIA_TYPE));
   const toggleWatched = useUserStore((s) => s.toggleWatched);
   const toggleWatchlist = useUserStore((s) => s.toggleWatchlist);
-  const { trackWatchlistAdd, trackWatchlistRemove, trackWatched } = useAnalytics();
+  const { trackWatched } = useAnalytics();
 
   // Only show actions for movies and authenticated users
   if (!isMovie || !session) {
@@ -37,17 +38,6 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
   }
 
   const mediaType = MEDIA_TYPE;
-
-  const handleWatchlistClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleWatchlist(itemId, mediaType);
-    if (inWatchlist) {
-      trackWatchlistRemove(itemId, mediaType);
-    } else {
-      trackWatchlistAdd(itemId, mediaType);
-    }
-  };
 
   const handleWatchedClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -58,18 +48,15 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
 
   return (
     <div className={cn("flex items-center justify-between gap-2", className)}>
-      <Button
-        variant="secondary"
-        size="icon"
-        className={cn(
-          "h-8 w-8 bg-black/70 hover:bg-black/90 border border-white/20",
-          inWatchlist && "bg-brand/80 hover:bg-brand border-brand"
-        )}
-        onClick={handleWatchlistClick}
-        aria-label={inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
-      >
-        {inWatchlist ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-      </Button>
+      <SaveButton
+        variant="card"
+        itemId={itemId}
+        mediaType={mediaType}
+        title=""
+        posterPath={null}
+        isInWatchlist={inWatchlist}
+        toggleWatchlist={() => toggleWatchlist(itemId, mediaType)}
+      />
 
       <Button
         variant="secondary"

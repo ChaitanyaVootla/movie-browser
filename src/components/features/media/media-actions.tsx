@@ -5,15 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import {
-  Play,
-  Check,
-  Share2,
-  Plus,
-  ThumbsUp,
-  ThumbsDown,
-  Loader2,
-} from "lucide-react";
+import { Play, Share2, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
 import { useUserLibrary } from "@/hooks/use-user-library";
 import { useAnalytics } from "@/hooks/use-analytics";
 import type { MediaType } from "@/stores/user";
@@ -22,10 +14,9 @@ import {
   PulseRings,
   GlowBurst,
   ParticleBurst,
-  ShineSweep,
-  SuccessRing,
   ShakeContainer,
 } from "./action-animations";
+import { SaveButton } from "@/components/features/lists/save-button";
 
 interface MediaActionsProps {
   itemId: number;
@@ -35,6 +26,8 @@ interface MediaActionsProps {
   onPlayTrailer?: () => void;
   className?: string;
   variant?: "hero" | "compact";
+  /** Best-effort poster (C9) for the save-to-list picker header; null-safe. */
+  posterPath?: string | null;
   /**
    * Series tracking control, rendered in the SAME slot a movie's "Watched"
    * toggle occupies (right after Watchlist) so the watch control is positionally
@@ -81,13 +74,14 @@ export function MediaActions({
   onPlayTrailer,
   className,
   variant = "hero",
+  posterPath,
   watchedSlot,
 }: MediaActionsProps) {
   const { isInWatchlist, isLiked, isDisliked, toggleWatchlist, like, dislike } = useUserLibrary(
     itemId,
     mediaType
   );
-  const { trackWatchlistAdd, trackWatchlistRemove, trackRating, trackShareClick } = useAnalytics();
+  const { trackRating, trackShareClick } = useAnalytics();
 
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [animating, setAnimating] = useState<string | null>(null);
@@ -96,23 +90,6 @@ export function MediaActions({
     setAnimating(key);
     setTimeout(() => setAnimating(null), duration);
   }, []);
-
-  const handleWatchlistToggle = async () => {
-    const wasInWatchlist = isInWatchlist;
-    setIsUpdating("watchlist");
-    try {
-      await toggleWatchlist();
-      // Only animate when adding, not removing
-      if (!wasInWatchlist) {
-        triggerAnimation("watchlist", 700);
-        trackWatchlistAdd(itemId, mediaType, title);
-      } else {
-        trackWatchlistRemove(itemId, mediaType, title);
-      }
-    } finally {
-      setIsUpdating(null);
-    }
-  };
 
   const handleLike = async () => {
     const wasLiked = isLiked;
@@ -160,41 +137,15 @@ export function MediaActions({
   if (variant === "compact") {
     return (
       <div className={cn("flex items-center gap-2", className)}>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="secondary"
-                className={cn(
-                  "h-9 w-9 rounded-full transition-all relative overflow-visible",
-                  isInWatchlist
-                    ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_10px_rgba(var(--brand-rgb),0.25)]"
-                    : "bg-white/10 hover:bg-white/20 border border-white/20"
-                )}
-                onClick={handleWatchlistToggle}
-                disabled={isUpdating === "watchlist"}
-              >
-                <div className="relative">
-                  <PulseRings isActive={animating === "watchlist"} />
-                  <SuccessRing isActive={animating === "watchlist"} />
-                  <AnimatedIcon animate={animating === "watchlist"} variant="watchlist">
-                    {isUpdating === "watchlist" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : isInWatchlist ? (
-                      <Check className="h-4 w-4 stroke-[2.5]" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                  </AnimatedIcon>
-                </div>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isInWatchlist ? "In Watchlist" : "Add to Watchlist"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <SaveButton
+          variant="compact"
+          itemId={itemId}
+          mediaType={mediaType}
+          title={title}
+          posterPath={posterPath}
+          isInWatchlist={isInWatchlist}
+          toggleWatchlist={toggleWatchlist}
+        />
       </div>
     );
   }
@@ -215,47 +166,16 @@ export function MediaActions({
 
       <TooltipProvider>
         <div className="flex items-center gap-1.5">
-          {/* Watchlist */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="secondary"
-                className={cn(
-                  "gap-1.5 rounded-full transition-all backdrop-blur-sm relative overflow-visible",
-                  isInWatchlist
-                    ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]"
-                    : "bg-white/10 hover:bg-white/20 border border-white/20 text-white/80 hover:text-white"
-                )}
-                onClick={handleWatchlistToggle}
-                disabled={isUpdating === "watchlist"}
-                aria-label={isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
-              >
-                {/* Animation layers */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <PulseRings isActive={animating === "watchlist"} ringCount={2} />
-                  <GlowBurst isActive={animating === "watchlist"} />
-                </div>
-                <ShineSweep isActive={animating === "watchlist"} />
-
-                <AnimatedIcon animate={animating === "watchlist"} variant="watchlist">
-                  {isUpdating === "watchlist" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : isInWatchlist ? (
-                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                  ) : (
-                    <Plus className="h-3.5 w-3.5" />
-                  )}
-                </AnimatedIcon>
-                <span className="hidden text-[13px] font-semibold sm:inline">
-                  {isInWatchlist ? "Listed" : "Watchlist"}
-                </span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
-            </TooltipContent>
-          </Tooltip>
+          {/* Watchlist + save-to-list picker (split control) */}
+          <SaveButton
+            variant="hero"
+            itemId={itemId}
+            mediaType={mediaType}
+            title={title}
+            posterPath={posterPath}
+            isInWatchlist={isInWatchlist}
+            toggleWatchlist={toggleWatchlist}
+          />
 
           {/* Single watch control, positioned right after Watchlist for both
               media types: movies pass the segmented WatchedButton, series pass

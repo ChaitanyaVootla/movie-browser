@@ -468,6 +468,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         itemId={series.id}
         mediaType="series"
         title={series.name}
+        posterPath={series.poster_path}
         trailer={extractTrailerData(series.videos)}
         quickTake={aiSummary?.quickTake}
         actionSlot={

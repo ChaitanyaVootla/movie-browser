@@ -24,6 +24,8 @@ interface MediaActionBarProps {
   /** Pre-extracted trailer data (light) - preferred for RSC optimization */
   trailer?: TrailerData | null;
   quickTake?: string[];
+  /** Best-effort poster (C9) for the save-to-list picker header; null-safe. */
+  posterPath?: string | null;
   /** Optional inline control rendered as a peer of the action buttons (e.g. series progress). */
   actionSlot?: ReactNode;
   className?: string;
@@ -40,6 +42,7 @@ export function MediaActionBar({
   title,
   trailer,
   quickTake,
+  posterPath,
   actionSlot,
   className,
 }: MediaActionBarProps) {
@@ -91,6 +94,7 @@ export function MediaActionBar({
               itemId={itemId}
               mediaType={mediaType}
               title={title}
+              posterPath={posterPath}
               hasTrailer={!!trailer}
               onPlayTrailer={() => setShowTrailer(true)}
               variant="hero"

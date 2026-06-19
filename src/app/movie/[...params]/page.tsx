@@ -454,6 +454,7 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         itemId={movie.id}
         mediaType="movie"
         title={movie.title}
+        posterPath={movie.poster_path}
         trailer={extractTrailerData(movie.videos)}
         quickTake={aiSummary?.quickTake}
         className="mt-2 md:mt-3"
