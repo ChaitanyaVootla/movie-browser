@@ -53,7 +53,25 @@ interface ProfileEnvelope {
     avatarImagePath?: string;
     accent?: string;
     links?: string[];
-    location?: string;
+    /** User-entered free-text display location for the PUBLIC profile (string). */
+    displayLocation?: string;
+    /**
+     * Geo object `{countryCode, city, countryName, ...}` written at sign-in by
+     * `lib/auth.ts` / `lib/user-location.ts` and read by the admin Users tab.
+     * It is NOT a string — never render it or call `.trim()` on it. The public
+     * profile's free-text location lives in `displayLocation` (they collided
+     * on this key pre-Jun-2026 → `location.trim is not a function` crash).
+     * Typed as the geo object (NOT a string) so a future `.trim()` is a type error.
+     */
+    location?: {
+      countryCode?: string;
+      countryName?: string;
+      city?: string;
+      region?: string;
+      state?: string;
+      timezone?: string;
+      updatedAt?: string;
+    };
   };
   preferences?: { logPrivatelyByDefault?: boolean };
 }
@@ -194,7 +212,7 @@ export async function getPublicProfileByUsername(
     accent: (env.profile?.accent ?? "default") as PublicProfileDTO["accent"],
     bio: user.bio,
     links: env.profile?.links ?? [],
-    location: env.profile?.location ?? null,
+    location: typeof env.profile?.displayLocation === "string" ? env.profile.displayLocation : null,
     backdrop: env.profile?.backdrop
       ? {
           mediaType: env.profile.backdrop.mediaType,

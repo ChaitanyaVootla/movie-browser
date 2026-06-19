@@ -241,7 +241,11 @@ export async function updateProfileAction(
               avatarImagePath: v.avatarImagePath ?? undefined,
               accent: v.accent,
               links: v.links,
-              location: v.location || undefined,
+              // Free-text display location lives in `displayLocation`; the bare
+              // `location` key holds the geo object (auth.ts/user-location.ts) for
+              // the admin Users tab and is preserved by the spread above. Writing
+              // a string here clobbered it (and crashed the editor's .trim()).
+              displayLocation: v.location || undefined,
             },
           },
         },
@@ -382,7 +386,7 @@ export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
       accent: (env.profile?.accent ?? "default") as OwnProfileSettingsDTO["customization"]["accent"],
       bio: user?.bio ?? "",
       links: env.profile?.links ?? [],
-      location: env.profile?.location ?? "",
+      location: typeof env.profile?.displayLocation === "string" ? env.profile.displayLocation : "",
     },
     privacy: { logPrivatelyByDefault: env.preferences?.logPrivatelyByDefault ?? false },
     fourFavorites,
