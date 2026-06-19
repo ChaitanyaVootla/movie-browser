@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { HubTabs } from "./hub-tabs";
-import { getHubHotPage, getHubNewPage } from "@/server/db/postgres/social/discussion-hub";
+import {
+  getHubHotPage,
+  getHubNewPage,
+  type HubPage,
+} from "@/server/db/postgres/social/discussion-hub";
+import { dataLogger } from "@/lib/logger";
+
+const EMPTY_HUB: HubPage = { cards: [], nextCursor: null };
 
 export const revalidate = 300; // anon Hot/New cacheable; Following hydrates client-side
 export const dynamic = "force-static";
@@ -15,7 +22,20 @@ export const metadata: Metadata = {
 
 export default async function DiscussionsHubPage() {
   // Anon-cacheable reads ONLY (spec invariant 1). No auth(), no headers().
-  const [hot, fresh] = await Promise.all([getHubHotPage(), getHubNewPage()]);
+  // Fail-open: this is a force-static ISR render, so it prerenders at BUILD time
+  // where there is no DB (dummy DATABASE_URL) — an unguarded Prisma throw fails
+  // the whole production build (Jun 19 2026). On any DB error render an empty hub;
+  // ISR refills it on the next successful revalidation in prod.
+  let hot: HubPage = EMPTY_HUB;
+  let fresh: HubPage = EMPTY_HUB;
+  try {
+    [hot, fresh] = await Promise.all([getHubHotPage(), getHubNewPage()]);
+  } catch (error) {
+    dataLogger.warn(
+      { event: "discussions_hub_render_db_unavailable", error: String(error) },
+      "discussions hub: DB unavailable during render — serving empty hub"
+    );
+  }
   return (
     <PageMain>
       <SectionHeading>Discussions</SectionHeading>
