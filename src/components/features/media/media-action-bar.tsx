@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MediaActions } from "./media-actions";
+import { MoreActions } from "./more-actions";
 import { ScoreRating } from "./score-rating";
 import { TrailerModal, type TrailerModalData } from "@/components/features/home/trailer-modal";
 import { QuickTake } from "./quick-take";
@@ -81,7 +82,7 @@ export function MediaActionBar({
     <>
       <div className={cn("px-4 md:px-8 lg:px-12", className)}>
         <div className="flex items-center gap-6">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {/* The watch control sits in the watched slot (right after
                 Watchlist), the Diary opener is a SEPARATE sibling — same layout
                 for movie and series. Movie: standalone Watched toggle (+count);
@@ -123,10 +124,18 @@ export function MediaActionBar({
               aria-label="Open your diary for this title"
             >
               <NotebookPen className="h-3.5 w-3.5" />
-              <span className="text-[13px] font-semibold">
+              <span
+                className={cn(
+                  "text-[13px] font-semibold",
+                  !diaryPulse && "hidden sm:inline"
+                )}
+              >
                 {diaryPulse ? "Added · Diary" : "Diary"}
               </span>
             </Button>
+            {/* Mobile-only overflow (⋯) — sits LAST so it ends the bar; the same
+                reactions render inline in MediaActions on ≥sm. */}
+            <MoreActions itemId={itemId} mediaType={mediaType} title={title} />
           </div>
 
           {/* QuickTake pills (AI-generated) - flows right after buttons */}

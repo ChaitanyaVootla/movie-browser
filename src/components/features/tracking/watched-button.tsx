@@ -119,7 +119,7 @@ export function WatchedButton({ mediaType, tmdbId, title, version, onChanged }: 
         ) : (
           <Eye className="h-3.5 w-3.5" />
         )}
-        <span>{isWatched ? "Watched" : "Seen it?"}</span>
+        <span className="hidden sm:inline">{isWatched ? "Watched" : "Seen it?"}</span>
         {watchCount > 1 && <span className="opacity-90">×{watchCount}</span>}
       </button>
 

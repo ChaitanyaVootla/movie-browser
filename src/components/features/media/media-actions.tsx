@@ -200,7 +200,7 @@ export function MediaActions({
   }
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1.5 sm:gap-2", className)}>
       {/* Primary action - Play Trailer */}
       {hasTrailer && onPlayTrailer && (
         <Button
@@ -247,7 +247,7 @@ export function MediaActions({
                     <Plus className="h-3.5 w-3.5" />
                   )}
                 </AnimatedIcon>
-                <span className="text-[13px] font-semibold">
+                <span className="hidden text-[13px] font-semibold sm:inline">
                   {isInWatchlist ? "Listed" : "Watchlist"}
                 </span>
               </Button>
@@ -262,6 +262,9 @@ export function MediaActions({
               the progress control (see MediaActionBar). */}
           {watchedSlot}
 
+          {/* Secondary reactions + share: inline on ≥sm, collapsed into the
+              mobile "More" drawer below so the bar stays one row on phones. */}
+          <div className="hidden items-center gap-1.5 sm:flex">
           {/* Like */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -344,6 +347,7 @@ export function MediaActions({
             </TooltipTrigger>
             <TooltipContent side="bottom">Share</TooltipContent>
           </Tooltip>
+          </div>
         </div>
       </TooltipProvider>
     </div>
