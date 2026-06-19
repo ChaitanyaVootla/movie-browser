@@ -6,10 +6,56 @@
  */
 import { Prisma, type ListKind } from "@prisma/client";
 import { prisma } from "@/server/db/postgres";
+import { auditedTransaction } from "@/server/db/audit";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 
 /** Global client or an interactive-tx client (the latter carries audit actor). */
 type Db = typeof prisma | Prisma.TransactionClient;
+
+/**
+ * Pure visibility predicate. PHASE-3 SEAM: when circles/collaborators land,
+ * widen this (and canViewList/canEditList) — do NOT inline ownerId checks at
+ * call sites. Kept synchronous + dependency-free so it's trivially testable and
+ * reusable by `getList` after it has already fetched the list (no double-query).
+ */
+export function isListViewable(
+  list: { ownerId: number; isPublic: boolean },
+  viewerId: number | null
+): boolean {
+  return list.isPublic || (viewerId != null && list.ownerId === viewerId);
+}
+
+/**
+ * Single choke point for list visibility. PHASE-3 SEAM: when circles land,
+ * extend ONLY this (and canEditList) to also allow circle members /
+ * ListCollaborator rows.
+ */
+export async function canViewList(
+  listId: number,
+  viewerId: number | null,
+  db: Db = prisma
+): Promise<boolean> {
+  const list = await db.list.findUnique({
+    where: { id: listId },
+    select: { ownerId: true, isPublic: true /* PHASE 3: circleId */ },
+  });
+  if (!list) return false;
+  return isListViewable(list, viewerId);
+}
+
+/** PHASE-3 SEAM: widen to circle ADMIN/OWNER + collaborators with edit perm. */
+export async function canEditList(
+  listId: number,
+  viewerId: number | null,
+  db: Db = prisma
+): Promise<boolean> {
+  if (viewerId == null) return false;
+  const list = await db.list.findUnique({
+    where: { id: listId },
+    select: { ownerId: true /* PHASE 3: circleId, isCollaborative */ },
+  });
+  return !!list && list.ownerId === viewerId;
+}
 
 export const POSITION_GAP = 1024;
 const FOUR_FAVORITES_MAX = 4;
@@ -85,8 +131,11 @@ export interface ListItemRef {
 }
 
 async function requireOwnedList(ownerId: number, listId: number) {
-  const list = await prisma.list.findFirst({
-    where: { id: listId, ownerId },
+  // Funnel ownership through the access seam (PHASE-3 forward-compat); the
+  // findUnique below then loads the fields the mutations need.
+  if (!(await canEditList(listId, ownerId))) throw new Error("List not found");
+  const list = await prisma.list.findUnique({
+    where: { id: listId },
     select: { id: true, kind: true, itemCount: true },
   });
   if (!list) throw new Error("List not found");
@@ -218,6 +267,58 @@ export async function getListWithItems(listId: number) {
       },
     },
   });
+}
+
+/**
+ * One membership row per REGULAR list, annotated with whether a given ref is on
+ * it. Shared by the db query, the server action, and the client picker hook
+ * (imported type-only into the `"use client"` hook — erased at compile).
+ */
+export interface ListMembershipRow {
+  listId: number;
+  name: string;
+  kind: ListKind;
+  itemCount: number;
+  isPublic: boolean;
+  contains: boolean;
+  itemId: number | null; // ListItem.id when contains, for removal
+}
+
+/**
+ * The user's REGULAR lists (FOUR_FAVORITES excluded — it has its own editor)
+ * annotated with whether `ref` is already on each. One query for lists, one for
+ * the matching items. Used only by the save picker (client-hydrated, never SSR).
+ */
+export async function getItemListMembership(
+  ownerId: number,
+  ref: ListItemRef,
+  db: Db = prisma
+): Promise<ListMembershipRow[]> {
+  const lists = await db.list.findMany({
+    where: { ownerId, kind: "REGULAR" },
+    orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+    select: { id: true, name: true, kind: true, itemCount: true, isPublic: true },
+  });
+  if (lists.length === 0) return [];
+  const items = await db.listItem.findMany({
+    where: {
+      listId: { in: lists.map((l) => l.id) },
+      movieId: ref.movieId ?? null,
+      seriesId: ref.seriesId ?? null,
+      personId: ref.personId ?? null,
+    },
+    select: { id: true, listId: true },
+  });
+  const byList = new Map(items.map((i) => [i.listId, i.id]));
+  return lists.map((l) => ({
+    listId: l.id,
+    name: l.name,
+    kind: l.kind,
+    itemCount: l.itemCount,
+    isPublic: l.isPublic,
+    contains: byList.has(l.id),
+    itemId: byList.get(l.id) ?? null,
+  }));
 }
 
 /**

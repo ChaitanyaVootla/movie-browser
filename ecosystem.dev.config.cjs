@@ -15,7 +15,8 @@ module.exports = {
       name: "mb-dev",
       cwd: "/Users/chaitanya/dev/movie-browser",
       script: "node_modules/next/dist/bin/next",
-      args: "dev --turbo",
+      // Port 3009 (uncommon) keeps the default :3000 free for other tooling.
+      args: "dev --turbo -p 3009",
       interpreter: "node",
       autorestart: true,
       watch: false,

@@ -12,6 +12,8 @@ import {
   moveListItem as moveListItemQuery,
   getOwnLists,
   getListWithItems,
+  getItemListMembership as getItemListMembershipQuery,
+  isListViewable,
   setFourFavorites as setFourFavoritesQuery,
   getFourFavorites,
 } from "@/server/db/postgres/social/lists";
@@ -149,13 +151,27 @@ export async function getList(input: z.infer<typeof ListIdSchema>) {
   try {
     const { listId } = ListIdSchema.parse(input);
     const userId = await requirePgUserId();
+    // Fetch once, then apply the access seam's pure predicate (no double-query).
     const list = await getListWithItems(listId);
-    if (!list || (!list.isPublic && list.ownerId !== userId)) {
+    if (!list || !isListViewable(list, userId)) {
       return { success: false as const, error: "Not found" };
     }
     return { success: true as const, list };
   } catch (error: unknown) {
     return actionError("getList", error);
+  }
+}
+
+const MembershipSchema = z.object({ item: ItemRefSchema });
+
+export async function getItemListMembership(input: z.infer<typeof MembershipSchema>) {
+  try {
+    const { item } = MembershipSchema.parse(input);
+    const userId = await requirePgUserId();
+    const rows = await getItemListMembershipQuery(userId, item);
+    return { success: true as const, rows };
+  } catch (error: unknown) {
+    return actionError("getItemListMembership", error);
   }
 }
 
