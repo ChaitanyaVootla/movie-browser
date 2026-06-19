@@ -33,9 +33,14 @@ export function SeriesProgressInline({ seriesId, seasons }: SeriesProgressInline
         seriesId={seriesId}
         seasons={seasons}
         renderTrigger={(open) => (
-          <button type="button" onClick={open} className={cn(PILL)}>
+          <button
+            type="button"
+            onClick={open}
+            className={cn(PILL)}
+            aria-label="Set your watch position"
+          >
             <ListChecks className="h-3.5 w-3.5" />
-            Set position
+            <span className="hidden sm:inline">Set position</span>
           </button>
         )}
       />
