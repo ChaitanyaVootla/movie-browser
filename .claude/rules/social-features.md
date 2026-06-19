@@ -509,13 +509,23 @@ Routes: `/u/[username]`, `/diary`, `/stats`, `/settings` (+ `/settings/import`),
    (+ optional `VAPID_SUBJECT`). Unset = push is a silent no-op
    (`services/notifications/push.ts`); in-app `/notifications` still works. Set
    them only when push is intended to go live.
-4. **CloudFront single-path invalidations — NOT yet wired (open follow-up).**
-   Profile privacy flips / username changes / moderation removals SHOULD trigger
-   a **single-path** invalidation (`/u/<username>*` or the one discuss page) —
-   NEVER `/*` (cold-purges the whole edge; see `cdn.md`). Today `profile.ts`
-   carries only a `DEPLOY FOLLOW-UP` comment marking the hook site; wire it
-   before relying on instant privacy/removal propagation (otherwise edge HTML
-   can serve stale up to the route's s-maxage).
+4. **CDN freshness on profile edits — owner reads fresh client-side; per-edit
+   CloudFront invalidation deliberately NOT used (decided Jun-19-2026).** `/u/[username]`
+   is ISR + CDN-cached (s-maxage 300 + SWR ~115m), so routine profile edits surface
+   for *visitors* within ~5 min — acceptable (nothing time-critical). The **owner**
+   sees their own edits immediately via **client re-hydration**, NOT invalidation:
+   `getFreshProfileForOwner` (uncached, owner-gated server action) → `ProfileViewerProvider`
+   swaps the cached body for a lazy client body (`ProfileBodySwitch`/`OwnerFreshBody`/
+   `ProfileBodyContent`, mirrors `ProfileDashboardSwitch`). Visitors keep the zero-JS
+   server-rendered cached body. **Do NOT add per-edit single-path invalidation for
+   profiles** — invalidations bill per *path* (not request; wildcards are the only real
+   saver), and the client-hydration path makes it unnecessary. RESERVE single-path
+   invalidation (`/u/<username>*`, NEVER `/*` — cdn.md) ONLY for correctness/safety
+   events where ~5-min/2-h stale is a real problem: **privacy flip (public→private),
+   moderation removal, username change**. Those are still un-wired (the `profile.ts`
+   `DEPLOY FOLLOW-UP` comment marks the hook site); a future batch/coarse-wildcard loop
+   may cover them. EC2 role currently lacks `cloudfront:CreateInvalidation` (would need
+   a TF IAM add).
 5. **`ENABLE_TEST_AUTH` must NEVER be set in prod** — the boot-time fail-closed
    assert in `auth.config.ts` will crash the app if it is. Verify it is absent
    from every deploy/prod env.
