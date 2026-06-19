@@ -75,9 +75,11 @@ function SheetHeader({ title, posterPath }: { title: string; posterPath?: string
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Save to
         </p>
-        <p className="truncate text-base font-semibold text-foreground" title={title}>
-          {title}
-        </p>
+        {title ? (
+          <p className="truncate text-base font-semibold text-foreground" title={title}>
+            {title}
+          </p>
+        ) : null}
       </div>
     </div>
   );

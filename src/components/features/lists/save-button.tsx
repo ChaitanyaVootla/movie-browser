@@ -100,6 +100,7 @@ export function SaveButton({
             e.stopPropagation();
             void handlePrimary();
           }}
+          disabled={updating}
           aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
           className={cn(
             "h-8 w-8 rounded-l-md rounded-r-none border border-r-0 border-white/20 bg-black/70 hover:bg-black/90",
