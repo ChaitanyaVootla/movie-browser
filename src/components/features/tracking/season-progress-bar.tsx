@@ -31,12 +31,15 @@ export function SeasonProgressBar({ seriesId, fallbackCount, className }: Season
   const season = useSeasonProgress();
   const { trackAction } = useAnalytics();
   const [busy, setBusy] = useState(false);
+  // Mount-time snapshot — an impure Date.now() inside useMemo is a react-compiler
+  // error (memo can't depend on an impure source); a stable state value keeps the
+  // memo pure. Aired-status only needs "now" to ~the session, not live-ticking.
+  const [now] = useState(() => Date.now());
 
   const seasonNumber = season?.seasonNumber ?? 0;
   const episodes = season?.episodes ?? [];
 
   const { total, aired, watchedCount, previewCount } = useMemo(() => {
-    const now = Date.now();
     const watched = tracking?.watched;
     let airedN = 0;
     let watchedN = 0;
@@ -54,7 +57,7 @@ export function SeasonProgressBar({ seriesId, fallbackCount, className }: Season
       watchedCount: watchedN,
       previewCount: previewEp != null ? previewN : null,
     };
-  }, [episodes, tracking?.watched, seasonNumber, season?.previewEpisode, fallbackCount]);
+  }, [episodes, tracking?.watched, seasonNumber, season?.previewEpisode, fallbackCount, now]);
 
   const toAir = Math.max(0, total - aired);
   const allAiredWatched = aired > 0 && watchedCount >= aired;
