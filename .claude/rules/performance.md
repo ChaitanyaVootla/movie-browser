@@ -39,6 +39,24 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
 ```
 - `%Cpu(s) ... 0.0 id` = CPU-saturated. High `wa` = disk I/O bound. Load avg ≫ vCPU count = oversubscribed (beta = **2 vCPUs**).
 - Beta shares 2 cores across Postgres + ClickHouse + Next (PM2) + background enrichment. CPU is the scarce resource.
+- **CPU-CREDIT THROTTLE (the `t4g` trap — diagnosed Jun 19 2026).** The box is a
+  `t4g.large` **burstable** instance. Signature: **high load avg (10-15) but total
+  `%Cpu` well under 100%×nCPU** (e.g. ~40% used at load 13) — processes are starving
+  (huge run queue) yet capped at the **baseline** (~40% for t4g.large). That means the
+  box has **burned its CPU credits and is throttled to baseline**, NOT that traffic is
+  high. Confirm traffic is actually low first: `analytics.page_views GROUP BY is_bot` for
+  the last 15 min — Jun 19 it was ~100-200 req/min, ~93% human (NOT a crawler herd), yet
+  the throttled box still spiralled (cold-cache renders queue → 100+ origin connections →
+  timeouts). **Don't chase bots or "load" — the box can't get CPU.** INSTANT FIX:
+  `aws ec2 modify-instance-credit-specification --cpu-credits unlimited` (no downtime,
+  self-limiting ~$tens/mo cap, reversible). DURABLE FIX: move to a non-burstable
+  `m7g.large` (+ Savings Plan). Credits get burned by incident days (image-cache outage +
+  multiple deploys on Jun 19 drained them). CloudWatch `CPUCreditBalance` ~0 confirms.
+- **A hung origin defeats CloudFront `stale-if-error`.** `stale-if-error` only serves
+  stale on a **5xx**; a saturated Next that HANGS (no response) makes CloudFront wait its
+  origin-read-timeout and return nothing useful — so previously-cached pages still fail
+  for users during a CPU-throttle/saturation event. Reason CF can't save you when the box
+  is throttled, not just when it 5xxes.
 
 ### Playwright measurement gotchas (these burned hours)
 - Run the script from `/Users/chaitanya/dev/movie-browser` (not `/tmp`) or `@playwright/test` won't resolve. The `clickhouse/...` and chromium images are already pulled locally.

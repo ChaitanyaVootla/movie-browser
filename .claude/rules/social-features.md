@@ -448,24 +448,39 @@ Routes: `/u/[username]`, `/diary`, `/stats`, `/settings` (+ `/settings/import`),
 
 ## PRE-DEPLOY CHECKLIST (must happen before this branch reaches prod)
 
-0. **`watched_movies` → `watch_events` data migration — WIRED (Jun 19 2026).**
-   The social schema DROPS `watched_movies` (data moves to `watch_events`). A
-   bare `prisma db push` would either refuse the drop (no `--accept-data-loss` →
-   social tables uncreated) or drop it before anything backfilled (data loss).
-   Solved with **expand/contract** in `deploy-ec2.yml` (self-gating, inert after
-   the first social deploy): `[2.5a]` snapshots `public.watched_movies` →
-   `migration_backup.watched_movies` (a separate schema `db push` does NOT
-   touch — verified) and sets `--accept-data-loss` ONLY for that deploy; db push
-   drops the now-backed-up table + creates `watch_events`; `[2.5b]` runs the
-   idempotent backfill `postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql`
-   (verifies completeness, hard-fails with the snapshot retained so a re-deploy
-   retries). `prisma migrate diff` confirmed this DROP is the ONLY data-loss op
-   in the whole pre→post diff. **Rehearsal gotcha:** the backfill MUST set
-   `media_type` (`watch_events.media_type` is NOT NULL no-default, added by the
-   2026-06-14 diary unification) — the old `migrate-watched-movies.ts` omitted it
-   and would have failed the prod backfill; both it and the SQL file now set
-   `'MOVIE'` (watched_movies was movies-only). Take a fresh verified PG snapshot
-   to S3 before the real run (`~/bin/pg-backup.sh` on the box).
+0. **Social schema migration — SHIPPED to prod Jun 19 2026 (after 3 tries; read this
+   before any future schema-shape change).** The first social deploy is a real,
+   un-rehearsable-from-synthetic-data migration. What broke and the fixes (all now in
+   `deploy-ec2.yml` + schema + `postgres/migrations/2026-06-19-watched-movies-to-watch-events.sql`):
+   - **`watched_movies` → `watch_events` (table DROP):** expand/contract. `[2.5a]`
+     snapshots `public.watched_movies` → `migration_backup.watched_movies` (a SEPARATE
+     PG schema `db push` does NOT manage — verified the copy survives the push) and sets
+     `--accept-data-loss` ONLY for that deploy; db push drops the now-backed-up table +
+     creates `watch_events`; `[2.5b]` runs the idempotent backfill (verifies completeness,
+     hard-fails with the snapshot retained). The backfill MUST set `media_type='MOVIE'`
+     (NOT NULL no-default, added 2026-06-14; `watched_movies` was movies-only).
+   - **`prisma db push` REFUSES a required (NOT NULL, no-default) column on a POPULATED
+     table — and aborts ATOMICALLY (applies NOTHING).** This sank deploy #1: `user_ratings`
+     gained required `media_type` and had 177 prod rows → db push aborted → social tables
+     never created → the new code 500'd on every render ("table public.comments does not
+     exist"). **Fix: `@default` on such columns** (`user_ratings.mediaType @default(MOVIE)`).
+     **Before ANY social-shape deploy, run `prisma db push --accept-data-loss` against a
+     RESTORED PROD DUMP (or at least dump-shaped data) and read the "changes that cannot
+     be executed" list** — synthetic/empty tables hide exactly this (my rehearsal had an
+     empty `user_ratings`). Verified pre→post the ONLY data-loss op was the `watched_movies`
+     drop; the only NOT-NULL-on-populated blocker was `user_ratings.media_type`.
+   - **`cmd | tail` masks exit codes** — it silently defeated the `[2.5b]` hard-fail guard
+     (deploy reported ✅ on a failed migration). Capture `$?` via a temp file; never gate
+     on a piped command. Same bug hid lint/`test:ci` failures.
+   - **`next build` (not just typecheck+lint) first runs in the DEPLOY job**, so build
+     errors surface only at deploy. The `/discussions` hub prerendered against Prisma with
+     no build-time DB → build abort; fixed by fail-open (try/catch → empty hub, like
+     `getReviewHistogram`). Build locally with a bogus `DATABASE_URL` before pushing.
+   - Take a fresh verified PG snapshot to S3 first (`~/bin/pg-backup.sh`; pin a copy
+     outside the 30-day `backups/` prefix). See memory `social-rollout-prep-jun19`.
+   - **AFTERMATH:** the migration succeeded but the deploy's cold cache + the day's CPU-
+     credit burn left the `t4g` THROTTLED and prod degraded — see `performance.md`
+     "CPU-CREDIT THROTTLE". The box needs `unlimited` credits / an `m7g` move.
 1. **Raw-SQL integrity is hash-gated in CI** — confirmed present in
    `.github/workflows/deploy-ec2.yml`:
    - UGC step: applies `postgres/init/04-ugc-constraints.sql` when
