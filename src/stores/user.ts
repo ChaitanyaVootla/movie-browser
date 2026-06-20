@@ -91,6 +91,15 @@ interface UserLibraryActions {
   setRating: (id: number, mediaType: MediaType, rating: number) => Promise<void>;
   clearRating: (id: number, mediaType: MediaType) => Promise<void>;
 
+  // Optimistic, local-only signal mutators (the server write is owned by the
+  // caller, e.g. the Seen cluster via the `setRating`/`upsertReview` actions).
+  // These keep cards/nav consistent without a re-hydration round-trip and let
+  // the implied-watch cascade reflect instantly. NO fetch — purely client state.
+  setRatingLocal: (id: number, mediaType: MediaType, thumb: number) => void;
+  setLikedLocal: (id: number, mediaType: MediaType, liked: boolean) => void;
+  setScoreLocal: (id: number, mediaType: MediaType, score: number | null) => void;
+  markWatchedLocal: (id: number) => void;
+
   // Recents (synced with server)
   addToRecents: (item: Omit<RecentItem, "id" | "viewedAt">) => Promise<void>;
 
@@ -305,6 +314,44 @@ export const useUserStore = create<UserStore>()(
             console.error("Failed to sync rating:", error);
             throw error;
           }
+        },
+
+        // --- Optimistic local mutators (no server I/O) ------------------------
+        setRatingLocal: (id, mediaType, thumb) => {
+          const key = getRatingKey(id, mediaType);
+          set((state) => {
+            const ratings = new Map(state.ratings);
+            if (thumb === 0) ratings.delete(key);
+            else ratings.set(key, thumb);
+            return { ratings };
+          });
+        },
+
+        setLikedLocal: (id, mediaType, liked) => {
+          const key = getRatingKey(id, mediaType);
+          set((state) => {
+            const next = new Set(state.liked);
+            if (liked) next.add(key);
+            else next.delete(key);
+            return { liked: next };
+          });
+        },
+
+        setScoreLocal: (id, mediaType, score) => {
+          const key = getRatingKey(id, mediaType);
+          set((state) => {
+            const scores = new Map(state.scores);
+            if (score === null) scores.delete(key);
+            else scores.set(key, score);
+            return { scores };
+          });
+        },
+
+        markWatchedLocal: (id) => {
+          set((state) => {
+            if (state.watchedMovies.has(id)) return state;
+            return { watchedMovies: new Set(state.watchedMovies).add(id) };
+          });
         },
 
         clearRating: async (id, mediaType) => {

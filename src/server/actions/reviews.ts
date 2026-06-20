@@ -24,6 +24,7 @@ import {
   type ReviewImageData,
 } from "@/server/db/postgres/social/reviews";
 import { setUserRating, getRatingHistogram, shapeHistogram, type RatingHistogram } from "@/server/db/postgres/social/ratings";
+import { ensureMovieWatchedTx } from "@/server/db/postgres/social/watch-events";
 import { listFollowing } from "@/server/db/postgres/social/follows";
 
 function actionError(action: string, error: unknown) {
@@ -152,10 +153,19 @@ export async function upsertReview(input: z.infer<typeof UpsertReviewSchema>) {
             itemType: mediaType,
             seasonNumber: v.seasonNumber ?? null,
             score: v.score ?? null,
-            liked: v.liked ?? false,
+            // `liked` is undefined from the composer (the Favorite ♥ moved to the
+            // action-bar Seen cluster) → setUserRating leaves the heart UNCHANGED.
+            // Only an explicit boolean (legacy/API callers) sets it.
+            liked: v.liked,
           },
           tx
         );
+      }
+      // Implied-watch cascade: writing a review on a MOVIE means the user has
+      // seen it → ensure a WATCH event (idempotent; drops it from the watchlist).
+      // Series watched-ness stays progress-based — never inferred from a review.
+      if (isMovie) {
+        await ensureMovieWatchedTx(tx, userId, itemId);
       }
       return row;
     });

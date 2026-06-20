@@ -24,6 +24,12 @@ interface ScoreRatingProps {
   itemId: number;
   itemType: "movie" | "series";
   className?: string;
+  /**
+   * Called after a score is persisted (value = new 1–10 score, or null when
+   * cleared). Lets a parent sync the user store (cards) + reflect the
+   * implied-watch cascade without a re-hydration round-trip.
+   */
+  onScored?: (score: number | null) => void;
 }
 
 const STAR_COUNT = 5;
@@ -44,7 +50,7 @@ const STAR_COUNT = 5;
  * avoids the server/client HTML divergence that an auth-conditional render
  * caused. The saved score loads in an async-IIFE effect with a cancelled guard.
  */
-export function ScoreRating({ itemId, itemType, className }: ScoreRatingProps) {
+export function ScoreRating({ itemId, itemType, className, onScored }: ScoreRatingProps) {
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
   const isMobile = useMobile();
@@ -92,6 +98,7 @@ export function ScoreRating({ itemId, itemType, className }: ScoreRatingProps) {
       try {
         const result = await setRating({ itemId, itemType, score: nextScore });
         if (!result.success) throw new Error(result.error);
+        onScored?.(nextScore);
         if (nextScore !== null) {
           trackAction({
             action: "rate_score",
@@ -107,7 +114,7 @@ export function ScoreRating({ itemId, itemType, className }: ScoreRatingProps) {
         setIsSaving(false);
       }
     },
-    [score, itemId, itemType, trackAction]
+    [score, itemId, itemType, trackAction, onScored]
   );
 
   // Click a half/full star → set; clicking the current value clears it.

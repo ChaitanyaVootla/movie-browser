@@ -501,6 +501,69 @@ export async function setPosition(
 }
 
 // ---------------------------------------------------------------------------
+// Implied-watch cascade (rate / like / review → watched)
+// ---------------------------------------------------------------------------
+
+/**
+ * Pure decision: does this rating mutation carry a POSITIVE signal that implies
+ * the user has seen the title? A clear (everything null/false) must NOT imply a
+ * watch. Extracted so the cascade trigger is unit-testable without a DB.
+ */
+export function isPositiveRatingSignal(input: {
+  score?: number | null;
+  thumb?: 1 | -1 | null;
+  liked?: boolean;
+}): boolean {
+  return input.score != null || input.thumb != null || input.liked === true;
+}
+
+/**
+ * Ensure a movie has at least one WATCH event — the implied-watch cascade fired
+ * when a user rates / likes / reviews a movie ("you can't rate what you haven't
+ * seen"). Idempotent: a no-op when already watched, so re-rating never stacks
+ * duplicate watches. The synthesized event is DATELESS (watchedAt=null /
+ * UNKNOWN) — the user asserted they've seen it but gave no date, so we must not
+ * fabricate a dated viewing. Mirrors logWatchEvent's movie side-effects
+ * (watchlist removal + stats-dirty).
+ *
+ * MOVIES ONLY: series "watched-ness" is progress-based (set explicitly via
+ * setPosition) — a single series-level rating must NOT mark the whole show
+ * watched (you rate ongoing shows mid-run). Runs ON the caller's interactive tx
+ * so it shares the audit actor.
+ */
+export async function ensureMovieWatchedTx(
+  tx: Prisma.TransactionClient,
+  userId: number,
+  movieId: number
+): Promise<boolean> {
+  const existing = await tx.watchEvent.findFirst({
+    where: { userId, movieId, kind: "WATCH" },
+    select: { id: true },
+  });
+  if (existing) return false;
+
+  const snapshot = await movieSnapshot(movieId);
+  await tx.watchEvent.create({
+    data: {
+      userId,
+      movieId,
+      watchedAt: null,
+      watchedAtPrecision: "UNKNOWN",
+      kind: "WATCH",
+      mediaType: "MOVIE",
+      runtimeMinutes: snapshot.runtimeMinutes,
+      releaseYear: snapshot.releaseYear,
+      cycle: 1,
+      source: "LOGGED",
+    },
+    select: { id: true },
+  });
+  await tx.watchlistItem.deleteMany({ where: { userId, movieId } });
+  await markStatsDirty(tx, userId);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
 

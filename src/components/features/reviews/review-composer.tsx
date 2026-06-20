@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { EditorContent } from "@tiptap/react";
-import { Heart, Loader2, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -87,7 +86,6 @@ export function ReviewComposer({
   const { trackAction } = useAnalytics();
 
   const [score, setScore] = useState<number | null>(existing?.score ?? null);
-  const [liked, setLiked] = useState(existing?.liked ?? false);
   const [headline, setHeadline] = useState(existing?.title ?? "");
   const [scope, setScope] = useState<SpoilerScopeValue>(existing?.spoilerScope ?? "NONE");
   const [scopeSeason, setScopeSeason] = useState<number | null>(
@@ -157,7 +155,8 @@ export function ReviewComposer({
         title: headline.trim() || undefined,
         body,
         score,
-        liked,
+        // `liked` (the Favorite ♥) is owned by the action-bar Seen cluster now —
+        // omit it here so saving a review never clears the user's favorite.
         spoilerScope: scope,
         scopeSeason: scope === "EPISODE" ? scopeSeason : null,
         scopeEpisode: scope === "EPISODE" ? scopeEpisode : null,
@@ -174,7 +173,6 @@ export function ReviewComposer({
             scope: result.review.spoilerScope,
             isPrivate,
             scored: score !== null,
-            liked,
             edit: existing !== null,
           },
         });
@@ -197,24 +195,10 @@ export function ReviewComposer({
 
   const form = (
     <div className="space-y-4">
-      {/* Header: rating + heart + headline */}
+      {/* Header: rating + headline (the Favorite ♥ lives in the action bar). */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <StarRatingInput value={score} onChange={setScore} />
-          <button
-            type="button"
-            aria-pressed={liked}
-            aria-label="Loved it"
-            onClick={() => setLiked((v) => !v)}
-            className={cn(
-              "flex min-h-[40px] items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              liked ? "text-brand" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Heart className={cn("h-4 w-4", liked && "fill-brand")} />
-            Loved it
-          </button>
         </div>
         <Input
           value={headline}

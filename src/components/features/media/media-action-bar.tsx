@@ -1,18 +1,14 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { NotebookPen } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MediaActions } from "./media-actions";
-import { MoreActions } from "./more-actions";
-import { ScoreRating } from "./score-rating";
+import { SeenCluster } from "./seen-cluster";
 import { TrailerModal, type TrailerModalData } from "@/components/features/home/trailer-modal";
 import { QuickTake } from "./quick-take";
 import { WatchedButton } from "@/components/features/tracking/watched-button";
 import { DiaryPanel } from "@/components/features/tracking/diary-panel";
-import { useDiaryPulse } from "@/hooks/use-diary-pulse";
 import { useLoginDialog } from "@/components/features/auth";
 import type { TrailerData } from "@/types";
 import type { MediaType } from "@/stores/user";
@@ -26,15 +22,20 @@ interface MediaActionBarProps {
   quickTake?: string[];
   /** Best-effort poster (C9) for the save-to-list picker header; null-safe. */
   posterPath?: string | null;
-  /** Optional inline control rendered as a peer of the action buttons (e.g. series progress). */
+  /** Series progress control (SeriesProgressInline) — the series watch slot. */
   actionSlot?: ReactNode;
   className?: string;
 }
 
 /**
- * Action bar with Play Trailer, Watchlist, Like/Dislike, and Share buttons.
- * Placed below the hero section, above the overview.
- * QuickTake pills are displayed on the right side when available.
+ * Detail-page action bar, split into two coherent clusters
+ * (spec 2026-06-20-social-actions-consolidation):
+ *
+ *   SAVE (future intent / share) — `MediaActions`: Trailer, Watchlist + lists, Share.
+ *   SEEN (engagement funnel)     — `SeenCluster`: watch control + progressive
+ *                                   Rate / Like / Dislike / Favorite / Review / Diary.
+ *
+ * QuickTake pills flow to the right on ≥sm.
  */
 export function MediaActionBar({
   itemId,
@@ -48,17 +49,13 @@ export function MediaActionBar({
 }: MediaActionBarProps) {
   const [showTrailer, setShowTrailer] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
-  // Bumped whenever the diary changes, so the (separate) WatchedButton count
-  // and any peer re-reads stay in sync without coupling the components.
+  // Bumped whenever the diary changes, so the WatchedButton count (a separate
+  // component) and any peer re-reads stay in sync without tight coupling.
   const [diaryVersion, setDiaryVersion] = useState(0);
   const { status } = useSession();
   const { openLoginDialog } = useLoginDialog();
 
   const isMovie = mediaType === "movie";
-  const trackedType = isMovie ? "movie" : "series";
-  // Pulse the Diary button right after a watch/progress entry is added, so the
-  // user notices they can open it to log more / add a note.
-  const diaryPulse = useDiaryPulse(trackedType, itemId);
 
   const openDiary = () => {
     if (status !== "authenticated") {
@@ -86,10 +83,7 @@ export function MediaActionBar({
       <div className={cn("px-4 md:px-8 lg:px-12", className)}>
         <div className="flex items-center gap-6">
           <div className="flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-start sm:gap-2">
-            {/* The watch control sits in the watched slot (right after
-                Watchlist), the Diary opener is a SEPARATE sibling — same layout
-                for movie and series. Movie: standalone Watched toggle (+count);
-                series: the per-series progress control (actionSlot). */}
+            {/* SAVE cluster — future intent + share. */}
             <MediaActions
               itemId={itemId}
               mediaType={mediaType}
@@ -98,6 +92,18 @@ export function MediaActionBar({
               hasTrailer={!!trailer}
               onPlayTrailer={() => setShowTrailer(true)}
               variant="hero"
+            />
+
+            {/* Divider between the two clusters (≥sm; on mobile they wrap). */}
+            <div className="mx-0.5 hidden h-6 w-px bg-white/15 sm:block" aria-hidden />
+
+            {/* SEEN cluster — the engagement funnel. The watch slot is the movie
+                Watched toggle or the series progress control. */}
+            <SeenCluster
+              itemId={itemId}
+              mediaType={mediaType}
+              title={title}
+              onOpenDiary={openDiary}
               watchedSlot={
                 isMovie ? (
                   <WatchedButton
@@ -112,34 +118,6 @@ export function MediaActionBar({
                 )
               }
             />
-            {/* Connoisseur 1–10 score (half-stars); sits beside the thumbs */}
-            <ScoreRating itemId={itemId} itemType={trackedType} />
-            {/* Diary opener — separate from the watch control, for both types. */}
-            <Button
-              size="sm"
-              variant="secondary"
-              className={cn(
-                "gap-1.5 rounded-full border backdrop-blur-sm transition-all",
-                diaryPulse
-                  ? "border-brand/70 bg-brand/30 text-white ring-2 ring-brand/60 animate-pulse"
-                  : "border-white/20 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
-              )}
-              onClick={openDiary}
-              aria-label="Open your diary for this title"
-            >
-              <NotebookPen className="h-3.5 w-3.5" />
-              <span
-                className={cn(
-                  "text-[13px] font-semibold",
-                  !diaryPulse && "hidden sm:inline"
-                )}
-              >
-                {diaryPulse ? "Added · Diary" : "Diary"}
-              </span>
-            </Button>
-            {/* Mobile-only overflow (⋯) — sits LAST so it ends the bar; the same
-                reactions render inline in MediaActions on ≥sm. */}
-            <MoreActions itemId={itemId} mediaType={mediaType} title={title} />
           </div>
 
           {/* QuickTake pills (AI-generated) - flows right after buttons */}
@@ -152,7 +130,7 @@ export function MediaActionBar({
       {/* Per-title diary panel (movie or series). onChanged bumps diaryVersion
           so the WatchedButton count refreshes. */}
       <DiaryPanel
-        mediaType={trackedType}
+        mediaType={isMovie ? "movie" : "series"}
         tmdbId={itemId}
         title={title}
         open={diaryOpen}
