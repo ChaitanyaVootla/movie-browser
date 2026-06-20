@@ -60,6 +60,32 @@ function currentOverlayId(): number | null {
   return state && typeof state.__overlay === "number" ? state.__overlay : null;
 }
 
+/**
+ * Release the body `pointer-events: none` scroll-lock that Radix's
+ * DismissableLayer sets while a modal overlay is open.
+ *
+ * Why this is needed: when an overlay closes through Vaul's OWN paths (drag,
+ * scrim tap, Esc, the close button) Vaul resets `body.style.pointerEvents` to
+ * `auto` synchronously inside its `useControllableState` `onChange`. But when we
+ * close it by flipping the controlled `open` prop from the OUTSIDE — exactly
+ * what a Back press does (`handlePopState` → `close()` → `setOpen(false)`), and
+ * what any programmatic `setOpen(false)` does — Vaul's setter never runs, so its
+ * `onChange` never fires and that reset is skipped. Radix only clears the lock
+ * when its layer unmounts (one full close animation later, or longer if a
+ * router re-render delays it), leaving the page frozen/untappable for "a few
+ * seconds." Clearing it ourselves matches Vaul's internal behaviour exactly.
+ *
+ * Guarded to fire only once OUR overlay stack is empty, so a still-open lower
+ * overlay (nested drawers) keeps the background correctly locked — Radix won't
+ * re-assert `none` (its layer count is already > 0).
+ */
+function releaseStrandedBodyLock() {
+  if (stack.length > 0 || typeof document === "undefined") return;
+  if (document.body.style.pointerEvents === "none") {
+    document.body.style.pointerEvents = "";
+  }
+}
+
 function handlePopState() {
   // A synthetic back() we triggered to clean up our own entry — swallow it
   // once so it does not also close the next overlay down.
@@ -69,6 +95,7 @@ function handlePopState() {
   }
   const top = stack.pop();
   if (top) top.close();
+  releaseStrandedBodyLock();
 }
 
 function ensureListening() {
@@ -99,6 +126,10 @@ function removeOverlay(id: number) {
   const index = stack.findIndex((entry) => entry.id === id);
   if (index === -1) return; // already removed by a Back press
   stack.splice(index, 1);
+  // A controlled-prop close (Back, or any programmatic setOpen(false)) skips
+  // Vaul's own body-pointer-events reset — release the stranded lock here so the
+  // page never freezes. No-op on Vaul's internal closes (it already reset it).
+  releaseStrandedBodyLock();
   // Only unwind our synthetic entry if we are still sitting on it. If the user
   // navigated forward (e.g. tapped a link inside the overlay) the current
   // history state is no longer ours, and calling back() would undo that

@@ -104,6 +104,29 @@ overlay stayed = the "back went back a page but the modal remained" bug). Fixed 
 - The `mobile-quick-info-drawer` keeps its `usePathname` auto-close as a separate
   safety (closes after an in-drawer link navigation); the hook coexists because
   `removeOverlay` skips the synthetic `back()` once history has moved forward.
+- **Multi-second page FREEZE after a Back/programmatic close — the controlled-prop
+  pointer-events strand (diagnosed Jun 20 2026, took a full repro to pin down).**
+  Vaul wraps a Radix **modal** Dialog, whose `DismissableLayer` sets
+  `document.body.style.pointerEvents = "none"` while open and only clears it when
+  the layer UNMOUNTS. Vaul papers over that lag by resetting it to `"auto"`
+  synchronously — but **only inside its `useControllableState` `onChange`, which
+  fires solely on Vaul's OWN close paths** (drag, scrim tap, Esc, the close
+  button). When the drawer is closed by flipping the controlled `open` prop from
+  the OUTSIDE — exactly what `useHistoryDismiss` does on a hardware/gesture **Back**
+  (`popstate` → `close()` → `setOpen(false)`), and what ANY programmatic
+  `setOpen(false)` does (e.g. the Rate drawer's "Write a review") — Vaul's setter
+  never runs, `onChange` never fires, and the reset is skipped. The body stays
+  `pointer-events:none` (whole page untappable, can't scroll) until Radix's layer
+  finally unmounts a close-animation (or a delayed router re-render) later — "frozen
+  for a few seconds." Drag/scrim/Esc do NOT freeze; only the controlled-prop close
+  does. **Fix lives in `useHistoryDismiss` (`releaseStrandedBodyLock`)**: after a
+  Back close (`handlePopState`) and on every overlay teardown (`removeOverlay`), if
+  OUR overlay stack is now empty it clears `body.style.pointerEvents` — matching
+  Vaul's own internal behaviour, no-op on Vaul-internal closes, and guarded so a
+  still-open lower (nested) overlay keeps the background locked. Verify any drawer
+  change by DISMISSING VIA BACK on a mobile viewport (a drag-dismiss repro will
+  look fine and hide this) and confirming `getComputedStyle(document.body)
+  .pointerEvents` is not stuck at `none`.
 
 ## AI chat window controls (consolidated June 2026)
 
