@@ -86,6 +86,10 @@ export function OwnerListBody({
 
   useEffect(() => {
     let cancelled = false;
+    // reload is async — every setState inside it runs post-await (never
+    // synchronously in this effect body), so the rule's flag is a false
+    // positive. Matches the repo convention for data-load effects.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload(() => cancelled);
     return () => {
       cancelled = true;
