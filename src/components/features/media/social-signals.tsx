@@ -112,31 +112,39 @@ export function PersonalCornerCluster({
   if (stars != null) {
     return (
       <ScoopBadge className="bg-black/70 text-white" scoop={NEUTRAL_SCOOP} raised={raised}>
+        <span className="sr-only">
+          Your rating: {Math.round(stars * 2)} out of 10{loved ? ", loved" : ""}
+        </span>
         <PartialStar value={stars} />
         {/* 10-scale number (score = stars*2) — consistent with everywhere else. */}
-        <span className="tabular-nums">{Math.round(stars * 2)}</span>
-        {loved && <Heart className="h-3 w-3 fill-[var(--sig)] text-[var(--sig)]" />}
+        <span className="tabular-nums" aria-hidden>
+          {Math.round(stars * 2)}
+        </span>
+        {loved && <Heart className="h-3 w-3 fill-[var(--sig)] text-[var(--sig)]" aria-hidden />}
       </ScoopBadge>
     );
   }
   if (loved) {
     return (
       <ScoopBadge className="bg-black/70 text-white" scoop={NEUTRAL_SCOOP} raised={raised}>
-        <Heart className="h-3 w-3 fill-[var(--sig)] text-[var(--sig)]" />
+        <span className="sr-only">You loved this</span>
+        <Heart className="h-3 w-3 fill-[var(--sig)] text-[var(--sig)]" aria-hidden />
       </ScoopBadge>
     );
   }
   if (watched) {
     return (
       <ScoopBadge className="bg-black/70 text-white" scoop={NEUTRAL_SCOOP} raised={raised}>
-        <Eye className="h-3 w-3" strokeWidth={2.5} />
+        <span className="sr-only">Watched</span>
+        <Eye className="h-3 w-3" strokeWidth={2.5} aria-hidden />
       </ScoopBadge>
     );
   }
   if (watchlisted) {
     return (
       <ScoopBadge className="bg-black/70 text-white" scoop={NEUTRAL_SCOOP} raised={raised}>
-        <Bookmark className="h-3 w-3 fill-white/90" strokeWidth={2} />
+        <span className="sr-only">On your watchlist</span>
+        <Bookmark className="h-3 w-3 fill-white/90" strokeWidth={2} aria-hidden />
       </ScoopBadge>
     );
   }
