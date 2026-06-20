@@ -24,6 +24,7 @@ import {
   TrailerCarousel,
   YouTubeTrailerCarousel,
   UpNextSection,
+  GettingStartedStrip,
 } from "@/components/features/home";
 import { buildBrowseUrl } from "@/lib/discover";
 import { getPopularTopics, getTopicByKey } from "@/lib/topics";
@@ -165,6 +166,9 @@ export default async function HomePage() {
 
       {/* Content Sections */}
       <div className="px-4 md:px-8 lg:px-12 pb-16 space-y-10">
+        {/* First-time signed-in users (no library yet) get a guided next step */}
+        <GettingStartedStrip />
+
         {/* Continue Watching - Top priority for logged-in users */}
         <ContinueWatchingSection />
 
