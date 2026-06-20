@@ -17,6 +17,10 @@ import { SeasonProgressBar } from "@/components/features/tracking/season-progres
 import { SeasonProgressProvider } from "@/components/features/tracking/season-progress-context";
 import { useSeriesTracking } from "@/components/features/tracking/series-tracking-provider";
 import { computeResumeTarget, parseResumeParams, type ResumeTarget } from "@/lib/series-resume";
+import {
+  SERIES_RESUME_EVENT,
+  type SeriesResumeDetail,
+} from "@/lib/series-resume-event";
 import { EpisodeScroller } from "./episode-scroller";
 
 interface SeasonSelectorProps {
@@ -155,6 +159,25 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
       await fetchSeason(seasonNumber);
     });
   };
+
+  // A "set position" elsewhere on the page (the Set Position sheet) asks us to
+  // surface the next episode to watch: select its season, scroll + highlight.
+  useEffect(() => {
+    function onResume(e: Event) {
+      const detail = (e as CustomEvent<SeriesResumeDetail>).detail;
+      if (!detail || detail.seriesId !== seriesId) return;
+      userSelectedRef.current = true; // explicit intent — stop progress auto-select
+      setScrollToEpisode(detail.episodeNumber);
+      setScrollMode("page");
+      setSelectedSeasonNumber(detail.seasonNumber);
+      startTransition(async () => {
+        await fetchSeason(detail.seasonNumber);
+      });
+    }
+    window.addEventListener(SERIES_RESUME_EVENT, onResume);
+    return () => window.removeEventListener(SERIES_RESUME_EVENT, onResume);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable listener keyed by seriesId
+  }, [seriesId]);
 
   if (!seasons.length) return null;
 

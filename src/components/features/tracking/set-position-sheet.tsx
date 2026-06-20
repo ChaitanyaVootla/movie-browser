@@ -19,6 +19,8 @@ import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { episodeCode } from "@/lib/tracking-format";
+import { computeResumeTarget } from "@/lib/series-resume";
+import { emitSeriesResume } from "@/lib/series-resume-event";
 import { toast } from "sonner";
 import {
   getSeasonEpisodes,
@@ -140,6 +142,16 @@ export function SetPositionSheet({
     }
   };
 
+  // After a position is set, ask the season selector to surface the next
+  // episode to watch (select its season, scroll to it, highlight) so the viewer
+  // is never left at a dead end. No-op when caught up.
+  const continueToNext = (fromSeason: number, fromEpisode: number) => {
+    const next = computeResumeTarget(seasons, fromSeason, fromEpisode);
+    if (next && next.isNext) {
+      emitSeriesResume({ seriesId, seasonNumber: next.seasonNumber, episodeNumber: next.episodeNumber });
+    }
+  };
+
   const markSeason = async (seasonNumber: number) => {
     setBusy(`season-${seasonNumber}`);
     const ok = await t.markSeason(seasonNumber);
@@ -152,6 +164,8 @@ export function SetPositionSheet({
         metadata: { seasonNumber, via: "set_position" },
       });
       setOpen(false);
+      const lastEp = regularSeasons.find((s) => s.season_number === seasonNumber)?.episode_count;
+      if (lastEp) continueToNext(seasonNumber, lastEp);
     }
   };
 
@@ -167,6 +181,7 @@ export function SetPositionSheet({
         metadata: { seasonNumber, episodeNumber, via: "set_position" },
       });
       setOpen(false);
+      continueToNext(seasonNumber, episodeNumber);
     }
   };
 

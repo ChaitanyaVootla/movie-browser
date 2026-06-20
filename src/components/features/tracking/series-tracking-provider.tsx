@@ -21,7 +21,7 @@ import {
 } from "@/server/actions/tracking";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import { emitDiaryUpdated } from "@/hooks/use-diary-pulse";
-import { episodeKey } from "@/lib/tracking-format";
+import { episodeCode, episodeKey } from "@/lib/tracking-format";
 import type { SeriesProgressDTO, WatchStatus } from "@/types/social";
 
 interface SeriesTrackingContextValue {
@@ -175,7 +175,7 @@ export function SeriesTrackingProvider({ seriesId, children }: SeriesTrackingPro
       setPosition: (seasonNumber, episodeNumber) =>
         runAndRefresh(
           () => setPositionAction({ seriesId, seasonNumber, episodeNumber }),
-          "Position saved"
+          `Marked watched through ${episodeCode(seasonNumber, episodeNumber)}`
         ),
       setStatus: (statusValue) =>
         runAndRefresh(
