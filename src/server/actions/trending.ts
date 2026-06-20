@@ -118,8 +118,6 @@ export interface HeroItemEnhancedData {
   item: WatchOptionsItem;
   /** AI-generated one-liner hook */
   hook?: string;
-  /** AI-generated quick-take tags (VIBE insights), shown under the hook. */
-  quickTake?: string[];
 }
 
 export interface TrendingData {
@@ -267,11 +265,10 @@ export async function getTrending(): Promise<TrendingData> {
         // WatchOptions falls back to backdrop_path when not provided
       };
 
-      // Get AI hook + quick-take tags (VIBE insights) if available
+      // Get AI hook if available
       const aiDataMap = isMovie ? movieAIData : seriesAIData;
       const aiData = aiDataMap.get(item.id);
       const hook = aiData?.hook ?? undefined;
-      const quickTake = aiData?.insights?.spoilerFree?.vibes;
 
       // Note: watchProviders/googleData no longer included - WatchOptions lazy-loads on country change
       heroEnhancedData[key] = {
@@ -279,7 +276,6 @@ export async function getTrending(): Promise<TrendingData> {
         watchOptions,
         item: watchOptionsItem,
         hook,
-        quickTake: quickTake && quickTake.length > 0 ? quickTake : undefined,
       };
     });
 

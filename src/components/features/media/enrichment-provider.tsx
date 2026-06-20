@@ -8,7 +8,6 @@ import {
   type EnrichmentStreamState,
 } from "@/hooks/use-enrichment-stream";
 import { RatingsBar } from "./ratings-bar";
-import { QuickTake } from "./quick-take";
 import { AIQuestionsSection } from "./ai-questions-section";
 import { DeepDiveSection } from "./deep-dive-section";
 import type { ExternalRating } from "@/types";
@@ -205,35 +204,29 @@ export function LiveRatings({
 interface LiveAIHookProps {
   /** Server-rendered hook text (may be null if AI data didn't exist yet) */
   initialHook: string | null;
-  /** Server-rendered quick-take tags (VIBE insights), shown subtly under the hook. */
-  initialTags?: string[];
 }
 
 /**
- * Renders the AI hook tagline + the quick-take tags under it, with live SSE
- * updates. If the server had no AI data but SSE delivers it, both fade in.
+ * Renders the AI hook tagline with live SSE updates.
+ * If server had no hook but SSE delivers one, it fades in.
  */
-export function LiveAIHook({ initialHook, initialTags }: LiveAIHookProps) {
+export function LiveAIHook({ initialHook }: LiveAIHookProps) {
   const enrichment = useEnrichment();
 
   const hook = enrichment?.latestAI?.hook ?? initialHook;
-  const tags = enrichment?.latestAI?.insights?.spoilerFree?.vibes ?? initialTags ?? [];
 
   return (
     <AnimatePresence>
       {hook && (
-        <motion.div
+        <motion.blockquote
           key="ai-hook"
           initial={initialHook ? false : { opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="flex max-w-xl flex-col items-center gap-1.5 md:items-start"
+          className={HERO_TAGLINE}
         >
-          <blockquote className={HERO_TAGLINE}>{hook}</blockquote>
-          {tags.length > 0 && (
-            <QuickTake items={tags} variant="hero" maxVisible={4} className="justify-center md:justify-start" />
-          )}
-        </motion.div>
+          {hook}
+        </motion.blockquote>
       )}
     </AnimatePresence>
   );

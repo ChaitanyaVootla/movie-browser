@@ -376,7 +376,7 @@ async function HeroContentAsync({ seriesId }: { seriesId: number }) {
       />
 
       {/* AI Hook - tagline above content (live-updated via SSE) */}
-      <LiveAIHook initialHook={aiSummary?.hook ?? null} initialTags={aiSummary?.quickTake} />
+      <LiveAIHook initialHook={aiSummary?.hook ?? null} />
 
       {/* Status badges (trending, new season, currently airing, etc.) */}
       {badges.length > 0 && <DetailBadges badges={badges} className="drop-shadow-md" />}
@@ -470,6 +470,7 @@ async function SeriesContentAsync({ seriesId }: { seriesId: number }) {
         title={series.name}
         posterPath={series.poster_path}
         trailer={extractTrailerData(series.videos)}
+        quickTake={aiSummary?.quickTake}
         actionSlot={
           <SeriesProgressInline
             seriesId={series.id}
