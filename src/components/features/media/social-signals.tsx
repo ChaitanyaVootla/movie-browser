@@ -14,14 +14,21 @@ import { cn } from "@/lib/utils";
 const NEUTRAL_SCOOP = "oklch(0.18 0 0 / 0.85)";
 
 /**
- * A star whose fill width encodes the value (0–5). Dulled `--sig` so a personal
- * rating reads as "yours" without competing with the community vote.
+ * A star whose fill width encodes the value on a 0–5 scale (so a 1–10 score
+ * passes `score / 2`). The filled portion is the dulled `--sig` so a personal
+ * rating reads as "yours"; the empty portion is a faint-but-legible grey track
+ * with a small body fill so the fill boundary stays visible even over a
+ * desaturated/greyscale (watched) poster.
  */
 export function PartialStar({ value, size = 12 }: { value: number; size?: number }) {
   const frac = Math.max(0, Math.min(1, value / 5));
   return (
     <span className="relative inline-block align-[-1px]" style={{ width: size, height: size }} aria-hidden>
-      <Star className="absolute inset-0 text-white/30" style={{ width: size, height: size }} strokeWidth={2} />
+      <Star
+        className="absolute inset-0 fill-black/30 text-white/55"
+        style={{ width: size, height: size }}
+        strokeWidth={2}
+      />
       <span className="absolute inset-0 overflow-hidden" style={{ width: `${frac * 100}%` }}>
         <Star className="fill-[var(--sig)] text-[var(--sig)]" style={{ width: size, height: size }} strokeWidth={2} />
       </span>
@@ -77,7 +84,11 @@ function ScoopBadge({
 }
 
 export interface PersonalCardState {
-  /** Viewer's score in stars (0.5–5) or null. */
+  /**
+   * Viewer's score on the 0.5–5 STAR scale (i.e. `score / 2`) or null. The
+   * star fill uses this directly; the displayed NUMBER is the 1–10 score
+   * (`stars * 2`) so the scale matches everywhere else in the app.
+   */
   stars: number | null;
   loved: boolean;
   watched: boolean;
@@ -102,7 +113,8 @@ export function PersonalCornerCluster({
     return (
       <ScoopBadge className="bg-black/70 text-white" scoop={NEUTRAL_SCOOP} raised={raised}>
         <PartialStar value={stars} />
-        <span className="tabular-nums">{stars}</span>
+        {/* 10-scale number (score = stars*2) — consistent with everywhere else. */}
+        <span className="tabular-nums">{Math.round(stars * 2)}</span>
         {loved && <Heart className="h-3 w-3 fill-[var(--sig)] text-[var(--sig)]" />}
       </ScoopBadge>
     );
