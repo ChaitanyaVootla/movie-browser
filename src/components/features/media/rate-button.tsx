@@ -260,17 +260,19 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
                 <button
                   type="button"
                   disabled={busy === "score"}
-                  className="absolute inset-y-0 left-0 z-10 w-1/2 cursor-pointer disabled:cursor-default"
+                  className="absolute inset-y-0 left-0 z-10 w-1/2 cursor-pointer rounded-l disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   aria-label={`Rate ${half} out of 10`}
                   onMouseEnter={() => setHoverScore(half)}
+                  onFocus={() => setHoverScore(half)}
                   onClick={() => void commitScore(half === score ? null : half)}
                 />
                 <button
                   type="button"
                   disabled={busy === "score"}
-                  className="absolute inset-y-0 right-0 z-10 w-1/2 cursor-pointer disabled:cursor-default"
+                  className="absolute inset-y-0 right-0 z-10 w-1/2 cursor-pointer rounded-r disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   aria-label={`Rate ${full} out of 10`}
                   onMouseEnter={() => setHoverScore(full)}
+                  onFocus={() => setHoverScore(full)}
                   onClick={() => void commitScore(full === score ? null : full)}
                 />
               </div>

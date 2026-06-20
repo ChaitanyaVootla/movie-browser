@@ -53,7 +53,7 @@ export function LikeButton({ commentId, initialLiked, initialCount, disabled }: 
       aria-pressed={liked}
       aria-label={liked ? "Unlike" : "Like"}
       className={cn(
-        "inline-flex h-10 items-center gap-1.5 rounded-md px-2 text-xs sm:h-8",
+        "inline-flex h-10 items-center gap-1.5 rounded-md px-2 text-xs md:h-8",
         liked ? "text-brand" : "text-muted-foreground hover:text-foreground",
         (disabled || busy) && "opacity-60"
       )}
