@@ -125,12 +125,15 @@ export default async function TopicPage({ params }: TopicPageProps) {
   }
 
   return (
-    <TopicDetailClient
-      topic={topic}
-      initialResults={initialResult.results}
-      totalPages={initialResult.totalPages}
-      totalResults={initialResult.totalResults}
-      variationPreviews={variationPreviews}
-    />
+    <>
+      <h1 className="sr-only">{topic.name} — movies and TV shows</h1>
+      <TopicDetailClient
+        topic={topic}
+        initialResults={initialResult.results}
+        totalPages={initialResult.totalPages}
+        totalResults={initialResult.totalResults}
+        variationPreviews={variationPreviews}
+      />
+    </>
   );
 }

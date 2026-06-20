@@ -38,6 +38,7 @@ export default async function DiscussionsHubPage() {
   }
   return (
     <PageMain>
+      <h1 className="sr-only">Movie &amp; TV discussions</h1>
       <SectionHeading>Discussions</SectionHeading>
       <p className="mb-4 max-w-prose text-sm text-muted-foreground">
         Persistent, spoiler-safe discussion across every title. Hot and New are open to all;

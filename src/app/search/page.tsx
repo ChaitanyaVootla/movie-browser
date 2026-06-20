@@ -53,6 +53,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <PageMain>
       <div className="max-w-7xl mx-auto">
+        <h1 className="sr-only">
+          {query ? `Search results for “${query}”` : "Search movies, TV shows, and people"}
+        </h1>
         <Suspense fallback={<SearchSkeleton />}>
           <SearchClient initialQuery={query} />
         </Suspense>
