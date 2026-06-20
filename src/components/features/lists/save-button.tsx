@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useMobile } from "@/hooks/use-mobile";
 import type { MediaType } from "@/stores/user";
 import { SaveToListSheet } from "@/components/features/lists/save-to-list-sheet";
 
@@ -47,6 +48,7 @@ export function SaveButton({
   className,
 }: SaveButtonProps) {
   const { trackWatchlistAdd, trackWatchlistRemove } = useAnalytics();
+  const isMobile = useMobile();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [bump, setBump] = useState(false);
@@ -162,7 +164,49 @@ export function SaveButton({
     );
   }
 
-  // -- hero: pill with label + caret -------------------------------------------
+  // -- hero (mobile): ONE button that opens the picker drawer ------------------
+  // No split control on mobile — the bar was wrapping. Watchlist toggle + custom
+  // lists + create-list all live inside the drawer (SaveToListSheet), so a single
+  // "Save" button is enough. (Desktop keeps the split: one-tap toggle + caret.)
+  if (isMobile) {
+    return (
+      <div className={cn("flex items-center", className)}>
+        <SaveToListSheet
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          itemId={itemId}
+          mediaType={mediaType}
+          title={title}
+          posterPath={posterPath}
+          isInWatchlist={isInWatchlist}
+          onToggleWatchlist={toggleWatchlist}
+          anchor={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setPickerOpen(true)}
+              aria-haspopup="dialog"
+              aria-label={isInWatchlist ? "Saved — edit lists" : "Save to watchlist or a list"}
+              className={cn(
+                "rounded-full backdrop-blur-sm transition-all",
+                isInWatchlist
+                  ? "border-2 border-brand/70 bg-brand/40 text-white hover:bg-brand/50 shadow-[0_0_12px_rgba(var(--brand-rgb),0.3)]"
+                  : "border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+              )}
+            >
+              {isInWatchlist ? (
+                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // -- hero (desktop): split pill — one-tap toggle + caret ---------------------
   return (
     <TooltipProvider>
       <div className={cn("flex items-center", className)}>
@@ -194,7 +238,7 @@ export function SaveButton({
                   <Plus className="h-3.5 w-3.5" />
                 )}
               </motion.span>
-              <span className="hidden text-[13px] font-semibold sm:inline">
+              <span className="text-[13px] font-semibold">
                 {isInWatchlist ? "Listed" : "Watchlist"}
               </span>
             </Button>
