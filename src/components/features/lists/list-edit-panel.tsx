@@ -1,190 +1,69 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import {
-  GripVertical,
-  Loader2,
-  Pencil,
-  Trash2,
-  Check,
-  Globe,
-  Lock,
-} from "lucide-react";
+import { GripVertical, Globe, Loader2, Lock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn, getMediaPath } from "@/lib/utils";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
-import { useUsername } from "@/hooks/use-username";
-import {
-  getList,
-  updateList,
-  moveListItem,
-  removeListItem,
-} from "@/server/actions/lists";
-
-interface EditItem {
-  id: number;
-  mediaType: "movie" | "series" | "person";
-  tmdbId: number;
-  title: string;
-  posterPath: string | null;
-}
-
-interface ListDetailClientProps {
-  listId: number;
-  /** Owner's public username (lowercase-compared to the viewer's). */
-  username: string;
-  initialName: string;
-  initialDescription: string | null;
-  initialIsPublic: boolean;
-}
+import { moveListItem, removeListItem, updateList } from "@/server/actions/lists";
+import type { ListItemView } from "./list-presentation";
 
 /**
- * Owner-edit island for the public list detail page. Renders NOTHING for
- * non-owners (the server-rendered, ISR-cached read view is the canonical
- * surface for everyone else). The page stays edge-cacheable because this never
- * runs server-side: owner state + editable items hydrate client-side here.
- *
- * Ownership is gated client-side by comparing the viewer's resolved username to
- * the owner's; every mutation is independently authorized server-side
- * (`canEditList` / `requireOwnedList`), so this gate is purely cosmetic.
+ * Owner edit surface for a list: details (name / description / visibility) +
+ * drag-reorder + remove. Rendered by `OwnerListBody` ONLY in edit mode, seeded
+ * with the items it already fetched (no second round-trip). Ownership is gated
+ * by the parent; every mutation is independently authorized server-side
+ * (`canEditList` / `requireOwnedList`). `onChanged` lets the parent re-pull so
+ * its read view reflects edits when the owner toggles back.
  */
-export function ListDetailClient({
+export function ListEditPanel({
   listId,
-  username,
   initialName,
   initialDescription,
   initialIsPublic,
-}: ListDetailClientProps) {
-  const { status } = useSession();
-  const { username: viewerUsername, loading: usernameLoading } = useUsername();
-  const router = useRouter();
-
-  const isOwner =
-    status === "authenticated" &&
-    !usernameLoading &&
-    viewerUsername != null &&
-    viewerUsername.toLowerCase() === username.toLowerCase();
-
-  const [editing, setEditing] = useState(false);
-  const [items, setItems] = useState<EditItem[] | null>(null);
-  const fetchedItems = useRef(false);
-  // Derived: while editing and items haven't arrived yet, show the spinner.
-  const loadingItems = editing && items == null;
-
-  // Lazy-load editable items only once the owner enters edit mode.
-  useEffect(() => {
-    if (!editing || fetchedItems.current) return;
-    fetchedItems.current = true;
-    let cancelled = false;
-    getList({ listId })
-      .then((res) => {
-        if (cancelled) return;
-        if (!res.success || !res.list) {
-          setItems([]); // resolve the spinner even on failure
-          return;
-        }
-        const mapped: EditItem[] = res.list.items.flatMap((it): EditItem[] => {
-          if (it.movie)
-            return [
-              {
-                id: it.id,
-                mediaType: "movie",
-                tmdbId: it.movie.id,
-                title: it.movie.title,
-                posterPath: it.movie.posterPath,
-              },
-            ];
-          if (it.series)
-            return [
-              {
-                id: it.id,
-                mediaType: "series",
-                tmdbId: it.series.id,
-                title: it.series.name,
-                posterPath: it.series.posterPath,
-              },
-            ];
-          if (it.person)
-            return [
-              {
-                id: it.id,
-                mediaType: "person",
-                tmdbId: it.person.id,
-                title: it.person.name,
-                posterPath: it.person.profilePath,
-              },
-            ];
-          return [];
-        });
-        setItems(mapped);
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [editing, listId]);
-
-  if (!isOwner) return null;
+  initialItems,
+  onChanged,
+}: {
+  listId: number;
+  initialName: string;
+  initialDescription: string | null;
+  initialIsPublic: boolean;
+  initialItems: ListItemView[];
+  onChanged?: () => void;
+}) {
+  const [items, setItems] = useState<ListItemView[]>(initialItems);
 
   return (
-    <div className="mt-6">
-      {!editing ? (
-        <Button variant="outline" onClick={() => setEditing(true)}>
-          <Pencil className="mr-1.5 h-4 w-4" />
-          Edit list
-        </Button>
-      ) : (
-        <div className="space-y-6 rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Editing</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setEditing(false);
-                // Pull in the (possibly revalidated) public view.
-                router.refresh();
-              }}
-            >
-              <Check className="mr-1.5 h-4 w-4" />
-              Done
-            </Button>
-          </div>
+    <div className="mt-6 space-y-6 rounded-xl border bg-card p-4">
+      <DetailsForm
+        listId={listId}
+        initialName={initialName}
+        initialDescription={initialDescription}
+        initialIsPublic={initialIsPublic}
+        onSaved={onChanged}
+      />
 
-          <DetailsForm
+      <div className="space-y-2">
+        <Label>Reorder &amp; remove</Label>
+        {items.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            This list is empty. Add titles from any movie or show page.
+          </p>
+        ) : (
+          <ReorderableItems
             listId={listId}
-            initialName={initialName}
-            initialDescription={initialDescription}
-            initialIsPublic={initialIsPublic}
-            onSaved={() => router.refresh()}
+            items={items}
+            setItems={setItems}
+            onChanged={onChanged}
           />
-
-          <div className="space-y-2">
-            <Label>Reorder &amp; remove</Label>
-            {loadingItems || items == null ? (
-              <div className="flex items-center justify-center py-8 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-              </div>
-            ) : items.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                This list is empty. Add titles from any movie or show page.
-              </p>
-            ) : (
-              <ReorderableItems listId={listId} items={items} setItems={setItems} />
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -200,7 +79,7 @@ function DetailsForm({
   initialName: string;
   initialDescription: string | null;
   initialIsPublic: boolean;
-  onSaved: () => void;
+  onSaved?: () => void;
 }) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -225,11 +104,9 @@ function DetailsForm({
       });
       if (!res.success) throw new Error(res.error);
       toast.success("List updated");
-      onSaved();
+      onSaved?.();
     } catch (e: unknown) {
-      toast.error("Couldn't save", {
-        description: e instanceof Error ? e.message : undefined,
-      });
+      toast.error("Couldn't save", { description: e instanceof Error ? e.message : undefined });
     } finally {
       setBusy(false);
     }
@@ -286,10 +163,12 @@ function ReorderableItems({
   listId,
   items,
   setItems,
+  onChanged,
 }: {
   listId: number;
-  items: EditItem[];
-  setItems: React.Dispatch<React.SetStateAction<EditItem[] | null>>;
+  items: ListItemView[];
+  setItems: React.Dispatch<React.SetStateAction<ListItemView[]>>;
+  onChanged?: () => void;
 }) {
   const [removing, setRemoving] = useState<Set<number>>(new Set());
   const dragIndex = useRef<number | null>(null);
@@ -307,15 +186,14 @@ function ReorderableItems({
       try {
         const res = await moveListItem({ listId, itemId: movedId, beforeItemId });
         if (!res.success) throw new Error(res.error);
+        onChanged?.();
       } catch (e: unknown) {
-        toast.error("Couldn't reorder", {
-          description: e instanceof Error ? e.message : undefined,
-        });
+        toast.error("Couldn't reorder", { description: e instanceof Error ? e.message : undefined });
       } finally {
         persistLock.current = false;
       }
     },
-    [listId]
+    [listId, onChanged]
   );
 
   const handleDrop = (toIndex: number) => {
@@ -337,15 +215,14 @@ function ReorderableItems({
     if (removing.has(itemId)) return;
     setRemoving((prev) => new Set(prev).add(itemId));
     const snapshot = itemsRef.current;
-    setItems((prev) => (prev ? prev.filter((i) => i.id !== itemId) : prev));
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
     try {
       const res = await removeListItem({ listId, itemId });
       if (!res.success) throw new Error(res.error);
+      onChanged?.();
     } catch (e: unknown) {
       setItems(snapshot); // revert
-      toast.error("Couldn't remove", {
-        description: e instanceof Error ? e.message : undefined,
-      });
+      toast.error("Couldn't remove", { description: e instanceof Error ? e.message : undefined });
     } finally {
       setRemoving((prev) => {
         const n = new Set(prev);

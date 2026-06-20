@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutGrid, Settings } from "lucide-react";
+import Link from "next/link";
+import { LayoutGrid, ListChecks, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfileViewer } from "./profile-viewer-context";
 import { ProfileSettingsDialog } from "./profile-settings-dialog";
@@ -23,6 +24,11 @@ export function OwnerActions() {
 
   return (
     <>
+      <Button asChild size="sm" variant="secondary" className={pill}>
+        <Link href="/lists">
+          <ListChecks className="h-3.5 w-3.5" /> Lists
+        </Link>
+      </Button>
       <Button size="sm" className={pill} onClick={() => setEditMode(true)}>
         <LayoutGrid className="h-3.5 w-3.5" /> Customize
       </Button>
