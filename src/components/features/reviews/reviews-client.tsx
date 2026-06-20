@@ -56,9 +56,22 @@ interface TabState {
   nextCursorId: number | null;
   loaded: boolean;
   loading: boolean;
+  /**
+   * A fetch failed (e.g. a stale-action 404 on a cold page). Set so the auto-load
+   * effect STOPS re-firing — without it the effect retried on every `tabs` change
+   * and spammed infinite "Could not load reviews" toasts. Cleared on tab/season
+   * change (state reset), so recovery can retry.
+   */
+  failed: boolean;
 }
 
-const EMPTY_TAB: TabState = { reviews: [], nextCursorId: null, loaded: false, loading: false };
+const EMPTY_TAB: TabState = {
+  reviews: [],
+  nextCursorId: null,
+  loaded: false,
+  loading: false,
+  failed: false,
+};
 
 function ReviewCardList({ reviews }: { reviews: ReviewDTO[] }) {
   return (
@@ -137,8 +150,10 @@ export function ReviewsClient({
         result = { ok: false, error: "Could not load reviews" };
       }
       if (!result.ok) {
-        toast.error(result.error);
-        setTabs((prev) => ({ ...prev, [sort]: { ...prev[sort], loading: false } }));
+        // Mark the tab FAILED so the auto-load effect stops re-firing (else it
+        // loops and spams toasts). Deduped toast id = at most one toast.
+        toast.error(result.error, { id: `reviews-load-${sort}` });
+        setTabs((prev) => ({ ...prev, [sort]: { ...prev[sort], loading: false, failed: true } }));
         return;
       }
       const { reviews, nextCursorId } = result;
@@ -147,7 +162,7 @@ export function ReviewsClient({
         const merged = cursorId !== undefined ? [...prev[sort].reviews, ...reviews] : reviews;
         return {
           ...prev,
-          [sort]: { reviews: dedupeById(merged), nextCursorId, loaded: true, loading: false },
+          [sort]: { reviews: dedupeById(merged), nextCursorId, loaded: true, loading: false, failed: false },
         };
       });
     },
@@ -190,7 +205,9 @@ export function ReviewsClient({
   // The Following tab still no-ops server-side for anon/no-follows (empty page).
   useEffect(() => {
     const active = tabs[tab];
-    if (active.loaded || active.loading) return;
+    // `failed` halts the retry loop (a failed fetch flips `tabs`, which would
+    // otherwise re-trigger this effect → re-fetch → re-fail, forever).
+    if (active.loaded || active.loading || active.failed) return;
     // Popular at title scope ("All") keeps its SSR seed unless signed in.
     if (tab === "popular" && selectedSeason === ALL_SEASONS && !signedIn) return;
     // Defer out of the effect body — fetchTab's first act is a synchronous
