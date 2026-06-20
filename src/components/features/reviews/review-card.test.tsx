@@ -18,6 +18,7 @@ const sample: ReviewDTO = {
   displayName: "Ada",
   avatarUrl: null,
   avatarCrop: null,
+  accent: "default",
   title: "A masterpiece",
   score: 8,
   liked: true,

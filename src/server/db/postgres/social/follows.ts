@@ -8,8 +8,9 @@ import { prisma } from "@/server/db/postgres";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 import { assertNotBlocked, getHiddenUserIds } from "./blocks";
 import { createNotification } from "./notifications";
-import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
+import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "@/lib/resolve-avatar";
 import type { AvatarCrop } from "@/lib/avatar-crop";
+import type { ProfileAccent } from "@/types/social";
 
 /** Global client or an interactive-tx client (the latter carries audit actor). */
 type Db = typeof prisma | Prisma.TransactionClient;
@@ -70,6 +71,7 @@ export interface FollowListUser {
   image: string | null;
   avatarUrl: string | null;
   avatarCrop: AvatarCrop | null;
+  accent: ProfileAccent;
   followedAt: Date;
 }
 
@@ -118,6 +120,7 @@ async function listFollowEdge(
         image: u.image,
         avatarUrl: resolveAvatarUrl(u.image, u.metadata),
         avatarCrop: resolveAvatarCrop(u.metadata),
+        accent: resolveAccent(u.metadata),
         followedAt: r.createdAt,
       };
     })

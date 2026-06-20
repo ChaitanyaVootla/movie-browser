@@ -210,6 +210,8 @@ export interface ReviewDTO {
   displayName: string;
   avatarUrl: string | null;
   avatarCrop: AvatarCrop | null;
+  /** Author's profile accent — drives their avatar ring. */
+  accent: ProfileAccent;
   title: string | null;
   score: number | null;
   liked: boolean;

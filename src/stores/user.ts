@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 import type { AvatarCrop } from "@/lib/avatar-crop";
+import type { ProfileAccent } from "@/types/social";
 
 // =============================================================================
 // Types
@@ -67,6 +68,7 @@ interface UserLibraryState {
   // photo) — so the nav and other current-user chips show the chosen picture.
   viewerAvatarUrl: string | null;
   viewerAvatarCrop: AvatarCrop | null;
+  viewerAccent: ProfileAccent | null;
 
   // User preferences (client-side only)
   countryOverride: string | null; // User-selected country override (null = use server-detected)
@@ -110,8 +112,12 @@ interface UserLibraryActions {
   // Country preference
   setCountryOverride: (countryCode: string | null) => void;
 
-  // Viewer avatar — set instantly after a profile save (no re-fetch needed).
-  setViewerAvatar: (avatarUrl: string | null, avatarCrop: AvatarCrop | null) => void;
+  // Viewer avatar + accent — set instantly after a profile save (no re-fetch needed).
+  setViewerAvatar: (
+    avatarUrl: string | null,
+    avatarCrop: AvatarCrop | null,
+    accent?: ProfileAccent | null
+  ) => void;
 
   // Hydration
   hydrate: () => Promise<void>;
@@ -154,6 +160,7 @@ const initialState: UserLibraryState = {
   continueWatching: [],
   viewerAvatarUrl: null,
   viewerAvatarCrop: null,
+  viewerAccent: null,
   countryOverride: null,
   isHydrated: false,
   isHydrating: false,
@@ -487,8 +494,12 @@ export const useUserStore = create<UserStore>()(
           set({ countryOverride: countryCode });
         },
 
-        setViewerAvatar: (avatarUrl, avatarCrop) => {
-          set({ viewerAvatarUrl: avatarUrl, viewerAvatarCrop: avatarCrop });
+        setViewerAvatar: (avatarUrl, avatarCrop, accent) => {
+          set({
+            viewerAvatarUrl: avatarUrl,
+            viewerAvatarCrop: avatarCrop,
+            ...(accent !== undefined ? { viewerAccent: accent } : {}),
+          });
         },
 
         // =====================================================================
@@ -568,6 +579,7 @@ export const useUserStore = create<UserStore>()(
               continueWatching: data.continueWatching || [],
               viewerAvatarUrl: data.viewer?.avatarUrl ?? null,
               viewerAvatarCrop: data.viewer?.avatarCrop ?? null,
+              viewerAccent: data.viewer?.accent ?? null,
               isHydrated: true,
               isHydrating: false,
               lastHydratedAt: Date.now(),
@@ -647,3 +659,4 @@ export const selectCountryOverride = (state: UserStore) => state.countryOverride
 /** Signed-in user's resolved avatar (chosen TMDB avatar or Google photo) + framing. */
 export const selectViewerAvatarUrl = (state: UserStore) => state.viewerAvatarUrl;
 export const selectViewerAvatarCrop = (state: UserStore) => state.viewerAvatarCrop;
+export const selectViewerAccent = (state: UserStore) => state.viewerAccent;

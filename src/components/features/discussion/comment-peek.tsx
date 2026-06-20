@@ -9,6 +9,7 @@ import Image from "next/image";
 import { Link } from "next-view-transitions";
 import { MessagesSquare, ArrowRight, Heart, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PROFILE_ACCENT_VARS } from "@/lib/profile-accents";
 import type { CommentPeekDto } from "@/server/db/postgres/comments";
 
 interface Props {
@@ -91,7 +92,10 @@ export function CommentPeek({ peeks, publishedCount, dedicatedHref }: Props) {
       {/* Teaser row — the top comment, swapping on a timer. min-h keeps the card
           height stable so cycling doesn't jank the layout below the hero. */}
       <div className="flex min-h-[3.25rem] items-start gap-3 px-4 pt-3.5">
-        <span className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand/15 text-xs font-semibold text-brand">
+        <span
+          className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand/15 text-xs font-semibold text-brand"
+          style={{ boxShadow: `0 0 0 1.5px ${PROFILE_ACCENT_VARS[active.author?.accent ?? "default"].brand}` }}
+        >
           {active.author?.avatarUrl ? (
             <Image
               src={active.author.avatarUrl}

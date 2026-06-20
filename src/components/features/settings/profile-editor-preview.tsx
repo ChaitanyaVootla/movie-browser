@@ -62,8 +62,9 @@ export function ProfileEditorPreview({
           <UserAvatar
             src={avatarUrl}
             crop={avatarCrop}
+            accent={accent}
             name={displayName}
-            className="size-14 ring-2 ring-brand/80 sm:size-16"
+            className="size-14 sm:size-16"
             fallbackClassName="text-sm"
           />
           <div className="min-w-0 flex-1 pb-0.5">

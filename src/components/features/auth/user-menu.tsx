@@ -46,7 +46,12 @@ import {
   type BackgroundStyle,
   type AccentColor,
 } from "@/stores/preferences";
-import { useUserStore, selectViewerAvatarUrl, selectViewerAvatarCrop } from "@/stores/user";
+import {
+  useUserStore,
+  selectViewerAvatarUrl,
+  selectViewerAvatarCrop,
+  selectViewerAccent,
+} from "@/stores/user";
 
 const themes = [
   { value: "light", label: "Light", icon: Sun },
@@ -97,6 +102,7 @@ export function UserMenu({ className }: UserMenuProps) {
   const { username } = useUsername();
   const viewerAvatarUrl = useUserStore(selectViewerAvatarUrl);
   const viewerAvatarCrop = useUserStore(selectViewerAvatarCrop);
+  const viewerAccent = useUserStore(selectViewerAccent);
 
   const isDark = resolvedTheme === "dark";
 
@@ -126,6 +132,7 @@ export function UserMenu({ className }: UserMenuProps) {
           <UserAvatar
             src={viewerAvatarUrl ?? user.image}
             crop={viewerAvatarCrop}
+            accent={viewerAccent ?? "default"}
             name={user.name || "User"}
             alt={user.name || "User avatar"}
             className="h-8 w-8"

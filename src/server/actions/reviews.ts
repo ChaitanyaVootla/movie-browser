@@ -12,7 +12,7 @@ import {
   ANON_GATE_CONTEXT,
 } from "@/server/services/discussion/spoiler-gate";
 import { resolveReviewScope } from "./reviews-helpers";
-import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
+import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "@/lib/resolve-avatar";
 import type { MediaAnchor, SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
 import {
   upsertUserReview,
@@ -299,6 +299,7 @@ function toReviewDTO(
     displayName: author?.name ?? author?.username ?? "Member",
     avatarUrl: resolveAvatarUrl(author?.image ?? null, author?.metadata),
     avatarCrop: resolveAvatarCrop(author?.metadata),
+    accent: resolveAccent(author?.metadata),
     title: r.title,
     score: extra.score,
     liked: extra.liked,

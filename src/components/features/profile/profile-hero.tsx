@@ -24,8 +24,10 @@ export function ProfileHero({ profile }: { profile: PublicProfileDTO }) {
         <UserAvatar
           src={profile.avatarUrl}
           crop={profile.avatarCrop}
+          accent={profile.accent}
           name={profile.displayName}
-          className="size-20 md:size-28 ring-2 ring-white/30"
+          className="size-20 md:size-28"
+          ringWidthPx={3}
           fallbackClassName="text-xl"
         />
 

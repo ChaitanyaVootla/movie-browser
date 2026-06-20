@@ -130,7 +130,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
         trackAction({ action: "profile_customize", metadata: { accent, hasBackdrop: backdrop !== null } });
         // Push the new avatar into the user store so the nav (and other
         // current-user chips) reflect it immediately, no re-fetch needed.
-        setViewerAvatar(avatarUrl, avatarImagePath ? avatarCrop : null);
+        setViewerAvatar(avatarUrl, avatarImagePath ? avatarCrop : null, accent);
         setSaved({ backdrop, avatarImagePath, avatarCrop, accent, bio: cleanBio, links: cleanLinks, location: cleanLocation });
       } else {
         toast.error(result.error);

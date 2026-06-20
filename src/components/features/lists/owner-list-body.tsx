@@ -6,7 +6,12 @@ import { Check, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getList } from "@/server/actions/lists";
-import { useUserStore, selectViewerAvatarUrl, selectViewerAvatarCrop } from "@/stores/user";
+import {
+  useUserStore,
+  selectViewerAvatarUrl,
+  selectViewerAvatarCrop,
+  selectViewerAccent,
+} from "@/stores/user";
 import { ListHeader, ListItemGrid, type ListItemView } from "./list-presentation";
 import { ListEditPanel } from "./list-edit-panel";
 
@@ -41,6 +46,7 @@ export function OwnerListBody({
   const { data: session } = useSession();
   const viewerAvatarUrl = useUserStore(selectViewerAvatarUrl);
   const viewerAvatarCrop = useUserStore(selectViewerAvatarCrop);
+  const viewerAccent = useUserStore(selectViewerAccent);
   const [list, setList] = useState<FreshList | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [editing, setEditing] = useState(false);
@@ -104,6 +110,7 @@ export function OwnerListBody({
           image: session?.user?.image ?? null,
           avatarUrl: viewerAvatarUrl ?? session?.user?.image ?? null,
           avatarCrop: viewerAvatarCrop,
+          accent: viewerAccent ?? "default",
         }}
         name={list.name}
         itemCount={list.itemCount}

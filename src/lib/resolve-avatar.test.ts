@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAvatarUrl, resolveAvatarCrop } from "./resolve-avatar";
+import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "./resolve-avatar";
 
 const GOOGLE = "https://lh3.googleusercontent.com/a/abc";
 const TMDB = "https://image.tmdb.org/t/p";
@@ -43,5 +43,20 @@ describe("resolveAvatarCrop", () => {
   it("returns null for a malformed stored crop", () => {
     expect(resolveAvatarCrop({ profile: { avatarImagePath: "/p.jpg", avatarCrop: { zoom: 0.2 } } })).toBeNull();
     expect(resolveAvatarCrop({ profile: { avatarImagePath: "/p.jpg" } })).toBeNull();
+  });
+});
+
+describe("resolveAccent", () => {
+  it("returns a chosen valid accent", () => {
+    expect(resolveAccent({ profile: { accent: "ocean" } })).toBe("ocean");
+    expect(resolveAccent({ profile: { accent: "violet" } })).toBe("violet");
+  });
+
+  it("defaults to 'default' when missing, invalid, or non-object", () => {
+    expect(resolveAccent({ profile: {} })).toBe("default");
+    expect(resolveAccent({ profile: { accent: "chartreuse" } })).toBe("default");
+    expect(resolveAccent({ profile: { accent: 7 } })).toBe("default");
+    expect(resolveAccent(null)).toBe("default");
+    expect(resolveAccent("nope")).toBe("default");
   });
 });

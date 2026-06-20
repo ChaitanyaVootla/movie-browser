@@ -5,6 +5,7 @@ import { Globe, ListOrdered, Lock } from "lucide-react";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { getMediaPath } from "@/lib/utils";
 import type { AvatarCrop } from "@/lib/avatar-crop";
+import type { ProfileAccent } from "@/types/social";
 import { UserAvatar } from "@/components/features/profile/user-avatar";
 
 /**
@@ -38,6 +39,7 @@ export function ListHeader({
     image: string | null;
     avatarUrl?: string | null;
     avatarCrop?: AvatarCrop | null;
+    accent?: ProfileAccent | null;
   };
   name: string;
   itemCount: number;
@@ -57,6 +59,8 @@ export function ListHeader({
         <UserAvatar
           src={owner.avatarUrl ?? owner.image}
           crop={owner.avatarCrop}
+          accent={owner.accent ?? "default"}
+          ringWidthPx={1.5}
           name={owner.name ?? owner.username}
           className="h-6 w-6"
           fallbackClassName="text-[10px]"

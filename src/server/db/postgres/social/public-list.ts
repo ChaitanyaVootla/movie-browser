@@ -9,8 +9,9 @@
  * board and must not be double-surfaced as a standalone list page.
  */
 import { prisma } from "@/server/db/postgres";
-import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
+import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "@/lib/resolve-avatar";
 import type { AvatarCrop } from "@/lib/avatar-crop";
+import type { ProfileAccent } from "@/types/social";
 
 export interface PublicListItem {
   id: number;
@@ -31,6 +32,7 @@ export interface PublicListData {
     image: string | null;
     avatarUrl: string | null;
     avatarCrop: AvatarCrop | null;
+    accent: ProfileAccent;
   };
   list: {
     id: number;
@@ -139,6 +141,7 @@ export async function getListPageData(
       image: user.image,
       avatarUrl: resolveAvatarUrl(user.image, user.metadata),
       avatarCrop: resolveAvatarCrop(user.metadata),
+      accent: resolveAccent(user.metadata),
     },
     list: {
       id: list.id,

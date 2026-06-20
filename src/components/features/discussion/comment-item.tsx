@@ -71,6 +71,8 @@ function SingleComment({
       <UserAvatar
         src={comment.author?.avatarUrl ?? null}
         crop={comment.author?.avatarCrop}
+        accent={comment.author?.accent}
+        ringWidthPx={1.5}
         name={comment.author?.name ?? comment.author?.username ?? "?"}
         className="h-7 w-7 shrink-0"
         fallbackClassName="text-[10px]"

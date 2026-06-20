@@ -10,7 +10,7 @@ import { getFollowCounts } from "./follows";
 import { getUserReviews } from "./reviews";
 import { getUserComments } from "../comments";
 import { getProgressShelf } from "./progress";
-import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
+import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "@/lib/resolve-avatar";
 import type {
   BreakdownSliceDTO,
   FavoriteItemDTO,
@@ -163,6 +163,7 @@ export async function getPublicProfileByUsername(
     displayName: user.name ?? user.username,
     avatarUrl: resolveAvatarUrl(user.image, user.metadata),
     avatarCrop: resolveAvatarCrop(user.metadata),
+    accent: resolveAccent(user.metadata),
   };
   const reviews: ReviewDTO[] = reviewsPage.reviews.map((r) => ({
     id: r.id,

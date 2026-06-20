@@ -28,7 +28,12 @@ import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { UserAvatar } from "@/components/features/profile/user-avatar";
-import { useUserStore, selectViewerAvatarUrl, selectViewerAvatarCrop } from "@/stores/user";
+import {
+  useUserStore,
+  selectViewerAvatarUrl,
+  selectViewerAvatarCrop,
+  selectViewerAccent,
+} from "@/stores/user";
 import { useSearch } from "@/components/features/search";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
@@ -66,6 +71,7 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
   const { username } = useUsername();
   const viewerAvatarUrl = useUserStore(selectViewerAvatarUrl);
   const viewerAvatarCrop = useUserStore(selectViewerAvatarCrop);
+  const viewerAccent = useUserStore(selectViewerAccent);
 
   const user = session?.user;
   const isAuthenticated = status === "authenticated";
@@ -115,6 +121,7 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
                 <UserAvatar
                   src={viewerAvatarUrl ?? user.image}
                   crop={viewerAvatarCrop}
+                  accent={viewerAccent ?? "default"}
                   name={user.name || user.email || "U"}
                   alt={user.name || "User"}
                   className="h-12 w-12"
@@ -306,6 +313,7 @@ export function MobileBottomNav() {
   const user = session?.user;
   const viewerAvatarUrl = useUserStore(selectViewerAvatarUrl);
   const viewerAvatarCrop = useUserStore(selectViewerAvatarCrop);
+  const viewerAccent = useUserStore(selectViewerAccent);
 
   const handleSearchClick = useCallback(() => {
     setSearchOpen(true);
@@ -366,9 +374,11 @@ export function MobileBottomNav() {
                   <UserAvatar
                     src={viewerAvatarUrl ?? user?.image}
                     crop={viewerAvatarCrop}
+                    accent={viewerAccent ?? "default"}
+                    ringWidthPx={1.5}
                     name={user?.name || "U"}
                     alt={user?.name || "User"}
-                    className="h-5 w-5 ring-1 ring-border/40"
+                    className="h-5 w-5"
                     fallbackClassName="text-[8px] bg-primary/10 text-primary font-medium"
                   />
                 ) : (

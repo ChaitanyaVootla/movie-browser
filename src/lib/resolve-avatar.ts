@@ -1,5 +1,7 @@
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { normalizeCrop, type AvatarCrop } from "@/lib/avatar-crop";
+import { PROFILE_ACCENT_VARS } from "@/lib/profile-accents";
+import type { ProfileAccent } from "@/types/social";
 
 /**
  * Resolve the avatar to show for a user, ANYWHERE in the app, from their
@@ -36,4 +38,15 @@ export function resolveAvatarUrl(image: string | null | undefined, metadata: unk
 export function resolveAvatarCrop(metadata: unknown): AvatarCrop | null {
   const { avatarImagePath, avatarCrop } = profileBits(metadata);
   return avatarImagePath ? normalizeCrop(avatarCrop) : null;
+}
+
+/** The user's chosen profile accent (drives their avatar ring everywhere). Defaults to "default". */
+export function resolveAccent(metadata: unknown): ProfileAccent {
+  if (typeof metadata !== "object" || metadata === null) return "default";
+  const profile = (metadata as Record<string, unknown>).profile;
+  if (typeof profile !== "object" || profile === null) return "default";
+  const accent = (profile as Record<string, unknown>).accent;
+  return typeof accent === "string" && accent in PROFILE_ACCENT_VARS
+    ? (accent as ProfileAccent)
+    : "default";
 }

@@ -3,7 +3,7 @@ import { getLibraryData } from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
 import { prisma } from "@/server/db/postgres";
-import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
+import { resolveAvatarUrl, resolveAvatarCrop, resolveAccent } from "@/lib/resolve-avatar";
 
 /**
  * GET /api/user/library
@@ -44,6 +44,7 @@ export async function GET() {
       viewer: {
         avatarUrl: resolveAvatarUrl(account?.image ?? null, account?.metadata),
         avatarCrop: resolveAvatarCrop(account?.metadata),
+        accent: resolveAccent(account?.metadata),
       },
       watchedMovies: data.watchedMovieIds,
       watchlistMovies: data.watchlistMovieIds,
