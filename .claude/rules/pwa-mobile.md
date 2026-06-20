@@ -123,10 +123,30 @@ overlay stayed = the "back went back a page but the modal remained" bug). Fixed 
   Back close (`handlePopState`) and on every overlay teardown (`removeOverlay`), if
   OUR overlay stack is now empty it clears `body.style.pointerEvents` — matching
   Vaul's own internal behaviour, no-op on Vaul-internal closes, and guarded so a
-  still-open lower (nested) overlay keeps the background locked. Verify any drawer
-  change by DISMISSING VIA BACK on a mobile viewport (a drag-dismiss repro will
-  look fine and hide this) and confirming `getComputedStyle(document.body)
-  .pointerEvents` is not stuck at `none`.
+  still-open lower (nested) overlay keeps the background locked. Two layers: an
+  IMMEDIATE synchronous clear keyed off our overlay `stack` (updated
+  synchronously — the DOM's `data-state` only flips on the next render, so it is
+  NOT reliable at clear-time), plus a DEFERRED DOM-authoritative `bodyLockSweep`
+  (~650ms, past the close animation) that releases the lock iff no
+  `[role="dialog"|"alertdialog"][data-state="open"]` is actually present — a
+  backstop for any path the sync clear missed (stack desync, a teardown that
+  skipped cleanup, a re-applied lock). This same strand also bites the
+  **mobile-quick-info-drawer → tap in-drawer link → navigate** flow (the drawer
+  closes via its `usePathname` effect = a controlled-prop close, stranding a
+  synthetic history entry) — the destination page would otherwise load frozen;
+  the `removeOverlay` clear covers it. Verify any drawer change by DISMISSING VIA
+  BACK on a mobile viewport (a drag-dismiss repro looks fine and HIDES this — only
+  Vaul-internal closes run line 901) and confirming `getComputedStyle(document
+  .body).pointerEvents` is not stuck at `none`.
+- **NOT the freeze: plain movie→movie→Back RSC re-init is dev-only.** Measured
+  (Jun 21 2026) identical RSC-refetch counts on Back whether or not the hook was
+  ever armed (a drawer opened this session) — so `useHistoryDismiss` does NOT
+  pollute Next 16's history/bfcache or worsen plain back-navigation. The ~dozen
+  RSC POSTs a Back triggers in DEV are Next's dev-mode page re-init (the page
+  re-runs its client server-actions: `getRating`, watch-providers, enrichment
+  SSE); fast in prod. Don't chase this as a hook bug. (Aside: the hook's deferred
+  unwind `history.back()` does make Next re-traverse the page ~600ms after a
+  non-Back drawer close — harmless client restore in prod, RSC churn in dev.)
 
 ## AI chat window controls (consolidated June 2026)
 

@@ -75,14 +75,46 @@ function currentOverlayId(): number | null {
  * router re-render delays it), leaving the page frozen/untappable for "a few
  * seconds." Clearing it ourselves matches Vaul's internal behaviour exactly.
  *
- * Guarded to fire only once OUR overlay stack is empty, so a still-open lower
- * overlay (nested drawers) keeps the background correctly locked — Radix won't
- * re-assert `none` (its layer count is already > 0).
+ * Two layers:
+ *  1. An IMMEDIATE, synchronous clear keyed off OUR overlay stack (which is
+ *     updated synchronously on close, unlike the DOM's `data-state` which only
+ *     flips on the next React render). This handles the common Back /
+ *     controlled-prop close at 0ms. Guarded to fire only once the stack is
+ *     empty, so a still-open lower overlay (nested drawers) keeps the lock.
+ *  2. A DEFERRED, DOM-authoritative sweep that runs after the close animation
+ *     has settled (when `data-state` is reliable) as a safety net for any path
+ *     the synchronous clear missed — a teardown that skipped our cleanup, a
+ *     re-applied lock, a stack desync — bounding any residual freeze. It keeps
+ *     the lock only if a modal overlay is *actually* still open in the DOM.
  */
-function releaseStrandedBodyLock() {
-  if (stack.length > 0 || typeof document === "undefined") return;
+let sweepTimer = 0;
+
+function modalIsOpenInDom(): boolean {
+  // Both Vaul drawers and Radix dialogs render their content with
+  // role="(alert)dialog" + data-state; "open" means genuinely on-screen (a
+  // closing/animating-out overlay is data-state="closed" and must release).
+  return !!document.querySelector(
+    '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
+  );
+}
+
+function bodyLockSweep() {
+  if (typeof document === "undefined") return;
+  if (modalIsOpenInDom()) return;
   if (document.body.style.pointerEvents === "none") {
     document.body.style.pointerEvents = "";
+  }
+}
+
+function releaseStrandedBodyLock() {
+  if (typeof document === "undefined") return;
+  if (stack.length === 0 && document.body.style.pointerEvents === "none") {
+    document.body.style.pointerEvents = "";
+  }
+  // Defer a DOM-truth sweep past the close animation as a backstop.
+  if (typeof window !== "undefined") {
+    window.clearTimeout(sweepTimer);
+    sweepTimer = window.setTimeout(bodyLockSweep, UNWIND_DELAY_MS + 50);
   }
 }
 
