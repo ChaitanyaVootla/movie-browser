@@ -209,6 +209,7 @@ export interface ReviewDTO {
   username: string | null;
   displayName: string;
   avatarUrl: string | null;
+  avatarCrop: AvatarCrop | null;
   title: string | null;
   score: number | null;
   liked: boolean;

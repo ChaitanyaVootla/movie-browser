@@ -173,7 +173,7 @@ export async function getPublicReviews(opts: PublicReviewsOptions) {
     },
     orderBy: { id: "desc" },
     take: limit + 1,
-    include: { user: { select: { id: true, username: true, name: true, image: true } } },
+    include: { user: { select: { id: true, username: true, name: true, image: true, metadata: true } } },
   });
   const page = rows.slice(0, limit);
   return {
@@ -243,7 +243,7 @@ export async function getVisibleReviews(opts: VisibleReviewsOptions) {
     },
     orderBy,
     take: limit + 1,
-    include: { user: { select: { id: true, username: true, name: true, image: true } } },
+    include: { user: { select: { id: true, username: true, name: true, image: true, metadata: true } } },
   });
   const page = rows.slice(0, limit);
   return {

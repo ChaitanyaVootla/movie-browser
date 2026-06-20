@@ -11,6 +11,8 @@ import {
 } from "@/server/services/discussion/spoiler-gate";
 import { getExcludedAuthorIds } from "./blocks";
 import { getMediaPath } from "@/lib/utils";
+import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
+import type { AvatarCrop } from "@/lib/avatar-crop";
 import type { ProfileCommentDTO } from "@/types/social";
 import { getUnfurlsByHashes } from "./social/link-unfurls";
 import { extractFirstLink, urlHash } from "@/server/services/discussion/url-normalize";
@@ -24,6 +26,9 @@ export interface CommentAuthorDto {
   username: string | null;
   name: string | null;
   image: string | null;
+  /** Resolved avatar (chosen TMDB avatar or Google photo) + framing. */
+  avatarUrl: string | null;
+  avatarCrop: AvatarCrop | null;
 }
 
 /** The card shape carried on a rendered comment (no urlHash — render-only). */
@@ -153,7 +158,17 @@ export function toCommentDto(row: CommentRow, viewerLikedIds?: Set<number>): Com
     likeCount: row.likeCount,
     createdAt: row.createdAt.toISOString(),
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
-    author: deleted || !row.user ? null : { id: row.user.id, username: row.user.username, name: row.user.name, image: row.user.image },
+    author:
+      deleted || !row.user
+        ? null
+        : {
+            id: row.user.id,
+            username: row.user.username,
+            name: row.user.name,
+            image: row.user.image,
+            avatarUrl: resolveAvatarUrl(row.user.image, row.user.metadata),
+            avatarCrop: resolveAvatarCrop(row.user.metadata),
+          },
     isCue: row.user ? commentIsCue(row.user.metadata) : false,
     attachment,
     viewerLiked: viewerLikedIds ? viewerLikedIds.has(row.id) : false,
@@ -560,7 +575,7 @@ export interface CommentPeekDto {
   snippet: string;
   likeCount: number;
   isCue: boolean;
-  author: { username: string | null; name: string | null; image: string | null } | null;
+  author: { username: string | null; name: string | null; image: string | null; avatarUrl: string | null } | null;
 }
 
 /**
@@ -593,7 +608,12 @@ export async function getTopPublicComments(
     likeCount: r.likeCount,
     isCue: r.user ? commentIsCue(r.user.metadata) : false,
     author: r.user
-      ? { username: r.user.username, name: r.user.name, image: r.user.image }
+      ? {
+          username: r.user.username,
+          name: r.user.name,
+          image: r.user.image,
+          avatarUrl: resolveAvatarUrl(r.user.image, r.user.metadata),
+        }
       : null,
   }));
 }

@@ -122,6 +122,7 @@ export function ReviewCard({ review, className }: ReviewCardProps) {
         ) : (
           <UserAvatar
             src={review.avatarUrl}
+            crop={review.avatarCrop}
             name={review.displayName}
             className="size-8 shrink-0"
             fallbackClassName="text-xs font-medium"

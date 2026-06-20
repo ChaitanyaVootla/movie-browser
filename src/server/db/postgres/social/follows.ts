@@ -8,6 +8,8 @@ import { prisma } from "@/server/db/postgres";
 import { isPrismaError } from "@/server/services/hydration/sources/postgres/error-utils";
 import { assertNotBlocked, getHiddenUserIds } from "./blocks";
 import { createNotification } from "./notifications";
+import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
+import type { AvatarCrop } from "@/lib/avatar-crop";
 
 /** Global client or an interactive-tx client (the latter carries audit actor). */
 type Db = typeof prisma | Prisma.TransactionClient;
@@ -66,6 +68,8 @@ export interface FollowListUser {
   username: string | null;
   name: string | null;
   image: string | null;
+  avatarUrl: string | null;
+  avatarCrop: AvatarCrop | null;
   followedAt: Date;
 }
 
@@ -93,7 +97,7 @@ async function listFollowEdge(
 ): Promise<{ users: FollowListUser[]; nextCursorId: number | null }> {
   const limit = Math.min(opts.limit ?? 30, 100);
   const hidden = viewerId !== null ? await getHiddenUserIds(viewerId) : new Set<number>();
-  const userSelect = { select: { id: true, username: true, name: true, image: true } };
+  const userSelect = { select: { id: true, username: true, name: true, image: true, metadata: true } };
   const rows = await prisma.follow.findMany({
     where: {
       ...(direction === "followers" ? { followingId: userId } : { followerId: userId }),
@@ -105,10 +109,18 @@ async function listFollowEdge(
   });
   const page = rows.slice(0, limit);
   const users = page
-    .map((r) => ({
-      ...(direction === "followers" ? r.follower : r.following),
-      followedAt: r.createdAt,
-    }))
+    .map((r) => {
+      const u = direction === "followers" ? r.follower : r.following;
+      return {
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        image: u.image,
+        avatarUrl: resolveAvatarUrl(u.image, u.metadata),
+        avatarCrop: resolveAvatarCrop(u.metadata),
+        followedAt: r.createdAt,
+      };
+    })
     .filter((u) => !hidden.has(u.id));
   return {
     users,

@@ -15,6 +15,7 @@ function review(id: number): ReviewDTO {
     username: null,
     displayName: "Member",
     avatarUrl: null,
+    avatarCrop: null,
     title: null,
     score: null,
     liked: false,

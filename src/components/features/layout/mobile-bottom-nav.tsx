@@ -28,6 +28,7 @@ import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { UserAvatar } from "@/components/features/profile/user-avatar";
+import { useUserStore, selectViewerAvatarUrl, selectViewerAvatarCrop } from "@/stores/user";
 import { useSearch } from "@/components/features/search";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,8 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
   const mounted = useMounted();
   const { canPrompt, isInstalled, promptInstall } = useInstallPrompt();
   const { username } = useUsername();
+  const viewerAvatarUrl = useUserStore(selectViewerAvatarUrl);
+  const viewerAvatarCrop = useUserStore(selectViewerAvatarCrop);
 
   const user = session?.user;
   const isAuthenticated = status === "authenticated";
@@ -110,7 +113,8 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
                 <UserAvatar
-                  src={user.image}
+                  src={viewerAvatarUrl ?? user.image}
+                  crop={viewerAvatarCrop}
                   name={user.name || user.email || "U"}
                   alt={user.name || "User"}
                   className="h-12 w-12"
@@ -300,6 +304,8 @@ export function MobileBottomNav() {
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
   const user = session?.user;
+  const viewerAvatarUrl = useUserStore(selectViewerAvatarUrl);
+  const viewerAvatarCrop = useUserStore(selectViewerAvatarCrop);
 
   const handleSearchClick = useCallback(() => {
     setSearchOpen(true);
@@ -358,7 +364,8 @@ export function MobileBottomNav() {
                   <User className="h-5 w-5 text-muted-foreground/50" />
                 ) : isAuthenticated ? (
                   <UserAvatar
-                    src={user?.image}
+                    src={viewerAvatarUrl ?? user?.image}
+                    crop={viewerAvatarCrop}
                     name={user?.name || "U"}
                     alt={user?.name || "User"}
                     className="h-5 w-5 ring-1 ring-border/40"

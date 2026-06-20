@@ -17,6 +17,7 @@ const sample: ReviewDTO = {
   username: "cinephile_ada",
   displayName: "Ada",
   avatarUrl: null,
+  avatarCrop: null,
   title: "A masterpiece",
   score: 8,
   liked: true,

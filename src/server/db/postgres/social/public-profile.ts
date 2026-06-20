@@ -10,8 +10,7 @@ import { getFollowCounts } from "./follows";
 import { getUserReviews } from "./reviews";
 import { getUserComments } from "../comments";
 import { getProgressShelf } from "./progress";
-import { TMDB_IMAGE_BASE } from "@/lib/constants";
-import { normalizeCrop } from "@/lib/avatar-crop";
+import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
 import type {
   BreakdownSliceDTO,
   FavoriteItemDTO,
@@ -162,7 +161,8 @@ export async function getPublicProfileByUsername(
   const reviewUser = {
     username: user.username,
     displayName: user.name ?? user.username,
-    avatarUrl: user.image,
+    avatarUrl: resolveAvatarUrl(user.image, user.metadata),
+    avatarCrop: resolveAvatarCrop(user.metadata),
   };
   const reviews: ReviewDTO[] = reviewsPage.reviews.map((r) => ({
     id: r.id,
@@ -206,14 +206,10 @@ export async function getPublicProfileByUsername(
   return {
     username: user.username,
     displayName: user.name ?? user.username,
-    // avatarImagePath is a TMDB file path ("/abc.jpg") → build the full image
-    // URL; fall back to the Google photo. (Bug: it was used as the src raw,
-    // yielding a broken relative URL → initials fallback.)
-    avatarUrl: env.profile?.avatarImagePath
-      ? `${TMDB_IMAGE_BASE}/w342${env.profile.avatarImagePath}`
-      : user.image,
-    // Framing only applies to a chosen TMDB avatar (Google photos render centered).
-    avatarCrop: env.profile?.avatarImagePath ? normalizeCrop(env.profile.avatarCrop) : null,
+    // Chosen TMDB avatar (with framing) wins over the Google photo — shared
+    // resolver keeps this identical to every other surface.
+    avatarUrl: resolveAvatarUrl(user.image, user.metadata),
+    avatarCrop: resolveAvatarCrop(user.metadata),
     accent: (env.profile?.accent ?? "default") as PublicProfileDTO["accent"],
     bio: user.bio,
     links: env.profile?.links ?? [],

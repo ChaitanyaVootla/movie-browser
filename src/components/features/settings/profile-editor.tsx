@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useUserStore } from "@/stores/user";
 import { updateProfileAction } from "@/server/actions/profile";
 import { PROFILE_ACCENT_OPTIONS, PROFILE_ACCENT_VARS } from "@/lib/profile-accents";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
@@ -88,6 +89,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
   const [location, setLocation] = useState(saved.location);
   const [busy, setBusy] = useState(false);
   const { trackAction } = useAnalytics();
+  const setViewerAvatar = useUserStore((s) => s.setViewerAvatar);
 
   const current: EditableProfile = { backdrop, avatarImagePath, avatarCrop, accent, bio, links, location };
   const dirty = signature(current) !== signature(saved);
@@ -126,6 +128,9 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
       if (result.ok) {
         toast.success("Profile updated");
         trackAction({ action: "profile_customize", metadata: { accent, hasBackdrop: backdrop !== null } });
+        // Push the new avatar into the user store so the nav (and other
+        // current-user chips) reflect it immediately, no re-fetch needed.
+        setViewerAvatar(avatarUrl, avatarImagePath ? avatarCrop : null);
         setSaved({ backdrop, avatarImagePath, avatarCrop, accent, bio: cleanBio, links: cleanLinks, location: cleanLocation });
       } else {
         toast.error(result.error);

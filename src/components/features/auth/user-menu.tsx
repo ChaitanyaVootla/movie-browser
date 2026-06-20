@@ -46,6 +46,7 @@ import {
   type BackgroundStyle,
   type AccentColor,
 } from "@/stores/preferences";
+import { useUserStore, selectViewerAvatarUrl, selectViewerAvatarCrop } from "@/stores/user";
 
 const themes = [
   { value: "light", label: "Light", icon: Sun },
@@ -94,6 +95,8 @@ export function UserMenu({ className }: UserMenuProps) {
   const setAccentColor = usePreferencesStore((state) => state.setAccentColor);
   const mounted = useMounted();
   const { username } = useUsername();
+  const viewerAvatarUrl = useUserStore(selectViewerAvatarUrl);
+  const viewerAvatarCrop = useUserStore(selectViewerAvatarCrop);
 
   const isDark = resolvedTheme === "dark";
 
@@ -121,7 +124,8 @@ export function UserMenu({ className }: UserMenuProps) {
           )}
         >
           <UserAvatar
-            src={user.image}
+            src={viewerAvatarUrl ?? user.image}
+            crop={viewerAvatarCrop}
             name={user.name || "User"}
             alt={user.name || "User avatar"}
             className="h-8 w-8"

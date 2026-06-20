@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Flag, MessageCircle, MoreHorizontal, Trash2 } from "lucide-react";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,18 +68,13 @@ function SingleComment({
 
   return (
     <div id={`comment-${comment.id}`} className={cn("flex gap-2.5", isReply && "pl-9")}>
-      <div className="relative h-7 w-7 shrink-0 rounded-full overflow-hidden bg-muted">
-        {comment.author?.image && (
-          <Image
-            src={comment.author.image}
-            alt=""
-            fill
-            sizes="28px"
-            className="object-cover"
-            unoptimized
-          />
-        )}
-      </div>
+      <UserAvatar
+        src={comment.author?.avatarUrl ?? null}
+        crop={comment.author?.avatarCrop}
+        name={comment.author?.name ?? comment.author?.username ?? "?"}
+        className="h-7 w-7 shrink-0"
+        fallbackClassName="text-[10px]"
+      />
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
           {username ? (

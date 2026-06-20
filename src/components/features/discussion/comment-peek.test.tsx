@@ -10,7 +10,7 @@ const peek = (over: Partial<CommentPeekDto> = {}): CommentPeekDto => ({
   snippet: "This finale was perfect",
   likeCount: 4,
   isCue: false,
-  author: { username: "ada", name: "Ada", image: null },
+  author: { username: "ada", name: "Ada", image: null, avatarUrl: null },
   ...over,
 });
 

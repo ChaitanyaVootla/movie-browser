@@ -12,6 +12,7 @@ import {
   ANON_GATE_CONTEXT,
 } from "@/server/services/discussion/spoiler-gate";
 import { resolveReviewScope } from "./reviews-helpers";
+import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
 import type { MediaAnchor, SpoilerScopeValue } from "@/server/services/discussion/comment-schemas";
 import {
   upsertUserReview,
@@ -274,14 +275,20 @@ function parseReviewImages(raw: unknown): ReviewImage[] {
 
 function toReviewDTO(
   r: PersistedReviewRow,
-  author: { username: string | null; name: string | null; image: string | null } | null,
+  author: {
+    username: string | null;
+    name: string | null;
+    image: string | null;
+    metadata?: unknown;
+  } | null,
   extra: { score: number | null; liked: boolean; likedByViewer: boolean }
 ): ReviewDTO {
   return {
     id: r.id,
     username: author?.username ?? null,
     displayName: author?.name ?? author?.username ?? "Member",
-    avatarUrl: author?.image ?? null,
+    avatarUrl: resolveAvatarUrl(author?.image ?? null, author?.metadata),
+    avatarCrop: resolveAvatarCrop(author?.metadata),
     title: r.title,
     score: extra.score,
     liked: extra.liked,
@@ -319,7 +326,7 @@ export async function submitReviewAction(
   const userId = await requirePgUserId();
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { username: true, name: true, image: true },
+    select: { username: true, name: true, image: true, metadata: true },
   });
   const r = result.review;
   const base = toReviewDTO(r, user, {
@@ -394,7 +401,7 @@ export async function getOwnReview(input: {
     if (!r) return null;
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, name: true, image: true },
+      select: { username: true, name: true, image: true, metadata: true },
     });
     const own = await prisma.userRating.findFirst({
       where: {

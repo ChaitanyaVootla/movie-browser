@@ -92,9 +92,9 @@ export function CommentPeek({ peeks, publishedCount, dedicatedHref }: Props) {
           height stable so cycling doesn't jank the layout below the hero. */}
       <div className="flex min-h-[3.25rem] items-start gap-3 px-4 pt-3.5">
         <span className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand/15 text-xs font-semibold text-brand">
-          {active.author?.image ? (
+          {active.author?.avatarUrl ? (
             <Image
-              src={active.author.image}
+              src={active.author.avatarUrl}
               alt=""
               fill
               sizes="32px"

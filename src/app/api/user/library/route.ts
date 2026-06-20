@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getLibraryData } from "@/server/db/user-data";
 import { getUserIdForDb } from "@/lib/user-id";
 import { userApiLogger } from "@/lib/logger";
+import { prisma } from "@/server/db/postgres";
+import { resolveAvatarUrl, resolveAvatarCrop } from "@/lib/resolve-avatar";
 
 /**
  * GET /api/user/library
@@ -25,14 +27,24 @@ export async function GET() {
           seriesProgress: [],
           recents: [],
           continueWatching: [],
+          viewer: null,
         },
         { status: 200 }
       );
     }
 
-    const data = await getLibraryData(userId);
+    const [data, account] = await Promise.all([
+      getLibraryData(userId),
+      prisma.user.findUnique({ where: { id: userId }, select: { image: true, metadata: true } }),
+    ]);
 
     return NextResponse.json({
+      // The signed-in user's resolved avatar (chosen TMDB avatar + framing, or
+      // Google photo) for the nav and other current-user chips.
+      viewer: {
+        avatarUrl: resolveAvatarUrl(account?.image ?? null, account?.metadata),
+        avatarCrop: resolveAvatarCrop(account?.metadata),
+      },
       watchedMovies: data.watchedMovieIds,
       watchlistMovies: data.watchlistMovieIds,
       watchlistSeries: data.watchlistSeriesIds,
