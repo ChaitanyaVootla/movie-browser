@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BellOff, BellRing, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,26 +18,40 @@ export function NotificationList() {
   const [items, setItems] = useState<NotificationDto[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const { state: pushState, subscribe, unsubscribe } = usePushSubscription();
   const { trackAction } = useAnalytics();
 
-  useEffect(() => {
-    void getNotificationFeed({ cursor: null, limit: 20 }).then((page) => {
-      setItems(page.items);
-      setCursor(page.nextCursor);
-      setLoading(false);
-      // Mark read AFTER the unread state has been captured for display
-      void markAllNotificationsRead();
-    });
+  const loadInitial = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    getNotificationFeed({ cursor: null, limit: 20 })
+      .then((page) => {
+        setItems(page.items);
+        setCursor(page.nextCursor);
+        // Mark read AFTER the unread state has been captured for display
+        void markAllNotificationsRead();
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
 
   const loadMore = async () => {
     if (!cursor) return;
     setLoading(true);
-    const page = await getNotificationFeed({ cursor, limit: 20 });
-    setItems((prev) => [...prev, ...page.items]);
-    setCursor(page.nextCursor);
-    setLoading(false);
+    try {
+      const page = await getNotificationFeed({ cursor, limit: 20 });
+      setItems((prev) => [...prev, ...page.items]);
+      setCursor(page.nextCursor);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubscribe = () => {
@@ -79,12 +93,20 @@ export function NotificationList() {
         </div>
       )}
 
-      {loading && items.length === 0 && (
+      {loading && items.length === 0 && !error && (
         <div className="flex justify-center py-10">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
-      {!loading && items.length === 0 && (
+      {error && items.length === 0 && (
+        <div className="flex flex-col items-center gap-3 py-10 text-center">
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load notifications.</p>
+          <Button variant="outline" size="sm" className="min-h-10" onClick={loadInitial}>
+            Try again
+          </Button>
+        </div>
+      )}
+      {!loading && !error && items.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-10">
           Nothing yet. Replies and mentions land here.
         </p>

@@ -86,6 +86,7 @@ export function useListMembership(itemId: number, mediaType: MediaType, open: bo
                 : r
             )
           );
+          toast.success(`Removed from ${row.name}`);
         } else if (!wasIn) {
           const res = await addListItem({ listId, item: toRef(itemId, mediaType) });
           if (!res.success) throw new Error(res.error);
@@ -102,6 +103,7 @@ export function useListMembership(itemId: number, mediaType: MediaType, open: bo
                 : r
             )
           );
+          toast.success(`Added to ${row.name}`);
         } else {
           // wasIn but itemId not yet known: nothing to remove — clear pending.
           setRows((prev) =>
