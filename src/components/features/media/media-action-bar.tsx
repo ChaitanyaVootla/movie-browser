@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { MediaActions } from "./media-actions";
 import { SeenCluster } from "./seen-cluster";
 import { TrailerModal, type TrailerModalData } from "@/components/features/home/trailer-modal";
-import { QuickTake } from "./quick-take";
 import { WatchedButton } from "@/components/features/tracking/watched-button";
 import { DiaryPanel } from "@/components/features/tracking/diary-panel";
 import { useLoginDialog } from "@/components/features/auth";
@@ -19,7 +18,6 @@ interface MediaActionBarProps {
   title: string;
   /** Pre-extracted trailer data (light) - preferred for RSC optimization */
   trailer?: TrailerData | null;
-  quickTake?: string[];
   /** Best-effort poster (C9) for the save-to-list picker header; null-safe. */
   posterPath?: string | null;
   /** Series progress control (SeriesProgressInline) — the series watch slot. */
@@ -32,17 +30,17 @@ interface MediaActionBarProps {
  * (spec 2026-06-20-social-actions-consolidation):
  *
  *   SAVE (future intent / share) — `MediaActions`: Trailer, Watchlist + lists, Share.
- *   SEEN (engagement funnel)     — `SeenCluster`: watch control + progressive
- *                                   Rate / Like / Dislike / Favorite / Review / Diary.
+ *   SEEN (engagement funnel)     — `SeenCluster`: watch control + the single
+ *                                   Rate button (rating + like/dislike + favorite
+ *                                   + review) + Diary.
  *
- * QuickTake pills flow to the right on ≥sm.
+ * The AI quick-take tags moved under the hero one-liner (`LiveAIHook`).
  */
 export function MediaActionBar({
   itemId,
   mediaType,
   title,
   trailer,
-  quickTake,
   posterPath,
   actionSlot,
   className,
@@ -119,11 +117,6 @@ export function MediaActionBar({
               }
             />
           </div>
-
-          {/* QuickTake pills (AI-generated) - flows right after buttons */}
-          {quickTake && quickTake.length > 0 && (
-            <QuickTake items={quickTake} maxVisible={3} className="hidden sm:flex" />
-          )}
         </div>
       </div>
 

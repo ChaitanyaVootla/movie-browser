@@ -364,7 +364,7 @@ async function HeroContentAsync({ movieId }: { movieId: number }) {
       />
 
       {/* AI Hook - tagline above content (live-updated via SSE) */}
-      <LiveAIHook initialHook={aiSummary?.hook ?? null} />
+      <LiveAIHook initialHook={aiSummary?.hook ?? null} initialTags={aiSummary?.quickTake} />
 
       {/* Status badges (trending, new, critically acclaimed, etc.) */}
       {badges.length > 0 && <DetailBadges badges={badges} className="drop-shadow-md" />}
@@ -456,7 +456,6 @@ async function MovieContentAsync({ movieId }: { movieId: number }) {
         title={movie.title}
         posterPath={movie.poster_path}
         trailer={extractTrailerData(movie.videos)}
-        quickTake={aiSummary?.quickTake}
         className="mt-2 md:mt-3"
       />
 

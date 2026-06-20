@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useLoginDialog } from "@/components/features/auth";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { deleteReviewAction, getOwnReview } from "@/server/actions/reviews";
+import { useOpenReview } from "@/hooks/use-open-review";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import type { OwnReviewDTO, TrackedMediaType } from "@/types/social";
 import { ReviewCard } from "./review-card";
@@ -57,6 +58,18 @@ export function OwnReviewSlot({ mediaType, tmdbId, title, seasonNumber }: OwnRev
       setFetched(false);
     };
   }, [status, mediaType, tmdbId, seasonNumber]);
+
+  // The action-bar Rate panel's "Write a review" opens the composer here (and
+  // scrolls this section into view) via a window event — keeps composer state
+  // local to this island while the entry point lives in the bar.
+  useOpenReview(mediaType, tmdbId, () => {
+    if (status !== "authenticated") {
+      openLoginDialog();
+      return;
+    }
+    setComposing(true);
+    document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
   const handleDelete = async () => {
     if (!review) return;

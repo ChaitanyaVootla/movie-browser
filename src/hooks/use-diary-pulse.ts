@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TrackedMediaType } from "@/types/social";
 
 /**
@@ -23,6 +23,31 @@ export function emitDiaryUpdated(mediaType: TrackedMediaType, tmdbId: number): v
   window.dispatchEvent(
     new CustomEvent<DiaryUpdatedDetail>(DIARY_UPDATED_EVENT, { detail: { mediaType, tmdbId } })
   );
+}
+
+/**
+ * Fires `onUpdate` whenever a diary-updated event targets this (mediaType,
+ * tmdbId) — event-driven, so the callback may set state without tripping the
+ * synchronous-setState-in-effect rule. `onUpdate` is read from a ref so the
+ * subscription is stable across renders.
+ */
+export function useDiaryUpdated(
+  mediaType: TrackedMediaType,
+  tmdbId: number,
+  onUpdate: () => void
+): void {
+  const cbRef = useRef(onUpdate);
+  useEffect(() => {
+    cbRef.current = onUpdate;
+  }, [onUpdate]);
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<DiaryUpdatedDetail>).detail;
+      if (detail?.mediaType === mediaType && detail?.tmdbId === tmdbId) cbRef.current();
+    };
+    window.addEventListener(DIARY_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(DIARY_UPDATED_EVENT, handler);
+  }, [mediaType, tmdbId]);
 }
 
 /** Returns true for ~2s after a matching diary-updated event fires. */

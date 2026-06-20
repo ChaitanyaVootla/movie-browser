@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { HERO_TAGLINE } from "@/lib/design";
 import { MediaLogo } from "@/components/features/movie/media-logo";
 import { RatingsBar } from "./ratings-bar";
+import { QuickTake } from "./quick-take";
 import { WatchOptions } from "./watch-options";
 import type { Rating, ProcessedWatchOptions } from "@/types";
 import type { WatchOptionsItem } from "@/types/client-props";
@@ -66,6 +67,8 @@ interface HeroContentProps {
   item?: WatchOptionsItem;
   /** AI-generated one-liner hook */
   hook?: string;
+  /** AI-generated quick-take tags (VIBE insights), shown subtly under the hook. */
+  quickTake?: string[];
 }
 
 export function HeroContent({
@@ -82,6 +85,7 @@ export function HeroContent({
   watchOptions,
   item,
   hook,
+  quickTake,
 }: HeroContentProps) {
   // Build ratings array - use provided ratings or fall back to TMDB vote
   const displayRatings = ratings?.length
@@ -114,14 +118,22 @@ export function HeroContent({
 
       {/* Info section - centered on mobile, left-aligned on desktop */}
       <div className="flex flex-col items-center md:items-start gap-2 md:gap-3">
-        {/* AI Hook - tagline above content */}
+        {/* AI Hook - tagline above content, with quick-take tags under it */}
         {hook && (
-          <motion.blockquote
+          <motion.div
             variants={heroItemVariants}
-            className={HERO_TAGLINE}
+            className="flex max-w-xl flex-col items-center gap-1.5 md:items-start"
           >
-            {hook}
-          </motion.blockquote>
+            <blockquote className={HERO_TAGLINE}>{hook}</blockquote>
+            {quickTake && quickTake.length > 0 && (
+              <QuickTake
+                items={quickTake}
+                variant="hero"
+                maxVisible={4}
+                className="justify-center md:justify-start"
+              />
+            )}
+          </motion.div>
         )}
 
         {/* Ratings */}

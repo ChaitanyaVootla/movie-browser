@@ -17,6 +17,8 @@ interface HeroItemEnhancedData {
   item: WatchOptionsItem;
   /** AI-generated one-liner hook */
   hook?: string;
+  /** AI-generated quick-take tags (VIBE insights), shown under the hook. */
+  quickTake?: string[];
 }
 
 interface HeroCarouselProps {
@@ -263,6 +265,7 @@ export function HeroCarousel({
                     voteAverage={item.vote_average || 0}
                     watchOptions={enhanced?.watchOptions}
                     hook={enhanced?.hook}
+                    quickTake={enhanced?.quickTake}
                     item={
                       enhanced?.item || {
                         id: item.id,
