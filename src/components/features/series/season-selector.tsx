@@ -15,6 +15,8 @@ import type { Episode } from "@/types";
 import type { SeasonSelectorSeason } from "@/types/client-props";
 import { SeasonProgressBar } from "@/components/features/tracking/season-progress-bar";
 import { SeasonProgressProvider } from "@/components/features/tracking/season-progress-context";
+import { useSeriesTracking } from "@/components/features/tracking/series-tracking-provider";
+import { computeResumeTarget, parseResumeParams, type ResumeTarget } from "@/lib/series-resume";
 import { EpisodeScroller } from "./episode-scroller";
 
 interface SeasonSelectorProps {
@@ -35,11 +37,22 @@ function getDefaultSeasonNumber(seasons: SeasonSelectorSeason[]): number {
 export function SeasonSelector({ seriesId, seriesName, seasons, className }: SeasonSelectorProps) {
   // Compute default season number once - stable across renders
   const defaultSeasonNumber = useRef(getDefaultSeasonNumber(seasons)).current;
+  const tracking = useSeriesTracking();
 
   // State for the selected season number - always controlled
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState(defaultSeasonNumber);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [isPending, startTransition] = useTransition();
+
+  // Resume affordances: the episode to scroll to (transient) + the persistent
+  // "Up next" target. Driven by a ?s=&e= deep-link (Up Next / Continue Watching
+  // cards) or by the viewer's series_progress watermark once tracking loads.
+  const [scrollToEpisode, setScrollToEpisode] = useState<number | null>(null);
+  const [scrollMode, setScrollMode] = useState<"horizontal" | "page">("horizontal");
+  const [resumeTarget, setResumeTarget] = useState<ResumeTarget | null>(null);
+  const userSelectedRef = useRef(false); // user manually changed the dropdown
+  const autoAppliedRef = useRef(false); // progress auto-select already applied
+  const deepLinkAppliedRef = useRef(false); // a URL deep-link drove the initial season
   // True once the initial mount fetch has resolved. Without this, the first render
   // flashed the "No episodes" empty state before episodes streamed in (isPending
   // isn't set yet on initial mount) and everything shifted when they arrived.
@@ -75,12 +88,27 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
     }
   };
 
-  // Load initial season episodes on mount only
+  // Load initial season episodes on mount. A ?s=&e= deep-link (from an Up Next /
+  // Continue Watching "resume" click) overrides the default season and requests
+  // a scroll to the exact episode.
   useEffect(() => {
     let cancelled = false;
 
+    const deep =
+      typeof window !== "undefined" ? parseResumeParams(window.location.search) : null;
+    let initialSeason = defaultSeasonNumber;
+    if (deep && seasons.some((s) => s.season_number === deep.seasonNumber)) {
+      initialSeason = deep.seasonNumber;
+      deepLinkAppliedRef.current = true;
+      setSelectedSeasonNumber(deep.seasonNumber);
+      if (deep.episodeNumber != null) {
+        setScrollToEpisode(deep.episodeNumber);
+        setScrollMode("page"); // explicit resume → bring the section into view
+      }
+    }
+
     startTransition(async () => {
-      await fetchSeason(defaultSeasonNumber, () => {
+      await fetchSeason(initialSeason, () => {
         if (!cancelled) setHasLoadedOnce(true);
       });
     });
@@ -91,10 +119,37 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Run only once on mount
   }, []);
 
+  // Once tracking loads, derive the resume target. Always feeds the "Up next"
+  // badge; auto-selects the in-progress season + horizontal-scrolls to it unless
+  // a deep-link or a manual season change already took precedence.
+  useEffect(() => {
+    if (!tracking || tracking.loading || !tracking.progress) return;
+    const target = computeResumeTarget(
+      seasons,
+      tracking.progress.lastSeasonNumber,
+      tracking.progress.lastEpisodeNumber
+    );
+    setResumeTarget(target);
+    if (!target) return;
+    if (deepLinkAppliedRef.current || userSelectedRef.current || autoAppliedRef.current) return;
+    autoAppliedRef.current = true;
+    setScrollToEpisode(target.episodeNumber);
+    setScrollMode("horizontal");
+    if (target.seasonNumber !== selectedSeasonNumber) {
+      setSelectedSeasonNumber(target.seasonNumber);
+      startTransition(async () => {
+        await fetchSeason(target.seasonNumber);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- guarded one-shot on tracking load
+  }, [tracking?.loading, tracking?.progress]);
+
   const handleSeasonChange = (value: string) => {
     const seasonNumber = parseInt(value, 10);
     if (isNaN(seasonNumber)) return;
 
+    userSelectedRef.current = true;
+    setScrollToEpisode(null); // manual switch: don't auto-scroll
     setSelectedSeasonNumber(seasonNumber);
     startTransition(async () => {
       await fetchSeason(seasonNumber);
@@ -180,6 +235,15 @@ export function SeasonSelector({ seriesId, seriesName, seasons, className }: Sea
             seriesName={seriesName}
             seasonNumber={selectedSeasonNumberForCtx}
             title={seasonHeader}
+            scrollToEpisode={scrollToEpisode}
+            scrollMode={scrollMode}
+            upNextEpisode={
+              resumeTarget &&
+              resumeTarget.isNext &&
+              resumeTarget.seasonNumber === selectedSeasonNumberForCtx
+                ? resumeTarget.episodeNumber
+                : null
+            }
           />
         ) : selectedSeason ? (
           <div className="space-y-4">

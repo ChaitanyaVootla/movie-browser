@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
+import { Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MediaScroller } from "@/components/features/media/media-scroller";
 import { EpisodeWatchToggle } from "@/components/features/tracking/episode-watch-toggle";
@@ -21,6 +22,27 @@ interface EpisodeScrollerProps {
   className?: string;
   /** Custom title/header content (e.g., season selector dropdown) */
   title?: ReactNode;
+  /** Episode number to scroll to + briefly highlight (resume target). */
+  scrollToEpisode?: number | null;
+  /** "page" also vertically scrolls the section into view (explicit deep-link); "horizontal" only nudges the strip. */
+  scrollMode?: "horizontal" | "page";
+  /** Episode number to persistently badge as "Up next" in this season. */
+  upNextEpisode?: number | null;
+}
+
+/** Smoothly center an element within its nearest horizontally-scrollable ancestor (no vertical page jump). */
+function horizontalCenter(el: HTMLElement) {
+  let node: HTMLElement | null = el.parentElement;
+  while (node) {
+    const ox = getComputedStyle(node).overflowX;
+    if (ox === "auto" || ox === "scroll") break;
+    node = node.parentElement;
+  }
+  if (!node) return;
+  const cRect = node.getBoundingClientRect();
+  const eRect = el.getBoundingClientRect();
+  const delta = eRect.left - cRect.left - (node.clientWidth - el.clientWidth) / 2;
+  node.scrollBy({ left: delta, behavior: "smooth" });
 }
 
 interface EpisodeCardProps {
@@ -28,9 +50,20 @@ interface EpisodeCardProps {
   seriesId: number;
   seasonNumber: number;
   onClick: () => void;
+  /** Marked as the next episode to watch — persistent "Up next" affordance. */
+  isUpNext?: boolean;
+  /** Transient resume highlight (set briefly after an auto-scroll). */
+  highlight?: boolean;
 }
 
-function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardProps) {
+function EpisodeCard({
+  episode,
+  seriesId,
+  seasonNumber,
+  onClick,
+  isUpNext = false,
+  highlight = false,
+}: EpisodeCardProps) {
   const [imageError, setImageError] = useState(false);
   const tracking = useSeriesTracking();
   const season = useSeasonProgress();
@@ -56,7 +89,10 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
     !isUpcoming && !watched && previewEp != null && episode.episode_number <= previewEp;
 
   return (
-    <div className="group flex-shrink-0 w-[240px] md:w-[280px] text-left">
+    <div
+      data-episode-number={episode.episode_number}
+      className="group flex-shrink-0 w-[240px] md:w-[280px] text-left"
+    >
       {/* Episode info header */}
       <div className="flex items-center justify-between mb-1.5 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
@@ -68,10 +104,17 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
             </>
           )}
         </div>
-        {isUpcoming && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            Upcoming
+        {isUpNext && !isUpcoming ? (
+          <Badge className="bg-brand text-brand-foreground border-0 text-[10px] px-1.5 py-0 gap-0.5">
+            <Play className="h-2.5 w-2.5 fill-current" />
+            Up next
           </Badge>
+        ) : (
+          isUpcoming && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              Upcoming
+            </Badge>
+          )
         )}
       </div>
 
@@ -82,7 +125,9 @@ function EpisodeCard({ episode, seriesId, seasonNumber, onClick }: EpisodeCardPr
       <div
         className={cn(
           "relative aspect-video rounded-lg overflow-hidden bg-muted mb-2 transition-all duration-200",
-          inPreview && "ring-2 ring-brand/60"
+          inPreview && "ring-2 ring-brand/60",
+          isUpNext && !inPreview && "ring-2 ring-brand/70",
+          highlight && "ring-2 ring-brand ring-offset-2 ring-offset-background"
         )}
       >
         <button onClick={onClick} className="absolute inset-0 text-left" aria-label={episode.name}>
@@ -176,13 +221,47 @@ export function EpisodeScroller({
   seasonNumber,
   className,
   title,
+  scrollToEpisode = null,
+  scrollMode = "horizontal",
+  upNextEpisode = null,
 }: EpisodeScrollerProps) {
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [highlightEp, setHighlightEp] = useState<number | null>(null);
+  // Guard so the same target only auto-scrolls once per (season, episode).
+  const scrolledKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (scrollToEpisode == null) return;
+    if (!episodes.some((e) => e.episode_number === scrollToEpisode)) return;
+    const key = `${seasonNumber}:${scrollToEpisode}`;
+    if (scrolledKeyRef.current === key) return;
+    scrolledKeyRef.current = key;
+
+    const el = wrapperRef.current?.querySelector<HTMLElement>(
+      `[data-episode-number="${scrollToEpisode}"]`
+    );
+    if (!el) return;
+    // Defer a frame so layout is settled after the season's episodes render.
+    const raf = requestAnimationFrame(() => {
+      if (scrollMode === "page") {
+        el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      } else {
+        horizontalCenter(el);
+      }
+      setHighlightEp(scrollToEpisode);
+    });
+    const clear = setTimeout(() => setHighlightEp(null), 2600);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(clear);
+    };
+  }, [scrollToEpisode, scrollMode, seasonNumber, episodes]);
 
   if (!episodes.length) return null;
 
   return (
-    <>
+    <div ref={wrapperRef}>
       <MediaScroller className={className} showControls={episodes.length > 4} title={title}>
         {episodes.map((episode) => (
           <EpisodeCard
@@ -191,6 +270,8 @@ export function EpisodeScroller({
             seriesId={seriesId}
             seasonNumber={seasonNumber}
             onClick={() => setSelectedEpisode(episode)}
+            isUpNext={upNextEpisode != null && episode.episode_number === upNextEpisode}
+            highlight={highlightEp != null && episode.episode_number === highlightEp}
           />
         ))}
       </MediaScroller>
@@ -202,6 +283,6 @@ export function EpisodeScroller({
         seasonNumber={seasonNumber}
         onClose={() => setSelectedEpisode(null)}
       />
-    </>
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ListVideo } from "lucide-react";
+import { ListVideo, Play } from "lucide-react";
 import { useSafeSession } from "@/hooks/use-safe-session";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { MediaScroller } from "@/components/features/media/media-scroller";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { getUpNext } from "@/server/actions/tracking";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import { getMediaPath } from "@/lib/utils";
+import { resumeQuery } from "@/lib/series-resume";
 import { episodeCode } from "@/lib/tracking-format";
 import { CDN_IMAGE_BASE, TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { UpNextItemDTO } from "@/types/social";
@@ -78,7 +79,7 @@ export function UpNextSection({ title = "Up Next" }: { title?: string } = {}) {
         return (
           <Link
             key={`${item.seriesId}-${item.seasonNumber}-${item.episodeNumber}`}
-            href={getMediaPath("series", item.seriesId, item.seriesName)}
+            href={`${getMediaPath("series", item.seriesId, item.seriesName)}?${resumeQuery(item.seasonNumber, item.episodeNumber)}`}
             prefetch={false}
             className="group flex-shrink-0 w-[240px] md:w-[280px]"
             onClick={() =>
@@ -105,6 +106,13 @@ export function UpNextSection({ title = "Up Next" }: { title?: string } = {}) {
               >
                 {episodeCode(item.seasonNumber, item.episodeNumber)}
               </Badge>
+              {/* Resume affordance — clarifies the click continues the series */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="flex items-center gap-1.5 rounded-full bg-brand/90 px-3 py-1.5 text-xs font-semibold text-brand-foreground">
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  Resume
+                </span>
+              </div>
               {item.episodesLeft > 1 && (
                 <Badge
                   variant="secondary"
