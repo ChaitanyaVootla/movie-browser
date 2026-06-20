@@ -188,10 +188,16 @@ export default async function DiaryPage({ searchParams }: DiaryPageProps) {
         </header>
 
         {!hasAnything ? (
-          <p className="text-sm text-muted-foreground">
-            Nothing logged yet. Use the Log button on any movie or episode — the date
-            defaults to today.
-          </p>
+          <div className="rounded-xl border border-dashed bg-card/50 px-4 py-10 text-center">
+            <NotebookPen className="mx-auto mb-3 h-8 w-8 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">
+              Nothing logged yet. Use the Log button on any movie or episode — the date
+              defaults to today.
+            </p>
+            <Button asChild className="mt-4">
+              <Link href="/browse">Browse something to log</Link>
+            </Button>
+          </div>
         ) : (
           <div className="space-y-6">
             <DiaryFilters />

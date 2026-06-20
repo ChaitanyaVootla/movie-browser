@@ -58,8 +58,8 @@ export function FollowButton({ username, className }: FollowButtonProps) {
       className={cn(
         "h-10 gap-1.5 rounded-full font-semibold transition-all",
         isFollowing
-          ? "bg-brand/40 text-white border-2 border-brand/70 hover:bg-brand/50"
-          : "bg-white/15 hover:bg-white/25 text-white border border-white/20 backdrop-blur-sm",
+          ? "bg-white/15 text-white border border-white/30 backdrop-blur-sm hover:bg-white/25"
+          : "bg-brand text-brand-foreground hover:bg-brand/90 shadow-sm",
         className
       )}
       disabled={busy}
