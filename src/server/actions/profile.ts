@@ -89,6 +89,7 @@ import { getFourFavorites, setFourFavorites } from "@/server/db/postgres/social/
 import { followUser, unfollowUser, isFollowing } from "@/server/db/postgres/social/follows";
 import { assertNotBlocked } from "@/server/db/postgres/social/blocks";
 import { auth } from "@/lib/auth";
+import { MAX_AVATAR_ZOOM, normalizeCrop } from "@/lib/avatar-crop";
 import type {
   ActionResult,
   FavoriteItemDTO,
@@ -235,6 +236,14 @@ const CustomizationSchema = z.object({
     })
     .nullable(),
   avatarImagePath: z.string().max(200).nullable(),
+  avatarCrop: z
+    .object({
+      zoom: z.number().finite().min(1).max(MAX_AVATAR_ZOOM),
+      nx: z.number().finite(),
+      ny: z.number().finite(),
+      r: z.number().finite().positive(),
+    })
+    .nullable(),
   accent: z.enum(["default", "midnight", "forest", "golden", "ocean", "sunset", "violet", "rose"]),
   bio: z.string().max(160),
   links: z.array(z.string().url().max(200)).max(3),
@@ -265,6 +274,9 @@ export async function updateProfileAction(
               ...(env.profile ?? {}),
               backdrop: v.backdrop ?? undefined,
               avatarImagePath: v.avatarImagePath ?? undefined,
+              // Crop is meaningful only with a chosen TMDB avatar; clearing the
+              // avatar (Google photo) drops the framing too.
+              avatarCrop: v.avatarImagePath ? (v.avatarCrop ?? undefined) : undefined,
               accent: v.accent,
               links: v.links,
               // Free-text display location lives in `displayLocation`; the bare
@@ -409,6 +421,7 @@ export async function getOwnProfileSettings(): Promise<OwnProfileSettingsDTO> {
           }
         : null,
       avatarImagePath: env.profile?.avatarImagePath ?? null,
+      avatarCrop: env.profile?.avatarImagePath ? normalizeCrop(env.profile.avatarCrop) : null,
       accent: (env.profile?.accent ?? "default") as OwnProfileSettingsDTO["customization"]["accent"],
       bio: user?.bio ?? "",
       links: env.profile?.links ?? [],

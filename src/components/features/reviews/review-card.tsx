@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, Star, StarHalf } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 import { cn, getMediaPath } from "@/lib/utils";
 import { RichTextBody } from "@/components/features/rich-text/rich-text-body";
 import { ScopeBadge } from "@/components/features/discussion/scope-badge";
@@ -120,14 +120,12 @@ export function ReviewCard({ review, className }: ReviewCardProps) {
             )}
           </Link>
         ) : (
-          <Avatar className="size-8 shrink-0">
-            {review.avatarUrl && (
-              <AvatarImage src={review.avatarUrl} alt="" referrerPolicy="no-referrer" />
-            )}
-            <AvatarFallback className="text-xs font-medium">
-              {review.displayName.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            src={review.avatarUrl}
+            name={review.displayName}
+            className="size-8 shrink-0"
+            fallbackClassName="text-xs font-medium"
+          />
         )}
         <div className="min-w-0 flex-1">
           {media && mediaHref ? (

@@ -1,16 +1,18 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
 import { MapPin } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PROFILE_ACCENT_VARS } from "@/lib/profile-accents";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
+import type { AvatarCrop } from "@/lib/avatar-crop";
 import type { ProfileAccent } from "@/types/social";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 
 interface PreviewProps {
   displayName: string;
   username: string | null;
   backdropImagePath: string | null;
   avatarUrl: string | null;
+  avatarCrop: AvatarCrop | null;
   accent: ProfileAccent;
   bio: string;
   location: string;
@@ -28,6 +30,7 @@ export function ProfileEditorPreview({
   username,
   backdropImagePath,
   avatarUrl,
+  avatarCrop,
   accent,
   bio,
   location,
@@ -56,12 +59,13 @@ export function ProfileEditorPreview({
         <div className="absolute inset-0 bg-gradient-to-t from-hero-base via-hero-base/40 to-transparent" />
 
         <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 p-4">
-          <Avatar className="size-14 ring-2 ring-brand/80 sm:size-16">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt="" referrerPolicy="no-referrer" />}
-            <AvatarFallback className="text-sm font-semibold">
-              {displayName.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            src={avatarUrl}
+            crop={avatarCrop}
+            name={displayName}
+            className="size-14 ring-2 ring-brand/80 sm:size-16"
+            fallbackClassName="text-sm"
+          />
           <div className="min-w-0 flex-1 pb-0.5">
             <p className="truncate text-lg font-bold tracking-tight text-white">{displayName}</p>
             <p className="truncate text-xs font-medium text-white/70">

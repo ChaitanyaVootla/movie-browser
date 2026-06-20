@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ShieldOff, VolumeX, Loader2 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -92,14 +92,12 @@ export function BlockedUsersSettings() {
             key={row.id}
             className="flex items-center gap-3 rounded-xl border bg-card p-3"
           >
-            <Avatar className="size-10">
-              {row.blocked.image && (
-                <AvatarImage src={row.blocked.image} alt="" referrerPolicy="no-referrer" />
-              )}
-              <AvatarFallback className="text-sm font-semibold">
-                {label.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              src={row.blocked.image}
+              name={label}
+              className="size-10"
+              fallbackClassName="text-sm"
+            />
 
             <div className="min-w-0 flex-1">
               {row.blocked.username ? (

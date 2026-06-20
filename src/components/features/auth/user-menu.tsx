@@ -32,7 +32,7 @@ import {
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/hooks/use-mounted";
@@ -108,7 +108,6 @@ export function UserMenu({ className }: UserMenuProps) {
   }
 
   const user = session.user;
-  const initials = getInitials(user.name || user.email || "U");
 
   return (
     <DropdownMenu>
@@ -121,18 +120,13 @@ export function UserMenu({ className }: UserMenuProps) {
             className
           )}
         >
-          <Avatar className="h-8 w-8">
-            {user.image && (
-              <AvatarImage
-                src={user.image}
-                alt={user.name || "User avatar"}
-                referrerPolicy="no-referrer"
-              />
-            )}
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            src={user.image}
+            name={user.name || "User"}
+            alt={user.name || "User avatar"}
+            className="h-8 w-8"
+            fallbackClassName="bg-primary/10 text-primary text-xs font-medium"
+          />
         </Button>
       </DropdownMenuTrigger>
 
@@ -292,12 +286,4 @@ export function UserMenu({ className }: UserMenuProps) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
 }

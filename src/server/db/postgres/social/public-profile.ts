@@ -11,6 +11,7 @@ import { getUserReviews } from "./reviews";
 import { getUserComments } from "../comments";
 import { getProgressShelf } from "./progress";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
+import { normalizeCrop } from "@/lib/avatar-crop";
 import type {
   BreakdownSliceDTO,
   FavoriteItemDTO,
@@ -51,6 +52,8 @@ interface ProfileEnvelope {
   profile?: {
     backdrop?: { mediaType: "movie" | "series"; tmdbId: number; imagePath: string; titleName?: string };
     avatarImagePath?: string;
+    /** Stored avatar framing (zoom/pan). Validated via normalizeCrop before use. */
+    avatarCrop?: { zoom: number; nx: number; ny: number; r: number };
     accent?: string;
     links?: string[];
     /** User-entered free-text display location for the PUBLIC profile (string). */
@@ -209,6 +212,8 @@ export async function getPublicProfileByUsername(
     avatarUrl: env.profile?.avatarImagePath
       ? `${TMDB_IMAGE_BASE}/w342${env.profile.avatarImagePath}`
       : user.image,
+    // Framing only applies to a chosen TMDB avatar (Google photos render centered).
+    avatarCrop: env.profile?.avatarImagePath ? normalizeCrop(env.profile.avatarCrop) : null,
     accent: (env.profile?.accent ?? "default") as PublicProfileDTO["accent"],
     bio: user.bio,
     links: env.profile?.links ?? [],

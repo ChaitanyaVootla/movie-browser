@@ -28,7 +28,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -617,17 +617,13 @@ function UserRow({ user, aiStats, isExpanded, onToggle }: UserRowProps) {
   return (
     <TableRow className="cursor-pointer" onClick={onToggle}>
       <TableCell>
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={user.picture || user.image} alt={user.name} />
-          <AvatarFallback className="text-xs">
-            {user.name
-              ?.split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2) || "?"}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar
+          src={user.picture || user.image}
+          name={user.name}
+          alt={user.name}
+          className="h-8 w-8"
+          fallbackClassName="text-xs"
+        />
       </TableCell>
       <TableCell>
         <div className="min-w-[180px]">

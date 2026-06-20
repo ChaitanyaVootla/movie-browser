@@ -5,6 +5,8 @@
  * String unions mirror the Prisma enums in the schema spec (§4.2).
  */
 
+import type { AvatarCrop } from "@/lib/avatar-crop";
+
 export type WatchStatus =
   | "WATCHING"
   | "CAUGHT_UP"
@@ -302,6 +304,8 @@ export interface PublicProfileDTO {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /** Framing for a chosen TMDB avatar (zoom/pan). Null = centered cover / Google photo. */
+  avatarCrop: AvatarCrop | null;
   accent: ProfileAccent;
   bio: string | null;
   links: string[];
@@ -357,6 +361,8 @@ export interface ProfileCustomizationInput {
   backdrop: { mediaType: TrackedMediaType; tmdbId: number; imagePath: string } | null;
   /** null = Google photo default; otherwise a TMDB image path pick. */
   avatarImagePath: string | null;
+  /** Framing for the chosen TMDB avatar (zoom/pan). Null = centered cover. */
+  avatarCrop: AvatarCrop | null;
   accent: ProfileAccent;
   bio: string;
   links: string[];

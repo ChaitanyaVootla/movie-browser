@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "./user-avatar";
 import { HeroBackdropShell } from "@/components/features/media/hero-backdrop-shell";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { getMediaPath } from "@/lib/utils";
@@ -21,14 +21,13 @@ export function ProfileHero({ profile }: { profile: PublicProfileDTO }) {
   const identity = (
     <div className="flex flex-col items-center text-center md:items-start md:text-left md:h-full md:justify-end md:px-8 lg:px-12">
       <div className="hero-content-width flex flex-col items-center md:items-start gap-3 pb-5 md:pb-8">
-        <Avatar className="size-20 md:size-28 ring-2 ring-white/30">
-          {profile.avatarUrl && (
-            <AvatarImage src={profile.avatarUrl} alt="" referrerPolicy="no-referrer" />
-          )}
-          <AvatarFallback className="text-xl font-semibold">
-            {profile.displayName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar
+          src={profile.avatarUrl}
+          crop={profile.avatarCrop}
+          name={profile.displayName}
+          className="size-20 md:size-28 ring-2 ring-white/30"
+          fallbackClassName="text-xl"
+        />
 
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">

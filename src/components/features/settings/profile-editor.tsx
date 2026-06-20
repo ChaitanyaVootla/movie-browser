@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import { Check, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +12,12 @@ import { useAnalytics } from "@/hooks/use-analytics";
 import { updateProfileAction } from "@/server/actions/profile";
 import { PROFILE_ACCENT_OPTIONS, PROFILE_ACCENT_VARS } from "@/lib/profile-accents";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
+import type { AvatarCrop } from "@/lib/avatar-crop";
 import type { OwnProfileSettingsDTO, ProfileAccent, TrackedMediaType } from "@/types/social";
+import type { PickedImage } from "@/types/image-picker";
 import { MediaImagePicker } from "@/components/features/media/media-image-picker";
+import { AvatarCropper } from "@/components/features/media/avatar-cropper";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 import { ProfileEditorPreview } from "./profile-editor-preview";
 
 /** A profile backdrop choice — a TMDB title + the picked backdrop file path. */
@@ -32,6 +35,7 @@ interface ProfileEditorProps {
 interface EditableProfile {
   backdrop: BackdropSelection | null;
   avatarImagePath: string | null;
+  avatarCrop: AvatarCrop | null;
   accent: ProfileAccent;
   bio: string;
   /** Stored value = persisted (filtered) links; UI pads to 3 slots. */
@@ -45,6 +49,7 @@ function initialFrom(c: OwnProfileSettingsDTO["customization"]): EditableProfile
       ? { mediaType: c.backdrop.mediaType, tmdbId: c.backdrop.tmdbId, imagePath: c.backdrop.imagePath, titleName: "" }
       : null,
     avatarImagePath: c.avatarImagePath,
+    avatarCrop: c.avatarCrop,
     accent: c.accent,
     bio: c.bio,
     links: c.links,
@@ -57,6 +62,9 @@ function signature(p: EditableProfile): string {
   return JSON.stringify({
     b: p.backdrop ? `${p.backdrop.mediaType}:${p.backdrop.tmdbId}:${p.backdrop.imagePath}` : null,
     a: p.avatarImagePath,
+    crop: p.avatarCrop
+      ? `${p.avatarCrop.zoom.toFixed(3)}:${p.avatarCrop.nx.toFixed(3)}:${p.avatarCrop.ny.toFixed(3)}:${p.avatarCrop.r.toFixed(3)}`
+      : null,
     ac: p.accent,
     bio: p.bio.trim(),
     links: p.links.map((l) => l.trim()).filter(Boolean),
@@ -69,7 +77,11 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
   const [saved, setSaved] = useState<EditableProfile>(() => initialFrom(settings.customization));
   const [backdrop, setBackdrop] = useState<BackdropSelection | null>(saved.backdrop);
   const [avatarImagePath, setAvatarImagePath] = useState<string | null>(saved.avatarImagePath);
+  const [avatarCrop, setAvatarCrop] = useState<AvatarCrop | null>(saved.avatarCrop);
   const [pickerMode, setPickerMode] = useState<"backdrop" | "avatar" | null>(null);
+  // The image being framed in the cropper (just picked, or the current avatar
+  // re-opened for re-framing). `r` carries its aspect ratio.
+  const [cropping, setCropping] = useState<{ imagePath: string; r: number; initial: AvatarCrop | null } | null>(null);
   const [accent, setAccent] = useState<ProfileAccent>(saved.accent);
   const [bio, setBio] = useState(saved.bio);
   const [links, setLinks] = useState<string[]>([...saved.links, "", "", ""].slice(0, 3));
@@ -77,16 +89,17 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
   const [busy, setBusy] = useState(false);
   const { trackAction } = useAnalytics();
 
-  const current: EditableProfile = { backdrop, avatarImagePath, accent, bio, links, location };
+  const current: EditableProfile = { backdrop, avatarImagePath, avatarCrop, accent, bio, links, location };
   const dirty = signature(current) !== signature(saved);
 
   const avatarUrl = avatarImagePath
-    ? `${TMDB_IMAGE_BASE}/w185${avatarImagePath}`
+    ? `${TMDB_IMAGE_BASE}/w342${avatarImagePath}`
     : settings.googleImageUrl;
 
   const handleDiscard = () => {
     setBackdrop(saved.backdrop);
     setAvatarImagePath(saved.avatarImagePath);
+    setAvatarCrop(saved.avatarCrop);
     setAccent(saved.accent);
     setBio(saved.bio);
     setLinks([...saved.links, "", "", ""].slice(0, 3));
@@ -104,6 +117,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
           ? { mediaType: backdrop.mediaType, tmdbId: backdrop.tmdbId, imagePath: backdrop.imagePath }
           : null,
         avatarImagePath,
+        avatarCrop: avatarImagePath ? avatarCrop : null,
         accent,
         bio: cleanBio,
         links: cleanLinks,
@@ -112,7 +126,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
       if (result.ok) {
         toast.success("Profile updated");
         trackAction({ action: "profile_customize", metadata: { accent, hasBackdrop: backdrop !== null } });
-        setSaved({ backdrop, avatarImagePath, accent, bio: cleanBio, links: cleanLinks, location: cleanLocation });
+        setSaved({ backdrop, avatarImagePath, avatarCrop, accent, bio: cleanBio, links: cleanLinks, location: cleanLocation });
       } else {
         toast.error(result.error);
       }
@@ -134,6 +148,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
             username={settings.username}
             backdropImagePath={backdrop?.imagePath ?? null}
             avatarUrl={avatarUrl}
+            avatarCrop={avatarImagePath ? avatarCrop : null}
             accent={accent}
             bio={bio}
             location={location}
@@ -192,30 +207,41 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setAvatarImagePath(null)}
+              onClick={() => {
+                setAvatarImagePath(null);
+                setAvatarCrop(null);
+              }}
               className={cn(
                 "rounded-full border-2 p-0.5 transition-colors",
                 avatarImagePath === null ? "border-brand" : "border-transparent hover:border-border"
               )}
               aria-label="Use Google photo"
             >
-              <Avatar className="size-12">
-                {settings.googleImageUrl && (
-                  <AvatarImage src={settings.googleImageUrl} alt="" referrerPolicy="no-referrer" />
-                )}
-                <AvatarFallback className="text-xs">{settings.displayName.slice(0, 2)}</AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                src={settings.googleImageUrl}
+                name={settings.displayName}
+                className="size-12"
+                fallbackClassName="text-xs"
+              />
             </button>
             {avatarImagePath && (
               <button
                 type="button"
-                onClick={() => setPickerMode("avatar")}
+                onClick={() =>
+                  avatarCrop
+                    ? setCropping({ imagePath: avatarImagePath, r: avatarCrop.r, initial: avatarCrop })
+                    : setPickerMode("avatar")
+                }
                 className="rounded-full border-2 border-brand p-0.5"
-                aria-label="Change avatar artwork"
+                aria-label="Re-frame avatar artwork"
               >
-                <span className="relative block size-12 overflow-hidden rounded-full bg-muted">
-                  <Image src={`${TMDB_IMAGE_BASE}/w185${avatarImagePath}`} alt="" fill className="object-cover" sizes="48px" unoptimized />
-                </span>
+                <UserAvatar
+                  src={`${TMDB_IMAGE_BASE}/w342${avatarImagePath}`}
+                  crop={avatarCrop}
+                  name={settings.displayName}
+                  className="size-12"
+                  fallbackClassName="text-xs"
+                />
               </button>
             )}
             <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => setPickerMode("avatar")}>
@@ -224,7 +250,8 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
             </Button>
           </div>
           <p className="text-xs font-medium text-muted-foreground">
-            Use any poster or cast photo as your avatar — search any title or person — or keep your Google photo.
+            Use any poster, still, or cast photo as your avatar — search any title or person, then zoom and frame
+            it — or keep your Google photo.
           </p>
         </div>
 
@@ -315,7 +342,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
         open={pickerMode !== null}
         onOpenChange={(o) => !o && setPickerMode(null)}
         entityTypes={pickerMode === "backdrop" ? ["movie", "series"] : ["movie", "series", "person"]}
-        kinds={pickerMode === "backdrop" ? ["backdrop"] : ["poster", "profile"]}
+        kinds={pickerMode === "backdrop" ? ["backdrop"] : ["backdrop", "poster", "profile"]}
         selectedPaths={
           pickerMode === "backdrop"
             ? backdrop
@@ -326,7 +353,7 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
               : []
         }
         title={pickerMode === "backdrop" ? "Choose a backdrop" : "Choose your avatar"}
-        onPick={(p) => {
+        onPick={(p: PickedImage) => {
           if (pickerMode === "backdrop") {
             setBackdrop({
               mediaType: p.entityType === "series" ? "series" : "movie",
@@ -334,12 +361,30 @@ export function ProfileEditor({ settings }: ProfileEditorProps) {
               titleName: p.entityName,
               imagePath: p.imagePath,
             });
+            setPickerMode(null);
           } else {
-            setAvatarImagePath(p.imagePath);
+            // Hand off to the cropper to frame the picked image into the circle.
+            setPickerMode(null);
+            setCropping({ imagePath: p.imagePath, r: p.aspectRatio, initial: null });
           }
-          setPickerMode(null);
         }}
       />
+
+      {/* Frame the picked (or current) avatar image into the circular crop. */}
+      {cropping && (
+        <AvatarCropper
+          open={cropping !== null}
+          onOpenChange={(o) => !o && setCropping(null)}
+          src={`${TMDB_IMAGE_BASE}/w780${cropping.imagePath}`}
+          aspectRatio={cropping.r}
+          initialCrop={cropping.initial}
+          onConfirm={(crop) => {
+            setAvatarImagePath(cropping.imagePath);
+            setAvatarCrop(crop);
+            setCropping(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -27,7 +27,7 @@ import { useState, useCallback } from "react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/features/profile/user-avatar";
 import { useSearch } from "@/components/features/search";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
@@ -109,18 +109,13 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
           <DrawerTitle className="text-left">
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  {user.image && (
-                    <AvatarImage
-                      src={user.image}
-                      alt={user.name || "User"}
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                    {getInitials(user.name || user.email || "U")}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  src={user.image}
+                  name={user.name || user.email || "U"}
+                  alt={user.name || "User"}
+                  className="h-12 w-12"
+                  fallbackClassName="bg-primary/10 text-primary text-sm font-medium"
+                />
                 <div className="flex flex-col items-start">
                   {user.name && <span className="font-semibold text-base">{user.name}</span>}
                   {user.email && (
@@ -362,18 +357,13 @@ export function MobileBottomNav() {
                   // Pre-hydration/loading placeholder: person glyph, not a blank circle
                   <User className="h-5 w-5 text-muted-foreground/50" />
                 ) : isAuthenticated ? (
-                  <Avatar className="h-5 w-5 ring-1 ring-border/40">
-                    {user?.image && (
-                      <AvatarImage
-                        src={user.image}
-                        alt={user.name || "User"}
-                        referrerPolicy="no-referrer"
-                      />
-                    )}
-                    <AvatarFallback className="text-[8px] bg-primary/10 text-primary font-medium">
-                      {getInitials(user?.name || "U")}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    src={user?.image}
+                    name={user?.name || "U"}
+                    alt={user?.name || "User"}
+                    className="h-5 w-5 ring-1 ring-border/40"
+                    fallbackClassName="text-[8px] bg-primary/10 text-primary font-medium"
+                  />
                 ) : (
                   <User className="h-5 w-5 text-muted-foreground" />
                 )}
@@ -392,14 +382,3 @@ export function MobileBottomNav() {
   );
 }
 
-// =============================================================================
-// Utilities
-// =============================================================================
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
