@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,12 +18,7 @@ interface SeenClusterProps {
   itemId: number;
   mediaType: MediaType;
   title: string;
-  /**
-   * The watch control — movie: `WatchedButton`; series: `SeriesProgressInline`.
-   * Always rendered; it is the primary "I watched it" / "Set position" entry.
-   */
-  watchedSlot: ReactNode;
-  /** Open the per-title diary panel (the "Add note" / "Diary" flow). */
+  /** Open the per-title diary panel. */
   onOpenDiary: () => void;
   /** Whether the viewer already has a review (controls the Rate-panel CTA label). */
   hasReview?: boolean;
@@ -36,15 +31,17 @@ const PILL =
  * The "Seen" cluster — the engagement funnel, with progressive disclosure
  * (spec 2026-06-20-social-actions-consolidation):
  *
- *  - BEFORE engaging: two entry pills only — the watch control + "Add note".
+ *  - BEFORE engaging: just the Diary opener (the watch control is a sibling in
+ *    the bar, rendered before Watchlist).
  *  - AFTER engaging (watched / progress / any rating): a SINGLE "Rate" button
  *    (the consolidated opinion surface: rating + like/dislike + favorite +
- *    review) reveals beside the watch control + Diary. On a fresh watch this
- *    session, the Rate panel auto-opens once ("we can ask their rating").
+ *    review) reveals before Diary. On a fresh watch this session the Rate panel
+ *    auto-opens once ("we can ask their rating").
  *
- * Client island — renders nothing meaningful in the ISR-cached anon HTML.
+ * Returns a fragment so its buttons are direct flex children of the action bar
+ * (uniform wrapping). Client island — nothing in the ISR-cached anon HTML.
  */
-export function SeenCluster({ itemId, mediaType, title, watchedSlot, onOpenDiary, hasReview }: SeenClusterProps) {
+export function SeenCluster({ itemId, mediaType, title, onOpenDiary, hasReview }: SeenClusterProps) {
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
 
@@ -78,13 +75,8 @@ export function SeenCluster({ itemId, mediaType, title, watchedSlot, onOpenDiary
   }, []);
   useDiaryUpdated(mediaType, itemId, onDiaryUpdated);
 
-  // Anonymous viewers never engage client-side — keep the bar to the entry pills
-  // (the watch control + Add note both auth-gate their own clicks).
   return (
-    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-      {/* Primary entry: I watched it / Set position. */}
-      {watchedSlot}
-
+    <>
       {/* Consolidated opinion control — reveals after engaging. */}
       {show && isAuthenticated && (
         <RateButton
@@ -96,17 +88,17 @@ export function SeenCluster({ itemId, mediaType, title, watchedSlot, onOpenDiary
         />
       )}
 
-      {/* Diary / note opener — present at every stage. Before engagement it is
-          the second entry flow ("Add note"); after, it opens the history. */}
+      {/* Diary opener — consistent "Diary" term for BOTH movie and series, at
+          every stage (the per-title diary: log a watch or add a note). */}
       <button
         type="button"
         onClick={onOpenDiary}
         className={cn(PILL)}
-        aria-label={show ? "Open your diary for this title" : "Add a note"}
+        aria-label="Open your diary for this title"
       >
         <NotebookPen className="h-3.5 w-3.5" />
-        <span className="text-[13px]">{show ? "Diary" : "Add note"}</span>
+        <span className="text-[13px]">Diary</span>
       </button>
-    </div>
+    </>
   );
 }

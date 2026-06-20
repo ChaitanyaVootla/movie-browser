@@ -8,6 +8,7 @@ import { useUserLibrary } from "@/hooks/use-user-library";
 import { useAnalytics } from "@/hooks/use-analytics";
 import type { MediaType } from "@/stores/user";
 import { SaveButton } from "@/components/features/lists/save-button";
+import type { ReactNode } from "react";
 
 interface MediaActionsProps {
   itemId: number;
@@ -19,16 +20,23 @@ interface MediaActionsProps {
   variant?: "hero" | "compact";
   /** Best-effort poster (C9) for the save-to-list picker header; null-safe. */
   posterPath?: string | null;
+  /**
+   * The watch control (movie Watched toggle / series Set-position), rendered
+   * RIGHT AFTER Trailer so it leads.
+   */
+  watchSlot?: ReactNode;
+  /**
+   * Engagement controls (SeenCluster: Rate + Diary), rendered after Watchlist.
+   */
+  engagementSlot?: ReactNode;
 }
 
 /**
- * The "Save" cluster of the detail-page action bar: Play Trailer, Watchlist
- * (+ save-to-list picker), and Share — the future-intent / sharing actions.
- *
- * Engagement (watched / rate / like / favorite / review) lives in the SEPARATE
- * `SeenCluster`, rendered as a peer in `MediaActionBar`. Splitting the bar into
- * Save vs Seen is the coherence model from the social-actions-consolidation
- * spec — keep these two concerns in their own components.
+ * The detail-page action bar row, in a single sensible order:
+ *   Trailer · Watched · Watchlist · Rate · Diary · Share.
+ * The watch control leads (right after Trailer), then Watchlist, then the
+ * engagement controls, then Share. No separator — one coherent row for both
+ * movie and series.
  */
 export function MediaActions({
   itemId,
@@ -39,6 +47,8 @@ export function MediaActions({
   className,
   variant = "hero",
   posterPath,
+  watchSlot,
+  engagementSlot,
 }: MediaActionsProps) {
   const { isInWatchlist, toggleWatchlist } = useUserLibrary(itemId, mediaType);
   const { trackShareClick } = useAnalytics();
@@ -88,36 +98,39 @@ export function MediaActions({
         </Button>
       )}
 
-      <TooltipProvider>
-        <div className="flex items-center gap-1.5">
-          {/* Watchlist + save-to-list picker (split control) */}
-          <SaveButton
-            variant="hero"
-            itemId={itemId}
-            mediaType={mediaType}
-            title={title}
-            posterPath={posterPath}
-            isInWatchlist={isInWatchlist}
-            toggleWatchlist={toggleWatchlist}
-          />
+      {/* Watch control — leads, right after Trailer. */}
+      {watchSlot}
 
-          {/* Share — inline at every size (the casual reactions now live in the
-              Seen cluster, so there is no mobile overflow drawer to host it). */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon-sm"
-                variant="secondary"
-                className="rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-                onClick={handleShare}
-                aria-label="Share"
-              >
-                <Share2 className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Share</TooltipContent>
-          </Tooltip>
-        </div>
+      {/* Watchlist + save-to-list picker (split on desktop, single on mobile). */}
+      <SaveButton
+        variant="hero"
+        itemId={itemId}
+        mediaType={mediaType}
+        title={title}
+        posterPath={posterPath}
+        isInWatchlist={isInWatchlist}
+        toggleWatchlist={toggleWatchlist}
+      />
+
+      {/* Engagement (Rate · Diary) — after Watchlist. */}
+      {engagementSlot}
+
+      {/* Share — inline at every size. */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="secondary"
+              className="rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
+              onClick={handleShare}
+              aria-label="Share"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Share</TooltipContent>
+        </Tooltip>
       </TooltipProvider>
     </div>
   );

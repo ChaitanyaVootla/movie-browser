@@ -83,7 +83,9 @@ export function MediaActionBar({
       <div className={cn("px-4 md:px-8 lg:px-12", className)}>
         <div className="flex items-center gap-6">
           <div className="flex w-full flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:justify-start sm:gap-2">
-            {/* SAVE cluster — future intent + share. */}
+            {/* One flat row, no group divider:
+                Trailer · Watched · Rate · Diary · Watchlist · Share. The watch
+                control leads (right after Trailer) via the engagementSlot. */}
             <MediaActions
               itemId={itemId}
               mediaType={mediaType}
@@ -92,19 +94,7 @@ export function MediaActionBar({
               hasTrailer={!!trailer}
               onPlayTrailer={() => setShowTrailer(true)}
               variant="hero"
-            />
-
-            {/* Divider between the two clusters (≥sm; on mobile they wrap). */}
-            <div className="mx-0.5 hidden h-6 w-px bg-white/15 sm:block" aria-hidden />
-
-            {/* SEEN cluster — the engagement funnel. The watch slot is the movie
-                Watched toggle or the series progress control. */}
-            <SeenCluster
-              itemId={itemId}
-              mediaType={mediaType}
-              title={title}
-              onOpenDiary={openDiary}
-              watchedSlot={
+              watchSlot={
                 isMovie ? (
                   <WatchedButton
                     mediaType="movie"
@@ -116,6 +106,14 @@ export function MediaActionBar({
                 ) : (
                   actionSlot
                 )
+              }
+              engagementSlot={
+                <SeenCluster
+                  itemId={itemId}
+                  mediaType={mediaType}
+                  title={title}
+                  onOpenDiary={openDiary}
+                />
               }
             />
           </div>
