@@ -93,12 +93,17 @@ export function LogWatchForm({
   const watchLabel = isRewatch ? "I rewatched it" : "I watched it";
   const derivedSubmit = !isWatch ? "Add note" : isRewatch ? "Log rewatch" : "Log watch";
 
+  const submit = () => {
+    if (busy) return;
+    onSubmit({ watchedAt: watchedAt || null, note: note.trim(), score, isWatch, isPrivate });
+  };
+
   return (
     <form
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ watchedAt: watchedAt || null, note: note.trim(), score, isWatch, isPrivate });
+        submit();
       }}
     >
       {allowKindToggle && !forceNote && (
@@ -148,12 +153,20 @@ export function LogWatchForm({
           id="log-note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              submit();
+            }
+          }}
           rows={3}
           maxLength={1000}
           placeholder="Anything you want to remember…"
           className="w-full rounded-md border bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <p className="text-xs font-medium text-muted-foreground">Only you can see your notes.</p>
+        <p className="text-xs font-medium text-muted-foreground">
+          Only you can see your notes. <span className="hidden sm:inline">Press ⌘/Ctrl + Enter to save.</span>
+        </p>
       </div>
 
       <div className="flex items-center justify-between py-1">
