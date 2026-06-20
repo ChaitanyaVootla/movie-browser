@@ -20,6 +20,8 @@ import { LoginDialog, useLoginDialog } from "@/components/features/auth";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useUserStore, selectLiked, selectRating, type MediaType } from "@/stores/user";
 import { getRating, setRating as persistRating } from "@/server/actions/user-ratings";
+import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
+import { PartialStar } from "./social-signals";
 import { emitOpenReview } from "@/hooks/use-open-review";
 
 interface RateButtonProps {
@@ -85,8 +87,14 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
     }
     let cancelled = false;
     void (async () => {
-      const r = await getRating({ itemId, itemType: mediaType });
-      if (!cancelled && r.success) setScore(r.rating?.score ?? null);
+      try {
+        const r = await getRating({ itemId, itemType: mediaType });
+        if (!cancelled && r.success) setScore(r.rating?.score ?? null);
+      } catch (error: unknown) {
+        // Stale-build action id (404) on a cold-edge page → self-heal by
+        // reloading once (else the rating silently never loads).
+        if (isStaleServerActionError(error)) recoverFromStaleAction();
+      }
     })();
     return () => {
       cancelled = true;
@@ -119,9 +127,13 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
         if (next !== null) {
           trackAction({ action: "rate_score", mediaType, itemId, metadata: { score: next } });
         }
-      } catch {
+      } catch (error: unknown) {
         setScore(prev);
         setScoreLocal(itemId, mediaType, prev);
+        if (isStaleServerActionError(error)) {
+          recoverFromStaleAction();
+          return;
+        }
         toast.error("Failed to save your rating");
       } finally {
         setBusy(null);
@@ -141,8 +153,12 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
         const r = await persistRating({ itemId, itemType: mediaType, thumb: next === 0 ? null : next });
         if (!r.success) throw new Error(r.error);
         trackRating(itemId, mediaType, next === 0 ? "remove" : value === 1 ? "like" : "dislike", title);
-      } catch {
+      } catch (error: unknown) {
         setRatingLocal(itemId, mediaType, prev);
+        if (isStaleServerActionError(error)) {
+          recoverFromStaleAction();
+          return;
+        }
         toast.error("Couldn't save your reaction");
       } finally {
         setBusy(null);
@@ -159,8 +175,12 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
     try {
       const r = await persistRating({ itemId, itemType: mediaType, liked: next });
       if (!r.success) throw new Error(r.error);
-    } catch {
+    } catch (error: unknown) {
       setLikedLocal(itemId, mediaType, liked);
+      if (isStaleServerActionError(error)) {
+        recoverFromStaleAction();
+        return;
+      }
       toast.error("Couldn't update favorite");
     } finally {
       setBusy(null);
@@ -197,7 +217,12 @@ export function RateButton({ itemId, mediaType, title, autoOpenToken, hasReview 
       onClick={handleTriggerClick}
       aria-label={hasScore ? `Your rating: ${score} out of 10. Rate & review` : "Rate & review"}
     >
-      <Star className={cn("h-3.5 w-3.5", hasScore && "fill-current")} />
+      {/* %-filled star (matches the card cluster) when rated; outline otherwise. */}
+      {hasScore && score !== null ? (
+        <PartialStar value={score / 2} size={14} />
+      ) : (
+        <Star className="h-3.5 w-3.5" />
+      )}
       <span className="text-[13px] font-semibold tabular-nums">
         {hasScore ? `${score}` : "Rate"}
       </span>

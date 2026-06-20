@@ -15,9 +15,16 @@ const RELOAD_GUARD_WINDOW_MS = 60_000;
 
 /** Matches the failure shapes Next emits for unknown action IDs. */
 export function isStaleServerActionError(error: unknown): boolean {
+  const name = error instanceof Error ? error.name : "";
   const message =
     error instanceof Error ? error.message : typeof error === "string" ? error : "";
   return (
+    // Next 16 throws this NAMED error on an unknown action id (the actual prod
+    // shape — was previously MISSED, so the self-heal reload never fired and
+    // ratings/reviews stayed broken on stale-edge pages, e.g. mortal-kombat-ii).
+    name === "UnrecognizedActionError" ||
+    message.includes("UnrecognizedActionError") ||
+    message.includes("was not found on the server") ||
     message.includes("Server action not found") ||
     message.includes("Failed to find Server Action") ||
     // Minified prod builds sometimes surface only the generic wrapper:
