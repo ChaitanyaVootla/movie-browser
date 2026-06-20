@@ -21,6 +21,7 @@ import { EnrichButton } from "./enrich-button";
 import { RefreshDataButton } from "./refresh-data-button";
 import { ItemAnalyticsModal, AIDataModal } from "@/components/features/admin";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { useMobile } from "@/hooks/use-mobile";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { WatchNotes } from "./insight-sections";
 import { StandoutAspects } from "./standout-aspects";
@@ -212,30 +213,6 @@ function MoodIndicators({ mood }: { mood: AISummary["mood"] }) {
 }
 
 
-// Themes list - clean tags for thematic content
-function ThemesList({ themes }: { themes: string[] }) {
-  if (!themes?.length) return null;
-
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {themes.map((theme, index) => (
-        <span
-          key={index}
-          className={cn(
-            "inline-flex items-center",
-            "px-2.5 py-1 rounded-md",
-            "text-xs font-medium",
-            "bg-white/5 text-foreground/80",
-            "border border-white/10",
-            "transition-colors hover:bg-white/10 hover:text-foreground"
-          )}
-        >
-          {theme}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 // Series status badge with enhanced visuals
 function SeriesStatusBadge({
@@ -335,7 +312,7 @@ function AdminToolsFooter({
   if (!isAdmin) return null;
 
   return (
-    <div className="flex justify-end items-center gap-2 px-4 py-2 border-t border-white/5">
+    <div className="flex items-center gap-2 overflow-x-auto px-4 py-2 border-t border-white/5 md:justify-end [&>*]:shrink-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <ItemAnalyticsModal tmdbId={tmdbId} mediaType={mediaType} />
       <AIDataModal tmdbId={tmdbId} mediaType={mediaType} />
       <RefreshDataButton tmdbId={tmdbId} mediaType={mediaType} />
@@ -346,6 +323,7 @@ function AdminToolsFooter({
 
 export function MediaOverview({ item, mediaType, aiSummary, aiInsights, className }: MediaOverviewProps) {
   // Props are now pre-extracted - no more digging into nested objects
+  const isMobileView = useMobile();
   const director = isMovie(item) ? item.director : undefined;
   const creators = !isMovie(item) ? item.creators : undefined;
   const topCast = item.topCast || [];
@@ -408,14 +386,15 @@ export function MediaOverview({ item, mediaType, aiSummary, aiInsights, classNam
                 <ContentWarningLink imdbId={imdbId} size="xs" />
               </div>
 
-              {/* Keywords */}
+              {/* Keywords (TMDB) — fewer on mobile to cut vertical scroll.
+                  AI themes used to render here too but were dropped: they
+                  looked different and cluttered the section. */}
               {keywords && keywords.length > 0 && (
-                <KeywordsList keywords={keywords} mediaType={mediaType} maxVisible={10} />
-              )}
-
-              {/* AI Themes - below keywords */}
-              {aiSummary?.themes && aiSummary.themes.length > 0 && (
-                <ThemesList themes={aiSummary.themes} />
+                <KeywordsList
+                  keywords={keywords}
+                  mediaType={mediaType}
+                  maxVisible={isMobileView ? 5 : 10}
+                />
               )}
 
               {/* Standout Aspects - clean text-based design */}
