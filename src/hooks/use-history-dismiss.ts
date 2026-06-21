@@ -118,6 +118,50 @@ function releaseStrandedBodyLock() {
   }
 }
 
+/**
+ * Force any CLOSING Vaul overlay/drawer to finish unmounting NOW.
+ *
+ * The "stuck for a few seconds after a Back-dismiss" freeze: closing a Vaul
+ * Drawer by flipping its controlled `open` prop (what a hardware/gesture Back
+ * does) sets `data-state="closed"` immediately, but the exit animation never
+ * actually runs (the popstate also drives Next's router re-render, which
+ * prevents the fade/slide keyframes from starting). Radix `Presence` keeps the
+ * element mounted until it receives the `animationend` it is waiting for — which
+ * never fires — so the dialog (with its scrim + `react-remove-scroll`
+ * non-passive `touchmove` lock) lingers ~4s in BOTH dev and prod. The page is
+ * left dimmed and UNSCROLLABLE (taps work once we clear pointer-events; scroll
+ * does not). Verified: Esc/scrim/drag close in ~460ms; Back lingers ~4s.
+ *
+ * Dispatching the `animationend`/`transitionend` Radix is waiting for makes
+ * `Presence` complete the exit and unmount at once (measured ~0ms vs ~4000ms).
+ * We target only `data-state="closed"` nodes (genuinely exiting) so we never
+ * cut short an OPENING overlay. The main thread is NOT actually blocked during
+ * the linger (timers fire fine), so `scheduleOverlayFlush` retries this across a
+ * short window after the close commits.
+ */
+function flushClosingVaulOverlays() {
+  if (typeof document === "undefined") return;
+  const closing = document.querySelectorAll(
+    '[data-vaul-overlay][data-state="closed"], [data-vaul-drawer][data-state="closed"]',
+  );
+  closing.forEach((el) => {
+    const animationName = getComputedStyle(el).animationName;
+    el.dispatchEvent(new AnimationEvent("animationend", { animationName, bubbles: true }));
+    el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "transform", bubbles: true }));
+  });
+}
+
+// Force-unmount a stranded CLOSING overlay at a few points after a close. The
+// close commits `data-state="closed"` on a later render (~tens of ms), so a
+// single rAF (which can fire BEFORE that commit) is unreliable — we retry across
+// a short window. Each call is a no-op once the overlay has actually unmounted.
+function scheduleOverlayFlush() {
+  if (typeof window === "undefined") return;
+  for (const delay of [100, 250, 500]) {
+    window.setTimeout(flushClosingVaulOverlays, delay);
+  }
+}
+
 function handlePopState() {
   // A synthetic back() we triggered to clean up our own entry — swallow it
   // once so it does not also close the next overlay down.
@@ -126,7 +170,13 @@ function handlePopState() {
     return;
   }
   const top = stack.pop();
-  if (top) top.close();
+  if (top) {
+    top.close();
+    // Its exit animation won't run on a Back-driven controlled-prop close (see
+    // flushClosingVaulOverlays) — force the unmount so the scrim/scroll-lock
+    // release in ~100ms instead of lingering ~4s.
+    scheduleOverlayFlush();
+  }
   releaseStrandedBodyLock();
 }
 
@@ -162,6 +212,15 @@ function removeOverlay(id: number) {
   // Vaul's own body-pointer-events reset — release the stranded lock here so the
   // page never freezes. No-op on Vaul's internal closes (it already reset it).
   releaseStrandedBodyLock();
+  // A programmatic controlled-prop close (e.g. the quick-info drawer's
+  // usePathname close, or "Write a review") can strand a CLOSING overlay the
+  // same way a Back does (exit animation never fires → Radix Presence never
+  // unmounts → lingering scrim/scroll-lock). Force the exit once the close
+  // animation would have finished. No-op for Vaul's internal closes — their
+  // overlay has already unmounted by then.
+  if (typeof window !== "undefined") {
+    window.setTimeout(flushClosingVaulOverlays, UNWIND_DELAY_MS);
+  }
   // Only unwind our synthetic entry if we are still sitting on it. If the user
   // navigated forward (e.g. tapped a link inside the overlay) the current
   // history state is no longer ours, and calling back() would undo that

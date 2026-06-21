@@ -138,6 +138,37 @@ overlay stayed = the "back went back a page but the modal remained" bug). Fixed 
   BACK on a mobile viewport (a drag-dismiss repro looks fine and HIDES this — only
   Vaul-internal closes run line 901) and confirming `getComputedStyle(document
   .body).pointerEvents` is not stuck at `none`.
+- **The BIG one — "stuck for a few seconds after closing ANY drawer" (the scroll
+  freeze, diagnosed Jun 21 2026, real in BOTH dev AND prod ~4s).** Distinct from
+  the pointer-events strand above and far more impactful. On a hardware/gesture
+  **Back** dismiss, the Vaul Drawer is closed by flipping its controlled `open`
+  prop; `data-state` flips to `"closed"` within ~60ms, but the **exit animation
+  never runs** (the same popstate drives Next's router re-render, which prevents
+  the fade/slide keyframes from starting). Radix `Presence` keeps the element
+  mounted until it receives the `animationend` it is waiting for — which never
+  fires — so the whole Radix Dialog subtree (scrim + focus-guard + the
+  `react-remove-scroll` **non-passive `touchmove` lock**) **lingers mounted ~4s**.
+  Result: taps work (we clear pointer-events) but the page **cannot be SCROLLED**
+  and stays dimmed for ~4s. Esc/scrim/drag (Vaul's INTERNAL close) animate and
+  unmount in ~460ms — only the controlled-prop/Back close strands. **The trap that
+  cost a full investigation: `window.scrollTo()` BYPASSES touch-event blocking, so
+  every `scrollTo`-based probe shows "scrollable" while a real finger-swipe is dead
+  — you MUST measure with real touch (CDP `Input.dispatchTouchEvent`) or by
+  watching `[data-vaul-overlay]` mount duration.** Fix lives in `useHistoryDismiss`
+  (`flushClosingVaulOverlays` + `scheduleOverlayFlush`): after a Back close,
+  dispatch the `animationend`/`transitionend` Radix is waiting for onto
+  `[data-vaul-overlay|data-vaul-drawer][data-state="closed"]` nodes — `Presence`
+  then unmounts at once (~100-250ms vs ~4000ms). Retried across [100,250,500]ms
+  because the close commits `data-state="closed"` a render later (a single rAF can
+  fire too early); only `data-state="closed"` nodes are targeted so an OPENING
+  overlay is never cut short; nested overlays are safe (a still-open lower drawer
+  is `data-state="open"`). `removeOverlay` schedules the same flush at
+  `UNWIND_DELAY_MS` as a backstop for programmatic controlled-prop closes
+  (quick-info `usePathname` close, "Write a review"). Things that did NOT work
+  (don't retry them): `flushSync(close)` (the UNMOUNT, not the close, is what's
+  deferred); capture-phase `stopImmediatePropagation` to suppress Next's popstate
+  (for an event targeted at `window`, listeners fire in REGISTRATION order, and
+  Next registers first); dispatching `Escape` (still a controlled-prop close).
 - **NOT the freeze: plain movie→movie→Back RSC re-init is dev-only.** Measured
   (Jun 21 2026) identical RSC-refetch counts on Back whether or not the hook was
   ever armed (a drawer opened this session) — so `useHistoryDismiss` does NOT
