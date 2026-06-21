@@ -6,7 +6,7 @@ import Image from "next/image";
 // navigation in document.startViewTransition so the detail→discussions
 // shared-element morph (hero-backdrop / hero-logo) fires. Feature-detects:
 // browsers without startViewTransition just get a normal navigation.
-import { Link } from "next-view-transitions";
+import { Link } from "@/lib/view-transitions";
 import { MessagesSquare, ArrowRight, Heart, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PROFILE_ACCENT_VARS } from "@/lib/profile-accents";

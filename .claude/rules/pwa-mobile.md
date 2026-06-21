@@ -169,6 +169,35 @@ overlay stayed = the "back went back a page but the modal remained" bug). Fixed 
   deferred); capture-phase `stopImmediatePropagation` to suppress Next's popstate
   (for an event targeted at `window`, listeners fire in REGISTRATION order, and
   Next registers first); dispatching `Escape` (still a controlled-prop close).
+- **THE ACTUAL ~4s "scroll + tap both dead, recovers on its own" freeze (root
+  cause found Jun 21 2026 after a long hunt — this is the real one; the
+  pointer-events/`flushClosingVaulOverlays` notes above were a SECONDARY symptom
+  on the wrong layer).** It is NOT a JS/CPU freeze (CPU profile is idle the whole
+  time), NOT the Vaul overlay, NOT pointer-events. It is the **View Transitions
+  API snapshot overlay getting wedged.** The app wraps everything in
+  `<ViewTransitions>` (now our vendored fork `src/lib/view-transitions.tsx`,
+  formerly `next-view-transitions`). Its `useBrowserNativeTransitions` starts a
+  `document.startViewTransition()` on **every `popstate`**, and the transition's
+  update-callback promise resolves **only** via an effect keyed on
+  `[hash, pathname]`. A **same-path** popstate therefore never resolves it, so the
+  browser holds its full-screen `::view-transition` snapshot (top layer —
+  intercepts ALL scroll + taps) until its internal **~4s watchdog** aborts it
+  (the "recovers on its own"). `useHistoryDismiss` fires exactly that same-path
+  popstate: Back pops the synthetic overlay entry (same URL); swipe/scrim close
+  does the deferred `history.back()` unwind (same URL). Mobile-only because the
+  synthetic entry is only pushed at `<768px`. **FIX:** the vendored fork adds one
+  guard in `onPopState` — `if (window.location.pathname === currentPathname.current) return;`
+  (skip the transition when the path didn't change; a same-path pop has no route
+  morph anyway). Real back/forward navs (pathname changes, e.g. the
+  detail↔discussions hero morph) are unaffected. Validated by A/B (guard off →
+  content unreachable ~70–4000ms after Back AND drag close; guard on → none).
+  **Diagnosis trap that cost many cycles: measure with `document.elementsFromPoint()`
+  / real scroll, NOT pointer-events or overlay-unmount** — the stuck element is a
+  `::view-transition` pseudo, and `window.scrollTo()` bypasses it (looks fine)
+  while a real finger-swipe is dead. Also: it is **un-reproducible on local dev as
+  configured** if you only chase enrichment — but it DOES reproduce locally via
+  `history.back()` after opening a drawer; the giveaway is `elementsFromPoint`
+  returning `::view-transition*`.
 - **NOT the freeze: plain movie→movie→Back RSC re-init is dev-only.** Measured
   (Jun 21 2026) identical RSC-refetch counts on Back whether or not the hook was
   ever armed (a drawer opened this session) — so `useHistoryDismiss` does NOT

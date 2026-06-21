@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "next-view-transitions";
+import { Link } from "@/lib/view-transitions";
 import { loadComments } from "@/server/actions/comment-reads";
 import type { CommentPageDto } from "@/server/db/postgres/comments";
 import type {

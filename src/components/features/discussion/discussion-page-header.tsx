@@ -3,7 +3,7 @@
 // shared-element morph plays in reverse. Feature-detects → normal nav when
 // unsupported. This component stays server-renderable (the library Link is a
 // client component, like next/link).
-import { Link } from "next-view-transitions";
+import { Link } from "@/lib/view-transitions";
 import { ChevronLeft, MessagesSquare, Users } from "lucide-react";
 import { CDN_IMAGE_BASE } from "@/lib/constants";
 import { PAGE_PADDING_X } from "@/lib/design";

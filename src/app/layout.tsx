@@ -8,7 +8,7 @@ import { Footer } from "@/components/features/layout/footer";
 import { ScrollToTop } from "@/components/features/layout/scroll-to-top";
 import { ThemeColorSync } from "@/components/features/layout/theme-color-sync";
 import { UsernameClaimPrompt } from "@/components/features/settings/username-claim-prompt";
-import { ViewTransitions } from "next-view-transitions";
+import { ViewTransitions } from "@/lib/view-transitions";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
