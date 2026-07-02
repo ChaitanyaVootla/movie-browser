@@ -61,8 +61,10 @@ interface SelectedError {
 // Fetch Function
 // =============================================================================
 
-async function fetchOverview(range: TimeRange): Promise<AnalyticsOverview> {
-  const res = await fetch(`/api/admin/analytics?type=overview&range=${range}`);
+async function fetchOverview(range: TimeRange, humanOnly: boolean): Promise<AnalyticsOverview> {
+  const res = await fetch(
+    `/api/admin/analytics?type=overview&range=${range}${humanOnly ? "&humanOnly=1" : ""}`
+  );
   if (!res.ok) throw new Error("Failed to fetch analytics overview");
   return res.json();
 }
@@ -88,8 +90,8 @@ export function AnalyticsDashboard({
   const [selectedError, setSelectedError] = useState<SelectedError | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["admin", "analytics", "overview", timeRange],
-    queryFn: () => fetchOverview(timeRange),
+    queryKey: ["admin", "analytics", "overview", timeRange, excludeBots],
+    queryFn: () => fetchOverview(timeRange, excludeBots),
     staleTime: 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   });
@@ -281,9 +283,9 @@ function DashboardHeader({
           value={String(range)}
           onValueChange={(v) => onRangeChange(parseInt(v, 10) as TimeRange)}
         >
-          <SelectTrigger className="w-[130px] h-8 bg-zinc-900 border-zinc-800 text-sm">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-3.5 w-3.5 text-zinc-500" />
+          <SelectTrigger className="w-[150px] h-8 bg-zinc-900 border-zinc-800 text-sm">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Calendar className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
               <SelectValue placeholder="Select range" />
             </div>
           </SelectTrigger>
@@ -331,9 +333,10 @@ interface MetricsGridProps {
 }
 
 function MetricsGrid({ data, isLoading, excludeBots }: MetricsGridProps) {
-  const totalViews = excludeBots
-    ? data?.traffic?.pageViews
-    : (data?.traffic?.pageViews ?? 0) + (data?.traffic?.botViews ?? 0);
+  // pageViews is now server-scoped by the humanOnly flag (off = all traffic,
+  // on = humans only per bot-filter.ts), so use it directly.
+  const totalViews = data?.traffic?.pageViews;
+  const engaged = data?.traffic?.engagedSessions;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -342,6 +345,7 @@ function MetricsGrid({ data, isLoading, excludeBots }: MetricsGridProps) {
         icon={Eye}
         label="Page Views"
         value={totalViews}
+        suffix={excludeBots ? "human" : "all traffic"}
         isLoading={isLoading}
         accentColor="cyan"
         format="number"
@@ -352,6 +356,7 @@ function MetricsGrid({ data, isLoading, excludeBots }: MetricsGridProps) {
         icon={Users}
         label="Sessions"
         value={data?.traffic?.uniqueSessions}
+        suffix={engaged !== undefined ? `${engaged.toLocaleString()} engaged` : undefined}
         isLoading={isLoading}
         accentColor="violet"
         format="number"

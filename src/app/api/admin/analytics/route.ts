@@ -24,6 +24,7 @@ import {
   getGeoDistribution,
   getDeviceBreakdown,
   getTopBotSources,
+  getTopUserAgents,
   // AI
   getAIUsageOverview,
   getDailyAICosts,
@@ -104,6 +105,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const type = searchParams.get("type") || "overview";
   const days = parseInt(searchParams.get("range") || "7", 10);
+  const humanOnly = searchParams.get("humanOnly") === "1";
 
   const range = { days };
 
@@ -125,7 +127,7 @@ export async function GET(request: NextRequest) {
       // =======================================================================
       case "overview": {
         const [traffic, aiUsage, performance, errors, lambda, embedding, alerts] = await Promise.all([
-          getTrafficOverview(range).catch(() => null),
+          getTrafficOverview(range, humanOnly).catch(() => null),
           getAIUsageOverview(range).catch(() => null),
           getPerformanceMetrics(range).catch(() => null),
           getErrorOverview(range).catch(() => null),
@@ -158,15 +160,17 @@ export async function GET(request: NextRequest) {
       // Traffic Dashboard
       // =======================================================================
       case "traffic": {
-        const [overview, daily, dailyWithBots, topPages, geo, devices, topBots] = await Promise.all([
-          getTrafficOverview(range),
-          getDailyTraffic(range),
-          getDailyTrafficWithBots(range),
-          getTopPages(range, 15),
-          getGeoDistribution(range, 10),
-          getDeviceBreakdown(range),
-          getTopBotSources(range),
-        ]);
+        const [overview, daily, dailyWithBots, topPages, geo, devices, topBots, topUserAgents] =
+          await Promise.all([
+            getTrafficOverview(range, humanOnly),
+            getDailyTraffic(range, humanOnly),
+            getDailyTrafficWithBots(range),
+            getTopPages(range, 15, humanOnly),
+            getGeoDistribution(range, 10, humanOnly),
+            getDeviceBreakdown(range, humanOnly),
+            getTopBotSources(range),
+            getTopUserAgents(range, 10),
+          ]);
 
         return NextResponse.json({
           overview,
@@ -176,6 +180,7 @@ export async function GET(request: NextRequest) {
           geo,
           devices,
           topBots,
+          topUserAgents,
         });
       }
 

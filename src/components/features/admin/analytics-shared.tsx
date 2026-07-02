@@ -412,7 +412,11 @@ export function formatBytes(bytes: number): string {
 // =============================================================================
 
 export function formatChartDate(d: string): string {
-  return new Date(d).toLocaleDateString("en-US", {
+  // A date-only "YYYY-MM-DD" parses as UTC midnight, which can render the
+  // previous day west of UTC — pin it to local midnight so the label matches
+  // the day bucket. Full timestamps are left as-is.
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d;
+  return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   });

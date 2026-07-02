@@ -5,6 +5,7 @@
  */
 
 import { query } from "../client";
+import { BOT_SQL, HUMAN_SQL } from "../bot-filter";
 import {
   getTimeRangeCondition,
   type TimeRange,
@@ -12,6 +13,7 @@ import {
   type DailyTraffic,
   type DailyTrafficWithBots,
   type TopPage,
+  type TopUserAgent,
   type GeoDistribution,
   type DeviceBreakdown,
 } from "./types";
@@ -23,9 +25,16 @@ import {
 /**
  * Get traffic overview metrics
  */
-export async function getTrafficOverview(range: TimeRange): Promise<TrafficOverview> {
+export async function getTrafficOverview(
+  range: TimeRange,
+  humanOnly = false
+): Promise<TrafficOverview> {
   const timeCondition = getTimeRangeCondition(range);
   const sessionTimeCondition = getTimeRangeCondition(range, "started_at");
+  // When "Human only" is on, scope the totals to the query-time human predicate
+  // (see bot-filter.ts). Off = all traffic. botViews is always the bot count.
+  const humanClause = humanOnly ? ` AND ${HUMAN_SQL}` : "";
+  const sessionHumanClause = humanOnly ? " AND is_bot = 0" : "";
 
   const [result] = await query<{
     page_views: string;
@@ -33,13 +42,13 @@ export async function getTrafficOverview(range: TimeRange): Promise<TrafficOverv
     unique_users: string;
     bot_views: string;
   }>(`
-    SELECT 
+    SELECT
       count() AS page_views,
       uniq(session_id) AS unique_sessions,
       uniqIf(user_id, user_id IS NOT NULL) AS unique_users,
-      countIf(is_bot = 1) AS bot_views
+      countIf(${BOT_SQL}) AS bot_views
     FROM page_views
-    WHERE is_bot = 0 AND ${timeCondition}
+    WHERE ${timeCondition}${humanClause}
   `);
 
   // Engaged sessions: 2+ pageviews, an authenticated user, or any user action.
@@ -52,7 +61,7 @@ export async function getTrafficOverview(range: TimeRange): Promise<TrafficOverv
     FROM (
       SELECT session_id, count() AS views, max(is_authenticated) AS authed
       FROM page_views
-      WHERE is_bot = 0 AND ${timeCondition}
+      WHERE ${HUMAN_SQL} AND ${timeCondition}
       GROUP BY session_id
       HAVING views >= 2 OR authed = 1
         OR session_id IN (SELECT session_id FROM user_actions WHERE is_bot = 0 AND ${timeCondition})
@@ -64,13 +73,12 @@ export async function getTrafficOverview(range: TimeRange): Promise<TrafficOverv
     avg_duration: string;
     bounce_rate: string;
   }>(`
-    SELECT 
+    SELECT
       avg(duration_seconds) AS avg_duration,
       countIf(bounce = 1) / count() AS bounce_rate
     FROM sessions
-    WHERE is_bot = 0 
-      AND ${sessionTimeCondition}
-      AND duration_seconds > 0
+    WHERE ${sessionTimeCondition}
+      AND duration_seconds > 0${sessionHumanClause}
   `);
 
   return {
@@ -110,8 +118,9 @@ export interface HourlyTrafficWithBots {
 /**
  * Get daily traffic over time
  */
-export async function getDailyTraffic(range: TimeRange): Promise<DailyTraffic[]> {
+export async function getDailyTraffic(range: TimeRange, humanOnly = false): Promise<DailyTraffic[]> {
   const timeCondition = getTimeRangeCondition(range);
+  const humanClause = humanOnly ? ` AND ${HUMAN_SQL}` : "";
 
   const rows = await query<{
     date: string;
@@ -119,13 +128,13 @@ export async function getDailyTraffic(range: TimeRange): Promise<DailyTraffic[]>
     sessions: string;
     users: string;
   }>(`
-    SELECT 
+    SELECT
       toDate(timestamp) AS date,
       count() AS page_views,
       uniq(session_id) AS sessions,
       uniqIf(user_id, user_id IS NOT NULL) AS users
     FROM page_views
-    WHERE is_bot = 0 AND ${timeCondition}
+    WHERE ${timeCondition}${humanClause}
     GROUP BY date
     ORDER BY date
   `);
@@ -141,8 +150,9 @@ export async function getDailyTraffic(range: TimeRange): Promise<DailyTraffic[]>
 /**
  * Get hourly traffic over time (for finer granularity)
  */
-export async function getHourlyTraffic(range: TimeRange): Promise<HourlyTraffic[]> {
+export async function getHourlyTraffic(range: TimeRange, humanOnly = false): Promise<HourlyTraffic[]> {
   const timeCondition = getTimeRangeCondition(range);
+  const humanClause = humanOnly ? ` AND ${HUMAN_SQL}` : "";
 
   const rows = await query<{
     ts: string;
@@ -150,13 +160,13 @@ export async function getHourlyTraffic(range: TimeRange): Promise<HourlyTraffic[
     sessions: string;
     users: string;
   }>(`
-    SELECT 
+    SELECT
       toStartOfHour(timestamp) AS ts,
       count() AS page_views,
       uniq(session_id) AS sessions,
       uniqIf(user_id, user_id IS NOT NULL) AS users
     FROM page_views
-    WHERE is_bot = 0 AND ${timeCondition}
+    WHERE ${timeCondition}${humanClause}
     GROUP BY ts
     ORDER BY ts
   `);
@@ -193,10 +203,10 @@ export async function getDailyTrafficWithBots(range: TimeRange): Promise<DailyTr
     human_views: string;
     bot_views: string;
   }>(`
-    SELECT 
+    SELECT
       toDate(timestamp) AS date,
-      countIf(is_bot = 0) AS human_views,
-      countIf(is_bot = 1) AS bot_views
+      countIf(${HUMAN_SQL}) AS human_views,
+      countIf(${BOT_SQL}) AS bot_views
     FROM page_views
     WHERE ${timeCondition}
     GROUP BY date
@@ -221,10 +231,10 @@ export async function getHourlyTrafficWithBots(range: TimeRange): Promise<Hourly
     human_views: string;
     bot_views: string;
   }>(`
-    SELECT 
+    SELECT
       toStartOfHour(timestamp) AS ts,
-      countIf(is_bot = 0) AS human_views,
-      countIf(is_bot = 1) AS bot_views
+      countIf(${HUMAN_SQL}) AS human_views,
+      countIf(${BOT_SQL}) AS bot_views
     FROM page_views
     WHERE ${timeCondition}
     GROUP BY ts
@@ -258,8 +268,15 @@ export async function getTrafficWithBotsTrend(
 /**
  * Get top pages by views (includes both human and bot views for filtering)
  */
-export async function getTopPages(range: TimeRange, limit = 20): Promise<TopPage[]> {
+export async function getTopPages(
+  range: TimeRange,
+  limit = 20,
+  humanOnly = false
+): Promise<TopPage[]> {
   const timeCondition = getTimeRangeCondition(range);
+  // When human-only, drop bot-only pages entirely; otherwise rank all pages but
+  // always return the human/bot split so the client can label + filter.
+  const humanClause = humanOnly ? ` AND ${HUMAN_SQL}` : "";
 
   const rows = await query<{
     path: string;
@@ -268,14 +285,14 @@ export async function getTopPages(range: TimeRange, limit = 20): Promise<TopPage
     bot_views: string;
     unique_visitors: string;
   }>(`
-    SELECT 
+    SELECT
       path,
       page_type,
-      countIf(is_bot = 0) AS human_views,
-      countIf(is_bot = 1) AS bot_views,
-      uniqIf(session_id, is_bot = 0) AS unique_visitors
+      countIf(${HUMAN_SQL}) AS human_views,
+      countIf(${BOT_SQL}) AS bot_views,
+      uniqIf(session_id, ${HUMAN_SQL}) AS unique_visitors
     FROM page_views
-    WHERE ${timeCondition}
+    WHERE ${timeCondition}${humanClause}
     GROUP BY path, page_type
     ORDER BY human_views DESC
     LIMIT ${limit}
@@ -297,18 +314,23 @@ export async function getTopPages(range: TimeRange, limit = 20): Promise<TopPage
 /**
  * Get geographic distribution of traffic
  */
-export async function getGeoDistribution(range: TimeRange, limit = 15): Promise<GeoDistribution[]> {
+export async function getGeoDistribution(
+  range: TimeRange,
+  limit = 15,
+  humanOnly = false
+): Promise<GeoDistribution[]> {
   const timeCondition = getTimeRangeCondition(range);
+  const humanClause = humanOnly ? ` AND ${HUMAN_SQL}` : "";
 
   const rows = await query<{
     country: string;
     views: string;
   }>(`
-    SELECT 
+    SELECT
       country,
       count() AS views
     FROM page_views
-    WHERE is_bot = 0 AND ${timeCondition}
+    WHERE ${timeCondition}${humanClause}
     GROUP BY country
     ORDER BY views DESC
     LIMIT ${limit}
@@ -326,18 +348,22 @@ export async function getGeoDistribution(range: TimeRange, limit = 15): Promise<
 /**
  * Get device type breakdown
  */
-export async function getDeviceBreakdown(range: TimeRange): Promise<DeviceBreakdown[]> {
+export async function getDeviceBreakdown(
+  range: TimeRange,
+  humanOnly = false
+): Promise<DeviceBreakdown[]> {
   const timeCondition = getTimeRangeCondition(range);
+  const humanClause = humanOnly ? ` AND ${HUMAN_SQL}` : "";
 
   const rows = await query<{
     device_type: string;
     count: string;
   }>(`
-    SELECT 
+    SELECT
       device_type,
       count() AS count
     FROM page_views
-    WHERE is_bot = 0 AND ${timeCondition}
+    WHERE ${timeCondition}${humanClause}
     GROUP BY device_type
     ORDER BY count DESC
   `);
@@ -372,7 +398,7 @@ export async function getTopBotSources(range: TimeRange, limit = 10): Promise<Bo
       bot_type,
       count() AS views
     FROM page_views
-    WHERE ${timeCondition} AND is_bot = 1 AND bot_type != ''
+    WHERE ${timeCondition} AND ${BOT_SQL} AND bot_type != ''
     GROUP BY bot_type
     ORDER BY views DESC
     LIMIT ${limit}
@@ -384,5 +410,44 @@ export async function getTopBotSources(range: TimeRange, limit = 10): Promise<Bo
     botType: row.bot_type,
     views: parseInt(row.views, 10),
     percentage: total > 0 ? parseInt(row.views, 10) / total : 0,
+  }));
+}
+
+// =============================================================================
+// Top Bot User Agents
+// =============================================================================
+
+/**
+ * Top raw User-Agent strings among bot traffic (by the query-time BOT_SQL
+ * predicate). Surfaces exactly which agents drive load — including any that slip
+ * past the ingest `is_bot` flag (e.g. "Amazon CloudFront") so we know what to
+ * add to bot-filter.ts next.
+ */
+export async function getTopUserAgents(range: TimeRange, limit = 10): Promise<TopUserAgent[]> {
+  const timeCondition = getTimeRangeCondition(range);
+
+  const rows = await query<{
+    user_agent: string;
+    bot_type: string;
+    views: string;
+  }>(`
+    SELECT
+      user_agent,
+      any(bot_type) AS bot_type,
+      count() AS views
+    FROM page_views
+    WHERE ${timeCondition} AND ${BOT_SQL} AND user_agent != ''
+    GROUP BY user_agent
+    ORDER BY views DESC
+    LIMIT ${limit}
+  `);
+
+  const total = rows.reduce((acc, r) => acc + parseInt(r.views, 10), 0);
+
+  return rows.map((row) => ({
+    userAgent: row.user_agent,
+    botType: row.bot_type,
+    views: parseInt(row.views, 10),
+    percentage: total > 0 ? (parseInt(row.views, 10) / total) * 100 : 0,
   }));
 }

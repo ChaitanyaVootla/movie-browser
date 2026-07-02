@@ -31,18 +31,37 @@ import type {
   TrafficMetrics,
   TrafficData,
   TopPage,
+  TopUserAgent,
   DailyTrafficWithBots,
   TimeRange,
 } from "../analytics-types";
 
 type TrafficGranularity = "hour" | "day";
 
+/**
+ * ClickHouse returns the hourly `toStartOfHour` bucket as a naive
+ * "YYYY-MM-DD HH:MM:SS" string in UTC (no zone) and the daily `toDate` bucket as
+ * "YYYY-MM-DD". `new Date()` parses the former as LOCAL time (wrong — shows UTC
+ * offset by the local zone) and the latter as UTC midnight (can render the prior
+ * day west of UTC). Parse explicitly here, then format in the browser's local
+ * zone so times/dates match the viewer's clock.
+ */
+function parseChartTs(s: string, granularity: TrafficGranularity): Date {
+  if (granularity === "hour") {
+    const iso = s.includes("T") ? s : s.replace(" ", "T");
+    return new Date(iso.endsWith("Z") ? iso : `${iso}Z`);
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00`) : new Date(s);
+}
+
 // =============================================================================
 // Fetch Functions
 // =============================================================================
 
-async function fetchTrafficData(range: TimeRange): Promise<TrafficData> {
-  const res = await fetch(`/api/admin/analytics?type=traffic&range=${range}`);
+async function fetchTrafficData(range: TimeRange, humanOnly: boolean): Promise<TrafficData> {
+  const res = await fetch(
+    `/api/admin/analytics?type=traffic&range=${range}${humanOnly ? "&humanOnly=1" : ""}`
+  );
   if (!res.ok) throw new Error("Failed to fetch traffic data");
   return res.json();
 }
@@ -85,8 +104,8 @@ export function TrafficTab({
   const [granularity, setGranularity] = useState<TrafficGranularity>("hour");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "analytics", "traffic", range],
-    queryFn: () => fetchTrafficData(range),
+    queryKey: ["admin", "analytics", "traffic", range, excludeBots],
+    queryFn: () => fetchTrafficData(range, excludeBots),
     staleTime: 60 * 1000,
   });
 
@@ -283,6 +302,70 @@ export function TrafficTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Top Bot User Agents */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            Top Bot User Agents
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-4 w-full" />
+              ))}
+            </div>
+          ) : (
+            <TopUserAgents data={data?.topUserAgents} />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// =============================================================================
+// Top Bot User Agents
+// =============================================================================
+
+function TopUserAgents({ data }: { data?: TopUserAgent[] }) {
+  if (!data || data.length === 0) {
+    return <EmptyState message="No bot user agents" height={80} />;
+  }
+
+  const max = Math.max(...data.map((d) => d.views), 1);
+
+  return (
+    <div className="space-y-2">
+      {data.slice(0, 8).map((ua) => (
+        <div key={ua.userAgent} className="space-y-1">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="truncate text-muted-foreground" title={ua.userAgent}>
+              {ua.userAgent}
+            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              {ua.botType && (
+                <Badge variant="outline" className="text-[9px] h-4 px-1 capitalize">
+                  {ua.botType}
+                </Badge>
+              )}
+              <span className="font-medium tabular-nums">{ua.views.toLocaleString()}</span>
+              <span className="text-muted-foreground/60 tabular-nums w-9 text-right">
+                {ua.percentage.toFixed(0)}%
+              </span>
+            </div>
+          </div>
+          <div className="h-1 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-muted-foreground/60"
+              style={{ width: `${(ua.views / max) * 100}%` }}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -426,6 +509,8 @@ function TrafficComparisonChart({
 
   const totalHuman = data.reduce((acc, d) => acc + d.humanViews, 0);
   const totalBot = data.reduce((acc, d) => acc + d.botViews, 0);
+  const totalAll = totalHuman + totalBot;
+  const humanPct = totalAll > 0 ? (totalHuman / totalAll) * 100 : 0;
 
   if (chartData.length === 0) {
     return <EmptyState message="No traffic data" height={160} />;
@@ -460,6 +545,9 @@ function TrafficComparisonChart({
             <span className="text-muted-foreground">({totalBot.toLocaleString()})</span>
           </Label>
         </div>
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          <span className="font-medium text-foreground/80">{humanPct.toFixed(0)}%</span> human
+        </span>
       </div>
       <div className="h-[160px]">
         <TrafficAreaChart
@@ -489,29 +577,29 @@ function TrafficAreaChart({
   granularity?: TrafficGranularity;
 }) {
   const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
+    const d = parseChartTs(dateStr, granularity);
     if (granularity === "hour") {
       // For hourly, show date + time or just time depending on data range
       if (data.length > 48) {
-        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
       }
-      return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
     }
     // Daily: show month + day
     return formatChartDate(dateStr);
   };
 
   const formatTooltipDate = (dateStr: string) => {
-    const d = new Date(dateStr);
+    const d = parseChartTs(dateStr, granularity);
     if (granularity === "hour") {
-      return d.toLocaleString("en-US", {
+      return d.toLocaleString(undefined, {
         month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       });
     }
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   };
 
   return (

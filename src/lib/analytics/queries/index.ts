@@ -21,6 +21,7 @@ export {
   getGeoDistribution,
   getDeviceBreakdown,
   getTopBotSources,
+  getTopUserAgents,
   type TrafficGranularity,
   type HourlyTraffic,
   type HourlyTrafficWithBots,

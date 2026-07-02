@@ -86,6 +86,13 @@ export interface TopPage {
   botViews: number;
 }
 
+export interface TopUserAgent {
+  userAgent: string;
+  botType: string;
+  views: number;
+  percentage: number;
+}
+
 export interface GeoDistribution {
   country: string;
   views: number;

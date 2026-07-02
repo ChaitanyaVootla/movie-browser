@@ -42,10 +42,19 @@ export interface Alert {
 export interface TrafficMetrics {
   pageViews: number;
   uniqueSessions: number;
+  /** Sessions with real engagement (2+ views, an action, or authed) — the bot-resistant human proxy. */
+  engagedSessions?: number;
   uniqueUsers: number;
   botViews: number;
   avgSessionDuration: number;
   bounceRate: number;
+}
+
+export interface TopUserAgent {
+  userAgent: string;
+  botType: string;
+  views: number;
+  percentage: number;
 }
 
 export interface DailyTrafficWithBots {
@@ -87,6 +96,7 @@ export interface TrafficData {
   geo: GeoData[];
   devices: DeviceData[];
   topBots?: Array<{ botType: string; views: number; percentage: number }>;
+  topUserAgents?: TopUserAgent[];
 }
 
 // =============================================================================
