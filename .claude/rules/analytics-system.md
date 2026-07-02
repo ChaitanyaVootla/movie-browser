@@ -64,6 +64,23 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 
 **Critical rule**: All tracking calls must be fire-and-forget -- no `await`, wrapped in try-catch. Analytics must never break the application.
 
+## Query-time bot classification (admin traffic views — Jul 2026)
+
+The admin analytics **Traffic** tab does NOT trust the frozen ingest-time `is_bot`
+flag alone — it reclassifies bot-vs-human at QUERY time via
+`src/lib/analytics/bot-filter.ts` (`BOT_SQL` / `HUMAN_SQL` ClickHouse fragments).
+WHY: `is_bot` is computed once at ingest and misses cases found later — chiefly
+`user_agent = 'Amazon CloudFront'` (behind CloudFront the origin never sees the real
+UA, so CDN cache-miss origin-fetches land `is_bot=0` and were ~83% of "human" views,
+Jul 2026). Query-time classification also reclassifies HISTORICAL rows with no
+re-ingest. **To refine detection, edit the arrays in `bot-filter.ts`**
+(`FORCE_BOT_UA_EXACT` / `FORCE_BOT_UA_SUBSTRINGS`) — this is the intended update
+point; the "Top Bot User Agents" card surfaces what to add. `page_views` filters use
+`HUMAN_SQL`/`BOT_SQL`; `user_actions`/`sessions` keep `is_bot=0` (no `user_agent`
+column). Raw page views are still bot-inflated even so — use `engagedSessions` (2+
+views OR authed OR any action) as the real-human proxy. Stealth UA-forging fleets are
+behavioral (not per-row UA) and intentionally out of scope for `bot-filter.ts`.
+
 ## Bot Detection (4 layers — June 2026 rework)
 
 Post-GA, 97% of "human visitors" were scrapers. Detection now layers (see
