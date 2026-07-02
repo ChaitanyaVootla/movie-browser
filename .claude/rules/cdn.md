@@ -155,7 +155,9 @@ Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
 
 ## Cost
 **Origin Shield DISABLED Jul 2 2026** (`cloudfront.tf` `origin_shield.enabled=false`,
-staged — apply with `terraform apply -target=aws_cloudfront_distribution.main`): the
+APPLIED via `terraform apply -target=aws_cloudfront_distribution.main` — pass the live
+`TF_VAR_origin_verify_secret` (read it from the distro's X-Origin-Verify custom header)
+so only origin_shield flips; verified `shieldEnabled:false`, status Deployed): the
 June bill showed it was $10.31/mo (11.45M requests) collapsing ~nothing (≈13M origin
 fetches/mo) — the unique-long-tail + India-1-POP pattern has no multi-POP herd to
 collapse. Egress is ~$0 (well under the 1TB free tier); the real CloudFront cost is
@@ -192,6 +194,11 @@ handle them.
   year-pinned SW). (The Jun-11 serwist `parseRoute` error was fixed Jun 12 —
   serwist v9 `matcher`+strategy-instance shapes, plus `{scope:"/"}`.)
 - manifest/favicon/robots: `max-age=300, s-maxage=86400` (were uncacheable).
+  GOTCHA: because `robots.txt` is edge-cached `s-maxage=86400`, a deploy that
+  changes it serves the OLD file for up to 24h — bots keep reading stale rules.
+  After a robots.txt policy change, `aws cloudfront create-invalidation
+  --paths /robots.txt` (single path, ~free) to make it live now (done Jul 2 2026
+  for the AI-crawler block).
 - Canonical-slug 308 in `src/proxy.ts`: `s-maxage=86400`.
 
 See also: `.claude/rules/performance.md` (cold-start stampede, freeze recovery),
