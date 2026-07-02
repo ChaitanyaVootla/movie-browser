@@ -194,12 +194,27 @@ async function resolveAndApply(
 // (Jun 10 2026: 6.3k req/15min, >40% of all traffic) — its cold-render burn
 // after each deploy's ISR wipe drove three brief outages in one evening. It
 // ignores robots.txt crawl-delay and brings no referral traffic; 429 it.
+//
+// AI TRAINING/BULK CRAWLERS (Jul 2 2026): ClickHouse showed ClaudeBot
+// ("anthropic", ~1.4M views/wk) + GPTBot ("openai", ~0.5M/wk) = ~98% of bot
+// load, crawling ~1.5M unique long-tail URLs → cache-miss renders + puppeteer
+// ratings scrapes = the bulk of the Lambda + Origin Shield + CloudFront bill,
+// for ZERO search-index value (Googlebot/Bingbot crawled 6/5× the same week).
+// robots.txt now disallows them (both honor it, effective in days); this 429s
+// them immediately for origin-CPU + Lambda relief. NOT blocked: "chatgpt"
+// (ChatGPT-User) — a human-initiated fetch, kept per robots.txt. See cdn.md.
 const BLOCKED_BOT_TYPES = new Set([
   "webdriver",
   "headless_hint",
   "missing_client_hints",
   "stale_chrome",
   "bytedance",
+  "openai", // GPTBot
+  "anthropic", // ClaudeBot / Claude-Web / anthropic-ai
+  "common_crawl", // CCBot (feeds most LLM training sets)
+  "cohere", // cohere-ai
+  "amazon", // Amazonbot
+  "meta", // meta-externalagent (Meta AI training)
 ]);
 
 function isBlockedScraper(req: NextRequest): boolean {

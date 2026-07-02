@@ -37,25 +37,28 @@ themoviebrowser.com, origin.themoviebrowser.com {
 		close
 	}
 
-	# (c) EDGE BOT-SHED — TWO TIERS (CDN pairing, Jun 11 2026)
+	# (c) EDGE BOT-SHED — TWO TIERS (CDN pairing, Jun 11 2026; AI reversal Jul 2 2026)
 	# Before the CDN we shed ALL heavy crawlers (incl. AI indexers) here at
-	# Caddy because the cold origin couldn't absorb them. Now that CloudFront
-	# fronts the origin, the edge cache serves crawlers for ~zero origin cost,
-	# so we only shed the tier that has NO index/answer-engine value.
+	# Caddy because the cold origin couldn't absorb them. After CloudFront was
+	# added we tried SERVING AI crawlers (edge-cached = ~zero origin cost). That
+	# was WRONG: ClickHouse showed ClaudeBot (~1.4M views/wk) + GPTBot (~0.5M/wk)
+	# crawl ~1.5M UNIQUE long-tail URLs = edge cache MISSES that hit Origin Shield
+	# + origin renders + puppeteer scrapes = ~98% of bot load and most of the AWS
+	# bill, for ZERO search-index value. So AI training/bulk crawlers are back in
+	# the shed tier (robots.txt disallows them too — both honor it; the real
+	# CloudFront/Origin-Shield savings come from that voluntary back-off).
 	#
-	#   TIER 1 — SHED (429): pure scrapers / SEO-audit / generic HTTP clients.
-	#     They crawl aggressively, never send us users, and re-jam the event
-	#     loop on any post-deploy cold-render window.
-	#   TIER 2 — SERVE (NOT matched here): search + AI answer-engine indexers
-	#     (Googlebot, Bingbot, Applebot, GPTBot, OAI-SearchBot, ChatGPT-User,
-	#     ClaudeBot, anthropic-ai, PerplexityBot, Google-Extended, CCBot). These
-	#     send/answer users; blocking them dropped us from AI answer engines.
-	#     Only safe to serve them once the CDN edge absorbs their load — which
-	#     is now the case. robots.txt mirrors this split.
+	#   TIER 1 — SHED (429): pure scrapers / SEO-audit / generic HTTP clients +
+	#     AI training/bulk crawlers (ClaudeBot/GPTBot/CCBot/PerplexityBot/
+	#     Amazonbot/meta-externalagent). No user/index value.
+	#   TIER 2 — SERVE (NOT matched here): real search indexers (Googlebot,
+	#     Bingbot, Applebot) + OpenAI's user-facing fetchers (OAI-SearchBot,
+	#     ChatGPT-User — low volume, real intent). robots.txt mirrors this split.
 	#
-	# Forged-Chrome scrapers faking a real UA are still caught by src/proxy.ts
-	# (missing client hints) and the Tier-1 list below.
-	@heavybots header_regexp User-Agent (?i)(bytespider|bytedance|semrushbot|ahrefsbot|dataforseo|mj12bot|dotbot|blexbot|petalbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient|headless)
+	# NOTE: this origin shed only sees cache MISSES (see .claude/rules/cdn.md);
+	# forged-Chrome scrapers are also caught by src/proxy.ts (missing client
+	# hints), which additionally 429s the AI bot-types by name.
+	@heavybots header_regexp User-Agent (?i)(bytespider|bytedance|semrushbot|ahrefsbot|dataforseo|mj12bot|dotbot|blexbot|petalbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient|headless|claudebot|gptbot|ccbot|perplexitybot|amazonbot|meta-externalagent)
 	respond @heavybots 429 {
 		close
 	}

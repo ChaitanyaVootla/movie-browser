@@ -113,11 +113,27 @@ every freeze the night of cutover).
 sees cache misses, and a 429 keyed UA-agnostically poisons the URL for humans. Shed
 the no-value scrapers (Bytespider/Semrush/Ahrefs/MJ12/DataForSEO/scrapy/python-
 requests/...) in the **CloudFront Function** (viewer-request 429) BEFORE the origin.
-SERVE the indexers (Googlebot/Bingbot/Applebot/GPTBot/OAI-SearchBot/ClaudeBot/
-PerplexityBot) — cached at the edge for ~zero origin cost = back in search + AI
-answer engines. `public/robots.txt` mirrors the two tiers. Caddy still keeps a
-Tier-1 shed as defense-in-depth, and `src/proxy.ts` 429s forged-Chrome scrapers.
+`public/robots.txt` mirrors the tiers. Caddy keeps a Tier-1 shed as defense-in-depth,
+and `src/proxy.ts` 429s forged-Chrome scrapers + the AI bot-types by name.
 **Edge bot-shedding was THE fix that stopped the cold origin stampeding.**
+
+**AI-crawler reversal (Jul 2 2026).** The Jun-11 "SERVE the AI answer engines
+(GPTBot/OAI-SearchBot/ClaudeBot/PerplexityBot/Google-Extended/CCBot), the edge
+caches them for ~zero origin cost" bet was WRONG and is reversed. ClickHouse
+(`page_views`, 7d): ClaudeBot (`bot_type='anthropic'`) ~1.4M views / **1.05M unique
+paths**, GPTBot (`'openai'`) ~0.5M / 0.41M unique = **~98% of all bot load**, hitting
+movie/series/person detail pages. Because they crawl UNIQUE long-tail URLs, every
+hit is an edge cache MISS → Origin Shield → origin render → puppeteer ratings scrape;
+they drove most of the Lambda ($52/mo) + Origin Shield + CloudFront-request bill for
+ZERO search-index value (real indexers Googlebot/Bingbot crawled **6 / 5×** the same
+week). Fix: `robots.txt` now DISALLOWS the AI training/bulk crawlers (both honor it —
+this is what actually reclaims the CloudFront/Origin-Shield cost, over ~a few days),
+Caddy `@heavybots` + `src/proxy.ts BLOCKED_BOT_TYPES` (openai/anthropic/common_crawl/
+cohere/amazon/meta) 429 them at the origin for immediate CPU+Lambda relief. KEPT:
+Googlebot/Bingbot/Applebot + OAI-SearchBot/ChatGPT-User (user-facing, low volume).
+The only immediate CloudFront/Origin-Shield lever (vs waiting for robots.txt) would
+be adding these UAs to the CloudFront viewer-request Function — deferred (robots.txt
+covers it in days).
 
 ## Origin lockdown — UNRESOLVED
 Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
@@ -138,13 +154,24 @@ Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
   box). prisma db push uses the bundled CLI, gated by schema-hash.
 
 ## Cost
-Origin Shield ~$3/mo (keep). The real cost is **egress** (India ~$0.109/GB) +
-requests — ~$75–135/mo at the GA surge, ~$15–40 steady. PriceClass tweaks DON'T help
-an India-heavy audience (India is in PriceClass_200 and _All alike). **The only
-material cost lever is migrating to Cloudflare Free** ($0 egress + free request
-collapsing; the setup is portable — DNS + cache-rule re-expression). Deferred
-decision: stay CloudFront (AWS-native + api.* product) vs Cloudflare (cost). See
-memory `cdn-plan-jun11`.
+**Origin Shield DISABLED Jul 2 2026** (`cloudfront.tf` `origin_shield.enabled=false`,
+staged — apply with `terraform apply -target=aws_cloudfront_distribution.main`): the
+June bill showed it was $10.31/mo (11.45M requests) collapsing ~nothing (≈13M origin
+fetches/mo) — the unique-long-tail + India-1-POP pattern has no multi-POP herd to
+collapse. Egress is ~$0 (well under the 1TB free tier); the real CloudFront cost is
+**request count** (~14.5M/mo, over the 10M free tier) — and most of it is bots whose
+UA the origin CANNOT see (the origin-request policy does NOT forward User-Agent, so
+CloudFront-fronted cache-miss origin fetches arrive as `User-Agent: Amazon CloudFront`
+→ logged is_bot=0, unblockable at the origin). To cut CloudFront request cost you must
+block those bots at the EDGE (CloudFront viewer-request Function — it sees the real UA)
+or forward UA to the origin (blocked: origin-request policy is AT its 10-header quota,
+needs an AWS quota bump or dropping a header). **The only material structural lever
+remains migrating to Cloudflare Free** ($0 egress + unlimited requests + free bot
+mgmt; portable — DNS + cache-rule re-expression). See memory `cdn-plan-jun11` +
+`cost-firstbill-jul`. NOTE: ClaudeBot/GPTBot were found (Jul 2) hitting the ORIGIN
+DIRECTLY (real UAs, bypassing CloudFront — the unresolved origin-lockdown hole), so
+they cost origin CPU + Lambda but NOT CloudFront; robots.txt + `src/proxy.ts` 429
+handle them.
 
 ## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.

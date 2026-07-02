@@ -320,8 +320,16 @@ resource "aws_cloudfront_distribution" "main" {
     # Origin Shield (ap-south-1 Mumbai — closest region to the ap-south-2 origin).
     # THE herd-collapser: concurrent cold-URL misses across all POPs funnel through
     # one shield POP, so the origin renders each cold URL ~once instead of N times.
+    #
+    # DISABLED Jul 2 2026 (cost): the June bill showed 11.45M shield requests ≈
+    # 13M origin fetches/mo — i.e. it collapsed ~nothing. The traffic is unique
+    # long-tail URLs from an India-concentrated audience arriving through ~1 POP
+    # region, so there is no multi-POP herd to collapse; it was a ~$10/mo pass-
+    # through. Re-enable if a genuine multi-region herd reappears (e.g. a viral
+    # spike or a deploy cold-window overwhelming the origin). stale-if-error
+    # (Caddy) + the non-burstable m8g box remain the origin-freeze safety net.
     origin_shield {
-      enabled              = true
+      enabled              = false
       origin_shield_region = "ap-south-1"
     }
   }
