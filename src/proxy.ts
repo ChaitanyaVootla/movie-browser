@@ -48,12 +48,11 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
     maybeTrackPageView(req); // keep .md hits visible in analytics
     const url = req.nextUrl.clone();
     const target = markdownPathToTarget(url.pathname);
-    const params = new URLSearchParams({ p: target });
-    // /search.md carries the human's query through to the search endpoint.
-    if (target === "/search") {
-      const q = req.nextUrl.searchParams.get("q");
-      if (q) params.set("q", q);
-    }
+    // Forward the original query string (q for /search.md, page for /browse.md +
+    // /topics/*.md) and set the internal target path. `set("p", …)` overrides any
+    // attacker-supplied `p` in the original query, so there's no p-injection.
+    const params = new URLSearchParams(req.nextUrl.searchParams);
+    params.set("p", target);
     url.pathname = "/api/md";
     url.search = `?${params.toString()}`;
     return NextResponse.rewrite(url);

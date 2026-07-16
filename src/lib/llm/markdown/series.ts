@@ -12,10 +12,12 @@ import {
   canonicalUrl,
   castSection,
   externalLinksSection,
+  keywordsLine,
   oneLine,
   personLink,
   ratingsSection,
   titleWithYear,
+  trailersSection,
   whereToWatchSection,
   yearFromDate,
 } from "./shared";
@@ -44,6 +46,8 @@ function detailsSection(series: Series): string {
   if (series.networks?.length) {
     lines.push(`- Networks: ${series.networks.map((n) => n.name).join(", ")}`);
   }
+  const keywords = keywordsLine(series.keywords?.results?.map((k) => k.name));
+  if (keywords) lines.push(keywords);
   return `## Details\n${lines.join("\n")}`;
 }
 
@@ -79,6 +83,7 @@ export function seriesToMarkdown(series: Series, aiData: AIDataResponse | null):
     details,
     ratingsSection(series.ratings, series.vote_average, series.vote_count),
     castSection(series.credits?.cast),
+    trailersSection(series.videos?.results),
     seasonsSection(series),
     whereToWatchSection(series),
     externalLinksSection("tv", series.id, {

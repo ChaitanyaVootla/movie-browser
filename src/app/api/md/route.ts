@@ -52,6 +52,8 @@ const SEARCH_LIMIT = 25;
 const QuerySchema = z.object({
   p: z.string().startsWith("/", "p must be an absolute path"),
   q: z.string().max(200, "q too long").optional(),
+  // Bounded to keep the PG OFFSET (and any abusive enumeration) sane.
+  page: z.coerce.number().int().min(1).max(500).default(1),
 });
 
 /** Build a `text/markdown` response with the noindex header. */
@@ -83,6 +85,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const params = QuerySchema.parse({
       p: searchParams.get("p"),
       q: searchParams.get("q") ?? undefined,
+      page: searchParams.get("page") ?? undefined,
     });
     path = params.p;
 
@@ -117,21 +120,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       case "browse": {
-        const items = await getPopularBrowse(BROWSE_LIMIT);
+        const items = await getPopularBrowse(BROWSE_LIMIT, params.page);
         return markdownResponse(
           listToMarkdown(
             "Browse popular titles",
             "The most popular movies and series on The Movie Browser.",
-            items
+            items,
+            { basePath: "/browse.md", page: params.page, pageSize: BROWSE_LIMIT }
           )
         );
       }
 
       case "topic": {
-        const items = await getPopularForTopic(target.topicKey, TOPIC_LIMIT);
+        const items = await getPopularForTopic(target.topicKey, TOPIC_LIMIT, params.page);
         const title = getTopicDisplayName(target.topicKey) ?? "Topic";
         return markdownResponse(
-          listToMarkdown(title, `Popular ${title} on The Movie Browser.`, items)
+          listToMarkdown(title, `Popular ${title} on The Movie Browser.`, items, {
+            basePath: `/topics/${target.topicKey}.md`,
+            page: params.page,
+            pageSize: TOPIC_LIMIT,
+          })
         );
       }
 

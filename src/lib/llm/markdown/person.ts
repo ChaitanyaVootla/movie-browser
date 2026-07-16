@@ -18,6 +18,7 @@ function detailsSection(person: LlmPerson): string | null {
   if (person.birthday) lines.push(`- Born: ${person.birthday}`);
   if (person.deathday) lines.push(`- Died: ${person.deathday}`);
   if (person.placeOfBirth) lines.push(`- Place of birth: ${person.placeOfBirth}`);
+  if (person.aliases.length) lines.push(`- Also known as: ${person.aliases.join(", ")}`);
   if (!lines.length) return null;
   return `## Details\n${lines.join("\n")}`;
 }
@@ -30,7 +31,15 @@ function filmographySection(person: LlmPerson): string | null {
     const role = c.role ? ` — ${c.role}` : "";
     return `- [${label}](${url})${role}`;
   });
-  return `## Known for\n${lines.join("\n")}`;
+  // When truncated, point agents to the full filmography on the person page.
+  const more = person.filmographyTruncated
+    ? `\n\n_Top ${person.knownForCredits.length} shown — [full filmography](${canonicalUrl(
+        "person",
+        person.id,
+        person.name
+      )})._`
+    : "";
+  return `## Known for\n${lines.join("\n")}${more}`;
 }
 
 export function personToMarkdown(person: LlmPerson): string {

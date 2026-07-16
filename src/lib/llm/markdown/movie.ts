@@ -13,11 +13,13 @@ import {
   canonicalUrl,
   castSection,
   externalLinksSection,
+  keywordsLine,
   oneLine,
   personLink,
   ratingsSection,
   searchMarkdownUrl,
   titleWithYear,
+  trailersSection,
   whereToWatchSection,
   yearFromDate,
 } from "./shared";
@@ -43,10 +45,17 @@ function detailsSection(movie: Movie): string {
     lines.push(`- Director: ${directors.map((d) => personLink(d.id, d.name)).join(", ")}`);
   }
 
+  if (movie.production_companies?.length) {
+    lines.push(`- Production: ${movie.production_companies.map((c) => c.name).join(", ")}`);
+  }
+
   const collection = movie.belongs_to_collection;
   if (collection?.name) {
     lines.push(`- Part of: [${collection.name}](${searchMarkdownUrl(collection.name)})`);
   }
+
+  const keywords = keywordsLine(movie.keywords?.keywords?.map((k) => k.name));
+  if (keywords) lines.push(keywords);
 
   return `## Details\n${lines.join("\n")}`;
 }
@@ -73,6 +82,7 @@ export function movieToMarkdown(movie: Movie, aiData: AIDataResponse | null): st
     details,
     ratingsSection(movie.ratings, movie.vote_average, movie.vote_count),
     castSection(movie.credits?.cast),
+    trailersSection(movie.videos?.results),
     whereToWatchSection(movie),
     externalLinksSection("movie", movie.id, {
       imdbId: movie.imdb_id,

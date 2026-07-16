@@ -60,8 +60,12 @@ export interface LlmPerson {
   profilePath: string | null;
   popularity: number | null;
   homepage: string | null;
+  /** Other names this person is credited under. */
+  aliases: string[];
   /** Top filmography entries by title popularity. */
   knownForCredits: LlmPersonCredit[];
+  /** True when the filmography was truncated (more entries exist on the site). */
+  filmographyTruncated: boolean;
 }
 
 // =============================================================================
@@ -69,9 +73,9 @@ export interface LlmPerson {
 // =============================================================================
 
 /** Max raw credits pulled before ranking; caps DB work for prolific people. */
-const PERSON_CREDIT_SCAN_LIMIT = 200;
+const PERSON_CREDIT_SCAN_LIMIT = 300;
 /** Max filmography entries surfaced in markdown. */
-const PERSON_CREDIT_OUTPUT_LIMIT = 25;
+const PERSON_CREDIT_OUTPUT_LIMIT = 40;
 
 function toYear(date: Date | null | undefined): string | null {
   if (!date) return null;
@@ -98,6 +102,7 @@ export async function getPersonFromPostgres(personId: number): Promise<LlmPerson
       profilePath: true,
       popularity: true,
       homepage: true,
+      aliases: { select: { alias: true }, take: 8 },
       credits: {
         take: PERSON_CREDIT_SCAN_LIMIT,
         select: {
@@ -145,9 +150,10 @@ export async function getPersonFromPostgres(personId: number): Promise<LlmPerson
     }
   }
 
-  const knownForCredits = [...byTitle.values()]
-    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
-    .slice(0, PERSON_CREDIT_OUTPUT_LIMIT);
+  const ranked = [...byTitle.values()].sort(
+    (a, b) => (b.popularity ?? 0) - (a.popularity ?? 0)
+  );
+  const knownForCredits = ranked.slice(0, PERSON_CREDIT_OUTPUT_LIMIT);
 
   return {
     id: person.tmdbId,
@@ -160,7 +166,12 @@ export async function getPersonFromPostgres(personId: number): Promise<LlmPerson
     profilePath: person.profilePath,
     popularity: person.popularity,
     homepage: person.homepage,
+    aliases: person.aliases.map((a) => a.alias),
     knownForCredits,
+    // Truncated if we hit the output cap OR the raw scan cap (there may be more).
+    filmographyTruncated:
+      ranked.length > PERSON_CREDIT_OUTPUT_LIMIT ||
+      person.credits.length >= PERSON_CREDIT_SCAN_LIMIT,
   };
 }
 
@@ -188,8 +199,10 @@ async function queryPopular(
     originalLanguage?: string;
     originCountry?: string;
   },
-  limit: number
+  limit: number,
+  page = 1
 ): Promise<LlmCardItem[]> {
+  const skip = Math.max(0, (page - 1) * limit);
   const genreWhere = filters.genreTmdbIds?.length
     ? { genres: { some: { genre: { tmdbId: { in: filters.genreTmdbIds } } } } }
     : {};
@@ -221,6 +234,7 @@ async function queryPopular(
         ratings: ratingsSelect,
       },
       orderBy: { popularity: "desc" },
+      skip,
       take: limit,
     });
     return rows.map((m) => ({
@@ -245,6 +259,7 @@ async function queryPopular(
       ratings: ratingsSelect,
     },
     orderBy: { popularity: "desc" },
+    skip,
     take: limit,
   });
   return rows.map((s) => ({
@@ -263,7 +278,11 @@ async function queryPopular(
  * Derives the filter from the topic's `filterParams`. Returns [] for unknown
  * keys. NOT byte-identical to the TMDB-discover HTML lists — acceptable for agents.
  */
-export async function getPopularForTopic(topicKey: string, limit: number): Promise<LlmCardItem[]> {
+export async function getPopularForTopic(
+  topicKey: string,
+  limit: number,
+  page = 1
+): Promise<LlmCardItem[]> {
   // `getTopicByKey` covers genre + theme keys; fall back to the full resolver
   // (country / language) which also parses the key.
   const topic = getTopicByKey(topicKey) ?? getTopicMetaFromKey(topicKey, THEME_DEFINITIONS);
@@ -280,11 +299,12 @@ export async function getPopularForTopic(topicKey: string, limit: number): Promi
       originalLanguage: fp.with_original_language,
       originCountry: fp.with_origin_country,
     },
-    limit
+    limit,
+    page
   );
 }
 
-/** PG-native popular movies for the /browse page. Read-only. */
-export async function getPopularBrowse(limit: number): Promise<LlmCardItem[]> {
-  return queryPopular("movie", {}, limit);
+/** PG-native popular movies for the /browse page. Read-only. Paginated. */
+export async function getPopularBrowse(limit: number, page = 1): Promise<LlmCardItem[]> {
+  return queryPopular("movie", {}, limit, page);
 }

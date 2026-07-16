@@ -4,7 +4,7 @@
 
 import { SITE_URL } from "@/lib/constants";
 import { getMediaPath } from "@/lib/utils";
-import type { CastMember, Rating, WatchProviderData } from "@/types";
+import type { CastMember, Rating, Video, WatchProviderData } from "@/types";
 import type { LlmCardItem } from "../data";
 
 const TMDB_BASE = "https://www.themoviedb.org";
@@ -188,6 +188,30 @@ export function whereToWatchSection(media: unknown, countryCode = "IN"): string 
   if (providers?.link) parts.push(`- [All options (JustWatch)](${providers.link})`);
   if (!parts.length) return null;
   return `## Where to watch (India)\n${parts.join("\n")}`;
+}
+
+/**
+ * `## Trailers` — YouTube trailer/teaser links (official first). Actionable for
+ * agents. Non-YouTube sites are skipped (no stable public URL scheme here).
+ */
+export function trailersSection(videos: Video[] | undefined, limit = 3): string | null {
+  if (!videos?.length) return null;
+  const youtube = videos.filter((v) => v.site === "YouTube" && v.key);
+  const trailers = youtube.filter((v) => /trailer|teaser/i.test(v.type));
+  const picks = (trailers.length ? trailers : youtube)
+    .sort((a, b) => Number(b.official) - Number(a.official))
+    .slice(0, limit);
+  if (!picks.length) return null;
+  const lines = picks.map(
+    (v) => `- [${v.name || v.type || "Trailer"}](https://www.youtube.com/watch?v=${v.key})`
+  );
+  return `## Trailers\n${lines.join("\n")}`;
+}
+
+/** A `- Keywords: …` details line (plain names, capped). Null when none. */
+export function keywordsLine(names: string[] | undefined, limit = 10): string | null {
+  if (!names?.length) return null;
+  return `- Keywords: ${names.slice(0, limit).join(", ")}`;
 }
 
 /** `## Links` — external references (TMDB always; IMDb / official site when known). */

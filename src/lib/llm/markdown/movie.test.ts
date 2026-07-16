@@ -59,6 +59,19 @@ const movie: Movie & {
       { name: "Amazon Prime Video", link: "https://primevideo.com/x", price: "Subscription" },
     ],
   },
+  production_companies: [{ id: 923, name: "Legendary Pictures", logo_path: null, origin_country: "US" }],
+  videos: {
+    results: [
+      { id: "v1", key: "YoHD9XEInc0", name: "Official Trailer", site: "YouTube", type: "Trailer", official: true },
+      { id: "v2", key: "8hP9D6kZseM", name: "Teaser", site: "YouTube", type: "Teaser", official: false },
+    ],
+  },
+  keywords: {
+    keywords: [
+      { id: 1, name: "dream" },
+      { id: 2, name: "heist" },
+    ],
+  },
 };
 
 const aiData: AIDataResponse = {
@@ -121,6 +134,13 @@ describe("movieToMarkdown", () => {
 
   it("includes external reference links (TMDB)", () => {
     expect(md).toContain("[TMDB](https://www.themoviedb.org/movie/27205)");
+  });
+
+  it("links YouTube trailers (official first) and lists keywords + production", () => {
+    expect(md).toContain("## Trailers");
+    expect(md).toContain("[Official Trailer](https://www.youtube.com/watch?v=YoHD9XEInc0)");
+    expect(md).toContain("- Keywords: dream, heist");
+    expect(md).toContain("- Production: Legendary Pictures");
   });
 
   it("renders named scraped watch deep links but drops the unnamed primary", () => {
