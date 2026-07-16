@@ -147,8 +147,11 @@ resource "aws_cloudfront_cache_policy" "default" {
           "genres", # filter
           "year",   # filter
           "rating", # filter
-          "lang",   # filter
-          "country" # filter
+          "lang",    # filter
+          "country", # filter
+          "q"        # /search.md agent search — MUST be in the cache key or all
+                     # /search.md?q=* collapse to one entry (wrong results). Origin
+                     # already receives it via the origin-request policy ("all").
         ]
       }
     }

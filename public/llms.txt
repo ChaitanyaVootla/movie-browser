@@ -1,0 +1,26 @@
+# The Movie Browser
+
+> AI-first movie & TV discovery. Clean markdown for every title, person, and
+> topic is available by appending `.md` to any page URL.
+
+Movies, series, and people each have a markdown view at `<url>.md`
+(e.g. https://themoviebrowser.com/movie/27205/inception.md). The markdown twins
+are read-only, spoiler-free summaries built directly from our catalog — cheap to
+fetch and free of page chrome.
+
+## Discovery
+
+- [Browse](https://themoviebrowser.com/browse.md): popular titles
+- [Topics index](https://themoviebrowser.com/topics.md): genres, countries, languages, themes
+- [Search](https://themoviebrowser.com/search.md?q=QUERY): ranked markdown results for any query
+
+## Popular topics
+
+- [Action movies](https://themoviebrowser.com/topics/genre-action-movie.md)
+- [Comedy movies](https://themoviebrowser.com/topics/genre-comedy-movie.md)
+- [Drama movies](https://themoviebrowser.com/topics/genre-drama-movie.md)
+- [Horror movies](https://themoviebrowser.com/topics/genre-horror-movie.md)
+- [Science Fiction movies](https://themoviebrowser.com/topics/genre-science-fiction-movie.md)
+- [Thriller movies](https://themoviebrowser.com/topics/genre-thriller-movie.md)
+- [Drama series](https://themoviebrowser.com/topics/genre-drama-tv.md)
+- [Comedy series](https://themoviebrowser.com/topics/genre-comedy-tv.md)

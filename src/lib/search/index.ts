@@ -15,6 +15,7 @@
 export {
   hybridSearch,
   hybridQuickSearch,
+  hybridQuickSearchLexical,
   type HybridSearchResult,
   type HybridSearchOptions,
   type HybridSearchResponse,

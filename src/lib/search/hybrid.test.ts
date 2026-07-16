@@ -58,7 +58,7 @@ vi.mock("@/lib/logger", () => ({
   },
 }));
 
-import { hybridSearch } from "./hybrid";
+import { hybridSearch, hybridQuickSearchLexical } from "./hybrid";
 import {
   fuzzySearch,
   findExactMatch,
@@ -266,5 +266,38 @@ describe("hybridSearch error isolation (June 2026 zero-results regression)", () 
     expect(dataLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ event: "intent_classification_failed" })
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cost-safety: the .md agent-search path must be STRICTLY pure-Postgres
+// ---------------------------------------------------------------------------
+
+describe("hybridQuickSearchLexical (cost-safe .md search)", () => {
+  it("NEVER calls the paid embedding intent classifier or semantic leg, even for a long non-title query", async () => {
+    mockFtsPrefixTitles.mockResolvedValue([ftsResult]);
+
+    // A long, non-title query is exactly what would send hybridQuickSearch into
+    // hybridSearch → classifyQueryIntentHybrid (Cohere/Bedrock). The lexical
+    // helper must NOT do that — it powers the unauthenticated, shed-exempt /search.md.
+    const results = await hybridQuickSearchLexical(
+      "dark korean thrillers similar to parasite",
+      25
+    );
+
+    expect(results.map((r) => r.id)).toContain(ftsResult.id);
+    expect(mockClassify).not.toHaveBeenCalled(); // no embedding classification
+    expect(mockSemanticSearch).not.toHaveBeenCalled(); // no pgvector/embedding leg
+  });
+
+  it("still returns trigram typo results without any embedding call", async () => {
+    mockFtsPrefixTitles.mockResolvedValue([]); // FTS empty → trigram fallback
+    mockFuzzySearch.mockResolvedValue([fuzzyResult]);
+
+    const results = await hybridQuickSearchLexical("parasyte korean thrillar", 25);
+
+    expect(results.map((r) => r.id)).toContain(fuzzyResult.id);
+    expect(mockClassify).not.toHaveBeenCalled();
+    expect(mockSemanticSearch).not.toHaveBeenCalled();
   });
 });

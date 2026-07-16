@@ -211,6 +211,8 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
     },
     alternates: {
       canonical: `${SITE_URL}${canonicalPath}`,
+      // LLM-friendly markdown twin: <link rel="alternate" type="text/markdown">
+      types: { "text/markdown": `${SITE_URL}${canonicalPath}.md` },
     },
   };
 }

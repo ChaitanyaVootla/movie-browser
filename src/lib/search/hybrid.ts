@@ -1374,6 +1374,32 @@ export async function hybridQuickSearch(query: string, limit = 8): Promise<Hybri
   return results;
 }
 
+/**
+ * STRICTLY pure-Postgres quick search — FTS (prefix) → trigram typo fallback ONLY.
+ *
+ * Unlike `hybridQuickSearch`, this NEVER classifies intent via embeddings and
+ * NEVER parses via the LLM, on ANY query length. `hybridQuickSearch` looks
+ * pure-PG but for queries >= 5 chars with non-title intent it delegates to
+ * `hybridSearch`, whose step-1 `classifyQueryIntentHybrid` calls
+ * `generateQueryEmbedding` (Cohere Embed v4 via Bedrock — a PAID call) on cache
+ * miss. That is unacceptable on the cost-safe, UNAUTHENTICATED, scraper-shed-EXEMPT
+ * `.md` surfaces (`/search.md` via `/api/md`): a crawler enumerating unique
+ * queries would drive one Bedrock call per query and reopen the exact AI-crawler
+ * cost hole the `.md` layer exists to close. Use THIS on those surfaces.
+ * See `.claude/rules/cdn.md` + `docs/superpowers/specs/2026-07-16-llm-friendly-site-design.md`.
+ */
+export async function hybridQuickSearchLexical(
+  query: string,
+  limit = 8
+): Promise<HybridSearchResult[]> {
+  const results = await runLexicalSearch(query, {
+    limit,
+    threshold: 0.15,
+    boostPopular: true,
+  });
+  return results.map((r, i) => fuzzyToHybrid(r, i, "fuzzy"));
+}
+
 // =============================================================================
 // Conversion Helpers
 // =============================================================================

@@ -120,9 +120,24 @@ Will be fully severed post-GA.
 | What | Where | Schedule | Retention |
 |------|-------|----------|-----------|
 | PG logical dump (beta) | `~/bin/pg-backup.sh` → `s3://movie-browser-migration-2025-10-19/backups/pg/` | cron 02:30 UTC | 30d (S3 lifecycle) |
-| MongoDB dump (legacy, ALL user data) | `~/bin/mongo-backup.sh` on `98.130.30.197` → `.../backups/mongo/` | cron 02:00 UTC | 30d (S3 lifecycle) |
-| EBS snapshots (both volumes) | DLM policy `policy-0bbc1c9e1ae3d88e9` targets tag `Backup=daily` | daily 03:30 UTC | 7 snapshots |
+| ClickHouse logical dump (beta) | `~/bin/clickhouse-backup.sh` → `.../backups/clickhouse/` | cron 04:00 UTC (`nice -n 19`) | 30d (S3 lifecycle) |
+| MongoDB dump (legacy, ALL user data) | `~/bin/mongo-backup.sh` on `98.130.30.197` → `.../backups/mongo/` | cron 02:00 UTC | dead (legacy box terminated) |
 
+- **EBS snapshots RETIRED 2026-07-16** (cost cut). All snapshots deleted, DLM policy
+  `policy-0bbc1c9e1ae3d88e9` set to **DISABLED** (not deleted — re-enable to resume).
+  Rationale: EBS snapshots cost ~$21/mo to protect a 120GB volume that is ~90%
+  regenerable (ISR/image cache, node_modules, `.next`); the only irreplaceable data
+  (Postgres + ClickHouse) is now BOTH dumped nightly to S3, and the box is
+  Terraform-rebuildable. Trade-off accepted: DR is now rebuild-from-Terraform +
+  restore-from-S3 (~1-2h) instead of a fast snapshot restore. Box config/secrets are
+  NOT in S3 (a config stash was rejected as credential-leak) — they reconstruct from
+  the deploy pipeline's GitHub `NEXT_EC2_*` secrets + Terraform.
+- ClickHouse dump: `SHOW CREATE` + per-table `FORMAT Native` gzip → tar → S3. Excludes
+  MV `.inner_id.*` storage (MVs rebuild from base tables). GOTCHA baked in: `docker exec`
+  is called WITHOUT `-i` and table lists are read via `mapfile` first — `docker exec -i`
+  inside a `while read` loop swallows the loop's stdin (same stdin-swallow class as the
+  deploy pipeline). `page_views` (~1.1GB) needs `--max_execution_time=0 --receive_timeout=3600`
+  or it trips the 30s default (Code 159).
 - PG script TOC-verifies the dump (`pg_restore --list`) **before** uploading. Logs: `~/logs/*.log` on each box.
 - **Alerting**: SNS topic `movie-browser-alerts` (ap-south-2) → email. CloudWatch alarms:
   `{beta,prod}-status-check-failed`, `beta-cpu-surplus-credit-burn` (CPU pegged again),

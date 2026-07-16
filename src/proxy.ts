@@ -17,6 +17,7 @@ import {
   type ResolvedSlug,
   type DiscussSuffix,
 } from "@/server/proxy/media-resolver";
+import { isMarkdownRequest, markdownPathToTarget } from "@/lib/llm/paths";
 
 const { auth } = NextAuth(authConfig);
 
@@ -36,6 +37,28 @@ const { auth } = NextAuth(authConfig);
  * place that sees every request, including bots and cache hits.
  */
 export default auth((req: NextRequest & { auth: Session | null }) => {
+  // Markdown twins (.md paths + /search.md): rewrite to the read-only /api/md
+  // route BEFORE the scraper shed and BEFORE the media-resolver. This is the
+  // "steer good agents to the cheap .md" exemption — the Accept: text/markdown
+  // 429 below and the ClaudeBot/GPTBot BLOCKED_BOT_TYPES 429 must NOT apply
+  // here (the .md twin is PG-only, no SSR/hydration/Lambda, and edge-cacheable,
+  // so it's the cost-safe path we WANT crawlers on). Short-circuiting also keeps
+  // the media-resolver from 308-stripping the ".md" suffix.
+  if (req.method === "GET" && isMarkdownRequest(req.nextUrl.pathname)) {
+    maybeTrackPageView(req); // keep .md hits visible in analytics
+    const url = req.nextUrl.clone();
+    const target = markdownPathToTarget(url.pathname);
+    const params = new URLSearchParams({ p: target });
+    // /search.md carries the human's query through to the search endpoint.
+    if (target === "/search") {
+      const q = req.nextUrl.searchParams.get("q");
+      if (q) params.set("q", q);
+    }
+    url.pathname = "/api/md";
+    url.search = `?${params.toString()}`;
+    return NextResponse.rewrite(url);
+  }
+
   // Block high-confidence scrapers BEFORE rendering. Post-GA a distributed
   // fleet (rotating IPs, forged Chrome UAs, no JS) crawled long-tail URLs at
   // a rate that outpaced the ISR cache fill and 502'd the box. Detection is
@@ -279,6 +302,6 @@ export const config = {
      * - public folder files (images, etc.)
      */
     // 666170ce… = IndexNow key file; its verifier must never hit the scraper 429
-    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|sitemap|serwist|api|666170ce7734064c2d3dbe589dc9cdfb.txt).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|llms.txt|sitemap|serwist|api|666170ce7734064c2d3dbe589dc9cdfb.txt).*)",
   ],
 };
