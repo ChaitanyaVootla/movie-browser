@@ -1,48 +1,9 @@
-import { Suspense } from "react";
-import { Metadata } from "next";
-import { WatchlistClient } from "./client";
-import { PageMain } from "@/components/features/layout/page-main";
-import { Skeleton } from "@/components/ui/skeleton";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  // Private user pages: robots.txt disallows these, but belt-and-braces —
-  // robots.txt is advisory while the meta tag is authoritative for indexing.
-  robots: { index: false, follow: false },
-  title: "My Watchlist - The Movie Browser",
-  description: "Your personal watchlist of movies and TV series to watch.",
-  openGraph: {
-    title: "My Watchlist - The Movie Browser",
-    description: "Your personal watchlist of movies and TV series to watch.",
-  },
-};
-
-function WatchlistSkeleton() {
-  return (
-    <div className="space-y-8">
-      {/* Toggle skeleton */}
-      <div className="flex justify-center">
-        <Skeleton className="h-10 w-48 rounded-full" />
-      </div>
-
-      {/* Grid skeleton */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 md:gap-4">
-        {Array.from({ length: 14 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="aspect-[2/3] w-full rounded-lg" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
+/**
+ * /watchlist is consolidated into /library (Watchlist tab). Kept as a permanent
+ * redirect so existing links, bookmarks, and nav entries still resolve.
+ */
 export default function WatchlistPage() {
-  return (
-    <PageMain>
-      <Suspense fallback={<WatchlistSkeleton />}>
-        <WatchlistClient />
-      </Suspense>
-    </PageMain>
-  );
+  redirect("/library?tab=watchlist");
 }

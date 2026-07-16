@@ -151,12 +151,24 @@ async function fetchWatchlist(): Promise<WatchlistData> {
   return response.json();
 }
 
-export function WatchlistClient() {
+export function WatchlistClient({
+  showUpNext = true,
+  syncTabToUrl = true,
+}: {
+  /** Show the "Continue Watching" (Up Next) strip above the lists. Off when
+   *  embedded in /library, which surfaces Up Next in its own tab. */
+  showUpNext?: boolean;
+  /** Write the TV/Movies sub-tab to the URL. Off when embedded so it doesn't
+   *  fight /library's own ?tab= param or navigate away. */
+  syncTabToUrl?: boolean;
+} = {}) {
   const { status: authStatus } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const displayMode = usePreferencesStore(selectCardDisplayMode);
-  const [activeTab, setActiveTab] = useState<string>(searchParams.get("tab") || "series");
+  const [activeTab, setActiveTab] = useState<string>(
+    (syncTabToUrl && searchParams.get("tab")) || "series"
+  );
   const [movieSearch, setMovieSearch] = useState("");
   const [selectedGenre, setSelectedGenre] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("added");
@@ -175,6 +187,7 @@ export function WatchlistClient() {
   // Update URL when tab changes (only when user clicks tab, not on every render)
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    if (!syncTabToUrl) return;
     // Update URL without causing re-render loop - series is default
     const newUrl = value === "series" ? "/watchlist" : `/watchlist?tab=${value}`;
     router.replace(newUrl, { scroll: false });
@@ -235,7 +248,7 @@ export function WatchlistClient() {
       {/* In-progress series (series_progress → Up Next). Self-gates: renders
           nothing if you have no shows in progress. The watchlist below is now
           pure "want to watch" — starting a show auto-removes it from there. */}
-      <UpNextSection title="Continue Watching" />
+      {showUpNext && <UpNextSection title="Continue Watching" />}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
       <TabsList className="w-fit mx-auto">

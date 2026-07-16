@@ -8,7 +8,7 @@ import {
   Compass,
   Search,
   User,
-  List,
+  Library,
   ListChecks,
   Eye,
   Star,
@@ -17,7 +17,6 @@ import {
   Moon,
   Sun,
   ChevronRight,
-  Bookmark,
   Download,
   NotebookPen,
   BarChart3,
@@ -87,7 +86,7 @@ function MobileUserSheet({ open, onOpenChange }: MobileUserSheetProps) {
           icon: User,
         },
         { href: "/notifications", label: "Notifications", icon: Bell },
-        { href: "/watchlist", label: "Watchlist", icon: List },
+        { href: "/library", label: "Library", icon: Library },
         { href: "/lists", label: "Lists", icon: ListChecks },
         { href: "/diary", label: "Diary", icon: NotebookPen },
         { href: "/stats", label: "Stats", icon: BarChart3 },
@@ -332,7 +331,7 @@ export function MobileBottomNav() {
     { href: "/", label: "Home", icon: Home },
     { href: "/browse", label: "Browse", icon: Compass },
     { label: "Search", icon: Search, action: handleSearchClick },
-    { href: "/watchlist", label: "Watchlist", icon: Bookmark },
+    { href: "/library", label: "Library", icon: Library },
   ];
 
   return (

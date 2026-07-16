@@ -23,7 +23,15 @@ import type { UpNextItemDTO } from "@/types/social";
  * Client island: the home page is ISR-cached, so this fetches per-user on the
  * client (roadmap invariant §4.1.8) like ContinueWatchingSection.
  */
-export function UpNextSection({ title = "Up Next" }: { title?: string } = {}) {
+export function UpNextSection({
+  title = "Up Next",
+  onCount,
+}: {
+  title?: string;
+  /** Reports the loaded item count (0 on empty/error) — lets a parent render an
+   *  empty state when this section self-hides. */
+  onCount?: (count: number) => void;
+} = {}) {
   const { status } = useSafeSession();
   const { trackAction } = useAnalytics();
   const [items, setItems] = useState<UpNextItemDTO[] | null>(null);
@@ -33,18 +41,26 @@ export function UpNextSection({ title = "Up Next" }: { title?: string } = {}) {
     let cancelled = false;
     getUpNext(12)
       .then((data) => {
-        if (!cancelled) setItems(data);
+        if (!cancelled) {
+          setItems(data);
+          onCount?.(data.length);
+        }
       })
       .catch((error: unknown) => {
         if (isStaleServerActionError(error)) {
           recoverFromStaleAction();
           return;
         }
-        if (!cancelled) setItems([]);
+        if (!cancelled) {
+          setItems([]);
+          onCount?.(0);
+        }
       });
     return () => {
       cancelled = true;
     };
+    // onCount is a stable callback from the parent; intentionally not a dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   if (status !== "authenticated") return null;
@@ -71,6 +87,10 @@ export function UpNextSection({ title = "Up Next" }: { title?: string } = {}) {
     <MediaScroller
       title={<SectionHeading icon={<ListVideo className="h-5 w-5 text-brand" />}>{title}</SectionHeading>}
       showControls={items.length > 4}
+      // Home + Library already sit inside a padded container; cancel the
+      // scroller's default px so Up Next aligns with sibling sections (was
+      // double-indented — the only home section not passing this).
+      contentPadding=""
     >
       {items.map((item) => {
         const still = item.episodeStillPath

@@ -56,8 +56,8 @@ export function Footer({ className }: FooterProps) {
             <h3 className="font-semibold mb-4">Account</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/watchlist" className="hover:text-foreground transition-colors">
-                  Watchlist
+                <Link href="/library" className="hover:text-foreground transition-colors">
+                  Library
                 </Link>
               </li>
               <li>

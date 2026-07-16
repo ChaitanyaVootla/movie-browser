@@ -36,6 +36,7 @@ function getPageTypeFromPath(path: string): PageType {
   if (normalized.startsWith("/browse")) return "browse";
   if (normalized.startsWith("/topics/") && normalized !== "/topics/") return "topic_detail";
   if (normalized === "/topics") return "topics";
+  if (normalized.startsWith("/library")) return "library";
   if (normalized.startsWith("/watchlist")) return "watchlist";
   if (normalized.startsWith("/ratings")) return "ratings";
   if (normalized.startsWith("/watched")) return "watched";

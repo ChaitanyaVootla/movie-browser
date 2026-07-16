@@ -9,6 +9,13 @@ import type { MovieListItem, SeriesListItem } from "@/types";
 const SearchQuerySchema = z.object({
   query: z.string().min(1).max(100),
   page: z.number().int().positive().default(1),
+  /**
+   * Semantic/vector search. Omitted/false = lexical-only (exact → FTS → trigram),
+   * zero AWS Bedrock round-trips → instant (the /search page's default). true =
+   * embedding-based vibe search (the /search "Semantic" toggle). Ignored by the
+   * plain TMDB `search()`.
+   */
+  semantic: z.boolean().optional(),
 });
 
 // Search result types
@@ -219,12 +226,14 @@ export async function enhancedSearch(
   input: z.infer<typeof SearchQuerySchema>
 ): Promise<EnhancedSearchResponse> {
   const startTime = Date.now();
-  const { query, page } = SearchQuerySchema.parse(input);
+  const { query, page, semantic } = SearchQuerySchema.parse(input);
 
   // Fetch trending IDs first (cached by TMDB service, very fast)
   const trendingIds = await getTrendingIds();
 
-  // Run hybrid search with trending boost
+  // Run hybrid search with trending boost. `semantic` controls the vector leg:
+  // false (default) = lexical-only + regex intent, no Bedrock (fast); true =
+  // full embedding-based semantic path (the /search "Semantic" toggle).
   const hybridResponse = await hybridSearch(query, {
     limit: 20,
     boostPopular: true,
@@ -232,6 +241,7 @@ export async function enhancedSearch(
     trendingIds,
     boostQuality: true,
     boostRecency: true,
+    semantic,
   });
 
   const hybridResults = hybridResponse.results;

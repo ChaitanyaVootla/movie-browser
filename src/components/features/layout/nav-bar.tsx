@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Search, Sparkles, Compass, Shield, Bookmark, User } from "lucide-react";
+import { Search, Sparkles, Compass, Shield, Library, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountrySelector } from "./country-selector";
 import { UserMenu, LoginDialog, useLoginDialog, SettingsMenu } from "@/components/features/auth";
@@ -19,7 +19,7 @@ const navItems = [
   { href: "/topics", label: "Topics", icon: Sparkles },
 ];
 
-const authNavItems = [{ href: "/watchlist", label: "Watchlist", icon: Bookmark }];
+const authNavItems = [{ href: "/library", label: "Library", icon: Library }];
 
 export function NavBar() {
   const pathname = usePathname();

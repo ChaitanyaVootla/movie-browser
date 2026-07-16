@@ -167,9 +167,9 @@ export function UserMenu({ className }: UserMenuProps) {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href="/watchlist" className="cursor-pointer">
+          <Link href="/library" className="cursor-pointer">
             <List className="mr-2 h-4 w-4" />
-            <span>Watchlist</span>
+            <span>Library</span>
           </Link>
         </DropdownMenuItem>
 

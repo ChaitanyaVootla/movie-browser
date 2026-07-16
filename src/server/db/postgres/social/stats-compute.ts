@@ -141,6 +141,11 @@ export function computeStats(
   // "13× rewatched". Only rows flagged isRewatch count here.
   const rewatchByTitle = new Map<number, { title: string; count: number }>();
   const datedDays = new Set<string>();
+  // Taste breakdown (genres/decades/countries) counts each TITLE once, not once
+  // per watch_event — otherwise a binged series counts its genres/decade/country
+  // ~13× and swamps taste. Keyed by kind+id since a movie id and a series id can
+  // collide numerically (both are TMDB ids in separate namespaces).
+  const seenTitleForTaste = new Set<string>();
   let minutes = 0;
   let episodes = 0;
   let rewatchCount = 0;
@@ -156,9 +161,17 @@ export function computeStats(
       if (entry) entry.count += 1;
       else rewatchByTitle.set(row.titleId, { title: row.title, count: 1 });
     }
-    for (const g of row.genres) bump(genreCounts, g);
-    for (const c of row.countries) bump(countryCounts, c);
-    if (row.year !== null) bump(decadeCounts, `${Math.floor(row.year / 10) * 10}s`);
+    // Taste = distinct titles (a title's genres/decade/country are title-level
+    // facts, identical across all its episodes/rewatches).
+    const tasteKey = `${row.kind === "movie" ? "m" : "s"}${row.titleId}`;
+    if (!seenTitleForTaste.has(tasteKey)) {
+      seenTitleForTaste.add(tasteKey);
+      for (const g of row.genres) bump(genreCounts, g);
+      for (const c of row.countries) bump(countryCounts, c);
+      if (row.year !== null) bump(decadeCounts, `${Math.floor(row.year / 10) * 10}s`);
+    }
+    // Monthly activity stays per watch_event — it genuinely reflects viewing
+    // volume (watching 13 episodes in a month IS 13 units of activity).
     if (row.watchedAt !== null && row.precision !== "UNKNOWN") {
       const day = utcDayKey(row.watchedAt);
       datedDays.add(day);

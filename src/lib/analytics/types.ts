@@ -17,6 +17,7 @@ export type PageType =
   | "browse"
   | "topics"
   | "topic_detail"
+  | "library"
   | "watchlist"
   | "ratings"
   | "watched"

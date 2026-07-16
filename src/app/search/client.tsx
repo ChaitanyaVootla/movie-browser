@@ -235,6 +235,11 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
   const [totalFound, setTotalFound] = React.useState(0);
   const [understanding, setUnderstanding] = React.useState<QueryUnderstanding | null>(null);
   const [relaxationMessage, setRelaxationMessage] = React.useState<string | null>(null);
+  // Semantic (vector) search is OFF by default: the default path is lexical-only
+  // (exact → FTS → trigram) with no AWS Bedrock round-trips, so it's instant.
+  // Users flip this on for vibe/descriptive queries. URL-driven (?semantic=1) so
+  // it survives reload and is shareable.
+  const [semantic, setSemantic] = React.useState(() => searchParams.get("semantic") === "1");
 
   const debouncedQuery = useDebounce(query, 400);
 
@@ -244,9 +249,10 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
       const params = new URLSearchParams();
       if (newQuery) params.set("q", newQuery);
       if (newType !== "all") params.set("type", newType);
+      if (semantic) params.set("semantic", "1");
       router.push(`/search?${params.toString()}`, { scroll: false });
     },
-    [router]
+    [router, semantic]
   );
 
   // Build QueryUnderstanding from IntentAnalysis
@@ -577,7 +583,7 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
     const fetchResults = async () => {
       setIsLoading(true);
       try {
-        const data = await enhancedSearch({ query: debouncedQuery, page: 1 });
+        const data = await enhancedSearch({ query: debouncedQuery, page: 1, semantic });
         setResults(data.results);
         setSuggestions(data.suggestions || []);
         setTotalFound(data.stats.hybridResultCount + data.stats.tmdbResultCount);
@@ -604,7 +610,7 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
     };
 
     fetchResults();
-  }, [debouncedQuery, type, updateUrl, buildUnderstanding]);
+  }, [debouncedQuery, type, semantic, updateUrl, buildUnderstanding]);
 
   // Filter results by type
   const filteredResults = React.useMemo(() => {
@@ -899,6 +905,27 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
             <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
           )}
         </form>
+
+        {/* Semantic search toggle — off by default (fast lexical); flip on for
+            vibe/descriptive queries ("mind-bending sci-fi like Inception"). */}
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant={semantic ? "default" : "outline"}
+            size="sm"
+            aria-pressed={semantic}
+            onClick={() => setSemantic((s) => !s)}
+            className="gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            Semantic search
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            {semantic
+              ? "Matching by meaning & vibe (slower, AI-powered)."
+              : "Fast keyword match. Turn on for mood/theme queries."}
+          </p>
+        </div>
 
         {/* Query Understanding Summary */}
         {understanding?.summary && (

@@ -143,6 +143,17 @@ export interface HybridSearchOptions {
   boostQuality?: boolean;
   /** Boost newer content for non-title queries (default: true) */
   boostRecency?: boolean;
+  /**
+   * Semantic/vector search mode.
+   * - `undefined` (default): unchanged legacy behavior — hybrid intent
+   *   classification (may embed) + semantic leg per intent weights.
+   * - `false`: LEXICAL-ONLY — regex intent (no Bedrock embedding classification)
+   *   and the semantic leg is skipped. No AWS Bedrock round-trips → instant.
+   *   This is what the /search page uses by default.
+   * - `true`: force the full semantic path (embedding classification + vector
+   *   leg), for the user-facing "Semantic" toggle.
+   */
+  semantic?: boolean;
 }
 
 export interface HybridSearchResponse {
@@ -1048,7 +1059,16 @@ export async function hybridSearch(
     trendingIds,
     boostQuality = true,
     boostRecency = true,
+    semantic,
   } = options;
+
+  // Lexical-only mode: caller explicitly opted out of semantic (the /search
+  // default). Skip the embedding classification tier AND the semantic leg so
+  // there are ZERO Bedrock round-trips on the hot path.
+  const lexicalOnly = semantic === false;
+  const coreOptions: HybridSearchOptions = lexicalOnly
+    ? { ...options, skipSemantic: true }
+    : options;
 
   // ==========================================================================
   // Step 1: Analyze query intent using hybrid classification (regex -> embedding -> LLM)
@@ -1056,16 +1076,21 @@ export async function hybridSearch(
   // free regex tier rather than failing the search.
   // ==========================================================================
   let hybridResult: HybridIntentResult;
-  try {
-    hybridResult = await classifyQueryIntentHybrid(query);
-  } catch (error: unknown) {
-    dataLogger.warn({
-      event: "intent_classification_failed",
-      query,
-      error: error instanceof Error ? error.message : String(error),
-      fallback: "regex",
-    });
+  if (lexicalOnly) {
+    // Regex-only — no embedding call. Filter extraction (genre/year/etc.) still works.
     hybridResult = { ...classifyQueryIntent(query), method: "regex" };
+  } else {
+    try {
+      hybridResult = await classifyQueryIntentHybrid(query);
+    } catch (error: unknown) {
+      dataLogger.warn({
+        event: "intent_classification_failed",
+        query,
+        error: error instanceof Error ? error.message : String(error),
+        fallback: "regex",
+      });
+      hybridResult = { ...classifyQueryIntent(query), method: "regex" };
+    }
   }
   let intent: IntentAnalysis = hybridResult;
   const classificationMethod = hybridResult.method;
@@ -1135,7 +1160,7 @@ export async function hybridSearch(
   let { fuzzyResults, semanticResults, scoreMap } = await runCoreSearch({
     query,
     intent,
-    options,
+    options: coreOptions,
   });
 
   let relaxedFilters = false;
@@ -1167,7 +1192,7 @@ export async function hybridSearch(
       const fallbackResult = await runCoreSearch({
         query,
         intent,
-        options,
+        options: coreOptions,
         yearRangeOverride: expandedRange,
       });
 
@@ -1192,7 +1217,7 @@ export async function hybridSearch(
       const fallbackResult = await runCoreSearch({
         query,
         intent,
-        options,
+        options: coreOptions,
         skipGenreFilter: true,
       });
 

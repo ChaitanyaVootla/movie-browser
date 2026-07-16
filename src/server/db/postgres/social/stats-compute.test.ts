@@ -120,6 +120,27 @@ describe("computeStats", () => {
     expect(stats.topCountries.map((c) => c.code)).toContain("KR");
   });
 
+  it("taste breakdown counts a binged series ONCE, but monthly activity per episode", () => {
+    // 13 episodes of one Drama/2008/KR series, all watched in Jan 2026.
+    const rows = Array.from({ length: 13 }, (_, i) =>
+      episodeRow({
+        genres: ["Drama"],
+        countries: ["KR"],
+        year: 2008,
+        watchedAt: new Date(`2026-01-${String(i + 1).padStart(2, "0")}T12:00:00Z`),
+      })
+    );
+    const stats = computeStats(rows, []);
+    // Taste = distinct titles: the series' genre/decade/country count ONCE, not 13×.
+    expect(stats.topGenres).toEqual([{ name: "Drama", count: 1 }]);
+    expect(stats.topDecades).toEqual([{ decade: "2000s", count: 1 }]);
+    expect(stats.topCountries).toEqual([{ code: "KR", count: 1 }]);
+    // Activity + episode/hours counts stay per watch_event (genuine viewing volume).
+    expect(stats.episodesWatched).toBe(13);
+    expect(stats.byMonth["2026-01"]).toBe(13);
+    expect(stats.seriesTouched).toBe(1);
+  });
+
   it("current streak: alive only if the latest watch is today or yesterday", () => {
     const now = new Date("2026-01-13T12:00:00Z");
     // 11th, 12th, 13th consecutive, ending today → streak 3
