@@ -30,6 +30,28 @@ The search system uses a sophisticated multi-tier approach to handle any query t
 | Autocomplete | `src/server/actions/autocomplete.ts` | Fast suggestions (<100ms) — prefix FTS first, trigram fallback |
 | Search Action | `src/server/actions/search.ts` | Server action with trending boost |
 
+## `/search` page defaults to LEXICAL — semantic is a user toggle (July 2026)
+
+The `/search` page (`enhancedSearch` → `hybridSearch`) is **lexical-only by
+default**: regex intent classification (Tier 1, no embedding) + the semantic
+(pgvector) leg SKIPPED → **zero AWS Bedrock round-trips on the hot path** → instant.
+This is controlled by the `semantic` flag on `HybridSearchOptions` (+ the
+`enhancedSearch` Zod input, + `?semantic=1` in the /search URL and the "Semantic
+search" toggle in `search/client.tsx`):
+
+- `semantic === false` → `lexicalOnly` in `hybridSearch`: regex intent (`classifyQueryIntent`,
+  NOT `classifyQueryIntentHybrid`) + `skipSemantic:true` on every `runCoreSearch`
+  (via `coreOptions`). No embedding classification, no vector leg.
+- `semantic === true` → full embedding-based path (Tier-2 classification + semantic leg).
+- `semantic === undefined` (omitted) → **unchanged legacy behavior** (hybrid classify +
+  semantic per weights). Deliberately: the AI agent's `search` tool and any other
+  `hybridSearch` caller that omits the flag are unaffected — only /search opts out.
+
+Before July 2026 EVERY /search hit ran BOTH a Tier-2 embedding classification (on
+low-confidence queries) AND a semantic-leg embedding — two serial Bedrock calls =
+the "search is slow" complaint. Users now flip Semantic on only for vibe/theme
+queries. Do NOT make the /search default semantic again without a perf plan.
+
 ## 3-Tier Intent Classification
 
 Classification uses a tiered approach to minimize cost while maximizing accuracy:
