@@ -12,9 +12,29 @@ markdown views of pages plus a discovery index. Built 2026-07-16. Full design:
 - **`.md` page twins** — append `.md` to any supported page URL to get clean
   markdown: `/movie/{id}/{slug}.md`, `/series/…`, `/person/…`, `/browse.md`,
   `/topics.md` (index), `/topics/{key}.md`, home, and static (`/privacy.md` etc.).
+  Movie/series carry navigable + actionable links: cast/crew → person `.md`,
+  `## Ratings` → external source URLs, `## Trailers` → YouTube, `## Where to
+  watch` → provider deep links + JustWatch, `## Links` → TMDB/IMDb/site, plus
+  Keywords + (movies) production companies + collection `/search.md?q=` link.
+- **Pagination** — `/browse.md` and `/topics/{key}.md` take `?page=N` (Prev/Next
+  nav; `page` is bounded ≤500 and PG-OFFSET based). The proxy forwards the whole
+  original query string (`page`/`q`) to `/api/md`; CloudFront keys on both.
 - **`/search.md?q=`** — ranked markdown result list linking to `.md` pages.
 - **Discovery** — detail pages emit `<link rel="alternate" type="text/markdown">`
   via `generateMetadata` `alternates.types` (static string; does NOT break ISR).
+
+## Organic data freshness (why no backfill is needed)
+
+`.md` reads current PG, and PG fills/refreshes organically via the render path:
+- **Movie/series**: the hydration pipeline persists TMDB→PG on every visit/
+  revalidation (see `postgres-hydration.md`), so their `.md` stays fresh.
+- **Person**: `getPerson` (`src/server/actions/person.ts`) now fire-and-forgets a
+  PG upsert of bio/birthday/deathday/place_of_birth/gender on each person-page
+  render (added 2026-07-16 — the `persons` detail columns were 100% NULL before;
+  person pages read TMDB but never wrote back). So person `.md` fills in as pages
+  are visited. Non-blocking, ISR-safe; popularity stays create-only (credit
+  upserts own it). Long tail stays sparse until visited — a one-time TMDB backfill
+  is the option for instant broad coverage (not built; organic deemed sufficient).
 
 ## How it routes
 
