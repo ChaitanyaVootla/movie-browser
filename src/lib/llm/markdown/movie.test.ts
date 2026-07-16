@@ -81,8 +81,10 @@ describe("movieToMarkdown", () => {
     expect(md).toContain("# Inception (2010)");
     expect(md).toContain("## Overview");
     expect(md).toContain("## Details");
+    expect(md).toContain("## Ratings");
     expect(md).toContain("## Cast");
     expect(md).toContain("## Where to watch (India)");
+    expect(md).toContain("## Links");
     expect(md).toContain("## AI insights");
   });
 
@@ -92,10 +94,22 @@ describe("movieToMarkdown", () => {
   });
 
   it("renders key details and cast", () => {
-    expect(md).toContain("Leonardo DiCaprio — Cobb");
-    expect(md).toContain("Christopher Nolan");
     expect(md).toContain("Netflix");
     expect(md).toContain("148 min");
+    expect(md).toContain("IMDb: 88");
+  });
+
+  it("links cast + director to their person .md pages", () => {
+    expect(md).toContain(
+      "[Leonardo DiCaprio](https://themoviebrowser.com/person/6193/leonardo-dicaprio.md) — Cobb"
+    );
+    expect(md).toContain(
+      "[Christopher Nolan](https://themoviebrowser.com/person/525/christopher-nolan.md)"
+    );
+  });
+
+  it("includes external reference links (TMDB)", () => {
+    expect(md).toContain("[TMDB](https://www.themoviedb.org/movie/27205)");
   });
 
   it("ends with the canonical link", () => {

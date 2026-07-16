@@ -1,5 +1,8 @@
 /**
  * Series → markdown. Pure. Emits ONLY spoiler-free AI fields.
+ *
+ * Rich with navigable links (cast → person `.md`, ratings → source URLs, watch →
+ * provider deep links, TMDB/IMDb/official-site). All from read-only PG data.
  */
 
 import type { Series } from "@/types";
@@ -7,9 +10,13 @@ import type { AIDataResponse } from "@/server/services/ai-data-service";
 import {
   assembleSections,
   canonicalUrl,
+  castSection,
+  externalLinksSection,
   oneLine,
+  personLink,
+  ratingsSection,
   titleWithYear,
-  watchProvidersForCountry,
+  whereToWatchSection,
   yearFromDate,
 } from "./shared";
 import { aiInsightsSection, moodLine } from "./ai-insights";
@@ -29,29 +36,15 @@ function detailsSection(series: Series): string {
   if (series.original_language) lines.push(`- Original language: ${series.original_language}`);
   if (series.origin_country?.length) lines.push(`- Origin: ${series.origin_country.join(", ")}`);
   if (series.created_by?.length) {
-    lines.push(`- Created by: ${series.created_by.map((c) => c.name).join(", ")}`);
+    const creators = series.created_by.map((c) =>
+      typeof c.id === "number" ? personLink(c.id, c.name) : c.name
+    );
+    lines.push(`- Created by: ${creators.join(", ")}`);
   }
   if (series.networks?.length) {
     lines.push(`- Networks: ${series.networks.map((n) => n.name).join(", ")}`);
   }
-
-  const ratings = series.ratings ?? [];
-  if (ratings.length) {
-    lines.push(`- Ratings: ${ratings.map((r) => `${r.name} ${r.rating}`).join(" · ")}`);
-  } else if (series.vote_average > 0) {
-    lines.push(`- Ratings: TMDB ${series.vote_average.toFixed(1)} (${series.vote_count} votes)`);
-  }
-
   return `## Details\n${lines.join("\n")}`;
-}
-
-function castSection(series: Series): string | null {
-  const cast = series.credits?.cast ?? [];
-  if (!cast.length) return null;
-  const lines = cast
-    .slice(0, 10)
-    .map((c) => (c.character ? `- ${c.name} — ${c.character}` : `- ${c.name}`));
-  return `## Cast\n${lines.join("\n")}`;
 }
 
 function seasonsSection(series: Series): string | null {
@@ -63,23 +56,6 @@ function seasonsSection(series: Series): string | null {
     return `- ${s.name}${year ? ` (${year})` : ""}${eps}`;
   });
   return `## Seasons\n${lines.join("\n")}`;
-}
-
-function whereToWatchSection(series: Series): string | null {
-  const india = watchProvidersForCountry(series, "IN");
-  if (!india) return null;
-  const parts: string[] = [];
-  if (india.flatrate?.length) {
-    parts.push(`- Stream: ${india.flatrate.map((p) => p.provider_name).join(", ")}`);
-  }
-  if (india.rent?.length) {
-    parts.push(`- Rent: ${india.rent.map((p) => p.provider_name).join(", ")}`);
-  }
-  if (india.buy?.length) {
-    parts.push(`- Buy: ${india.buy.map((p) => p.provider_name).join(", ")}`);
-  }
-  if (!parts.length) return null;
-  return `## Where to watch (India)\n${parts.join("\n")}`;
 }
 
 export function seriesToMarkdown(series: Series, aiData: AIDataResponse | null): string {
@@ -101,9 +77,14 @@ export function seriesToMarkdown(series: Series, aiData: AIDataResponse | null):
     summary,
     overview,
     details,
-    castSection(series),
+    ratingsSection(series.ratings, series.vote_average, series.vote_count),
+    castSection(series.credits?.cast),
     seasonsSection(series),
     whereToWatchSection(series),
+    externalLinksSection("tv", series.id, {
+      imdbId: series.external_ids?.imdb_id,
+      homepage: series.homepage,
+    }),
     aiInsightsSection(aiData),
     canonical,
   ]);

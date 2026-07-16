@@ -1,5 +1,9 @@
 /**
  * Movie → markdown. Pure. Emits ONLY spoiler-free AI fields.
+ *
+ * Rich with navigable links so agents can traverse the catalog + act:
+ * cast → person `.md`, ratings → external source URLs, watch → provider deep
+ * links, plus TMDB/IMDb/official-site references. All from read-only PG data.
  */
 
 import type { Movie } from "@/types";
@@ -7,9 +11,14 @@ import type { AIDataResponse } from "@/server/services/ai-data-service";
 import {
   assembleSections,
   canonicalUrl,
+  castSection,
+  externalLinksSection,
   oneLine,
+  personLink,
+  ratingsSection,
+  searchMarkdownUrl,
   titleWithYear,
-  watchProvidersForCountry,
+  whereToWatchSection,
   yearFromDate,
 } from "./shared";
 import { aiInsightsSection, moodLine } from "./ai-insights";
@@ -23,48 +32,23 @@ function detailsSection(movie: Movie): string {
   if (movie.original_language) lines.push(`- Original language: ${movie.original_language}`);
   if (movie.origin_country?.length) lines.push(`- Origin: ${movie.origin_country.join(", ")}`);
 
-  const ratings = movie.ratings ?? [];
-  if (ratings.length) {
-    lines.push(`- Ratings: ${ratings.map((r) => `${r.name} ${r.rating}`).join(" · ")}`);
-  } else if (movie.vote_average > 0) {
-    lines.push(`- Ratings: TMDB ${movie.vote_average.toFixed(1)} (${movie.vote_count} votes)`);
+  const directors = [
+    ...new Map(
+      (movie.credits?.crew ?? [])
+        .filter((c) => c.job === "Director")
+        .map((c) => [c.id, c])
+    ).values(),
+  ];
+  if (directors.length) {
+    lines.push(`- Director: ${directors.map((d) => personLink(d.id, d.name)).join(", ")}`);
+  }
+
+  const collection = movie.belongs_to_collection;
+  if (collection?.name) {
+    lines.push(`- Part of: [${collection.name}](${searchMarkdownUrl(collection.name)})`);
   }
 
   return `## Details\n${lines.join("\n")}`;
-}
-
-function castSection(movie: Movie): string | null {
-  const cast = movie.credits?.cast ?? [];
-  if (!cast.length) return null;
-  const lines = cast
-    .slice(0, 10)
-    .map((c) => (c.character ? `- ${c.name} — ${c.character}` : `- ${c.name}`));
-  return `## Cast\n${lines.join("\n")}`;
-}
-
-function crewLine(movie: Movie): string | null {
-  const directors = (movie.credits?.crew ?? [])
-    .filter((c) => c.job === "Director")
-    .map((c) => c.name);
-  if (!directors.length) return null;
-  return `- Director: ${[...new Set(directors)].join(", ")}`;
-}
-
-function whereToWatchSection(movie: Movie): string | null {
-  const india = watchProvidersForCountry(movie, "IN");
-  if (!india) return null;
-  const parts: string[] = [];
-  if (india.flatrate?.length) {
-    parts.push(`- Stream: ${india.flatrate.map((p) => p.provider_name).join(", ")}`);
-  }
-  if (india.rent?.length) {
-    parts.push(`- Rent: ${india.rent.map((p) => p.provider_name).join(", ")}`);
-  }
-  if (india.buy?.length) {
-    parts.push(`- Buy: ${india.buy.map((p) => p.provider_name).join(", ")}`);
-  }
-  if (!parts.length) return null;
-  return `## Where to watch (India)\n${parts.join("\n")}`;
 }
 
 export function movieToMarkdown(movie: Movie, aiData: AIDataResponse | null): string {
@@ -77,11 +61,8 @@ export function movieToMarkdown(movie: Movie, aiData: AIDataResponse | null): st
 
   const overview = movie.overview ? `## Overview\n${oneLine(movie.overview)}` : null;
 
-  const crew = crewLine(movie);
-  const details = crew ? `${detailsSection(movie)}\n${crew}` : detailsSection(movie);
-
   const mood = moodLine(aiData);
-  const detailsWithMood = mood ? `${details}\n${mood}` : details;
+  const details = mood ? `${detailsSection(movie)}\n${mood}` : detailsSection(movie);
 
   const canonical = `[View on The Movie Browser](${canonicalUrl("movie", movie.id, movie.title)})`;
 
@@ -89,9 +70,14 @@ export function movieToMarkdown(movie: Movie, aiData: AIDataResponse | null): st
     heading,
     summary,
     overview,
-    detailsWithMood,
-    castSection(movie),
+    details,
+    ratingsSection(movie.ratings, movie.vote_average, movie.vote_count),
+    castSection(movie.credits?.cast),
     whereToWatchSection(movie),
+    externalLinksSection("movie", movie.id, {
+      imdbId: movie.imdb_id,
+      homepage: movie.homepage,
+    }),
     aiInsightsSection(aiData),
     canonical,
   ]);

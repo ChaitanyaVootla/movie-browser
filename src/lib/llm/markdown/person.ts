@@ -6,6 +6,7 @@ import type { LlmPerson } from "../data";
 import {
   assembleSections,
   canonicalUrl,
+  externalLinksSection,
   markdownUrl,
   oneLine,
   titleWithYear,
@@ -44,6 +45,7 @@ export function personToMarkdown(person: LlmPerson): string {
     biography,
     detailsSection(person),
     filmographySection(person),
+    externalLinksSection("person", person.id, { homepage: person.homepage }),
     canonical,
   ]);
 }
