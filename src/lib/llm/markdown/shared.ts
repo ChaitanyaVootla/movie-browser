@@ -153,7 +153,11 @@ export function scrapedLinksForCountry(
       typeof x === "object" &&
       x !== null &&
       typeof (x as ScrapedWatchLink).name === "string" &&
-      typeof (x as ScrapedWatchLink).link === "string"
+      // Skip the scraper's unnamed "primary" entry — it duplicates a named row
+      // and would render as a blank `- [](url)` link.
+      (x as ScrapedWatchLink).name.trim().length > 0 &&
+      typeof (x as ScrapedWatchLink).link === "string" &&
+      (x as ScrapedWatchLink).link.length > 0
   );
   return links.length ? links : null;
 }

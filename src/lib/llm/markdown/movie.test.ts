@@ -8,8 +8,13 @@ import { movieToMarkdown } from "./movie";
 
 const SPOILER_MARKER = "THE_BUTLER_DID_IT_SECRET";
 
-// Movie fixture including the off-type "watch/providers" key the PG transform emits.
-const movie: Movie & { "watch/providers": { results: Record<string, unknown> } } = {
+// Movie fixture including the off-type "watch/providers" + scraped deep-link keys
+// the PG transform emits. The scraped list intentionally includes an unnamed
+// "primary" entry (the scraper duplicate) to pin the blank-link filter.
+const movie: Movie & {
+  "watch/providers": { results: Record<string, unknown> };
+  scraped_watch_links: Record<string, Array<{ name: string; link: string; price?: string }>>;
+} = {
   id: 27205,
   title: "Inception",
   original_title: "Inception",
@@ -47,6 +52,12 @@ const movie: Movie & { "watch/providers": { results: Record<string, unknown> } }
     results: {
       IN: { flatrate: [{ provider_id: 8, provider_name: "Netflix", logo_path: "" }] },
     },
+  },
+  scraped_watch_links: {
+    IN: [
+      { name: "", link: "https://primevideo.com/x" }, // unnamed primary — must be dropped
+      { name: "Amazon Prime Video", link: "https://primevideo.com/x", price: "Subscription" },
+    ],
   },
 };
 
@@ -110,6 +121,13 @@ describe("movieToMarkdown", () => {
 
   it("includes external reference links (TMDB)", () => {
     expect(md).toContain("[TMDB](https://www.themoviedb.org/movie/27205)");
+  });
+
+  it("renders named scraped watch deep links but drops the unnamed primary", () => {
+    expect(md).toContain(
+      "[Amazon Prime Video](https://primevideo.com/x) (Subscription)"
+    );
+    expect(md).not.toContain("- []("); // no blank-label link
   });
 
   it("ends with the canonical link", () => {
