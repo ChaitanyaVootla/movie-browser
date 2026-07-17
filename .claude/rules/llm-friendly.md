@@ -16,6 +16,11 @@ markdown views of pages plus a discovery index. Built 2026-07-16. Full design:
   `## Ratings` → external source URLs, `## Trailers` → YouTube, `## Where to
   watch` → provider deep links + JustWatch, `## Links` → TMDB/IMDb/site, plus
   Keywords + (movies) production companies + collection `/search.md?q=` link.
+  Movie/series also emit an `## Images` section — poster + backdrop as embedded
+  markdown images via the CDN (`image.themoviebrowser.com/{movie|series}/{id}/
+  {poster|backdrop}.webp`), gated on the TMDB path existing; person pages emit a
+  `## Photo` (TMDB profile, no person CDN scheme). Helpers: `imagesSection` /
+  `personImageSection` in `markdown/shared.ts`. Beneficial for multimodal agents.
 - **Pagination** — `/browse.md` and `/topics/{key}.md` take `?page=N` (Prev/Next
   nav; `page` is bounded ≤500 and PG-OFFSET based). The proxy forwards the whole
   original query string (`page`/`q`) to `/api/md`; CloudFront keys on both.

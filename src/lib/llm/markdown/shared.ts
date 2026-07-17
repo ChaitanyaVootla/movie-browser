@@ -2,8 +2,9 @@
  * Shared markdown helpers for the `.md` builders. Pure — no I/O.
  */
 
-import { SITE_URL } from "@/lib/constants";
+import { SITE_URL, TMDB_IMAGE_BASE } from "@/lib/constants";
 import { getMediaPath } from "@/lib/utils";
+import { getBackdropSources, getPosterSources, type MediaType } from "@/lib/image";
 import type { CastMember, Rating, Video, WatchProviderData } from "@/types";
 import type { LlmCardItem } from "../data";
 
@@ -96,6 +97,44 @@ export function personLink(id: number, name: string): string {
 /** A `/search.md?q=` link (agents can pull the rest of a collection/query). */
 export function searchMarkdownUrl(query: string): string {
   return `${SITE_URL}/search.md?q=${encodeURIComponent(query)}`;
+}
+
+interface ImageItem {
+  id: number;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+}
+
+/**
+ * `## Images` — poster + backdrop as embedded markdown images, using our CDN
+ * (`image.themoviebrowser.com/{movie|series}/{id}/{poster|backdrop}.webp`, the
+ * primary source everywhere in the app). Gated on the TMDB path existing so we
+ * only emit links for assets that actually exist. Beneficial for multimodal
+ * agents fetching the `.md` twin.
+ */
+export function imagesSection(
+  mediaType: MediaType,
+  item: ImageItem,
+  name: string
+): string | null {
+  const lines: string[] = [];
+  if (item.poster_path) {
+    lines.push(`![${name} poster](${getPosterSources(item, mediaType).primary})`);
+  }
+  if (item.backdrop_path) {
+    lines.push(`![${name} backdrop](${getBackdropSources(item, mediaType).primary})`);
+  }
+  if (!lines.length) return null;
+  return `## Images\n${lines.join("\n")}`;
+}
+
+/**
+ * `## Photo` — a person's TMDB profile image (no CDN person scheme exists, so
+ * TMDB direct). Null when the person has no profile path.
+ */
+export function personImageSection(name: string, profilePath: string | null): string | null {
+  if (!profilePath) return null;
+  return `## Photo\n![${name}](${TMDB_IMAGE_BASE}/w500${profilePath})`;
 }
 
 /** `## Cast` with each name linked to its person `.md` page. */

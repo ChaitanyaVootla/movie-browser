@@ -161,4 +161,23 @@ describe("movieToMarkdown", () => {
     expect(md).not.toContain("The ending reveals");
     expect(md).not.toContain("Did the top stop spinning");
   });
+
+  it("emits CDN poster + backdrop images when TMDB paths exist", () => {
+    const withArt = movieToMarkdown(
+      { ...movie, poster_path: "/poster.jpg", backdrop_path: "/backdrop.jpg" },
+      aiData
+    );
+    expect(withArt).toContain("## Images");
+    expect(withArt).toContain(
+      "![Inception poster](https://image.themoviebrowser.com/movie/27205/poster.webp)"
+    );
+    expect(withArt).toContain(
+      "![Inception backdrop](https://image.themoviebrowser.com/movie/27205/backdrop.webp)"
+    );
+  });
+
+  it("omits the Images section when the title has no artwork", () => {
+    // Base fixture has null poster/backdrop paths.
+    expect(md).not.toContain("## Images");
+  });
 });

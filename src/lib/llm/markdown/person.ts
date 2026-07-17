@@ -9,6 +9,7 @@ import {
   externalLinksSection,
   markdownUrl,
   oneLine,
+  personImageSection,
   titleWithYear,
 } from "./shared";
 
@@ -51,6 +52,7 @@ export function personToMarkdown(person: LlmPerson): string {
   return assembleSections([
     heading,
     summary,
+    personImageSection(person.name, person.profilePath),
     biography,
     detailsSection(person),
     filmographySection(person),
