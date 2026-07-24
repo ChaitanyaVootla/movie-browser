@@ -112,3 +112,4 @@ data-dumps
 
 # moved-aside next build caches (do not let Tailwind v4 content-scan them)
 .next.stale*
+gcp_service.json
