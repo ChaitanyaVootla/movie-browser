@@ -82,12 +82,27 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
   // Build description from biography or known works
   let description = person.biography ? truncateAtWord(person.biography, 160) : undefined;
   if (!description && person.known_for_department) {
-    const knownFor = person.combined_credits?.cast?.slice(0, 3) || [];
-    const titles = knownFor.map((c) => c.title || c.name).filter(Boolean);
-    description = `${person.name} is a ${person.known_for_department.toLowerCase()} known for ${titles.join(", ")}.`;
+    // Human job title, not the raw TMDB department ("Acting" read as "is a acting")
+    const job = (
+      DEPARTMENT_TO_JOB[person.known_for_department] ?? person.known_for_department
+    ).toLowerCase();
+    const article = /^[aeiou]/.test(job) ? "an" : "a";
+    const titles = (person.combined_credits?.cast?.slice(0, 3) || [])
+      .map((c) => c.title || c.name)
+      .filter((t): t is string => Boolean(t));
+    const knownFor =
+      titles.length > 1
+        ? ` known for ${titles.slice(0, -1).join(", ")} and ${titles[titles.length - 1]}`
+        : titles.length === 1
+          ? ` known for ${titles[0]}`
+          : "";
+    description = truncateAtWord(
+      `${person.name} is ${article} ${job}${knownFor}. Explore their full filmography, photos, and where to watch their movies and shows.`,
+      160,
+    );
   }
   if (!description) {
-    description = `View ${person.name}'s filmography, biography, and photos.`;
+    description = `View ${person.name}'s full filmography, biography and photos, and find where to watch their movies and TV shows.`;
   }
 
   const profileUrl = person.profile_path

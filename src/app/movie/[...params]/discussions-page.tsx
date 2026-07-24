@@ -42,7 +42,7 @@ export async function generateMovieDiscussionsMetadata(movieId: number): Promise
   const title = `${movie.title} Discussion | ${SITE_NAME}`;
   const canonical = `${SITE_URL}${getMediaPath("movie", movie.id, movie.title)}/discussions`;
   const description = truncateAtWord(
-    `Join the spoiler-safe discussion of ${movie.title}. Threads never archive.`,
+    `Join the spoiler-safe discussion of ${movie.title}. Comments unlock with your watch progress — no spoilers before you're ready. Threads never archive.`,
     160,
   );
   return {

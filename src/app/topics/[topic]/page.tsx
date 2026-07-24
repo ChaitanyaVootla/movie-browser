@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { truncateAtWord } from "@/lib/utils";
 import { getTopicByKey, getTopicMetaFromKey, ALL_TOPICS, THEME_DEFINITIONS } from "@/lib/topics";
 import { discoverBatch } from "@/server/actions/discover";
 import type { DiscoverParams } from "@/lib/discover";
@@ -42,7 +43,12 @@ export async function generateMetadata({ params }: TopicPageProps): Promise<Meta
     };
   }
 
-  const description = `Discover the best ${topic.name.toLowerCase()}. Browse and filter through our curated collection.`;
+  // Deterministic, topic-specific, 140-160 chars (Bing flags shorter ones as
+  // thin). Keep the topic name's own casing — lowercasing mangles "TV"/"Sci-Fi".
+  const description = truncateAtWord(
+    `Discover the best ${topic.name} — ranked by rating and popularity, with trailers, streaming availability, reviews and spoiler-safe discussions.`,
+    160,
+  );
 
   return {
     // Layout template appends "- Movie Browser" — no brand suffix here

@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   // Layout template appends "- Movie Browser" — no brand suffix here
   title: "Browse Movies & TV Shows",
   description:
-    "Discover movies and TV shows with advanced filters. Filter by genre, rating, language, country, cast, crew and more.",
+    "Filter movies and TV shows by genre, year, rating, language, country, streaming service, cast and crew — then sort by popularity, rating or release date.",
   openGraph: {
     title: `Browse Movies & TV Shows | ${SITE_NAME}`,
     description:
-      "Discover movies and TV shows with advanced filters. Filter by genre, rating, language, country, cast, crew and more.",
+      "Filter movies and TV shows by genre, year, rating, language, country, streaming service, cast and crew — then sort by popularity, rating or release date.",
     url: `${SITE_URL}/browse`,
     siteName: SITE_NAME,
     type: "website",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `Browse Movies & TV Shows | ${SITE_NAME}`,
     description:
-      "Discover movies and TV shows with advanced filters. Filter by genre, rating, language, country, cast, crew and more.",
+      "Filter movies and TV shows by genre, year, rating, language, country, streaming service, cast and crew — then sort by popularity, rating or release date.",
   },
   alternates: {
     canonical: `${SITE_URL}/browse`,

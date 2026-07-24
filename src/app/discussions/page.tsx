@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   // Layout template appends "- Movie Browser" — no brand suffix here
   title: "Discussions",
   description:
-    "Browse what people are talking about across movies and TV — the discussion boards IMDb deleted.",
+    "Hot and new discussion threads across every movie and TV show — spoiler-safe, gated by your watch progress, and never archived. The boards IMDb deleted.",
   alternates: {
     canonical: `${SITE_URL}/discussions`,
   },

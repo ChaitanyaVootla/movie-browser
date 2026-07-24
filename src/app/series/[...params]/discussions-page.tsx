@@ -42,7 +42,7 @@ export async function generateSeriesDiscussionsMetadata(seriesId: number): Promi
   const title = `${series.name} Discussion | ${SITE_NAME}`;
   const canonical = `${SITE_URL}${getMediaPath("series", series.id, series.name)}/discussions`;
   const description = truncateAtWord(
-    `Spoiler-safe discussion of ${series.name} — all seasons and episodes. Comments unlock with your watch progress. Threads never archive.`,
+    `Spoiler-safe discussion of ${series.name} — whole-series, per-season and per-episode threads. Comments unlock with your watch progress. Threads never archive.`,
     160,
   );
   return {
