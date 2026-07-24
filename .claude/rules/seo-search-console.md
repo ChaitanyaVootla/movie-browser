@@ -30,7 +30,9 @@ clicks.
 
 No API key wired yet (Bing has one — worth adding if we automate there).
 Bing is fed by sitemaps + **IndexNow** (already implemented since the Jun 10
-SEO rollout); IndexNow also feeds Yandex/Seznam/Naver. **Google does NOT
+SEO rollout; `generate-sitemap.js` pings recently-updated URLs on every
+nightly regen — e.g. 3,580 URLs on the Jul 24 run); IndexNow also feeds
+Yandex/Seznam/Naver. **Google does NOT
 consume IndexNow** — Google discovery = sitemaps + links only.
 Downstream of Bing's index: DuckDuckGo, Yahoo, Ecosia — fixing Bing fixes
 them all. Brave has an independent index with NO submission console. Apple
