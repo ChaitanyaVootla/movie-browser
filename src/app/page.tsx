@@ -147,7 +147,8 @@ export default async function HomePage() {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: "https://themoviebrowser.com/browse?q={search_term_string}",
+        // /search reads ?q (search/page.tsx); /browse ignores it — never point here at /browse
+        urlTemplate: `${SITE_URL}/search?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
