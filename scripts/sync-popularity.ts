@@ -120,6 +120,55 @@ async function downloadLatestExport(mediaType: MediaType): Promise<Map<number, n
 }
 
 /**
+ * TMDB EXCLUDES adult people from the regular person_ids export entirely and
+ * publishes them in a separate `adult_person_ids` export (~137k entries,
+ * ~1.5MB gz) — verified 2026-07-24: zero `adult:true` lines in person_ids.
+ * So: membership in the adult export ⇒ adult=true; membership in the REGULAR
+ * export ⇒ adult=false. Returns null when no export is found (adult flagging
+ * is then skipped for the run — the false direction stays safe regardless).
+ */
+async function downloadAdultPersonIds(): Promise<Set<number> | null> {
+  console.log(`\n📥 Downloading TMDB adult person export...`);
+
+  const today = new Date();
+  for (let daysBack = 0; daysBack < 7; daysBack++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - daysBack);
+    const dateStr = formatDate(date);
+    const url = `${TMDB_EXPORTS_BASE}/adult_person_ids_${dateStr}.json.gz`;
+    console.log(`   Trying ${dateStr}...`);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok || !response.body) continue;
+
+      const adultIds = new Set<number>();
+      const gunzip = createGunzip();
+      Readable.fromWeb(response.body as import("stream/web").ReadableStream).pipe(gunzip);
+      const rl = createInterface({ input: gunzip, crlfDelay: Infinity });
+
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        try {
+          const entry = JSON.parse(line) as IdEntry;
+          if (typeof entry.id === "number") adultIds.add(entry.id);
+        } catch {
+          // Skip malformed lines
+        }
+      }
+
+      console.log(`   📄 Loaded ${adultIds.size.toLocaleString()} adult person ids`);
+      return adultIds;
+    } catch {
+      // try the previous day
+    }
+  }
+
+  console.warn(`   ⚠️ No adult person export found in the last 7 days — skipping adult flagging`);
+  return null;
+}
+
+/**
  * Only update rows whose popularity changed MEANINGFULLY. TMDB recalculates
  * the float daily for nearly every title, so an exact-equality diff rewrites
  * ~the whole table: each write is a full MVCC row copy PLUS a B-tree
@@ -257,11 +306,16 @@ async function syncSeriesPopularity(popularityMap: Map<number, number>): Promise
   return updated;
 }
 
-async function syncPersonPopularity(popularityMap: Map<number, number>): Promise<number> {
+async function syncPersonPopularity(
+  popularityMap: Map<number, number>,
+  adultIds: Set<number> | null
+): Promise<number> {
   console.log(`\n👤 Syncing person popularity...`);
 
   // Persons use tmdbId, not id
   let updated = 0;
+  let adultFlagged = 0;
+  let adultUnflagged = 0;
   let scanned = 0;
   const batchSize = 1000;
   const readChunk = 100_000;
@@ -272,7 +326,7 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
       where: { id: { gt: cursor } },
       orderBy: { id: "asc" },
       take: readChunk,
-      select: { id: true, tmdbId: true, popularity: true },
+      select: { id: true, tmdbId: true, popularity: true, adult: true },
     });
     if (persons.length === 0) break;
     cursor = persons[persons.length - 1].id;
@@ -281,11 +335,23 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
   for (let i = 0; i < persons.length; i += batchSize) {
     const batch = persons.slice(i, i + batchSize);
     const updates: Array<{ id: number; popularity: number }> = [];
+    // Adult-flag diff is a plain boolean compare and is NOT tied to the
+    // popularity significance threshold — a mismatch must always update.
+    // True direction: id in the adult export. False direction: id in the
+    // REGULAR export (TMDB excludes adult people from it, so membership
+    // proves non-adult). Absent from both = unknown, left untouched.
+    const setAdultTrue: number[] = [];
+    const setAdultFalse: number[] = [];
 
     for (const person of batch) {
       const newPopularity = popularityMap.get(person.tmdbId);
       if (newPopularity != null && isSignificantChange(person.popularity, newPopularity)) {
         updates.push({ id: person.id, popularity: roundPop(newPopularity) });
+      }
+      if (adultIds?.has(person.tmdbId)) {
+        if (!person.adult) setAdultTrue.push(person.id);
+      } else if (person.adult && popularityMap.has(person.tmdbId)) {
+        setAdultFalse.push(person.id);
       }
     }
 
@@ -298,15 +364,36 @@ async function syncPersonPopularity(popularityMap: Map<number, number>): Promise
       `);
     }
 
-    updated += updates.length;
+    if (setAdultTrue.length > 0 && !dryRun) {
+      await prisma.person.updateMany({
+        where: { id: { in: setAdultTrue } },
+        data: { adult: true },
+      });
+    }
+    if (setAdultFalse.length > 0 && !dryRun) {
+      await prisma.person.updateMany({
+        where: { id: { in: setAdultFalse } },
+        data: { adult: false },
+      });
+    }
 
-    if (updates.length > 0 && !dryRun) {
+    updated += updates.length;
+    adultFlagged += setAdultTrue.length;
+    adultUnflagged += setAdultFalse.length;
+
+    if ((updates.length > 0 || setAdultTrue.length > 0 || setAdultFalse.length > 0) && !dryRun) {
       await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS));
     }
 
   }
 
     console.log(`   Scanned ${scanned.toLocaleString()} persons, ${updated.toLocaleString()} updated so far`);
+  }
+
+  if (adultFlagged > 0 || adultUnflagged > 0) {
+    console.log(
+      `   🔞 Adult flag: ${adultFlagged.toLocaleString()} set true, ${adultUnflagged.toLocaleString()} set false`
+    );
   }
 
   return updated;
@@ -349,7 +436,9 @@ async function main() {
     } else if (mediaType === "series") {
       updated = await syncSeriesPopularity(popularityMap);
     } else if (mediaType === "person") {
-      updated = await syncPersonPopularity(popularityMap);
+      // Keeps persons.adult in sync with TMDB (SEO exclusion depends on it).
+      const adultIds = await downloadAdultPersonIds();
+      updated = await syncPersonPopularity(popularityMap, adultIds);
     }
 
     stats[mediaType] = { updated, total: popularityMap.size };
