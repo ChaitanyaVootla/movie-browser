@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Clock } from "lucide-react";
 import { prisma } from "@/server/db/postgres";
@@ -182,9 +183,19 @@ async function MovieDiscussionsContent({ movieId }: { movieId: number }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
         <div className="space-y-5 min-w-0" id="discussion">
-          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <Clock className="h-4 w-4 text-brand" />
-            Newest first
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+              <Clock className="h-4 w-4 text-brand" />
+              Newest first
+            </div>
+            {/* De-orphan link: the cross-catalog hub is otherwise only reachable
+                from the footer (server-rendered, viewer-agnostic — ISR-safe) */}
+            <Link
+              href="/discussions"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              All discussions
+            </Link>
           </div>
           <CommentListClient
             anchor={anchor}

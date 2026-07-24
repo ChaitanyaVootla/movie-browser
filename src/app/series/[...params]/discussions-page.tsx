@@ -197,7 +197,11 @@ async function SeriesDiscussionsContent({ seriesId }: { seriesId: number }) {
             <Link href={`${basePath}/discuss/s1e1`} className="underline hover:text-foreground">
               per-episode discussion
             </Link>
-            .
+            , or browse{" "}
+            <Link href="/discussions" className="underline hover:text-foreground">
+              all discussions
+            </Link>{" "}
+            across the site.
           </p>
           <TrendingCommentList
             anchor={anchor}

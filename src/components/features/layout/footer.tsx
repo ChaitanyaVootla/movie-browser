@@ -48,6 +48,11 @@ export function Footer({ className }: FooterProps) {
                   Topics
                 </Link>
               </li>
+              <li>
+                <Link href="/discussions" className="hover:text-foreground transition-colors">
+                  Discussions
+                </Link>
+              </li>
             </ul>
           </div>
 

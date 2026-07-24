@@ -187,6 +187,8 @@ function staticRoutes() {
     { url: "/browse", lastmod: today },
     { url: "/topics", lastmod: today },
     { url: "/topics/all" },
+    // Cross-catalog discussions hub — Hot/New genuinely churn daily
+    { url: "/discussions", lastmod: today },
     // NOTE: /movie and /series listing pages do NOT exist in the Next.js app
     // (they 404) — do not add them back here unless the routes are built.
     ...generateAllTopicRoutes(),
