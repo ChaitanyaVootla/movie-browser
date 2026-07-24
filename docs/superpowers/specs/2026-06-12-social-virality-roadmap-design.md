@@ -529,8 +529,10 @@ moderation; TMDB art covers customization), taste-compatibility module
   us — so unfurls must be excellent. Rule for ALL phases: every new public
   object ships with *correct* OG from day one; the dedicated audit/polish
   pass (per-platform unfurl rendering, card imagery, oEmbed consideration)
-  is a phase-2 item. WhatsApp/Telegram previews matter disproportionately
-  for the IN-heavy audience.
+  is a phase-2 item. [CORRECTED 2026-07-24: the audience is GLOBAL, not
+  IN-heavy (ClickHouse: US #1, then SG/VN/BD/ID/PH; IN ≈ 4% of real-browser
+  sessions) — and global is the intent. Treat all major unfurl surfaces
+  (X, Discord, Reddit, WhatsApp, Telegram, iMessage) as equal citizens.]
 - **Feed design** (v1 phase 2, v2 phase 3): query-time fan-in over follows +
   circle memberships (bounded, indexed — the fan-out write ban stands).
   Interleaved card feed: friend reviews, hot threads, new trailers,
