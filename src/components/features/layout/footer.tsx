@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { buildBrowseUrl } from "@/lib/discover";
 
 interface FooterProps {
   className?: string;
@@ -28,13 +29,21 @@ export function Footer({ className }: FooterProps) {
           <div>
             <h3 className="font-semibold mb-4">Discover</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
+              {/* /movie and /series listing routes don't exist (404) — link the
+                  browse views, same targets as the home "Browse All" CTAs */}
               <li>
-                <Link href="/movie" className="hover:text-foreground transition-colors">
+                <Link
+                  href={buildBrowseUrl({ media_type: "movie", sort_by: "popularity.desc" })}
+                  className="hover:text-foreground transition-colors"
+                >
                   Movies
                 </Link>
               </li>
               <li>
-                <Link href="/series" className="hover:text-foreground transition-colors">
+                <Link
+                  href={buildBrowseUrl({ media_type: "tv", sort_by: "popularity.desc" })}
+                  className="hover:text-foreground transition-colors"
+                >
                   TV Shows
                 </Link>
               </li>
