@@ -8,7 +8,6 @@
  */
 
 import * as pgQueries from "./postgres/user-queries";
-import * as mongoQueries from "./mongo/user-queries";
 import { usePostgresUserData } from "@/lib/user-id";
 
 // Re-export the feature flag for consumers that need to check it
@@ -117,7 +116,15 @@ export interface AdminUserData {
 // Conditional re-exports (pick the active implementation)
 // ---------------------------------------------------------------------------
 
-const impl = usePostgresUserData ? pgQueries : mongoQueries;
+// Lazy-require the legacy Mongo implementation so its dependency chain
+// (mongo/user-queries → lib/auth → @auth/mongodb-adapter) never loads when
+// USER_DATA_SOURCE=postgres (always, since GA). The eager import broke every
+// tsx script that imports agent tools (ERR_PACKAGE_PATH_NOT_EXPORTED from
+// @auth/mongodb-adapter). Delete outright with Post-GA cleanup step 2.
+const impl = usePostgresUserData
+  ? pgQueries
+  : // eslint-disable-next-line @typescript-eslint/no-require-imports
+    (require("./mongo/user-queries") as typeof import("./mongo/user-queries"));
 
 // Library
 export const getLibraryData = impl.getLibraryData;

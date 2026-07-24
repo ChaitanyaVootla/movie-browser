@@ -1,6 +1,5 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { MongoClient, ObjectId } from "mongodb";
 import { authConfig, googleProvider, TEST_AUTH_ENABLED, TEST_AUTH_USER } from "./auth.config";
@@ -324,11 +323,18 @@ const testAuthProvider = Credentials({
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
 
-  // Add database adapter - Prisma (PostgreSQL) or MongoDB based on feature flag
+  // Add database adapter - Prisma (PostgreSQL) or MongoDB based on feature flag.
+  // The Mongo adapter is lazy-required: its package breaks module resolution
+  // under tsx (no "exports" main), and the postgres branch (always, since GA)
+  // must never load it. Delete with Post-GA cleanup step 2.
   adapter: usePostgres
     ? PrismaAdapter(prisma)
     : clientPromise
-      ? MongoDBAdapter(clientPromise, { databaseName: "test" })
+      ? (() => {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { MongoDBAdapter } = require("@auth/mongodb-adapter") as typeof import("@auth/mongodb-adapter");
+          return MongoDBAdapter(clientPromise, { databaseName: "test" });
+        })()
       : undefined,
 
   // Define all providers here - Google OAuth + Google One Tap credentials

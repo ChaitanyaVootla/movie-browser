@@ -104,8 +104,10 @@ function filterInternalTags(content: string): string {
 // Hook
 // =============================================================================
 
-/** Max messages anonymous users can send before login is required */
-const ANON_MESSAGE_LIMIT = 3;
+/** Max messages anonymous users can send before login is required.
+ * Advisory UX gate only — the real cost bound is the server-side rate limit
+ * in /api/ai/chat (src/server/ai/chat-rate-limit.ts). */
+const ANON_MESSAGE_LIMIT = 10;
 
 interface UseChatStreamOptions {
   /** Page context for contextual recommendations */
@@ -217,6 +219,26 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
           }),
           signal: abortControllerRef.current.signal,
         });
+
+        if (response.status === 429) {
+          // Server-side rate limit — show its friendly message instead of a generic error
+          const data = (await response.json().catch(() => null)) as { error?: string } | null;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId
+                ? {
+                    ...msg,
+                    content:
+                      data?.error || "Cue needs a breather — try again in a little while.",
+                    isStreaming: false,
+                    isThinking: false,
+                  }
+                : msg
+            )
+          );
+          if (!isAuthenticatedRef.current) setRequiresLogin(true);
+          return;
+        }
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);

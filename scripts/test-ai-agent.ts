@@ -32,6 +32,11 @@ import { resolve } from "path";
 // Load env from .env.local
 config({ path: resolve(process.cwd(), ".env.local") });
 
+// The app is PostgreSQL-only since GA (2026-06-10). Force it here so the
+// agent's auth import never takes the legacy Mongo-adapter branch (whose
+// package no longer resolves under tsx).
+process.env.USER_DATA_SOURCE ||= "postgres";
+
 // Note: AI_DEBUG is enabled by default in the agent code
 
 // =============================================================================

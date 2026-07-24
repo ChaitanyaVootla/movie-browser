@@ -629,7 +629,7 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
       mediaType: "MOVIE",
       body:
         "A film that rewards rewatches: the satire of consumerism lands harder every decade. Fincher's control of tone is immaculate, and the sound design alone justifies the runtime.",
-      containsSpoilers: false,
+      spoilerScope: "NONE",
       status: "PUBLISHED",
     },
   });
@@ -640,7 +640,7 @@ async function seedSocialData(ids: Record<string, number>): Promise<Counts> {
       mediaType: "MOVIE",
       body:
         "Heath Ledger's Joker reframes the whole trilogy. SPOILER: the ferry sequence — neither boat detonating the other — is the thesis statement, and Dent's fall is the tragedy that earns the ending's lie.",
-      containsSpoilers: true,
+      spoilerScope: "WATCHED",
       status: "PUBLISHED",
     },
   });

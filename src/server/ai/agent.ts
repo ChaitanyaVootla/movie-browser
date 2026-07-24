@@ -17,6 +17,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentState, type AgentStateType } from "./state";
 import { createChatModel, getCurrentModelId as getProviderModelId } from "./provider";
 import { allTools } from "./tools";
+import { buildNavigationPath } from "./tools/navigation";
 import { getSystemPrompt } from "./prompts/system";
 import { aiLogger, usageLogger, aiToolLogger } from "@/lib/logger";
 import { calculateUsageStats, type UsageStats } from "@/lib/model-pricing";
@@ -85,6 +86,8 @@ interface InvocationContext {
   turnLogs: TurnLog[];
   invocationStats: InvocationStats | null;
   lastLlmStartTime: number;
+  /** True when a tool call had to be recovered from text output (model quirk) */
+  hadToolRecovery: boolean;
 }
 
 /** Map of invocationId → per-request logging state */
@@ -97,6 +100,7 @@ function createInvocationContext(invocationId: string): InvocationContext {
     turnLogs: [],
     invocationStats: null,
     lastLlmStartTime: 0,
+    hadToolRecovery: false,
   };
   invocationContexts.set(invocationId, ctx);
   return ctx;
@@ -322,6 +326,15 @@ async function toolNodeWithContext(
   const toolNode = new ToolNode(allTools);
 
   const invocationId = (config?.configurable?.invocationId as string) || "unknown";
+
+  // Detect recovered tool calls (shouldContinue injects them with ids "parsed_N")
+  const lastMsg = state.messages[state.messages.length - 1];
+  if (
+    lastMsg instanceof AIMessage &&
+    lastMsg.tool_calls?.some((tc) => tc.id?.startsWith("parsed_"))
+  ) {
+    getInvocationContext(invocationId).hadToolRecovery = true;
+  }
 
   // Merge userId, pageContext, userContext, and invocationId into config.configurable so tools can access them
   const configWithContext: RunnableConfig = {
@@ -717,9 +730,7 @@ export async function invokeAgent(
       turns: ctx.currentTurn,
       toolCalls: toolCallNames,
       durationMs: totalTime,
-      hadToolRecovery: ctx.turnLogs.some((t) =>
-        t.toolCalls?.some((tc) => tc.name.startsWith("parsed_"))
-      ),
+      hadToolRecovery: ctx.hadToolRecovery,
       responseLength: ctx.invocationStats?.totalOutputChars || 0,
     });
   }
@@ -1097,35 +1108,21 @@ function getPageTypeFromContext(
 export function extractNavigation(
   state: AgentStateType
 ): { path: string; id?: number; type?: string } | null {
-  // Look through messages for navigation tool results
+  // Look through messages for navigation tool calls (path logic lives in navigation.ts)
   for (const msg of state.messages) {
     if (msg instanceof AIMessage && msg.tool_calls) {
       for (const toolCall of msg.tool_calls) {
         if (toolCall.name === "navigate_to") {
-          // The navigation will be in the next tool message
-          // For now, extract from tool call args
-          const args = toolCall.args as { type: string; id?: number };
-          let path = "/";
-
-          switch (args.type) {
-            case "movie":
-              path = `/movie/${args.id}`;
-              break;
-            case "series":
-              path = `/series/${args.id}`;
-              break;
-            case "person":
-              path = `/person/${args.id}`;
-              break;
-            case "browse":
-              path = "/browse";
-              break;
-            case "topics":
-              path = "/topics";
-              break;
-          }
-
-          return { path, id: args.id, type: args.type };
+          const args = toolCall.args as {
+            type: string;
+            id?: number;
+            query?: string;
+            key?: string;
+            username?: string;
+          };
+          const built = buildNavigationPath(args);
+          if ("error" in built) continue;
+          return { path: built.path, id: args.id, type: args.type };
         }
       }
     }

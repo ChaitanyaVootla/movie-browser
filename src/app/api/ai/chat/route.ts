@@ -7,41 +7,45 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { getUserIdForDb } from "@/lib/user-id";
 import { extractNavigation, invokeAgent, getAgentResponse, resolveMediaTags } from "@/server/ai";
+import { checkChatRateLimit, getClientIp } from "@/server/ai/chat-rate-limit";
 import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 import { apiLogger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Increased for streaming + tool calls
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+const ChatMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().max(8_000),
+});
 
-interface PageContext {
-  path: string;
-  mediaType?: "movie" | "series" | "person";
-  itemId?: number;
-  itemTitle?: string;
-  genres?: string[];
-  rating?: number;
-  year?: string;
-  status?: string;
-}
+type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
-interface ChatRequest {
-  message: string;
-  history?: ChatMessage[];
-  stream?: boolean;
-  pageContext?: PageContext;
+const PageContextSchema = z.object({
+  path: z.string().max(500),
+  mediaType: z.enum(["movie", "series", "person"]).optional(),
+  itemId: z.number().optional(),
+  itemTitle: z.string().max(300).optional(),
+  genres: z.array(z.string().max(50)).max(10).optional(),
+  rating: z.number().optional(),
+  year: z.string().max(10).optional(),
+  status: z.string().max(50).optional(),
+});
+
+const ChatRequestSchema = z.object({
+  message: z.string().min(1).max(4_000),
+  history: z.array(ChatMessageSchema).max(40).optional(),
+  stream: z.boolean().optional(),
+  pageContext: PageContextSchema.optional(),
   /** Thread ID for conversation persistence via checkpointer */
-  threadId?: string;
+  threadId: z.string().uuid().optional(),
   /** IANA timezone from client (e.g. "Asia/Kolkata") */
-  timezone?: string;
-}
+  timezone: z.string().max(64).optional(),
+});
 
 /**
  * User context passed to the agent
@@ -96,9 +100,42 @@ export async function POST(request: NextRequest) {
     const resolvedCountry = resolveCountry(headersList);
     const region = resolvedCountry !== "unknown" ? resolvedCountry : "US";
 
-    // Parse request body
-    const body = (await request.json()) as ChatRequest;
+    // Parse + validate request body
+    const parsed = ChatRequestSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+    const body = parsed.data;
     const { message, history = [], stream = true, pageContext } = body;
+
+    if (!message.trim()) {
+      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+    }
+
+    // Server-side rate limit — the client-side anon message limit is advisory only;
+    // every invocation here costs real tokens (and possibly Tavily credits)
+    const rateLimit = checkChatRateLimit({ userId, ip: getClientIp(headersList) });
+    if (!rateLimit.allowed) {
+      apiLogger.warn({
+        route: "/api/ai/chat",
+        event: "rate_limited",
+        userId,
+        isAuthenticated: !!userId,
+      });
+      return NextResponse.json(
+        {
+          error: userId
+            ? "You're chatting faster than Cue can think — give it a minute."
+            : "Cue needs a breather. Sign in for a higher chat limit, or try again shortly.",
+          reason: "rate_limited",
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds ?? 60) } }
+      );
+    }
 
     // Build user context (needs body for timezone)
     const userContext: UserContext = {
@@ -110,10 +147,6 @@ export async function POST(request: NextRequest) {
 
     // Generate or reuse thread ID for checkpointer-backed conversation persistence
     const threadId = body.threadId || crypto.randomUUID();
-
-    if (!message?.trim()) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
-    }
 
     // Convert history to LangChain messages (only used as fallback when no threadId from client)
     const conversationHistory = body.threadId ? [] : convertHistory(history);

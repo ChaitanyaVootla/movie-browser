@@ -97,6 +97,31 @@ export const getPageContextTool = tool(
     } else if (pageType === "watched") {
       response.hint =
         "Viewing their watched history. You can suggest similar content or use smart_discover with hideWatched: true to find fresh picks.";
+    } else if (pageType === "library") {
+      response.hint =
+        "On their library page (watchlist + watched + ratings in one place). Use get_user_profile for their taste, or smart_discover({ fromWatchlist: true }) for saved items.";
+    } else if (pageType === "diary") {
+      response.hint =
+        "On their watch diary. Use get_user_profile for recent watches — good moment for 'what next' recommendations.";
+    } else if (pageType === "stats") {
+      response.hint =
+        "Viewing their watch stats. Use get_user_profile to talk about their taste (top genres, counts).";
+    } else if (pageType === "discussions") {
+      response.hint =
+        "On the community discussions hub. They're in a social mood — get_community_buzz on titles works well here.";
+    } else if (pageType === "u") {
+      const username = pathParts[1];
+      response.hint = username
+        ? `Viewing ${username}'s public profile. You can discuss that member's public reviews/lists or find similar titles.`
+        : "Viewing a member profile.";
+    } else if (pageType === "topics") {
+      const topicKey = pathParts[1];
+      response.hint = topicKey
+        ? `Browsing the "${topicKey}" topic. Use smart_discover with a matching semanticQuery for more of this vibe.`
+        : "Browsing the topics index. Ask what mood they're in.";
+    } else if (pageType === "search") {
+      response.hint =
+        "On the search results page. They're hunting for something specific — offer to refine with smart_discover.";
     } else {
       response.hint = `On the ${pageType || "home"} page.`;
     }

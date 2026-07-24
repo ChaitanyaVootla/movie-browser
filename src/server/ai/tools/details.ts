@@ -13,11 +13,11 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import type { RunnableConfig } from "@langchain/core/runnables";
-import { getLightMovieDetails, getLightSeriesDetails, getCountryCode } from "@/server/utils";
+import { getLightMovieDetails, getLightSeriesDetails } from "@/server/utils";
 import { getUserItemStatus } from "@/server/db/user-data";
 import { getMovieDetails, getSeriesDetails } from "@/server/services/tmdb";
 import { getRawAIInput } from "@/server/services/ai-data-service";
-import { getUserIdFromConfig } from "../utils";
+import { getUserIdFromConfig, getRegionFromConfig } from "../utils";
 import { aiToolLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -107,7 +107,8 @@ export const getDetailsTool = tool(
     config?: RunnableConfig
   ) => {
     try {
-      const countryCode = await getCountryCode();
+      // User's region from context (client geo) — drives streaming availability
+      const countryCode = getRegionFromConfig(config);
       const userId = getUserIdFromConfig(config);
       const isMovie = input.mediaType === "movie";
 

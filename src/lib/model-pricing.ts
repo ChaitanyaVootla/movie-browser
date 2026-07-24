@@ -70,7 +70,7 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
   "moonshotai.kimi-k2.5": {
     name: "Kimi K2.5",
     inputCostPer1k: 0.0006, // $0.60 per 1M input = $0.0006 per 1K
-    outputCostPer1k: 0.0025, // $2.50 per 1M output = $0.0025 per 1K
+    outputCostPer1k: 0.003, // $3.00 per 1M output = $0.003 per 1K (Bedrock list price, corrected Jul 2026)
     provider: "moonshot",
     notes: "Non-thinking model via AWS Bedrock (ap-south-1). Flex tier: 50% off.",
   },

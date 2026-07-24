@@ -10,6 +10,7 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { prisma } from "@/server/db/postgres";
+import { getProgressShelf } from "@/server/db/postgres/social/progress";
 import { getUserIdFromConfig } from "../utils";
 import { aiToolLogger } from "@/lib/logger";
 
@@ -43,7 +44,7 @@ export const getUserProfileTool = tool(
 
     try {
       // Single parallel batch: all user data in one round trip
-      const [watchedMovies, watchlistCount, ratings, recentItems] = await Promise.all([
+      const [watchedMovies, watchlistCount, ratings, recentItems, progressShelf] = await Promise.all([
         // Recent watched with title + genres (last 8)
         prisma.watchEvent.findMany({
           where: { userId, movieId: { not: null }, kind: "WATCH" },
@@ -94,6 +95,8 @@ export const getUserProfileTool = tool(
             series: { select: { name: true } },
           },
         }),
+        // Series they're mid-way through (Up Next shelf)
+        getProgressShelf(userId, ["WATCHING", "CAUGHT_UP", "REWATCHING"], 5),
       ]);
 
       // --- Build genre frequency from liked items + watched ---
@@ -132,6 +135,17 @@ export const getUserProfileTool = tool(
         when: daysAgo(r.viewedAt),
       }));
 
+      // --- Series in progress (id included so smart_discover similarTo / navigate_to work) ---
+      const currentlyWatching = progressShelf.map((p) => ({
+        id: p.seriesId,
+        title: p.name ?? "Unknown",
+        status: p.status,
+        position:
+          p.lastSeasonNumber != null && p.lastEpisodeNumber != null
+            ? `S${p.lastSeasonNumber}E${p.lastEpisodeNumber}`
+            : null,
+      }));
+
       // --- Rating stats ---
       const likes = ratings.filter((r) => r.rating === 1).length;
       const dislikes = ratings.filter((r) => r.rating === -1).length;
@@ -139,6 +153,7 @@ export const getUserProfileTool = tool(
       return JSON.stringify({
         topGenres,
         recentWatched,
+        currentlyWatching,
         recentlyBrowsed,
         counts: {
           watched: watchedMovies.length >= 8 ? "8+" : watchedMovies.length,
@@ -158,13 +173,13 @@ export const getUserProfileTool = tool(
   },
   {
     name: "get_user_profile",
-    description: `Get the user's taste profile: top genres, recent watches, and activity counts.
+    description: `Get the user's taste profile: top genres, recent watches, series they're mid-way through, and activity counts.
 
-Use when: Starting a conversation to personalize recs, "what should I watch?", "recommend something for me", or when you want to understand their taste.
-Don't use when: User already told you what they want (specific genre, title, person).
+Use when: Starting a conversation to personalize recs, "what should I watch?", "recommend something for me", "what was I watching?", or when you want to understand their taste.
+Don't use when: User already told you what they want (specific genre, title, person), or the user is not logged in (returns an error — just help them without it).
 
-Returns: topGenres (ranked), recentWatched (title + when), recentlyBrowsed, counts (watched, watchlist, likes, dislikes).
-Use this to tailor tone and recommendations — "since you're into horror..." or "you watched X recently, try Y".`,
+Returns: topGenres (ranked), recentWatched (title + when), currentlyWatching (series with id + S#E# position — great for "continue watching" nudges), recentlyBrowsed, counts (watched, watchlist, likes, dislikes).
+Use this to tailor tone and recommendations — "since you're into horror...", "you're mid-way through X, finish it or want something similar?".`,
     schema: z.object({}),
   }
 );
