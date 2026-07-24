@@ -115,7 +115,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       case "person": {
         const person = await getPersonFromPostgres(target.id);
-        if (!person) return notFoundResponse(`person ${target.id}`);
+        // Adult performers get no markdown twin (SEO/agent-surface exclusion,
+        // matching the sitemap filter + the HTML page's noindex).
+        if (!person || person.adult) return notFoundResponse(`person ${target.id}`);
         return markdownResponse(personToMarkdown(person));
       }
 

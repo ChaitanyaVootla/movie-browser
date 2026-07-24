@@ -322,9 +322,12 @@ async function fetchSeriesUrls(prisma) {
 }
 
 /**
- * Persons: gate on having a profile photo. The persons table has no adult
- * column (adult performers are filtered at ingestion) and no updated_at, so
- * lastmod is omitted for all person URLs.
+ * Persons: gate on having a profile photo and exclude adult performers —
+ * TMDB's popularity metric ranks them absurdly high, so without the filter
+ * they top the sitemap. `adult` defaults false and is kept in sync by the
+ * person-page write-back, sync-popularity, and backfill-person-adult.ts;
+ * `IS NOT TRUE` keeps pre-backfill behavior identical. No updated_at on
+ * persons, so lastmod is omitted for all person URLs.
  */
 async function fetchPersonUrls(prisma) {
   const limit = CONFIG.PERSONS_LIMIT;
@@ -333,6 +336,7 @@ async function fetchPersonUrls(prisma) {
      FROM persons
      WHERE profile_path IS NOT NULL
        AND popularity > 0
+       AND adult IS NOT TRUE
      ORDER BY popularity DESC
      LIMIT ${limit}`
   );

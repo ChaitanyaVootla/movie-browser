@@ -117,6 +117,10 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
     title: person.name,
     description,
     keywords: [...new Set(keywords)],
+    // Adult performers stay reachable but out of search indexes (they also
+    // never enter the sitemap). Derived from the already-fetched TMDB data —
+    // no dynamic APIs, so ISR is unaffected.
+    ...(person.adult ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       type: "profile",
       siteName: SITE_NAME,

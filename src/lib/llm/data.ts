@@ -60,6 +60,8 @@ export interface LlmPerson {
   profilePath: string | null;
   popularity: number | null;
   homepage: string | null;
+  /** TMDB adult flag — adult persons get no markdown twin (route 404s). */
+  adult: boolean;
   /** Other names this person is credited under. */
   aliases: string[];
   /** Top filmography entries by title popularity. */
@@ -102,6 +104,7 @@ export async function getPersonFromPostgres(personId: number): Promise<LlmPerson
       profilePath: true,
       popularity: true,
       homepage: true,
+      adult: true,
       aliases: { select: { alias: true }, take: 8 },
       credits: {
         take: PERSON_CREDIT_SCAN_LIMIT,
@@ -166,6 +169,7 @@ export async function getPersonFromPostgres(personId: number): Promise<LlmPerson
     profilePath: person.profilePath,
     popularity: person.popularity,
     homepage: person.homepage,
+    adult: person.adult,
     aliases: person.aliases.map((a) => a.alias),
     knownForCredits,
     // Truncated if we hit the output cap OR the raw scan cap (there may be more).
