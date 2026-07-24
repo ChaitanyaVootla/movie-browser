@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { HubTabs } from "./hub-tabs";
@@ -18,6 +19,9 @@ export const metadata: Metadata = {
   title: "Discussions · The Movie Browser",
   description:
     "Browse what people are talking about across movies and TV — the discussion boards IMDb deleted.",
+  alternates: {
+    canonical: `${SITE_URL}/discussions`,
+  },
 };
 
 export default async function DiscussionsHubPage() {

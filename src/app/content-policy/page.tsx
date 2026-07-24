@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { PageMain } from "@/components/features/layout/page-main";
+import { SITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Content Policy",
   description:
     "Community rules for discussions on The Movie Browser: spoiler etiquette, prohibited content, AI moderation, and how reporting and enforcement work.",
+  alternates: {
+    canonical: `${SITE_URL}/content-policy`,
+  },
 };
 
 export default function ContentPolicyPage() {

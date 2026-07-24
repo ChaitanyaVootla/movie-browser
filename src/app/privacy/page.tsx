@@ -3,11 +3,15 @@ import Link from "next/link";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { OVERLINE } from "@/lib/design";
+import { SITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
     "How The Movie Browser handles your data: Google sign-in, first-party analytics, and no third-party ad trackers.",
+  alternates: {
+    canonical: `${SITE_URL}/privacy`,
+  },
 };
 
 const GITHUB_URL = "https://github.com/ChaitanyaVootla/movie-browser";

@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import { Film, Tv, CalendarDays, Clapperboard, Play } from "lucide-react";
+import { SITE_URL } from "@/lib/constants";
 
 // ISR: Revalidate every 4 hours (matches trending/discover cache TTL)
 // Personalized sections (ContinueWatching, Recents) are client components and unaffected
 export const revalidate = 14400;
+
+// Self-canonical for the homepage only — the root layout deliberately carries
+// no `alternates` (inheritance leaked the home canonical onto every route).
+export const metadata: Metadata = {
+  alternates: {
+    canonical: SITE_URL,
+  },
+};
 import {
   getTrending,
   getUpcoming,

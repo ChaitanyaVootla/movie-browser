@@ -3,11 +3,15 @@ import Link from "next/link";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { OVERLINE } from "@/lib/design";
+import { SITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
   description:
     "The terms for using The Movie Browser, a free movie and TV discovery site powered by TMDB data.",
+  alternates: {
+    canonical: `${SITE_URL}/terms`,
+  },
 };
 
 const GITHUB_URL = "https://github.com/ChaitanyaVootla/movie-browser";

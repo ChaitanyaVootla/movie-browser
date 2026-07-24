@@ -40,9 +40,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://themoviebrowser.com"),
-  alternates: {
-    canonical: "/",
-  },
+  // NO `alternates` here: Next metadata inheritance would apply a root canonical
+  // to EVERY route that doesn't define its own — /discussions, /search, /lists
+  // all canonicalized to the homepage (live bug, Jul 2026). Each indexable route
+  // declares its own canonical; the home page self-canonicalizes in page.tsx.
   title: {
     template: "%s - Movie Browser",
     default: "Movie Browser - Discover Movies & TV Shows",
