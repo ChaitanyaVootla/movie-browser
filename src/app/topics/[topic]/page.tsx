@@ -1,7 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-import { truncateAtWord } from "@/lib/utils";
+import { getMediaPath, truncateAtWord } from "@/lib/utils";
+import { breadcrumbList } from "@/lib/seo/jsonld";
 import { getTopicByKey, getTopicMetaFromKey, ALL_TOPICS, THEME_DEFINITIONS } from "@/lib/topics";
 import { discoverBatch } from "@/server/actions/discover";
 import type { DiscoverParams } from "@/lib/discover";
@@ -130,8 +131,40 @@ export default async function TopicPage({ params }: TopicPageProps) {
     );
   }
 
+  const breadcrumbs = breadcrumbList([
+    { name: "Home", path: "/" },
+    { name: "Topics", path: "/topics" },
+    { name: topic.name },
+  ]);
+
+  // ItemList over the titles this page already server-renders (position + url
+  // + name only — no extra fetches, ISR-safe).
+  const itemList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: topic.name,
+    itemListElement: initialResult.results.slice(0, 20).map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: "title" in item ? item.title : item.name,
+      url: `${SITE_URL}${getMediaPath(
+        item.media_type === "movie" ? "movie" : "series",
+        item.id,
+        "title" in item ? item.title : item.name,
+      )}`,
+    })),
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }}
+      />
       <h1 className="sr-only">{topic.name} — movies and TV shows</h1>
       <TopicDetailClient
         topic={topic}

@@ -3,6 +3,7 @@ import { BrowseClient } from "./client";
 import { discover } from "@/server/actions/discover";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { parseDiscoverParams } from "@/lib/discover";
+import { breadcrumbList } from "@/lib/seo/jsonld";
 
 export const metadata: Metadata = {
   // Layout template appends "- Movie Browser" — no brand suffix here
@@ -64,11 +65,19 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     page: 1,
   });
 
+  const breadcrumbs = breadcrumbList([{ name: "Home", path: "/" }, { name: "Browse" }]);
+
   return (
-    <BrowseClient
-      initialResults={initialResult.results}
-      totalPages={initialResult.totalPages}
-      totalResults={initialResult.totalResults}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
+      <BrowseClient
+        initialResults={initialResult.results}
+        totalPages={initialResult.totalPages}
+        totalResults={initialResult.totalResults}
+      />
+    </>
   );
 }

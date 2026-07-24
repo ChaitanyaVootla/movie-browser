@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { breadcrumbList } from "@/lib/seo/jsonld";
 import { TopicsClient } from "./client";
 import { ALL_TOPICS, GENRE_TOPICS, THEME_TOPICS } from "@/lib/topics";
 import { discoverBatch } from "@/server/actions/discover";
@@ -67,12 +68,20 @@ async function getTopicPreviews() {
 export default async function TopicsPage() {
   const topicPreviews = await getTopicPreviews();
 
+  const breadcrumbs = breadcrumbList([{ name: "Home", path: "/" }, { name: "Topics" }]);
+
   return (
-    <TopicsClient
-      genreTopics={GENRE_TOPICS}
-      themeTopics={THEME_TOPICS}
-      allTopics={ALL_TOPICS}
-      topicPreviews={topicPreviews}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
+      />
+      <TopicsClient
+        genreTopics={GENRE_TOPICS}
+        themeTopics={THEME_TOPICS}
+        allTopics={ALL_TOPICS}
+        topicPreviews={topicPreviews}
+      />
+    </>
   );
 }
