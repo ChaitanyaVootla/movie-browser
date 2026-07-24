@@ -40,13 +40,17 @@ interface VideoLike {
 
 /**
  * VideoObject for the best available YouTube trailer (official preferred).
- * Returns undefined when there is no usable trailer.
+ * Returns undefined when there is no usable trailer. `uploadDate` is REQUIRED
+ * by Google — a trailer without `published_at` is an invalid item, so prefer a
+ * dated trailer and omit the VideoObject entirely when none has one.
  */
 export function trailerVideoObject(
   videos: VideoLike[] | undefined,
   title: string,
 ): Record<string, unknown> | undefined {
-  const trailers = (videos || []).filter((v) => v.site === "YouTube" && v.type === "Trailer");
+  const trailers = (videos || []).filter(
+    (v) => v.site === "YouTube" && v.type === "Trailer" && v.published_at,
+  );
   const best = trailers.find((v) => v.official) ?? trailers[0];
   if (!best?.key) return undefined;
 
@@ -56,7 +60,7 @@ export function trailerVideoObject(
     description: `Official trailer for ${title}`,
     thumbnailUrl: `https://i.ytimg.com/vi/${best.key}/hqdefault.jpg`,
     embedUrl: `https://www.youtube.com/embed/${best.key}`,
-    ...(best.published_at ? { uploadDate: best.published_at } : {}),
+    uploadDate: best.published_at,
   };
 }
 
