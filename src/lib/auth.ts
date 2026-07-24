@@ -323,19 +323,13 @@ const testAuthProvider = Credentials({
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
 
-  // Add database adapter - Prisma (PostgreSQL) or MongoDB based on feature flag.
-  // The Mongo adapter is lazy-required: its package breaks module resolution
-  // under tsx (no "exports" main), and the postgres branch (always, since GA)
-  // must never load it. Delete with Post-GA cleanup step 2.
-  adapter: usePostgres
-    ? PrismaAdapter(prisma)
-    : clientPromise
-      ? (() => {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { MongoDBAdapter } = require("@auth/mongodb-adapter") as typeof import("@auth/mongodb-adapter");
-          return MongoDBAdapter(clientPromise, { databaseName: "test" });
-        })()
-      : undefined,
+  // Add database adapter - Prisma (PostgreSQL) always since GA. The legacy
+  // MongoDBAdapter branch is GONE (Post-GA cleanup step 2): the package
+  // resolves under neither tsx (no "exports" main) nor Turbopack's production
+  // build (a lazy require() of it broke the Jul 24 deploy). A non-postgres
+  // USER_DATA_SOURCE now runs adapterless (JWT-only) — Mongo is severed in
+  // every environment anyway.
+  adapter: usePostgres ? PrismaAdapter(prisma) : undefined,
 
   // Define all providers here - Google OAuth + Google One Tap credentials
   providers: [
