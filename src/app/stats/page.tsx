@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
-  title: "Stats - The Movie Browser",
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "Stats",
   description: "Your watching stats: hours, genres, streaks and more — free.",
 };
 

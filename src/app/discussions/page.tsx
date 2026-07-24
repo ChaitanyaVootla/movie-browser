@@ -16,7 +16,8 @@ export const revalidate = 300; // anon Hot/New cacheable; Following hydrates cli
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Discussions · The Movie Browser",
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "Discussions",
   description:
     "Browse what people are talking about across movies and TV — the discussion boards IMDb deleted.",
   alternates: {

@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
-  title: "Import your history - The Movie Browser",
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "Import your history",
 };
 
 export default async function ImportPage() {

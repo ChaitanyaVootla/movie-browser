@@ -19,7 +19,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
-  title: "Settings - The Movie Browser",
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "Settings",
 };
 
 export default async function SettingsPage() {

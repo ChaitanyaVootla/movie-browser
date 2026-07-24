@@ -22,7 +22,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
-  title: "Diary - The Movie Browser",
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "Diary",
   description: "Your dated watch history.",
 };
 

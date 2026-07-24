@@ -5,7 +5,8 @@ import { ListsClient } from "@/components/features/lists/lists-client";
 export const metadata: Metadata = {
   // Private user surface — keep out of the index (mirrors /watchlist).
   robots: { index: false, follow: false },
-  title: "My Lists - The Movie Browser",
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "My Lists",
   description: "Your custom lists of movies and TV series.",
 };
 

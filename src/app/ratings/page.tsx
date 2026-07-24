@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   // Private user pages: robots.txt disallows these, but belt-and-braces —
   // robots.txt is advisory while the meta tag is authoritative for indexing.
   robots: { index: false, follow: false },
-  title: "My Ratings - The Movie Browser",
+  // Layout template appends "- Movie Browser" — no brand suffix here
+  title: "My Ratings",
   description: "Movies and TV shows you've liked and disliked.",
   openGraph: {
     title: "My Ratings - The Movie Browser",
