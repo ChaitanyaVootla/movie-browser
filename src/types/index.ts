@@ -482,6 +482,8 @@ export interface Person {
   imdb_id: string | null;
   popularity: number;
   known_for_department: string;
+  /** TMDB adult-content flag (adult-film performers). Used for SEO noindex. */
+  adult?: boolean;
   also_known_as?: string[];
   gender: number;
   movie_credits?: {

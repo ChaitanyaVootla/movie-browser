@@ -101,6 +101,9 @@ model Person {
   popularity   Float?
   gender       Int? // 0=unknown, 1=female, 2=male, 3=non-binary
   homepage     String?
+  // TMDB adult flag. @default(false) is load-bearing: prisma db push refuses a
+  // NOT-NULL column without a default on a populated table (documented incident).
+  adult        Boolean   @default(false)
 
   credits               Credit[]
   aliases               PersonAlias[]

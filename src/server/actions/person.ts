@@ -52,6 +52,9 @@ async function persistPersonDetails(data: Record<string, unknown>): Promise<void
       homepage: str(data.homepage),
       knownFor: str(data.known_for_department),
       profilePath: str(data.profile_path),
+      // Only write `adult` when TMDB actually sent it — never clobber a
+      // backfilled true with an absent field.
+      ...(typeof data.adult === "boolean" ? { adult: data.adult } : {}),
     };
 
     const { prisma } = await import("@/server/db/postgres");
@@ -98,6 +101,7 @@ export async function getPerson(id: number): Promise<Person | null> {
       imdb_id: data.imdb_id as string | null,
       popularity: data.popularity as number,
       known_for_department: data.known_for_department as string,
+      adult: data.adult === true,
       also_known_as: data.also_known_as as string[] | undefined,
       gender: data.gender as number,
       movie_credits: data.movie_credits as Person["movie_credits"],
