@@ -243,10 +243,53 @@ const BLOCKED_BOT_TYPES = new Set([
   "meta", // meta-externalagent (Meta AI training)
 ]);
 
+// DATACENTER-FLEET SHED (Jul 28 2026). A disguised crawler fleet on Alibaba
+// Cloud (SG + US regions) crawled the long-tail catalog at ~35k renders/hr
+// wearing a real Chrome UA (Chrome/145, macOS) WITH valid sec-ch-ua hints —
+// invisible to the UA/heuristic shed above. Identified via CloudFront access
+// logs (rotating 43.119.100.x + 47.82.201.x instances, ~100 req each) + whois
+// (Alibaba Cloud Singapore Pte Ltd / Alibaba Cloud LLC). Requires the
+// CloudFront-Viewer-Address header (forwarded since the allViewer origin-req
+// policy, same day). Anonymous page GETs only — a logged-in session cookie
+// exempts the request (a real human on an Alibaba-adjacent VPN can still
+// sign in). Supernets, not /24s: the fleet rotates within the allocations.
+const BLOCKED_DC_CIDRS: Array<[string, number]> = [
+  ["43.96.0.0", 11], // Alibaba Cloud APAC (covers the 43.119.100.x fleet)
+  ["47.80.0.0", 13], // Alibaba Cloud US (covers the 47.82.201.x fleet)
+];
+
+function ipv4ToInt(ip: string): number {
+  return ip.split(".").reduce((acc, oct) => (acc << 8) + Number(oct), 0) >>> 0;
+}
+
+function isBlockedDatacenterIP(req: NextRequest): boolean {
+  try {
+    // "ip:port" for IPv4; IPv6 (contains extra colons) is not fleet traffic —
+    // skip it rather than mis-parse.
+    const addr = req.headers.get("cloudfront-viewer-address");
+    if (!addr) return false;
+    const ip = addr.split(":")[0];
+    if (!ip || !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return false;
+    // Logged-in users are exempt (the CF function only forwards cookies for
+    // authenticated requests, so cookie presence = real session).
+    if (req.cookies.has("__Secure-authjs.session-token") || req.cookies.has("authjs.session-token")) {
+      return false;
+    }
+    const ipInt = ipv4ToInt(ip);
+    return BLOCKED_DC_CIDRS.some(
+      ([net, bits]) => ipInt >>> (32 - bits) === ipv4ToInt(net) >>> (32 - bits),
+    );
+  } catch {
+    return false; // never block on a parse failure
+  }
+}
+
 function isBlockedScraper(req: NextRequest): boolean {
   try {
     // LLM/markdown scrapers self-identify via Accept (browsers never send this)
     if (req.headers.get("accept")?.includes("text/markdown")) return true;
+
+    if (isBlockedDatacenterIP(req)) return true;
 
     const { botType } = detectBotFromRequest(
       req.headers.get("user-agent") || "",
