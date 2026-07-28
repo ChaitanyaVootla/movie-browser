@@ -13,7 +13,7 @@ import { TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { DonutChart } from "../analytics-charts";
+import { ChartTooltip, DonutChart, useChartColors } from "../analytics-charts";
 import { EmptyState, formatChartDate } from "../analytics-shared";
 import type { LambdaMetrics, LambdaData, TimeRange } from "../analytics-types";
 
@@ -176,6 +176,13 @@ function LambdaTimeSeriesChart({
 }: {
   data: Array<{ date: string; invocations: number; avgDurationMs: number }>;
 }) {
+  // Both lines used to be hardcoded greys (`oklch(0.9 0 0)` was invisible on a
+  // light card) with an invalid `oklch(var(--popover))` tooltip that fell back to
+  // recharts' white default in dark mode.
+  const colors = useChartColors();
+  const invocationsColor = colors.series[0];
+  const durationColor = colors.series[1];
+
   return (
     <div className="h-[180px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -183,48 +190,51 @@ function LambdaTimeSeriesChart({
           <XAxis
             dataKey="date"
             tickFormatter={formatChartDate}
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 10, fill: colors.neutral }}
             axisLine={false}
             tickLine={false}
-            className="fill-muted-foreground"
           />
           <YAxis
             yAxisId="invocations"
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 10, fill: colors.neutral }}
             axisLine={false}
             tickLine={false}
-            className="fill-muted-foreground"
           />
           <YAxis
             yAxisId="duration"
             orientation="right"
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 10, fill: colors.neutral }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => `${v}ms`}
-            className="fill-muted-foreground/70"
           />
           <RechartsTooltip
-            contentStyle={{
-              backgroundColor: "oklch(var(--popover))",
-              border: "1px solid oklch(var(--border))",
-              borderRadius: "8px",
-              fontSize: "12px",
-              color: "oklch(var(--popover-foreground))",
-            }}
-            labelFormatter={formatChartDate}
-            formatter={(value, name) => {
-              if (value === undefined || value === null) return ["-", String(name)];
-              if (name === "invocations")
-                return [(value as number).toLocaleString(), "Invocations"];
-              return [`${(value as number).toFixed(0)}ms`, "Avg Duration"];
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const rows = payload
+                .filter((entry) => entry.value !== null && entry.value !== undefined)
+                .map((entry) =>
+                  entry.dataKey === "invocations"
+                    ? {
+                        label: "Invocations",
+                        value: Number(entry.value).toLocaleString(),
+                        color: invocationsColor,
+                      }
+                    : {
+                        label: "Avg Duration",
+                        value: `${Number(entry.value).toFixed(0)}ms`,
+                        color: durationColor,
+                      }
+                );
+              if (rows.length === 0) return null;
+              return <ChartTooltip title={formatChartDate(String(label))} rows={rows} />;
             }}
           />
           <Line
             yAxisId="invocations"
             type="monotone"
             dataKey="invocations"
-            stroke="oklch(0.9 0 0)"
+            stroke={invocationsColor}
             strokeWidth={2}
             dot={false}
           />
@@ -232,7 +242,7 @@ function LambdaTimeSeriesChart({
             yAxisId="duration"
             type="monotone"
             dataKey="avgDurationMs"
-            stroke="oklch(0.55 0 0)"
+            stroke={durationColor}
             strokeWidth={2}
             strokeDasharray="4 2"
             dot={false}
@@ -241,14 +251,18 @@ function LambdaTimeSeriesChart({
       </ResponsiveContainer>
       <div className="flex justify-center gap-6 mt-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 bg-foreground/80 rounded" /> Invocations
+          <span
+            className="w-4 h-0.5 rounded"
+            style={{ backgroundColor: invocationsColor }}
+          />{" "}
+          Invocations
         </span>
         <span className="flex items-center gap-1.5">
           <span
-            className="w-4 h-0.5 rounded border-dashed"
-            style={{ borderTop: "2px dashed oklch(0.55 0 0)", height: 0 }}
+            className="w-4 rounded"
+            style={{ borderTop: `2px dashed ${durationColor}`, height: 0 }}
           />{" "}
-          Avg Duration
+          Avg Duration (right axis)
         </span>
       </div>
     </div>

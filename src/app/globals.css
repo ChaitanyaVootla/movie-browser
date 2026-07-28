@@ -29,6 +29,12 @@ body {
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-viz-1: var(--viz-1);
+  --color-viz-2: var(--viz-2);
+  --color-viz-3: var(--viz-3);
+  --color-viz-4: var(--viz-4);
+  --color-viz-5: var(--viz-5);
+  --color-viz-6: var(--viz-6);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -121,12 +127,29 @@ body {
      References --brand, so it re-resolves under .dark + any accent. */
   --sig: color-mix(in oklab, var(--brand) 78%, #8a8a8a);
 
-  /* Chart colors */
+  /* Chart colors — accent-tinted single-series fills (an .accent-* class
+   * overrides these). NOT for categorical series: see --viz-* below. */
   --chart-1: oklch(0.55 0.2 25);
   --chart-2: oklch(0.5 0.15 220);
   --chart-3: oklch(0.55 0.18 150);
   --chart-4: oklch(0.6 0.15 80);
   --chart-5: oklch(0.55 0.2 300);
+
+  /* Categorical data-viz palette — light steps. See DESIGN.md → Data viz.
+   * Accent-independent BY DESIGN (like --success): an .accent-* class rotates
+   * --chart-* into five shades of ONE hue, which collapses a pie/multi-line
+   * chart into indistinguishable bands, and its dark-tuned lightness (up to
+   * L 0.92 for golden) is invisible on a light card. These six hues are fixed,
+   * assigned in slot order (never cycled), and validated for the lightness
+   * band, chroma floor, protan/deutan separation and contrast in BOTH modes.
+   * Light slots 3/4/5 sit under 3:1 on white, so any chart using them must
+   * carry a legend or direct labels (identity never by color alone). */
+  --viz-1: oklch(0.575 0.163 255.5); /* blue    #2978d6 */
+  --viz-2: oklch(0.671 0.175 40.6); /* orange   #eb6834 */
+  --viz-3: oklch(0.669 0.141 162.1); /* aqua    #1baf7a */
+  --viz-4: oklch(0.764 0.161 75.1); /* yellow   #eda101 */
+  --viz-5: oklch(0.716 0.141 357.4); /* magenta #e87ba4 */
+  --viz-6: oklch(0.529 0.18 142.5); /* green    #008300 */
 
   /* Sidebar */
   --sidebar: oklch(0.98 0 0);
@@ -183,6 +206,16 @@ body {
   --chart-3: oklch(0.7 0.2 150);
   --chart-4: oklch(0.75 0.18 80);
   --chart-5: oklch(0.7 0.22 300);
+
+  /* Categorical data-viz palette — dark steps (the same six hues re-stepped for
+   * the dark surface, not an automatic flip). All six clear 3:1 on the dark
+   * card. See DESIGN.md → Data viz. */
+  --viz-1: oklch(0.622 0.161 255.1); /* blue    #3987e5 */
+  --viz-2: oklch(0.622 0.173 40.1); /* orange   #d95926 */
+  --viz-3: oklch(0.621 0.128 163.1); /* aqua    #1a9e70 */
+  --viz-4: oklch(0.67 0.143 73.2); /* yellow   #c98500 */
+  --viz-5: oklch(0.622 0.171 0.8); /* magenta  #d55181 */
+  --viz-6: oklch(0.529 0.18 142.5); /* green    #008300 */
 
   /* Sidebar */
   --sidebar: oklch(0.12 0 0);

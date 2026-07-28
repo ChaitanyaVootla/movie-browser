@@ -20,6 +20,12 @@ colors:
   border: oklch(1 0 0 / 10%)
   error: oklch(0.6 0.22 25)
   success: oklch(0.72 0.17 152)
+  viz-1: oklch(0.622 0.161 255.1)
+  viz-2: oklch(0.622 0.173 40.1)
+  viz-3: oklch(0.621 0.128 163.1)
+  viz-4: oklch(0.67 0.143 73.2)
+  viz-5: oklch(0.622 0.171 0.8)
+  viz-6: oklch(0.529 0.18 142.5)
 typography:
   headline-display:
     fontFamily: Montserrat
@@ -162,6 +168,38 @@ red/green/blue, so it must never carry success/error meaning). Use `text-success
 / `text-destructive`; never repurpose `text-brand` for a positive/negative state.
 Success is a calm, slightly-desaturated green (not neon) so it sits quietly in the
 OLED canvas. Do not use either for decoration or large fills.
+
+### Data viz palette ({colors.viz-1}…{colors.viz-6})
+
+Charts are the one place the monochrome canvas has to carry several colors at once,
+so they get their own palette — six fixed hues (blue, orange, aqua, yellow, magenta,
+green), each with a **light step and a dark step** in `globals.css`. The dark column
+is the same six hues re-stepped for the dark surface, not an automatic flip.
+
+Rules:
+
+- **Categorical series use `--viz-1…6` in slot order, never cycled.** A 7th series
+  folds into a neutral "Other" slice (`--muted-foreground`) — never a generated hue.
+  Single-series charts also use `--viz-1`, so one accent-independent palette covers
+  every admin chart.
+- **The palette is accent-independent**, exactly like {colors.error}/{colors.success},
+  and for a concrete reason: an `.accent-*` class rewrites `--chart-1…5` into five
+  shades of one hue, which flattens a pie or multi-line chart into indistinguishable
+  bands, and those values are tuned for dark (up to L 0.92 for golden), so on a light
+  card they are all but invisible. `--chart-*` remains only for accent-tinted
+  decorative single-series fills outside admin.
+- **Never hardcode a chart color.** Read the token (`useChartColors()` in
+  `admin/analytics-charts.tsx` resolves the computed values and re-reads them on
+  theme change). Axis ticks, legends and tooltip text wear text tokens
+  (`--muted-foreground`, `--popover-foreground`), never a series color.
+- **Identity is never color-alone**: ≥ 2 series always ships a legend, and light
+  slots 3/4/5 fall under 3:1 against a white card, so a chart using them needs a
+  legend or direct value labels (both pies carry a labelled legend with percentages).
+- **No dual-axis charts** for new work — two measures at different scales become two
+  charts. (The Lambda invocations-vs-duration chart predates this rule.)
+- The palette is machine-checkable: lightness band, chroma floor, protan/deutan
+  separation, normal-vision separation and contrast-vs-surface all pass in both modes
+  for all six slots on the adjacent-pair list. Re-validate before changing a value.
 
 ## Typography
 

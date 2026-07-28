@@ -15,7 +15,8 @@ export {
   TrendChart,
   HorizontalBarChart,
   MultiSeriesChart,
-  CHART_COLORS,
+  ChartTooltip,
+  useChartColors,
 } from "./analytics-charts";
 
 // Shared utilities

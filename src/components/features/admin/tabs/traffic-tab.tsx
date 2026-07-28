@@ -25,8 +25,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { DevicePieChart, DistributionPieChart } from "../analytics-charts";
-import { EmptyState, formatChartDate } from "../analytics-shared";
+import {
+  ChartTooltip,
+  DevicePieChart,
+  DistributionPieChart,
+  useChartColors,
+} from "../analytics-charts";
+import { EmptyState, formatChartDate, formatSeconds } from "../analytics-shared";
 import type {
   TrafficMetrics,
   TrafficData,
@@ -179,24 +184,29 @@ export function TrafficTab({
             <>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Avg Duration</span>
-                <span className="font-medium">
-                  {overview?.avgSessionDuration
-                    ? `${Math.floor(overview.avgSessionDuration / 60)}m ${Math.floor(overview.avgSessionDuration % 60)}s`
-                    : "—"}
+                <span className="font-medium tabular-nums">
+                  {formatSeconds(overview?.avgSessionDuration)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Bounce Rate</span>
-                <span className="font-medium">
-                  {overview?.bounceRate ? `${(overview.bounceRate * 100).toFixed(1)}%` : "—"}
+                <span className="font-medium tabular-nums">
+                  {typeof overview?.bounceRate === "number" && overview.visits
+                    ? `${(overview.bounceRate * 100).toFixed(1)}%`
+                    : "—"}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Bot Traffic</span>
-                <span className="font-medium text-muted-foreground">
-                  {overview?.botViews?.toLocaleString() || "0"} views
+                <span className="font-medium tabular-nums text-muted-foreground">
+                  {(overview?.botViews ?? 0).toLocaleString()} views
                 </span>
               </div>
+              <p className="text-[11px] leading-snug text-muted-foreground/70 pt-1">
+                {overview?.visits
+                  ? `${overview.visits.toLocaleString()} human visits, split on a 30-minute inactivity gap.`
+                  : "Duration and bounce rate cover human visits only."}
+              </p>
             </>
           )}
         </CardContent>
@@ -310,6 +320,10 @@ export function TrafficTab({
             <Bot className="h-4 w-4" />
             Top Bot User Agents
           </CardTitle>
+          <p className="text-[11px] leading-snug text-muted-foreground/70">
+            &quot;Amazon CloudFront&quot; is CDN-relayed traffic — the edge does not forward the
+            real user agent to the origin yet.
+          </p>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -500,6 +514,7 @@ function TrafficComparisonChart({
 }) {
   const [showHuman, setShowHuman] = useState(true);
   const [showBot, setShowBot] = useState(!excludeBots);
+  const colors = useChartColors();
 
   const chartData = data.map((d) => ({
     date: d.date,
@@ -527,7 +542,10 @@ function TrafficComparisonChart({
             className="h-3 w-3"
           />
           <Label htmlFor="show-human" className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <span className="w-2 h-2 rounded-full bg-foreground/80" />
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: colors.series[0] }}
+            />
             Human
             <span className="text-muted-foreground">({totalHuman.toLocaleString()})</span>
           </Label>
@@ -540,7 +558,7 @@ function TrafficComparisonChart({
             className="h-3 w-3"
           />
           <Label htmlFor="show-bot" className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.neutral }} />
             Bot
             <span className="text-muted-foreground">({totalBot.toLocaleString()})</span>
           </Label>
@@ -576,6 +594,13 @@ function TrafficAreaChart({
   showBot: boolean;
   granularity?: TrafficGranularity;
 }) {
+  // Human = series slot 1, bot = the neutral (it's context, not a peer series).
+  // These used to be hardcoded `oklch(0.9 0 0)` / `oklch(0.55 0 0)`, i.e. a
+  // near-white line that vanished on a light card.
+  const colors = useChartColors();
+  const humanColor = colors.series[0];
+  const botColor = colors.neutral;
+
   const formatDate = (dateStr: string) => {
     const d = parseChartTs(dateStr, granularity);
     if (granularity === "hour") {
@@ -607,40 +632,38 @@ function TrafficAreaChart({
       <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
         <defs>
           <linearGradient id="humanGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="oklch(0.9 0 0)" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="oklch(0.9 0 0)" stopOpacity={0} />
+            <stop offset="5%" stopColor={humanColor} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={humanColor} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="botGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="oklch(0.55 0 0)" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="oklch(0.55 0 0)" stopOpacity={0} />
+            <stop offset="5%" stopColor={botColor} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={botColor} stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
           dataKey="date"
           tickFormatter={formatDate}
-          tick={{ fontSize: 10 }}
+          tick={{ fontSize: 10, fill: colors.neutral }}
           axisLine={false}
           tickLine={false}
-          className="fill-muted-foreground"
         />
         <YAxis
-          tick={{ fontSize: 10 }}
+          tick={{ fontSize: 10, fill: colors.neutral }}
           axisLine={false}
           tickLine={false}
-          className="fill-muted-foreground"
         />
         <RechartsTooltip
-          contentStyle={{
-            backgroundColor: "oklch(var(--popover))",
-            border: "1px solid oklch(var(--border))",
-            borderRadius: "8px",
-            fontSize: "12px",
-            color: "oklch(var(--popover-foreground))",
-          }}
-          labelFormatter={formatTooltipDate}
-          formatter={(value, name) => {
-            if (value === null || value === undefined) return ["-", String(name)];
-            return [(value as number).toLocaleString(), name === "human" ? "Human" : "Bot"];
+          content={({ active, payload, label }) => {
+            if (!active || !payload?.length) return null;
+            const rows = payload
+              .filter((entry) => entry.value !== null && entry.value !== undefined)
+              .map((entry) => ({
+                label: entry.name === "human" ? "Human" : "Bot",
+                value: Number(entry.value).toLocaleString(),
+                color: entry.name === "human" ? humanColor : botColor,
+              }));
+            if (rows.length === 0) return null;
+            return <ChartTooltip title={formatTooltipDate(String(label))} rows={rows} />;
           }}
         />
         {showHuman && (
@@ -648,7 +671,7 @@ function TrafficAreaChart({
             type="monotone"
             dataKey="human"
             name="human"
-            stroke="oklch(0.9 0 0)"
+            stroke={humanColor}
             fillOpacity={1}
             fill="url(#humanGradient)"
             strokeWidth={2}
@@ -660,7 +683,7 @@ function TrafficAreaChart({
             type="monotone"
             dataKey="bot"
             name="bot"
-            stroke="oklch(0.55 0 0)"
+            stroke={botColor}
             fillOpacity={1}
             fill="url(#botGradient)"
             strokeWidth={2}
