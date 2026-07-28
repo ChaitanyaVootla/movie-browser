@@ -25,12 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import {
-  ChartTooltip,
-  DevicePieChart,
-  DistributionPieChart,
-  useChartColors,
-} from "../analytics-charts";
+import { ChartTooltip, DevicePieChart, useChartColors } from "../analytics-charts";
 import { EmptyState, formatChartDate, formatSeconds } from "../analytics-shared";
 import type {
   TrafficMetrics,
