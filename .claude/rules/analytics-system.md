@@ -178,6 +178,28 @@ per column, not a shared WHERE.
 3. If tracking a new service type, extend the `service` union in `TrackAPICallOptions`
 4. Update the ClickHouse schema comment in `analytics/clickhouse/init/001-schema.sql`
 
+## Verifying admin analytics against PROD data (read-only recipe)
+
+To see the dashboard with real numbers you need an SSH tunnel to the prod
+ClickHouse **and** `ENABLE_DEV_ANALYTICS=true` (without it `getConfig()` returns
+null in dev and every query no-ops). **That flag also re-enables INSERTS**, so a
+local dev server pointed at the tunnel writes `page_views` / `performance` /
+`errors` rows into production analytics as you click around. Admin-authenticated
+page views are skipped (`shouldSkipForAdmin`), but anonymous ones and the other
+tables are not — confirmed live: a local session tried to insert `page_views` and
+`performance` rows within seconds of boot.
+
+Put a **write-blocking HTTP proxy between the dev server and the tunnel** (reject
+any request whose `query` param or body matches
+`INSERT|ALTER|DROP|CREATE|TRUNCATE|DELETE|UPDATE|...`, forward the rest) and point
+`CLICKHOUSE_PORT` at it. ~30 lines of `node:http`; it turns "probably read-only"
+into "cannot write". For an admin session without Google OAuth, `ADMIN_EMAILS`
+overrides the whitelist, and a session cookie can be minted locally with
+`encode()` from `next-auth/jwt` using `AUTH_SECRET` and salt
+`authjs.session-token` (`role: "admin"` in the token — the role comes from the JWT,
+not the DB). The test-auth route was NOT usable here: `process.env.ENABLE_TEST_AUTH`
+read as unset inside the route despite being in the PM2 env.
+
 ## Admin chart colors: `--viz-*`, never `--chart-*`
 
 Every admin chart mark resolves its color through `useChartColors()`
