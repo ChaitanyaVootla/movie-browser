@@ -21,7 +21,15 @@ every freeze the night of cutover).
 - Distro `E12R1ZNQNG3LK5` / `d1vtxoi7slst5n.cloudfront.net`, aliases apex + www.
 - Origin = `origin.themoviebrowser.com` (Route53 A → EIP). **Caddy serves it as a
   2nd vhost** — the apex block is `themoviebrowser.com, origin.themoviebrowser.com { }`.
-  CloudFront sends `Host: origin.themoviebrowser.com` (we do NOT forward viewer Host).
+  Since Jul 28 2026 the origin-request policy is `allViewerAndWhitelistCloudFront`:
+  ALL viewer headers (User-Agent, sec-ch-ua, and viewer Host included) reach the
+  origin. Host: apex → same Caddy block (verified 200); Host: www → canonical 301;
+  TLS/SNI unaffected (CloudFront connects by origin domain). This ended the
+  `User-Agent: Amazon CloudFront` blindness — origin shed + analytics now see the
+  real UA for CDN-relayed traffic. INVARIANT that makes this safe: every origin
+  429 (proxy.ts shed + Caddy @heavybots) carries `Cache-Control: private,
+  no-store`, because UA is NOT in the edge cache key — a cacheable 429 would
+  poison the URL for all users. Never remove those headers.
 - Origin Shield ap-south-1 (Mumbai) — collapses multi-POP cold-URL misses to ~1
   origin render. ~$3/mo, mandatory for the herd.
 - ACM cert (us-east-1, REQUIRED region for CloudFront) = `themoviebrowser.com` +
@@ -177,6 +185,11 @@ handle them.
 
 ## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.
+- **CloudFront access logging enabled Jul 28 2026 via CLI (TF DRIFT)**: standard
+  logs → `s3://movie-browser-cf-logs-620733889764/cf/` (7-day lifecycle expiry),
+  enabled to trace the Jul 28 residential-proxy scraper fleet. NOT in
+  `cloudfront.tf` — a full (non-`-target`) distribution apply would silently
+  DISABLE it. Fold into TF or disable when the trace need passes.
 - www still A→EIP (works via 301→CF; cleaner to alias www→CF).
 - Image distro (`E300L33VF15D5T`): no Origin Shield, 24h TTL on immutable
   posters — each edge node misses independently against the image origin.

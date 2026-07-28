@@ -59,6 +59,10 @@ themoviebrowser.com, origin.themoviebrowser.com {
 	# forged-Chrome scrapers are also caught by src/proxy.ts (missing client
 	# hints), which additionally 429s the AI bot-types by name.
 	@heavybots header_regexp User-Agent (?i)(bytespider|bytedance|semrushbot|ahrefsbot|dataforseo|mj12bot|dotbot|blexbot|petalbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient|headless|claudebot|gptbot|ccbot|perplexitybot|amazonbot|meta-externalagent)
+	# no-store: since CloudFront forwards the real UA (Jul 28 2026) this shed
+	# fires on CDN cache-misses too — a cacheable 429 would poison the URL for
+	# real users (UA is not in the edge cache key).
+	header @heavybots Cache-Control "private, no-store"
 	respond @heavybots 429 {
 		close
 	}

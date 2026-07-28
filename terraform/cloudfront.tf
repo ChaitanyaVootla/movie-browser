@@ -161,45 +161,40 @@ resource "aws_cloudfront_cache_policy" "default" {
 # -----------------------------------------------------------------------------
 # Origin request policy — forward what Next needs to the custom origin
 # -----------------------------------------------------------------------------
-# Custom (non-S3) origins: do NOT forward the viewer Host header — the origin is
-# selected by origin domain (origin.themoviebrowser.com) and Caddy matches that
-# vhost; forwarding the viewer Host (apex) would break vhost routing + TLS SNI.
+# Since Jul 28 2026: forward ALL viewer headers (allViewerAndWhitelistCloudFront)
+# so the origin sees the real User-Agent + sec-ch-ua — before this, every
+# CDN-relayed cache-miss arrived as `User-Agent: Amazon CloudFront`, making
+# residential-proxy scraper fleets invisible to the origin shed and analytics
+# (the Jul 28 surge: ~35k renders/hr, SG/CN/US mixed-geo fleet). The old
+# 10-header whitelist quota problem disappears with this behavior; the explicit
+# list below is ONLY for CloudFront-generated headers (not viewer headers).
+# Viewer Host IS now forwarded — verified safe Jul 28: the Caddy apex block also
+# serves origin.themoviebrowser.com (Host: apex → 200 same site; Host: www →
+# canonical 301; TLS/SNI unaffected — CloudFront still connects by origin
+# domain). PREREQUISITE (deployed first): all origin 429s carry
+# `Cache-Control: private, no-store` (proxy.ts + Caddyfile) — UA is NOT in the
+# edge cache key, so a cacheable 429 from the now-UA-aware shed would poison
+# the URL for real users.
 # Cookies = all so the origin sees the session cookie (the CloudFront Function
 # has already stripped cookies for anon requests, so only logged-in cookies pass).
 resource "aws_cloudfront_origin_request_policy" "default" {
   name    = "${var.project_name}-default-origin-req"
-  comment = "Forward RSC/Next headers + viewer country + all cookies to origin (not Host)"
+  comment = "All viewer headers (incl. UA) + CF viewer geo + all cookies to origin"
 
   cookies_config {
     cookie_behavior = "all"
   }
 
   headers_config {
-    header_behavior = "whitelist"
+    header_behavior = "allViewerAndWhitelistCloudFront"
     headers {
       items = [
-        "rsc",                    # Next RSC request marker
-        "next-router-prefetch",   # Next prefetch marker
-        "next-router-state-tree", # Next router state
-        "next-url",               # Next URL header
-        "next-action",            # SERVER ACTIONS — without this the POST isn't
-                                  # recognized as an action (broke series season
-                                  # episodes via CDN, Jun 11)
-        "Content-Type",           # server action arg encoding
-        "Origin",                 # server action CSRF check (vs allowedOrigins)
-        "Accept",                 # content negotiation (HTML vs RSC)
-        # NOTE: Accept-Encoding must NOT be whitelisted here — CloudFront
-        # rejects it in an origin-request policy when Compress=true (it manages
-        # br/gzip negotiation itself). Removing it; CloudFront still negotiates
-        # compression with the origin.
         "CloudFront-Viewer-Country", # geo for SSR region hints
         "CloudFront-Viewer-Address"  # real viewer ip:port — geoip city/tz for
                                      # page-view analytics + session IDs. The
                                      # connection IP at the origin is a CF POP
                                      # (geo-locating it = the Seattle/LA wonky
-                                     # location bug, Jun 12). NOTE: this fills
-                                     # the 10-header policy quota — an 11th
-                                     # needs an AWS quota increase.
+                                     # location bug, Jun 12).
       ]
     }
   }

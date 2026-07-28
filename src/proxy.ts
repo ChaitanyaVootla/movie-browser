@@ -70,7 +70,11 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
     maybeTrackPageView(req); // keep the fleet visible in analytics
     return new NextResponse(null, {
       status: 429,
-      headers: { "retry-after": "3600" },
+      // no-store is LOAD-BEARING once CloudFront forwards the real UA (Jul 28
+      // 2026): UA is NOT in the edge cache key, so a cacheable 429 emitted on
+      // a cache-miss would poison that URL for real users (cdn.md bot-strategy
+      // warning). CloudFront honors no-store on error responses.
+      headers: { "retry-after": "3600", "cache-control": "private, no-store" },
     });
   }
 
