@@ -316,8 +316,8 @@ export function TrafficTab({
             Top Bot User Agents
           </CardTitle>
           <p className="text-[11px] leading-snug text-muted-foreground/70">
-            &quot;Amazon CloudFront&quot; is CDN-relayed traffic — the edge does not forward the
-            real user agent to the origin yet.
+            &quot;Amazon CloudFront&quot; rows predate Jul 28 2026 — since then the edge
+            forwards the real user agent, so new CDN-relayed traffic logs its true UA.
           </p>
         </CardHeader>
         <CardContent>

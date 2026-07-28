@@ -67,6 +67,27 @@ themoviebrowser.com, origin.themoviebrowser.com {
 		close
 	}
 
+	# TIER 1b — DATACENTER FLEET SHED (Jul 28 2026). A JS-EXECUTING browser-farm
+	# crawler on Alibaba Cloud (SG 43.119.x + US 47.82.x) and Huawei Cloud SG
+	# (124.243.x) crawled the long-tail catalog at ~35k renders/hr wearing a
+	# genuine Chrome/145 UA WITH valid client hints — undetectable by any UA
+	# heuristic. `src/proxy.ts` sheds their PAGE requests by the same IP ranges,
+	# but its matcher excludes `/api/*`, and because these are real browsers the
+	# JS still fired /api/auth/session + /api/geo + /api/analytics/ingest (that
+	# last one POLLUTES analytics with fleet data). Caddy sees every path, so the
+	# shed belongs here too. Matches the CloudFront-forwarded viewer address
+	# (available since the allViewer origin-request policy, same day) and never
+	# an authenticated request — a real human on a cloud VPN can still sign in.
+	# These are cloud-provider allocations only; no residential users live here.
+	@dcfleet {
+		header_regexp CloudFront-Viewer-Address ^(43\.119\.|47\.82\.|124\.243\.)
+		not header_regexp Cookie (authjs\.session-token|__Secure-authjs\.session-token)
+	}
+	header @dcfleet Cache-Control "private, no-store"
+	respond @dcfleet 429 {
+		close
+	}
+
 	reverse_proxy localhost:3002 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
