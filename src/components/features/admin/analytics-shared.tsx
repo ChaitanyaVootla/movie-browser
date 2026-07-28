@@ -432,6 +432,18 @@ export function formatDuration(ms: number): string {
   return `${(ms / 60000).toFixed(1)}m`;
 }
 
+/**
+ * Format a visit/session length given in SECONDS. Returns "—" for a missing or
+ * zero value so an absent metric is never shown as a confident "0m 0s".
+ */
+export function formatSeconds(seconds: number | undefined | null): string {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) return "—";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const mins = Math.floor(seconds / 60);
+  if (mins < 60) return `${mins}m ${Math.round(seconds % 60)}s`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
 // =============================================================================
 // Number Abbreviation
 // =============================================================================

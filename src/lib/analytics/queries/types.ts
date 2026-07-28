@@ -61,7 +61,15 @@ export interface TrafficOverview {
   engagedSessions: number;
   uniqueUsers: number;
   botViews: number;
+  /**
+   * Human visits in the range, split on a 30-minute inactivity gap — the
+   * denominator behind `avgSessionDuration` and `bounceRate`. Higher than
+   * `uniqueSessions` because one fingerprint session_id spans many visits.
+   */
+  visits: number;
+  /** Mean seconds between a visit's first and last pageview (human visits only). */
   avgSessionDuration: number;
+  /** Share of human visits with exactly one pageview, 0–1. */
   bounceRate: number;
 }
 

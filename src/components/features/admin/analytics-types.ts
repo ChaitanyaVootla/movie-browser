@@ -46,7 +46,11 @@ export interface TrafficMetrics {
   engagedSessions?: number;
   uniqueUsers: number;
   botViews: number;
+  /** Human visits (30-min inactivity gap) — the denominator for the two metrics below. */
+  visits?: number;
+  /** Mean seconds per human visit (first → last pageview). */
   avgSessionDuration: number;
+  /** Share of human visits with a single pageview, 0–1. */
   bounceRate: number;
 }
 

@@ -19,6 +19,80 @@ import {
 } from "./types";
 
 // =============================================================================
+// Visit Sessionization
+// =============================================================================
+
+/**
+ * Inactivity gap that ends a visit, in seconds (the industry-standard 30 min,
+ * matching `SESSION_TIMEOUT_MS` in `../session.ts`).
+ */
+export const VISIT_GAP_SECONDS = 30 * 60;
+
+/**
+ * SQL for per-visit metrics (duration + pageview count) derived from
+ * `page_views`.
+ *
+ * WHY NOT THE `sessions` TABLE: nothing ever writes it. `trackSessionStart` /
+ * `trackSessionEnd` exist in `../track.ts` but have no callers, so
+ * `analytics.sessions` has been empty since day one — the old
+ * `avg(duration_seconds)` / `countIf(bounce = 1)` query over it always returned
+ * NULL, which is why the dashboard's Avg Duration and Bounce Rate rendered a
+ * permanent "—". `page_views` has `session_id` + `timestamp`, which is all these
+ * metrics need.
+ *
+ * WHY SESSIONIZE: `session_id` is a fingerprint hash of IP + UA +
+ * Accept-Language (`../session.ts`), NOT a per-visit cookie, so one id recurs
+ * for days. `max(timestamp) - min(timestamp)` per id therefore measures how long
+ * we have SEEN a visitor, not how long a visit lasted (measured on prod: 11h
+ * "average", 6.5-day maximum). Rows are split into visits on a
+ * `VISIT_GAP_SECONDS` inactivity gap instead. `lagInFrame`'s zero default on the
+ * first row of each partition yields a huge gap, which correctly opens visit 1.
+ *
+ * Always scoped to human rows (`HUMAN_SQL`): a bot's "visit duration" is
+ * meaningless, and the CloudFront origin-fetch pseudo-session alone carries
+ * ~24k views/day, which would swamp the average and make the window functions
+ * scan millions of rows.
+ */
+export function buildVisitMetricsSql(timeCondition: string): string {
+  return `
+    SELECT
+      count() AS visits,
+      countIf(views = 1) AS bounces,
+      avg(duration) AS avg_duration
+    FROM (
+      SELECT
+        count() AS views,
+        dateDiff('second', min(timestamp), max(timestamp)) AS duration
+      FROM (
+        SELECT
+          session_id,
+          timestamp,
+          sum(is_new_visit) OVER (
+            PARTITION BY session_id ORDER BY timestamp
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) AS visit_no
+        FROM (
+          SELECT
+            session_id,
+            timestamp,
+            dateDiff(
+              'second',
+              lagInFrame(timestamp) OVER (
+                PARTITION BY session_id ORDER BY timestamp
+                ROWS BETWEEN 1 PRECEDING AND CURRENT ROW
+              ),
+              timestamp
+            ) > ${VISIT_GAP_SECONDS} AS is_new_visit
+          FROM page_views
+          WHERE ${timeCondition} AND ${HUMAN_SQL} AND session_id != ''
+        )
+      )
+      GROUP BY session_id, visit_no
+    )
+  `;
+}
+
+// =============================================================================
 // Traffic Overview
 // =============================================================================
 
@@ -30,11 +104,11 @@ export async function getTrafficOverview(
   humanOnly = false
 ): Promise<TrafficOverview> {
   const timeCondition = getTimeRangeCondition(range);
-  const sessionTimeCondition = getTimeRangeCondition(range, "started_at");
   // When "Human only" is on, scope the totals to the query-time human predicate
-  // (see bot-filter.ts). Off = all traffic. botViews is always the bot count.
-  const humanClause = humanOnly ? ` AND ${HUMAN_SQL}` : "";
-  const sessionHumanClause = humanOnly ? " AND is_bot = 0" : "";
+  // (see bot-filter.ts). Off = all traffic. `bot_views` must be counted OUTSIDE
+  // that scope — it used to live in a WHERE that already excluded bots, so the
+  // dashboard's "Bot Traffic" read 0 views whenever the toggle was on.
+  const scope = humanOnly ? HUMAN_SQL : "1";
 
   const [result] = await query<{
     page_views: string;
@@ -43,12 +117,12 @@ export async function getTrafficOverview(
     bot_views: string;
   }>(`
     SELECT
-      count() AS page_views,
-      uniq(session_id) AS unique_sessions,
-      uniqIf(user_id, user_id IS NOT NULL) AS unique_users,
+      countIf(${scope}) AS page_views,
+      uniqIf(session_id, ${scope}) AS unique_sessions,
+      uniqIf(user_id, user_id IS NOT NULL AND ${scope}) AS unique_users,
       countIf(${BOT_SQL}) AS bot_views
     FROM page_views
-    WHERE ${timeCondition}${humanClause}
+    WHERE ${timeCondition}
   `);
 
   // Engaged sessions: 2+ pageviews, an authenticated user, or any user action.
@@ -68,18 +142,16 @@ export async function getTrafficOverview(
     )
   `);
 
-  // Session metrics from sessions table
-  const [sessionMetrics] = await query<{
+  // Visit duration + bounce rate, sessionized from page_views (see
+  // buildVisitMetricsSql for why the `sessions` table can't provide these).
+  const [visitMetrics] = await query<{
+    visits: string;
+    bounces: string;
     avg_duration: string;
-    bounce_rate: string;
-  }>(`
-    SELECT
-      avg(duration_seconds) AS avg_duration,
-      countIf(bounce = 1) / count() AS bounce_rate
-    FROM sessions
-    WHERE ${sessionTimeCondition}
-      AND duration_seconds > 0${sessionHumanClause}
-  `);
+  }>(buildVisitMetricsSql(timeCondition));
+
+  const visits = parseInt(visitMetrics?.visits || "0", 10);
+  const bounces = parseInt(visitMetrics?.bounces || "0", 10);
 
   return {
     pageViews: parseInt(result?.page_views || "0", 10),
@@ -87,8 +159,9 @@ export async function getTrafficOverview(
     engagedSessions: parseInt(engaged?.engaged_sessions || "0", 10),
     uniqueUsers: parseInt(result?.unique_users || "0", 10),
     botViews: parseInt(result?.bot_views || "0", 10),
-    avgSessionDuration: parseFloat(sessionMetrics?.avg_duration || "0"),
-    bounceRate: parseFloat(sessionMetrics?.bounce_rate || "0"),
+    visits,
+    avgSessionDuration: parseFloat(visitMetrics?.avg_duration || "0"),
+    bounceRate: visits > 0 ? bounces / visits : 0,
   };
 }
 
