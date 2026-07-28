@@ -4,8 +4,7 @@ paths:
   - "src/hooks/use-analytics.ts"
   - "src/app/api/analytics/**/*.ts"
   - "src/app/api/admin/analytics/**/*.ts"
-  - "src/components/features/admin/tabs/costs-tab.tsx"
-  - "src/components/features/admin/analytics-dashboard.tsx"
+  - "src/components/features/admin/**/*.tsx"
   - "analytics/clickhouse/**/*.sql"
 ---
 
@@ -134,8 +133,35 @@ Unified view: `getUnifiedCostBreakdown(range)` in `queries/costs.ts` aggregates 
 | `embedding.ts` | `getEmbeddingUsageOverview()`, `getDailyEmbeddingUsage()`, `getEmbeddingByType()` |
 | `ai.ts` | AI chat usage, token consumption, tool frequency |
 | `content.ts` | User action summary, per-action-type breakdown |
-| `traffic.ts` | Page views, sessions, bounce rates |
+| `traffic.ts` | Page views, visits, bounce rate, geo/device, bot sources |
 | `lambda.ts` | Lambda invocation counts, estimated costs |
+
+### The `sessions` table is EMPTY — derive visit metrics from `page_views`
+
+`analytics.sessions` has never had a row: `trackSessionStart` / `trackSessionEnd`
+exist in `track.ts` but **nothing calls them**. Any query against that table
+returns NULL, which is exactly why the admin "Session Metrics" card showed a
+permanent "—" for Avg Duration and Bounce Rate until July 2026. Compute both from
+`page_views` instead — `buildVisitMetricsSql()` in `queries/traffic.ts`.
+
+Two things that query has to get right, and neither is optional:
+
+1. **Sessionize on a 30-minute inactivity gap** (`VISIT_GAP_SECONDS`). `session_id`
+   is a fingerprint hash of IP + UA + Accept-Language (`session.ts`), NOT a
+   per-visit cookie, so one id recurs for days. `max(timestamp) - min(timestamp)`
+   per id measured an 11-hour "average session" with a 6.5-day maximum on real
+   prod data. The `lagInFrame` + running-`sum` pair splits the rows into visits.
+2. **Scope to `HUMAN_SQL` always**, even when the dashboard's "Human only" toggle
+   is off. Bot visit durations are meaningless, and the single CloudFront
+   origin-fetch pseudo-session carries ~24k views/day — it would both swamp the
+   mean and make the window functions scan millions of rows. (7d cost as scoped:
+   ~1.5s for a 30-day range.)
+
+**Bot-count gotcha (same card, same fix):** a metric that must be counted across
+ALL traffic cannot live in a query whose WHERE already narrowed the rows. The old
+overview did `countIf(BOT_SQL)` inside `WHERE … AND HUMAN_SQL`, so "Bot Traffic"
+read 0 views whenever "Human only" was on. Scope such totals with `countIf(...)`
+per column, not a shared WHERE.
 
 ## Adding Tracking to a New Component
 
@@ -151,3 +177,30 @@ Unified view: `getUnifiedCostBreakdown(range)` in `queries/costs.ts` aggregates 
 2. Call without `await`, wrap in try-catch
 3. If tracking a new service type, extend the `service` union in `TrackAPICallOptions`
 4. Update the ClickHouse schema comment in `analytics/clickhouse/init/001-schema.sql`
+
+## Admin chart colors: `--viz-*`, never `--chart-*`
+
+Every admin chart mark resolves its color through `useChartColors()`
+(`components/features/admin/analytics-charts.tsx`), which reads the
+**accent-independent `--viz-1…6`** categorical palette (light + dark steps in
+`globals.css`; rules in DESIGN.md → Colors → Data viz palette).
+
+- **Do NOT use `--chart-1…5` for charts.** Every `.accent-*` class rewrites those
+  five variables into five shades of ONE hue at dark-tuned lightness, so under any
+  non-default accent a pie/multi-line chart collapses into indistinguishable bands,
+  and on a light card the values (up to L 0.92 for golden) are effectively invisible.
+- **Do NOT hardcode a color.** The pre-July-2026 charts used literal
+  `oklch(0.9 0 0)` strokes (a near-white line that vanished on a light card) — that
+  was the whole "charts unreadable in light mode" bug.
+- **`oklch(var(--popover))` is invalid CSS** — those variables already hold a
+  complete `oklch(...)` value, so `contentStyle` tooltips built that way silently
+  fell back to recharts' white default (unreadable in dark mode). Use the shared
+  `<ChartTooltip>` (semantic Tailwind classes) via recharts' `content` prop.
+- Axis ticks need an explicit `fill` from the resolved token; a `className` on a
+  recharts axis does not reliably reach the tick `<text>`.
+- **Known remaining gap:** the admin *shell* primitives (`PremiumCard`,
+  `CompactStat` in `analytics-shared.tsx`, plus `analytics-dashboard.tsx`,
+  `client.tsx`, `inspect-tab.tsx`, …) still hardcode `bg-zinc-900/40` /
+  `text-zinc-*`, ~200 occurrences. The chart cards are semantic shadcn `Card`s, so
+  in light mode you get white chart cards next to dark zinc stat tiles. De-zincing
+  the admin shell (or deciding /admin is deliberately dark-only) is a separate task.

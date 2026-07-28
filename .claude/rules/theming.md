@@ -37,6 +37,7 @@ All colors use **OKLch** for perceptual uniformity:
 | `--brand` | Accent/brand color — default **Scarlet** `oklch(0.59 0.235 22)` (dark) / `oklch(0.52 0.215 22)` (light); white `--brand-foreground` (specs/2026-06-16-social-signals) |
 | `--brand-rgb` | RGB values for gradients (space-separated: `234 36 52` dark / `200 30 46` light) |
 | `--sig` | Dulled personal-signal tone (social signals on cards) — `color-mix(in oklab, var(--brand) 78%, #8a8a8a)`; references `--brand` so it re-resolves per mode/accent. See DESIGN.md → Social signals. |
+| `--viz-1` … `--viz-6` | Categorical data-viz palette (admin charts). **Accent-independent** — never overridden per `.accent-*`, unlike `--chart-1…5`, because an accent turns those into five shades of one hue at dark-tuned lightness (illegible categorical series, invisible on a light card). Light + dark steps only. See DESIGN.md → Colors → Data viz palette and `.claude/rules/analytics-system.md`. |
 | `--hero-base` | Hero section background (oklch) |
 | `--hero-base-rgb` | Hero gradient RGB (space-separated) |
 
