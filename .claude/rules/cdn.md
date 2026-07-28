@@ -143,6 +143,27 @@ The only immediate CloudFront/Origin-Shield lever (vs waiting for robots.txt) wo
 be adding these UAs to the CloudFront viewer-request Function — deferred (robots.txt
 covers it in days).
 
+**Disguised datacenter fleets — shed by IP, not UA (Jul 28 2026).** A crawler
+fleet on **Alibaba Cloud** (SG `43.119.100.x` + US `47.82.201.x`) and **Huawei
+Cloud SG** (`124.243.x`) drove ~35-40k origin renders/hr over the long-tail
+catalog wearing a *genuine* `Chrome/145` macOS UA **with valid `sec-ch-ua`
+hints** — invisible to every UA/heuristic tier above. It runs **real headless
+browsers that execute JS**: after `src/proxy.ts` began 429ing its page
+requests, the browser JS kept calling `/api/auth/session`, `/api/geo` and
+`/api/analytics/ingest` (the last **polluting ClickHouse with fleet rows**),
+because the proxy matcher excludes `/api`. So the shed lives in BOTH places:
+`proxy.ts` (`BLOCKED_DC_CIDRS`, page routes) and **Caddy `@dcfleet`** (every
+path incl. `/api`), both keyed on the CloudFront-forwarded
+`CloudFront-Viewer-Address` and both exempting requests that carry a session
+cookie (a real human on a cloud VPN can still sign in). Result: fleet page
+views ~2,994 → ~100 per 5 min, box load 3.7 → 1.0, CPU 91% idle. **How to
+identify the next one: CloudFront access logs are the only source that sees
+real UA + client IP per edge request** (`s3://movie-browser-cf-logs-.../cf/`,
+gzip TSV: `$5`=IP, `$8`=URI, `$9`=status, `$14`=result-type) → group the
+suspect UA by IP, `whois` the top talkers, then shed the provider supernet.
+Diagnostic tell of a JS-executing farm vs a plain scraper: it hits
+`/api/auth/session` + `/api/geo` on every page.
+
 ## Origin lockdown — UNRESOLVED
 Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
 - Caddy has a dormant `X-Origin-Verify` secret-header gate (activates when
