@@ -32,7 +32,8 @@ export { parseSeriesDiscussions };
 async function getSeriesLite(id: number) {
   return prisma.series.findUnique({
     where: { id },
-    select: { id: true, name: true, firstAirDate: true, posterPath: true },
+    // `adult` is read for the noindex gate below, not rendered.
+    select: { id: true, name: true, firstAirDate: true, posterPath: true, adult: true },
   });
 }
 
@@ -49,6 +50,9 @@ export async function generateSeriesDiscussionsMetadata(seriesId: number): Promi
     title: { absolute: title },
     description,
     alternates: { canonical },
+    // Adult titles are noindex everywhere, sub-pages included — otherwise the
+    // discussions URL becomes the indexable twin of a noindexed detail page.
+    ...(series.adult ? { robots: { index: false, follow: false } } : {}),
     openGraph: { title, description, url: canonical, siteName: SITE_NAME, type: "website" },
     twitter: { card: "summary", title, description },
   };

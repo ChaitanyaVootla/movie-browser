@@ -48,6 +48,8 @@ export const getDiscussData = cache(async (seriesId: number) => {
     select: {
       id: true,
       name: true,
+      // `adult` is read for the noindex gate in generateDiscussMetadata.
+      adult: true,
       seasons: {
         where: { seasonNumber: { gt: 0 } },
         orderBy: { seasonNumber: "asc" },
@@ -80,6 +82,8 @@ export async function generateDiscussMetadata(p: DiscussParams): Promise<Metadat
     title: { absolute: title },
     description,
     alternates: { canonical },
+    // Adult titles are noindex everywhere, per-episode pages included.
+    ...(series.adult ? { robots: { index: false, follow: false } } : {}),
     openGraph: { title, description, url: canonical, siteName: SITE_NAME, type: "website" },
     twitter: { card: "summary", title, description },
   };

@@ -175,6 +175,12 @@ export async function generateMetadata({ params }: MoviePageProps): Promise<Meta
       "streaming",
       year,
     ].filter(Boolean) as string[],
+    // Adult titles stay reachable for direct visitors but leave search indexes
+    // (they are also excluded from the sitemap and the .md twin layer). A whole
+    // adult long tail ranking here would get the domain classified
+    // adult-oriented and SafeSearch-filtered, capping the mainstream catalog.
+    // Derived from the already-fetched movie row — no dynamic APIs, ISR intact.
+    ...(movie.adult ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       type: "video.movie",
       siteName: SITE_NAME,

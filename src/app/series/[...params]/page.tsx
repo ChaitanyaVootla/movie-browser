@@ -184,6 +184,11 @@ export async function generateMetadata({ params }: SeriesPageProps): Promise<Met
       "streaming",
       year,
     ].filter(Boolean) as string[],
+    // Adult titles stay reachable for direct visitors but leave search indexes —
+    // see the movie page's generateMetadata for the full rationale. Derived from
+    // the already-fetched series row (TMDB's TV `adult` flag, persisted by
+    // hydration), so no dynamic APIs and ISR is unaffected.
+    ...(series.adult ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       type: "video.tv_show",
       siteName: SITE_NAME,
