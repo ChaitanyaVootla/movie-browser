@@ -66,8 +66,11 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
   // (real Chromium >= 89 always sends hints over HTTPS; iOS excluded), plus
   // Accept: text/markdown (LLM scrapers — no browser sends that). Honest
   // crawlers (Googlebot, Bingbot, social preview bots) are NOT affected.
-  if (req.method === "GET" && isBlockedScraper(req)) {
-    maybeTrackPageView(req); // keep the fleet visible in analytics
+  const shedReason = req.method === "GET" ? scraperShedReason(req) : null;
+  if (shedReason) {
+    // Keep the fleet visible in analytics — but labelled as the bot it is, or
+    // blocked traffic would keep inflating the "human" numbers.
+    maybeTrackPageView(req, shedReason);
     return new NextResponse(null, {
       status: 429,
       // no-store is LOAD-BEARING once CloudFront forwards the real UA (Jul 28
@@ -323,21 +326,28 @@ function isBlockedDatacenterIP(req: NextRequest): boolean {
   }
 }
 
-function isBlockedScraper(req: NextRequest): boolean {
+/**
+ * Why the shed fired, or null to serve. The string doubles as the analytics
+ * `bot_type` so the dashboard reflects what we actually blocked — the
+ * datacenter fleet forges a real Chrome UA with valid client hints, so
+ * UA-based classification alone logs it as human (see `buildTrackingContext`'s
+ * `forcedBotType`).
+ */
+function scraperShedReason(req: NextRequest): string | null {
   try {
     // LLM/markdown scrapers self-identify via Accept (browsers never send this)
-    if (req.headers.get("accept")?.includes("text/markdown")) return true;
+    if (req.headers.get("accept")?.includes("text/markdown")) return "markdown_scraper";
 
-    if (isBlockedDatacenterIP(req)) return true;
+    if (isBlockedDatacenterIP(req)) return "datacenter_fleet";
 
     const { botType } = detectBotFromRequest(
       req.headers.get("user-agent") || "",
       req.headers.get("sec-ch-ua"),
       req.headers.get("x-analytics-wd"),
     );
-    return botType !== null && BLOCKED_BOT_TYPES.has(botType);
+    return botType !== null && BLOCKED_BOT_TYPES.has(botType) ? botType : null;
   } catch {
-    return false; // never block on a detection failure
+    return null; // never block on a detection failure
   }
 }
 
@@ -346,7 +356,11 @@ function isBlockedScraper(req: NextRequest): boolean {
  * ServerPageTracker layout component saw). RSC navigation/prefetch requests
  * are excluded — client-side PageViewTracker covers soft navigations.
  */
-function maybeTrackPageView(req: NextRequest & { auth: Session | null }): void {
+function maybeTrackPageView(
+  req: NextRequest & { auth: Session | null },
+  /** Force this `bot_type` (and `is_bot=1`) — used by the shed paths. */
+  forcedBotType?: string,
+): void {
   try {
     if (req.method !== "GET") return;
     if (req.headers.get("rsc") || req.headers.get("next-router-prefetch")) return;
@@ -354,7 +368,7 @@ function maybeTrackPageView(req: NextRequest & { auth: Session | null }): void {
     const path = req.nextUrl.pathname;
     if (path.startsWith("/api/") || path.startsWith("/_next/")) return;
 
-    const context = buildTrackingContext(req.headers, req.auth?.user ?? null);
+    const context = buildTrackingContext(req.headers, req.auth?.user ?? null, forcedBotType);
     const { mediaType, itemId } = getItemFromPath(path);
 
     trackPageView(context, {

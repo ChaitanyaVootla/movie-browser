@@ -34,6 +34,17 @@ export interface SessionUserLike {
 export function buildTrackingContext(
   headersList: HeaderReader,
   user: SessionUserLike | null,
+  /**
+   * Force `is_bot=1` with this `bot_type`, overriding UA/client-hint detection.
+   *
+   * For verdicts the caller knows and a per-row UA predicate CANNOT reach —
+   * chiefly the datacenter-ASN shed in `src/proxy.ts`: that fleet forges a real
+   * Chrome UA *with* valid client hints, so `detectBotFromRequest` rightly says
+   * "human" while the request is simultaneously being 429'd as a bot. Without
+   * this, blocked traffic keeps inflating the human numbers on the dashboard
+   * (Jul 30 2026: ~44k of 44k "human" views in 2h were fleets).
+   */
+  forcedBotType?: string,
 ): TrackingContext {
   const userAgent = headersList.get("user-agent") || "";
   const { country, city } = resolveGeo(headersList);
@@ -48,7 +59,9 @@ export function buildTrackingContext(
 
   // Detect bots via user-agent + client-hint analysis (sec-ch-ua absence
   // on a modern-Chrome UA = non-browser HTTP client; see bot-detection.ts)
-  const { isBot, botType } = detectBotFromRequest(userAgent, headersList.get("sec-ch-ua"), null);
+  const detected = detectBotFromRequest(userAgent, headersList.get("sec-ch-ua"), null);
+  const isBot = forcedBotType ? true : detected.isBot;
+  const botType = forcedBotType ?? detected.botType;
 
   const sessionId = generateSessionId(realIp, userAgent, acceptLanguage);
   const userId = user?.id ? hashUserId(user.id) : null;
