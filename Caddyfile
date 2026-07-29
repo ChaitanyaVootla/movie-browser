@@ -79,12 +79,27 @@ themoviebrowser.com, origin.themoviebrowser.com {
 	# (available since the allViewer origin-request policy, same day) and never
 	# an authenticated request — a real human on a cloud VPN can still sign in.
 	# These are cloud-provider allocations only; no residential users live here.
+	# Jul 29: the fleet rotated to Vultr/DigitalOcean/etc across ~14k IPs, so the
+	# stable signal is the hosting ASN (CloudFront-Viewer-ASN, whitelisted in the
+	# origin-request policy). Keep the CIDR arm as a fallback when the ASN header
+	# is absent. ASN list mirrors BLOCKED_HOSTING_ASNS in src/proxy.ts — update
+	# both together. NOT listed: AWS/Google/Azure/Cloudflare (real crawlers and
+	# link-unfurl bots live there).
 	@dcfleet {
-		header_regexp CloudFront-Viewer-Address ^(43\.119\.|47\.82\.|124\.243\.)
+		header_regexp CloudFront-Viewer-ASN ^(20473|14061|45102|37963|45103|136907|55990|51167|24940|16276|63949|132203|45090|9009|49981)$
 		not header_regexp Cookie (authjs\.session-token|__Secure-authjs\.session-token)
 	}
 	header @dcfleet Cache-Control "private, no-store"
 	respond @dcfleet 429 {
+		close
+	}
+
+	@dcfleetcidr {
+		header_regexp CloudFront-Viewer-Address ^(43\.119\.|47\.82\.|124\.243\.)
+		not header_regexp Cookie (authjs\.session-token|__Secure-authjs\.session-token)
+	}
+	header @dcfleetcidr Cache-Control "private, no-store"
+	respond @dcfleetcidr 429 {
 		close
 	}
 

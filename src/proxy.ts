@@ -253,9 +253,43 @@ const BLOCKED_BOT_TYPES = new Set([
 // policy, same day). Anonymous page GETs only — a logged-in session cookie
 // exempts the request (a real human on an Alibaba-adjacent VPN can still
 // sign in). Supernets, not /24s: the fleet rotates within the allocations.
+// UPDATE Jul 29 2026 — the fleet ROTATED PROVIDERS within a day (Alibaba →
+// Vultr/Constant + DigitalOcean + friends: 45.32/45.76/45.77/108.61/139.180/
+// 149.28/152.42/168.144/207.148 …), so ~14k distinct IPs each made only 1-2
+// origin requests: **per-IP rate limiting cannot catch this** (every single IP
+// looks human-paced; only the aggregate hurts) and per-CIDR is whack-a-mole.
+// So the PRIMARY signal is now the hosting **ASN** (`CloudFront-Viewer-ASN`,
+// added to the origin-request whitelist the same day); the CIDR list below is
+// kept as a fallback for when the header is missing.
+//
+// DELIBERATELY NOT BLOCKED: AWS (16509), Google (15169), Microsoft/Azure
+// (8075), Cloudflare (13335). Real search crawlers AND link-unfurl bots
+// (Slack/Discord/WhatsApp previews — load-bearing for the share strategy) live
+// there. Consequence worth noting: a FORGED Googlebot UA coming from a
+// cheap-VPS ASN is now shed, while the real Googlebot (Google ASN) always
+// passes — so no UA exemption is needed here, and none should be added (it
+// would hand every scraper a one-header bypass).
+const BLOCKED_HOSTING_ASNS = new Set([
+  20473, // AS-CHOOPA / Vultr (The Constant Company) — the Jul 29 bulk
+  14061, // DigitalOcean
+  45102, // Alibaba Cloud (Singapore)
+  37963, // Alibaba Cloud (Hangzhou)
+  45103, // Alibaba Cloud US
+  136907, // Huawei Cloud
+  55990, // Huawei Cloud (2)
+  51167, // Contabo
+  24940, // Hetzner
+  16276, // OVH
+  63949, // Akamai/Linode
+  132203, // Tencent Cloud
+  45090, // Tencent Cloud (2)
+  9009, // M247
+  49981, // WorldStream
+]);
+
 const BLOCKED_DC_CIDRS: Array<[string, number]> = [
-  ["43.96.0.0", 11], // Alibaba Cloud APAC (covers the 43.119.100.x fleet)
-  ["47.80.0.0", 13], // Alibaba Cloud US (covers the 47.82.201.x fleet)
+  ["43.96.0.0", 11], // Alibaba Cloud APAC (the Jul 28 fleet)
+  ["47.80.0.0", 13], // Alibaba Cloud US (the Jul 28 fleet)
 ];
 
 function ipv4ToInt(ip: string): number {
@@ -264,17 +298,22 @@ function ipv4ToInt(ip: string): number {
 
 function isBlockedDatacenterIP(req: NextRequest): boolean {
   try {
+    // Logged-in users are always exempt (the CF function only forwards cookies
+    // for authenticated requests, so cookie presence = real session). Checked
+    // first so a human on a cloud VPN is never shed by ASN or CIDR.
+    if (req.cookies.has("__Secure-authjs.session-token") || req.cookies.has("authjs.session-token")) {
+      return false;
+    }
+
+    const asn = Number(req.headers.get("cloudfront-viewer-asn"));
+    if (Number.isFinite(asn) && asn > 0 && BLOCKED_HOSTING_ASNS.has(asn)) return true;
+
     // "ip:port" for IPv4; IPv6 (contains extra colons) is not fleet traffic —
     // skip it rather than mis-parse.
     const addr = req.headers.get("cloudfront-viewer-address");
     if (!addr) return false;
     const ip = addr.split(":")[0];
     if (!ip || !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return false;
-    // Logged-in users are exempt (the CF function only forwards cookies for
-    // authenticated requests, so cookie presence = real session).
-    if (req.cookies.has("__Secure-authjs.session-token") || req.cookies.has("authjs.session-token")) {
-      return false;
-    }
     const ipInt = ipv4ToInt(ip);
     return BLOCKED_DC_CIDRS.some(
       ([net, bits]) => ipInt >>> (32 - bits) === ipv4ToInt(net) >>> (32 - bits),

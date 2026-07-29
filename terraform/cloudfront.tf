@@ -189,6 +189,10 @@ resource "aws_cloudfront_origin_request_policy" "default" {
     header_behavior = "allViewerAndWhitelistCloudFront"
     headers {
       items = [
+        "CloudFront-Viewer-ASN",     # hosting-ASN shed (proxy.ts + Caddy). The
+                                     # Jul 29 fleet rotated across ~14k IPs on
+                                     # Vultr/DO/etc — ASN is the only stable
+                                     # signal (per-IP rates look human).
         "CloudFront-Viewer-Country", # geo for SSR region hints
         "CloudFront-Viewer-Address"  # real viewer ip:port — geoip city/tz for
                                      # page-view analytics + session IDs. The
