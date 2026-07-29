@@ -58,12 +58,39 @@ them all. Brave has an independent index with NO submission console. Apple
 
 ## Site-quality gotchas (found during the same diagnosis)
 
-- **TMDB popularity ranks adult performers absurdly high** → the persons
-  sitemap led with adult-film performers (a search-trust risk; Bing flagged
-  879 URLs "Content quality"). Fix (Jul 2026): persist TMDB's `adult` flag on
-  `persons`, exclude from `sitemap_persons.xml` + noindex adult person pages
-  + omit from the `.md` twin layer. Backfill via the TMDB daily person
-  export. Never add person-shaped SEO surfaces without the adult filter.
+- **ADULT CONTENT IS NOINDEX EVERYWHERE — the single most important site-quality
+  rule here.** TMDB popularity ranks adult titles/performers absurdly high, and
+  the catalog holds ~115k adult movies. Two incidents: the persons sitemap led
+  with adult-film performers (Bing flagged 879 URLs "Content quality"), and when
+  Google finally started sending traffic (Jul 2026, ~147 clicks/day) it was almost
+  ENTIRELY adult long-tail queries landing on adult titles (top page:
+  `/movie/58713/scooby-doo-a-xxx-parody`). Left alone that gets the whole domain
+  classified adult-oriented and SafeSearch-filtered, capping the mainstream product.
+  The decision is: adult pages keep WORKING for direct visitors, they just leave
+  search indexes. Current coverage (persons Jul 24-25, movies + series Jul 29):
+  - `adult` persisted on `persons` / `movies` / `series` (all `@default(false)`;
+    written by hydration from TMDB, plus the person-page write-back,
+    sync-popularity, and `backfill-person-adult.ts`).
+  - `generateMetadata` emits `robots: { index: false, follow: false }` on adult
+    movie / series / person pages — **including every branch of the two catch-all
+    routes** (`/discussions` for both, `/discuss/sXeY` for series). Derive `adult`
+    from a row the function ALREADY fetches so no dynamic API sneaks in and ISR
+    survives.
+  - `generate-sitemap.js` gates all three queries (`WHERE adult = false` /
+    `IS NOT TRUE`).
+  - The `.md` twin layer 404s adult movies/series/persons (`api/md/route.ts`), and
+    `queryPopular` in `src/lib/llm/data.ts` filters `adult: false` for
+    `/browse.md` + `/topics/*.md`.
+  **Never add a title- or person-shaped SEO surface without the adult filter.**
+  What IS already safe: every TMDB call passes `include_adult: "false"` explicitly
+  (`services/tmdb.ts` search/discover, `lib/discover.ts` `DEFAULT_DISCOVER_PARAMS`),
+  so `/browse` + `/topics/*` — both TMDB-discover-backed — never list adult titles.
+  Still-open holes (audited Jul 29 2026, left as product decisions): the **pgvector**
+  leg of "Similar titles" (`smartDiscover` → `semantic-search.ts`) has NO adult
+  filter, so an indexable detail page can link to an adult title; and none of the
+  PG search paths filter it either (`fts-search.ts`, `fuzzy-search.ts`,
+  `autocomplete.ts` → on-site search + `/search.md`). Each is a one-condition SQL
+  add, but it changes recommendation/search behaviour — decide deliberately.
 - Audience is **GLOBAL** (US #1, then SE Asia; IN ≈ 4% of real sessions) —
   do not IN-first any SEO/content/share decision. (Corrected in the roadmap
   spec 2026-07-24 — the old "IN-heavy" line was wrong.)
