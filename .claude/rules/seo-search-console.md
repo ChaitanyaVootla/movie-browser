@@ -109,6 +109,22 @@ them all. Brave has an independent index with NO submission console. Apple
   TMDB-sourced `/similar` + `/recommendations` endpoints accept no `include_adult`
   so they follow TMDB's own policy. The `include_adult` field on `DiscoverParams`
   is dead code (`toTMDBParams()` never reads it) — safe to delete someday.
+- **`DiscussionForumPosting` — never mark up an empty thread (Jul 30 2026: 241
+  invalid items, 0 valid).** Two GSC criticals, one root cause: the schema was
+  built as `headline` + a nested `comment[]` with no content of its own, and was
+  emitted even on threads with ZERO comments. Google models a thread as *the
+  opening post IS the posting* (its own `text`, `author`, `datePublished`) with
+  replies as `comment`. Fixed by the single helper
+  `discussionForumPosting()` in `src/lib/seo/jsonld.ts` (used by all three
+  surfaces — movie `/discussions`, series `/discussions`, per-episode
+  `/discuss/sXeY`): it returns **null when there are no published roots** and the
+  callers render no `<script>` at all. `datePublished` now comes from the opening
+  post's `createdAt` — it was previously the movie release / episode air date,
+  which is both frequently null (the "Missing field datePublished" error) and
+  semantically wrong. Only ever pass the anon-visible tier (spoiler-gate
+  invariant). 4 tests in `src/lib/seo/jsonld.test.ts` pin both rules — this bug
+  class is invisible to typecheck. Per-episode pages are the highest-volume
+  discussion surface, so empty episode shells were most of the 241.
 - Audience is **GLOBAL** (US #1, then SE Asia; IN ≈ 4% of real sessions) —
   do not IN-first any SEO/content/share decision. (Corrected in the roadmap
   spec 2026-07-24 — the old "IN-heavy" line was wrong.)
