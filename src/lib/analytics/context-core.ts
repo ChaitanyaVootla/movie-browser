@@ -12,6 +12,7 @@
 
 import { isAdminEmail } from "@/lib/admin";
 import { detectBotFromRequest } from "./bot-detection";
+import { isDatacenterAsn } from "./datacenter-asn";
 import { parseUserAgent, getSimpleBrowser, getSimpleOS } from "./device-parser";
 import { generateSessionId, generateRequestId, hashUserId, extractClientIP } from "./session";
 import { resolveGeo } from "@/lib/geoip";
@@ -60,8 +61,16 @@ export function buildTrackingContext(
   // Detect bots via user-agent + client-hint analysis (sec-ch-ua absence
   // on a modern-Chrome UA = non-browser HTTP client; see bot-detection.ts)
   const detected = detectBotFromRequest(userAgent, headersList.get("sec-ch-ua"), null);
-  const isBot = forcedBotType ? true : detected.isBot;
-  const botType = forcedBotType ?? detected.botType;
+  // Datacenter ASN is the last resort and the only signal a UA-forging fleet
+  // cannot cheaply fake (it has to rent cloud IPs). UA detection runs FIRST so
+  // Googlebot/Bingbot keep their own bot_type instead of becoming "datacenter".
+  // Authenticated requests are never relabelled — a signed-in person on a cloud
+  // VPN is a person. See datacenter-asn.ts for why this list is broader than the
+  // shed's.
+  const fromDatacenter =
+    !user && !detected.isBot && isDatacenterAsn(headersList.get("cloudfront-viewer-asn"));
+  const isBot = forcedBotType ? true : detected.isBot || fromDatacenter;
+  const botType = forcedBotType ?? detected.botType ?? (fromDatacenter ? "datacenter" : null);
 
   const sessionId = generateSessionId(realIp, userAgent, acceptLanguage);
   const userId = user?.id ? hashUserId(user.id) : null;
