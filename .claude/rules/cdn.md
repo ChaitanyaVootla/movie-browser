@@ -164,6 +164,26 @@ suspect UA by IP, `whois` the top talkers, then shed the provider supernet.
 Diagnostic tell of a JS-executing farm vs a plain scraper: it hits
 `/api/auth/session` + `/api/geo` on every page.
 
+**It ROTATES PROVIDERS — shed by ASN, not IP (Jul 29 2026, one day later).** The
+same fleet reappeared on **Vultr/Constant (AS20473) + DigitalOcean (AS14061)**
+and friends, spread over **~14k distinct IPs at 1-2 origin requests each**.
+Consequences to internalize: **per-IP rate limiting is USELESS against this**
+(every IP looks human-paced; only the aggregate hurts) and per-CIDR blocking is
+whack-a-mole on a daily cycle. The durable signal is the hosting **ASN** —
+`CloudFront-Viewer-ASN` is whitelisted in the origin-request policy and shed in
+BOTH `src/proxy.ts` (`BLOCKED_HOSTING_ASNS`) and Caddy (`@dcfleet`); **keep the
+two lists in sync**. NEVER block AWS 16509 / Google 15169 / Azure 8075 /
+Cloudflare 13335 — real search crawlers and link-unfurl bots (Slack/Discord/
+WhatsApp previews) live there; that omission also means a FORGED Googlebot UA
+from a cheap-VPS ASN gets shed while the real one always passes, so the ASN
+check needs no UA exemption and must not grow one. Verified: fleet 2,520 → 230
+views/5min, load 5.91 → 0.30, CPU 4% → 71% idle, cold render 9.07s → 2.18s.
+Compounding factor to check in the same breath: the ISR cache pinned AT
+`BOUNDED_CACHE_MB` while a fleet crawls tens of thousands of unique paths/hour
+= the Jun 19 THRASH (every cold render evicts a page that is about to be
+re-requested). Shed the fleet; do NOT reflexively raise the cap (disk headroom
+was only 17GB, and disk-full has taken prod down twice).
+
 ## Origin lockdown — UNRESOLVED
 Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
 - Caddy has a dormant `X-Origin-Verify` secret-header gate (activates when
