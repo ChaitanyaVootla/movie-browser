@@ -7,7 +7,7 @@ import { prisma } from "@/server/db/postgres";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-import { breadcrumbList, omitEmpty } from "@/lib/seo/jsonld";
+import { breadcrumbList, discussionForumPosting } from "@/lib/seo/jsonld";
 import { PageMain } from "@/components/features/layout/page-main";
 import {
   getPublicCommentPage,
@@ -149,20 +149,13 @@ async function MovieDiscussionsContent({ movieId }: { movieId: number }) {
 
   const overviewItem = fullMovie ? extractMovieOverviewProps(fullMovie) : null;
 
-  const jsonLd = omitEmpty({
-    "@context": "https://schema.org",
-    "@type": "DiscussionForumPosting",
+  // null when the thread has no published posts — an empty shell is exactly what
+  // Search Console rejected ("Either text, image, or video should be specified").
+  const jsonLd = discussionForumPosting({
     headline: `${movie.title} discussion`,
     url: canonicalUrl,
-    datePublished: movie.releaseDate ? movie.releaseDate.toISOString() : undefined,
     commentCount: publishedCount,
-    author: { "@type": "Organization", name: SITE_NAME },
-    comment: initialPage.roots.slice(0, 10).map((c) => ({
-      "@type": "Comment",
-      text: c.body,
-      dateCreated: c.createdAt,
-      author: { "@type": "Person", name: c.author?.username ?? c.author?.name ?? "Member" },
-    })),
+    roots: initialPage.roots,
     about: { "@type": "Movie", name: movie.title, url: `${SITE_URL}${basePath}` },
   });
   const breadcrumbs = breadcrumbList([
@@ -183,7 +176,9 @@ async function MovieDiscussionsContent({ movieId }: { movieId: number }) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {jsonLd ? (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      ) : null}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
         <div className="space-y-5 min-w-0" id="discussion">

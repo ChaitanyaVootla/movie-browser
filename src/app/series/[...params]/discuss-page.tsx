@@ -6,7 +6,7 @@ import { MessagesSquare } from "lucide-react";
 import { prisma } from "@/server/db/postgres";
 import { getMediaPath, truncateAtWord } from "@/lib/utils";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-import { breadcrumbList, omitEmpty } from "@/lib/seo/jsonld";
+import { breadcrumbList, discussionForumPosting } from "@/lib/seo/jsonld";
 import { PageMain } from "@/components/features/layout/page-main";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import {
@@ -125,20 +125,14 @@ export async function EpisodeDiscussPage({ params }: { params: DiscussParams }) 
 
   // DiscussionForumPosting structured data (Google's discussion-forum format),
   // fed ONLY from the spoiler-free tier — exactly what crawlers may index.
-  const jsonLd = omitEmpty({
-    "@context": "https://schema.org",
-    "@type": "DiscussionForumPosting",
+  // null when the thread has no published posts — see discussionForumPosting.
+  // Per-episode pages are the highest-volume discussion surface, so most of the
+  // 241 invalid items in Search Console were empty episode shells.
+  const jsonLd = discussionForumPosting({
     headline: `${series.name} S${params.season}E${params.episode}${episode.name ? ` — ${episode.name}` : ""} discussion`,
     url: canonicalUrl,
-    datePublished: episode.airDate ? episode.airDate.toISOString() : undefined,
     commentCount: publishedCount,
-    author: { "@type": "Organization", name: SITE_NAME },
-    comment: initialPage.roots.slice(0, 10).map((c) => ({
-      "@type": "Comment",
-      text: c.body,
-      dateCreated: c.createdAt,
-      author: { "@type": "Person", name: c.author?.username ?? c.author?.name ?? "Member" },
-    })),
+    roots: initialPage.roots,
     about: {
       "@type": "TVEpisode",
       name: episode.name ?? `Episode ${params.episode}`,
@@ -155,10 +149,12 @@ export async function EpisodeDiscussPage({ params }: { params: DiscussParams }) 
 
   return (
     <PageMain className="max-w-3xl mx-auto">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      ) : null}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}

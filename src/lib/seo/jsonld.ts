@@ -112,6 +112,74 @@ export function titleSameAs(imdbId: string | null | undefined): string[] | undef
   return imdbId ? [`https://www.imdb.com/title/${imdbId}/`] : undefined;
 }
 
+/** A published root comment, as the discussion pages already load it. */
+export interface DiscussionRootPost {
+  body: string;
+  createdAt: Date | string;
+  author?: { username?: string | null; name?: string | null } | null;
+}
+
+/** Author display name for a post — never the real name, never an id. */
+function postAuthorName(post: DiscussionRootPost): string {
+  return post.author?.username ?? post.author?.name ?? "Member";
+}
+
+/**
+ * `DiscussionForumPosting` for a thread page, or **null when the thread has no
+ * published posts** — in which case emit NO markup at all.
+ *
+ * Both rules here come from real Search Console errors (Jul 30 2026: 241 invalid
+ * items, 0 valid):
+ *
+ * 1. *"Either text, image, or video should be specified"* (241) — the POSTING
+ *    itself needs content, not just a `headline` plus a `comment` array. Google
+ *    models a forum thread as: the opening post IS the `DiscussionForumPosting`
+ *    (its `text`/`author`/`datePublished`), and the replies are `comment`. So the
+ *    first root post becomes the posting and the rest become comments. An empty
+ *    thread has no content to model — hence null, which is also what the
+ *    spoiler-gate design requires (never mark up an empty shell).
+ * 2. *Missing field "datePublished"* (10) — it was derived from the movie release
+ *    / episode air date and omitted when that was null. A release date is not
+ *    when the thread was posted anyway; the first post's `createdAt` is.
+ *
+ * Only ever pass the ANON-VISIBLE tier (spoilerScope=NONE, PUBLISHED, no circle)
+ * — see `.claude/rules/social-features.md` invariant 2.
+ */
+export function discussionForumPosting(opts: {
+  headline: string;
+  url: string;
+  commentCount: number;
+  /** Anon-visible root posts, newest-or-oldest first as the page loads them. */
+  roots: DiscussionRootPost[];
+  /** The `about` entity (Movie / TVSeries / TVEpisode …). */
+  about: Record<string, unknown>;
+  /** Max replies to inline (Google needs a sample, not the whole thread). */
+  maxComments?: number;
+}): Record<string, unknown> | null {
+  const [opening, ...replies] = opts.roots;
+  if (!opening) return null;
+
+  const asIso = (d: Date | string): string => (d instanceof Date ? d.toISOString() : d);
+
+  return omitEmpty({
+    "@context": "https://schema.org",
+    "@type": "DiscussionForumPosting",
+    headline: opts.headline,
+    url: opts.url,
+    text: opening.body,
+    datePublished: asIso(opening.createdAt),
+    author: { "@type": "Person", name: postAuthorName(opening) },
+    commentCount: opts.commentCount,
+    comment: replies.slice(0, opts.maxComments ?? 9).map((c) => ({
+      "@type": "Comment",
+      text: c.body,
+      dateCreated: asIso(c.createdAt),
+      author: { "@type": "Person", name: postAuthorName(c) },
+    })),
+    about: opts.about,
+  });
+}
+
 /** Strip undefined values and empty arrays so they never appear in output. */
 export function omitEmpty<T extends Record<string, unknown>>(schema: T): Record<string, unknown> {
   return Object.fromEntries(
