@@ -17,6 +17,7 @@
  */
 
 import { prisma } from "./index";
+import { notAdult } from "./adult-filter";
 
 export interface FtsResult {
   id: number;
@@ -29,6 +30,11 @@ export interface FtsResult {
 
 /** Per-query timeout so a degenerate query can't hang the request. */
 const FTS_TIMEOUT_MS = 2500;
+
+// Search results are a link surface, so every query here excludes adult rows.
+const NON_ADULT_MOVIE = notAdult("m");
+const NON_ADULT_SERIES = notAdult("s");
+const NON_ADULT_PERSON = notAdult("p");
 
 /**
  * Build a SAFE prefix tsquery string from arbitrary user input, e.g.
@@ -71,7 +77,8 @@ export async function ftsPrefixSearchTitles(query: string, limit = 6): Promise<F
     SELECT m.id, m.title, 'movie'::text AS "mediaType", m.poster_path AS "posterPath",
            EXTRACT(YEAR FROM m.release_date)::text AS year, m.popularity
     FROM movies m
-    WHERE to_tsvector('english', COALESCE(m.title, '')) @@ to_tsquery('english', $1)
+    WHERE ${NON_ADULT_MOVIE}
+      AND to_tsvector('english', COALESCE(m.title, '')) @@ to_tsquery('english', $1)
     ORDER BY m.popularity DESC NULLS LAST
     LIMIT $2
   `;
@@ -79,7 +86,8 @@ export async function ftsPrefixSearchTitles(query: string, limit = 6): Promise<F
     SELECT s.id, s.name AS title, 'series'::text AS "mediaType", s.poster_path AS "posterPath",
            EXTRACT(YEAR FROM s.first_air_date)::text AS year, s.popularity
     FROM series s
-    WHERE to_tsvector('english', COALESCE(s.name, '')) @@ to_tsquery('english', $1)
+    WHERE ${NON_ADULT_SERIES}
+      AND to_tsvector('english', COALESCE(s.name, '')) @@ to_tsquery('english', $1)
     ORDER BY s.popularity DESC NULLS LAST
     LIMIT $2
   `;
@@ -106,7 +114,8 @@ export async function ftsPrefixSearchPeople(query: string, limit = 2): Promise<F
     SELECT p.tmdb_id AS id, p.name AS title, 'person'::text AS "mediaType",
            p.profile_path AS "posterPath", NULL::text AS year, p.popularity
     FROM persons p
-    WHERE to_tsvector('english', COALESCE(p.name, '')) @@ to_tsquery('english', $1)
+    WHERE ${NON_ADULT_PERSON}
+      AND to_tsvector('english', COALESCE(p.name, '')) @@ to_tsquery('english', $1)
     ORDER BY p.popularity DESC NULLS LAST
     LIMIT $2
   `;
@@ -132,7 +141,8 @@ export async function ftsSearchTitles(query: string, limit = 6): Promise<FtsResu
            EXTRACT(YEAR FROM m.release_date)::text AS year, m.popularity,
            ts_rank(to_tsvector('english', COALESCE(m.title, '')), websearch_to_tsquery('english', $1)) AS title_rank
     FROM movies m
-    WHERE to_tsvector('english',
+    WHERE ${NON_ADULT_MOVIE}
+      AND to_tsvector('english',
             COALESCE(m.title, '') || ' ' || COALESCE(m.overview, '') || ' ' || COALESCE(m.tagline, '')
           ) @@ websearch_to_tsquery('english', $1)
     ORDER BY title_rank DESC, m.popularity DESC NULLS LAST
@@ -143,7 +153,8 @@ export async function ftsSearchTitles(query: string, limit = 6): Promise<FtsResu
            EXTRACT(YEAR FROM s.first_air_date)::text AS year, s.popularity,
            ts_rank(to_tsvector('english', COALESCE(s.name, '')), websearch_to_tsquery('english', $1)) AS title_rank
     FROM series s
-    WHERE to_tsvector('english',
+    WHERE ${NON_ADULT_SERIES}
+      AND to_tsvector('english',
             COALESCE(s.name, '') || ' ' || COALESCE(s.overview, '')
           ) @@ websearch_to_tsquery('english', $1)
     ORDER BY title_rank DESC, s.popularity DESC NULLS LAST
@@ -181,7 +192,8 @@ export async function ftsSearchPeople(query: string, limit = 2): Promise<FtsResu
     SELECT p.tmdb_id AS id, p.name AS title, 'person'::text AS "mediaType",
            p.profile_path AS "posterPath", NULL::text AS year, p.popularity
     FROM persons p
-    WHERE to_tsvector('english', COALESCE(p.name, '')) @@ websearch_to_tsquery('english', $1)
+    WHERE ${NON_ADULT_PERSON}
+      AND to_tsvector('english', COALESCE(p.name, '')) @@ websearch_to_tsquery('english', $1)
     ORDER BY
       ts_rank(to_tsvector('english', COALESCE(p.name, '')), websearch_to_tsquery('english', $1)) DESC,
       p.popularity DESC NULLS LAST

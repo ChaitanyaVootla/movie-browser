@@ -13,6 +13,12 @@
 
 import { prisma } from "./index";
 import { z } from "zod";
+import { notAdult } from "./adult-filter";
+
+// Adult rows are excluded from every result set here — search is a link surface.
+const NON_ADULT_MOVIE = notAdult("m");
+const NON_ADULT_SERIES = notAdult("s");
+const NON_ADULT_PERSON = notAdult("p");
 
 /**
  * Per-query timeout (ms) for trigram similarity searches. Keeps a missing-index
@@ -167,7 +173,10 @@ export async function fuzzySearch(
 
   if (mediaTypes.includes("movie")) {
     // Build additional filter conditions for movies
-    const movieConditions: string[] = ["(m.title % $1 OR m.original_title % $1)"];
+    const movieConditions: string[] = [
+      NON_ADULT_MOVIE,
+      "(m.title % $1 OR m.original_title % $1)",
+    ];
 
     if (validatedFilters?.genres?.length) {
       // Safe: genres validated as positive integers by Zod
@@ -220,7 +229,10 @@ export async function fuzzySearch(
 
   if (mediaTypes.includes("series")) {
     // Build additional filter conditions for series
-    const seriesConditions: string[] = ["(s.name % $1 OR s.original_name % $1)"];
+    const seriesConditions: string[] = [
+      NON_ADULT_SERIES,
+      "(s.name % $1 OR s.original_name % $1)",
+    ];
 
     if (validatedFilters?.genres?.length) {
       // Safe: genres validated as positive integers by Zod
@@ -301,7 +313,7 @@ export async function fuzzySearch(
                  similarity(LOWER(p.name), $1) as similarity,
                  p.profile_path as poster_path, p.popularity
           FROM persons p
-          WHERE p.name % $1
+          WHERE ${NON_ADULT_PERSON} AND p.name % $1
           UNION ALL
           SELECT p.tmdb_id as id, p.name as title,
                  am.sim as similarity,
@@ -313,6 +325,7 @@ export async function fuzzySearch(
             GROUP BY pa.person_id
           ) am
           JOIN persons p ON p.id = am.person_id
+          WHERE ${NON_ADULT_PERSON}
         ) person_matches
         GROUP BY id, title, poster_path, popularity
       `);
@@ -413,14 +426,14 @@ export async function getSpellingSuggestions(
       title as suggestion, 
       similarity(LOWER(title), ${normalizedQuery}) as similarity
     FROM (
-      SELECT title FROM movies 
-      WHERE similarity(LOWER(title), ${normalizedQuery}) > ${minSimilarity}
+      SELECT title FROM movies
+      WHERE adult IS NOT TRUE AND similarity(LOWER(title), ${normalizedQuery}) > ${minSimilarity}
       UNION
-      SELECT name as title FROM series 
-      WHERE similarity(LOWER(name), ${normalizedQuery}) > ${minSimilarity}
+      SELECT name as title FROM series
+      WHERE adult IS NOT TRUE AND similarity(LOWER(name), ${normalizedQuery}) > ${minSimilarity}
       UNION
-      SELECT name as title FROM persons 
-      WHERE similarity(LOWER(name), ${normalizedQuery}) > ${minSimilarity}
+      SELECT name as title FROM persons
+      WHERE adult IS NOT TRUE AND similarity(LOWER(name), ${normalizedQuery}) > ${minSimilarity}
     ) combined
     WHERE similarity(LOWER(title), ${normalizedQuery}) > ${minSimilarity}
     ORDER BY similarity DESC
@@ -460,7 +473,7 @@ export async function findExactMatch(query: string): Promise<FuzzySearchResult |
       EXTRACT(YEAR FROM release_date)::text as year,
       popularity
     FROM movies
-    WHERE LOWER(title) = ${normalizedQuery}
+    WHERE adult IS NOT TRUE AND LOWER(title) = ${normalizedQuery}
     ORDER BY popularity DESC NULLS LAST
     LIMIT 1
   `;
@@ -478,7 +491,7 @@ export async function findExactMatch(query: string): Promise<FuzzySearchResult |
       EXTRACT(YEAR FROM first_air_date)::text as year,
       popularity
     FROM series
-    WHERE LOWER(name) = ${normalizedQuery}
+    WHERE adult IS NOT TRUE AND LOWER(name) = ${normalizedQuery}
     ORDER BY popularity DESC NULLS LAST
     LIMIT 1
   `;
@@ -496,7 +509,7 @@ export async function findExactMatch(query: string): Promise<FuzzySearchResult |
       NULL::text as year,
       popularity
     FROM persons
-    WHERE LOWER(name) = ${normalizedQuery}
+    WHERE adult IS NOT TRUE AND LOWER(name) = ${normalizedQuery}
     ORDER BY popularity DESC NULLS LAST
     LIMIT 1
   `;

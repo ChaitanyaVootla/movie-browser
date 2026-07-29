@@ -17,6 +17,7 @@
  */
 
 import { prisma } from "./index";
+import { notAdult } from "./adult-filter";
 import { generateQueryEmbedding } from "@/lib/embeddings";
 import { dataLogger } from "@/lib/logger";
 
@@ -245,8 +246,11 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
   const creditTable = "credits";
   const ratingFK = mediaType === "movie" ? "movie_id" : "series_id"; // For ratings table
 
-  // Build WHERE conditions
-  const conditions: string[] = [];
+  // Build WHERE conditions.
+  // Adult titles are de-listed everywhere: they must never be surfaced as an
+  // internal link (crawl budget + SafeSearch classification) — see
+  // .claude/rules/seo-search-console.md.
+  const conditions: string[] = [notAdult("m")];
   const params: (string | number | number[])[] = [];
   let paramIndex = 1;
 

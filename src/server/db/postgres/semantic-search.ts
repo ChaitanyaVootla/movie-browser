@@ -13,6 +13,7 @@
  */
 
 import { prisma } from "./index";
+import { notAdult } from "./adult-filter";
 import { generateQueryEmbedding } from "@/lib/embeddings";
 import { dataLogger } from "@/lib/logger";
 import { z } from "zod";
@@ -277,7 +278,9 @@ async function searchMoviesByEmbedding(
   // - genres: array of positive integers
   // - yearRange: tuple of integers 1800-2100
   // - minRating: number 0-10
-  const conditions: string[] = ["embedding IS NOT NULL"];
+  // Adult titles are de-listed everywhere (noindex + no internal links) — see
+  // .claude/rules/seo-search-console.md.
+  const conditions: string[] = ["embedding IS NOT NULL", notAdult("m")];
 
   if (filters?.genres?.length) {
     // Safe: genres validated as positive integers by Zod
@@ -418,7 +421,8 @@ async function searchSeriesByEmbedding(
 
   // Build filter conditions
   // NOTE: All filter values are validated by Zod (SearchFiltersSchema) before reaching here
-  const conditions: string[] = ["embedding IS NOT NULL"];
+  // Adult titles are de-listed everywhere — see .claude/rules/seo-search-console.md.
+  const conditions: string[] = ["embedding IS NOT NULL", notAdult("s")];
 
   if (filters?.genres?.length) {
     // Safe: genres validated as positive integers by Zod
@@ -564,8 +568,9 @@ async function findSimilarMovies(
     throw new Error("Invalid movie ID");
   }
 
-  // Build exclusion conditions
-  const conditions: string[] = ["t.embedding IS NOT NULL"];
+  // Build exclusion conditions. Adult titles are de-listed everywhere (noindex +
+  // no internal links) — see .claude/rules/seo-search-console.md.
+  const conditions: string[] = ["t.embedding IS NOT NULL", notAdult("t")];
 
   if (excludeSelf) {
     conditions.push(`t.id != ${safeMovieId}`);
@@ -665,8 +670,9 @@ async function findSimilarSeries(
     throw new Error("Invalid series ID");
   }
 
-  // Build exclusion conditions
-  const conditions: string[] = ["t.embedding IS NOT NULL"];
+  // Build exclusion conditions. Adult titles are de-listed everywhere — see
+  // .claude/rules/seo-search-console.md.
+  const conditions: string[] = ["t.embedding IS NOT NULL", notAdult("t")];
 
   if (excludeSelf) {
     conditions.push(`t.id != ${safeSeriesId}`);
