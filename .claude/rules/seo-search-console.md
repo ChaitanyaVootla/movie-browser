@@ -85,12 +85,30 @@ them all. Brave has an independent index with NO submission console. Apple
   What IS already safe: every TMDB call passes `include_adult: "false"` explicitly
   (`services/tmdb.ts` search/discover, `lib/discover.ts` `DEFAULT_DISCOVER_PARAMS`),
   so `/browse` + `/topics/*` — both TMDB-discover-backed — never list adult titles.
-  Still-open holes (audited Jul 29 2026, left as product decisions): the **pgvector**
-  leg of "Similar titles" (`smartDiscover` → `semantic-search.ts`) has NO adult
-  filter, so an indexable detail page can link to an adult title; and none of the
-  PG search paths filter it either (`fts-search.ts`, `fuzzy-search.ts`,
-  `autocomplete.ts` → on-site search + `/search.md`). Each is a one-condition SQL
-  add, but it changes recommendation/search behaviour — decide deliberately.
+  **LINK surfaces are covered too, since Jul 30 2026** — noindex alone only stops
+  indexing; the internal links kept Googlebot spending its throttled crawl budget
+  on the ~115k adult long tail instead of the mainstream catalog. Shared predicate
+  `notAdult(alias)` (`src/server/db/postgres/adult-filter.ts`) is wired through
+  EVERY raw-SQL discovery query: `fts-search.ts` (titles + people, prefix + full),
+  `fuzzy-search.ts` (movie/series/person legs, `findExactMatch`,
+  `getSpellingSuggestions`), `semantic-search.ts` (both `*ByEmbedding` + both
+  `findSimilar*`), `smart-discover.ts` (the detail-page Similar module). Plus
+  Prisma `where: { adult: false }` on `getCollectionFromPostgres` and the
+  exported-but-unwired `getPopular*`/`search*InPostgres` helpers (list AND count,
+  since popularity DESC surfaces adult first). Person filmographies drop adult
+  credits via `isNonAdultCredit` in `src/types/client-props.ts`, applied **before
+  the slice** or dropped credits silently eat slots — TMDB's person-credit
+  endpoints accept no `include_adult`, and a filmography click is the likely route
+  by which adult rows got hydrated into PG at all.
+  `src/server/db/postgres/adult-filter.test.ts` (9 tests) pins the SQL text; a
+  regression there is invisible to typecheck.
+  **GOTCHA**: `notAdult()` is for `$queryRawUnsafe` string-built SQL ONLY — inside
+  a `$queryRaw` TAGGED template an `${…}` becomes a bind PARAMETER, not SQL, so
+  those queries must spell the predicate out inline.
+  Still-open (deliberate): `/search.md` still returns adult titles, and the
+  TMDB-sourced `/similar` + `/recommendations` endpoints accept no `include_adult`
+  so they follow TMDB's own policy. The `include_adult` field on `DiscoverParams`
+  is dead code (`toTMDBParams()` never reads it) — safe to delete someday.
 - Audience is **GLOBAL** (US #1, then SE Asia; IN ≈ 4% of real sessions) —
   do not IN-first any SEO/content/share decision. (Corrected in the roadmap
   spec 2026-07-24 — the old "IN-heavy" line was wrong.)
