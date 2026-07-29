@@ -218,7 +218,10 @@ async function queryPopular(
     : {};
   const countryWhere = filters.originCountry ? { originCountry: { has: filters.originCountry } } : {};
 
-  const where = { ...genreWhere, ...keywordWhere, ...languageWhere, ...countryWhere };
+  // `adult: false` is not optional: these lists rank by TMDB popularity, which
+  // scores adult titles absurdly high, and every listed title links to a `.md`
+  // twin that now 404s for adult rows. Matches the sitemap gate.
+  const where = { adult: false, ...genreWhere, ...keywordWhere, ...languageWhere, ...countryWhere };
 
   const ratingsSelect = {
     where: { source: { slug: "tmdb" } },

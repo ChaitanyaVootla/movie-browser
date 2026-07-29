@@ -100,7 +100,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           getMovieFromPostgres(target.id),
           getAIData(target.id, "movie"),
         ]);
-        if (!movie) return notFoundResponse(`movie ${target.id}`);
+        // Adult titles get no markdown twin (SEO/agent-surface exclusion,
+        // matching the sitemap filter + the HTML page's noindex).
+        if (!movie || movie.adult) return notFoundResponse(`movie ${target.id}`);
         return markdownResponse(movieToMarkdown(movie, aiData));
       }
 
@@ -109,7 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           getSeriesFromPostgres(target.id),
           getAIData(target.id, "series"),
         ]);
-        if (!series) return notFoundResponse(`series ${target.id}`);
+        if (!series || series.adult) return notFoundResponse(`series ${target.id}`);
         return markdownResponse(seriesToMarkdown(series, aiData));
       }
 
