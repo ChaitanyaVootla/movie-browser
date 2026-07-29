@@ -255,6 +255,18 @@ This is an **AI-agent-first codebase**. Use `/frontend-design` skill for all UI 
 2. Parallelize when agents won't edit the same files
 3. Sequence when later work depends on earlier results
 4. Use `run_in_background: true` for long-running tasks
+5. **Assign disjoint FILES up front, or use `isolation: "worktree"`.** Two agents
+   in one working tree silently clobber each other — Jul 29 2026: one agent's
+   write to `fts-search.ts` removed a helper another had just added, and both
+   were about to commit the same interleaved tree. Cost real rework.
+6. **Never infer "no agent is working here" from file mtimes** (same incident:
+   the check ran seconds before the agent started writing) and **never infer an
+   agent's identity from a filename it created** (`adult-filter.ts` was written
+   by the agent named `adult-noindex`, which misrouted three messages). Ask the
+   agent, or track ownership explicitly when you dispatch.
+7. One owner per tree at a time: if a collision happens, tell the others to
+   stand down WITHOUT reverting (their completed edits are usually wanted) and
+   have the single owner review, fold in, verify, and commit everything.
 
 ## Critical Rules
 
