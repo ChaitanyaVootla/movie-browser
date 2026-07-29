@@ -647,6 +647,9 @@ function transformPostgresSeriesToTMDBFormat(series: PostgresSeriesWithRelations
 export async function searchSeriesInPostgres(query: string, limit = 20) {
   const seriesList = await prisma.series.findMany({
     where: {
+      // Adult titles are de-listed from every result/list surface — see
+      // .claude/rules/seo-search-console.md.
+      adult: false,
       OR: [
         { name: { contains: query, mode: "insensitive" } },
         { originalName: { contains: query, mode: "insensitive" } },
@@ -685,8 +688,13 @@ export async function searchSeriesInPostgres(query: string, limit = 20) {
 export async function getPopularSeriesFromPostgres(limit = 20, page = 1) {
   const skip = (page - 1) * limit;
 
+  // popularity DESC over the whole catalog surfaces adult titles first — exclude
+  // them from the list AND the count.
+  const where = { adult: false } as const;
+
   const [seriesList, total] = await Promise.all([
     prisma.series.findMany({
+      where,
       select: {
         id: true,
         name: true,
@@ -706,7 +714,7 @@ export async function getPopularSeriesFromPostgres(limit = 20, page = 1) {
       skip,
       take: limit,
     }),
-    prisma.series.count(),
+    prisma.series.count({ where }),
   ]);
 
   return {

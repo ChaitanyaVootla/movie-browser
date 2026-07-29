@@ -590,6 +590,9 @@ export async function searchMoviesInPostgres(query: string, limit = 20) {
   // Use PostgreSQL full-text search or ILIKE for simplicity
   const movies = await prisma.movie.findMany({
     where: {
+      // Adult titles are de-listed from every result/list surface — see
+      // .claude/rules/seo-search-console.md.
+      adult: false,
       OR: [
         { title: { contains: query, mode: "insensitive" } },
         { originalTitle: { contains: query, mode: "insensitive" } },
@@ -628,8 +631,13 @@ export async function searchMoviesInPostgres(query: string, limit = 20) {
 export async function getPopularMoviesFromPostgres(limit = 20, page = 1) {
   const skip = (page - 1) * limit;
 
+  // popularity DESC over the whole catalog puts adult titles near the top (TMDB
+  // scores them absurdly high) — exclude them from the list AND the count.
+  const where = { adult: false } as const;
+
   const [movies, total] = await Promise.all([
     prisma.movie.findMany({
+      where,
       select: {
         id: true,
         title: true,
@@ -649,7 +657,7 @@ export async function getPopularMoviesFromPostgres(limit = 20, page = 1) {
       skip,
       take: limit,
     }),
-    prisma.movie.count(),
+    prisma.movie.count({ where }),
   ]);
 
   return {
@@ -683,6 +691,9 @@ export async function getCollectionFromPostgres(collectionId: number): Promise<C
     where: { id: collectionId },
     include: {
       movies: {
+        // A collection can mix in adult entries; they must not be linked from
+        // the collection strip on an indexable detail page.
+        where: { adult: false },
         select: {
           id: true,
           title: true,
