@@ -737,6 +737,18 @@ function extractLightCrewCredit(credit: PersonCombinedCrewCredit): LightPersonCr
   };
 }
 
+/**
+ * Adult titles are de-listed from every link surface, and a person's filmography
+ * is one — an indexable person page must not link out to adult titles (crawl
+ * budget + SafeSearch classification of the domain; see
+ * `.claude/rules/seo-search-console.md`). Mirrors the SQL `adult IS NOT TRUE`:
+ * only a credit EXPLICITLY flagged adult is dropped, so a TV credit that simply
+ * omits the flag still shows.
+ */
+function isNonAdultCredit(credit: { adult?: boolean }): boolean {
+  return credit.adult !== true;
+}
+
 // "Self" appearances (award shows, ceremonies, documentaries about them,
 // archive footage, uncredited cameos) are not what a person is known for.
 const SELF_APPEARANCE_RE =
@@ -776,9 +788,15 @@ export function extractKnownForCredits(
   limit = 15
 ): (LightPersonCastCredit | LightPersonCrewCredit)[] {
   const eligibleCast = (cast || []).filter(
-    (c) => c.poster_path && !isSelfAppearance(c.character) && !hasExcludedTvGenre(c)
+    (c) =>
+      c.poster_path &&
+      isNonAdultCredit(c) &&
+      !isSelfAppearance(c.character) &&
+      !hasExcludedTvGenre(c)
   );
-  const eligibleCrew = (crew || []).filter((c) => c.poster_path && !hasExcludedTvGenre(c));
+  const eligibleCrew = (crew || []).filter(
+    (c) => c.poster_path && isNonAdultCredit(c) && !hasExcludedTvGenre(c)
+  );
 
   const actsPrimarily = !knownForDepartment || knownForDepartment === "Acting";
   const primary: (PersonCombinedCastCredit | PersonCombinedCrewCredit)[] = actsPrimarily
@@ -818,9 +836,10 @@ export function extractUpcomingLatestCredits(
   castLimit = 20,
   crewLimit = 10
 ): PersonCreditsLight {
+  // Filter BEFORE slicing, or dropped adult credits would silently eat slots.
   return {
-    cast: (cast || []).slice(0, castLimit).map(extractLightCastCredit),
-    crew: (crew || []).slice(0, crewLimit).map(extractLightCrewCredit),
+    cast: (cast || []).filter(isNonAdultCredit).slice(0, castLimit).map(extractLightCastCredit),
+    crew: (crew || []).filter(isNonAdultCredit).slice(0, crewLimit).map(extractLightCrewCredit),
   };
 }
 
@@ -834,9 +853,10 @@ export function extractFilmographyCredits(
   castLimit = 100,
   crewLimit = 50
 ): PersonCreditsLight {
+  // Filter BEFORE slicing, or dropped adult credits would silently eat slots.
   return {
-    cast: (cast || []).slice(0, castLimit).map(extractLightCastCredit),
-    crew: (crew || []).slice(0, crewLimit).map(extractLightCrewCredit),
+    cast: (cast || []).filter(isNonAdultCredit).slice(0, castLimit).map(extractLightCastCredit),
+    crew: (crew || []).filter(isNonAdultCredit).slice(0, crewLimit).map(extractLightCrewCredit),
   };
 }
 
