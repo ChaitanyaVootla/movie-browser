@@ -64,6 +64,14 @@ export interface AudienceOverview {
   authenticatedUsers: number;
   /** Number of `(user_agent, country)` cohorts the behavioural scorer flagged. */
   flaggedCohorts: number;
+  /**
+   * Views excluded from the human numbers because the traffic DECLARED itself
+   * (known-bot UA, shed label) or was provably forged (`?q=` referer, UA length).
+   * Shown next to the human counts — never silently dropped.
+   */
+  excludedDeclaredViews: number;
+  /** Views excluded by behavioural cohort scoring rather than a declaration. */
+  excludedHeuristicViews: number;
 }
 
 export interface AudienceTrendPoint {
@@ -105,6 +113,46 @@ export interface FleetTarget {
   key: string;
   views: number;
   uniquePaths: number;
+}
+
+/**
+ * Country-level device mix vs the published StatCounter mobile-share baseline.
+ *
+ * This is the ONE non-circular way to use `device_type`: within a
+ * `(user_agent, country)` cohort the UA fixes the device, so it carries no
+ * information — but ACROSS a whole country the mix is a real distribution with a
+ * known expected value. Measured Jul 30 2026: Vietnam 0.2% mobile against a
+ * 63.9% baseline over 16,692 sessions; India 60.9% over 371 sessions (the only
+ * country that looks like real consumer traffic, and the smallest).
+ *
+ * Investigative ONLY. `device_type` is UA-derived and therefore forgeable, and
+ * excluding a whole country would delete the real users inside it.
+ */
+export interface CountryDeviceMix {
+  country: string;
+  sessions: number;
+  views: number;
+  pctMobile: number;
+  /** Published StatCounter mobile share for the country, when known. */
+  baselinePctMobile: number | null;
+  /** True when N is large enough AND the gap to the baseline is implausible. */
+  anomalous: boolean;
+}
+
+/**
+ * Per-session pacing thresholds from the literature, reported with the
+ * false-positive rate each one scored against our own confirmed humans. Shown so
+ * the numbers are visible and NOT applied — see the rejection note in
+ * `fleet-scoring.ts`.
+ */
+export interface SessionPacingFlag {
+  rule: string;
+  description: string;
+  sessions: number;
+  views: number;
+  /** Confirmed-human sessions this rule would have wrongly excluded. */
+  confirmedHumansHit: number;
+  confirmedHumansTotal: number;
 }
 
 export interface AbuseFlags {
@@ -204,7 +252,9 @@ export async function getAudienceOverview(range: TimeRange): Promise<AudienceOve
       countIf(${UNCLASSIFIED_SQL} AND ${IN_FLEET_SQL}) AS flagged_views,
       countIf(${BUCKET_HUMAN}) AS human_views,
       uniqIf(user_id, user_id IS NOT NULL AND is_authenticated = 1) AS authed_users,
-      uniqIf(tuple(user_agent, country), ${UNCLASSIFIED_SQL} AND ${IN_FLEET_SQL}) AS cohorts
+      uniqIf(tuple(user_agent, country), ${UNCLASSIFIED_SQL} AND ${IN_FLEET_SQL}) AS cohorts,
+      countIf(${BOT_SQL}) AS excluded_declared,
+      countIf(${UNCLASSIFIED_SQL} AND ${IN_FLEET_SQL}) AS excluded_heuristic
     FROM page_views
     WHERE ${timeCondition}
   `;
@@ -273,6 +323,8 @@ export async function getAudienceOverview(range: TimeRange): Promise<AudienceOve
     confirmedHumanSessions: num(sessions?.confirmed_sessions),
     authenticatedUsers: num(totals?.authed_users),
     flaggedCohorts: num(totals?.cohorts),
+    excludedDeclaredViews: num(totals?.excluded_declared),
+    excludedHeuristicViews: num(totals?.excluded_heuristic),
   };
 }
 
@@ -343,13 +395,16 @@ export async function getFleetCohorts(range: TimeRange, limit = 15): Promise<Fle
           uniq(session_id) AS sessions,
           uniq(path) AS unique_paths,
           uniqIf(session_id, session_id IN js_sessions) AS js_beacon_sessions,
-          topK(1)(page_type)[1] AS top_page_type
+          topK(1)(page_type)[1] AS top_page_type,
+          -- Required by buildRuleLabelExpr's ip_rotation clause (mobile exemption).
+          any(device_type) AS device_type
         FROM page_views
         WHERE ${timeCondition} AND ${UNCLASSIFIED_SQL} AND ${IN_FLEET_SQL}
         GROUP BY user_agent, country
       )
     SELECT
       user_agent, country, views, sessions, unique_paths, js_beacon_sessions, top_page_type,
+      device_type,
       ${buildRuleLabelExpr(windowHours)} AS rules
     FROM cohorts
     ORDER BY views DESC
@@ -448,6 +503,160 @@ export async function getAbuseFlags(range: TimeRange): Promise<AbuseFlags> {
     noBeaconSessions: num(row?.no_beacon_sessions),
     humanPoolSessions: num(row?.pool_sessions),
   };
+}
+
+/**
+ * Published StatCounter mobile-share baselines (Jun 2026), used only to decide
+ * whether a country's observed mix is implausible. Countries absent here are
+ * reported without a verdict rather than guessed at.
+ */
+const MOBILE_SHARE_BASELINE: Record<string, number> = {
+  VN: 63.9,
+  MX: 61.6,
+  US: 40.5,
+  IN: 65.0,
+  BR: 57.0,
+  ID: 68.0,
+  PK: 72.0,
+  BD: 73.0,
+  NG: 78.0,
+  PH: 62.0,
+  ZA: 65.0,
+  AR: 55.0,
+  CO: 60.0,
+  IQ: 70.0,
+  EG: 70.0,
+  TR: 55.0,
+  GB: 51.0,
+  DE: 47.0,
+  FR: 49.0,
+  SG: 45.0,
+  JP: 48.0,
+};
+
+/** Minimum sessions before a country's device mix is worth a verdict. */
+const MIN_SESSIONS_FOR_DEVICE_VERDICT = 100;
+
+/**
+ * Flag a country when its observed mobile share is under a fifth of the published
+ * baseline. At N ≥ 100 sessions that gap is not sampling noise — a 0% mobile
+ * observation against a 64% baseline has binomial probability ~0.36^100 ≈ 10^-45.
+ * The fifth-of-baseline margin (rather than a fixed percentage) keeps the test
+ * meaningful for both mobile-heavy and desktop-heavy countries.
+ */
+const DEVICE_ANOMALY_RATIO = 0.2;
+
+export async function getCountryDeviceMix(
+  range: TimeRange,
+  limit = 12
+): Promise<CountryDeviceMix[]> {
+  const timeCondition = getTimeRangeCondition(range);
+  const windowHours = getWindowHours(range.days);
+
+  const rows = await query<Record<string, string>>(`
+    ${buildPreamble(timeCondition, windowHours)}
+    SELECT
+      country,
+      count() AS views,
+      uniq(session_id) AS sessions,
+      countIf(device_type = 'mobile') AS mobile_views
+    FROM page_views
+    WHERE ${timeCondition} AND ${BUCKET_HUMAN}
+    GROUP BY country
+    HAVING sessions >= ${MIN_SESSIONS_FOR_DEVICE_VERDICT}
+    ORDER BY views DESC
+    LIMIT ${limit}
+  `);
+
+  return rows.map((r) => {
+    const views = num(r.views);
+    const pctMobile = views > 0 ? (num(r.mobile_views) / views) * 100 : 0;
+    const baseline = MOBILE_SHARE_BASELINE[r.country ?? ""] ?? null;
+    return {
+      country: r.country || "unknown",
+      sessions: num(r.sessions),
+      views,
+      pctMobile,
+      baselinePctMobile: baseline,
+      anomalous: baseline !== null && pctMobile < baseline * DEVICE_ANOMALY_RATIO,
+    };
+  });
+}
+
+/**
+ * Per-session pacing rules from the literature, each reported WITH the number of
+ * confirmed humans it would have wrongly excluded. Rendered as a "measured and
+ * rejected" table — the point is to show why these are not applied.
+ *
+ * One grouped scan over the range plus a `countIf` per rule; the confirmed-human
+ * denominators come from the same pass.
+ */
+export async function getSessionPacingFlags(range: TimeRange): Promise<SessionPacingFlag[]> {
+  const timeCondition = getTimeRangeCondition(range);
+
+  const [row] = await query<Record<string, string>>(`
+    WITH ${buildEngagementCtesSql(timeCondition)}
+    SELECT
+      countIf(fast) AS fast_sessions,
+      sumIf(views, fast) AS fast_views,
+      countIf(fast AND confirmed) AS fast_confirmed,
+      countIf(burst) AS burst_sessions,
+      sumIf(views, burst) AS burst_views,
+      countIf(burst AND confirmed) AS burst_confirmed,
+      countIf(views >= 800) AS bulk_sessions,
+      sumIf(views, views >= 800) AS bulk_views,
+      countIf(views >= 800 AND confirmed) AS bulk_confirmed,
+      countIf(confirmed) AS confirmed_total
+    FROM (
+      SELECT
+        session_id,
+        count() AS views,
+        max(confirmed) AS confirmed,
+        max(pv_minute) >= 30 AS burst,
+        count() >= 10
+          AND dateDiff('second', min(timestamp), max(timestamp)) > 0
+          AND count() / dateDiff('second', min(timestamp), max(timestamp)) > 0.5 AS fast
+      FROM (
+        SELECT
+          session_id,
+          timestamp,
+          ${CONFIRMED_SQL} AS confirmed,
+          count() OVER (PARTITION BY session_id, toStartOfMinute(timestamp)) AS pv_minute
+        FROM page_views
+        WHERE ${timeCondition} AND ${UNCLASSIFIED_SQL} AND session_id != ''
+      )
+      GROUP BY session_id
+    )
+  `);
+
+  const confirmedTotal = num(row?.confirmed_total);
+
+  return [
+    {
+      rule: ">0.5 req/s sustained",
+      description: "≥10 requests above 0.5 requests/second — the literature's “impossible for humans” floor",
+      sessions: num(row?.fast_sessions),
+      views: num(row?.fast_views),
+      confirmedHumansHit: num(row?.fast_confirmed),
+      confirmedHumansTotal: confirmedTotal,
+    },
+    {
+      rule: "≥30 pageviews/minute",
+      description: "Wikimedia's published automated-traffic threshold",
+      sessions: num(row?.burst_sessions),
+      views: num(row?.burst_views),
+      confirmedHumansHit: num(row?.burst_confirmed),
+      confirmedHumansTotal: confirmedTotal,
+    },
+    {
+      rule: "≥800 pageviews/session",
+      description: "Wikimedia's published bulk-session threshold",
+      sessions: num(row?.bulk_sessions),
+      views: num(row?.bulk_views),
+      confirmedHumansHit: num(row?.bulk_confirmed),
+      confirmedHumansTotal: confirmedTotal,
+    },
+  ];
 }
 
 // =============================================================================

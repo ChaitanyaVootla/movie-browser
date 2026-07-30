@@ -39,6 +39,8 @@ export {
   getVerifiedCrawlers,
   getCrawlerTrend,
   getServedBotTypes,
+  getCountryDeviceMix,
+  getSessionPacingFlags,
   type AudienceGranularity,
   type AudienceOverview,
   type AudienceTrendPoint,
@@ -48,6 +50,8 @@ export {
   type AbuseFlags,
   type CrawlerStat,
   type CrawlerTrendPoint,
+  type CountryDeviceMix,
+  type SessionPacingFlag,
 } from "./audience";
 
 // AI usage queries

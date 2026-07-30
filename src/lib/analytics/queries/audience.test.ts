@@ -22,6 +22,8 @@ vi.mock("../client", () => ({
 import {
   getAbuseFlags,
   getAudienceOverview,
+  getCountryDeviceMix,
+  getSessionPacingFlags,
   getAudienceTrend,
   getCrawlerTrend,
   getFleetCohorts,
@@ -240,6 +242,18 @@ describe("getFleetCohorts", () => {
     expect(sql).toContain("GROUP BY user_agent, country");
   });
 
+  it("selects every column the rule-label expression references", async () => {
+    // buildRuleLabelExpr reads device_type for the ip_rotation mobile exemption;
+    // omitting it from the cohort CTE is a ClickHouse "unknown identifier" error
+    // that no typecheck can catch.
+    await getFleetCohorts(RANGE);
+    const sql = queryMock.mock.calls[0][0] as string;
+    expect(sql).toContain("any(device_type) AS device_type");
+    for (const alias of ["views", "sessions", "unique_paths", "js_beacon_sessions"]) {
+      expect(sql).toContain(`AS ${alias}`);
+    }
+  });
+
   it("applies the caller's limit", async () => {
     await getFleetCohorts(RANGE, 5);
     expect(queryMock.mock.calls[0][0]).toContain("LIMIT 5");
@@ -329,6 +343,141 @@ describe("getAbuseFlags", () => {
     const sql = queryMock.mock.calls[0][0] as string;
     expect(sql).toContain("NOT ((user_agent, country) IN fleet)");
     expect(sql).toContain("countIf(referer LIKE '%google.%')");
+  });
+});
+
+describe("getCountryDeviceMix", () => {
+  it("flags a country whose mobile share is far under the published baseline", async () => {
+    queryMock.mockReset();
+    queryMock.mockResolvedValue([
+      // Measured Jul 30 2026: Vietnam 0.2% mobile against a 63.9% baseline.
+      { country: "VN", views: "122590", sessions: "16692", mobile_views: "290" },
+      // India is the one country that looks like real consumer traffic.
+      { country: "IN", views: "7284", sessions: "371", mobile_views: "4436" },
+    ]);
+
+    const [vn, iN] = await getCountryDeviceMix(RANGE);
+
+    expect(vn.pctMobile).toBeCloseTo(0.24, 1);
+    expect(vn.baselinePctMobile).toBe(63.9);
+    expect(vn.anomalous).toBe(true);
+
+    expect(iN.pctMobile).toBeCloseTo(60.9, 1);
+    expect(iN.anomalous).toBe(false);
+  });
+
+  it("returns no verdict for a country with no published baseline", async () => {
+    queryMock.mockReset();
+    queryMock.mockResolvedValue([
+      { country: "XK", views: "5000", sessions: "500", mobile_views: "1" },
+    ]);
+    const [row] = await getCountryDeviceMix(RANGE);
+    expect(row.baselinePctMobile).toBeNull();
+    expect(row.anomalous).toBe(false);
+  });
+
+  it("measures over the human pool only, above a session floor", async () => {
+    queryMock.mockReset();
+    queryMock.mockResolvedValue([]);
+    await getCountryDeviceMix(RANGE);
+    const sql = queryMock.mock.calls[0][0] as string;
+    expect(sql).toContain("NOT ((user_agent, country) IN fleet)");
+    expect(sql).toContain("HAVING sessions >= 100");
+    expect(sql).toContain("countIf(device_type = 'mobile')");
+  });
+
+  it("never divides by zero", async () => {
+    queryMock.mockReset();
+    queryMock.mockResolvedValue([
+      { country: "VN", views: "0", sessions: "0", mobile_views: "0" },
+    ]);
+    const [row] = await getCountryDeviceMix(RANGE);
+    expect(row.pctMobile).toBe(0);
+  });
+});
+
+describe("getSessionPacingFlags", () => {
+  beforeEach(() => {
+    queryMock.mockReset();
+    // Real prod shape (24h): the published thresholds would delete most of the
+    // only humans we can prove exist.
+    queryMock.mockResolvedValue([
+      {
+        fast_sessions: "12823",
+        fast_views: "311080",
+        fast_confirmed: "55",
+        burst_sessions: "3563",
+        burst_views: "166140",
+        burst_confirmed: "56",
+        bulk_sessions: "2",
+        bulk_views: "6441",
+        bulk_confirmed: "2",
+        confirmed_total: "72",
+      },
+    ]);
+  });
+
+  it("reports each rule with the confirmed humans it would have excluded", async () => {
+    const rows = await getSessionPacingFlags(RANGE);
+
+    expect(rows).toHaveLength(3);
+    const fast = rows.find((r) => r.rule.includes("req/s"));
+    expect(fast?.sessions).toBe(12823);
+    expect(fast?.confirmedHumansHit).toBe(55);
+    expect(fast?.confirmedHumansTotal).toBe(72);
+  });
+
+  it("carries a non-zero false-positive count for every rate rule (they are NOT filters)", async () => {
+    const rows = await getSessionPacingFlags(RANGE);
+    for (const row of rows) {
+      expect(row.confirmedHumansHit).toBeGreaterThan(0);
+    }
+  });
+
+  it("measures over the pre-fleet-exclusion pool in ONE grouped scan", async () => {
+    await getSessionPacingFlags(RANGE);
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    const sql = queryMock.mock.calls[0][0] as string;
+    expect(sql).toContain("GROUP BY session_id");
+    expect(sql).toContain("toStartOfMinute(timestamp)");
+    // Must NOT reference the fleet CTE — this panel is about the raw pool.
+    expect(sql).not.toContain("IN fleet");
+  });
+
+  it("returns zeroed rows rather than NaN when ClickHouse returns nothing", async () => {
+    queryMock.mockReset();
+    queryMock.mockResolvedValue([]);
+    const rows = await getSessionPacingFlags(RANGE);
+    expect(rows).toHaveLength(3);
+    expect(rows[0].sessions).toBe(0);
+    expect(rows[0].confirmedHumansTotal).toBe(0);
+  });
+});
+
+describe("getAudienceOverview exclusion accounting", () => {
+  it("reports declared and heuristic exclusions separately", async () => {
+    queryMock.mockReset();
+    queryMock
+      .mockResolvedValueOnce([
+        {
+          raw_views: "761351",
+          crawler_views: "66258",
+          bot_views: "488261",
+          shed_views: "61028",
+          flagged_views: "350073",
+          human_views: "206678",
+          authed_users: "4",
+          cohorts: "102",
+          excluded_declared: "204713",
+          excluded_heuristic: "350073",
+        },
+      ])
+      .mockResolvedValueOnce([{ engaged_sessions: "11896", confirmed_sessions: "73" }]);
+
+    const o = await getAudienceOverview(RANGE);
+
+    expect(o.excludedDeclaredViews).toBe(204713);
+    expect(o.excludedHeuristicViews).toBe(350073);
   });
 });
 

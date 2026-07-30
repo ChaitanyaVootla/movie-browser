@@ -36,6 +36,8 @@ import {
   getVerifiedCrawlers,
   getCrawlerTrend,
   getServedBotTypes,
+  getCountryDeviceMix,
+  getSessionPacingFlags,
   // AI
   getAIUsageOverview,
   getDailyAICosts,
@@ -224,12 +226,22 @@ export async function GET(request: NextRequest) {
         const cohorts = await getFleetCohorts(range, 15);
         const flags = await getAbuseFlags(range);
         const targets = await getFleetTargets(range, "page_type", 8);
+        const deviceMix = await getCountryDeviceMix(range, 12);
+        const pacing = await getSessionPacingFlags(range);
         const [shedReasons, servedBots] = await Promise.all([
           getShedReasons(range),
           getServedBotTypes(range, 8),
         ]);
 
-        return NextResponse.json({ cohorts, flags, targets, shedReasons, servedBots });
+        return NextResponse.json({
+          cohorts,
+          flags,
+          targets,
+          shedReasons,
+          servedBots,
+          deviceMix,
+          pacing,
+        });
       }
 
       // =======================================================================
