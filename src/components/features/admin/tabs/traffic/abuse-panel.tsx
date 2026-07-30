@@ -12,16 +12,19 @@
  * `src/lib/analytics/fleet-scoring.ts`).
  */
 
-import { AlertTriangle, Ban, Crosshair, Flag, Info } from "lucide-react";
+import { AlertTriangle, Ban, Crosshair, Flag, Gauge, Info, Smartphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "../../analytics-shared";
 import { FLEET_RULE_LABELS, type FleetRule } from "@/lib/analytics/fleet-scoring";
 import type {
   AbuseFlags,
+  CountryDeviceMix,
   FleetCohort,
   FleetTarget,
+  SessionPacingFlag,
   ShedReasonStat,
 } from "../../analytics-types";
 import { shortenUserAgent } from "./format";
@@ -32,6 +35,8 @@ interface AbusePanelProps {
   targets: FleetTarget[] | undefined;
   shedReasons: ShedReasonStat[] | undefined;
   servedBots: ShedReasonStat[] | undefined;
+  deviceMix: CountryDeviceMix[] | undefined;
+  pacing: SessionPacingFlag[] | undefined;
   isLoading: boolean;
 }
 
@@ -41,6 +46,8 @@ export function AbusePanel({
   targets,
   shedReasons,
   servedBots,
+  deviceMix,
+  pacing,
   isLoading,
 }: AbusePanelProps) {
   return (
@@ -162,6 +169,44 @@ export function AbusePanel({
         </Card>
 
         <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Smartphone className="h-4 w-4" />
+              Device mix vs published baseline
+            </CardTitle>
+            <p className="text-[11px] leading-snug text-muted-foreground/70">
+              Mobile share per country in the human pool, against StatCounter&apos;s Jun 2026
+              baseline. Within a cohort this signal is worthless (the cohort key contains the UA,
+              which fixes the device) — but across a whole country it is a real distribution.
+              Corroborator only: <code className="font-mono">device_type</code> is UA-derived and
+              excluding a country would delete the real users inside it.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <SkeletonRows /> : <DeviceMixList rows={deviceMix} />}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Gauge className="h-4 w-4" />
+              Pacing rules: measured and rejected
+            </CardTitle>
+            <p className="text-[11px] leading-snug text-muted-foreground/70">
+              Published per-session thresholds, each shown with how many CONFIRMED humans it would
+              have wrongly excluded in this range. None are applied. They assume a cookie-scoped
+              session; our <code className="font-mono">session_id</code> is an IP+UA hash, so it
+              aggregates everyone behind a shared or CGNAT address and measures IP sharing, not
+              automation.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <SkeletonRows /> : <PacingList rows={pacing} />}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium">
               <Flag className="h-4 w-4" />
@@ -311,6 +356,90 @@ function BarList({ rows }: { rows: Array<{ label: string; value: number; sub?: s
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function DeviceMixList({ rows }: { rows: CountryDeviceMix[] | undefined }) {
+  if (!rows || rows.length === 0) {
+    return <EmptyState message="No country reached the 100-session floor" height={100} />;
+  }
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row) => (
+        <div key={row.country} className="flex items-center gap-2 text-xs">
+          <span className="w-8 shrink-0 uppercase text-muted-foreground">{row.country}</span>
+          <div className="relative mx-1 h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full",
+                row.anomalous ? "bg-destructive" : "bg-brand"
+              )}
+              style={{ width: `${Math.min(100, row.pctMobile)}%` }}
+            />
+            {row.baselinePctMobile !== null && (
+              <span
+                className="absolute top-[-2px] h-[10px] w-px bg-foreground/60"
+                style={{ left: `${Math.min(100, row.baselinePctMobile)}%` }}
+                title={`Expected ~${row.baselinePctMobile.toFixed(0)}% mobile`}
+              />
+            )}
+          </div>
+          <span className="w-10 shrink-0 text-right tabular-nums">
+            {row.pctMobile.toFixed(1)}%
+          </span>
+          <span className="w-16 shrink-0 text-right tabular-nums text-muted-foreground/60">
+            {row.baselinePctMobile !== null ? `vs ${row.baselinePctMobile.toFixed(0)}%` : "—"}
+          </span>
+          <span className="w-14 shrink-0 text-right tabular-nums text-muted-foreground/60">
+            {row.sessions.toLocaleString()} s
+          </span>
+        </div>
+      ))}
+      <p className="pt-1 text-[10px] leading-snug text-muted-foreground/60">
+        The tick marks the expected mobile share. Red = observed under a fifth of it, which at ≥100
+        sessions is not sampling noise.
+      </p>
+    </div>
+  );
+}
+
+function PacingList({ rows }: { rows: SessionPacingFlag[] | undefined }) {
+  if (!rows || rows.length === 0) {
+    return <EmptyState message="No pacing data" height={100} />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => {
+        const fpRate =
+          row.confirmedHumansTotal > 0
+            ? (row.confirmedHumansHit / row.confirmedHumansTotal) * 100
+            : 0;
+        return (
+          <div key={row.rule} className="space-y-0.5">
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="font-mono text-[11px] text-foreground/90">{row.rule}</span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                would exclude {row.sessions.toLocaleString()} sessions /{" "}
+                {row.views.toLocaleString()} views
+              </span>
+            </div>
+            <p className="text-[10px] leading-snug text-muted-foreground/70">{row.description}</p>
+            <p
+              className={cn(
+                "text-[11px] font-medium tabular-nums",
+                row.confirmedHumansHit > 0 ? "text-destructive" : "text-muted-foreground"
+              )}
+            >
+              …including {row.confirmedHumansHit.toLocaleString()} of{" "}
+              {row.confirmedHumansTotal.toLocaleString()} CONFIRMED humans ({fpRate.toFixed(1)}%
+              false positive) — not applied.
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }

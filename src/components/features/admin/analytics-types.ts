@@ -120,6 +120,10 @@ export interface AudienceOverview {
   confirmedHumanSessions: number;
   authenticatedUsers: number;
   flaggedCohorts: number;
+  /** Views excluded because the traffic declared itself or was provably forged. */
+  excludedDeclaredViews: number;
+  /** Views excluded by behavioural cohort scoring. */
+  excludedHeuristicViews: number;
 }
 
 export interface AudienceTrendPoint {
@@ -172,12 +176,32 @@ export interface AbuseFlags {
   humanPoolSessions: number;
 }
 
+export interface CountryDeviceMix {
+  country: string;
+  sessions: number;
+  views: number;
+  pctMobile: number;
+  baselinePctMobile: number | null;
+  anomalous: boolean;
+}
+
+export interface SessionPacingFlag {
+  rule: string;
+  description: string;
+  sessions: number;
+  views: number;
+  confirmedHumansHit: number;
+  confirmedHumansTotal: number;
+}
+
 export interface AbuseData {
   cohorts: FleetCohort[];
   flags: AbuseFlags | null;
   targets: FleetTarget[];
   shedReasons: ShedReasonStat[];
   servedBots: ShedReasonStat[];
+  deviceMix: CountryDeviceMix[];
+  pacing: SessionPacingFlag[];
 }
 
 export interface CrawlerStat {

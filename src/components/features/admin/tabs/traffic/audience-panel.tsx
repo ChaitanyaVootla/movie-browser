@@ -98,54 +98,61 @@ export function AudiencePanel({
     <div className="grid gap-4">
       <WhyNote />
 
+      <HumanRangeCard overview={overview} isLoading={isLoading} />
+
+      {/* The four tiers, in confidence order: two human, two non-human. */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <AudienceTile
           icon={UserCheck}
-          label="Humans — confirmed"
+          label="1 · Verified human"
           value={overview?.confirmedHumanSessions}
           unit="sessions"
           detail={
-            overview
-              ? `${overview.authenticatedUsers.toLocaleString()} signed in`
-              : undefined
+            overview ? `${overview.authenticatedUsers.toLocaleString()} signed in` : undefined
           }
-          note="Authenticated or performed an action. Cannot be forged without running our JS."
+          note="Authenticated and/or JS-confirmed by a tracked action. Cannot be forged without running our client."
           emphasis
           isLoading={isLoading}
         />
         <AudienceTile
           icon={Users}
-          label="Humans — upper bound"
-          value={overview?.engagedHumanSessions}
+          label="2 · Likely human"
+          value={
+            overview
+              ? Math.max(0, overview.engagedHumanSessions - overview.confirmedHumanSessions)
+              : undefined
+          }
           unit="sessions"
-          detail={overview ? `${overview.humanViews.toLocaleString()} views` : undefined}
-          note="Engaged (2+ views in one 30-min visit, or authed, or acted) after fleet exclusion."
+          detail={overview ? `${overview.humanViews.toLocaleString()} views in pool` : undefined}
+          note="Anonymous, passed every screen, engaged (2+ views in one 30-min visit). Contains residual fleet traffic."
           isLoading={isLoading}
         />
         <AudienceTile
           icon={ShieldAlert}
-          label="Bots & suspected fleets"
-          value={overview?.botFleetViews}
+          label="3 · Likely automated"
+          value={overview?.behaviourallyFlaggedViews}
           unit="views"
           detail={
             overview
-              ? `${overview.behaviourallyFlaggedViews.toLocaleString()} behavioural · ${overview.shedViews.toLocaleString()} shed`
+              ? `${overview.flaggedCohorts.toLocaleString()} cohorts flagged behaviourally`
               : undefined
           }
-          note={
-            overview
-              ? `${overview.flaggedCohorts.toLocaleString()} cohorts flagged by behaviour alone.`
-              : undefined
-          }
+          note="Never declared itself; failed cohort-level behavioural screens. The heuristic exclusion."
           isLoading={isLoading}
         />
         <AudienceTile
           icon={Bot}
-          label="Verified crawlers"
-          value={overview?.verifiedCrawlerViews}
+          label="4 · Verified bot"
+          value={
+            overview ? overview.verifiedCrawlerViews + overview.excludedDeclaredViews : undefined
+          }
           unit="views"
-          detail={overview ? `${overview.rawViews.toLocaleString()} requests total` : undefined}
-          note="Search engines + unfurl agents. Identity is UA-derived, not reverse-DNS verified."
+          detail={
+            overview
+              ? `${overview.verifiedCrawlerViews.toLocaleString()} wanted · ${overview.shedViews.toLocaleString()} shed`
+              : undefined
+          }
+          note="Declared via User-Agent, or provably forged (Google ?q= referer). Sub-categorised on the Crawlers panel."
           isLoading={isLoading}
         />
       </div>
@@ -180,6 +187,89 @@ export function AudiencePanel({
 }
 
 // =============================================================================
+// Headline: the human range, with exclusions shown beside it
+// =============================================================================
+
+/**
+ * The headline is a RANGE — `[verified, verified + likely]` — which is what MRC
+ * §2.4's "decision rate" framing operationalises: state the band you can defend,
+ * not a point estimate you cannot.
+ *
+ * Exclusions are printed NEXT TO the human numbers and split declared-vs-heuristic.
+ * Silently deleting traffic and reporting a clean total is what GA4 does; showing
+ * the subtraction is the whole point of this panel.
+ */
+function HumanRangeCard({
+  overview,
+  isLoading,
+}: {
+  overview: AudienceOverview | null | undefined;
+  isLoading: boolean;
+}) {
+  const low = overview?.confirmedHumanSessions ?? 0;
+  const high = overview?.engagedHumanSessions ?? 0;
+  const excludedTotal =
+    (overview?.excludedDeclaredViews ?? 0) + (overview?.excludedHeuristicViews ?? 0);
+  const botShare =
+    overview && overview.rawViews > 0
+      ? ((overview.rawViews - overview.humanViews) / overview.rawViews) * 100
+      : 0;
+
+  return (
+    <Card className="border-brand/40">
+      <CardContent className="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="space-y-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Humans this range
+          </span>
+          {isLoading ? (
+            <Skeleton className="h-9 w-44" />
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-3xl font-semibold tabular-nums sm:text-4xl">
+                {low.toLocaleString()}
+                <span className="mx-1.5 text-muted-foreground">–</span>
+                {high.toLocaleString()}
+              </span>
+              <span className="text-[11px] text-muted-foreground">sessions</span>
+            </div>
+          )}
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Lower bound = verified. Upper bound = verified + likely. The truth sits between,
+            near the lower bound.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 md:border-l md:border-border md:pl-4">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Excluded from those numbers
+          </span>
+          {isLoading ? (
+            <Skeleton className="h-9 w-full" />
+          ) : (
+            <>
+              <p className="text-sm tabular-nums">
+                <span className="font-semibold">{excludedTotal.toLocaleString()}</span>{" "}
+                <span className="text-muted-foreground">views —</span>{" "}
+                {(overview?.excludedDeclaredViews ?? 0).toLocaleString()}{" "}
+                <span className="text-muted-foreground">declared,</span>{" "}
+                {(overview?.excludedHeuristicViews ?? 0).toLocaleString()}{" "}
+                <span className="text-muted-foreground">heuristic</span>
+              </p>
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                {botShare.toFixed(0)}% of requests to this origin were non-human. The industry
+                baseline is 53–57% (Imperva 2026, Cloudflare Radar Jun 2026), so a bot-majority
+                split is normal — and ours reads high partly by construction (see methodology).
+              </p>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// =============================================================================
 // Explanatory note
 // =============================================================================
 
@@ -208,13 +298,68 @@ function WhyNote() {
           <code className="font-mono text-[11px]">Amazon CloudFront</code> and were counted as bots.
         </p>
         <p>
-          Humans are therefore reported as a range: <span className="text-foreground">confirmed</span>{" "}
+          Humans are therefore reported as a range: <span className="text-foreground">verified</span>{" "}
           (authenticated or acted — a floor) and{" "}
-          <span className="text-foreground">upper bound</span> (engaged sessions after cohort-level
-          fleet exclusion). The truth sits between them, near the floor. Search Console clicks remain
-          the best external anchor.
+          <span className="text-foreground">likely</span> (engaged sessions after cohort-level fleet
+          exclusion). The truth sits between them, near the floor. Search Console clicks remain the
+          best external anchor.
         </p>
+        <p>
+          <span className="font-medium text-foreground">Structural bias worth knowing:</span>{" "}
+          CloudFront edge cache HITs never reach this origin, and humans concentrate on the popular
+          (therefore cached) pages — so the request population these numbers are computed from is
+          bot-enriched <em>by construction</em>. The bot share above overstates site-wide bot share.
+        </p>
+        <MethodologyNote />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Thresholds and their last-changed date, on the panel rather than buried in a
+ * rule file — a reader has to be able to audit the numbers they are being shown.
+ */
+function MethodologyNote() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="pt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-[11px] font-medium text-foreground underline decoration-dotted underline-offset-2"
+      >
+        {open ? "Hide methodology" : "Methodology & thresholds"}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1.5 border-l-2 border-border pl-3 text-[11px] leading-relaxed">
+          <p>
+            <span className="text-foreground">Excluded as declared:</span> known-bot User-Agent
+            patterns; the proxy&apos;s own 429 labels; a referer containing{" "}
+            <code className="font-mono">google.com/search?q=</code> (Google has stripped the query
+            from organic referers since Oct 2011, so it is provably forged — verified against 7 days
+            of prod: 2,355 sessions, zero authenticated, zero acting); User-Agent length outside
+            25–400 characters (Wikimedia&apos;s published window).
+          </p>
+          <p>
+            <span className="text-foreground">Excluded as heuristic:</span> a{" "}
+            <code className="font-mono">(user_agent, country)</code> cohort must clear ≥300 views AND
+            ≥25 views/hour, have ZERO authenticated views AND ZERO acting sessions, and match one of:
+            ≤2% JS-beacon share (≥10 sessions), ≥0.85 unique-paths-per-view, ≥20 sessions/hour at
+            ≤2.0 views/session (desktop only — carrier CGNAT fragments real mobile users the same
+            way), ≥8 views/session at ≤25% path diversity, or ≥200 distinct paths/hour. Rates are per
+            hour of the selected range, so a short burst dilutes in a long window.
+          </p>
+          <p>
+            <span className="text-foreground">Deliberately NOT excluded</span> (measured
+            false-positive rates against confirmed humans, see the Abuse panel): per-session request
+            rate, pageviews-per-minute, bulk-pageview sessions, forged Google referers of the plain
+            <code className="mx-1 font-mono">google.com/</code> form, and country device-mix anomalies.
+          </p>
+          <p className="text-muted-foreground/70">Thresholds last changed 30 Jul 2026.</p>
+        </div>
+      )}
     </div>
   );
 }

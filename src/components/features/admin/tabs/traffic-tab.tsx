@@ -150,6 +150,8 @@ export function TrafficTab({
           targets={abuse.data?.targets}
           shedReasons={abuse.data?.shedReasons}
           servedBots={abuse.data?.servedBots}
+          deviceMix={abuse.data?.deviceMix}
+          pacing={abuse.data?.pacing}
           isLoading={abuse.isLoading}
         />
       </TabsContent>
