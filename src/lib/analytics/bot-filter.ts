@@ -17,7 +17,15 @@
  * HOW TO UPDATE (the whole point — keep this cheap):
  * When a new non-`is_bot`-flagged crawler/CDN/agent shows up in the "Top Bot
  * User Agents" card as fake-human volume, add it to one of the arrays below and
- * redeploy. Exact UA → `FORCE_BOT_UA_EXACT`; family/substring → `FORCE_BOT_UA_SUBSTRINGS`.
+ * redeploy. Exact UA → `FORCE_BOT_UA_EXACT`; family/substring → `FORCE_BOT_UA_SUBSTRINGS`;
+ * a referer that CANNOT occur naturally → `FORCE_BOT_REFERER_SUBSTRINGS`.
+ *
+ * THE BAR FOR ADDING A RULE HERE: it must be DETERMINISTIC — a property no real
+ * browser can produce, not a behaviour real users merely produce rarely. This
+ * predicate feeds the reported human number, so a rule with any measurable
+ * false-positive rate against confirmed humans belongs in the abuse panel's
+ * investigative flags instead (see `fleet-scoring.ts` for the ones that were
+ * measured and rejected).
  *
  * NOT covered here (deliberately): stealth fleets that forge a real browser UA
  * + client hints. Those are behavioral/session-level (rotating IPs, ~1.0
@@ -41,6 +49,39 @@ export const FORCE_BOT_UA_SUBSTRINGS: readonly string[] = [
 ];
 
 /**
+ * Case-insensitive `referer` substrings that are PROVABLY forged, and therefore
+ * safe to classify as bot deterministically (no behavioural inference).
+ *
+ * `google.com/search?q=` — Google has stripped the query string from its organic
+ * search referers since October 2011 ("secure search"); a real organic click
+ * arrives with the ORIGIN only (`https://www.google.com/`), never the full search
+ * URL. So a referer carrying `/search?q=` cannot come from a Google result click.
+ *
+ * Verified on prod before shipping (7 days): 2,355 views / 2,355 sessions across
+ * 108 countries, all replaying the same `?q=site%3Athemoviebrowser.com` — a
+ * scraper enumerating us via Google's `site:` operator. **Zero authenticated
+ * views and zero acting sessions matched**, so the rule has no measured overlap
+ * with confirmed humans. Honest caveat: 2,353 of those 2,355 were ALREADY
+ * `is_bot = 1`, so the rule's marginal effect on today's numbers is ~2 rows — it
+ * is here for determinism, for history, and to stay correct if the fleet ever
+ * drops its other tells, NOT because it moves the current total.
+ */
+export const FORCE_BOT_REFERER_SUBSTRINGS: readonly string[] = ["google.com/search?q="];
+
+/**
+ * A `user_agent` outside these bounds is automated. Wikimedia's published
+ * pageview classifier uses exactly this 25–400 character window, which is the
+ * best open precedent available (they publish and version their thresholds).
+ *
+ * Measured on prod: 13 views / 12 sessions in 24h, shortest UA 11 chars — a
+ * rounding error in volume, kept because it is deterministic, free (no extra
+ * scan) and independently attested. Real browser UAs are ~90-180 chars; nothing
+ * legitimate is anywhere near these bounds.
+ */
+export const MIN_HUMAN_UA_LENGTH = 25;
+export const MAX_HUMAN_UA_LENGTH = 400;
+
+/**
  * Guard: reject any value that would break the generated SQL string literal.
  * Values are code-defined so this only ever fires on a developer typo.
  */
@@ -58,6 +99,7 @@ function assertSafe(values: readonly string[]): void {
 function buildBotSql(): string {
   assertSafe(FORCE_BOT_UA_EXACT);
   assertSafe(FORCE_BOT_UA_SUBSTRINGS);
+  assertSafe(FORCE_BOT_REFERER_SUBSTRINGS);
 
   const clauses: string[] = ["is_bot = 1"];
 
@@ -69,6 +111,21 @@ function buildBotSql(): string {
   for (const sub of FORCE_BOT_UA_SUBSTRINGS) {
     clauses.push(`positionCaseInsensitive(user_agent, '${sub}') > 0`);
   }
+
+  // Provably-forged referers. `referer` is Nullable, and in ClickHouse a NULL
+  // operand makes the whole OR-chain NULL rather than false — which would drop
+  // every referer-less row out of BOTH the bot and human buckets. `ifNull`
+  // keeps the predicate strictly boolean.
+  for (const sub of FORCE_BOT_REFERER_SUBSTRINGS) {
+    clauses.push(`ifNull(positionCaseInsensitive(referer, '${sub}') > 0, 0)`);
+  }
+
+  // UA-length bounds (Wikimedia's published window). Empty UAs are already
+  // `bot_type='empty_ua'` at ingest; this also catches truncated/handcrafted ones.
+  clauses.push(
+    `(length(user_agent) > 0 AND (length(user_agent) < ${MIN_HUMAN_UA_LENGTH}` +
+      ` OR length(user_agent) > ${MAX_HUMAN_UA_LENGTH}))`
+  );
 
   return `(${clauses.join(" OR ")})`;
 }
