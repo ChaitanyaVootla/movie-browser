@@ -104,6 +104,103 @@ export interface TrafficData {
 }
 
 // =============================================================================
+// Audience Types (three-way split — see src/lib/analytics/audience.ts)
+// =============================================================================
+
+export interface AudienceOverview {
+  rawViews: number;
+  verifiedCrawlerViews: number;
+  botFleetViews: number;
+  shedViews: number;
+  behaviourallyFlaggedViews: number;
+  humanViews: number;
+  /** Upper bound: engaged sessions after fleet exclusion. */
+  engagedHumanSessions: number;
+  /** Hard floor: sessions that authenticated or performed a tracked action. */
+  confirmedHumanSessions: number;
+  authenticatedUsers: number;
+  flaggedCohorts: number;
+}
+
+export interface AudienceTrendPoint {
+  date: string;
+  verifiedCrawlerViews: number;
+  botFleetViews: number;
+  humanViews: number;
+  confirmedHumanViews: number;
+  rawViews: number;
+  shedViews: number;
+}
+
+export interface AudienceData {
+  overview: AudienceOverview | null;
+  trend: AudienceTrendPoint[];
+  granularity: "hour" | "day";
+}
+
+export interface FleetCohort {
+  userAgent: string;
+  country: string;
+  views: number;
+  sessions: number;
+  uniquePaths: number;
+  viewsPerSession: number;
+  pathRatio: number;
+  jsBeaconShare: number;
+  rules: string[];
+  topPageType: string;
+}
+
+export interface ShedReasonStat {
+  botType: string;
+  label: string;
+  views: number;
+  uniquePaths: number;
+}
+
+export interface FleetTarget {
+  key: string;
+  views: number;
+  uniquePaths: number;
+}
+
+export interface AbuseFlags {
+  googleRefererViews: number;
+  googleRefererSessions: number;
+  noRefererViews: number;
+  noBeaconSessions: number;
+  humanPoolSessions: number;
+}
+
+export interface AbuseData {
+  cohorts: FleetCohort[];
+  flags: AbuseFlags | null;
+  targets: FleetTarget[];
+  shedReasons: ShedReasonStat[];
+  servedBots: ShedReasonStat[];
+}
+
+export interface CrawlerStat {
+  botType: string;
+  label: string;
+  views: number;
+  uniquePaths: number;
+  activeDays: number;
+  topPageType: string;
+}
+
+export interface CrawlerTrendPoint {
+  date: string;
+  byCrawler: Record<string, number>;
+}
+
+export interface CrawlerData {
+  crawlers: CrawlerStat[];
+  trend: CrawlerTrendPoint[];
+  granularity: "hour" | "day";
+}
+
+// =============================================================================
 // AI Types
 // =============================================================================
 
