@@ -80,6 +80,54 @@ column). Raw page views are still bot-inflated even so — use `engagedSessions`
 views OR authed OR any action) as the real-human proxy. Stealth UA-forging fleets are
 behavioral (not per-row UA) and intentionally out of scope for `bot-filter.ts`.
 
+## Residential-proxy fleets: what detection is actually buyable (researched Jul 30 2026)
+
+The Jul 2026 fleets forge real Chrome UAs + client hints, execute JS, forge
+`Referer: google.com`, and exit through RESIDENTIAL proxies (VNPT-VN, LatAm
+consumer ISPs; ~11-23 req per IP across thousands of IPs). UA, ASN and IP
+reputation all fail by construction. Verified vendor landscape, so nobody
+re-researches this:
+
+- **Nothing in a $20-50/mo band buys an offline residential-proxy database.**
+  MaxMind's Anonymous IP DB (the ideal format, 3MB MMDB, has `is_residential_proxy`)
+  is **quote-only enterprise** and its GeoLite2 free tier has NO anonymizer data.
+  IPQS residential detection starts ~**$999/mo**. IPinfo's residential flag needs
+  **Max $130/mo** (Core $41/mo gets VPN/proxy/hosting but NOT residential).
+  Spur data feeds are enterprise add-ons. IP2Proxy commercial RES tiers (PX10+)
+  are quote-only.
+- **The two free things worth having:**
+  1. **Spur Monocle — free tier = 100k session assessments/month.** Client-side JS
+     that returns a per-SESSION residential-proxy/VPN verdict, validated
+     server-side. Our abusers run JS, so it applies to them. Gate it to suspect
+     cohorts to stay under quota. (Trade-off to weigh before adopting: it is a
+     third-party script on our pages.)
+  2. **IP2Proxy LITE** — the only free OFFLINE residential (`RES`) flag;
+     bi-weekly refresh (vs exit churn in hours-days, so expect poor recall),
+     attribution required. Load via `ip2proxy-nodejs`, or as a ClickHouse
+     **`ip_trie` layout dictionary** for `dictGetString()` scoring — that dict
+     trick is also how we could retro-score HISTORICAL `page_views` rows.
+- **Wrong signals for this problem (don't bother):** AbuseIPDB (residential exits
+  are shared consumer IPs with low report density → FP-prone), GreyNoise
+  (classifies internet-wide scanners hitting their sensors, not targeted
+  scrapers), Spamhaus/FireHOL/X4BNet (datacenter-side only — redundant with our
+  `CloudFront-Viewer-ASN` check), Shodan/Censys (RESIP SDK exits expose nothing
+  scannable), academic RESIP IP dumps (rot within days).
+- **ASN classification cannot help**: CAIDA/Stanford ASdb/PeeringDB all correctly
+  label VNPT-VN etc. as consumer ACCESS networks. The abuse is invisible at ASN
+  granularity — by construction.
+- **The highest-precision, zero-dependency option is our own data**: per-`(asn,
+  country, hour)` cohort scoring — z-score on distinct-IP count plus the per-IP
+  request ceiling (11-23 req/IP is itself the signature). Nobody sells this; it's
+  one materialized view. **Cohort, never per-row** (see the 1-pageview-bounce
+  caveat below).
+- **Engineering constraint:** per-request HTTP reputation lookups are a non-starter
+  on 2 vCPU (50-200ms each, plus outbound fetch churn — cf. the undici/arena
+  history in performance.md). Offline MMDB/BIN lookups are microseconds
+  (in-process, LRU-cached) — that or session-level (Monocle) only. Cache any
+  API-sourced verdict per IP in PG with a TTL. CloudFront Functions cannot do
+  network/DB lookups at all (only a 5MB KeyValueStore), so origin-side is the
+  right layer; push only coarse cohort ban-lists to the edge.
+
 ## Bot Detection (4 layers — June 2026 rework)
 
 Post-GA, 97% of "human visitors" were scrapers. Detection now layers (see
