@@ -63,6 +63,87 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 
 **Critical rule**: All tracking calls must be fire-and-forget -- no `await`, wrapped in try-catch. Analytics must never break the application.
 
+## The Traffic tab is a THREE-way audience split (Jul 30 2026) — read this first
+
+`traffic-tab.tsx` composes four sub-panels (`components/features/admin/tabs/traffic/`):
+**Audience** (default), **Abuse**, **Crawlers**, **Detail**. Abuse and Crawlers are
+`enabled:`-gated in react-query so opening the tab does not pay for them.
+
+**Why the old Human-vs-Bot line became a lie.** Until Jul 28 2026 CloudFront did not
+forward the viewer User-Agent, so ~94-95% of requests reached the origin as
+`User-Agent: Amazon CloudFront` and `bot-filter.ts` force-classified them bot — the
+"Human" line sat near zero. When UA forwarding shipped, the SAME crawl fleets started
+arriving with **forged but genuine-looking Chrome UAs plus valid `sec-ch-ua` hints**,
+and "Human" jumped from ~13-23k/day to 309k (Jul 28) then 560k (Jul 29) with no change
+in real visitors. They also forge `Referer: google.com` and run on **residential
+proxies** (VNPT-VN, Mexican/Venezuelan consumer ranges), so the datacenter-ASN label
+catches ~450 rows/day out of 560k. **No per-request signal separates them from a
+person.** Anything that tries is wrong.
+
+The three buckets (`src/lib/analytics/audience.ts`, all query-time so they also
+reclassify history):
+
+| Bucket | Predicate | Notes |
+|--------|-----------|-------|
+| Verified crawlers | `VERIFIED_CRAWLER_SQL` — `is_bot=1 AND bot_type IN` search_engine ∪ social ∪ `chatgpt` | Derived from `getBotTypesByCategory()` in `bot-detection.ts` so it cannot drift. `bot_type` is UA-derived → a forged Googlebot lands here; the UI says so (reverse-DNS is out of scope). |
+| Bots & suspected fleets | `KNOWN_BOT_NON_CRAWLER_SQL` OR in a behaviourally-flagged cohort | Includes the proxy's own shed labels (`SHED_BOT_TYPES`, mirrors `BLOCKED_BOT_TYPES` in `src/proxy.ts`). |
+| Humans | the residue | Reported as a RANGE, never one number — see below. |
+
+**Humans are a range, deliberately.** `confirmedHumanSessions` (authenticated OR has a
+`user_actions` row) is a hard FLOOR — 73/day, 353/7d measured. `engagedHumanSessions`
+(2+ views inside one 30-min-gap visit, or authed, or acted, AFTER fleet exclusion) is an
+UPPER BOUND — ~11.8k/day, still fleet-contaminated. The truth is near the floor; Search
+Console clicks (~147/day) are the external anchor. **Do not "simplify" this to a single
+human number** — that is the bug the panel exists to fix, and the on-panel note explains
+it so nobody has to remember.
+
+## Behavioural fleet scoring — cohort level ONLY (`fleet-scoring.ts`)
+
+Cohort key `(user_agent, country)`. Coarser (UA alone) merges fleets with real humans on
+Chrome's reduced UA so the zero-engagement test never fires; finer fragments a fleet below
+any usable volume gate. Every rule sits behind TWO gates — volume (≥300 views AND
+≥25 views/hour) and **zero engagement** (0 authed views AND 0 acting sessions; one real
+person in the cohort spares all of it). Then any of: `no_js`, `url_sweep`, `ip_rotation`,
+`nav_hammer`, `enumeration`. Thresholds and their false-positive reasoning are documented
+per-constant in `FLEET_THRESHOLDS`; `scoreCohort()` is a pure mirror of the generated SQL
+and both are pinned by `fleet-scoring.test.ts`.
+
+**The guard that must never be dropped:** ~50% of REAL sessions have exactly one page
+view, so "1 view = bot" is not an acceptable filter. `ip_rotation` is the rule that comes
+closest and it requires ≥20 sessions/HOUR in a single (UA, country) cohort — ~10x the
+site's entire daily audience.
+
+**Signals that are FLAGS ONLY — never subtract them from a human number:**
+- **Session-level absence of a client web-vitals beacon.** Measured over 30 days on prod:
+  only **31 of 88 authenticated (definitionally human) sessions** ever produced a
+  `performance` row — a 65% false-negative rate (DNT, ad blockers, fast bounces).
+  Usable ONLY as a cohort ratio (`maxJsBeaconShare = 0.02`, 17x below the human rate).
+  `performance` rows are inserted regardless of `is_bot`, so the signal is not circular.
+- **Forged `Referer: google.com`** — indistinguishable per row; only the aggregate
+  overshoot vs Search Console is meaningful.
+- **Uniform `device_type` in a cohort** — measures NOTHING here: the cohort key contains
+  the exact UA, which determines `device_type`. Deliberately absent from the scorer.
+
+**Rate thresholds dilute a burst over a long window** — the Jul 28-29 fleets flag 351k
+views at 24h but only 184k at 30d. Hunt fleets at 24h/7d; the panel says so.
+
+**Measured query cost (prod, read-only tunnel):** audience overview 0.4s/24h, 1.7s/7d,
+4.2s/30d; sessionization 0.6s/24h, 1.8s/7d, 4.5s/30d (the two run in `Promise.all`);
+trend 0.7s/24h, 1.8s/7d; abuse cohorts 0.55s/24h. One aggregate scan per panel; the only
+window functions are the single visit-sessionization.
+
+**ClickHouse gotcha that cost a debug cycle:** `NOT (user_agent, country) IN fleet` parses
+as `not(user_agent, country)` → *"Number of arguments for function not doesn't match:
+passed 2, should be 1"*. The tuple predicate MUST be parenthesised as a whole
+(`IN_FLEET_SQL` in `queries/audience.ts`); `audience.test.ts` pins it.
+
+**Admin UI gotcha:** the admin shell still wraps the dashboard in a hardcoded dark zinc
+background, so a **translucent** semantic surface (`bg-muted/40`) composites against
+BLACK even in light mode — it rendered the explanatory notes as dark grey blocks with
+unreadable `text-muted-foreground`. Inside `/admin`, use OPAQUE surface tokens
+(`bg-card`). Also give recharts `<YAxis>` a `width` + `tickFormatter={abbreviateNumber}`:
+a negative `left` margin clips six-figure counts to `"00000"`.
+
 ## Query-time bot classification (admin traffic views — Jul 2026)
 
 The admin analytics **Traffic** tab does NOT trust the frozen ingest-time `is_bot`
