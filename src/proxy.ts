@@ -364,6 +364,13 @@ function maybeTrackPageView(
   try {
     if (req.method !== "GET") return;
     if (req.headers.get("rsc") || req.headers.get("next-router-prefetch")) return;
+    // Speculation-Rules prefetch/prerender (Chrome omnibox + Google Search can
+    // trigger these even though we ship no speculation rules). A never-activated
+    // prerender is a real request that no human ever saw, and it fires no client
+    // beacon — so counting it both inflates page views and poisons any
+    // "server row without a beacon = bot" analysis. MRC/IAB classify prefetch as
+    // invalid traffic outright.
+    if (req.headers.get("sec-purpose")?.includes("prefetch")) return;
 
     const path = req.nextUrl.pathname;
     if (path.startsWith("/api/") || path.startsWith("/_next/")) return;
