@@ -184,6 +184,58 @@ Compounding factor to check in the same breath: the ISR cache pinned AT
 re-requested). Shed the fleet; do NOT reflexively raise the cap (disk headroom
 was only 17GB, and disk-full has taken prod down twice).
 
+## Bot-detection signals available behind CloudFront (researched Jul 30 2026)
+
+**CORRECTION to the long-standing "move to Cloudflare Free" recommendation below
+and in memory `cdn-plan-jun11` / `cost-firstbill-jul`: for BOT DETECTION,
+Cloudflare Free is strictly WEAKER than what we already have.** Free gives only
+Bot Fight Mode (one on/off toggle) — no per-request bot score, no `cf.client.bot`,
+no `cf.bot_management.*`, no `verifiedBotCategory`, no JA3/JA4 fields; those are
+Enterprise Bot Management. CloudFront hands us raw fingerprint headers for free.
+(The Cloudflare case is still valid on COST — $0 egress + unlimited requests —
+just don't justify it with bot management.)
+
+**Free, available now via the origin-request policy** (CF-generated headers; they
+work in an origin-request policy but NOT a cache policy — never put them in the
+cache key or the edge cache shatters):
+`CloudFront-Viewer-JA4-Fingerprint` (38-char JA4, since Oct 2024),
+`-JA3-Fingerprint`, `-TLS` (version:cipher:handshake),
+**`-Header-Order`** (colon-separated header names in received order, ≤7,680
+chars — AWS documents it FOR UA-vs-header-order coherence checks),
+`-Header-Count`, plus the `-ASN`/`-Address` we already forward.
+
+**Hard limits of those signals against OUR adversary — read before investing:**
+- **JA3 is dead** for browsers: Chrome ≥110 permutes ClientHello extension order
+  every connection (~15! orderings), so the hash differs per request. JA4 fixes
+  this by sorting — but a fleet driving REAL Chrome (ours executes JS) produces a
+  JA4 **byte-identical to a genuine visitor's**. So JA4 is a COHERENCE input
+  ("UA claims Chrome 138 but JA4/header-order says otherwise"), never a blocklist.
+- **HTTP/2 (Akamai) fingerprinting is IMPOSSIBLE here**: CloudFront terminates the
+  viewer's H2/H3 and re-originates as **HTTP/1.1** on pooled connections, so the
+  viewer SETTINGS/WINDOW_UPDATE/pseudo-header order never reaches Caddy, and no CF
+  header exposes it. Same for viewer RTT (anycast masks it) — which kills the
+  latency-incoherence trick that is the best published residential-proxy tell.
+  Getting these back means terminating TLS ourselves (e.g. `wi1dcard/fingerproxy`,
+  which computes JA3+JA4+H2) and GIVING UP the edge the 2-vCPU box depends on —
+  almost certainly a net loss.
+- **Residential proxies defeat IP/ASN reputation by construction** (a Stanford
+  measurement enumerated 6.18M residential exit IPs across 52k ISPs; exits are
+  genuine home addresses). The durable counter is **binding rate limits to a
+  stable fingerprint/session rather than to an IP** (our fleet shows ~11-23 req
+  per IP across thousands of IPs = textbook pool rotation), plus a paid exit-node
+  feed (Spur/IPQS/IP2Proxy) if we ever want per-IP verdicts.
+- Cheapest real bot SCORING on the current stack is **AWS WAF Bot Control on the
+  existing distribution** (paid add-on), not a CDN migration.
+- Our strongest surface is **client-side JS coherence** (the fleet runs JS):
+  GPU/renderer vs claimed UA (naive headless reports `Google SwiftShader`),
+  CDP artifacts, and multi-layer consistency. Note `rebrowser-patches`/Patchright
+  close the easy tells (`Runtime.enable`, `navigator.webdriver`, sourceURL), so no
+  single flag suffices — combine, and weight coherence over any one signal.
+
+Practical stance: the JA4/Header-Order headers are only worth forwarding once
+something CONSUMES them (they cost bytes on every origin fetch, and Header-Order
+is large). Enable them together with storage + coherence logic, not speculatively.
+
 ## Origin lockdown — UNRESOLVED
 Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
 - Caddy has a dormant `X-Origin-Verify` secret-header gate (activates when
