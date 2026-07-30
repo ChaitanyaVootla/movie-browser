@@ -128,6 +128,50 @@ re-researches this:
   network/DB lookups at all (only a 5MB KeyValueStore), so origin-side is the
   right layer; push only coarse cohort ban-lists to the edge.
 
+## Libraries/algorithms for fleet detection — the verdict (researched Jul 30 2026)
+
+**Every UA library and every blocklist is useless against a fleet sending genuine
+Chrome UAs.** Don't re-evaluate these:
+- `isbot` (Unlicense, ~1.3µs/call): keep, but ONLY for the inverse problem —
+  identifying DECLARED good bots to exempt. Its own README says it "does not try
+  to recognise malicious bots or programs disguising themselves as real users."
+- `ua-parser-js` **v2 is AGPL-3.0** (v1 MIT but frozen; PRO from $14-599) — a
+  landmine for a closed-source site. **We are clean: it is not in our dependency
+  tree at all** (`device-parser.ts` is hand-rolled). Keep it that way.
+- **FingerprintJS BotD: measured 47% detection on evasive bots** (arXiv:2406.07647)
+  and maintenance-only; it inspects headless/automation artifacts that real
+  non-headless Chrome simply doesn't have → returns `{bot:false}` for our fleet.
+  Fingerprint Pro's residential-proxy signal is Enterprise-beta, and at our volume
+  the bill is **~$4,000-8,000/mo**. Skip both.
+- **CrowdSec** won't catch this fleet either: its `http-crawl-non_statics` scenario
+  fires at ~40 requests in 20s **per IP**, and ours does 11-23 per IP. Its value
+  would be as MIT plumbing (a decision bus fed from our own detections + the
+  `rdns`/`seo-bots-whitelist` hub collections, optionally enforcing at CloudFront
+  via `cs-aws-waf-bouncer`). Community blocklists are datacenter-oriented.
+- Bad-bot blocklists / IAB Spiders&Bots ($5-15k/yr): declared-UA lists. Skip.
+- **What privacy analytics actually do** (we are not behind the state of the art —
+  there barely is one): Umami = one `isbot()` line; Ackee = a 4-word regex;
+  Plausible/Fathom = UA lists + datacenter IPs (which residential proxies bypass);
+  GoatCounter = the richest, adding `navigator.webdriver` client checks. **Nobody
+  does real behavioral filtering.** Everyone leans on "bots don't run JS" — which
+  our fleet falsifies.
+
+**Two novel signals we can build from data we ALREADY have (highest ROI, not yet
+implemented — next iteration):**
+1. **Embedding dispersion.** The most-validated camouflage-proof feature family is
+   semantic/topical incoherence of a session's page sequence (Lagopoulos et al.,
+   F≈0.92; semantic features dominated ranking). We already store Cohere
+   embeddings per title — cosine dispersion across a session's visited titles is
+   a near-free port. Humans browse topically coherent sets; catalog crawlers walk
+   incoherent long tail.
+2. **Popularity mismatch.** Humans hit titles roughly ∝ Zipf popularity; catalog
+   crawlers sample the long tail uniformly. We store `popularity` in PG.
+Plus **honeypots** (robots.txt-disallowed secret paths + CSS-hidden links) as free
+ground-truth labels — high precision, low recall; guard against Next's own
+prefetch reaching a trap, and require ≥2 trap signals before acting. This is
+exactly how Cloudflare caught Perplexity's stealth fleet (secret domains with
+restrictive robots.txt) — a method we can copy for $0.
+
 ## Bot Detection (4 layers — June 2026 rework)
 
 Post-GA, 97% of "human visitors" were scrapers. Detection now layers (see
