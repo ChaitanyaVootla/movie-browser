@@ -28,6 +28,28 @@ export {
   type BotSource,
 } from "./traffic";
 
+// Audience queries (three-way honest split: crawlers / bots+fleets / humans)
+export {
+  getAudienceOverview,
+  getAudienceTrend,
+  getFleetCohorts,
+  getShedReasons,
+  getFleetTargets,
+  getAbuseFlags,
+  getVerifiedCrawlers,
+  getCrawlerTrend,
+  getServedBotTypes,
+  type AudienceGranularity,
+  type AudienceOverview,
+  type AudienceTrendPoint,
+  type FleetCohort,
+  type ShedReasonStat,
+  type FleetTarget,
+  type AbuseFlags,
+  type CrawlerStat,
+  type CrawlerTrendPoint,
+} from "./audience";
+
 // AI usage queries
 export {
   getAIUsageOverview,

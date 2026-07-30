@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { adminApiLogger } from "@/lib/logger";
 import {
@@ -25,6 +26,16 @@ import {
   getDeviceBreakdown,
   getTopBotSources,
   getTopUserAgents,
+  // Audience (three-way split + abuse + crawlers)
+  getAudienceOverview,
+  getAudienceTrend,
+  getFleetCohorts,
+  getShedReasons,
+  getFleetTargets,
+  getAbuseFlags,
+  getVerifiedCrawlers,
+  getCrawlerTrend,
+  getServedBotTypes,
   // AI
   getAIUsageOverview,
   getDailyAICosts,
@@ -68,6 +79,12 @@ import {
 } from "@/lib/analytics";
 import { getCacheStats, getCacheSizeStats } from "@/lib/cache-service";
 import { getSystemMetrics, getSystemHealth } from "@/lib/system-metrics";
+
+/**
+ * Bucket size for the audience/crawler trends. Validated rather than cast: a
+ * bad value used to flow straight into the SQL builder's bucket expression.
+ */
+const AudienceGranularitySchema = z.enum(["hour", "day"]).catch("day");
 
 /**
  * Get live cache metrics directly from the cache service
@@ -182,6 +199,52 @@ export async function GET(request: NextRequest) {
           topBots,
           topUserAgents,
         });
+      }
+
+      // =======================================================================
+      // Audience — the three-way honest split (crawlers / bots+fleets / humans)
+      // =======================================================================
+      case "audience": {
+        const granularity = AudienceGranularitySchema.parse(
+          searchParams.get("granularity") ?? "day"
+        );
+        // Sequential: each of these scans the range's page_views once and the
+        // box runs ClickHouse capped at 0.9 CPU. Fetched on tab load only.
+        const overview = await getAudienceOverview(range);
+        const trend = await getAudienceTrend(range, granularity);
+
+        return NextResponse.json({ overview, trend, granularity });
+      }
+
+      // =======================================================================
+      // Abuse / crawl pressure — LAZY: only fetched when the panel is opened,
+      // because the cohort-scoring CTE is the expensive part of this module.
+      // =======================================================================
+      case "abuse": {
+        const cohorts = await getFleetCohorts(range, 15);
+        const flags = await getAbuseFlags(range);
+        const targets = await getFleetTargets(range, "page_type", 8);
+        const [shedReasons, servedBots] = await Promise.all([
+          getShedReasons(range),
+          getServedBotTypes(range, 8),
+        ]);
+
+        return NextResponse.json({ cohorts, flags, targets, shedReasons, servedBots });
+      }
+
+      // =======================================================================
+      // Verified crawlers — LAZY, and cheap (frozen ingest labels only).
+      // =======================================================================
+      case "crawlers": {
+        const granularity = AudienceGranularitySchema.parse(
+          searchParams.get("granularity") ?? "day"
+        );
+        const [crawlers, trend] = await Promise.all([
+          getVerifiedCrawlers(range, 12),
+          getCrawlerTrend(range, granularity, 5),
+        ]);
+
+        return NextResponse.json({ crawlers, trend, granularity });
       }
 
       // =======================================================================
