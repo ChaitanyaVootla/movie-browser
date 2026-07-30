@@ -113,6 +113,30 @@ describe("scoreCohort — real humans are NOT flagged", () => {
     expect(rules).not.toContain("no_js");
   });
 
+  it("does NOT apply ip_rotation to a mobile cohort (carrier CGNAT)", () => {
+    // CGNAT rotates a real phone's IP between requests, which under an IP-hash
+    // session_id fragments genuine mobile humans into many 1-view sessions —
+    // exactly this rule's signature, from real people.
+    const rotating = { views: 20000, sessions: 15000, uniquePaths: 9000, jsBeaconSessions: 0 };
+    expect(scoreCohort(cohort({ ...rotating, deviceType: "desktop" }))).toContain("ip_rotation");
+    expect(scoreCohort(cohort({ ...rotating, deviceType: "mobile" }))).not.toContain("ip_rotation");
+  });
+
+  it("still flags a mobile cohort on non-rotation evidence", () => {
+    // The mobile exemption is scoped to ip_rotation only — it must not become a
+    // blanket amnesty for mobile UAs.
+    const rules = scoreCohort(
+      cohort({
+        views: 20000,
+        sessions: 300,
+        uniquePaths: 900,
+        jsBeaconSessions: 0,
+        deviceType: "mobile",
+      })
+    );
+    expect(rules).toContain("nav_hammer");
+  });
+
   it("does not divide by zero on empty cohorts", () => {
     expect(scoreCohort(cohort({ views: 0, sessions: 0, uniquePaths: 0 }))).toEqual([]);
     expect(scoreCohort(cohort({ views: 5000, sessions: 0 }))).toEqual([]);
@@ -169,6 +193,10 @@ describe("buildFleetCohortSql", () => {
   it("gates on both the absolute and the per-hour volume floor", () => {
     expect(sql).toContain(`count() >= ${FLEET_THRESHOLDS.minCohortViews}`);
     expect(sql).toContain(`count() / 24 >= ${FLEET_THRESHOLDS.minViewsPerHour}`);
+  });
+
+  it("exempts mobile cohorts from the rotation rule in SQL too", () => {
+    expect(sql).toContain("any(device_type) != 'mobile'");
   });
 
   it("emits all five behavioural rules", () => {

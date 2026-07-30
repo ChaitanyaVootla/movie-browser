@@ -47,6 +47,43 @@
  *  - **Datacenter ASN.** Correct but nearly empty against these fleets
  *    (~450 rows/day) because they are on residential proxies. Left to the
  *    ingest-time `bot_type = 'datacenter'` label.
+ *
+ * ---------------------------------------------------------------------------
+ * PER-SESSION RATE RULES: MEASURED AND REJECTED (Jul 30 2026)
+ *
+ * The published literature offers per-session pacing thresholds that look ideal —
+ * Wikimedia's versioned pageview classifier uses ≥800 pageviews/session and
+ * ≥30 pageviews/minute, and the wider literature treats a sustained >0.5 req/s
+ * over ≥10 requests as "impossible for humans". All of them were tested against
+ * our own ground truth (1,107 CONFIRMED human sessions over 30 days —
+ * authenticated or having performed a tracked action) and all of them FAIL here:
+ *
+ *   >0.5 req/s over ≥10 requests → 139/1,107 confirmed humans (12.6%)
+ *   ≥30 pageviews/minute         → 151/1,107 confirmed humans (13.6%)
+ *   ≥800 pageviews/session       →     3/1,107 confirmed humans (0.3%)
+ *   nav/footer-only with pv ≥ 10 →     5/1,107 confirmed humans (0.5%)
+ *
+ * The fastest confirmed HUMAN session ran at **17.7 requests/second**, 35x the
+ * supposed impossibility floor. The thresholds are not wrong in general — they
+ * are wrong for OUR schema. They all assume a cookie-scoped session; our
+ * `session_id` is a hash of IP + UA + Accept-Language (`session.ts`), so it
+ * aggregates every person behind a shared/NAT/CGNAT address into ONE session that
+ * also persists for days. Per-session rate therefore measures IP SHARING, not
+ * automation. Adopting any of them would have deleted ~13% of the only humans we
+ * can actually prove exist.
+ *
+ * A deeper reason not to paper over this with "rate AND zero-engagement": that
+ * conjunction is UNFALSIFIABLE with our data. Our only ground truth for "human"
+ * IS engagement, so any rule containing a zero-engagement term cannot be tested
+ * against confirmed humans — it would be safe by construction and unmeasurable in
+ * practice. Cohort scoring escapes the trap because volume makes the
+ * zero-engagement observation itself decisive (zero actions across 80,000
+ * sessions is not a coincidence; zero actions in one session is the norm).
+ *
+ * So these live in the abuse panel as investigative counts with their measured
+ * false-positive rates printed next to them, and they never reduce a human
+ * number. See `getSessionPacingFlags` in `queries/audience.ts`.
+ * ---------------------------------------------------------------------------
  */
 
 // =============================================================================
@@ -97,13 +134,23 @@ export const FLEET_THRESHOLDS = {
   minUrlSweepRatio: 0.85,
 
   /**
-   * RULE `ip_rotation` — sessions/hour ≥ 20 (≈480/day) at ≤ 2.0 views/session.
-   * `session_id` is a hash of IP + UA + Accept-Language, so a rotating proxy
-   * pool mints a fresh session per request. The session floor is the guard: 480
+   * RULE `ip_rotation` — sessions/hour ≥ 20 (≈480/day) at ≤ 2.0 views/session,
+   * DESKTOP COHORTS ONLY.
+   *
+   * `session_id` is a hash of IP + UA + Accept-Language, so a rotating proxy pool
+   * mints a fresh session per request. The session floor is the guard: 480
    * distinct sessions/day in ONE (UA, country) cohort is ~10x this site's entire
    * daily audience, so the permissive 2.0 views/session ceiling (which real
    * bouncing traffic does reach) cannot be triggered by real humans at that
    * volume with zero engagement.
+   *
+   * The mobile exemption closes the one identified false-positive path: **carrier
+   * CGNAT rotates a real phone's IP between requests**, which under an IP-hash
+   * session_id fragments genuine mobile humans into many 1-view sessions —
+   * producing this rule's exact signature from real people. Measured cost of the
+   * exemption today: zero. All 24 cohorts this rule currently flags are desktop
+   * (104 desktop vs 1 mobile cohort flagged overall), so the guard is free
+   * insurance rather than a concession.
    */
   minSessionsPerHourForRotation: 20,
   maxViewsPerSessionForRotation: 2.0,
@@ -158,6 +205,13 @@ export interface CohortMetrics {
   views: number;
   sessions: number;
   uniquePaths: number;
+  /**
+   * Dominant `device_type` of the cohort. Only consulted to EXEMPT mobile from
+   * `ip_rotation` (carrier CGNAT). Never used to incriminate — `device_type` is
+   * UA-derived and the cohort key contains the UA, so within a cohort it is a
+   * constant and carries no information.
+   */
+  deviceType?: string;
   /** Views from an authenticated visitor anywhere in the cohort. */
   authedViews: number;
   /** Sessions in the cohort that produced at least one `user_actions` row. */
@@ -198,6 +252,7 @@ export function scoreCohort(m: CohortMetrics): FleetRule[] {
     matched.push("url_sweep");
   }
   if (
+    m.deviceType !== "mobile" &&
     m.sessions / hours >= t.minSessionsPerHourForRotation &&
     viewsPerSession <= t.maxViewsPerSessionForRotation
   ) {
@@ -279,7 +334,8 @@ export function buildFleetCohortSql(
          (uniqIf(session_id, session_id IN js_sessions) / uniq(session_id) <= ${t.maxJsBeaconShare}
            AND uniq(session_id) >= ${t.minSessionsForJsRule})
          OR uniq(path) / count() >= ${t.minUrlSweepRatio}
-         OR (uniq(session_id) / ${hours} >= ${t.minSessionsPerHourForRotation}
+         OR (any(device_type) != 'mobile'
+           AND uniq(session_id) / ${hours} >= ${t.minSessionsPerHourForRotation}
            AND count() / uniq(session_id) <= ${t.maxViewsPerSessionForRotation})
          OR (count() / uniq(session_id) >= ${t.minViewsPerSessionForHammer}
            AND uniq(path) / count() <= ${t.maxPathRatioForHammer})
@@ -298,7 +354,7 @@ export function buildRuleLabelExpr(windowHours: number): string {
   return `arrayStringConcat(arrayFilter(x -> x != '', [
     if(js_beacon_sessions / sessions <= ${t.maxJsBeaconShare} AND sessions >= ${t.minSessionsForJsRule}, 'no_js', ''),
     if(unique_paths / views >= ${t.minUrlSweepRatio}, 'url_sweep', ''),
-    if(sessions / ${hours} >= ${t.minSessionsPerHourForRotation} AND views / sessions <= ${t.maxViewsPerSessionForRotation}, 'ip_rotation', ''),
+    if(device_type != 'mobile' AND sessions / ${hours} >= ${t.minSessionsPerHourForRotation} AND views / sessions <= ${t.maxViewsPerSessionForRotation}, 'ip_rotation', ''),
     if(views / sessions >= ${t.minViewsPerSessionForHammer} AND unique_paths / views <= ${t.maxPathRatioForHammer}, 'nav_hammer', ''),
     if(unique_paths / ${hours} >= ${t.minPathsPerHourForEnumeration}, 'enumeration', '')
   ]), '+')`;
