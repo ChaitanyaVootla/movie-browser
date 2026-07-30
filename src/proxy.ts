@@ -22,6 +22,16 @@ import { isMarkdownRequest, markdownPathToTarget } from "@/lib/llm/paths";
 const { auth } = NextAuth(authConfig);
 
 /**
+ * Body-less reads. Only the agent-facing branches (.md twins, llms.txt) accept
+ * HEAD — everything below them stays GET-only, and `maybeTrackPageView` stays
+ * GET-only too, so a HEAD probe is served correctly but never counted as a page
+ * view.
+ */
+function isReadMethod(method: string): boolean {
+  return method === "GET" || method === "HEAD";
+}
+
+/**
  * Auth.js proxy for route protection + request path header + page tracking.
  *
  * In Next.js 16, proxy.ts always runs on the Node.js runtime (middleware.ts
@@ -44,7 +54,14 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
   // here (the .md twin is PG-only, no SSR/hydration/Lambda, and edge-cacheable,
   // so it's the cost-safe path we WANT crawlers on). Short-circuiting also keeps
   // the media-resolver from 308-stripping the ".md" suffix.
-  if (req.method === "GET" && isMarkdownRequest(req.nextUrl.pathname)) {
+  // HEAD is accepted alongside GET here (the rest of this proxy is GET-only on
+  // purpose). Agents commonly HEAD-probe a URL for its Content-Type before
+  // fetching it, and while this branch was GET-only a HEAD on `…/inception.md`
+  // fell through to the /movie/[...params] catch-all and answered
+  // `text/html` — so a probing agent concluded no markdown twin existed. Next
+  // serves HEAD for a GET-only route handler by running GET and dropping the
+  // body, so /api/md needs no change.
+  if (isReadMethod(req.method) && isMarkdownRequest(req.nextUrl.pathname)) {
     maybeTrackPageView(req); // keep .md hits visible in analytics
     const url = req.nextUrl.clone();
     const target = markdownPathToTarget(url.pathname);
@@ -56,6 +73,19 @@ export default auth((req: NextRequest & { auth: Session | null }) => {
     url.pathname = "/api/md";
     url.search = `?${params.toString()}`;
     return NextResponse.rewrite(url);
+  }
+
+  // /llms.txt — the discovery index for the .md layer above. It is deliberately
+  // IN the matcher (unlike robots.txt / sitemap, which stay excluded) for one
+  // reason: so it can be tracked. It is a static file in public/, so all this
+  // branch does is record the hit and pass through — but it must sit HERE, above
+  // the scraper shed, for the same reason .md does: llms.txt is the entry point
+  // to the cheap path, and 429ing an agent that is trying to find it would be
+  // self-defeating. Its Cache-Control is deliberately short (next.config.mjs) so
+  // the origin actually sees these fetches.
+  if (isReadMethod(req.method) && req.nextUrl.pathname === "/llms.txt") {
+    maybeTrackPageView(req);
+    return NextResponse.next();
   }
 
   // Block high-confidence scrapers BEFORE rendering. Post-GA a distributed
@@ -408,6 +438,13 @@ export const config = {
      * - public folder files (images, etc.)
      */
     // 666170ce… = IndexNow key file; its verifier must never hit the scraper 429
-    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|llms.txt|sitemap|serwist|api|666170ce7734064c2d3dbe589dc9cdfb.txt).*)",
+    //
+    // `llms.txt` is intentionally NOT excluded (it used to be, alongside
+    // robots.txt): the proxy is the only place that sees every request, so
+    // excluding it made llms.txt fetches unobservable everywhere — Caddy logs no
+    // access lines and CloudFront logging is unconfigured. It now runs through
+    // the shed-exempt branch at the top of the handler, which tracks it and
+    // passes through to the static file.
+    "/((?!_next/static|_next/image|favicon.ico|images|popcorn|manifest.json|robots.txt|sitemap|serwist|api|666170ce7734064c2d3dbe589dc9cdfb.txt).*)",
   ],
 };

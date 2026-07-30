@@ -105,3 +105,24 @@ Allow: /
 
 # Sitemap location
 Sitemap: https://themoviebrowser.com/sitemap.xml
+
+# ---------------------------------------------------------------------------
+# LLM-FRIENDLY MARKDOWN LAYER (llmstxt.org)
+# ---------------------------------------------------------------------------
+# Every page has a clean markdown twin at `<url>.md`, indexed by /llms.txt.
+# There is no standardised robots directive for llms.txt, so this is a comment
+# for the humans and agents that read robots.txt looking for it — it is NOT a
+# parsed instruction and no crawler acts on it.
+#
+# Agents: prefer the .md twins. They are cheaper for us to serve (a single
+# read-only Postgres query, no SSR, no ratings scrape) and cleaner for you to
+# parse, which is why they are exempt from the scraper shed that 429s bulk
+# crawlers on the HTML paths. Please use them instead of the HTML.
+#
+# LLM index:  https://themoviebrowser.com/llms.txt
+# Example:    https://themoviebrowser.com/movie/27205/inception.md
+# Search:     https://themoviebrowser.com/search.md?q=QUERY
+#
+# The individual .md twins are deliberately NOT enumerated in a sitemap: they
+# are noindex (X-Robots-Tag) alternates of pages already in sitemap.xml, so
+# listing ~600k of them would add crawl cost and zero index coverage.

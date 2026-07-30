@@ -8,9 +8,10 @@
  *                human range (confirmed floor → engaged upper bound).
  *  · Abuse     — suspected fleet cohorts, shed 429s, what they hit, flags.
  *  · Crawlers  — per-crawler crawl-budget report.
+ *  · Agents    — consumption of the LLM-friendly .md + llms.txt layer.
  *  · Detail    — the pre-existing cards, labelled as the old classification.
  *
- * The Abuse and Crawler panels are fetched LAZILY (`enabled: panel === …`). The
+ * The Abuse, Crawler and Agent panels are fetched LAZILY (`enabled: panel === …`). The
  * cohort-scoring CTE they need is the expensive part of the audience module, and
  * this box runs ClickHouse capped at 0.9 of 2 vCPUs — loading the tab must not
  * pay for panels nobody opened.
@@ -23,6 +24,7 @@ import type {
   AbuseData,
   AudienceData,
   CrawlerData,
+  LlmLayerData,
   TimeRange,
   TrafficData,
   TrafficMetrics,
@@ -30,10 +32,11 @@ import type {
 import { AbusePanel } from "./traffic/abuse-panel";
 import { AudiencePanel } from "./traffic/audience-panel";
 import { CrawlerPanel } from "./traffic/crawler-panel";
+import { LlmPanel } from "./traffic/llm-panel";
 import { DetailPanel } from "./traffic/detail-panel";
 import type { BucketGranularity } from "./traffic/format";
 
-type Panel = "audience" | "abuse" | "crawlers" | "detail";
+type Panel = "audience" | "abuse" | "crawlers" | "agents" | "detail";
 
 // =============================================================================
 // Fetchers
@@ -105,6 +108,17 @@ export function TrafficTab({
     enabled: panel === "crawlers",
   });
 
+  const agents = useQuery({
+    queryKey: ["admin", "analytics", "llm-layer", range, granularity],
+    queryFn: () =>
+      fetchJson<LlmLayerData>(
+        `/api/admin/analytics?type=llm-layer&range=${range}&granularity=${granularity}`,
+        "agent-layer data"
+      ),
+    staleTime: 60 * 1000,
+    enabled: panel === "agents",
+  });
+
   const detail = useQuery({
     queryKey: ["admin", "analytics", "traffic", range, excludeBots],
     queryFn: () =>
@@ -127,6 +141,9 @@ export function TrafficTab({
         </TabsTrigger>
         <TabsTrigger value="crawlers" className="text-xs">
           Crawlers
+        </TabsTrigger>
+        <TabsTrigger value="agents" className="text-xs">
+          Agents
         </TabsTrigger>
         <TabsTrigger value="detail" className="text-xs">
           Detail
@@ -163,6 +180,18 @@ export function TrafficTab({
           granularity={granularity}
           onGranularityChange={setGranularity}
           isLoading={crawlers.isLoading}
+        />
+      </TabsContent>
+
+      <TabsContent value="agents" className="mt-0">
+        <LlmPanel
+          overview={agents.data?.overview}
+          trend={agents.data?.trend}
+          consumers={agents.data?.consumers}
+          targets={agents.data?.targets}
+          granularity={granularity}
+          onGranularityChange={setGranularity}
+          isLoading={agents.isLoading}
         />
       </TabsContent>
 

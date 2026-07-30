@@ -54,6 +54,22 @@ export {
   type SessionPacingFlag,
 } from "./audience";
 
+// Agent-layer queries (.md twins + llms.txt consumption)
+export {
+  getLlmLayerOverview,
+  getLlmLayerTrend,
+  getLlmLayerConsumers,
+  getLlmLayerTargets,
+  LLM_LAYER_SQL,
+  LLM_MD_SQL,
+  type LlmSurface,
+  type LlmLayerOverview,
+  type LlmLayerTrendPoint,
+  type LlmConsumer,
+  type LlmTargetStat,
+  type LlmLayerData,
+} from "./llm-layer";
+
 // AI usage queries
 export {
   getAIUsageOverview,

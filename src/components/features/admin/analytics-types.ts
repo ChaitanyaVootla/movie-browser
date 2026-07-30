@@ -225,6 +225,55 @@ export interface CrawlerData {
 }
 
 // =============================================================================
+// Agent-layer Types (.md twins + llms.txt) — mirror of src/lib/analytics/
+// queries/llm-layer.ts. Kept as a client-side declaration rather than imported
+// so the admin bundle does not pull the ClickHouse client in.
+// =============================================================================
+
+export interface LlmLayerOverview {
+  mdRequests: number;
+  mdUniquePaths: number;
+  mdSessions: number;
+  llmsTxtRequests: number;
+  llmsTxtSessions: number;
+  botRequests: number;
+  distinctAgents: number;
+  requestsPerPath: number;
+}
+
+export interface LlmLayerTrendPoint {
+  date: string;
+  mdRequests: number;
+  mdUniquePaths: number;
+  llmsTxtRequests: number;
+}
+
+export interface LlmConsumer {
+  userAgent: string;
+  botType: string;
+  requests: number;
+  uniquePaths: number;
+  sessions: number;
+  usedIndex: boolean;
+  topTarget: string;
+  activeDays: number;
+}
+
+export interface LlmTargetStat {
+  target: string;
+  requests: number;
+  uniquePaths: number;
+}
+
+export interface LlmLayerData {
+  overview: LlmLayerOverview;
+  trend: LlmLayerTrendPoint[];
+  consumers: LlmConsumer[];
+  targets: LlmTargetStat[];
+  granularity: "hour" | "day";
+}
+
+// =============================================================================
 // AI Types
 // =============================================================================
 

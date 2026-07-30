@@ -306,6 +306,33 @@ handle them.
   --paths /robots.txt` (single path, ~free) to make it live now (done Jul 2 2026
   for the AI-crawler block).
 - Canonical-slug 308 in `src/proxy.ts`: `s-maxage=86400`.
+- `llms.txt`: its OWN rule at `max-age=300, s-maxage=300` — deliberately NOT the
+  86400 its static-file neighbours get. Page-view tracking happens in the proxy,
+  which only ever sees CDN cache MISSES, so a 24h edge TTL would hide nearly
+  every fetch of the one agent-facing surface we added to measure it. See
+  `.claude/rules/llm-friendly.md`.
+
+## Framing / clickjacking headers (changed Jul 30 2026)
+
+- **`X-Frame-Options` is GONE** app-wide; CSP `frame-ancestors` (built from
+  `FRAME_ANCESTORS` in `next.config.mjs`) is the sole anti-clickjacking control.
+  Reason: the creator's portfolio (`vootlachaitanya.com`, static S3) embeds a live
+  `<iframe src="https://themoviebrowser.com">` preview, and XFO cannot express an
+  allowlist at all (`ALLOW-FROM` is dead and Chrome never supported it). Chrome and
+  Firefox ignore XFO when `frame-ancestors` is present, but Safari is not reliable
+  about that, so leaving XFO in place would have kept the frame broken there.
+  `frame-ancestors` is strictly more expressive — do NOT re-add XFO "for defence in
+  depth"; it only re-breaks the embed.
+- Exposure is small because the Auth.js session cookie is `SameSite=Lax` (v5 default,
+  not overridden), so it is not sent in a cross-site iframe: a framed instance is
+  always anonymous and no authenticated action can be triggered inside it. That is
+  load-bearing — if a session cookie is ever switched to `SameSite=None`, revisit
+  this decision.
+- **EDGE CAVEAT when changing `FRAME_ANCESTORS`:** the CSP rides on the HTML
+  response, which CloudFront caches (`s-maxage=3600` + SWR), so a deploy keeps
+  serving the OLD policy from the edge for up to ~2h. Either wait it out or
+  invalidate the specific paths — NEVER `/*` (see the cold-edge outage above).
 
 See also: `.claude/rules/performance.md` (cold-start stampede, freeze recovery),
-`.claude/rules/infrastructure.md` (EC2/SG/deploy).
+`.claude/rules/infrastructure.md` (EC2/SG/deploy),
+`.claude/rules/llm-friendly.md` (the `.md`/llms.txt layer these TTLs serve).

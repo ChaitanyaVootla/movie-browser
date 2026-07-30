@@ -65,9 +65,20 @@ const { trackAction, trackWatchlistAdd, trackWatchlistRemove, trackRating,
 
 ## The Traffic tab is a THREE-way audience split (Jul 30 2026) — read this first
 
-`traffic-tab.tsx` composes four sub-panels (`components/features/admin/tabs/traffic/`):
-**Audience** (default), **Abuse**, **Crawlers**, **Detail**. Abuse and Crawlers are
-`enabled:`-gated in react-query so opening the tab does not pay for them.
+`traffic-tab.tsx` composes five sub-panels (`components/features/admin/tabs/traffic/`):
+**Audience** (default), **Abuse**, **Crawlers**, **Agents**, **Detail**. Abuse, Crawlers
+and Agents are `enabled:`-gated in react-query so opening the tab does not pay for them.
+
+**Agents** (added Jul 30 2026, `llm-panel.tsx` ← `queries/llm-layer.ts`, API
+`type=llm-layer`) covers consumption of the LLM-friendly `.md` twins + `/llms.txt`. Two
+conventions there are load-bearing and easy to undo by accident: it selects the layer by
+PATH (`LLM_LAYER_SQL`), never by a new `page_type` — the twins deliberately keep their
+underlying movie/person/series `page_type` so the layer can be broken down by content
+kind — and its consumer table groups by **raw `user_agent`, not `bot_type`**, because
+`bot_type` collapses a real answer-engine and an anonymous scraper into one label
+(reading `bot_type` alone once produced a wrong attribution). Full context, including
+the origin-observed/pre-28-Jul caveats printed on the panel:
+`.claude/rules/llm-friendly.md`.
 
 **Why the old Human-vs-Bot line became a lie.** Until Jul 28 2026 CloudFront did not
 forward the viewer User-Agent, so ~94-95% of requests reached the origin as

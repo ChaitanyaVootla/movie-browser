@@ -38,6 +38,11 @@ import {
   getServedBotTypes,
   getCountryDeviceMix,
   getSessionPacingFlags,
+  // Agent layer (.md twins + llms.txt)
+  getLlmLayerOverview,
+  getLlmLayerTrend,
+  getLlmLayerConsumers,
+  getLlmLayerTargets,
   // AI
   getAIUsageOverview,
   getDailyAICosts,
@@ -257,6 +262,24 @@ export async function GET(request: NextRequest) {
         ]);
 
         return NextResponse.json({ crawlers, trend, granularity });
+      }
+
+      // =======================================================================
+      // Agent layer (.md twins + llms.txt) — LAZY. Four single-pass aggregates
+      // over page_views with a path predicate; run SEQUENTIALLY because
+      // ClickHouse is capped at 0.9 of 2 vCPUs on this box and four concurrent
+      // range scans is exactly the shape that has starved it before.
+      // =======================================================================
+      case "llm-layer": {
+        const granularity = AudienceGranularitySchema.parse(
+          searchParams.get("granularity") ?? "day"
+        );
+        const overview = await getLlmLayerOverview(range);
+        const trend = await getLlmLayerTrend(range, granularity);
+        const consumers = await getLlmLayerConsumers(range, 20);
+        const targets = await getLlmLayerTargets(range);
+
+        return NextResponse.json({ overview, trend, consumers, targets, granularity });
       }
 
       // =======================================================================

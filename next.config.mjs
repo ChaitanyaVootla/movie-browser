@@ -2,6 +2,34 @@ import { fileURLToPath } from "url";
 import { withSerwist } from "@serwist/turbopack";
 
 /**
+ * Origins allowed to embed this site in an iframe.
+ *
+ * The creator's portfolio (vootlachaitanya.com, a static S3 site) runs a live
+ * `<iframe src="https://themoviebrowser.com">` preview. That was blocked twice
+ * over — by `frame-ancestors 'self'` AND by `X-Frame-Options: SAMEORIGIN` — so
+ * BOTH had to change: XFO has no allowlist mechanism at all (`ALLOW-FROM` is
+ * dead and was never supported by Chrome), and while Chrome/Firefox ignore XFO
+ * when `frame-ancestors` is present, Safari is not reliable about that. XFO is
+ * therefore GONE, and `frame-ancestors` (strictly more expressive) is the sole
+ * anti-clickjacking control. See `.claude/rules/cdn.md`.
+ *
+ * Clickjacking exposure from this is minimal: the Auth.js session cookie is
+ * `SameSite=Lax` (v5 default, not overridden), so it is NOT sent in a
+ * cross-site iframe — a framed instance is always anonymous and no
+ * authenticated action can be triggered inside it.
+ *
+ * NOTE when adding an origin: the CSP rides on the HTML response, which
+ * CloudFront edge-caches (s-maxage 3600 + SWR), so a change here keeps serving
+ * the OLD policy from the edge for up to ~2h unless a manual invalidation is
+ * run. Never `/*` — see cdn.md.
+ */
+const FRAME_ANCESTORS = [
+  "'self'",
+  "https://vootlachaitanya.com",
+  "https://www.vootlachaitanya.com",
+];
+
+/**
  * Content-Security-Policy, built from a directive array so dev and prod differ
  * only in the dev-augmented connect-src (Turbopack HMR websocket). PRODUCTION
  * stays strict — no localhost/ws sources are emitted there.
@@ -43,7 +71,7 @@ function buildCsp() {
     "media-src 'self' https://image.themoviebrowser.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "frame-ancestors 'self'",
+    `frame-ancestors ${FRAME_ANCESTORS.join(" ")}`,
     "form-action 'self'",
   ].join("; ");
 }
@@ -216,13 +244,29 @@ const nextConfig = {
           },
         ],
       },
+      // llms.txt gets a DELIBERATELY SHORT edge TTL, unlike its neighbours
+      // above. It is the discovery index for the `.md` layer and the one
+      // agent-facing surface we want to measure; tracking happens in the proxy,
+      // which only ever sees CDN cache MISSES, so a 24h s-maxage would hide
+      // almost every fetch. The file is ~1KB and low-volume (fetched once per
+      // agent session, not per title), so the extra origin hits are noise.
+      // The admin Agent-layer panel still labels these counts origin-observed.
+      {
+        source: "/llms.txt",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=300, s-maxage=300",
+          },
+        ],
+      },
       {
         source: "/:path*",
         headers: [
-          {
-            key: "X-Frame-Options",
-            value: "SAMEORIGIN", // Prevent clickjacking
-          },
+          // NO X-Frame-Options: it cannot express an allowlist, so it would
+          // block the creator-portfolio iframe no matter what `frame-ancestors`
+          // says on Safari. `frame-ancestors` (below, via buildCsp) is the
+          // anti-clickjacking control — see FRAME_ANCESTORS.
           {
             key: "X-Content-Type-Options",
             value: "nosniff", // Prevent MIME type sniffing

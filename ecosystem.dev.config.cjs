@@ -16,12 +16,32 @@ module.exports = {
       cwd: "/Users/chaitanya/dev/movie-browser",
       script: "node_modules/next/dist/bin/next",
       // Port 3009 (uncommon) keeps the default :3000 free for other tooling.
+      //
+      // GOTCHA — the `.md` twin layer CANNOT be exercised on this port. Next
+      // builds its internal absolute URLs on the :3000 default regardless of
+      // `-p` (and regardless of a matching PORT env — both were tested), so
+      // `req.nextUrl.origin` inside src/proxy.ts reports localhost:3000. The
+      // proxy's `.md` branch rewrites via a cloned nextUrl, which Next then
+      // considers CROSS-origin and tries to HTTP-proxy to :3000 → 500 with
+      // "Failed to proxy http://localhost:3000/api/md?p=… ECONNREFUSED".
+      // To test `.md` locally, run dev on the DEFAULT port instead:
+      //   npx pm2 stop mb-dev && npx next dev --turbo -p 3000
+      // Even then the rewrite's query string is dropped in dev, so /api/md
+      // answers `400 p: expected string, received null` — a dev-only artifact
+      // (prod serves the real markdown). Hit /api/md?p=/browse directly to
+      // exercise the renderers. Prod is unaffected: it sets PORT and its
+      // origin is consistent. Same family as the redirect-origin gotcha in
+      // .claude/rules/performance.md.
       args: "dev --turbo -p 3009",
       interpreter: "node",
       autorestart: true,
       watch: false,
       env: {
         NODE_ENV: "development",
+        // Set for anything that reads PORT, but be warned it does NOT fix the
+        // rewrite-origin problem described above the `args` line — measured, not
+        // assumed: with PORT=3009 set, `.md` still tried to proxy to :3000.
+        PORT: "3009",
         DATABASE_URL: "postgresql://dev:dev@localhost:5436/moviebrowser",
         USER_DATA_SOURCE: "postgres",
         ENABLE_MONGODB_ENRICHMENT: "false",
