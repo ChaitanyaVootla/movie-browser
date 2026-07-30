@@ -113,6 +113,77 @@ view, so "1 view = bot" is not an acceptable filter. `ip_rotation` is the rule t
 closest and it requires ≥20 sessions/HOUR in a single (UA, country) cohort — ~10x the
 site's entire daily audience.
 
+**PUBLISHED PER-SESSION PACING THRESHOLDS DO NOT TRANSFER TO THIS SCHEMA — measured
+Jul 30 2026, do not re-adopt them.** Wikimedia's versioned classifier (≥800
+pv/session, ≥30 pv/minute) and the literature's ">0.5 req/s sustained over ≥10
+requests is impossible for humans" were each tested against 1,107 CONFIRMED human
+sessions (authenticated or having performed a tracked action) over 30 days:
+
+| Rule | Confirmed humans it would exclude |
+|------|-----------------------------------|
+| >0.5 req/s over ≥10 requests | 139 / 1,107 (12.6%) |
+| ≥30 pageviews/minute | 151 / 1,107 (13.6%) |
+| ≥800 pageviews/session | 3 / 1,107 (0.3%) |
+| nav/footer-only with pv ≥ 10 | 5 / 1,107 (0.5%) |
+
+The fastest confirmed HUMAN session ran at **17.7 requests/second**, 35x the
+supposed impossibility floor. Cause: every one of those thresholds assumes a
+cookie-scoped session, and our `session_id` is a hash of IP + UA + Accept-Language
+(`session.ts`) that aggregates everyone behind a shared/NAT/CGNAT address and
+persists for days. **Per-session rate measures IP sharing, not automation.** They
+are surfaced with these FP rates in the abuse panel (`getSessionPacingFlags`) and
+never applied.
+
+Nor can it be fixed by conjoining zero-engagement: engagement is our ONLY ground
+truth for "human", so any rule containing a zero-engagement term is unfalsifiable
+against confirmed humans — safe by construction, unmeasurable in practice. Cohort
+scoring escapes the trap because volume makes zero engagement itself decisive (no
+actions across 80,000 sessions is not a coincidence; no actions in one session is
+the norm).
+
+**Deterministic rules that ARE safe to subtract (they live in `bot-filter.ts`, and
+the bar is "no real browser can produce this"):**
+- **`google.com/search?q=` in the referer.** Google has stripped the query from
+  organic referers since Oct 2011, so a real result click carries the ORIGIN only.
+  Verified: 2,355 sessions / 108 countries over 7 days, all replaying
+  `?q=site%3Athemoviebrowser.com`, with zero authenticated and zero acting sessions.
+  **But 2,353 of 2,355 were already `is_bot=1`, so its marginal effect is ~2 rows —
+  it does NOT explain the post-Jul-28 human hump.** Related correction: the
+  "~20x Search Console overshoot" does not survive measurement. Excluding these
+  forged rows, plain `https://www.google.com/` referers in the human pool run ~202
+  sessions/day against ~147 GSC clicks/day, i.e. ~1.4x and broadly consistent.
+- **UA length outside 25–400 chars** (Wikimedia's published window). 13 views/24h.
+- Both must be NULL-safe: `referer` is Nullable and a bare comparison makes the
+  whole OR-chain NULL, dropping referer-less rows out of BOTH buckets. Use `ifNull`.
+
+**`ip_rotation` is DESKTOP-ONLY.** Carrier CGNAT rotates a real phone's IP between
+requests, which under an IP-hash session_id fragments genuine mobile humans into
+many 1-view sessions — this rule's exact signature from real people. Measured cost
+of the exemption: zero (all 24 cohorts it flags are desktop; 104 desktop vs 1
+mobile cohort flagged overall).
+
+**Country device mix is the one non-circular use of `device_type`.** Inside a
+`(user_agent, country)` cohort the UA fixes the device, so it measures nothing;
+across a whole country it is a real distribution with a published expected value.
+Post-fleet-exclusion (24h, Jul 30): US 55.1% mobile (baseline 40.5%) and India
+60.8% (65%) look like real consumer traffic; SG 5.1%, CO 3.8%, MX 5.0%, PK 4.9%,
+AR 5.7%, BR 9.1%, ZA 1.6%, BD 11.1%, IQ 3.8% do not — i.e. the "likely human"
+upper bound is still contaminated, concentrated in identifiable countries. A
+0%-mobile observation against a 64% baseline at ≥100 sessions has binomial
+probability ~10^-45. **Investigative only** — `device_type` is UA-derived and
+excluding a country deletes the real users inside it.
+
+**Presentation contract (do not regress to a single number).** Four tiers —
+Verified human / Likely human / Likely automated / Verified bot — with the headline
+as a RANGE `[verified, verified+likely]` (MRC §2.4 "decision rate"), exclusions
+printed NEXT TO the human counts split declared-vs-heuristic (GA4 hides its
+exclusions; showing the subtraction is the point), the 53–57% industry bot baseline
+for context (Imperva 2026 / Cloudflare Radar Jun 2026), and an on-panel methodology
+note carrying every threshold plus a last-changed date. **Structural caveat that
+belongs in that note:** CloudFront edge HITs never reach the origin and humans
+concentrate on cached popular pages, so this table is bot-enriched *by
+construction* and any bot-share % computed from it overstates site-wide bot share.
+
 **Signals that are FLAGS ONLY — never subtract them from a human number:**
 - **Session-level absence of a client web-vitals beacon.** Measured over 30 days on prod:
   only **31 of 88 authenticated (definitionally human) sessions** ever produced a
