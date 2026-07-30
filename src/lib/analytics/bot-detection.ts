@@ -133,6 +133,18 @@ const BOT_PATTERNS: BotPattern[] = [
 // =============================================================================
 
 /**
+ * Every `bot_type` string that maps to a given category, derived from the
+ * pattern table above so the analytics-side taxonomy (`audience.ts`) cannot
+ * drift out of sync with what ingest actually writes.
+ *
+ * Read-only derivation — it does NOT participate in classification.
+ */
+export function getBotTypesByCategory(...categories: BotCategory[]): string[] {
+  const wanted = new Set(categories);
+  return [...new Set(BOT_PATTERNS.filter((p) => wanted.has(p.category)).map((p) => p.type))];
+}
+
+/**
  * Detect if a user agent belongs to a bot
  */
 export function detectBot(userAgent: string): BotDetectionResult {

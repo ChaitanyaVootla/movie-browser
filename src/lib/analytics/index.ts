@@ -55,8 +55,25 @@ export {
   detectSuspiciousTraffic,
   shouldTrackBot,
   getBotDescription,
+  getBotTypesByCategory,
 } from "./bot-detection";
 export type { BotCategory, BotDetectionResult, SuspiciousTrafficResult } from "./bot-detection";
+
+// Audience taxonomy + behavioural fleet scoring (query-time, admin views)
+export {
+  VERIFIED_CRAWLER_BOT_TYPES,
+  SHED_BOT_TYPES,
+  CRAWLER_LABELS,
+  SHED_REASON_LABELS,
+} from "./audience";
+export {
+  FLEET_RULES,
+  FLEET_RULE_LABELS,
+  FLEET_THRESHOLDS,
+  scoreCohort,
+  getWindowHours,
+} from "./fleet-scoring";
+export type { FleetRule, CohortMetrics } from "./fleet-scoring";
 
 // Device parsing
 export { parseUserAgent, getSimpleBrowser, getSimpleOS } from "./device-parser";
