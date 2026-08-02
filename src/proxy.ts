@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { buildTrackingContext, getPageTypeFromPath, getItemFromPath } from "@/lib/analytics/context-core";
-import { detectBotFromRequest } from "@/lib/analytics/bot-detection";
+import { detectBotFromRequest, isMarkdownOnlyClient } from "@/lib/analytics/bot-detection";
 import { trackPageView } from "@/lib/analytics/track";
 import { SITE_URL } from "@/lib/constants";
 import {
@@ -365,8 +365,11 @@ function isBlockedDatacenterIP(req: NextRequest): boolean {
  */
 function scraperShedReason(req: NextRequest): string | null {
   try {
-    // LLM/markdown scrapers self-identify via Accept (browsers never send this)
-    if (req.headers.get("accept")?.includes("text/markdown")) return "markdown_scraper";
+    // LLM/markdown scrapers self-identify via Accept. Must be markdown-ONLY:
+    // desktop Googlebot lists text/markdown alongside text/html, and shedding on
+    // a bare `includes` 429'd every origin-bound Googlebot request for three days
+    // (see isMarkdownOnlyClient).
+    if (isMarkdownOnlyClient(req.headers.get("accept"))) return "markdown_scraper";
 
     if (isBlockedDatacenterIP(req)) return "datacenter_fleet";
 

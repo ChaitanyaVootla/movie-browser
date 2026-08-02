@@ -58,6 +58,46 @@ noindex` (200); 404s get `s-maxage=300`; 400/500 `no-store`. It's a **route hand
 with Cache-Control (CloudFront edge cache), NOT an ISR page** — deliberately, to avoid
 growing the `.next` ISR/image disk cache (prior outage cause; see `performance.md`).
 
+## The markdown shed MUST be markdown-ONLY — it 429'd Googlebot for 3 days (Aug 1 2026)
+
+The worst incident this layer has caused, and the reason invariant 5 below exists.
+`scraperShedReason` in `src/proxy.ts` opened with `accept?.includes("text/markdown")
+→ 429`. **Desktop Googlebot (`Mozilla/5.0 (compatible; Googlebot/2.1; …)`) sends
+`text/markdown` as one q-weighted option alongside `text/html`** — so that predicate
+matched the single most important crawler on the internet.
+
+It was latent from the Jul 16 build and detonated on **Jul 28** when CloudFront
+started forwarding all viewer headers (the UA-forwarding flip, see `cdn.md`): from
+Jul 29 the real `Accept` reached the origin and **every origin-bound desktop-Googlebot
+request was 429'd — 60-86k/day, 100% of them on HTML paths** (`/movie/157336/interstellar`,
+`/movie/1062722/frankenstein`, …). Search Console clicks fell **620 → 496 → 262**
+across the following days, on a domain still in fragile recovery from the June
+outages + the domain-lapse NXDOMAIN.
+
+- **FIX**: `isMarkdownOnlyClient(accept)` in `src/lib/analytics/bot-detection.ts` —
+  shed only when the client wants markdown AND does **not** accept `text/html`. A
+  content-negotiating crawler is always served; a markdown-exclusive agent is still
+  shed. Pinned by `bot-detection.test.ts` (the Googlebot Accept string is case 1).
+- **DIAGNOSIS TRAP that cost most of the investigation**: `bot_type='googlebot'` in
+  ClickHouse *collapsed* from 71,234 (Jul 29) to 827 (Jul 30) and it read as "Google
+  stopped crawling us." It had not. The shed **relabels** what it blocks
+  (`maybeTrackPageView(req, shedReason)`), so those requests moved to
+  `bot_type='markdown_scraper'` — whose daily counts matched the raw desktop-Googlebot
+  UA counts almost exactly (73,296/73,300 · 86,085/86,079 · 59,764/59,781). **Always
+  cross-check a `bot_type` collapse against `positionCaseInsensitive(user_agent, …)`
+  before concluding a crawler left**; a shed label is not a UA.
+  Corollary: `markdown_scraper` rows from **Jul 29 – Aug 1 2026 are mislabelled
+  Googlebot** — exclude that window from any `.md`-consumer analysis.
+- **VERIFYING a shed change requires hitting the ORIGIN, not the CDN.** Through
+  CloudFront every test returned 200, because `Accept` is not in the cache key and a
+  cache-buster query string is stripped from it too — so the edge answered from the
+  cached HTML. Only `curl --resolve themoviebrowser.com:443:16.112.156.196` exposed
+  the 429. The blast radius is exactly the cache-MISS traffic: the long tail, i.e.
+  the pages that most need crawling.
+- **Do NOT "fix" a shed false-positive by exempting a crawler UA** — that hands every
+  scraper a one-header bypass (the same reasoning as `BLOCKED_HOSTING_ASNS`'s
+  no-UA-exemption note in `proxy.ts`). Narrow the predicate instead.
+
 ## HARD INVARIANTS (do not break)
 
 1. **COST-SAFETY / read-only PG only.** `src/lib/llm/data.ts` uses ONLY read-only
@@ -78,6 +118,10 @@ growing the `.next` ISR/image disk cache (prior outage cause; see `performance.m
    `auth()`/`headers()`) or they kill ISR on the HTML detail pages.
 4. **Spoiler safety.** Markdown emits only spoiler-FREE AI fields (`insights.spoilerFree`,
    `hook`, `mood`); NEVER `spoilerContent` (`markdown/ai-insights.ts`).
+5. **The markdown shed is markdown-ONLY.** `scraperShedReason` must gate on
+   `isMarkdownOnlyClient(accept)` (markdown AND NOT `text/html`), never a bare
+   `includes("text/markdown")` — the latter 429s desktop Googlebot. See the incident
+   section above; `bot-detection.test.ts` pins it.
 
 ## Files
 

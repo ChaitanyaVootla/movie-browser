@@ -183,6 +183,29 @@ export function detectBot(userAgent: string): BotDetectionResult {
  * - `navigator.webdriver`: true under Puppeteer/Playwright/Selenium unless
  *   deliberately evaded; the client sends it as the `x-analytics-wd` header.
  */
+/**
+ * True only for a client that wants markdown and will NOT take HTML — i.e. a
+ * markdown-only agent hitting an HTML path. Used by the proxy shed.
+ *
+ * The `!text/html` half is LOAD-BEARING and was added 2026-08-01 after a real
+ * incident: the shed originally fired on any `Accept` merely CONTAINING
+ * `text/markdown`, and **desktop Googlebot sends `text/markdown` as one
+ * q-weighted option alongside `text/html`**. That was harmless until CloudFront
+ * began forwarding all viewer headers (Jul 28 2026) — from Jul 29 the real
+ * Accept header reached the origin and every origin-bound Googlebot request was
+ * 429'd (60-86k/day, 100% of them on HTML paths). Search Console clicks fell
+ * 620 → 496 → 262 over the following days. A content-negotiating crawler that
+ * accepts HTML must always be served; only a markdown-EXCLUSIVE client is shed.
+ */
+export function isMarkdownOnlyClient(accept: string | null): boolean {
+  if (!accept) return false;
+  const value = accept.toLowerCase();
+  if (!value.includes("text/markdown")) return false;
+  // A client that also accepts HTML (Googlebot, browsers) is content
+  // negotiating, not a markdown scraper — serve it.
+  return !value.includes("text/html");
+}
+
 export function detectBotFromRequest(
   userAgent: string,
   secChUa: string | null,
