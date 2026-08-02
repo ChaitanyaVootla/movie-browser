@@ -81,6 +81,42 @@ them all. Brave has an independent index with NO submission console. Apple
   - The `.md` twin layer 404s adult movies/series/persons (`api/md/route.ts`), and
     `queryPopular` in `src/lib/llm/data.ts` filters `adult: false` for
     `/browse.md` + `/topics/*.md`.
+  **THE `adult` FLAG ITSELF IS INCOMPLETE — the coverage gap is now the leak
+  (Aug 2 2026).** Everything above keys off TMDB's `adult` boolean, and TMDB
+  marks hardcore/"XXX" catalogue entries while MISSING the softcore/erotica long
+  tail. When Google finally started sending traffic, the pages it actually ranked
+  were the missed ones: `New Female Secretary` (popularity 7.5), `Leggings Mania`,
+  `Madame Aema`, `Kissing My Sister` — all `adult = false`, all serving
+  `index, follow`, against queries like "sex racecourse" / "american milf movie".
+  Second signal: the TMDB **keyword** join (`scripts/backfill-adult-keywords.ts`,
+  dry-run by default, `--revert` to undo). Setting `adult = true` needs no other
+  code change — noindex, the sitemap gate, `notAdult()` and the `.md` 404s all
+  read this one column — and it propagates on its own (ISR ~1h, CDN ~2h, sitemap
+  on the nightly cron).
+  - **Keyword choice is the entire design; adult-ADJACENT keywords are dominated
+    by mainstream cinema.** Verified false positives, do NOT add:
+    `prostitution`/`prostitute` (Taxi Driver, Poor Things), `sex comedy`
+    (American Pie), `bdsm` (Fifty Shades), `erotic thriller` (Basic Instinct,
+    The Handmaiden, Babygirl), `sexploitation` (The Human Centipede 2),
+    `erotic movie` (Room in Rome, Below Her Mouth — arthouse),
+    `pornography`/`porn industry` (documentaries ABOUT the industry), and the
+    trap: plain **`hardcore` is hardcore PUNK MUSIC** (Downeast Hardcore, TERROR,
+    gabber fanzines — 5-6 of its 7 titles are FPs). Only `softcore` (4,583) and
+    `porn parody` (7) survived sampling. **Sample any new keyword at the top of
+    the popularity range AND deep into it before trusting it.**
+  - **Certifications are NOT usable**: `18+` (4,411) and `R18+` (2,891) are
+    routinely given to violent mainstream films, and even `NC-17` (524) covers
+    Requiem for a Dream / Shame. A cast-transitive signal (share of
+    `persons.adult` in the credits) was measured and is WEAK — most leaking
+    titles have zero adult-flagged cast.
+  - **The commercial-footprint guard is what makes even `softcore` safe.** Of
+    4,589 candidates exactly **14** report >$1M revenue or budget, and those 14
+    are precisely the ones that must stay indexed — `Striptease` (1996, $113M,
+    an outright FP), `Nymphomaniac` Vol. I/II, Russ Meyer (`Vixen!`,
+    `Supervixens`), Tinto Brass, the 1974/2024 `Emmanuelle`. Porn catalogue
+    entries essentially never carry a reported budget or revenue; theatrical
+    releases do. Costs ~0.3% coverage, removes the whole embarrassing-mistake
+    class. The script prints every title it spares rather than silently dropping.
   **Never add a title- or person-shaped SEO surface without the adult filter.**
   What IS already safe: every TMDB call passes `include_adult: "false"` explicitly
   (`services/tmdb.ts` search/discover, `lib/discover.ts` `DEFAULT_DISCOVER_PARAMS`),
