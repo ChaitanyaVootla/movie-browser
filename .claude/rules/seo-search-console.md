@@ -164,9 +164,32 @@ them all. Brave has an independent index with NO submission console. Apple
 - Audience is **GLOBAL** (US #1, then SE Asia; IN ≈ 4% of real sessions) —
   do not IN-first any SEO/content/share decision. (Corrected in the roadmap
   spec 2026-07-24 — the old "IN-heavy" line was wrong.)
-- `sitemap_movies.xml` is one 6MB/50k-URL file — valid (limits: 50MB/50k) but
-  if Google is slow to fetch it, consider smaller chunks (the generator
-  already supports chunking).
+- **Sitemaps are now chunked at 10k URLs, and the 50k single file was the reason
+  Google never fetched it (resolved Aug 2 2026).** `sitemap_movies.xml` sat at
+  EXACTLY the 50,000-URL protocol cap (6.1MB) with `isPending: true,
+  lastDownloaded: NEVER` for 8 days across two submissions, while the smaller
+  siblings (series/persons 25k, static 67) all fetched. Ruled out first: the file
+  (200, well-formed `application/xml`, exactly 50,000 `<url>` elements, clean
+  closing tag — fetched AS Googlebot and parsed) and host-level crawl back-off
+  (the index re-fetched within minutes of a resubmit). After splitting to
+  `SITEMAP_URLS_PER_FILE=10000`, **`sitemap_movies_2/_3` were fetched within
+  minutes** and reported 10,000 URLs each. Don't sit on a protocol maximum.
+- **TWO traps that came with chunking — both cost real debugging:**
+  1. **Next enumerates `public/` at BOOT**, so any sitemap file the nightly cron
+     creates with a NEW name 404s until the server restarts. Confirmed live: every
+     `_2.._5` chunk served Next's 404 page while the pre-existing
+     `sitemap_movies.xml` was fine; `pm2 reload next` fixed all at once. Left
+     alone this is WORSE than the oversized file — the index would advertise 404s.
+     `generate-sitemap.js` now snapshots filenames before writing and reloads Next
+     only when a genuinely new one appears (no-op on the normal nightly run, since
+     chunk counts are stable). If you ever move sitemap writing, keep this in mind
+     or serve them from a route handler instead (no boot enumeration).
+  2. **Sitemaps were NOT edge-cached.** The `next.config.mjs` public-dir
+     Cache-Control rule names `robots.txt` but not `sitemap*.xml`, so they served
+     `public, max-age=0` and every poll by Google/Bing/Yandex/Seznam/IndexNow was
+     a full multi-MB origin transfer off the 2-vCPU box (`x-cache: Miss from
+     cloudfront` on the 6.1MB file). Now `max-age=300, s-maxage=21600` — 6h, not
+     the neighbours' 24h, because the generator rewrites them nightly.
 - Meta descriptions: Bing flags many as too short — open item.
 - AI answer engines: `OAI-SearchBot` + `ChatGPT-User` allowed (ChatGPT search
   can cite us); `PerplexityBot` currently BLOCKED in robots.txt (cost-era
