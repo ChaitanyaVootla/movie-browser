@@ -195,6 +195,38 @@ belongs in that note:** CloudFront edge HITs never reach the origin and humans
 concentrate on cached popular pages, so this table is bot-enriched *by
 construction* and any bot-share % computed from it overstates site-wide bot share.
 
+### `analytics.errors` is fleet-contaminated too — group by user_agent before believing any count (Aug 2 2026)
+
+The same residential-proxy fleet that inflates `page_views` also writes to
+`analytics.errors`, because it executes JS and reaches `/api/analytics/ingest`
+(the ASN/CIDR sheds only catch its datacenter-exit minority). Measured on a
+7-day error sweep:
+
+- **"Failed to load chunk /_next/static/chunks/*.js from module 964893"** — 1,365
+  rows looked like a serious build-skew regression: continuous through Jul 31 and
+  Aug 1, both days with **no deploy**, so the documented ~1h post-deploy skew
+  window (cdn.md footgun 6) could not explain it. Grouping by `user_agent`
+  settled it: **1,326 of 1,365 came from one UA** —
+  `Chrome/145.0.0.0` macOS — spread over **1,260 sessions / 82 countries / 0
+  authenticated**, i.e. the exact fleet signature from cdn.md. The tail even
+  includes a Puppeteer device-emulation preset (`Pixel 2 Build/OPD3.170816.012`).
+  `/browse` accounted for 280. Verdict: fleet noise, not a user-facing bug.
+- Corollary for triage: **`sessions ≈ error_count` plus many countries plus zero
+  authed = a fleet, not an outage.** Always add `GROUP BY user_agent` (and check
+  `uniqExact(country)` / authed count) before escalating an error spike — the
+  `errors` table has no `is_bot` filter applied by default and the raw counts read
+  ~30x worse than reality.
+- Genuinely real but tiny: **React #418** (hydration text mismatch,
+  `args[]=text` with an empty second arg) at ~166 rows/7d, thinly spread across
+  movie/series/person detail pages. Not chased to root cause. Prime suspects for
+  a detail page rendered ONCE into the ISR cache and hydrated later in a
+  different locale/timezone: the 126 bare `toLocaleString()`/`toLocaleDateString()`
+  calls app-wide (server uses Node's default locale, client uses the browser's —
+  `1,234` vs `1.234`), and time-dependent branches like
+  `media-overview.tsx`'s `new Date(nextAirDate) > new Date()`. Only one bare
+  `toLocale*` is in the detail-page component tree today
+  (`episode-modal.tsx`, client-only), so the locale theory is unproven.
+
 **Signals that are FLAGS ONLY — never subtract them from a human number:**
 - **Session-level absence of a client web-vitals beacon.** Measured over 30 days on prod:
   only **31 of 88 authenticated (definitionally human) sessions** ever produced a

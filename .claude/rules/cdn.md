@@ -117,6 +117,30 @@ every freeze the night of cutover).
    user-facing outage.
 
 ## Bot strategy — shed at the EDGE, not the origin
+
+**SHED TOKENS ARE SUBSTRINGS — audit every new one against the bots you mean to
+SERVE (Aug 2 2026).** `httpclient` was in both shed lists, and LinkedIn's
+canonical UA is `LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient
++http://www.linkedin.com)` — so every LinkedIn unfurl of a shared movie/series
+page was 429'd and previewed blank. Both layers now consult an **ALWAYS_SERVE
+allowlist FIRST** (`terraform/cloudfront-cookie-normalize.js` `ALWAYS_SERVE` +
+the `not header_regexp` arm of Caddy's `@heavybots` — **keep the two in sync**,
+exactly like the ASN lists). A UA allowlist is forgeable but costs nothing on a
+shed that is *already* UA-based; do NOT extend the same trick to `@dcfleet`/ASN,
+where the signal is non-forgeable and an exemption is a one-header bypass.
+- **These failures are INVISIBLE by construction**: a CF-Function or Caddy 429
+  never reaches Next, so no `page_view` row is written and nothing appears in the
+  admin dashboard. ClickHouse had 2 `bot_type='linkedin'` rows in 14 days, both
+  synthetic probes from the investigation. **You cannot find this class of bug in
+  analytics — you have to probe the shed with a UA battery.**
+  `scratchpad`-style probe matrix: real crawler + social + AI + browser UAs, each
+  asserted 200, plus known-bad UAs asserted 429. Run it against the ORIGIN
+  (`curl --resolve …:443:16.112.156.196`) *and* through CloudFront, because the
+  two layers shed independently — Caddy's fix alone left LinkedIn broken at the
+  edge. The same battery is what caught the Googlebot `Accept: text/markdown`
+  429 (see `llm-friendly.md`).
+- zsh does NOT word-split unquoted `$VARS`, so `curl $ORIGIN_ARGS` fails with
+  "option --resolve …: is unknown". Put probe batteries in a `.sh` file.
 **The origin Caddy shed CANNOT protect against the herd behind a CDN** — it only
 sees cache misses, and a 429 keyed UA-agnostically poisons the URL for humans. Shed
 the no-value scrapers (Bytespider/Semrush/Ahrefs/MJ12/DataForSEO/scrapy/python-
@@ -283,6 +307,27 @@ handle them.
   enabled to trace the Jul 28 residential-proxy scraper fleet. NOT in
   `cloudfront.tf` — a full (non-`-target`) distribution apply would silently
   DISABLE it. Fold into TF or disable when the trace need passes.
+- **CF Function `movie-browser-beta-cookie-normalize` updated via CLI Aug 2 2026
+  (minor TF DRIFT)**: the LinkedIn allowlist fix was shipped with
+  `aws cloudfront update-function` + `publish-function`, NOT `terraform apply`,
+  to avoid a distribution apply silently disabling the access logging above (and
+  because `origin_verify_secret`/`postgres_password` have no defaults, so even a
+  `-target` apply prompts). The `.js` in git matches what was uploaded, so the
+  drift is one state attribute and the next real apply is a content no-op.
+  Recipe (creds: `set -a; . ./.env.local; set +a` then unset AWS_PROFILE —
+  account 620733889764, region MUST be us-east-1): `describe-function --stage
+  DEVELOPMENT` for the ETag → `update-function --if-match` → verify →
+  `publish-function --if-match`. **Updating DEVELOPMENT is traffic-safe** (only
+  LIVE is attached), so stage first and publish only after checking.
+  `update-function` itself validates syntax/size (10KB), so a bad artifact is
+  rejected before it can reach LIVE.
+  **`aws cloudfront test-function` was ServiceUnavailable for the whole session**
+  (AWS-side, persistent across ~15 min of retries) — do not assume your event
+  JSON is malformed. Fallbacks that DID work: evaluate the real `.js` in vitest
+  (`terraform/cloudfront-cookie-normalize.test.ts`), `npx acorn --ecma5` to prove
+  ES5, and publish behind a scripted 6-probe apex health gate with a one-shot
+  rollback script staged first (a throwing viewer-request function 503s EVERY
+  request — there is no fail-open).
 - www still A→EIP (works via 301→CF; cleaner to alias www→CF).
 - Image distro (`E300L33VF15D5T`): no Origin Shield, 24h TTL on immutable
   posters — each edge node misses independently against the image origin.
