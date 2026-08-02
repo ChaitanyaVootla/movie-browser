@@ -15,9 +15,11 @@
  * URLs without a reliable date omit the element entirely. changefreq and
  * priority are not emitted — Google ignores both.
  *
- * Files are chunked at the sitemap-protocol cap of 50,000 URLs per file:
- * sitemap_movies.xml, sitemap_movies_2.xml, ... and all chunks are listed in
- * the sitemap.xml index.
+ * Files are chunked at SITEMAP_URLS_PER_FILE (default 10,000 — well under the
+ * 50,000-URL / 50MB protocol cap): sitemap_movies.xml, sitemap_movies_2.xml,
+ * ... and all chunks are listed in the sitemap.xml index. The first chunk keeps
+ * the legacy unnumbered name because it is already submitted to the search
+ * consoles. See CONFIG.URLS_PER_FILE for why the default is not the cap.
  */
 
 import fs from "fs";
@@ -112,9 +114,30 @@ const CONFIG = {
   MOVIES_LIMIT: intEnv("SITEMAP_MOVIES_LIMIT", 50000),
   SERIES_LIMIT: intEnv("SITEMAP_SERIES_LIMIT", 25000),
   PERSONS_LIMIT: intEnv("SITEMAP_PERSONS_LIMIT", 25000),
-  MAX_URLS_PER_FILE: 50000, // sitemap protocol cap (also 50MB/file — we stay ~5MB)
+  PROTOCOL_MAX_URLS_PER_FILE: 50000, // hard sitemap-protocol cap (also 50MB/file)
+  // Target URLs per file, deliberately WELL under the protocol cap.
+  //
+  // Aug 2 2026: `sitemap_movies.xml` sat at EXACTLY the 50,000-URL cap (6.1MB)
+  // and Google had never fetched it — `isPending: true`, `lastDownloaded: NEVER`
+  // 8 days and two submissions after it was submitted — while the three SMALLER
+  // children (series 25k, persons 25k, static 67) all fetched fine, and the
+  // index itself re-fetched within minutes of a resubmit. So this is not
+  // host-level crawl back-off, and not the file: it is served 200 as
+  // well-formed `application/xml` with exactly 50,000 <url> elements and a clean
+  // closing tag (verified by fetching it as Googlebot and parsing it).
+  // Splitting is the one remaining lever, and it matches Google's own advice to
+  // keep sitemaps small; sitting exactly ON a protocol maximum is worth avoiding
+  // regardless. Chunking was already implemented — the files were just never
+  // small enough to trigger it.
+  URLS_PER_FILE: intEnv("SITEMAP_URLS_PER_FILE", 10000),
   WRITE_CHUNK_SIZE: 1000, // URLs per write-stream flush
 };
+
+// Never exceed the protocol cap, whatever the env says.
+CONFIG.URLS_PER_FILE = Math.min(
+  Math.max(1, CONFIG.URLS_PER_FILE),
+  CONFIG.PROTOCOL_MAX_URLS_PER_FILE
+);
 
 // PM2 re-runs cron_restart jobs once on EVERY `pm2 start` — i.e. on every
 // deploy — which launched this job at peak traffic alongside popularity-sync
@@ -388,11 +411,11 @@ function writeUrlsetFile(urls, filename) {
  */
 function writeSitemapChunks(urls, base) {
   const entries = [];
-  const chunkCount = Math.max(1, Math.ceil(urls.length / CONFIG.MAX_URLS_PER_FILE));
+  const chunkCount = Math.max(1, Math.ceil(urls.length / CONFIG.URLS_PER_FILE));
 
   for (let c = 0; c < chunkCount; c++) {
     const filename = c === 0 ? `${base}.xml` : `${base}_${c + 1}.xml`;
-    const chunk = urls.slice(c * CONFIG.MAX_URLS_PER_FILE, (c + 1) * CONFIG.MAX_URLS_PER_FILE);
+    const chunk = urls.slice(c * CONFIG.URLS_PER_FILE, (c + 1) * CONFIG.URLS_PER_FILE);
     const lastmod = writeUrlsetFile(chunk, filename);
     entries.push({ filename, lastmod });
   }
@@ -490,7 +513,7 @@ async function main() {
   console.log(`   - Movies:  top ${CONFIG.MOVIES_LIMIT} (SITEMAP_MOVIES_LIMIT)`);
   console.log(`   - Series:  top ${CONFIG.SERIES_LIMIT} (SITEMAP_SERIES_LIMIT)`);
   console.log(`   - Persons: top ${CONFIG.PERSONS_LIMIT} (SITEMAP_PERSONS_LIMIT)`);
-  console.log(`   - Max URLs per file: ${CONFIG.MAX_URLS_PER_FILE}`);
+  console.log(`   - Max URLs per file: ${CONFIG.URLS_PER_FILE}`);
 
   const startTime = Date.now();
 

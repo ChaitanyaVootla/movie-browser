@@ -244,6 +244,26 @@ const nextConfig = {
           },
         ],
       },
+      // Sitemaps were MISSING from the rule above (it names robots.txt but not
+      // sitemap*.xml), so they were served `public, max-age=0` — the public-dir
+      // default — meaning EVERY sitemap fetch by every crawler was a full origin
+      // transfer of a multi-MB file off the 2-vCPU box (measured Aug 2 2026:
+      // `x-cache: Miss from cloudfront` on sitemap_movies.xml, 6.1MB). Google,
+      // Bing, Yandex, Seznam and the IndexNow-fed engines all poll these.
+      // s-maxage is 6h rather than the 24h its neighbours get, because the
+      // sitemap-generator cron rewrites these files nightly — a 24h edge TTL
+      // could serve a full-day-stale sitemap, while 6h still absorbs crawler
+      // bursts and refreshes 4x/day.
+      {
+        // Character class (not `.*`) so the pattern cannot cross a `/`.
+        source: "/:file(sitemap[\\w.-]*\\.xml)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=300, s-maxage=21600",
+          },
+        ],
+      },
       // llms.txt gets a DELIBERATELY SHORT edge TTL, unlike its neighbours
       // above. It is the discovery index for the `.md` layer and the one
       // agent-facing surface we want to measure; tracking happens in the proxy,
