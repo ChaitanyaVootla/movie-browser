@@ -26,6 +26,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createWriteStream } from "fs";
+import { execFileSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -401,6 +402,47 @@ function writeUrlsetFile(urls, filename) {
 }
 
 /**
+ * Reload the Next server so it will actually SERVE newly-created sitemap files.
+ *
+ * WHY THIS IS NECESSARY (found the hard way, Aug 2 2026). Next enumerates
+ * `public/` ONCE at boot to build its static-file route map, so a file created
+ * afterwards **404s until the server restarts** — and this generator runs
+ * nightly, long after boot. It never mattered while every run wrote the same
+ * three filenames (overwriting existing content is fine); it started mattering
+ * the moment chunking produced NEW names. Verified live: `sitemap_movies_2..5`,
+ * `sitemap_series_2..3` and `sitemap_persons_2..3` all returned Next's 404 page
+ * while the pre-existing `sitemap_movies.xml` served normally, and a
+ * `pm2 reload next` fixed all of them at once. Without this, a catalog that grows
+ * into a 6th chunk would publish a sitemap index pointing at a 404 — strictly
+ * worse than the oversized single file we were trying to fix.
+ *
+ * Only fires when a filename is genuinely NEW (rare — chunk counts are stable),
+ * so the normal nightly run does not touch the web server. Failure is logged and
+ * swallowed: a missed reload must never fail sitemap generation, and the next
+ * deploy picks the files up anyway.
+ *
+ * The cleaner long-term fix is to serve sitemaps from a Next route handler that
+ * reads from disk per-request (no boot enumeration at all) — now cheap since
+ * these are edge-cached for 6h. Deliberately not done here: it is a bigger
+ * change than the bug warrants.
+ */
+function reloadNextForNewFiles(newFilenames) {
+  if (newFilenames.length === 0) return;
+  console.log(
+    `\n♻️  ${newFilenames.length} NEW sitemap file(s) — reloading Next so they are served:\n   ${newFilenames.join(", ")}`
+  );
+  try {
+    // execFileSync, not exec: no shell, nothing interpolated into a command line.
+    execFileSync("pm2", ["reload", "next"], { stdio: "pipe", timeout: 120_000 });
+    console.log("   ✅ pm2 reload next");
+  } catch (err) {
+    console.warn(
+      `   ⚠️ pm2 reload failed (${err.message}). NEW FILES WILL 404 UNTIL THE NEXT DEPLOY/RESTART.`
+    );
+  }
+}
+
+/**
  * Write a URL set as one or more files chunked at MAX_URLS_PER_FILE.
  * The first chunk keeps the legacy unnumbered filename (already submitted to
  * search consoles); extras are `${base}_2.xml`, `${base}_3.xml`, ...
@@ -536,6 +578,8 @@ async function main() {
     // 2-4. Media sitemaps from PG. Any failure aborts BEFORE overwriting the
     // existing media files, so the previous run's sitemaps keep serving.
     let mediaUrls = [];
+    /** Sitemap filenames this run created that did not exist before. */
+    let newlyCreated = [];
     const prisma = await createPrisma();
     try {
       console.log("\n🎬 Step 2/4: Generating movie sitemap...");
@@ -553,16 +597,31 @@ async function main() {
       if (personUrls.length === 0) throw new Error("person query returned 0 rows — aborting");
       console.log(`   🐘 ${personUrls.length} persons selected`);
 
+      // Snapshot which sitemap files already exist, so we can tell "overwrote
+      // an existing file" (fine) from "created a new one" (needs a reload —
+      // see reloadNextForNewFiles).
+      const before = new Set(
+        fs.readdirSync(SITEMAPS_DIR).filter((f) => /^sitemap.*\.xml$/.test(f))
+      );
+
       indexEntries.push(...writeSitemapChunks(movieUrls, "sitemap_movies"));
       indexEntries.push(...writeSitemapChunks(seriesUrls, "sitemap_series"));
       indexEntries.push(...writeSitemapChunks(personUrls, "sitemap_persons"));
       mediaUrls = [...movieUrls, ...seriesUrls];
+
+      newlyCreated = indexEntries
+        .map((e) => e.filename)
+        .filter((f) => !before.has(f));
     } finally {
       await prisma.$disconnect();
     }
 
     // 5. Sitemap index listing every file written this run
     createSitemapIndex(indexEntries);
+
+    // 5b. Make new files actually reachable before we advertise them via
+    // IndexNow / the index (Next only maps public/ at boot).
+    reloadNextForNewFiles(newlyCreated);
 
     // 6. IndexNow: push URLs whose content changed in the last 2 days to
     // Bing/Yandex/Seznam/Naver (Google ignores IndexNow — it reads lastmod).
