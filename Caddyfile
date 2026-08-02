@@ -58,7 +58,22 @@ themoviebrowser.com, origin.themoviebrowser.com {
 	# NOTE: this origin shed only sees cache MISSES (see .claude/rules/cdn.md);
 	# forged-Chrome scrapers are also caught by src/proxy.ts (missing client
 	# hints), which additionally 429s the AI bot-types by name.
-	@heavybots header_regexp User-Agent (?i)(bytespider|bytedance|semrushbot|ahrefsbot|dataforseo|mj12bot|dotbot|blexbot|petalbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient|headless|claudebot|gptbot|ccbot|perplexitybot|amazonbot|meta-externalagent)
+	# The `not` arm is load-bearing: several TIER-2 "always serve" bots carry a
+	# generic HTTP-client token that the shed regex matches. Aug 2 2026 —
+	# `LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient
+	# +http://www.linkedin.com)` matched `httpclient`, so LinkedIn link previews
+	# were 429'd for every shared page, here AND in the CloudFront Function
+	# (terraform/cloudfront-cookie-normalize.js ALWAYS_SERVE — keep the two lists
+	# in sync). It was invisible in analytics because a Caddy/edge 429 never
+	# reaches Next, so no page_view row is ever written. Only UAs that collide
+	# with a shed token change behaviour; the rest are listed so the next
+	# collision is harmless. (A UA allowlist is forgeable, but this shed is
+	# already UA-based — unlike @dcfleet below, which must NOT grow a UA
+	# exemption.)
+	@heavybots {
+		header_regexp User-Agent (?i)(bytespider|bytedance|semrushbot|ahrefsbot|dataforseo|mj12bot|dotbot|blexbot|petalbot|scrapy|python-requests|go-http-client|node-fetch|axios|wget|libwww|httpclient|headless|claudebot|gptbot|ccbot|perplexitybot|amazonbot|meta-externalagent)
+		not header_regexp User-Agent (?i)(linkedinbot|googlebot|bingbot|applebot|duckduckbot|yandexbot|slackbot|discordbot|twitterbot|facebookexternalhit|whatsapp|telegrambot|redditbot|pinterest|oai-searchbot|chatgpt-user)
+	}
 	# no-store: since CloudFront forwards the real UA (Jul 28 2026) this shed
 	# fires on CDN cache-misses too — a cacheable 429 would poison the URL for
 	# real users (UA is not in the edge cache key).

@@ -35,6 +35,31 @@ var SHED_BOTS = [
     'go-http-client', 'node-fetch', 'axios', 'wget', 'libwww', 'httpclient'
 ];
 
+// Checked BEFORE SHED_BOTS, because several TIER-2 "always serve" bots identify
+// themselves with a generic HTTP-client token that SHED_BOTS matches.
+//
+// Aug 2 2026: `LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient
+// +http://www.linkedin.com)` contains "httpclient", so LinkedIn link previews
+// were 429'd — at the edge here AND at Caddy — for every movie/series page
+// anyone shared. It was invisible in analytics precisely because the 429 happens
+// before the origin (only 2 `bot_type='linkedin'` page_views in 14 days, both
+// synthetic probes). Link-unfurl bots are load-bearing for the share strategy
+// (see .claude/rules/cdn.md).
+//
+// A UA allowlist is forgeable, but it costs nothing here: this shed is ALREADY
+// UA-based, so a scraper could simply omit the shed token instead. (Contrast the
+// ASN shed, which must NOT grow a UA exemption — there the signal is
+// non-forgeable and an exemption would hand out a one-header bypass.)
+// Only entries that collide with a SHED_BOTS token change behaviour; the rest
+// are listed so the next collision is harmless.
+var ALWAYS_SERVE = [
+    'linkedinbot',      // Apache-HttpClient -> collides with 'httpclient'
+    'googlebot', 'bingbot', 'applebot', 'duckduckbot', 'yandexbot',
+    'slackbot', 'discordbot', 'twitterbot', 'facebookexternalhit',
+    'whatsapp', 'telegrambot', 'redditbot', 'pinterest',
+    'oai-searchbot', 'chatgpt-user'
+];
+
 function handler(event) {
     var request = event.request;
     var headers = request.headers;
@@ -43,7 +68,14 @@ function handler(event) {
     var uaHeader = headers['user-agent'];
     if (uaHeader && uaHeader.value) {
         var ua = uaHeader.value.toLowerCase();
-        for (var i = 0; i < SHED_BOTS.length; i++) {
+        var serve = false;
+        for (var a = 0; a < ALWAYS_SERVE.length; a++) {
+            if (ua.indexOf(ALWAYS_SERVE[a]) !== -1) {
+                serve = true;
+                break;
+            }
+        }
+        for (var i = 0; !serve && i < SHED_BOTS.length; i++) {
             if (ua.indexOf(SHED_BOTS[i]) !== -1) {
                 return {
                     statusCode: 429,
