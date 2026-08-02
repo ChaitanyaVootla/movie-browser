@@ -93,6 +93,15 @@ them all. Brave has an independent index with NO submission console. Apple
   code change — noindex, the sitemap gate, `notAdult()` and the `.md` 404s all
   read this one column — and it propagates on its own (ISR ~1h, CDN ~2h, sitemap
   on the nightly cron).
+  **APPLIED to prod Aug 2 2026: 4,578 movies + 15 series.** Verified end-to-end
+  after the run — flagged pages serve `noindex, nofollow`, `.md` twins 404,
+  `/search.md` no longer surfaces them, they are gone from every sitemap, spared
+  and mainstream titles still serve `index, follow`, and a re-run reports 0 rows.
+  **Residual the keyword signal CANNOT reach:** titles with no TMDB keywords at
+  all (`Kissing My Sister`, `Madame Aema` are the known examples from the GSC top
+  pages). Closing those needs a different signal — company-transitive propagation
+  from known adult studios is the most promising untried idea; cast-transitive was
+  measured and is weak.
   - **Keyword choice is the entire design; adult-ADJACENT keywords are dominated
     by mainstream cinema.** Verified false positives, do NOT add:
     `prostitution`/`prostitute` (Taxi Driver, Poor Things), `sex comedy`
