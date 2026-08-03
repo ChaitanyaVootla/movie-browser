@@ -66,7 +66,15 @@ export const getDiscussData = cache(async (seriesId: number) => {
 });
 
 export async function generateDiscussMetadata(p: DiscussParams): Promise<Metadata> {
-  const series = await getDiscussData(p.seriesId);
+  const [series, publishedCount] = await Promise.all([
+    getDiscussData(p.seriesId),
+    getPublishedCommentCount({
+      type: "series",
+      seriesId: p.seriesId,
+      seasonNumber: p.season,
+      episodeNumber: p.episode,
+    }),
+  ]);
   const episode = series?.seasons
     .find((s) => s.seasonNumber === p.season)
     ?.episodes.find((e) => e.episodeNumber === p.episode);
@@ -83,7 +91,16 @@ export async function generateDiscussMetadata(p: DiscussParams): Promise<Metadat
     description,
     alternates: { canonical },
     // Adult titles are noindex everywhere, per-episode pages included.
-    ...(series.adult ? { robots: { index: false, follow: false } } : {}),
+    // An EMPTY thread is noindex too (follow stays true) — see the long note in
+    // `movie/[...params]/discussions-page.tsx`. This is the HIGHEST-volume
+    // discussion surface by far (one URL per EPISODE of every series), so it is
+    // also where empty shells did the most crawl-budget damage — most of the 241
+    // invalid `DiscussionForumPosting` items GSC rejected were episode pages.
+    ...(series.adult
+      ? { robots: { index: false, follow: false } }
+      : publishedCount === 0
+        ? { robots: { index: false, follow: true } }
+        : {}),
     openGraph: { title, description, url: canonical, siteName: SITE_NAME, type: "website" },
     twitter: { card: "summary", title, description },
   };

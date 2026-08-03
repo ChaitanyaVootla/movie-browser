@@ -38,7 +38,16 @@ async function getSeriesLite(id: number) {
 }
 
 export async function generateSeriesDiscussionsMetadata(seriesId: number): Promise<Metadata> {
-  const series = await getSeriesLite(seriesId);
+  const [series, publishedCount] = await Promise.all([
+    getSeriesLite(seriesId),
+    // Whole-series thread: both numbers null, matching the view's anchor below.
+    getPublishedCommentCount({
+      type: "series",
+      seriesId,
+      seasonNumber: null,
+      episodeNumber: null,
+    }),
+  ]);
   if (!series) return { title: "Discussion Not Found" };
   const title = `${series.name} Discussion | ${SITE_NAME}`;
   const canonical = `${SITE_URL}${getMediaPath("series", series.id, series.name)}/discussions`;
@@ -52,7 +61,13 @@ export async function generateSeriesDiscussionsMetadata(seriesId: number): Promi
     alternates: { canonical },
     // Adult titles are noindex everywhere, sub-pages included — otherwise the
     // discussions URL becomes the indexable twin of a noindexed detail page.
-    ...(series.adult ? { robots: { index: false, follow: false } } : {}),
+    // An EMPTY thread is noindex too (follow stays true) — see the long note in
+    // the movie equivalent (`movie/[...params]/discussions-page.tsx`).
+    ...(series.adult
+      ? { robots: { index: false, follow: false } }
+      : publishedCount === 0
+        ? { robots: { index: false, follow: true } }
+        : {}),
     openGraph: { title, description, url: canonical, siteName: SITE_NAME, type: "website" },
     twitter: { card: "summary", title, description },
   };

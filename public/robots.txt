@@ -29,6 +29,10 @@ Disallow: /api/
 Disallow: /ratings
 Disallow: /watchlist
 Disallow: /watched
+# DISCUSSION SUB-PAGES — see the note in the DEFAULT group below. These are
+# ~1.2M near-empty shells and were 41% of Googlebot's crawl on Aug 3 2026.
+Disallow: /*/discussions
+Disallow: /*/discuss/
 Allow: /
 
 # ---------------------------------------------------------------------------
@@ -100,6 +104,24 @@ Disallow: /api/
 Disallow: /ratings
 Disallow: /watchlist
 Disallow: /watched
+# DISCUSSION SUB-PAGES (added Aug 3 2026) — a crawl-budget AND origin-CPU brake.
+# Every title has a `/discussions` page and every episode a `/discuss/sXeY` page:
+# ~1.2M+ URLs (1.07M movies + 141k series + their episodes). Site-wide there is
+# currently exactly **1 published comment**, so essentially all of them are empty
+# shells. Measured the day Googlebot was unblocked: they were 41% of Googlebot's
+# crawl and 29% of ALL origin-reaching requests, and because each one is a full
+# SSR render that writes an ISR entry, they were churning ~32k of 322k cache
+# entries per HOUR against a cache pinned at its size cap — evicting the popular
+# pages real users hit. `noindex` alone does NOT fix that (Google must still crawl
+# a page to see it), so the crawl has to be blocked here.
+# The pages keep working for direct visitors and are still `noindex` when empty in
+# `generateMetadata`, which self-corrects as threads gain content.
+# LIFT THESE TWO LINES once discussions carry real content — they are a response
+# to an empty feature, not a permanent policy.
+# NOTE: the cross-catalog hub `/discussions` is deliberately NOT matched
+# (`/*/discussions` needs a second slash), so the one aggregate page stays crawlable.
+Disallow: /*/discussions
+Disallow: /*/discuss/
 # Allow everything else
 Allow: /
 

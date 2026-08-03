@@ -38,7 +38,10 @@ async function getMovieLite(id: number) {
 }
 
 export async function generateMovieDiscussionsMetadata(movieId: number): Promise<Metadata> {
-  const movie = await getMovieLite(movieId);
+  const [movie, publishedCount] = await Promise.all([
+    getMovieLite(movieId),
+    getPublishedCommentCount({ type: "movie", movieId }),
+  ]);
   if (!movie) return { title: "Discussion Not Found" };
   const title = `${movie.title} Discussion | ${SITE_NAME}`;
   const canonical = `${SITE_URL}${getMediaPath("movie", movie.id, movie.title)}/discussions`;
@@ -52,7 +55,22 @@ export async function generateMovieDiscussionsMetadata(movieId: number): Promise
     alternates: { canonical },
     // Adult titles are noindex everywhere, sub-pages included — otherwise the
     // discussions URL becomes the indexable twin of a noindexed detail page.
-    ...(movie.adult ? { robots: { index: false, follow: false } } : {}),
+    //
+    // An EMPTY thread is also noindex (Aug 3 2026). There is one `/discussions`
+    // URL per title — ~1.2M of them — and with the feature new, essentially all
+    // are content-free shells; indexing them is thin-content risk (GSC already
+    // rejected 241 `DiscussionForumPosting` items for exactly this) and it burned
+    // 41% of Googlebot's crawl. `follow` stays TRUE so the crawler still walks
+    // through to the real detail page. This self-corrects: the moment a thread has
+    // a published comment the page becomes indexable again, with no code change.
+    // NOTE: `robots.txt` currently also Disallows these paths, which is the part
+    // that actually saves crawl budget (noindex still requires a crawl to be
+    // seen). This gate is what makes it safe to LIFT that Disallow later.
+    ...(movie.adult
+      ? { robots: { index: false, follow: false } }
+      : publishedCount === 0
+        ? { robots: { index: false, follow: true } }
+        : {}),
     openGraph: { title, description, url: canonical, siteName: SITE_NAME, type: "website" },
     twitter: { card: "summary", title, description },
   };
