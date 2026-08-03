@@ -154,6 +154,27 @@ them all. Brave has an independent index with NO submission console. Apple
   TMDB-sourced `/similar` + `/recommendations` endpoints accept no `include_adult`
   so they follow TMDB's own policy. The `include_adult` field on `DiscoverParams`
   is dead code (`toTMDBParams()` never reads it) — safe to delete someday.
+- **DISCUSSION SUB-PAGES ARE ROBOTS-DISALLOWED (Aug 3 2026) — and that is a
+  temporary answer to an empty feature, not policy.** Every title has a
+  `/discussions` page and every episode a `/discuss/sXeY` page: **~1.2M+ URLs**
+  (1.07M movies + 141k series + episodes) against **exactly 1 published comment
+  site-wide**. The day Googlebot was unblocked they became **41% of its crawl and
+  29% of ALL origin-reaching requests**, and since each is a full SSR render that
+  writes an ISR entry, they churned ~32k of 322k cache entries per hour against a
+  cache pinned at its cap — evicting the pages real users hit (confirmed-human p50
+  TTFB 354ms → 858ms). Two fixes shipped together, and the distinction matters:
+  - `robots.txt` `Disallow: /*/discussions` + `Disallow: /*/discuss/` — this is the
+    part that saves crawl budget and CPU. **`noindex` does NOT**: Google must crawl
+    a page to see it.
+  - `noindex, follow` on EMPTY threads in all three `generateMetadata` functions
+    (movie `/discussions`, series `/discussions`, series `/discuss/sXeY`). This is
+    the durable, self-correcting half — a thread becomes indexable again the moment
+    it has one published comment — and it is what makes lifting the `Disallow`
+    safe later. **Lift the Disallow when discussions carry real content.**
+  - The cross-catalog hub `/discussions` is deliberately still crawlable
+    (`/*/discussions` needs a second slash, so it does not match). Verified the
+    patterns against Google's prefix+wildcard semantics over 13 paths before
+    shipping — a robots wildcard that over-matches can silently de-index the site.
 - **`DiscussionForumPosting` — never mark up an empty thread (Jul 30 2026: 241
   invalid items, 0 valid).** Two GSC criticals, one root cause: the schema was
   built as `headline` + a nested `comment[]` with no content of its own, and was

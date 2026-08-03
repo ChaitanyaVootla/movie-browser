@@ -167,6 +167,33 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      next-server can squat port 3002 → PM2 crash-loops on EADDRINUSE —
      `sudo fuser -k 3002/tcp`; (3) a deploy whose scp/tar failed mid-way leaves
      `.next` corrupt — redeploy, don't debug it.
+   - **MEASURE THRASH DIRECTLY — one command, no guessing (Aug 3 2026).** Compare
+     files written recently against the total in the live namespace:
+     ```
+     cd .next/cache/bounded-isr/<BUILD_ID>
+     find . -type f | wc -l              # total entries
+     find . -type f -mmin -60 | wc -l    # rewritten in the last hour
+     ```
+     322,643 total with **32,585 in the last hour** = ~10%/hour turnover, and at
+     the cap every write evicts something → essentially every request is a miss
+     that renders AND evicts a page someone else wanted. Also check
+     `du -sh */` in `bounded-isr/`: there should be exactly ONE BUILD_ID dir
+     (stale namespaces ARE pruned — verified; don't chase that).
+   - **Before raising the cap, ask WHAT is filling it.** In the Aug 3 incident the
+     answer was ~1.2M near-empty `/discussions` + `/discuss/sXeY` shells (one per
+     title, one per episode, **1 published comment site-wide**) making up **29% of
+     all origin-reaching requests and 41% of Googlebot's crawl**. The cap was not
+     the bug; the crawl surface was. Raising the cap would have bought a bigger
+     cache of worthless pages. See `seo-search-console.md`.
+   - **A `noindex` page still costs a full crawl + render + cache write.** Google
+     must fetch a page to see `noindex`. To stop the CPU cost you need
+     `robots.txt Disallow`; use `noindex` for index hygiene and `Disallow` for
+     crawl budget. They are different tools — the Aug 3 fix shipped both.
+   - **CPU at 95% with 0% idle right after a deploy is the COLD WINDOW, not a
+     regression.** A deploy mints a new BUILD_ID → empty ISR namespace → every
+     request is a cold render. Measured recovery: load 4.42→1.44 and idle
+     0%→48% in ~6 minutes as entries grew 4.6k→9.5k. Watch it warm before
+     diagnosing anything; and don't stack deploys while investigating perf.
 2. **Never block the render path on a scrape/LLM/Lambda.** Detail-page hydration returns PG/TMDB immediately and refreshes ratings in a **deduped background task**; the SSE enrich endpoint streams them in. See `.claude/rules/postgres-hydration.md`. A synchronous Lambda scrape added seconds per first/stale visit.
 3. **Cap ClickHouse CPU** (it ate 1.5 of 2 cores). `docker-compose.yml`: `cpus: "0.9"` + low `cpu_shares`, and `concurrent_threads_soft_limit_num` in `analytics/clickhouse/config/config.xml`. **GOTCHA:** do NOT set `background_pool_size` low — `background_pool_size * background_merges_mutations_concurrency_ratio` must be ≥ `number_of_free_entries_in_pool_to_execute_mutation` (default 20) or ClickHouse exits 36 in a crash loop. **Always validate CH config in a throwaway local container before deploying** (see Testing below). A mounted `config.d` edit does NOT recreate the container — but DON'T force-recreate every deploy either (re-merging the part backlog spikes CPU for minutes; recreate once, manually, when config changes).
 4. **ClickHouse system logs are disabled — keep them that way.** June 2026: the
