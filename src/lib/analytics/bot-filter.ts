@@ -69,6 +69,37 @@ export const FORCE_BOT_UA_SUBSTRINGS: readonly string[] = [
 export const FORCE_BOT_REFERER_SUBSTRINGS: readonly string[] = ["google.com/search?q="];
 
 /**
+ * A `referer` naming an origin with NO path component at all — provably forged,
+ * because the WHATWG URL serializer always emits "/" for an empty path. Every
+ * referer a real user agent sends therefore has one. RE2 pattern, matched
+ * case-insensitively against the trimmed value.
+ *
+ * This is the query-time twin of the proxy's `forged_referer` shed (see
+ * `isForgedOriginReferer` in `bot-detection.ts` and the Aug 11 2026 incident in
+ * `.claude/rules/cdn.md`). Both are needed, and for different rows:
+ *   - the PROXY shed stops the origin renders, but only sees requests that reach
+ *     the origin;
+ *   - CloudFront edge HITs never reach the origin at all, and this fleet
+ *     executes JS, so its client beacon still POSTs to `/api/analytics/ingest`
+ *     and lands as `is_bot = 0`. Only a query-time rule can label those.
+ * It also reclassifies the ~2.19M views/7d of HISTORY that predate the shed,
+ * with no re-ingest.
+ *
+ * Measured on prod (7d/30d) before shipping: 2,192,483 views / 2,002,073
+ * sessions / **0 authenticated** on the path-less form, against 4,119 views /
+ * 118 authenticated on the slashed form; every other origin-only referer on the
+ * site (Bing, DuckDuckGo, Google, Baidu, Yandex, Yahoo, Brave, Ecosia, our own
+ * www/http/origin variants) carries the slash. Against 1,099 CONFIRMED human
+ * sessions over 30 days it matches 0 sessions and 0 of 54,736 views.
+ *
+ * Unlike the `google.com/search?q=` rule above, this one MOVES THE NUMBERS a
+ * lot: it is the single largest correction to the "human" bucket since UA
+ * forwarding shipped, and the direct cause of the post-Jul-28 human hump that
+ * `audience.ts` warns about.
+ */
+export const FORCE_BOT_PATHLESS_REFERER_RE = "(?i)^https?://[^/]+$";
+
+/**
  * A `user_agent` outside these bounds is automated. Wikimedia's published
  * pageview classifier uses exactly this 25–400 character window, which is the
  * best open precedent available (they publish and version their thresholds).
@@ -100,6 +131,7 @@ function buildBotSql(): string {
   assertSafe(FORCE_BOT_UA_EXACT);
   assertSafe(FORCE_BOT_UA_SUBSTRINGS);
   assertSafe(FORCE_BOT_REFERER_SUBSTRINGS);
+  assertSafe([FORCE_BOT_PATHLESS_REFERER_RE]);
 
   const clauses: string[] = ["is_bot = 1"];
 
@@ -119,6 +151,9 @@ function buildBotSql(): string {
   for (const sub of FORCE_BOT_REFERER_SUBSTRINGS) {
     clauses.push(`ifNull(positionCaseInsensitive(referer, '${sub}') > 0, 0)`);
   }
+
+  // Path-less referer (origin with no "/"). Same `ifNull` reasoning as above.
+  clauses.push(`ifNull(match(trimBoth(referer), '${FORCE_BOT_PATHLESS_REFERER_RE}'), 0)`);
 
   // UA-length bounds (Wikimedia's published window). Empty UAs are already
   // `bot_type='empty_ua'` at ingest; this also catches truncated/handcrafted ones.

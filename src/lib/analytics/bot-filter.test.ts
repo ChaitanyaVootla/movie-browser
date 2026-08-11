@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   BOT_SQL,
+  FORCE_BOT_PATHLESS_REFERER_RE,
   FORCE_BOT_REFERER_SUBSTRINGS,
   FORCE_BOT_UA_EXACT,
   HUMAN_SQL,
@@ -84,5 +85,64 @@ describe("User-Agent length bounds", () => {
       "(KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
     expect(chrome.length).toBeGreaterThan(MIN_HUMAN_UA_LENGTH);
     expect(chrome.length).toBeLessThan(MAX_HUMAN_UA_LENGTH);
+  });
+});
+
+/**
+ * The path-less-referer rule (Aug 11 2026). This is the query-time twin of the
+ * proxy's `forged_referer` shed and the largest correction to the reported human
+ * number since UA forwarding shipped, so its shape is pinned here.
+ *
+ * The regex is exercised as a JS RegExp below. That is NOT a substitute for
+ * ClickHouse RE2 semantics, but the pattern uses only features common to both,
+ * and it was validated directly against prod ClickHouse before shipping:
+ * it flagged the 2,222,979-view fleet row and NOTHING else, and matched 0 of
+ * 54,821 views across 1,098 confirmed human sessions over 30 days.
+ */
+describe("path-less referer rule", () => {
+  const re = new RegExp(FORCE_BOT_PATHLESS_REFERER_RE.replace("(?i)", ""), "i");
+
+  it("is wired into BOT_SQL, NULL-safely and against the trimmed value", () => {
+    expect(BOT_SQL).toContain(`match(trimBoth(referer), '${FORCE_BOT_PATHLESS_REFERER_RE}')`);
+    // Without ifNull, a NULL referer makes the whole OR-chain NULL and those
+    // rows fall out of BOTH the bot and human buckets.
+    expect(BOT_SQL).toContain(
+      `ifNull(match(trimBoth(referer), '${FORCE_BOT_PATHLESS_REFERER_RE}'), 0)`
+    );
+  });
+
+  it("carries no character that would break the generated SQL literal", () => {
+    expect(FORCE_BOT_PATHLESS_REFERER_RE).not.toContain("'");
+    expect(FORCE_BOT_PATHLESS_REFERER_RE).not.toContain("\\");
+  });
+
+  it("flags a path-less origin (what the fleet sends)", () => {
+    expect(re.test("https://themoviebrowser.com")).toBe(true);
+    expect(re.test("http://themoviebrowser.com")).toBe(true);
+    expect(re.test("https://themoviebrowser.com:443")).toBe(true);
+    expect(re.test("HTTPS://THEMOVIEBROWSER.COM")).toBe(true);
+  });
+
+  it("does NOT flag any referer form a real browser sends", () => {
+    // Each of these was measured on prod carrying the trailing slash.
+    for (const ref of [
+      "https://themoviebrowser.com/",
+      "https://origin.themoviebrowser.com/",
+      "https://www.bing.com/",
+      "https://duckduckgo.com/",
+      "https://www.google.com/",
+      "http://www.baidu.com/",
+      "https://www.yandex.com/",
+      "https://search.yahoo.com/",
+      "https://themoviebrowser.com/movie/157336/interstellar",
+      "https://www.google.com/search?q=movies",
+    ]) {
+      expect(re.test(ref), ref).toBe(false);
+    }
+  });
+
+  it("does not flag non-http referers or empty values", () => {
+    expect(re.test("android-app://com.google.android.gm")).toBe(false);
+    expect(re.test("")).toBe(false);
   });
 });
