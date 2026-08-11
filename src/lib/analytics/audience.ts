@@ -76,6 +76,7 @@ export const VERIFIED_CRAWLER_BOT_TYPES: readonly string[] = [
 export const SHED_BOT_TYPES: readonly string[] = [
   "markdown_scraper",
   "datacenter_fleet",
+  "forged_referer",
   "webdriver",
   "headless_hint",
   "missing_client_hints",
@@ -179,6 +180,7 @@ export const CRAWLER_LABELS: Record<string, string> = {
 export const SHED_REASON_LABELS: Record<string, string> = {
   markdown_scraper: "LLM scraper (Accept: text/markdown)",
   datacenter_fleet: "Datacenter/hosting ASN",
+  forged_referer: "Forged referer (origin, no path)",
   webdriver: "navigator.webdriver",
   headless_hint: "Headless client hint",
   missing_client_hints: "Chrome UA, no client hints",

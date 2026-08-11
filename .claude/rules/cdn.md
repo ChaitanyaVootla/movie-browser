@@ -260,6 +260,64 @@ Practical stance: the JA4/Header-Order headers are only worth forwarding once
 something CONSUMES them (they cost bytes on every origin fetch, and Header-Order
 is large). Enable them together with storage + coherence logic, not speculatively.
 
+### The FORGED-REFERER shed — the one high-precision signal this fleet gave us (Aug 11 2026)
+
+The research above concludes no per-request signal separates this fleet from a
+person. **That conclusion was wrong in exactly one place, and it was decisive:
+the fleet forged a `Referer` that no URL serializer can produce.**
+
+Incident: prod homepage TTFB 58s, movie pages 502, swap exhausted (1.9/2.0 GiB),
+`next-server` RSS 4GB, ISR cache pinned at its 25GB cap with **29,414 of 348,537
+entries rewritten per hour**. Driver was ~70k req/hr sustained for days, sweeping
+~11k DISTINCT long-tail paths every 30 min — all CloudFront MISSes, all cold SSR,
+each one evicting a page a real user wanted (the Aug 3 thrash mechanism again,
+but volume-driven rather than cap-driven).
+
+**The signal:** `Referer: https://themoviebrowser.com` — a bare origin with **no
+trailing slash** — on deep detail URLs. The WHATWG URL serializer always emits
+`/` for an empty path, so every referer a real user agent sends has one. Under
+our `strict-origin-when-cross-origin` policy a cross-origin referral is trimmed
+to the ORIGIN (still slashed) and a same-origin navigation keeps the full path.
+A scraper concatenating a plausible header omits it. Measured (7d/30d):
+
+| Referer | Views | Sessions | Authed |
+|---|---|---|---|
+| `https://themoviebrowser.com` (no slash) | 2,192,483 | 2,002,073 | **0** |
+| `https://themoviebrowser.com/` (slash) | 4,119 | 2,864 | **118** |
+
+Every OTHER origin-only referer on the site — Bing, DuckDuckGo, Google, Baidu,
+Yandex, Yahoo, Brave, Ecosia, our own `www`/`http`/`origin.` variants — carried
+the slash. The fleet was the only path-less row on the entire site.
+
+**Ground truth before shipping (do this for ANY new shed rule):** against 1,099
+CONFIRMED human sessions over 30 days (authenticated OR having performed a
+tracked action), the rule shed **0 sessions and 0 of 54,736 views**.
+
+Implementation: `isForgedOriginReferer` (`lib/analytics/bot-detection.ts`), wired
+into `scraperShedReason` as label `forged_referer`; 7 tests in
+`bot-detection.test.ts` pin it. Design choices that are load-bearing:
+- **Referer-LESS requests are NEVER matched.** Googlebot sends no referer, so it
+  cannot be caught — the property that makes this safe after the Aug 2 incident.
+- **Host-agnostic on purpose.** The Jul 2026 fleet rotated providers within a
+  day; keying on our own origin would just relocate the forgery. The invariant is
+  about URL serialization, not about who is imitated.
+- **Fails OPEN** on anything unparseable, and **signed-in sessions are exempt**
+  (`hasSessionCookie`, shared with the datacenter shed) — belt-and-braces, since
+  0 of the 2.0M forged sessions were authenticated.
+- It reuses the existing 429 response, whose **`cache-control: private, no-store`
+  is load-bearing**: `Referer` is NOT in the edge cache key, so a cacheable 429
+  on a MISS would poison that URL for real users. Same trap as UA.
+- Keep `SHED_BOT_TYPES` + `SHED_REASON_LABELS` (`lib/analytics/audience.ts`) in
+  sync when adding a shed label, or the traffic lands in the wrong audience
+  bucket. `audience.test.ts` enforces the label; nothing enforces the set.
+
+**Generalizable lesson:** prefer a signal that is a PROTOCOL/SERIALIZATION
+invariant ("no conforming implementation can emit this") over any behavioural
+heuristic. Those are the only rules cheap enough to enforce per-request and safe
+enough to 429 on. The bar is the same one `bot-filter.ts` uses for the stripped
+`google.com/search?q=` referer — and it is why that section says to hunt for
+determinism, not thresholds.
+
 ## Origin lockdown — UNRESOLVED
 Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
 - Caddy has a dormant `X-Origin-Verify` secret-header gate (activates when

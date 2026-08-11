@@ -206,6 +206,50 @@ export function isMarkdownOnlyClient(accept: string | null): boolean {
   return !value.includes("text/html");
 }
 
+/**
+ * True for a `Referer` that names an origin with NO path component at all —
+ * a header no real user agent can produce, and therefore a hand-built one.
+ *
+ * WHY IT WORKS: the WHATWG URL serializer always emits "/" for an empty path,
+ * so a browser referring from a site root sends `https://example.com/`. Under
+ * our `strict-origin-when-cross-origin` policy, a cross-origin referral is
+ * trimmed to the ORIGIN — which still serializes with the slash — and a
+ * same-origin navigation keeps the full path. Either way there is a "/".
+ * A scraper concatenating a plausible-looking `Referer` string omits it.
+ *
+ * MEASURED before this shipped (Aug 11 2026 incident, prod ClickHouse):
+ * `https://themoviebrowser.com` with no slash accounted for 2,192,483 views
+ * over 7 days across 2,002,073 sessions with ZERO authenticated views (~1.09
+ * views/session — the fleet signature), while the slashed form carried 118
+ * authenticated views. Every other origin-only referer on the site (Bing,
+ * DuckDuckGo, Google, Baidu, Yandex, Yahoo, Brave, Ecosia, our own www/http
+ * variants) had the slash. Against 1,099 CONFIRMED human sessions over 30 days
+ * the rule shed 0 sessions and 0 of 54,736 views.
+ *
+ * Deliberately HOST-AGNOSTIC: the Jul 2026 fleet rotated hosting providers
+ * within a day, so keying on our own origin would just relocate the forgery.
+ * The invariant is about URL serialization, not about who is being imitated.
+ *
+ * Deliberately FAILS OPEN on anything unparseable: a false positive here
+ * blocks a person, a miss costs one render. Referer-LESS requests (Googlebot,
+ * direct navigation, link-unfurl bots) are never matched.
+ */
+export function isForgedOriginReferer(referer: string | null): boolean {
+  if (!referer) return false;
+  const value = referer.trim();
+  // http(s) only. Anything else (android-app://, about:, relative) is either
+  // not a browser navigation or not parseable with confidence — serve it.
+  const match = /^https?:\/\/(.+)$/i.exec(value);
+  if (!match) return false;
+  const authority = match[1];
+  // An empty authority is malformed, not forged.
+  if (!authority) return false;
+  // A real referer has a path, so the authority is followed by "/". Anything
+  // that reaches the end of the string (or a query/fragment) without one has
+  // no path at all.
+  return !/[/]/.test(authority);
+}
+
 export function detectBotFromRequest(
   userAgent: string,
   secChUa: string | null,

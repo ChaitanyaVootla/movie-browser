@@ -4,7 +4,11 @@ import type { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { buildTrackingContext, getPageTypeFromPath, getItemFromPath } from "@/lib/analytics/context-core";
-import { detectBotFromRequest, isMarkdownOnlyClient } from "@/lib/analytics/bot-detection";
+import {
+  detectBotFromRequest,
+  isForgedOriginReferer,
+  isMarkdownOnlyClient,
+} from "@/lib/analytics/bot-detection";
 import { trackPageView } from "@/lib/analytics/track";
 import { SITE_URL } from "@/lib/constants";
 import {
@@ -329,14 +333,22 @@ function ipv4ToInt(ip: string): number {
   return ip.split(".").reduce((acc, oct) => (acc << 8) + Number(oct), 0) >>> 0;
 }
 
+/**
+ * A real signed-in session. The CF function only forwards cookies for
+ * authenticated requests, so presence = real human. Every behavioural shed
+ * checks this FIRST so a person is never blocked by an aggregate signal.
+ */
+function hasSessionCookie(req: NextRequest): boolean {
+  return (
+    req.cookies.has("__Secure-authjs.session-token") || req.cookies.has("authjs.session-token")
+  );
+}
+
 function isBlockedDatacenterIP(req: NextRequest): boolean {
   try {
-    // Logged-in users are always exempt (the CF function only forwards cookies
-    // for authenticated requests, so cookie presence = real session). Checked
-    // first so a human on a cloud VPN is never shed by ASN or CIDR.
-    if (req.cookies.has("__Secure-authjs.session-token") || req.cookies.has("authjs.session-token")) {
-      return false;
-    }
+    // Logged-in users are always exempt. Checked first so a human on a cloud
+    // VPN is never shed by ASN or CIDR.
+    if (hasSessionCookie(req)) return false;
 
     const asn = Number(req.headers.get("cloudfront-viewer-asn"));
     if (Number.isFinite(asn) && asn > 0 && BLOCKED_HOSTING_ASNS.has(asn)) return true;
@@ -372,6 +384,28 @@ function scraperShedReason(req: NextRequest): string | null {
     if (isMarkdownOnlyClient(req.headers.get("accept"))) return "markdown_scraper";
 
     if (isBlockedDatacenterIP(req)) return "datacenter_fleet";
+
+    // FORGED-REFERER SHED (Aug 11 2026). A residential-proxy fleet sent
+    // `Referer: https://themoviebrowser.com` — no trailing slash — on deep
+    // detail URLs: 2.19M views/7d over 2.0M sessions (~1.09 views/session) with
+    // ZERO authenticated views, sweeping ~11k distinct long-tail paths every 30
+    // minutes. That is all cache-MISS cold SSR, which pinned the 25GB ISR cache
+    // at its cap (29k of 348k entries rewritten per hour), evicting the pages
+    // real users hit, and drove the box into swap exhaustion → 502s.
+    //
+    // It is the ONE signal this fleet cannot forge cheaply, because it is not a
+    // heuristic: the URL serializer always emits "/" for an empty path, so
+    // EVERY referer a real user agent sends has one. See isForgedOriginReferer
+    // for the full measurement, including the 0-false-positives result against
+    // 1,099 confirmed human sessions over 30 days.
+    //
+    // Signed-in humans are exempt regardless (belt-and-braces: 0 of the 2.0M
+    // forged sessions were authenticated). Referer-LESS requests are never
+    // matched, so Googlebot — which sends none — cannot be caught by this; that
+    // property is load-bearing after the Aug 2 markdown-shed incident.
+    if (!hasSessionCookie(req) && isForgedOriginReferer(req.headers.get("referer"))) {
+      return "forged_referer";
+    }
 
     const { botType } = detectBotFromRequest(
       req.headers.get("user-agent") || "",
