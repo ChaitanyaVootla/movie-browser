@@ -358,6 +358,73 @@ DIRECTLY (real UAs, bypassing CloudFront — the unresolved origin-lockdown hole
 they cost origin CPU + Lambda but NOT CloudFront; robots.txt + `src/proxy.ts` 429
 handle them.
 
+### Measured cost history + the Cloudflare decision (Aug 13 2026)
+
+Numbers pulled from Cost Explorer + CloudWatch, superseding the "~14.5M/mo"
+figure above. **Data transfer is irrelevant — $0.05/mo. The bill IS request count.**
+
+| Period | Requests/mo | CloudFront | What changed |
+|---|---|---|---|
+| Feb–May 2026 | 5.0–6.3M | **$0.00** | images only, inside the 10M/mo Always-Free tier |
+| Jun | 42.6M | $20.81 | **HTML moved behind the CDN Jun 11** |
+| Jul | 57.3M | $31.05 | |
+| Aug (12d) | 51.7M | $27.72 | → **~$91/mo projected** |
+
+Two facts that decide the migration:
+1. **The step change is one day: Jul 27→28, 1,276,820 → 3,247,929 req/day**, and it
+   never came back. That is the residential-proxy fleet arriving (same day as the
+   UA-forwarding flip, which is *how* we became able to see it). The Aug 2–3 peak
+   of 5.1–5.6M/day is that fleet PLUS the empty-discussions crawl surface; the
+   robots `Disallow` shipped Aug 3 is visible as 5.61M → 0.93M by Aug 6.
+2. **Even a clean pre-fleet baseline (0.63–1.28M req/day = 19–38M/mo) is 2–4× over
+   the free tier.** So CloudFront can NEVER return to ~$0 while HTML flows through
+   it. Cloudflare Free saves ~$32–42/mo on a clean baseline and ~$90–116/mo with
+   the fleet (incl. ~$11.50/mo of Route 53 that disappears, since Free plan forces
+   DNS to Cloudflare). The fleet changes the SIZE of the win, not whether one exists.
+   **Do NOT attribute the elevated bill to the origin shed** — the 3–5× step
+   predates it by two weeks; the shed's marginal cost is ~$1/day.
+
+Watch it with **`./scripts/cdn-watch.sh`** (requests/day, month-end projection vs
+the free tier, origin shed volume, threshold verdict). Deliberately a pull script,
+not a daemon: CloudWatch keeps daily metrics 455 days and ClickHouse keeps
+`page_views`, so history accrues with nothing polling.
+
+**Cloudflare Free feature-parity research (Aug 13 2026) — the two real regressions.**
+The hard constraint is that **custom cache keys (keying on headers/cookies) are
+Enterprise-only**; Free/Pro/Business get only device-type, ignore/sort query string,
+and cache deception armor. Consequences, footgun by footgun:
+- Footgun 1 (RSC poisoning): NOT solvable via cache key. Solvable with a **Transform
+  Rule** (all plans, 10 on Free) that STRIPS the `rsc` request header when the query
+  lacks `_rsc`, so the origin can't emit a flight payload for an HTML URL. Real
+  `?_rsc=` requests key separately because Cloudflare keys on the full query string.
+- Footgun 3 (cookie normalization) **disappears** — cookies aren't in Cloudflare's
+  default cache key, so the fragmentation the CF Function prevents can't occur.
+- Footgun 4 (`/_next/image*` params) **disappears** — full query string is keyed.
+- Footgun 7 (geo, AT the 10-header quota) **improves** — Managed Transform "Add
+  visitor location headers" is on ALL plans and adds 10 headers (city, country,
+  continent, lat, long, region, region-code, metro, postal, timezone).
+- Origin lockdown (still unresolved below) **gets fixed** — Authenticated Origin
+  Pulls (mTLS) is free.
+- **REGRESSION 1: `stale-if-error` is gone.** Cloudflare's "Serve stale content"
+  Cache Rules setting is revalidation-ONLY; default on origin failure is a 521/522
+  error page, and Always Online (Free) serves from the Internet Archive with a
+  banner. Mitigating: every freeze cause is now fixed and `stale-if-error` never
+  covered a HUNG origin anyway (only 5xx).
+- **REGRESSION 2: no per-request logs.** Logpush is Enterprise. BUT this only bites
+  if we shed at Cloudflare's edge — and on Cloudflare requests are unmetered, so
+  keeping the shed at the ORIGIN costs nothing and preserves full ClickHouse
+  visibility. Resolution: keep shedding at the origin.
+- Also: regex `matches` requires Business+; `eq`/`contains` work on Free (5 custom
+  rules). Our forged-referer rule is exact-match so it fits, but the host-agnostic
+  regex form does not.
+- DNS: Free = **full setup, nameservers must move** (CNAME/partial is Business+,
+  $200/mo). Zone is only 10 records, but **a botched NS change = NXDOMAIN = exactly
+  the Jun 28–Jul 1 outage that reset Google crawl recovery.** Carry over the
+  `google-site-verification` TXT and BOTH ACM validation CNAMEs (or the image CDN
+  cert stops renewing). Keep `image.themoviebrowser.com` DNS-only on CloudFront —
+  Cloudflare's ToS still restricts serving a disproportionate share of images, and
+  at 1.65M req/mo it sits inside the CloudFront free tier anyway (→ $0).
+
 ## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.
 - **CloudFront access logging enabled Jul 28 2026 via CLI (TF DRIFT)**: standard
