@@ -250,6 +250,38 @@ export function isForgedOriginReferer(referer: string | null): boolean {
   return !/[/]/.test(authority);
 }
 
+/**
+ * TRUE when Cloudflare has cryptographically/DNS-verified the client as a known
+ * good bot — i.e. `cf.client.bot`, surfaced to the origin as `X-Verified-Bot` by
+ * a request-header Transform Rule (Cloudflare exposes it only as a ruleset
+ * field). Cloudflare verifies via reverse DNS and published IP ranges.
+ *
+ * WHY THIS MATTERS: every other bot signal we have is UA-derived, and a UA is
+ * free to forge — `audience.ts` says so explicitly ("a forged Googlebot lands
+ * here; reverse-DNS is out of scope"). This is the first signal we have ever had
+ * that a crawler is genuinely who it claims to be, and it is free on the
+ * Cloudflare plan. CloudFront had no equivalent.
+ *
+ * Returns false when the header is absent, so it is inert behind CloudFront and
+ * during the migration — never a silent behaviour change.
+ */
+export function isVerifiedBot(headers: { get: (name: string) => string | null }): boolean {
+  return headers.get("x-verified-bot") === "true";
+}
+
+/**
+ * Cloudflare's category for a verified bot ("Search Engine Crawler",
+ * "AI Crawler", …) from `cf.verified_bot_category`, or null. Only meaningful
+ * when `isVerifiedBot` is true.
+ */
+export function verifiedBotCategory(headers: {
+  get: (name: string) => string | null;
+}): string | null {
+  const raw = headers.get("x-verified-bot-category");
+  const value = raw?.trim();
+  return value ? value : null;
+}
+
 export function detectBotFromRequest(
   userAgent: string,
   secChUa: string | null,

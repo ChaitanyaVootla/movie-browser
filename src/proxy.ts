@@ -8,6 +8,7 @@ import {
   detectBotFromRequest,
   isForgedOriginReferer,
   isMarkdownOnlyClient,
+  isVerifiedBot,
 } from "@/lib/analytics/bot-detection";
 import { trackPageView } from "@/lib/analytics/track";
 import { SITE_URL } from "@/lib/constants";
@@ -382,6 +383,30 @@ function isBlockedDatacenterIP(req: NextRequest): boolean {
  */
 function scraperShedReason(req: NextRequest): string | null {
   try {
+    const { botType } = detectBotFromRequest(
+      req.headers.get("user-agent") || "",
+      req.headers.get("sec-ch-ua"),
+      req.headers.get("x-analytics-wd"),
+    );
+
+    // STEP 1 — DELIBERATE POLICY BLOCKS WIN OVER EVERYTHING, including
+    // Cloudflare's verified-bot flag. GPTBot / ClaudeBot / CCBot / Amazonbot /
+    // meta-externalagent ARE genuine verified crawlers; we block them on cost
+    // grounds (~98% of bot load for zero index value), not because we doubt their
+    // identity. A blanket verified-bot exemption would silently undo the entire
+    // training-crawler policy, so this must be evaluated FIRST.
+    if (botType !== null && BLOCKED_BOT_TYPES.has(botType)) return botType;
+
+    // STEP 2 — a Cloudflare-VERIFIED bot is never shed by a HEURISTIC.
+    // This is the structural fix for the Aug 2 2026 incident, where a heuristic
+    // (markdown-Accept) 429'd real desktop Googlebot for three days and Search
+    // Console clicks fell 620 -> 262. Identity beats inference: once Cloudflare
+    // has verified the client by reverse DNS, no behavioural guess of ours should
+    // override it. Inert behind CloudFront (header absent -> false), so this is
+    // not a silent behaviour change during the migration.
+    if (isVerifiedBot(req.headers)) return null;
+
+    // STEP 3 — heuristics, for clients whose identity nobody can vouch for.
     // LLM/markdown scrapers self-identify via Accept. Must be markdown-ONLY:
     // desktop Googlebot lists text/markdown alongside text/html, and shedding on
     // a bare `includes` 429'd every origin-bound Googlebot request for three days
@@ -412,12 +437,7 @@ function scraperShedReason(req: NextRequest): string | null {
       return "forged_referer";
     }
 
-    const { botType } = detectBotFromRequest(
-      req.headers.get("user-agent") || "",
-      req.headers.get("sec-ch-ua"),
-      req.headers.get("x-analytics-wd"),
-    );
-    return botType !== null && BLOCKED_BOT_TYPES.has(botType) ? botType : null;
+    return null;
   } catch {
     return null; // never block on a detection failure
   }

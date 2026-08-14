@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isForgedOriginReferer, isMarkdownOnlyClient } from "./bot-detection";
+import {
+  isForgedOriginReferer,
+  isMarkdownOnlyClient,
+  isVerifiedBot,
+  verifiedBotCategory,
+} from "./bot-detection";
 
 /**
  * Regression tests for the proxy's markdown shed.
@@ -118,5 +123,44 @@ describe("isForgedOriginReferer", () => {
   it("is tolerant of surrounding whitespace", () => {
     expect(isForgedOriginReferer("  https://themoviebrowser.com  ")).toBe(true);
     expect(isForgedOriginReferer("  https://themoviebrowser.com/  ")).toBe(false);
+  });
+});
+
+/**
+ * Cloudflare verified-bot identity (Aug 2026).
+ *
+ * `cf.client.bot` is the first signal this codebase has ever had that a crawler
+ * is genuinely who its User-Agent claims — Cloudflare verifies by reverse DNS
+ * and published IP ranges. It reaches the origin as `X-Verified-Bot` via a
+ * request-header Transform Rule, because Cloudflare exposes it only as a ruleset
+ * field. CloudFront had no equivalent, which is precisely why the Aug 2 2026
+ * incident (a heuristic 429'd real Googlebot for three days, GSC clicks
+ * 620 -> 262) was possible at all.
+ *
+ * The shed ordering these enable is asserted in proxy-shed-order.test.ts.
+ */
+describe("isVerifiedBot / verifiedBotCategory", () => {
+  it("is FALSE when the header is absent, so it stays inert behind CloudFront", () => {
+    expect(isVerifiedBot(new Headers())).toBe(false);
+    expect(verifiedBotCategory(new Headers())).toBeNull();
+  });
+
+  it("recognises Cloudflare's verified-bot flag", () => {
+    expect(isVerifiedBot(new Headers({ "x-verified-bot": "true" }))).toBe(true);
+  });
+
+  it("treats anything other than an exact 'true' as unverified", () => {
+    // to_string(cf.client.bot) yields exactly "true"/"false". Anything else is
+    // a forged header and must NOT buy a shed exemption.
+    for (const v of ["false", "1", "TRUE", "yes", "", " true"]) {
+      expect(isVerifiedBot(new Headers({ "x-verified-bot": v })), v).toBe(false);
+    }
+  });
+
+  it("exposes the verified category and trims it", () => {
+    expect(
+      verifiedBotCategory(new Headers({ "x-verified-bot-category": " Search Engine Crawler " })),
+    ).toBe("Search Engine Crawler");
+    expect(verifiedBotCategory(new Headers({ "x-verified-bot-category": "" }))).toBeNull();
   });
 });
