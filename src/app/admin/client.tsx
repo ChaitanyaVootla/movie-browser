@@ -11,6 +11,7 @@ import type { TimeRange, AnalyticsSubTab } from "@/components/features/admin/ana
 const VALID_TABS = ["analytics", "users", "inspect", "moderation"] as const;
 const VALID_SUBTABS: AnalyticsSubTab[] = [
   "traffic",
+  "product",
   "ai",
   "lambda",
   "costs",

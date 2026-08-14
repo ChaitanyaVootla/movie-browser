@@ -62,6 +62,12 @@ import {
   // Content
   getTopContent,
   getUserActionSummary,
+  getDailyUserActions,
+  // Product (confirmed-human-scoped conversion / engagement)
+  getProductOverview,
+  getTitleConversion,
+  getTopTitles,
+  getHumanPerformanceByPageType,
   // Lambda
   getLambdaUsageOverview,
   getLambdaByFunction,
@@ -92,6 +98,14 @@ import { getSystemMetrics, getSystemHealth } from "@/lib/system-metrics";
  * bad value used to flow straight into the SQL builder's bucket expression.
  */
 const AudienceGranularitySchema = z.enum(["hour", "day"]).catch("day");
+
+/**
+ * Which slice of the Product tab to compute. Validated (not cast) because it
+ * selects which ClickHouse queries run: the `titles` panel costs two full
+ * `page_views` scans, so a typo must fall back to the cheap default rather than
+ * silently running everything.
+ */
+const ProductPanelSchema = z.enum(["engagement", "titles", "speed"]).catch("engagement");
 
 /**
  * Get live cache metrics directly from the cache service
@@ -399,6 +413,40 @@ export async function GET(request: NextRequest) {
           topContent,
           actions,
         });
+      }
+
+      // =======================================================================
+      // Product — is the product being USED? (Phase 1 of the analytics
+      // overhaul spec: render data already collected and never displayed.)
+      //
+      // LAZY (the tab gates it client-side) and SEQUENTIAL. Three of these scan
+      // `page_views` over the whole range with a session-set subquery, and
+      // ClickHouse is capped at 0.9 of 2 vCPUs on this box — the same reason the
+      // audience/abuse/llm-layer cases avoid `Promise.all`. Measured on prod:
+      // ~0.9s per page_views scan at 7 days, ~2.3s at 30. The `user_actions` and
+      // `performance` queries are sub-100ms (small tables).
+      // =======================================================================
+      case "product": {
+        const panel = ProductPanelSchema.parse(searchParams.get("panel") ?? "engagement");
+
+        if (panel === "titles") {
+          // Two `page_views` scans — the expensive pair, hence its own panel.
+          const conversion = await getTitleConversion(range, 12);
+          const topTitles = await getTopTitles(range, 15);
+          return NextResponse.json({ conversion, topTitles });
+        }
+
+        if (panel === "speed") {
+          const perfByPageType = await getPerformanceByPageType(range);
+          const humanPerfByPageType = await getHumanPerformanceByPageType(range);
+          const perfTrend = await getPerformanceTrend(24);
+          return NextResponse.json({ perfByPageType, humanPerfByPageType, perfTrend });
+        }
+
+        const overview = await getProductOverview(range);
+        const actions = await getUserActionSummary(range);
+        const dailyActions = await getDailyUserActions(range, 6);
+        return NextResponse.json({ overview, actions, dailyActions });
       }
 
       // =======================================================================

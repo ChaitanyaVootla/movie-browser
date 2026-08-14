@@ -362,6 +362,125 @@ export interface PerformanceMetrics {
 }
 
 // =============================================================================
+// Product Types
+// =============================================================================
+
+/**
+ * Shapes returned by `GET /api/admin/analytics?type=product`.
+ *
+ * Deliberately DUPLICATED from `src/lib/analytics/queries/product.ts` rather than
+ * imported, matching every other block in this file: importing the server module
+ * from a `"use client"` tree would pull the ClickHouse client into the bundle.
+ * Note `TimeRange` is a plain number on the client but `{ days }` on the server.
+ *
+ * Every count here is scoped to the spec's confirmed-human floor (a session that
+ * is authenticated OR performed a tracked action) — NOT to raw `page_views`,
+ * which the residential-proxy fleet inflates by minting a `session_id` per IP.
+ * The panel prints that caveat; do not present these as total traffic.
+ */
+export interface ProductOverview {
+  confirmedSessions: number;
+  confirmedViews: number;
+  confirmedItemViews: number;
+  authedViews: number;
+  totalActions: number;
+  actingSessions: number;
+  actingUsers: number;
+  titlesActedOn: number;
+}
+
+export interface TitleConversion {
+  itemId: number;
+  title: string;
+  mediaType: string;
+  views: number;
+  visitors: number;
+  actingSessions: number;
+  totalActions: number;
+  watchlistAdds: number;
+  watchlistRemoves: number;
+  ratingLikes: number;
+  ratingDislikes: number;
+  watchClicks: number;
+  trailerPlays: number;
+}
+
+export interface TopTitle {
+  itemId: number;
+  title: string;
+  mediaType: string;
+  views: number;
+  visitors: number;
+}
+
+export interface UserActionSummary {
+  action: string;
+  count: number;
+  uniqueUsers: number;
+}
+
+export interface DailyUserAction {
+  date: string;
+  action: string;
+  count: number;
+}
+
+/** All web-vitals beacons for a page type — fleet-contaminated (see below). */
+export interface PerformanceByPageType {
+  pageType: string;
+  p75Lcp: number;
+  p75Cls: number;
+  p75Inp: number | null;
+  sampleCount: number;
+}
+
+/**
+ * The same vitals restricted to confirmed-human sessions. The live `performance`
+ * table has no `is_bot` column and the fleet executes JS, so the unrestricted
+ * numbers are ~3-4x worse than what people actually experience.
+ */
+export interface HumanPageTypePerformance {
+  pageType: string;
+  samples: number;
+  p75Lcp: number;
+  p75Cls: number;
+  p75Ttfb: number;
+  p75Inp: number | null;
+}
+
+export interface PerformanceTrendPoint {
+  hour: string;
+  avgLcp: number;
+  avgFcp: number;
+  avgTtfb: number;
+}
+
+/**
+ * The Product tab is split into three independently-fetched panels
+ * (`?type=product&panel=…`) so opening the tab does not pay for the expensive
+ * ones. `titles` costs two full `page_views` scans; `engagement` costs one;
+ * `speed` only touches the small `performance` table.
+ */
+export type ProductPanel = "engagement" | "titles" | "speed";
+
+export interface ProductEngagementData {
+  overview: ProductOverview;
+  actions: UserActionSummary[];
+  dailyActions: DailyUserAction[];
+}
+
+export interface ProductTitlesData {
+  conversion: TitleConversion[];
+  topTitles: TopTitle[];
+}
+
+export interface ProductSpeedData {
+  perfByPageType: PerformanceByPageType[];
+  humanPerfByPageType: HumanPageTypePerformance[];
+  perfTrend: PerformanceTrendPoint[];
+}
+
+// =============================================================================
 // Error Types
 // =============================================================================
 
@@ -522,7 +641,7 @@ export type StatVariant = "default" | "destructive" | "warning";
 /**
  * Analytics sub-tab identifiers for URL deep linking
  */
-export type AnalyticsSubTab = "traffic" | "ai" | "lambda" | "costs" | "performance" | "system" | "database" | "query";
+export type AnalyticsSubTab = "traffic" | "product" | "ai" | "lambda" | "costs" | "performance" | "system" | "database" | "query";
 
 // =============================================================================
 // Costs Types

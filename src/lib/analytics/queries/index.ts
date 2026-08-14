@@ -116,6 +116,22 @@ export {
 // Content queries
 export { getTopContent, getUserActionSummary, getDailyUserActions, getCacheMetricsSnapshot } from "./content";
 
+// Product queries (confirmed-human-scoped conversion / engagement)
+export {
+  getProductOverview,
+  getTitleConversion,
+  getTopTitles,
+  getHumanPerformanceByPageType,
+  conversionRate,
+  actingSessionSql,
+  confirmedHumanViewerSql,
+  CONVERSION_ACTIONS,
+  type ProductOverview,
+  type TitleConversion,
+  type TopTitle,
+  type HumanPageTypePerformance,
+} from "./product";
+
 // Embedding queries
 export {
   getEmbeddingUsageOverview,

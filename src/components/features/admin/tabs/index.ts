@@ -6,6 +6,7 @@
  */
 
 export { TrafficTab } from "./traffic-tab";
+export { ProductTab } from "./product-tab";
 export { AITab } from "./ai-tab";
 export { LambdaTab } from "./lambda-tab";
 export { CostsTab } from "./costs-tab";

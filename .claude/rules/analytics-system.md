@@ -450,6 +450,64 @@ different definitions: Fathom's 24h session means a same-day return retroactivel
 undoes a bounce; Plausible's bounce rate moves as you add custom events (we fire 13+
 action types).
 
+## The Product tab: `HUMAN_SQL` is NOT a product-metric scope (built Aug 14 2026)
+
+`tabs/product-tab.tsx` + `tabs/product/{engagement,titles,speed,product-stat}-panel.tsx`
+← `queries/product.ts`, API `type=product&panel=engagement|titles|speed`. Phase 1 of
+`docs/superpowers/specs/2026-08-14-admin-analytics-overhaul-design.md`: it renders data
+already collected and never displayed — no new tracking, no schema change. Three panels,
+each `enabled:`-gated (`titles` costs two full `page_views` range scans; measured ~0.9s
+each at 7d, ~2.3s at 30d).
+
+**The load-bearing finding, and the reason the module exists as its own file: `HUMAN_SQL`
+is fine for counting TRAFFIC and useless for measuring PRODUCT USE.** It is a per-row UA
+and referer predicate, and the current fleets forge both. Measured while building this
+(30d, prod): the top titles by `HUMAN_SQL`-scoped views were empty per-episode discussion
+shells — `Tagesschau S48E255` at **9,525 views with zero actions of any kind** — i.e. the
+Aug 3 crawl surface, not content anyone watched. So every number on this tab is scoped to
+the spec's **confirmed-human floor** instead (`confirmedHumanViewerSql` in `product.ts`:
+`is_authenticated = 1 OR session_id IN <acted this window>`). Same floor the audience
+panel already reports; deliberately NOT a new human definition. With it, the top titles
+became real ones (`KATSEYE: WILD HEARTS`, `Spider-Man: Brand New Day`). 7d prod scope:
+**179 confirmed sessions / 15,992 views** (30d: 1,034 / 61,345 — reconciles with the 1,099
+confirmed-human sessions in the Aug 11 forged-referer work).
+
+- **The floor is a FLOOR, and the panel says so on every surface.** Entering it requires a
+  client-side interaction, which is what a fleet cannot fake per-session — but it also
+  drops real people who only read. Never relabel it "visitors".
+- **`user_actions` can only ever be filtered on `is_bot = 0`** — it has no `user_agent` or
+  `referer` column, so pasting `HUMAN_SQL` in is a query-time unknown-identifier error, not
+  a compile error. `product.test.ts` pins that it never appears there.
+- **`performance` is fleet-contaminated by 3-4x and had never been scoped.** The live table
+  has NO `is_bot` column (the schema file disagrees — no-migrations-era drift) and the fleet
+  executes JS, so it posts web-vitals beacons. 30d prod, same table, same window:
+  `movie` p75 LCP **11,309ms across 327,812 beacons** vs **3,301ms across the 382** from
+  sessions that acted; `series` 10,025 → 2,891; `person` 11,221 → 2,267. It DOES carry
+  `session_id`, so the floor applies — but not `is_authenticated`, hence
+  `confirmedHumanViewerSql(range, false)`. The panel shows both columns because the
+  all-beacons one is the only one with a stable sample size, and the gap is the reading.
+- **Don't fold these queries together to save a scan — measured, it does not work.**
+  ClickHouse INLINES CTEs rather than materializing them, so a `UNION ALL` over a shared
+  expensive CTE re-evaluates it: the combined form cost **4.5s, identical to running the
+  two queries separately**. Keep them separate and readable.
+- **A conversion rate with no denominator returns `null`, never 0** (`conversionRate`).
+  A title can carry actions with zero view rows: `page_views` is written at the ORIGIN, so
+  a CloudFront edge HIT records no view while the action's client beacon still arrives. The
+  rate is also not clamped to 100 — above 100% IS the signal that views are edge-hidden.
+- Ranking is by ACTIONS, not views. Ranking by views answers "what did crawlers fetch".
+- `getTopContent` in `queries/content.ts` is deliberately left alone (other callers, own
+  contract) — it is `is_bot = 0` only, so it is NOT what this tab renders.
+- Verification recipe that caught real issues: capture the SQL the module actually
+  GENERATES (mock `../client`'s `query`), qualify the table names, and run it by hand on
+  prod — then reconcile one row from raw events. Testing a hand-written prototype instead
+  proves nothing about the shipped string. Note a rolling `now() - INTERVAL n DAY` window
+  moves between runs (a 456-vs-455 mismatch was one action aging out, not a bug) — put both
+  forms in ONE statement to compare them.
+- Still Phase 1 only: no funnels, no identity/cookie, no retention, no journeys. The
+  `ai_chat_open` 345 → `ai_chat_submit` 17 collapse is VISIBLE as two adjacent rows in the
+  action summary, but stating it as a drop-off rate needs the Phase 3 identity — those two
+  counts' sessions were never joined.
+
 ## Bot Detection (4 layers — June 2026 rework)
 
 Post-GA, 97% of "human visitors" were scrapers. Detection now layers (see

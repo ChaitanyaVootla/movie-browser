@@ -19,6 +19,7 @@ import {
   XCircle,
   Terminal,
   DollarSign,
+  MousePointerClick,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 
 // Tabs
-import { TrafficTab, AITab, LambdaTab, CostsTab, PerformanceTab, SystemTab, DatabaseTab, QueryTab } from "./tabs";
+import { TrafficTab, ProductTab, AITab, LambdaTab, CostsTab, PerformanceTab, SystemTab, DatabaseTab, QueryTab } from "./tabs";
 
 // Shared components
 import { getTimeAgo, formatAlertValue } from "./analytics-shared";
@@ -156,6 +157,13 @@ export function AnalyticsDashboard({
               <span className="hidden sm:inline">Traffic</span>
             </TabsTrigger>
             <TabsTrigger
+              value="product"
+              className="gap-1.5 px-3 h-7 text-xs rounded-md data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <MousePointerClick className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Product</span>
+            </TabsTrigger>
+            <TabsTrigger
               value="ai"
               className="gap-1.5 px-3 h-7 text-xs rounded-md data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 hover:text-zinc-300 transition-colors"
             >
@@ -214,6 +222,10 @@ export function AnalyticsDashboard({
             isLoading={isLoading}
             excludeBots={excludeBots}
           />
+        </TabsContent>
+
+        <TabsContent value="product">
+          <ProductTab range={timeRange} />
         </TabsContent>
 
         <TabsContent value="ai">
