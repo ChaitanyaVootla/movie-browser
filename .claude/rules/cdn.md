@@ -459,6 +459,86 @@ right: apply with `docker compose up -d --force-recreate caddy`. Budget for that
 (a few seconds of origin downtime, currently absorbed by CloudFront) when shipping
 the Phase 3 origin-certificate change.
 
+### Cloudflare zone config AS-BUILT + the Free-plan facts that matter (Aug 14 2026)
+
+Config applied while every record was still GRAY (so zero traffic risk). Current state:
+
+| Setting | Value | Why |
+|---|---|---|
+| `ssl` | **full** (not strict) | Full does NOT validate the origin cert — docs: "can be expired, self-signed, or not even have a matching CN/SAN". So Caddy's existing LE cert carries the cutover and its eventual non-renewal is harmless. Origin CA + AOP + strict = post-cutover hardening. |
+| `browser_check` | **off** (was ON by default) | Browser Integrity Check blocks missing/non-standard UAs — a hidden second shed under our own, and **Free has no `Log` action** so its false positives are permanently unobservable. Redundant (we already handle `empty_ua` + UA-length bounds) and exactly the Aug-2 incident shape. |
+| `always_online` | **on** | Fires ONLY on 520–527 (origin *unreachable*), NOT on an origin-returned 5xx. That happens to cover our real historical failure mode (kernel freeze / PM2 daemon dead), so it partially restores the `stale-if-error` we thought we'd lost outright. |
+| `tiered_caching` + `smart_topology` | **on** | **Both ARE available on Free** (the earlier "Tiered Cache is gated" reading was wrong — the availability table says Yes/Yes/Yes/Yes; only Generic/Regional/Custom *topology* is Enterprise). Free replacement for Origin Shield. |
+| `security_level` | medium (default) | Never flip to `under_attack` — it Managed-Challenges everything = SEO catastrophe. |
+| Managed transform | `add_visitor_location_headers` | **`CF-IPCountry` is NOT sent by default** — without this transform geo silently breaks. `True-Client-IP` is Enterprise; `CF-Connecting-IP`/`X-Forwarded-For`/`X-Forwarded-Proto` are always present. |
+| `http_request_late_transform` | 2 rules | `X-Viewer-ASN` (`to_string(ip.src.asnum)` — **`cf.asn` is NOT available in this phase**), `X-Verified-Bot`, `X-Verified-Bot-Category`; plus the `rsc`-header strip. |
+| `http_request_cache_settings` | 2 rules | authed bypass / anon cache respecting origin TTL, mutually exclusive so order-independent. |
+| `http_response_cache_settings` | 1 rule | `strip_set_cookie` — see the trap below. |
+
+**THE SET-COOKIE TRAP — most likely single cause of a failed cutover.** Cloudflare's
+documented matrix: "eligible for cache" **without an explicit Edge TTL** *preserves*
+`Set-Cookie` and then **refuses to cache the asset at all** → a silent 0% HTML hit
+ratio, which a 2-vCPU origin at 2M+ req/day will not survive. With an explicit Edge
+TTL it strips `Set-Cookie` and caches. We do it EXPLICITLY via a **Cache Response
+Rule** (`http_response_cache_settings`, action `set_cache_settings`, params
+`{"strip_set_cookie": true}`, **10 rules on Free**) rather than relying on that side
+effect. Scoped to exactly the cacheable expression so `/api/auth/*` and
+authenticated responses keep their cookies — this mirrors what the CloudFront
+response-headers policy already does (footgun 2), and prod proves sign-in works with
+`Set-Cookie` stripped from cached page HTML. **Verify `cf-cache-status: HIT` on an
+anonymous detail page before declaring the cutover done.**
+
+**Free-plan facts worth not re-deriving:**
+- **Snippets are NOT on Free (limit 0).** Workers Paid ($5/mo + 10M req, then $0.30/M
+  ≈ $20–27/mo at our volume) is the only edge-compute path.
+- **Purge by URL / prefix / tag / hostname / everything is free on ALL plans** since
+  Apr 2025 (5 req/min for prefix/tag/everything; 100 items per API call). This removes
+  the cost objection behind the deferred `/u/<username>*` privacy-flip / moderation /
+  username-change invalidations — CloudFront billed per path, Cloudflare doesn't.
+- **`cf.threat_score` is INERT** — docs say it is "always 0" now. Any rule built on it
+  matches uniformly. Don't.
+- **WAF: 5 custom rules on Free, and NO `Log` action below Enterprise** — you cannot
+  dry-run an edge shed before enforcing it. Keep staging sheds at the ORIGIN where we
+  can log, then promote. (Which is also why we keep the forged-referer shed at the
+  origin: on Cloudflare requests are unmetered, so edge-blocking saves nothing and
+  costs us all ClickHouse visibility.)
+- **Alerting: Free is email-only and does NOT include Origin Error Rate** (Enterprise)
+  or Health Checks (Pro+). Cloudflare will not tell us the origin is 5xx-ing — keep
+  our own monitoring.
+- **Cache Analytics is NOT on Free** → use the GraphQL Analytics API instead.
+- **DNSSEC footgun for any FUTURE nameserver change**: remove the DS record at the
+  registrar and wait out its TTL (24–48h) FIRST, or validating resolvers SERVFAIL the
+  whole domain — a self-inflicted repeat of the Jun-28 NXDOMAIN class.
+- **Cloudflare Registrar is at-cost with auto-renew enrolled by default** — worth
+  considering purely as insurance against another Squarespace-style domain lapse.
+
+**Cloudflare defaults that are WRONG for this site — do NOT enable:**
+- **Bot Fight Mode.** Un-exemptable by design ("Skip, Bypass, and Allow actions have
+  no effect"), force-enables JavaScript Detections that cannot be disabled and inject
+  a script needing `/cdn-cgi/challenge-platform/` in our **app-wide CSP**, and has
+  repeated reports of challenging Googlebot. The documented escape hatch is "upgrade
+  to Pro". Never.
+- **Managed robots.txt.** It **PREPENDS** its own file, including a competing
+  `User-agent: *` group, ahead of ours — an unacceptable risk to the Aug-3
+  `Disallow: /*/discussions` crawl-budget fix. Ours stays in git.
+- **One-click "AI Scrapers and Crawlers" block.** Would cut off `Claude-SearchBot`
+  (~24.5k/7d, our #1 `.md` consumer) and OAI-SearchBot, both of which robots.txt
+  deliberately allows. Use per-crawler AI Crawl Control if ever needed.
+- **Crawler Hints.** Pings IndexNow off cache-MISS signals — with ~1.2M
+  robots-disallowed thin `/discussions` shells we would be volunteering exactly the
+  pages we just told Google to stop crawling. We already run IndexNow deliberately.
+- **AI Labyrinth.** Generates crawlable junk pages; we are already losing crawl budget
+  to thin pages.
+- **Polish / Mirage / Images.** Contradicts the Jun-19 `images.unoptimized: true`
+  decision that fixed a disk-filling outage.
+
+**Still to verify in the dashboard / needs extra token perms:** whether the Cache
+Rules `Vary` setting accepts `RSC` (would be a cleaner RSC fix than our header-strip,
+though the strip is deployed and sufficient); GraphQL retention via the `settings`
+node (needs `Zone → Analytics → Read`); whether a RUM beacon is auto-enabled for Free
+(needs `Zone → Web Analytics → Read`) — docs suggest RUM is auto-on for Free zones
+with EU traffic excluded, so we may be shipping a beacon nobody chose.
+
 ## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.
 - **CloudFront access logging enabled Jul 28 2026 via CLI (TF DRIFT)**: standard
