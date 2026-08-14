@@ -367,6 +367,89 @@ prefetch reaching a trap, and require ≥2 trap signals before acting. This is
 exactly how Cloudflare caught Perplexity's stealth fleet (secret domains with
 restrictive robots.txt) — a method we can copy for $0.
 
+## Visitor identity: `session_id` is NOT a user, and it INFLATES our counts (researched Aug 14 2026)
+
+Durable findings from a design investigation. Recorded regardless of what we build,
+because the measurement below invalidates how our "visitor"/"session" numbers read.
+
+**THE MEASUREMENT (3 days, prod).** Views per `session_id`, by cohort:
+
+| Cohort | Identities | Views | Views/identity |
+|---|---|---|---|
+| Fleet (`forged_referer`) | 3,794,346 | 4,565,089 | **1.20** |
+| Authenticated human | 3 | 179 | **59.67** |
+| Other | 570,258 | 1,455,951 | 2.55 |
+
+A ~50× separation — but the important half is the **3.79M identities**. `session_id`
+is `hash(IP + UA + Accept-Language)` (`session.ts`) with NO cookie and no round-trip
+requirement, so a fleet rotating residential IPs **mints a free identity per IP**.
+Our visitor/session counts are therefore not merely approximate, they are
+STRUCTURALLY INFLATED, and any funnel/retention/conversion metric built on that
+denominator inherits the inflation. (n=3 authenticated is a thin sample — treat
+59.67 as directional; the fleet figure is solid.)
+
+**Identity design decides whether bots INFLATE or merely POLLUTE.** Fresh identity
+per request = one fleet becomes millions of "visitors" (catastrophic). Persistent
+identity = one fleet becomes a few long-lived fake visitors you can quarantine by
+cohort. Our current scheme is the worst case: inflation AND CGNAT merging of real
+humans simultaneously.
+
+**Our current scheme is legally WORSE than a cookie, not better.** An unsalted
+IP+UA+lang hash persisting for days is a device fingerprint (WP29 Opinion 9/2014),
+and EDPB Guidelines 2/2023 ¶55 holds that accessing IP addresses triggers Art 5(3)
+ePD regardless of hashing. Same legal footing as a cookie, while being less honest
+(merges CGNAT), less user-controllable (invisible, undeletable) and unable to answer
+the questions. **Switching to a first-party cookie is a privacy IMPROVEMENT.** Do not
+repeat the assumption that cookieless is automatically the privacy-safe choice.
+
+**Cookieless CANNOT do multi-day retention — structural, not a tuning knob.**
+Confirmed from vendor primary docs: Plausible — "There is no way to connect a
+visitor's activity across sessions, across days or across devices" (same visitor on
+5 days = 5 uniques); Fathom — 24-hour visitor-day, "A visitor who comes on Monday and
+returns on Tuesday is counted as two separate visitors"; Matomo `config_id` —
+"intentionally designed not to be permanent, not recognise returning visitors". The
+salt is DESTROYED, so there is no key to join on and retention can never be
+backfilled. Umami's **monthly** salt is a middle path (returning cohorts within the
+window) but truncates at the rotation boundary AND still mints per-IP identities, so
+it does not fix the inflation above.
+
+**If we ever do it: server-minted, HMAC-signed, HttpOnly first-party cookie**, sessions
+derived at query time from a 30-min inactivity gap. Non-obvious details:
+- **Mint on the `/api/analytics/ingest` (`no-store`) response, NEVER on the HTML
+  response.** Anon HTML is CDN-cached and `Set-Cookie` on a cacheable response is a
+  cross-user identity leak (cdn.md footgun 2). The Cloudflare cache-response rule we
+  ship strips `Set-Cookie` on cacheable paths and exempts `/api/*` — already shaped
+  for this.
+- **`HttpOnly` is load-bearing**: Safari ITP caps *script-written* persistent cookies
+  to 7 days (24h after a decorated navigation); server-set HTTP cookies escape that.
+- **Do NOT use localStorage/sessionStorage instead.** EDPB ¶44: Art 5(3) applies the
+  moment the value "or any derivation" is accessed — identical legal exposure, plus
+  Safari's 7-day script-writable purge. `sessionStorage` is also per-TAB, which
+  inflates session counts.
+- **Bounded individual-level retention is a SCHEMA decision up front.** ICO names
+  indefinite row-level retention as the thing that voids the UK exemption.
+- New free bot signal it unlocks: tag events with whether the cookie **round-tripped**
+  (a real human's leave-flush carries it; a non-cookie scraper never echoes), and
+  rate-limit/monitor **minting** — a chokepoint we do not have today.
+
+**Consent landscape (documented, attributed — NOT legal advice).** UK has a LIVE
+statutory analytics exemption (Data (Use and Access) Act 2025; ICO final guidance
+29 Apr 2026) explicitly permitting user journeys, bounce rates and page-load speeds,
+conditional on: clear information, a "simple and free" opt-out, no sharing, and
+aggregation rather than indefinite individual-level retention. EU has no equivalent
+statute; CNIL's audience-measurement exemption applies on conditions (single
+publisher, no cross-checking, truncated last IP byte, 13-month tracker lifetime,
+right to object). The Digital Omnibus Art 88a exemption is TABLED only — do not plan
+around it. **Unsettled:** no regulator has ruled on whether a daily-salted IP+UA hash
+is anonymous; vendors assert it, EDPB 2/2023 ¶55 + 01/2025 point the other way.
+**DNT is dead** (Firefox removed the setting in v135) — add `Sec-GPC`; California
+AB 566 makes browser opt-out signals mandatory from 1 Jan 2027.
+
+**Do not benchmark our numbers against Plausible/Fathom/GA4.** Same metric names,
+different definitions: Fathom's 24h session means a same-day return retroactively
+undoes a bounce; Plausible's bounce rate moves as you add custom events (we fire 13+
+action types).
+
 ## Bot Detection (4 layers — June 2026 rework)
 
 Post-GA, 97% of "human visitors" were scrapers. Detection now layers (see
