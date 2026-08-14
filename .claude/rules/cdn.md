@@ -425,6 +425,40 @@ and cache deception armor. Consequences, footgun by footgun:
   Cloudflare's ToS still restricts serving a disproportionate share of images, and
   at 1.65M req/mo it sits inside the CloudFront free tier anyway (→ $0).
 
+### Cloudflare cutover mechanics learned the hard way (Aug 14 2026)
+
+**1. Universal SSL must be ISSUED before you orange-cloud ANYTHING.** Proven by
+canary: with the cert pack at `status=pending_validation`, orange-clouding a
+hostname makes VIEWERS fail at the TLS handshake (`sslv3 alert handshake
+failure`) — Cloudflare's edge has no certificate to present. Check
+`/zones/{id}/ssl/certificate_packs?status=all` for `status=active` on
+`themoviebrowser.com` + `*.themoviebrowser.com` first. (Ruled out as a cause of
+slow issuance: there are NO CAA records on the zone, so no CA is restricted — a
+CAA locked to Amazon from the ACM era would have blocked Cloudflare's CA outright,
+which is worth re-checking on any future domain.)
+
+**2. The safe way to validate the Cloudflare header pipeline is a CANARY on an
+unused hostname, never the apex.** `beta.themoviebrowser.com` is unused (it only
+301s to the apex), so orange-clouding just that record exercises the entire edge
+path — transform rules, managed transforms, cache rules — with zero user-facing
+blast radius. Point it at a Caddy block that echoes the headers you want to prove.
+Do NOT use `origin.themoviebrowser.com` for this: CloudFront resolves that name as
+its origin, so proxying it puts Cloudflare in the middle of LIVE traffic.
+Aftermath note: Cloudflare synthesises AAAA records for proxied names, so after
+un-proxying, a local resolver can keep returning the Cloudflare IPv6 for a while
+and the hostname appears dead (`curl` 000) when the zone is already correct —
+verify with `--resolve` against the origin IP before believing it.
+
+**3. Caddyfile changes require a container RECREATE, not `caddy reload`.** The
+RUNNING container does not pick up host-file edits: `docker inspect` shows only the
+`movie-browser-caddy-data` → `/data` volume, and after editing the host Caddyfile
+in place (inode preserved) `docker exec … grep` found 0 matches inside the
+container while the host file had them. `docker exec caddy caddy reload` therefore
+reloads the OLD config and reports success. The Caddyfile's own header comment is
+right: apply with `docker compose up -d --force-recreate caddy`. Budget for that
+(a few seconds of origin downtime, currently absorbed by CloudFront) when shipping
+the Phase 3 origin-certificate change.
+
 ## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.
 - **CloudFront access logging enabled Jul 28 2026 via CLI (TF DRIFT)**: standard
