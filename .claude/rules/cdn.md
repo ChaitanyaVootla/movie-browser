@@ -7,17 +7,61 @@ paths:
   - "next.config.mjs"
 ---
 
-# CDN (CloudFront in front of the origin)
+# CDN — **Cloudflare** fronts the apex (since Aug 14 2026); CloudFront is the fallback
 
-CloudFront fronts the apex since Jun 11 2026. WHY it exists: the 2-vCPU origin
-cannot absorb the crawler herd on a cold cache — a deploy/restart cold-invalidates
-the in-memory ISR tier, the bot fleet sweeps the 800k-title long tail, hundreds of
-concurrent renders → multi-GB RSS → kernel OOM freeze. CloudFront edge-caches
-anon HTML, collapses the herd (Origin Shield), and serves stale during origin
-freezes. Net: an origin freeze is now invisible to users (apex stayed 200 through
-every freeze the night of cutover).
+> **READ THIS FIRST — the CDN changed on 2026-08-14.** The apex is now proxied by
+> **Cloudflare Free**. Most of the CloudFront-specific detail below is retained
+> deliberately: the CloudFront distribution is still LIVE and is the rollback path,
+> and the footgun list is what the Cloudflare config was built to satisfy. Treat any
+> unqualified "CloudFront fronts the apex" statement in this file as HISTORY.
 
-## Topology (as-built)
+**Why a CDN exists at all** (unchanged): the 2-vCPU origin cannot absorb the crawler
+herd on a cold cache — a deploy cold-invalidates the ISR tier, the fleet sweeps the
+800k-title long tail, hundreds of concurrent renders → multi-GB RSS → kernel freeze.
+
+**Why we moved off CloudFront:** it bills per request and the fleet took us to
+~90M req/mo. Feb–May CloudFront billed **$0.00** (images only, inside the 10M/mo
+free tier); once HTML went behind it, even a clean baseline was 2–4× over the tier.
+Cloudflare requests are unmetered, so the bill goes to ~$0 *regardless of detection
+quality*. Full cost history is in the Cost section below.
+
+## Current topology (as of 2026-08-14)
+
+- **Apex `themoviebrowser.com` → `A 16.112.156.196`, PROXIED by Cloudflare.** Zone
+  `themoviebrowser.com` on the **Free** plan; nameservers `becky`/`miles.ns.cloudflare.com`
+  (moved off Route 53, which the Free plan requires — CNAME/partial setup is Business+).
+- **`www`, `beta`, `origin` → `A 16.112.156.196`, gray (DNS-only)** — they bypass
+  Cloudflare and hit Caddy directly, exactly as before. `www` 301s to the apex.
+- **`image.themoviebrowser.com` → CloudFront `d2qifmj8erqnak…`, gray and STAYS gray.**
+  Two reasons: Cloudflare's ToS restricts serving a disproportionate share of images on
+  Free, and at ~1.65M req/mo it sits inside the CloudFront free tier (→ $0).
+- **Both ACM validation CNAMEs are carried over** — without them the image CDN's
+  certificate stops renewing.
+- **ROLLBACK = point the apex back at `CNAME d1vtxoi7slst5n.cloudfront.net`, gray.**
+  Propagates in seconds (proxied records use short TTLs). The CloudFront distribution
+  and the Route 53 zone are BOTH deliberately still alive for this. Do not delete
+  either until this has been stable for a long while.
+- `ssl` mode is **`full`** (not strict) — Full does not validate the origin cert at
+  all, so Caddy's existing Let's Encrypt cert carries it and its eventual
+  non-renewal (ACME is intercepted once the apex is proxied) is harmless. Origin CA +
+  Authenticated Origin Pulls + `full (strict)` is the post-cutover hardening step,
+  and it also closes the long-standing origin-lockdown gap.
+
+**Verified at cutover** (all six gates, each one a past production incident):
+`cf-cache-status: HIT` on anon HTML with no `Set-Cookie` surviving; `RSC: 1` **with**
+`_rsc` → flight payload but **without** `_rsc` → HTML (the Jun 12 poisoning fix, now
+enforced by a Transform Rule since custom cache keys are Enterprise-only);
+referer-less Googlebot 200; server-action POST reaching the origin; geo returning a
+real city from Cloudflare's headers; image CDN and www untouched.
+
+**Do NOT attribute the Aug-14 origin-load drop to the cutover.** Origin-reaching
+requests fell ~85% and the forged-referer fleet vanished from the origin within
+minutes of the flip — but Cloudflare's edge only saw 536 requests in the following 2
+hours while CloudFront was still taking 52–70k/hr on stale DNS. The fleet has a
+documented on/off burst pattern; the timing was coincidence. (Same misattribution
+trap as crediting the shed for the CDN bill.)
+
+## Topology (CloudFront as-built — HISTORY, retained as the rollback reference)
 - Distro `E12R1ZNQNG3LK5` / `d1vtxoi7slst5n.cloudfront.net`, aliases apex + www.
 - Origin = `origin.themoviebrowser.com` (Route53 A → EIP). **Caddy serves it as a
   2nd vhost** — the apex block is `themoviebrowser.com, origin.themoviebrowser.com { }`.
