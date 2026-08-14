@@ -83,7 +83,39 @@ if pts:
 '
 
 echo
-echo "--- Month to date + projection ---"
+echo "--- Actual billed cost (Cost Explorer) + month-end projection ---"
+# TRUST DOLLARS, NOT MODELLED REQUESTS. An earlier version of this script
+# projected cost as (CloudWatch requests - free tier) x blended rate and came out
+# ~35% HIGH ($88.60 vs a real ~$65). Cost Explorer's billed request-units are not
+# comparable to CloudWatch request counts: CE sums Tier1 + Tier2 + HTTPS-Proxy
+# usage types across BOTH distributions, and nets the free tier in. The recent
+# daily average of actual spend is the only projection worth quoting.
+aws ce get-cost-and-usage --time-period "Start=${MONTH_START},End=$(date -u -v+1d +%Y-%m-%d 2>/dev/null || date -u -d 'tomorrow' +%Y-%m-%d)" \
+  --granularity DAILY --metrics UnblendedCost \
+  --filter '{"Dimensions":{"Key":"SERVICE","Values":["Amazon CloudFront"]}}' \
+  --output json 2>/dev/null | python3 -c '
+import json, sys, calendar, datetime
+d = json.load(sys.stdin)
+rows = [(r["TimePeriod"]["Start"], float(r["Total"]["UnblendedCost"]["Amount"])) for r in d["ResultsByTime"]]
+# Cost Explorer lags ~1 day: drop trailing $0.00 days so they do not drag the mean.
+while rows and rows[-1][1] == 0.0:
+    rows.pop()
+if not rows:
+    print("  (no settled Cost Explorer data yet this month)")
+    sys.exit()
+mtd = sum(c for _, c in rows)
+d0 = datetime.date.fromisoformat(rows[0][0])
+dim = calendar.monthrange(d0.year, d0.month)[1]
+recent = [c for _, c in rows[-8:]]
+rate = sum(recent) / len(recent)
+print("  MTD actual        : $%6.2f  (%d settled days, through %s)" % (mtd, len(rows), rows[-1][0]))
+print("  recent daily rate : $%6.2f  (mean of last %d settled days)" % (rate, len(recent)))
+print("  month-end estimate: $%6.2f  (MTD + %d remaining days at that rate)" % (mtd + rate * (dim - len(rows)), dim - len(rows)))
+print("  forward run-rate  : $%6.2f /mo" % (rate * dim))
+'
+
+echo
+echo "--- Request volume + free-tier headroom ---"
 # Two separate CloudWatch payloads → two temp files. Do NOT try to feed both
 # through one stdin alongside a heredoc: `<<'PY'` and `<<<` on the same command
 # collide and the delimiter lands inside the Python source.
@@ -118,12 +150,12 @@ print("  main distro MTD   : %14s req (%s days)" % (format(main, ",.0f"), days))
 print("  image distro MTD  : %14s req" % format(img, ",.0f"))
 print("  projected month   : %14s req" % format(proj, ",.0f"))
 print("  free tier         : %14s req" % format(free_tier, ",.0f"))
-print("  projected cost    : $%.2f  (requests only; data transfer is ~$0.05/mo)" % cost)
+print("  (modelled cost $%.2f — HIGH by ~35%%; trust the Cost Explorer block above)" % cost)
 print()
 per_day = main / days
 if per_day >= threshold:
     print("  VERDICT: fleet looks STRUCTURAL (%s req/day >= %s threshold)." % (format(per_day, ",.0f"), format(threshold, ",.0f")))
-    print("           CloudFront is a ~$%.0f/mo tax on it. Migration pays back fast." % cost)
+    print("           See the Cost Explorer run-rate above for the real $ figure.")
 else:
     print("  VERDICT: below the %s/day threshold (%s req/day)." % (format(threshold, ",.0f"), format(per_day, ",.0f")))
     print("           Fleet may be receding. NOTE: even a clean baseline of")
