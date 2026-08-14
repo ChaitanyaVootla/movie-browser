@@ -111,3 +111,88 @@ describe("resolveCountry", () => {
     expect(resolveCountry(headers)).toBe("US");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Cloudflare (added Aug 2026 for the CloudFront -> Cloudflare migration).
+// Both header families are supported simultaneously and DELIBERATELY: the
+// apex flips between CDNs via a DNS proxy toggle, so a rollback must not
+// require a redeploy. CloudFront wins when present so pre-migration behaviour
+// is byte-identical.
+// ---------------------------------------------------------------------------
+
+describe("Cloudflare headers", () => {
+  it("uses cf-connecting-ip as the client IP (no port to strip)", () => {
+    expect(extractIP(new Headers({ "cf-connecting-ip": "8.8.8.8" }))).toBe("8.8.8.8");
+  });
+
+  it("prefers cf-connecting-ip over the connection IP", () => {
+    const headers = new Headers({ "cf-connecting-ip": "8.8.8.8", "x-real-ip": "1.1.1.1" });
+    expect(extractIP(headers)).toBe("8.8.8.8");
+  });
+
+  it("keeps CloudFront authoritative when both families are present (rollback safety)", () => {
+    const headers = new Headers({
+      "cloudfront-viewer-address": "8.8.8.8:46532",
+      "cf-connecting-ip": "1.1.1.1",
+    });
+    expect(extractIP(headers)).toBe("8.8.8.8");
+  });
+
+  it("resolves country from cf-ipcountry", () => {
+    expect(resolveCountry(new Headers({ "cf-ipcountry": "in" }))).toBe("IN");
+  });
+
+  it("ignores cf-ipcountry sentinel values that are not real countries", () => {
+    // Cloudflare sends XX (unknown), T1 (Tor) and sometimes empty.
+    expect(resolveCountry(new Headers({ "cf-ipcountry": "XX", "cf-connecting-ip": "8.8.8.8" }))).toBe("US");
+    expect(resolveCountry(new Headers({ "cf-ipcountry": "T1", "cf-connecting-ip": "8.8.8.8" }))).toBe("US");
+  });
+
+  it("resolves the full geo set from the visitor-location managed transform", () => {
+    const headers = new Headers({
+      "cf-ipcountry": "IN",
+      "cf-ipcity": "Hyderabad",
+      "cf-region": "Telangana",
+      "cf-timezone": "Asia/Kolkata",
+    });
+    expect(resolveGeo(headers)).toEqual({
+      country: "IN",
+      city: "Hyderabad",
+      region: "Telangana",
+      timezone: "Asia/Kolkata",
+    });
+  });
+
+  it("gap-fills city/region/timezone from cf-connecting-ip when the location transform is off", () => {
+    // cf-ipcountry always arrives; city/region/timezone only once the "Add
+    // visitor location headers" managed transform is enabled. Until then every
+    // gap must be filled from the REAL viewer IP.
+    // 139.130.4.5 is used rather than 8.8.8.8 because the bundled GeoLite2 has
+    // no city for anycast DNS resolvers — asserting a city on 8.8.8.8 tests the
+    // database, not our code.
+    const geo = resolveGeo(new Headers({ "cf-ipcountry": "AU", "cf-connecting-ip": "139.130.4.5" }));
+    expect(geo).toEqual({
+      country: "AU",
+      city: "Broome",
+      region: "WA",
+      timezone: "Australia/Perth",
+    });
+  });
+
+  it("does NOT geo-locate the connection IP when behind Cloudflare without cf-connecting-ip", () => {
+    // Same invariant as the CloudFront case: x-real-ip is a Cloudflare edge IP,
+    // so city/timezone must stay null rather than become the edge's city.
+    const headers = new Headers({ "cf-ipcountry": "IN", "x-real-ip": "8.8.8.8" });
+    expect(resolveGeo(headers)).toEqual({
+      country: "IN",
+      city: null,
+      region: null,
+      timezone: null,
+    });
+  });
+
+  it("falls back to cf-region-code when the long region name is absent", () => {
+    const headers = new Headers({ "cf-ipcountry": "IN", "cf-region-code": "TG" });
+    expect(resolveGeo(headers).region).toBe("TG");
+  });
+});

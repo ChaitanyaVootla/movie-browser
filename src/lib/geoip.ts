@@ -14,6 +14,26 @@
  * - CloudFront-Viewer-Address — the real viewer "ip:port". Used for GeoIP
  *   gap-fill and as the canonical client IP.
  *
+ * Cloudflare (added Aug 2026, migration in progress) supplies the same facts
+ * under different names, and BOTH families are read here on purpose: the apex
+ * flips between CDNs via a DNS proxy toggle, so a rollback must not require a
+ * redeploy. CloudFront wins when present, keeping pre-migration behaviour
+ * byte-identical.
+ *
+ * - `CF-Connecting-IP` — the real viewer IP (no port, unlike CloudFront's).
+ * - `CF-IPCountry` — always sent by Cloudflare. NOTE it uses `XX` for unknown
+ *   and `T1` for Tor; both are valid-looking 2-letter codes that must NOT be
+ *   accepted as countries or they suppress the GeoIP fallback.
+ * - `CF-IPCity` / `CF-Region` / `CF-Region-Code` / `CF-Timezone` — only present
+ *   when the "Add visitor location headers" managed transform is enabled.
+ *   Until then `CF-IPCountry` + gap-fill from `CF-Connecting-IP` covers it.
+ *
+ * HEADER TRUST: these are only trustworthy because the CDN overwrites them.
+ * A request reaching the origin directly can forge any of them (a pre-existing
+ * hole — `origin.themoviebrowser.com` is publicly reachable and the Caddy
+ * X-Origin-Verify gate is dormant). Closing it is the Authenticated Origin
+ * Pulls step in the migration plan; see `.claude/rules/cdn.md`.
+ *
  * The geoip-lite (bundled MaxMind GeoLite2) fallback only ever runs against
  * an IP we can attribute to the viewer: the viewer address behind the CDN, or
  * the connection IP for direct-origin/dev requests. If a CDN request carries
@@ -111,9 +131,18 @@ function getDecoded(headers: HeaderGetter, name: string): string | null {
   return value ? decodeViewerValue(value).trim() || null : null;
 }
 
+/**
+ * Cloudflare sends `CF-IPCountry: XX` when it cannot geo-locate and `T1` for
+ * Tor exit nodes. Both are syntactically valid 2-letter codes, so they would
+ * sail through the regex below and suppress the GeoIP fallback with a country
+ * that does not exist.
+ */
+const NON_COUNTRY_CODES = new Set(["XX", "T1"]);
+
 function normalizeCountry(raw: string | null): string | null {
   if (!raw) return null;
   const normalized = raw.trim().toUpperCase();
+  if (NON_COUNTRY_CODES.has(normalized)) return null;
   return /^[A-Z]{2}$/.test(normalized) ? normalized : null;
 }
 
@@ -126,7 +155,12 @@ function normalizeCountry(raw: string | null): string | null {
 function viewerIPForGeo(headers: HeaderGetter): string | null {
   const address = headers.get("cloudfront-viewer-address");
   if (address) return stripViewerAddressPort(address);
-  if (headers.get("cloudfront-viewer-country")) return null;
+  // Cloudflare's equivalent. Carries no port, so no stripping.
+  const cfIp = headers.get("cf-connecting-ip");
+  if (cfIp) return cfIp.trim();
+  // A CDN marker with no viewer IP means the connection IP is an edge node —
+  // geo-locating it would stamp the user with the POP's city (the Jun 2026 bug).
+  if (headers.get("cloudfront-viewer-country") || headers.get("cf-ipcountry")) return null;
   const realIp = headers.get("x-real-ip");
   if (realIp) return realIp.trim();
   const forwardedFor = headers.get("x-forwarded-for");
@@ -149,6 +183,7 @@ function viewerIPForGeo(headers: HeaderGetter): string | null {
 export function resolveCountry(headers: HeaderGetter): string {
   const headerCountry =
     normalizeCountry(headers.get("cloudfront-viewer-country")) ||
+    normalizeCountry(headers.get("cf-ipcountry")) ||
     normalizeCountry(headers.get("x-country-code"));
   if (headerCountry) return headerCountry;
 
@@ -164,13 +199,19 @@ export function resolveCountry(headers: HeaderGetter): string {
 export function resolveGeo(headers: HeaderGetter): ResolvedGeo {
   const headerCountry =
     normalizeCountry(headers.get("cloudfront-viewer-country")) ||
+    normalizeCountry(headers.get("cf-ipcountry")) ||
     normalizeCountry(headers.get("x-country-code"));
   const headerCity =
-    getDecoded(headers, "cloudfront-viewer-city") || headers.get("x-city");
+    getDecoded(headers, "cloudfront-viewer-city") ||
+    getDecoded(headers, "cf-ipcity") ||
+    headers.get("x-city");
   const headerRegion =
     getDecoded(headers, "cloudfront-viewer-country-region-name") ||
-    getDecoded(headers, "cloudfront-viewer-country-region");
-  const headerTimezone = headers.get("cloudfront-viewer-time-zone");
+    getDecoded(headers, "cloudfront-viewer-country-region") ||
+    getDecoded(headers, "cf-region") ||
+    getDecoded(headers, "cf-region-code");
+  const headerTimezone =
+    headers.get("cloudfront-viewer-time-zone") || headers.get("cf-timezone");
 
   const needsLookup = !headerCountry || !headerCity || !headerRegion || !headerTimezone;
   const ip = needsLookup ? viewerIPForGeo(headers) : null;
@@ -185,12 +226,35 @@ export function resolveGeo(headers: HeaderGetter): ResolvedGeo {
 }
 
 /**
+ * The viewer's network ASN, or null.
+ *
+ * CloudFront forwards this natively as `CloudFront-Viewer-ASN`. **Cloudflare has
+ * no equivalent header** — `cf.asn` exists only as a ruleset FIELD. So behind
+ * Cloudflare we synthesise `X-Viewer-ASN` with a request-header Transform Rule
+ * whose value is the `cf.asn` expression; without that rule this returns null
+ * and every ASN-derived signal (the proxy's datacenter shed, the analytics
+ * "datacenter" bot label) silently goes dark rather than misfiring.
+ *
+ * Same trust model as the geo headers: safe only because the CDN overwrites it.
+ */
+export function resolveViewerAsn(headers: HeaderGetter): number | null {
+  const raw = headers.get("cloudfront-viewer-asn") ?? headers.get("x-viewer-asn");
+  if (!raw) return null;
+  const asn = Number(raw.trim());
+  return Number.isFinite(asn) && asn > 0 ? asn : null;
+}
+
+/**
  * Extract the client IP for hashing/logging (NOT for geo — see viewerIPForGeo).
- * Priority: CloudFront-Viewer-Address > X-Real-IP > X-Forwarded-For > unknown.
+ * Priority: CloudFront-Viewer-Address > CF-Connecting-IP > X-Real-IP >
+ * X-Forwarded-For > unknown.
  */
 export function extractIP(headers: HeaderGetter): string {
   const address = headers.get("cloudfront-viewer-address");
   if (address) return stripViewerAddressPort(address);
+
+  const cfIp = headers.get("cf-connecting-ip");
+  if (cfIp) return cfIp.trim();
 
   const realIp = headers.get("x-real-ip");
   if (realIp) return realIp.trim();

@@ -15,7 +15,7 @@ import { detectBotFromRequest } from "./bot-detection";
 import { isDatacenterAsn } from "./datacenter-asn";
 import { parseUserAgent, getSimpleBrowser, getSimpleOS } from "./device-parser";
 import { generateSessionId, generateRequestId, hashUserId, extractClientIP } from "./session";
-import { resolveGeo } from "@/lib/geoip";
+import { resolveGeo, resolveViewerAsn } from "@/lib/geoip";
 import type { TrackingContext, PageType } from "./types";
 
 /** Minimal headers interface satisfied by both web Headers and next/headers. */
@@ -67,8 +67,12 @@ export function buildTrackingContext(
   // Authenticated requests are never relabelled — a signed-in person on a cloud
   // VPN is a person. See datacenter-asn.ts for why this list is broader than the
   // shed's.
+  // ASN source is CDN-dependent: CloudFront sends it natively, Cloudflare needs
+  // the X-Viewer-ASN Transform Rule. resolveViewerAsn owns that (see geoip.ts);
+  // if neither is present this signal goes dark rather than mislabelling.
+  const viewerAsn = resolveViewerAsn(headersList);
   const fromDatacenter =
-    !user && !detected.isBot && isDatacenterAsn(headersList.get("cloudfront-viewer-asn"));
+    !user && !detected.isBot && isDatacenterAsn(viewerAsn === null ? null : String(viewerAsn));
   const isBot = forcedBotType ? true : detected.isBot || fromDatacenter;
   const botType = forcedBotType ?? detected.botType ?? (fromDatacenter ? "datacenter" : null);
 

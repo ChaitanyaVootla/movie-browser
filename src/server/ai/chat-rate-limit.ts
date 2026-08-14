@@ -10,6 +10,8 @@
  * deploy, which is acceptable for abuse protection (not billing).
  */
 
+import { extractIP } from "@/lib/geoip";
+
 interface WindowState {
   /** Timestamps (ms) of accepted requests, pruned lazily */
   hits: number[];
@@ -93,14 +95,17 @@ export function checkChatRateLimit(opts: {
 }
 
 /**
- * Client IP from proxy headers. Behind CloudFront + Caddy the first
- * X-Forwarded-For entry is the client.
+ * Client IP for the rate-limit bucket key.
+ *
+ * Delegates to `extractIP` (`@/lib/geoip`) — the one place allowed to know how
+ * each CDN reports the viewer. That matters here: this used to read
+ * `X-Forwarded-For` first and trust its leading entry, which is only the client
+ * if every hop in front is well-behaved. `extractIP` prefers the CDN's
+ * authoritative viewer header (`CloudFront-Viewer-Address`, or Cloudflare's
+ * `CF-Connecting-IP`) and falls back to exactly the old XFF / X-Real-IP logic,
+ * so it is strictly more correct on both CDNs — and it stops the rate limiter
+ * from ever collapsing all anonymous users into a single per-edge-node bucket.
  */
 export function getClientIp(headers: Headers): string {
-  const xff = headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return headers.get("x-real-ip") || "unknown";
+  return extractIP(headers);
 }

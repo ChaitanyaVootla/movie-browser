@@ -11,6 +11,7 @@ import {
 } from "@/lib/analytics/bot-detection";
 import { trackPageView } from "@/lib/analytics/track";
 import { SITE_URL } from "@/lib/constants";
+import { resolveViewerAsn } from "@/lib/geoip";
 import {
   parseMediaDetailPath,
   getCachedSlug,
@@ -350,12 +351,16 @@ function isBlockedDatacenterIP(req: NextRequest): boolean {
     // VPN is never shed by ASN or CIDR.
     if (hasSessionCookie(req)) return false;
 
-    const asn = Number(req.headers.get("cloudfront-viewer-asn"));
-    if (Number.isFinite(asn) && asn > 0 && BLOCKED_HOSTING_ASNS.has(asn)) return true;
+    // ASN comes from CloudFront's native header OR, behind Cloudflare, from the
+    // X-Viewer-ASN request-header Transform Rule (Cloudflare exposes cf.asn only
+    // as a ruleset field, never a header). resolveViewerAsn owns that fallback.
+    const asn = resolveViewerAsn(req.headers);
+    if (asn !== null && BLOCKED_HOSTING_ASNS.has(asn)) return true;
 
-    // "ip:port" for IPv4; IPv6 (contains extra colons) is not fleet traffic —
-    // skip it rather than mis-parse.
-    const addr = req.headers.get("cloudfront-viewer-address");
+    // Viewer IP. CloudFront sends "ip:port"; Cloudflare sends a bare IP in
+    // CF-Connecting-IP. IPv6 (extra colons) is not fleet traffic — skip it
+    // rather than mis-parse.
+    const addr = req.headers.get("cloudfront-viewer-address") ?? req.headers.get("cf-connecting-ip");
     if (!addr) return false;
     const ip = addr.split(":")[0];
     if (!ip || !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return false;
