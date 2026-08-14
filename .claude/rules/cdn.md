@@ -532,6 +532,49 @@ anonymous detail page before declaring the cutover done.**
 - **Polish / Mirage / Images.** Contradicts the Jun-19 `images.unoptimized: true`
   decision that fixed a disk-filling outage.
 
+### GraphQL Analytics on Free — MEASURED on our zone (Aug 14 2026)
+
+Once Cloudflare caches HTML, most of our ~2M req/day terminates at the EDGE and
+disappears from ClickHouse (which only ever sees origin-reaching requests).
+Logpush is Enterprise, so polled GraphQL is the only free way to keep counting it.
+Needs `Zone → Analytics → Read` on the API token.
+
+**Do NOT trust published per-plan retention tables — query the `settings` node for
+YOUR zone.** Ours reports (and this CONTRADICTS the "Free = 24h firewall events"
+figure in the docs/research, which would have led to building a needless
+hourly-or-lose-it poller):
+
+| Dataset | Retention | Max query window |
+|---|---|---|
+| `httpRequestsAdaptiveGroups` | **8 days** | 1 day |
+| `httpRequestsAdaptive` (raw) | **8 days** | 1 day |
+| `firewallEventsAdaptive` | **15 days** | 1 day |
+
+The 1-day `maxDuration` means any ingest must page day-by-day. A daily cron is
+sufficient given 8-day retention.
+
+**Validated working query shape** (accepted against the live zone; returns 0 rows
+only because nothing is proxied yet):
+`httpRequestsAdaptiveGroups(limit, filter:{datetime_geq, datetime_leq, requestSource:"eyeball"}, orderBy:[count_DESC]){ count dimensions{ cacheStatus edgeResponseStatus clientCountryName userAgentBrowser } }`
+
+- **`requestSource: "eyeball"`** separates real client traffic from internal/CF
+  fetches — the fix for the `User-Agent: Amazon CloudFront` noise that polluted our
+  origin-side human counts for months.
+- **`cacheStatus` is a Free dimension**, which is what makes Cache Analytics being
+  Pro-only survivable.
+- **What Free CANNOT give**: `botDetectionIds` (Enterprise Bot Management) and
+  **`clientRefererHost_like` (paid plans only)** — the latter is exactly the field
+  our forged-referer shed keys on, so that shed's logic is NOT reproducible at the
+  edge or in Free GraphQL. Second independent reason it stays at the ORIGIN.
+- Datasets carry the `Adaptive` (ABR sampling) suffix; docs warn they are not
+  billing-grade. Fine for traffic-mix ratios, not exact counts.
+- **Build the ingest AT cutover, not before** — there is no data to verify shapes
+  against until the apex is proxied.
+
+**Token permission note:** `Bot Management → Edit` is offered but grants NOTHING on
+Free — `cf.bot_management.score`/`.ja4` fail with "not entitled", which is a
+SUBSCRIPTION gate, not a token-scope gate. Leave it off (least privilege).
+
 **Still to verify in the dashboard / needs extra token perms:** whether the Cache
 Rules `Vary` setting accepts `RSC` (would be a cleaner RSC fix than our header-strip,
 though the strip is deployed and sufficient); GraphQL retention via the `settings`
