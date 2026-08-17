@@ -195,7 +195,7 @@ for r in rows:
     print("    %-12s %10s  %5.1f%%" % (r["dimensions"].get("cacheStatus"),
           format(r["count"], ",d"), 100.0 * r["count"] / t if t else 0))
 print()
-print("  A rising hit%% = the edge is absorbing more. A high bypass%% is expected —")
+print("  A rising hit% = the edge is absorbing more. A high bypass% is expected —")
 print("  our cache rule bypasses anything carrying an authjs session cookie.")
 '
 fi
