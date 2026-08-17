@@ -8,8 +8,15 @@
 # the run-rate went to ~$65–105/mo. The whole bill is REQUEST COUNT — data transfer
 # is ~$0.05/mo. So the only number that matters is requests/day.
 #
-# The decision this feeds: whether to migrate the apex to Cloudflare (unmetered
-# requests). See `.claude/rules/cdn.md` → Cost, and the migration research.
+# STATUS 2026-08-17: THE MIGRATION IS DONE and this script's premise has expired.
+# The apex is served by Cloudflare (unmetered), CloudFront is down to ~2k req/day
+# and its cost has collapsed ($2.80/day on Aug 13 → $0.05 on Aug 16). So:
+#   * the CloudWatch request block below now measures a DECOMMISSIONED path — it is
+#     kept only to confirm CloudFront stays near zero, NOT as a volume metric;
+#   * the 2M/day "structural" threshold is HISTORICAL. It existed to decide whether
+#     to migrate. That decision is made, so the verdict line no longer drives action;
+#   * REAL traffic volume now lives in Cloudflare GraphQL (see the Cloudflare block).
+# Do not reintroduce a cost-per-request panic from the CloudWatch numbers here.
 #
 # NOTE: this is a PULL script, deliberately not a daemon. CloudWatch retains daily
 # metrics for 455 days and ClickHouse keeps page_views, so the history accrues
@@ -154,14 +161,44 @@ print("  (modelled cost $%.2f — HIGH by ~35%%; trust the Cost Explorer block a
 print()
 per_day = main / days
 if per_day >= threshold:
-    print("  VERDICT: fleet looks STRUCTURAL (%s req/day >= %s threshold)." % (format(per_day, ",.0f"), format(threshold, ",.0f")))
-    print("           See the Cost Explorer run-rate above for the real $ figure.")
+    print("  (HISTORICAL threshold: %s req/day >= %s. CloudFront is decommissioned," % (format(per_day, ",.0f"), format(threshold, ",.0f")))
+    print("   so this reflects pre-migration days still inside the MTD window.)")
 else:
     print("  VERDICT: below the %s/day threshold (%s req/day)." % (format(threshold, ",.0f"), format(per_day, ",.0f")))
     print("           Fleet may be receding. NOTE: even a clean baseline of")
     print("           0.6-1.3M req/day is 19-38M/mo = 2-4x over the free tier,")
     print("           so CloudFront never returns to $0 while HTML flows through it.")
 PY
+
+echo
+echo "--- Cloudflare edge volume (THE REAL METRIC since 2026-08-17) ---"
+if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ZONE_ID:-}" ]; then
+  echo "  (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID not in .env.local — skipping)"
+else
+  CF_D1=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  CF_D0=$(date -u -v-23H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '23 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+  # Requires Zone→Analytics→Read on the token. Retention is 8 days, max query
+  # window 1 day, and the dataset is ABR-sampled — good for ratios, not billing.
+  curl -s -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+    https://api.cloudflare.com/client/v4/graphql \
+    --data "{\"query\":\"query(\$z:string!,\$s:Time!,\$e:Time!){viewer{zones(filter:{zoneTag:\$z}){httpRequestsAdaptiveGroups(limit:12, filter:{datetime_geq:\$s, datetime_leq:\$e}, orderBy:[count_DESC]){count dimensions{cacheStatus}}}}}\",\"variables\":{\"z\":\"$CLOUDFLARE_ZONE_ID\",\"s\":\"$CF_D0\",\"e\":\"$CF_D1\"}}" \
+    | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+if d.get("errors"):
+    print("  GraphQL error:", json.dumps(d["errors"])[:200]); raise SystemExit
+z = (((d.get("data") or {}).get("viewer") or {}).get("zones") or [])
+rows = (z[0].get("httpRequestsAdaptiveGroups") if z else []) or []
+t = sum(r["count"] for r in rows)
+print("  edge requests (23h): %s  [unmetered — volume no longer costs money]" % format(t, ",d"))
+for r in rows:
+    print("    %-12s %10s  %5.1f%%" % (r["dimensions"].get("cacheStatus"),
+          format(r["count"], ",d"), 100.0 * r["count"] / t if t else 0))
+print()
+print("  A rising hit%% = the edge is absorbing more. A high bypass%% is expected —")
+print("  our cache rule bypasses anything carrying an authjs session cookie.")
+'
+fi
 
 if [ "${1:-}" = "--cf-only" ]; then exit 0; fi
 if [ ! -f movie-browser-ec2-key.pem ]; then
