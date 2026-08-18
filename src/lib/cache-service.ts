@@ -967,7 +967,10 @@ let janitorTimer: NodeJS.Timeout | null = null;
  * enforces per-namespace size caps. Idempotent. The interval is unref'd so it
  * never keeps the process alive on its own.
  *
- * Call once on server startup (see instrumentation.node.ts).
+ * Called once on server startup from `src/instrumentation.ts` — the ONLY server
+ * instrumentation file Next loads. It previously lived in an orphaned
+ * `instrumentation.node.ts` (no such Next convention), so it never ran and
+ * `.cache/` reached 44GB. Do not move it back out.
  */
 export function startCacheJanitor(intervalMs: number = CACHE_JANITOR_INTERVAL_MS): void {
   if (janitorTimer) return;
@@ -1132,7 +1135,9 @@ export interface CacheWarmingConfig {
 /**
  * Warm the cache on server startup
  *
- * This function should be called from instrumentation.node.ts on server start.
+ * NOTE: currently NOT wired to startup. It readdir+readFile+JSON.parses EVERY
+ * file in each namespace, so on a large `.cache/` (ours held millions of files)
+ * calling it at boot would stall or OOM the 2-vCPU box. Bound it before reusing.
  * It performs two types of warming:
  *
  * 1. **L2 → L1 warming**: Loads existing file cache entries into memory
@@ -1140,7 +1145,7 @@ export interface CacheWarmingConfig {
  *
  * @example
  * ```typescript
- * // In instrumentation.node.ts
+ * // At server start (see the size caveat above)
  * import { warmCache } from "@/lib/cache-service";
  *
  * export async function register() {
