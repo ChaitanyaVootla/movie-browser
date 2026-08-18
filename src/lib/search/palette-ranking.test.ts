@@ -18,7 +18,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { matchScore, orderGroups, squashText, type Rankable } from "./palette-ranking";
+import { matchScore, orderGroups, squashText, stripYear, type Rankable } from "./palette-ranking";
 
 const M = (title: string, popularity = 1): Rankable => ({ mediaType: "movie", title, popularity });
 const S = (title: string, popularity = 1): Rankable => ({ mediaType: "series", title, popularity });
@@ -123,5 +123,55 @@ describe("orderGroups — the reported defects", () => {
       movies: [M("Star Wars: Visions", 5), M("Star Wars", 40), M("Star Warship", 90)],
     });
     expect(g.items.map((i) => i.title)).toEqual(["Star Wars", "Star Wars: Visions", "Star Warship"]);
+  });
+});
+
+describe("year suffix in palette labels (regression)", () => {
+  // The palette's suggestion `label` is "Title (YYYY)", so squashing it produced
+  // "breakingbad2008" and the squashed-EXACT tier could never fire. `breakingbad`
+  // then tied with "Breaking Bad Wolf" and lost on group declaration order.
+  it("strips a trailing (YYYY)", () => {
+    expect(stripYear("Breaking Bad (2008)")).toBe("Breaking Bad");
+    expect(stripYear("9-1-1 (2018)")).toBe("9-1-1");
+    expect(stripYear("Interstellar")).toBe("Interstellar");
+    expect(stripYear("Blade Runner 2049")).toBe("Blade Runner 2049"); // not a suffix
+  });
+
+  it('"breakingbad" scores the Series exactly, beating "Breaking Bad Wolf"', () => {
+    expect(matchScore("breakingbad", "Breaking Bad (2008)")).toBeGreaterThan(
+      matchScore("breakingbad", "Breaking Bad Wolf")
+    );
+  });
+
+  it('"breakingbad" puts Series above Movies with real palette labels', () => {
+    const order = orderGroups("breakingbad", {
+      movies: [{ mediaType: "movie", title: "Breaking Bad Wolf", popularity: null }],
+      series: [{ mediaType: "series", title: "Breaking Bad (2008)", popularity: null }],
+    }).map((g) => g.key);
+    expect(order).toEqual(["series", "movies"]);
+  });
+
+  it('"9-1-1" puts the Series above a person literally named "911"', () => {
+    const order = orderGroups("9-1-1", {
+      people: [{ mediaType: "person", title: "911", popularity: null }],
+      series: [{ mediaType: "series", title: "9-1-1 (2018)", popularity: null }],
+    }).map((g) => g.key);
+    expect(order).toEqual(["series", "people"]);
+  });
+});
+
+describe("punctuation must not beat a real title (regression)", () => {
+  // "Spiderman and Dog" got raw-prefix-at-word-end (85) while "Spider-Man: Brand New
+  // Day" only got squashed-prefix (75), so junk won on punctuation alone. A squashed
+  // prefix that lands on a word boundary in the ORIGINAL title is just as good.
+  it('"spiderman" scores "Spider-Man: …" at least as high as "Spiderman and Dog"', () => {
+    expect(matchScore("spiderman", "Spider-Man: Brand New Day (2026)")).toBeGreaterThanOrEqual(
+      matchScore("spiderman", "Spiderman and Dog (2006)")
+    );
+  });
+
+  it("still prefers a boundary match over a mid-word one", () => {
+    // "spider" lands mid-word in "Spidermania" but on a boundary in "Spider-Man".
+    expect(matchScore("spider", "Spider-Man")).toBeGreaterThan(matchScore("spider", "Spidermania"));
   });
 });

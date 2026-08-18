@@ -43,6 +43,19 @@ export function squashText(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+/**
+ * Drop a trailing "(YYYY)" release-year suffix.
+ *
+ * The palette's suggestion `label` is "Title (YYYY)", so without this the squashed
+ * form of "Breaking Bad (2008)" is "breakingbad2008" and the squashed-EXACT tier can
+ * never fire — `breakingbad` then tied with "Breaking Bad Wolf" and lost on group
+ * declaration order. Deliberately anchored to the END and to 4 digits in parens, so
+ * a title like "Blade Runner 2049" is untouched.
+ */
+export function stripYear(title: string): string {
+  return title.replace(/\s*\(\d{4}\)\s*$/, "");
+}
+
 const norm = (value: string): string => value.toLowerCase().trim().replace(/\s+/g, " ");
 
 /** Score tiers. Gaps are deliberate so a better KIND of match always wins outright. */
@@ -50,7 +63,6 @@ const EXACT = 100;
 const SQUASHED_EXACT = 95;
 const PREFIX_AT_WORD_END = 85; // "the matrix" in "The Matrix Reloaded"
 const PREFIX_MID_WORD = 78; // "inc" in "Inception", "shan" in "Shang-Chi"
-const SQUASHED_PREFIX = 75; // "breakingbad" in "Breaking Bad Wolf"
 const WORD_PREFIX = 60; // "inc" in "Jennifer INCh" — a real but weak match
 const CONTAINS = 40;
 const SQUASHED_CONTAINS = 30;
@@ -63,23 +75,56 @@ const NO_MATCH = 0;
  * Visions" (query ends at a boundary) is a better answer than "Star Warship"
  * (query ends mid-word), regardless of popularity.
  */
+/**
+ * Where does the query's prefix LAND in the title, ignoring punctuation?
+ *
+ * We consume alphanumerics from the title until we have matched the squashed query's
+ * length, then look at the ORIGINAL next character. This lets a squashed prefix be
+ * judged on the same word-boundary footing as a raw one — without it,
+ * "Spiderman and Dog" (raw prefix, boundary) outranked "Spider-Man: Brand New Day"
+ * (squashed prefix) purely because of a hyphen.
+ */
+function squashedPrefixLanding(title: string, squashedLength: number): "boundary" | "mid" | null {
+  let matched = 0;
+  for (let i = 0; i < title.length; i++) {
+    if (!/[a-z0-9]/.test(title[i])) continue;
+    matched++;
+    if (matched === squashedLength) {
+      const next = title.charAt(i + 1);
+      return next && /[a-z0-9]/.test(next) ? "mid" : "boundary";
+    }
+  }
+  return null;
+}
+
+/**
+ * How directly does `title` answer `query`? 0 means "not a match at all".
+ *
+ * The boundary vs mid-word distinction is load-bearing: for "star wars", "Star Wars:
+ * Visions" (query ends at a boundary) is a better answer than "Star Warship" (ends
+ * mid-word), regardless of popularity. Punctuation must NOT decide it, so raw and
+ * squashed prefixes are scored on the same boundary footing.
+ */
 export function matchScore(query: string, title: string): number {
   const q = norm(query);
-  const t = norm(title);
+  const t = norm(stripYear(title));
   if (!q || !t) return NO_MATCH;
 
   if (t === q) return EXACT;
 
   const qs = squashText(query);
-  const ts = squashText(title);
+  const ts = squashText(stripYear(title));
   if (qs && ts === qs) return SQUASHED_EXACT;
 
   if (t.startsWith(q)) {
     const next = t.charAt(q.length);
-    return /[a-z0-9]/.test(next) ? PREFIX_MID_WORD : PREFIX_AT_WORD_END;
+    return next && /[a-z0-9]/.test(next) ? PREFIX_MID_WORD : PREFIX_AT_WORD_END;
   }
 
-  if (qs && ts.startsWith(qs)) return SQUASHED_PREFIX;
+  if (qs && ts.startsWith(qs)) {
+    const landing = squashedPrefixLanding(t, qs.length);
+    return landing === "mid" ? PREFIX_MID_WORD : PREFIX_AT_WORD_END;
+  }
 
   // Query prefixes some LATER word ("inc" → "Jennifer Inch").
   if (t.split(/[^a-z0-9]+/).some((word) => word && word.startsWith(q))) return WORD_PREFIX;
