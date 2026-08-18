@@ -48,10 +48,19 @@ import {
   TMDB_PROFILE_SIZES,
 } from "@/lib/constants";
 import { quickSearch } from "@/server/actions/search";
-import { getAutocompleteSuggestions, type AutocompleteSuggestion } from "@/server/actions/autocomplete";
+import {
+  getAutocompleteSuggestions,
+  type AutocompleteSuggestion,
+} from "@/server/actions/autocomplete";
 import { getPopularTopics, searchTopics } from "@/lib/topics";
 import { useUserStore, selectRecents } from "@/stores/user";
 import { useDebounce } from "@/hooks/use-debounce";
+import {
+  dedupeKey,
+  orderGroups,
+  type Rankable,
+  type RankableMediaType,
+} from "@/lib/search/palette-ranking";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import type {
@@ -67,6 +76,9 @@ import { MOOD_FILTERS } from "@/lib/search/moods";
 // =============================================================================
 // Constants
 // =============================================================================
+
+/** An autocomplete suggestion enriched with what `orderGroups` needs to rank it. */
+type PaletteRankable = AutocompleteSuggestion & Rankable;
 
 const SEARCH_DEBOUNCE_MS = 250;
 const AUTOCOMPLETE_DEBOUNCE_MS = 150;
@@ -171,7 +183,9 @@ const MediaThumbnail = React.memo(function MediaThumbnail({
   // Person uses profile path with circular styling
   if (isPerson) {
     return (
-      <div className={cn("relative flex-shrink-0 overflow-hidden rounded-full bg-muted", className)}>
+      <div
+        className={cn("relative flex-shrink-0 overflow-hidden rounded-full bg-muted", className)}
+      >
         {profilePath ? (
           <Image
             src={`${TMDB_IMAGE_BASE}/${TMDB_PROFILE_SIZES.small}${profilePath}`}
@@ -345,10 +359,12 @@ const AutocompleteSuggestionItem = React.memo(function AutocompleteSuggestionIte
       )}
       {/* Fallback icon for items without poster */}
       {(isTitle || isPerson) && !suggestion.posterPath && (
-        <div className={cn(
-          "flex items-center justify-center bg-muted rounded",
-          isPerson ? "h-9 w-9 rounded-full" : "h-9 w-16"
-        )}>
+        <div
+          className={cn(
+            "flex items-center justify-center bg-muted rounded",
+            isPerson ? "h-9 w-9 rounded-full" : "h-9 w-16"
+          )}
+        >
           {getSuggestionIcon(suggestion)}
         </div>
       )}
@@ -360,9 +376,7 @@ const AutocompleteSuggestionItem = React.memo(function AutocompleteSuggestionIte
       </span>
 
       {/* Type indicator icon on the right */}
-      <span className="text-muted-foreground/50">
-        {getSuggestionIcon(suggestion)}
-      </span>
+      <span className="text-muted-foreground/50">{getSuggestionIcon(suggestion)}</span>
     </CommandItem>
   );
 });
@@ -378,7 +392,9 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   });
 
   // Autocomplete state (fast, 150ms debounce)
-  const [autocompleteSuggestions, setAutocompleteSuggestions] = React.useState<AutocompleteSuggestion[]>([]);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = React.useState<
+    AutocompleteSuggestion[]
+  >([]);
   const [isAutocompleteLoading, setIsAutocompleteLoading] = React.useState(false);
 
   // Get recent visits from user store
@@ -390,10 +406,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const debouncedAutocompleteQuery = useDebounce(query, AUTOCOMPLETE_DEBOUNCE_MS);
 
   // Memoize recent items slice
-  const recentItems = React.useMemo(
-    () => recents.slice(0, MAX_RECENT_ITEMS),
-    [recents]
-  );
+  const recentItems = React.useMemo(() => recents.slice(0, MAX_RECENT_ITEMS), [recents]);
 
   // Search topics instantly (no debounce needed - local search)
   const matchingTopics = React.useMemo(() => {
@@ -536,8 +549,59 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     return groups;
   }, [autocompleteSuggestions]);
 
+  /**
+   * Order the three MEDIA groups by how well they answer the query instead of by a
+   * fixed DOM position. Fixes "inc" → Jennifer Inch, "the matrix" → Carlos Matrix,
+   * "wall-e" → Eli Wallach, "spiderman" → B Spiderman — while keeping People first
+   * for genuine person queries ("tom holland"), which a plain reorder would break.
+   *
+   * `popularity: null` is deliberate: the server already returns each group ordered
+   * by popularity, and Array.sort is stable, so equal-scoring items keep that order.
+   */
+  const orderedMediaGroups = React.useMemo(() => {
+    const labels: Record<string, string> = {
+      movies: "Movies",
+      series: "Series",
+      people: "People",
+    };
+    const toRankable = (
+      items: AutocompleteSuggestion[],
+      mediaType: RankableMediaType
+    ): PaletteRankable[] =>
+      items.map((item) => ({ ...item, mediaType, title: item.label, popularity: null }));
+
+    return orderGroups<PaletteRankable>(debouncedQuery, {
+      movies: toRankable(groupedSuggestions.movies, "movie"),
+      series: toRankable(groupedSuggestions.series, "series"),
+      people: toRankable(groupedSuggestions.people, "person"),
+    }).map((g) => ({ ...g, heading: labels[g.key] }));
+  }, [debouncedQuery, groupedSuggestions]);
+
+  /**
+   * Titles already shown in our own groups above, so the TMDB "Results" group below
+   * only adds what we do NOT already have. Previously the Movies/Series groups were
+   * simply hidden once TMDB replied (`!hasApiResults`) — which silently threw away
+   * our better matches and produced a visible flicker (typing "shan" showed
+   * Shang-Chi for ~205ms, then TMDB's "Shan" replaced it).
+   */
+  const shownMediaKeys = React.useMemo(() => {
+    const keys = new Set<string>();
+    for (const g of orderedMediaGroups) {
+      for (const item of g.items) {
+        if (item.id != null) keys.add(dedupeKey(item.mediaType, item.id));
+      }
+    }
+    return keys;
+  }, [orderedMediaGroups]);
+
   const showEmptyState =
-    debouncedQuery.trim() && !isLoading && !isAutocompleteLoading && !hasApiResults && !hasTopics && !hasAutocompleteSuggestions && !hasError;
+    debouncedQuery.trim() &&
+    !isLoading &&
+    !isAutocompleteLoading &&
+    !hasApiResults &&
+    !hasTopics &&
+    !hasAutocompleteSuggestions &&
+    !hasError;
   const showErrorState = debouncedQuery.trim() && !isLoading && hasError;
   const showInitialState = !query.trim() && !isLoading;
 
@@ -618,7 +682,11 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
           if (suggestion.mediaType === "person") {
             handleSelectMedia("person", suggestion.id, suggestion.value);
           } else {
-            handleSelectMedia(suggestion.mediaType === "movie" ? "movie" : "series", suggestion.id, suggestion.value);
+            handleSelectMedia(
+              suggestion.mediaType === "movie" ? "movie" : "series",
+              suggestion.id,
+              suggestion.value
+            );
           }
         }
       } else if (suggestion.type === "filter" || suggestion.type === "mood") {
@@ -788,10 +856,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
               >
                 <AlertCircle className="h-10 w-10 text-destructive/50" />
                 <p className="text-sm text-muted-foreground">Something went wrong</p>
-                <button
-                  onClick={handleRetry}
-                  className="text-xs text-primary hover:underline"
-                >
+                <button onClick={handleRetry} className="text-xs text-primary hover:underline">
                   Try again
                 </button>
               </div>
@@ -845,7 +910,10 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                           }
                           className="gap-2.5 py-1.5"
                         >
-                          <History className="h-4 w-4 text-muted-foreground/50" aria-hidden="true" />
+                          <History
+                            className="h-4 w-4 text-muted-foreground/50"
+                            aria-hidden="true"
+                          />
                           <MediaThumbnail
                             backdropPath={recent.backdrop_path}
                             posterPath={recent.poster_path}
@@ -865,9 +933,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 <>
                   {recentItems.length > 0 && <CommandSeparator />}
                   <div className="px-2 py-1.5">
-                    <p className="px-2 text-xs font-medium text-muted-foreground">
-                      Search by Mood
-                    </p>
+                    <p className="px-2 text-xs font-medium text-muted-foreground">Search by Mood</p>
                   </div>
                   <MoodPills onSelectMood={handleSelectMood} />
                 </>
@@ -922,59 +988,24 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 {/* Autocomplete Suggestions - Show fast results from fuzzy search */}
                 {(hasAutocompleteSuggestions || isAutocompleteLoading) && (
                   <>
-                    {/* Movies — instant fuzzy matches. Hidden once the canonical
-                        server "Results" arrive below, to avoid listing the same
-                        title twice. */}
-                    {groupedSuggestions.movies.length > 0 && !hasApiResults && (
-                      <>
+                    {/* MEDIA groups, relevance-ordered (see orderedMediaGroups).
+                        They are NO LONGER hidden when TMDB "Results" arrive — that
+                        guard discarded our better matches and caused the flicker. */}
+                    {orderedMediaGroups.map((group) => (
+                      <React.Fragment key={group.key}>
                         <CommandSeparator />
-                        <CommandGroup heading="Movies">
-                          {groupedSuggestions.movies.map((suggestion) => (
+                        <CommandGroup heading={group.heading}>
+                          {group.items.map((suggestion) => (
                             <AutocompleteSuggestionItem
-                              key={`movie-${suggestion.id}`}
+                              key={`${group.key}-${suggestion.id}`}
                               suggestion={suggestion}
                               query={query}
                               onSelect={handleSelectAutocompleteSuggestion}
                             />
                           ))}
                         </CommandGroup>
-                      </>
-                    )}
-
-                    {/* Series — instant fuzzy matches. Hidden once the canonical
-                        server "Results" arrive below (same de-dup as Movies). */}
-                    {groupedSuggestions.series.length > 0 && !hasApiResults && (
-                      <>
-                        <CommandSeparator />
-                        <CommandGroup heading="Series">
-                          {groupedSuggestions.series.map((suggestion) => (
-                            <AutocompleteSuggestionItem
-                              key={`series-${suggestion.id}`}
-                              suggestion={suggestion}
-                              query={query}
-                              onSelect={handleSelectAutocompleteSuggestion}
-                            />
-                          ))}
-                        </CommandGroup>
-                      </>
-                    )}
-
-                    {/* People */}
-                    {groupedSuggestions.people.length > 0 && (
-                      <>
-                        <CommandSeparator />
-                        <CommandGroup heading="People">
-                          {groupedSuggestions.people.map((suggestion) => (
-                            <AutocompleteSuggestionItem
-                              key={`person-${suggestion.id}`}
-                              suggestion={suggestion}
-                              query={query}
-                              onSelect={handleSelectAutocompleteSuggestion}
-                            />
-                          ))}
-                        </CommandGroup>
-                      </>
-                    )}
+                      </React.Fragment>
+                    ))}
 
                     {/* Filters */}
                     {groupedSuggestions.filters.length > 0 && (
@@ -1017,7 +1048,10 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                         role="status"
                         aria-live="polite"
                       >
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+                        <Loader2
+                          className="h-5 w-5 animate-spin text-muted-foreground"
+                          aria-hidden="true"
+                        />
                         <span className="sr-only">Loading suggestions...</span>
                       </div>
                     )}
@@ -1044,7 +1078,13 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                   <>
                     <CommandSeparator />
                     <CommandGroup heading="Results">
-                      {results.results.map((result, index) => renderMediaResult(result, index))}
+                      {results.results
+                        .filter((result) => {
+                          const mediaType =
+                            result.media_type === "tv" ? "series" : result.media_type;
+                          return !shownMediaKeys.has(dedupeKey(mediaType, result.id));
+                        })
+                        .map((result, index) => renderMediaResult(result, index))}
                     </CommandGroup>
                   </>
                 ) : (
@@ -1056,7 +1096,10 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                       role="status"
                       aria-live="polite"
                     >
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                      <Loader2
+                        className="h-6 w-6 animate-spin text-muted-foreground"
+                        aria-hidden="true"
+                      />
                       <span className="sr-only">Loading search results...</span>
                     </div>
                   )
