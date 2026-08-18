@@ -539,6 +539,23 @@ anonymous detail page before declaring the cutover done.**
   Apr 2025 (5 req/min for prefix/tag/everything; 100 items per API call). This removes
   the cost objection behind the deferred `/u/<username>*` privacy-flip / moderation /
   username-change invalidations — CloudFront billed per path, Cloudflare doesn't.
+  **BUT our `CLOUDFLARE_API_TOKEN` currently CANNOT purge** — tried Aug 18 2026 and
+  got `{"code":10000,"message":"Authentication error"}`. The token carries the
+  migration scopes (Zone Analytics Read / DNS / Rules) but not **Zone → Cache Purge →
+  Purge**. So every "just purge it" plan above is blocked until that scope is added.
+  **Workaround that needs no token:** Cloudflare keys on the FULL query string, so
+  appending a cache-buster (`?_cb=<ts>`) forces a MISS and fetches fresh origin HTML —
+  invaluable for verifying a deploy without waiting out `s-maxage`, since through the
+  edge you are otherwise testing the PREVIOUS build.
+- **Build skew is very visible right after a deploy, and it looks like a broken
+  feature.** Post-deploy, edge HTML from the old build still embeds old server-action
+  IDs, so the origin logs `Failed to find Server Action "40b3c0dc…". This request might
+  be from an older or newer deployment.` and any action-driven UI (search palette,
+  ratings, watchlist) silently does nothing for those viewers until `s-maxage=3600`
+  expires. Aug 18 2026: this made a freshly-deployed search fix appear completely
+  broken (every query timed out) and a fixed page appear unfixed — both were stale
+  edge HTML, not the code. **Verify a deploy against the ORIGIN (`--resolve`) or with a
+  cache-buster, never through the plain edge URL.**
 - **`cf.threat_score` is INERT** — docs say it is "always 0" now. Any rule built on it
   matches uniformly. Don't.
 - **WAF: 5 custom rules on Free, and NO `Log` action below Enterprise** — you cannot
