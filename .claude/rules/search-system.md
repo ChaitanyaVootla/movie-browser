@@ -488,35 +488,59 @@ once in `runLexicalSearch` — because the first deploy fixed the palette while
 `/search?q=shangchi` still answered **"Shane"**. If you change search behaviour,
 check all three or say explicitly which one you changed.
 
-## The palette's group PRECEDENCE is wrong, and it hides good results
+## Palette precedence: FIXED by a relevance score, not a reorder (Aug 18 2026)
 
-Render order + guards in `search-command.tsx` (verified in source, not inferred):
+**What was wrong.** Precedence was decided by SOURCE and fixed DOM POSITION:
 
 ```jsx
 {movies.length > 0 && !hasApiResults && ( <CommandGroup heading="Movies"> )}
 {series.length > 0 && !hasApiResults && ( <CommandGroup heading="Series"> )}
-{people.length > 0 &&                    ( <CommandGroup heading="People"> )}  // no guard, renders FIRST
+{people.length > 0 &&                    ( <CommandGroup heading="People"> )}  // no guard, FIRST
 {hasApiResults ? (                         <CommandGroup heading="Results"> )}
 ```
 
-Two consequences, both measured in a 30-query prod audit:
+Two user-visible defects fell out of that (the first reported TWICE by the user):
 
-1. **`!hasApiResults` suppresses our own Postgres title matches as soon as TMDB
-   returns ANYTHING — even garbage.** `starwars` → our PG tier finds *Star Wars*
-   (1.2ms) but the user sees TMDB's **"Starwars: Goretech"**; `9-1-1` → **"1
-   Oktober jam 9 malam di TV3."** The design assumed "Results are better than
-   suggestions", which is false for punctuation-free queries.
-2. **People has no guard and renders before everything**, so a weak substring
-   person match becomes the top hit: `inc` → *Jennifer Inch*, `wall-e` → *Eli
-   Wallach*, `walle` → *Annabelle Wallis*, `amelie` → *Amelia Warner*, `the
-   matrix` → *Carlos Matrix*, `spiderman` → *B Spiderman*. Also Movies renders
-   before Series, so `breakingbad` → *Breaking Bad Wolf* (movie) outranks
-   *Breaking Bad* (series).
+1. **Our own better results were thrown away.** Autocomplete (Postgres, 150ms
+   debounce) rendered Movies/Series; then `quickSearch` (TMDB, 250ms) landed,
+   `hasApiResults` flipped, and those groups UNMOUNTED. Captured timeline for `shan`:
+   `t+487ms Movies[Shang-Chi] Series[Shangri-La Frontier] People[Shane Ryan-Reid]` →
+   `t+692ms People[Shane Ryan-Reid] Results[Shan | Xue Ding Shan]`. **The good
+   "momentary" results are OURS** — a user reading it as "TMDB shows first" has the
+   direction backwards. Same mechanism without a visible flicker gave `starwars` →
+   "Starwars: Goretech" and `9-1-1` → "1 Oktober jam 9 malam di TV3.".
+2. **People had no relevance gate and rendered first**, so weak substring hits won:
+   `inc` → *Jennifer Inch*, `the matrix` → *Carlos Matrix*, `wall-e` → *Eli Wallach*,
+   `spiderman` → *B Spiderman*; Movies-before-Series gave `breakingbad` → *Breaking
+   Bad Wolf* over the *Breaking Bad* series.
 
-**Do NOT "fix" this by simply moving People last** — that breaks the genuine person
-queries (`tom holland`, `cillian murphy`) which currently work correctly. It needs
-relevance-based ordering (score the match against the query), which is a design
-decision, not a reorder.
+**Why the obvious fix was wrong.** Moving People last fixes (2) and BREAKS `tom
+holland` / `cillian murphy`, which rank correctly today. Group order cannot be
+static — it has to follow the query.
+
+**What shipped** (`src/lib/search/palette-ranking.ts`, pure + client-safe, 14 tests):
+- `matchScore(query, title)` with deliberate tier GAPS so a better KIND of match
+  always wins outright: exact 100 > squashed-exact 95 > prefix-at-word-end 85 >
+  prefix-mid-word 78 > squashed-prefix 75 > word-prefix 60 > contains 40 >
+  squashed-contains 30 > 0.
+- **The word-end vs mid-word split is load-bearing**: for "star wars", "Star Wars:
+  Visions" (query ends at a boundary) must beat "Star Warship" (ends mid-word)
+  *regardless of popularity*. Without it, popularity flips them.
+- `squashText` is the SAME normalisation as the `idx_*_squash` indexes, so
+  "starwars" scores as a direct hit on "Star Wars" (95) and outranks TMDB's
+  "Starwars: Goretech" (85).
+- `orderGroups` orders groups by best member, members by score then popularity.
+- **DEMOTE, DO NOT DROP.** A group scoring 0 sorts last, not removed: the client
+  cannot see WHY the backend matched (a person via `person_aliases`, a title via
+  `original_title`), so 0 means "unexplainable", not "wrong". The first
+  implementation dropped, and the tests caught that it would discard legitimate
+  alias hits.
+- `popularity: null` is passed deliberately from the palette — the server already
+  orders each group by popularity and `Array.sort` is stable, so equal-scoring items
+  keep the server's order.
+- The `!hasApiResults` guards are GONE, and the TMDB "Results" group is deduped
+  against what we already render (`dedupeKey(mediaType, id)`, `tv`→`series`), so
+  dropping the guards cannot list a title twice.
 
 ## Auditing search honestly — the traps that produce false PASSES
 
