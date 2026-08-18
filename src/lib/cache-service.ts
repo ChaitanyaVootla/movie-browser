@@ -34,6 +34,7 @@ import {
   statSync,
   unlinkSync,
 } from "fs";
+import { promises as fsp } from "fs";
 import { join } from "path";
 import crypto from "crypto";
 import { gzipSync, gunzipSync } from "zlib";
@@ -851,35 +852,70 @@ async function refreshInBackground<T>(
 // =============================================================================
 
 /**
- * Clean up expired entries from L2 cache
- * Run this periodically (e.g., daily via cron)
+ * === EVENT-LOOP SAFETY (learned the hard way, Aug 18 2026) ===
+ *
+ * These sweeps used to be fully SYNCHRONOUS (`readdirSync` + `readFileSync` +
+ * `JSON.parse` + `statSync` + `unlinkSync`) over every file in every namespace.
+ * That was harmless while the janitor was never actually started — the day it
+ * was wired up on a `.cache/` holding ~700k files it **blocked Node's event
+ * loop** and prod served 502s on every cache-miss path: `next-server` sat in
+ * `STAT=Dl` / `WCHAN=folio_wait_bit_commo` with 0% user CPU and 57% iowait,
+ * listening on :3002 but answering nothing.
+ *
+ * So: async `fs/promises`, and **yield to the event loop every SWEEP_BATCH
+ * files**. Never reintroduce a *Sync fs call in a whole-directory loop here.
  */
-export function cleanupExpiredCache(): { deleted: number; errors: number } {
+const SWEEP_BATCH = 200;
+
+/**
+ * Max files whose CONTENT we read per namespace per sweep. Expiry checking has
+ * to parse each entry, so it is the expensive half; it is also only an
+ * optimisation — `enforceNamespaceSizeLimits` is what actually guarantees the
+ * disk budget, using stat() alone. Capping this keeps a pathological directory
+ * from turning one sweep into minutes of I/O; the backlog drains over
+ * subsequent hourly sweeps.
+ */
+const EXPIRY_SCAN_CAP_PER_NAMESPACE = 4000;
+
+const yieldToEventLoop = (): Promise<void> =>
+  new Promise((resolve) => setImmediate(resolve));
+
+/**
+ * Delete entries past their TTL + grace period.
+ *
+ * Best-effort and bounded (see EXPIRY_SCAN_CAP_PER_NAMESPACE) — the hard disk
+ * bound is enforceNamespaceSizeLimits().
+ */
+export async function cleanupExpiredCache(): Promise<{ deleted: number; errors: number }> {
   let deleted = 0;
   let errors = 0;
+  let scanned = 0;
 
-  const namespaces = Object.keys(CACHE_CONFIGS) as CacheNamespace[];
-
-  for (const namespace of namespaces) {
+  for (const namespace of Object.keys(CACHE_CONFIGS) as CacheNamespace[]) {
     const config = CACHE_CONFIGS[namespace];
     if (!config.persistToFile) continue;
 
     const dir = join(CACHE_ROOT, namespace);
-    if (!existsSync(dir)) continue;
+    let files: string[];
+    try {
+      files = await fsp.readdir(dir);
+    } catch {
+      continue; // missing dir is normal
+    }
 
-    const files = readdirSync(dir);
-    const now = Date.now();
+    const graceMs = (config.staleGracePeriod ?? 0) * 1000;
+    let examined = 0;
 
     for (const file of files) {
-      try {
-        const filePath = join(dir, file);
-        const content = readFileSync(filePath, "utf-8");
-        const entry = JSON.parse(content) as FileCacheEntry<unknown>;
+      if (examined >= EXPIRY_SCAN_CAP_PER_NAMESPACE) break;
+      examined++;
+      if (++scanned % SWEEP_BATCH === 0) await yieldToEventLoop();
 
-        // Delete if expired beyond grace period
-        const graceMs = (config.staleGracePeriod ?? 0) * 1000;
-        if (now > entry.expiresAt + graceMs) {
-          unlinkSync(filePath);
+      const filePath = join(dir, file);
+      try {
+        const entry = JSON.parse(await fsp.readFile(filePath, "utf-8")) as FileCacheEntry<unknown>;
+        if (Date.now() > entry.expiresAt + graceMs) {
+          await fsp.unlink(filePath);
           deleted++;
         }
       } catch {
@@ -888,44 +924,44 @@ export function cleanupExpiredCache(): { deleted: number; errors: number } {
     }
   }
 
-  dataLogger.info({
-    event: "cache_cleanup_complete",
-    deleted,
-    errors,
-  });
-
+  dataLogger.info({ event: "cache_cleanup_complete", deleted, errors });
   return { deleted, errors };
 }
 
 /**
  * Enforce per-namespace L2 size caps via LRU (oldest-mtime-first) eviction.
  *
- * cleanupExpiredCache only removes entries past their TTL+grace. Under steady
- * traffic the cache can still accumulate many still-valid entries (e.g. every
- * distinct movie lookup), so this caps the on-disk footprint regardless of TTL.
+ * THIS is the real disk bound: cleanupExpiredCache only removes TTL-expired
+ * entries, and under steady traffic a namespace accumulates plenty of
+ * still-valid ones (one per distinct lookup). Uses stat() only — no file
+ * content is read — so it is safe to run uncapped, batched with yields.
  */
-export function enforceNamespaceSizeLimits(): { evicted: number; errors: number } {
+export async function enforceNamespaceSizeLimits(): Promise<{ evicted: number; errors: number }> {
   let evicted = 0;
   let errors = 0;
+  let processed = 0;
 
-  const namespaces = Object.keys(CACHE_CONFIGS) as CacheNamespace[];
-
-  for (const namespace of namespaces) {
+  for (const namespace of Object.keys(CACHE_CONFIGS) as CacheNamespace[]) {
     const config = CACHE_CONFIGS[namespace];
     if (!config.persistToFile) continue;
 
     const dir = join(CACHE_ROOT, namespace);
-    if (!existsSync(dir)) continue;
+    let names: string[];
+    try {
+      names = await fsp.readdir(dir);
+    } catch {
+      continue;
+    }
 
     const maxBytes = config.maxBytes ?? DEFAULT_MAX_NAMESPACE_BYTES;
-
-    // Collect files with size + mtime
     const entries: Array<{ path: string; size: number; mtimeMs: number }> = [];
     let totalBytes = 0;
-    for (const file of readdirSync(dir)) {
+
+    for (const name of names) {
+      if (++processed % SWEEP_BATCH === 0) await yieldToEventLoop();
+      const filePath = join(dir, name);
       try {
-        const filePath = join(dir, file);
-        const st = statSync(filePath);
+        const st = await fsp.stat(filePath);
         if (!st.isFile()) continue;
         entries.push({ path: filePath, size: st.size, mtimeMs: st.mtimeMs });
         totalBytes += st.size;
@@ -936,31 +972,29 @@ export function enforceNamespaceSizeLimits(): { evicted: number; errors: number 
 
     if (totalBytes <= maxBytes) continue;
 
-    // Evict oldest first until under cap
-    entries.sort((a, b) => a.mtimeMs - b.mtimeMs);
+    entries.sort((a, b) => a.mtimeMs - b.mtimeMs); // oldest first
+    let evictedHere = 0;
     for (const entry of entries) {
       if (totalBytes <= maxBytes) break;
+      if (++processed % SWEEP_BATCH === 0) await yieldToEventLoop();
       try {
-        unlinkSync(entry.path);
+        await fsp.unlink(entry.path);
         totalBytes -= entry.size;
         evicted++;
+        evictedHere++;
       } catch {
         errors++;
       }
     }
 
-    dataLogger.info({
-      event: "cache_size_eviction",
-      namespace,
-      maxBytes,
-      evicted,
-    });
+    dataLogger.info({ event: "cache_size_eviction", namespace, maxBytes, evicted: evictedHere });
   }
 
   return { evicted, errors };
 }
 
 let janitorTimer: NodeJS.Timeout | null = null;
+let sweepInFlight = false;
 
 /**
  * Start the background cache janitor: periodically sweeps expired entries and
@@ -968,17 +1002,21 @@ let janitorTimer: NodeJS.Timeout | null = null;
  * never keeps the process alive on its own.
  *
  * Called once on server startup from `src/instrumentation.ts` — the ONLY server
- * instrumentation file Next loads. It previously lived in an orphaned
+ * instrumentation module Next loads. It previously lived in an orphaned
  * `instrumentation.node.ts` (no such Next convention), so it never ran and
  * `.cache/` reached 44GB. Do not move it back out.
  */
 export function startCacheJanitor(intervalMs: number = CACHE_JANITOR_INTERVAL_MS): void {
   if (janitorTimer) return;
 
-  const sweep = () => {
+  const sweep = async () => {
+    // A sweep on a very large cache can outlast the interval. Overlapping
+    // sweeps would double the I/O and fight over the same unlinks.
+    if (sweepInFlight) return;
+    sweepInFlight = true;
     try {
-      const { deleted } = cleanupExpiredCache();
-      const { evicted } = enforceNamespaceSizeLimits();
+      const { deleted } = await cleanupExpiredCache();
+      const { evicted } = await enforceNamespaceSizeLimits();
       if (deleted > 0 || evicted > 0) {
         dataLogger.info({ event: "cache_janitor_sweep", deleted, evicted });
       }
@@ -987,12 +1025,15 @@ export function startCacheJanitor(intervalMs: number = CACHE_JANITOR_INTERVAL_MS
         event: "cache_janitor_error",
         error: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      sweepInFlight = false;
     }
   };
 
-  // Run once shortly after startup, then on the interval.
-  setTimeout(sweep, 30_000).unref?.();
-  janitorTimer = setInterval(sweep, intervalMs);
+  // Deliberately NOT at 0s: startup is the worst moment to add I/O (cold ISR
+  // cache, every request a miss). 30s in, then hourly.
+  setTimeout(() => void sweep(), 30_000).unref?.();
+  janitorTimer = setInterval(() => void sweep(), intervalMs);
   janitorTimer.unref?.();
 
   dataLogger.info({ event: "cache_janitor_started", intervalMs });

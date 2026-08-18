@@ -8,7 +8,7 @@
  * down on Jun 10 and Jun 19). Nothing caught it: it is invisible to typecheck,
  * lint, and every other test. These tests pin the wiring.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const startCacheJanitor = vi.fn();
 
@@ -16,10 +16,8 @@ vi.mock("@/lib/cache-service", () => ({
   startCacheJanitor: () => startCacheJanitor(),
 }));
 
-async function runRegister(env: {
-  runtime?: string;
-  nodeEnv?: string;
-}): Promise<void> {
+async function runRegister(env: { runtime?: string; nodeEnv?: string }): Promise<void> {
+  // vi.stubEnv (not direct assignment) — NODE_ENV is typed readonly.
   vi.stubEnv("NEXT_RUNTIME", env.runtime ?? "");
   vi.stubEnv("NODE_ENV", env.nodeEnv ?? "test");
   vi.resetModules();
@@ -33,8 +31,12 @@ describe("instrumentation register()", () => {
     vi.unstubAllEnvs();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("starts the L2 cache janitor in the nodejs runtime IN PRODUCTION", async () => {
-    // The whole point: the janitor must NOT be behind a dev-only guard. This is
+    // The whole point: the janitor must NOT sit behind a dev-only guard. This is
     // the exact assertion whose absence let the 44GB cache happen.
     await runRegister({ runtime: "nodejs", nodeEnv: "production" });
     expect(startCacheJanitor).toHaveBeenCalledTimes(1);
@@ -54,9 +56,7 @@ describe("instrumentation register()", () => {
     startCacheJanitor.mockImplementationOnce(() => {
       throw new Error("boom");
     });
-    await expect(
-      runRegister({ runtime: "nodejs", nodeEnv: "production" })
-    ).resolves.toBeUndefined();
+    await expect(runRegister({ runtime: "nodejs", nodeEnv: "production" })).resolves.toBeUndefined();
   });
 });
 
@@ -66,7 +66,6 @@ describe("instrumentation.node.ts must not come back", () => {
     // looks authoritative, is never executed, and silently swallows startup work.
     const { existsSync } = await import("node:fs");
     const { join } = await import("node:path");
-    const orphan = join(process.cwd(), "src", "instrumentation.node.ts");
-    expect(existsSync(orphan)).toBe(false);
+    expect(existsSync(join(process.cwd(), "src", "instrumentation.node.ts"))).toBe(false);
   });
 });

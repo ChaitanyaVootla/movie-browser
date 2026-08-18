@@ -10,7 +10,11 @@ const { cacheSet, cacheGet, getCacheStats } = await import("./cache-service");
 
 describe("L1 byte budget", () => {
   beforeEach(() => {
-    // each test works with distinct keys; no flush API needed
+    // each test works with distinct keys; no flush API needed.
+    // Re-assert the budget every test: `l1BudgetBytes()` reads this env var PER
+    // CALL, so another file sharing this worker restoring an env snapshot could
+    // drop it and silently make these assertions order-dependent.
+    process.env.L1_CACHE_BUDGET_MB = "1";
   });
 
   it("evicts oldest entries once the byte budget is exceeded", () => {
@@ -26,8 +30,15 @@ describe("L1 byte budget", () => {
   });
 
   it("refuses entries larger than a quarter of the budget", () => {
+    // Assert on L1 SPECIFICALLY. This used to assert `cacheGet(...)` is falsy,
+    // but cacheGet also consults L2, and cacheSet writes L2 through an ASYNC
+    // `writeFile` even when l1Set refuses the value. So on a cold `.cache/` the
+    // file had not flushed yet and it passed, while ANY rerun within `search`'s
+    // 1h l2TTL found the leftover file and failed — a history-dependent flake
+    // that had nothing to do with the L1 budget being tested here.
+    const before = getCacheStats().memory.keys;
     cacheSet("search", "oversized", { payload: "y".repeat(600 * 1024) });
-    expect(cacheGet("search", "oversized")).toBeFalsy();
+    expect(getCacheStats().memory.keys).toBe(before);
   });
 
   it("recently-read entries survive eviction over cold ones", () => {
