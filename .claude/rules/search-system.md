@@ -526,11 +526,18 @@ decision, not a reorder.
   **Movies / Series / People / Results**.
 - **The first `[cmdk-item]` is almost always "Search all for X"** — reading it as
   the top result makes every query look like it worked.
-- **Results from the PREVIOUS query persist while the next loads.** A poll loop that
-  breaks on "a server group exists" will happily measure the previous answer — this
-  invalidated a mobile run where `breakingbad` and `tom holland` both reported
-  "Shang-Chi". Clear the input and wait for results to actually go away, or open a
-  fresh palette per query.
+- **Let the PREVIOUS query fully settle before typing the next, or you measure its
+  answer.** A poll loop that breaks on "a server group exists" can capture the prior
+  result: a mobile run reported "Shang-Chi" for both `breakingbad` and `tom holland`,
+  and a desktop run reported "The Matrix" for `breaking bad` and "Monsters, Inc." for
+  `up`. **These were MEASUREMENT ARTIFACTS, not a product bug** — a controlled retest
+  showed clearing the input empties the result groups immediately (`first: null` at
+  t+0 and t+1000ms) and `breaking bad` then resolves to "Breaking Bad" in 500ms. So
+  do not go hunting for a stale-render bug on this evidence. What is genuinely
+  unverified is whether an in-flight response for an ABANDONED query can land late and
+  overwrite newer results — there is no visible request cancellation, and the
+  artifacts above are consistent with that race, but it was NOT reproduced. Waiting
+  ~2.5s between queries makes measurements stable either way.
 - **Use real typing (`type()` with a delay), not `fill()`** — `fill()` fires one
   input event and hides the debounce/queueing behaviour a user actually gets.
 - **Through the CDN you are testing the PREVIOUS build.** Post-deploy, edge HTML
