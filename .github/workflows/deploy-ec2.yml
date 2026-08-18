@@ -91,6 +91,16 @@ jobs:
           # already ran `yarn install --immutable` above, so node_modules here
           # is the exact production tree. Keeps `next start` + .env loading +
           # cacheHandler unchanged (lower risk than a standalone restructure).
+          #
+          # `src` IS REQUIRED even though the app runs the compiled `.next`: every
+          # PM2 cron is `npx tsx scripts/<x>.ts` and those scripts import
+          # `../src/...` at RUNTIME. It was NOT in this list, so the box kept a
+          # leftover `src/` frozen at 2026-06-10 and a cron only worked if its
+          # imports predated the freeze. `episode-drop-notify` died every day at
+          # 05:00 UTC with MODULE_NOT_FOUND on
+          # `src/server/services/notifications/notify` (found Aug 18 2026) — so
+          # EPISODE_DROP notifications never fired in prod. PM2 reports such a job
+          # as `waiting restart`, not errored, and nothing alerts.
           tar -czf deploy.tar.gz \
             .next \
             node_modules \
@@ -107,7 +117,8 @@ jobs:
             postgres/init \
             postgres/migrations \
             analytics/clickhouse \
-            scripts
+            scripts \
+            src
 
       - name: Setup SSH
         run: |
