@@ -237,6 +237,41 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      `readFileSync` + `JSON.parse`es EVERY file in a namespace; against a cache
      holding millions of files that stalls or OOMs the 2-vCPU box at boot. Bound it
      before reusing.
+   - **THE FOLLOW-ON OUTAGE — wiring up a never-run maintenance job is a BEHAVIOR
+     CHANGE, not a config fix (Aug 18 2026, ~15 min of 502s, self-inflicted).**
+     Starting the janitor was correct; the sweeps themselves had never executed at
+     production scale and were **fully synchronous** (`readdirSync` +
+     `readFileSync` + `JSON.parse` + `statSync` + `unlinkSync` over every file in
+     every namespace). On a `.cache/` of ~700k files the first sweep **blocked
+     Node's event loop** and prod 502'd on every cache-MISS path. The edge-cached
+     homepage kept returning 200, so it presented as a *partial* outage — that is
+     the tell that the origin, not the CDN, is wedged.
+     **Diagnostic signature of a blocked event loop (vs a crash or CPU
+     saturation):** the process is alive and `ss -ltnp` shows it still LISTENING on
+     its port, but `curl localhost:<port>` returns nothing; `ps -o stat,wchan`
+     shows **`STAT=Dl`** and **`WCHAN=folio_wait_bit_commo`**; `top` shows **0.0%
+     us with high `wa`** (no CPU work at all — the giveaway; CPU saturation would
+     show high `us`). PM2 reports it `online`, and there is nothing in the error
+     log.
+     **Fastest recovery for a too-large cache dir is `mv`, not delete.** Renaming a
+     directory aside and recreating it empty is O(1); `rm -rf`/`find -delete`
+     fights the wedged process for the same saturated disk. `mv .cache/<ns>
+     /home/ubuntu/cache-trash-$(date +%s)/<ns> && mkdir .cache/<ns>` per namespace,
+     then restart, then delete the trash dir later at leisure. A blocked sweep also
+     unblocks fast afterwards because its remaining `stat`/`read` calls now hit
+     ENOENT (which the code catches).
+     **The fix** (see `cache-service.ts`): async `fs/promises` + yield to the loop
+     every `SWEEP_BATCH` (200) files; cap the content-reading half
+     (`EXPIRY_SCAN_CAP_PER_NAMESPACE`, 4000/sweep) since `enforceNamespaceSizeLimits`
+     (stat-only) is the real disk bound; a `sweepInFlight` guard because a sweep can
+     outlast the hourly interval. Pinned by `cache-service-janitor.test.ts`, which
+     counts event-loop turns granted DURING a sweep — **verified to FAIL (4 of 5)
+     against the old synchronous code**, which is the bar any "does it block?" test
+     has to clear.
+     **Generalisable rule: before enabling any dormant periodic job, read its inner
+     loop for `*Sync` fs calls and multiply by the real file/row count.** Dormant
+     code has never been load-tested by definition, and the blast radius here was
+     the whole origin.
    - **MEASURED rates, so you can size the urgency (Aug 18 2026).** `.cache` grows
      **~90 MB/hour = ~2.1GB/day** (movie 44 + person 33 + series 10 + discover 1
      MB/h). The one-off prune below reclaimed **36GB in ~25 min** (movie 16.4G,
