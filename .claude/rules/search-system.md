@@ -398,3 +398,41 @@ import { MOOD_FILTERS, getMoodQuery } from "@/lib/search/moods";
 const query = getMoodQuery("feel-good");
 // Returns: "uplifting heartwarming feel-good happy ending comfort inspiring"
 ```
+
+## Autocomplete's trigram fallback burns a 4s timeout on no-match queries (Aug 18 2026)
+
+**Symptom users report: "I typed `shangchi` and nothing loaded for a really long
+time."** Measured on prod: `interstellar` returns in **317ms**, `shangchi` in
+**4,859ms** — and the slow request is the **150ms-debounce autocomplete action**
+(4,153ms), NOT `quickSearch` (138ms).
+
+Chain: `getAutocompleteSuggestions` tries `ftsPrefixSearchTitles`/`People` first;
+`shangchi` matches nothing (the real title is "Shang-Chi…", which tokenizes as
+`shang` + `chi`, so no prefix hit); it then falls through to the trigram
+`fuzzySearch` on movies+series AND persons; that query **runs until
+`FUZZY_SEARCH_TIMEOUT_MS = 4000` in `fuzzy-search.ts` expires** and returns nothing.
+So the 4s is the timeout being spent in full, not a query that eventually succeeds.
+
+Ruled out — do not re-investigate these:
+- **Not a missing index.** All 8 `gin_trgm_ops` indexes are present on prod
+  (`movies.title`/`original_title`, `series.name`/`original_name`, `persons.name`,
+  `person_aliases.alias`, `genres`, `keywords`). The `prisma db push` drift trap did
+  not fire here.
+- **Not the client.** Debounces are 250ms (`quickSearch`) / 150ms (autocomplete);
+  rendering is instant once data lands.
+- **Not the 0.3 threshold being unset** — `autocomplete.ts` explicitly passes
+  `threshold: 0.3` on both fuzzy calls. The file's claim that 0.3 keeps fuzzy at
+  "~150-200ms" simply does not hold for this query shape.
+
+Fix directions, cheapest first (NOT yet implemented — needs a product call):
+1. **Cut `FUZZY_SEARCH_TIMEOUT_MS` to ~600-800ms.** One constant. Turns a 4.9s hang
+   into a fast "no results". Strictly better UX, but gives up typo correction on the
+   slow queries rather than fixing it.
+2. **Make the query actually match: normalise punctuation into the FTS vector** so
+   `shangchi` hits `Shang-Chi` (a depunctuated/unaccented indexed column). This is
+   the real fix — it makes the query FAST instead of merely failing fast — but it is
+   an index/migration change, so plan it deliberately.
+3. **Don't run fuzzy against `persons` (~3M rows) on the as-you-type path** — the
+   file's own comment already notes trigram over persons "takes seconds".
+Note `quickSearch` itself hits the **TMDB API** (`search()` → `searchMulti`), not our
+PG FTS — so the palette has two very different backends on one screen.

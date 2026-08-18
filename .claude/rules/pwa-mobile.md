@@ -73,6 +73,35 @@ keyboard is handled app-wide. Established June 2026 (S25 Ultra polish pass).
   transition) and only when the conversation is empty — with messages
   present the user opens the drawer to READ; the keyboard would cover them.
 
+## NEVER duplicate a STATEFUL element across CSS-hidden responsive blocks (Aug 2026)
+
+`hidden md:flex` + `md:hidden` is fine for static markup, but Tailwind `hidden` is
+**`display:none`, which does NOT unmount, unload, or silence anything.** Both blocks
+are permanently in the DOM. Duplicating a stateful element across them gives you two
+live instances driven by the same React state.
+
+Real bug (`video-gallery.tsx`, details-page videos section): the desktop and mobile
+layouts each rendered their own YouTube `<iframe>` with the same `src`. When
+`isPlaying` flipped, BOTH srcs gained `&autoplay=1` → **two players ran, one visible
+and one invisible-but-audible → double audio, and pausing the visible one left the
+hidden copy playing.** Prod HTML confirmed it: 2 iframes for one video key. It also
+silently doubled the YouTube embeds loaded per page.
+
+- **Rule: anything with its own internal state — `iframe`, `video`, `audio`, a map,
+  a canvas, a WebSocket-backed widget — must be mounted exactly ONCE.** Gate it on
+  `useMobile()` (`src/hooks/use-mobile.ts`, 768px = the `md` breakpoint, so it lines
+  up exactly with `md:` classes), not on CSS visibility. Same reasoning as the
+  `isMobile ? <Drawer> : <Dialog>` rule below.
+- `useMobile()` returns `false` on the server and on first client render, then
+  corrects in an effect — acceptable for a player (the box already renders its
+  `bg-black` placeholder and an embed takes far longer to load), but do not rely on
+  it for above-the-fold LCP content.
+- **This class of bug is invisible to typecheck and lint, and looks fine visually**
+  (you only ever SEE one). Detect it by counting: `curl` the page and
+  `grep -c` the embed URL, or assert element counts in a component test. Pinned by
+  `video-gallery.test.tsx` — which fails against the old code with "expected ...
+  length of 1 but got 2".
+
 ## Mobile overlays = Vaul drawers + Back-button dismiss (June 2026)
 
 Every mobile slide-up surface MUST be a **Vaul `Drawer`** (`@/components/ui/drawer`),
