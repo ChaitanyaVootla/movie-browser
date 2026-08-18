@@ -424,15 +424,51 @@ Ruled out — do not re-investigate these:
   `threshold: 0.3` on both fuzzy calls. The file's claim that 0.3 keeps fuzzy at
   "~150-200ms" simply does not hold for this query shape.
 
-Fix directions, cheapest first (NOT yet implemented — needs a product call):
-1. **Cut `FUZZY_SEARCH_TIMEOUT_MS` to ~600-800ms.** One constant. Turns a 4.9s hang
-   into a fast "no results". Strictly better UX, but gives up typo correction on the
-   slow queries rather than fixing it.
-2. **Make the query actually match: normalise punctuation into the FTS vector** so
-   `shangchi` hits `Shang-Chi` (a depunctuated/unaccented indexed column). This is
-   the real fix — it makes the query FAST instead of merely failing fast — but it is
-   an index/migration change, so plan it deliberately.
-3. **Don't run fuzzy against `persons` (~3M rows) on the as-you-type path** — the
-   file's own comment already notes trigram over persons "takes seconds".
-Note `quickSearch` itself hits the **TMDB API** (`search()` → `searchMulti`), not our
-PG FTS — so the palette has two very different backends on one screen.
+**FIXED Aug 18 2026 — the SQUASHED-PREFIX tier.** The real fix is not "fail
+faster", it is making the fast tier actually MATCH how people type. We index a
+normalised form — lowercased, every non-alphanumeric run removed — so
+"Shang-Chi and the Legend of the Ten Rings" indexes as
+`shangchiandthelegendofthetenrings` and `shangchi` prefix-matches it.
+
+- 5 `idx_*_squash` **btree** indexes (movies title+original_title, series
+  name+original_name, persons.name) with **`text_pattern_ops`** — without that
+  opclass `LIKE 'x%'` cannot use the btree. They live in the hash-gated
+  `postgres/init/02-search-indexes.sql` because **Prisma cannot express
+  expression indexes**, so a manually-created one would be dropped by
+  `prisma db push`. `CONCURRENTLY IF NOT EXISTS`, matching the file's pattern.
+- `regexp_replace(lower(...))` is **IMMUTABLE** (verified by creating the index),
+  hence indexable. `unaccent()` is only STABLE — do NOT reach for it here without
+  an immutable wrapper.
+- Builds are far cheaper than a GIN: movies 4.7s/35MB, series 0.8s/4.7MB,
+  persons (4.4M rows) 11.9s/127MB.
+- `squashedPrefixSearchTitles/People` (`fts-search.ts`) run in `autocomplete.ts`
+  **between** FTS prefix and the trigram fallback.
+- **Leading articles are the one thing a prefix cannot see through**, so the
+  article-prefixed forms (`the`/`a`/`an` + query) are tried against the same
+  index — 4 index scans, still 0.9-2ms — recovering `darkknight` → The Dark
+  Knight, `lordoftherings`, `godfather`, `matrix`.
+- **The LIKE pattern is INLINED, not parameterised, on purpose:** Postgres only
+  extracts a prefix from a pattern it can see at plan time, so `col LIKE $1`
+  would NOT use the index. That is safe only because `squashQuery()` has already
+  reduced the value to `[a-z0-9]` — no quote, backslash or wildcard survives. The
+  helper asserts this and throws otherwise.
+- `FUZZY_SEARCH_TIMEOUT_MS` 4000 → **800**. Nothing reached from a 150ms-debounce
+  path may block for seconds.
+- **`fts-search.test.ts` pins the TS expression against the SQL index expression
+  byte-for-byte.** Drift silently disables the index and reinstates a seq scan
+  over ~1M movies / ~4.4M persons — the exact hang this removed. That test is the
+  most important one in the file.
+
+Measured on prod, all Index Scans: `shangchi` 0.23ms → Shang-Chi; `spiderman`,
+`starwars`, `johnwick`, `everythingeverywhere` → correct titles; `wandavision`,
+`breakingbad`, `strangerthings` → correct series. Known and accepted gap: a
+mid-title fragment typed without spaces (`legendoftheten`) still won't prefix-
+match — the FTS token tier covers the spaced form (`legend of the ten`).
+
+**Still open:** `quickSearch` (the palette's RESULTS list, 250ms debounce) hits the
+**TMDB API** — `search()` → `searchMulti` — not our PG FTS. So one screen has two
+very different backends: autocomplete suggestions from Postgres, results from a
+network call to TMDB. That call was fast when measured (138ms, and it is cached in
+the `search` L1/L2 namespace for 1h), so it is not currently the bottleneck — but it
+is the obvious next consolidation, and it means results latency depends on an
+external API and on cache warmth.
