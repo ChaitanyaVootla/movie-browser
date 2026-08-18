@@ -542,6 +542,49 @@ static — it has to follow the query.
   against what we already render (`dedupeKey(mediaType, id)`, `tv`→`series`), so
   dropping the guards cannot list a title twice.
 
+### Retrieval must produce the candidate before ranking can order it
+
+Fixing the ranking exposed a third mechanism. The squashed tier was gated on "FTS
+found nothing", but FTS can return a JUNK hit that satisfies that: "Aussie StarWars!"
+literally holds the token `starwars`, so FTS returned it and *Star Wars* was never
+FETCHED. Both `autocomplete.ts` and `hybrid.ts runLexicalSearch` now run FTS and
+squashed **together** (`Promise.all`), merge, dedupe by `(mediaType, id)`, and rank
+the merged set with the SAME `matchScore` — so the server-side cap (4 titles / 2
+people) cannot discard the best answer before the client sees it. Both legs are
+index-backed (~1-5ms); trigram stays the last resort when BOTH are empty.
+
+### Two scoring traps that punctuation/formatting created
+
+- **The palette label is "Title (YYYY)".** Squashing it gave `breakingbad2008`, so
+  squashed-EXACT could never fire; `breakingbad` tied with "Breaking Bad Wolf" and
+  lost on group declaration order. `stripYear` (anchored to a trailing 4-digit paren,
+  so "Blade Runner 2049" is safe) fixes it. Same bug made `9-1-1` lose to a person
+  literally named "911".
+- **A raw prefix scored 85 but a squashed prefix a flat 75**, so a hyphen decided
+  relevance: "Spiderman and Dog" beat "Spider-Man: Brand New Day".
+  `squashedPrefixLanding` consumes alphanumerics up to the squashed query length and
+  inspects the ORIGINAL next character, so both are judged on the same
+  boundary footing. Equal scores then fall through to the server's popularity order
+  (stable sort). Boundary-vs-mid is still preserved: "spider" ranks "Spider-Man"
+  above "Spidermania".
+
+### Verified state + the one accepted trade-off (Aug 18 2026)
+
+**15/16 strict prod cases pass** (anchored matchers — see the audit-traps section on
+why loose regexes falsely pass): starwars, 9-1-1, spiderman, breakingbad, inc,
+the matrix, wall-e, shan, shangchi, interstellar, lordoftherings, wandavision,
+`intersteller` (typo), and both must-not-regress person queries.
+
+The remaining one is a JUDGMENT CALL, not a bug: `darkknight` returns the 2000 series
+**"Dark Knight"** rather than **"The Dark Knight"**. `squash("Dark Knight") ==
+"darkknight"` is a squashed-EXACT (95), while "The Dark Knight" only reaches
+squashed-CONTAINS (30) because of the leading article — so literal-match purity beats
+intent here. If this should change, the principled fix is to strip LEADING ARTICLES
+from both query and title before comparing (standard IR practice, and symmetric with
+what the SQL retrieval already does via its `the`/`a`/`an` prefixed probes). That
+would tie both at 95 and let popularity pick The Dark Knight. Not shipped — it is a
+behaviour change deserving its own testing.
+
 ## Auditing search honestly — the traps that produce false PASSES
 
 - **`[cmdk-group-heading]` is NOT a results signal.** "Search all for X" is a group
