@@ -22,6 +22,7 @@ import {
   squashedPrefixSearchTitles,
   squashedPrefixSearchPeople,
 } from "@/server/db/postgres/fts-search";
+import { matchScore } from "@/lib/search/palette-ranking";
 import { semanticSearch, type SemanticSearchResult } from "@/server/db/postgres/semantic-search";
 import { classifyQueryIntentHybrid, type HybridIntentResult } from "./intent-embeddings";
 import {
@@ -753,18 +754,41 @@ async function runLexicalSearch(
   query: string,
   options: FuzzySearchOptions
 ): Promise<FuzzySearchResult[]> {
-  const fts = await runFtsLexicalSearch(query, options);
-  if (fts.length > 0) return fts;
+  // Run FTS and squashed-prefix TOGETHER and MERGE — do not gate either on the
+  // other being empty.
+  //
+  // FTS structurally cannot match a title typed without punctuation/spaces
+  // ("shangchi") because to_tsvector splits "Shang-Chi" into `shang` + `chi`. But
+  // gating the squashed leg on "FTS found nothing" was ALSO wrong: FTS can return a
+  // JUNK hit that blocks the good one. "Aussie StarWars!" literally contains the
+  // token `starwars`, so FTS returned it, the result set was non-empty, and *Star
+  // Wars* was never RETRIEVED — no amount of ranking can order a candidate nobody
+  // fetched. Same shape for `9-1-1` and `spiderman`.
+  //
+  // Both legs are index-backed (~1-5ms) and each already fails soft (logs, returns
+  // []), so running them together is cheap and strictly better.
+  const [fts, squashed] = await Promise.all([
+    runFtsLexicalSearch(query, options),
+    runSquashedLexicalSearch(query, options),
+  ]);
 
-  // FTS empty does NOT necessarily mean "misspelling". It also happens for titles
-  // typed WITHOUT punctuation or spaces — "shangchi", "starwars", "spiderman" —
-  // because to_tsvector splits "Shang-Chi" into `shang` + `chi`, so no prefix
-  // tsquery can ever match. Try the squashed-prefix tier before paying for
-  // trigram: it is index-backed (`idx_*_squash`) and ~1ms. Without this, the
-  // /search page answered "shangchi" with "Shane" (measured Aug 18 2026) — the
-  // autocomplete path had already been fixed, but this one had not.
-  const squashed = await runSquashedLexicalSearch(query, options);
-  if (squashed.length > 0) return squashed;
+  if (fts.length > 0 || squashed.length > 0) {
+    const seen = new Set<string>();
+    const merged: FuzzySearchResult[] = [];
+    for (const r of [...fts, ...squashed]) {
+      const key = `${r.mediaType}:${r.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(r);
+    }
+    // Rank with the SAME scorer the palette uses, so the limit cannot discard the
+    // best answer before the caller ever sees it.
+    return merged
+      .map((r) => ({ r, score: matchScore(query, r.title) }))
+      .sort((a, b) => b.score - a.score || (b.r.popularity ?? 0) - (a.r.popularity ?? 0))
+      .slice(0, options.limit ?? 20)
+      .map((x) => x.r);
+  }
 
   // Still nothing → likely a misspelling FTS can't match (no matching lexeme).
   // Trigram handles that case and stays fast (a typo is distinctive). Guarded: a

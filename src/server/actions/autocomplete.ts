@@ -19,6 +19,7 @@ import {
   type FtsResult,
 } from "@/server/db/postgres/fts-search";
 import { MOOD_FILTERS } from "@/lib/search/moods";
+import { matchScore } from "@/lib/search/palette-ranking";
 import { dataLogger } from "@/lib/logger";
 
 // =============================================================================
@@ -176,14 +177,50 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
     // returning nothing (measured 4,859ms for "shangchi" vs 317ms for
     // "interstellar" — the chronic "search hangs" complaint). This tier is
     // index-backed (`idx_*_squash`) and measured 0.07-2ms on prod.
-    if (titleResults.length === 0 && personResults.length === 0) {
-      const [sqTitles, sqPeople] = await Promise.allSettled([
-        squashedPrefixSearchTitles(normalizedQuery, 4),
-        squashedPrefixSearchPeople(normalizedQuery, 2),
-      ]);
-      titleResults = sqTitles.status === "fulfilled" ? sqTitles.value : [];
-      personResults = sqPeople.status === "fulfilled" ? sqPeople.value : [];
-    }
+    //
+    // RUN IT ALWAYS, NOT ONLY WHEN FTS IS EMPTY. Gating it on "FTS found nothing"
+    // was still wrong: FTS can find a JUNK match that blocks the good one, because
+    // one bad hit makes titleResults non-empty. "Aussie StarWars!" literally
+    // contains the token `starwars`, so FTS returned it and *Star Wars* was never
+    // RETRIEVED — no amount of ranking can order a candidate that was never
+    // fetched. Same for `9-1-1`, `spiderman` (→ "Spiderman and Dog") and
+    // `breakingbad` (→ "Breaking Bad Wolf"). Retrieval must produce the
+    // candidates; ranking then orders them. Costs one extra index-backed query
+    // (~1ms).
+    const [sqTitles, sqPeople] = await Promise.allSettled([
+      squashedPrefixSearchTitles(normalizedQuery, 4),
+      squashedPrefixSearchPeople(normalizedQuery, 2),
+    ]);
+
+    // Merge FTS + squashed, dedupe by (mediaType, id), then keep the BEST by the
+    // SAME `matchScore` the palette ranks with — so the server's cap cannot throw
+    // away the best answer before the client ever sees it.
+    const mergeBest = (a: FtsResult[], b: FtsResult[], cap: number): FtsResult[] => {
+      const seen = new Set<string>();
+      const merged: FtsResult[] = [];
+      for (const r of [...a, ...b]) {
+        const key = `${r.mediaType}:${r.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(r);
+      }
+      return merged
+        .map((r) => ({ r, score: matchScore(normalizedQuery, r.title) }))
+        .sort((x, y) => y.score - x.score || (y.r.popularity ?? 0) - (x.r.popularity ?? 0))
+        .slice(0, cap)
+        .map((x) => x.r);
+    };
+
+    titleResults = mergeBest(
+      titleResults,
+      sqTitles.status === "fulfilled" ? sqTitles.value : [],
+      4
+    );
+    personResults = mergeBest(
+      personResults,
+      sqPeople.status === "fulfilled" ? sqPeople.value : [],
+      2
+    );
 
     // Only fall back to trigram when prefix FTS found NOTHING at all — that
     // signals a probable misspelling, which is distinctive enough that trigram
