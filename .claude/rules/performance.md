@@ -237,6 +237,22 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      `readFileSync` + `JSON.parse`es EVERY file in a namespace; against a cache
      holding millions of files that stalls or OOMs the 2-vCPU box at boot. Bound it
      before reusing.
+   - **MEASURED rates, so you can size the urgency (Aug 18 2026).** `.cache` grows
+     **~90 MB/hour = ~2.1GB/day** (movie 44 + person 33 + series 10 + discover 1
+     MB/h). The one-off prune below reclaimed **36GB in ~25 min** (movie 16.4G,
+     person 10.0G, discover 5.3G, series 3.3G, youtube 0.9G) taking the disk
+     **87% -> 57%** (16GB -> 51GB free). An age-based prune does NOT reach the size
+     budgets — afterwards `.cache` was still 8.7G (person 5.0G vs a 500MB budget,
+     movie 2.6G vs 800MB) because everything remaining was inside its TTL. Only
+     `enforceNamespaceSizeLimits` (i.e. the janitor) gets you to ~2.8GB.
+   - **DON'T mis-attribute a disk climb to `.cache`: `bounded-isr` filling toward its
+     cap looks identical and is far faster.** On the same day the disk went 78% ->
+     87% and it was NOT `.cache` (2.1GB/day) — `bounded-isr` nearly doubled
+     13.6G -> **24G** (171,120 -> 317,333 entries) growing into its 25GB
+     `BOUNDED_CACHE_MB` ceiling, which is by-design and self-limiting. Always `du`
+     BOTH directories before blaming either. Being at the cap again is worth
+     watching (14,184 rewrites/hour = 4.5%/hour, vs the ~10%/hour that marked the
+     Aug 3 thrash) but was not pathological here: 85.7% idle, SSR 0.07s.
    - Manual reclaim (safe — it is a read-through cache, so a miss just refetches):
      `nice -n 19 ionice -c3 find .cache/<ns> -maxdepth 1 -type f -mtime +N -delete`
      per namespace, thresholds beyond each TTL+grace (movie/series L2 TTL is only
