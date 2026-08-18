@@ -9,6 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { useMobile } from "@/hooks/use-mobile";
 import { formatViewCount, formatDuration, formatRelativeTime } from "@/lib/youtube-utils";
 import { VideoStats, VideoStatsSkeleton } from "./video-stats";
 import { VideoComments } from "./video-comments";
@@ -139,6 +140,13 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
   const wakeLock = useWakeLock();
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Only ONE <iframe> may exist at a time. The desktop (`hidden md:flex`) and
+  // mobile (`md:hidden`) layouts are BOTH always in the DOM — Tailwind `hidden`
+  // is `display:none`, which does NOT unload an iframe or stop its audio. With
+  // the same `autoplay=1` src in both, clicking play started TWO YouTube players:
+  // one visible, one inaudible-but-playing, so you heard double audio and pausing
+  // the visible one left the hidden copy running. Matches the 768px `md` breakpoint.
+  const isMobile = useMobile();
   const [filter, setFilter] = useState("All");
   const mainPlayerRef = useRef<HTMLDivElement>(null);
   const [playerHeight, setPlayerHeight] = useState(0);
@@ -311,14 +319,17 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
             ref={mainPlayerRef}
             className="relative aspect-video rounded-xl overflow-hidden bg-black"
           >
-            {/* Always show iframe - non-autoplay shows YouTube's rich UI with channel, title, link */}
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
-              title={activeVideo.name}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0 w-full h-full"
-            />
+            {/* Non-autoplay shows YouTube's rich UI with channel, title, link.
+                Rendered ONLY on desktop — see the isMobile note above. */}
+            {!isMobile && (
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
+                title={activeVideo.name}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            )}
           </div>
 
           {/* Video info with stats */}
@@ -370,14 +381,17 @@ export function VideoGallery({ videos, mediaId, mediaType, className }: VideoGal
         {/* Current video player */}
         <div className="px-4 mb-4">
           <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
-            {/* Always show iframe - YouTube's native UI shows title, channel, link */}
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
-              title={activeVideo.name}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0 w-full h-full"
-            />
+            {/* YouTube's native UI shows title, channel, link.
+                Rendered ONLY on mobile — see the isMobile note above. */}
+            {isMobile && (
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${activeVideo.key}?rel=0${isPlaying ? "&autoplay=1" : ""}`}
+                title={activeVideo.name}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            )}
           </div>
 
           {/* Mobile video info */}
