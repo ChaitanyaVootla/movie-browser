@@ -85,6 +85,25 @@ GitHub Actions (`.github/workflows/deploy-ec2.yml`):
   1. `corepack enable` + Typecheck + lint (CI gate)
   2. Build Next.js (bakes `NEXT_PUBLIC_*` + auth secrets + dummy env placeholders for module evaluation)
   3. Tar: `.next`, **`node_modules`** (built on the runner — shipped so the box does NO install), `public`, `docker-compose.yml`, `Caddyfile`, `cache-handler.cjs`, `.yarnrc.yml`, `prisma`, init scripts, `scripts`
+
+     **THE TAR DOES NOT INCLUDE `src/` — and that silently kills `tsx` cron jobs
+     (found Aug 17 2026).** The app itself is fine (it runs the compiled `.next`),
+     but every PM2 cron runs `npx tsx scripts/<x>.ts`, and those scripts import
+     `../src/...` at RUNTIME. The box still has a `src/` tree left over from an
+     older deploy method, **frozen at 2026-06-10** (verified: `src/` mtime
+     2026-06-10 while `.next`/`scripts` were rewritten by the same day's deploy),
+     so a cron script only works by accident — when the module it needs happens to
+     predate the freeze. Confirmed casualty: `episode-drop-notify` dies every day at
+     05:00 UTC with `Cannot find module '../src/server/services/notifications/notify'`
+     (`MODULE_NOT_FOUND`), so EPISODE_DROP notifications have **never fired in
+     prod**. `sync-popularity.ts` survives only because `src/server/db/postgres`
+     is older than the freeze. Nine service dirs are missing from the box:
+     `cue, discussion, export, import, moderation, notifications, indexnow.ts,
+     media-exists.ts, user-location-refresh.ts`. **Fix = add `src` to the tar list**
+     (source only, small). Until then, treat "the cron is scheduled" as no evidence
+     it runs — check `pm2 logs <job> --nostream` for `MODULE_NOT_FOUND`. Failures are
+     invisible: PM2 reports the job as `waiting restart`, not errored, and nothing
+     alerts.
   4. Preflight (abort if EC2 disk <2GB / mem <1.5GB free; restart a bloated next first) → SCP → extract (NO `yarn install` — node_modules is in the tar; the on-box install OOM-froze the box Jun 11) → `docker compose up -d` (Postgres only blocking) → **gated** `prisma db push` + FTS (skip unless schema/SQL hash changed) → `pm2 startOrReload` → revalidate prerendered pages (`POST /api/revalidate`). **NO CloudFront `/*` invalidation on deploy** (the workflow explicitly does NOT do it — verified Jun 20 2026; a `/*` purge cold-strips the whole edge during the cold restart → re-fill stampede + lost stale-if-error = real outage, Jun 11. Build-skew is tolerated: edge HTML revalidates within s-maxage, occasional "Server Action not found" self-heals on reload. Invalidate a SPECIFIC path only if it must be fresh now.). Failure mode is safe: `set -e` before the PM2 reload means a broken deploy leaves the old process serving. Deploys are **serialized** by the `concurrency: deploy-beta` group (`cancel-in-progress:false` → a 2nd push queues until the 1st finishes; verified they do NOT execute concurrently). See `.claude/rules/cdn.md` for the build-skew rationale.
 
 **Build-time env vars**: The build step needs dummy `MONGO_IP`, `MONGO_PASS`, `DATABASE_URL`, `TMDB_API_KEY` because Next.js page data collection evaluates server modules at build time. Real values are in EC2 `.env.local`.

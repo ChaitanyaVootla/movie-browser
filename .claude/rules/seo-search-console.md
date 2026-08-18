@@ -102,6 +102,35 @@ them all. Brave has an independent index with NO submission console. Apple
   pages). Closing those needs a different signal — company-transitive propagation
   from known adult studios is the most promising untried idea; cast-transitive was
   measured and is weak.
+  **THE PURGE WORKED, AND THE CLICK COLLAPSE IS THE PROOF — do not misread it as a
+  regression (verified Aug 17 2026).** GSC clicks/day ran 147 → 620 → 496 → 262
+  (Jul 27–30) then fell off a cliff to 14 (Jul 31) and have sat at **1–3/day ever
+  since**, with average position moving 29 → ~50. That looks alarming until you pull
+  the dimensions: the peak's top queries were `michèle montfort`, `babes illustrated
+  6`, `american milf movie`, `beauty salon service 6`, `레즈비언 부부의 아내 불륜`, and its
+  top pages were `/movie/58713/scooby-doo-a-xxx-parody`, `/movie/1190586/leggings-mania`,
+  `/movie/42019/taboo`, `/movie/1033051/revenge-porn-pain-of-love`. **That traffic was
+  the thing we deliberately de-indexed.** Losing it was the intended outcome, and any
+  future "Google traffic dropped" investigation must check the query/page mix for the
+  peak window BEFORE hunting for a technical fault. Confirmed at the same time that
+  nothing technical is broken: URL Inspection returns `Submitted and indexed` /
+  verdict PASS / robots ALLOWED / pageFetch SUCCESSFUL on `/`, `interstellar` and a
+  mainstream kids title; all 13 sitemaps report 0 errors and are being re-fetched;
+  Googlebot gets HTTP 200 through Cloudflare on `/`, detail pages, `robots.txt` and
+  `sitemap.xml`, **including with the desktop-Googlebot `Accept:` that contains
+  `text/markdown`** (the Aug 2 regression class — still fixed post-cutover); and
+  Googlebot logged 57,088 origin views/24h. **Sitemap `indexed: 0` is Google's
+  deprecated field — never read it as a coverage signal**; use URL Inspection.
+  The real remaining gap is authority, not indexing: current impressions (~200/day)
+  are dominated by machine-shaped quoted-phrase queries (`"how to get lost in your
+  own room" park jaehyun runtime`), so genuine human organic is ~nil.
+  **A cheap signal for the keyword-less residual, spotted in the same pass:** the two
+  unflagged titles still serving `index, follow` and still ranking for adult queries
+  (`/movie/265164/wide-open-marriage`, `/movie/1214089/funseekers`) both have
+  **`kw = 0` AND `revenue = 0` AND `budget = 0` AND popularity ~1**. Zero keywords is
+  what makes them unreachable by `backfill-adult-keywords.ts`, but that same zero is a
+  candidate feature — combined with the existing commercial-footprint guard it would
+  cost little precision. Sample it before trusting it, exactly as with any keyword.
   - **Keyword choice is the entire design; adult-ADJACENT keywords are dominated
     by mainstream cinema.** Verified false positives, do NOT add:
     `prostitution`/`prostitute` (Taxi Driver, Poor Things), `sex comedy`

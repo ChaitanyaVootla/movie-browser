@@ -157,8 +157,21 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      is the lever, not micro-opting the render.
      The handler MUST ship in the deploy tar (next.config references it at
      runtime; missing file = 500 on every request — burned us once).
-     Backstops: `isr-cache-prune` PM2 job every 6h + deploy preflight refuses
-     <2GB free disk. Diagnosis signature for disk-full: load ≫ vCPUs at mid
+     Backstops: deploy preflight refuses <2GB free disk. **`isr-cache-prune` is
+     NOT a backstop for the bounded cache — CORRECTED Aug 17 2026.** The job scans
+     `.next/server/app/{movie,series,person}` (Next's DEFAULT ISR location) and
+     `.next/cache/images`, but since `cache-handler.cjs` took over, route-cache
+     entries land in `.next/cache/bounded-isr/{BUILD_ID}` instead — which the job
+     never looks at. Measured on prod: it logs `isr: 0 files, 0.00GB (budget
+     4.9GB) — under budget` every 6h while 13GB / 171,120 entries sit in
+     `bounded-isr`. So the handler's own write-time LRU (`BOUNDED_CACHE_MB`, 25000
+     on the box `.env.local`) is the ONLY thing bounding the ISR tier — there is no
+     second line of defence, and `ISR_CACHE_BUDGET_MB` (5000) is unrelated to and
+     out of sync with it. The job's own header comment admits this; CLAUDE.md's PM2
+     table is accurate about the path (it says `server/app`) — it is this file that
+     was wrong. If you want a real backstop, point the job at `bounded-isr` and
+     match its budget to `BOUNDED_CACHE_MB`.
+     Diagnosis signature for disk-full: load ≫ vCPUs at mid
      CPU%, `pm2 logs` ENOSPC, `df -h` 100%. `pm2 flush` buys ~1GB instantly.
      **Disk-full aftermath checklist (each bit us on Jun 10):** (1) ClickHouse's
      log file breaks → infinite "Cannot log message / File access error" storm
@@ -194,6 +207,47 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      request is a cold render. Measured recovery: load 4.42→1.44 and idle
      0%→48% in ~6 minutes as entries grew 4.6k→9.5k. Watch it warm before
      diagnosing anything; and don't stack deploys while investigating perf.
+1b. **THE THIRD UNBOUNDED CACHE: the L2 file cache `.cache/` hit 44GB because its
+   janitor was never started (found Aug 18 2026).** This site has now had the same
+   outage-shaped bug three times — Jun 10 unbounded ISR cache (41GB → ENOSPC →
+   SIGABRT loop), Jun 19 unbounded `.next/cache/images` optimizer cache (→ disk full
+   → PM2 daemon died), and this one. **Whenever you add a disk cache, the eviction
+   path needs a TEST, not just an implementation.**
+   - `src/lib/cache-service.ts` always had the right code: `cleanupExpiredCache()`
+     (TTL sweep), `enforceNamespaceSizeLimits()` (per-namespace LRU by mtime), and
+     `startCacheJanitor()` running both hourly. Budgets are sane and total ~2.8GB
+     (movie 800MB, person 500MB, series 500MB, discover 300MB, 200MB default).
+   - **But the ONLY caller lived in `src/instrumentation.node.ts`, and Next has no
+     such convention.** Next auto-loads exactly ONE server instrumentation module,
+     `instrumentation.ts` (root or `src/`), and calls its `register()`. The `.node.ts`
+     sibling — whose own header comment claimed "the `.node.ts` suffix ensures this
+     is ONLY loaded in Node.js runtime" — was dead from the day
+     `src/instrumentation.ts` was added (Jun 19) for the dev undici patch. Silently
+     lost with it: the L2 janitor, L2→L1 cache warming, and `dns.setDefaultResultOrder("ipv4first")`.
+   - **How to prove a startup hook is dead in 10 seconds:** grep pm2 logs for a
+     module-level `console.log` from it. `[startup] DNS resolver set to IPv4 first`
+     appeared **0 times in 6,000 lines**. Do this before believing any "runs on boot"
+     comment — it is invisible to typecheck, lint, and every unit test.
+   - FIXED: janitor moved into `src/instrumentation.ts` `register()` behind only a
+     `NEXT_RUNTIME === "nodejs"` guard, and pinned by `src/instrumentation.test.ts`
+     (5 tests, incl. "starts IN PRODUCTION" and "no second instrumentation file
+     exists"). **The pre-existing `NODE_ENV === "production"` early-return in that
+     file is the trap** — anything appended after it silently never runs in prod.
+   - **`warmCache`/`warmL1FromL2` is deliberately NOT re-wired.** It `readdirSync` +
+     `readFileSync` + `JSON.parse`es EVERY file in a namespace; against a cache
+     holding millions of files that stalls or OOMs the 2-vCPU box at boot. Bound it
+     before reusing.
+   - Manual reclaim (safe — it is a read-through cache, so a miss just refetches):
+     `nice -n 19 ionice -c3 find .cache/<ns> -maxdepth 1 -type f -mtime +N -delete`
+     per namespace, thresholds beyond each TTL+grace (movie/series L2 TTL is only
+     **2h**, discover 8h, person 4d, youtube-channels 54h). Use streaming `-delete`,
+     never `find -printf | sort` — the latter got OOM-killed (exit 137) on this
+     directory. Watch `df`, not directory-entry sizes: **ext4 never shrinks a
+     directory inode after unlink**, so `ls -la` keeps showing a 181MB dirent for
+     `.cache/movie` long after it is empty. Expect heavy `wa` (66% iowait, load ~5)
+     while it runs; measured no user impact (Cloudflare 200s at 0.25s, origin SSR
+     0.06-1.08s) because the edge absorbs reads.
+
 2. **Never block the render path on a scrape/LLM/Lambda.** Detail-page hydration returns PG/TMDB immediately and refreshes ratings in a **deduped background task**; the SSE enrich endpoint streams them in. See `.claude/rules/postgres-hydration.md`. A synchronous Lambda scrape added seconds per first/stale visit.
 3. **Cap ClickHouse CPU** (it ate 1.5 of 2 cores). `docker-compose.yml`: `cpus: "0.9"` + low `cpu_shares`, and `concurrent_threads_soft_limit_num` in `analytics/clickhouse/config/config.xml`. **GOTCHA:** do NOT set `background_pool_size` low — `background_pool_size * background_merges_mutations_concurrency_ratio` must be ≥ `number_of_free_entries_in_pool_to_execute_mutation` (default 20) or ClickHouse exits 36 in a crash loop. **Always validate CH config in a throwaway local container before deploying** (see Testing below). A mounted `config.d` edit does NOT recreate the container — but DON'T force-recreate every deploy either (re-merging the part backlog spikes CPU for minutes; recreate once, manually, when config changes).
 4. **ClickHouse system logs are disabled — keep them that way.** June 2026: the

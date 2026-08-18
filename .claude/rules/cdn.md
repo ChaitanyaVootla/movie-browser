@@ -626,6 +626,84 @@ node (needs `Zone → Analytics → Read`); whether a RUM beacon is auto-enabled
 (needs `Zone → Web Analytics → Read`) — docs suggest RUM is auto-on for Free zones
 with EU traffic excluded, so we may be shipping a beacon nobody chose.
 
+### Post-cutover cost + load, MEASURED 3 days in (Aug 17 2026)
+
+The migration delivered, and the numbers are unambiguous (Cost Explorer by USAGE_TYPE,
+3 days pre Aug 12–14 vs 3 days post Aug 15–17):
+
+| Line | Pre (3d) | Post (3d) | Note |
+|---|---|---|---|
+| CloudFront requests (all `*-Requests-Tier2-HTTPS`) | $6.59 | **$0.15** | main distro 2.6M req/day → 4.2k |
+| CloudFront Functions executions | $0.62 (6.16M) | **$0.003** (28k) | the cookie-normalize fn |
+| Route 53 `DNS-Queries` | $1.23 (3.08M) | **$0.006** (13.9k) | NS moved to Cloudflare |
+| `PublicIPv4:InUseAddress` | $0.36 | $0.26 | the EIP — unavoidable floor |
+
+Whole-account daily spend went **$5.67 (Aug 13) → $2.49–2.80 (Aug 15–16)**; monthly
+totals Jun $226 → Jul $156 → Aug $90 MTD (front-loaded with pre-cutover days).
+**In September the image distro alone (~1.4–1.65M req/mo) sits back inside the 10M
+free tier → CloudFront returns to ~$0**, exactly as predicted above. The two Route 53
+hosted zones still bill $0.50/mo each; keep `themoviebrowser.com` as rollback insurance.
+
+**THE ONE NEW CHARGE THE MIGRATION CREATES — origin egress is now billed.** AWS is
+NOT a Bandwidth Alliance member, so EC2 → Cloudflare is ordinary internet
+`DataTransfer-Out`, whereas EC2 → CloudFront was free (`APS5-CloudFront-Out-Bytes`,
+always $0). Measured, the egress simply moved buckets: internet ~0.4 GB/day → **~6.4
+GB/day**, to-CloudFront ~10–20 GB/day → ~0.85. That projects to **~195 GB/mo against
+the 100 GB/mo AWS free tier ≈ $10/mo of NEW EC2 egress**, first visible on the
+September bill (August is still inside the free tier at 24 GB MTD, which is why it
+currently reads $0.00 and is easy to miss). Still hugely net-positive — ~$30/mo of
+CloudFront + ~$5.50/mo of Route 53 queries removed for ~$10/mo of egress — but do not
+report the saving without it. Enabling Cloudflare's cache more aggressively (raising
+the HTML hit ratio) is the lever that shrinks it.
+
+**`scripts/cdn-watch.sh`'s "forward run-rate" is misleading post-cutover**: it means
+the last 8 *settled* Cost Explorer days, which still spans pre-cutover traffic, and so
+reported ~$46.70/mo when the true CloudFront rate was ~$0.05/day ≈ $1.50/mo. Read the
+per-day column, not the projection, until the window clears.
+
+### Origin load after the cutover: 34% of edge traffic is our own 429s
+
+Cloudflare GraphQL (`httpRequestsAdaptiveGroups`, `requestSource:"eyeball"`, 23h)
+cross-tabbed by `cacheStatus` × `edgeResponseStatus` — the single most useful shape
+for this zone, and worth re-running before any shed change:
+
+| cacheStatus | status | count | share |
+|---|---|---|---|
+| **bypass** | **429** | **491,519** | **34.3%** |
+| miss | 200 | 411,779 | 28.7% |
+| dynamic | 200 | 230,315 | 16.1% |
+| hit | 200 | 131,743 | 9.2% |
+| — | 403 | 46,875 | 3.3% |
+
+Of 1.43M edge requests/day, only **9.2% are HITs**. The headline: the origin shed's
+own 429s are the **largest single class of edge traffic**, and because each 429
+correctly carries `Cache-Control: private, no-store` (a cacheable 429 would poison the
+URL — see footgun 2/UA note), Cloudflare *cannot* absorb them. Every one round-trips to
+the 2-vCPU origin purely to be rejected. **88% of them (431,835) are one cohort:
+country SG + `userAgentBrowser: Chrome`** = the datacenter fleet, i.e. the same
+mechanism behind the Aug 11 502/58s-TTFB incident, just at lower volume.
+
+**This partially invalidates the "keep the shed at the ORIGIN" reasoning above.** That
+decision was argued on MONEY (Cloudflare requests are unmetered → edge-blocking saves
+nothing) plus ClickHouse visibility, and both halves are still true — but it never
+weighed **origin CPU**, which is the actual scarce resource. Shedding the hosting ASNs
+in one of the **5 free WAF custom rules** would convert ~490k origin round-trips/day
+into zero-cost edge blocks. Do NOT ship it casually: Free has **no `Log` action**, so
+there is no dry-run, and a bad rule that catches Googlebot repeats the Aug 2 incident.
+Stage it as an exact-match/ASN rule, keep the origin shed underneath as
+defence-in-depth, and probe with the UA battery against BOTH layers first.
+The other 411,779 MISS/200s are genuine cold SSR of the long-tail catalog
+(`crawler` 166k + `generic_bot` 88k + `googlebot` 57k origin views/24h) — expected for
+800k titles crawled on unique paths, and the reason the hit ratio can't approach a
+normal site's.
+
+Also seen and benign: the **403s are Cloudflare's free managed WAF** blocking
+credential scanners at the edge (`/.env`, `/gcp-key.json`, `/.aws/config`,
+`/.cursor/mcp.json`) — our origin answers those 404, so the edge is doing free work.
+Verified separately that no real secret path is reachable: `/gcp_service.json`,
+`/.env`, `/.env.local`, `/movie-browser-ec2-key.pem`, `/.git/config`,
+`/terraform/terraform.tfstate` all 404.
+
 ## Open items (Jun 11–12, deferred)
 - Origin SG lockdown (above). TF drift from manual SG edits during the incident.
 - **CloudFront access logging enabled Jul 28 2026 via CLI (TF DRIFT)**: standard
