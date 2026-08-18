@@ -16,13 +16,20 @@ import {
   type FuzzySearchResult,
   type FuzzySearchOptions,
 } from "@/server/db/postgres/fuzzy-search";
-import { ftsPrefixSearchTitles, ftsPrefixSearchPeople } from "@/server/db/postgres/fts-search";
-import { semanticSearch, type SemanticSearchResult } from "@/server/db/postgres/semantic-search";
 import {
-  classifyQueryIntentHybrid,
-  type HybridIntentResult,
-} from "./intent-embeddings";
-import { classifyQueryIntent, getSearchWeights, type IntentAnalysis, type ExtractedFilters } from "./intent";
+  ftsPrefixSearchTitles,
+  ftsPrefixSearchPeople,
+  squashedPrefixSearchTitles,
+  squashedPrefixSearchPeople,
+} from "@/server/db/postgres/fts-search";
+import { semanticSearch, type SemanticSearchResult } from "@/server/db/postgres/semantic-search";
+import { classifyQueryIntentHybrid, type HybridIntentResult } from "./intent-embeddings";
+import {
+  classifyQueryIntent,
+  getSearchWeights,
+  type IntentAnalysis,
+  type ExtractedFilters,
+} from "./intent";
 import { parseQueryWithLlm, type LlmParsedQuery } from "./llm-query-parser";
 import { expandQuery, normalizeQuery } from "./query-expansion";
 import { dataLogger } from "@/lib/logger";
@@ -296,10 +303,7 @@ const COUNTRY_DISPLAY_NAMES: Record<string, string> = {
   NZ: "New Zealand",
 };
 
-function generateQueryUnderstanding(
-  query: string,
-  intent: IntentAnalysis
-): QueryUnderstanding {
+function generateQueryUnderstanding(query: string, intent: IntentAnalysis): QueryUnderstanding {
   const filters: QueryUnderstandingFilter[] = [];
   const summaryParts: string[] = [];
 
@@ -407,7 +411,8 @@ function generateQueryUnderstanding(
 
   // Process language filter
   if (extractedFilters.language) {
-    const langName = LANGUAGE_DISPLAY_NAMES[extractedFilters.language] || extractedFilters.language.toUpperCase();
+    const langName =
+      LANGUAGE_DISPLAY_NAMES[extractedFilters.language] || extractedFilters.language.toUpperCase();
     filters.push({
       type: "language",
       label: `In ${langName}`,
@@ -561,7 +566,8 @@ function generateQueryUnderstanding(
     const { pacing, intensity, tone } = extractedFilters.mood;
     const moodParts: string[] = [];
     if (tone) moodParts.push(tone);
-    if (pacing) moodParts.push(pacing === "fast" ? "fast paced" : pacing === "slow" ? "slow burn" : "");
+    if (pacing)
+      moodParts.push(pacing === "fast" ? "fast paced" : pacing === "slow" ? "slow burn" : "");
     if (intensity) moodParts.push(intensity);
     const moodLabel = moodParts.filter(Boolean).join(", ");
     if (moodLabel) {
@@ -644,10 +650,7 @@ function generateQueryUnderstanding(
  * Merge LLM-parsed query results with regex-based intent analysis.
  * LLM results take priority for fields it extracted with high confidence.
  */
-function mergeLlmWithIntent(
-  intent: IntentAnalysis,
-  llmResult: LlmParsedQuery
-): IntentAnalysis {
+function mergeLlmWithIntent(intent: IntentAnalysis, llmResult: LlmParsedQuery): IntentAnalysis {
   const mergedFilters: ExtractedFilters = { ...intent.extractedFilters };
 
   // LLM-extracted genres take priority
@@ -676,8 +679,7 @@ function mergeLlmWithIntent(
   }
 
   // Use LLM's cleaned query if more descriptive (for semantic search)
-  const cleanedQuery =
-    llmResult.mood || llmResult.cleanedQuery || intent.cleanedQuery;
+  const cleanedQuery = llmResult.mood || llmResult.cleanedQuery || intent.cleanedQuery;
 
   return {
     ...intent,
@@ -754,7 +756,17 @@ async function runLexicalSearch(
   const fts = await runFtsLexicalSearch(query, options);
   if (fts.length > 0) return fts;
 
-  // FTS came up empty → likely a misspelling FTS can't match (no matching lexeme).
+  // FTS empty does NOT necessarily mean "misspelling". It also happens for titles
+  // typed WITHOUT punctuation or spaces — "shangchi", "starwars", "spiderman" —
+  // because to_tsvector splits "Shang-Chi" into `shang` + `chi`, so no prefix
+  // tsquery can ever match. Try the squashed-prefix tier before paying for
+  // trigram: it is index-backed (`idx_*_squash`) and ~1ms. Without this, the
+  // /search page answered "shangchi" with "Shane" (measured Aug 18 2026) — the
+  // autocomplete path had already been fixed, but this one had not.
+  const squashed = await runSquashedLexicalSearch(query, options);
+  if (squashed.length > 0) return squashed;
+
+  // Still nothing → likely a misspelling FTS can't match (no matching lexeme).
   // Trigram handles that case and stays fast (a typo is distinctive). Guarded: a
   // timeout/throw here must never reject the whole search (the semantic leg and
   // the action itself must survive).
@@ -814,6 +826,51 @@ async function runFtsLexicalSearch(
       query,
       error: ftsError instanceof Error ? ftsError.message : String(ftsError),
       note: "FTS lexical leg failed (trigram skipped or already failed); returning empty lexical results",
+    });
+    return [];
+  }
+}
+
+/**
+ * Squashed-prefix leg: matches titles/names typed without punctuation or spaces.
+ * Same shape + same failure discipline as `runFtsLexicalSearch` (log, return [],
+ * never throw — the semantic leg and the action itself must survive).
+ */
+async function runSquashedLexicalSearch(
+  query: string,
+  options: FuzzySearchOptions
+): Promise<FuzzySearchResult[]> {
+  try {
+    const mediaTypes = options.mediaTypes ?? ["movie", "series", "person"];
+    const limit = options.limit ?? 20;
+    const wantsTitles = mediaTypes.includes("movie") || mediaTypes.includes("series");
+    const wantsPersons = mediaTypes.includes("person");
+
+    const [titles, persons] = await Promise.all([
+      wantsTitles ? squashedPrefixSearchTitles(query, limit) : Promise.resolve([]),
+      wantsPersons ? squashedPrefixSearchPeople(query, Math.min(limit, 5)) : Promise.resolve([]),
+    ]);
+
+    return [...titles, ...persons]
+      .filter((r) => mediaTypes.includes(r.mediaType))
+      .map((r) => ({
+        id: r.id,
+        title: r.title,
+        mediaType: r.mediaType,
+        // Same neutral mid score as the FTS leg — RRF ranking is positional.
+        similarity: 0.5,
+        posterPath: r.posterPath,
+        year: r.year,
+        popularity: r.popularity,
+        voteAverage: null,
+        voteCount: null,
+      }));
+  } catch (error: unknown) {
+    dataLogger.error({
+      event: "squashed_lexical_search_failed",
+      query,
+      error: error instanceof Error ? error.message : String(error),
+      note: "squashed-prefix leg failed after empty FTS; falling through to trigram",
     });
     return [];
   }
@@ -1341,17 +1398,17 @@ export async function hybridSearch(
     relaxedFilters,
     hasExtractedFilters: Boolean(
       intent.extractedFilters?.language ||
-        intent.extractedFilters?.country ||
-        intent.extractedFilters?.cast?.length ||
-        intent.extractedFilters?.director ||
-        intent.extractedFilters?.runtime ||
-        intent.extractedFilters?.network ||
-        intent.extractedFilters?.collection ||
-        intent.extractedFilters?.keywords?.length ||
-        intent.extractedFilters?.bestFor ||
-        intent.extractedFilters?.mood ||
-        intent.extractedFilters?.seriesStatus ||
-        intent.extractedFilters?.seasonCount
+      intent.extractedFilters?.country ||
+      intent.extractedFilters?.cast?.length ||
+      intent.extractedFilters?.director ||
+      intent.extractedFilters?.runtime ||
+      intent.extractedFilters?.network ||
+      intent.extractedFilters?.collection ||
+      intent.extractedFilters?.keywords?.length ||
+      intent.extractedFilters?.bestFor ||
+      intent.extractedFilters?.mood ||
+      intent.extractedFilters?.seriesStatus ||
+      intent.extractedFilters?.seasonCount
     ),
   });
 
