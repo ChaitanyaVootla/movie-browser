@@ -14,6 +14,8 @@ import { fuzzySearch } from "@/server/db/postgres/fuzzy-search";
 import {
   ftsPrefixSearchTitles,
   ftsPrefixSearchPeople,
+  squashedPrefixSearchTitles,
+  squashedPrefixSearchPeople,
   type FtsResult,
 } from "@/server/db/postgres/fts-search";
 import { MOOD_FILTERS } from "@/lib/search/moods";
@@ -165,6 +167,23 @@ export async function getAutocompleteSuggestions(query: string): Promise<Autocom
       year: r.year,
       popularity: r.popularity,
     });
+
+    // TIER 2 — squashed-prefix, BEFORE trigram. FTS structurally cannot match a
+    // title typed without punctuation/spaces ("shangchi", "spiderman",
+    // "starwars"): to_tsvector splits "Shang-Chi" into `shang` + `chi`, so no
+    // prefix tsquery for "shangchi" ever matches. Those queries used to fall
+    // straight through to the trigram fallback and burn its ENTIRE timeout
+    // returning nothing (measured 4,859ms for "shangchi" vs 317ms for
+    // "interstellar" — the chronic "search hangs" complaint). This tier is
+    // index-backed (`idx_*_squash`) and measured 0.07-2ms on prod.
+    if (titleResults.length === 0 && personResults.length === 0) {
+      const [sqTitles, sqPeople] = await Promise.allSettled([
+        squashedPrefixSearchTitles(normalizedQuery, 4),
+        squashedPrefixSearchPeople(normalizedQuery, 2),
+      ]);
+      titleResults = sqTitles.status === "fulfilled" ? sqTitles.value : [];
+      personResults = sqPeople.status === "fulfilled" ? sqPeople.value : [];
+    }
 
     // Only fall back to trigram when prefix FTS found NOTHING at all — that
     // signals a probable misspelling, which is distinctive enough that trigram

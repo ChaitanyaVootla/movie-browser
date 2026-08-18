@@ -24,8 +24,18 @@ const NON_ADULT_PERSON = notAdult("p");
  * Per-query timeout (ms) for trigram similarity searches. Keeps a missing-index
  * or oversized-table scan from hanging the request and exhausting the pool.
  * Well above a healthy indexed query (~5-30ms) but low enough to fail fast.
+ *
+ * LOWERED 4000 -> 800 (Aug 18 2026). 4s was not a safety net, it was the bug:
+ * this is reached from the 150ms-debounce AUTOCOMPLETE path, and a query with no
+ * FTS match ("shangchi") spent the FULL 4s here and returned nothing — 4,859ms
+ * end-to-end, which is what users reported as "search hangs". Nothing on an
+ * as-you-type path may block for seconds. The queries this used to eventually
+ * satisfy are now served in 0.07-2ms by the squashed-prefix tier
+ * (`squashedPrefixSearchTitles`), so the trigram fallback is only for genuine
+ * misspellings — which are distinctive and therefore fast, or not worth waiting
+ * for.
  */
-const FUZZY_SEARCH_TIMEOUT_MS = 4000;
+const FUZZY_SEARCH_TIMEOUT_MS = 800;
 
 /**
  * Minimum trigram `%` threshold for similarity search. The movies (~500K) and

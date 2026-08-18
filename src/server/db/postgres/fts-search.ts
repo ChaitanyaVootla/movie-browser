@@ -37,6 +37,123 @@ const NON_ADULT_SERIES = notAdult("s");
 const NON_ADULT_PERSON = notAdult("p");
 
 /**
+ * SQL for the NORMALISED ("squashed") form of a text column: lowercased with
+ * every non-alphanumeric run removed. "Shang-Chi and the Legend of the Ten
+ * Rings" → "shangchiandthelegendofthetenrings".
+ *
+ * MUST stay byte-identical to the `*_squash` index expressions in
+ * `postgres/init/02-search-indexes.sql`. If it drifts, Postgres cannot use the
+ * index and silently falls back to a seq scan over ~1M movies / ~4.4M persons —
+ * i.e. exactly the hang this was built to fix. `fts-search.test.ts` pins them.
+ */
+export const squashSql = (col: string): string =>
+  `regexp_replace(lower(coalesce(${col}, '')), '[^a-z0-9]+', '', 'g')`;
+
+/**
+ * Squash a user query the same way the index squashes the column. The result is
+ * `[a-z0-9]*` by construction, which is what makes it safe to INLINE into SQL
+ * below (see squashedPrefixWhere).
+ */
+export function squashQuery(query: string): string {
+  return query.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/**
+ * Leading articles are the one thing a pure prefix match can't see through:
+ * "darkknight" does not prefix "thedarkknight". Trying the article-prefixed
+ * forms too costs one extra index scan each (measured: 4 scans, still 0.9-2ms)
+ * and recovers The Dark Knight / The Godfather / The Matrix / The Lord of the
+ * Rings — a large share of what people actually search for.
+ */
+const LEADING_ARTICLES = ["", "the", "a", "an"] as const;
+
+/**
+ * Build an index-backed prefix predicate for the squashed column.
+ *
+ * The pattern is INLINED rather than parameterised on purpose: Postgres can only
+ * extract a prefix from a LIKE pattern it can see at plan time, so `col LIKE $1`
+ * would not use the `text_pattern_ops` index. Inlining is safe here precisely
+ * because `squashQuery` has already reduced the value to `[a-z0-9]` — there is no
+ * quote, backslash, or wildcard left to inject. Callers MUST pass a value that
+ * came from `squashQuery` (asserted below).
+ */
+function squashedPrefixWhere(colSql: string, squashed: string): string {
+  if (!/^[a-z0-9]+$/.test(squashed)) {
+    throw new Error(`squashedPrefixWhere: unsafe value ${JSON.stringify(squashed)}`);
+  }
+  return LEADING_ARTICLES.map((a) => `${colSql} LIKE '${a}${squashed}%'`).join(" OR ");
+}
+
+/**
+ * As-you-type search for titles typed WITHOUT punctuation or spaces —
+ * "shangchi", "spiderman", "starwars", "johnwick", "everythingeverywhere".
+ *
+ * This is the tier that FTS structurally cannot serve: `to_tsvector` splits
+ * "Shang-Chi" into `shang` + `chi`, so no prefix tsquery for "shangchi" can ever
+ * match. Before this existed, such queries fell through to the trigram fuzzy
+ * fallback and burned its whole timeout (4,859ms measured) returning nothing.
+ * Index-backed via `idx_*_squash`; measured 0.07-2ms on prod.
+ */
+export async function squashedPrefixSearchTitles(query: string, limit = 6): Promise<FtsResult[]> {
+  const squashed = squashQuery(query);
+  if (squashed.length < 3) return []; // too short to be selective
+
+  const movieSql = `
+    SELECT m.id, m.title, 'movie'::text AS "mediaType", m.poster_path AS "posterPath",
+           EXTRACT(YEAR FROM m.release_date)::text AS year, m.popularity
+    FROM movies m
+    WHERE ${NON_ADULT_MOVIE}
+      AND (${squashedPrefixWhere(squashSql("m.title"), squashed)}
+        OR ${squashedPrefixWhere(squashSql("m.original_title"), squashed)})
+    ORDER BY m.popularity DESC NULLS LAST
+    LIMIT $1
+  `;
+  const seriesSql = `
+    SELECT s.id, s.name AS title, 'series'::text AS "mediaType", s.poster_path AS "posterPath",
+           EXTRACT(YEAR FROM s.first_air_date)::text AS year, s.popularity
+    FROM series s
+    WHERE ${NON_ADULT_SERIES}
+      AND (${squashedPrefixWhere(squashSql("s.name"), squashed)}
+        OR ${squashedPrefixWhere(squashSql("s.original_name"), squashed)})
+    ORDER BY s.popularity DESC NULLS LAST
+    LIMIT $1
+  `;
+
+  const [movies, series] = await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${FTS_TIMEOUT_MS}`);
+    return Promise.all([
+      tx.$queryRawUnsafe<FtsResult[]>(movieSql, limit),
+      tx.$queryRawUnsafe<FtsResult[]>(seriesSql, limit),
+    ]);
+  });
+
+  return [...movies, ...series]
+    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+    .slice(0, limit);
+}
+
+/** Squashed-prefix search over person names ("tomholland", "scarlettjohansson"). */
+export async function squashedPrefixSearchPeople(query: string, limit = 2): Promise<FtsResult[]> {
+  const squashed = squashQuery(query);
+  if (squashed.length < 3) return [];
+
+  const sql = `
+    SELECT p.id, p.name AS title, 'person'::text AS "mediaType",
+           p.profile_path AS "posterPath", NULL::text AS year, p.popularity
+    FROM persons p
+    WHERE ${NON_ADULT_PERSON}
+      AND (${squashedPrefixWhere(squashSql("p.name"), squashed)})
+    ORDER BY p.popularity DESC NULLS LAST
+    LIMIT $1
+  `;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${FTS_TIMEOUT_MS}`);
+    return tx.$queryRawUnsafe<FtsResult[]>(sql, limit);
+  });
+}
+
+/**
  * Build a SAFE prefix tsquery string from arbitrary user input, e.g.
  * "the inc" → "the:* & inc:*" (which `to_tsquery('english', …)` reduces to
  * "inc:*", dropping the "the" stop-word).
@@ -171,10 +288,7 @@ export async function ftsSearchTitles(query: string, limit = 6): Promise<FtsResu
 
   // Interleave by (title relevance, popularity) and cap at `limit`.
   return [...movies, ...series]
-    .sort(
-      (a, b) =>
-        b.title_rank - a.title_rank || (b.popularity ?? 0) - (a.popularity ?? 0)
-    )
+    .sort((a, b) => b.title_rank - a.title_rank || (b.popularity ?? 0) - (a.popularity ?? 0))
     .slice(0, limit)
     .map(({ title_rank: _rank, ...r }) => r);
 }
