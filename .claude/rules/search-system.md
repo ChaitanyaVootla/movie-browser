@@ -472,3 +472,69 @@ network call to TMDB. That call was fast when measured (138ms, and it is cached 
 the `search` L1/L2 namespace for 1h), so it is not currently the bottleneck — but it
 is the obvious next consolidation, and it means results latency depends on an
 external API and on cache warmth.
+
+## THREE search backends on one screen — know which one you are fixing (Aug 18 2026)
+
+A fix to "search" almost certainly only fixes one third of it. Measured/traced:
+
+| Path | Entry | Backend | Surfaces as |
+|---|---|---|---|
+| `getAutocompleteSuggestions` | 150ms debounce | **Postgres** (FTS prefix → squashed → trigram) | palette groups **Movies / Series / People** |
+| `quickSearch` → `search()` → `searchMulti` | 250ms debounce | **TMDB HTTP API** | palette group **Results** |
+| `enhancedSearch` → `hybridSearch` → `runLexicalSearch` | `/search?q=` page (`app/search/client.tsx`) | **Postgres** hybrid (lexical + optional semantic) | full search page |
+
+The squashed-prefix tier had to be added **twice** — once in `autocomplete.ts` and
+once in `runLexicalSearch` — because the first deploy fixed the palette while
+`/search?q=shangchi` still answered **"Shane"**. If you change search behaviour,
+check all three or say explicitly which one you changed.
+
+## The palette's group PRECEDENCE is wrong, and it hides good results
+
+Render order + guards in `search-command.tsx` (verified in source, not inferred):
+
+```jsx
+{movies.length > 0 && !hasApiResults && ( <CommandGroup heading="Movies"> )}
+{series.length > 0 && !hasApiResults && ( <CommandGroup heading="Series"> )}
+{people.length > 0 &&                    ( <CommandGroup heading="People"> )}  // no guard, renders FIRST
+{hasApiResults ? (                         <CommandGroup heading="Results"> )}
+```
+
+Two consequences, both measured in a 30-query prod audit:
+
+1. **`!hasApiResults` suppresses our own Postgres title matches as soon as TMDB
+   returns ANYTHING — even garbage.** `starwars` → our PG tier finds *Star Wars*
+   (1.2ms) but the user sees TMDB's **"Starwars: Goretech"**; `9-1-1` → **"1
+   Oktober jam 9 malam di TV3."** The design assumed "Results are better than
+   suggestions", which is false for punctuation-free queries.
+2. **People has no guard and renders before everything**, so a weak substring
+   person match becomes the top hit: `inc` → *Jennifer Inch*, `wall-e` → *Eli
+   Wallach*, `walle` → *Annabelle Wallis*, `amelie` → *Amelia Warner*, `the
+   matrix` → *Carlos Matrix*, `spiderman` → *B Spiderman*. Also Movies renders
+   before Series, so `breakingbad` → *Breaking Bad Wolf* (movie) outranks
+   *Breaking Bad* (series).
+
+**Do NOT "fix" this by simply moving People last** — that breaks the genuine person
+queries (`tom holland`, `cillian murphy`) which currently work correctly. It needs
+relevance-based ordering (score the match against the query), which is a design
+decision, not a reorder.
+
+## Auditing search honestly — the traps that produce false PASSES
+
+- **`[cmdk-group-heading]` is NOT a results signal.** "Search all for X" is a group
+  with **no heading**, but **Filters** and **Moods** are LOCAL/synchronous — typing
+  `netflix` renders a heading with zero server latency. Assert only on
+  **Movies / Series / People / Results**.
+- **The first `[cmdk-item]` is almost always "Search all for X"** — reading it as
+  the top result makes every query look like it worked.
+- **Results from the PREVIOUS query persist while the next loads.** A poll loop that
+  breaks on "a server group exists" will happily measure the previous answer — this
+  invalidated a mobile run where `breakingbad` and `tom holland` both reported
+  "Shang-Chi". Clear the input and wait for results to actually go away, or open a
+  fresh palette per query.
+- **Use real typing (`type()` with a delay), not `fill()`** — `fill()` fires one
+  input event and hides the debounce/queueing behaviour a user actually gets.
+- **Through the CDN you are testing the PREVIOUS build.** Post-deploy, edge HTML
+  carries dead server-action IDs and every query silently returns nothing. Use
+  `?_cb=<ts>` or `--resolve` to the origin. See `cdn.md`.
+- Mobile has no top navbar; the palette trigger is in the bottom nav and matches
+  `button:has-text("Search")`, not an `aria-label`.
