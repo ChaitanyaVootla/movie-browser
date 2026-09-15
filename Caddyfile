@@ -16,6 +16,17 @@
 # ORIGIN_VERIFY_SECRET is set, and the relaxed bot shed only widens what we
 # serve (the edge cache makes serving indexers cheap).
 
+# Sep 15 2026 — metrics for the sheds + admission control below. The admin API
+# listens on 127.0.0.1:2019 (network_mode: host), so on the box:
+#   curl -s localhost:2019/metrics | grep -E 'code="(429|503)"'
+# A Caddy 429/503 never reaches Next, so it never becomes a ClickHouse
+# page_view row — these counters are the ONLY place Caddy-level sheds show up.
+{
+	servers {
+		metrics
+	}
+}
+
 themoviebrowser.com, origin.themoviebrowser.com {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	encode zstd gzip
@@ -118,10 +129,98 @@ themoviebrowser.com, origin.themoviebrowser.com {
 		close
 	}
 
+	# TIER 1c — FORGED-BROWSER PERSONA SHED (Sep 15 2026). The Sep 14-15 crash
+	# loop (12+ `next-server` heap-OOM exits/day, exit 134, always 03:00-07:00
+	# UTC) was a residential-proxy fleet (81% CN-geolocated) doing ~28k cold
+	# long-tail SSR renders/hr on top of the 24/7 baseline fleet: 45,847 req/hr
+	# from 43,948 one-request "sessions", 0 authenticated, 0 web-vitals beacons
+	# (no JS). It passes every existing shed: genuine-looking Chrome 142-145 /
+	# Edge / Firefox 151 UAs WITH valid client hints and Sec-Fetch-* headers.
+	# A tcpdump of the plaintext Caddy->Next leg found the UA-vs-header
+	# CONSISTENCY violations below. Like the client-hints and no-slash-referer
+	# sheds these are protocol invariants, not behavioural thresholds — no
+	# conforming browser can emit them — which is what makes a per-request 429
+	# safe. Verified against the same capture: every real-looking Chrome/Edge
+	# navigation (US/TR/ID, incl. real Edge 148) carried signed-exchange AND
+	# Priority; every fleet request carried neither.
+	#
+	#   @forgedchromium — desktop Chromium >= 100 always advertises
+	#     `application/signed-exchange;v=b3;q=0.7` in the navigation Accept
+	#     header (SXG shipped in Chrome 73 and has never been removed; Edge,
+	#     Chromium, Vivaldi, Arc inherit it). The fleet sends the pre-73 Accept
+	#     (…image/apng,*/*;q=0.8) with a Chrome/14x UA. Brave/Opera/Yandex/
+	#     Samsung, WebView, iOS Chrome (CriOS), Electron and declared bots are
+	#     excluded from the match rather than trusted to carry SXG.
+	#   @forgedfirefox — Firefox >= 65 always lists `image/webp` in its
+	#     navigation Accept (avif since 92; png,svg since ~128) AND always sends
+	#     `Upgrade-Insecure-Requests: 1` on document navigations. The 24/7
+	#     "Firefox 151" persona (~7k req/hr) sends the 2018 Accept
+	#     (`…application/xml;q=0.9,*/*;q=0.8`) and no UIR. BOTH must be missing
+	#     (belt and braces) — loosen only after measuring.
+	#
+	# Common guards: `Sec-Fetch-Mode: navigate` (document loads only — RSC/
+	# prefetch/API fetches are `cors` and never match), no session cookie (a
+	# signed-in human is never shed), and never a Cloudflare-verified crawler
+	# (`X-Verified-Bot: true`, synthesised at the edge; reverse-DNS verified).
+	# no-store on the 429 for the same reason as the tiers above (UA/Accept are
+	# not in the edge cache key). Mirror any change in src/proxy.ts +
+	# src/lib/analytics/bot-detection.ts (origin twin + analytics relabel).
+	# VERIFY against the ORIGIN (`curl --resolve themoviebrowser.com:443:<EIP>`),
+	# not the edge — see .claude/rules/performance.md → "Sep 15 2026".
+	@forgedchromium {
+		header_regexp User-Agent (?i)\bChrome/[1-9]\d\d\.\d+\.\d+\.\d+\s+Safari/537\.36
+		not header_regexp User-Agent (?i)(Mobile|Android|wv\)|CriOS|OPR/|YaBrowser|SamsungBrowser|Electron|HeadlessChrome|bot|spider|crawl|preview|fetch)
+		not header_regexp Sec-CH-UA (?i)brave
+		header Sec-Fetch-Mode navigate
+		header Sec-Fetch-Dest document
+		not header_regexp Accept (?i)signed-exchange
+		not header_regexp Cookie (authjs\.session-token|__Secure-authjs\.session-token)
+		not header X-Verified-Bot true
+	}
+	header @forgedchromium Cache-Control "private, no-store"
+	respond @forgedchromium 429 {
+		close
+	}
+
+	@forgedfirefox {
+		header_regexp User-Agent (?i)\bFirefox/(6[5-9]|[7-9]\d|[1-9]\d\d)\.
+		not header_regexp User-Agent (?i)(bot|spider|crawl|preview|fetch)
+		header Sec-Fetch-Mode navigate
+		header Sec-Fetch-Dest document
+		not header_regexp Accept (?i)image/webp
+		not header Upgrade-Insecure-Requests *
+		not header_regexp Cookie (authjs\.session-token|__Secure-authjs\.session-token)
+		not header X-Verified-Bot true
+	}
+	header @forgedfirefox Cache-Control "private, no-store"
+	respond @forgedfirefox 429 {
+		close
+	}
+
 	reverse_proxy localhost:3002 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
 		header_up X-Forwarded-Proto {scheme}
+
+		# ADMISSION CONTROL (Sep 15 2026). Next has no concurrency limit: on
+		# Sep 14-15 a fleet burst queued 450-520 SIMULTANEOUS SSR renders inside
+		# next-server (351 of them CLOSE-WAIT — rendering for clients that had
+		# already gone), the V8 heap hit --max-old-space-size and the process
+		# died with "Ineffective mark-compacts near heap limit" (exit 134) every
+		# ~10 minutes, each restart a cold-cache stampede. Memory in Next scales
+		# with the number of in-flight renders, so BOUND that number here:
+		# `unhealthy_request_count` marks the upstream unavailable while it has
+		# that many requests in flight; `lb_try_duration` makes Caddy QUEUE the
+		# excess (cheap: a parked goroutine) and re-check every
+		# `lb_try_interval` before giving up with a 503. Overload now degrades to
+		# fast 200s for what fits plus prompt 503s for what does not, instead of
+		# 21s TTFBs followed by a crash. Sized for a 2-vCPU box where a healthy
+		# steady state is ~10-30 in flight; SSE `enrich` streams (real users only
+		# — the fleets run no JS) and Next's own self-proxied rewrites each hold
+		# a slot, hence the headroom. Cloudflare does not cache 503s by default.
+		lb_try_duration 15s
+		lb_try_interval 100ms
+		unhealthy_request_count 96
 
 		# (a) stale-if-error (CDN pairing, Jun 11 2026)
 		# Next emits `Cache-Control: s-maxage=<ttl>, stale-while-revalidate` on

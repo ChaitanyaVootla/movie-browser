@@ -17,12 +17,23 @@ module.exports = {
     {
       name: "next",
       cwd: "/home/ubuntu/movie-browser-next",
-      script: "npm",
+      // PM2 must supervise next-server ITSELF for max_memory_restart to mean
+      // anything. `script: "npm", args: "start"` made PM2 monitor npm (~60MB):
+      // on Sep 15 2026 `pm2 ls` showed next at 61mb while next-server sat at
+      // 4.8GB in a heap-OOM crash loop — the cap could never fire (Sep 3-9
+      // outage follow-up #1). Running the next bin directly puts the server in
+      // PM2's own fork wrapper, so `pm2 ls` mem == the real RSS. A changed
+      // `script` is NOT picked up by `pm2 startOrReload`; apply once with
+      //   pm2 delete next && pm2 start ecosystem.config.cjs --only next && pm2 save
+      script: "node_modules/next/dist/bin/next",
       args: "start",
-      // RSS plateaus at ~1.2-1.4GB under load; 600M caused theoretical
-      // restart-cycling risk (PM2 memory enforcement is unreliable in this
-      // setup, but keep the value honest).
-      max_memory_restart: "1500M",
+      interpreter: "node",
+      // Graceful restart BEFORE swap thrash. RSS legitimately sits at ~2GB under
+      // normal load (3GB heap cap + native Buffers), the box has 8GB, PG + CH +
+      // Caddy take ~1.7GB, and the Sep 3 outage was 5.8GB -> swap -> dead NIC.
+      // 4000M leaves margin on both sides. What actually keeps us away from it
+      // is Caddy's admission control (Caddyfile `unhealthy_request_count`).
+      max_memory_restart: "4000M",
       env: {
         NODE_ENV: "production",
         PORT: "3002",

@@ -77,6 +77,9 @@ export const SHED_BOT_TYPES: readonly string[] = [
   "markdown_scraper",
   "datacenter_fleet",
   "forged_referer",
+  // Sep 15 2026 — UA-vs-Accept consistency sheds (isForgedBrowserPersona).
+  "forged_chromium",
+  "forged_firefox",
   "webdriver",
   "headless_hint",
   "missing_client_hints",
@@ -181,6 +184,8 @@ export const SHED_REASON_LABELS: Record<string, string> = {
   markdown_scraper: "LLM scraper (Accept: text/markdown)",
   datacenter_fleet: "Datacenter/hosting ASN",
   forged_referer: "Forged referer (origin, no path)",
+  forged_chromium: "Forged Chromium persona (Accept lacks signed-exchange)",
+  forged_firefox: "Forged Firefox persona (Accept lacks image/webp, no UIR)",
   webdriver: "navigator.webdriver",
   headless_hint: "Headless client hint",
   missing_client_hints: "Chrome UA, no client hints",

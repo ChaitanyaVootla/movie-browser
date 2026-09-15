@@ -251,6 +251,81 @@ export function isForgedOriginReferer(referer: string | null): boolean {
 }
 
 /**
+ * UA-vs-header CONSISTENCY check for the two forged browser personas behind
+ * the Sep 14-15 2026 heap-OOM crash loop (12+ `next-server` exit-134 restarts
+ * a day, always inside a 03:00-07:00 UTC burst): a residential-proxy fleet
+ * (81% CN-geolocated) doing ~28k cold long-tail SSR renders/hr — 45,847 req/hr
+ * from 43,948 one-request "sessions", 0 authenticated, 0 web-vitals beacons —
+ * wearing Chrome 142-145 / Edge / Firefox 151 UAs WITH valid client hints and
+ * Sec-Fetch-* headers, so it passed every earlier shed. A tcpdump of the
+ * plaintext Caddy->Next leg found the tells. Like the client-hints and
+ * no-slash-referer rules these are protocol invariants — no conforming browser
+ * emits them — which is what makes a per-request 429 safe:
+ *
+ *  - "forged_chromium": desktop Chromium >= 100 ALWAYS advertises
+ *    `application/signed-exchange;v=b3;q=0.7` in its navigation Accept header
+ *    (SXG shipped in Chrome 73, never removed; Edge/Chromium/Vivaldi/Arc
+ *    inherit it). The fleet sends the pre-73 Accept with a Chrome/14x UA. In
+ *    the same capture every real-looking Chrome/Edge navigation (US/TR/ID,
+ *    incl. real Edge 148) carried it — and a `Priority` header — while every
+ *    fleet request carried neither. Brave (brand in Sec-CH-UA), Opera, Yandex,
+ *    Samsung, WebView, iOS Chrome (CriOS), Electron and declared bots are
+ *    excluded from the match rather than trusted to carry SXG.
+ *  - "forged_firefox": Firefox >= 65 ALWAYS lists `image/webp` in its
+ *    navigation Accept (avif since 92; png,svg since ~128) AND always sends
+ *    `Upgrade-Insecure-Requests: 1` on document navigations. The 24/7
+ *    "Firefox 151" persona (~7k req/hr) sends the 2018 Accept
+ *    (`text/html,application/xhtml+xml,application/xml;q=0.9` + the bare
+ *    wildcard at q=0.8 — no image/* types) and no UIR. BOTH must be missing.
+ *
+ * Document navigations only (`Sec-Fetch-Mode: navigate` + `Sec-Fetch-Dest:
+ * document`): RSC/prefetch/API fetches are `cors`, and crawlers that send no
+ * Sec-Fetch headers at all (Googlebot, link unfurlers) can never match. The
+ * caller must still exempt signed-in sessions and Cloudflare-verified bots.
+ * Fails OPEN on anything unexpected — a false positive blocks a person, a miss
+ * costs one render.
+ *
+ * TWIN of the `@forgedchromium` / `@forgedfirefox` matchers in the Caddyfile,
+ * which shed first (a Caddy 429 never reaches Next, so it never becomes a
+ * page_view row — Caddy's /metrics is where those show up). Keep the two in
+ * sync. Tests: bot-detection.test.ts ("isForgedBrowserPersona").
+ */
+export type ForgedPersona = "forged_chromium" | "forged_firefox";
+
+const CHROMIUM_DESKTOP_UA_RE = /\bChrome\/[1-9]\d\d\.\d+\.\d+\.\d+\s+Safari\/537\.36/i;
+const CHROMIUM_PERSONA_EXCLUDE_RE =
+  /(Mobile|Android|wv\)|CriOS|OPR\/|YaBrowser|SamsungBrowser|Electron|HeadlessChrome|bot|spider|crawl|preview|fetch)/i;
+const FIREFOX_MODERN_UA_RE = /\bFirefox\/(6[5-9]|[7-9]\d|[1-9]\d\d)\./i;
+const DECLARED_BOT_UA_RE = /(bot|spider|crawl|preview|fetch)/i;
+
+export function isForgedBrowserPersona(headers: {
+  get: (name: string) => string | null;
+}): ForgedPersona | null {
+  try {
+    const ua = headers.get("user-agent") ?? "";
+    if (!ua) return null;
+    if ((headers.get("sec-fetch-mode") ?? "").trim().toLowerCase() !== "navigate") return null;
+    if ((headers.get("sec-fetch-dest") ?? "").trim().toLowerCase() !== "document") return null;
+    const accept = headers.get("accept") ?? "";
+
+    if (CHROMIUM_DESKTOP_UA_RE.test(ua) && !CHROMIUM_PERSONA_EXCLUDE_RE.test(ua)) {
+      if (/brave/i.test(headers.get("sec-ch-ua") ?? "")) return null;
+      return /signed-exchange/i.test(accept) ? null : "forged_chromium";
+    }
+
+    if (FIREFOX_MODERN_UA_RE.test(ua) && !DECLARED_BOT_UA_RE.test(ua)) {
+      const hasWebp = /image\/webp/i.test(accept);
+      const hasUir = headers.get("upgrade-insecure-requests") !== null;
+      return !hasWebp && !hasUir ? "forged_firefox" : null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * TRUE when Cloudflare has cryptographically/DNS-verified the client as a known
  * good bot — i.e. `cf.client.bot`, surfaced to the origin as `X-Verified-Bot` by
  * a request-header Transform Rule (Cloudflare exposes it only as a ruleset

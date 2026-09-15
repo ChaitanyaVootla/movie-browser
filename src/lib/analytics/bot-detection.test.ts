@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isForgedBrowserPersona,
   isForgedOriginReferer,
   isMarkdownOnlyClient,
   isVerifiedBot,
@@ -162,5 +163,158 @@ describe("isVerifiedBot / verifiedBotCategory", () => {
       verifiedBotCategory(new Headers({ "x-verified-bot-category": " Search Engine Crawler " })),
     ).toBe("Search Engine Crawler");
     expect(verifiedBotCategory(new Headers({ "x-verified-bot-category": "" }))).toBeNull();
+  });
+});
+
+describe("isForgedBrowserPersona", () => {
+  const CHROME_UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
+  const EDGE_UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0";
+  const ANDROID_UA =
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Mobile Safari/537.36";
+  const FF_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:151.0) Gecko/20100101 Firefox/151.0";
+  const PRE_SXG_ACCEPT =
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8";
+  const REAL_CHROME_ACCEPT = `${PRE_SXG_ACCEPT},application/signed-exchange;v=b3;q=0.7`;
+  const FF_2018_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+  const FF_REAL_ACCEPT =
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8";
+  const NAV = { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" };
+
+  const headers = (h: Record<string, string>) => ({
+    get: (name: string) => h[name.toLowerCase()] ?? null,
+  });
+
+  it("sheds the CN fleet's Chrome persona: modern Chrome UA with the pre-SXG Accept (captured Sep 15 2026)", () => {
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          ...NAV,
+          "user-agent": CHROME_UA,
+          accept: PRE_SXG_ACCEPT,
+          "sec-ch-ua": '"Chromium";v="144", "Google Chrome";v="144", "Not.A/Brand";v="99"',
+          "upgrade-insecure-requests": "1",
+          "accept-language": "zh-CN,zh;q=0.9",
+        })
+      )
+    ).toBe("forged_chromium");
+    expect(isForgedBrowserPersona(headers({ ...NAV, "user-agent": EDGE_UA, accept: PRE_SXG_ACCEPT }))).toBe(
+      "forged_chromium"
+    );
+  });
+
+  it("serves real desktop Chrome and Edge (signed-exchange present)", () => {
+    expect(isForgedBrowserPersona(headers({ ...NAV, "user-agent": CHROME_UA, accept: REAL_CHROME_ACCEPT }))).toBeNull();
+    expect(isForgedBrowserPersona(headers({ ...NAV, "user-agent": EDGE_UA, accept: REAL_CHROME_ACCEPT }))).toBeNull();
+  });
+
+  it("never matches non-navigations: RSC/prefetch (cors), subresources, or requests without Sec-Fetch", () => {
+    expect(
+      isForgedBrowserPersona(
+        headers({ "user-agent": CHROME_UA, accept: "*/*", "sec-fetch-mode": "cors", "sec-fetch-dest": "empty" })
+      )
+    ).toBeNull();
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          "user-agent": CHROME_UA,
+          accept: "image/avif,image/webp,*/*",
+          "sec-fetch-mode": "no-cors",
+          "sec-fetch-dest": "image",
+        })
+      )
+    ).toBeNull();
+    // No Sec-Fetch headers at all (Googlebot, unfurlers, curl) — can never match.
+    expect(isForgedBrowserPersona(headers({ "user-agent": CHROME_UA, accept: PRE_SXG_ACCEPT }))).toBeNull();
+  });
+
+  it("excludes browsers we do not assert SXG for: Brave, mobile/WebView, Opera, pre-100 Chrome, declared bots", () => {
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          ...NAV,
+          "user-agent": CHROME_UA,
+          accept: PRE_SXG_ACCEPT,
+          "sec-ch-ua": '"Brave";v="144", "Chromium";v="144"',
+        })
+      )
+    ).toBeNull();
+    expect(isForgedBrowserPersona(headers({ ...NAV, "user-agent": ANDROID_UA, accept: PRE_SXG_ACCEPT }))).toBeNull();
+    expect(
+      isForgedBrowserPersona(headers({ ...NAV, "user-agent": `${CHROME_UA} OPR/130.0.0.0`, accept: PRE_SXG_ACCEPT }))
+    ).toBeNull();
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          ...NAV,
+          "user-agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36",
+          accept: PRE_SXG_ACCEPT,
+        })
+      )
+    ).toBeNull();
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          ...NAV,
+          "user-agent":
+            "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/144.0.0.0 Safari/537.36",
+          accept: PRE_SXG_ACCEPT,
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("sheds the 24/7 Firefox 151 persona: 2018 Accept AND no Upgrade-Insecure-Requests", () => {
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          ...NAV,
+          "user-agent": FF_UA,
+          accept: FF_2018_ACCEPT,
+          "accept-language": "en-US,en;q=0.5",
+          priority: "u=0, i",
+        })
+      )
+    ).toBe("forged_firefox");
+  });
+
+  it("serves real Firefox, and Firefox with only ONE of the two tells missing", () => {
+    expect(
+      isForgedBrowserPersona(
+        headers({ ...NAV, "user-agent": FF_UA, accept: FF_REAL_ACCEPT, "upgrade-insecure-requests": "1" })
+      )
+    ).toBeNull();
+    expect(
+      isForgedBrowserPersona(
+        headers({ ...NAV, "user-agent": FF_UA, accept: FF_2018_ACCEPT, "upgrade-insecure-requests": "1" })
+      )
+    ).toBeNull();
+    expect(isForgedBrowserPersona(headers({ ...NAV, "user-agent": FF_UA, accept: FF_REAL_ACCEPT }))).toBeNull();
+    // Firefox 60 predates image/webp in Accept — a legitimately old browser.
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          ...NAV,
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0",
+          accept: FF_2018_ACCEPT,
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("ignores Safari and empty UAs", () => {
+    expect(
+      isForgedBrowserPersona(
+        headers({
+          ...NAV,
+          "user-agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+          accept: FF_2018_ACCEPT,
+        })
+      )
+    ).toBeNull();
+    expect(isForgedBrowserPersona(headers({ ...NAV, accept: PRE_SXG_ACCEPT }))).toBeNull();
   });
 });

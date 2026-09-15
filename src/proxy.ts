@@ -6,6 +6,7 @@ import { authConfig } from "@/lib/auth.config";
 import { buildTrackingContext, getPageTypeFromPath, getItemFromPath } from "@/lib/analytics/context-core";
 import {
   detectBotFromRequest,
+  isForgedBrowserPersona,
   isForgedOriginReferer,
   isMarkdownOnlyClient,
   isVerifiedBot,
@@ -414,6 +415,20 @@ function scraperShedReason(req: NextRequest): string | null {
     if (isMarkdownOnlyClient(req.headers.get("accept"))) return "markdown_scraper";
 
     if (isBlockedDatacenterIP(req)) return "datacenter_fleet";
+
+    // FORGED-BROWSER PERSONA SHED (Sep 15 2026). The fleet behind the Sep 14-15
+    // heap-OOM crash loop wore Chrome/Edge/Firefox UAs WITH valid client hints
+    // and Sec-Fetch-* headers — invisible to every rule above — but its Accept
+    // header does not match the browser it claims (see isForgedBrowserPersona:
+    // desktop Chromium always advertises signed-exchange; Firefox always lists
+    // image/webp and sends Upgrade-Insecure-Requests). The Caddyfile twin
+    // (@forgedchromium / @forgedfirefox) sheds first; this is the origin-side
+    // mirror so a request that reaches Next is still classified and labelled.
+    // Navigations only, signed-in humans exempt, verified bots exempted above.
+    if (!hasSessionCookie(req)) {
+      const persona = isForgedBrowserPersona(req.headers);
+      if (persona) return persona;
+    }
 
     // FORGED-REFERER SHED (Aug 11 2026). A residential-proxy fleet sent
     // `Referer: https://themoviebrowser.com` — no trailing slash — on deep
