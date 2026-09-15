@@ -362,6 +362,108 @@ enough to 429 on. The bar is the same one `bot-filter.ts` uses for the stripped
 `google.com/search?q=` referer — and it is why that section says to hunt for
 determinism, not thresholds.
 
+### The FORGED-PERSONA sheds + Caddy ADMISSION CONTROL (Sep 15 2026)
+
+**Incident:** `next-server` heap-OOM crash loop — exit 134 `FATAL ERROR: Ineffective
+mark-compacts near heap limit`, 12 restarts between 04:38 and 06:58 UTC on Sep 14 and
+again 04:28/06:29/06:40 on Sep 15, each restart a cold-cache stampede; the site
+"hung" (origin TTFB 21s, edge still serving cached HTML). Full perf write-up:
+`performance.md` item 14. The load was a residential-proxy fleet that passes EVERY
+earlier shed — genuine-looking Chrome 142-145 / Edge / Firefox 151 UAs WITH valid
+client hints and Sec-Fetch-* headers: **45,847 origin renders/hr from 43,948
+one-request "sessions", 0 authenticated, 0 web-vitals beacons (no JS), 81%
+CN-geolocated**, running **03:00–07:00 UTC daily** on top of the 24/7 baseline
+fleet (~25k/hr, mostly US). Confirmed humans in the same hour: 42 views, 1 session.
+CN confirmed humans over 30 days: none (not in the top 15 countries; 0 sessions with
+a beacon or auth).
+
+**How the tells were found — tcpdump the plaintext Caddy→Next leg.** ClickHouse
+stores no request headers beyond UA/referer, so header-consistency signals are
+invisible there. On the box: `sudo timeout 10 tcpdump -i lo -A -s 4000 -l -c 3000
+'tcp dst port 3002'`, parse each packet's headers, cross-tab by
+`(Cf-IPCountry, UA family, has Priority, has Upgrade-Insecure-Requests,
+signed-exchange in Accept, Sec-Fetch-User, client hints, Accept-Language)`. Two
+invariants fell out — the same class as `missing_client_hints` and the no-slash
+referer (no conforming browser can emit them):
+- **Desktop Chromium ≥ 100 ALWAYS advertises `application/signed-exchange;v=b3;q=0.7`
+  in its navigation `Accept`** (SXG since Chrome 73, never removed; Edge/Chromium/
+  Vivaldi/Arc inherit it). Every real-looking Chrome/Edge navigation in the capture
+  (US/TR/ID, incl. real Edge 148) carried it AND a `Priority: u=0, i` header; every
+  fleet request carried neither (pre-73 Accept `…image/apng,*/*;q=0.8`).
+- **Firefox ≥ 65 ALWAYS lists `image/webp` in its navigation `Accept`** (avif since
+  92; png,svg since ~128) **AND sends `Upgrade-Insecure-Requests: 1`** on document
+  navigations. The 24/7 "Firefox 151" persona (~7k/hr) sends the 2018 Accept and no
+  UIR. Both must be missing (belt and braces).
+- NOT used (yet): missing `Priority` on a Chromium ≥124 UA. Chromium only sends it on
+  h2/h3, so a real Chrome forced to HTTP/1.1 (corporate MITM) would false-positive
+  at Caddy, which cannot see the viewer protocol. At the EDGE it is safe:
+  Cloudflare exposes `http.request.version` — a future WAF rule can gate on it.
+
+**Shipped (Caddyfile `@forgedchromium` / `@forgedfirefox`, 429 `private, no-store`,
+twin `isForgedBrowserPersona` in `bot-detection.ts` wired into `scraperShedReason`
+as labels `forged_chromium` / `forged_firefox`).** Guards on both: `Sec-Fetch-Mode:
+navigate` + `Sec-Fetch-Dest: document` (RSC/prefetch/API fetches are `cors`; Googlebot
+and unfurlers send no Sec-Fetch at all and can never match), no session cookie,
+`X-Verified-Bot: true` exempt, Brave (brand in `Sec-CH-UA`), Opera/Yandex/Samsung,
+WebView, CriOS, Electron, mobile and declared bots excluded from the Chromium arm
+rather than trusted. Verified with a 22-case battery in a throwaway Caddy on `:8099`
+(forged personas 429; real Chrome/Edge/Firefox, Brave, Android, Chrome 72, Firefox 60,
+signed-in, verified bot, RSC fetch, Googlebot, Safari, curl all 200) and then
+against the ORIGIN — never the edge (UA/Accept are not in the cache key). Result:
+0 restarts since, RSS flat ~2GB, load 0.7, 46k sheds in the first 4h, Firefox-151
+persona reaching the origin: 0.
+
+**Admission control — the structural fix, independent of any fingerprint.** Next has
+no concurrency limit, so memory scales with in-flight renders: at the crash there
+were 450–520 ESTAB connections on `:3002` (351 in CLOSE-WAIT = rendering for
+clients that had already gone), accept backlog 512/511. Now in `reverse_proxy`:
+`unhealthy_request_count 96` (upstream unavailable while it has that many in
+flight) + `lb_try_duration 15s` / `lb_try_interval 100ms` (Caddy QUEUES the excess
+— a parked goroutine — and re-checks every 100ms before answering 503). Overload
+degrades to fast 200s for what fits + prompt 503s for the rest instead of 21s
+TTFBs then a crash. Cloudflare does not cache 503s by default; `Always Online` may
+serve stale. Sizing: healthy steady state is ~10–30 in flight on 2 vCPUs; SSE
+`enrich` streams (real users only — fleets run no JS) and Next's own self-proxied
+rewrites (below) each hold a slot, hence the headroom. Watch `code="503"` in the
+metrics before lowering it.
+
+**Observability: Caddy `/metrics`.** Global `servers { metrics }` (Caddy 2.11 warns
+this nested form is deprecated — move to the global `metrics` option on the next
+edit). `curl -s localhost:2019/metrics | grep caddy_http_request_duration_seconds_count`
+gives request counts by status/handler — the ONLY place a Caddy 429/503 shows up,
+since it never reaches Next and never becomes a `page_view` row.
+
+**Caddyfile deploy mechanics (re-learned):** deploys ship `Caddyfile` in the tar but
+NEVER recreate the container, and the bind-mounted file is read at container start —
+so a repo edit does nothing until `docker compose up -d --force-recreate caddy` on
+the box (`caddy validate` first: `docker run --rm -v $PWD/Caddyfile:/etc/caddy/
+Caddyfile:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter
+caddyfile`). Conversely the box copy must match the repo, or the next recreate
+silently reverts the sheds. Backup of the pre-change file:
+`/home/ubuntu/movie-browser-next/Caddyfile.bak-20260915T065238Z`.
+
+**Three things found on the way (open):**
+1. **The Cloudflare token cannot manage WAF rules.** `GET …/rulesets/phases/
+   http_request_firewall_custom/entrypoint` returns `request is not authorized`
+   while the late-transform ruleset reads fine and the zone list shows the
+   firewall_custom ruleset EXISTS — so this is a missing `Zone → WAF → Edit`
+   permission, not the "entrypoint does not exist" case. With it, the cheapest fix
+   for this fleet is an edge rule (managed challenge for `ip.src.country eq "CN" and
+   not cf.client.bot and not http.cookie contains "authjs.session-token"`, or the
+   Accept/Priority invariants gated on `http.request.version`), which also removes
+   the fleet's origin egress cost (cdn.md → Cost correction). Needs the user.
+2. **Cloudflare's AI-bot block now 403s `Claude-SearchBot`** (`text/plain`, `cf-ray`
+   present, at the edge) — the Sep 9 "inert" observation no longer holds. Policy
+   question: robots.txt allows Claude-SearchBot and `llm-friendly.md` wants it on
+   the `.md` layer.
+3. **Prod self-proxies `.md` rewrites through the public hostname.** `next-error.log`
+   has 3,471 `Failed to proxy https://themoviebrowser.com/api/md?p=…` /
+   `/media-not-found` lines: the proxy's `.md`/404 rewrite is treated as
+   cross-origin (the `req.nextUrl.origin` trap in `llm-friendly.md`, live in PROD,
+   not just dev), so every `.md` hit is TWO requests through Cloudflare + Caddy
+   (and it relays edge 403s — that is how item 2 surfaced). Fix = rewrite to the
+   internal origin. Costs a slot under admission control.
+
 ## Origin lockdown — UNRESOLVED
 Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
 - Caddy has a dormant `X-Origin-Verify` secret-header gate (activates when
@@ -427,6 +529,25 @@ Two facts that decide the migration:
    DNS to Cloudflare). The fleet changes the SIZE of the win, not whether one exists.
    **Do NOT attribute the elevated bill to the origin shed** — the 3–5× step
    predates it by two weeks; the shed's marginal cost is ~$1/day.
+
+**CORRECTION (Sep 9 2026) — EGRESS IS NOT FREE BEHIND CLOUDFLARE; the move was
+near cost-neutral.** "Data transfer is irrelevant" above was true only because
+EC2→CloudFront origin transfer is $0. Behind Cloudflare every origin fetch is EC2
+**internet egress** (`APS5-DataTransfer-Out-Bytes`, **$0.109/GB in ap-south-2**
+beyond the account-wide **100 GB/month** free tier). Measured: free tier exhausted
+Aug 22; billed **17–24 GB/day = $1.37–2.45/day** Aug 22–31 (the EC2-Compute line
+jumped $1.54→$2.90–3.96/day — that is the whole jump, no second instance). Reconciles
+with instance `NetworkOut` 25–34 GB/day minus ~8 GB/day same-region S3 backups (free),
+and with Cloudflare uncached bytes 12–20 GB/day. Origin gzip is on (43KB/detail page),
+so compression is not the lever. **≈ $50–55/mo** vs CloudFront's ~$70/mo pace →
+the migration nets ~$20–25/mo, not ~$90. The egress is the fleet: Cloudflare HTML
+`miss` bytes rose 5.2→14.6 GB/day (Aug 24→Sep 2) with humans flat. Lever = shed at
+the EDGE (Free WAF rules; forged-referer invariant is regex-free and cannot hit
+Googlebot) — which reverses "keep shedding at the origin" below: on Cloudflare an
+origin 429 is still a billed origin fetch. Trap: `public/` assets serve `max-age=0`
+so Cloudflare shows `REVALIDATED`/`expired` on every `/images/*.png`, but the origin
+answers the conditional with a 304 + 0 bytes — that costs round-trips, not egress.
+Memory: `cost-sep09`.
 
 Watch it with **`./scripts/cdn-watch.sh`** (requests/day, month-end projection vs
 the free tier, origin shed volume, threshold verdict). Deliberately a pull script,

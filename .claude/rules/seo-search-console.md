@@ -255,6 +255,48 @@ them all. Brave has an independent index with NO submission console. Apple
   decision — reconsider now that the `.md` layer + CDN absorb crawl cost);
   ClaudeBot/GPTBot training crawlers stay blocked (see cdn.md + robots.txt).
 
+## Sep 2026 status — Google has cut the crawl; Bing/DDG is the channel (audit Sep 9 2026)
+
+Measured one hour after the Sep 3–9 outage (six days of Cloudflare 52x, ~810k
+failed edge requests — see memory `prod-outage-oom-network-sep03`). Read this before
+interpreting any GSC number:
+
+- **Clicks have been 0–2/day since Aug 6** (the adult purge removed the only traffic
+  Google sent). Impressions ~700–1,000/day are ~90% ONE query, `bekir aksoy`
+  (Turkey, 7.8k impressions, pos 1.1) — so "average position 1.3" is an artefact of
+  a single person page, not a ranking signal. Always pull the query dimension first.
+- **Googlebot origin hits collapsed Aug 25→28 from ~95k/day to 449–715/day, BEFORE
+  the outage.** Verified it is real, not a relabel or a fault: `positionCaseInsensitive
+  (user_agent,'Googlebot')` matches `bot_type='googlebot'`; no commits or deploys after
+  Aug 18; mainstream pages serve `index, follow` + self-canonical (Google agrees on the
+  canonical); robots ALLOWED; `www`/`beta` 301 to apex; Cloudflare `fight_mode` off,
+  `browser_check` off, `crawler_protection` disabled; Googlebot-UA fetches through
+  Cloudflare return 200. Only GSC → Settings → Crawl stats (UI only) can show Google's
+  side. Treat it as Google's quality/crawl-budget decision on a ~800k-thin-page,
+  outage-scarred domain. The 5-day 52x wall will deepen it; expect no Google recovery
+  without authority (inbound links) — the Jul 24 diagnosis still stands.
+- **URL Inspection Sep 9:** `interstellar` and the top-impression person page =
+  "Crawled - currently not indexed" (last crawl Jul 26/27 — Interstellar was
+  "Submitted and indexed" on Aug 17 and was dropped WITHOUT a recrawl); `inception`,
+  `game-of-thrones`, `frankenstein` (2025) = **"URL is unknown to Google"** despite
+  being in the sitemaps (`sitemap: []` on every inspected URL). Homepage indexed,
+  last crawl Aug 12.
+- **Sitemaps after an outage:** 8 of 13 children gained `errors=1` from fetch
+  attempts that hit 52x; `lastDownloaded` keeps the last SUCCESSFUL fetch, so the
+  counts look contradictory. Resubmitting the index (`scripts/gsc.sh submit-sitemap`,
+  204) is the right nudge here — the "don't panic-resubmit" rule above is for the
+  pending state, not for a real fetch failure.
+- **What actually brings humans:** confirmed-human referrers over 15 days were bing
+  148, duckduckgo 64, direct 31, yahoo ~23, brave 10, chatgpt 3, google ≈ 0; the
+  is_bot=0 pool sees ~100 Bing + ~90 DDG referred sessions/day (DDG/Yahoo/Ecosia are
+  Bing-fed). bingbot resumed within the hour of recovery. Measure outage recovery on
+  Bing, not GSC.
+- **AI answer engines are the biggest crawlers now**, at the origin (Aug 20 – Sep 2):
+  meta-webindexer 80–173k/day, Claude-SearchBot 47–72k/day, Applebot ramping
+  0.5k→22k/day, OAI-SearchBot 0.3–2.8k, ChatGPT-User ~130; `.md` layer 27–99k
+  hits/day. Cloudflare `bot_management.ai_bots_protection` reads `"block"` yet none of
+  these are blocked — it is inert for them; neither fix it nor credit it.
+
 ## Monitoring recipe (do this when asked about SEO health)
 
 1. `scripts/gsc.sh sitemaps` — all fetched? indexed counts moving?

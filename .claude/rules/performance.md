@@ -384,6 +384,95 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    `MALLOC_ARENA_MAX` must be a real process env var — PM2 `--update-env` reads
    the ecosystem `env` block, NOT arbitrary shell vars.
 
+13. **Six-day outage from ONE OOM (Sep 3–9 2026): memory exhaustion killed the
+   NETWORK, not just the process — and nothing could auto-recover it.** During a
+   ~2× traffic surge (105-109k req/h vs 55-66k the day before; one Mac-Chrome UA
+   string did 156k req/3h and passes the shed; `person` top page type),
+   `next-server` grew to **5.8GB anon RSS** — with `MALLOC_ARENA_MAX=2` AND
+   `--max-old-space-size=3072` both applied (verified in `/proc/<pid>/environ`), so
+   this is NOT the item-12 arena bug; the growth is still undiagnosed (take a
+   `kill -USR2` heap snapshot next time RSS passes ~2GB). Sequence: the 2GB
+   swapfile filled → 26MB/s sustained swap-in (`EBSReadBytes` ~7.9GB/5min, CPU
+   56%, egress → 0) → **`systemd-networkd: ens5: Could not set DHCPv4 address:
+   Connection timed out` → `ens5: Failed`** → kernel OOM-killed next-server 13s
+   later → memory freed, PM2 restarted Next within 3s, cron kept running (nightly
+   pg_dump CPU spikes for 6 days, every S3 upload failed) — but networkd never
+   retried DHCP, so the instance had no IP until a manual `aws ec2
+   reboot-instances` (restored in 28s; ACPI shutdown was clean).
+   - **Signature of "guest alive, NIC dead"**: `describe-instance-status`
+     instance=`impaired` + system=`ok`; `NetworkOut` EXACTLY 0 while CPU still
+     shows periodic cron spikes; nightly S3 backups stop; the box's own
+     `MovieBrowser/DiskUsedPercent` heartbeat stops; `get-console-output --latest`
+     ends in the `Out of memory: Killed process … next-server` line. Check these
+     BEFORE suspecting billing, DNS, or the CDN (the Sep 9 question was "is it the
+     unpaid AWS bill?" — the account API worked and CloudTrail showed no stop).
+   - **Every safeguard was dead, each for its own reason** (all still open as of
+     Sep 9 unless noted): (a) PM2 `max_memory_restart: 1500M` binds to the process
+     PM2 spawned — `script: "npm", args: "start"` → PM2 monitors **npm (64MB in
+     `pm2 ls`)**, never the grandchild `next-server` (1GB+); the cap can NEVER
+     fire. Point PM2 at the next binary directly. (b) `pm2-ubuntu.service` has
+     `OOMPolicy=stop`, so an OOM kill of next-server stops the whole PM2 unit
+     (it came back via `Restart=`, but don't rely on it) — set `OOMPolicy=continue`.
+     (c) `beta-status-check-failed` has ONLY an SNS action — adding
+     `arn:aws:automate:ap-south-2:ec2:reboot` would have ended this in minutes.
+     The alarms are CLI-created, NOT in Terraform. (d) The ClickHouse container
+     had restart policy `no` (created before compose said `unless-stopped`) and
+     did not return after the reboot — FIXED in place with
+     `docker update --restart unless-stopped analytics-clickhouse` (avoid
+     `compose up` recreation: part-merge backlog CPU spike). (e) EC2 serial
+     console access is disabled at the account level, so there was no way in.
+     (f) `~/.pm2/logs/next-out.log` is 2.2GB and unrotated — install
+     `pm2-logrotate`.
+   - Memory budget reality check: `infrastructure.md` budgets Next at 600MB; it
+     idles at ~1GB RSS right after a cold boot and reached 5.8GB. The 2GB swapfile
+     turns an OOM (fast, recoverable) into an 80-minute thrash that starves
+     userspace daemons — that is what took networkd down.
+
+14. **Heap-OOM crash loop from UNBOUNDED render concurrency (Sep 14–15 2026) —
+   the "prod hanged" that was really a 10-minute restart cycle.** Signature: PM2
+   log `App [next:3] exited with code [134]` every 7–12 min (12× on Sep 14
+   04:38–06:58 UTC, again Sep 15 04:28/06:29/06:40), `next-error.log` shows
+   `FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed -
+   JavaScript heap out of memory` (the V8 `--max-old-space-size=3072` cap), a
+   3-minute-old next-server already at 2.9GB RSS / 147% CPU, **`ss -tan '( sport =
+   :3002 )'` showing 450–520 ESTAB + 351 CLOSE-WAIT + accept backlog 512/511**,
+   `curl localhost:3002/` returning nothing, origin TTFB 21s while the edge served
+   cached HTML — and **Postgres IDLE** (24 idle / 1 active), so not a query.
+   CLOSE-WAIT is the tell: Next was still rendering pages for clients that had
+   already hung up. Traffic: 45k origin renders/hr from a no-JS fleet (81% CN,
+   03:00–07:00 UTC daily; see `cdn.md` → FORGED-PERSONA sheds) on top of ~25k/hr
+   baseline fleet; confirmed humans that hour: 1 session. Heap ∝ in-flight
+   renders, so the fix is to BOUND in-flight renders, not to chase a leak:
+   - **Caddy admission control** (`unhealthy_request_count 96` + `lb_try_duration
+     15s`) — the structural fix; and the two forged-persona sheds that remove
+     the fleet itself. Both in the Caddyfile, applied with a container recreate,
+     no deploy. Result: 0 restarts in the following hours, RSS flat ~2GB, load
+     4.3→0.7, in-flight 520→13.
+   - **PM2 now supervises next-server directly** (`script:
+     node_modules/next/dist/bin/next`, `max_memory_restart 4000M`). With
+     `script: "npm"` PM2 monitored npm — `pm2 ls` said 61mb while next-server was
+     at 4.8GB — so the cap could never fire (this was Sep 3 follow-up #1). Apply
+     a `script` change with `pm2 delete next && pm2 start ecosystem.config.cjs
+     --only next && pm2 save`; `startOrReload` does not pick it up.
+   - **Don't heap-snapshot a 4.8GB process on a dying box** — the snapshot needs
+     memory ≈ heap and pauses the process; take it at ~2GB on a quiet box, and
+     only once concurrency is bounded (otherwise it just shows N in-flight
+     renders).
+   - **Do the cheap triage in this order:** `pm2.log` restart timeline → `grep
+     FATAL next-error.log` → `ss -tan` state counts on :3002 → `ps rss/pcpu` of
+     next-server sampled 25s → `pg_stat_activity` → ClickHouse
+     `page_views` per hour by `country`/`bot_type`/`uniq(session_id)` (a fleet =
+     sessions ≈ requests, 0 `lcp>0`, 0 authed) → `tcpdump -i lo 'tcp dst port
+     3002'` for headers ClickHouse doesn't store. CloudWatch `NetworkOut` spikes
+     of 2.7GB (02:30 UTC) and 5.4GB (04:00 UTC) are the nightly `pg-backup.sh`
+     and `clickhouse-backup.sh` S3 uploads — they land INSIDE the fleet window
+     and compound it (CPU 99% at 03:56), but they are not the cause. (Why is the
+     ClickHouse backup 5.4GB for ~130MB of analytics data? Unchecked — worth a look.)
+   - **Verify a Caddy shed against the ORIGIN, and test the matchers in a
+     throwaway Caddy first** (`:8099`, `admin off`, matchers + `respond 200`,
+     a curl battery of forged vs real header sets) — regex/quoting mistakes in
+     a Caddyfile are otherwise found by real users.
+
 ## Testing a fix
 
 - **App perf:** re-run the Playwright TTFB / POST-timing scripts above against beta after deploy; compare before/after. Confirm load average dropped via SSH.
