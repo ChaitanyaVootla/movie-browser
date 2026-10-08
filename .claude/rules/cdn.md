@@ -1072,3 +1072,10 @@ had cached them too; don't rely on that.
 - Objects ALREADY pinned need an explicit purge (prefix purge also covers
   `?_rsc=` variants). After any deploy that changes a static page or turns one
   into a redirect, purge those paths.
+
+**Purge token status (Oct 8 2026):** live. Box `.env.local` has `CLOUDFLARE_ZONE_ID` +
+`CLOUDFLARE_PURGE_TOKEN` (a copy of the operator's general `CLOUDFLARE_API_TOKEN`, which
+now has Cache Purge. It is NOT a purge-only token, by the user's choice; swap in a
+purge-only one if the box's credential blast radius matters). `next` needs a reload after
+any `.env.local` change. Verify with ClickHouse `api_calls WHERE service='cdn_purge' AND
+endpoint LIKE 'cloudflare%'` (`error_type` NULL = ok, `cf_10000` = scope missing).
