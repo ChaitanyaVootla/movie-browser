@@ -19,12 +19,25 @@ import { GenreList } from "./genre-badge";
 import { MediaScroller } from "./media-scroller";
 import { EnrichButton } from "./enrich-button";
 import { RefreshDataButton } from "./refresh-data-button";
-import { ItemAnalyticsModal, AIDataModal } from "@/components/features/admin";
+import dynamic from "next/dynamic";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useMobile } from "@/hooks/use-mobile";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { WatchNotes } from "./insight-sections";
 import { StandoutAspects } from "./standout-aspects";
+
+// Admin-only tools are loaded on demand. A static import (previously from the
+// `@/components/features/admin` barrel) pulled the WHOLE admin dashboard —
+// every tab + recharts — into the client bundle of every page that renders a
+// media overview, for a footer that only ever mounts for admins.
+const ItemAnalyticsModal = dynamic(
+  () => import("@/components/features/admin/item-analytics-modal").then((m) => m.ItemAnalyticsModal),
+  { ssr: false }
+);
+const AIDataModal = dynamic(
+  () => import("@/components/features/admin/ai-data-modal").then((m) => m.AIDataModal),
+  { ssr: false }
+);
 
 /**
  * Light prop types for RSC serialization optimization.

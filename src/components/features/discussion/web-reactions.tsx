@@ -1,23 +1,42 @@
-import { z } from "zod";
 import { Globe, ThumbsUp } from "lucide-react";
 
 /**
  * videos.top_comments JSON shape (prisma Video.topComments comment):
  * { author, authorChannel, text, likeCount, publishedAt, isCreatorHeart }.
  * No avatar URL is stored, so reactions render text-only.
+ *
+ * Hand-rolled guard instead of a zod schema: this module renders on the CLIENT
+ * (discussion empty state), and importing zod there shipped the whole zod v4
+ * classic build (+ every locale) — ~62KB gzipped on every detail page — to
+ * validate three optional fields. Semantics match the old
+ * `z.object({ author: z.string().optional(), text: …, likeCount: z.number().optional() })`:
+ * a present-but-wrong-typed field rejects the item; unknown keys are dropped.
  */
-const TopCommentSchema = z.object({
-  author: z.string().optional(),
-  text: z.string().optional(),
-  likeCount: z.number().optional(),
-});
+export interface TopComment {
+  author?: string;
+  text?: string;
+  likeCount?: number;
+}
 
-export function parseTopComments(raw: unknown, limit = 3): Array<z.infer<typeof TopCommentSchema>> {
+function toTopComment(item: unknown): TopComment | null {
+  if (typeof item !== "object" || item === null || Array.isArray(item)) return null;
+  const { author, text, likeCount } = item as Record<string, unknown>;
+  if (author !== undefined && typeof author !== "string") return null;
+  if (text !== undefined && typeof text !== "string") return null;
+  if (likeCount !== undefined && (typeof likeCount !== "number" || Number.isNaN(likeCount))) return null;
+  const out: TopComment = {};
+  if (author !== undefined) out.author = author;
+  if (text !== undefined) out.text = text;
+  if (likeCount !== undefined) out.likeCount = likeCount;
+  return out;
+}
+
+export function parseTopComments(raw: unknown, limit = 3): TopComment[] {
   if (!Array.isArray(raw)) return [];
-  const parsed: Array<z.infer<typeof TopCommentSchema>> = [];
+  const parsed: TopComment[] = [];
   for (const item of raw) {
-    const result = TopCommentSchema.safeParse(item);
-    if (result.success && result.data.text) parsed.push(result.data);
+    const result = toTopComment(item);
+    if (result?.text) parsed.push(result);
     if (parsed.length >= limit) break;
   }
   return parsed;

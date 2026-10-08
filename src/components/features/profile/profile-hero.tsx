@@ -5,7 +5,8 @@ import { HeroBackdropShell } from "@/components/features/media/hero-backdrop-she
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { getMediaPath } from "@/lib/utils";
 import type { PublicProfileDTO } from "@/types/social";
-import { UserModerationMenu } from "@/components/features/discussion";
+// Direct import — the discussion barrel drags server-only modules into the client graph.
+import { UserModerationMenu } from "@/components/features/discussion/user-moderation-menu";
 import { FollowButton } from "./follow-button";
 import { OwnerActions } from "./owner-actions";
 

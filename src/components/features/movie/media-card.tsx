@@ -4,7 +4,12 @@ import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences
 import { MovieCard, MovieCardSkeleton } from "./movie-card";
 import { WideMovieCard, WideMovieCardSkeleton } from "./wide-movie-card";
 import { HoverCardWrapper } from "@/components/features/hover-card";
-import { DiscussionCountBadge } from "@/components/features/discussion";
+// Direct import, NOT the `@/components/features/discussion` barrel: this card
+// is a client component rendered on nearly every page, and the barrel's
+// server-component exports (DiscussionSection → @/server/db/postgres → Prisma,
+// AWS SDK, crypto polyfills) plus the Tiptap composer were all bundled into the
+// client through it (~1.4MB raw JS on every route, measured Oct 2026).
+import { DiscussionCountBadge } from "@/components/features/discussion/discussion-count-badge";
 import type { MovieListItem, SeriesListItem } from "@/types";
 
 interface MediaCardProps {

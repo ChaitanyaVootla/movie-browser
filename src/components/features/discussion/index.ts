@@ -1,6 +1,7 @@
 export { DiscussionSection } from "./discussion-section";
 export { CommentListClient } from "./comment-list-client";
-export { CommentComposer } from "./comment-composer";
+// CommentComposer is deliberately NOT re-exported (Tiptap editor — see
+// comment-list-client.tsx, which lazy-loads it).
 export { CommentThread } from "./comment-item";
 export { LockedTeaser } from "./locked-teaser";
 export { WebReactions, parseTopComments } from "./web-reactions";
