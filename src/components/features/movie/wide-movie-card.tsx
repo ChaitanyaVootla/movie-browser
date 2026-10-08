@@ -182,7 +182,12 @@ export function WideMovieCard({
               <MovieCardActions
                 itemId={item.id}
                 isMovie={itemIsMovie}
-                className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                title={title}
+                // Invisible ≠ inert: without pointer-events-none the hidden
+                // buttons still caught taps on touch (no hover there), so a tap
+                // on the poster's lower edge toggled watched / opened the log
+                // instead of opening the card. Keyboard focus reveals them too.
+                className="absolute bottom-2 left-2 right-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity duration-300"
               />
 
               {/* Bottom-left scoop: personal cluster supersedes the quality badge */}

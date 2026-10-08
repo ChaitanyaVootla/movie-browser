@@ -13,16 +13,19 @@ import { useSession } from "next-auth/react";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { QuickLogButton } from "@/components/features/tracking/quick-log-button";
 import { SaveButton } from "@/components/features/lists/save-button";
+import { stopPortalClicks } from "./stop-portal-clicks";
 
 const MEDIA_TYPE: MediaType = "movie"; // Only movies for now
 
 interface MovieCardActionsProps {
   itemId: number;
   isMovie: boolean;
+  /** Title shown in the quick-log dialog header ("Log “Title”"). */
+  title?: string;
   className?: string;
 }
 
-export function MovieCardActions({ itemId, isMovie, className }: MovieCardActionsProps) {
+export function MovieCardActions({ itemId, isMovie, title = "", className }: MovieCardActionsProps) {
   const { data: session } = useSession();
   // Granular subscriptions: only re-render when THIS item's watched/watchlist
   // state changes, not on every store mutation. Action fns are stable references.
@@ -47,12 +50,15 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
   };
 
   return (
-    <div className={cn("flex items-center justify-between gap-2", className)}>
+    <div
+      className={cn("flex items-center justify-between gap-2", className)}
+      onClick={stopPortalClicks}
+    >
       <SaveButton
         variant="card"
         itemId={itemId}
         mediaType={mediaType}
-        title=""
+        title={title}
         posterPath={null}
         isInWatchlist={inWatchlist}
         toggleWatchlist={() => toggleWatchlist(itemId, mediaType)}
@@ -71,7 +77,7 @@ export function MovieCardActions({ itemId, isMovie, className }: MovieCardAction
         {watched ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </Button>
 
-      <QuickLogButton mediaType="movie" tmdbId={itemId} title="" variant="card" />
+      <QuickLogButton mediaType="movie" tmdbId={itemId} title={title} variant="card" />
     </div>
   );
 }
