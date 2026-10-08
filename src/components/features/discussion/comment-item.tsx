@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Flag, MessageCircle, MoreHorizontal, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/features/profile/user-avatar";
@@ -16,14 +17,21 @@ import { deleteComment } from "@/server/actions/comments";
 import type { CommentDto, CommentThreadDto } from "@/server/db/postgres/comments";
 import type { DiscussionAnchor } from "@/server/services/discussion/comment-schemas";
 import { cn } from "@/lib/utils";
-import { CommentComposer } from "./comment-composer";
-import { RichTextBody } from "@/components/features/rich-text";
+// Direct file import: the rich-text barrel also exports the Tiptap editor.
+import { RichTextBody } from "@/components/features/rich-text/rich-text-body";
 import { CueBadge } from "./cue-badge";
 import { LinkCard } from "./link-card";
 import { LikeButton } from "./like-button";
 import { ReportDialog } from "./report-dialog";
 import { ScopeBadge } from "./scope-badge";
 import { AttachmentImages } from "@/components/features/media/attachment-images";
+
+// The composer is lazy-loaded: it carries the whole Tiptap/ProseMirror editor
+// (~0.9MB raw JS) and only mounts after the user opts in (click to write). A
+// static import put that editor in the client bundle of every detail page.
+const CommentComposer = dynamic(() => import("./comment-composer").then((m) => m.CommentComposer), {
+  ssr: false,
+});
 
 function relativeTime(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);

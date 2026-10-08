@@ -421,8 +421,8 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      `docker update --restart unless-stopped analytics-clickhouse` (avoid
      `compose up` recreation: part-merge backlog CPU spike). (e) EC2 serial
      console access is disabled at the account level, so there was no way in.
-     (f) `~/.pm2/logs/next-out.log` is 2.2GB and unrotated — install
-     `pm2-logrotate`.
+     (f) `~/.pm2/logs/next-out.log` was unrotated (7.7GB by Oct 8) — FIXED Oct 8
+     2026 with a system logrotate config, see item 17.
    - Memory budget reality check: `infrastructure.md` budgets Next at 600MB; it
      idles at ~1GB RSS right after a cold boot and reached 5.8GB. The 2GB swapfile
      turns an OOM (fast, recoverable) into an 80-minute thrash that starves
@@ -472,6 +472,76 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
      throwaway Caddy first** (`:8099`, `admin off`, matchers + `respond 200`,
      a curl battery of forged vs real header sets) — regex/quoting mistakes in
      a Caddyfile are otherwise found by real users.
+
+15. **CLIENT BUNDLE: barrel imports shipped ~1MB gz of JS to EVERY route,
+   including Prisma, the AWS SDK and the Tiptap editor (found Oct 8 2026).**
+   Prod movie page loaded 34 first-party chunks = 4.2MB raw / 1.15MB gzip; even
+   `/privacy` carried the same set. Real-user p75 LCP on detail pages was
+   3.1–3.5s and mobile INP p75 416–850ms (`analytics.performance`, confirmed-human
+   sessions, 30d). Root causes, all invisible to typecheck/lint/tests:
+   - A `"use client"` card (`media-card.tsx`, on nearly every page) imported one
+     badge from the `@/components/features/discussion` barrel. The barrel also
+     exports a SERVER component (`DiscussionSection`), and anything a client
+     module imports is compiled for the client — so `@/server/db/postgres`
+     (Prisma browser runtime), `semantic-search` → `cohere-generator` → the
+     Bedrock SDK, plus crypto/stream/buffer polyfills all went to the browser.
+   - **In an RSC page, every `"use client"` component a barrel re-exports becomes a
+     client reference of that route — used or not.** The movie/series pages
+     imported the reviews/discussion barrels, so both Tiptap composers (~0.9MB
+     raw) shipped although they only mount on click.
+   - `media-overview.tsx` imported the admin barrel for an admin-only footer →
+     the whole admin dashboard + recharts on every detail page.
+   - `providers/index.tsx` `dynamic()`-imported `SearchCommand` but imported
+     `useSearch` from the search barrel that also exports it → defeated the lazy
+     load (cmdk eager everywhere).
+   - zod in a client component (`web-reactions.tsx`) = ~62KB gz incl. every locale.
+   FIX: direct file imports, `next/dynamic` for the composers/admin modals, a
+   hand-rolled guard instead of zod. Entry JS (gz): home 993→272KB, movie
+   993→334KB, series 1008→349KB, person 991→272KB.
+   **How to measure (Turbopack prints NO per-route sizes in `next build`):**
+   - Per-route entry JS: eval `.next/server/app/<route>/page_client-reference-manifest.js`
+     and sum `entryJSFiles` (gzip -9 each). Same numbers before/after = valid A/B.
+   - WHO imports a heavy module: `npx next experimental-analyze -o` (Next 16.1+,
+     no server) writes `.next/diagnostics/analyze/data/modules.data` — 4-byte BE
+     length + JSON header (`modules[].ident`), then BE-u32 adjacency arrays
+     (`module_dependents`: count, M+1 offsets, edges). BFS upward from e.g.
+     `@tiptap/extension-emoji [app-client]` to `src/app/layout.tsx` prints the
+     exact import chain. A `src/server/**` module showing up as `[app-client]` is
+     always a bug.
+   - Against prod: `curl` the page HTML, fetch each `/_next/static/chunks/*.js` it
+     references (static, edge-cached), grep for library names.
+   **Rules:** never import a feature barrel (`@/components/features/<x>`) from a
+   `"use client"` file or from a page — import the file. Keep editors, charts and
+   admin tools behind `next/dynamic`. Never let a client file value-import from
+   `@/server/db` or `@/server/services` (type-only imports are fine).
+
+16. **A hardcoded lookup id made a whole feature silently inert — and fixing it
+   would have been a perf regression (Oct 8 2026).** `smart-discover.ts` used
+   `source_id = 1` for TMDB ratings, but `data_sources` ids are autoincrement
+   (TMDB = 6 in prod). With `minVotes` defaulting to 50, every call returned 0
+   rows in ~10ms — the AI agent's `smart_discover` and the detail-page embedding
+   "Similar" row never worked (prod log sample: 3,415/3,415 calls resultCount 0).
+   Fixed by slug (`TMDB_SOURCE_ID_SQL`). **But the fixed similarTo query is a
+   filtered seq scan — there is NO vector index on `movies/series.embedding`:
+   EXPLAIN ANALYZE 8.2s cold / 557ms warm with 2 parallel workers.** It ran inside
+   every cold detail render, so `getSimilarItems` now skips it unless
+   `includeEmbedding: true`. Lesson: when a query is suspiciously fast, check that
+   it returns rows before trusting the latency; and EXPLAIN the *fixed* query
+   before shipping a correctness fix on a render path. Re-enabling embedding
+   "Similar" needs an HNSW index first (pgvector 0.8.2 is installed; use
+   `hnsw.iterative_scan` because the minVotes/adult filters apply after the ANN
+   search, and add it via hash-gated raw SQL since Prisma can't express it).
+
+17. **Log volume: `next-out.log` reached 7.7GB, unrotated (Oct 8 2026).** ~216MB/day;
+   a 20-min sample by bytes was 67% `smart_discover` + `get_similar_items` info
+   logs (one per detail render) and ~17% bare `console.log` hydration trace
+   (which bypasses the Pino level entirely). Now debug-level
+   (`hydration/debug-log.ts` `hydrationDebug()`); `/etc/logrotate.d/pm2-ubuntu`
+   on the box (daily, maxsize 200M, rotate 4, copytruncate — PM2 opens logs
+   O_APPEND, so truncation is safe; verified via `/proc/<pid>/fdinfo` flags).
+   Never grep the live log on the box; `tail -c 3M` it and analyse locally.
+   Rule: anything that fires per render/refresh logs at `debug`, and never use
+   `console.log` in server hot paths.
 
 ## Testing a fix
 

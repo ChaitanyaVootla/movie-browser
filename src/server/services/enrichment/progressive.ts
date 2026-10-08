@@ -237,7 +237,7 @@ async function runEnrichment(
     // Check if overview has changed by seeing if the current overview
     // appears in the stored rawInput. If it does, the data is still valid.
     if (existingAI.rawInput && overview && existingAI.rawInput.includes(overview)) {
-      log.info(
+      log.debug(
         { mediaType, id, event: "enrichment.skipped.exists" },
         "AI data exists and overview unchanged — skipping enrichment"
       );
@@ -431,7 +431,7 @@ export async function triggerProgressiveEnrichment(
 
   // Skip if no overview — not enough data for meaningful AI summary
   if (!tmdbData.overview?.trim()) {
-    log.info(
+    log.debug(
       { mediaType, id, event: "enrichment.skipped.no-overview" },
       "No overview available — skipping enrichment"
     );
@@ -441,7 +441,7 @@ export async function triggerProgressiveEnrichment(
   // Skip low-popularity items to control enrichment costs
   const popularity = tmdbData.popularity ?? 0;
   if (popularity < MIN_POPULARITY_FOR_ENRICHMENT) {
-    log.info(
+    log.debug(
       { mediaType, id, popularity, event: "enrichment.skipped.low-popularity" },
       `Popularity ${popularity} below threshold ${MIN_POPULARITY_FOR_ENRICHMENT} — skipping enrichment`
     );

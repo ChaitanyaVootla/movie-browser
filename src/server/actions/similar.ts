@@ -37,6 +37,21 @@ interface GetSimilarItemsOptions {
   minVotes?: number;
   /** Popularity weight 0-1 (default: 0.15 = slight popularity boost) */
   popularityWeight?: number;
+  /**
+   * Run the pgvector similarity query (default: FALSE — see below).
+   *
+   * There is NO vector index on movies/series.embedding, so a similarTo query
+   * is a filtered sequential scan over every embedded row: measured on prod
+   * (Oct 2026, Interstellar) 8.2s cold / 557ms warm, using 3 PG processes
+   * (parallel workers) on the 2-vCPU box. This runs inside the detail-page
+   * render, which crawlers drive at ~10k cold renders/hour — enabling it there
+   * would hold renders open for seconds and saturate Postgres. (It was
+   * accidentally inert until Oct 2026 — a hardcoded TMDB source_id matched no
+   * rows, so it always returned 0 results in ~10ms.) Re-enable only after an
+   * HNSW index (pgvector >= 0.8 iterative scans, because the minVotes/adult
+   * filters are applied after the ANN search) brings it to low-ms.
+   */
+  includeEmbedding?: boolean;
 }
 
 // =============================================================================
@@ -75,6 +90,7 @@ export async function getSimilarItems(
     excludeIds,
     minVotes = 100,
     popularityWeight = 0.15, // Slight preference for popular items
+    includeEmbedding = false,
   } = options;
 
   const startTime = Date.now();
@@ -83,24 +99,26 @@ export async function getSimilarItems(
     // Fetch embedding-based similar and TMDB data in parallel
     const [discoverResult, tmdbRecs, tmdbSimilar] = await Promise.all([
       // Use smartDiscover for embedding similarity with popularity weighting
-      smartDiscover({
-        mediaType,
-        similarToId: id,
-        limit,
-        minSemanticScore: minScore,
-        minVotes,
-        popularityWeight,
-        excludeCollectionId: mediaType === "movie" ? excludeCollectionId : undefined,
-        excludeIds: excludeIds ? [id, ...excludeIds] : [id], // Always exclude self
-      }).catch((err) => {
-        dataLogger.warn({
-          event: "smart_discover_similar_error",
-          id,
-          mediaType,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return { results: [] as SmartDiscoverResult[], totalFound: 0, filters: {}, stats: {} };
-      }),
+      includeEmbedding
+        ? smartDiscover({
+            mediaType,
+            similarToId: id,
+            limit,
+            minSemanticScore: minScore,
+            minVotes,
+            popularityWeight,
+            excludeCollectionId: mediaType === "movie" ? excludeCollectionId : undefined,
+            excludeIds: excludeIds ? [id, ...excludeIds] : [id], // Always exclude self
+          }).catch((err) => {
+            dataLogger.warn({
+              event: "smart_discover_similar_error",
+              id,
+              mediaType,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            return { results: [] as SmartDiscoverResult[] };
+          })
+        : Promise.resolve({ results: [] as SmartDiscoverResult[] }),
 
       // TMDB recommendations
       includeTmdbFallback
@@ -144,7 +162,9 @@ export async function getSimilarItems(
           ? "embedding"
           : "tmdb";
 
-    dataLogger.info({
+    // debug, not info: this fires on every detail-page render (~10k/hour of
+    // crawler cold renders) and was ~32% of all prod log bytes (Oct 2026).
+    dataLogger.debug({
       event: "get_similar_items",
       id,
       mediaType,

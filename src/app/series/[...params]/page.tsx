@@ -65,8 +65,14 @@ import {
   SeriesProgressInline,
 } from "@/components/features/tracking";
 import NextLink from "next/link";
-import { ReviewsSection, ReviewsRatingsEntry } from "@/components/features/reviews";
-import { DiscussionSection, DiscussionEntryStrip, discussionsHref } from "@/components/features/discussion";
+// Direct file imports, NOT the reviews/discussion barrels: in an RSC page every
+// "use client" component a barrel re-exports becomes a client reference of this
+// route, so the barrels shipped unused editors/dialogs to every detail page.
+import { ReviewsSection } from "@/components/features/reviews/reviews-section";
+import { ReviewsRatingsEntry } from "@/components/features/reviews/reviews-ratings-entry";
+import { DiscussionSection } from "@/components/features/discussion/discussion-section";
+import { DiscussionEntryStrip } from "@/components/features/discussion/discussion-entry-strip";
+import { discussionsHref } from "@/components/features/discussion/discussion-entry-strip-href";
 import {
   EpisodeDiscussPage,
   generateDiscussMetadata,

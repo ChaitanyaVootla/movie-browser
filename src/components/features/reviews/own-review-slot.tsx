@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { Clock, EyeOff, PenLine, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -12,7 +13,12 @@ import { useOpenReview } from "@/hooks/use-open-review";
 import { isStaleServerActionError, recoverFromStaleAction } from "@/lib/stale-action";
 import type { OwnReviewDTO, TrackedMediaType } from "@/types/social";
 import { ReviewCard } from "./review-card";
-import { ReviewComposer } from "./review-composer";
+// The composer is lazy-loaded: it carries the whole Tiptap/ProseMirror editor
+// (~0.9MB raw JS) and only mounts after the user opts in (click to write). A
+// static import put that editor in the client bundle of every detail page.
+const ReviewComposer = dynamic(() => import("./review-composer").then((m) => m.ReviewComposer), {
+  ssr: false,
+});
 
 interface OwnReviewSlotProps {
   mediaType: TrackedMediaType;

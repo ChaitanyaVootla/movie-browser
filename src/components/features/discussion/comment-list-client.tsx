@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,17 @@ import type {
   DiscussionAnchor,
   SpoilerScopeValue,
 } from "@/server/services/discussion/comment-schemas";
-import { CommentComposer } from "./comment-composer";
 import { CommentThread } from "./comment-item";
 import { DiscussionStarters } from "./discussion-starters";
 import { DiscussionEmptyState } from "./discussion-empty-state";
 import { LockedTeaser } from "./locked-teaser";
+
+// The composer is lazy-loaded: it carries the whole Tiptap/ProseMirror editor
+// (~0.9MB raw JS) and only mounts after the user opts in (click to write). A
+// static import put that editor in the client bundle of every detail page.
+const CommentComposer = dynamic(() => import("./comment-composer").then((m) => m.CommentComposer), {
+  ssr: false,
+});
 
 interface CommentListClientProps {
   anchor: DiscussionAnchor;

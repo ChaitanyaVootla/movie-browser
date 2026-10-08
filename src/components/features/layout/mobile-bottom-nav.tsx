@@ -31,7 +31,7 @@ import {
   selectViewerAvatarCrop,
   selectViewerAccent,
 } from "@/stores/user";
-import { useSearch } from "@/components/features/search";
+import { useSearch } from "@/components/features/search/search-context";
 import { useLoginDialog } from "@/components/features/auth";
 import { cn } from "@/lib/utils";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";

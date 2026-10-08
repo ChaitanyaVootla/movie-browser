@@ -6,6 +6,7 @@
  * unchanged rows are skipped entirely (change-detection, June 2026).
  */
 
+import { hydrationDebug } from "../../debug-log";
 import type { MediaType, EnrichedRatings, ScrapedWatchLink } from "../../types";
 import type { PrismaTx } from "./types";
 
@@ -64,7 +65,7 @@ export async function upsertRatings(
     seriesId: mediaType === "series" ? mediaId : null,
   };
 
-  console.log(`[Hydration/Postgres] Upserting ratings for ${mediaType} ${mediaId}:`);
+  hydrationDebug(`[Hydration/Postgres] Upserting ratings for ${mediaType} ${mediaId}:`);
 
   // Change-detection: fetch existing ratings once and skip per-source upserts
   // when stored values already match — the upsert's `updatedAt: new Date()`
@@ -108,7 +109,7 @@ export async function upsertRatings(
   // TMDB rating (always available)
   if (tmdb.vote_average > 0 && !ratingUnchanged("tmdb", { score: tmdb.vote_average, voteCount: tmdb.vote_count })) {
     const sourceId = await getOrCreateSource(tx, "tmdb");
-    console.log(`  → TMDB: ${tmdb.vote_average} (${tmdb.vote_count} votes)`);
+    hydrationDebug(`  → TMDB: ${tmdb.vote_average} (${tmdb.vote_count} votes)`);
     await tx.rating.upsert({
       where:
         mediaType === "movie"
@@ -134,7 +135,7 @@ export async function upsertRatings(
     if (enrichedRatings.imdb?.score && !ratingUnchanged("imdb", enrichedRatings.imdb)) {
       displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "imdb");
-      console.log(
+      hydrationDebug(
         `  → IMDb: ${enrichedRatings.imdb.score} (${enrichedRatings.imdb.voteCount ?? "N/A"} votes)`
       );
       await tx.rating.upsert({
@@ -162,7 +163,7 @@ export async function upsertRatings(
     if (enrichedRatings.rtCritic?.score && !ratingUnchanged("rt_critic", enrichedRatings.rtCritic)) {
       displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "rt_critic");
-      console.log(
+      hydrationDebug(
         `  → RT Critic: ${enrichedRatings.rtCritic.score}% (certified: ${enrichedRatings.rtCritic.certified ?? "N/A"})`
       );
       await tx.rating.upsert({
@@ -199,7 +200,7 @@ export async function upsertRatings(
     ) {
       displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "rt_audience");
-      console.log(`  → RT Audience: ${enrichedRatings.rtAudience.score}%`);
+      hydrationDebug(`  → RT Audience: ${enrichedRatings.rtAudience.score}%`);
       await tx.rating.upsert({
         where:
           mediaType === "movie"
@@ -229,7 +230,7 @@ export async function upsertRatings(
       !ratingUnchanged("metacritic", enrichedRatings.metacritic)
     ) {
       const sourceId = await getOrCreateSource(tx, "metacritic");
-      console.log(`  → Metacritic: ${enrichedRatings.metacritic.score}`);
+      hydrationDebug(`  → Metacritic: ${enrichedRatings.metacritic.score}`);
       await tx.rating.upsert({
         where:
           mediaType === "movie"
@@ -257,7 +258,7 @@ export async function upsertRatings(
       !ratingUnchanged("letterboxd", enrichedRatings.letterboxd)
     ) {
       const sourceId = await getOrCreateSource(tx, "letterboxd");
-      console.log(`  → Letterboxd: ${enrichedRatings.letterboxd.score}`);
+      hydrationDebug(`  → Letterboxd: ${enrichedRatings.letterboxd.score}`);
       await tx.rating.upsert({
         where:
           mediaType === "movie"
@@ -283,7 +284,7 @@ export async function upsertRatings(
     if (enrichedRatings.google?.score && !ratingUnchanged("google", enrichedRatings.google)) {
       displayedChanged++;
       const sourceId = await getOrCreateSource(tx, "google");
-      console.log(`  → Google: ${enrichedRatings.google.score}%`);
+      hydrationDebug(`  → Google: ${enrichedRatings.google.score}%`);
       await tx.rating.upsert({
         where:
           mediaType === "movie"
@@ -302,7 +303,7 @@ export async function upsertRatings(
     }
   }
 
-  console.log(`[Hydration/Postgres] Ratings upsert complete for ${mediaType} ${mediaId}`);
+  hydrationDebug(`[Hydration/Postgres] Ratings upsert complete for ${mediaType} ${mediaId}`);
   return displayedChanged;
 }
 
@@ -388,7 +389,7 @@ export async function upsertScrapedWatchLinks(
     });
   }
   if (written > 0 || stale.length > 0) {
-    console.log(
+    hydrationDebug(
       `[Hydration/Postgres] Watch links ${mediaType} ${mediaId}: ${written} written, ${stale.length} stale removed (${countries.join(",")})`
     );
   }
