@@ -43,9 +43,11 @@ vi.mock("./sources/postgres", () => ({
   fetchSeriesFromPostgres: vi.fn(),
   isPostgresFresh: vi.fn(),
   isPostgresEnrichedFresh: vi.fn(),
-  upsertMovieToPostgres: vi.fn().mockResolvedValue(undefined),
-  upsertSeriesToPostgres: vi.fn().mockResolvedValue(undefined),
+  upsertMovieToPostgres: vi.fn().mockResolvedValue({ written: true, contentChanged: false }),
+  upsertSeriesToPostgres: vi.fn().mockResolvedValue({ written: true, contentChanged: false }),
 }));
+
+vi.mock("@/server/services/cdn", () => ({ notifyIfContentChanged: vi.fn() }));
 
 vi.mock("@/server/db/postgres/movies", () => ({
   getMovieFromPostgres: vi.fn(),
@@ -81,6 +83,7 @@ import {
 import { getMovieFromPostgres } from "@/server/db/postgres/movies";
 import { getSeriesFromPostgres } from "@/server/db/postgres/series";
 import { triggerProgressiveEnrichment } from "@/server/services/enrichment/progressive";
+import { notifyIfContentChanged } from "@/server/services/cdn";
 import type { EnrichedData } from "./types";
 
 const mockFetchMovieFromTmdb = vi.mocked(fetchMovieFromTmdb);
@@ -96,6 +99,7 @@ const mockUpsertSeries = vi.mocked(upsertSeriesToPostgres);
 const mockGetMoviePg = vi.mocked(getMovieFromPostgres);
 const mockGetSeriesPg = vi.mocked(getSeriesFromPostgres);
 const mockTriggerEnrichment = vi.mocked(triggerProgressiveEnrichment);
+const mockNotifyChanged = vi.mocked(notifyIfContentChanged);
 
 // ---------------------------------------------------------------------------
 // Fixtures & helpers
@@ -191,8 +195,8 @@ const lambdaEnriched: EnrichedData = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockUpsertMovie.mockResolvedValue(undefined);
-  mockUpsertSeries.mockResolvedValue(undefined);
+  mockUpsertMovie.mockResolvedValue({ written: true, contentChanged: false });
+  mockUpsertSeries.mockResolvedValue({ written: true, contentChanged: false });
   mockTriggerEnrichment.mockResolvedValue(undefined);
   mockFetchFromLambda.mockResolvedValue(lambdaEnriched);
 });
@@ -434,5 +438,40 @@ describe("hydrateSeries — serve-stale-then-refresh", () => {
 
     await expect(hydrateSeries(id)).rejects.toThrow("TMDB 404");
     expect(mockUpsertSeries).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stale-HTML fix: CDN / ISR invalidation signal
+// ---------------------------------------------------------------------------
+
+describe("content-changed signal (origin ISR + Cloudflare purge)", () => {
+  it("background refresh hands the committed upsert outcome + canonical title to the CDN service", async () => {
+    const id = 901;
+    mockFetchMovieRaw.mockResolvedValue(makePgRawMovie());
+    mockIsPostgresFresh.mockReturnValue(true);
+    mockIsPostgresEnrichedFresh.mockReturnValue(false);
+    mockGetMoviePg.mockResolvedValue(makePgMovie(id) as never);
+    const outcome = { written: true, contentChanged: true };
+    mockUpsertMovie.mockResolvedValue(outcome);
+
+    await hydrateMovie(id);
+    await waitForBackground(mockUpsertMovie);
+
+    // Gating on contentChanged lives in cdn/index.ts (pinned by its own tests).
+    expect(mockNotifyChanged).toHaveBeenCalledWith(outcome, "movie", id, `PG Movie ${id}`);
+  });
+
+  it("a fully fresh PG hit never signals (no refresh, no upsert)", async () => {
+    const id = 902;
+    mockFetchMovieRaw.mockResolvedValue(makePgRawMovie());
+    mockIsPostgresFresh.mockReturnValue(true);
+    mockIsPostgresEnrichedFresh.mockReturnValue(true);
+    mockGetMoviePg.mockResolvedValue(makePgMovie(id) as never);
+
+    await hydrateMovie(id);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockNotifyChanged).not.toHaveBeenCalled();
   });
 });

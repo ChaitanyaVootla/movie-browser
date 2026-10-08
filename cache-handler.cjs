@@ -41,6 +41,76 @@ const gunzipAsync = promisify(zlib.gunzip);
 /** Per-cacheDir singleton stores — survive per-request handler construction. */
 const STORES = new Map();
 
+/** Next's implicit+fetch tag header on APP_PAGE / APP_ROUTE values. */
+const NEXT_CACHE_TAGS_HEADER = "x-next-cache-tags";
+
+/**
+ * Tags of an entry. Next 16 calls set() for APP_PAGE/APP_ROUTE WITHOUT
+ * ctx.tags — a page's tags (incl. the implicit `_N_T_/<path>` tag that
+ * revalidatePath() targets) live only in `value.headers["x-next-cache-tags"]`.
+ * Reading only ctx.tags (the pre-Oct-2026 behaviour) made revalidatePath a
+ * silent no-op for every cached page.
+ */
+function entryTags(ctx, value) {
+  const tags = new Set((ctx && (ctx.tags || (ctx.cacheControl && ctx.cacheControl.tags))) || []);
+  const header = value && value.headers && value.headers[NEXT_CACHE_TAGS_HEADER];
+  if (typeof header === "string") {
+    for (const t of header.split(",")) if (t) tags.add(t);
+  }
+  return [...tags];
+}
+
+function hashNameFor(key) {
+  return crypto.createHash("sha1").update(key).digest("hex") + ".json";
+}
+
+/**
+ * Drop the cached entries for exact cache keys (= route pathnames, e.g.
+ * "/movie/157336/interstellar") from every live store — memory LRU, index,
+ * and disk. The next request for that path renders fresh from PG. Used by
+ * src/server/services/cdn (title content changed in a background refresh).
+ * Never throws; resolves to the number of entries removed.
+ */
+async function invalidateKeys(keys) {
+  let removed = 0;
+  try {
+    const list = Array.isArray(keys) ? keys : [keys];
+    for (const store of STORES.values()) {
+      try {
+        await store.ready;
+      } catch {
+        /* pass-through store */
+      }
+      for (const key of list) {
+        if (typeof key !== "string" || !key) continue;
+        const hashName = hashNameFor(key);
+        const mem = store.memory.get(hashName);
+        if (mem) {
+          store.memoryBytes -= mem.approxBytes;
+          store.memory.delete(hashName);
+        }
+        const entry = store.index.get(hashName);
+        if (entry) {
+          store.index.delete(hashName);
+          store.totalBytes -= entry.size;
+        }
+        const existed = await fsp
+          .unlink(path.join(store.cacheDir, hashName))
+          .then(() => true)
+          .catch(() => false);
+        if (entry || existed || mem) removed++;
+      }
+    }
+  } catch {
+    /* never throw — worst case the page stays stale until revalidate */
+  }
+  return removed;
+}
+
+// Process-wide registry so app code (bundled separately from this CJS file,
+// possibly as a different module instance) reaches the SAME stores.
+globalThis[Symbol.for("movie-browser.bounded-isr")] = { invalidateKeys };
+
 /** Memoized BUILD_ID read — the handler is constructed per request, so the
  *  sync read must happen at most once per distDir. Falls back to "dev" when
  *  the file is missing (dev server, unit tests) for a stable namespace. */
@@ -135,6 +205,7 @@ class BoundedCacheHandler {
     let store = STORES.get(this.cacheDir);
     if (!store) {
       store = {
+        cacheDir: this.cacheDir,
         /** @type {Map<string, {file: string, size: number, lastAccess: number, tags: string[] | null}>} */
         index: new Map(), // insertion order ≈ LRU order (re-inserted on access)
         totalBytes: 0,
@@ -174,10 +245,7 @@ class BoundedCacheHandler {
   }
 
   #fileFor(key) {
-    return path.join(
-      this.cacheDir,
-      crypto.createHash("sha1").update(key).digest("hex") + ".json",
-    );
+    return path.join(this.cacheDir, hashNameFor(key));
   }
 
   async #initIndex(store) {
@@ -242,7 +310,8 @@ class BoundedCacheHandler {
               raw[0] === GZIP_MAGIC_0 && raw[1] === GZIP_MAGIC_1
                 ? (await gunzipAsync(raw)).toString("utf8")
                 : raw.toString("utf8");
-            entry.tags = deserialize(text).tags || [];
+            const stored = deserialize(text);
+            entry.tags = entryTags({ tags: stored.tags }, stored.value);
           })
           .catch(() => {
             entry.tags = [];
@@ -321,9 +390,10 @@ class BoundedCacheHandler {
       await this.store.ready;
       const file = this.#fileFor(key);
       const hashName = path.basename(file);
+      const tags = entryTags(ctx, data);
       const serialized = serialize({
         lastModified: Date.now(),
-        tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
+        tags,
         value: data,
       });
       // level 4: ~6x reduction with modest CPU; MUST stay async (see header)
@@ -338,7 +408,7 @@ class BoundedCacheHandler {
         file: hashName,
         size,
         lastAccess: Date.now(),
-        tags: (ctx && (ctx.tags || ctx.cacheControl?.tags)) || [],
+        tags,
       });
       this.store.totalBytes += size;
       this.#memorySet(
@@ -384,6 +454,7 @@ class BoundedCacheHandler {
 
 module.exports = BoundedCacheHandler;
 // Exported for unit tests:
-module.exports._internals = { serialize, deserialize, BUFFER_TAG };
+module.exports._internals = { serialize, deserialize, BUFFER_TAG, entryTags };
+module.exports.invalidateKeys = invalidateKeys;
 // Test-only: reset singleton state between cases (simulates a process restart).
 module.exports._clearStores = () => STORES.clear();

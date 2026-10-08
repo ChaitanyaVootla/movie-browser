@@ -312,7 +312,7 @@ export function trackUserAction(options: TrackUserActionOptions): void {
 interface TrackAPICallOptions {
   sessionId?: string;
   requestId?: string;
-  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding" | "tavily" | "scraper";
+  service: "tmdb" | "youtube" | "mongodb" | "lambda" | "embedding" | "tavily" | "scraper" | "cdn_purge";
   endpoint: string;
   method?: string;
   statusCode: number;

@@ -19,6 +19,7 @@ import pLimit from "p-limit";
 import { dataLogger } from "@/lib/logger";
 import { getAIData } from "@/server/services/ai-data-service";
 import { upsertAIData } from "@/server/services/ai-data-service";
+import { notifyTitleContentChanged } from "@/server/services/cdn";
 import { buildAIInputFromTMDB, type TMDBData } from "@/server/services/enrichment/ai-input-builder";
 import { ENRICHMENT_SYSTEM_PROMPT } from "@/server/services/enrichment/prompts";
 import { callBedrockFlex } from "@/server/services/enrichment/bedrock-flex";
@@ -402,6 +403,9 @@ async function runEnrichment(
   // Tell IndexNow engines the page gained fresh AI content (fire-and-forget)
   const title = "title" in tmdbData ? tmdbData.title : tmdbData.name;
   void pingIndexNow([getMediaPath(mediaType, id, title)]);
+  // The page was ISR/edge-cached WITHOUT the AI sections; the SSE stream
+  // shows them live, so a reload must not regress to the AI-less copy.
+  notifyTitleContentChanged({ mediaType, id, title });
 }
 
 // =============================================================================

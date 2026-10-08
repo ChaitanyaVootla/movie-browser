@@ -11,7 +11,7 @@
 import { prisma } from "@/server/db/postgres";
 import type { EnrichedData } from "../../types";
 import type { TmdbMovieData } from "../tmdb";
-import type { PrismaTx } from "./types";
+import type { PrismaTx, UpsertOutcome } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
 import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 import {
@@ -43,7 +43,10 @@ import {
 export async function upsertMovieToPostgres(
   tmdb: TmdbMovieData,
   enriched: EnrichedData
-): Promise<void> {
+): Promise<UpsertOutcome> {
+  // Set inside the transaction, read only after it COMMITS (a rolled-back
+  // write must never trigger a purge).
+  let displayedChanged = 0;
   try {
     // Increase timeout for large movies with lots of credits/images
     await prisma.$transaction(
@@ -112,7 +115,7 @@ export async function upsertMovieToPostgres(
         });
 
         // 2. Upsert ratings
-        await upsertRatings(tx, tmdb.id, "movie", tmdb, enriched.ratings);
+        displayedChanged += await upsertRatings(tx, tmdb.id, "movie", tmdb, enriched.ratings);
 
         // 3. Upsert external IDs
         await upsertExternalIds(tx, tmdb.id, "movie", tmdb, enriched.externalIds);
@@ -124,7 +127,7 @@ export async function upsertMovieToPostgres(
         await upsertImages(tx, tmdb.id, "movie", tmdb.images);
 
         // 6. Upsert scraped watch links
-        await upsertScrapedWatchLinks(
+        displayedChanged += await upsertScrapedWatchLinks(
           tx,
           tmdb.id,
           "movie",
@@ -208,6 +211,7 @@ export async function upsertMovieToPostgres(
     ); // 30s timeout for large movies
 
     console.log(`[Hydration/Postgres] Upserted movie ${tmdb.id}: ${tmdb.title}`);
+    return { written: true, contentChanged: displayedChanged > 0 };
   } catch (error: unknown) {
     if (isPrismaError(error) && error.code === "P2022") {
       console.warn(
@@ -220,6 +224,7 @@ export async function upsertMovieToPostgres(
       );
     }
     // Don't throw - let the hydration continue with TMDB data
+    return { written: false, contentChanged: false };
   }
 }
 

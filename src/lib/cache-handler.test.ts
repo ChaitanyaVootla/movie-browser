@@ -227,3 +227,47 @@ describe("gzip storage", () => {
     expect((got?.value as { data: string }).data).toBe("old");
   });
 });
+
+describe("page invalidation (Oct 2026: revalidatePath was a silent no-op for pages)", () => {
+  const page = (html: string) => ({
+    kind: "APP_PAGE",
+    html,
+    rscData: Buffer.from("rsc"),
+    status: 200,
+    // Next 16 puts a page's tags ONLY here — set() gets no ctx.tags.
+    headers: { "x-next-cache-tags": "_N_T_/layout,_N_T_/movie/157336/interstellar" },
+  });
+
+  it("revalidateTag matches a page's x-next-cache-tags header (incl. after restart)", async () => {
+    const first = makeHandler();
+    await first.set("/movie/157336/interstellar", page("<old>"), {});
+    await first.set("/movie/1/other", { ...page("<x>"), headers: {} }, {});
+    BoundedCacheHandler._clearStores();
+    const second = makeHandler();
+    await second.revalidateTag(["_N_T_/movie/157336/interstellar"]);
+    expect(await second.get("/movie/157336/interstellar")).toBeNull();
+    expect(await second.get("/movie/1/other")).not.toBeNull();
+  });
+
+  it("invalidateKeys drops memory, index and disk copies of exact keys", async () => {
+    const handler = makeHandler();
+    await handler.set("/movie/157336/interstellar", page("<old>"), {});
+    await handler.set("/movie/2/keep", page("<keep>"), {});
+    expect(await handler.get("/movie/157336/interstellar")).not.toBeNull(); // now memory-hot
+    const removed = await BoundedCacheHandler.invalidateKeys([
+      "/movie/157336/interstellar",
+      "/never-cached",
+    ]);
+    expect(removed).toBe(1);
+    expect(await handler.get("/movie/157336/interstellar")).toBeNull();
+    expect(await handler.get("/movie/2/keep")).not.toBeNull();
+  });
+
+  it("is reachable through the process-wide registry and never throws", async () => {
+    const reg = (globalThis as Record<symbol, unknown>)[
+      Symbol.for("movie-browser.bounded-isr")
+    ] as { invalidateKeys: (k: unknown) => Promise<number> };
+    expect(typeof reg.invalidateKeys).toBe("function");
+    await expect(reg.invalidateKeys([null, 42, ""])).resolves.toBe(0);
+  });
+});
