@@ -2,12 +2,7 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  useUserStore,
-  selectIsWatched,
-  selectIsInWatchlist,
-  type MediaType,
-} from "@/stores/user";
+import { useUserStore, selectIsWatched, selectIsInWatchlist, type MediaType } from "@/stores/user";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -22,10 +17,18 @@ interface MovieCardActionsProps {
   isMovie: boolean;
   /** Title shown in the quick-log dialog header ("Log “Title”"). */
   title?: string;
+  /** TMDB poster path (e.g. "/abc.jpg") — shown in the save-to-list sheet header. */
+  posterPath?: string | null;
   className?: string;
 }
 
-export function MovieCardActions({ itemId, isMovie, title = "", className }: MovieCardActionsProps) {
+export function MovieCardActions({
+  itemId,
+  isMovie,
+  title = "",
+  posterPath = null,
+  className,
+}: MovieCardActionsProps) {
   const { data: session } = useSession();
   // Granular subscriptions: only re-render when THIS item's watched/watchlist
   // state changes, not on every store mutation. Action fns are stable references.
@@ -59,7 +62,7 @@ export function MovieCardActions({ itemId, isMovie, title = "", className }: Mov
         itemId={itemId}
         mediaType={mediaType}
         title={title}
-        posterPath={null}
+        posterPath={posterPath}
         isInWatchlist={inWatchlist}
         toggleWatchlist={() => toggleWatchlist(itemId, mediaType)}
       />

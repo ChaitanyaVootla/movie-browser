@@ -164,6 +164,7 @@ export const MovieCard = memo(function MovieCard({
                 itemId={item.id}
                 isMovie={itemIsMovie}
                 title={title}
+                posterPath={item.poster_path}
                 // Invisible ≠ inert: without pointer-events-none the hidden
                 // buttons still caught taps on touch (no hover there), so a tap
                 // on the poster's lower edge toggled watched / opened the log
