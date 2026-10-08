@@ -39,6 +39,12 @@ interface WideMovieCardProps {
   subtitle?: string;
   /** Hide user status badge (watchlist/watched) - use in watchlist pages/scrollers */
   hideUserStatus?: boolean;
+  /**
+   * Explicit personal cluster (e.g. Library → Ratings renders the row's own
+   * score/heart from the API). Shown even with `hideUserStatus`, which still
+   * suppresses the watched grayscale.
+   */
+  personalOverride?: PersonalCardState;
 }
 
 function isMovie(item: MovieListItem | SeriesListItem): item is MovieListItem {
@@ -53,6 +59,7 @@ export function WideMovieCard({
   priority = false,
   subtitle,
   hideUserStatus = false,
+  personalOverride,
 }: WideMovieCardProps) {
   const [useFallback, setUseFallback] = useState(false);
   const [useBackdrop, setUseBackdrop] = useState(false);
@@ -75,14 +82,17 @@ export function WideMovieCard({
     !itemIsMovie && !!seriesProg && seriesProg.total != null && seriesProg.watched >= seriesProg.total;
   const watchedState = itemIsMovie ? isWatched : completed;
   const inProgress = !itemIsMovie && !!seriesProg && seriesProg.pct > 0 && !completed;
-  const personal: PersonalCardState = {
+  const storePersonal: PersonalCardState = {
     // canonical score is 1–10; the card shows the half-star scale (0.5–5)
     stars: score != null ? score / 2 : null,
     loved,
     watched: watchedState,
     watchlisted: inWatchlist,
   };
-  const showPersonal = isHydrated && !hideUserStatus && hasPersonalState(personal);
+  const personal = personalOverride ?? storePersonal;
+  const showPersonal = personalOverride
+    ? hasPersonalState(personalOverride)
+    : isHydrated && !hideUserStatus && hasPersonalState(personal);
 
   // Badges are derived from the current date (e.g. "New", "Just Released") via
   // getMediaBadges(). Under ISR the server HTML is cached for hours, so computing

@@ -135,6 +135,65 @@ export async function getTitleRating(
 }
 
 // ---------------------------------------------------------------------------
+// A user's TITLE-level ratings (Library → Ratings). Read-only.
+// ---------------------------------------------------------------------------
+
+export interface UserTitleRatingRow {
+  itemId: number;
+  itemType: "movie" | "series";
+  thumb: number | null;
+  score: number | null;
+  liked: boolean;
+  /** `rated_at` (import-honest) when set, else row creation. */
+  ratedAt: Date;
+}
+
+/**
+ * Every title-level rating row for a user — movies, and series rows with no
+ * season/episode (season/episode ratings are per-unit and do not mean "I rated
+ * this show"; the legacy thumb-only reader counted them as series ratings).
+ * Includes score-only and heart-only rows. Most recent first.
+ */
+export async function getUserTitleRatings(userId: number): Promise<UserTitleRatingRow[]> {
+  const rows = await prisma.userRating.findMany({
+    where: {
+      userId,
+      OR: [
+        { movieId: { not: null } },
+        { seriesId: { not: null }, seasonNumber: null, episodeNumber: null },
+      ],
+    },
+    select: {
+      movieId: true,
+      seriesId: true,
+      rating: true,
+      score: true,
+      liked: true,
+      ratedAt: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows
+    .flatMap((r): UserTitleRatingRow[] => {
+      const itemId = r.movieId ?? r.seriesId;
+      if (itemId === null) return [];
+      if (r.rating === null && r.score === null && !r.liked) return [];
+      return [
+        {
+          itemId,
+          itemType: r.movieId !== null ? "movie" : "series",
+          thumb: r.rating,
+          score: r.score,
+          liked: r.liked,
+          ratedAt: r.ratedAt ?? r.createdAt,
+        },
+      ];
+    })
+    .sort((a, b) => b.ratedAt.getTime() - a.ratedAt.getTime());
+}
+
+// ---------------------------------------------------------------------------
 // Rating histogram (1..10 distribution + average) over user_ratings.
 // ---------------------------------------------------------------------------
 
