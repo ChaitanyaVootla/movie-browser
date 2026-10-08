@@ -263,26 +263,34 @@ type LinkLike = { name: string; link: string; price?: string };
  * links with no TMDB counterpart are appended only if we have an icon for them.
  */
 export function mergeDeepLinks(tmdbOptions: WatchOption[], links: LinkLike[]): WatchOption[] {
-  const remaining = links.filter((l) => l.link);
-  const merged = tmdbOptions.map((opt) => {
+  const all = links.filter((l) => l.link);
+  const used = new Set<LinkLike>();
+  const isPrefix = (a: string, b: string) =>
+    a.length > 3 && b.length > 3 && (a.startsWith(b) || b.startsWith(a));
+
+  const merged: WatchOption[] = [];
+  for (const opt of tmdbOptions) {
     const key = providerKey(opt.name);
-    let idx = remaining.findIndex((l) => providerKey(l.name) === key);
-    if (idx < 0) {
-      idx = remaining.findIndex((l) => {
-        const k = providerKey(l.name);
-        return k.length > 3 && key.length > 3 && (k.startsWith(key) || key.startsWith(k));
-      });
+    const exact = all.find((l) => !used.has(l) && providerKey(l.name) === key);
+    const prefix = exact ? undefined : all.find((l) => isPrefix(providerKey(l.name), key));
+    const hit = exact ?? prefix;
+    if (!hit) {
+      merged.push(opt);
+      continue;
     }
-    if (idx < 0) return opt;
-    const [hit] = remaining.splice(idx, 1);
+    // A plan variant ("Netflix Standard with Ads") whose deep link another entry
+    // already carries is a duplicate button — drop it rather than show a worse link.
+    if (used.has(hit)) continue;
+    used.add(hit);
     const morph = mapWatchProvider(hit.name, hit.link);
-    return {
+    merged.push({
       ...opt,
       link: morph?.link ?? hit.link,
       price: hit.price?.replace("Premium", "") || opt.price,
       isJustWatch: false,
-    };
-  });
+    });
+  }
+  const remaining = all.filter((l) => !used.has(l));
   const extras = processScrapedWatchLinksFromPostgres({ XX: remaining }, "XX").filter(
     (e) => !merged.some((m) => m.link === e.link)
   );

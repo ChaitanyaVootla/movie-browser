@@ -44,6 +44,24 @@ describe("mergeDeepLinks", () => {
   });
 });
 
+describe("mergeDeepLinks plan variants", () => {
+  it("drops a TMDB plan variant whose deep link is already shown", () => {
+    const tmdb = normalizeTMDBWatchProviders(
+      {
+        link: "https://tmdb/watch",
+        flatrate: [
+          { provider_id: 8, provider_name: "Netflix", logo_path: "/n.png" },
+          { provider_id: 1796, provider_name: "Netflix Standard with Ads", logo_path: "/na.png" },
+        ],
+      },
+      "US"
+    );
+    const out = mergeDeepLinks(tmdb, [{ name: "Netflix", link: "https://www.netflix.com/title/1", price: "Subscription" }]);
+    expect(out.map((o) => o.name)).toEqual(["Netflix"]);
+    expect(out[0].link).toBe("https://www.netflix.com/watch/1");
+  });
+});
+
 describe("getWatchOptionsForCountry", () => {
   it("uses the all-country map from cached-queries for non-IN countries", () => {
     const res = getWatchOptionsForCountry(
