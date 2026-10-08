@@ -10,6 +10,7 @@
 import { dataLogger } from "@/lib/logger";
 import type { PrismaTx } from "./types";
 import { dedupeBy } from "./upsert-diff";
+import { ensurePersons } from "./lookup-upserts";
 import {
   diffChildRows,
   hasChanges,
@@ -162,59 +163,60 @@ export async function upsertCredits(
     });
   }
 
-  // Upsert persons and create credits for the inserted delta only
-  for (const credit of diff.toInsert) {
-    // Try to find existing person first (fast, no lock contention)
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: credit.personTmdbId },
-    });
+  if (diff.toInsert.length === 0) return;
 
-    if (!dbPerson) {
-      // Create new person
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: credit.personTmdbId },
-        create: {
-          tmdbId: credit.personTmdbId,
-          name: credit.personName,
-          profilePath: credit.personProfilePath,
-          knownFor: credit.personKnownFor,
-          popularity: credit.personPopularity,
-        },
-        update: {
-          name: credit.personName,
-          profilePath: credit.personProfilePath,
-          knownFor: credit.personKnownFor,
-          popularity: credit.personPopularity,
-        },
-      });
-    } else if (
-      credit.personPopularity != null &&
-      (dbPerson.popularity == null || credit.personPopularity > dbPerson.popularity)
-    ) {
-      // Update popularity if we have a higher value (person popularity can vary by movie context)
-      await tx.person.update({
-        where: { id: dbPerson.id },
-        data: { popularity: credit.personPopularity },
-      });
+  // Persons for the inserted delta: one read, a race-safe create of the
+  // missing ones, and the existing "keep the highest popularity" bump. Then
+  // ONE ON CONFLICT DO NOTHING insert for the credits — the old per-row
+  // `.create().catch()` aborted the whole transaction on a duplicate (25P02,
+  // see lookup-upserts.ts).
+  const wanted = dedupeBy(diff.toInsert, (c) => String(c.personTmdbId));
+  const known = await tx.person.findMany({
+    where: { tmdbId: { in: wanted.map((c) => c.personTmdbId) } },
+    select: { id: true, tmdbId: true, popularity: true },
+  });
+  const knownByTmdb = new Map(known.map((p) => [p.tmdbId, p]));
+  for (const c of wanted) {
+    const p = knownByTmdb.get(c.personTmdbId);
+    if (p && c.personPopularity != null && (p.popularity == null || c.personPopularity > p.popularity)) {
+      // Person popularity can vary by movie context — keep the highest seen.
+      await tx.person.update({ where: { id: p.id }, data: { popularity: c.personPopularity } });
     }
-
-    // Create credit using DB ID (non-aggregate)
-    await tx.credit
-      .create({
-        data: {
-          movieId: mediaType === "movie" ? mediaId : null,
-          seriesId: mediaType === "series" ? mediaId : null,
-          personId: dbPerson.id,
-          creditType: credit.creditType,
-          character: credit.character,
-          job: credit.job,
-          department: credit.department,
-          creditOrder: credit.creditOrder,
-          isAggregate: false,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
+  const personIds = new Map(known.map((p) => [p.tmdbId, p.id]));
+  const missing = wanted.filter((c) => !personIds.has(c.personTmdbId));
+  if (missing.length > 0) {
+    const created = await ensurePersons(
+      tx,
+      missing.map((c) => ({
+        id: c.personTmdbId,
+        name: c.personName,
+        profile_path: c.personProfilePath,
+        known_for_department: c.personKnownFor,
+        popularity: c.personPopularity,
+      }))
+    );
+    for (const [tmdbId, id] of created) personIds.set(tmdbId, id);
+  }
+
+  const rows = [];
+  for (const credit of diff.toInsert) {
+    const personId = personIds.get(credit.personTmdbId);
+    if (personId === undefined) continue;
+    rows.push({
+      movieId: mediaType === "movie" ? mediaId : null,
+      seriesId: mediaType === "series" ? mediaId : null,
+      personId,
+      creditType: credit.creditType,
+      character: credit.character,
+      job: credit.job,
+      department: credit.department,
+      creditOrder: credit.creditOrder,
+      isAggregate: false,
+    });
+  }
+  if (rows.length > 0) {
+    await tx.credit.createMany({ data: rows, skipDuplicates: true });
+  }
+
 }

@@ -56,6 +56,46 @@ junction upserts only). Helper files split out for the 800-line limit:
 `rating-upserts.ts`, `credit-upserts.ts`, `series-junction-upserts.ts`,
 `diff-reconcile.ts`.
 
+## Write hygiene: four traps fixed Oct 2026 (measure with pg_stat_user_tables)
+
+Measure first: snapshot `pg_stat_user_tables` (`n_tup_ins/upd/del/hot_upd`)
+twice ~10 min apart in a `BEGIN READ ONLY` session and diff per minute. Note
+that aborted transactions still count their tuples, so a table whose deletes
+exceed its inserts on every refresh is often a transaction that keeps rolling
+back (or a destructive rewrite). Oct 8 2026 baseline: images 712 upd/min,
+episodes 1,619 del/min vs 52 ins/min, persons 122 upd/min, movie_countries
+26 del/min vs 15 ins/min.
+
+1. **NEVER `tx.x.create(...).catch(() => {})` inside a transaction.** Catching
+   the JS error does not undo the Postgres error: the transaction is aborted
+   (23505, then 25P02 on every later statement) and the whole title upsert is
+   lost, then redone on the next visit. Use `createMany({ skipDuplicates: true })`
+   (`INSERT … ON CONFLICT DO NOTHING`, which also WAITS for a racing transaction
+   instead of failing). All lookups/junctions go through
+   `sources/postgres/lookup-upserts.ts` (`ensureGenres/Keywords/Companies/
+   Networks/Persons/Countries/Languages` = one findMany + createMany of the
+   missing). Lookups are create-only; countries never rewrite names (that was
+   446k no-op `countries` updates). `lookup-upserts.test.ts` has a static guard
+   that fails on any `.create({…}).catch(` in these files.
+2. **The seasons rewrite (delete-all-seasons → cascade episodes → reinsert) must
+   never run on a season SUMMARY.** The core-fresh enriched-only refresh passes
+   PG's own seasons (no episodes), hover-card partials pass TMDB details-level
+   seasons, and a failed per-season fetch used to send `episodes: []`; all of
+   them compared as "changed" and DELETED the episodes. `isSummaryOnly` in
+   `series-upsert.ts` now guards it (summary input may only seed a series with
+   no seasons). Measured before the fix: 15,641 of 19,667 episode-bearing
+   seasons on series refreshed in the last day had no episode rows.
+3. **Comparators must ignore TMDB drift that nothing displays.** Image votes
+   (`imageVotesEquivalent`: <0.1 average, ≤max(2,10%) count) used to rewrite
+   ~712 image rows/min. Same family as `floatEq3` for popularity/aspect ratio.
+4. **A TMDB 404 is permanent for a refresh.** `hydration/tmdb-gone.ts` caches
+   404'd ids (24h TTL, 10k cap) and the background refresh skips them; before,
+   10,622 refresh failures in `next-error.log` were 404s (series 324537: 877),
+   each holding one of the 3 refresh slots.
+
+Also: the person-page write-back (`services/person-persist.ts`) is
+change-detected (one read, write only changed fields).
+
 ## Background Refresh Cap
 
 `backgroundRefreshMovie/Series` are deduped per id AND capped globally at

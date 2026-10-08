@@ -100,9 +100,12 @@ the Chromium-era config (layer `chromium133:1`, 1024MB, x86_64) + version 1.
 TF (`terraform/lambda.tf`) mirrors the config but the artifact is deployed
 out-of-band (`ignore_changes`) — do not `terraform apply` to ship code.
 The response contract is duplicated in `lambda/lib/types.ts` and
-`sources/lambda.ts` (`EnrichResponseV2`) — change both. A legacy
-`{queryStringParameters}` shim in `lambda/index.ts` answers the pre-v2 app;
-delete it once `enrich.legacy_call` stops appearing in the logs.
+`sources/lambda.ts` (`EnrichResponseV2`) — change both. The pre-v2
+`{queryStringParameters}` shim (+ `toLegacy` API-Gateway-shaped response) was
+REMOVED from `lambda/index.ts` on Oct 8 2026 after 0 `enrich.legacy_call` lines
+for ~4.7h (last 07:29 UTC, i.e. the old app before the v2 deploy) against 5.5k
+v2 `enrich.summary` calls. A legacy-shaped event now gets `enrich.bad_input`
++ `{error}`. If one ever appears, something old is still invoking the function.
 
 ## Deep links on the read side
 

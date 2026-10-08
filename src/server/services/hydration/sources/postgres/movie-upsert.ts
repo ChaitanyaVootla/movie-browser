@@ -13,6 +13,14 @@ import type { EnrichedData } from "../../types";
 import type { TmdbMovieData } from "../tmdb";
 import type { PrismaTx, UpsertOutcome } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
+import {
+  ensureCompanies,
+  ensureCountries,
+  ensureGenres,
+  ensureKeywords,
+  ensureLanguages,
+  resolveIds,
+} from "./lookup-upserts";
 import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 import {
   upsertExternalIds,
@@ -304,7 +312,9 @@ async function upsertMovieCertifications(
 }
 
 /**
- * Upsert movie genres
+ * Upsert movie genres. Lookups + junction via ON CONFLICT DO NOTHING — a
+ * `.create().catch()` inside the transaction aborts the WHOLE upsert (25P02);
+ * see lookup-upserts.ts.
  */
 async function upsertMovieGenres(
   tx: PrismaTx,
@@ -313,36 +323,14 @@ async function upsertMovieGenres(
 ): Promise<void> {
   if (await movieGenresUnchanged(tx, movieId, genres.map((g) => g.id))) return;
   logChildRewrite("movie_genres", "movie", movieId);
-
-  // Delete existing genre associations
+  const ids = await ensureGenres(tx, genres);
   await tx.movieGenre.deleteMany({ where: { movieId } });
-
-  for (const genre of genres) {
-    // Try to find existing genre first (fast, no lock contention)
-    let dbGenre = await tx.genre.findUnique({
-      where: { tmdbId: genre.id },
+  const genreIds = resolveIds(genres.map((g) => g.id), ids);
+  if (genreIds.length > 0) {
+    await tx.movieGenre.createMany({
+      data: genreIds.map((genreId) => ({ movieId, genreId })),
+      skipDuplicates: true,
     });
-
-    // Only create if it doesn't exist (rare - genres are pre-populated)
-    if (!dbGenre) {
-      dbGenre = await tx.genre.upsert({
-        where: { tmdbId: genre.id },
-        create: { tmdbId: genre.id, name: genre.name },
-        update: { name: genre.name },
-      });
-    }
-
-    // Create the junction using DB ID (not TMDB ID)
-    await tx.movieGenre
-      .create({
-        data: {
-          movieId,
-          genreId: dbGenre.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
 }
 
@@ -356,36 +344,14 @@ async function upsertMovieKeywords(
 ): Promise<void> {
   if (await movieKeywordsUnchanged(tx, movieId, keywords.map((k) => k.id))) return;
   logChildRewrite("movie_keywords", "movie", movieId);
-
-  // Delete existing keyword associations
+  const ids = await ensureKeywords(tx, keywords);
   await tx.movieKeyword.deleteMany({ where: { movieId } });
-
-  for (const keyword of keywords) {
-    // Try to find existing keyword first (fast, no lock contention)
-    let dbKeyword = await tx.keyword.findUnique({
-      where: { tmdbId: keyword.id },
+  const keywordIds = resolveIds(keywords.map((k) => k.id), ids);
+  if (keywordIds.length > 0) {
+    await tx.movieKeyword.createMany({
+      data: keywordIds.map((keywordId) => ({ movieId, keywordId })),
+      skipDuplicates: true,
     });
-
-    // Only create if it doesn't exist
-    if (!dbKeyword) {
-      dbKeyword = await tx.keyword.upsert({
-        where: { tmdbId: keyword.id },
-        create: { tmdbId: keyword.id, name: keyword.name },
-        update: { name: keyword.name },
-      });
-    }
-
-    // Create the junction using DB ID
-    await tx.movieKeyword
-      .create({
-        data: {
-          movieId,
-          keywordId: dbKeyword.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
 }
 
@@ -404,46 +370,14 @@ async function upsertMovieCompanies(
 ): Promise<void> {
   if (await movieCompaniesUnchanged(tx, movieId, companies.map((c) => c.id))) return;
   logChildRewrite("movie_companies", "movie", movieId);
-
-  // Delete existing company associations
+  const ids = await ensureCompanies(tx, companies);
   await tx.movieCompany.deleteMany({ where: { movieId } });
-
-  for (const company of companies) {
-    // Try to find existing company first (fast, no lock contention)
-    let dbCompany = await tx.productionCompany.findUnique({
-      where: { tmdbId: company.id },
+  const companyIds = resolveIds(companies.map((c) => c.id), ids);
+  if (companyIds.length > 0) {
+    await tx.movieCompany.createMany({
+      data: companyIds.map((companyId) => ({ movieId, companyId })),
+      skipDuplicates: true,
     });
-
-    // Only create if it doesn't exist
-    if (!dbCompany) {
-      dbCompany = await tx.productionCompany.upsert({
-        where: { tmdbId: company.id },
-        create: {
-          tmdbId: company.id,
-          name: company.name,
-          logoPath: company.logo_path,
-          originCountry: company.origin_country,
-        },
-        update: {
-          name: company.name,
-          logoPath: company.logo_path,
-          originCountry: company.origin_country,
-        },
-      });
-    }
-
-    // Create junction using DB ID (check first to avoid transaction abort on duplicate)
-    const existingJunction = await tx.movieCompany.findUnique({
-      where: { movieId_companyId: { movieId, companyId: dbCompany.id } },
-    });
-    if (!existingJunction) {
-      await tx.movieCompany.create({
-        data: {
-          movieId,
-          companyId: dbCompany.id,
-        },
-      });
-    }
   }
 }
 
@@ -466,54 +400,26 @@ async function upsertMovieCountries(
   if (await movieCountriesUnchanged(tx, movieId, incomingPairs)) return;
   logChildRewrite("movie_countries", "movie", movieId);
 
-  // Delete existing country associations
+  // Production entries first so a missing country is created with its real
+  // name rather than the bare code origin_country gives us.
+  await ensureCountries(tx, [
+    ...(productionCountries || []).map((c) => ({ code: c.iso_3166_1, name: c.name })),
+    ...(originCountries || []).map((code) => ({ code, name: code })),
+  ]);
   await tx.movieCountry.deleteMany({ where: { movieId } });
-
-  // Insert origin countries
-  for (const code of originCountries || []) {
-    // Upsert country lookup (name not available for origin, use code as fallback)
-    await tx.country.upsert({
-      where: { code },
-      create: { code, name: code },
-      update: {},
-    });
-
-    // Create junction with ORIGIN type
-    await tx.movieCountry
-      .create({
-        data: {
-          movieId,
-          countryCode: code,
-          type: "ORIGIN",
-        },
-      })
-      .catch(() => {});
-  }
-
-  // Insert production countries
-  for (const country of productionCountries || []) {
-    // Upsert country lookup with proper name
-    await tx.country.upsert({
-      where: { code: country.iso_3166_1 },
-      create: {
-        code: country.iso_3166_1,
-        name: country.name,
-      },
-      update: {
-        name: country.name,
-      },
-    });
-
-    // Create junction with PRODUCTION type
-    await tx.movieCountry
-      .create({
-        data: {
-          movieId,
-          countryCode: country.iso_3166_1,
-          type: "PRODUCTION",
-        },
-      })
-      .catch(() => {});
+  const rows = dedupeBy(
+    [
+      ...(originCountries || []).map((code) => ({ movieId, countryCode: code, type: "ORIGIN" as const })),
+      ...(productionCountries || []).map((c) => ({
+        movieId,
+        countryCode: c.iso_3166_1,
+        type: "PRODUCTION" as const,
+      })),
+    ].filter((r) => r.countryCode),
+    (r) => `${r.countryCode}|${r.type}`
+  );
+  if (rows.length > 0) {
+    await tx.movieCountry.createMany({ data: rows, skipDuplicates: true });
   }
 }
 
@@ -530,31 +436,16 @@ async function upsertMovieLanguages(
   if (await movieLanguagesUnchanged(tx, movieId, languages.map((l) => l.iso_639_1))) return;
   logChildRewrite("movie_languages", "movie", movieId);
 
-  // Delete existing language associations
+  await ensureLanguages(
+    tx,
+    languages.map((l) => ({ code: l.iso_639_1, name: l.english_name || l.name }))
+  );
   await tx.movieLanguage.deleteMany({ where: { movieId } });
-
-  for (const lang of languages) {
-    // Upsert language lookup
-    await tx.language.upsert({
-      where: { code: lang.iso_639_1 },
-      create: {
-        code: lang.iso_639_1,
-        name: lang.english_name || lang.name,
-      },
-      update: {},
-    });
-
-    // Create junction (type: SPOKEN)
-    await tx.movieLanguage
-      .create({
-        data: {
-          movieId,
-          languageCode: lang.iso_639_1,
-          type: "SPOKEN",
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
+  const rows = dedupeBy(
+    languages.filter((l) => l.iso_639_1),
+    (l) => l.iso_639_1
+  ).map((l) => ({ movieId, languageCode: l.iso_639_1, type: "SPOKEN" as const }));
+  if (rows.length > 0) {
+    await tx.movieLanguage.createMany({ data: rows, skipDuplicates: true });
   }
 }

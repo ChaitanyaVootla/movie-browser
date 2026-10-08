@@ -51,6 +51,7 @@ import {
 } from "./sources/postgres";
 // Stale-HTML fix: purge origin ISR + edge when a refresh changed displayed content.
 import { notifyIfContentChanged } from "@/server/services/cdn";
+import { isTmdbNotFound, tmdbGone } from "./tmdb-gone";
 import { getMovieFromPostgres } from "@/server/db/postgres/movies";
 import { getSeriesFromPostgres } from "@/server/db/postgres/series";
 import type { EnrichedData, HydrationResult, MediaType } from "./types";
@@ -140,6 +141,7 @@ function persistOnMissInDev(upsert: () => Promise<unknown>, label: string): void
  */
 function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData | null): void {
   if (inFlightMovieRefresh.has(movieId)) return;
+  if (tmdbGone.has("movie", movieId)) return; // TMDB deleted it: a refresh cannot succeed
   if (backgroundRefreshSlotsFull()) return;
   inFlightMovieRefresh.add(movieId);
   void (async () => {
@@ -159,6 +161,11 @@ function backgroundRefreshMovie(movieId: number, tmdbData: TmdbMovieData | null)
       }
       if (mongoDocExists) markMongoAsMigrated("movie", movieId).catch(() => {});
     } catch (e) {
+      if (isTmdbNotFound(e)) {
+        tmdbGone.mark("movie", movieId);
+        console.warn(`[Hydration] Movie ${movieId}: TMDB 404, skipping refreshes for 24h`);
+        return;
+      }
       console.error(`[Hydration] Background movie refresh ${movieId} failed:`, e);
     } finally {
       inFlightMovieRefresh.delete(movieId);
@@ -182,6 +189,7 @@ function backgroundRefreshSeries(
   seasonsWithEpisodes: TmdbSeriesData["seasons"] | null
 ): void {
   if (inFlightSeriesRefresh.has(seriesId)) return;
+  if (tmdbGone.has("series", seriesId)) return; // TMDB deleted it: a refresh cannot succeed
   if (backgroundRefreshSlotsFull()) return;
   inFlightSeriesRefresh.add(seriesId);
   void (async () => {
@@ -203,6 +211,11 @@ function backgroundRefreshSeries(
       }
       if (mongoDocExists) markMongoAsMigrated("series", seriesId).catch(() => {});
     } catch (e) {
+      if (isTmdbNotFound(e)) {
+        tmdbGone.mark("series", seriesId);
+        console.warn(`[Hydration] Series ${seriesId}: TMDB 404, skipping refreshes for 24h`);
+        return;
+      }
       console.error(`[Hydration] Background series refresh ${seriesId} failed:`, e);
     } finally {
       inFlightSeriesRefresh.delete(seriesId);

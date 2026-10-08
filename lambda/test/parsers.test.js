@@ -115,11 +115,11 @@ test("text helpers", () => {
   assert.equal(slugify("Amélie & Co."), "amelie-and-co");
 });
 
-test("input: v2 payload and legacy queryStringParameters both parse", () => {
+test("input: v2 payload parses; the removed legacy shape is rejected", () => {
   const v2 = parseInput({ tmdbId: 1, mediaType: "tv", title: "X", year: 2020, countries: ["IN", "bad"] });
   assert.deepEqual([v2.mediaType, v2.year, v2.countries], ["tv", 2020, ["IN"]]);
-  const legacy = parseInput({ queryStringParameters: { tmdbId: "5", searchString: "Heat 1995 movie", mediaType: "movie" } });
-  assert.deepEqual([legacy.title, legacy.year, legacy.tmdbId], ["Heat", 1995, 5]);
+  // pre-v2 {queryStringParameters} callers are gone (0 legacy_call lines, Oct 8 2026)
+  assert.equal(parseInput({ queryStringParameters: { tmdbId: "5", searchString: "Heat 1995 movie" } }), null);
   assert.equal(parseInput({ title: "no id" }), null);
 });
 

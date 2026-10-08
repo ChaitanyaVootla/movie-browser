@@ -27,6 +27,7 @@ import {
   diffChildRows,
   hasChanges,
   floatEq3,
+  imageVotesEquivalent,
   sameDate,
   type ChildRowDiff,
 } from "./diff-reconcile";
@@ -368,8 +369,8 @@ export async function upsertImages(
 
   // No unique constraint on images — duplicates are matched as a multiset
   // (diffChildRows pairs the Nth incoming duplicate with the Nth existing).
-  // Float fields (aspectRatio, voteAverage) compare with 3-decimal tolerance:
-  // TMDB re-jitters them constantly without meaningful change.
+  // aspectRatio compares with 3-decimal tolerance; votes via
+  // imageVotesEquivalent (small vote drift is not worth a row rewrite).
   const diff = diffChildRows(
     existing,
     imagesToCreate,
@@ -378,8 +379,7 @@ export async function upsertImages(
       floatEq3(a.aspectRatio, b.aspectRatio) &&
       a.width === b.width &&
       a.height === b.height &&
-      floatEq3(a.voteAverage, b.voteAverage) &&
-      a.voteCount === b.voteCount &&
+      imageVotesEquivalent(a, b) &&
       a.language === b.language
   );
   if (!hasChanges(diff)) return;

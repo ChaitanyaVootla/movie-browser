@@ -15,6 +15,7 @@ import type { EnrichedData } from "../../types";
 import type { TmdbSeriesData } from "../tmdb";
 import type { PrismaTx, SeasonWithEpisodes, UpsertOutcome } from "./types";
 import { isPrismaError, getErrorMessage } from "./error-utils";
+import { ensurePersons } from "./lookup-upserts";
 import { upsertRatings, upsertScrapedWatchLinks } from "./rating-upserts";
 import {
   upsertSeriesGenres,
@@ -273,11 +274,36 @@ export async function upsertSeriesToPostgres(
 /**
  * Upsert seasons and episodes
  */
+/**
+ * True when any season lacks an `episodes` array — the payload is a season
+ * summary (or a partly failed fetch), not authoritative episode data. A
+ * season that genuinely has zero episodes after a successful fetch carries
+ * `episodes: []`, which is authoritative.
+ */
+export function isSummaryOnly(seasons: ReadonlyArray<SeasonWithEpisodes>): boolean {
+  return seasons.some((s) => s.episode_count > 0 && !Array.isArray(s.episodes));
+}
+
 async function upsertSeasons(
   tx: PrismaTx,
   seriesId: number,
   seasons: SeasonWithEpisodes[]
 ): Promise<void> {
+  // SUMMARY-ONLY GUARD (Oct 2026). The rewrite below is delete-all-seasons
+  // (cascading to episodes) + reinsert, so it must only run with COMPLETE
+  // episode data. Callers routinely pass seasons WITHOUT episodes: the
+  // core-fresh enriched-only refresh hands back PG's own season summary
+  // (getSeriesFromPostgres selects no episodes), hover-card partial hydration
+  // passes TMDB's details-level seasons, and a failed per-season fetch omits
+  // them. Each of those used to look "changed" (stored episodes vs none) and
+  // WIPED the series' episodes — prod measured ~1,619 episode deletes/min vs
+  // ~52 inserts/min. Summary-only input may only seed seasons for a series
+  // that has none yet; it never rewrites existing ones.
+  if (isSummaryOnly(seasons)) {
+    const existingCount = await tx.season.count({ where: { seriesId } });
+    if (existingCount > 0) return;
+  }
+
   // Change-detection: seasons+episodes compared as one canonical unit. When
   // unchanged (the common case), the whole delete cascade (seasons → episodes
   // → images) and reinsert is skipped.
@@ -478,94 +504,30 @@ async function upsertSeriesAggregateCredits(
   // Delete existing AGGREGATE credits only (preserve non-aggregate regular credits)
   await tx.credit.deleteMany({ where: { seriesId, isAggregate: true } });
 
-  // Process ALL cast (flatten roles into individual credits)
-  for (const cast of aggregateCredits.cast || []) {
-    // Upsert person first
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: cast.id },
+  // Persons in one race-safe pass, then every credit in one ON CONFLICT DO
+  // NOTHING insert (the old per-row `.create().catch()` aborted the whole
+  // series transaction on a duplicate — see lookup-upserts.ts).
+  const personIds = await ensurePersons(tx, [
+    ...(aggregateCredits.cast || []),
+    ...(aggregateCredits.crew || []),
+  ]);
+  const rows: Prisma.CreditCreateManyInput[] = [];
+  for (const row of incoming) {
+    const personId = personIds.get(row.personTmdbId);
+    if (personId === undefined) continue;
+    rows.push({
+      seriesId,
+      personId,
+      creditType: row.creditType === "CAST" ? "CAST" : "CREW",
+      character: row.character,
+      job: row.job,
+      department: row.department,
+      creditOrder: row.creditOrder,
+      isAggregate: true,
+      totalEpisodeCount: row.totalEpisodeCount,
     });
-
-    if (!dbPerson) {
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: cast.id },
-        create: {
-          tmdbId: cast.id,
-          name: cast.name,
-          profilePath: cast.profile_path,
-          knownFor: cast.known_for_department,
-        },
-        update: {
-          name: cast.name,
-          profilePath: cast.profile_path,
-          knownFor: cast.known_for_department,
-        },
-      });
-    }
-
-    // Create credit with combined characters from all roles
-    // Using combined characters to avoid duplicate person per series
-    const combinedCharacter = cast.roles
-      .map((r) => r.character)
-      .filter(Boolean)
-      .join(" / ");
-
-    await tx.credit
-      .create({
-        data: {
-          seriesId,
-          personId: dbPerson.id,
-          creditType: "CAST",
-          character: combinedCharacter || null,
-          creditOrder: cast.order,
-          isAggregate: true,
-          totalEpisodeCount: cast.total_episode_count,
-        },
-      })
-      .catch(() => {});
   }
-
-  // Process ALL crew (flatten jobs into individual credits)
-  for (const crew of aggregateCredits.crew || []) {
-    // Upsert person first
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: crew.id },
-    });
-
-    if (!dbPerson) {
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: crew.id },
-        create: {
-          tmdbId: crew.id,
-          name: crew.name,
-          profilePath: crew.profile_path,
-          knownFor: crew.known_for_department,
-        },
-        update: {
-          name: crew.name,
-          profilePath: crew.profile_path,
-          knownFor: crew.known_for_department,
-        },
-      });
-    }
-
-    // Create credit for each job (a person can be both Director and Writer)
-    for (const jobInfo of crew.jobs || []) {
-      await tx.credit
-        .create({
-          data: {
-            seriesId,
-            personId: dbPerson.id,
-            creditType: "CREW",
-            job: jobInfo.job,
-            department: crew.department,
-            isAggregate: true,
-            totalEpisodeCount: crew.total_episode_count,
-          },
-        })
-        .catch(() => {});
-    }
+  if (rows.length > 0) {
+    await tx.credit.createMany({ data: rows, skipDuplicates: true });
   }
 }
-
-
-

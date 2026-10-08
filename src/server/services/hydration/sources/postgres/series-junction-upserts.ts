@@ -4,10 +4,25 @@
  * Split out of series-upsert.ts (file size limit): genres, keywords,
  * networks, creators, countries, companies, languages. Each skips its
  * delete+reinsert when the id set is unchanged (June 2026 change-detection).
+ *
+ * All lookup + junction inserts are ON CONFLICT DO NOTHING (createMany
+ * skipDuplicates). The old `.create().catch(() => {})` aborted the whole
+ * series transaction on a duplicate (25P02) — see lookup-upserts.ts.
  */
 
 import type { PrismaTx } from "./types";
 import {
+  ensureCompanies,
+  ensureCountries,
+  ensureGenres,
+  ensureKeywords,
+  ensureLanguages,
+  ensureNetworks,
+  ensurePersons,
+  resolveIds,
+} from "./lookup-upserts";
+import {
+  dedupeBy,
   logChildRewrite,
   seriesGenresUnchanged,
   seriesKeywordsUnchanged,
@@ -28,36 +43,14 @@ export async function upsertSeriesGenres(
 ): Promise<void> {
   if (await seriesGenresUnchanged(tx, seriesId, genres.map((g) => g.id))) return;
   logChildRewrite("series_genres", "series", seriesId);
-
-  // Delete existing genre associations
+  const ids = await ensureGenres(tx, genres);
   await tx.seriesGenre.deleteMany({ where: { seriesId } });
-
-  for (const genre of genres) {
-    // Try to find existing genre first (fast, no lock contention)
-    let dbGenre = await tx.genre.findUnique({
-      where: { tmdbId: genre.id },
+  const genreIds = resolveIds(genres.map((g) => g.id), ids);
+  if (genreIds.length > 0) {
+    await tx.seriesGenre.createMany({
+      data: genreIds.map((genreId) => ({ seriesId, genreId })),
+      skipDuplicates: true,
     });
-
-    // Only create if it doesn't exist (rare - genres are pre-populated)
-    if (!dbGenre) {
-      dbGenre = await tx.genre.upsert({
-        where: { tmdbId: genre.id },
-        create: { tmdbId: genre.id, name: genre.name },
-        update: { name: genre.name },
-      });
-    }
-
-    // Create the junction using DB ID
-    await tx.seriesGenre
-      .create({
-        data: {
-          seriesId,
-          genreId: dbGenre.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
 }
 
@@ -71,36 +64,14 @@ export async function upsertSeriesKeywords(
 ): Promise<void> {
   if (await seriesKeywordsUnchanged(tx, seriesId, keywords.map((k) => k.id))) return;
   logChildRewrite("series_keywords", "series", seriesId);
-
-  // Delete existing keyword associations
+  const ids = await ensureKeywords(tx, keywords);
   await tx.seriesKeyword.deleteMany({ where: { seriesId } });
-
-  for (const keyword of keywords) {
-    // Try to find existing keyword first (fast, no lock contention)
-    let dbKeyword = await tx.keyword.findUnique({
-      where: { tmdbId: keyword.id },
+  const keywordIds = resolveIds(keywords.map((k) => k.id), ids);
+  if (keywordIds.length > 0) {
+    await tx.seriesKeyword.createMany({
+      data: keywordIds.map((keywordId) => ({ seriesId, keywordId })),
+      skipDuplicates: true,
     });
-
-    // Only create if it doesn't exist
-    if (!dbKeyword) {
-      dbKeyword = await tx.keyword.upsert({
-        where: { tmdbId: keyword.id },
-        create: { tmdbId: keyword.id, name: keyword.name },
-        update: { name: keyword.name },
-      });
-    }
-
-    // Create the junction using DB ID
-    await tx.seriesKeyword
-      .create({
-        data: {
-          seriesId,
-          keywordId: dbKeyword.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
 }
 
@@ -119,45 +90,14 @@ export async function upsertSeriesNetworks(
 ): Promise<void> {
   if (await seriesNetworksUnchanged(tx, seriesId, networks.map((n) => n.id))) return;
   logChildRewrite("series_networks", "series", seriesId);
-
-  // Delete existing network associations
+  const ids = await ensureNetworks(tx, networks);
   await tx.seriesNetwork.deleteMany({ where: { seriesId } });
-
-  for (const network of networks) {
-    // Try to find existing network first (fast, no lock contention)
-    let dbNetwork = await tx.network.findUnique({
-      where: { tmdbId: network.id },
+  const networkIds = resolveIds(networks.map((n) => n.id), ids);
+  if (networkIds.length > 0) {
+    await tx.seriesNetwork.createMany({
+      data: networkIds.map((networkId) => ({ seriesId, networkId })),
+      skipDuplicates: true,
     });
-
-    // Only create if it doesn't exist
-    if (!dbNetwork) {
-      dbNetwork = await tx.network.upsert({
-        where: { tmdbId: network.id },
-        create: {
-          tmdbId: network.id,
-          name: network.name,
-          logoPath: network.logo_path,
-          originCountry: network.origin_country,
-        },
-        update: {
-          name: network.name,
-          logoPath: network.logo_path,
-          originCountry: network.origin_country,
-        },
-      });
-    }
-
-    // Create junction using DB ID
-    await tx.seriesNetwork
-      .create({
-        data: {
-          seriesId,
-          networkId: dbNetwork.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
 }
 
@@ -171,43 +111,14 @@ export async function upsertSeriesCreators(
 ): Promise<void> {
   if (await seriesCreatorsUnchanged(tx, seriesId, creators.map((c) => c.id))) return;
   logChildRewrite("series_creators", "series", seriesId);
-
-  // Delete existing creator associations
+  const ids = await ensurePersons(tx, creators);
   await tx.seriesCreator.deleteMany({ where: { seriesId } });
-
-  for (const creator of creators) {
-    // Try to find existing person first (fast, no lock contention)
-    let dbPerson = await tx.person.findUnique({
-      where: { tmdbId: creator.id },
+  const personIds = resolveIds(creators.map((c) => c.id), ids);
+  if (personIds.length > 0) {
+    await tx.seriesCreator.createMany({
+      data: personIds.map((personId) => ({ seriesId, personId })),
+      skipDuplicates: true,
     });
-
-    // Only create if person doesn't exist
-    if (!dbPerson) {
-      dbPerson = await tx.person.upsert({
-        where: { tmdbId: creator.id },
-        create: {
-          tmdbId: creator.id,
-          name: creator.name,
-          profilePath: creator.profile_path,
-        },
-        update: {
-          name: creator.name,
-          profilePath: creator.profile_path,
-        },
-      });
-    }
-
-    // Create junction using DB ID
-    await tx.seriesCreator
-      .create({
-        data: {
-          seriesId,
-          personId: dbPerson.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
 }
 
@@ -225,29 +136,14 @@ export async function upsertSeriesCountries(
 
   if (await seriesCountriesUnchanged(tx, seriesId, originCountries)) return;
   logChildRewrite("series_countries", "series", seriesId);
-
-  // Delete existing country associations
+  await ensureCountries(tx, originCountries.map((code) => ({ code, name: code })));
   await tx.seriesCountry.deleteMany({ where: { seriesId } });
-
-  // Insert origin countries
-  for (const code of originCountries) {
-    // Upsert country lookup
-    await tx.country.upsert({
-      where: { code },
-      create: { code, name: code },
-      update: {},
+  const codes = dedupeBy(originCountries.filter(Boolean), (c) => c);
+  if (codes.length > 0) {
+    await tx.seriesCountry.createMany({
+      data: codes.map((countryCode) => ({ seriesId, countryCode, type: "ORIGIN" as const })),
+      skipDuplicates: true,
     });
-
-    // Create junction with ORIGIN type
-    await tx.seriesCountry
-      .create({
-        data: {
-          seriesId,
-          countryCode: code,
-          type: "ORIGIN",
-        },
-      })
-      .catch(() => {});
   }
 }
 
@@ -266,45 +162,14 @@ export async function upsertSeriesCompanies(
 ): Promise<void> {
   if (await seriesCompaniesUnchanged(tx, seriesId, companies.map((c) => c.id))) return;
   logChildRewrite("series_companies", "series", seriesId);
-
-  // Delete existing company associations
+  const ids = await ensureCompanies(tx, companies);
   await tx.seriesCompany.deleteMany({ where: { seriesId } });
-
-  for (const company of companies) {
-    // Try to find existing company first (fast, no lock contention)
-    let dbCompany = await tx.productionCompany.findUnique({
-      where: { tmdbId: company.id },
+  const companyIds = resolveIds(companies.map((c) => c.id), ids);
+  if (companyIds.length > 0) {
+    await tx.seriesCompany.createMany({
+      data: companyIds.map((companyId) => ({ seriesId, companyId })),
+      skipDuplicates: true,
     });
-
-    // Only create if it doesn't exist
-    if (!dbCompany) {
-      dbCompany = await tx.productionCompany.upsert({
-        where: { tmdbId: company.id },
-        create: {
-          tmdbId: company.id,
-          name: company.name,
-          logoPath: company.logo_path,
-          originCountry: company.origin_country,
-        },
-        update: {
-          name: company.name,
-          logoPath: company.logo_path,
-          originCountry: company.origin_country,
-        },
-      });
-    }
-
-    // Create junction using DB ID
-    await tx.seriesCompany
-      .create({
-        data: {
-          seriesId,
-          companyId: dbCompany.id,
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
   }
 }
 
@@ -320,32 +185,16 @@ export async function upsertSeriesLanguages(
 
   if (await seriesLanguagesUnchanged(tx, seriesId, languages.map((l) => l.iso_639_1))) return;
   logChildRewrite("series_languages", "series", seriesId);
-
-  // Delete existing language associations
+  await ensureLanguages(
+    tx,
+    languages.map((l) => ({ code: l.iso_639_1, name: l.english_name || l.name }))
+  );
   await tx.seriesLanguage.deleteMany({ where: { seriesId } });
-
-  for (const lang of languages) {
-    // Upsert language lookup
-    await tx.language.upsert({
-      where: { code: lang.iso_639_1 },
-      create: {
-        code: lang.iso_639_1,
-        name: lang.english_name || lang.name,
-      },
-      update: {},
-    });
-
-    // Create junction (type: SPOKEN)
-    await tx.seriesLanguage
-      .create({
-        data: {
-          seriesId,
-          languageCode: lang.iso_639_1,
-          type: "SPOKEN",
-        },
-      })
-      .catch(() => {
-        // Ignore duplicates
-      });
+  const rows = dedupeBy(
+    languages.filter((l) => l.iso_639_1),
+    (l) => l.iso_639_1
+  ).map((l) => ({ seriesId, languageCode: l.iso_639_1, type: "SPOKEN" as const }));
+  if (rows.length > 0) {
+    await tx.seriesLanguage.createMany({ data: rows, skipDuplicates: true });
   }
 }

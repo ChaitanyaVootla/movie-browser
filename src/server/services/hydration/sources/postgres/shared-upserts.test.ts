@@ -15,6 +15,7 @@ import {
   floatEq3,
   sameDate,
   keyPart,
+  imageVotesEquivalent,
 } from "./diff-reconcile";
 
 // Representative shapes: existing rows carry a DB id, incoming rows don't.
@@ -289,5 +290,27 @@ describe("keyPart", () => {
   it("stringifies numbers and strings", () => {
     expect(keyPart(42)).toBe("42");
     expect(keyPart("Neo")).toBe("Neo");
+  });
+});
+
+describe("imageVotesEquivalent (Oct 2026: ~712 images UPDATEs/min of vote drift)", () => {
+  const v = (voteAverage: number | null, voteCount: number | null) => ({ voteAverage, voteCount });
+
+  it("one more vote nudging the average in the 3rd decimal is NOT a change", () => {
+    expect(imageVotesEquivalent(v(5.312, 12), v(5.318, 13))).toBe(true);
+    expect(imageVotesEquivalent(v(5.384, 2), v(5.39, 4))).toBe(true);
+  });
+
+  it("a real move still updates (≥0.1 average, or count drift beyond max(2, 10%))", () => {
+    expect(imageVotesEquivalent(v(5.3, 12), v(5.45, 12))).toBe(false);
+    expect(imageVotesEquivalent(v(5.3, 10), v(5.3, 13))).toBe(false);
+    expect(imageVotesEquivalent(v(5.3, 100), v(5.3, 110))).toBe(true);
+    expect(imageVotesEquivalent(v(5.3, 100), v(5.3, 112))).toBe(false); // tolerance = floor(10% of 112) = 11
+  });
+
+  it("null ↔ value is always a change; null ↔ null is not", () => {
+    expect(imageVotesEquivalent(v(null, null), v(null, null))).toBe(true);
+    expect(imageVotesEquivalent(v(null, 0), v(5.2, 1))).toBe(false);
+    expect(imageVotesEquivalent(v(5.2, null), v(5.2, 3))).toBe(false);
   });
 });

@@ -102,6 +102,33 @@ export function floatEq3(
   return Math.round(a * 1000) === Math.round(b * 1000);
 }
 
+/**
+ * Image vote equivalence. TMDB image votes (vote_average/vote_count) move a
+ * little on nearly every refresh — one more vote nudges the average in the
+ * 3rd decimal — and floatEq3 + exact count equality turned that into ~435
+ * `images` UPDATEs/min on prod (Oct 2026). The only consumer is gallery
+ * ordering (`orderBy voteAverage desc`), which a sub-0.1 move or a handful of
+ * extra votes cannot meaningfully change, so those are treated as unchanged.
+ * A row whose votes drift further (or appear/disappear) still updates.
+ */
+export function imageVotesEquivalent(
+  a: { voteAverage: number | null; voteCount: number | null },
+  b: { voteAverage: number | null; voteCount: number | null }
+): boolean {
+  const avgA = a.voteAverage ?? null;
+  const avgB = b.voteAverage ?? null;
+  if ((avgA == null) !== (avgB == null)) return false;
+  if (avgA != null && avgB != null && Math.abs(avgA - avgB) >= 0.1) return false;
+  const cA = a.voteCount ?? null;
+  const cB = b.voteCount ?? null;
+  if ((cA == null) !== (cB == null)) return false;
+  if (cA != null && cB != null) {
+    const tolerance = Math.max(2, Math.floor(Math.max(cA, cB) * 0.1));
+    if (Math.abs(cA - cB) > tolerance) return false;
+  }
+  return true;
+}
+
 /** Date equality by epoch millis; null/undefined compare equal to each other. */
 export function sameDate(a: Date | null | undefined, b: Date | null | undefined): boolean {
   if (a == null || b == null) return a == null && b == null;
