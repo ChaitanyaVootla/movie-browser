@@ -30,22 +30,20 @@ function str(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
 
-/** Accepts the v2 direct payload, and the legacy `{queryStringParameters}` shape. */
+/**
+ * Parses the v2 direct payload. (The pre-v2 `{queryStringParameters}` /
+ * `searchString` shape and its `toLegacy` response were removed Oct 8 2026
+ * after 0 `enrich.legacy_call` lines over the preceding hours.)
+ */
 export function parseInput(event: unknown): EnrichInput | null {
-  const raw =
-    typeof event === "object" && event !== null && "queryStringParameters" in event
-      ? (event as { queryStringParameters: unknown }).queryStringParameters
-      : event;
-  if (typeof raw !== "object" || raw === null) return null;
-  const e = raw as Record<string, unknown>;
+  if (typeof event !== "object" || event === null) return null;
+  const e = event as Record<string, unknown>;
   const tmdbId = Number(e.tmdbId);
   if (!Number.isInteger(tmdbId) || tmdbId <= 0) return null;
   const mediaType: MediaType = e.mediaType === "tv" || e.mediaType === "series" ? "tv" : "movie";
-  // legacy callers only sent "Title 2022 movie" as searchString
-  const legacy = str(e.searchString)?.replace(/\s+(\d{4}\s+movie|tv series)$/i, "");
-  const title = str(e.title) ?? legacy;
+  const title = str(e.title);
   if (!title) return null;
-  const year = Number(e.year ?? str(e.searchString)?.match(/\b(\d{4}) movie$/i)?.[1]);
+  const year = Number(e.year);
   const countries = Array.isArray(e.countries)
     ? e.countries.filter((c): c is string => typeof c === "string" && COUNTRY_RE.test(c))
     : DEFAULT_COUNTRIES;
@@ -138,61 +136,11 @@ export async function enrich(input: EnrichInput): Promise<EnrichResponse> {
   return response;
 }
 
-/**
- * TRANSITIONAL: the pre-v2 app sends `{queryStringParameters}` and parses an
- * API-Gateway-style `{statusCode, body}` with `detailedRatings`/`externalIds.*_id`.
- * Answer it in that shape so the lambda can deploy ahead of the app. Delete
- * once no `enrich.legacy_call` lines appear in the logs.
- */
-function toLegacy(r: EnrichResponse): { statusCode: number; body: string } {
-  const strip = (s?: { score: number | null; ratingCount: number | null; certified: boolean | null; sentiment: string | null; consensus: string | null }) =>
-    s ? { score: s.score, ratingCount: s.ratingCount, certified: s.certified, sentiment: s.sentiment, consensus: s.consensus } : null;
-  const body = {
-    ratings: [
-      ...(r.ratings.metacritic ? [{ name: "Metacritic", rating: String(r.ratings.metacritic.score), link: r.ratings.metacritic.sourceUrl }] : []),
-      ...(r.ratings.letterboxd ? [{ name: "Letterboxd", rating: String(r.ratings.letterboxd.score), link: r.ratings.letterboxd.sourceUrl }] : []),
-    ],
-    allWatchOptions: r.watchLinks.filter((l) => l.country === "IN").map((l) => ({ name: l.provider, link: l.link, price: l.price })),
-    imdbId: r.externalIds.imdb ?? null,
-    directorName: null,
-    externalIds: {
-      imdb_id: r.externalIds.imdb ?? null,
-      rottentomatoes_id: r.externalIds.rottentomatoes ?? null,
-      metacritic_id: r.externalIds.metacritic ?? null,
-      letterboxd_id: r.externalIds.letterboxd ?? null,
-      netflix_id: r.externalIds.netflix ?? null,
-      prime_id: r.externalIds.amazon ?? null,
-      apple_id: r.externalIds.apple ?? null,
-      hotstar_id: r.externalIds.hotstar ?? null,
-    },
-    detailedRatings: {
-      imdb: null,
-      rottenTomatoes:
-        r.ratings.rtCritic || r.ratings.rtAudience
-          ? {
-              critic: strip(r.ratings.rtCritic),
-              audience: strip(r.ratings.rtAudience),
-              sourceUrl: r.ratings.rtCritic?.sourceUrl ?? r.ratings.rtAudience?.sourceUrl,
-            }
-          : null,
-    },
-  };
-  return { statusCode: 200, body: JSON.stringify(body) };
-}
-
-export const handler = async (
-  event: unknown
-): Promise<EnrichResponse | { error: string } | { statusCode: number; body: string }> => {
+export const handler = async (event: unknown): Promise<EnrichResponse | { error: string }> => {
   const input = parseInput(event);
   if (!input) {
     log.warn("enrich.bad_input", { event });
     return { error: "tmdbId and title are required" };
   }
-  const legacy = typeof event === "object" && event !== null && "queryStringParameters" in event;
-  const response = await enrich(input);
-  if (legacy) {
-    log.info("enrich.legacy_call", { tmdbId: input.tmdbId });
-    return toLegacy(response);
-  }
-  return response;
+  return enrich(input);
 };
