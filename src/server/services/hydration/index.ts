@@ -22,6 +22,7 @@
  *   Set ENABLE_MONGODB_ENRICHMENT=false
  */
 
+import { hydrationDebug } from "./debug-log";
 import {
   fetchMovieFromTmdb,
   fetchSeriesFromTmdb,
@@ -249,11 +250,11 @@ async function hydrateMovieImpl(
       const enrichedFresh = isPostgresEnrichedFresh(pgRaw, pgRaw.releaseDate);
 
       if (pgFresh && enrichedFresh) {
-        console.log(`[Hydration] Movie ${movieId}: PostgreSQL fully fresh`);
+        hydrationDebug(`[Hydration] Movie ${movieId}: PostgreSQL fully fresh`);
         return { data: tmdbData, enriched, source: "postgres_fresh", enrichedSource: "postgres" };
       }
 
-      console.log(
+      hydrationDebug(
         `[Hydration] Movie ${movieId}: serving PostgreSQL data, background refresh ` +
           `(core ${pgFresh ? "fresh" : "stale"}, enriched ${enrichedFresh ? "fresh" : "stale"})`
       );
@@ -425,11 +426,11 @@ async function hydrateSeriesImpl(
       const enrichedFresh = isPostgresEnrichedFresh(pgRaw, pgRaw.firstAirDate);
 
       if (pgFresh && enrichedFresh) {
-        console.log(`[Hydration] Series ${seriesId}: PostgreSQL fully fresh`);
+        hydrationDebug(`[Hydration] Series ${seriesId}: PostgreSQL fully fresh`);
         return { data: tmdbData, enriched, source: "postgres_fresh", enrichedSource: "postgres" };
       }
 
-      console.log(
+      hydrationDebug(
         `[Hydration] Series ${seriesId}: serving PostgreSQL data, background refresh ` +
           `(core ${pgFresh ? "fresh" : "stale"}, enriched ${enrichedFresh ? "fresh" : "stale"})`
       );
@@ -861,7 +862,7 @@ async function getEnrichedData(
     );
     return { enriched: emptyEnriched(), enrichedSource: "none", mongoDocExists: false };
   }
-  console.log(`[Hydration] ${mediaType} ${id}: MongoDB disabled, using Lambda`);
+  hydrationDebug(`[Hydration] ${mediaType} ${id}: MongoDB disabled, using Lambda`);
   const lambdaEnriched = await fetchFromLambda(mediaType, id, tmdbData);
   return {
     enriched: lambdaEnriched,
