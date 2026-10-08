@@ -466,6 +466,20 @@ silently reverts the sheds. Backup of the pre-change file:
 
 ## Origin lockdown — UNRESOLVED
 Goal: stop bots bypassing CloudFront by hitting the EIP / `origin.*` directly.
+- **Sep 28 2026 — it happened: `origin.*` is now 403'd at Caddy (`@originhost`).**
+  A forged `Chrome/151.0.0.0` Windows fleet (~44k req/h for 10+ days, 0 authed,
+  0 LCP beacons, ~1 distinct path per 2 hits) crawled `origin.themoviebrowser.com`
+  directly — 86% of requests reaching Next — skipping Cloudflare, passing the
+  proxy.ts shed (clean modern UA), and filling all 96 Caddy admission slots, so
+  real users queued behind it (0% idle, homepage 0.2–6.8s). After the block:
+  in-flight 96→4, idle 0→25%, homepage ~6ms. Tells: ClickHouse `domain(referer)
+  = 'origin.themoviebrowser.com'` (no real visitor ever sees that host), and
+  `tcpdump -i lo 'tcp dst port 3002'` Host headers. Admission control BOUNDS
+  concurrency but does not SHED — a fleet can still monopolise it.
+  **Remove `@originhost` before any CloudFront rollback** (CloudFront fetches
+  from that name). Still open: the bare EIP (Host: apex, no `cf-connecting-ip`)
+  — the durable fix is SG ingress limited to Cloudflare ranges (~15 v4 CIDRs,
+  fits the SG limit, unlike the CloudFront prefix list).
 - Caddy has a dormant `X-Origin-Verify` secret-header gate (activates when
   `ORIGIN_VERIFY_SECRET` is set in the box env — currently NOT set; secret in
   /tmp on the operator machine + the CloudFront origin custom header).

@@ -31,6 +31,18 @@ themoviebrowser.com, origin.themoviebrowser.com {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	encode zstd gzip
 
+	# Sep 28 2026 — CLOSE THE CDN-BYPASS HOSTNAME. Since the Cloudflare cutover
+	# (Aug 14) real traffic arrives as Host: themoviebrowser.com via Cloudflare;
+	# origin.themoviebrowser.com only existed as CloudFront's origin for rollback.
+	# A forged-Chrome/151 fleet (~44k req/h, 0 authed, 0 LCP beacons) crawled it
+	# DIRECTLY — 86% of requests reaching Next — dodging Cloudflare and filling
+	# every admission-control slot. REMOVE THIS BLOCK BEFORE ANY CLOUDFRONT
+	# ROLLBACK (CloudFront fetches from this hostname). See cdn.md.
+	@originhost host origin.themoviebrowser.com
+	respond @originhost 403 {
+		close
+	}
+
 	# (b) ORIGIN LOCKDOWN GATE (CDN pairing, Jun 11 2026)
 	# CloudFront injects `X-Origin-Verify: <secret>` on every origin request.
 	# Reject anything that doesn't carry the matching secret so bots can't
