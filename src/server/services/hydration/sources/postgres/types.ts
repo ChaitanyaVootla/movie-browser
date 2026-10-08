@@ -47,6 +47,7 @@ export interface PostgresMovieData {
     providerName: string;
     link: string;
     price: string | null;
+    countryCode: string;
   }>;
 }
 

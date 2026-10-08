@@ -91,8 +91,15 @@ export function mapWatchProvider(
   name: string,
   link: string
 ): { name: string; displayName: string; link: string; image: string; key: string } | null {
-  const searchKey = (name || getBaseUrl(link)).toLowerCase();
-  const entry = Object.entries(OTT_PROVIDER_MAP).find(([key]) => searchKey.includes(key));
+  // Match provider keys at WORD starts, not anywhere: "Cineplex" must not become
+  // Plex, nor "Cinépolis"/"Ticket New" anything. camelCase is split first so
+  // "JioHotstar" still reaches the hotstar key.
+  const searchKey = (name || getBaseUrl(link))
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .toLowerCase();
+  const entry = Object.entries(OTT_PROVIDER_MAP).find(([key]) =>
+    new RegExp(`(^|[^a-z0-9])${key}`).test(searchKey)
+  );
 
   if (!entry) {
     return null;

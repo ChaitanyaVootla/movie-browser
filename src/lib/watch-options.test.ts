@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getWatchOptionsForCountry, mergeDeepLinks, normalizeTMDBWatchProviders, providerKey } from "./watch-options";
+import { getWatchOptionsForCountry, mapWatchProvider, mergeDeepLinks, normalizeTMDBWatchProviders, providerKey } from "./watch-options";
 import type { WatchProviderData } from "@/types";
 
 const tmdbUS: WatchProviderData = {
@@ -86,5 +86,19 @@ describe("getWatchOptionsForCountry", () => {
   it("falls back to another country when the requested one has nothing", () => {
     const res = getWatchOptionsForCountry("ZZ", undefined, { US: tmdbUS });
     expect(res).toMatchObject({ sourceCountry: "US", isFromFallback: true });
+  });
+});
+
+describe("mapWatchProvider word-start matching", () => {
+  it("does not map cinema chains onto streaming icons", () => {
+    expect(mapWatchProvider("Cineplex Entertainment", "https://www.cineplex.com/x")).toBeNull();
+    expect(mapWatchProvider("Cineplex Australia", "https://www.cineplex.com.au/x")).toBeNull();
+  });
+  it("still maps real providers, including camelCase names", () => {
+    expect(mapWatchProvider("JioHotstar", "https://www.hotstar.com/in/1")?.key).toBe("hotstar");
+    expect(mapWatchProvider("Amazon Prime Video", "https://app.primevideo.com/x")?.key).toBe("amazon");
+    expect(mapWatchProvider("Plex", "https://watch.plex.tv/x")?.key).toBe("plex");
+    expect(mapWatchProvider("", "https://www.netflix.com/title/1")?.key).toBe("netflix");
+    expect(mapWatchProvider("Apple TV Store", "https://tv.apple.com/x")?.key).toBe("apple");
   });
 });

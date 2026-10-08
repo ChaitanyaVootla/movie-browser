@@ -19,9 +19,21 @@ import {
   type HydrationOptions,
 } from "./index";
 import type { TmdbMovieData, TmdbSeriesData } from "./sources/tmdb";
-import { getWatchOptionsForCountry } from "@/lib/watch-options";
+import { getWatchOptionsForCountry, type ScrapedWatchLinksMap } from "@/lib/watch-options";
 import { getCountryCode, SSR_RENDER_COUNTRY } from "@/server/utils";
 import type { Movie, Series, ExternalRating, WatchProviderData } from "@/types";
+
+/** Country-keyed deep links for getWatchOptionsForCountry; links without a country are legacy India links. */
+export function groupScrapedLinksByCountry(
+  links: EnrichedData["scrapedWatchLinks"]
+): ScrapedWatchLinksMap | undefined {
+  if (links.length === 0) return undefined;
+  const map: ScrapedWatchLinksMap = {};
+  for (const l of links) {
+    (map[l.country ?? "IN"] ??= []).push({ name: l.provider, link: l.link, price: l.price });
+  }
+  return map;
+}
 
 // =============================================================================
 // Configuration
@@ -103,18 +115,11 @@ function transformHydratedMovieToMovie(
     | Record<string, WatchProviderData>
     | undefined;
 
-  // Convert enriched scraped links to the format expected by getWatchOptionsForCountry
-  // Scraped links are India-specific deep links
-  const scrapedWatchLinksMap =
-    enriched.scrapedWatchLinks.length > 0
-      ? {
-          IN: enriched.scrapedWatchLinks.map((l) => ({
-            name: l.provider,
-            link: l.link,
-            price: l.price,
-          })),
-        }
-      : undefined;
+  // Deep links are per country (JustWatch, Oct 2026). They were once India-only
+  // and this used to put EVERY link in the IN bucket, so the detail page showed
+  // all five countries' links at once (Apple TV x5, Prime x5, "Cineplex" chains
+  // matched to the Plex icon).
+  const scrapedWatchLinksMap = groupScrapedLinksByCountry(enriched.scrapedWatchLinks);
 
   const watchOptions = getWatchOptionsForCountry(
     countryCode,
@@ -222,18 +227,11 @@ function transformHydratedSeriesToSeries(
     | Record<string, WatchProviderData>
     | undefined;
 
-  // Convert enriched scraped links to the format expected by getWatchOptionsForCountry
-  // Scraped links are India-specific deep links
-  const scrapedWatchLinksMap =
-    enriched.scrapedWatchLinks.length > 0
-      ? {
-          IN: enriched.scrapedWatchLinks.map((l) => ({
-            name: l.provider,
-            link: l.link,
-            price: l.price,
-          })),
-        }
-      : undefined;
+  // Deep links are per country (JustWatch, Oct 2026). They were once India-only
+  // and this used to put EVERY link in the IN bucket, so the detail page showed
+  // all five countries' links at once (Apple TV x5, Prime x5, "Cineplex" chains
+  // matched to the Plex icon).
+  const scrapedWatchLinksMap = groupScrapedLinksByCountry(enriched.scrapedWatchLinks);
 
   const watchOptions = getWatchOptionsForCountry(
     countryCode,

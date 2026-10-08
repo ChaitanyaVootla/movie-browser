@@ -901,7 +901,12 @@ function transformPostgresRatingsToEnriched(pg: {
     source: { slug: string; name: string };
   }>;
   externalIds: Array<{ source: string; externalId: string }>;
-  scrapedWatchLinks: Array<{ providerName: string; link: string; price: string | null }>;
+  scrapedWatchLinks: Array<{
+    providerName: string;
+    link: string;
+    price: string | null;
+    countryCode: string;
+  }>;
 }): EnrichedData {
   const ratings: EnrichedData["ratings"] = {};
 
@@ -966,6 +971,7 @@ function transformPostgresRatingsToEnriched(pg: {
       provider: l.providerName,
       link: l.link,
       price: l.price || "Unknown",
+      country: l.countryCode,
     })),
     externalIds,
     source: "postgres",
