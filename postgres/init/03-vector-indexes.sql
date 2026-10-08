@@ -2,9 +2,9 @@
 -- Vector (semantic) Indexes for Movie Browser — pgvector HNSW (halfvec)
 -- =============================================================================
 --
--- Applied by the deploy pipeline, hash-gated (step [3.7/5] in
--- .github/workflows/deploy-ec2.yml): md5(this file) must differ from
--- `.last-vector-hash` on the box. Safe to re-run: IF NOT EXISTS + CONCURRENTLY.
+-- Applied by the deploy pipeline via scripts/apply-vector-indexes.sh (step
+-- [7.5/7] in .github/workflows/deploy-ec2.yml — detached, ~15 min after the
+-- deploy), hash-gated: md5(this file) must differ from `.last-vector-hash`. Safe to re-run: IF NOT EXISTS + CONCURRENTLY.
 --
 -- WHY halfvec EXPRESSION indexes (not `ON movies USING hnsw (embedding ...)`):
 --   1. `prisma db push` DROPS a plain index on the `embedding` column as schema
