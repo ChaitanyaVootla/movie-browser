@@ -29,27 +29,25 @@ export const metadata: Metadata = {
   },
 };
 
-interface BrowsePageProps {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
+/**
+ * /browse is a filter-AGNOSTIC ISR shell (Oct 2026). It used to await
+ * `searchParams`, which made every view a dynamic origin render that Cloudflare
+ * bypasses (~102k/day, ~4.6 CPU-h/day, mostly crawlers following the
+ * breadcrumb/footer links to plain /browse). Now:
+ *  - the HTML always renders the default list (popular movies) and is cached at
+ *    the origin (ISR) and the edge (s-maxage) — `?query` variants are served
+ *    the same cached shell;
+ *  - the client reads the URL filters after mount and fetches filtered pages
+ *    from the edge-cacheable GET /browse/results (see lib/discover-results.ts).
+ * Filter URLs canonicalise to /browse (metadata above), so serving them the
+ * default list in HTML is the intended crawler view.
+ * Do NOT reintroduce `searchParams`/headers()/cookies() here — any dynamic API
+ * turns the route dynamic again.
+ */
+export const revalidate = 1800;
 
-export default async function BrowsePage({ searchParams }: BrowsePageProps) {
-  const resolvedParams = await searchParams;
-
-  // Convert searchParams to URLSearchParams for parsing
-  const urlSearchParams = new URLSearchParams();
-  Object.entries(resolvedParams).forEach(([key, value]) => {
-    if (typeof value === "string") {
-      urlSearchParams.set(key, value);
-    } else if (Array.isArray(value)) {
-      urlSearchParams.set(key, value.join(","));
-    }
-  });
-
-  // Parse ALL filters from the URL. (Previously only a subset was forwarded,
-  // so a direct load / reload of e.g. ?providers=8&year=2020 server-rendered
-  // the unfiltered popular list under a filtered URL.)
-  const initialParams = browseParamsFromSearch(urlSearchParams);
+export default async function BrowsePage() {
+  const initialParams = browseParamsFromSearch(new URLSearchParams());
   const initialResult = await discover({ ...initialParams, page: 1 });
 
   const breadcrumbs = breadcrumbList([{ name: "Home", path: "/" }, { name: "Browse" }]);

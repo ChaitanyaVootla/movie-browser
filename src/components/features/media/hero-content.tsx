@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { HERO_TAGLINE } from "@/lib/design";
 import { MediaLogo } from "@/components/features/movie/media-logo";
@@ -95,7 +95,7 @@ export function HeroContent({
       {/* Logo - responsive constraints for tall/wide logos
           Mobile: smaller, centered
           Desktop: larger, left-aligned */}
-      <motion.div variants={heroItemVariants} className="mb-4 md:mb-6 lg:mb-8 drop-shadow-lg">
+      <m.div variants={heroItemVariants} className="mb-4 md:mb-6 lg:mb-8 drop-shadow-lg">
         <MediaLogo
           item={{
             id: itemId,
@@ -110,30 +110,30 @@ export function HeroContent({
           className="max-w-[260px] sm:max-w-[320px] md:max-w-[500px] lg:max-w-[600px] max-h-[80px] sm:max-h-[100px] md:max-h-[160px] lg:max-h-[180px]"
           priority={priority}
         />
-      </motion.div>
+      </m.div>
 
       {/* Info section - centered on mobile, left-aligned on desktop */}
       <div className="flex flex-col items-center md:items-start gap-2 md:gap-3">
         {/* AI Hook - tagline above content */}
         {hook && (
-          <motion.blockquote
+          <m.blockquote
             variants={heroItemVariants}
             className={HERO_TAGLINE}
           >
             {hook}
-          </motion.blockquote>
+          </m.blockquote>
         )}
 
         {/* Ratings */}
         {displayRatings.length > 0 && (
-          <motion.div variants={heroItemVariants}>
+          <m.div variants={heroItemVariants}>
             <RatingsBar ratings={displayRatings} size="md" maxVisible={5} />
-          </motion.div>
+          </m.div>
         )}
 
         {/* Watch Options */}
         {watchOptions?.options?.length ? (
-          <motion.div variants={heroItemVariants}>
+          <m.div variants={heroItemVariants}>
             <WatchOptions
               watchOptions={watchOptions}
               item={
@@ -145,14 +145,14 @@ export function HeroContent({
               }
               isMovie={mediaType === "movie"}
             />
-          </motion.div>
+          </m.div>
         ) : null}
 
         {/* Actions - slight top margin to separate from info */}
         {actions && (
-          <motion.div variants={heroItemVariants} className="mt-1 md:mt-2">
+          <m.div variants={heroItemVariants} className="mt-1 md:mt-2">
             {actions}
-          </motion.div>
+          </m.div>
         )}
       </div>
     </div>
@@ -160,7 +160,7 @@ export function HeroContent({
 
   if (animate) {
     return (
-      <motion.div
+      <m.div
         className={cn(
           // Mobile: full width content (already centered via flex items-center)
           // Desktop: constrained width, positioned at bottom-left
@@ -173,7 +173,7 @@ export function HeroContent({
         exit="exit"
       >
         {content}
-      </motion.div>
+      </m.div>
     );
   }
 

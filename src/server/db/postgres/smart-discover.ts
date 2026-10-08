@@ -18,6 +18,7 @@
 
 import { prisma } from "./index";
 import { notAdult } from "./adult-filter";
+import { annDistanceSql, annSessionSql, hasVectorIndex } from "./vector-index";
 import { generateQueryEmbedding } from "@/lib/embeddings";
 import { dataLogger } from "@/lib/logger";
 
@@ -546,6 +547,17 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
   // Build WHERE clause
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
+  // ANN path: when the HNSW index exists, take the nearest candidates by PURE
+  // distance first (index scan), then filter + blend-rank them in the outer
+  // query. A single query with the filters + blended ORDER BY can never use the
+  // index and is a full distance scan (8.2s cold / 557ms warm on prod).
+  // Candidate pool: similarTo needs ~30 that survive minVotes/adult (55-100 of
+  // the nearest 200 pass on prod data); semantic queries may carry many filters.
+  const useAnn = !!embeddingStr && sortBy === "relevance" && (await hasVectorIndex(table));
+  const annCandidates = similarToId ? 200 : 1000;
+  // Cosine distance for the row: from the candidate CTE on the ANN path.
+  const distSql = useAnn ? "c.dist" : `(m.embedding <=> '${embeddingStr}'::vector)`;
+
   // Build ORDER BY clause
   let orderBy: string;
   const ratingSubquery = `(SELECT score FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1)`;
@@ -557,10 +569,10 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
       // Formula: (1 - weight) * similarity + weight * normalized_popularity
       // Normalized popularity: log(popularity + 1) / 10 to scale ~0-1
       const similarityWeight = 1 - popularityWeight;
-      orderBy = `(${similarityWeight} * (1 - (m.embedding <=> '${embeddingStr}'::vector)) + ${popularityWeight} * LEAST(LOG(COALESCE(m.popularity, 1) + 1) / 4, 1)) DESC`;
+      orderBy = `(${similarityWeight} * (1 - ${distSql}) + ${popularityWeight} * LEAST(LOG(COALESCE(m.popularity, 1) + 1) / 4, 1)) DESC`;
     } else {
       // Pure cosine similarity (ascending = closer)
-      orderBy = `m.embedding <=> '${embeddingStr}'::vector`;
+      orderBy = distSql;
     }
   } else {
     // Standard sorting
@@ -592,7 +604,7 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
       (SELECT vote_count FROM ratings WHERE ${ratingFK} = m.id AND source_id = ${TMDB_SOURCE_ID_SQL} LIMIT 1) as vote_count,
       m.popularity,
       LEFT(m.overview, 300) as overview,
-      1 - (m.embedding <=> '${embeddingStr}'::vector) as semantic_score,
+      1 - ${distSql} as semantic_score,
       COALESCE(
         ARRAY(
           SELECT g.name FROM genres g
@@ -623,30 +635,62 @@ export async function smartDiscover(filters: SmartDiscoverFilters): Promise<Smar
     `;
 
   // Execute query
+  const annCte =
+    useAnn && embeddingStr
+      ? `WITH c AS MATERIALIZED (
+      SELECT id AS cid, ${annDistanceSql("embedding", embeddingStr)} AS dist
+      FROM ${table}
+      ORDER BY ${annDistanceSql("embedding", embeddingStr)}
+      LIMIT ${annCandidates}
+    )`
+      : "";
   const sql = `
+    ${annCte}
     SELECT ${selectClause}
-    FROM ${table} m
+    FROM ${useAnn ? `c JOIN ${table} m ON m.id = c.cid` : `${table} m`}
     ${whereClause}
     ORDER BY ${orderBy}
     LIMIT $${paramIndex}
   `;
   params.push(limit * 2); // Fetch extra to account for min score filtering
 
+  type Row = {
+    id: number;
+    title: string;
+    poster_path: string | null;
+    year: string | null;
+    rating: number | null;
+    vote_count: number | null;
+    popularity: number | null;
+    overview: string | null;
+    semantic_score: number | null;
+    genres: string[];
+  };
+
   try {
-    const results = await prisma.$queryRawUnsafe<
-      Array<{
-        id: number;
-        title: string;
-        poster_path: string | null;
-        year: string | null;
-        rating: number | null;
-        vote_count: number | null;
-        popularity: number | null;
-        overview: string | null;
-        semantic_score: number | null;
-        genres: string[];
-      }>
-    >(sql, ...params);
+    // ANN settings must be SET LOCAL on the SAME connection as the query, so
+    // both run in one (batch) transaction.
+    const results: Row[] = useAnn
+      ? ((
+          await prisma.$transaction([
+            ...annSessionSql(annCandidates).map((q) => prisma.$executeRawUnsafe(q)),
+            prisma.$queryRawUnsafe<Row[]>(sql, ...params),
+          ])
+        ).at(-1) as Row[])
+      : await prisma.$queryRawUnsafe<
+          Array<{
+            id: number;
+            title: string;
+            poster_path: string | null;
+            year: string | null;
+            rating: number | null;
+            vote_count: number | null;
+            popularity: number | null;
+            overview: string | null;
+            semantic_score: number | null;
+            genres: string[];
+          }>
+        >(sql, ...params);
 
     // Filter by minimum semantic score if applicable
     let filteredResults = results;

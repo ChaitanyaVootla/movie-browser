@@ -481,6 +481,8 @@ function maybeTrackPageView(
 
     const path = req.nextUrl.pathname;
     if (path.startsWith("/api/") || path.startsWith("/_next/")) return;
+    // JSON data fetch behind the /browse grid, not a page view.
+    if (path === "/browse/results") return;
 
     const context = buildTrackingContext(req.headers, req.auth?.user ?? null, forcedBotType);
     const { mediaType, itemId } = getItemFromPath(path);

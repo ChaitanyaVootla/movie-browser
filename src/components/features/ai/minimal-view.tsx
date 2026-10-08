@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, type KeyboardEvent } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { X, ArrowUp, ArrowRight, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -140,7 +140,7 @@ export function MinimalView({
       : undefined; // Use CSS default
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -274,7 +274,7 @@ export function MinimalView({
         <div className="flex flex-col items-center gap-3 pointer-events-none">
           {/* Poster cards container - sizes to fit cards */}
           {(mediaTags.length > 0 || isReceivingTag) && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
@@ -290,7 +290,7 @@ export function MinimalView({
             >
               <div className="flex gap-4 py-5 px-6">
                 {mediaTags.map((tag, index) => (
-                  <motion.div
+                  <m.div
                     key={`${tag.type}-${tag.id ?? tag.title}-${index}`}
                     initial={{ opacity: 0, y: 30, scale: 0.9 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -301,10 +301,10 @@ export function MinimalView({
                     }}
                   >
                     <PosterCardLarge tag={tag} />
-                  </motion.div>
+                  </m.div>
                 ))}
                 {isReceivingTag && (
-                  <motion.div
+                  <m.div
                     key="loading-placeholder"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -316,15 +316,15 @@ export function MinimalView({
                     >
                       <PulsingSpark size={24} />
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           )}
 
           {/* Text + input container - independent width */}
           <GlowContainer isActive={isLoading} borderRadius={16}>
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, delay: mediaTags.length > 0 ? 0.1 : 0 }}
@@ -350,7 +350,7 @@ export function MinimalView({
                     ) : (
                       <>
                         {cleanText && (
-                          <motion.p
+                          <m.p
                             className="text-sm text-white leading-relaxed text-center font-medium whitespace-pre-line"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -358,7 +358,7 @@ export function MinimalView({
                             data-testid="ai-response-text"
                           >
                             {cleanText}
-                          </motion.p>
+                          </m.p>
                         )}
                         {hasInlineTags && parsedContent && (
                           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -488,10 +488,10 @@ export function MinimalView({
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </GlowContainer>
         </div>
       )}
-    </motion.div>
+    </m.div>
   );
 }

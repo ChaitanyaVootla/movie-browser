@@ -35,6 +35,12 @@ interface DiscoverGridProps {
   className?: string;
   /** Enable infinite scroll instead of load more button */
   infiniteScroll?: boolean;
+  /**
+   * Extra precondition for releasing a Back-navigation scroll restore. /browse
+   * passes `false` until it has read the real URL filters (its HTML is a
+   * filter-agnostic ISR shell, so the first render shows the default grid).
+   */
+  restoreReady?: boolean;
 }
 
 /**
@@ -53,6 +59,7 @@ export function DiscoverGrid({
   title,
   className,
   infiniteScroll = false,
+  restoreReady = true,
 }: DiscoverGridProps) {
   const initial =
     initialResults !== undefined &&
@@ -69,8 +76,9 @@ export function DiscoverGrid({
     isInitialLoading,
     isPlaceholder,
   } = useDiscoverPages(params, initial);
-  // A Back-navigation scroll restore waits for the first page to exist.
-  useScrollRestorationGate(!isInitialLoading);
+  // A Back-navigation scroll restore waits for the first page of the CURRENT
+  // params to exist (not the previous params' placeholder grid).
+  useScrollRestorationGate(restoreReady && !isInitialLoading && !isPlaceholder);
   const loaderRef = useRef<HTMLDivElement>(null);
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 

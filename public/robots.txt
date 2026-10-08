@@ -26,6 +26,8 @@ User-agent: Applebot
 User-agent: OAI-SearchBot
 User-agent: ChatGPT-User
 Disallow: /api/
+# /browse results JSON (edge-cached data endpoint behind the /browse grid)
+Disallow: /browse/results
 Disallow: /ratings
 Disallow: /watchlist
 Disallow: /watched
@@ -100,6 +102,8 @@ Disallow: /
 User-agent: *
 # API + SSE enrich endpoints (GET /api/[mediaType]/[id]/enrich) — never crawl
 Disallow: /api/
+# /browse results JSON (edge-cached data endpoint behind the /browse grid)
+Disallow: /browse/results
 # Private user content - not for indexing
 Disallow: /ratings
 Disallow: /watchlist

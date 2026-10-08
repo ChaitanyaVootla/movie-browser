@@ -543,6 +543,58 @@ ssh -i movie-browser-ec2-key.pem -o StrictHostKeyChecking=no ubuntu@16.112.156.1
    Rule: anything that fires per render/refresh logs at `debug`, and never use
    `console.log` in server hot paths.
 
+18. **A page that reads `searchParams` is uncacheable everywhere — /browse was
+   ~102k bypassed origin renders/day (Oct 2026).** Cloudflare `cacheStatus`
+   for `/browse`: 102k `bypass/200` + 17.7k `499` per day; ClickHouse showed the
+   views were almost all PLAIN `/browse` from crawlers following breadcrumb/
+   footer links, not filter permutations (the proxy logs `pathname` only — use
+   Cloudflare GraphQL by path; `clientRequestQuery` is NOT available on Free).
+   Pattern that fixed it, reusable for any filterable list page:
+   - page = filter-agnostic ISR shell (`revalidate`, no dynamic APIs) rendering
+     the default list; `?query` variants are served the same ISR entry;
+   - the URL is read client-side by a tiny component that calls
+     `useSearchParams()` inside its OWN `<Suspense>` (so only it bails out of
+     static rendering) and reports the key up after mount — first render and
+     hydration use defaults, so no hydration mismatch;
+   - filtered data comes from a **GET route outside `/api/`** (the Cloudflare
+     anon cache rule excludes `/api/*`) with `s-maxage`, answering ONLY the
+     canonical query form (whitelisted keys, sorted id lists, defaults omitted,
+     page last) — everything else is a cacheable 400, so the edge key space is
+     bounded. Server actions are POSTs: never use one for cacheable reads.
+   - gate Back-nav scroll restoration on "URL synced AND results for those
+     params loaded" (`DiscoverGrid restoreReady`), not on the default grid.
+   Files: `src/app/browse/{page,client}.tsx`, `src/app/browse/results/route.ts`,
+   `src/lib/discover-results.ts` (+ test).
+
+19. **pgvector HNSW (Oct 2026) — three traps, all verified on a restored prod dump.**
+   - `prisma db push` DROPS a plain `USING hnsw (embedding …)` index as drift
+     (`prisma migrate diff --from-url … --to-schema-datamodel … --script` shows the
+     `DROP INDEX`), but ignores EXPRESSION indexes. So the indexes are on
+     `(embedding::halfvec(1024))` — which also halves them (movies 313MB) — and
+     queries must order by exactly `embedding::halfvec(1024) <=> q::halfvec(1024)`.
+   - One query with filters + a blended ORDER BY never uses the index: the
+     planner drives from the selective TMDB vote-count EXISTS and computes every
+     distance. Take the nearest N in a `MATERIALIZED` CTE with NO filters, then
+     filter + re-rank outside (`smart-discover.ts`, `vector-index.ts`).
+   - `hnsw.ef_search` defaults to 40 and caps how many rows one scan returns;
+     `SET LOCAL ef_search = N` (+ iterative scan) in the SAME batch transaction.
+   Numbers: 200 candidates 8ms warm, 15-60ms cold first hit; old query 316ms on
+   the same data (8.2s cold on prod). Random vectors are useless for this
+   benchmark (no structure → near-exhaustive graph walk); restore the real
+   tables from the nightly S3 dump into a SEPARATE dev DB
+   (`pg_restore -t movies -t series -t ratings -t data_sources`, add PKs/indexes).
+   Build: deferred background deploy step (`scripts/apply-vector-indexes.sh`,
+   15 min after deploy, 1 worker, 512MB m_w_m, CONCURRENTLY, hash written only
+   when both indexes are `indisvalid`). Local build: series 17s, movies 100s.
+   Similar uses it only when `hasVectorIndex()` says the index is valid.
+
+20. **framer-motion is LazyMotion + `m` (Oct 2026).** `MotionProvider` (root
+   Providers) loads `domAnimation` as an async chunk; `strict` rejects `motion.*`.
+   −27KB gz on every route. Use `m` from "framer-motion"; if you add `layout`,
+   `layoutId` or `drag`, switch the features to `domMax` — otherwise the
+   animation silently does nothing. Verify with a page sweep that no element is
+   stuck at its `initial` opacity after load.
+
 ## Testing a fix
 
 - **App perf:** re-run the Playwright TTFB / POST-timing scripts above against beta after deploy; compare before/after. Confirm load average dropped via SSH.

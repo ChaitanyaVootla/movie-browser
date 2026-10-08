@@ -365,6 +365,17 @@ jobs:
               http://localhost:3002/api/revalidate </dev/null \
               && echo "Revalidation OK" || echo "Warning: revalidation failed"
 
+            echo ""
+            echo "[7.5/7] pgvector HNSW indexes (hash-gated, deferred, background)..."
+            # Builds postgres/init/03-vector-indexes.sql ~15 min AFTER the deploy
+            # (past the cold-ISR window), one worker, CONCURRENTLY. Detached so
+            # this SSH session does not wait minutes for it; progress + result in
+            # logs/vector-index.log. No-op unless the SQL hash changed.
+            chmod +x scripts/apply-vector-indexes.sh || true
+            mkdir -p logs
+            setsid nohup scripts/apply-vector-indexes.sh >> logs/vector-index.log 2>&1 < /dev/null &
+            echo "vector-index job launched (see logs/vector-index.log)"
+
             # NO CloudFront `/*` invalidation on deploy. It cold-purges the ENTIRE
             # edge exactly when the origin is cold-restarting → removes the
             # stale-if-error safety net (nothing cached to serve) AND turns every

@@ -41,7 +41,7 @@ const BodySchema = z.object({
     .optional(),
 });
 
-const DEFAULT_PATHS = ["/", "/topics", "/topics/all"];
+const DEFAULT_PATHS = ["/", "/topics", "/topics/all", "/browse"];
 
 export async function POST(request: NextRequest) {
   const secret = request.headers.get("x-revalidate-secret");

@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { TITLES, ACCENTS, type MockTitle } from "./_lib/mock";
 import type { BadgeType } from "@/lib/badges";
@@ -46,7 +46,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
@@ -57,7 +57,7 @@ function Section({
       <h2 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h2>
       {desc && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{desc}</p>}
       <div className="mt-8">{children}</div>
-    </motion.section>
+    </m.section>
   );
 }
 

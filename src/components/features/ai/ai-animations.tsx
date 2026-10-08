@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { m, AnimatePresence, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AISparkIcon } from "./ai-icon";
 
@@ -28,7 +28,7 @@ export function OrbitingDots({ className, size = "md" }: OrbitingDotsProps) {
       style={{ width: config.container, height: config.container }}
     >
       {/* Rotating container with dots */}
-      <motion.div
+      <m.div
         className="absolute inset-0"
         animate={{ rotate: 360 }}
         transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
@@ -38,7 +38,7 @@ export function OrbitingDots({ className, size = "md" }: OrbitingDotsProps) {
           const x = center + Math.cos(angle) * config.orbit - config.dotSize / 2;
           const y = center + Math.sin(angle) * config.orbit - config.dotSize / 2;
           return (
-            <motion.div
+            <m.div
               key={i}
               className="absolute rounded-full bg-brand"
               style={{
@@ -57,7 +57,7 @@ export function OrbitingDots({ className, size = "md" }: OrbitingDotsProps) {
             />
           );
         })}
-      </motion.div>
+      </m.div>
 
       {/* Center dot */}
       <div
@@ -84,13 +84,13 @@ interface PulsingSparkProps {
 
 export function PulsingSpark({ className, size = 20 }: PulsingSparkProps) {
   return (
-    <motion.div
+    <m.div
       className={className}
       animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
       transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
     >
       <AISparkIcon size={size} className="text-brand" />
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -119,7 +119,7 @@ export function ThinkingIndicator({ className }: ThinkingIndicatorProps) {
   return (
     <div className={cn("flex items-center justify-center gap-[3px]", className)}>
       {[0, 1, 2, 3, 4].map((i) => (
-        <motion.div
+        <m.div
           key={i}
           custom={i}
           variants={waveVariants}
@@ -146,7 +146,7 @@ export function BottomGlow({ isActive, className }: BottomGlowProps) {
   return (
     <AnimatePresence>
       {isActive && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -154,18 +154,18 @@ export function BottomGlow({ isActive, className }: BottomGlowProps) {
           className={cn("fixed left-0 right-0 bottom-0 z-100 pointer-events-none", className)}
         >
           {/* Subtle gradient glow */}
-          <motion.div
+          <m.div
             className="h-8 bg-linear-to-t from-brand/15 to-transparent"
             animate={{ opacity: [0.6, 1, 0.6] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
           {/* Thin line at the bottom */}
-          <motion.div
+          <m.div
             className="h-[2px] w-full bg-brand/60"
             animate={{ opacity: [0.5, 0.8, 0.5] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -205,14 +205,14 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
   return (
     <AnimatePresence>
       {isActive && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-[60] pointer-events-none"
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.5, delay: 0.3 } }}
         >
           {/* Left edge — trailing glow (revealed top to bottom) */}
-          <motion.div
+          <m.div
             className="absolute top-0 left-0 w-[2px] h-full"
             style={{
               background:
@@ -223,7 +223,7 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
             transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
           />
           {/* Left edge — soft glow */}
-          <motion.div
+          <m.div
             className="absolute top-0 left-0 w-[6px] h-full"
             style={{
               background:
@@ -237,7 +237,7 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
           />
 
           {/* Right edge — trailing glow */}
-          <motion.div
+          <m.div
             className="absolute top-0 right-0 w-[2px] h-full"
             style={{
               background:
@@ -248,7 +248,7 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
             transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
           />
           {/* Right edge — soft glow */}
-          <motion.div
+          <m.div
             className="absolute top-0 right-0 w-[6px] h-full"
             style={{
               background:
@@ -262,7 +262,7 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
           />
 
           {/* Left — moving highlight segment */}
-          <motion.div
+          <m.div
             className="absolute left-0 w-[2px]"
             style={{
               height: "20vh",
@@ -276,7 +276,7 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
           />
 
           {/* Right — moving highlight segment */}
-          <motion.div
+          <m.div
             className="absolute right-0 w-[2px]"
             style={{
               height: "20vh",
@@ -291,7 +291,7 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
           />
 
           {/* Bottom convergence flash — brief glow where lines reach the agent */}
-          <motion.div
+          <m.div
             className="absolute bottom-0 left-0 right-0 h-16"
             style={{
               background:
@@ -301,7 +301,7 @@ export function WakeUpBorder({ isActive, onComplete }: WakeUpBorderProps) {
             animate={{ opacity: [0, 0.3, 0] }}
             transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
           />
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -318,7 +318,7 @@ export function GlowContainer({
       {/* Subtle pulsing border glow */}
       <AnimatePresence>
         {isActive && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -326,13 +326,13 @@ export function GlowContainer({
             className="absolute -inset-px pointer-events-none ring-1 ring-brand/25"
             style={{ borderRadius: borderRadius + 1 }}
           >
-            <motion.div
+            <m.div
               className="absolute inset-0 shadow-[0_0_10px_1px] shadow-brand/20"
               style={{ borderRadius: borderRadius + 1 }}
               animate={{ opacity: [0.4, 0.6, 0.4] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             />
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
       <div className="relative z-10">{children}</div>

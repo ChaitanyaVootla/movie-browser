@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { cn, getMediaHref } from "@/lib/utils";
 import { MediaBackdrop } from "@/components/features/media/media-backdrop";
 import { HeroContent, heroContainerVariants } from "@/components/features/media/hero-content";
@@ -266,7 +266,7 @@ export function HeroCarousel({
                 heroEnhancedData?.[`${slideIsMovie ? "movie" : "tv"}:${item.id}`];
               const isCurrent = index === currentIndex;
               return (
-                <motion.div
+                <m.div
                   key={`${item.media_type}:${item.id}`}
                   variants={heroContainerVariants}
                   initial="hidden"
@@ -299,7 +299,7 @@ export function HeroCarousel({
                     animate={false} // Parent handles animation
                     priority={index === 0}
                   />
-                </motion.div>
+                </m.div>
               );
             })}
           </div>
@@ -328,7 +328,7 @@ export function HeroCarousel({
                 >
                   {/* Progress fill - neutral white */}
                   {index === currentIndex && isAutoPlaying && (
-                    <motion.span
+                    <m.span
                       key={animationKey}
                       className="absolute inset-y-0 left-0 bg-white/70 rounded-full"
                       initial={{ width: "0%" }}

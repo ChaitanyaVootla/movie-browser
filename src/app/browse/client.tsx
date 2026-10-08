@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { X, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -84,13 +84,25 @@ function sameBrowseParams(a: DiscoverQueryParams, b: DiscoverQueryParams): boole
   );
 }
 
+/** Reports the URL's query string; isolated so only it bails out of static rendering. */
+function BrowseUrlSync({ onKey }: { onKey: (key: string) => void }) {
+  const key = useSearchParams().toString();
+  useEffect(() => onKey(key), [key, onKey]);
+  return null;
+}
+
 export function BrowseClient({
   initialParams,
   initialResults,
   totalPages,
   totalResults,
 }: BrowseClientProps) {
-  const searchParams = useSearchParams();
+  // The page HTML is a filter-agnostic ISR shell (see page.tsx), so the first
+  // render — server AND hydration — uses the default params. The real URL is
+  // read by <BrowseUrlSync> (useSearchParams under its own Suspense boundary,
+  // which keeps the rest of the page statically rendered) right after mount.
+  const [url, setUrl] = useState<{ key: string; synced: boolean }>({ key: "", synced: false });
+  const onUrlKey = useCallback((key: string) => setUrl({ key, synced: true }), []);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Mobile Back closes the filters drawer instead of navigating the page.
@@ -98,7 +110,7 @@ export function BrowseClient({
 
   // The URL is the source of truth; `params` is an optimistic mirror so pills
   // and the sidebar update instantly on click.
-  const searchKey = searchParams.toString();
+  const searchKey = url.key;
   const [params, setParams] = useState<DiscoverQueryParams>(() =>
     browseParamsFromSearch(new URLSearchParams(searchKey))
   );
@@ -451,6 +463,9 @@ export function BrowseClient({
 
   return (
     <div className="min-h-screen pt-0 md:pt-16">
+      <Suspense fallback={null}>
+        <BrowseUrlSync onKey={onUrlKey} />
+      </Suspense>
       {/* Mobile Header */}
       <div className={cn("md:hidden", STICKY_BAR, "px-4 py-2", STICKY_BAR_SAFE_AREA)}>
         <div className="flex items-center justify-between gap-3">
@@ -584,6 +599,7 @@ export function BrowseClient({
 
             {/* Results Grid */}
             <DiscoverGrid
+              restoreReady={url.synced}
               initialParams={initialParams}
               initialResults={initialResults}
               totalPages={totalPages}

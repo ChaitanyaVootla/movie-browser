@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { ThemeProvider } from "./theme-provider";
 import { ColorPaletteProvider } from "./color-palette-provider";
 import { QueryProvider } from "./query-provider";
+import { MotionProvider } from "./motion-provider";
 import { AuthProvider } from "./auth-provider";
 import { UserStoreProvider } from "./user-store-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -19,11 +20,7 @@ import { AssistantFloaty } from "@/components/features/ai";
 // defeat the dynamic() import below and put cmdk + the palette in every page.
 import { SearchProvider, useSearch } from "@/components/features/search/search-context";
 import { AnalyticsProvider } from "@/components/analytics";
-import {
-  ServiceWorkerRegister,
-  InstallBanner,
-  BadgeManager,
-} from "@/components/features/pwa";
+import { ServiceWorkerRegister, InstallBanner, BadgeManager } from "@/components/features/pwa";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -51,47 +48,49 @@ function SearchDialogRenderer() {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <AuthProvider>
-      <UserStoreProvider>
-        <ThemeProvider>
-          <ColorPaletteProvider>
-            <QueryProvider>
-            <AnalyticsProvider>
-              <SearchProvider>
-                <HoverCardProvider>
-                  <QuickInfoProvider>
-                    {children}
-                    <HoverCardOverlay />
-                    {/* Mobile has no top navbar — without an offset, toasts sit
+    <MotionProvider>
+      <AuthProvider>
+        <UserStoreProvider>
+          <ThemeProvider>
+            <ColorPaletteProvider>
+              <QueryProvider>
+                <AnalyticsProvider>
+                  <SearchProvider>
+                    <HoverCardProvider>
+                      <QuickInfoProvider>
+                        {children}
+                        <HoverCardOverlay />
+                        {/* Mobile has no top navbar — without an offset, toasts sit
                         UNDER the h-14 bottom nav (+ its safe-area growth). Lift
                         them clear of it so no toast hides behind the nav. The PWA
                         install banner lives higher (bottom-32) so they don't overlap. */}
-                    <Toaster
-                      position="bottom-right"
-                      mobileOffset={{
-                        bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
-                        left: "1rem",
-                        right: "1rem",
-                      }}
-                    />
-                    {/* Google One Tap - shows login prompt for unauthenticated users */}
-                    <GoogleOneTap delay={2000} />
-                    {/* Cue - AI chat assistant */}
-                    <AssistantFloaty />
-                    {/* Search dialog - single instance */}
-                    <SearchDialogRenderer />
-                    {/* PWA: service worker, install prompt, badge */}
-                    <ServiceWorkerRegister />
-                    <InstallBanner />
-                    <BadgeManager />
-                  </QuickInfoProvider>
-                </HoverCardProvider>
-              </SearchProvider>
-            </AnalyticsProvider>
-            </QueryProvider>
-          </ColorPaletteProvider>
-        </ThemeProvider>
-      </UserStoreProvider>
-    </AuthProvider>
+                        <Toaster
+                          position="bottom-right"
+                          mobileOffset={{
+                            bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
+                            left: "1rem",
+                            right: "1rem",
+                          }}
+                        />
+                        {/* Google One Tap - shows login prompt for unauthenticated users */}
+                        <GoogleOneTap delay={2000} />
+                        {/* Cue - AI chat assistant */}
+                        <AssistantFloaty />
+                        {/* Search dialog - single instance */}
+                        <SearchDialogRenderer />
+                        {/* PWA: service worker, install prompt, badge */}
+                        <ServiceWorkerRegister />
+                        <InstallBanner />
+                        <BadgeManager />
+                      </QuickInfoProvider>
+                    </HoverCardProvider>
+                  </SearchProvider>
+                </AnalyticsProvider>
+              </QueryProvider>
+            </ColorPaletteProvider>
+          </ThemeProvider>
+        </UserStoreProvider>
+      </AuthProvider>
+    </MotionProvider>
   );
 }
