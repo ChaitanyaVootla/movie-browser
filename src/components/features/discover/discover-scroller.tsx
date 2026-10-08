@@ -52,10 +52,7 @@ export function DiscoverScroller({
   const {
     scrollRef,
     isDragging,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-    handleDragStart,
+    dragHandlers,
     scroll,
   } = useScrollDrag();
 
@@ -162,11 +159,7 @@ export function DiscoverScroller({
           contentPadding,
           isDragging && "cursor-grabbing select-none"
         )}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onDragStart={handleDragStart}
+        {...dragHandlers}
       >
         {results.length === 0 && isPending ? (
           // Initial loading skeletons
@@ -219,10 +212,7 @@ export function DiscoverScrollerServer({
   const {
     scrollRef,
     isDragging,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-    handleDragStart,
+    dragHandlers,
     scroll,
   } = useScrollDrag();
 
@@ -274,11 +264,7 @@ export function DiscoverScrollerServer({
           contentPadding,
           isDragging && "cursor-grabbing select-none"
         )}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onDragStart={handleDragStart}
+        {...dragHandlers}
       >
         {results.map((item, index) => (
           <MediaCard

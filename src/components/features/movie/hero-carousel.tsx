@@ -162,10 +162,25 @@ export function HeroCarousel({
   }
 
   // Navigate to details page (for clickable area)
-  const handleClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on buttons or interactive elements
+  /** A click on the hero surface itself (not a nested control / portal). */
+  const isSurfaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
-    if (target.closest("button") || target.closest("a")) return;
+    // Don't navigate if clicking on buttons or interactive elements
+    if (target.closest("button") || target.closest("a")) return false;
+    // Portal content (a dialog opened from inside the hero) bubbles here
+    // through the React tree — it is not a click on the hero.
+    return e.currentTarget.contains(target);
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isSurfaceClick(e)) return;
+    // Releasing a text selection (e.g. copying the overview) fires a click.
+    if (window.getSelection()?.toString()) return;
+    // This is a div[role=link], not an <a>, so emulate open-in-new-tab.
+    if (e.metaKey || e.ctrlKey || e.shiftKey) {
+      window.open(href, "_blank", "noopener");
+      return;
+    }
     router.push(href);
   };
 
@@ -177,10 +192,19 @@ export function HeroCarousel({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
+      onAuxClick={(e) => {
+        // Middle-click → new tab, like a real link.
+        if (e.button !== 1 || !isSurfaceClick(e)) return;
+        window.open(href, "_blank", "noopener");
+      }}
       role="link"
       tabIndex={0}
       aria-label={`View ${title || "featured content"}`}
       onKeyDown={(e) => {
+        // Only when the hero ITSELF is focused. Enter/Space on a nested
+        // button or link bubbles here too; navigating (and preventDefault-ing
+        // the key) hijacked those controls' own activation.
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           router.push(href);

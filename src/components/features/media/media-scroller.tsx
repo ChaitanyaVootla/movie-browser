@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/features/layout/section-heading";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { ScrollContainer, useScrollDrag } from "./scroll-container";
+import { ScrollContainer } from "./scroll-container";
+import { scrollByPage } from "@/hooks/use-scroll-drag";
 
 interface MediaScrollerProps {
   title?: ReactNode;
@@ -54,7 +55,6 @@ export function MediaScroller({
   gap = "gap-4",
 }: MediaScrollerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { scroll } = useScrollDrag({ externalRef: scrollContainerRef });
   const { trackAction } = useAnalytics();
 
   const sectionTitle = typeof title === "string" ? title : undefined;
@@ -65,9 +65,12 @@ export function MediaScroller({
         action: "carousel_nav",
         metadata: { direction, sectionTitle },
       });
-      scroll(direction === "prev" ? "left" : "right");
+      // The scroll element lives inside ScrollContainer (forwarded ref). A
+      // second useScrollDrag() here would own a never-attached ref, so the
+      // arrows silently did nothing.
+      scrollByPage(scrollContainerRef.current, direction === "prev" ? "left" : "right");
     },
-    [trackAction, sectionTitle, scroll]
+    [trackAction, sectionTitle]
   );
 
   return (
