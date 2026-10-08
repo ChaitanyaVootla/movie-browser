@@ -72,6 +72,12 @@ export interface EnrichmentStreamState {
   isRefreshing: boolean;
   latestRatings: RatingsEventData | null;
   latestAI: AIEventData | null;
+  /**
+   * Ask for a one-shot AI snapshot from PG. Called by the Live AI components,
+   * which only mount when the (possibly stale, edge-cached) HTML had no AI.
+   * Idempotent per mount; a no-op once AI has arrived.
+   */
+  requestAI: () => void;
 }
 
 // =============================================================================
@@ -83,6 +89,10 @@ export interface EnrichmentStreamState {
  *
  * Connects to GET /api/[mediaType]/[id]/enrich and returns
  * reactive state as ratings and AI data become available.
+ *
+ * Every stream opens with a `ratings` snapshot of current PG state, so a stale
+ * ISR/edge-cached page self-heals on load (LiveRatings swaps it in only when it
+ * differs from the HTML). See the route header for the `?once=1&ai=1` path.
  *
  * Uses EventSource (GET-only, simpler than fetch+ReadableStream).
  * Auto-closes on `done` event or component unmount.
@@ -98,6 +108,9 @@ export function useEnrichmentStream(
   const [latestAI, setLatestAI] = useState<AIEventData | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const connectedRef = useRef(false);
+  const aiRequestedRef = useRef(false);
+  const aiReceivedRef = useRef(false);
+  const aiSourceRef = useRef<EventSource | null>(null);
 
   const cleanup = useCallback(() => {
     if (eventSourceRef.current) {
@@ -105,6 +118,58 @@ export function useEnrichmentStream(
       eventSourceRef.current = null;
     }
   }, []);
+
+  // Both streams can deliver AI; apply it (and refresh the server-rendered AI
+  // sections) exactly once.
+  const applyAI = useCallback(
+    (data: AIEventData) => {
+      if (aiReceivedRef.current) return;
+      aiReceivedRef.current = true;
+      setLatestAI(data);
+      // Re-render server components so all AI sections appear
+      // (only LiveAIHook + LiveAISections update via state;
+      // themes, mood, bestFor, highlights etc. are server-rendered)
+      router.refresh();
+    },
+    [router]
+  );
+
+  // The main stream's effect must not re-run (it is connect-once) if applyAI's
+  // identity ever changes, so it reads the latest one through a ref.
+  const applyAIRef = useRef(applyAI);
+  useEffect(() => {
+    applyAIRef.current = applyAI;
+  }, [applyAI]);
+
+  const requestAI = useCallback(() => {
+    if (aiRequestedRef.current || aiReceivedRef.current) return;
+    aiRequestedRef.current = true;
+    // One-shot PG snapshot (no polling, no hydration) — see the route header.
+    const es = new EventSource(`/api/${mediaType}/${id}/enrich?once=1&ai=1`);
+    aiSourceRef.current = es;
+    const close = () => {
+      es.close();
+      if (aiSourceRef.current === es) aiSourceRef.current = null;
+    };
+    es.onmessage = (event: MessageEvent) => {
+      try {
+        const parsed: SSEEvent = JSON.parse(event.data as string);
+        if (parsed.type === "ai") applyAI(parsed.data as AIEventData);
+        if (parsed.type === "done") close();
+      } catch {
+        // Ignore JSON parse errors
+      }
+    };
+    es.onerror = close;
+  }, [mediaType, id, applyAI]);
+
+  useEffect(
+    () => () => {
+      aiSourceRef.current?.close();
+      aiSourceRef.current = null;
+    },
+    []
+  );
 
   useEffect(() => {
     // Guard: only connect once per mount
@@ -129,11 +194,7 @@ export function useEnrichmentStream(
             break;
 
           case "ai":
-            setLatestAI(parsed.data as AIEventData);
-            // Re-render server components so all AI sections appear
-            // (only LiveAIHook + LiveAISections update via state;
-            // themes, mood, bestFor, highlights etc. are server-rendered)
-            router.refresh();
+            applyAIRef.current(parsed.data as AIEventData);
             break;
 
           case "done":
@@ -158,5 +219,5 @@ export function useEnrichmentStream(
     };
   }, [mediaType, id, cleanup]);
 
-  return { isRefreshing, latestRatings, latestAI };
+  return { isRefreshing, latestRatings, latestAI, requestAI };
 }

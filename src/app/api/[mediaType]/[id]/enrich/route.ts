@@ -8,6 +8,16 @@
  * and pushes updates to the client. Does NOT trigger enrichment directly —
  * the Server Component page render handles that via hydration.
  *
+ * Stale-HTML self-heal (Oct 2026): the page HTML is ISR + Cloudflare cached
+ * for up to ~2h, so it can be OLDER than PG (e.g. it was cached before the
+ * background refresh wrote ratings that this very stream then showed live).
+ * Every stream therefore opens with a `ratings` snapshot of what PG holds now
+ * (one indexed read we already do), and the client swaps it in when it
+ * differs from the HTML. AI is bigger and only sent on request:
+ * `?once=1&ai=1` = one-shot snapshot (ratings + AI if present), no polling —
+ * opened by LiveAISections/LiveAIHook only when the HTML had no AI.
+ * Neither path triggers hydration/scrapes; both are pure PG reads.
+ *
  * Events:
  * - { type: "status", refreshing: boolean }
  * - { type: "ratings", data: {...} }
@@ -118,6 +128,29 @@ async function checkAIData(
   return getAIData(id, mediaType);
 }
 
+function ratingsEvent(snapshot: RatingsSnapshot): Record<string, unknown> | null {
+  if (snapshot.ratings.length === 0) return null;
+  return {
+    type: "ratings",
+    data: {
+      ratings: snapshot.ratings,
+      scrapedAt: snapshot.ratingsScrapedAt?.toISOString() ?? null,
+    },
+  };
+}
+
+function aiEvent(ai: AIDataResponse): Record<string, unknown> {
+  return {
+    type: "ai",
+    data: {
+      hook: ai.hook,
+      mood: ai.mood,
+      insights: ai.insights,
+      generatedAt: ai.generatedAt?.toISOString() ?? null,
+    },
+  };
+}
+
 // =============================================================================
 // Route Handler
 // =============================================================================
@@ -134,6 +167,8 @@ export async function GET(
   }
 
   const { mediaType, id } = parsed.data;
+  const once = request.nextUrl.searchParams.get("once") === "1";
+  const wantAI = request.nextUrl.searchParams.get("ai") === "1";
 
   log.debug({ mediaType, id }, "SSE enrichment stream opened");
 
@@ -148,17 +183,20 @@ export async function GET(
   // page in a "refreshing" state on every revisit to a no-ratings title.
   const ratingsSettled = initialRatings.ratingsScrapedAt !== null;
   const hasAI = initialAI !== null;
+  const snapshotEvent = ratingsEvent(initialRatings);
 
-  if (ratingsSettled && hasAI) {
-    log.debug({ mediaType, id }, "All data fresh, sending done immediately");
+  if (once || (ratingsSettled && hasAI)) {
+    log.debug({ mediaType, id, once }, "Sending PG snapshot + done immediately");
     const encoder = new TextEncoder();
+    const events: Record<string, unknown>[] = [];
+    if (snapshotEvent) events.push(snapshotEvent);
+    if (wantAI && initialAI) events.push(aiEvent(initialAI));
+    events.push({ type: "done", refreshing: false });
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "done", refreshing: false })}\n\n`
-          )
-        );
+        for (const e of events) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
+        }
         controller.close();
       },
     });
@@ -200,6 +238,9 @@ export async function GET(
 
       // Send initial status
       send({ type: "status", refreshing: true });
+      // Current PG ratings up front — corrects a stale cached HTML copy even
+      // when no further change arrives during this stream.
+      if (snapshotEvent) send(snapshotEvent);
 
       // Track what we've already sent
       let sentRatings = ratingsSettled;
@@ -231,13 +272,8 @@ export async function GET(
             if (currentScrapedAt > lastRatingsScrapedAt && currentRatings.ratings.length > 0) {
               lastRatingsScrapedAt = currentScrapedAt;
               sentRatings = true;
-              send({
-                type: "ratings",
-                data: {
-                  ratings: currentRatings.ratings,
-                  scrapedAt: currentRatings.ratingsScrapedAt?.toISOString() ?? null,
-                },
-              });
+              const ev = ratingsEvent(currentRatings);
+              if (ev) send(ev);
             }
           }
 
@@ -246,15 +282,7 @@ export async function GET(
             const currentAI = await checkAIData(mediaType, id);
             if (currentAI) {
               sentAI = true;
-              send({
-                type: "ai",
-                data: {
-                  hook: currentAI.hook,
-                  mood: currentAI.mood,
-                  insights: currentAI.insights,
-                  generatedAt: currentAI.generatedAt?.toISOString() ?? null,
-                },
-              });
+              send(aiEvent(currentAI));
             }
           }
 
