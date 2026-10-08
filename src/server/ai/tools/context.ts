@@ -11,6 +11,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { getUserItemStatus } from "@/server/db/user-data";
 import { getUserIdFromConfig } from "../utils";
 import type { PageContext } from "../state";
+import { describeLibraryView } from "@/lib/ai-page-query";
 
 export type { PageContext };
 
@@ -47,6 +48,7 @@ export const getPageContextTool = tool(
       page: pageType,
       path: pageContext.path,
     };
+    if (pageContext.query) response.query = pageContext.query;
 
     if (pageContext.mediaType && pageContext.itemId) {
       const item: Record<string, unknown> = {
@@ -99,7 +101,8 @@ export const getPageContextTool = tool(
         "Viewing their watched history. You can suggest similar content or use smart_discover with hideWatched: true to find fresh picks.";
     } else if (pageType === "library") {
       response.hint =
-        "On their library page (watchlist + watched + ratings in one place). Use get_user_profile for their taste, or smart_discover({ fromWatchlist: true }) for saved items.";
+        `On their library page, viewing the ${describeLibraryView(pageContext.query)}. ` +
+        "The library holds Watching (in progress), Watchlist, Watched and Ratings. Use get_user_profile for their taste, or smart_discover({ fromWatchlist: true }) for saved items.";
     } else if (pageType === "diary") {
       response.hint =
         "On their watch diary. Use get_user_profile for recent watches — good moment for 'what next' recommendations.";

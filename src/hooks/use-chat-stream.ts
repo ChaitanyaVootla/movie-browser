@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { pickPageQuery } from "@/lib/ai-page-query";
 import { useRouter } from "next/navigation";
 
 // =============================================================================
@@ -21,6 +22,12 @@ export interface ChatMessage {
 
 export interface PageContext {
   path: string;
+  /**
+   * Whitelisted query params of the current URL (e.g. `{ tab: "ratings" }` on
+   * /library) — see src/lib/ai-page-query.ts. View state lives in the URL, so
+   * the path alone doesn't say which tab/filter the user is on.
+   */
+  query?: Record<string, string>;
   mediaType?: "movie" | "series" | "person";
   itemId?: number;
   itemTitle?: string;
@@ -28,6 +35,18 @@ export interface PageContext {
   rating?: number;
   year?: string;
   status?: string;
+}
+
+/**
+ * Attach the whitelisted query params of the CURRENT URL at send time (read
+ * from window, not useSearchParams — the chat lives in the root layout, where
+ * useSearchParams would bail every static page out of prerendering).
+ */
+function withPageQuery(ctx: PageContext | null): PageContext | null {
+  if (!ctx || typeof window === "undefined") return ctx;
+  if (window.location.pathname !== ctx.path) return ctx;
+  const query = pickPageQuery(ctx.path, window.location.search);
+  return query ? { ...ctx, query } : ctx;
 }
 
 interface StreamEvent {
@@ -214,7 +233,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
             message: content.trim(),
             ...(hasThread ? { threadId: threadIdRef.current } : { history }),
             stream: true,
-            pageContext: pageContextRef.current,
+            pageContext: withPageQuery(pageContextRef.current),
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           }),
           signal: abortControllerRef.current.signal,

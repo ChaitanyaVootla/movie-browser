@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { Film, Tv, ThumbsUp, ThumbsDown, Star } from "lucide-react";
+import { Film, Tv, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,18 @@ import { useUrlState } from "@/hooks/use-url-state";
 import { buildBrowseUrl } from "@/lib/discover";
 import { pickParam } from "@/lib/url-state";
 import {
+  RATING_FILTERS,
+  RATING_FILTER_LABELS,
+  RATING_SORTS,
+  countRatings,
+  matchesRatingFilter,
+  sortRatedTitles,
+  thumbLabel,
+  type RatedTitle,
+  type RatingFilter,
+  type RatingsPayload,
+} from "@/lib/library-ratings";
+import {
   LIBRARY_POSTER_GRID,
   LIBRARY_WIDE_GRID,
   LibraryFilterBar,
@@ -22,37 +34,7 @@ import {
 } from "./library-filter-bar";
 import { LibraryGridSkeleton, LibraryError } from "./library-states";
 
-interface RatedMovie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  vote_average: number;
-  release_date?: string;
-  genres?: { id: number; name: string }[];
-  ratedAt: Date;
-}
-
-interface RatedSeries {
-  id: number;
-  name: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  vote_average: number;
-  first_air_date?: string;
-  number_of_seasons?: number;
-  status?: string;
-  genres?: { id: number; name: string }[];
-  ratedAt: Date;
-}
-
-interface RatingsData {
-  likes: { movies: RatedMovie[]; series: RatedSeries[] };
-  dislikes: { movies: RatedMovie[]; series: RatedSeries[] };
-  totalCount: number;
-}
-
-async function fetchRatings(): Promise<RatingsData> {
+async function fetchRatings(): Promise<RatingsPayload> {
   const response = await fetch("/api/user/ratings");
   if (!response.ok) {
     throw new Error("Failed to fetch ratings");
@@ -61,32 +43,31 @@ async function fetchRatings(): Promise<RatingsData> {
 }
 
 const MEDIA_TYPES = ["movies", "series"] as const;
-const RATING_TYPES = ["likes", "dislikes"] as const;
 const SORT_OPTIONS = [
   { value: "rated", label: "Recently Rated" },
-  { value: "rating", label: "Highest Rated" },
+  { value: "score", label: "Your Rating" },
+  { value: "rating", label: "Highest Rated (TMDB)" },
   { value: "date_desc", label: "Newest First" },
   { value: "date_asc", label: "Oldest First" },
   { value: "title", label: "Title A-Z" },
 ];
-const DEFAULTS = { type: "movies", rating: "likes", sort: "rated" };
+const DEFAULTS = { type: "movies", rating: "all", sort: "rated" };
 
-function itemTitle(item: RatedMovie | RatedSeries): string {
-  return "title" in item ? item.title : item.name;
-}
-function itemDate(item: RatedMovie | RatedSeries): string {
-  return ("title" in item ? item.release_date : item.first_air_date) || "";
-}
-
-/** Library → Ratings tab: thumbs up/down by media type (all state in the URL). */
+/**
+ * Library → Ratings tab: every title you've rated — ½-star scores (score/2),
+ * loved hearts and legacy thumbs — by media type. All state is in the URL
+ * (`type`, `rating`, `q`, `sort`). Each card carries ITS OWN row's score/heart
+ * via `personalOverride` (from the API payload), so the tab is correct even
+ * before the user store hydrates.
+ */
 export function RatingsTab() {
   const { status: authStatus } = useSession();
   const displayMode = usePreferencesStore(selectCardDisplayMode);
   const url = useUrlState(DEFAULTS);
   const mediaType = pickParam(url.get("type"), MEDIA_TYPES, "movies");
-  const ratingType = pickParam(url.get("rating"), RATING_TYPES, "likes");
+  const filter = pickParam(url.get("rating"), RATING_FILTERS, "all");
   const searchQuery = url.get("q") ?? "";
-  const sortBy = url.get("sort") ?? "rated";
+  const sortBy = pickParam(url.get("sort"), RATING_SORTS, "rated");
 
   const {
     data: ratings,
@@ -100,38 +81,20 @@ export function RatingsTab() {
   });
   useScrollRestorationGate(authStatus !== "loading" && !isLoading);
 
+  const typeKey = mediaType === "movies" ? "movie" : "series";
+  const counts = useMemo(() => countRatings(ratings?.items ?? []), [ratings]);
+
   const filteredItems = useMemo(() => {
     if (!ratings) return [];
-
-    const items: (RatedMovie | RatedSeries)[] = [...(ratings[ratingType][mediaType] || [])];
-    let filtered = items;
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter((item) => itemTitle(item).toLowerCase().includes(query));
-    }
-
-    switch (sortBy) {
-      case "rating":
-        filtered.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
-        break;
-      case "date_desc":
-        filtered.sort((a, b) => itemDate(b).localeCompare(itemDate(a)));
-        break;
-      case "date_asc":
-        filtered.sort((a, b) => itemDate(a).localeCompare(itemDate(b)));
-        break;
-      case "title":
-        filtered.sort((a, b) => itemTitle(a).localeCompare(itemTitle(b)));
-        break;
-      case "rated":
-      default:
-        // Already sorted by ratedAt from API
-        break;
-    }
-
-    return filtered;
-  }, [ratings, ratingType, mediaType, searchQuery, sortBy]);
+    const q = searchQuery.toLowerCase().trim();
+    const list = ratings.items.filter(
+      (item) =>
+        item.mediaType === typeKey &&
+        matchesRatingFilter(item, filter) &&
+        (!q || item.title.toLowerCase().includes(q))
+    );
+    return sortRatedTitles(list, sortBy);
+  }, [ratings, typeKey, filter, searchQuery, sortBy]);
 
   if (authStatus === "loading" || isLoading) {
     return <LibraryGridSkeleton />;
@@ -150,7 +113,7 @@ export function RatingsTab() {
         <div className="space-y-2">
           <h3 className="text-lg font-medium">No ratings yet</h3>
           <p className="text-muted-foreground max-w-sm">
-            Like or dislike movies and TV shows to build your personal taste profile.
+            Rate or heart movies and TV shows to build your personal taste profile.
           </p>
         </div>
         <Button asChild>
@@ -160,53 +123,48 @@ export function RatingsTab() {
     );
   }
 
-  const likesCount = ratings.likes.movies.length + ratings.likes.series.length;
-  const dislikesCount = ratings.dislikes.movies.length + ratings.dislikes.series.length;
-  const currentTypeCount = ratings[ratingType][mediaType].length;
+  const typeCounts = counts[typeKey];
+  const currentCount = typeCounts[filter];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-3">
-        <Tabs value={mediaType} onValueChange={(type) => url.set({ type })}>
-          <TabsList>
-            <TabsTrigger value="movies" className="gap-2">
-              <Film className="h-4 w-4" />
-              Movies
-              <Badge variant="secondary" className="ml-1">
-                {ratings[ratingType].movies.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="series" className="gap-2">
-              <Tv className="h-4 w-4" />
-              TV Shows
-              <Badge variant="secondary" className="ml-1">
-                {ratings[ratingType].series.length}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <Tabs
+        value={mediaType}
+        onValueChange={(type) => url.set({ type, q: null })}
+      >
+        <TabsList>
+          <TabsTrigger value="movies" className="gap-2">
+            <Film className="h-4 w-4" />
+            Movies
+            <Badge variant="secondary" className="ml-1">
+              {counts.movie.all}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="series" className="gap-2">
+            <Tv className="h-4 w-4" />
+            TV Shows
+            <Badge variant="secondary" className="ml-1">
+              {counts.series.all}
+            </Badge>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-        <Tabs value={ratingType} onValueChange={(rating) => url.set({ rating })}>
-          <TabsList>
-            <TabsTrigger value="likes" className="gap-2">
-              <ThumbsUp className="h-4 w-4" />
-              Likes
-              <Badge variant="secondary" className="ml-1">
-                {likesCount}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="dislikes" className="gap-2">
-              <ThumbsDown className="h-4 w-4" />
-              Dislikes
-              <Badge variant="secondary" className="ml-1">
-                {dislikesCount}
-              </Badge>
-            </TabsTrigger>
+      {/* Which signal: any / scored / loved / thumbs. Scrolls on narrow screens. */}
+      <div className="-mx-4 overflow-x-auto px-4 scrollbar-hide md:mx-0 md:px-0">
+        <Tabs value={filter} onValueChange={(rating) => url.set({ rating })}>
+          <TabsList className="w-fit">
+            {RATING_FILTERS.map((f) => (
+              <TabsTrigger key={f} value={f} className="gap-1.5">
+                {RATING_FILTER_LABELS[f]}
+                <span className="text-xs tabular-nums text-muted-foreground">{typeCounts[f]}</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
       </div>
 
-      {currentTypeCount > 0 && (
+      {currentCount > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <LibraryFilterBar
             search={searchQuery}
@@ -217,14 +175,14 @@ export function RatingsTab() {
           />
           <Badge variant="outline" className="text-muted-foreground">
             {searchQuery.trim()
-              ? `${filteredItems.length} of ${currentTypeCount}`
-              : `${currentTypeCount} ${mediaType === "movies" ? "movies" : "shows"}`}
+              ? `${filteredItems.length} of ${currentCount}`
+              : `${currentCount} ${mediaType === "movies" ? "movies" : "shows"}`}
           </Badge>
         </div>
       )}
 
-      {currentTypeCount === 0 ? (
-        <EmptyState mediaType={mediaType} ratingType={ratingType} />
+      {currentCount === 0 ? (
+        <EmptyState mediaType={mediaType} filter={filter} />
       ) : filteredItems.length === 0 ? (
         <NoFilterMatches
           label="No results match your search"
@@ -233,24 +191,7 @@ export function RatingsTab() {
       ) : (
         <div className={displayMode === "wide" ? LIBRARY_WIDE_GRID : LIBRARY_POSTER_GRID}>
           {filteredItems.map((item) => (
-            <MediaCard
-              key={item.id}
-              item={{
-                id: item.id,
-                ...("title" in item
-                  ? { title: item.title, release_date: item.release_date || "" }
-                  : { name: item.name, first_air_date: item.first_air_date || "" }),
-                poster_path: item.poster_path,
-                backdrop_path: item.backdrop_path,
-                vote_average: item.vote_average,
-                vote_count: 0,
-                overview: "",
-                popularity: 0,
-                adult: false,
-              }}
-              subtitle={item.genres?.[0]?.name}
-              hideUserStatus
-            />
+            <RatedCard key={`${item.mediaType}-${item.id}`} item={item} />
           ))}
         </div>
       )}
@@ -258,29 +199,62 @@ export function RatingsTab() {
   );
 }
 
+function RatedCard({ item }: { item: RatedTitle }) {
+  return (
+    <MediaCard
+      item={{
+        id: item.id,
+        ...(item.mediaType === "movie"
+          ? { title: item.title, release_date: item.date }
+          : { name: item.title, first_air_date: item.date }),
+        poster_path: item.poster_path,
+        backdrop_path: item.backdrop_path,
+        vote_average: item.vote_average,
+        vote_count: 0,
+        overview: "",
+        popularity: 0,
+        adult: false,
+      }}
+      // Thumbs have no card glyph — say it in the subtitle.
+      subtitle={thumbLabel(item) ?? item.genres[0]?.name}
+      hideUserStatus
+      personalOverride={{
+        stars: item.score !== null ? item.score / 2 : null,
+        loved: item.liked,
+        watched: false,
+        watchlisted: false,
+      }}
+    />
+  );
+}
+
+const EMPTY_COPY: Record<RatingFilter, string> = {
+  all: "rated",
+  scored: "star-rated",
+  loved: "loved",
+  likes: "liked",
+  dislikes: "disliked",
+};
+
 function EmptyState({
   mediaType,
-  ratingType,
+  filter,
 }: {
   mediaType: "movies" | "series";
-  ratingType: "likes" | "dislikes";
+  filter: RatingFilter;
 }) {
-  const Icon = ratingType === "likes" ? ThumbsUp : ThumbsDown;
   const typeLabel = mediaType === "movies" ? "movies" : "TV shows";
-  const action = ratingType === "likes" ? "liked" : "disliked";
-
   return (
     <div className="flex flex-col items-center justify-center py-16 space-y-4">
       <div className="p-4 rounded-full bg-muted">
-        <Icon className="h-8 w-8 text-muted-foreground" />
+        <Star className="h-8 w-8 text-muted-foreground" />
       </div>
       <div className="text-center space-y-2">
         <h3 className="text-lg font-medium">
-          No {action} {typeLabel}
+          No {EMPTY_COPY[filter]} {typeLabel}
         </h3>
         <p className="text-muted-foreground max-w-sm">
-          Browse {typeLabel} and {ratingType === "likes" ? "like" : "dislike"} them to see them
-          here.
+          Rate {typeLabel} from their detail page to see them here.
         </p>
       </div>
       <Button asChild>

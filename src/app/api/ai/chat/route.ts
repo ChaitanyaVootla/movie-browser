@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { pickPageQuery } from "@/lib/ai-page-query";
 import { auth } from "@/lib/auth";
 import { getUserIdForDb } from "@/lib/user-id";
 import { extractNavigation, invokeAgent, getAgentResponse, resolveMediaTags } from "@/server/ai";
@@ -27,6 +28,7 @@ type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 const PageContextSchema = z.object({
   path: z.string().max(500),
+  query: z.record(z.string().max(40), z.string().max(200)).optional(),
   mediaType: z.enum(["movie", "series", "person"]).optional(),
   itemId: z.number().optional(),
   itemTitle: z.string().max(300).optional(),
@@ -109,7 +111,16 @@ export async function POST(request: NextRequest) {
       );
     }
     const body = parsed.data;
-    const { message, history = [], stream = true, pageContext } = body;
+    const { message, history = [], stream = true } = body;
+    // Re-apply the per-route query whitelist server-side (body is client-controlled).
+    const pageContext = body.pageContext
+      ? {
+          ...body.pageContext,
+          query: body.pageContext.query
+            ? pickPageQuery(body.pageContext.path, body.pageContext.query)
+            : undefined,
+        }
+      : undefined;
 
     if (!message.trim()) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });

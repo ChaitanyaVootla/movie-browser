@@ -43,6 +43,12 @@ export interface NavigationAction {
  */
 export interface PageContext {
   path: string;
+  /**
+   * Whitelisted query params of the current URL (e.g. `{ tab: "ratings" }` on
+   * /library) — see src/lib/ai-page-query.ts. View state lives in the URL, so
+   * the path alone doesn't say which tab/filter the user is on.
+   */
+  query?: Record<string, string>;
   mediaType?: "movie" | "series" | "person";
   itemId?: number;
   itemTitle?: string;

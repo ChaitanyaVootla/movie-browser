@@ -11,6 +11,7 @@ import { HoverCardWrapper } from "@/components/features/hover-card";
 // client through it (~1.4MB raw JS on every route, measured Oct 2026).
 import { DiscussionCountBadge } from "@/components/features/discussion/discussion-count-badge";
 import type { MovieListItem, SeriesListItem } from "@/types";
+import type { PersonalCardState } from "@/components/features/media/social-signals";
 
 interface MediaCardProps {
   item: MovieListItem | SeriesListItem;
@@ -27,6 +28,8 @@ interface MediaCardProps {
   subtitle?: string;
   /** Hide user status badge (watchlist/watched) - use in watchlist pages/scrollers */
   hideUserStatus?: boolean;
+  /** Explicit personal cluster (score/heart) — see MovieCard. */
+  personalOverride?: PersonalCardState;
   /**
    * Anon-tier published-comment count (spec §4). Below threshold the badge
    * returns null — cards stay clean when a count is absent or low.
@@ -51,6 +54,7 @@ export function MediaCard({
   enableHover = true,
   subtitle,
   hideUserStatus = false,
+  personalOverride,
   commentCount,
 }: MediaCardProps) {
   const displayMode = usePreferencesStore(selectCardDisplayMode);
@@ -65,6 +69,7 @@ export function MediaCard({
         priority={priority}
         subtitle={subtitle}
         hideUserStatus={hideUserStatus}
+        personalOverride={personalOverride}
       />
     ) : (
       <MovieCard
@@ -75,6 +80,7 @@ export function MediaCard({
         priority={priority}
         subtitle={subtitle}
         hideUserStatus={hideUserStatus}
+        personalOverride={personalOverride}
       />
     );
 
