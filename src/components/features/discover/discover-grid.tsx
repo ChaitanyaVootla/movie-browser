@@ -1,26 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/features/movie/media-card";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/features/layout/section-heading";
+import { useScrollRestorationGate } from "@/components/features/layout/scroll-restoration";
 import { usePreferencesStore, selectCardDisplayMode } from "@/stores/preferences";
 import { useUserStore } from "@/stores/user";
 import type { MediaItem } from "@/types";
-import type { DiscoverParams } from "@/lib/discover";
-import { discover } from "@/server/actions/discover";
+import { discoverParamsKey, useDiscoverPages, type DiscoverQueryParams } from "./use-discover-pages";
 
 interface DiscoverGridProps {
-  /** Initial results to display */
+  /** Initial (page 1) results, server-rendered for `initialParams` (or `params`). */
   initialResults?: MediaItem[];
   /** Total pages available */
   totalPages?: number;
   /** Total results count */
   totalResults?: number;
+  /**
+   * The params the initial results were fetched for. Defaults to `params`.
+   * When they differ (browse filters changed client-side) the initial results
+   * are ignored and the query cache / a client fetch supplies the grid.
+   */
+  initialParams?: DiscoverQueryParams;
   /** Filter parameters for fetching */
-  params: Partial<DiscoverParams> & { media_type: "movie" | "tv" };
+  params: DiscoverQueryParams;
   /** Whether to show total count */
   showCount?: boolean;
   /** Title for the grid */
@@ -31,22 +37,40 @@ interface DiscoverGridProps {
   infiniteScroll?: boolean;
 }
 
+/**
+ * Paged discover grid. Pages live in the TanStack Query cache (see
+ * `useDiscoverPages`) rather than component state, so coming Back to this grid
+ * re-renders every page the user had loaded and `ScrollRestoration` can return
+ * them to the card they left from.
+ */
 export function DiscoverGrid({
-  initialResults = [],
+  initialResults,
   totalPages: initialTotalPages = 1,
   totalResults: initialTotalResults = 0,
+  initialParams,
   params,
   showCount = true,
   title,
   className,
   infiniteScroll = false,
 }: DiscoverGridProps) {
-  const [results, setResults] = useState<MediaItem[]>(initialResults);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(initialTotalPages);
-  const [totalResults, setTotalResults] = useState(initialTotalResults);
-  const [isPending, startTransition] = useTransition();
-  const [isInitialLoad, setIsInitialLoad] = useState(initialResults.length === 0);
+  const initial =
+    initialResults !== undefined &&
+    initialResults.length > 0 &&
+    discoverParamsKey(initialParams ?? params) === discoverParamsKey(params)
+      ? { results: initialResults, totalPages: initialTotalPages, totalResults: initialTotalResults }
+      : undefined;
+  const {
+    results,
+    totalResults,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    isInitialLoading,
+    isPlaceholder,
+  } = useDiscoverPages(params, initial);
+  // A Back-navigation scroll restore waits for the first page to exist.
+  useScrollRestorationGate(!isInitialLoading);
   const loaderRef = useRef<HTMLDivElement>(null);
   const displayMode = usePreferencesStore(selectCardDisplayMode);
 
@@ -96,7 +120,12 @@ export function DiscoverGrid({
     isHydrated,
   ]);
 
-  const canLoadMore = page < totalPages;
+  // Never page a placeholder (the previous filter's data) forward.
+  const canLoadMore = hasNextPage && !isPlaceholder;
+  const isPending = isFetchingNextPage;
+  const loadMore = () => {
+    if (!isFetchingNextPage) void fetchNextPage();
+  };
 
   // Grid classes based on display mode
   const posterGridClass =
@@ -104,62 +133,13 @@ export function DiscoverGrid({
   const wideGridClass =
     "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4";
 
-  // Load more function - defined before effects that use it
-  const loadMore = useCallback(
-    (reset = false) => {
-      startTransition(async () => {
-        const nextPage = reset ? 1 : page + 1;
-        const result = await discover({ ...params, page: nextPage });
-
-        if (reset) {
-          setResults(result.results);
-          setIsInitialLoad(false);
-        } else {
-          // Dedupe by (media_type, id): items can shift across page boundaries
-          // between requests, so the same title may appear on two pages.
-          setResults((prev) => {
-            const seen = new Set(prev.map((item) => `${item.media_type}-${item.id}`));
-            const fresh = result.results.filter(
-              (item) => !seen.has(`${item.media_type}-${item.id}`)
-            );
-            return [...prev, ...fresh];
-          });
-        }
-        setPage(nextPage);
-        setTotalPages(result.totalPages);
-        setTotalResults(result.totalResults);
-      });
-    },
-    [params, page]
-  );
-
-  // Reset when params change
-  useEffect(() => {
-    setResults(initialResults);
-    setPage(1);
-    setTotalPages(initialTotalPages);
-    setTotalResults(initialTotalResults);
-    setIsInitialLoad(initialResults.length === 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(params), initialResults, initialTotalPages, initialTotalResults]);
-
-  // Initial load if no results provided
-  useEffect(() => {
-    if (isInitialLoad && !isPending) {
-      loadMore(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialLoad]);
-
   // Infinite scroll observer
   useEffect(() => {
-    if (!infiniteScroll || !canLoadMore || isPending) return;
+    if (!infiniteScroll || !canLoadMore || isFetchingNextPage) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && canLoadMore && !isPending) {
-          loadMore();
-        }
+        if (entries[0].isIntersecting) void fetchNextPage();
       },
       { rootMargin: "200px" }
     );
@@ -169,7 +149,7 @@ export function DiscoverGrid({
     }
 
     return () => observer.disconnect();
-  }, [infiniteScroll, canLoadMore, isPending, loadMore]);
+  }, [infiniteScroll, canLoadMore, isFetchingNextPage, fetchNextPage]);
 
   // Format number with commas
   const formatNumber = (num: number) => {
@@ -191,7 +171,7 @@ export function DiscoverGrid({
       )}
 
       {/* Grid */}
-      {isInitialLoad && isPending ? (
+      {isInitialLoading ? (
         <div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
           {Array.from({ length: displayMode === "wide" ? 15 : 21 }).map((_, i) => (
             <MediaCardSkeleton key={i} />
@@ -208,7 +188,14 @@ export function DiscoverGrid({
           </p>
         </div>
       ) : (
-        <div className={displayMode === "wide" ? wideGridClass : posterGridClass}>
+        <div
+          className={cn(
+            displayMode === "wide" ? wideGridClass : posterGridClass,
+            "transition-opacity",
+            isPlaceholder && "opacity-60"
+          )}
+          aria-busy={isPlaceholder || undefined}
+        >
           {filteredResults.map((item, index) => (
             <MediaCard key={`${item.media_type}-${item.id}`} item={item} priority={index < 7} />
           ))}
@@ -228,7 +215,7 @@ export function DiscoverGrid({
           ) : (
             <Button
               variant="outline"
-              onClick={() => loadMore()}
+              onClick={loadMore}
               disabled={isPending}
               className="min-w-[150px]"
             >

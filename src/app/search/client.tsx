@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -51,10 +52,13 @@ import { getMediaHref, getMediaPath } from "@/lib/utils";
 import { CardPendingOverlay } from "@/components/features/layout/nav-pending";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZES, TMDB_PROFILE_SIZES, MOVIE_GENRES } from "@/lib/constants";
 import { enhancedSearch } from "@/server/actions/search";
+import { useScrollRestorationGate } from "@/components/features/layout/scroll-restoration";
+import { pickParam } from "@/lib/url-state";
 import type { HybridSearchResult } from "@/lib/search/hybrid";
 import type { IntentAnalysis } from "@/lib/search/intent";
 
 type FilterType = "all" | "movie" | "series" | "person";
+const FILTER_TYPES: readonly FilterType[] = ["all", "movie", "series", "person"];
 
 // All supported filter types for query understanding
 type FilterChipType =
@@ -222,19 +226,16 @@ function FilterChipsDisplay({
 }
 
 export function SearchClient({ initialQuery }: SearchClientProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [query, setQuery] = React.useState(initialQuery);
-  const [results, setResults] = React.useState<HybridSearchResult[]>([]);
-  const [suggestions, setSuggestions] = React.useState<string[]>([]);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [type, setType] = React.useState<FilterType>("all");
+  // Type tab is URL-driven too (it was written to ?type= but never read back,
+  // so Back from a result always reset it to "All").
+  const [type, setType] = React.useState<FilterType>(() =>
+    pickParam(searchParams.get("type"), FILTER_TYPES, "all")
+  );
   const [filters, setFilters] = React.useState<SearchFilters>({});
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  const [totalFound, setTotalFound] = React.useState(0);
-  const [understanding, setUnderstanding] = React.useState<QueryUnderstanding | null>(null);
-  const [relaxationMessage, setRelaxationMessage] = React.useState<string | null>(null);
   // Semantic (vector) search is OFF by default: the default path is lexical-only
   // (exact → FTS → trigram) with no AWS Bedrock round-trips, so it's instant.
   // Users flip this on for vibe/descriptive queries. URL-driven (?semantic=1) so
@@ -243,16 +244,22 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
 
   const debouncedQuery = useDebounce(query, 400);
 
-  // Update URL when search params change
+  // Keep the URL in sync with the search WITHOUT adding history entries.
+  // (It used to router.push after every results load: one entry per debounced
+  // keystroke, and a fresh duplicate push when you came Back — which wiped
+  // your forward history and broke Back.) Native replaceState is integrated
+  // with Next's router and costs no server round-trip.
   const updateUrl = React.useCallback(
     (newQuery: string, newType: FilterType) => {
       const params = new URLSearchParams();
       if (newQuery) params.set("q", newQuery);
       if (newType !== "all") params.set("type", newType);
       if (semantic) params.set("semantic", "1");
-      router.push(`/search?${params.toString()}`, { scroll: false });
+      const qs = params.toString();
+      if (qs === window.location.search.replace(/^\?/, "")) return;
+      window.history.replaceState(null, "", qs ? `/search?${qs}` : "/search");
     },
-    [router, semantic]
+    [semantic]
   );
 
   // Build QueryUnderstanding from IntentAnalysis
@@ -567,50 +574,42 @@ export function SearchClient({ initialQuery }: SearchClientProps) {
     };
   }, []);
 
-  // Fetch results
-  // Note: Hybrid search returns best-ranked results (fuzzy + semantic combined)
-  // No pagination needed - we show all top results at once
-  React.useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      setResults([]);
-      setSuggestions([]);
-      setTotalFound(0);
-      setUnderstanding(null);
-      setRelaxationMessage(null);
-      return;
+  // Fetch results through the query cache, so coming Back to /search renders
+  // the previous results instantly (and ScrollRestoration can return you to
+  // the result you opened) instead of an empty list + refetch.
+  // Hybrid search returns best-ranked results (no pagination).
+  const trimmedQuery = debouncedQuery.trim();
+  const searchResult = useQuery({
+    queryKey: ["search-page", trimmedQuery, semantic],
+    queryFn: () => enhancedSearch({ query: trimmedQuery, page: 1, semantic }),
+    enabled: trimmedQuery.length > 0,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+  const data = trimmedQuery ? searchResult.data : undefined;
+  const isLoading = trimmedQuery.length > 0 && searchResult.isFetching;
+  useScrollRestorationGate(!(trimmedQuery.length > 0 && searchResult.isPending));
+
+  const results: HybridSearchResult[] = React.useMemo(() => data?.results ?? [], [data]);
+  const suggestions: string[] = data?.suggestions ?? [];
+  const { understanding, relaxationMessage } = React.useMemo(() => {
+    if (!data) return { understanding: null, relaxationMessage: null };
+    const built = buildUnderstanding(trimmedQuery, data.intent);
+    const hasFilters = built.filters.length > 0;
+    let message: string | null = null;
+    // Relaxation hint when filters narrow results too much
+    if (data.results.length === 0 && hasFilters) {
+      message = "No exact matches found. Try removing some filters for more results.";
+    } else if (data.results.length < 5 && built.filters.length > 1) {
+      message = "Limited results. Consider removing some filters for more options.";
     }
+    return { understanding: hasFilters ? built : null, relaxationMessage: message };
+  }, [data, trimmedQuery, buildUnderstanding]);
 
-    const fetchResults = async () => {
-      setIsLoading(true);
-      try {
-        const data = await enhancedSearch({ query: debouncedQuery, page: 1, semantic });
-        setResults(data.results);
-        setSuggestions(data.suggestions || []);
-        setTotalFound(data.stats.hybridResultCount + data.stats.tmdbResultCount);
-
-        // Build query understanding from intent
-        const newUnderstanding = buildUnderstanding(debouncedQuery, data.intent);
-        setUnderstanding(newUnderstanding.filters.length > 0 ? newUnderstanding : null);
-
-        // Check for relaxation message (when filters narrow results too much)
-        if (data.results.length === 0 && newUnderstanding.filters.length > 0) {
-          setRelaxationMessage("No exact matches found. Try removing some filters for more results.");
-        } else if (data.results.length < 5 && newUnderstanding.filters.length > 1) {
-          setRelaxationMessage("Limited results. Consider removing some filters for more options.");
-        } else {
-          setRelaxationMessage(null);
-        }
-
-        updateUrl(debouncedQuery, type);
-      } catch (error) {
-        console.error("Search error:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchResults();
-  }, [debouncedQuery, type, semantic, updateUrl, buildUnderstanding]);
+  React.useEffect(() => {
+    if (trimmedQuery) updateUrl(trimmedQuery, type);
+  }, [trimmedQuery, type, updateUrl]);
 
   // Filter results by type
   const filteredResults = React.useMemo(() => {

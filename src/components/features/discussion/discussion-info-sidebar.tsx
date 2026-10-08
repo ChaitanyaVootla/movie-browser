@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ArrowRight, Info } from "lucide-react";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import { OVERLINE } from "@/lib/design";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { GenreList } from "@/components/features/media/genre-badge";
 import type { MovieOverviewProps, SeriesOverviewProps, MediaOverviewCast } from "@/types";
 
@@ -23,13 +23,6 @@ function isMovie(item: MovieOverviewProps | SeriesOverviewProps): item is MovieO
   return "title" in item;
 }
 
-function getSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 function formatRuntime(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -41,7 +34,7 @@ function formatRuntime(minutes: number): string {
 function CastRow({ cast }: { cast: MediaOverviewCast }) {
   return (
     <Link
-      href={`/person/${cast.id}/${getSlug(cast.name)}`}
+      href={getMediaPath("person", cast.id, cast.name)}
       className="group flex items-center gap-2.5"
     >
       <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-white/10 transition-all group-hover:ring-brand/50">
@@ -170,7 +163,7 @@ export function DiscussionInfoSidebar({
         <div className="mt-3 border-t border-white/10 pt-3">
           <p className={cn(OVERLINE, "mb-0.5 text-[11px]")}>Director</p>
           <Link
-            href={`/person/${director.id}/${getSlug(director.name)}`}
+            href={getMediaPath("person", director.id, director.name)}
             className="text-sm font-medium transition-colors hover:text-brand"
           >
             {director.name}
@@ -187,7 +180,7 @@ export function DiscussionInfoSidebar({
               <span key={c.id}>
                 {i > 0 ? ", " : ""}
                 <Link
-                  href={`/person/${c.id}/${getSlug(c.name)}`}
+                  href={getMediaPath("person", c.id, c.name)}
                   className="transition-colors hover:text-brand"
                 >
                   {c.name}

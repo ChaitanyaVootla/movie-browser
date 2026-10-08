@@ -5,10 +5,8 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
   LogOut,
-  Eye,
   List,
   ListChecks,
-  Star,
   Settings,
   Moon,
   Sun,
@@ -177,20 +175,6 @@ export function UserMenu({ className }: UserMenuProps) {
           <Link href="/lists" className="cursor-pointer">
             <ListChecks className="mr-2 h-4 w-4" />
             <span>Lists</span>
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem asChild>
-          <Link href="/watched" className="cursor-pointer">
-            <Eye className="mr-2 h-4 w-4" />
-            <span>Watched</span>
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem asChild>
-          <Link href="/ratings" className="cursor-pointer">
-            <Star className="mr-2 h-4 w-4" />
-            <span>My Ratings</span>
           </Link>
         </DropdownMenuItem>
 

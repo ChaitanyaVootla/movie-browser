@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useTransition, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Filter, X, SlidersHorizontal } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { X, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,23 +20,26 @@ import {
   type PersonOption,
 } from "@/components/features/discover";
 import {
+  browseParamsFromSearch,
+  buildBrowseUrl,
   getGenreById,
-  parseDiscoverParams,
-  serializeDiscoverParams,
   RUNTIME_OPTIONS,
   STREAMING_PROVIDERS,
   MONETIZATION_OPTIONS,
   DECADE_OPTIONS,
   MOVIE_CERTIFICATION_OPTIONS,
   TV_CERTIFICATION_OPTIONS,
-  type DiscoverParams,
 } from "@/lib/discover";
 import { POPULAR_LANGUAGES, POPULAR_COUNTRIES } from "@/lib/topics";
 import { STICKY_BAR, STICKY_BAR_SAFE_AREA } from "@/lib/design";
 import { useHistoryDismiss } from "@/hooks/use-history-dismiss";
 import { cn } from "@/lib/utils";
 import type { MediaItem } from "@/types";
-import { discover } from "@/server/actions/discover";
+import {
+  discoverParamsKey,
+  useDiscoverPages,
+  type DiscoverQueryParams,
+} from "@/components/features/discover/use-discover-pages";
 import { getPersonBasic } from "@/server/actions/person";
 
 /** Normalize a value that can be number | number[] | undefined to number[] */
@@ -46,36 +49,74 @@ function toArray(value: number | number[] | undefined): number[] {
 }
 
 interface BrowseClientProps {
+  /** The params the server rendered `initialResults` for (from the URL). */
+  initialParams: DiscoverQueryParams;
   initialResults: MediaItem[];
   totalPages: number;
   totalResults: number;
 }
 
-export function BrowseClient({ initialResults, totalPages, totalResults }: BrowseClientProps) {
-  const router = useRouter();
+/**
+ * Push (or replace) a browse URL WITHOUT a server round-trip. Next's router
+ * integrates native history calls (useSearchParams updates; Back/Forward
+ * restores the entry from its cache), and the grid fetches through the query
+ * cache — so a filter change costs one discover call, not an RSC render plus a
+ * duplicate client call. When the current entry is a `useHistoryDismiss`
+ * overlay entry (mobile filters drawer open), REPLACE it: the drawer is closing
+ * anyway, and pushing on top would leave a dead same-URL entry behind.
+ */
+function navigateBrowse(url: string) {
+  const state = window.history.state as { __overlay?: unknown } | null;
+  if (state && typeof state.__overlay === "number") {
+    window.history.replaceState(null, "", url);
+  } else {
+    window.history.pushState(null, "", url);
+  }
+}
+
+/** Same request AND same client-side library filters. */
+function sameBrowseParams(a: DiscoverQueryParams, b: DiscoverQueryParams): boolean {
+  return (
+    discoverParamsKey(a) === discoverParamsKey(b) &&
+    Boolean(a.hideWatched) === Boolean(b.hideWatched) &&
+    Boolean(a.hideWatchlist) === Boolean(b.hideWatchlist) &&
+    Boolean(a.hideDisliked) === Boolean(b.hideDisliked)
+  );
+}
+
+export function BrowseClient({
+  initialParams,
+  initialResults,
+  totalPages,
+  totalResults,
+}: BrowseClientProps) {
   const searchParams = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [_isPending, startTransition] = useTransition();
 
   // Mobile Back closes the filters drawer instead of navigating the page.
   useHistoryDismiss(mobileFiltersOpen, () => setMobileFiltersOpen(false));
 
-  // Parse initial params from URL using the centralized parser
-  const getInitialParams = useCallback((): Partial<DiscoverParams> & {
-    media_type: "movie" | "tv";
-  } => {
-    const parsed = parseDiscoverParams(searchParams);
-    return {
-      media_type: parsed.media_type || "movie",
-      sort_by: parsed.sort_by || "popularity.desc",
-      ...parsed,
-    };
-  }, [searchParams]);
+  // The URL is the source of truth; `params` is an optimistic mirror so pills
+  // and the sidebar update instantly on click.
+  const searchKey = searchParams.toString();
+  const [params, setParams] = useState<DiscoverQueryParams>(() =>
+    browseParamsFromSearch(new URLSearchParams(searchKey))
+  );
 
-  const [params, setParams] = useState(getInitialParams);
-  const [results, setResults] = useState<MediaItem[]>(initialResults);
-  const [currentTotalPages, setCurrentTotalPages] = useState(totalPages);
-  const [currentTotalResults, setCurrentTotalResults] = useState(totalResults);
+  // Back/Forward between filter states changes the URL without remounting —
+  // re-derive params from it (previously the sidebar/pills kept showing the
+  // newer filters after Back while the URL had already gone back).
+  useEffect(() => {
+    const fromUrl = browseParamsFromSearch(new URLSearchParams(searchKey));
+    setParams((prev) => (sameBrowseParams(prev, fromUrl) ? prev : fromUrl));
+  }, [searchKey]);
+
+  // Header count shares the grid's query (same key → same cache entry).
+  const initialMatches = discoverParamsKey(initialParams) === discoverParamsKey(params);
+  const { totalResults: currentTotalResults } = useDiscoverPages(
+    params,
+    initialMatches ? { results: initialResults, totalPages, totalResults } : undefined
+  );
 
   // Person metadata for displaying names in pills
   const [personMeta, setPersonMeta] = useState<{
@@ -120,34 +161,12 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.with_cast, params.with_crew]);
 
-  // Update URL when params change
-  const updateURL = useCallback(
-    (newParams: Partial<DiscoverParams> & { media_type: "movie" | "tv" }) => {
-      const queryString = serializeDiscoverParams(newParams);
-      router.push(queryString ? `/browse?${queryString}` : "/browse", {
-        scroll: false,
-      });
-    },
-    [router]
-  );
-
   // Handle filter changes
-  const handleParamsChange = useCallback(
-    (newParams: Partial<DiscoverParams> & { media_type: "movie" | "tv" }) => {
-      setParams(newParams);
-      updateURL(newParams);
-      setMobileFiltersOpen(false);
-
-      // Fetch new results
-      startTransition(async () => {
-        const result = await discover({ ...newParams, page: 1 });
-        setResults(result.results);
-        setCurrentTotalPages(result.totalPages);
-        setCurrentTotalResults(result.totalResults);
-      });
-    },
-    [updateURL]
-  );
+  const handleParamsChange = useCallback((newParams: DiscoverQueryParams) => {
+    setParams(newParams);
+    setMobileFiltersOpen(false);
+    navigateBrowse(buildBrowseUrl(newParams));
+  }, []);
 
   // Check for active filters
   const hasActiveFilters =
@@ -565,9 +584,10 @@ export function BrowseClient({ initialResults, totalPages, totalResults }: Brows
 
             {/* Results Grid */}
             <DiscoverGrid
-              initialResults={results}
-              totalPages={currentTotalPages}
-              totalResults={currentTotalResults}
+              initialParams={initialParams}
+              initialResults={initialResults}
+              totalPages={totalPages}
+              totalResults={totalResults}
               params={params}
               showCount={false}
               infiniteScroll

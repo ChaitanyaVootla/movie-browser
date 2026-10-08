@@ -1,7 +1,7 @@
 "use client";
 
 import { Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getMediaPath } from "@/lib/utils";
 import { OVERLINE } from "@/lib/design";
 import type {
   AISummary,
@@ -47,13 +47,6 @@ function isMovie(item: MovieOverviewProps | SeriesOverviewProps): item is MovieO
   return "title" in item;
 }
 
-function getSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 function formatRuntime(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -74,7 +67,7 @@ function formatDate(dateString: string): string {
 function CastCard({ cast }: { cast: MediaOverviewCast }) {
   if (!cast.profile_path) return null;
 
-  const href = `/person/${cast.id}/${getSlug(cast.name)}`;
+  const href = getMediaPath("person", cast.id, cast.name);
 
   return (
     <Link href={href} className="group flex-shrink-0 w-[90px] sm:w-[100px] md:w-[110px]">
@@ -417,7 +410,7 @@ export function MediaOverview({ item, mediaType, aiSummary, aiInsights, classNam
               {/* Director/Creator at top with avatar */}
               {isMovie(item) && director && (
                 <Link
-                  href={`/person/${director.id}/${getSlug(director.name)}`}
+                  href={getMediaPath("person", director.id, director.name)}
                   className="flex items-center gap-2.5 group mb-3"
                 >
                   <div className="relative h-9 w-9 rounded-full overflow-hidden bg-muted ring-1 ring-white/10 group-hover:ring-brand/50 transition-all flex-shrink-0">
@@ -449,7 +442,7 @@ export function MediaOverview({ item, mediaType, aiSummary, aiInsights, classNam
                     {creators.slice(0, 2).map((c) => (
                       <Link
                         key={c.id}
-                        href={`/person/${c.id}/${getSlug(c.name)}`}
+                        href={getMediaPath("person", c.id, c.name)}
                         className="relative h-9 w-9 rounded-full overflow-hidden bg-muted ring-2 ring-background hover:ring-brand/50 transition-all flex-shrink-0"
                       >
                         {c.profile_path ? (

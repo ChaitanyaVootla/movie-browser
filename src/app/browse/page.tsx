@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { BrowseClient } from "./client";
 import { discover } from "@/server/actions/discover";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-import { parseDiscoverParams } from "@/lib/discover";
+import { browseParamsFromSearch } from "@/lib/discover";
 import { breadcrumbList } from "@/lib/seo/jsonld";
 
 export const metadata: Metadata = {
@@ -46,24 +46,11 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     }
   });
 
-  // Parse filters from URL
-  const parsedParams = parseDiscoverParams(urlSearchParams);
-
-  // Fetch initial results with parsed params
-  const initialResult = await discover({
-    media_type: parsedParams.media_type || "movie",
-    sort_by: parsedParams.sort_by || "popularity.desc",
-    with_genres: parsedParams.with_genres,
-    without_genres: parsedParams.without_genres,
-    with_keywords: parsedParams.with_keywords,
-    with_cast: parsedParams.with_cast,
-    with_crew: parsedParams.with_crew,
-    with_original_language: parsedParams.with_original_language,
-    with_origin_country: parsedParams.with_origin_country,
-    "vote_average.gte": parsedParams["vote_average.gte"],
-    "vote_count.gte": parsedParams["vote_count.gte"],
-    page: 1,
-  });
+  // Parse ALL filters from the URL. (Previously only a subset was forwarded,
+  // so a direct load / reload of e.g. ?providers=8&year=2020 server-rendered
+  // the unfiltered popular list under a filtered URL.)
+  const initialParams = browseParamsFromSearch(urlSearchParams);
+  const initialResult = await discover({ ...initialParams, page: 1 });
 
   const breadcrumbs = breadcrumbList([{ name: "Home", path: "/" }, { name: "Browse" }]);
 
@@ -74,6 +61,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
       <BrowseClient
+        initialParams={initialParams}
         initialResults={initialResult.results}
         totalPages={initialResult.totalPages}
         totalResults={initialResult.totalResults}
