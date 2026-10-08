@@ -3,7 +3,7 @@
 import { useRef, useEffect, useMemo, type KeyboardEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ArrowUp, ArrowRight, RotateCcw, ChevronDown, Film } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { AISparkIcon } from "./ai-icon";
@@ -332,14 +332,14 @@ export function MobileChatDrawer({
                 <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
                   <div className="flex gap-3 pb-2">
                     {mediaTags.map((tag, index) => (
-                      <motion.div
+                      <m.div
                         key={`${tag.type}-${tag.id ?? tag.title}-${index}`}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
                       >
                         <MobilePosterCard tag={tag} onNavigate={onClose} />
-                      </motion.div>
+                      </m.div>
                     ))}
                     {isReceivingTag && (
                       <div
@@ -362,14 +362,14 @@ export function MobileChatDrawer({
                 ) : (
                   <>
                     {cleanText && (
-                      <motion.p
+                      <m.p
                         className="text-sm text-white leading-relaxed whitespace-pre-line"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
                       >
                         {cleanText}
-                      </motion.p>
+                      </m.p>
                     )}
                     {hasInlineTags && parsedContent && (
                       <div className="flex flex-wrap items-center gap-2">
@@ -469,7 +469,7 @@ export function MobileChatDrawer({
             />
             <AnimatePresence>
               {!isLoading && (
-                <motion.button
+                <m.button
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0 }}
@@ -483,7 +483,7 @@ export function MobileChatDrawer({
                   )}
                 >
                   <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
-                </motion.button>
+                </m.button>
               )}
             </AnimatePresence>
           </div>

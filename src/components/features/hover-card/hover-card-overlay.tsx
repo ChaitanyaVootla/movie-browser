@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Plus, Check, Eye, EyeOff, Clock, Tv2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHoverCardContext } from "./hover-card-context";
@@ -609,7 +609,7 @@ export function HoverCardOverlay() {
   return createPortal(
     <AnimatePresence>
       {state.isOpen && position && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
@@ -649,7 +649,7 @@ export function HoverCardOverlay() {
               onNavPendingChange={setNavPending}
             />
           )}
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>,
     document.body

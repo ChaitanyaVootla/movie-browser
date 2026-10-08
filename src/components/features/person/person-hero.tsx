@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -135,14 +135,14 @@ export function PersonHero({ person, className }: PersonHeroProps) {
       className={cn("relative bg-gradient-to-b from-background/50 to-background", className)}
     >
       <div className="px-4 md:px-8 lg:px-12 pt-16 md:pt-20 pb-8 md:pb-12">
-        <motion.div
+        <m.div
           className="flex flex-col md:flex-row gap-8 md:gap-12"
           variants={containerVariants}
           initial={animateEntrance ? "hidden" : false}
           animate="visible"
         >
           {/* Profile Image */}
-          <motion.div variants={itemVariants} className="flex-shrink-0 mx-auto md:mx-0">
+          <m.div variants={itemVariants} className="flex-shrink-0 mx-auto md:mx-0">
             <div className="relative w-48 h-72 md:w-64 md:h-96 rounded-2xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10">
               {person.profile_path ? (
                 <Image
@@ -162,29 +162,29 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                 </div>
               )}
             </div>
-          </motion.div>
+          </m.div>
 
           {/* Info Section */}
           <div className="flex-1 min-w-0">
             {/* Name */}
-            <motion.h1
+            <m.h1
               variants={itemVariants}
               className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-center md:text-left"
             >
               {person.name}
-            </motion.h1>
+            </m.h1>
 
             {/* Known For Department */}
             {person.known_for_department && (
-              <motion.div variants={itemVariants} className="mt-2 text-center md:text-left">
+              <m.div variants={itemVariants} className="mt-2 text-center md:text-left">
                 <Badge variant="secondary" className="text-sm">
                   {person.known_for_department}
                 </Badge>
-              </motion.div>
+              </m.div>
             )}
 
             {/* Meta Info */}
-            <motion.div
+            <m.div
               variants={itemVariants}
               className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-2 text-sm text-muted-foreground"
             >
@@ -217,11 +217,11 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                   <span>Popularity: {person.popularity.toFixed(0)}</span>
                 </div>
               )}
-            </motion.div>
+            </m.div>
 
             {/* External Links */}
             {hasExternalLinks && (
-              <motion.div
+              <m.div
                 variants={itemVariants}
                 className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-2"
               >
@@ -303,12 +303,12 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                     </Link>
                   </Button>
                 )}
-              </motion.div>
+              </m.div>
             )}
 
             {/* Biography */}
             {person.biography && (
-              <motion.div variants={itemVariants} className="mt-6">
+              <m.div variants={itemVariants} className="mt-6">
                 <h2 className="text-lg font-semibold mb-2">Biography</h2>
                 <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
                   {isBioExpanded ? person.biography : bioText}
@@ -331,20 +331,20 @@ export function PersonHero({ person, className }: PersonHeroProps) {
                     )}
                   </button>
                 )}
-              </motion.div>
+              </m.div>
             )}
 
             {/* Also Known As */}
             {person.also_known_as && person.also_known_as.length > 0 && (
-              <motion.div variants={itemVariants} className="mt-4">
+              <m.div variants={itemVariants} className="mt-4">
                 <h3 className="text-sm font-medium text-muted-foreground mb-1.5">Also Known As</h3>
                 <p className="text-sm text-muted-foreground/80">
                   {person.also_known_as.slice(0, 5).join(" • ")}
                 </p>
-              </motion.div>
+              </m.div>
             )}
           </div>
-        </motion.div>
+        </m.div>
       </div>
     </section>
   );

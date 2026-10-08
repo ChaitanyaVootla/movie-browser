@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ArrowRight, MessageCircle, Lightbulb, X } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ export function IdleCircle({
   }
 
   return (
-    <motion.button
+    <m.button
       onClick={() => {
         trackAIChatOpen();
         onExpand(isAwake ? (prompt as PromptConfig) : undefined);
@@ -88,7 +88,7 @@ export function IdleCircle({
       {/* Awake state glow ring */}
       <AnimatePresence>
         {isAwake && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -99,7 +99,7 @@ export function IdleCircle({
       </AnimatePresence>
 
       {/* Icon - always present, animates size and position */}
-      <motion.div
+      <m.div
         layout
         className="relative shrink-0"
         animate={{
@@ -107,19 +107,19 @@ export function IdleCircle({
         }}
         transition={{ duration: 0.35, ease: TRANSITION_EASE }}
       >
-        <motion.div
+        <m.div
           animate={isAwake ? { rotate: [0, 15, -15, 0] } : { rotate: 0 }}
           transition={
             isAwake ? { duration: 0.5, repeat: Infinity, repeatDelay: 2 } : { duration: 0.2 }
           }
         >
           <AISparkIcon size={22} className="text-brand" />
-        </motion.div>
+        </m.div>
 
         {/* Idle pulse ring - only when dormant and no active conversation */}
         <AnimatePresence>
           {!isAwake && !hasActiveConversation && (
-            <motion.div
+            <m.div
               initial={{ scale: 1, opacity: 0.5 }}
               animate={{ scale: [1, 1.8, 1.8], opacity: [0.5, 0, 0] }}
               exit={{ opacity: 0 }}
@@ -128,12 +128,12 @@ export function IdleCircle({
             />
           )}
         </AnimatePresence>
-      </motion.div>
+      </m.div>
 
       {/* Active conversation indicator dot */}
       <AnimatePresence>
         {hasActiveConversation && !isAwake && (
-          <motion.div
+          <m.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
@@ -146,7 +146,7 @@ export function IdleCircle({
       {/* Text content - animates width and opacity */}
       <AnimatePresence>
         {isAwake && prompt && (
-          <motion.div
+          <m.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: "auto", opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
@@ -162,7 +162,7 @@ export function IdleCircle({
             <span className="text-sm font-medium text-foreground truncate min-w-0 pl-2">
               {prompt.message}
             </span>
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
@@ -170,11 +170,11 @@ export function IdleCircle({
               className="shrink-0"
             >
               <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
-    </motion.button>
+    </m.button>
   );
 }
 
@@ -195,7 +195,7 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
   let staggerIndex = 0;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -209,7 +209,7 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
       )}
     >
       {/* Ambient glow */}
-      <motion.div
+      <m.div
         className="absolute -inset-px rounded-2xl ring-1 ring-brand/30 shadow-[0_0_15px_3px] shadow-brand/15 pointer-events-none"
         animate={{ opacity: [0.5, 0.8, 0.5] }}
         transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
@@ -218,12 +218,12 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
       {/* Header + close */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <motion.div
+          <m.div
             animate={{ rotate: [0, 10, -10, 0] }}
             transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 3 }}
           >
             <AISparkIcon size={16} className="text-brand shrink-0" />
-          </motion.div>
+          </m.div>
           <span className="text-xs font-medium text-brand">
             Just watched {postWatch.title}?
           </span>
@@ -241,7 +241,7 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
       {trivia.length > 0 && (
         <div className="flex flex-col gap-1.5">
           {trivia.map((t, i) => (
-            <motion.div
+            <m.div
               key={`trivia-${i}`}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
@@ -250,7 +250,7 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
             >
               <Lightbulb className="w-3.5 h-3.5 text-brand/70 shrink-0 mt-0.5" />
               <span className="text-xs text-foreground/70 leading-relaxed">{t}</span>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       )}
@@ -259,7 +259,7 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
       {questions.length > 0 && (
         <div className="flex flex-col gap-1.5">
           {questions.map((q, i) => (
-            <motion.button
+            <m.button
               key={`q-${i}`}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
@@ -275,10 +275,10 @@ function PostWatchBubble({ postWatch, onQuestionClick, onDismiss }: PostWatchBub
               <span className="text-xs text-foreground/80 group-hover:text-foreground transition-colors">
                 {q}
               </span>
-            </motion.button>
+            </m.button>
           ))}
         </div>
       )}
-    </motion.div>
+    </m.div>
   );
 }

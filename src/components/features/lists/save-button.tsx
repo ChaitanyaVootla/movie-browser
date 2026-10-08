@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Bookmark, Check, ChevronDown, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -142,7 +142,7 @@ export function SaveButton({
                     : "border border-r-0 border-white/20 bg-white/10 hover:bg-white/20"
                 )}
               >
-                <motion.span
+                <m.span
                   animate={bump ? { scale: [1, 1.25, 0.95, 1.05, 1] } : {}}
                   transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
                 >
@@ -153,7 +153,7 @@ export function SaveButton({
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                </motion.span>
+                </m.span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>{isInWatchlist ? "In Watchlist" : "Add to Watchlist"}</TooltipContent>
@@ -225,7 +225,7 @@ export function SaveButton({
                   : "border border-r-0 border-white/20 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
               )}
             >
-              <motion.span
+              <m.span
                 className="flex items-center"
                 animate={bump ? { scale: [1, 1.25, 0.95, 1.05, 1] } : {}}
                 transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
@@ -237,7 +237,7 @@ export function SaveButton({
                 ) : (
                   <Plus className="h-3.5 w-3.5" />
                 )}
-              </motion.span>
+              </m.span>
               <span className="text-[13px] font-semibold">
                 {isInWatchlist ? "Listed" : "Watchlist"}
               </span>

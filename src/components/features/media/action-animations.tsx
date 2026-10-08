@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { m, AnimatePresence, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { forwardRef, useImperativeHandle, useState, useCallback, useMemo } from "react";
 
@@ -20,7 +20,7 @@ export function PulseRings({ isActive, color = "brand", ringCount = 3 }: PulseRi
       {isActive && (
         <>
           {Array.from({ length: ringCount }).map((_, i) => (
-            <motion.div
+            <m.div
               key={i}
               initial={{ scale: 0.8, opacity: 0.6 }}
               animate={{ scale: 2.5, opacity: 0 }}
@@ -58,7 +58,7 @@ export function GlowBurst({ isActive, color = "brand" }: GlowBurstProps) {
   return (
     <AnimatePresence>
       {isActive && (
-        <motion.div
+        <m.div
           initial={{ scale: 0.5, opacity: 0.8 }}
           animate={{ scale: 1.8, opacity: 0 }}
           exit={{ opacity: 0 }}
@@ -102,7 +102,7 @@ export function AnimatedCheck({ isVisible, className, onComplete }: AnimatedChec
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.svg
+        <m.svg
           viewBox="0 0 24 24"
           fill="none"
           className={cn("w-full h-full", className)}
@@ -111,7 +111,7 @@ export function AnimatedCheck({ isVisible, className, onComplete }: AnimatedChec
           exit="hidden"
           onAnimationComplete={onComplete}
         >
-          <motion.path
+          <m.path
             d="M5 12.5L10 17.5L19 6.5"
             stroke="currentColor"
             strokeWidth={2.5}
@@ -119,7 +119,7 @@ export function AnimatedCheck({ isVisible, className, onComplete }: AnimatedChec
             strokeLinejoin="round"
             variants={checkVariants}
           />
-        </motion.svg>
+        </m.svg>
       )}
     </AnimatePresence>
   );
@@ -137,7 +137,7 @@ export function ShineSweep({ isActive }: ShineSweepProps) {
   return (
     <AnimatePresence>
       {isActive && (
-        <motion.div
+        <m.div
           initial={{ x: "-100%", opacity: 0 }}
           animate={{ x: "200%", opacity: [0, 1, 1, 0] }}
           exit={{ opacity: 0 }}
@@ -150,7 +150,7 @@ export function ShineSweep({ isActive }: ShineSweepProps) {
               background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
             }}
           />
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -185,7 +185,7 @@ export function ParticleBurst({ isActive, particleCount = 8, color = "brand" }: 
       {isActive && (
         <>
           {particles.map((p) => (
-            <motion.div
+            <m.div
               key={p.id}
               initial={{
                 scale: 0,
@@ -238,7 +238,7 @@ export function IconMorphContainer({
   className,
 }: IconMorphContainerProps) {
   return (
-    <motion.div
+    <m.div
       animate={{
         scale: isActive ? [1, activeScale, 1] : 1,
         rotate: isActive ? [0, -8, 8, 0] : 0,
@@ -256,7 +256,7 @@ export function IconMorphContainer({
       className={className}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -322,7 +322,7 @@ interface ShakeContainerProps {
 
 export function ShakeContainer({ children, isShaking, className }: ShakeContainerProps) {
   return (
-    <motion.div
+    <m.div
       animate={
         isShaking
           ? {
@@ -335,7 +335,7 @@ export function ShakeContainer({ children, isShaking, className }: ShakeContaine
       className={className}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -352,14 +352,14 @@ export function SuccessRing({ isActive, className }: SuccessRingProps) {
   return (
     <AnimatePresence>
       {isActive && (
-        <motion.svg
+        <m.svg
           viewBox="0 0 36 36"
           className={cn("absolute inset-0 w-full h-full -rotate-90", className)}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <motion.circle
+          <m.circle
             cx="18"
             cy="18"
             r="16"
@@ -378,7 +378,7 @@ export function SuccessRing({ isActive, className }: SuccessRingProps) {
               strokeDashoffset: "0",
             }}
           />
-        </motion.svg>
+        </m.svg>
       )}
     </AnimatePresence>
   );

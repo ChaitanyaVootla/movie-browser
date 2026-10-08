@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, type ReactNode } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { HERO_TAGLINE } from "@/lib/design";
 import {
   useEnrichmentStream,
@@ -155,7 +155,7 @@ export function LiveAIHook({ initialHook }: LiveAIHookProps) {
   return (
     <AnimatePresence>
       {hook && (
-        <motion.blockquote
+        <m.blockquote
           key="ai-hook"
           initial={initialHook ? false : { opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
@@ -163,7 +163,7 @@ export function LiveAIHook({ initialHook }: LiveAIHookProps) {
           className={HERO_TAGLINE}
         >
           {hook}
-        </motion.blockquote>
+        </m.blockquote>
       )}
     </AnimatePresence>
   );
@@ -212,7 +212,7 @@ export function LiveAISections({
   if (!hasQuestions && !hasDeepDive) return null;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
@@ -234,6 +234,6 @@ export function LiveAISections({
           mediaId={tmdbId}
         />
       )}
-    </motion.div>
+    </m.div>
   );
 }

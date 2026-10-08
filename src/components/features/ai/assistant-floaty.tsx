@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -237,7 +237,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
         {/* Idle bubble - always visible when drawer is closed */}
         <AnimatePresence>
           {!mobileDrawerOpen && (
-            <motion.div
+            <m.div
               key="idle-mobile"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -260,7 +260,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
                 onPostWatchQuestion={handlePostWatchQuestion}
                 onPostWatchDismiss={handlePostWatchDismiss}
               />
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 
@@ -299,7 +299,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
       <AnimatePresence mode="wait">
         {/* Idle state */}
         {state === "idle" && (
-          <motion.div
+          <m.div
             key="idle"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -324,7 +324,7 @@ export function AssistantFloaty({ className }: { className?: string }) {
               onPostWatchQuestion={handlePostWatchQuestion}
               onPostWatchDismiss={handlePostWatchDismiss}
             />
-          </motion.div>
+          </m.div>
         )}
 
       {state === "active" && (

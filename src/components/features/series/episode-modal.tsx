@@ -11,7 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Clock,
@@ -311,7 +311,7 @@ function EpisodeImageCarousel({
         onClick={() => setIsLightboxOpen(true)}
       >
         <AnimatePresence mode="wait">
-          <motion.div
+          <m.div
             key={currentIndex}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -327,7 +327,7 @@ function EpisodeImageCarousel({
               sizes="(max-width: 768px) 100vw, 500px"
               priority={currentIndex === 0}
             />
-          </motion.div>
+          </m.div>
         </AnimatePresence>
 
         {/* Navigation arrows */}

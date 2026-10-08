@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, type KeyboardEvent } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { X, ArrowUp, ArrowRight, Minimize2, RotateCcw } from "lucide-react";
 import { AISparkIcon } from "./ai-icon";
 import { cn } from "@/lib/utils";
@@ -59,7 +59,7 @@ export function ExpandedChat({
   return (
     <>
       {/* Backdrop */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -69,7 +69,7 @@ export function ExpandedChat({
       />
 
       {/* Chat panel */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.98 }}
@@ -241,7 +241,7 @@ export function ExpandedChat({
             )}
           </div>
         </div>
-      </motion.div>
+      </m.div>
     </>
   );
 }

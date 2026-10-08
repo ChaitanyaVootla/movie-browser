@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Play, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserStore, selectCountryOverride } from "@/stores/user";
@@ -163,7 +163,7 @@ export function WatchOptions({
   };
 
   return (
-    <motion.div
+    <m.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -228,6 +228,6 @@ export function WatchOptions({
           )}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
