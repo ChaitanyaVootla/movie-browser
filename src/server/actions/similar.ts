@@ -1,6 +1,7 @@
 "use server";
 
 import { smartDiscover, type SmartDiscoverResult } from "@/server/db/postgres/smart-discover";
+import { hasVectorIndex } from "@/server/db/postgres/vector-index";
 import { getRecommendations, getSimilar } from "@/server/services/tmdb";
 import { dataLogger } from "@/lib/logger";
 import type { MovieListItem, SeriesListItem } from "@/types";
@@ -38,18 +39,15 @@ interface GetSimilarItemsOptions {
   /** Popularity weight 0-1 (default: 0.15 = slight popularity boost) */
   popularityWeight?: number;
   /**
-   * Run the pgvector similarity query (default: FALSE — see below).
+   * Run the pgvector similarity query (default: true).
    *
-   * There is NO vector index on movies/series.embedding, so a similarTo query
-   * is a filtered sequential scan over every embedded row: measured on prod
-   * (Oct 2026, Interstellar) 8.2s cold / 557ms warm, using 3 PG processes
-   * (parallel workers) on the 2-vCPU box. This runs inside the detail-page
-   * render, which crawlers drive at ~10k cold renders/hour — enabling it there
-   * would hold renders open for seconds and saturate Postgres. (It was
-   * accidentally inert until Oct 2026 — a hardcoded TMDB source_id matched no
-   * rows, so it always returned 0 results in ~10ms.) Re-enable only after an
-   * HNSW index (pgvector >= 0.8 iterative scans, because the minVotes/adult
-   * filters are applied after the ANN search) brings it to low-ms.
+   * Only runs when the HNSW index exists and is valid (`hasVectorIndex`) —
+   * without it a similarTo query is a full distance scan: measured on prod
+   * (Oct 2026, Interstellar) 8.2s cold / 557ms warm with 2 parallel workers,
+   * inside crawler-driven cold renders. With the index (ANN candidates + outer
+   * filter/re-rank, see smart-discover.ts) it is ~8ms warm on a restored prod
+   * dump. The index is built post-deploy by scripts/apply-vector-indexes.sh, so
+   * this switches itself on once the build finishes (re-checked every 10 min).
    */
   includeEmbedding?: boolean;
 }
@@ -90,16 +88,18 @@ export async function getSimilarItems(
     excludeIds,
     minVotes = 100,
     popularityWeight = 0.15, // Slight preference for popular items
-    includeEmbedding = false,
+    includeEmbedding = true,
   } = options;
 
   const startTime = Date.now();
 
   try {
+    const runEmbedding =
+      includeEmbedding && (await hasVectorIndex(mediaType === "movie" ? "movies" : "series"));
     // Fetch embedding-based similar and TMDB data in parallel
     const [discoverResult, tmdbRecs, tmdbSimilar] = await Promise.all([
       // Use smartDiscover for embedding similarity with popularity weighting
-      includeEmbedding
+      runEmbedding
         ? smartDiscover({
             mediaType,
             similarToId: id,
